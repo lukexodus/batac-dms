@@ -2708,3 +2708,691 @@ Which documents become permanent records?
 You may discover that out of 50 document types, only about 10–15 actually require a complex workflow engine, while the rest mainly need storage, search, and retrieval. That distinction can greatly simplify your system design.
 
 ---
+
+# LGU Document Classification by Workflow, Approval, Tracking, and Record Retention Requirements
+
+## Answering Those Questions for Your LGU Project
+
+Since your stakeholders mentioned:
+
+* Barangay Officials
+* SP Secretary
+* SP Resolutions
+* Readings (1st, 2nd, etc.)
+* Citizens
+* Sponsors
+* Tracking
+* QR/Barcode
+* Notifications
+
+your system appears heavily centered around **SP legislative documents and inter-office routing**, not merely file storage.
+
+The biggest mistake would be treating every document the same.
+
+---
+
+## 1. Which Documents Need Routing?
+
+Routing means:
+
+```text
+Office A
+  ↓
+Office B
+  ↓
+Office C
+```
+
+The document physically or electronically moves between people/offices.
+
+These are your highest-priority document types.
+
+### Definitely Need Routing
+
+#### SP Resolution
+
+Example:
+
+```text
+Author
+ ↓
+Secretary
+ ↓
+Committee
+ ↓
+1st Reading
+ ↓
+2nd Reading
+ ↓
+SP Session
+ ↓
+Approval
+```
+
+Routing required.
+
+---
+
+#### SP Ordinance
+
+Even more routing.
+
+Example:
+
+```text
+Author
+ ↓
+Secretary
+ ↓
+Committee
+ ↓
+1st Reading
+ ↓
+Public Hearing
+ ↓
+2nd Reading
+ ↓
+3rd Reading
+ ↓
+Approval
+ ↓
+Mayor
+```
+
+Routing required.
+
+---
+
+#### Barangay Resolution
+
+Example:
+
+```text
+Barangay
+ ↓
+Receiving Office
+ ↓
+SP Secretary
+ ↓
+Committee
+```
+
+Routing required.
+
+---
+
+#### Citizen Complaint
+
+Example:
+
+```text
+Citizen
+ ↓
+Receiving Office
+ ↓
+Concerned Department
+ ↓
+Investigation
+ ↓
+Resolution
+```
+
+Routing required.
+
+---
+
+#### Citizen Request
+
+Example:
+
+```text
+Citizen
+ ↓
+Mayor's Office
+ ↓
+Engineering
+ ↓
+Treasurer
+ ↓
+Response
+```
+
+Routing required.
+
+---
+
+#### Endorsement Letter
+
+Example:
+
+```text
+Barangay
+ ↓
+SP
+ ↓
+Mayor
+ ↓
+Department
+```
+
+Routing required.
+
+---
+
+### Usually Need Routing
+
+```text
+Project Proposal
+Purchase Request
+Travel Order
+Memorandum
+Inspection Request
+```
+
+---
+
+### Usually Do NOT Need Routing
+
+```text
+Published Ordinance PDF
+Approved Resolution PDF
+Minutes Archive
+Reference Documents
+Attachments
+```
+
+These are mostly stored and retrieved.
+
+---
+
+## 2. Which Documents Need Approval?
+
+Approval means:
+
+```text
+Someone with authority
+must formally accept it.
+```
+
+Not all routed documents require approval.
+
+---
+
+#### Definitely Need Approval
+
+##### Ordinances
+
+```text
+Committee Approval
+SP Approval
+Mayor Review
+```
+
+---
+
+##### Resolutions
+
+```text
+SP Approval
+```
+
+---
+
+##### Travel Orders
+
+```text
+Department Head
+Mayor
+```
+
+---
+
+##### Purchase Requests
+
+```text
+Department Head
+Budget
+Accounting
+Mayor
+```
+
+---
+
+##### Project Proposals
+
+```text
+Multiple Approvals
+```
+
+---
+
+#### Sometimes Need Approval
+
+##### Citizen Requests
+
+Some requests require:
+
+```text
+Mayor Approval
+```
+
+Others only need action.
+
+---
+
+#### Usually No Formal Approval
+
+##### Complaints
+
+Example:
+
+```text
+Complaint received
+Complaint investigated
+Complaint closed
+```
+
+No approval stage.
+
+---
+
+## 3. Which Documents Need Signatures?
+
+This is extremely important.
+
+A signature means:
+
+```text
+Legal accountability
+```
+
+Not just acknowledgment.
+
+---
+
+#### Almost Always Require Signatures
+
+##### Ordinances
+
+Signatories:
+
+```text
+Vice Mayor
+Secretary
+Mayor
+```
+
+---
+
+##### Resolutions
+
+Signatories:
+
+```text
+Secretary
+Vice Mayor
+```
+
+Sometimes Mayor.
+
+---
+
+##### Travel Orders
+
+Signatories:
+
+```text
+Department Head
+Mayor
+```
+
+---
+
+##### Purchase Requests
+
+Signatories:
+
+```text
+Requester
+Department Head
+Budget Officer
+```
+
+---
+
+##### Endorsements
+
+Signatories:
+
+```text
+Barangay Captain
+Mayor
+Department Head
+```
+
+---
+
+#### Sometimes Require Signatures
+
+##### Complaints
+
+Only if:
+
+```text
+Affidavits
+Formal Statements
+```
+
+---
+
+#### Probably Not Needed
+
+##### Notifications
+
+##### Status Updates
+
+##### Internal Tracking Events
+
+---
+
+## 4. Which Documents Need Tracking?
+
+This is where your DTS becomes important.
+
+Tracking means:
+
+```text
+Where is it now?
+Who has it?
+How long has it been there?
+```
+
+---
+
+#### Highest Priority
+
+##### Ordinances
+
+Need tracking.
+
+Many stages.
+
+Long lifespan.
+
+---
+
+##### Resolutions
+
+Need tracking.
+
+---
+
+##### Barangay Resolutions
+
+Need tracking.
+
+---
+
+##### Complaints
+
+Need tracking.
+
+Citizens frequently ask:
+
+```text
+What's the status?
+```
+
+---
+
+##### Citizen Requests
+
+Need tracking.
+
+---
+
+##### Endorsements
+
+Need tracking.
+
+---
+
+#### Medium Priority
+
+##### Travel Orders
+
+Useful but simpler.
+
+---
+
+##### Purchase Requests
+
+Useful because procurement is lengthy.
+
+---
+
+#### Low Priority
+
+##### Published Documents
+
+Already completed.
+
+No tracking needed.
+
+Example:
+
+```text
+Approved Ordinance PDF
+```
+
+Only storage needed.
+
+---
+
+## 5. Which Documents Become Permanent Records?
+
+This question determines your Records Management requirements.
+
+---
+
+#### Permanent or Long-Term Records
+
+##### Ordinances
+
+Very important.
+
+These are local laws.
+
+Keep permanently.
+
+---
+
+##### Resolutions
+
+Usually permanent.
+
+Legislative history.
+
+---
+
+##### Minutes of Session
+
+Permanent.
+
+---
+
+##### Committee Reports
+
+Often permanent.
+
+---
+
+##### Executive Orders
+
+Permanent.
+
+---
+
+##### Approved Contracts
+
+Long-term retention.
+
+---
+
+##### Approved Project Documents
+
+Long-term retention.
+
+---
+
+#### Medium Retention
+
+##### Citizen Complaints
+
+Keep for years.
+
+Not necessarily permanent.
+
+---
+
+##### Citizen Requests
+
+Keep for years.
+
+---
+
+##### Travel Orders
+
+Usually finite retention period.
+
+---
+
+##### Purchase Requests
+
+Financial retention period.
+
+---
+
+#### Short Retention
+
+##### Drafts
+
+##### Temporary Working Files
+
+##### Internal Notes
+
+May eventually be deleted according to records policies.
+
+---
+
+## What This Means for Your Architecture
+
+Not every document should go through the same system.
+
+Think of documents in three categories.
+
+---
+
+#### Category A — Workflow Documents
+
+Most important.
+
+Examples:
+
+```text
+SP Resolution
+SP Ordinance
+Barangay Resolution
+Citizen Request
+Complaint
+Endorsement
+```
+
+Need:
+
+```text
+Routing
+Approvals
+Signatures
+Tracking
+Notifications
+Audit Logs
+```
+
+These justify a workflow engine.
+
+---
+
+#### Category B — Administrative Documents
+
+Examples:
+
+```text
+Travel Orders
+Purchase Requests
+Project Proposals
+```
+
+Need:
+
+```text
+Approvals
+Tracking
+Signatures
+```
+
+Usually simpler workflows.
+
+---
+
+#### Category C — Archive Documents
+
+Examples:
+
+```text
+Approved Ordinance PDFs
+Approved Resolutions
+Meeting Minutes
+Reference Documents
+```
+
+Need:
+
+```text
+Storage
+Search
+Download
+Access Control
+```
+
+No workflow.
+
+---
+
+### If I Were Designing Version 1
+
+For the scope you described, I would focus the workflow engine on only these:
+
+```text
+SP Resolution
+SP Ordinance
+Barangay Resolution
+Citizen Request
+Complaint
+Endorsement Letter
+```
+
+Everything else can initially use a much simpler model:
+
+```text
+Upload
+Store
+Search
+Download
+Archive
+```
+
+That separation keeps the system manageable and aligns closely with how legislative and administrative work typically flows inside a city LGU. The workflow engine becomes the heart of the system, while the document repository serves as the supporting infrastructure.
+
+---
+
