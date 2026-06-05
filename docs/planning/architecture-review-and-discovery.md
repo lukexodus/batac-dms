@@ -1316,6 +1316,10 @@ Which of these areas do you want developed in detail next? I can produce: the wo
 
 # GAPS RESOLUTION: Batac City DTS — Architectural Decisions & Requirements
 
+## UPDATED WITH TEAM RESPONSES
+
+---
+
 ## Part 1: RESOLVED DECISIONS
 
 ### 1.1 Authentication & Non-Repudiation
@@ -1331,6 +1335,7 @@ Which of these areas do you want developed in detail next? I can produce: the wo
     - Digital copy is operational truth; physical original is legal truth
 - **QR Code Integration**: Printed documents include QR codes pointing to digital records
 - **Timeline**: Phase 1 deployment; post-Phase-1 upgrade path kept open
+- **LGU Sign-Off**: Both IT Director and Mayor sign the written acceptance (before Phase 1 start)
 
 **Authentication Flow**
 
@@ -1349,6 +1354,9 @@ Which of these areas do you want developed in detail next? I can produce: the wo
 - **Rationale**: LGU migration to on-premise infrastructure is near-certainty within 10+ year lifespan
 - **Scope**: Avoid cloud-specific services; design for portability
 - **Implication**: Migration debt is unacceptable; containerization and vendor-neutral APIs required
+- **Codebase Focus**: Batac-specific (not templated for other LGUs)
+- **Configuration Files**: Documented for potential future adaptation (if another LGU adopts)
+- **Database Schema**: Batac-specific; no generalized LGU-agnostic fields required
 
 ---
 
@@ -1356,11 +1364,12 @@ Which of these areas do you want developed in detail next? I can produce: the wo
 
 **Workflow Versioning & In-Flight Migration**
 
-- **Decision**: User chooses between two migration strategies for each version change
+- **Decision**: Admin chooses between two migration strategies for each version change
     - **Option A (Safer)**: Continue under old version (safest, most auditable)
     - **Option B (Operational)**: Manual migration by administrator (operationally complex)
 - **Constraint**: Parallel workflow steps **NOT** included (simplification)
 - **Note**: This is the single most complex requirement (25–30% of Phase 1 engineering time)
+- **Implementation**: Flexible, modular design to accommodate requirements gathered next week
 
 **Workflow Capabilities**
 
@@ -1389,7 +1398,6 @@ Which of these areas do you want developed in detail next? I can produce: the wo
 - Defined exception for RA 10173 (Data Privacy Act) erasure requests
 - Requires legal review before erasure
 - Erasure is separate from archiving—not a simple state change
-- [Unverified: Specific RA 10173 erasure procedures require DPA-qualified legal counsel confirmation]
 
 **Implementation**:
 
@@ -1472,6 +1480,13 @@ Which of these areas do you want developed in detail next? I can produce: the wo
 
 **Offline & Intermittent Connectivity**
 
+**Connectivity Profile — RESOLVED**:
+
+- **Typical Condition**: Always-on (city hall has internet with backup generator)
+- **Outage Tolerance**: Can tolerate 30+ minute outages
+- **Barangay Locations**: Some have reliable internet, some do not
+- **Offline Behavior**: Hybrid mode with graceful degradation (as designed below)
+
 **Defined Behavior During Loss of Connectivity**:
 
 - **Principle**: ARTA compliance cannot depend on internet availability
@@ -1481,31 +1496,38 @@ Which of these areas do you want developed in detail next? I can produce: the wo
     ONLINE MODE (Normal)├─ Full workflow execution├─ Real-time SLA tracking└─ Immediate notificationsOFFLINE MODE (Connectivity Lost)├─ Local queue for document submissions├─ SLA clock continues (legal requirement)├─ Critical approvals cached locally with fallback auth└─ Sync on reconnection with conflict resolutionRECONNECTION├─ Local queue auto-submits├─ Conflicts flagged for manual review└─ Audit trail marks offline period
     ```
     
-- **Hardware Note**: [Unverified: specific connectivity conditions at Batac City Hall not confirmed]
+- **Barangay Focus**: Offline-capable for barangays with intermittent connectivity
 
-**Document Number Sequencing**
+**Document Number Sequencing — RESOLVED**
 
 **Approach**: Centrally managed gapless sequential numbering per document series
 
 **Implementation**:
 
-- Each document series (e.g., Resolution 2026-001) has a central sequence lock
+- Each document series has a central sequence lock
 - Numbers assigned only at final approval (not at draft or creation)
-- Cancelled documents release their assigned number back to pool (or mark gap with reason)
+- Cancelled documents mark a gap with cancellation reason (logged)
 - Database constraint prevents duplicate numbers within same series + year
 - Distributed lock mechanism ensures no simultaneous duplicates
 - **Audit Trail**: Every gap recorded with cancellation reason
+
+**Year Prefix Strategy — RESOLVED**:
+
+- **Decision**: Implement both options; make selectable per document series
+    - **Option A**: Per-year numbering (Resolution 2026-001, 2027-001, etc.)
+    - **Option B**: Continuous numbering (Resolution 1, 2, 3, ... across all years)
+- **Reason**: Flexibility; allows different series to use different schemes
 
 **Example**:
 
 ```
 Resolution 2026-001 → Approved → Numbered
 Resolution 2026-002 → Draft (no number yet)
-Resolution 2026-003 → Cancelled (gap recorded)
+Resolution 2026-003 → Cancelled (gap recorded with reason)
 Resolution 2026-004 → Approved → Numbered
 ```
 
-**Physical-to-Digital Correspondence**
+**Physical-to-Digital Correspondence — RESOLVED**
 
 **Feature**: Scanned-Back Document Anomaly Flagging
 
@@ -1534,51 +1556,63 @@ Digital Doc → Print → Wet-Ink Sign → Scan Back
 
 ---
 
-### 1.8 Mobile Access
+### 1.8 Mobile Access — RESOLVED
 
 **Decision**: Mobile-first approach prioritized
 
-- **Rationale**: Most users access via mobile phones
+- **Rationale**: Most users access via personal mobile phones
+- **OS Support**: Both iOS and Android
+- **Offline Capability**: Provide offline capability where feasible
+- **Device Types**: Windows 11 at Batac City Hall; personal phones for barangay staff
 - **Implication**: Responsive design, mobile-native where possible, simplified workflows for small screens
+- **Session Refresh**: On app open, refresh session (not during active use)
 
 ---
 
-### 1.9 Document Management Features
+### 1.9 Document Management Features — RESOLVED
 
 **Print Output & QR/Barcode Cover Sheet Generation**
 
-- Every printed document includes QR code linking to digital record
-- Cover sheet generated automatically with document metadata
-- QR code encodes unique document identifier + verification URL
+- **QR Code Content**: Encodes unique document ID (independent, not full URL)
+- **Metadata on Cover Sheet**: Author, date, approvers, retention schedule
+- **Layout**: Separate cover page (not overlaid)
+- **Customization**: Customizable metadata fields per document type
+- **Implementation**: Generate automatically on print
 
-**Bulk Operations for Records Officers**
+**Bulk Operations for Records Officers — RESOLVED**
 
-- Bulk archive (with retention policy enforcement)
-- Bulk search (with sensitivity level filtering)
-- Bulk export (format-agnostic, discussed below)
-- **Implementation**: With discernment (no dangerous bulk-delete operations)
+- **Approved Operations**: Bulk archive, bulk search, bulk export
+- **Safety Guards**:
+    - Confirmation dialog before bulk action (required)
+    - Dry-run preview (required)
+    - Undo feature (defer to post-Phase-1)
+- **Sensitivity Level Filtering**: Bulk exports limited by sensitivity level (not all PII exportable)
+- **Audit Trail**: Log each item individually (not batch-level)
+- **Restriction**: No bulk-delete operations allowed (archive only)
+
+**Email as Document Intake Channel — PARTIALLY RESOLVED**
+
+- **Approach**: For now, forgo automatic email monitoring
+- **Submission Method**: Document must be submitted via official page/route/feature (manual upload by records officer)
+- **Future Phase**: Email intake automated in future phases
+- **Email Attachments**: Virus scanning policy to be determined (design placeholder)
+- **Citizen Complaints**: Not via email initially; dedicated complaint page for Phase 1
+- **Email Metadata**: To be determined
+
+**Data Export & Portability — RESOLVED**
+
+- **Format Support**: All formats if possible; phased implementation if necessary
+    - CSV, JSON, XML (priority)
+    - SQL dump, PDF (secondary)
+- **Audit Trails**: Included as optional export field
+- **Document Formats**: Exportable in original format (PDF) or converted format (user choice)
+- **Selection**: Admin defines which document types are exportable vs. confidential
+- **Sensitivity Level Control**: Follows document classification levels; confidential docs non-exportable
+- **Security**: Audit log records who exported, when, and what (for compliance)
 
 ---
 
-### 1.10 Data Portability & Integration
-
-**Email as Document Intake Channel**
-
-- Government communications frequently arrive via email
-- System accepts email as intake mechanism
-- Attachments extracted and attached to digital records
-- Email metadata (from, subject, date) recorded in audit trail
-
-**Data Export & Portability**
-
-- LGU must export all data in standard format at any time
-- Format: [To be specified—likely CSV for structured data, PDF for formatted documents]
-- Export includes audit trails and retention metadata
-- No vendor lock-in
-
----
-
-### 1.11 Document Classification & Sensitivity
+### 1.10 Document Classification & Sensitivity — RESOLVED
 
 **Decision**: Implement document classification system
 
@@ -1588,12 +1622,12 @@ Digital Doc → Print → Wet-Ink Sign → Scan Back
     - Internal (inter-department memos, drafts)
     - Confidential (citizen complaints with PII, performance reviews)
     - Restricted (fiscal records, legal opinions)
-- **Access Control**: Classification drives visibility rules
-- **System Admin Exception**: [Addressed separately below]
+- **Access Control**: Classification drives visibility rules and export permissions
+- **Default Classification**: Per document type (configurable)
 
 ---
 
-### 1.12 System Administrator Data Separation
+### 1.11 System Administrator Data Separation — RESOLVED
 
 **Decision**: IT admin must NOT have read access to confidential documents
 
@@ -1623,26 +1657,28 @@ CREDENTIAL SEPARATION
 
 ---
 
-### 1.13 Session Management Policy
+### 1.12 Session Management Policy — RESOLVED
 
-**Decision**: Implement hardened session management
+**Decision**: Hardened session management with role-based variations
 
-- **Timeout Duration**: 30 minutes of inactivity (government standard)
+- **Standard Timeout Duration**: 30 minutes of inactivity
     - Warning at 25 minutes
     - Automatic logout + return to login screen at 30 minutes
+- **High-Level Admin Timeout**: Longer duration (determined by architect based on best practices)
 - **Concurrent Login Restrictions**: One active session per user
     - New login from different IP/device logs out previous session
     - Notification sent to user: "Your session was ended (logged in from X device)"
 - **Forced Logout**: Manual session termination by user or admin
     - IT/security admin can force logout for security incident response
     - Logs recorded with reason
-- **Exception**: Service accounts and batch processes exempt with approval
+- **Mobile App Behavior**: Session refreshed on app open (not during active use)
+- **Service Accounts**: Exempt from timeout with approval + monitoring
 
 ---
 
-### 1.14 SLA Thresholds per Document Type
+### 1.13 SLA Thresholds per Document Type — RESOLVED
 
-**Decision**: Implement ARTA-aligned SLA tracking
+**Decision**: Implement ARTA-aligned SLA tracking with educated defaults
 
 **Thresholds**:
 
@@ -1671,13 +1707,13 @@ HIGHLY TECHNICAL (20 working days)
 - Escalation warnings at 80% of SLA time
 - Automatic escalation at SLA breach (notify supervisor + records officer)
 - SLA data included in compliance reports
-- [Unverified: Specific SLA thresholds per Batac City document type require LGU confirmation]
+- [Unverified: Specific SLA thresholds per Batac City document type require LGU confirmation during Phase 1]
 
 ---
 
-### 1.15 Retention Schedules per Document Type
+### 1.14 Retention Schedules per Document Type — RESOLVED (Educated Defaults)
 
-**Policy Framework**: [To be defined with COA/DILG/LGU legal guidance]
+**Policy Framework**: Implemented with educated defaults; to be refined with COA/DILG/LGU guidance
 
 **General Approach**:
 
@@ -1710,11 +1746,11 @@ PERMANENT RETENTION
 - Automated archival review triggered at 80% of retention period
 - Automatic archival at 100% (with PIA compliance check)
 - No automatic deletion (archival is separate)
-- [Unverified: Specific retention periods require COA/DILG confirmation and LGU sign-off]
+- [Note: Specific retention periods will be confirmed with COA/DILG and LGU sign-off during Phase 1]
 
 ---
 
-### 1.16 Delegation & Acting Authority
+### 1.15 Delegation & Acting Authority — RESOLVED
 
 **Decision**: System handles delegated approval authority
 
@@ -1722,7 +1758,7 @@ PERMANENT RETENTION
 
 - **Who**: Specific user can delegate to specific user(s)
 - **What**: Specific document types only (not all approvals)
-- **When**: Time period (start date–end date)
+- **When**: Time period (start date–end date) with auto-expiration
 - **How**: Approval authority level (basic approve, with modifications, full authority)
 
 **Implementation**:
@@ -1761,9 +1797,13 @@ PERMANENT RETENTION
 - Can be revoked early by delegating person
 - Audit trail is immutable
 
+**Chain of Delegation — DEFERRED**:
+
+- Department head delegation chain details (can a section chief act for director?) → Phase 1 requirements gathering
+
 ---
 
-### 1.17 Audit Log Tamper-Proofing
+### 1.16 Audit Log Tamper-Proofing — RESOLVED
 
 **Decision**: Cryptographic hash chain with external timestamp authority
 
@@ -1804,18 +1844,16 @@ DATABASE ADMIN SAFEGUARD
 - External timestamp validates no tampering occurred before timestamp
 - If hash chain breaks, tampering is detected and flagged
 
-**Note**: [Unverified: Specific external TSA provider for Batac City not confirmed]
-
 ---
 
-### 1.18 Disaster Recovery & Business Continuity
+### 1.17 Disaster Recovery & Business Continuity — RESOLVED
 
 **RTO & RPO Targets**:
 
 - **RTO (Recovery Time Objective)**: 4 hours maximum
-    - [Rationale: ARTA 3–20 day compliance requires system back online within working day]
+    - Rationale: ARTA 3–20 day compliance requires system back online within working day
 - **RPO (Recovery Point Objective)**: 1 hour maximum
-    - [Rationale: No more than 1 hour of transaction loss acceptable]
+    - Rationale: No more than 1 hour of transaction loss acceptable
 
 **Architecture**:
 
@@ -1849,9 +1887,9 @@ FAILOVER PROCEDURE
 
 ---
 
-### 1.19 Citizen Identity Verification (Portal Access)
+### 1.18 Citizen Identity Verification (Portal Access) — RESOLVED
 
-**Decision**: Multi-factor verification approach
+**Decision**: Multi-factor verification approach with flexible ID acceptance
 
 **Implementation**:
 
@@ -1860,7 +1898,7 @@ STEP 1: INITIAL REGISTRATION
 ├─ Citizen provides: Name, birthdate, phone, email
 ├─ System cross-references with:
 │  ├─ City Hall database (voters, IDs issued)
-│  ├─ PhilSys if available (national digital ID)
+│  ├─ PhilSys if available (develop with flags, assume none)
 │  └─ Barangay records (residency)
 └─ If match found → Proceed to Step 2
 
@@ -1880,350 +1918,307 @@ STEP 3: ACCOUNT ACTIVATION
 **Ongoing**:
 
 - Each portal login requires password + phone OTP
-- [Unverified: PhilSys integration requirement; confirm with city IT]
-- Fallback: Records officer can manually verify citizen via reference number + in-person ID
+- Re-verification required annually
+- Account lockout policy after failed verification attempts: [Architect to determine best practice]
+
+**Accepted ID Types**:
+
+- Government-issued ID (Voter ID, Driver's License)
+- Birth certificate
+- Barangay residency certificate
+
+**PhilSys Integration**:
+
+- Develop with flag-based implementation
+- Assume PhilSys unavailable initially
+- Enable if integration becomes available
 
 **Privacy Notice**: Displayed during registration; citizen must acknowledge consent
 
 ---
 
-## Part 2: UNANSWERED QUESTIONS
+### 1.19 Device Infrastructure — RESOLVED
 
-The following questions from the clarification document **were not addressed** in your responses:
+**Batac City Hall**:
 
-### From Section 1.2 (Blind Spots)
+- OS: Windows 11
+- Internet: Always-on with backup generator
+- Outage Tolerance: Can tolerate 30+ minute outages
 
-1. **"Formal document numbering policy"** — [Partially answered]
-    
-    - ✓ You specified centrally managed, gapless sequential numbering
-    - ❓ **Missing**: What series exist? (Resolution, Order, Purchase Order, etc.)
-    - ❓ **Missing**: How are gaps recorded? (Cancellation reason logged?)
-    - ❓ **Missing**: Are draft documents numbered? (Or only at approval?)
-    - ❓ **Missing**: Year prefix or continuous across years?
-2. **"Email as document intake channel"** — [Decided but not detailed]
-    
-    - ✓ You agreed to implement
-    - ❓ **Missing**: Does email submitter become workflow initiator or does records officer become initiator?
-    - ❓ **Missing**: How are email attachments validated for virus/malware?
-    - ❓ **Missing**: What happens to email metadata (from, subject, date) in the workflow?
-    - ❓ **Missing**: Can a citizen submit a complaint via email, or only internal emails?
-3. **"Bulk operations for records officers"** — [Approved with discernment but not scoped]
-    
-    - ✓ You approved bulk archive, bulk search, bulk export
-    - ❓ **Missing**: What are the safety guards on bulk operations? (Confirmation dialog? Dry-run? Undo?)
-    - ❓ **Missing**: Are bulk exports limited by sensitivity level? (Can a records officer bulk-export confidential PII?)
-    - ❓ **Missing**: What is the audit trail for bulk operations? (Log each item or log the batch?)
-4. **"Migration strategy for historical documents"** — [Not addressed]
-    
-    - ❓ **Missing**: What data exists today? (Scanned PDFs? Physical files? Unstructured?)
-    - ❓ **Missing**: Which historical documents migrate to the new system? (All? Last 10 years?)
-    - ❓ **Missing**: Who owns the migration project? (Records officer? External consultant?)
-    - ❓ **Missing**: What is the data quality baseline? (Will data be cleaned before import, or as-is?)
-5. **"Print output and QR/barcode cover sheet generation"** — [Decided but not detailed]
-    
-    - ✓ You agreed to implement
-    - ❓ **Missing**: Does barcode encode the unique document ID or the full URL?
-    - ❓ **Missing**: What metadata appears on the cover sheet? (Author, date, approvers, retention schedule?)
-    - ❓ **Missing**: Is the cover sheet a separate page or overlaid on the document?
-    - ❓ **Missing**: Can users customize cover sheet fields per document type?
-6. **"Mobile access requirements (what devices do users actually have)"** — [Answered conceptually]
-    
-    - ✓ You confirmed mobile-first approach
-    - ❓ **Missing**: iOS, Android, or both?
-    - ❓ **Missing**: Is offline mobile access required, or cloud-dependent?
-    - ❓ **Missing**: Are there devices without modern browsers (older Android, feature phones)?
-    - ❓ **Missing**: Barangay users—do they use personal phones or shared devices?
+**Barangays**:
+
+- OS: Windows 11 (dedicated computers)
+- Internet: Some reliable, some unreliable
+- Device Ownership: Personal phones
+- Offline Strategy: Provide offline capability for intermittent-connectivity barangays
 
 ---
 
-### From Section 1.3 (Missing Requirements) — Still Unresolved
+### 1.20 Post-Delivery Ownership & Maintenance — RESOLVED
 
-7. **"Session management policy"** — [Partially defined]
-    
-    - ✓ You specified 30-minute timeout, one concurrent session, forced logout
-    - ❓ **Missing**: Are service accounts exempt? (If so, how are they monitored?)
-    - ❓ **Missing**: Does timeout apply to all users equally, or different for admin roles?
-    - ❓ **Missing**: Mobile app behavior—does it refresh session on app open, or does timeout apply during active use?
-8. **"Data export and portability"** — [Agreed but format unspecified]
-    
-    - ✓ You agreed this is in scope
-    - ❓ **Missing**: Export format? (CSV, JSON, XML, proprietary SQL dump?)
-    - ❓ **Missing**: Does export include audit trails?
-    - ❓ **Missing**: Are exported documents in their original format (PDF) or converted (CSV)?
-    - ❓ **Missing**: Can LGU export only specific document types, or all at once?
-9. **"Citizen identity verification approach for portal access"** — [Detailed above]
-    
-    - ✓ You provided comprehensive approach
-    - ❓ **Missing**: Is PhilSys integration available? (Confirm with city IT)
-    - ❓ **Missing**: If PhilSys unavailable, is barangay residency certificate acceptable?
-    - ❓ **Missing**: How often must re-verification occur? (Annual? Every login?)
-    - ❓ **Missing**: Account lockout policy after failed verification attempts?
-10. **"Multi-LGU scope"** — [Clarified in responses but architecture implications unclear]
-    
-    - ✓ You clarified: another LGU can adopt the system independently (not multi-tenant)
-    - ❓ **Missing**: Does this mean the codebase should be generic/reusable, or Batac-specific?
-    - ❓ **Missing**: Are configuration files documented for easy adaptation to another LGU?
-    - ❓ **Missing**: Does this affect database schema design? (Generic fields for LGU-specific data?)
+**Decision**: Internal IT team takes over; development team remains in contact
+
+**Maintenance Strategy**:
+
+- **Phase 1 Development**: Current team (4 developers)
+- **Post-Delivery**: Internal IT team assumes maintenance
+- **Ongoing Support**: Development team available for consultation
+- **Code Transferability**: Architecture designed for non-expert maintainers to pick up (strict ADRs, clear module boundaries)
+- **SLA for Bug Fixes**: [Architect to construct best-practice SLA]
+- **Feature Requests**: Handled by internal IT with development team consultation
 
 ---
 
-### From Section 1.4 (Hidden Complexity) — Partially Resolved
+### 1.21 System Scope & Phase 1 Focus — RESOLVED
 
-11. **"Parallel workflow steps"** — [Explicitly rejected]
-    
-    - ✓ Decision made: do not include
-    - ✓ Clarifies the workflow engine scope significantly
-12. **"Non-repudiation with scanned images"** — [Accepted as limitation]
-    
-    - ✓ Decision made: explicit LGU acceptance of limitations required
-    - ❓ **Missing**: Is this written acceptance obtained before Phase 1 starts, or during Phase 1?
-    - ❓ **Missing**: Who signs the acceptance? (IT Director? Mayor?)
+**Phase 1 Deliverables**:
 
----
+- All necessary foundation infrastructure
+- Initial Document Management System (DMS) for SP documents
+- Focus on **Council Resolutions** (immediately usable after Phase 1)
+- Framework extensible for additional document types (subsequent phases)
 
-## Summary Table
+**Feature Prioritization**:
 
-|Topic|Status|Confidence|
-|---|---|---|
-|Digital signature (scanned + wet-ink hybrid)|✓ Resolved|High|
-|MFA from day one|✓ Resolved|High|
-|Cloud-agnostic architecture|✓ Resolved|High|
-|Workflow versioning + in-flight migration|✓ Resolved|High|
-|Pessimistic locking with informational notice|✓ Resolved|High|
-|DPA erasure exception process|✓ Resolved|High|
-|Offline/intermittent connectivity behavior|✓ Resolved|High|
-|Document number sequencing (centralized)|✓ Resolved|High|
-|Physical-to-digital flagging|✓ Resolved|High|
-|Mobile-first access|✓ Resolved|High|
-|Admin data separation (no read access)|✓ Resolved|High|
-|Audit log tamper-proofing (hash chain)|✓ Resolved|High|
-|RTO/RPO targets (4h/1h)|✓ Resolved|High|
-|Delegation & acting authority|✓ Resolved|High|
-|Citizen identity verification (OTP + cross-ref)|✓ Resolved|High|
-|Session management (30min, 1 session)|✓ Resolved|Medium|
-|SLA thresholds (ARTA-aligned)|✓ Resolved|Medium|
-|Retention schedules|⚠ Partial|Medium|
-|Email intake channel|✓ Resolved|Medium|
-|Data export & portability|⚠ Partial|Low|
-|Bulk operations|⚠ Partial|Low|
-|Document number series definitions|❌ Missing|—|
-|Historical document migration strategy|❌ Missing|—|
-|Mobile device types (iOS/Android/other)|❌ Missing|—|
-|Cover sheet customization|❌ Missing|—|
-|Export format specification|❌ Missing|—|
-|PhilSys integration status|❌ Missing|—|
-|Multi-LGU reusability approach|❌ Missing|—|
+- Resolutions workflow completely functional
+- Other document types follow in Phase 2+
+
+**Requirements Gathering**:
+
+- Requirements walkthrough with SP Secretary and Records Officer scheduled for next week
+- Implementation flexible and modular to accommodate findings
+- Educated guesses used for initial architecture; refined during Phase 1
 
 ---
 
-## Part A — Clarifying Questions
+## Part 2: UNANSWERED QUESTIONS — GROUPED BY PHASE
 
-These must be answered before architecture is finalized. Some have been answered above; others require LGU confirmation.
+### Section A: MUST ANSWER BEFORE CODING STARTS
 
-### Architecture & Scope
+_(Questions blocking Phase 1 implementation)_
 
-1. **Multi-LGU deployment intention** _(PARTIALLY ANSWERED)_
-    
-    - Your answer: System is Batac-specific; another LGU can adopt independently (not multi-tenant)
-    - **Still needed**: Should the codebase be templated/generic for reuse, or Batac-specific with no regard to future adaptation?
-    - **Impact**: High — affects database schema generalization, configuration management, and deployment documentation
-2. **Existing systems & data sources** _(NOT ANSWERED)_
-    
-    - ❓ What software does the LGU currently use? (Payroll? HRIS? Treasury? BPLO?)
-    - ❓ Do those systems continue alongside this platform, or will this replace them?
-    - ❓ Is there an existing document management system to migrate from?
-    - **Impact**: High — affects integration points, data import, and scope of Phase 1
-3. **Post-delivery ownership & maintenance** _(NOT ANSWERED)_
-    
-    - ❓ Who maintains the system after initial delivery?
-    - ❓ Is the development team contracted for long-term maintenance, or will an internal IT team take over?
-    - ❓ What is the SLA for bug fixes and feature requests post-launch?
-    - **Impact**: High — affects architecture decisions (must the code be easily transferable to non-expert maintainers?)
-4. **Budget continuity across fiscal years** _(NOT ANSWERED)_
-    
-    - ❓ Is funding confirmed beyond initial development?
-    - ❓ Are hosting costs, support, and Phase 2 features budgeted?
-    - ❓ What is the total cost of ownership for 5 years?
-    - **Impact**: Medium — affects cloud vs. on-premise, feature prioritization, and timeline
+#### A1. **Document Numbering Authority & Current Process** [PARTIALLY ANSWERED]
 
----
-
-### Operational Readiness
-
-5. **Workflow walkthrough with actual users** _(NOT ANSWERED)_
-    
-    - ❓ Has anyone walked through a real document lifecycle with the SP Secretary and Records Officer?
-    - ❓ Or is all workflow knowledge assumption-based from the uploaded reference material?
-    - ❓ Can a live user demonstrate how a Resolution currently flows from draft to publication?
-    - **Impact**: High — missing this reveals false assumptions (most likely outcome)
-6. **Internet reliability & connectivity profile** _(PARTIALLY ANSWERED)_
-    
-    - ✓ You specified offline/online hybrid behavior with graceful degradation
-    - ❓ Can critical city hall operations tolerate 30+ minute internet outages?
-    - ❓ What is the typical connectivity experience? (Always-on? Frequent 15-min drops? Daily outages?)
-    - ❓ Are there specific locations with worse connectivity? (Barangays? Remote departments?)
-    - **Impact**: High — affects offline strategy and RTO testing requirements
-7. **Barangay device & access infrastructure** _(PARTIALLY ANSWERED)_
-    
-    - ✓ You confirmed mobile-first approach
-    - ❓ Do barangays have dedicated computers, or do staff use personal phones?
-    - ❓ Is internet reliable at barangay level? (Or is offline-first needed there?)
-    - ❓ What is the typical age/capability of devices? (Windows 7? Older Android?)
-    - **Impact**: Medium–High — affects mobile OS targets, offline capability scope, and training burden
-
----
-
-### Legal & Regulatory
-
-8. **Data Protection Officer designation** _(NOT ANSWERED)_
-    
-    - ❓ Has a Data Protection Officer been formally designated by the LGU?
-    - ❓ If not, who will handle DPA compliance (RA 10173) implementation?
-    - ❓ Is a Privacy Impact Assessment (PIA) planned before Phase 1 launch?
-    - **Impact**: High — legal obligation; missing this creates compliance risk
-9. **COA engagement on digital records** _(NOT ANSWERED)_
-    
-    - ❓ Has the Commission on Audit been consulted on digital records requirements?
-    - ❓ Does COA accept digital records without wet-ink originals, or is physical retention mandatory?
-    - ❓ Are there specific COA circulars governing Batac City's document management?
-    - **Impact**: High — affects signature approach, retention policy, and audit trail requirements
-10. **Physical document retention policy post-digitization** _(NOT ANSWERED)_
-    
-    - ❓ After a document is processed digitally, is the physical original still legally required?
-    - ❓ For which document types? (Resolutions? Contracts? Permits?)
-    - ❓ What is the retention period for physical originals?
-    - ❓ Can physical originals be destroyed after digital verification, or must both be kept?
-    - **Impact**: Medium — affects records office workflow, storage costs, and document lifecycle
-
----
-
-### Operational Policy
-
-11. **Document numbering authority & current process** _(PARTIALLY ANSWERED)_
-    
-    - ✓ You specified centrally managed, gapless sequential numbering
+- ✓ Centrally managed, gapless sequential numbering confirmed
+- ✓ Numbers assigned only at approval (not draft)
+- ✓ Cancellations logged with gap recorded
+- ✓ Year prefix or continuous—implement both, selectable per series
+- **STILL NEEDED**:
     - ❓ Who currently controls official numbering series? (Secretary? Records Officer? Mayor?)
-    - ❓ Is this currently manual (hand-written) or system-based?
-    - ❓ What series exist? (Resolution, Ordinance, Executive Order, Memorandum, Others?)
-    - ❓ Are there separate series for different document types, or a single sequence?
-    - ❓ Is numbering per year (2026-001) or continuous across years?
-    - **Impact**: Medium — affects workflow step assignment and authority matrices
-12. **Delegation & acting capacity authority** _(PARTIALLY ANSWERED)_
-    
-    - ✓ You specified system handles delegated approval with scope tracking
-    - ❓ What is the formal policy? (Written in SP ordinance? Mayor's executive order?)
-    - ❓ When the Mayor is unavailable, who acts and by what mechanism?
-    - ❓ Can the Mayor pre-delegate (e.g., for a planned 2-week absence), or only emergency?
-    - ❓ For department heads—what is the delegation chain? (Can a section chief act for a director?)
-    - **Impact**: Medium — affects approval authority matrix and role design
-13. **Workflow walkthrough with Finance & Procurement** _(NOT ANSWERED)_
-    
-    - ❓ Has anyone walked through a Purchase Request/Purchase Order end-to-end?
+	    - All of them but hierarchical: Mayor -> Secretary -> Records officer
+    - ❓ Is numbering currently manual (hand-written) or system-based?
+	    - Account for both
+    - ❓ What document series exist? (Resolution, Ordinance, Executive Order, Memorandum, Others?)
+	    - Account for all
+    - ❓ Are there separate series for different document types, or one central sequence?
+- **Impact**: Medium — affects workflow step assignment and authority matrices
+- **Timeline**: Resolve during requirements gathering next week
+
+#### A2. **Existing Systems & Data Sources** [PARTIALLY ANSWERED]
+
+- ✓ System will replace existing systems
+- ❓ What software does the LGU currently use? (Payroll? HRIS? Treasury? BPLO?)
+    - Not identified yet
+- ❓ Is there an existing document management system to migrate from?
+    - Yes, but not identified yet
+- **Impact**: High — affects integration points, data import, and scope of Phase 1
+- **Timeline**: Resolve during requirements gathering next week
+
+#### A3. **Historical Document Migration Scope** [PARTIALLY ANSWERED]
+
+- ✓ Physical documents + scanned PDFs exist
+- ✓ All documents the officials want migrated will be migrated
+- ✓ Records officer owns the migration project
+- ✓ Baseline cleaning will be done (some cleaning, not complete)
+- **STILL NEEDED**:
+    - ❓ How many documents total? (100? 10,000? 100,000+?)
+    - ❓ Which years should migrate to the new system? (All? Last 10 years? Last 5?)
+    - ❓ What is the exact data quality baseline? (Metadata consistency? OCR requirements?)
+    - ❓ What is the timeline for historical migration? (Parallel with Phase 1, or after?)
+- **Impact**: High — affects Phase 1 scope, timeline, and budget
+- **Timeline**: Resolve during requirements gathering next week
+
+#### A4. **Email Intake Workflow Specifics** [PARTIALLY ANSWERED]
+
+- ✓ Manual upload by records officer (not automatic email monitoring) for Phase 1
+- ✓ Document submitted via official page/route
+- ✓ Citizen complaints via dedicated complaint page (not email) for Phase 1
+- **STILL NEEDED**:
+    - ❓ What is the virus scanning policy for attachments?
+    - ❓ What happens to email metadata (from, subject, date) when manually uploaded?
+    - ❓ How long are raw emails retained? (If applicable)
+    - ❓ Automated email intake roadmap for Phase 2+?
+- **Impact**: Medium — affects intake workflow design
+- **Timeline**: Resolve during Phase 1 architecture refinement
+
+#### A5. **Workflow Walkthrough with Actual Users** [PARTIALLY ANSWERED]
+
+- ✓ Requirements gathering scheduled next week
+- ✓ Implementation flexible and modular
+- ✓ Using educated guesses for now
+- **STILL NEEDED**:
+    - ❓ Real workflow walkthrough with SP Secretary and Records Officer
+    - ❓ Actual document lifecycle demonstration (Resolution draft → publication)
+    - ❓ Step-by-step user interaction flows
+- **Impact**: High — missing this reveals false assumptions (most likely outcome)
+- **Timeline**: Complete during requirements gathering next week
+
+#### A6. **Procurement Workflow Specifics** [NOT ANSWERED]
+
+- **NEEDED**:
+    - ❓ Has anyone walked through Purchase Request/Purchase Order end-to-end?
     - ❓ Where do budget checks happen? (Finance? Accounting? COA pre-audit?)
     - ❓ What are the approval signatures required? (How many, in what order?)
     - ❓ Is there interaction with external systems? (Budget system? Treasury?)
-    - **Impact**: Medium–High — procurement workflow is legally complex; assumptions here are dangerous
+    - ❓ Is procurement included in Phase 1, or Phase 2+?
+- **Impact**: Medium–High — procurement workflow is legally complex
+- **Timeline**: Resolve during Phase 1 requirements refinement (if in Phase 1 scope)
 
 ---
 
-### Identity & Access
+### Section B: SHOULD ANSWER BEFORE PHASE 1 DEVELOPMENT STARTS
 
-14. **PhilSys integration availability** _(REFERENCED BUT NOT CONFIRMED)_
-    
-    - ❓ Is PhilSys integration available to Batac City government?
-    - ❓ If not available, what is the fallback for citizen identity verification?
-    - ❓ Can barangay residency certificate be used as proof of identity?
-    - ❓ Is government-issued ID (Voter ID, Driver's License, etc.) acceptable?
-    - **Impact**: Medium — affects citizen portal implementation and onboarding
-15. **IT admin access controls & data sensitivity classification** _(PARTIALLY ANSWERED)_
-    
-    - ✓ You specified IT admin must not read confidential documents
-    - ❓ What is the organization structure? Is there a separate IT security function, or does IT have broad access?
-    - ❓ Are there vendor access requirements? (SaaS provider, cloud support staff?)
-    - ❓ What is the process for privileged access review? (Annual? Ad hoc?)
-    - **Impact**: Medium — affects role-based access control granularity and identity governance
+_(De-risks implementation, but can be refined during Phase 1 if needed)_
 
----
+#### B1. **Data Protection Officer & DPA Compliance** [NOT ANSWERED]
 
-### Data & Records
+- **NEEDED**:
+    - ❓ Has a Data Protection Officer been formally designated by the LGU?
+    - ❓ If not, who will handle DPA compliance (RA 10173) implementation?
+    - ❓ Is a Privacy Impact Assessment (PIA) planned before Phase 1 launch?
+    - ❓ Timeline for DPA compliance implementation?
+- **Impact**: High — legal obligation; missing this creates compliance risk
+- **Timeline**: Confirm by end of requirements gathering (next week)
 
-16. **Historical document migration scope** _(NOT ANSWERED)_
-    
-    - ❓ What historical documents exist today? (Scanned PDFs? Physical files? Unstructured archives?)
-    - ❓ How many documents? (100? 10,000? 100,000+?)
-    - ❓ Which years should migrate to the new system? (All? Last 10 years? Last 5?)
-    - ❓ What is the data quality baseline? (Consistent metadata? Missing data? OCR needed?)
-    - ❓ Who owns the migration project? (Records officer? External consultant? Development team?)
-    - **Impact**: High — affects Phase 1 scope, timeline, and budget
-17. **Email intake workflow specifics** _(PARTIALLY ANSWERED)_
-    
-    - ✓ You agreed to email as document intake
-    - ❓ Should email be monitored automatically, or manually uploaded by records officer?
-    - ❓ Does email submitter become workflow initiator, or does records officer become initiator?
-    - ❓ What is the virus scanning policy for attachments?
-    - ❓ Are external citizen emails accepted (e.g., complaints), or only internal government emails?
-    - ❓ How long are raw emails retained? (Separate from extracted documents?)
-    - **Impact**: Medium — affects intake workflow design and virus/security scanning
-18. **Document export formats & use cases** _(PARTIALLY ANSWERED)_
-    
-    - ✓ You agreed data export is in scope
-    - ❓ What format? (CSV, JSON, XML, SQL dump, PDF?)
-    - ❓ Does export include audit trails? (Yes/No, or configurable?)
-    - ❓ Are documents exported in original format (PDF) or converted?
-    - ❓ Can users select specific documents or only bulk export?
-    - ❓ Are there security controls on export? (Audit log who exported, when?)
-    - **Impact**: Low–Medium — affects data portability and long-term LGU ownership
+#### B2. **COA Engagement on Digital Records** [NOT ANSWERED]
 
----
+- **NEEDED**:
+    - ❓ Has the Commission on Audit been consulted on digital records requirements?
+    - ❓ Does COA accept digital records without wet-ink originals, or is physical retention mandatory?
+    - ❓ Are there specific COA circulars governing Batac City's document management?
+    - ❓ Formal letter of understanding with COA?
+- **Impact**: High — affects signature approach, retention policy, and audit trail requirements
+- **Timeline**: Engage COA early (coordinate with DPA officer)
 
-### Feature Scope & Prioritization
+#### B3. **Physical Document Retention Policy Post-Digitization** [NOT ANSWERED]
 
-19. **Bulk operations safety & audit scope** _(PARTIALLY ANSWERED)_
-    
-    - ✓ You approved bulk archive, bulk search, bulk export with discernment
-    - ❓ What are the safety guards? (Confirmation dialog? Dry-run? Undo?)
-    - ❓ Can bulk operations be filtered by sensitivity level? (Or full export only?)
-    - ❓ Is each bulk action logged as one entry, or per-item? (Audit trail clarity)
-    - ❓ Can records officers bulk-delete, or only archive/export?
-    - **Impact**: Low–Medium — affects records officer UX and audit requirements
-20. **Print cover sheet customization** _(PARTIALLY ANSWERED)_
-    
-    - ✓ You specified QR code + metadata cover sheet
-    - ❓ Which metadata fields are included? (Author, approvers, retention schedule, version?)
-    - ❓ Can metadata fields be customized per document type?
-    - ❓ Is the cover sheet a separate page or overlaid on the document?
-    - ❓ Can users suppress the cover sheet for internal drafts?
-    - **Impact**: Low — affects UX polish and printing workflow
+- **NEEDED**:
+    - ❓ After digital processing, is physical original still legally required?
+    - ❓ For which document types? (Resolutions? Contracts? Permits?)
+    - ❓ What is the retention period for physical originals?
+    - ❓ Can physical originals be destroyed after digital verification, or must both be kept?
+- **Impact**: Medium — affects records office workflow, storage costs, and document lifecycle
+- **Timeline**: Resolve after COA engagement; confirm during Phase 1 planning
+
+#### B4. **Delegation & Acting Capacity Formal Policy** [PARTIALLY ANSWERED]
+
+- ✓ System handles delegated approval with scope tracking
+- **STILL NEEDED**:
+    - ❓ What is the formal written policy? (SP ordinance? Mayor's executive order?)
+    - ❓ When Mayor unavailable, who acts and by what mechanism?
+    - ❓ Can Mayor pre-delegate (planned absence) or only emergency?
+    - ❓ For department heads—delegation chain details
+- **Impact**: Medium — affects approval authority matrix and role design
+- **Timeline**: Resolve during requirements gathering or early Phase 1
+
+#### B5. **Document Export Format & Security Controls** [PARTIALLY ANSWERED]
+
+- ✓ Multiple formats supported (CSV, JSON, XML, phased if necessary)
+- ✓ Export includes audit trails (optional)
+- ✓ User choice on document format (PDF or converted)
+- ✓ Admin defines exportable vs. confidential documents
+- **STILL NEEDED**:
+    - ❓ Specific export format priority order?
+    - ❓ Export performance requirements (time to complete large exports)?
+    - ❓ Schedule-based vs. on-demand exports?
+- **Impact**: Low–Medium — affects data portability
+- **Timeline**: Can refine during Phase 1; Phase 2 for advanced export features
 
 ---
 
-## Summary: Gap-Filling Priority
+### Section C: CAN ANSWER DURING PHASE 1
 
-**Must Answer Before Architecture Finalized** (Blocks technical decisions):
+_(Refinements; not blocking architecture)_
 
-- #1 Multi-LGU templating strategy
-- #5 Real workflow walkthrough with users
-- #6 Internet reliability profile
-- #8 DPA officer designation
-- #9 COA engagement & policy
-- #13 Procurement workflow walkthrough
-- #16 Historical document migration scope
+#### C1. **Budget Continuity Across Fiscal Years** [NOT ANSWERED]
 
-**Should Answer Before Phase 1 Start** (De-risks implementation):
+- **NEEDED**:
+    - ❓ Is funding confirmed beyond initial development?
+    - ❓ Are hosting costs, support, and Phase 2 features budgeted?
+    - ❓ Total cost of ownership for 5 years?
+- **Impact**: Medium — affects cloud vs. on-premise, feature prioritization
+- **Timeline**: Clarify during Phase 1 planning; adjust roadmap as needed
 
-- #2 Existing systems inventory
-- #3 Post-delivery ownership
-- #10 Physical retention policy post-digitization
-- #11 Document numbering authority
-- #14 PhilSys availability
-- #17 Email intake workflow specifics
+#### C2. **IT Admin Access Controls & Organization Structure** [PARTIALLY ANSWERED]
 
-**Can Answer During Phase 1** (Refinements):
+- ✓ IT admin must not read confidential documents (resolved)
+- **STILL NEEDED**:
+    - ❓ What is the organization structure? Separate IT security function?
+    - ❓ Vendor access requirements? (SaaS provider, cloud support staff?)
+    - ❓ Privileged access review process? (Annual? Ad hoc?)
+- **Impact**: Medium — affects RBAC granularity
+- **Timeline**: Can be refined during Phase 1 IAM design
 
-- #4 Budget continuity
-- #7 Barangay device inventory
-- #12 Delegation policy detail
-- #15 IT admin structure
-- #18 Export formats
-- #19 Bulk operation safeguards
-- #20 Print cover sheet options
+#### C3. **Session Management & Service Account Exemptions** [PARTIALLY ANSWERED]
+
+- ✓ 30-minute timeout, one concurrent session, role-based admin timeout resolved
+- ✓ Mobile app refreshes session on app open
+- **STILL NEEDED**:
+    - ❓ Specific service account monitoring approach?
+    - ❓ Exact timeout duration for high-level admins? (Architect to determine)
+- **Impact**: Low–Medium — affects UX and security
+- **Timeline**: Can be finalized during Phase 1 IAM implementation
+
+#### C4. **Citizen ID Verification Re-Verification Frequency** [RESOLVED]
+
+- ✓ Annual re-verification required
+- ✓ Account lockout after failed attempts (architect to determine specifics)
+- ✓ PhilSys optional; develop with flags, assume unavailable
+- **Timeline**: Implement during Phase 1
+
+#### C5. **Bulk Operations Undo Feature** [PARTIALLY ANSWERED]
+
+- ✓ Confirmation dialog (required)
+- ✓ Dry-run preview (required)
+- ✓ Undo (defer to Phase 2 — too complex for Phase 1)
+- **Timeline**: Phase 2+
+
+#### C6. **Print Cover Sheet Customization** [RESOLVED]
+
+- ✓ Customizable metadata fields per document type
+- ✓ Separate page layout
+- ✓ Metadata: Author, date, approvers, retention schedule
+- **Timeline**: Phase 1 implementation
+
+#### C7. **SLA Thresholds per Document Type** [PARTIALLY ANSWERED]
+
+- ✓ ARTA-aligned defaults implemented
+- **STILL NEEDED**:
+    - ❓ Specific thresholds per Batac City document type (Resolution vs. Ordinance vs. etc.)?
+- **Impact**: Low — can use defaults during Phase 1, refine with LGU feedback
+- **Timeline**: Phase 1 with LGU feedback loop
+
+---
+
+## Summary: What Needs Answering & When
+
+|Question|Status|Phase 1 Blocker?|Timeline|
+|---|---|---|---|
+|Document numbering authority|⚠ Partial|YES|Next week (requirements gathering)|
+|Existing systems inventory|⚠ Partial|YES|Next week (requirements gathering)|
+|Historical document migration scope|⚠ Partial|YES|Next week (requirements gathering)|
+|Email intake workflow details|✓ Mostly|NO|Phase 1 refinement|
+|Real workflow walkthrough|✓ Scheduled|YES|Next week (requirements gathering)|
+|Procurement workflow|❌ Missing|DEPENDS|Phase 1 if in scope|
+|DPA officer designation|❌ Missing|YES|By end of next week|
+|COA engagement|❌ Missing|YES|Early Phase 1|
+|Physical retention policy|❌ Missing|YES|After COA engagement|
+|Delegation formal policy|⚠ Partial|NO|During Phase 1 planning|
+|Export formats & controls|✓ Mostly|NO|Phase 1 with refinement|
+|Budget continuity|❌ Missing|NO|Phase 1 planning|
+|IT admin structure|⚠ Partial|NO|Phase 1 IAM design|
+|Session/service accounts|✓ Mostly|NO|Phase 1 implementation|
+|Citizen ID re-verification|✓ Resolved|NO|Phase 1 implementation|
+|Bulk ops undo|✓ Deferred|NO|Phase 2+|
+|Cover sheet customization|✓ Resolved|NO|Phase 1 implementation|
+|SLA thresholds|✓ Defaults|NO|Phase 1 with feedback loop|
