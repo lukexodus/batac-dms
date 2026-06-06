@@ -61,26 +61,26 @@ Batac City Government
 
 The Mayor heads the executive branch. All department heads report to the Mayor, coordinated by the City Administrator.
 
-|Office|Primary Responsibility|
-|---|---|
-|Office of the Mayor|Executive authority; approves major documents; issues Executive Orders|
-|Office of the City Administrator|Coordinates all departments; operations oversight|
-|City Treasurer's Office|Revenue collection; taxes; fees; permits|
-|City Accountant's Office|Financial recording; disbursement; ledgers|
-|City Budget Office|Budget preparation; fund allocation; monitoring|
-|City Assessor's Office|Property valuation; tax declarations; assessment records|
-|City Engineering Office|Infrastructure; public works; building permits; inspections|
-|City Health Office|Health programs; clinics; health inspections|
-|City Social Welfare and Development Office (CSWDO)|Senior citizens; PWDs; financial assistance; social programs|
-|City Civil Registrar|Birth, death, marriage records|
-|Human Resource Management Office (HRMO)|Employee records; leave; attendance; recruitment|
-|Business Permits and Licensing Office (BPLO)|Business registration; permit issuance; renewal|
-|City Planning and Development Office (CPDO)|Long-term development planning|
-|City Agriculture Office|Agricultural programs and support|
-|Disaster Risk Reduction and Management Office (DRRMO)|Disaster preparedness and response|
-|City Legal Office|Legal advice; review of ordinances and contracts|
-|City IT Office|Technology infrastructure|
-|Public Information Office (PIO)|Communications; public notices|
+| Office                                                | Primary Responsibility                                                 |
+| ----------------------------------------------------- | ---------------------------------------------------------------------- |
+| Office of the Mayor                                   | Executive authority; approves major documents; issues Executive Orders |
+| Office of the City Administrator                      | Coordinates all departments; operations oversight                      |
+| City Treasurer's Office                               | Revenue collection; taxes; fees; permits                               |
+| City Accountant's Office                              | Financial recording; disbursement; ledgers                             |
+| City Budget Office                                    | Budget preparation; fund allocation; monitoring                        |
+| City Assessor's Office                                | Property valuation; tax declarations; assessment records               |
+| City Engineering Office                               | Infrastructure; public works; building permits; inspections            |
+| City Health Office                                    | Health programs; clinics; health inspections                           |
+| City Social Welfare and Development Office (CSWDO)    | Senior citizens; PWDs; financial assistance; social programs           |
+| City Civil Registrar                                  | Birth, death, marriage records                                         |
+| Human Resource Management Office (HRMO)               | Employee records; leave; attendance; recruitment                       |
+| Business Permits and Licensing Office (BPLO)          | Business registration; permit issuance; renewal                        |
+| City Planning and Development Office (CPDO)           | Long-term development planning                                         |
+| City Agriculture Office                               | Agricultural programs and support                                      |
+| Disaster Risk Reduction and Management Office (DRRMO) | Disaster preparedness and response                                     |
+| City Legal Office                                     | Legal advice; review of ordinances and contracts                       |
+| City IT Office                                        | Technology infrastructure                                              |
+| Public Information Office (PIO)                       | Communications; public notices                                         |
 
 **Mandatory offices under RA 7160 (Local Government Code):** Treasurer, Accountant, Budget Officer, Assessor, Planning Officer, Engineer, Health Officer, Civil Registrar, Legal Officer, Administrator.
 
