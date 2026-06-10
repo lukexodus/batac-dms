@@ -17,38 +17,38 @@ The following names and positions are confirmed from the official SP organizatio
 
 **SP Members (7th SP):**
 
-| Name | Role |
-| --- | --- |
-| Hon. Kichel Jomarie G. Pungtilan | City Councilor |
-| Hon. Eleuterio A. Salamangkit Jr. | City Councilor |
-| Hon. Martha Louise Aurora M. Borleo | City Councilor |
-| Hon. Gwyneth S. Quidang | City Councilor |
-| Hon. John Gabrielle Dominique M. Daguio | City Councilor |
-| Hon. Lucky Rene G. Bunye | City Councilor |
-| Hon. Violeta Eugenia D. Nalupta | City Councilor |
-| Hon. Macarthur A. Aguinaldo | City Councilor |
-| Hon. Rizal P. Castillo | City Councilor |
-| Hon. Juan Paulo P. Flojo | City Councilor |
-| Hon. Gilbert O. Medina | ABC Representative |
-| Hon. Reign Gwendia T. Mirasol | SK Representative |
+| Name                                    | Role               |
+| --------------------------------------- | ------------------ |
+| Hon. Kichel Jomarie G. Pungtilan        | City Councilor     |
+| Hon. Eleuterio A. Salamangkit Jr.       | City Councilor     |
+| Hon. Martha Louise Aurora M. Borleo     | City Councilor     |
+| Hon. Gwyneth S. Quidang                 | City Councilor     |
+| Hon. John Gabrielle Dominique M. Daguio | City Councilor     |
+| Hon. Lucky Rene G. Bunye                | City Councilor     |
+| Hon. Violeta Eugenia D. Nalupta         | City Councilor     |
+| Hon. Macarthur A. Aguinaldo             | City Councilor     |
+| Hon. Rizal P. Castillo                  | City Councilor     |
+| Hon. Juan Paulo P. Flojo                | City Councilor     |
+| Hon. Gilbert O. Medina                  | ABC Representative |
+| Hon. Reign Gwendia T. Mirasol           | SK Representative  |
 
 **Office of the Secretary to the Sangguniang Panlungsod:**
 
-| Name | Position |
-| --- | --- |
-| Gladys R. Lagura | SP Secretary |
-| Mia Prima M. Mesina | Administrative Officer II — Ordinances & Resolutions Section |
-| Ronald P. Beltran | Administrative Officer II — Franchise Section |
-| Bonn Roger G. Rosales | Administrative Aide VI (Clerk III) — Administrative Section |
-| Kathielyn R. Ilayat | Administrative Aide VI (Clerk III) — Administrative Section |
-| Paul Josiah N. Chua | Administrative Aide VI (Clerk III) — Administrative Section |
-| Joanne Marie Q. Macugay | Administrative Aide VI (Clerk III) — Franchise Section |
-| Jeniffer S. Gaoiran | Administrative Aide VI (Clerk III) — Franchise Section |
-| Antonia Elizabeth G. Yaplag | Administrative Aide VI (Clerk III) — Franchise Section |
-| Florentino Pablo R. Lumang | Administrative Aide VI (Data Controller I) — Franchise Section |
-| Ronell R. Purisima | Administrative Aide III (Utility Worker II) |
-| Ramil F. Rante | Administrative Aide IV (Driver III) |
-| Cherill S. Malicad | Librarian I — City Library |
+| Name                        | Position                                                       |
+| --------------------------- | -------------------------------------------------------------- |
+| Gladys R. Lagura            | SP Secretary                                                   |
+| Mia Prima M. Mesina         | Administrative Officer II — Ordinances & Resolutions Section   |
+| Ronald P. Beltran           | Administrative Officer II — Franchise Section                  |
+| Bonn Roger G. Rosales       | Administrative Aide VI (Clerk III) — Administrative Section    |
+| Kathielyn R. Ilayat         | Administrative Aide VI (Clerk III) — Administrative Section    |
+| Paul Josiah N. Chua         | Administrative Aide VI (Clerk III) — Administrative Section    |
+| Joanne Marie Q. Macugay     | Administrative Aide VI (Clerk III) — Franchise Section         |
+| Jeniffer S. Gaoiran         | Administrative Aide VI (Clerk III) — Franchise Section         |
+| Antonia Elizabeth G. Yaplag | Administrative Aide VI (Clerk III) — Franchise Section         |
+| Florentino Pablo R. Lumang  | Administrative Aide VI (Data Controller I) — Franchise Section |
+| Ronell R. Purisima          | Administrative Aide III (Utility Worker II)                    |
+| Ramil F. Rante              | Administrative Aide IV (Driver III)                            |
+| Cherill S. Malicad          | Librarian I — City Library                                     |
 
 **Personal Staff of the Vice Mayor:**
 
@@ -65,25 +65,25 @@ The current Mayor is Hon. Mark Christian R. Chua. Previous Mayor (6th SP era) wa
 
 ### 1.1 Scope Decisions
 
-| Item | Status |
-| --- | --- |
-| SP Resolutions | In scope — confirmed |
-| SP Ordinances | In scope — confirmed |
-| Appropriation Ordinances | In scope — confirmed (same workflow as regular ordinances) |
-| Franchise Ordinances | In scope — confirmed (observed in Panlalawigan review log) |
-| Internal Memos (Outgoing) | In scope — currently processed by Secretariat |
-| Memos Incoming | In scope — received from Mayor's Office and other sources |
-| Letters Received | In scope — currently processed by Secretariat |
-| Letters Sent | In scope — currently processed by Secretariat |
-| Notice of Committee Hearing | In scope |
-| Notice of Special Session | In scope |
-| Designation | In scope — confirmed from scanned records; distinct document type |
-| Barangay Resolutions / Ordinances | In scope — physically submitted to secretariat; secretariat logs them |
-| Sangguniang Panlalawigan Review/Action Taken | In scope as a tracking log, not an active workflow document |
-| Administrative Cases (complaints against officials) | In scope; confidential; Legislative access only |
-| Citizen Complaints (tricycle/transportation) | In scope — distinct SP-managed complaint type |
-| Executive Orders | **Removed from scope** |
-| Purchase Requests | **Not part of the system** |
+| Item                                                | Status                                                                |
+| --------------------------------------------------- | --------------------------------------------------------------------- |
+| SP Resolutions                                      | In scope — confirmed                                                  |
+| SP Ordinances                                       | In scope — confirmed                                                  |
+| Appropriation Ordinances                            | In scope — confirmed (same workflow as regular ordinances)            |
+| Franchise Ordinances                                | In scope — confirmed (observed in Panlalawigan review log)            |
+| Internal Memos (Outgoing)                           | In scope — currently processed by Secretariat                         |
+| Memos Incoming                                      | In scope — received from Mayor's Office and other sources             |
+| Letters Received                                    | In scope — currently processed by Secretariat                         |
+| Letters Sent                                        | In scope — currently processed by Secretariat                         |
+| Notice of Committee Hearing                         | In scope                                                              |
+| Notice of Special Session                           | In scope                                                              |
+| Designation                                         | In scope — confirmed from scanned records; distinct document type     |
+| Barangay Resolutions / Ordinances                   | In scope — physically submitted to secretariat; secretariat logs them |
+| Sangguniang Panlalawigan Review/Action Taken        | In scope as a tracking log, not an active workflow document           |
+| Administrative Cases (complaints against officials) | In scope; confidential; Legislative access only                       |
+| Citizen Complaints (tricycle/transportation)        | In scope — distinct SP-managed complaint type                         |
+| Executive Orders                                    | **Removed from scope**                                                |
+| Purchase Requests                                   | **Not part of the system**                                            |
 
 Stakeholder comment recorded: *"The scope of the proposed system is so large yet."* [See Q-INT-05]
 
