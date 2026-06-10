@@ -1,187 +1,5 @@
 # Batac City LGU Platform — Architecture Review & Discovery
 
-> **Label convention used throughout:**
-> 
-> - `[Inference]` — logically reasoned from known facts, not confirmed
-> - `[Speculation]` — plausible but unverified possibility
-> - `[Unverified]` — no reliable source; verify before acting on it
-> 
-> All LGU organizational details are `[Inference]` based on RA 7160, DILG-prescribed structures, and the uploaded reference material. Verify against Batac City's actual org chart before finalizing.
-
----
-
-## Part 1 — Assumption Review: Aggressive Challenges
-
-### 1.1 Challenged or Incorrect Assumptions
-
-**"100–250 LGU employees initially"** This figure is probably significantly underestimated. Once you add 42 barangay officials + their secretaries, SK chairpersons, job-order workers with system access, and eventually citizens, your addressable user base is closer to 500–1,000 accounts from the beginning. Design for it.
-
-**"Username/password authentication initially"** This directly contradicts your stated requirement for non-repudiation. Non-repudiation requires strong identity binding. A shared password on a shared workstation (common in government offices) is not a verified identity. You will be asked to add MFA much earlier than you expect, and retrofitting MFA into a system not designed for it is painful. Design the authentication flow to accommodate a second factor from day one, even if TOTP is not enabled initially.
-
-**"Upload of scanned signatures initially"** `[Inference: based on general e-signature law principles; verify against RA 8792 Electronic Commerce Act and its IRR]`
-
-A scanned signature image is a bitmap. Anyone with image editing software can copy it from one document and paste it onto another. This is not a technical safeguard and provides no meaningful non-repudiation. You have stated that non-repudiation is important, and then proposed an implementation that cannot deliver it. This contradiction must be surfaced explicitly to the LGU and formally accepted or resolved before architecture is finalized.
-
-**"Potential migration to LGU-owned infrastructure later"** This is not a potential scenario. For a system with a stated 10+ year lifespan, LGU data ownership requirements, and a government mandate to avoid vendor dependency, on-premise deployment is a near-certainty at some point. Every cloud-specific service you adopt today is migration debt. Your architecture must be cloud-agnostic from day one, not retroactively made portable.
-
-**"Workflow definitions must be configurable by authorized administrators without developer involvement"** You have accepted this as a given without fully scoping its complexity. This is widely acknowledged — including in your uploaded reference material — as the single most technically complex requirement in the entire system. Admin-configurable workflows with branching, merging, looping, versioning, and in-flight migration are equivalent in scope to building a subset of a BPMN 2.0 execution engine. It requires at minimum 25–30% of Phase 1 engineering time and deserves its own architectural design document before any code is written.
-
-**"Workflows may branch, merge, loop back, be revised, and be versioned"** This description is consistent with BPMN-level process orchestration, not a simple state machine. These capabilities interact with each other in complex ways: what happens to an in-flight loop instance when its definition is deprecated? What constitutes a valid merge when one parallel branch has rejected? These are unsolved problems in many enterprise systems. Surface them before committing to building from scratch.
-
-**"4 developers with heavy AI assistance"** AI-assisted development accelerates code production but introduces architectural inconsistency at module boundaries. A 4-person team using AI heavily will produce more lines of code in less time, but also more code that drifts from the intended architecture without strict governance. You need more architectural governance than a larger team, not less. Architecture Decision Records (ADRs), module boundary enforcement, and automated coupling tests are not optional for a 10-year codebase.
-
-**"Record deletion should be avoided; archiving and retention policies preferred"** This is the correct direction for government records, but it conflicts with RA 10173 (Data Privacy Act), which grants data subjects the right to erasure under certain conditions. Citizen personal data stored in complaints and requests is PII. You must resolve how your no-deletion policy interacts with the right to erasure before going live with citizen-facing features. `[Inference: based on RA 10173 Sec. 16(d); verify with a DPA-qualified legal counsel]`
-
----
-
-### 1.2 Blind Spots
-
-**RA 10173 — Data Privacy Act of 2012** Your system stores citizen personal data. `[Inference: based on RA 10173]` Legal obligations include: Privacy Impact Assessment (PIA) before launch, Data Protection Officer designation, Privacy Notice at point of data collection, data subject rights handling (access, correction, erasure), and breach notification procedures within 72 hours of discovery. This has architectural implications at the field level: data classification, consent tracking, and the right-to-erasure vs. no-deletion conflict described above.
-
-**RA 11032 — Ease of Doing Business / Anti-Red Tape Act** `[Inference: based on RA 11032 and its IRR]` Government agencies are legally required to act on simple transactions within 3 working days, complex transactions within 7 working days, and highly technical transactions within 20 working days. SLA tracking and ARTA compliance reporting are a legal requirement, not a nice-to-have feature. Your DTS and workflow engine must enforce these timelines from day one.
-
-**RA 9184 — Government Procurement Reform Act** `[Inference]` Procurement documents (Purchase Requests, Purchase Orders, Abstract of Bids) have specific legal requirements for transparency, publication, and record-keeping that the system must enforce rather than merely facilitate.
-
-**COA Circular requirements** `[Unverified: specific COA circulars applicable to Batac City's digital records were not confirmed]` The Commission on Audit has specific requirements for government records. Financial and procurement documents likely have COA-mandated retention periods and format requirements. Engage COA early, not after the system is built.
-
-**Election-cycle staff turnover** Philippine local government positions change every 3 years with elections. The Mayor, Vice Mayor, all Councilors, and many department heads may be entirely different people after the 2028 election. Your system must handle: bulk role reassignment, document continuity across administrations, preservation of outgoing officials' signed actions as immutable records, and onboarding of entirely new leadership. If the system has no formal "administration transition" procedure, the post-election period will cause chaos in the data.
-
-**Offline and intermittent connectivity** Barangays and some city hall departments in Batac may have unreliable internet. `[Unverified: specific connectivity conditions at Batac City Hall were not confirmed]` If the system is cloud-hosted with no offline capability, internet outages halt government operations. Under ARTA, "the system is down" is not a valid excuse for failing to process citizen transactions within mandated timeframes. The system must have a defined behavior during connectivity loss.
-
-**Document number sequencing** Official government documents require centrally managed, gapless, sequential numbering within a series (e.g., Resolution No. 2026-001). This is a deceptively complex distributed systems problem. If two users attempt to create resolutions simultaneously, you must guarantee unique sequential numbers with no gaps. A naive auto-increment in the database is insufficient if documents can be created, then cancelled before numbering, or if draft documents hold a number before final approval. Number assignment policy must be defined upfront.
-
-**Physical-to-digital correspondence** When a digital document is printed, signed with wet ink, and scanned back into the system, how is the scanned copy linked to the original digital record? How do you know the printed document was not altered between printing and signing? This is not a hypothetical edge case — it will happen frequently in a government that still uses physical documents as the legal source of truth.
-
-**Multi-LGU scope** There is no mention of whether this platform is intended only for Batac City or could eventually be licensed or deployed to other LGUs. This is the single most impactful architectural question not addressed in your requirements. If multi-LGU deployment is even a remote possibility, tenant isolation must be designed into the data model now. Retrofitting multi-tenancy later is effectively a full rewrite.
-
-**Barangay IT capacity** Barangay offices often have minimal IT infrastructure, limited staff technical literacy, and possibly shared devices. `[Inference]` Designing for barangay users requires a much simpler, more forgiving interface than for city hall employees, possibly a mobile-first approach. This is a fundamentally different user experience problem.
-
-**Audit log tamper-proofing** You have stated that auditability and non-repudiation are important. An audit log stored as rows in the same PostgreSQL database as the application — writable by the same application user — is not tamper-evident. A database administrator can modify or delete rows. Government audit requirements demand a more robust guarantee.
-
-**Disaster recovery and business continuity** Government operations cannot stop. You have not defined an RTO (Recovery Time Objective) or RPO (Recovery Point Objective). A cloud outage with no fallback means no approvals, no document routing, no citizen services. Define the RTO/RPO targets and design the architecture to meet them before deployment.
-
-**Delegation and acting capacity** When the Mayor is on leave or traveling, an authorized officer acts as Mayor. Your workflow engine must handle delegated approval authority: who can act for whom, under what authorization, for what document types, and for what time period. This will arise in the first week of real use.
-
----
-
-### 1.3 Missing Requirements
-
-- Formal document numbering policy (who assigns, what series, what happens to gaps)
-- Retention schedules per document type (legally mandated; COA and DILG may prescribe these)
-- Bulk operations for records officers (bulk archive, bulk search, bulk export)
-- Migration strategy for historical documents (what data exists today and in what form)
-- Session management policy (timeout duration, concurrent login restrictions, forced logout)
-- Delegation and acting-capacity management
-- SLA thresholds per document type (required for ARTA compliance)
-- Print output and QR/barcode cover sheet generation
-- Email as a document intake channel (many government communications arrive via email)
-- Mobile access requirements (what devices do users actually have)
-- Data export and portability (LGU must be able to export all data in a standard format at any time)
-- System administrator data separation (IT admin must not have read access to confidential documents even if they have server access)
-- Citizen identity verification approach for portal access
-- Document classification and sensitivity levels (not all documents are equally accessible)
-
----
-
-### 1.4 Hidden Complexity
-
-**Admin-configurable workflow versioning + in-flight migration** The hardest unsolved problem in workflow systems. When a workflow definition is revised, in-flight instances are already partially completed under the old version. Do they continue under the old version (safest, most auditable)? Migrate automatically (dangerous, may invalidate prior approvals)? Require manual migration by an administrator (operationally complex)? You must define this policy before building the engine, because the data model is fundamentally different for each choice.
-
-**Parallel workflow steps** You stated workflows may branch and merge. A parallel split (document goes to Committee A and Committee B simultaneously, must merge before proceeding) requires tracking multiple active step instances per workflow instance simultaneously. Your tracking, notification, and SLA logic all become significantly more complex.
-
-**Non-repudiation with scanned images** Addressed above. If the LGU formally accepts that scanned signatures do not provide cryptographic non-repudiation, that acceptance must be documented. If they do not accept it, you need PKI-based digital signatures, which is a substantial additional system.
-
-**Concurrent modification and optimistic locking** Multiple users can act on documents simultaneously. A secretary and a department head may both attempt to move the same document forward at the same time. Optimistic locking resolves this but produces user-visible conflicts. Government users typically have low tolerance for "someone else modified this document" error messages. Pessimistic locking prevents conflicts but creates bottlenecks. This must be designed deliberately.
-
-**Data Privacy Act vs. no-deletion policy** Described in 1.1. A citizen whose complaint contains sensitive personal information has a legal right to erasure under RA 10173. Your no-deletion policy is the correct archival stance for government records but must have a defined exception process for DPA-mandated erasure requests, with legal review.
-
----
-
-## Part 2 — Risk Register
-
-### Architectural Risks
-
-|Risk|Severity|Likelihood|
-|---|---|---|
-|Custom workflow engine becomes unmaintainable|High|Medium|
-|Module coupling grows without enforcement|High|High|
-|Premature microservices if team overreaches|High|Low|
-|Audit log integrity not tamper-evident|High|Medium|
-|Cloud-specific dependencies block on-premise migration|High|High|
-
-### Organizational Risks
-
-|Risk|Severity|Likelihood|
-|---|---|---|
-|Post-election champion loss (2028)|High|Medium|
-|Staff adoption resistance|High|High|
-|Scope creep from each stakeholder group|Medium|High|
-|Ownership ambiguity after delivery|High|Medium|
-|Budget discontinuity between fiscal years|High|Medium|
-
-### Security Risks
-
-|Risk|Severity|Likelihood|
-|---|---|---|
-|Scanned signature forgery|High|Medium|
-|Password-only auth for high-authority accounts|High|High|
-|Audit log modified by DB admin|High|Low|
-|Privilege escalation through misconfigured roles|High|Medium|
-|Citizen portal as attack surface|Medium|High|
-
-### Data Governance Risks
-
-|Risk|Severity|Likelihood|
-|---|---|---|
-|No RA 10173 compliance process|High|High|
-|No COA-compliant retention schedules|Medium|High|
-|Backup keys held by developer, not LGU|High|Medium|
-|No defined data handover process at contract end|High|Medium|
-
-### Deployment and Operations Risks
-
-|Risk|Severity|Likelihood|
-|---|---|---|
-|No offline fallback for internet outages|High|High|
-|No infrastructure-as-code, manual setup|High|High|
-|No defined RTO/RPO|High|High|
-|LGU infrastructure unready for on-premise migration|Medium|High|
-
----
-
-## Part A — Clarifying Questions
-
-These must be answered before architecture is finalized.
-
-1. **Multi-LGU scope** — Is this intended only for Batac City, or is there any intention to deploy or license to other LGUs? This is the highest-impact unanswered architectural question.
-    
-2. **Existing systems** — What software does the LGU currently use? (Payroll? HRIS? Treasury? BPLO?) Do those systems continue alongside this platform, or will this replace them?
-    
-3. **Internet reliability** — Can critical city hall operations tolerate 30+ minute internet outages? What is the typical connectivity experience at Batac City Hall locations?
-    
-4. **Offline requirement** — Must the system remain at least partially operable during internet outages (e.g., read-only mode), or is full cloud dependency acceptable?
-    
-5. **Post-delivery ownership** — Who maintains the system after delivery? Is the development team contracted for long-term maintenance, or will an internal IT team take over?
-    
-6. **Workflow walkthrough status** — Has anyone sat down with the SP Secretary and Records Officer to walk through a real document lifecycle end-to-end? Or is all current workflow knowledge assumption-based?
-    
-7. **DPA compliance readiness** — Has a Data Protection Officer been designated by the LGU? Is a Privacy Impact Assessment planned?
-    
-8. **Budget continuity** — Is funding confirmed beyond the initial development phase, across fiscal years?
-    
-9. **Barangay device access** — Do barangays have dedicated computers and reliable internet? Or are you planning mobile-first for barangay access?
-    
-10. **COA engagement** — Has anyone consulted the Commission on Audit on digital records requirements for this LGU?
-    
-11. **Document numbering authority** — Who currently controls the official numbering series for resolutions, ordinances, and executive orders? Is this currently manual?
-    
-12. **Delegation policy** — When the Mayor or a key approver is unavailable, who acts and under what formal authorization?
-    
-13. **Physical document retention policy** — After a document is processed digitally, is the physical original still legally required? For which document types?
-    
-14. **Citizen identity approach** — How will citizen identity be verified for portal access? PhilSys integration is possible but architecturally significant.
-    
-
 ---
 
 ## Part B — Requirements Discovery Checklist (General Stakeholder Interviews)
@@ -1294,23 +1112,673 @@ All workflow definitions and step types, document types and their metadata schem
 
 ---
 
-## Final Challenges
+# RESOLVED DECISIONS
 
-These are the highest-probability project failure modes, not theoretical risks.
+### 1.1 Authentication & Non-Repudiation
 
-**The workflow engine will consume more time than you have budgeted.** Admin-configurable workflows with branching, merging, looping, versioning, in-flight migration, and SLA tracking are the core technical problem of this entire system. If you do not budget at least 25–30% of Phase 1 engineering time for the workflow engine alone, you will either under-build it (and regret it in Phase 2) or over-run your timeline. Plan explicitly for it.
+**Digital Signature Approach**
 
-**Scanned signature images are not non-repudiation.** This contradiction between your stated requirement and your stated implementation approach must be formally resolved with the LGU before architecture is finalized. If the LGU formally accepts the limitation in writing, proceed. If they do not, you need a PKI roadmap.
+- **Decision**: Accept scanned signature limitation with explicit organizational acceptance
+- **Implementation**:
+    - Scanned signature images stored with audit trail
+    - Physical originals retained as legal source of truth
+    - LGU documents, in writing, that scanned signatures provide authentication but not cryptographic non-repudiation
+    - Signature contests cannot be cryptographically refuted
+    - Digital copy is operational truth; physical original is legal truth
+- **QR Code Integration**: Printed documents include QR codes pointing to digital records
+- **Timeline**: Phase 1 deployment; post-Phase-1 upgrade path kept open
+- **LGU Sign-Off**: Both IT Director and Mayor sign the written acceptance (before Phase 1 start)
 
-**Election-cycle turnover in 2028 is a system requirement, not an edge case.** The system must have a formal administration transition procedure that preserves all outgoing officials' signed documents as immutable records and allows clean role reassignment to incoming officials. Design this into Phase 1, not Phase 4.
+**Authentication Flow**
 
-**AI-assisted development on a 4-person team increases architectural governance requirements, not decreases them.** You will produce more code, faster. That is an advantage. It is also a risk: faster code production without stricter architectural enforcement produces faster architectural drift. Architecture Decision Records, automated coupling tests between modules, and weekly architectural review are not bureaucratic overhead. They are the minimum governance for a 10-year system built by a small AI-assisted team.
-
-**On-premise migration is not optional, eventual planning.** Design for it now. Every cloud-specific dependency you add is a migration liability.
-
-**RA 10173 and RA 11032 are legal requirements.** Data Privacy Act compliance and ARTA SLA tracking are not optional features. They have legal and administrative consequences if unmet. Treat them as Phase 1 requirements, not Phase 3 additions.
+- **Decision**: Implement MFA from day one
+- **Status**: Design accommodates second factor (TOTP) even if not enabled initially
+- **Rationale**: Retrofitting MFA into legacy system is painful; must be designed in upfront
+- **Note**: Scanned signature uploads require elevated authentication (MFA preferred)
 
 ---
 
-Which of these areas do you want developed in detail next? I can produce: the workflow engine data model and state machine specification, the ABAC policy schema and enforcement architecture, the database schema for any specific module, the event model specification, the Terraform deployment architecture, or the stakeholder interview guide formatted for field use.
+### 1.2 Infrastructure & Cloud Agnosticism
 
+**Cloud-Agnostic Architecture**
+
+- **Decision**: All architecture is cloud-agnostic from day one
+- **Rationale**: LGU migration to on-premise infrastructure is near-certainty within 10+ year lifespan
+- **Scope**: Avoid cloud-specific services; design for portability
+- **Implication**: Migration debt is unacceptable; containerization and vendor-neutral APIs required
+- **Codebase Focus**: Batac-specific (not templated for other LGUs)
+- **Configuration Files**: Documented for potential future adaptation (if another LGU adopts)
+- **Database Schema**: Batac-specific; no generalized LGU-agnostic fields required
+
+---
+
+### 1.3 Admin-Configurable Workflows
+
+**Workflow Versioning & In-Flight Migration**
+
+- **Decision**: Admin chooses between two migration strategies for each version change
+    - **Option A (Safer)**: Continue under old version (safest, most auditable)
+    - **Option B (Operational)**: Manual migration by administrator (operationally complex)
+- **Constraint**: Parallel workflow steps **NOT** included (simplification)
+- **Note**: This is the single most complex requirement (25–30% of Phase 1 engineering time)
+- **Implementation**: Flexible, modular design to accommodate requirements gathered next week
+
+**Workflow Capabilities**
+
+- Branching and merging (but NOT parallel steps)
+- Loop-back capability
+- Versioning with controlled migration
+- Configuration by authorized administrators without developer involvement
+
+**Architectural Governance**
+
+- Architecture Decision Records (ADRs) required
+- Module boundary enforcement mandatory
+- Automated coupling tests required
+- Governance stricter than team size due to heavy AI assistance (4 developers)
+
+---
+
+### 1.4 Data Handling & Record Management
+
+**Deletion vs. Archiving vs. Data Privacy Act**
+
+**Policy**: No deletion; archiving and retention policies preferred
+
+**Legal Exception Process**:
+
+- Defined exception for RA 10173 (Data Privacy Act) erasure requests
+- Requires legal review before erasure
+- Erasure is separate from archiving—not a simple state change
+
+**Implementation**:
+
+```
+┌─────────────────────────────────┐
+│ Citizen Erasure Request Received │
+└────────────┬────────────────────┘
+             ↓
+┌─────────────────────────────────┐
+│ Legal Review (DPA Officer)       │
+│ - Validate request legitimacy    │
+│ - Check retention requirements   │
+│ - Verify no legal hold           │
+└────────────┬────────────────────┘
+             ↓
+    ┌────────┴────────┐
+    ↓                 ↓
+┌────────────┐  ┌────────────────┐
+│ APPROVED   │  │ REJECTED       │
+│ Erasure    │  │ Notify citizen │
+│ (PII only) │  │ with reason    │
+└────────────┘  └────────────────┘
+```
+
+**Scope**: Sensitive PII in complaints and requests only; administrative/workflow records archived
+
+---
+
+### 1.5 Concurrent Modification
+
+**Locking Strategy**: Pessimistic locking
+
+- **Rationale**: Government users have low tolerance for "document modified" conflicts
+- **UX Requirement**: Informational notice required when document is locked by another user
+- **Benefit**: Prevents conflicts rather than surfacing them after the fact
+
+---
+
+### 1.6 Compliance Frameworks (Legal)
+
+**RA 11032 — Ease of Doing Business (ARTA)**
+
+- Simple transactions: 3 working days
+- Complex transactions: 7 working days
+- Highly technical: 20 working days
+- **Implication**: SLA tracking and compliance reporting built into system (legal requirement, not optional)
+
+**RA 9184 — Government Procurement Reform Act**
+
+- Procurement documents have legal transparency, publication, and record-keeping requirements
+- **System enforcement required** (not just facilitation)
+
+**RA 10173 — Data Privacy Act of 2012**
+
+- Privacy Impact Assessment (PIA) before launch
+- Data Protection Officer designation required
+- Privacy Notice at point of data collection
+- Data subject rights handling (access, correction, erasure)
+- Breach notification within 72 hours
+- **Phase**: Include in scope; implement in later development phases (not Phase 1)
+
+**COA Circular Requirements**
+
+- [Unverified: Specific COA circulars applicable to Batac City were not confirmed]
+- **Action**: Engage COA early for financial/procurement document requirements
+
+---
+
+### 1.7 Special Scenarios
+
+**Election-Cycle Staff Turnover (every 3 years)**
+
+**System capabilities required**:
+
+- Bulk role reassignment
+- Document continuity across administrations
+- Preservation of outgoing officials' signed actions as immutable records
+- Onboarding procedures for entirely new leadership
+- **Formal "administration transition" procedure** to prevent post-election chaos
+
+**Offline & Intermittent Connectivity**
+
+**Connectivity Profile — RESOLVED**:
+
+- **Typical Condition**: Always-on (city hall has internet with backup generator)
+- **Outage Tolerance**: Can tolerate 30+ minute outages
+- **Barangay Locations**: Some have reliable internet, some do not
+- **Offline Behavior**: Hybrid mode with graceful degradation (as designed below)
+
+**Defined Behavior During Loss of Connectivity**:
+
+- **Principle**: ARTA compliance cannot depend on internet availability
+- **Approach**: Hybrid mode with graceful degradation
+    
+    ```
+    ONLINE MODE (Normal)├─ Full workflow execution├─ Real-time SLA tracking└─ Immediate notificationsOFFLINE MODE (Connectivity Lost)├─ Local queue for document submissions├─ SLA clock continues (legal requirement)├─ Critical approvals cached locally with fallback auth└─ Sync on reconnection with conflict resolutionRECONNECTION├─ Local queue auto-submits├─ Conflicts flagged for manual review└─ Audit trail marks offline period
+    ```
+    
+- **Barangay Focus**: Offline-capable for barangays with intermittent connectivity
+
+**Document Number Sequencing — RESOLVED**
+
+**Approach**: Centrally managed gapless sequential numbering per document series
+
+**Implementation**:
+
+- Each document series has a central sequence lock
+- Numbers assigned only at final approval (not at draft or creation)
+- Cancelled documents mark a gap with cancellation reason (logged)
+- Database constraint prevents duplicate numbers within same series + year
+- Distributed lock mechanism ensures no simultaneous duplicates
+- **Audit Trail**: Every gap recorded with cancellation reason
+
+**Year Prefix Strategy — RESOLVED**:
+
+- **Decision**: Implement both options; make selectable per document series
+    - **Option A**: Per-year numbering (Resolution 2026-001, 2027-001, etc.)
+    - **Option B**: Continuous numbering (Resolution 1, 2, 3, ... across all years)
+- **Reason**: Flexibility; allows different series to use different schemes
+
+**Example**:
+
+```
+Resolution 2026-001 → Approved → Numbered
+Resolution 2026-002 → Draft (no number yet)
+Resolution 2026-003 → Cancelled (gap recorded with reason)
+Resolution 2026-004 → Approved → Numbered
+```
+
+**Physical-to-Digital Correspondence — RESOLVED**
+
+**Feature**: Scanned-Back Document Anomaly Flagging
+
+- When a physical document is printed, signed with wet ink, and scanned back:
+    - System flags scanned image for manual verification
+    - Anomaly detection checks for signs of alteration between print and scan
+    - Records officer manually verifies authenticity
+    - Verification status attached to digital record
+    - Unverified physical copies cannot be accepted as official
+
+**Workflow**:
+
+```
+Digital Doc → Print → Wet-Ink Sign → Scan Back
+                                        ↓
+                            Flag for Manual Review
+                                        ↓
+                            Records Officer Verifies:
+                            - Visual integrity
+                            - Signature authenticity
+                            - No alterations detected
+                                        ↓
+                            ✓ Verified → Accepted
+                            ✗ Anomaly → Returned for clarification
+```
+
+---
+
+### 1.8 Mobile Access — RESOLVED
+
+**Decision**: Mobile-first approach prioritized
+
+- **Rationale**: Most users access via personal mobile phones
+- **OS Support**: Both iOS and Android
+- **Offline Capability**: Provide offline capability where feasible
+- **Device Types**: Windows 11 at Batac City Hall; personal phones for barangay staff
+- **Implication**: Responsive design, mobile-native where possible, simplified workflows for small screens
+- **Session Refresh**: On app open, refresh session (not during active use)
+
+---
+
+### 1.9 Document Management Features — RESOLVED
+
+**Print Output & QR/Barcode Cover Sheet Generation**
+
+- **QR Code Content**: Encodes unique document ID (independent, not full URL)
+- **Metadata on Cover Sheet**: Author, date, approvers, retention schedule
+- **Layout**: Separate cover page (not overlaid)
+- **Customization**: Customizable metadata fields per document type
+- **Implementation**: Generate automatically on print
+
+**Bulk Operations for Records Officers — RESOLVED**
+
+- **Approved Operations**: Bulk archive, bulk search, bulk export
+- **Safety Guards**:
+    - Confirmation dialog before bulk action (required)
+    - Dry-run preview (required)
+    - Undo feature (defer to post-Phase-1)
+- **Sensitivity Level Filtering**: Bulk exports limited by sensitivity level (not all PII exportable)
+- **Audit Trail**: Log each item individually (not batch-level)
+- **Restriction**: No bulk-delete operations allowed (archive only)
+
+**Email as Document Intake Channel — PARTIALLY RESOLVED**
+
+- **Approach**: For now, forgo automatic email monitoring
+- **Submission Method**: Document must be submitted via official page/route/feature (manual upload by records officer)
+- **Future Phase**: Email intake automated in future phases
+- **Email Attachments**: Virus scanning policy to be determined (design placeholder)
+- **Citizen Complaints**: Not via email initially; dedicated complaint page for Phase 1
+- **Email Metadata**: To be determined
+
+**Data Export & Portability — RESOLVED**
+
+- **Format Support**: All formats if possible; phased implementation if necessary
+    - CSV, JSON, XML (priority)
+    - SQL dump, PDF (secondary)
+- **Audit Trails**: Included as optional export field
+- **Document Formats**: Exportable in original format (PDF) or converted format (user choice)
+- **Selection**: Admin defines which document types are exportable vs. confidential
+- **Sensitivity Level Control**: Follows document classification levels; confidential docs non-exportable
+- **Security**: Audit log records who exported, when, and what (for compliance)
+
+---
+
+### 1.10 Document Classification & Sensitivity — RESOLVED
+
+**Decision**: Implement document classification system
+
+- **Classification Levels**: [To be defined with LGU legal/security guidance]
+- **Likely Categories**:
+    - Public (printed council resolutions, agendas)
+    - Internal (inter-department memos, drafts)
+    - Confidential (citizen complaints with PII, performance reviews)
+    - Restricted (fiscal records, legal opinions)
+- **Access Control**: Classification drives visibility rules and export permissions
+- **Default Classification**: Per document type (configurable)
+
+---
+
+### 1.11 System Administrator Data Separation — RESOLVED
+
+**Decision**: IT admin must NOT have read access to confidential documents
+
+**Implementation Approach**:
+
+```
+DATABASE LAYER
+├─ Role-based access control (RBAC) at query level
+├─ Encryption at rest for confidential documents
+├─ Field-level encryption for PII
+└─ Separate admin-audit schema (admin changes logged, not readable by IT)
+
+APPLICATION LAYER
+├─ IT admin role excluded from all data read operations
+├─ IT admin can manage users, roles, schema—not data
+├─ All admin activities logged to tamper-evident audit trail
+└─ Separate privilege escalation approval required
+
+CREDENTIAL SEPARATION
+├─ Database credentials for app runtime ≠ database credentials for IT admin
+├─ IT admin accesses via separate privileged account with limited schema access
+├─ No shared passwords between app and admin roles
+└─ MFA required for admin database access
+```
+
+**Security Note**: This assumes IT admin is trusted to not execute arbitrary SQL; if not trusted, add database activity monitoring (DAM) layer.
+
+---
+
+### 1.12 Session Management Policy — RESOLVED
+
+**Decision**: Hardened session management with role-based variations
+
+- **Standard Timeout Duration**: 30 minutes of inactivity
+    - Warning at 25 minutes
+    - Automatic logout + return to login screen at 30 minutes
+- **High-Level Admin Timeout**: Longer duration (determined by architect based on best practices)
+- **Concurrent Login Restrictions**: One active session per user
+    - New login from different IP/device logs out previous session
+    - Notification sent to user: "Your session was ended (logged in from X device)"
+- **Forced Logout**: Manual session termination by user or admin
+    - IT/security admin can force logout for security incident response
+    - Logs recorded with reason
+- **Mobile App Behavior**: Session refreshed on app open (not during active use)
+- **Service Accounts**: Exempt from timeout with approval + monitoring
+
+---
+
+### 1.13 SLA Thresholds per Document Type — RESOLVED
+
+**Decision**: Implement ARTA-aligned SLA tracking with educated defaults
+
+**Thresholds**:
+
+```
+SIMPLE TRANSACTIONS (3 working days)
+├─ Routine requests (ID renewal, permit inquiry)
+├─ Status updates on public records
+└─ Simple approvals (single-step)
+
+COMPLEX TRANSACTIONS (7 working days)
+├─ Multi-step approvals (2–3 approvers)
+├─ Requires external coordination (other departments)
+├─ Needs public notice/consultation
+└─ Financial transactions < threshold
+
+HIGHLY TECHNICAL (20 working days)
+├─ Engineering evaluations
+├─ Procurement evaluations (COA-required)
+├─ Environmental impact assessments
+└─ Legal review items
+```
+
+**System Enforcement**:
+
+- SLA clock starts at workflow initiation
+- Escalation warnings at 80% of SLA time
+- Automatic escalation at SLA breach (notify supervisor + records officer)
+- SLA data included in compliance reports
+- [Unverified: Specific SLA thresholds per Batac City document type require LGU confirmation during Phase 1]
+
+---
+
+### 1.14 Retention Schedules per Document Type — RESOLVED (Educated Defaults)
+
+**Policy Framework**: Implemented with educated defaults; to be refined with COA/DILG/LGU guidance
+
+**General Approach**:
+
+```
+PERMANENT RETENTION
+├─ Council resolutions
+├─ Signed contracts
+├─ Financial records (per COA requirements)
+└─ Audit/investigation files
+
+10–15 YEARS
+├─ Personnel records
+├─ Correspondence with citizens
+└─ Permit/license files
+
+5 YEARS
+├─ Internal memos
+├─ Meeting minutes (non-critical)
+└─ Administrative notices
+
+1 YEAR
+├─ Routine workflow logs (not audit logs)
+├─ Draft versions (final approved kept)
+└─ Temporary administrative notes
+```
+
+**Implementation**:
+
+- Each document type tagged with retention schedule at creation
+- Automated archival review triggered at 80% of retention period
+- Automatic archival at 100% (with PIA compliance check)
+- No automatic deletion (archival is separate)
+- [Note: Specific retention periods will be confirmed with COA/DILG and LGU sign-off during Phase 1]
+
+---
+
+### 1.15 Delegation & Acting Authority — RESOLVED
+
+**Decision**: System handles delegated approval authority
+
+**Scope Tracked**:
+
+- **Who**: Specific user can delegate to specific user(s)
+- **What**: Specific document types only (not all approvals)
+- **When**: Time period (start date–end date) with auto-expiration
+- **How**: Approval authority level (basic approve, with modifications, full authority)
+
+**Implementation**:
+
+```
+┌─────────────────────────┐
+│ Mayor on Leave          │
+│ Delegates to: VP Mayor  │
+│ Document Types: All     │
+│ Period: 2026-06-10 to   │
+│         2026-06-20      │
+│ Authority: Full         │
+└────────────┬────────────┘
+             ↓
+┌─────────────────────────────────────┐
+│ When VP Mayor approves during       │
+│ period, approval chain shows:       │
+│ "Approved by VP Mayor (acting for   │
+│ Mayor, delegated authority)"        │
+└────────────┬────────────────────────┘
+             ↓
+┌─────────────────────────────────────┐
+│ Audit trail records:                │
+│ - Original delegating authority     │
+│ - Acting person + time period       │
+│ - Authority scope (what documents)  │
+│ - Expiration automatic at end date  │
+└─────────────────────────────────────┘
+```
+
+**Constraints**:
+
+- Delegation must be formally initiated (not assumed)
+- Duration must be explicit (no open-ended delegations)
+- Authority lapses automatically at expiration (no manual cleanup)
+- Can be revoked early by delegating person
+- Audit trail is immutable
+
+**Chain of Delegation — DEFERRED**:
+
+- Department head delegation chain details (can a section chief act for director?) → Phase 1 requirements gathering
+
+---
+
+### 1.16 Audit Log Tamper-Proofing — RESOLVED
+
+**Decision**: Cryptographic hash chain with external timestamp authority
+
+**Implementation**:
+
+```
+AUDIT LOG ENTRY
+├─ EventID: 12345
+├─ User: mayor@batac.local
+├─ Action: Approved Resolution 2026-042
+├─ Timestamp: 2026-06-04T09:15:30Z
+├─ Hash(previous_entry)
+└─ HMAC(payload, secret_key)
+     ↓
+APPEND TO IMMUTABLE LOG
+├─ Stored in append-only table (database constraint prevents UPDATE/DELETE)
+├─ Separate from application data schema
+├─ Readable only by audit function, not application user
+└─ Hash chained: each entry includes hash of previous entry
+     ↓
+EXTERNAL TIMESTAMP (Monthly)
+├─ Periodic export of log range
+├─ Hashed and timestamped by external authority (e.g., RFC 3161 TSA)
+├─ Proof stored outside database (filesystem or external service)
+└─ Proves logs were unmodified before timestamp
+     ↓
+DATABASE ADMIN SAFEGUARD
+├─ Database credentials for IT admin exclude audit table
+├─ DDL locks prevent schema changes to audit table
+├─ Separate audit database user (read-only app role)
+└─ Any attempt to modify audit table triggers alert
+```
+
+**Verification**:
+
+- Audit integrity checked at retrieval time
+- Hash chain validated: each entry's previous-hash must match prior entry
+- External timestamp validates no tampering occurred before timestamp
+- If hash chain breaks, tampering is detected and flagged
+
+---
+
+### 1.17 Disaster Recovery & Business Continuity — RESOLVED
+
+**RTO & RPO Targets**:
+
+- **RTO (Recovery Time Objective)**: 4 hours maximum
+    - Rationale: ARTA 3–20 day compliance requires system back online within working day
+- **RPO (Recovery Point Objective)**: 1 hour maximum
+    - Rationale: No more than 1 hour of transaction loss acceptable
+
+**Architecture**:
+
+```
+PRIMARY REGION (Cloud or On-Premise)
+├─ Active database (PostgreSQL with WAL)
+├─ Real-time backup (continuous archival)
+└─ Hourly snapshots
+
+STANDBY REGION (Secondary Cloud or On-Premise)
+├─ Hot-standby database (streaming replication lag < 60s)
+├─ Automated failover trigger (primary heartbeat loss)
+└─ Read-only access during standby (for audit purposes)
+
+BACKUP STORAGE (Geographically Separate)
+├─ Encrypted database dumps (encrypted with LGU key)
+├─ Stored in 3+ geographies
+├─ Tested monthly (restore from backup, verify)
+└─ Retention per legal requirements
+
+FAILOVER PROCEDURE
+1. Detect primary failure (no heartbeat for 60s)
+2. Promote standby to primary (DNS switch)
+3. Notify all users (visual notice: "System recovered from outage")
+4. Begin transaction catch-up (RPO ≤ 1 hour)
+5. Investigate primary failure + restore if possible
+6. Failback to primary when restored
+```
+
+**Testing**: Quarterly disaster recovery drills (unpublished, to test real response)
+
+---
+
+### 1.18 Citizen Identity Verification (Portal Access) — RESOLVED
+
+**Decision**: Multi-factor verification approach with flexible ID acceptance
+
+**Implementation**:
+
+```
+STEP 1: INITIAL REGISTRATION
+├─ Citizen provides: Name, birthdate, phone, email
+├─ System cross-references with:
+│  ├─ City Hall database (voters, IDs issued)
+│  ├─ PhilSys if available (develop with flags, assume none)
+│  └─ Barangay records (residency)
+└─ If match found → Proceed to Step 2
+
+STEP 2: OUT-OF-BAND VERIFICATION
+├─ OTP sent to registered phone number
+├─ OTP sent to registered email
+├─ Citizen must verify both
+└─ Phone + email ownership proven
+
+STEP 3: ACCOUNT ACTIVATION
+├─ Account marked verified
+├─ Password set (strong requirements)
+├─ Optional: Security questions added
+└─ First login requires review of data sharing notice
+```
+
+**Ongoing**:
+
+- Each portal login requires password + phone OTP
+- Re-verification required annually
+- Account lockout policy after failed verification attempts: [Architect to determine best practice]
+
+**Accepted ID Types**:
+
+- Government-issued ID (Voter ID, Driver's License)
+- Birth certificate
+- Barangay residency certificate
+
+**PhilSys Integration**:
+
+- Develop with flag-based implementation
+- Assume PhilSys unavailable initially
+- Enable if integration becomes available
+
+**Privacy Notice**: Displayed during registration; citizen must acknowledge consent
+
+---
+
+### 1.19 Device Infrastructure — RESOLVED
+
+**Batac City Hall**:
+
+- OS: Windows 11
+- Internet: Always-on with backup generator
+- Outage Tolerance: Can tolerate 30+ minute outages
+
+**Barangays**:
+
+- OS: Windows 11 (dedicated computers)
+- Internet: Some reliable, some unreliable
+- Device Ownership: Personal phones
+- Offline Strategy: Provide offline capability for intermittent-connectivity barangays
+
+---
+
+### 1.20 Post-Delivery Ownership & Maintenance — RESOLVED
+
+**Decision**: Internal IT team takes over; development team remains in contact
+
+**Maintenance Strategy**:
+
+- **Phase 1 Development**: Current team (4 developers)
+- **Post-Delivery**: Internal IT team assumes maintenance
+- **Ongoing Support**: Development team available for consultation
+- **Code Transferability**: Architecture designed for non-expert maintainers to pick up (strict ADRs, clear module boundaries)
+- **SLA for Bug Fixes**: [Architect to construct best-practice SLA]
+- **Feature Requests**: Handled by internal IT with development team consultation
+
+---
+
+### 1.21 System Scope & Phase 1 Focus — RESOLVED
+
+**Phase 1 Deliverables**:
+
+- All necessary foundation infrastructure
+- Initial Document Management System (DMS) for SP documents
+- Focus on **Council Resolutions** (immediately usable after Phase 1)
+- Framework extensible for additional document types (subsequent phases)
+
+**Feature Prioritization**:
+
+- Resolutions workflow completely functional
+- Other document types follow in Phase 2+
+
+**Requirements Gathering**:
+
+- Requirements walkthrough with SP Secretary and Records Officer scheduled for next week
+- Implementation flexible and modular to accommodate findings
+- Educated guesses used for initial architecture; refined during Phase 1
+
+---
