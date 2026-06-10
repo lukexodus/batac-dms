@@ -1,0 +1,108 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batac LGU Platform - Overview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            border: "hsl(var(--border))",
+            input: "hsl(var(--input))",
+            ring: "hsl(var(--ring))",
+            background: "hsl(var(--background))",
+            foreground: "hsl(var(--foreground))",
+            primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
+            secondary: { DEFAULT: "hsl(var(--secondary))", foreground: "hsl(var(--secondary-foreground))" },
+            destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
+            muted: { DEFAULT: "hsl(var(--muted))", foreground: "hsl(var(--muted-foreground))" },
+            accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
+            card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
+          },
+          borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer base {
+      :root {
+        --background: 0 0% 100%;
+        --foreground: 222.2 84% 4.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+        --primary: 139 82.4% 35.7%; /* Extracted Green */
+        --primary-foreground: 210 40% 98%;
+        --secondary: 220 93% 56%; /* Extracted Blue */
+        --secondary-foreground: 222.2 47.4% 11.2%;
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+        --destructive: 0 100% 48.4%; /* Extracted Red */
+        --destructive-foreground: 210 40% 98%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 139 82.4% 35.7%;
+        --radius: 0.5rem;
+      }
+    }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  </style>
+</head>
+<body class="bg-muted/30 text-foreground min-h-screen p-8 md:p-12">
+  <div class="max-w-4xl mx-auto space-y-8">
+    
+    <header class="space-y-2">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-xl">B</div>
+        <h1 class="text-3xl font-bold tracking-tight">Batac City LGU Platform</h1>
+      </div>
+      <p class="text-muted-foreground text-lg">Prototype UI Gallery & Design System</p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      
+      <a href="kitchen-sink.html" class="block p-6 bg-card border rounded-lg hover:border-primary transition-colors shadow-sm">
+        <h2 class="text-xl font-semibold mb-2">Design System Kitchen Sink</h2>
+        <p class="text-muted-foreground text-sm">View the core UI tokens, colors, typography, and base components.</p>
+      </a>
+
+      <a href="mayor-dashboard.html" class="block p-6 bg-card border rounded-lg hover:border-primary transition-colors shadow-sm">
+        <h2 class="text-xl font-semibold mb-2">1. Mayor's Dashboard</h2>
+        <p class="text-muted-foreground text-sm">Executive overview, pending signatures, and high-level KPIs.</p>
+      </a>
+
+      <a href="sp-secretary-dashboard.html" class="block p-6 bg-card border rounded-lg hover:border-primary transition-colors shadow-sm">
+        <h2 class="text-xl font-semibold mb-2">2. SP Secretary's Dashboard</h2>
+        <p class="text-muted-foreground text-sm">Legislative workflows, session calendar, and active legislative queue.</p>
+      </a>
+
+      <a href="dts-timeline.html" class="block p-6 bg-card border rounded-lg hover:border-primary transition-colors shadow-sm">
+        <h2 class="text-xl font-semibold mb-2">3. DTS Timeline View</h2>
+        <p class="text-muted-foreground text-sm">Document Tracking System showing routing history and QR code.</p>
+      </a>
+
+      <a href="wms-approval.html" class="block p-6 bg-card border rounded-lg hover:border-primary transition-colors shadow-sm">
+        <h2 class="text-xl font-semibold mb-2">4. WMS Approval Interface</h2>
+        <p class="text-muted-foreground text-sm">Workflow Management System for reviewing and approving documents.</p>
+      </a>
+
+      <a href="dms-repository.html" class="block p-6 bg-card border rounded-lg hover:border-primary transition-colors shadow-sm">
+        <h2 class="text-xl font-semibold mb-2">5. DMS Repository</h2>
+        <p class="text-muted-foreground text-sm">Complex data table for internal staff to search and filter documents.</p>
+      </a>
+
+      <a href="citizen-portal.html" class="block p-6 bg-card border rounded-lg hover:border-primary transition-colors shadow-sm">
+        <h2 class="text-xl font-semibold mb-2">6. Public Citizen Portal</h2>
+        <p class="text-muted-foreground text-sm">Public-facing page for tracking documents and submitting requests.</p>
+      </a>
+
+    </div>
+  </div>
+</body>
+</html>

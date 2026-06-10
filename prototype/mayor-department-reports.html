@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Department Reports - Mayor's Dashboard - Batac LGU Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            border: "hsl(var(--border))",
+            input: "hsl(var(--input))",
+            ring: "hsl(var(--ring))",
+            background: "hsl(var(--background))",
+            foreground: "hsl(var(--foreground))",
+            primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
+            secondary: { DEFAULT: "hsl(var(--secondary))", foreground: "hsl(var(--secondary-foreground))" },
+            destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
+            muted: { DEFAULT: "hsl(var(--muted))", foreground: "hsl(var(--muted-foreground))" },
+            accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
+            card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
+          },
+          borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer base {
+      :root {
+        --background: 210 40% 98%; 
+        --foreground: 222.2 84% 4.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+        --primary: 139 82.4% 35.7%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 220 93% 56%;
+        --secondary-foreground: 222.2 47.4% 11.2%;
+        --destructive: 0 100% 48.4%;
+        --destructive-foreground: 210 40% 98%;
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 139 82.4% 35.7%;
+        --radius: 0.5rem;
+      }
+    }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-background text-foreground min-h-screen flex flex-col">
+
+  <header class="bg-primary text-primary-foreground border-b border-primary/20 sticky top-0 z-30 shadow-sm">
+    <div class="px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-8 h-8 rounded-full bg-white text-primary flex items-center justify-center font-bold">B</div>
+        <span class="font-semibold text-lg tracking-tight">Batac LGU • Executive Portal</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <button class="relative p-2 hover:bg-primary-foreground/10 rounded-full transition-colors">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full"></span>
+        </button>
+        <div class="flex items-center gap-2">
+          <div class="text-right hidden md:block">
+            <div class="text-sm font-medium leading-none">Office of the Mayor</div>
+            <div class="text-xs text-primary-foreground/70">Hon. Albert D. Chua</div>
+          </div>
+          <div class="w-9 h-9 rounded-full bg-primary-foreground/20 flex items-center justify-center border border-primary-foreground/30">
+            <i data-lucide="user" class="w-5 h-5 text-white"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex-1 flex flex-col md:flex-row">
+    <!-- Sidebar -->
+    <aside class="w-full md:w-64 bg-card border-r shrink-0 hidden md:block">
+      <nav class="p-4 space-y-1">
+        <a href="mayor-dashboard.html" class="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+        </a>
+        <a href="mayor-pending-signatures.html" class="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors">
+          <i data-lucide="pen-tool" class="w-4 h-4"></i> Pending Signatures
+          <span class="ml-auto bg-destructive text-destructive-foreground text-xs font-bold px-2 py-0.5 rounded-full tabular-nums">12</span>
+        </a>
+        <a href="mayor-department-reports.html" class="flex items-center gap-3 px-3 py-2 bg-primary/10 text-primary font-medium rounded-md">
+          <i data-lucide="folder-open" class="w-4 h-4"></i> Department Reports
+        </a>
+        <a href="mayor-city-analytics.html" class="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors">
+          <i data-lucide="bar-chart-2" class="w-4 h-4"></i> City Analytics
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 lg:p-8 space-y-6 overflow-auto">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight">Department Reports</h1>
+          <p class="text-muted-foreground">Monitor periodic submissions and performance reports across city departments.</p>
+        </div>
+        <div class="flex gap-2">
+          <select class="border border-input rounded-md text-sm py-2 px-3 bg-card h-9">
+            <option>June 2026</option>
+            <option>May 2026</option>
+            <option>Q2 2026 Summary</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Quick Metrics -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-card border rounded-lg p-5 flex items-center justify-between shadow-sm">
+          <div>
+            <p class="text-sm text-muted-foreground font-medium">Reports Submitted</p>
+            <p class="text-3xl font-bold mt-1 text-primary">24 / 32</p>
+          </div>
+          <div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+            <i data-lucide="file-check" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <div class="bg-card border border-destructive/30 rounded-lg p-5 flex items-center justify-between shadow-sm">
+          <div>
+            <p class="text-sm text-destructive font-medium">Overdue Submissions</p>
+            <p class="text-3xl font-bold mt-1 text-destructive">8</p>
+          </div>
+          <div class="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center text-destructive">
+            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <div class="bg-card border rounded-lg p-5 flex items-center justify-between shadow-sm">
+          <div>
+            <p class="text-sm text-muted-foreground font-medium">Under Review</p>
+            <p class="text-3xl font-bold mt-1">11</p>
+          </div>
+          <div class="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center text-secondary-foreground">
+            <i data-lucide="search" class="w-6 h-6"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Department List -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 mt-6">
+        
+        <!-- Dept Card -->
+        <div class="border rounded-xl bg-card p-5 shadow-sm hover:border-primary/50 transition-colors cursor-pointer group">
+          <div class="flex justify-between items-start">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-green-100 text-green-700 flex items-center justify-center font-bold">CHO</div>
+              <div>
+                <h3 class="font-semibold group-hover:text-primary transition-colors">City Health Office</h3>
+                <p class="text-xs text-muted-foreground">Dr. Maria Santos</p>
+              </div>
+            </div>
+            <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-800 border-transparent">Submitted</span>
+          </div>
+          <div class="mt-4 pt-4 border-t flex justify-between items-center">
+            <span class="text-xs text-muted-foreground">Monthly Health Stats, Inventory</span>
+            <span class="text-xs font-medium text-primary">View Report &rarr;</span>
+          </div>
+        </div>
+
+        <div class="border rounded-xl bg-card p-5 shadow-sm hover:border-primary/50 transition-colors cursor-pointer group">
+          <div class="flex justify-between items-start">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center font-bold">CEO</div>
+              <div>
+                <h3 class="font-semibold group-hover:text-primary transition-colors">City Engineering</h3>
+                <p class="text-xs text-muted-foreground">Engr. Juan Dela Cruz</p>
+              </div>
+            </div>
+            <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold bg-destructive/10 text-destructive border-transparent">Overdue</span>
+          </div>
+          <div class="mt-4 pt-4 border-t flex justify-between items-center">
+            <span class="text-xs text-muted-foreground text-destructive">Infrastructure update missing</span>
+            <button class="text-xs font-medium border border-destructive text-destructive px-2 py-1 rounded hover:bg-destructive/10">Remind</button>
+          </div>
+        </div>
+
+        <div class="border rounded-xl bg-card p-5 shadow-sm hover:border-primary/50 transition-colors cursor-pointer group">
+          <div class="flex justify-between items-start">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">CSWD</div>
+              <div>
+                <h3 class="font-semibold group-hover:text-primary transition-colors">Social Welfare</h3>
+                <p class="text-xs text-muted-foreground">Mrs. Elena Reyes</p>
+              </div>
+            </div>
+            <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold bg-secondary/20 text-secondary-foreground border-transparent">Under Review</span>
+          </div>
+          <div class="mt-4 pt-4 border-t flex justify-between items-center">
+            <span class="text-xs text-muted-foreground">AICS Distribution, Center Ops</span>
+            <span class="text-xs font-medium text-primary">View Report &rarr;</span>
+          </div>
+        </div>
+        
+        <div class="border rounded-xl bg-card p-5 shadow-sm hover:border-primary/50 transition-colors cursor-pointer group">
+          <div class="flex justify-between items-start">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold">CDRRMO</div>
+              <div>
+                <h3 class="font-semibold group-hover:text-primary transition-colors">Disaster Risk Mgmt</h3>
+                <p class="text-xs text-muted-foreground">Mr. Ramon Bautista</p>
+              </div>
+            </div>
+            <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-800 border-transparent">Submitted</span>
+          </div>
+          <div class="mt-4 pt-4 border-t flex justify-between items-center">
+            <span class="text-xs text-muted-foreground">Equipment status, readiness</span>
+            <span class="text-xs font-medium text-primary">View Report &rarr;</span>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

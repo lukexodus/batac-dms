@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DMS Repository - Batac LGU Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            border: "hsl(var(--border))",
+            input: "hsl(var(--input))",
+            ring: "hsl(var(--ring))",
+            background: "hsl(var(--background))",
+            foreground: "hsl(var(--foreground))",
+            primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
+            secondary: { DEFAULT: "hsl(var(--secondary))", foreground: "hsl(var(--secondary-foreground))" },
+            destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
+            muted: { DEFAULT: "hsl(var(--muted))", foreground: "hsl(var(--muted-foreground))" },
+            accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
+            card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
+          },
+          borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer base {
+      :root {
+        --background: 210 40% 98%; 
+        --foreground: 222.2 84% 4.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+        --primary: 220 100% 33%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 49 97% 54%;
+        --secondary-foreground: 222.2 47.4% 11.2%;
+        --destructive: 359 85% 44%;
+        --destructive-foreground: 210 40% 98%;
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 139 82.4% 35.7%;
+        --radius: 0.5rem;
+      }
+    }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-background text-foreground min-h-screen flex flex-col">
+
+  <header class="bg-card text-foreground border-b sticky top-0 z-30 shadow-sm">
+    <div class="px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-8 h-8 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-bold">
+          <i data-lucide="archive" class="w-4 h-4"></i>
+        </div>
+        <span class="font-semibold text-lg tracking-tight">Document Repository</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 p-6 lg:p-8 space-y-6">
+    
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">Central Archives</h1>
+      <p class="text-muted-foreground">Search, filter, and access all digitized city records and legislation.</p>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="flex flex-col md:flex-row gap-4">
+      <div class="relative flex-1">
+        <i data-lucide="search" class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"></i>
+        <input type="text" placeholder="Search title, tracking no, or keywords..." class="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 pl-9 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+      </div>
+      
+      <div class="flex gap-2 shrink-0 overflow-x-auto pb-1 md:pb-0">
+        <select class="h-10 rounded-md border border-input bg-card px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+          <option value="">All Document Types</option>
+          <option value="reso">Resolutions</option>
+          <option value="ord">Ordinances</option>
+          <option value="memo">Memoranda</option>
+          <option value="po">Purchase Orders</option>
+        </select>
+        <select class="h-10 rounded-md border border-input bg-card px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+          <option value="">Classification</option>
+          <option value="pub">Public</option>
+          <option value="int">Internal</option>
+          <option value="conf">Confidential</option>
+        </select>
+        <button class="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-card hover:bg-accent h-10 px-4 shadow-sm shrink-0">
+          <i data-lucide="sliders-horizontal" class="w-4 h-4 mr-2"></i> More Filters
+        </button>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden">
+      <div class="relative w-full overflow-auto">
+        <table class="w-full caption-bottom text-sm">
+          <thead class="[&_tr]:border-b bg-muted/50">
+            <tr class="border-b transition-colors hover:bg-muted/50">
+              <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap">Tracking No. <i data-lucide="arrow-down" class="inline w-3 h-3"></i></th>
+              <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground min-w-[300px]">Document Title</th>
+              <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Type</th>
+              <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Classification</th>
+              <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Date Logged</th>
+              <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
+            </tr>
+          </thead>
+          <tbody class="[&_tr:last-child]:border-0">
+            <!-- Row 1 -->
+            <tr class="border-b transition-colors hover:bg-muted/50 cursor-pointer">
+              <td class="p-4 align-middle font-medium tabular-nums text-primary">ORD-25-012</td>
+              <td class="p-4 align-middle font-medium">Ordinance Institutionalizing the Batac Empanada Festival Code</td>
+              <td class="p-4 align-middle text-muted-foreground">Ordinance</td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-green-100 text-green-800 border-transparent">Public</div>
+              </td>
+              <td class="p-4 align-middle tabular-nums">2025-12-08</td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center text-xs font-medium text-muted-foreground"><i data-lucide="check-circle" class="w-3 h-3 mr-1 text-green-600"></i> Archived</div>
+              </td>
+            </tr>
+            <!-- Row 2 -->
+            <tr class="border-b transition-colors hover:bg-muted/50 cursor-pointer">
+              <td class="p-4 align-middle font-medium tabular-nums text-primary">RES-26-045</td>
+              <td class="p-4 align-middle font-medium">Resolution Approving City Budget Realignment</td>
+              <td class="p-4 align-middle text-muted-foreground">Resolution</td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 border-transparent">Internal</div>
+              </td>
+              <td class="p-4 align-middle tabular-nums">2026-06-07</td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center text-xs font-medium text-muted-foreground"><i data-lucide="loader" class="w-3 h-3 mr-1 text-secondary"></i> Active</div>
+              </td>
+            </tr>
+            <!-- Row 3 -->
+            <tr class="border-b transition-colors hover:bg-muted/50 cursor-pointer bg-red-50/30">
+              <td class="p-4 align-middle font-medium tabular-nums text-primary">HR-26-099</td>
+              <td class="p-4 align-middle font-medium">Disciplinary Action Report: Case #45</td>
+              <td class="p-4 align-middle text-muted-foreground">HR Report</td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-destructive/10 text-destructive border-transparent">Confidential</div>
+              </td>
+              <td class="p-4 align-middle tabular-nums">2026-05-30</td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center text-xs font-medium text-muted-foreground"><i data-lucide="lock" class="w-3 h-3 mr-1 text-destructive"></i> Restricted</div>
+              </td>
+            </tr>
+            <!-- Row 4 -->
+            <tr class="border-b transition-colors hover:bg-muted/50 cursor-pointer">
+              <td class="p-4 align-middle font-medium tabular-nums text-primary">PO-26-0089</td>
+              <td class="p-4 align-middle font-medium">Purchase Order: Medical Supplies for CHO</td>
+              <td class="p-4 align-middle text-muted-foreground">Purchase Order</td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 border-transparent">Internal</div>
+              </td>
+              <td class="p-4 align-middle tabular-nums">2026-06-08</td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center text-xs font-medium text-muted-foreground"><i data-lucide="loader" class="w-3 h-3 mr-1 text-secondary"></i> Routing</div>
+              </td>
+            </tr>
+            <!-- Row 5 -->
+            <tr class="border-b transition-colors hover:bg-muted/50 cursor-pointer">
+              <td class="p-4 align-middle font-medium tabular-nums text-primary">M-26-112</td>
+              <td class="p-4 align-middle font-medium">Memo: Suspension of Classes due to Typhoon</td>
+              <td class="p-4 align-middle text-muted-foreground">Memorandum</td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-green-100 text-green-800 border-transparent">Public</div>
+              </td>
+              <td class="p-4 align-middle tabular-nums">2026-06-08</td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center text-xs font-medium text-muted-foreground"><i data-lucide="check-circle" class="w-3 h-3 mr-1 text-green-600"></i> Archived</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Pagination -->
+      <div class="flex items-center justify-between px-6 py-4 border-t">
+        <div class="text-sm text-muted-foreground">Showing 1 to 5 of 12,450 records</div>
+        <div class="flex items-center gap-2">
+          <button class="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-card hover:bg-accent h-8 w-8 disabled:opacity-50" disabled><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+          <button class="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-card hover:bg-accent h-8 w-8"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>
