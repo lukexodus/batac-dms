@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document Management System — City Government of Batac</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary:         #06943d;
+      --primary-light:   #109f3c;
+      --primary-pale:    #e8f7ee;
+      --primary-dark:    #04712e;
+      --secondary:       #0046e4;
+      --secondary-pale:  #eef2ff;
+      --secondary-light: #3b6ef0;
+      --text-dark:       #111827;
+      --text-mid:        #374151;
+      --text-muted:      #6b7280;
+      --text-light:      #9ca3af;
+      --surface:         #ffffff;
+      --surface-alt:     #f8fafc;
+      --surface-mid:     #f1f5f9;
+      --border:          #e5e7eb;
+      --border-light:    #f3f4f6;
+      --accent:          var(--primary);
+      --accent-bar-width: 5px;
+      --tag-bg:          var(--primary-pale);
+      --tag-color:       var(--primary-dark);
+      --font-head:  'Plus Jakarta Sans', system-ui, sans-serif;
+      --font-body:  'Inter', system-ui, sans-serif;
+      --text-xs:    0.72rem;
+      --text-sm:    0.85rem;
+      --text-base:  0.95rem;
+      --text-md:    1.05rem;
+      --text-lg:    1.2rem;
+      --text-xl:    1.5rem;
+      --text-2xl:   1.9rem;
+      --text-3xl:   2.5rem;
+      --text-4xl:   3.4rem;
+      --sp-1: 0.25rem; --sp-2: 0.5rem; --sp-3: 0.75rem; --sp-4: 1rem;
+      --sp-5: 1.25rem; --sp-6: 1.5rem; --sp-8: 2rem; --sp-10: 2.5rem; --sp-12: 3rem;
+      --topbar-h: 52px;
+      --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,.10);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; width: 100%; overflow: hidden; background: var(--surface-mid); font-family: var(--font-body); color: var(--text-dark); -webkit-font-smoothing: antialiased; }
+    .slide { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--surface); opacity: 0; pointer-events: none; transition: opacity 0.35s ease, transform 0.35s ease; transform: translateY(16px); }
+    .slide.active { opacity: 1; pointer-events: all; transform: translateY(0); }
+    .slide.exit { opacity: 0; transform: translateY(-12px); pointer-events: none; }
+    .accent-bar { position: absolute; left: 0; top: 0; bottom: 0; width: var(--accent-bar-width); background: linear-gradient(to bottom, var(--primary), var(--primary-light)); z-index: 10; }
+    .topbar { height: var(--topbar-h); min-height: var(--topbar-h); display: flex; align-items: center; justify-content: space-between; padding: 0 var(--sp-8) 0 calc(var(--accent-bar-width) + var(--sp-8)); border-bottom: 1px solid var(--border); background: var(--surface); z-index: 5; }
+    .topbar-left { font-family: var(--font-head); font-size: var(--text-sm); font-weight: 700; color: var(--primary-dark); letter-spacing: 0.01em; display: flex; align-items: center; gap: var(--sp-2); }
+    .topbar-left .topbar-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); display: inline-block; }
+    .topbar-right { font-family: var(--font-body); font-size: var(--text-xs); font-weight: 500; color: var(--text-muted); letter-spacing: 0.03em; text-transform: uppercase; }
+    .slide-content { flex: 1; padding: var(--sp-8) var(--sp-12) var(--sp-8) calc(var(--accent-bar-width) + var(--sp-12)); display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+    .slide-content.top { justify-content: flex-start; padding-top: var(--sp-8); }
+    .slide-content.padded-top { padding-top: var(--sp-6); }
+    .eyebrow { font-family: var(--font-body); font-size: var(--text-xs); font-weight: 600; color: var(--primary); letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: var(--sp-3); }
+    .slide-title { font-family: var(--font-head); font-size: var(--text-2xl); font-weight: 800; color: var(--text-dark); line-height: 1.2; margin-bottom: var(--sp-2); }
+    .slide-title.lg { font-size: var(--text-3xl); }
+    .slide-title.xl { font-size: var(--text-4xl); }
+    .slide-subtitle { font-size: var(--text-md); color: var(--text-muted); font-weight: 400; line-height: 1.55; margin-bottom: var(--sp-4); }
+    .slide-body { font-size: var(--text-base); color: var(--text-mid); line-height: 1.65; }
+    .lead { font-size: var(--text-lg); color: var(--text-mid); line-height: 1.6; font-weight: 400; }
+    .section-label { font-family: var(--font-head); font-size: var(--text-sm); font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: var(--sp-5); padding-bottom: var(--sp-2); border-bottom: 2px solid var(--border); }
+    strong { color: var(--text-dark); }
+    em { color: var(--primary-dark); font-style: normal; font-weight: 600; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--sp-5) var(--sp-6); box-shadow: var(--shadow-sm); }
+    .card.accent-left { border-left: 4px solid var(--primary); }
+    .card.accent-blue { border-left: 4px solid var(--secondary); }
+    .card.filled-green { background: var(--primary-pale); border-color: var(--primary-pale); }
+    .card.filled-blue { background: var(--secondary-pale); border-color: var(--secondary-pale); }
+    .card-title { font-family: var(--font-head); font-size: var(--text-base); font-weight: 700; color: var(--text-dark); margin-bottom: var(--sp-2); }
+    .card-title.green { color: var(--primary-dark); }
+    .card-title.blue  { color: var(--secondary); }
+    .card p, .card .card-body { font-size: var(--text-sm); color: var(--text-mid); line-height: 1.6; }
+    .card-grid { display: grid; gap: var(--sp-4); }
+    .card-grid.col2 { grid-template-columns: 1fr 1fr; }
+    .card-grid.col3 { grid-template-columns: 1fr 1fr 1fr; }
+    .card-grid.col4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .badge { display: inline-block; padding: var(--sp-1) var(--sp-3); border-radius: 100px; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.04em; background: var(--tag-bg); color: var(--tag-color); }
+    .badge.blue   { background: var(--secondary-pale); color: var(--secondary); }
+    .badge.dark   { background: var(--text-dark); color: #fff; }
+    .badge.muted  { background: var(--surface-mid); color: var(--text-muted); }
+    .badge.orange { background: #fff7ed; color: #c2410c; }
+    .callout { border-radius: var(--radius-md); padding: var(--sp-4) var(--sp-6); border-left: 4px solid var(--primary); background: var(--primary-pale); }
+    .callout p { font-size: var(--text-sm); color: var(--text-mid); line-height: 1.6; }
+    .callout strong { color: var(--primary-dark); }
+    .callout.blue { border-color: var(--secondary); background: var(--secondary-pale); }
+    .callout.blue strong { color: var(--secondary); }
+    .callout.blue p { color: var(--text-mid); }
+    .callout.orange { border-color: #f59e0b; background: #fffbeb; }
+    .callout.orange strong { color: #92400e; }
+    .num-list { list-style: none; display: flex; flex-direction: column; gap: var(--sp-3); }
+    .num-list li { display: flex; align-items: flex-start; gap: var(--sp-4); font-size: var(--text-sm); color: var(--text-mid); line-height: 1.6; }
+    .num-list .num { min-width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #fff; font-family: var(--font-head); font-size: var(--text-xs); font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 1px; flex-shrink: 0; }
+    .num-list .num.blue { background: var(--secondary); }
+    .bullet-list { list-style: none; display: flex; flex-direction: column; gap: var(--sp-3); }
+    .bullet-list li { display: flex; align-items: flex-start; gap: var(--sp-3); font-size: var(--text-sm); color: var(--text-mid); line-height: 1.6; }
+    .bullet-list li::before { content: ''; min-width: 6px; height: 6px; border-radius: 50%; background: var(--primary); margin-top: 7px; flex-shrink: 0; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); align-items: start; }
+    .two-col.asym { grid-template-columns: 1.1fr 0.9fr; }
+    .two-col.asym-r { grid-template-columns: 0.9fr 1.1fr; }
+    .divider { height: 1px; background: var(--border); margin: var(--sp-5) 0; }
+    .step-row { display: flex; align-items: stretch; gap: 0; }
+    .step-item { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
+    .step-item:not(:last-child)::after { content: ''; position: absolute; top: 18px; left: calc(50% + 18px); right: calc(-50% + 18px); height: 2px; background: var(--border); z-index: 0; }
+    .step-circle { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; font-family: var(--font-head); font-weight: 700; font-size: var(--text-xs); display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; flex-shrink: 0; }
+    .step-circle.blue { background: var(--secondary); }
+    .step-circle.muted { background: var(--text-muted); }
+    .step-label { margin-top: var(--sp-2); font-size: var(--text-xs); color: var(--text-mid); text-align: center; line-height: 1.4; padding: 0 var(--sp-2); }
+    .step-actor { font-size: 0.65rem; color: var(--text-light); text-align: center; margin-top: var(--sp-1); }
+    .stat-box { text-align: center; padding: var(--sp-5); background: var(--surface); border-radius: var(--radius-md); border: 1px solid var(--border); }
+    .stat-number { font-family: var(--font-head); font-size: var(--text-3xl); font-weight: 800; color: var(--primary); line-height: 1; margin-bottom: var(--sp-1); }
+    .stat-number.blue { color: var(--secondary); }
+    .stat-label { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.4; }
+    .slide-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+    .slide-table th { background: var(--primary); color: #fff; font-family: var(--font-head); font-weight: 600; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; padding: var(--sp-2) var(--sp-4); text-align: left; }
+    .slide-table th:first-child { border-radius: var(--radius-sm) 0 0 0; }
+    .slide-table th:last-child  { border-radius: 0 var(--radius-sm) 0 0; }
+    .slide-table td { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); color: var(--text-mid); vertical-align: top; }
+    .slide-table tr:last-child td { border-bottom: none; }
+    .slide-table tr:nth-child(even) td { background: var(--surface-alt); }
+
+    /* Use case section divider slide */
+    .section-divider-content { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; background: linear-gradient(135deg, var(--primary-pale) 0%, var(--secondary-pale) 100%); }
+
+    /* Mobile frame for mockups */
+    .mobile-frame { background: #1a2332; border-radius: 32px; padding: 12px 8px 16px; width: 200px; flex-shrink: 0; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+    .mobile-screen { background: var(--surface); border-radius: 22px; overflow: hidden; }
+    .mobile-statusbar { background: var(--primary-dark); height: 24px; display:flex; align-items:center; justify-content:space-between; padding: 0 14px; }
+    .mobile-statusbar span { font-size: 9px; color: rgba(255,255,255,0.9); font-family: var(--font-body); font-weight:600; }
+    .mobile-header { background: var(--primary); padding: 10px 12px 10px; }
+    .mobile-header-title { font-family: var(--font-head); font-size: 11px; font-weight: 700; color: #fff; }
+    .mobile-header-sub { font-size: 8.5px; color: rgba(255,255,255,0.75); margin-top:2px; }
+    .mobile-body { padding: 10px 10px; min-height: 280px; }
+
+    .reveal-unit { opacity: 0; transform: translateY(10px); transition: opacity 0.3s ease, transform 0.3s ease; }
+    .reveal-unit.revealed { opacity: 1; transform: translateY(0); }
+    #progress-bar { position: fixed; bottom: 0; left: 0; height: 3px; background: linear-gradient(to right, var(--primary), var(--primary-light)); transition: width 0.4s ease; z-index: 100; }
+    #slide-counter { position: fixed; bottom: 10px; right: 16px; font-family: var(--font-body); font-size: var(--text-xs); color: var(--text-light); z-index: 100; font-weight: 500; }
+    #mode-indicator { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: var(--text-xs); color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: 100px; padding: 3px 12px; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; z-index: 100; }
+    #mode-indicator.show { opacity: 1; }
+    .uc-badge { display:inline-block; background: var(--primary); color:#fff; font-family:var(--font-head); font-weight:700; font-size:0.65rem; letter-spacing:0.06em; text-transform:uppercase; padding: 3px 10px; border-radius:100px; margin-bottom:var(--sp-3); }
+    .uc-badge.blue { background:var(--secondary); }
+  </style>
+</head>
+<body>
+
+<!-- SLIDE 01 — TITLE -->
+<div class="slide active" data-slide="1">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="justify-content:center; align-items:center; text-align:center; padding-bottom: var(--sp-12);">
+    <div style="max-width: 680px;">
+      <div style="display:flex; justify-content:center; margin-bottom:var(--sp-6);">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="16" fill="#e8f7ee"/>
+          <rect x="16" y="14" width="24" height="30" rx="3" fill="#06943d" opacity="0.2"/>
+          <rect x="16" y="14" width="24" height="30" rx="3" stroke="#06943d" stroke-width="2"/>
+          <rect x="21" y="20" width="14" height="2" rx="1" fill="#06943d"/>
+          <rect x="21" y="25" width="14" height="2" rx="1" fill="#06943d" opacity="0.6"/>
+          <rect x="21" y="30" width="9" height="2" rx="1" fill="#06943d" opacity="0.4"/>
+          <circle cx="44" cy="44" r="12" fill="#0046e4" opacity="0.12"/>
+          <path d="M40 44l3 3 5-5" stroke="#0046e4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="eyebrow">Stakeholder Briefing · Terms of Reference v0.1</div>
+      <h1 style="font-family:var(--font-head); font-size:var(--text-4xl); font-weight:800; color:var(--text-dark); line-height:1.15; margin-bottom:var(--sp-4);">Document Management<br>System</h1>
+      <p class="lead" style="margin-bottom:var(--sp-6); color:var(--text-muted);">A digital platform for the Sangguniang Panlungsod,<br>Mayor's Office, and City Hall departments of Batac City.</p>
+      <div style="display:flex; gap:var(--sp-3); justify-content:center; flex-wrap:wrap;">
+        <span class="badge">Draft — For Review</span>
+        <span class="badge blue">June 2026</span>
+        <span class="badge muted">Development Team</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 02 — CURRENT STATE -->
+<div class="slide" data-slide="2">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content top padded-top">
+    <div class="eyebrow">Background · Section 2.1</div>
+    <h2 class="slide-title">How documents move today</h2>
+    <p class="slide-subtitle" style="margin-bottom:var(--sp-6);">City Hall currently manages official documents through predominantly manual, paper-based processes.</p>
+    <div class="card-grid col3" style="gap:var(--sp-4);">
+      <div class="card accent-left reveal-unit">
+        <div style="margin-bottom:var(--sp-2);"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="14" fill="#fee2e2"/><path d="M9 14h10M14 9v10" stroke="#dc2626" stroke-width="2" stroke-linecap="round" transform="rotate(45 14 14)"/></svg></div>
+        <div class="card-title">Routing depends on physical presence</div>
+        <p class="card-body">Documents are manually handed off between offices. Delays occur whenever a responsible person is absent or unavailable.</p>
+      </div>
+      <div class="card accent-left reveal-unit">
+        <div style="margin-bottom:var(--sp-2);"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="14" fill="#fee2e2"/><circle cx="14" cy="14" r="5" stroke="#dc2626" stroke-width="2"/><path d="M14 4v4M14 20v4M4 14h4M20 14h4" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <div class="card-title">No real-time status visibility</div>
+        <p class="card-body">There is no centralized view of where a document is in its processing lifecycle. Status requires manual inquiry.</p>
+      </div>
+      <div class="card accent-left reveal-unit">
+        <div style="margin-bottom:var(--sp-2);"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="14" fill="#fee2e2"/><path d="M8 20l4-4 3 3 5-7" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="card-title">Retrieval is time-consuming</div>
+        <p class="card-body">Locating a specific document for audit or reference requires searching physical storage — unreliable and slow.</p>
+      </div>
+      <div class="card accent-left reveal-unit">
+        <div style="margin-bottom:var(--sp-2);"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="14" fill="#fee2e2"/><path d="M10 8h8v12H10z" stroke="#dc2626" stroke-width="2" stroke-linejoin="round"/><path d="M10 12l8 0M10 16l5 0" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+        <div class="card-title">Version control is manual</div>
+        <p class="card-body">Earlier document versions are sometimes confused with or replace final copies, creating compliance and accuracy risks.</p>
+      </div>
+      <div class="card accent-left reveal-unit">
+        <div style="margin-bottom:var(--sp-2);"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="14" fill="#fee2e2"/><path d="M14 8v6l4 2" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="14" r="6" stroke="#dc2626" stroke-width="2"/></svg></div>
+        <div class="card-title">ARTA compliance unenforceable</div>
+        <p class="card-body">RA 11032 processing time limits cannot be monitored or enforced without automated tracking systems.</p>
+      </div>
+      <div class="card accent-left reveal-unit">
+        <div style="margin-bottom:var(--sp-2);"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="14" fill="#fee2e2"/><path d="M9 9l10 10M19 9L9 19" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <div class="card-title">Records preservation at risk</div>
+        <p class="card-body">Inconsistent archiving creates risk of document loss and non-compliance with COA retention requirements.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 03 — WHY DIGITIZATION IS NECESSARY -->
+<div class="slide" data-slide="3">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content">
+    <div class="two-col">
+      <div>
+        <div class="eyebrow">Rationale · Section 2.2</div>
+        <h2 class="slide-title">Why this is necessary</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-6);">This is not simply an efficiency initiative. It is a legal obligation and a foundation for accountable governance.</p>
+        <div style="display:flex; flex-direction:column; gap:var(--sp-4);">
+          <div class="callout reveal-unit">
+            <strong>RA 11032 — Ease of Doing Business Act</strong>
+            <p style="margin-top:var(--sp-1);">Mandates legally enforceable maximum processing times: <strong>3 days</strong> for simple, <strong>7 days</strong> for complex, and <strong>20 days</strong> for highly technical transactions. Non-compliance carries penalties.</p>
+          </div>
+          <div class="callout blue reveal-unit">
+            <strong>Public Accountability & Transparency</strong>
+            <p style="margin-top:var(--sp-1);">Citizens have a right to access public government records and to know the status of their submissions. Digital infrastructure makes this feasible.</p>
+          </div>
+          <div class="card reveal-unit" style="border-color:var(--border);">
+            <div class="card-title">Operational scale</div>
+            <p class="card-body">The volume of documents spanning SP legislative output, executive issuances, departmental operations, 43 barangay transmittals, and citizen services has reached a scale where manual management is an operational liability.</p>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 320 340" width="300" height="320" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="160" cy="170" r="140" fill="#e8f7ee" opacity="0.5"/>
+          <rect x="155" y="80" width="10" height="180" rx="3" fill="#06943d" opacity="0.25"/>
+          <rect x="80" y="110" width="200" height="8" rx="4" fill="#06943d" opacity="0.7"/>
+          <line x1="95" y1="118" x2="95" y2="165" stroke="#06943d" stroke-width="2" stroke-dasharray="3 2"/>
+          <ellipse cx="95" cy="175" rx="32" ry="8" fill="#06943d" opacity="0.15" stroke="#06943d" stroke-width="2"/>
+          <line x1="265" y1="118" x2="265" y2="165" stroke="#06943d" stroke-width="2" stroke-dasharray="3 2"/>
+          <ellipse cx="265" cy="175" rx="32" ry="8" fill="#06943d" opacity="0.15" stroke="#06943d" stroke-width="2"/>
+          <rect x="82" y="155" width="26" height="14" rx="2" fill="#06943d" opacity="0.4"/>
+          <circle cx="265" cy="163" r="9" fill="#0046e4" opacity="0.3" stroke="#0046e4" stroke-width="1.5"/>
+          <path d="M265 158v5l3 2" stroke="#0046e4" stroke-width="1.5" stroke-linecap="round"/>
+          <rect x="40" y="200" width="90" height="34" rx="8" fill="#e8f7ee" stroke="#06943d" stroke-width="1.5"/>
+          <text x="85" y="215" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="13" fill="#06943d">3 days</text>
+          <text x="85" y="228" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#4a5568">Simple</text>
+          <rect x="145" y="200" width="90" height="34" rx="8" fill="#eef2ff" stroke="#0046e4" stroke-width="1.5"/>
+          <text x="190" y="215" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="13" fill="#0046e4">7 days</text>
+          <text x="190" y="228" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#4a5568">Complex</text>
+          <rect x="250" y="200" width="90" height="34" rx="8" fill="#fff7ed" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="295" y="215" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="13" fill="#c2410c">20 days</text>
+          <text x="295" y="228" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#4a5568">Highly technical</text>
+          <rect x="115" y="255" width="130" height="24" rx="5" fill="#06943d"/>
+          <text x="180" y="271" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="11" fill="#ffffff">RA 11032 · ARTA</text>
+          <text x="160" y="310" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#6b7280">43 barangays · Multiple offices · Thousands of documents</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 04 — PHYSICAL–DIGITAL DISTINCTION -->
+<div class="slide" data-slide="4">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="justify-content:center;">
+    <div class="eyebrow">Important Clarification · Section 2.3</div>
+    <h2 class="slide-title" style="margin-bottom:var(--sp-6);">Physical documents remain the legal source of truth</h2>
+    <div class="card-grid col2" style="gap:var(--sp-6); margin-bottom:var(--sp-6);">
+      <div class="card" style="border-top: 4px solid var(--primary); padding-top: var(--sp-5);">
+        <div class="badge" style="margin-bottom:var(--sp-3);">Physical Records</div>
+        <div class="card-title" style="font-size:var(--text-lg);">Legal Source of Truth</div>
+        <p class="card-body" style="margin-top:var(--sp-2);">Official resolutions, ordinances, contracts, and signed orders remain legally authoritative in their physical, wet-ink-signed form until COA formally confirms the legal equivalence of digital records for each document category.</p>
+      </div>
+      <div class="card" style="border-top: 4px solid var(--secondary); padding-top: var(--sp-5);">
+        <div class="badge blue" style="margin-bottom:var(--sp-3);">This System</div>
+        <div class="card-title" style="font-size:var(--text-lg); color:var(--secondary);">Operational Source of Truth</div>
+        <p class="card-body" style="margin-top:var(--sp-2);">The system provides the digital record of what was processed, by whom, when, and in what sequence. It manages workflows, tracking, and visibility — not legal originals replacement.</p>
+      </div>
+    </div>
+    <div class="callout orange reveal-unit">
+      <strong>Physical and digital records coexist throughout system operation.</strong>
+      <p style="margin-top:var(--sp-1);">LGU Batac will retain all physical originals post-digitization until formal regulatory confirmation is received from COA for each document category. This is not a paperless initiative — it is a digital operations layer alongside existing physical records.</p>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 05 — WHAT WE ARE BUILDING -->
+<div class="slide" data-slide="5">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="justify-content:center;">
+    <div class="eyebrow">Project Overview</div>
+    <h2 class="slide-title lg" style="margin-bottom:var(--sp-3);">A digital operations platform for City Hall</h2>
+    <p class="lead" style="margin-bottom:var(--sp-8); max-width: 700px;">Not merely file storage — a system that manages the complete lifecycle of official government documents from creation through routing, approval, tracking, archiving, and public access.</p>
+    <svg viewBox="0 0 820 180" width="100%" style="max-width:820px;" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="20" width="240" height="140" rx="12" fill="#e8f7ee" stroke="#06943d" stroke-width="2"/>
+      <text x="130" y="52" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="14" fill="#04712e">DMS</text>
+      <text x="130" y="68" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="600" font-size="10" fill="#04712e">Document Management</text>
+      <line x1="50" y1="82" x2="210" y2="82" stroke="#06943d" stroke-width="1" opacity="0.3"/>
+      <text x="130" y="98" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">Store · Version · Classify</text>
+      <text x="130" y="112" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">Metadata · Search · Retrieve</text>
+      <text x="130" y="126" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">Upload · Archive · Access</text>
+      <path d="M252 90 L290 90" stroke="#06943d" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrowG)"/>
+      <rect x="290" y="20" width="240" height="140" rx="12" fill="#eef2ff" stroke="#0046e4" stroke-width="2"/>
+      <text x="410" y="52" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="14" fill="#0046e4">DTS</text>
+      <text x="410" y="68" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="600" font-size="10" fill="#0046e4">Document Tracking</text>
+      <line x1="330" y1="82" x2="490" y2="82" stroke="#0046e4" stroke-width="1" opacity="0.3"/>
+      <text x="410" y="98" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">QR Codes · Tracking Numbers</text>
+      <text x="410" y="112" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">Routing History · Status</text>
+      <text x="410" y="126" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">Cover Sheets · Scan-to-Lookup</text>
+      <path d="M532 90 L570 90" stroke="#0046e4" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrowB)"/>
+      <rect x="570" y="20" width="240" height="140" rx="12" fill="#f8fafc" stroke="#374151" stroke-width="2"/>
+      <text x="690" y="52" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="14" fill="#1a2332">WMS</text>
+      <text x="690" y="68" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="600" font-size="10" fill="#374151">Workflow Management</text>
+      <line x1="610" y1="82" x2="770" y2="82" stroke="#374151" stroke-width="1" opacity="0.3"/>
+      <text x="690" y="98" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">Routing Rules · Approvals</text>
+      <text x="690" y="112" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">SLA Timers · ARTA Compliance</text>
+      <text x="690" y="126" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#374151">Audit Trails · Notifications</text>
+      <defs>
+        <marker id="arrowG" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#06943d"/></marker>
+        <marker id="arrowB" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#0046e4"/></marker>
+      </defs>
+    </svg>
+  </div>
+</div>
+
+<!-- SLIDE 06 — OBJECTIVES 1 of 2 -->
+<div class="slide" data-slide="6">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content top padded-top">
+    <div class="eyebrow">Project Objectives · Section 3 (1 of 2)</div>
+    <h2 class="slide-title" style="margin-bottom:var(--sp-5);">What the system must achieve</h2>
+    <ul class="num-list">
+      <li class="reveal-unit"><span class="num">1</span><span><strong>Digitize and centralize document storage</strong> for the SP, Mayor's Office, all City Hall departments, and all 43 barangay governments of Batac City.</span></li>
+      <li class="reveal-unit"><span class="num">2</span><span><strong>Implement configurable document workflows</strong> that enforce proper routing, approval, and tracking consistent with established LGU procedures.</span></li>
+      <li class="reveal-unit"><span class="num">3</span><span><strong>Provide real-time document tracking</strong> with QR code generation, cover sheet printing, and complete routing history for every document.</span></li>
+      <li class="reveal-unit"><span class="num">4</span><span><strong>Enforce role-based access controls</strong> strictly aligned with organizational positions and authority boundaries.</span></li>
+      <li class="reveal-unit"><span class="num">5</span><span><strong>Enable compliance with RA 11032</strong> through automated service-level tracking and processing time monitoring per document type.</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- SLIDE 07 — OBJECTIVES 2 of 2 -->
+<div class="slide" data-slide="7">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content top padded-top">
+    <div class="eyebrow">Project Objectives · Section 3 (2 of 2)</div>
+    <h2 class="slide-title" style="margin-bottom:var(--sp-5);">What the system must achieve</h2>
+    <ul class="num-list">
+      <li class="reveal-unit"><span class="num">6</span><span><strong>Provide a public-facing component</strong> for citizens to access published government documents and track the status of their submitted requests — without visiting City Hall.</span></li>
+      <li class="reveal-unit"><span class="num">7</span><span><strong>Ensure long-term records preservation</strong> through configurable retention schedules and disposition procedures consistent with COA and DILG requirements.</span></li>
+      <li class="reveal-unit"><span class="num">8</span><span><strong>Support transparency and accountability</strong> through tamper-evident, append-only audit trails that record every action taken in the system.</span></li>
+      <li class="reveal-unit"><span class="num">9</span><span><strong>Establish a long-term digital foundation</strong> designed to serve the city government reliably, with the capacity to add users and functionality as operational needs grow.</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- SLIDE 08 — USER ROLES -->
+<div class="slide" data-slide="8">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content top padded-top">
+    <div class="eyebrow">User Roles · Section 6</div>
+    <h2 class="slide-title" style="margin-bottom:var(--sp-5);">Who uses the system</h2>
+    <div class="card-grid col3" style="gap:var(--sp-3);">
+      <div class="card reveal-unit" style="padding:var(--sp-4);"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-2);"><div class="card-title" style="font-size:var(--text-sm);">SP Secretary</div><span class="badge" style="font-size:0.6rem;">Primary user</span></div><p class="card-body">Full lifecycle control over SP resolutions and ordinances: logging, numbering, committee referral, certification, release, and archiving.</p></div>
+      <div class="card reveal-unit" style="padding:var(--sp-4);"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-2);"><div class="card-title" style="font-size:var(--text-sm);">Mayor</div><span class="badge" style="font-size:0.6rem;">Executive</span></div><p class="card-body">Highest approval authority. Reviews and signs executive documents and SP ordinances. Views city-wide pending items from dashboard.</p></div>
+      <div class="card reveal-unit" style="padding:var(--sp-4);"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-2);"><div class="card-title" style="font-size:var(--text-sm);">Vice Mayor</div><span class="badge" style="font-size:0.6rem;">SP Presiding</span></div><p class="card-body">Manages SP sessions. Certifies approved resolutions and ordinances after final vote.</p></div>
+      <div class="card reveal-unit" style="padding:var(--sp-4);"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-2);"><div class="card-title" style="font-size:var(--text-sm);">SP Members / Councilors</div><span class="badge" style="font-size:0.6rem;">Legislative</span></div><p class="card-body">Reviews, comments on, and acts on legislative documents. Accesses session materials and committee referrals.</p></div>
+      <div class="card reveal-unit" style="padding:var(--sp-4);"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-2);"><div class="card-title" style="font-size:var(--text-sm);">Department Heads & Staff</div><span class="badge" style="font-size:0.6rem;">Departmental</span></div><p class="card-body">Approvers and encoders within their own office. Cannot approve documents they also create, and cannot act outside their office scope.</p></div>
+      <div class="card reveal-unit" style="padding:var(--sp-4);"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-2);"><div class="card-title" style="font-size:var(--text-sm);">Barangay Officials</div><span class="badge" style="font-size:0.6rem;">Barangay</span></div><p class="card-body">Barangay Secretaries and Captains submit and sign documents for their barangay via mobile browser. Access limited to their own barangay.</p></div>
+      <div class="card reveal-unit" style="padding:var(--sp-4);"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-2);"><div class="card-title" style="font-size:var(--text-sm);">Records Officer</div><span class="badge" style="font-size:0.6rem;">Compliance</span></div><p class="card-body">Manages archiving, retention, and disposition of official records. Performs bulk archiving and export operations.</p></div>
+      <div class="card reveal-unit" style="padding:var(--sp-4);"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-2);"><div class="card-title" style="font-size:var(--text-sm);">Auditor</div><span class="badge" style="font-size:0.6rem;">Read-only</span></div><p class="card-body">Read-only access to finalized documents and the audit log. Cannot modify any record.</p></div>
+      <div class="card reveal-unit" style="padding:var(--sp-4);"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:var(--sp-2);"><div class="card-title" style="font-size:var(--text-sm);">Citizens</div><span class="badge" style="font-size:0.6rem;">Public portal</span></div><p class="card-body">Access to the public portal only. Can view public documents, submit requests and complaints, and track their own submissions.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 09 — DOCUMENT CATEGORIES -->
+<div class="slide" data-slide="9">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content top padded-top">
+    <div class="eyebrow">Document Categories · Section 7</div>
+    <h2 class="slide-title" style="margin-bottom:var(--sp-5);">Three categories, one system</h2>
+    <div class="card-grid col3" style="gap:var(--sp-5);">
+      <div class="reveal-unit">
+        <div class="card" style="border-top:4px solid var(--primary); margin-bottom:var(--sp-3);"><div style="display:flex; align-items:center; gap:var(--sp-2); margin-bottom:var(--sp-3);"><span class="badge">Category A</span></div><div class="card-title">Full Workflow Documents</div><p class="card-body" style="margin-top:var(--sp-2);">Full routing, approvals, signature recording, tracking, notifications, and audit trails.</p></div>
+        <ul class="bullet-list" style="font-size:var(--text-xs); gap:var(--sp-2);"><li>SP Resolution</li><li>SP Ordinance</li><li>Barangay Resolution</li><li>Executive Order</li><li>Citizen Request / Complaint</li></ul>
+      </div>
+      <div class="reveal-unit">
+        <div class="card" style="border-top:4px solid var(--secondary); margin-bottom:var(--sp-3);"><div style="display:flex; align-items:center; gap:var(--sp-2); margin-bottom:var(--sp-3);"><span class="badge blue">Category B</span></div><div class="card-title">Administrative Documents</div><p class="card-body" style="margin-top:var(--sp-2);">Require approvals and tracking, but follow simpler, more linear workflows.</p></div>
+        <ul class="bullet-list" style="font-size:var(--text-xs); gap:var(--sp-2);"><li>Travel Order</li><li>Leave Application</li><li>Purchase Request / Order</li><li>Disbursement Voucher</li><li>Internal Memorandum</li></ul>
+      </div>
+      <div class="reveal-unit">
+        <div class="card" style="border-top:4px solid var(--text-muted); margin-bottom:var(--sp-3);"><div style="display:flex; align-items:center; gap:var(--sp-2); margin-bottom:var(--sp-3);"><span class="badge muted">Category C</span></div><div class="card-title">Archive Documents</div><p class="card-body" style="margin-top:var(--sp-2);">Completed documents requiring only storage, search, access control, and retrieval. No active workflow.</p></div>
+        <ul class="bullet-list" style="font-size:var(--text-xs); gap:var(--sp-2);"><li>Final certified resolution / ordinance PDFs</li><li>Session minutes and attendance records</li><li>Completed committee reports</li><li>Historical migrated records</li></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 10 — SP RESOLUTION WORKFLOW -->
+<div class="slide" data-slide="10">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content top padded-top">
+    <div class="eyebrow">Key Workflow · Section 10.1</div>
+    <h2 class="slide-title" style="margin-bottom:var(--sp-2);">SP Resolution — Full Lifecycle</h2>
+    <p class="slide-subtitle" style="margin-bottom:var(--sp-5);">Phase 1 priority. The system manages every step from draft to public record.</p>
+    <div class="step-row" style="margin-bottom:var(--sp-6);">
+      <div class="step-item"><div class="step-circle">1</div><div class="step-label">Draft Prepared</div><div class="step-actor">Councilor or SP Secretary</div></div>
+      <div class="step-item"><div class="step-circle">2</div><div class="step-label">Logged in System</div><div class="step-actor">SP Secretary</div></div>
+      <div class="step-item"><div class="step-circle">3</div><div class="step-label">Committee Assignment</div><div class="step-actor">SP Secretary</div></div>
+      <div class="step-item"><div class="step-circle">4</div><div class="step-label">Committee Review &amp; Report</div><div class="step-actor">Committee</div></div>
+      <div class="step-item"><div class="step-circle blue">5</div><div class="step-label">First Reading</div><div class="step-actor">SP Session</div></div>
+      <div class="step-item"><div class="step-circle blue">6</div><div class="step-label">Amendment Phase</div><div class="step-actor">SP Session (if any)</div></div>
+    </div>
+    <div class="step-row">
+      <div class="step-item"><div class="step-circle blue">7</div><div class="step-label">2nd Reading &amp; Vote</div><div class="step-actor">SP Session</div></div>
+      <div class="step-item"><div class="step-circle">8</div><div class="step-label">Certification</div><div class="step-actor">Vice Mayor</div></div>
+      <div class="step-item"><div class="step-circle">9</div><div class="step-label">Series No. Assigned &amp; Released</div><div class="step-actor">SP Secretary</div></div>
+      <div class="step-item"><div class="step-circle muted">10</div><div class="step-label">Reference Copy Transmitted</div><div class="step-actor">Mayor's Office</div></div>
+      <div class="step-item"><div class="step-circle muted">11</div><div class="step-label">Archived</div><div class="step-actor">Records Officer</div></div>
+      <div class="step-item"><div class="step-circle muted">12</div><div class="step-label">Published (if Public)</div><div class="step-actor">Public Portal</div></div>
+    </div>
+    <div class="callout" style="margin-top:var(--sp-5);">
+      <strong>System enforces this sequence.</strong>
+      <p style="margin-top:var(--sp-1);">No step can be bypassed unless the workflow definition explicitly permits it. Series numbers are assigned only at Step 9 — never at draft creation. Once assigned, numbers are immutable.</p>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 11 — SP ORDINANCE WORKFLOW -->
+<div class="slide" data-slide="11">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content top padded-top">
+    <div class="eyebrow">Key Workflow · Section 10.2</div>
+    <h2 class="slide-title" style="margin-bottom:var(--sp-2);">SP Ordinance — Full Lifecycle</h2>
+    <p class="slide-subtitle" style="margin-bottom:var(--sp-5);">Includes legally mandated steps that the system cannot allow to be bypassed or removed from configuration.</p>
+    <div class="step-row" style="margin-bottom:var(--sp-6);">
+      <div class="step-item"><div class="step-circle">1</div><div class="step-label">Draft Logged</div><div class="step-actor">Councilor / SP Secretary</div></div>
+      <div class="step-item"><div class="step-circle">2</div><div class="step-label">Committee Review</div><div class="step-actor">Committee (incl. public hearing if required)</div></div>
+      <div class="step-item"><div class="step-circle blue">3</div><div class="step-label">First Reading</div><div class="step-actor">SP Session</div></div>
+      <div class="step-item"><div class="step-circle blue">4</div><div class="step-label">Second Reading</div><div class="step-actor">SP Session</div></div>
+      <div class="step-item"><div class="step-circle blue">5</div><div class="step-label">Third Reading &amp; Vote</div><div class="step-actor">SP Session</div></div>
+    </div>
+    <div class="step-row" style="margin-bottom:var(--sp-5);">
+      <div class="step-item"><div class="step-circle">6</div><div class="step-label">Vice Mayor Certification</div><div class="step-actor">Vice Mayor</div></div>
+      <div class="step-item" style="flex:2;"><div class="step-circle" style="background:var(--secondary);">7</div><div class="step-label">Mayor's 10-Day Review</div><div class="step-actor">Mayor: Sign · Veto · Lapse into law</div></div>
+      <div class="step-item"><div class="step-circle">8</div><div class="step-label">Official Copy &amp; Publication</div><div class="step-actor">SP Secretary</div></div>
+      <div class="step-item"><div class="step-circle muted">9</div><div class="step-label">Archived</div><div class="step-actor">Records Officer</div></div>
+    </div>
+    <div class="callout blue reveal-unit">
+      <strong>Automatic lapse-into-law handling.</strong>
+      <p style="margin-top:var(--sp-1);">If the Mayor does not act within 10 calendar days, the system automatically marks it as lapsed into law and notifies the SP Secretary. Three readings, Vice Mayor certification, and Mayor review are legally mandated steps that no configuration can remove.</p>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 12 — DOCUMENT TRACKING & QR CODES (enlarged illustration) -->
+<div class="slide" data-slide="12">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-6); padding-bottom:var(--sp-6);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="eyebrow">Document Tracking · Section 4.1</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-5);">Every document gets a tracking identity</h2>
+        <ul class="num-list">
+          <li class="reveal-unit"><span class="num">1</span><span>A <strong>unique tracking number</strong> is assigned upon registration (format: <code style="font-size:0.8em; background:var(--surface-mid); padding:2px 6px; border-radius:4px;">DTS-2026-000123</code>)</span></li>
+          <li class="reveal-unit"><span class="num">2</span><span>A <strong>QR code</strong> is generated for the physical cover sheet, encoding only the tracking number — no document content.</span></li>
+          <li class="reveal-unit"><span class="num">3</span><span>The <strong>cover sheet</strong> shows tracking number, QR code, document type, author, date, approvers, and retention schedule.</span></li>
+          <li class="reveal-unit"><span class="num">4</span><span><strong>Scan-to-lookup</strong>: scanning the QR code retrieves current status and complete routing history — no login required for public documents.</span></li>
+          <li class="reveal-unit"><span class="num">5</span><span>Every movement between offices is recorded: from/to office, acting user, timestamp, and action taken.</span></li>
+        </ul>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:center;">
+        <!-- Cover sheet illustration — scaled up from 220×280 to 300×380 -->
+        <svg viewBox="0 0 260 320" width="300" height="370" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Paper shadow -->
+          <rect x="18" y="18" width="220" height="290" rx="8" fill="#e5e7eb"/>
+          <!-- Paper -->
+          <rect x="12" y="12" width="220" height="290" rx="8" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+          <!-- Green header bar -->
+          <rect x="12" y="12" width="220" height="40" rx="8" fill="#06943d"/>
+          <rect x="12" y="32" width="220" height="20" fill="#06943d"/>
+          <text x="122" y="36" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="10" fill="white">CITY GOVERNMENT OF BATAC</text>
+          <!-- Cover sheet label -->
+          <text x="122" y="70" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="600" font-size="8.5" fill="#6b7280" letter-spacing="1">DOCUMENT COVER SHEET</text>
+          <!-- Tracking number -->
+          <rect x="30" y="78" width="184" height="26" rx="4" fill="#e8f7ee"/>
+          <text x="122" y="95" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="12" fill="#06943d">DTS-2026-000123</text>
+          <!-- QR code placeholder — enlarged -->
+          <rect x="72" y="112" width="100" height="100" rx="4" fill="#f8fafc" stroke="#e5e7eb" stroke-width="1.5"/>
+          <!-- QR pattern — scaled up proportionally -->
+          <rect x="82" y="122" width="22" height="22" rx="1.5" fill="#111827"/>
+          <rect x="86" y="126" width="14" height="14" rx="0.5" fill="white"/>
+          <rect x="89" y="129" width="8" height="8" rx="0.5" fill="#111827"/>
+          <rect x="146" y="122" width="22" height="22" rx="1.5" fill="#111827"/>
+          <rect x="150" y="126" width="14" height="14" rx="0.5" fill="white"/>
+          <rect x="153" y="129" width="8" height="8" rx="0.5" fill="#111827"/>
+          <rect x="82" y="178" width="22" height="22" rx="1.5" fill="#111827"/>
+          <rect x="86" y="182" width="14" height="14" rx="0.5" fill="white"/>
+          <rect x="89" y="185" width="8" height="8" rx="0.5" fill="#111827"/>
+          <!-- Middle QR dots — scaled -->
+          <rect x="108" y="124" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="116" y="130" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="124" y="122" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="132" y="126" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="108" y="134" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="124" y="140" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="132" y="134" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="116" y="144" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="108" y="148" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="124" y="152" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="132" y="148" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="116" y="156" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="108" y="162" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="124" y="166" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="132" y="160" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="140" y="172" width="6" height="6" rx="0.5" fill="#111827"/>
+          <rect x="116" y="170" width="6" height="6" rx="0.5" fill="#111827"/>
+          <!-- Scan instruction -->
+          <text x="122" y="226" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#6b7280">Scan to view status &amp; routing history</text>
+          <!-- Metadata lines -->
+          <line x1="30" y1="234" x2="214" y2="234" stroke="#e5e7eb" stroke-width="1"/>
+          <text x="30" y="248" font-family="Inter, sans-serif" font-size="8" fill="#9ca3af">TYPE</text>
+          <text x="30" y="261" font-family="Inter, sans-serif" font-weight="600" font-size="9.5" fill="#374151">SP Resolution</text>
+          <text x="136" y="248" font-family="Inter, sans-serif" font-size="8" fill="#9ca3af">DATE</text>
+          <text x="136" y="261" font-family="Inter, sans-serif" font-weight="600" font-size="9.5" fill="#374151">June 10, 2026</text>
+          <line x1="30" y1="270" x2="214" y2="270" stroke="#e5e7eb" stroke-width="1"/>
+          <text x="30" y="283" font-family="Inter, sans-serif" font-size="8" fill="#9ca3af">PREPARED BY</text>
+          <text x="30" y="296" font-family="Inter, sans-serif" font-weight="600" font-size="9.5" fill="#374151">SP Secretariat</text>
+          <text x="136" y="283" font-family="Inter, sans-serif" font-size="8" fill="#9ca3af">RETENTION</text>
+          <text x="136" y="296" font-family="Inter, sans-serif" font-weight="600" font-size="9.5" fill="#374151">Permanent</text>
+          <text x="122" y="313" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" fill="#9ca3af">City Government of Batac · Ilocos Norte</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 13 — CITIZEN REQUEST WORKFLOW (illustration instead of screenshot) -->
+<div class="slide" data-slide="13">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="eyebrow">Key Workflow · Section 10.4</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-4);">Citizen Request</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">Citizens can submit requests in person or via the public portal. They receive a tracking number and can check status without visiting City Hall again.</p>
+        <ul class="num-list">
+          <li class="reveal-unit"><span class="num">1</span><span><strong>Citizen</strong> submits request in person or via the public portal.</span></li>
+          <li class="reveal-unit"><span class="num">2</span><span><strong>Central Receiving</strong> logs the document, assigns tracking number and QR label.</span></li>
+          <li class="reveal-unit"><span class="num">3</span><span><strong>Mayor's Office</strong> assesses and assigns to the relevant department.</span></li>
+          <li class="reveal-unit"><span class="num">4</span><span><strong>Concerned Department</strong> takes action on the request.</span></li>
+          <li class="reveal-unit"><span class="num">5</span><span><strong>Mayor's Office</strong> confirms completion.</span></li>
+          <li class="reveal-unit"><span class="num">6</span><span><strong>Citizen</strong> receives response or released document. Notified via the portal.</span></li>
+        </ul>
+      </div>
+      <!-- SVG: citizen + portal flow illustration -->
+      <div style="display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 300 340" width="280" height="320" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Background -->
+          <rect x="10" y="10" width="280" height="320" rx="16" fill="#f8fafc"/>
+          <!-- Citizen icon -->
+          <circle cx="80" cy="60" r="22" fill="#e8f7ee" stroke="#06943d" stroke-width="2"/>
+          <circle cx="80" cy="52" r="9" fill="#06943d" opacity="0.6"/>
+          <path d="M60 72 Q80 64 100 72" stroke="#06943d" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <text x="80" y="94" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#374151">Citizen</text>
+          <!-- Arrow down -->
+          <line x1="80" y1="100" x2="80" y2="120" stroke="#06943d" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <polygon points="80,124 75,116 85,116" fill="#06943d"/>
+          <!-- Portal box -->
+          <rect x="35" y="126" width="90" height="36" rx="8" fill="#eef2ff" stroke="#0046e4" stroke-width="1.5"/>
+          <text x="80" y="140" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="9" fill="#0046e4">Public Portal</text>
+          <text x="80" y="153" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#374151">or In-Person</text>
+          <!-- Arrow down -->
+          <line x1="80" y1="164" x2="80" y2="184" stroke="#374151" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <polygon points="80,188 75,180 85,180" fill="#374151"/>
+          <!-- Receiving box -->
+          <rect x="20" y="190" width="120" height="34" rx="8" fill="#e8f7ee" stroke="#06943d" stroke-width="1.5"/>
+          <text x="80" y="203" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="9" fill="#06943d">Central Receiving</text>
+          <text x="80" y="216" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#374151">Logs · Assigns DTS number</text>
+          <!-- Arrow right to routing -->
+          <line x1="142" y1="207" x2="162" y2="207" stroke="#374151" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <polygon points="166,207 158,203 158,211" fill="#374151"/>
+          <!-- Mayor/Dept box -->
+          <rect x="168" y="180" width="110" height="55" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="223" y="196" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="9" fill="#92400e">Mayor's Office</text>
+          <text x="223" y="208" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#374151">Routes to department</text>
+          <text x="223" y="222" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#374151">Confirms completion</text>
+          <!-- Arrow down from mayor to dept -->
+          <line x1="223" y1="237" x2="223" y2="257" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <polygon points="223,261 218,253 228,253" fill="#f59e0b"/>
+          <!-- Department box -->
+          <rect x="168" y="263" width="110" height="30" rx="8" fill="#f1f5f9" stroke="#6b7280" stroke-width="1.5"/>
+          <text x="223" y="277" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="9" fill="#374151">Concerned Dept.</text>
+          <text x="223" y="287" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#6b7280">Takes action</text>
+          <!-- Notification indicator -->
+          <rect x="25" y="250" width="115" height="34" rx="8" fill="#e8f7ee" stroke="#06943d" stroke-width="1.5"/>
+          <text x="82" y="264" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="9" fill="#06943d">Status Notification</text>
+          <text x="82" y="276" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#374151">Citizen notified via portal</text>
+          <!-- SLA badge -->
+          <rect x="72" y="296" width="100" height="22" rx="5" fill="#0046e4"/>
+          <text x="122" y="311" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="9" fill="#ffffff">ARTA SLA tracked</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 14 — DASHBOARDS & NOTIFICATIONS (illustration instead of screenshot) -->
+<div class="slide" data-slide="14">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="eyebrow">System Features · Section 4.1</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-4);">Role-specific dashboards</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">Each user role sees a view tailored to their authority and responsibilities — not a generic document list.</p>
+        <div style="display:flex; flex-direction:column; gap:var(--sp-3);">
+          <div class="card accent-left reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title green">SP Secretary</div>
+            <p class="card-body">Legislative queue, pending actions, session calendar, certification pipeline.</p>
+          </div>
+          <div class="card accent-left reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title green">Mayor</div>
+            <p class="card-body">Pending signatures across all document types, overdue items, 10-day ordinance countdown.</p>
+          </div>
+          <div class="card accent-left reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title green">Department Heads</div>
+            <p class="card-body">Departmental inbox, SLA status, items requiring approval, staff document activity.</p>
+          </div>
+        </div>
+      </div>
+      <!-- Dashboard illustration: stylized dashboard panels + notification bell -->
+      <div style="display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 300 320" width="290" height="310" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Dashboard frame -->
+          <rect x="10" y="10" width="280" height="300" rx="14" fill="#f8fafc" stroke="#e5e7eb" stroke-width="1.5"/>
+          <!-- Dashboard header bar -->
+          <rect x="10" y="10" width="280" height="38" rx="14" fill="#06943d"/>
+          <rect x="10" y="28" width="280" height="20" fill="#06943d"/>
+          <circle cx="30" cy="29" r="5" fill="rgba(255,255,255,0.3)"/>
+          <text x="48" y="33" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="10" fill="white">SP Secretary · Dashboard</text>
+          <!-- Notification bell top right -->
+          <circle cx="268" cy="29" r="10" fill="rgba(255,255,255,0.15)"/>
+          <path d="M264 29 Q264 25 268 25 Q272 25 272 29 L272 32 H264 Z" fill="white" opacity="0.8"/>
+          <circle cx="268" cy="23" r="3" fill="#fbbf24"/>
+          <text x="268" y="24.5" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="5" fill="white">3</text>
+          <!-- Stat row -->
+          <rect x="20" y="58" width="58" height="46" rx="8" fill="#e8f7ee" stroke="#06943d" stroke-width="1"/>
+          <text x="49" y="77" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="18" fill="#06943d">7</text>
+          <text x="49" y="90" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" fill="#374151">Pending</text>
+          <rect x="86" y="58" width="58" height="46" rx="8" fill="#eef2ff" stroke="#0046e4" stroke-width="1"/>
+          <text x="115" y="77" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="18" fill="#0046e4">3</text>
+          <text x="115" y="90" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" fill="#374151">In Session</text>
+          <rect x="152" y="58" width="58" height="46" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-width="1"/>
+          <text x="181" y="77" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="18" fill="#c2410c">2</text>
+          <text x="181" y="90" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" fill="#374151">Overdue</text>
+          <rect x="218" y="58" width="62" height="46" rx="8" fill="#f1f5f9" stroke="#e5e7eb" stroke-width="1"/>
+          <text x="249" y="77" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="18" fill="#374151">42</text>
+          <text x="249" y="90" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" fill="#374151">This month</text>
+          <!-- Document queue rows -->
+          <text x="20" y="120" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="9" fill="#6b7280">DOCUMENT QUEUE</text>
+          <!-- Row 1 -->
+          <rect x="20" y="128" width="260" height="30" rx="6" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+          <rect x="20" y="128" width="4" height="30" rx="2" fill="#06943d"/>
+          <text x="34" y="142" font-family="Inter, sans-serif" font-weight="600" font-size="9" fill="#111827">Resolution 2026-032</text>
+          <text x="34" y="152" font-family="Inter, sans-serif" font-size="8" fill="#6b7280">Committee Review · Due in 2 days</text>
+          <rect x="224" y="133" width="48" height="16" rx="4" fill="#e8f7ee"/>
+          <text x="248" y="144" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="8" fill="#06943d">In Progress</text>
+          <!-- Row 2 -->
+          <rect x="20" y="163" width="260" height="30" rx="6" fill="white" stroke="#fee2e2" stroke-width="1"/>
+          <rect x="20" y="163" width="4" height="30" rx="2" fill="#dc2626"/>
+          <text x="34" y="177" font-family="Inter, sans-serif" font-weight="600" font-size="9" fill="#111827">Resolution 2026-031</text>
+          <text x="34" y="187" font-family="Inter, sans-serif" font-size="8" fill="#dc2626">Overdue by 1 day · Escalated</text>
+          <rect x="224" y="168" width="48" height="16" rx="4" fill="#fee2e2"/>
+          <text x="248" y="179" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="8" fill="#dc2626">Overdue</text>
+          <!-- Row 3 -->
+          <rect x="20" y="198" width="260" height="30" rx="6" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+          <rect x="20" y="198" width="4" height="30" rx="2" fill="#0046e4"/>
+          <text x="34" y="212" font-family="Inter, sans-serif" font-weight="600" font-size="9" fill="#111827">Ordinance 2026-005</text>
+          <text x="34" y="222" font-family="Inter, sans-serif" font-size="8" fill="#6b7280">3rd Reading · Awaiting VP Certification</text>
+          <rect x="224" y="203" width="48" height="16" rx="4" fill="#eef2ff"/>
+          <text x="248" y="214" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="8" fill="#0046e4">Awaiting</text>
+          <!-- Notification panel -->
+          <rect x="20" y="240" width="260" height="58" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="34" y="256" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="9" fill="#92400e">🔔 Notification</text>
+          <text x="34" y="269" font-family="Inter, sans-serif" font-size="8.5" fill="#374151">Resolution 2026-031 is overdue. Auto-escalated</text>
+          <text x="34" y="281" font-family="Inter, sans-serif" font-size="8.5" fill="#374151">to City Administrator. Action required.</text>
+          <text x="34" y="292" font-family="Inter, sans-serif" font-size="7.5" fill="#9ca3af">Today · 9:15 AM</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     SECTION DIVIDER — USE CASES
+     ================================================================= -->
+<div class="slide" data-slide="15">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="section-divider-content">
+    <div style="max-width:560px; text-align:center;">
+      <div style="display:flex; justify-content:center; margin-bottom:var(--sp-6);">
+        <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="72" height="72" rx="18" fill="white" opacity="0.7"/>
+          <rect x="18" y="16" width="16" height="20" rx="3" fill="#06943d" opacity="0.3" stroke="#06943d" stroke-width="1.5"/>
+          <rect x="38" y="22" width="16" height="20" rx="3" fill="#0046e4" opacity="0.2" stroke="#0046e4" stroke-width="1.5"/>
+          <rect x="28" y="36" width="16" height="20" rx="3" fill="#06943d" opacity="0.5" stroke="#06943d" stroke-width="1.5"/>
+          <path d="M22 46l4 4 10-10" stroke="#06943d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="eyebrow" style="color:var(--primary-dark);">What the system does</div>
+      <h2 style="font-family:var(--font-head); font-size:var(--text-3xl); font-weight:800; color:var(--primary-dark); line-height:1.2; margin-bottom:var(--sp-4);">Main Use Cases</h2>
+      <p style="font-size:var(--text-md); color:var(--text-mid); line-height:1.6;">The following slides walk through the core scenarios the system is designed to support — from how a document gets created to how a citizen tracks their request from home.</p>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     USE CASE 1 — Draft and Submit a Document
+     ================================================================= -->
+<div class="slide" data-slide="16">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="uc-badge">Use Case 1</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-3);">Draft and Submit a Document</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">An encoder or staff member creates a new document in the system, attaches files, fills in metadata, and formally submits it to begin the workflow.</p>
+        <div style="display:flex; flex-direction:column; gap:var(--sp-3);">
+          <div class="card accent-left reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title green">Who does this</div>
+            <p class="card-body">Department Encoders, SP Secretary, Barangay Secretary — anyone authorized to originate a document for their office.</p>
+          </div>
+          <div class="card reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title">What the system does</div>
+            <p class="card-body">Assigns a tracking number, stores the file(s) with version history, records metadata, and hands the document to the first workflow step. No series number yet — that is assigned only on formal approval.</p>
+          </div>
+          <div class="callout reveal-unit">
+            <strong>No version is ever overwritten.</strong>
+            <p style="margin-top:2px;">Every upload creates a new version. All previous versions are retained and accessible to authorized users.</p>
+          </div>
+        </div>
+      </div>
+      <!-- Mobile mockup: document creation form -->
+      <div style="display:flex; justify-content:center; align-items:center;">
+        <div class="mobile-frame">
+          <div class="mobile-screen">
+            <div class="mobile-statusbar"><span>9:41</span><span>●●●</span></div>
+            <div class="mobile-header">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8 2L4 6l4 4" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <div>
+                  <div class="mobile-header-title">New Document</div>
+                  <div class="mobile-header-sub">SP Resolution</div>
+                </div>
+              </div>
+            </div>
+            <div class="mobile-body" style="padding:10px;">
+              <!-- Form fields -->
+              <div style="margin-bottom:8px;">
+                <div style="font-size:7.5px; color:#6b7280; margin-bottom:2px; font-weight:600;">DOCUMENT TYPE</div>
+                <div style="background:#f1f5f9; border-radius:5px; padding:6px 8px; font-size:9px; color:#374151; border:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">SP Resolution <span style="color:#9ca3af;">▾</span></div>
+              </div>
+              <div style="margin-bottom:8px;">
+                <div style="font-size:7.5px; color:#6b7280; margin-bottom:2px; font-weight:600;">SUBJECT / TITLE</div>
+                <div style="background:white; border-radius:5px; padding:6px 8px; font-size:8.5px; color:#374151; border:1.5px solid #06943d;">Resolution Authorizing...</div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+                <div>
+                  <div style="font-size:7.5px; color:#6b7280; margin-bottom:2px; font-weight:600;">DATE</div>
+                  <div style="background:#f1f5f9; border-radius:5px; padding:6px 8px; font-size:8.5px; color:#374151; border:1px solid #e5e7eb;">Jun 10, 2026</div>
+                </div>
+                <div>
+                  <div style="font-size:7.5px; color:#6b7280; margin-bottom:2px; font-weight:600;">CLASSIFICATION</div>
+                  <div style="background:#f1f5f9; border-radius:5px; padding:6px 8px; font-size:8.5px; color:#374151; border:1px solid #e5e7eb;">Public ▾</div>
+                </div>
+              </div>
+              <!-- File attachment area -->
+              <div style="border:1.5px dashed #06943d; border-radius:6px; padding:8px; text-align:center; margin-bottom:8px; background:#e8f7ee;">
+                <div style="font-size:8px; color:#06943d; font-weight:600;">📎 Attach File</div>
+                <div style="font-size:7px; color:#6b7280; margin-top:2px;">draft-res-2026.pdf</div>
+              </div>
+              <!-- Submit button -->
+              <div style="background:#06943d; border-radius:6px; padding:8px; text-align:center;">
+                <span style="font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; font-size:10px; color:white;">Submit Document</span>
+              </div>
+              <div style="font-size:7px; color:#9ca3af; text-align:center; margin-top:4px;">Tracking number assigned on submit</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     USE CASE 2 — Document Routing and Approval
+     ================================================================= -->
+<div class="slide" data-slide="17">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="uc-badge">Use Case 2</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-3);">Document Routing and Approval</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">An approver receives an assigned document in their queue, reviews it, and takes an action — approve, reject, or return for revision.</p>
+        <ul class="num-list" style="margin-bottom:var(--sp-4);">
+          <li class="reveal-unit"><span class="num">1</span><span>System assigns the document to the current step's designated approver.</span></li>
+          <li class="reveal-unit"><span class="num">2</span><span>Approver receives an in-app notification and sees the item in their queue.</span></li>
+          <li class="reveal-unit"><span class="num">3</span><span>Approver reviews the document and attached files.</span></li>
+          <li class="reveal-unit"><span class="num">4</span><span>Action taken: <strong>Approve</strong> (advances), <strong>Return for revision</strong> (loops back), or <strong>Reject</strong> (requires written reason).</span></li>
+          <li class="reveal-unit"><span class="num">5</span><span>All actions are permanently recorded in the audit trail with timestamp.</span></li>
+        </ul>
+      </div>
+      <!-- Mobile mockup: approval action screen -->
+      <div style="display:flex; justify-content:center; align-items:center;">
+        <div class="mobile-frame">
+          <div class="mobile-screen">
+            <div class="mobile-statusbar"><span>9:41</span><span>●●●</span></div>
+            <div class="mobile-header">
+              <div class="mobile-header-title">Review &amp; Approve</div>
+              <div class="mobile-header-sub">Step 3 of 9 · Committee Review</div>
+            </div>
+            <div class="mobile-body" style="padding:10px;">
+              <!-- Doc info -->
+              <div style="background:#e8f7ee; border-radius:6px; padding:8px; margin-bottom:8px; border-left:3px solid #06943d;">
+                <div style="font-size:9px; font-weight:700; color:#111827;">SP Resolution 2026-032</div>
+                <div style="font-size:7.5px; color:#6b7280; margin-top:2px;">Submitted by SP Secretariat · Jun 10</div>
+              </div>
+              <!-- SLA bar -->
+              <div style="margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:7.5px;color:#6b7280;margin-bottom:3px;"><span>SLA Time Used</span><span style="color:#f59e0b;font-weight:600;">2 of 3 days</span></div>
+                <div style="height:5px;background:#f1f5f9;border-radius:3px;overflow:hidden;"><div style="width:67%;height:100%;background:#f59e0b;border-radius:3px;"></div></div>
+              </div>
+              <!-- File link -->
+              <div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:5px; padding:6px 8px; margin-bottom:10px; display:flex; align-items:center; gap:5px;">
+                <span style="font-size:10px;">📄</span>
+                <span style="font-size:8px; color:#374151;">draft-res-2026.pdf</span>
+                <span style="font-size:7.5px;color:#0046e4;margin-left:auto;">View</span>
+              </div>
+              <!-- Comment field -->
+              <div style="margin-bottom:8px;">
+                <div style="font-size:7.5px; color:#6b7280; margin-bottom:2px; font-weight:600;">COMMENT (required for rejection)</div>
+                <div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:5px; padding:6px 8px; font-size:8px; color:#9ca3af; min-height:30px;">Add comment...</div>
+              </div>
+              <!-- Action buttons -->
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <div style="background:#06943d;border-radius:6px;padding:7px;text-align:center;"><span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:10px;color:white;">✓ Approve</span></div>
+                <div style="display:flex;gap:5px;">
+                  <div style="flex:1;background:#fff7ed;border:1px solid #f59e0b;border-radius:6px;padding:6px;text-align:center;"><span style="font-size:8.5px;font-weight:600;color:#c2410c;">↩ Return</span></div>
+                  <div style="flex:1;background:#fee2e2;border:1px solid #dc2626;border-radius:6px;padding:6px;text-align:center;"><span style="font-size:8.5px;font-weight:600;color:#dc2626;">✕ Reject</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     USE CASE 3 — QR Scan Lookup
+     ================================================================= -->
+<div class="slide" data-slide="18">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="uc-badge">Use Case 3</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-3);">Scan a Physical Document, See Its Status</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">Any physical document with a printed cover sheet can be scanned to instantly retrieve its complete routing history and current status — no login required for public documents.</p>
+        <div style="display:flex; flex-direction:column; gap:var(--sp-3);">
+          <div class="card reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title">The flow</div>
+            <p class="card-body">Staff member or citizen points phone camera at QR code on cover sheet → system resolves the tracking ID → routing history and current status are shown instantly.</p>
+          </div>
+          <div class="card accent-left reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title green">What they see</div>
+            <p class="card-body">Document type, current status, current holder (office), full movement history with timestamps, and the names of actors at each step.</p>
+          </div>
+          <div class="callout blue reveal-unit">
+            <strong>QR code contains only the tracking ID.</strong>
+            <p style="margin-top:2px;">No document content, no URLs, no metadata is encoded in the QR itself. All data is fetched from the database using the ID.</p>
+          </div>
+        </div>
+      </div>
+      <!-- Mobile mockup: scan result / routing history -->
+      <div style="display:flex; justify-content:center; align-items:center;">
+        <div class="mobile-frame">
+          <div class="mobile-screen">
+            <div class="mobile-statusbar"><span>9:41</span><span>●●●</span></div>
+            <div class="mobile-header" style="background:#0046e4;">
+              <div class="mobile-header-title">Document Status</div>
+              <div class="mobile-header-sub">DTS-2026-000123</div>
+            </div>
+            <div class="mobile-body" style="padding:10px;">
+              <!-- Status badge -->
+              <div style="background:#e8f7ee;border:1px solid #06943d;border-radius:6px;padding:7px;text-align:center;margin-bottom:8px;">
+                <div style="font-size:8px;color:#6b7280;">Current Status</div>
+                <div style="font-size:11px;font-weight:800;color:#06943d;font-family:'Plus Jakarta Sans',sans-serif;">In Committee Review</div>
+              </div>
+              <!-- Doc info row -->
+              <div style="display:flex;justify-content:space-between;font-size:7.5px;color:#6b7280;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f1f5f9;">
+                <span>SP Resolution</span><span>Submitted Jun 10</span>
+              </div>
+              <!-- Routing history -->
+              <div style="font-size:7.5px;font-weight:700;color:#374151;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Routing History</div>
+              <!-- Entry 1 -->
+              <div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:6px;">
+                <div style="display:flex;flex-direction:column;align-items:center;"><div style="width:8px;height:8px;border-radius:50%;background:#06943d;margin-top:2px;"></div><div style="width:1px;flex:1;background:#e5e7eb;margin:2px 0;"></div></div>
+                <div><div style="font-size:8px;font-weight:600;color:#111827;">SP Secretariat</div><div style="font-size:7px;color:#6b7280;">Logged &amp; submitted · Jun 10, 8:02 AM</div></div>
+              </div>
+              <!-- Entry 2 -->
+              <div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:6px;">
+                <div style="display:flex;flex-direction:column;align-items:center;"><div style="width:8px;height:8px;border-radius:50%;background:#06943d;margin-top:2px;"></div><div style="width:1px;flex:1;background:#e5e7eb;margin:2px 0;"></div></div>
+                <div><div style="font-size:8px;font-weight:600;color:#111827;">SP Secretariat → Committee A</div><div style="font-size:7px;color:#6b7280;">Forwarded for review · Jun 10, 8:45 AM</div></div>
+              </div>
+              <!-- Entry 3 (current) -->
+              <div style="display:flex;gap:6px;align-items:flex-start;">
+                <div style="display:flex;flex-direction:column;align-items:center;"><div style="width:10px;height:10px;border-radius:50%;background:#0046e4;border:2px solid white;box-shadow:0 0 0 2px #0046e4;margin-top:2px;"></div></div>
+                <div><div style="font-size:8px;font-weight:600;color:#0046e4;">Committee A (current)</div><div style="font-size:7px;color:#6b7280;">Received Jun 10, 8:47 AM</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     USE CASE 4 — SLA Monitoring and Escalation
+     ================================================================= -->
+<div class="slide" data-slide="19">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="uc-badge blue">Use Case 4</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-3);">SLA Monitoring and Escalation</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">The system continuously tracks how long each document has been at each step and automatically alerts and escalates when limits are approached or breached — as required by RA 11032.</p>
+        <div style="display:flex; flex-direction:column; gap:var(--sp-3);">
+          <div class="card reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title">At 80% of the time limit</div>
+            <p class="card-body">The assigned user and their supervisor receive an in-app warning notification. The document is flagged in their queue with a visual indicator.</p>
+          </div>
+          <div class="card accent-left reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title green">At 100% — SLA breach</div>
+            <p class="card-body">The system automatically escalates the document to the designated supervisor, logs an escalation event in the audit trail, and sends notifications to both the user and supervisor.</p>
+          </div>
+          <div class="callout orange reveal-unit">
+            <strong>System outage does not pause the SLA clock.</strong>
+            <p style="margin-top:2px;">RA 11032 obligations continue regardless of system availability. Thresholds: simple ≤ 3 days, complex ≤ 7 days, highly technical ≤ 20 working days.</p>
+          </div>
+        </div>
+      </div>
+      <!-- SVG illustration: SLA timer with escalation path -->
+      <div style="display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 280 320" width="270" height="310" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="10" width="260" height="300" rx="14" fill="#f8fafc"/>
+          <!-- Document node -->
+          <rect x="90" y="24" width="100" height="36" rx="8" fill="#e8f7ee" stroke="#06943d" stroke-width="1.5"/>
+          <text x="140" y="38" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="9" fill="#06943d">SP Resolution 2026-031</text>
+          <text x="140" y="50" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#374151">Committee Review Step</text>
+          <!-- Vertical arrow down -->
+          <line x1="140" y1="62" x2="140" y2="82" stroke="#374151" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <!-- SLA Progress block -->
+          <rect x="30" y="84" width="220" height="64" rx="10" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+          <text x="45" y="100" font-family="Inter, sans-serif" font-size="8" font-weight="600" fill="#6b7280">ARTA SLA · 3 working days</text>
+          <!-- Green segment 0-80% -->
+          <rect x="44" y="106" width="115" height="10" rx="3" fill="#06943d" opacity="0.8"/>
+          <!-- Orange segment 80-100% -->
+          <rect x="159" y="106" width="37" height="10" rx="0" fill="#f59e0b" opacity="0.9"/>
+          <!-- Red segment 100%+ -->
+          <rect x="196" y="106" width="20" height="10" rx="3" fill="#dc2626" opacity="0.8"/>
+          <text x="44" y="126" font-family="Inter, sans-serif" font-size="7.5" fill="#06943d">0%</text>
+          <text x="130" y="126" font-family="Inter, sans-serif" font-size="7.5" fill="#f59e0b" font-weight="600">80% ⚠</text>
+          <text x="185" y="126" font-family="Inter, sans-serif" font-size="7.5" fill="#dc2626" font-weight="600">100%</text>
+          <!-- Vertical line -->
+          <line x1="140" y1="150" x2="140" y2="164" stroke="#374151" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <!-- 80% warning box -->
+          <rect x="30" y="166" width="220" height="40" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="50" y="182" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="8.5" fill="#92400e">⚠ Warning at 80%</text>
+          <text x="50" y="196" font-family="Inter, sans-serif" font-size="7.5" fill="#374151">Assignee + supervisor notified. Queue flag shown.</text>
+          <!-- Branch at SLA breach -->
+          <line x1="140" y1="208" x2="140" y2="222" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <rect x="30" y="224" width="220" height="44" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+          <text x="50" y="240" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="8.5" fill="#dc2626">✕ SLA Breached — Auto-Escalated</text>
+          <text x="50" y="253" font-family="Inter, sans-serif" font-size="7.5" fill="#374151">Escalated to City Administrator.</text>
+          <text x="50" y="263" font-family="Inter, sans-serif" font-size="7.5" fill="#374151">Audit event logged with breach timestamp.</text>
+          <!-- Audit trail line -->
+          <line x1="140" y1="270" x2="140" y2="284" stroke="#374151" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <rect x="60" y="286" width="160" height="22" rx="6" fill="#0046e4" opacity="0.9"/>
+          <text x="140" y="300" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="9" fill="white">Audit log entry created</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     USE CASE 5 — Citizen Submits and Tracks a Request
+     ================================================================= -->
+<div class="slide" data-slide="20">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="uc-badge">Use Case 5</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-3);">Citizen Submits and Tracks a Request</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">A resident of Batac City submits a service request through the public portal and monitors its progress from their phone — without a single visit to City Hall.</p>
+        <div style="display:flex; flex-direction:column; gap:var(--sp-3);">
+          <div class="card reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title">Portal registration</div>
+            <p class="card-body">Citizens register with name, phone, and email. Both are verified via one-time passwords before the account activates. A privacy notice is acknowledged at registration.</p>
+          </div>
+          <div class="card accent-left reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title green">No account needed for status lookup</div>
+            <p class="card-body">Anyone can enter a tracking number on the public portal and see the current status and routing history of any Public-classified document — no login required.</p>
+          </div>
+          <div class="card reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title">What citizens can see and do</div>
+            <p class="card-body">Track submitted requests, view approved SP resolutions and ordinances, read announcements, and submit complaints. Classification guardrails prevent internal documents from ever being visible.</p>
+          </div>
+        </div>
+      </div>
+      <!-- Mobile mockup: public portal tracking -->
+      <div style="display:flex; justify-content:center; align-items:center;">
+        <div class="mobile-frame">
+          <div class="mobile-screen">
+            <div class="mobile-statusbar"><span>9:41</span><span>●●●</span></div>
+            <!-- Portal header -->
+            <div style="background:linear-gradient(135deg,#06943d,#109f3c); padding:10px 12px 12px;">
+              <div style="font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; font-size:11px; color:white;">🏛 Batac City Portal</div>
+              <div style="font-size:8px; color:rgba(255,255,255,0.8); margin-top:1px;">Open Government Services</div>
+            </div>
+            <div class="mobile-body" style="padding:10px;">
+              <!-- Tracking input -->
+              <div style="margin-bottom:8px;">
+                <div style="font-size:7.5px;color:#6b7280;margin-bottom:3px;font-weight:600;">TRACK YOUR REQUEST</div>
+                <div style="display:flex;gap:4px;">
+                  <div style="flex:1;background:#f8fafc;border:1.5px solid #06943d;border-radius:5px;padding:6px 8px;font-size:8.5px;color:#374151;">DTS-2026-000542</div>
+                  <div style="background:#06943d;border-radius:5px;padding:6px 8px;"><span style="font-size:9px;color:white;font-weight:700;">→</span></div>
+                </div>
+              </div>
+              <!-- My requests section -->
+              <div style="font-size:7.5px;font-weight:700;color:#374151;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">My Requests</div>
+              <!-- Request item 1 -->
+              <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:7px 8px;margin-bottom:5px;border-left:3px solid #06943d;">
+                <div style="font-size:8px;font-weight:600;color:#111827;">Business Permit Inquiry</div>
+                <div style="font-size:7px;color:#6b7280;margin-top:1px;">DTS-2026-000540 · Submitted Jun 8</div>
+                <div style="background:#e8f7ee;border-radius:3px;padding:2px 5px;font-size:7px;font-weight:600;color:#06943d;display:inline-block;margin-top:3px;">● Processing</div>
+              </div>
+              <!-- Request item 2 -->
+              <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:7px 8px;margin-bottom:8px;border-left:3px solid #9ca3af;">
+                <div style="font-size:8px;font-weight:600;color:#111827;">Document Request — Cert. of Residency</div>
+                <div style="font-size:7px;color:#6b7280;margin-top:1px;">DTS-2026-000518 · Submitted Jun 3</div>
+                <div style="background:#f1f5f9;border-radius:3px;padding:2px 5px;font-size:7px;font-weight:600;color:#6b7280;display:inline-block;margin-top:3px;">✓ Completed</div>
+              </div>
+              <!-- Divider -->
+              <div style="height:1px;background:#f1f5f9;margin-bottom:7px;"></div>
+              <!-- Quick links -->
+              <div style="font-size:7.5px;font-weight:700;color:#374151;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;">Quick Links</div>
+              <div style="display:flex;gap:5px;">
+                <div style="flex:1;background:#eef2ff;border-radius:5px;padding:5px;text-align:center;"><div style="font-size:8px;color:#0046e4;font-weight:600;">Resolutions</div></div>
+                <div style="flex:1;background:#e8f7ee;border-radius:5px;padding:5px;text-align:center;"><div style="font-size:8px;color:#06943d;font-weight:600;">Ordinances</div></div>
+                <div style="flex:1;background:#fffbeb;border-radius:5px;padding:5px;text-align:center;"><div style="font-size:8px;color:#c2410c;font-weight:600;">Complaints</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     USE CASE 6 — Barangay Submits a Document to City Hall
+     ================================================================= -->
+<div class="slide" data-slide="21">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="uc-badge">Use Case 6</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-3);">Barangay Submits to City Hall</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">A Barangay Secretary digitally transmits a barangay resolution or endorsement letter to City Hall from their phone — no physical delivery needed to initiate the process.</p>
+        <div style="display:flex; flex-direction:column; gap:var(--sp-3);">
+          <div class="card accent-left reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title green">Mobile-first design</div>
+            <p class="card-body">Barangay officials primarily use personal phones. All 43 barangay-facing functions operate via mobile browser on iOS and Android, including offline queuing for intermittent connections.</p>
+          </div>
+          <div class="card reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title">Access is scoped to the barangay</div>
+            <p class="card-body">A Barangay Secretary can only see and manage documents from their own barangay. City Hall documents from other offices are not visible to them.</p>
+          </div>
+          <div class="card reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title">What happens after submission</div>
+            <p class="card-body">City Hall Receiving logs and assigns a tracking number. The document is routed to the SP Secretariat or Mayor's Office depending on subject matter. The barangay receives a response when complete.</p>
+          </div>
+        </div>
+      </div>
+      <!-- Mobile mockup: barangay submit form -->
+      <div style="display:flex; justify-content:center; align-items:center;">
+        <div class="mobile-frame">
+          <div class="mobile-screen">
+            <div class="mobile-statusbar"><span>9:41</span><span>●●●</span></div>
+            <div class="mobile-header">
+              <div class="mobile-header-title">Submit to City Hall</div>
+              <div class="mobile-header-sub">Brgy. Baay · Batac City</div>
+            </div>
+            <div class="mobile-body" style="padding:10px;">
+              <!-- Barangay info badge -->
+              <div style="background:#e8f7ee;border-radius:6px;padding:7px 10px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect width="18" height="18" rx="4" fill="#06943d" opacity="0.2"/><rect x="7" y="4" width="4" height="6" rx="1" fill="#06943d"/><rect x="3" y="10" width="12" height="4" rx="1" fill="#06943d" opacity="0.6"/></svg>
+                <div><div style="font-size:8px;font-weight:700;color:#111827;">Brgy. Baay</div><div style="font-size:7px;color:#6b7280;">Logged in as: J. Reyes, Secretary</div></div>
+              </div>
+              <!-- Form -->
+              <div style="margin-bottom:7px;">
+                <div style="font-size:7.5px;color:#6b7280;margin-bottom:2px;font-weight:600;">DOCUMENT TYPE</div>
+                <div style="background:#f1f5f9;border-radius:5px;padding:6px 8px;font-size:9px;color:#374151;border:1px solid #e5e7eb;display:flex;justify-content:space-between;">Barangay Resolution <span style="color:#9ca3af;">▾</span></div>
+              </div>
+              <div style="margin-bottom:7px;">
+                <div style="font-size:7.5px;color:#6b7280;margin-bottom:2px;font-weight:600;">SUBJECT</div>
+                <div style="background:white;border-radius:5px;padding:6px 8px;font-size:8.5px;color:#374151;border:1.5px solid #06943d;">Resolution No. 2026-012...</div>
+              </div>
+              <div style="margin-bottom:7px;">
+                <div style="font-size:7.5px;color:#6b7280;margin-bottom:2px;font-weight:600;">ROUTE TO</div>
+                <div style="background:#f1f5f9;border-radius:5px;padding:6px 8px;font-size:9px;color:#374151;border:1px solid #e5e7eb;display:flex;justify-content:space-between;">SP Secretariat <span style="color:#9ca3af;">▾</span></div>
+              </div>
+              <!-- Offline indicator -->
+              <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:5px;padding:5px 8px;margin-bottom:7px;display:flex;align-items:center;gap:4px;">
+                <span style="font-size:8.5px;">📶</span>
+                <span style="font-size:7.5px;color:#92400e;">Queued — will send when connected</span>
+              </div>
+              <!-- Submit button -->
+              <div style="background:#06943d;border-radius:6px;padding:8px;text-align:center;">
+                <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:10px;color:white;">Submit to City Hall</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     USE CASE 7 — Records Officer Archives and Manages Retention
+     ================================================================= -->
+<div class="slide" data-slide="22">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:start; gap:var(--sp-8);">
+      <div>
+        <div class="uc-badge">Use Case 7</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-3);">Records Archiving and Retention</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">Once a document's workflow is complete, it enters the records lifecycle — governed by retention schedules, classification rules, and COA requirements.</p>
+        <ul class="num-list" style="margin-bottom:var(--sp-4);">
+          <li class="reveal-unit"><span class="num">1</span><span>Completed documents are promoted to <strong>official record status</strong> by the Records Officer.</span></li>
+          <li class="reveal-unit"><span class="num">2</span><span>The system applies the <strong>retention schedule</strong> assigned to that document type — permanent, long-term, or finite.</span></li>
+          <li class="reveal-unit"><span class="num">3</span><span>At <strong>80% of the retention period</strong>, the Records Officer receives an alert to review the document.</span></li>
+          <li class="reveal-unit"><span class="num">4</span><span><strong>Disposition</strong> requires explicit Records Officer action with a mandatory written reason. No automated disposal.</span></li>
+          <li class="reveal-unit"><span class="num">5</span><span>A <strong>disposed record's metadata row is never deleted</strong> — it is marked as disposed with actor and timestamp.</span></li>
+        </ul>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:var(--sp-4); padding-top:var(--sp-8);">
+        <!-- Retention schedule visual -->
+        <div class="card reveal-unit">
+          <div class="card-title" style="margin-bottom:var(--sp-3);">Retention schedule examples</div>
+          <div style="display:flex;flex-direction:column;gap:var(--sp-2);">
+            <div style="display:flex;align-items:center;gap:var(--sp-3);">
+              <span class="badge" style="min-width:80px;text-align:center;">Permanent</span>
+              <span style="font-size:var(--text-xs);color:var(--text-mid);">SP Resolutions, Ordinances, Signed Contracts</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);">
+              <span class="badge blue" style="min-width:80px;text-align:center;">10–15 yrs</span>
+              <span style="font-size:var(--text-xs);color:var(--text-mid);">Personnel records, Citizen correspondence</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);">
+              <span class="badge muted" style="min-width:80px;text-align:center;">5 years</span>
+              <span style="font-size:var(--text-xs);color:var(--text-mid);">Internal memos, non-critical minutes</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);">
+              <span class="badge orange" style="min-width:80px;text-align:center;">1 year</span>
+              <span style="font-size:var(--text-xs);color:var(--text-mid);">Routine workflow logs, draft versions</span>
+            </div>
+          </div>
+        </div>
+        <div class="callout reveal-unit">
+          <strong>No document is ever permanently deleted.</strong>
+          <p style="margin-top:2px;">Disposition creates an audit record. The metadata row persists, marked as disposed, with actor and timestamp preserved forever.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     USE CASE 8 — Administrator Configures a Workflow
+     ================================================================= -->
+<div class="slide" data-slide="23">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="uc-badge blue">Use Case 8</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-3);">Administrator Configures a Workflow</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">An authorized Platform Administrator defines or updates a document workflow — adding steps, assigning roles, setting SLA timers — without any developer involvement.</p>
+        <div style="display:flex; flex-direction:column; gap:var(--sp-3);">
+          <div class="card reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title">Fully configurable without code</div>
+            <p class="card-body">Workflow steps, transitions, assignee rules, SLA thresholds, escalation targets, branching conditions, and notification templates are all admin-configurable via the system interface.</p>
+          </div>
+          <div class="card accent-left reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title green">Versioned — safe to change</div>
+            <p class="card-body">Changes create a new workflow version. Documents already in progress continue under their original version. No in-flight document is disrupted by a configuration change.</p>
+          </div>
+          <div class="callout orange reveal-unit">
+            <strong>Legally mandated steps cannot be removed.</strong>
+            <p style="margin-top:2px;">The system validates that SP Ordinance and SP Resolution workflows include all steps required by law. Attempting to publish a definition without these steps is blocked.</p>
+          </div>
+        </div>
+      </div>
+      <!-- SVG: workflow config illustration -->
+      <div style="display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 280 320" width="265" height="305" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="10" width="260" height="300" rx="14" fill="#f8fafc"/>
+          <!-- Header -->
+          <rect x="10" y="10" width="260" height="34" rx="14" fill="#0046e4"/>
+          <rect x="10" y="24" width="260" height="20" fill="#0046e4"/>
+          <text x="28" y="30" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="10" fill="white">Workflow Editor · Travel Order</text>
+          <!-- Step 1 -->
+          <rect x="28" y="56" width="224" height="36" rx="8" fill="white" stroke="#06943d" stroke-width="1.5"/>
+          <circle cx="46" cy="74" r="10" fill="#06943d"/>
+          <text x="46" y="78" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="8" fill="white">1</text>
+          <text x="64" y="70" font-family="Plus Jakarta Sans, sans-serif" font-weight="600" font-size="9" fill="#111827">Employee Submits Request</text>
+          <text x="64" y="82" font-family="Inter, sans-serif" font-size="8" fill="#6b7280">Assignee: Employee role · SLA: —</text>
+          <!-- Arrow -->
+          <line x1="140" y1="93" x2="140" y2="106" stroke="#374151" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <!-- Step 2 -->
+          <rect x="28" y="108" width="224" height="36" rx="8" fill="white" stroke="#06943d" stroke-width="1.5"/>
+          <circle cx="46" cy="126" r="10" fill="#06943d"/>
+          <text x="46" y="130" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="8" fill="white">2</text>
+          <text x="64" y="122" font-family="Plus Jakarta Sans, sans-serif" font-weight="600" font-size="9" fill="#111827">Supervisor Endorses</text>
+          <text x="64" y="134" font-family="Inter, sans-serif" font-size="8" fill="#6b7280">Assignee: Supervisor role · SLA: 1 day</text>
+          <!-- Arrow -->
+          <line x1="140" y1="145" x2="140" y2="158" stroke="#374151" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <!-- Step 3 -->
+          <rect x="28" y="160" width="224" height="36" rx="8" fill="white" stroke="#0046e4" stroke-width="1.5"/>
+          <circle cx="46" cy="178" r="10" fill="#0046e4"/>
+          <text x="46" y="182" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="8" fill="white">3</text>
+          <text x="64" y="174" font-family="Plus Jakarta Sans, sans-serif" font-weight="600" font-size="9" fill="#111827">Department Head Approves</text>
+          <text x="64" y="186" font-family="Inter, sans-serif" font-size="8" fill="#6b7280">Assignee: Dept. Head · SLA: 1 day</text>
+          <!-- Add step button -->
+          <line x1="140" y1="197" x2="140" y2="210" stroke="#374151" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <rect x="96" y="211" width="88" height="24" rx="6" fill="#f1f5f9" stroke="#e5e7eb" stroke-width="1.5" stroke-dasharray="4 2"/>
+          <text x="140" y="226" text-anchor="middle" font-family="Inter, sans-serif" font-size="8.5" fill="#6b7280">+ Add step</text>
+          <!-- Publish button -->
+          <rect x="28" y="248" width="224" height="28" rx="8" fill="#0046e4"/>
+          <text x="140" y="265" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="10" fill="white">Publish New Version</text>
+          <!-- Warning note -->
+          <rect x="28" y="282" width="224" height="20" rx="6" fill="#fffbeb"/>
+          <text x="140" y="294" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" fill="#92400e">In-flight documents continue on v2. New submissions use v3.</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     USE CASE 9 — Search and Retrieve a Document
+     ================================================================= -->
+<div class="slide" data-slide="24">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="uc-badge">Use Case 9</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-3);">Search and Retrieve a Document</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">Any authorized user can find a specific document in seconds — by type, office, date range, status, or keyword — without searching physical cabinets.</p>
+        <div style="display:flex; flex-direction:column; gap:var(--sp-3);">
+          <div class="card reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title">Search filters</div>
+            <p class="card-body">Document type, originating office, date range, status (draft, in-workflow, archived), and classification level. Results are scoped to what the user's role and office permit them to see.</p>
+          </div>
+          <div class="card accent-left reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title green">Version history always accessible</div>
+            <p class="card-body">Every version of a document is retained. Authorized users can view, download, or compare any previous version. The current official copy is always clearly identified.</p>
+          </div>
+          <div class="callout blue reveal-unit">
+            <strong>Access is enforced, not just displayed.</strong>
+            <p style="margin-top:2px;">A user only sees documents their role and office permit. Confidential and restricted documents are excluded from results unless the user is on the explicit allowlist.</p>
+          </div>
+        </div>
+      </div>
+      <!-- SVG: search results illustration -->
+      <div style="display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 300 320" width="280" height="305" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="10" width="280" height="300" rx="14" fill="#f8fafc"/>
+          <!-- Search bar -->
+          <rect x="20" y="22" width="240" height="30" rx="8" fill="white" stroke="#06943d" stroke-width="1.5"/>
+          <circle cx="38" cy="37" r="7" stroke="#6b7280" stroke-width="1.5" fill="none"/>
+          <line x1="43" y1="42" x2="47" y2="46" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round"/>
+          <text x="58" y="41" font-family="Inter, sans-serif" font-size="9" fill="#374151">SP Resolution 2026</text>
+          <rect x="226" y="26" width="28" height="18" rx="4" fill="#06943d"/>
+          <text x="240" y="38" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" font-weight="600" fill="white">Search</text>
+          <!-- Filter chips -->
+          <rect x="20" y="60" width="50" height="16" rx="8" fill="#e8f7ee" stroke="#06943d" stroke-width="1"/>
+          <text x="45" y="71" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" fill="#06943d" font-weight="600">Year: 2026</text>
+          <rect x="76" y="60" width="60" height="16" rx="8" fill="#e8f7ee" stroke="#06943d" stroke-width="1"/>
+          <text x="106" y="71" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" fill="#06943d" font-weight="600">Type: Resolution</text>
+          <rect x="142" y="60" width="46" height="16" rx="8" fill="#f1f5f9" stroke="#e5e7eb" stroke-width="1"/>
+          <text x="165" y="71" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" fill="#6b7280">+ Filter</text>
+          <!-- Results label -->
+          <text x="20" y="94" font-family="Inter, sans-serif" font-size="8" font-weight="600" fill="#6b7280">14 results</text>
+          <!-- Result 1 -->
+          <rect x="20" y="100" width="260" height="44" rx="8" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+          <rect x="20" y="100" width="4" height="44" rx="2" fill="#06943d"/>
+          <text x="34" y="115" font-family="Plus Jakarta Sans, sans-serif" font-weight="600" font-size="9" fill="#111827">Resolution No. 2026-032</text>
+          <text x="34" y="127" font-family="Inter, sans-serif" font-size="8" fill="#6b7280">Authorizing procurement of medical supplies...</text>
+          <text x="34" y="138" font-family="Inter, sans-serif" font-size="7.5" fill="#9ca3af">SP Secretariat · Jun 10, 2026</text>
+          <rect x="226" y="108" width="46" height="15" rx="4" fill="#eef2ff"/>
+          <text x="249" y="118.5" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="7.5" fill="#0046e4">In Review</text>
+          <!-- Result 2 -->
+          <rect x="20" y="150" width="260" height="44" rx="8" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+          <rect x="20" y="150" width="4" height="44" rx="2" fill="#06943d"/>
+          <text x="34" y="165" font-family="Plus Jakarta Sans, sans-serif" font-weight="600" font-size="9" fill="#111827">Resolution No. 2026-031</text>
+          <text x="34" y="177" font-family="Inter, sans-serif" font-size="8" fill="#6b7280">Recognizing the contributions of City Hall staff...</text>
+          <text x="34" y="188" font-family="Inter, sans-serif" font-size="7.5" fill="#9ca3af">SP Secretariat · Jun 5, 2026</text>
+          <rect x="218" y="158" width="54" height="15" rx="4" fill="#e8f7ee"/>
+          <text x="245" y="168.5" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="7.5" fill="#06943d">✓ Released</text>
+          <!-- Result 3 -->
+          <rect x="20" y="200" width="260" height="44" rx="8" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+          <rect x="20" y="200" width="4" height="44" rx="2" fill="#9ca3af"/>
+          <text x="34" y="215" font-family="Plus Jakarta Sans, sans-serif" font-weight="600" font-size="9" fill="#111827">Resolution No. 2026-030</text>
+          <text x="34" y="227" font-family="Inter, sans-serif" font-size="8" fill="#6b7280">Approving the 2026 supplemental budget...</text>
+          <text x="34" y="238" font-family="Inter, sans-serif" font-size="7.5" fill="#9ca3af">SP Secretariat · May 28, 2026</text>
+          <rect x="218" y="208" width="54" height="15" rx="4" fill="#f1f5f9"/>
+          <text x="245" y="218.5" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="7.5" fill="#6b7280">Archived</text>
+          <!-- Version hint -->
+          <rect x="20" y="254" width="260" height="20" rx="6" fill="#fffbeb"/>
+          <text x="150" y="267" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" fill="#92400e">Click any result to view all versions, routing history, and attachments.</text>
+          <!-- Access note -->
+          <rect x="20" y="280" width="260" height="20" rx="6" fill="#eef2ff"/>
+          <text x="150" y="293" text-anchor="middle" font-family="Inter, sans-serif" font-size="7.5" fill="#0046e4">Results filtered by your role and office. Confidential docs excluded.</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     USE CASE 10 — Audit Log Review
+     ================================================================= -->
+<div class="slide" data-slide="25">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="padding-top:var(--sp-5); padding-bottom:var(--sp-5);">
+    <div class="two-col" style="align-items:center;">
+      <div>
+        <div class="uc-badge blue">Use Case 10</div>
+        <h2 class="slide-title" style="margin-bottom:var(--sp-3);">Audit Log Review</h2>
+        <p class="slide-body" style="margin-bottom:var(--sp-5);">An Auditor or COA reviewer examines the complete, unalterable action history of any document — every action, every actor, every timestamp — to verify that all steps were performed correctly.</p>
+        <div style="display:flex; flex-direction:column; gap:var(--sp-3);">
+          <div class="card reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title">What is recorded</div>
+            <p class="card-body">Every authentication event, document state change, approval, role assignment, bulk operation, export, and session event — with actor identity, IP, timestamp, and session ID.</p>
+          </div>
+          <div class="card accent-left reveal-unit" style="padding:var(--sp-4);">
+            <div class="card-title green">Tamper-evident by design</div>
+            <p class="card-body">Each audit entry includes a hash of the previous entry, forming a cryptographic chain. Any modification to historical entries breaks the chain and is automatically flagged at retrieval time.</p>
+          </div>
+          <div class="callout reveal-unit">
+            <strong>The Auditor role is read-only.</strong>
+            <p style="margin-top:2px;">An Auditor cannot modify any record. The audit schema uses INSERT-only database permissions — no UPDATE or DELETE is possible, even for IT Administrators.</p>
+          </div>
+        </div>
+      </div>
+      <!-- SVG: audit log entries -->
+      <div style="display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 290 320" width="275" height="305" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="10" width="270" height="300" rx="14" fill="#f8fafc"/>
+          <!-- Header -->
+          <rect x="10" y="10" width="270" height="34" rx="14" fill="#111827"/>
+          <rect x="10" y="24" width="270" height="20" fill="#111827"/>
+          <text x="28" y="30" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="10" fill="white">Audit Log</text>
+          <text x="248" y="30" text-anchor="end" font-family="Inter, sans-serif" font-size="7.5" fill="rgba(255,255,255,0.5)">Read-only</text>
+          <!-- Log entries — styled as terminal/log rows -->
+          <rect x="20" y="54" width="250" height="34" rx="6" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+          <rect x="20" y="54" width="3" height="34" rx="1" fill="#06943d"/>
+          <text x="30" y="67" font-family="Inter, sans-serif" font-weight="600" font-size="8" fill="#111827">DOCUMENT_APPROVED</text>
+          <text x="200" y="67" font-family="Inter, sans-serif" font-size="7" fill="#9ca3af">10:14:02</text>
+          <text x="30" y="78" font-family="Inter, sans-serif" font-size="7.5" fill="#6b7280">User: M.Santos · Doc: Resolution 2026-032 · Step 3</text>
+          <rect x="20" y="94" width="250" height="34" rx="6" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+          <rect x="20" y="94" width="3" height="34" rx="1" fill="#06943d"/>
+          <text x="30" y="107" font-family="Inter, sans-serif" font-weight="600" font-size="8" fill="#111827">DOCUMENT_FORWARDED</text>
+          <text x="200" y="107" font-family="Inter, sans-serif" font-size="7" fill="#9ca3af">10:15:11</text>
+          <text x="30" y="118" font-family="Inter, sans-serif" font-size="7.5" fill="#6b7280">From: Committee A → To: SP Secretariat</text>
+          <rect x="20" y="134" width="250" height="34" rx="6" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+          <rect x="20" y="134" width="3" height="34" rx="1" fill="#0046e4"/>
+          <text x="30" y="147" font-family="Inter, sans-serif" font-weight="600" font-size="8" fill="#111827">SESSION_STARTED</text>
+          <text x="200" y="147" font-family="Inter, sans-serif" font-size="7" fill="#9ca3af">10:16:05</text>
+          <text x="30" y="158" font-family="Inter, sans-serif" font-size="7.5" fill="#6b7280">User: V.Mayor · IP: 192.168.1.45 · MFA: passed</text>
+          <rect x="20" y="174" width="250" height="34" rx="6" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+          <rect x="20" y="174" width="3" height="34" rx="1" fill="#06943d"/>
+          <text x="30" y="187" font-family="Inter, sans-serif" font-weight="600" font-size="8" fill="#111827">NUMBER_ASSIGNED</text>
+          <text x="200" y="187" font-family="Inter, sans-serif" font-size="7" fill="#9ca3af">10:18:44</text>
+          <text x="30" y="198" font-family="Inter, sans-serif" font-size="7.5" fill="#6b7280">Series: SP-RES-2026 · Number: 032 · Immutable</text>
+          <rect x="20" y="214" width="250" height="34" rx="6" fill="white" stroke="#fee2e2" stroke-width="1"/>
+          <rect x="20" y="214" width="3" height="34" rx="1" fill="#dc2626"/>
+          <text x="30" y="227" font-family="Inter, sans-serif" font-weight="600" font-size="8" fill="#dc2626">SLA_BREACH_ESCALATED</text>
+          <text x="200" y="227" font-family="Inter, sans-serif" font-size="7" fill="#9ca3af">11:02:01</text>
+          <text x="30" y="238" font-family="Inter, sans-serif" font-size="7.5" fill="#6b7280">Doc: Travel-2026-089 · Escalated to City Admin</text>
+          <!-- Hash chain indicator -->
+          <rect x="20" y="260" width="250" height="40" rx="8" fill="#111827"/>
+          <text x="35" y="275" font-family="Inter, sans-serif" font-size="7.5" fill="#9ca3af">prev_hash: a3f9d2...</text>
+          <text x="35" y="286" font-family="Inter, sans-serif" font-size="7.5" fill="#9ca3af">row_hash:  7bc841...  <tspan fill="#06943d">✓ chain intact</tspan></text>
+          <text x="200" y="294" font-family="Inter, sans-serif" font-size="7" fill="rgba(255,255,255,0.3)">INSERT-only</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CLOSING SLIDE -->
+<div class="slide" data-slide="26">
+  <div class="accent-bar"></div>
+  <div class="topbar">
+    <span class="topbar-left"><span class="topbar-dot"></span>City Government of Batac · Ilocos Norte</span>
+    <span class="topbar-right">Document Management System</span>
+  </div>
+  <div class="slide-content" style="justify-content:center; align-items:center; text-align:center;">
+    <div style="max-width: 620px;">
+      <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:var(--sp-6);">
+        <rect width="72" height="72" rx="18" fill="#e8f7ee"/>
+        <rect x="18" y="18" width="36" height="36" rx="6" fill="#06943d" opacity="0.12" stroke="#06943d" stroke-width="2"/>
+        <path d="M26 36l7 7 14-14" stroke="#06943d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h2 style="font-family:var(--font-head); font-size:var(--text-3xl); font-weight:800; color:var(--text-dark); line-height:1.2; margin-bottom:var(--sp-4);">Document Management System</h2>
+      <p class="lead" style="margin-bottom:var(--sp-6);">Terms of Reference v0.1 · City Government of Batac, Ilocos Norte<br>Draft — For Stakeholder Review · June 2026</p>
+      <div class="divider" style="margin:var(--sp-6) auto; max-width:300px;"></div>
+      <p style="font-size:var(--text-sm); color:var(--text-muted); line-height:1.7;">This presentation is based on the preliminary TOR. All scope, timelines,<br>and requirements are subject to revision following stakeholder consultation.</p>
+      <div style="margin-top:var(--sp-6); display:flex; justify-content:center; gap:var(--sp-3);">
+        <span class="badge">Development Team</span>
+        <span class="badge blue">LGU Batac · Ilocos Norte</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="progress-bar"></div>
+<div id="slide-counter"></div>
+<div id="mode-indicator"></div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const totalSlides = slides.length;
+  let currentSlide = 0;
+  let progressiveMode = true;
+  let revealedUnits = new Array(totalSlides).fill(0);
+  let modeIndicatorTimer = null;
+
+  function getRevealUnits(slideIndex) {
+    return slides[slideIndex].querySelectorAll('.reveal-unit');
+  }
+
+  function updateSlide(newIndex, direction) {
+    slides[currentSlide].classList.remove('active');
+    if (direction === 'forward') slides[currentSlide].classList.add('exit');
+    setTimeout(() => slides[currentSlide]?.classList.remove('exit'), 400);
+    currentSlide = newIndex;
+    slides[currentSlide].classList.add('active');
+    if (!progressiveMode) {
+      const units = getRevealUnits(currentSlide);
+      units.forEach(u => u.classList.add('revealed'));
+      revealedUnits[currentSlide] = units.length;
+    } else {
+      const units = getRevealUnits(currentSlide);
+      units.forEach((u, i) => {
+        if (i < revealedUnits[currentSlide]) u.classList.add('revealed');
+        else u.classList.remove('revealed');
+      });
+    }
+    updateProgress();
+  }
+
+  function revealNextUnit() {
+    const units = getRevealUnits(currentSlide);
+    const count = revealedUnits[currentSlide];
+    if (count < units.length) { units[count].classList.add('revealed'); revealedUnits[currentSlide]++; return true; }
+    return false;
+  }
+
+  function hideLastUnit() {
+    const units = getRevealUnits(currentSlide);
+    const count = revealedUnits[currentSlide];
+    if (count > 0) { units[count - 1].classList.remove('revealed'); revealedUnits[currentSlide]--; return true; }
+    return false;
+  }
+
+  function goForward() {
+    if (progressiveMode) { if (revealNextUnit()) return; }
+    if (currentSlide < totalSlides - 1) updateSlide(currentSlide + 1, 'forward');
+  }
+
+  function goBack() {
+    if (progressiveMode) { if (hideLastUnit()) return; }
+    if (currentSlide > 0) {
+      updateSlide(currentSlide - 1, 'back');
+      if (progressiveMode) {
+        revealedUnits[currentSlide] = 0;
+        getRevealUnits(currentSlide).forEach(u => u.classList.remove('revealed'));
+      }
+    }
+  }
+
+  function updateProgress() {
+    const pct = ((currentSlide + 1) / totalSlides) * 100;
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('slide-counter').textContent = (currentSlide + 1) + ' / ' + totalSlides;
+  }
+
+  function showModeIndicator() {
+    const el = document.getElementById('mode-indicator');
+    el.textContent = 'Progressive: ' + (progressiveMode ? 'ON' : 'OFF');
+    el.classList.add('show');
+    clearTimeout(modeIndicatorTimer);
+    modeIndicatorTimer = setTimeout(() => el.classList.remove('show'), 2000);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goForward();
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goBack();
+    if (e.key === 'p' || e.key === 'P') {
+      progressiveMode = !progressiveMode;
+      if (!progressiveMode) { getRevealUnits(currentSlide).forEach(u => u.classList.add('revealed')); revealedUnits[currentSlide] = getRevealUnits(currentSlide).length; }
+      showModeIndicator();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    const x = e.clientX; const w = window.innerWidth;
+    if (x < w / 2) goBack(); else goForward();
+  });
+
+  let touchStartX = 0;
+  document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 40) { if (dx < 0) goForward(); else goBack(); }
+  }, { passive: true });
+
+  updateProgress();
+</script>
+</body>
+</html>

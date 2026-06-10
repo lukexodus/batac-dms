@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batac LGU - Kitchen Sink</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            border: "hsl(var(--border))",
+            input: "hsl(var(--input))",
+            ring: "hsl(var(--ring))",
+            background: "hsl(var(--background))",
+            foreground: "hsl(var(--foreground))",
+            primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
+            secondary: { DEFAULT: "hsl(var(--secondary))", foreground: "hsl(var(--secondary-foreground))" },
+            destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
+            muted: { DEFAULT: "hsl(var(--muted))", foreground: "hsl(var(--muted-foreground))" },
+            accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
+            card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
+          },
+          borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer base {
+      :root {
+        --background: 0 0% 100%;
+        --foreground: 222.2 84% 4.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+        --primary: 139 82.4% 35.7%; /* Extracted Green */
+        --primary-foreground: 210 40% 98%;
+        --secondary: 220 93% 56%; /* Extracted Blue */
+        --secondary-foreground: 222.2 47.4% 11.2%;
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+        --destructive: 0 100% 48.4%; /* Extracted Red */
+        --destructive-foreground: 210 40% 98%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 139 82.4% 35.7%;
+        --radius: 0.5rem;
+      }
+    }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  </style>
+</head>
+<body class="bg-background text-foreground p-8 md:p-12">
+  <div class="max-w-5xl mx-auto space-y-12">
+    
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight mb-2">Design System Kitchen Sink</h1>
+      <p class="text-muted-foreground">Core UI components and tokens for the Batac City LGU Platform.</p>
+    </div>
+
+    <!-- Colors -->
+    <section>
+      <h2 class="text-2xl font-semibold mb-4 pb-2 border-b">Brand Colors</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="space-y-2">
+          <div class="h-24 rounded-md bg-primary border shadow-sm flex items-end p-3"><span class="text-primary-foreground font-medium text-sm">Primary</span></div>
+          <p class="text-sm text-muted-foreground">Batac Blue (HSL 220 100% 33%)</p>
+        </div>
+        <div class="space-y-2">
+          <div class="h-24 rounded-md bg-secondary border shadow-sm flex items-end p-3"><span class="text-secondary-foreground font-medium text-sm">Secondary</span></div>
+          <p class="text-sm text-muted-foreground">Batac Gold (HSL 49 97% 54%)</p>
+        </div>
+        <div class="space-y-2">
+          <div class="h-24 rounded-md bg-destructive border shadow-sm flex items-end p-3"><span class="text-destructive-foreground font-medium text-sm">Destructive</span></div>
+          <p class="text-sm text-muted-foreground">Batac Red (HSL 359 85% 44%)</p>
+        </div>
+        <div class="space-y-2">
+          <div class="h-24 rounded-md bg-green-600 border shadow-sm flex items-end p-3"><span class="text-white font-medium text-sm">Success</span></div>
+          <p class="text-sm text-muted-foreground">Agri Green (Tailwind green-600)</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Buttons -->
+    <section>
+      <h2 class="text-2xl font-semibold mb-4 pb-2 border-b">Buttons</h2>
+      <div class="flex flex-wrap gap-4 items-center">
+        <button class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 h-10 py-2 px-4">
+          Primary Action
+        </button>
+        <button class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 py-2 px-4">
+          Secondary Action
+        </button>
+        <button class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-destructive text-destructive-foreground hover:bg-destructive/90 h-10 py-2 px-4">
+          Destructive
+        </button>
+        <button class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-10 py-2 px-4">
+          Outline
+        </button>
+        <button class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-10 py-2 px-4">
+          Ghost
+        </button>
+      </div>
+    </section>
+
+    <!-- Badges -->
+    <section>
+      <h2 class="text-2xl font-semibold mb-4 pb-2 border-b">Badges & Status</h2>
+      <div class="flex flex-wrap gap-4 items-center">
+        <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground">Default</div>
+        <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground">Pending Review</div>
+        <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-green-100 text-green-800">Approved</div>
+        <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-destructive text-destructive-foreground">Rejected</div>
+        <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground">Outline / Draft</div>
+      </div>
+    </section>
+
+    <!-- Cards & Forms -->
+    <section class="grid md:grid-cols-2 gap-8">
+      <div>
+        <h2 class="text-2xl font-semibold mb-4 pb-2 border-b">Cards</h2>
+        <div class="rounded-xl border bg-card text-card-foreground shadow-sm">
+          <div class="flex flex-col space-y-1.5 p-6">
+            <h3 class="font-semibold leading-none tracking-tight">Card Title</h3>
+            <p class="text-sm text-muted-foreground">Card Description goes here to explain the content.</p>
+          </div>
+          <div class="p-6 pt-0">
+            <p class="text-sm">Main card content. Cards use a subtle 1px border and a light shadow to maintain high density without visual clutter.</p>
+          </div>
+          <div class="flex items-center p-6 pt-0">
+            <button class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2">Action</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h2 class="text-2xl font-semibold mb-4 pb-2 border-b">Inputs</h2>
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Document Tracking No.</label>
+            <input class="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="e.g. SP-2026-0012">
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Notes / Remarks</label>
+            <textarea class="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Enter remarks here..."></textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

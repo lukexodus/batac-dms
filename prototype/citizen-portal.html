@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Citizen Portal - Batac City</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            border: "hsl(var(--border))",
+            input: "hsl(var(--input))",
+            ring: "hsl(var(--ring))",
+            background: "hsl(var(--background))",
+            foreground: "hsl(var(--foreground))",
+            primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
+            secondary: { DEFAULT: "hsl(var(--secondary))", foreground: "hsl(var(--secondary-foreground))" },
+            destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
+            muted: { DEFAULT: "hsl(var(--muted))", foreground: "hsl(var(--muted-foreground))" },
+            accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
+            card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
+          },
+          borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer base {
+      :root {
+        --background: 0 0% 100%; 
+        --foreground: 222.2 84% 4.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+        --primary: 220 100% 33%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 49 97% 54%;
+        --secondary-foreground: 222.2 47.4% 11.2%;
+        --destructive: 359 85% 44%;
+        --destructive-foreground: 210 40% 98%;
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 139 82.4% 35.7%;
+        --radius: 0.5rem;
+      }
+    }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-background text-foreground min-h-screen flex flex-col">
+
+  <!-- Public Header -->
+  <header class="border-b shadow-sm sticky top-0 bg-white z-30">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-xl shadow-sm">B</div>
+        <div>
+          <span class="font-bold text-lg leading-none tracking-tight block text-primary">City of Batac</span>
+          <span class="text-xs text-muted-foreground font-medium uppercase tracking-widest">Citizen Portal</span>
+        </div>
+      </div>
+      <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
+        <a href="#" class="text-primary border-b-2 border-primary py-5">Home</a>
+        <a href="#" class="hover:text-foreground">e-Services</a>
+        <a href="#" class="hover:text-foreground">Ordinances</a>
+        <a href="#" class="hover:text-foreground">Contact Us</a>
+      </nav>
+      <div class="flex items-center gap-3">
+        <button class="text-sm font-medium text-primary hover:underline">Log in</button>
+        <button class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 shadow-sm">Sign Up</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Search Section -->
+  <section class="bg-primary text-primary-foreground py-16 md:py-24 relative overflow-hidden">
+    <!-- Decorative background element -->
+    <div class="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-primary-foreground/5 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-secondary/20 rounded-full blur-3xl"></div>
+
+    <div class="max-w-3xl mx-auto px-4 relative z-10 text-center space-y-6">
+      <h1 class="text-4xl md:text-5xl font-bold tracking-tight">How can we help you today?</h1>
+      <p class="text-primary-foreground/80 text-lg max-w-2xl mx-auto">Track your document requests, search city ordinances, or apply for digital services directly from your home.</p>
+      
+      <div class="mt-8 max-w-2xl mx-auto bg-white rounded-lg p-2 flex shadow-lg">
+        <div class="relative flex-1 flex items-center">
+          <i data-lucide="search" class="absolute left-4 text-muted-foreground w-5 h-5"></i>
+          <input type="text" placeholder="Enter tracking number (e.g. SP-26-001) or keywords..." class="w-full h-12 pl-12 pr-4 bg-transparent border-0 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0 text-base">
+        </div>
+        <button class="inline-flex items-center justify-center rounded-md text-base font-semibold transition-colors bg-secondary text-secondary-foreground hover:bg-secondary/90 h-12 px-8 shrink-0">
+          Track
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Services -->
+  <section class="max-w-6xl mx-auto px-4 py-16 space-y-12 flex-1">
+    
+    <div class="text-center space-y-2">
+      <h2 class="text-2xl font-bold tracking-tight">Featured e-Services</h2>
+      <p class="text-muted-foreground">Access government services quickly without visiting city hall.</p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      
+      <a href="#" class="group block p-6 rounded-xl border bg-card text-card-foreground shadow-sm hover:border-primary transition-colors text-center space-y-4">
+        <div class="w-14 h-14 mx-auto bg-primary/10 rounded-full flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+          <i data-lucide="file-text" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="font-semibold text-lg">Business Permit</h3>
+          <p class="text-sm text-muted-foreground mt-1">Apply or renew your business registration online.</p>
+        </div>
+      </a>
+
+      <a href="#" class="group block p-6 rounded-xl border bg-card text-card-foreground shadow-sm hover:border-primary transition-colors text-center space-y-4">
+        <div class="w-14 h-14 mx-auto bg-primary/10 rounded-full flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+          <i data-lucide="building" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="font-semibold text-lg">Building Permit</h3>
+          <p class="text-sm text-muted-foreground mt-1">Submit plans and requirements for construction.</p>
+        </div>
+      </a>
+
+      <a href="#" class="group block p-6 rounded-xl border bg-card text-card-foreground shadow-sm hover:border-primary transition-colors text-center space-y-4">
+        <div class="w-14 h-14 mx-auto bg-primary/10 rounded-full flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+          <i data-lucide="book-open" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="font-semibold text-lg">City Ordinances</h3>
+          <p class="text-sm text-muted-foreground mt-1">Browse the public library of approved legislation.</p>
+        </div>
+      </a>
+
+      <a href="#" class="group block p-6 rounded-xl border bg-card text-card-foreground shadow-sm hover:border-primary transition-colors text-center space-y-4">
+        <div class="w-14 h-14 mx-auto bg-primary/10 rounded-full flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+          <i data-lucide="message-square" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="font-semibold text-lg">Report/Complaint</h3>
+          <p class="text-sm text-muted-foreground mt-1">Submit a concern or request for city services.</p>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- Recent Announcements / Updates -->
+    <div class="pt-8 border-t">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold tracking-tight">Recent Updates</h2>
+        <a href="#" class="text-primary font-medium text-sm hover:underline flex items-center">View all <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i></a>
+      </div>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="flex gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border">
+          <div class="w-24 h-24 bg-muted rounded-md shrink-0 flex items-center justify-center text-muted-foreground">
+            <i data-lucide="image" class="w-8 h-8"></i>
+          </div>
+          <div class="space-y-1">
+            <span class="text-xs font-semibold text-primary uppercase tracking-wider">Announcement</span>
+            <h4 class="font-semibold leading-tight">Implementation of the New Traffic Scheme</h4>
+            <p class="text-sm text-muted-foreground line-clamp-2">Please be advised of the new traffic rerouting scheme near the City Plaza effective next Monday.</p>
+            <span class="text-xs text-muted-foreground block pt-1">June 08, 2026</span>
+          </div>
+        </div>
+        <div class="flex gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border">
+          <div class="w-24 h-24 bg-muted rounded-md shrink-0 flex items-center justify-center text-muted-foreground">
+            <i data-lucide="image" class="w-8 h-8"></i>
+          </div>
+          <div class="space-y-1">
+            <span class="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Event</span>
+            <h4 class="font-semibold leading-tight">Empanada Festival 2026 Preparations</h4>
+            <p class="text-sm text-muted-foreground line-clamp-2">The City Government invites all vendors to register early for this year's highly anticipated festival.</p>
+            <span class="text-xs text-muted-foreground block pt-1">June 05, 2026</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-[#0f172a] text-slate-300 py-12 mt-auto">
+    <div class="max-w-6xl mx-auto px-4 grid md:grid-cols-3 gap-8">
+      <div class="space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center text-primary font-bold shadow-sm">B</div>
+          <span class="font-bold text-lg text-white">City of Batac</span>
+        </div>
+        <p class="text-sm text-slate-400">Home of Great Leaders.</p>
+        <p class="text-sm text-slate-400">Washington St., Brgy. 1-S Valdez, Batac City, Ilocos Norte, Philippines</p>
+      </div>
+      <div>
+        <h4 class="font-semibold text-white mb-4">Quick Links</h4>
+        <ul class="space-y-2 text-sm">
+          <li><a href="#" class="hover:text-white transition-colors">About Batac</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">City Departments</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Bids and Awards</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Careers</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold text-white mb-4">Contact</h4>
+        <ul class="space-y-2 text-sm">
+          <li class="flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4"></i> (077) 792-2060</li>
+          <li class="flex items-center gap-2"><i data-lucide="mail" class="w-4 h-4"></i> info@batac.gov.ph</li>
+        </ul>
+      </div>
+    </div>
+    <div class="max-w-6xl mx-auto px-4 mt-8 pt-8 border-t border-slate-700/50 text-sm text-slate-500 text-center">
+      &copy; 2026 City Government of Batac. All rights reserved.
+    </div>
+  </footer>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

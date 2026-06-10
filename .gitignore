@@ -1,2 +1,7 @@
 .git/
 .obsidian/
+
+*.docx
+*.docx#
+
+*.zip
