@@ -230,11 +230,11 @@ flowchart TD
 
 **Confirmed numbering formats:**
 
-|Ordinance Type|Format|Example|
-|---|---|---|
-|Regular Ordinance|`{SP_NUMBER}SP {YEAR}-{NN}`|`7SP 2025-01`, `7SP 2025-08`|
-|Appropriation Ordinance|Same as regular|`7SP 2025-02`|
-|Franchise Ordinance|`{SP_NUMBER}SP {SEQUENCE}-{YY}R`|`7SP 0001-26R` (continuous, year suffix + R)|
+| Ordinance Type          | Format                           | Example                                      |
+| ----------------------- | -------------------------------- | -------------------------------------------- |
+| Regular Ordinance       | `{SP_NUMBER}SP {YEAR}-{NN}`      | `7SP 2025-01`, `7SP 2025-08`                 |
+| Appropriation Ordinance | Same as regular                  | `7SP 2025-02`                                |
+| Franchise Ordinance     | `{SP_NUMBER}SP {SEQUENCE}-{YY}R` | `7SP 0001-26R` (continuous, year suffix + R) |
 
 **Confirmed workflow:**
 
@@ -309,26 +309,26 @@ flowchart TD
 
 **Log fields tracked by SP Secretariat:**
 
-|Field|Detail|
-|---|---|
-|Control No.|SP Secretariat's own sequence number (e.g., 2026-01)|
-|Date Received|When the Panlalawigan's response was received back|
-|SP Reso. No.|Panlalawigan's own resolution number (e.g., R2026-0841)|
-|Subject|Which SP document(s) were reviewed|
-|Date Approved / Disapproved|From the Panlalawigan|
-|Date Referred|Date Panlalawigan sent to their own committee|
-|Remarks|Outcome and notes|
+| Field                       | Detail                                                  |
+| --------------------------- | ------------------------------------------------------- |
+| Control No.                 | SP Secretariat's own sequence number (e.g., 2026-01)    |
+| Date Received               | When the Panlalawigan's response was received back      |
+| SP Reso. No.                | Panlalawigan's own resolution number (e.g., R2026-0841) |
+| Subject                     | Which SP document(s) were reviewed                      |
+| Date Approved / Disapproved | From the Panlalawigan                                   |
+| Date Referred               | Date Panlalawigan sent to their own committee           |
+| Remarks                     | Outcome and notes                                       |
 
 **Outcome types confirmed:**
 
-|Outcome|Meaning|
-|---|---|
-|VALID|Approved by Panlalawigan|
-|VALID-IN-PART|Partially approved; some provisions found invalid|
-|RETURNED|Returned with objections (treated as disapproved)|
-|Referred to committee|Panlalawigan committee review in progress; 30-day clock running|
-|Operative-in-its-entirety|Used specifically for Appropriation Ordinances|
-|_(blank — 30 days elapsed)_|Deemed approved per Section 56(d) of R.A. 7160; recorded in Remarks as the statutory legal basis phrase|
+| Outcome                     | Meaning                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| VALID                       | Approved by Panlalawigan                                                                                |
+| VALID-IN-PART               | Partially approved; some provisions found invalid                                                       |
+| RETURNED                    | Returned with objections (treated as disapproved)                                                       |
+| Referred to committee       | Panlalawigan committee review in progress; 30-day clock running                                         |
+| Operative-in-its-entirety   | Used specifically for Appropriation Ordinances                                                          |
+| _(blank — 30 days elapsed)_ | Deemed approved per Section 56(d) of R.A. 7160; recorded in Remarks as the statutory legal basis phrase |
 
 **Multiple documents per batch:** The Panlalawigan frequently acts on multiple SP documents in one resolution. `[CONFIRMED from review log]`
 
@@ -344,16 +344,16 @@ flowchart TD
 
 ### 4.4 Barangay Resolution `[CONFIRMED]`
 
-|Step|Actor|Notes|
-|---|---|---|
-|1|Barangay|Submits to SP Secretariat physically|
-|2|Secretariat / Records Officer|Logs; attaches QR code|
-|3|SP Session|First Reading|
-|4|Vice Mayor|Refers to committee|
-|5|Committee|Reviews; produces committee report|
-|6|Secretariat|Finalizes; assigns series number|
-|7|Secretariat|Returns decision to barangay physically|
-|—|System|Status notification sent to barangay|
+| Step | Actor                         | Notes                                   |
+| ---- | ----------------------------- | --------------------------------------- |
+| 1    | Barangay                      | Submits to SP Secretariat physically    |
+| 2    | Secretariat / Records Officer | Logs; attaches QR code                  |
+| 3    | SP Session                    | First Reading                           |
+| 4    | Vice Mayor                    | Refers to committee                     |
+| 5    | Committee                     | Reviews; produces committee report      |
+| 6    | Secretariat                   | Finalizes; assigns series number        |
+| 7    | Secretariat                   | Returns decision to barangay physically |
+| —    | System                        | Status notification sent to barangay    |
 
 **Phase 1 note:** Barangay officials have no system access in Phase 1. Secretariat logs their physically submitted documents on their behalf. `[CONFIRMED from Q-INT-08]`
 
@@ -381,13 +381,13 @@ Referred simultaneously to multiple offices for preliminary review. **This is th
 
 **Confirmed numbering format:** `{YEAR}-{NN}` — e.g., `2025-01`, `2025-04` (sequential within year; separate counter from Letters Received)
 
-|Field|Detail|
-|---|---|
-|Initiator|Vice Mayor or SP Secretary|
-|Memo number|Assigned from originating authority (e.g., `VM ADC Memo No. 2025-01`) — fixed and immutable|
-|Control number|SP Secretariat's own sequential number — assigned after finalization|
-|Signatories|Vice Mayor|
-|Flow|VM issues memo → SP Secretary receives → QR generated → Disseminated physically to SP Members and other recipients → Archived|
+| Field          | Detail                                                                                                                        |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Initiator      | Vice Mayor or SP Secretary                                                                                                    |
+| Memo number    | Assigned from originating authority (e.g., `VM ADC Memo No. 2025-01`) — fixed and immutable                                   |
+| Control number | SP Secretariat's own sequential number — assigned after finalization                                                          |
+| Signatories    | Vice Mayor                                                                                                                    |
+| Flow           | VM issues memo → SP Secretary receives → QR generated → Disseminated physically to SP Members and other recipients → Archived |
 
 **Dual number system:** Memo number (originating authority's own reference) + control number (secretariat's internal reference). These are distinct identifiers on the same document.
 
@@ -448,11 +448,11 @@ Referred simultaneously to multiple offices for preliminary review. **This is th
 
 **Confirmed numbering format:** `NCH {YEAR}-{NN}` — e.g., `NCH 2025-03` through `NCH 2025-33`
 
-|Field|Detail|
-|---|---|
-|Signatories|SP Secretary and Vice Mayor|
-|Multiple recipients per notice|Confirmed — a single NCH can go to multiple parties (committee members + external stakeholders)|
-|Multiple committees co-notified|Confirmed — some hearings involve two or more committees simultaneously (e.g., Committee on Transportation + Committee on Laws)|
+| Field                           | Detail                                                                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Signatories                     | SP Secretary and Vice Mayor                                                                                                     |
+| Multiple recipients per notice  | Confirmed — a single NCH can go to multiple parties (committee members + external stakeholders)                                 |
+| Multiple committees co-notified | Confirmed — some hearings involve two or more committees simultaneously (e.g., Committee on Transportation + Committee on Laws) |
 
 ---
 

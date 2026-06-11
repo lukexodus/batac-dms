@@ -100,7 +100,7 @@ Stakeholder comment recorded: *"The scope of the proposed system is so large yet
 
 ### 1.3 SP Resolution Workflow — Confirmed and Augmented
 
-The interview described this as a **fixed workflow** (same steps every time). The official legislative process flowchart provides the complete and authoritative step sequence, which is more detailed than the interview notes alone captured.
+The interview described this as a **fixed workflow** (same steps every time). The official legislative process flowchart provides the complete and authoritative step sequence, which is more detailed than the interview noteyous alone captured.
 
 ```mermaid
 flowchart TD
@@ -297,25 +297,25 @@ After the Mayor signs, SP documents are transmitted to the Sangguniang Panlalawi
 
 **Log fields tracked by SP Secretariat:**
 
-| Field | Detail |
-| --- | --- |
-| Control No. | SP Secretariat's own sequence number (e.g., 2026-01) |
-| Date Received | When the Panlalawigan's response was received back |
-| SP Reso. No. | Panlalawigan's own resolution number (e.g., R2026-0841) |
-| Subject | Which SP document(s) were reviewed |
-| Date Approved / Disapproved | From the Panlalawigan |
-| Date Referred | Date Panlalawigan sent to their own committee |
-| Remarks | Outcome and notes |
+| Field                       | Detail                                                  |
+| --------------------------- | ------------------------------------------------------- |
+| Control No.                 | SP Secretariat's own sequence number (e.g., 2026-01)    |
+| Date Received               | When the Panlalawigan's response was received back      |
+| SP Reso. No.                | Panlalawigan's own resolution number (e.g., R2026-0841) |
+| Subject                     | Which SP document(s) were reviewed                      |
+| Date Approved / Disapproved | From the Panlalawigan                                   |
+| Date Referred               | Date Panlalawigan sent to their own committee           |
+| Remarks                     | Outcome and notes                                       |
 
 **Confirmed outcome types:**
 
-| Outcome | Meaning |
-| --- | --- |
-| VALID | Approved by Panlalawigan |
-| VALID-IN-PART | Partially approved; some provisions found invalid |
-| RETURNED | Returned with objections (treated as disapproved) |
-| Referred to committee | Panlalawigan committee review in progress; 30-day clock running |
-| Operative-in-its-entirety | Used specifically for Appropriation Ordinances |
+| Outcome                     | Meaning                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------ |
+| VALID                       | Approved by Panlalawigan                                                                               |
+| VALID-IN-PART               | Partially approved; some provisions found invalid                                                      |
+| RETURNED                    | Returned with objections (treated as disapproved)                                                      |
+| Referred to committee       | Panlalawigan committee review in progress; 30-day clock running                                        |
+| Operative-in-its-entirety   | Used specifically for Appropriation Ordinances                                                         |
 | *(blank — 30 days elapsed)* | Deemed approved per Section 56(d) of R.A. 7160; recorded in Remarks as "Presumed consistent with law…" |
 
 **Scope:** Both ordinances **and** resolutions are transmitted to the Panlalawigan. Confirmed from the Ordinance/Resolution Sent log.
