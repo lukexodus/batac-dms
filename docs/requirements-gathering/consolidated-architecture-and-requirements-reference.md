@@ -29,15 +29,15 @@
 
 ## Part 1 — Project Identity and Scope
 
-|Decision|Detail|
-|---|---|
-|Platform name|Batac City LGU Platform|
-|Platform type|LGU-wide government operations platform — not a narrow DMS|
-|Target LGU|Batac City, Ilocos Norte, Philippines|
-|LGU scope|SP Office, Mayor's Office, City Hall departments, Barangays, Citizens|
-|Multi-LGU|Batac-specific for now; configuration documented for potential adaptation|
-|Legal source of truth|Physical documents remain the legal source of truth|
-|Operational source of truth|Digital system is the operational source of truth for tracking, workflow, reporting|
+| Decision                    | Detail                                                                              |
+| --------------------------- | ----------------------------------------------------------------------------------- |
+| Platform name               | Batac City LGU Platform                                                             |
+| Platform type               | LGU-wide government operations platform — not a narrow DMS                          |
+| Target LGU                  | Batac City, Ilocos Norte, Philippines                                               |
+| LGU scope                   | SP Office, Mayor's Office, City Hall departments, Barangays, Citizens               |
+| Multi-LGU                   | Batac-specific for now; configuration documented for potential adaptation           |
+| Legal source of truth       | Physical documents remain the legal source of truth                                 |
+| Operational source of truth | Digital system is the operational source of truth for tracking, workflow, reporting |
 
 ### Module Priority Order
 
@@ -95,10 +95,10 @@ Letters Received, Letters Sent, Memos Incoming, Memos Outgoing, Notices of Commi
 
 ### 3.1 Mayor and Vice Mayor
 
-|Role|Name|Prefix|
-|---|---|---|
-|Mayor (7th SP era)|Hon. Mark Christian R. Chua|MRC|
-|Vice Mayor (Presiding Officer, 7th SP)|Hon. Albert D. Chua|ADC|
+| Role                                   | Name                        | Prefix |
+| -------------------------------------- | --------------------------- | ------ |
+| Mayor (7th SP era)                     | Hon. Mark Christian R. Chua | MRC    |
+| Vice Mayor (Presiding Officer, 7th SP) | Hon. Albert D. Chua         | ADC    |
 
 Note: The Vice Mayor and a previous Mayor share the surname Chua but are distinct individuals. The current Mayor's document prefix is MRC; the Vice Mayor's is ADC.
 
@@ -125,21 +125,21 @@ Note: The Vice Mayor and a previous Mayor share the surname Chua but are distinc
 
 ### 3.3 Office of the Secretary to the Sangguniang Panlungsod
 
-|Name|Position|
-|---|---|
-|Gladys R. Lagura|SP Secretary|
-|Mia Prima M. Mesina|Administrative Officer II — Ordinances & Resolutions Section|
-|Ronald P. Beltran|Administrative Officer II — Franchise Section|
-|Bonn Roger G. Rosales|Administrative Aide VI (Clerk III) — Administrative Section|
-|Kathielyn R. Ilayat|Administrative Aide VI (Clerk III) — Administrative Section|
-|Paul Josiah N. Chua|Administrative Aide VI (Clerk III) — Administrative Section|
-|Joanne Marie Q. Macugay|Administrative Aide VI (Clerk III) — Franchise Section|
-|Jeniffer S. Gaoiran|Administrative Aide VI (Clerk III) — Franchise Section|
-|Antonia Elizabeth G. Yaplag|Administrative Aide VI (Clerk III) — Franchise Section|
-|Florentino Pablo R. Lumang|Administrative Aide VI (Data Controller I) — Franchise Section|
-|Ronell R. Purisima|Administrative Aide III (Utility Worker II)|
-|Ramil F. Rante|Administrative Aide IV (Driver III)|
-|Cherill S. Malicad|Librarian I — City Library|
+| Name                        | Position                                                       |
+| --------------------------- | -------------------------------------------------------------- |
+| Gladys R. Lagura            | SP Secretary                                                   |
+| Mia Prima M. Mesina         | Administrative Officer II — Ordinances & Resolutions Section   |
+| Ronald P. Beltran           | Administrative Officer II — Franchise Section                  |
+| Bonn Roger G. Rosales       | Administrative Aide VI (Clerk III) — Administrative Section    |
+| Kathielyn R. Ilayat         | Administrative Aide VI (Clerk III) — Administrative Section    |
+| Paul Josiah N. Chua         | Administrative Aide VI (Clerk III) — Administrative Section    |
+| Joanne Marie Q. Macugay     | Administrative Aide VI (Clerk III) — Franchise Section         |
+| Jeniffer S. Gaoiran         | Administrative Aide VI (Clerk III) — Franchise Section         |
+| Antonia Elizabeth G. Yaplag | Administrative Aide VI (Clerk III) — Franchise Section         |
+| Florentino Pablo R. Lumang  | Administrative Aide VI (Data Controller I) — Franchise Section |
+| Ronell R. Purisima          | Administrative Aide III (Utility Worker II)                    |
+| Ramil F. Rante              | Administrative Aide IV (Driver III)                            |
+| Cherill S. Malicad          | Librarian I — City Library                                     |
 
 ### 3.4 Personal Staff of the Vice Mayor
 
@@ -721,41 +721,41 @@ Three options:
 
 No changes from pre-development reference. Stack decisions are confirmed and unchanged.
 
-|Layer|Choice|Constraint|
-|---|---|---|
-|Backend framework|Fastify|Schema-first routes; plugin scope enforces module encapsulation|
-|Internal API|tRPC on Fastify|End-to-end type safety for `/web` — no REST for internal routes|
-|External/public API|Fastify REST + OpenAPI (`@fastify/swagger`)|Required for portal, mobile, third-party, or non-TS clients|
-|Internal frontend|Vite + React SPA|No SSR; fully authenticated — SSR adds zero value|
-|Public portal|Next.js (Phase 3)|SSG for SEO on citizen-facing document lookups|
-|Database|PostgreSQL|JSONB, Row-Level Security, append-only audit grants|
-|ORM|Drizzle ORM + Drizzle Kit|Full PostgreSQL feature access with TypeScript inference|
-|Validation / contracts|Zod (shared package)|Single source of truth: backend, DB types, frontend forms|
-|Server state (frontend)|TanStack Query|Cache invalidation, background refetch, optimistic updates|
-|UI state (frontend)|Zustand|Modals, sidebar, multi-step form state|
-|Component library|shadcn/ui + Radix UI primitives|Owned source code; accessible by default|
-|Search|PostgreSQL FTS Phase 1; Meilisearch Phase 2+|Typo tolerance for Filipino names; Phase 1: tsvector/tsquery|
-|Real-time notifications|Server-Sent Events (SSE)|One-directional push|
-|File storage|S3-compatible (streamed)|Files never touch disk; app stays stateless|
-|Logging|Pino + pino-http|Structured JSON|
-|Error tracking|Sentry|Unhandled exceptions unacceptable in production from day one|
-|Testing|Vitest (unit/integration) + Playwright (E2E)||
-|Email|Nodemailer + @react-email/components|Works with any SMTP including LGU mail server|
-|Auth pattern|Short-lived JWT + server-side refresh tokens + HTTP-only cookies|Never localStorage|
-|Password hashing|Argon2id|OWASP recommendation|
-|PDF generation|@react-pdf/renderer (templates) + pdf-lib (stamping)||
-|QR codes|`qrcode` (server) + `html5-qrcode` or `zxing-wasm` (frontend scanner)||
-|Forms|React Hook Form + `@hookform/resolvers/zod`|Validates against shared Zod schemas|
-|i18n|i18next + react-i18next|Filipino, English, Ilocano|
-|Rich text|Tiptap|Comments and annotations|
-|Data tables|TanStack Table||
-|Charts|Recharts|Dashboard panels|
-|PDF viewer|react-pdf|In-browser rendering|
-|Date/time|date-fns|Never moment.js|
-|Scheduling|node-cron (simple) + pgboss (durable)||
-|Rate limiting|@fastify/rate-limit|Auth and portal endpoints|
-|CORS|@fastify/cors|Strict origin allowlist|
-|Security headers|@fastify/helmet||
+| Layer                   | Choice                                                                | Constraint                                                      |
+| ----------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Backend framework       | Fastify                                                               | Schema-first routes; plugin scope enforces module encapsulation |
+| Internal API            | tRPC on Fastify                                                       | End-to-end type safety for `/web` — no REST for internal routes |
+| External/public API     | Fastify REST + OpenAPI (`@fastify/swagger`)                           | Required for portal, mobile, third-party, or non-TS clients     |
+| Internal frontend       | Vite + React SPA                                                      | No SSR; fully authenticated — SSR adds zero value               |
+| Public portal           | Next.js (Phase 3)                                                     | SSG for SEO on citizen-facing document lookups                  |
+| Database                | PostgreSQL                                                            | JSONB, Row-Level Security, append-only audit grants             |
+| ORM                     | Drizzle ORM + Drizzle Kit                                             | Full PostgreSQL feature access with TypeScript inference        |
+| Validation / contracts  | Zod (shared package)                                                  | Single source of truth: backend, DB types, frontend forms       |
+| Server state (frontend) | TanStack Query                                                        | Cache invalidation, background refetch, optimistic updates      |
+| UI state (frontend)     | Zustand                                                               | Modals, sidebar, multi-step form state                          |
+| Component library       | shadcn/ui + Radix UI primitives                                       | Owned source code; accessible by default                        |
+| Search                  | PostgreSQL FTS Phase 1; Meilisearch Phase 2+                          | Typo tolerance for Filipino names; Phase 1: tsvector/tsquery    |
+| Real-time notifications | Server-Sent Events (SSE)                                              | One-directional push                                            |
+| File storage            | S3-compatible (streamed)                                              | Files never touch disk; app stays stateless                     |
+| Logging                 | Pino + pino-http                                                      | Structured JSON                                                 |
+| Error tracking          | Sentry                                                                | Unhandled exceptions unacceptable in production from day one    |
+| Testing                 | Vitest (unit/integration) + Playwright (E2E)                          |                                                                 |
+| Email                   | Nodemailer + @react-email/components                                  | Works with any SMTP including LGU mail server                   |
+| Auth pattern            | Short-lived JWT + server-side refresh tokens + HTTP-only cookies      | Never localStorage                                              |
+| Password hashing        | Argon2id                                                              | OWASP recommendation                                            |
+| PDF generation          | @react-pdf/renderer (templates) + pdf-lib (stamping)                  |                                                                 |
+| QR codes                | `qrcode` (server) + `html5-qrcode` or `zxing-wasm` (frontend scanner) |                                                                 |
+| Forms                   | React Hook Form + `@hookform/resolvers/zod`                           | Validates against shared Zod schemas                            |
+| i18n                    | i18next + react-i18next                                               | Filipino, English, Ilocano                                      |
+| Rich text               | Tiptap                                                                | Comments and annotations                                        |
+| Data tables             | TanStack Table                                                        |                                                                 |
+| Charts                  | Recharts                                                              | Dashboard panels                                                |
+| PDF viewer              | react-pdf                                                             | In-browser rendering                                            |
+| Date/time               | date-fns                                                              | Never moment.js                                                 |
+| Scheduling              | node-cron (simple) + pgboss (durable)                                 |                                                                 |
+| Rate limiting           | @fastify/rate-limit                                                   | Auth and portal endpoints                                       |
+| CORS                    | @fastify/cors                                                         | Strict origin allowlist                                         |
+| Security headers        | @fastify/helmet                                                       |                                                                 |
 
 **Monorepo structure:**
 
