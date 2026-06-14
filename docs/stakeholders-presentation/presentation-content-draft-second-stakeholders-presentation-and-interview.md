@@ -2,7 +2,7 @@
 
 **Batac City LGU Platform — Second Stakeholder Meeting | June 2026**
 
-> Design system note (for builder): Continue with the established design system. Primary green: #06943d / #109f3c. Secondary blue: #0046e4. Light mode, modern and readable. Header-only topbar (as in previous presentation). Topbar left: "SP Office — Batac City" | Topbar right: "Discovery Review & Design Alignment" Footer right: slide counter only.
+> Design system note (for builder): Continue with the established design system. Primary green: #06943d / #109f3c. Secondary blue: #0046e4. Light mode, modern and readable. Header-only topbar (as in previous presentation). Topbar left: "SP Office — Batac City" | Topbar right: "Discovery Review & Design Alignment". No footer. But has a small overlay of the page number / total at the bottom right.
 
 ---
 
