@@ -1,0 +1,336 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#app{width:100%;position:relative;background:var(--color-background-primary);font-family:var(--font-sans)}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:0 2rem;height:52px;border-bottom:0.5px solid #06943d40}
+.topbar-left{font-size:13px;font-weight:500;color:#06943d;letter-spacing:0.02em}
+.topbar-right{font-size:12px;color:var(--color-text-secondary)}
+.progress-bar{height:2px;background:#06943d18}
+.progress-fill{height:2px;background:#06943d;transition:width 0.3s}
+.slide{display:none;min-height:480px;padding:2rem 2.5rem 2rem;flex-direction:column}
+.slide.active{display:flex}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:0.6rem 2.5rem;border-top:0.5px solid var(--color-border-tertiary)}
+.nav-btn{background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:6px 18px;font-size:13px;cursor:pointer;color:var(--color-text-primary)}
+.nav-btn:hover{background:var(--color-background-secondary)}
+.nav-btn:disabled{opacity:0.3;cursor:default}
+.slide-ind{font-size:12px;color:var(--color-text-tertiary)}
+.eyebrow{font-size:11px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem}
+.slide-title{font-size:20px;font-weight:500;color:var(--color-text-primary);padding-bottom:0.75rem;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:1.1rem}
+.two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem;flex:1}
+.three-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:0.85rem;flex:1}
+.col-card{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:1.1rem 1.25rem;display:flex;flex-direction:column;gap:0.5rem}
+.col-card h4{font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-text-secondary);margin-bottom:0.25rem}
+.ql{display:flex;flex-direction:column;gap:0.5rem;padding-left:0.9rem}
+.ql li{font-size:13px;color:var(--color-text-primary);line-height:1.6;position:relative}
+.ql li::before{content:"—";position:absolute;left:-0.9rem;color:var(--color-text-tertiary)}
+.q-label{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;width:fit-content;margin-bottom:0.4rem}
+.q-p1{background:#06943d14;color:#27500A}
+.q-p2{background:#0046e414;color:#0C447C}
+.q-p3{background:#BA751718;color:#633806}
+.q-p4{background:#88878018;color:#5F5E5A}
+.p-chip{font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;letter-spacing:0.04em}
+.option-row{display:flex;gap:0.75rem;align-items:flex-start;padding:0.55rem 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.option-row:last-child{border-bottom:none}
+.opt-lbl{min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:#0046e40f;border-radius:50%;font-size:11px;font-weight:500;color:#0046e4;flex-shrink:0;margin-top:1px}
+.opt-text{font-size:13px;color:var(--color-text-primary);line-height:1.6}
+.ccard{border-radius:var(--border-radius-lg);padding:1.1rem 1.3rem;display:flex;flex-direction:column;gap:0.5rem}
+.cc-confirmed{background:#06943d0a;border:0.5px solid #06943d40}
+.cc-open{background:#0046e408;border:0.5px solid #0046e430}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;padding:3px 9px;border-radius:20px;width:fit-content}
+.badge-g{background:#06943d18;color:#27500A}
+.badge-b{background:#0046e418;color:#0C447C}
+.mini-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.75rem;flex:1}
+.mini-card{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:0.9rem 1.1rem;display:flex;flex-direction:column;gap:0.35rem}
+.mini-card .qc{font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.25rem}
+.mini-card ul{display:flex;flex-direction:column;gap:0.35rem;padding-left:0.85rem}
+.mini-card ul li{font-size:12.5px;color:var(--color-text-primary);line-height:1.6;position:relative}
+.mini-card ul li::before{content:"—";position:absolute;left:-0.85rem;color:var(--color-text-tertiary);font-size:11px}
+.section-slide{align-items:center;justify-content:center;text-align:center}
+.acc-bar{width:48px;height:3px;background:#06943d;border-radius:2px;margin:0 auto 1.25rem}
+.sec-eyebrow{font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:#06943d;margin-bottom:0.85rem}
+.sec-title{font-size:26px;font-weight:500;color:var(--color-text-primary);line-height:1.3;max-width:520px;margin-bottom:1rem}
+.sec-sub{font-size:14px;color:var(--color-text-secondary);max-width:460px;line-height:1.7}
+</style>
+
+
+
+<!-- S1: Section opener -->
+<div class="slide section-slide active" id="s1">
+  <div class="acc-bar"></div>
+  <div class="sec-eyebrow">Open questions for stakeholder guidance</div>
+  <div class="sec-title">Before we finalize the system design, we need your input on these specific points.</div>
+  <div class="sec-sub">Your answers directly determine how core features are built. There is no wrong answer — we are here to learn how things actually work.</div>
+  <div style="margin-top:1.75rem;display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
+    <span class="p-chip q-p1">Priority 1 — Critical (Q-01 to Q-03)</span>
+    <span class="p-chip q-p2">Priority 2 — High (Q-04 to Q-07)</span>
+    <span class="p-chip q-p3">Priority 3 — Medium (Q-08 to Q-14)</span>
+    <span class="p-chip q-p4">Priority 4 — Low (Q-15 to Q-19)</span>
+  </div>
+</div>
+
+<!-- S2: Q-01 -->
+<div class="slide" id="s2">
+  <div class="eyebrow q-p1" style="color:#27500A">Priority 1 — Critical &nbsp;·&nbsp; Blocks schema design</div>
+  <div class="slide-title">Q-01 — The preliminary series number</div>
+  <div class="col-card" style="flex:1">
+    <h4>Questions for the secretariat</h4>
+    <ul class="ql">
+      <li>Is the preliminary number an internal placeholder, or an early version of the official document number that later gets replaced?</li>
+      <li>At exactly which workflow step is the preliminary number assigned? At which step is the final number assigned?</li>
+      <li>If a resolution is rejected before receiving a final number, what happens to the preliminary number — is the gap logged, or is the number abandoned?</li>
+      <li>Does the preliminary number appear on the document itself (e.g., on the cover sheet), or is it only used internally by the secretariat?</li>
+    </ul>
+  </div>
+</div>
+
+<!-- S3: Q-02 -->
+<div class="slide" id="s3">
+  <div class="eyebrow q-p1" style="color:#27500A">Priority 1 — Critical &nbsp;·&nbsp; Blocks schema design</div>
+  <div class="slide-title">Q-02 — When does the QR code get attached?</div>
+  <div style="flex:1;display:flex;flex-direction:column;gap:0.85rem">
+    <div class="col-card">
+      <h4>At what point does a document receive its QR code?</h4>
+      <div class="option-row"><div class="opt-lbl">A</div><div class="opt-text">Immediately when staff physically receive it from a Councilor — before any computer entry</div></div>
+      <div class="option-row"><div class="opt-lbl">B</div><div class="opt-text">When staff log it into the system — after it is received and being processed</div></div>
+      <div class="option-row"><div class="opt-lbl">C</div><div class="opt-text">Only after the preliminary series number is assigned</div></div>
+      <div class="option-row" style="border-bottom:none"><div class="opt-lbl">D</div><div class="opt-text">At a different point altogether</div></div>
+    </div>
+    <div class="col-card">
+      <h4>One additional question</h4>
+      <p style="font-size:13px;color:var(--color-text-primary);line-height:1.6">Can a Councilor's own staff generate and print a QR code before submitting to the Secretariat — or is QR code generation always done by the Secretariat?</p>
+    </div>
+  </div>
+</div>
+
+<!-- S4: Q-03 -->
+<div class="slide" id="s4">
+  <div class="eyebrow q-p1" style="color:#27500A">Priority 1 — Critical &nbsp;·&nbsp; Core workflow behavior</div>
+  <div class="slide-title">Q-03 — Does the 10-day lapse rule apply to resolutions?</div>
+  <div style="flex:1;display:flex;flex-direction:column;gap:0.9rem">
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem">
+      <div class="ccard cc-confirmed">
+        <div class="badge badge-g"><i class="ti ti-check" style="font-size:10px" aria-hidden="true"></i> Confirmed — Ordinances</div>
+        <p style="font-size:13.5px;color:var(--color-text-primary);line-height:1.65">After the Vice Mayor signs, the Mayor has <strong>10 calendar days</strong> to sign, veto, or allow the measure to lapse into law. Inaction for 10 days causes automatic effect.</p>
+      </div>
+      <div class="ccard cc-open">
+        <div class="badge badge-b"><i class="ti ti-help" style="font-size:10px" aria-hidden="true"></i> Open — Resolutions</div>
+        <p style="font-size:13.5px;color:var(--color-text-primary);line-height:1.65">The flowchart confirms the Mayor's signature is required and the Mayor can veto resolutions — but it is unclear whether the same 10-day lapse rule applies.</p>
+      </div>
+    </div>
+    <div class="col-card">
+      <h4>Questions for the secretariat</h4>
+      <ul class="ql">
+        <li>Does the 10-day lapse rule apply to SP Resolutions the same way it does to Ordinances?</li>
+        <li>If the Mayor vetoes a resolution, does the SP hold an override vote using the same 2/3 threshold (8 of 12 members)?</li>
+        <li>Is there a formal transmittal document sent from the SP Secretariat to the Mayor's Office for each resolution?</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S5: Q-04 + Q-05 -->
+<div class="slide" id="s5">
+  <div class="eyebrow q-p2" style="color:#0C447C">Priority 2 — High &nbsp;·&nbsp; Needed before Phase 1 development begins</div>
+  <div class="slide-title">Q-04 — Multi-committee referral &nbsp;&nbsp;·&nbsp;&nbsp; Q-05 — Certified urgent</div>
+  <div class="two-col" style="flex:1">
+    <div class="col-card">
+      <div class="q-label q-p2">Q-04</div>
+      <h4>Multi-committee referral: workflow design</h4>
+      <ul class="ql">
+        <li>When two committees are assigned, does the SP wait for <strong>both</strong> reports before Second Reading, or only for the primary committee's report?</li>
+        <li>If both are required and one committee is slower — does the SP Secretary follow up directly, or does the step auto-escalate?</li>
+        <li>Is the Committee on Laws always co-referred, or are there document types that bypass it?</li>
+        <li>For a multi-committee hearing, is a single NCH issued for all committees, or a separate NCH per committee?</li>
+      </ul>
+    </div>
+    <div class="col-card">
+      <div class="q-label q-p2">Q-05</div>
+      <h4>Certified urgent: authorization rules</h4>
+      <ul class="ql">
+        <li>Who has authority to declare a measure certified urgent — the Mayor, the Vice Mayor, a majority of the SP, or another authority?</li>
+        <li>Is the declaration made in writing (formal certification from the Mayor), or verbally declared during First Reading?</li>
+        <li>Can any document type be certified urgent, or only certain types?</li>
+        <li>How often is this path used in practice — roughly how many measures per year?</li>
+        <li>If certified urgent, is it debated and voted in the same session, or is a 24-hour notice period still required?</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S6: Q-06 + Q-07 -->
+<div class="slide" id="s6">
+  <div class="eyebrow q-p2" style="color:#0C447C">Priority 2 — High &nbsp;·&nbsp; Needed before Phase 1 development begins</div>
+  <div class="slide-title">Q-06 — Phase 1 scope &nbsp;&nbsp;·&nbsp;&nbsp; Q-07 — Designation edge cases</div>
+  <div class="two-col" style="flex:1">
+    <div class="col-card">
+      <div class="q-label q-p2">Q-06</div>
+      <h4>Phase 1 scope confirmation with SP Secretary</h4>
+      <p style="font-size:13px;color:var(--color-text-secondary);line-height:1.6;margin-bottom:0.5rem">The Records Officer noted the proposed scope is large and referenced the DMS system as the minimum. Current Phase 1 scope: SP Resolutions and Ordinances only.</p>
+      <ul class="ql">
+        <li>Does the SP Secretary agree that Phase 1 should focus on SP Resolutions and Ordinances?</li>
+        <li>Is there any other document type the SP Secretary considers a must-have in Phase 1 — a blocking dependency?</li>
+      </ul>
+    </div>
+    <div class="col-card">
+      <div class="q-label q-p2">Q-07</div>
+      <h4>Designation: authority transfer edge cases</h4>
+      <p style="font-size:13px;color:var(--color-text-secondary);line-height:1.6;margin-bottom:0.5rem">Designation documents trigger system-level authority transfers.</p>
+      <ul class="ql">
+        <li>Can the same person hold multiple active Designations simultaneously (e.g., VP designated as both Acting Mayor and Acting SP Secretary at the same time)?</li>
+        <li>When a Designation expires while a document is pending the designated person's signature, does it go back to the original authority, or stall until manually reassigned?</li>
+        <li>Who in the SP Secretariat is authorized to confirm the delegation scope in the system — only the SP Secretary, or also Administrative Officers?</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S7: Q-08 + Q-09 -->
+<div class="slide" id="s7">
+  <div class="eyebrow q-p3" style="color:#633806">Priority 3 — Medium &nbsp;·&nbsp; Needed before Phase 1 deployment</div>
+  <div class="slide-title">Q-08 — OCR processing policy &nbsp;&nbsp;·&nbsp;&nbsp; Q-09 — Panlalawigan 30-day timer</div>
+  <div class="two-col" style="flex:1">
+    <div class="col-card">
+      <div class="q-label q-p3">Q-08</div>
+      <h4>OCR processing policy</h4>
+      <ul class="ql">
+        <li>Should OCR run automatically when a document is uploaded, or is it a manual step triggered by the Records Officer?</li>
+        <li>Is OCR required for historical records migrated from LMITS, or only for newly uploaded documents?</li>
+        <li>How should the system handle documents where OCR fails or produces poor output (e.g., low-quality scans)?</li>
+      </ul>
+    </div>
+    <div class="col-card">
+      <div class="q-label q-p3">Q-09</div>
+      <h4>Sangguniang Panlalawigan 30-day timer: operational confirmation</h4>
+      <ul class="ql">
+        <li>When the Panlalawigan acts within 30 days, does the SP Secretariat receive a formal written notification (a Panlalawigan resolution), or is it communicated informally?</li>
+        <li>When the 30-day period elapses with no Panlalawigan action, does the SP Secretary currently record this manually — or does this sometimes go unnoticed?</li>
+        <li>Are there historical examples of VALID-IN-PART returns? If so, what did the Secretariat do — accepted as-is, consulted Legal Office, or re-voted?</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S8: Q-10 + Q-11 -->
+<div class="slide" id="s8">
+  <div class="eyebrow q-p3" style="color:#633806">Priority 3 — Medium &nbsp;·&nbsp; Needed before Phase 1 deployment</div>
+  <div class="slide-title">Q-10 — LMITS migration &nbsp;&nbsp;·&nbsp;&nbsp; Q-11 — Newspaper publication requirements</div>
+  <div class="two-col" style="flex:1">
+    <div class="col-card">
+      <div class="q-label q-p3">Q-10</div>
+      <h4>LMITS migration: scope and format</h4>
+      <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin-bottom:0.4rem">LMITS stored document titles only. Data migration is confirmed as required.</p>
+      <ul class="ql">
+        <li>Beyond titles, which other fields exist in LMITS and need to be migrated? (Confirmed Index of Ordinances fields: authored by, introduced by, general/specific subject, approval dates, Panlalawigan action, remarks, publication date)</li>
+        <li>In what format does LMITS data currently exist — database export, spreadsheets, a combination?</li>
+        <li>Who currently has access to LMITS data for extraction? (CPDO managed LMITS — do they still have the database?)</li>
+      </ul>
+    </div>
+    <div class="col-card">
+      <div class="q-label q-p3">Q-11</div>
+      <h4>Newspaper publication requirements</h4>
+      <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin-bottom:0.4rem">The Index of Ordinances shows some ordinances published in Ilocos Times; others have no publication entry.</p>
+      <ul class="ql">
+        <li>Which ordinance types legally require newspaper publication?</li>
+        <li>Which resolution types (if any) require publication?</li>
+        <li>Who arranges publication — the SP Secretariat, the Mayor's Office, or the implementing department?</li>
+        <li>Is the publication date tracked as a mandatory field in the Secretariat's records, or is it optional?</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S9: Q-12 + Q-13 + Q-14 -->
+<div class="slide" id="s9">
+  <div class="eyebrow q-p3" style="color:#633806">Priority 3 — Medium &nbsp;·&nbsp; Needed before Phase 1 deployment</div>
+  <div class="slide-title">Q-12 — Hearing schedule &nbsp;·&nbsp; Q-13 — NCH vs NOSP &nbsp;·&nbsp; Q-14 — Panlalawigan RETURNED</div>
+  <div class="three-col" style="flex:1">
+    <div class="col-card">
+      <div class="q-label q-p3">Q-12</div>
+      <h4>Hearing schedule: input rules</h4>
+      <ul class="ql">
+        <li>Who inputs the hearing schedule — the Secretariat, the committee chairperson, or both?</li>
+        <li>Can a committee referral step be initiated without a scheduled date ("assign now, date to be set later")?</li>
+        <li>Can a hearing date be rescheduled after the NCH has already been sent? What is the process?</li>
+      </ul>
+    </div>
+    <div class="col-card">
+      <div class="q-label q-p3">Q-13</div>
+      <h4>NCH vs NOSP prefix ambiguity</h4>
+      <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin-bottom:0.4rem">2023 logs show the first notice used NOSP; subsequent notices that year switched to NCH.</p>
+      <ul class="ql">
+        <li>What is the current (2025–2026) convention for Notices of Special Session — NCH or NOSP?</li>
+        <li>Are the counters for NCH (committee hearings) and NOSP/NCH (special sessions) a single shared sequence or separate sequences?</li>
+      </ul>
+    </div>
+    <div class="col-card">
+      <div class="q-label q-p3">Q-14</div>
+      <h4>Ordinance effectiveness when Panlalawigan returns</h4>
+      <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin-bottom:0.4rem">An ordinance may already be in effect by the time the Panlalawigan acts.</p>
+      <ul class="ql">
+        <li>When the Panlalawigan RETURNS an ordinance already being implemented, does the LGU halt, continue, or seek legal advice?</li>
+        <li>Does the City Legal Office or the Mayor decide whether to challenge the objection?</li>
+        <li>Has this scenario occurred before in Batac? If so, what was done?</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S10: Q-15 to Q-19 -->
+<div class="slide" id="s10">
+  <div class="eyebrow q-p4" style="color:#5F5E5A">Priority 4 — Low &nbsp;·&nbsp; Can be clarified during Phase 1B or Phase 2</div>
+  <div class="slide-title">Q-15 through Q-19 — Lower-priority clarifications</div>
+  <div class="mini-grid">
+    <div class="mini-card">
+      <div class="qc q-p4" style="color:#5F5E5A">Q-15 &nbsp;·&nbsp; Memo &amp; letter counter independence</div>
+      <ul>
+        <li>Are Memos Incoming and Letters Received tracked in separate counters or a shared one?</li>
+        <li>Are Memos Outgoing and Letters Sent separate or shared?</li>
+        <li>What distinguishes "Memo Incoming" from "Letter Received" — format, originating source, or a formal rule?</li>
+      </ul>
+    </div>
+    <div class="mini-card">
+      <div class="qc q-p4" style="color:#5F5E5A">Q-16 &nbsp;·&nbsp; Franchise ordinance workflow</div>
+      <ul>
+        <li>Are franchise ordinances processed individually through the full legislative workflow, or as a batch?</li>
+        <li>Which committee handles franchise ordinance referrals — a dedicated Franchise Committee or the appropriate subject-matter committee?</li>
+        <li>What does the "R" suffix in the franchise ordinance numbering format signify?</li>
+      </ul>
+    </div>
+    <div class="mini-card">
+      <div class="qc q-p4" style="color:#5F5E5A">Q-17 &nbsp;·&nbsp; sp.batac.gov.ph data migration</div>
+      <ul>
+        <li>Can data on sp.batac.gov.ph (titles, first-page previews) be regenerated from LMITS source data and uploaded documents, or does it contain unique data not available elsewhere?</li>
+        <li>Is any action required to formally retire sp.batac.gov.ph, or does it simply remain down until the new system launches?</li>
+      </ul>
+    </div>
+    <div class="mini-card">
+      <div class="qc q-p4" style="color:#5F5E5A">Q-18 &nbsp;·&nbsp; Vice Mayor's letter review: categorical rules</div>
+      <ul>
+        <li>Are there defined categories of incoming letters the Vice Mayor always reviews vs. those that go directly to the Secretariat for action?</li>
+        <li>If not formally defined, what kinds of letters typically trigger VM review vs. direct secretariat action in practice?</li>
+      </ul>
+    </div>
+    <div class="mini-card">
+      <div class="qc q-p4" style="color:#5F5E5A">Q-19 &nbsp;·&nbsp; In-flight documents at administration change</div>
+      <ul>
+        <li>When a new Mayor takes office, are in-flight documents requiring the prior Mayor's signature automatically accepted, or does the new Mayor independently decide to approve, reject, or cancel?</li>
+        <li>Is there a formal transition procedure (handover meeting, list of pending documents) the SP Secretariat currently performs when administrations change?</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const total=10;let cur=1;
+function nav(d){
+  document.getElementById('s'+cur).classList.remove('active');
+  cur=Math.min(Math.max(cur+d,1),total);
+  document.getElementById('s'+cur).classList.add('active');
+}
+document.addEventListener('keydown',function(e){
+  if(e.key==='ArrowRight'&&cur<total)nav(1);
+  if(e.key==='ArrowLeft'&&cur>1)nav(-1);
+});
+</script>
