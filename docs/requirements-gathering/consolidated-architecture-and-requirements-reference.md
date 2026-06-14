@@ -642,15 +642,15 @@ This frames the system's primary stakeholder-perceived value as **public access 
 
 ### 7.3 Confirmed Document Volumes
 
-|Document Type|Volume|Period|Source|
-|---|---|---|---|
-|Letters Received|~38/month|2026|Letters Received log (2026-01 to 2026-98, Jan–Mar 2026)|
-|Letters Sent|~12/month|Q1 2026|Letters Sent log (2026-01 to 2026-36)|
-|Memo Outgoing|~2/month|Jul–Sep 2025|Memo Outgoing log (2025-01 to 2025-04)|
-|Memo Incoming|~1/month|Jul–Sep 2025|Memo Incoming log (2025-26 to 2025-28)|
-|Notice of Committee Hearing|~3–4/month|2025|NCH log (2025-03 to 2025-33, Jul–Dec 2025)|
-|Ordinances|~1–2/month|2025–2026|Panlalawigan sent log|
-|Designations|~1–2/month|2024|Designation log (D 2024-01 to D 2024-19)|
+| Document Type               | Volume     | Period       | Source                                                  |
+| --------------------------- | ---------- | ------------ | ------------------------------------------------------- |
+| Letters Received            | ~38/month  | 2026         | Letters Received log (2026-01 to 2026-98, Jan–Mar 2026) |
+| Letters Sent                | ~12/month  | Q1 2026      | Letters Sent log (2026-01 to 2026-36)                   |
+| Memo Outgoing               | ~2/month   | Jul–Sep 2025 | Memo Outgoing log (2025-01 to 2025-04)                  |
+| Memo Incoming               | ~1/month   | Jul–Sep 2025 | Memo Incoming log (2025-26 to 2025-28)                  |
+| Notice of Committee Hearing | ~3–4/month | 2025         | NCH log (2025-03 to 2025-33, Jul–Dec 2025)              |
+| Ordinances                  | ~1–2/month | 2025–2026    | Panlalawigan sent log                                   |
+| Designations                | ~1–2/month | 2024         | Designation log (D 2024-01 to D 2024-19)                |
 
 These are small volumes by commercial software standards but meaningful for the SP Secretariat's daily workload. Historical records migration will add significantly to storage requirements.
 
