@@ -27,44 +27,46 @@
 
 ## Stack Decisions
 
-| Layer                   | Choice                                                                | Hard constraint                                                                         |
-| ----------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Backend framework       | Fastify                                                               | Schema-first routes; plugin scope enforces module encapsulation                         |
-| Internal API            | tRPC on Fastify                                                       | End-to-end type safety for `/web` — no REST for internal routes                         |
-| External/public API     | Fastify REST + OpenAPI (`@fastify/swagger`)                           | Required for portal, mobile, third-party, or non-TS clients                             |
-| Internal frontend       | Vite + React SPA                                                      | No SSR; internal app is fully authenticated — SSR adds zero value                       |
-| Public portal           | Next.js (Phase 3)                                                     | SSG for SEO on citizen-facing document lookups                                          |
-| Database                | PostgreSQL                                                            | JSONB, Row-Level Security, append-only audit grants — none exist in MySQL               |
-| ORM                     | Drizzle ORM + Drizzle Kit                                             | Full PostgreSQL feature access with TypeScript inference                                |
-| Validation / contracts  | Zod (shared package)                                                  | Single source of truth: backend validation, DB types, frontend forms                    |
-| Server state (frontend) | TanStack Query                                                        | Cache invalidation, background refetch, optimistic updates                              |
-| UI state (frontend)     | Zustand                                                               | Modals, sidebar, multi-step form state — not server state                               |
-| Component library       | shadcn/ui + Radix UI primitives                                       | Owned source code; accessible by default; no version-lock risk                          |
-| Search                  | Meilisearch (Phase 2+)                                                | Typo tolerance required for Filipino proper names; PostgreSQL FTS acceptable in Phase 1 |
-| Real-time notifications | Server-Sent Events (SSE)                                              | One-directional push; no WebSocket infrastructure needed                                |
-| File storage            | S3-compatible (streamed)                                              | Files never touch disk; app stays stateless                                             |
-| Logging                 | Pino (built into Fastify) + pino-http                                 | Structured JSON; collected by log aggregator                                            |
-| Error tracking          | Sentry                                                                | Unhandled exceptions are unacceptable in production from day one                        |
-| Testing                 | Vitest (unit/integration) + Playwright (E2E)                          |                                                                                         |
-| Email                   | Nodemailer + @react-email/components                                  | Works with any SMTP provider including LGU mail server                                  |
-| Auth pattern            | Short-lived JWT + server-side refresh tokens + HTTP-only cookies      | Never localStorage; structured for future SSO migration                                 |
-| Password hashing        | Argon2id                                                              | OWASP recommendation for new systems                                                    |
-| PDF generation          | @react-pdf/renderer (templates) + pdf-lib (stamping)                  |                                                                                         |
-| QR codes                | `qrcode` (server) + `html5-qrcode` or `zxing-wasm` (frontend scanner) |                                                                                         |
-| Forms                   | React Hook Form + `@hookform/resolvers/zod`                           | Validates against shared Zod schemas                                                    |
-| i18n                    | i18next + react-i18next                                               | Filipino, English, Ilocano                                                              |
-| Rich text               | Tiptap                                                                | Comments and annotations                                                                |
-| Data tables             | TanStack Table                                                        | Pairs with TanStack Query and shadcn/ui                                                 |
-| Charts                  | Recharts                                                              | Dashboard panels                                                                        |
-| Virtual lists           | TanStack Virtual                                                      | Long document lists                                                                     |
-| PDF viewer              | react-pdf                                                             | In-browser rendering                                                                    |
-| Date/time               | date-fns                                                              | Never moment.js                                                                         |
-| Env config              | dotenv + Zod schema                                                   | Fail fast on missing required vars at startup                                           |
-| Scheduling              | node-cron (simple) + pgboss (durable)                                 |                                                                                         |
-| HTTP client             | native `fetch` (Node 18+) or `ky`                                     | Only for internal service calls; TanStack Query handles browser fetching                |
-| Rate limiting           | @fastify/rate-limit                                                   | Auth and portal endpoints                                                               |
-| CORS                    | @fastify/cors                                                         | Strict origin allowlist                                                                 |
-| Security headers        | @fastify/helmet                                                       |                                                                                         |
+|Layer|Choice|Hard constraint|
+|---|---|---|
+|Backend framework|Fastify|Schema-first routes; plugin scope enforces module encapsulation|
+|Internal API|tRPC on Fastify|End-to-end type safety for `/web` — no REST for internal routes|
+|External/public API|Fastify REST + OpenAPI (`@fastify/swagger`)|Required for portal, mobile, third-party, or non-TS clients|
+|Internal frontend|Vite + React SPA|No SSR; internal app is fully authenticated — SSR adds zero value|
+|Public portal|Next.js (Phase 3)|SSG for SEO on citizen-facing document lookups|
+|Database|PostgreSQL|JSONB, Row-Level Security, append-only audit grants — none exist in MySQL|
+|ORM|Drizzle ORM + Drizzle Kit|Full PostgreSQL feature access with TypeScript inference|
+|Validation / contracts|Zod (shared package)|Single source of truth: backend validation, DB types, frontend forms|
+|Server state (frontend)|TanStack Query|Cache invalidation, background refetch, optimistic updates|
+|UI state (frontend)|Zustand|Modals, sidebar, multi-step form state — not server state|
+|Component library|shadcn/ui + Radix UI primitives|Owned source code; accessible by default; no version-lock risk|
+|Search|Meilisearch (Phase 2+)|Typo tolerance required for Filipino proper names; PostgreSQL FTS acceptable in Phase 1|
+|Real-time notifications|Server-Sent Events (SSE)|One-directional push; no WebSocket infrastructure needed|
+|File storage|S3-compatible (streamed) — Cloudflare R2 (Phase 1); MinIO (on-premise path)|Files never touch disk; app stays stateless; migration = endpoint URL change only; no provider-specific SDK imports permitted|
+|OCR|**Open decision** — `tesseract.js` (preferred) or self-hosted cloud OCR alternative — see OCR Strategy below|Must be self-hostable; no cloud-vendor dependency; on-premise constraint applies; required Phase 1|
+|Audit log crypto|Node built-in `crypto` (SHA-256 hash chain + HMAC per entry)|No external library; runs server-side only; see Audit Log Integrity below|
+|Logging|Pino (built into Fastify) + pino-http|Structured JSON; collected by log aggregator|
+|Error tracking|Sentry|Unhandled exceptions are unacceptable in production from day one|
+|Testing|Vitest (unit/integration) + Playwright (E2E)||
+|Email|Nodemailer + @react-email/components|Works with any SMTP provider including LGU mail server|
+|Auth pattern|Short-lived JWT + server-side refresh tokens + HTTP-only cookies|Never localStorage; structured for future SSO migration|
+|Password hashing|Argon2id|OWASP recommendation for new systems|
+|PDF generation|@react-pdf/renderer (templates) + pdf-lib (stamping)||
+|QR codes|`qrcode` (server) + `html5-qrcode` or `zxing-wasm` (frontend scanner)||
+|Forms|React Hook Form + `@hookform/resolvers/zod`|Validates against shared Zod schemas|
+|i18n|i18next + react-i18next|Filipino, English, Ilocano|
+|Rich text|Tiptap|Comments and annotations|
+|Data tables|TanStack Table|Pairs with TanStack Query and shadcn/ui|
+|Charts|Recharts|Dashboard panels|
+|Virtual lists|TanStack Virtual|Long document lists|
+|PDF viewer|react-pdf|In-browser rendering|
+|Date/time|date-fns|Never moment.js|
+|Env config|dotenv + Zod schema|Fail fast on missing required vars at startup|
+|Scheduling|node-cron (simple) + pgboss (durable)||
+|HTTP client|native `fetch` (Node 18+) or `ky`|Only for internal service calls; TanStack Query handles browser fetching|
+|Rate limiting|@fastify/rate-limit|Auth and portal endpoints|
+|CORS|@fastify/cors|Strict origin allowlist|
+|Security headers|@fastify/helmet||
 
 ---
 
@@ -118,6 +120,57 @@ These features are the reason MySQL is excluded. Do not work around them.
 |Phase 2+|Meilisearch (Docker, self-hosted)|Typo tolerance for Filipino names; faceted filtering; synced from PostgreSQL|
 
 Design the search interface as an abstraction layer in the application from day one so the underlying provider is swappable without touching call sites.
+
+---
+
+## File Storage Strategy
+
+|Phase|Provider|Reason|
+|---|---|---|
+|Phase 1 (cloud)|Cloudflare R2|No egress fees; S3-compatible API; straightforward setup|
+|On-premise / future|MinIO|Full S3-compatible API; self-hostable; migration = endpoint URL change only|
+
+**Non-negotiable rules:**
+
+- Use the S3-compatible API exclusively. No Cloudflare-specific or MinIO-specific SDK imports are permitted anywhere in the codebase. The only allowed import is an S3-compatible client (e.g., `@aws-sdk/client-s3` pointed at the configured endpoint).
+- File keys are UUIDs only — never original filenames. Original filename stored as metadata in PostgreSQL.
+- S3 object versioning enabled on the bucket.
+- Files are streamed directly between client and storage — they never touch the application server's local disk.
+- Switching providers requires only an environment variable change (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`). No code changes.
+- Supported formats: PDF, DOCX, XLSX, PNG, JPG. Maximum file size: 25 MB per file (configurable via env).
+
+---
+
+## OCR Strategy
+
+OCR is a confirmed Phase 1 requirement. All uploaded documents are scanned automatically on upload and a scan quality indicator is always shown to the user so they can decide whether to re-scan before the document is formally logged.
+
+**Open technical decision:** The specific OCR library has not been confirmed. Evaluate in this order:
+
+1. **`tesseract.js`** — Pure Node.js; no native system dependencies; self-hostable; no cloud vendor required. Preferred given the on-premise deployment constraint. Primary concern: accuracy on scanned Filipino government documents, which may have variable scan quality and mixed-language text (Filipino/English/Ilocano).
+2. **Self-hosted cloud OCR alternative** — Only if `tesseract.js` accuracy is found to be insufficient after testing against real SP Secretariat document samples. Must still be self-hostable with no external API calls. Cloud OCR services that send data off-premise are excluded — RA 10173 (Data Privacy Act) compliance and LGU data sovereignty requirements prohibit sending citizen document content to external vendors.
+
+**Decision trigger:** Test `tesseract.js` against a representative sample of scanned SP Secretariat documents (letters, memos, resolutions) before the first OCR-dependent feature is implemented. If accuracy meets the threshold required for reliable full-text search indexing, the decision is closed. If not, evaluate alternatives under the self-hostable constraint.
+
+**Architectural requirement regardless of library chosen:** The OCR processing call must be wrapped behind a service interface in `/server` so the underlying library is swappable without touching call sites. Do not call the OCR library directly from upload handlers.
+
+**Phase 4 note:** Basic OCR with quality indicator is Phase 1. Advanced OCR capabilities (bulk historical processing, quality improvement workflows for legacy scanned content) are Phase 4.
+
+---
+
+## Audit Log Integrity
+
+The audit log is append-only at the database permission level (`INSERT` only; `UPDATE` and `DELETE` revoked from the application DB user). The application layer adds a second integrity layer: hash chaining and HMAC.
+
+**Implementation uses Node built-in `crypto` only** — no external library.
+
+**Hash chain:** Each audit event record stores `SHA-256(previous_event_hash + current_event_payload)` as its `chain_hash` column. The first record in a series uses a known genesis hash. The chain is validated at retrieval time — a broken chain is flagged as a tamper indicator.
+
+**HMAC:** Each event payload is signed with `HMAC-SHA-256` using a secret key held by the application (stored in environment variable, not in the database). This prevents an attacker with direct DB write access from inserting a record and computing a valid chain hash without the key.
+
+**Claim boundary:** The audit log is **tamper-evident, not tamper-proof.** Evidence of tampering can be detected. Prevention of tampering by a sufficiently privileged attacker (one who has both the DB write access and the HMAC secret) is outside the scope of this implementation. This distinction must be documented in the ADR for the audit log design.
+
+**External timestamp:** Monthly export to an RFC 3161 timestamp authority (TSA). Provider to be confirmed. This extends the tamper-evidence guarantee to cover bulk deletion of recent records.
 
 ---
 
