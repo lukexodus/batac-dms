@@ -1556,13 +1556,13 @@ schema: reporting     → report_definitions, schedules, outputs (Phase 2)
 
 ### 11.19 Compliance
 
-|Regulation|Decision|
-|---|---|
-|RA 11032 (ARTA)|SLA tracking mandatory from Phase 1; configurable thresholds; legal requirement|
-|RA 10173 (DPA)|Privacy-by-design in Phase 1; formal PIA and DPO designation before Production Rollout|
-|RA 9184 (Procurement)|Procurement as configurable workflow in Phase 2; excluded from Phase 1|
-|COA|Engage before Production Rollout; retain physical originals until COA acceptance of digital confirmed per document category|
-|RA 7160 (Local Government Code)|System must enforce mandatory SP workflow steps and procedures|
+| Regulation                      | Decision                                                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| RA 11032 (ARTA)                 | SLA tracking mandatory from Phase 1; configurable thresholds; legal requirement                                             |
+| RA 10173 (DPA)                  | Privacy-by-design in Phase 1; formal PIA and DPO designation before Production Rollout                                      |
+| RA 9184 (Procurement)           | Procurement as configurable workflow in Phase 2; excluded from Phase 1                                                      |
+| COA                             | Engage before Production Rollout; retain physical originals until COA acceptance of digital confirmed per document category |
+| RA 7160 (Local Government Code) | System must enforce mandatory SP workflow steps and procedures                                                              |
 
 ---
 
