@@ -846,19 +846,19 @@ This frames the system's primary stakeholder-perceived value as **public access 
 
 ### 7.2 Session Patterns and Scheduling `[UPDATED — Interview 2]`
 
-| Rule | Detail |
-| ---- | ------ |
-| Session day | Tuesdays |
-| Cutoff for Order of Business | Thursday of the preceding week |
-| Included in Order of Business | Documents received by Secretariat before the Thursday cutoff |
-| First Reading scheduling | SP Secretariat schedules first readings |
-| Second Reading scheduling | Committee schedules second readings |
-| Hearing scheduling | Committee schedules hearings; Secretariat logs (receives notices) |
-| Same-session 1st and 2nd reading | Possible when Certification of Urgency issued by Mayor — frequent |
-| Multiple documents in one session | Allowed if the committees concerned are the same |
-| Missing committee reports | Marked red in the Order of Business |
-| Session frequency | Up to three hearings per day; average five hearings per week |
-| Physical documents | Participants read physical documents during sessions; system does not displace this in Phase 1 |
+| Rule                              | Detail                                                                                         |
+| --------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Session day                       | Tuesdays                                                                                       |
+| Cutoff for Order of Business      | Thursday of the preceding week                                                                 |
+| Included in Order of Business     | Documents received by Secretariat before the Thursday cutoff                                   |
+| First Reading scheduling          | SP Secretariat schedules first readings                                                        |
+| Second Reading scheduling         | Committee schedules second readings                                                            |
+| Hearing scheduling                | Committee schedules hearings; Secretariat logs (receives notices)                              |
+| Same-session 1st and 2nd reading  | Possible when Certification of Urgency issued by Mayor — frequent                              |
+| Multiple documents in one session | Allowed if the committees concerned are the same                                               |
+| Missing committee reports         | Marked red in the Order of Business                                                            |
+| Session frequency                 | Up to three hearings per day; average five hearings per week                                   |
+| Physical documents                | Participants read physical documents during sessions; system does not displace this in Phase 1 |
 
 **Committee report timeline from Interview 2:**
 - First Reading on Tuesday → committee referred
