@@ -8,11 +8,11 @@
 
 ### Source Files Merged
 
-|File|Role|
-|---|---|
-|`_architecture-review-and-discovery-focused.md`|Pre-interview architecture review, discovery checklists, educated guesses, resolved pre-decisions|
-|`key_decisions_developer_reference.md`|Pre-interview developer key-decisions reference|
-|`lgu-batac-interview-first-june-9-synthesis-complete.md`|Interview 1 synthesis (June 9) — confirmed findings and clarification questions|
+| File                                                     | Role                                                                                              |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `_architecture-review-and-discovery-focused.md`          | Pre-interview architecture review, discovery checklists, educated guesses, resolved pre-decisions |
+| `key_decisions_developer_reference.md`                   | Pre-interview developer key-decisions reference                                                   |
+| `lgu-batac-interview-first-june-9-synthesis-complete.md` | Interview 1 synthesis (June 9) — confirmed findings and clarification questions                   |
 
 **Note:** `gap-analysis-assumption-review-architecture-challenges.md` was listed as a source but was not present in the upload. Its content appears to be substantially integrated into the RESOLVED DECISIONS section of the architecture review document (sections 1.1–1.21 of that file), which is reflected in this merge.
 
@@ -419,9 +419,9 @@ Referred simultaneously to multiple offices for preliminary review. **This is th
 
 **Control number immutability rule confirmed:** Control numbers are immutable once assigned. A mistake requires deleting the entire row and creating a new one — the number is not edited in place.
 
-|Field|Detail|
-|---|---|
-|Flow|Received by secretariat → QR attached → Given to Vice Mayor (adds notes/routing instructions) → Returned to secretariat → Action taken → Disseminated → Archived|
+| Field | Detail                                                                                                                                                           |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flow  | Received by secretariat → QR attached → Given to Vice Mayor (adds notes/routing instructions) → Returned to secretariat → Action taken → Disseminated → Archived |
 
 **Vice Mayor review scope:** Not every letter necessarily requires VM review. The workflow supports conditional branching where routine items are routed directly to the action queue. When the VM is absent, a formally designated Acting VM (SP Member) handles the queue. `[Confirmed from Q-INT-07 resolution; full routing rules to be confirmed in next interview]`
 

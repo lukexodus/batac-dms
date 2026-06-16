@@ -32,13 +32,13 @@ UI copy should use plain terms for citizens and precise domain terms for staff. 
 
 ## 2. Tracking and Document Number Formatting
 
-| Format | Example | Display rules |
-|---|---|---|
-| DTS Tracking Number | `DTS-2026-000045` | Always `IBM Plex Mono`. Always shown with the `DTS-` prefix, 4-digit year, 6-digit zero-padded sequence. Never abbreviate (`...045` alone is not acceptable). |
-| SP Resolution/Ordinance Series Number | `7SP 2026-047` | `{SP_NUMBER}SP {YEAR}-{NN}` — space between SP number and "SP", space before year. Displayed in regular weight, not monospace (it's a legal citation, not a system code). |
-| Franchise Ordinance | `7SP 0001-26R` | Same family but continuous sequence + 2-digit year + "R" suffix — never drop the "R". |
-| Letters / Memos / NCH / Designations | `2026-01`, `NCH 2025-03`, `D 2024-01` | Per `consolidated-architecture-and-requirements-reference.md` Part 5.1 — preserve exact prefix/format per type. |
-| Citizen-facing reference | "Tracking Number: **DTS-2026-000045**" | Always labeled "Tracking Number," bolded or monospace, never just a bare string in a sentence |
+| Format                                | Example                                | Display rules                                                                                                                                                             |
+| ------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DTS Tracking Number                   | `DTS-2026-000045`                      | Always `IBM Plex Mono`. Always shown with the `DTS-` prefix, 4-digit year, 6-digit zero-padded sequence. Never abbreviate (`...045` alone is not acceptable).             |
+| SP Resolution/Ordinance Series Number | `7SP 2026-047`                         | `{SP_NUMBER}SP {YEAR}-{NN}` — space between SP number and "SP", space before year. Displayed in regular weight, not monospace (it's a legal citation, not a system code). |
+| Franchise Ordinance                   | `7SP 0001-26R`                         | Same family but continuous sequence + 2-digit year + "R" suffix — never drop the "R".                                                                                     |
+| Letters / Memos / NCH / Designations  | `2026-01`, `NCH 2025-03`, `D 2024-01`  | Per `consolidated-architecture-and-requirements-reference.md` Part 5.1 — preserve exact prefix/format per type.                                                           |
+| Citizen-facing reference              | "Tracking Number: **DTS-2026-000045**" | Always labeled "Tracking Number," bolded or monospace, never just a bare string in a sentence                                                                             |
 
 **Capitalization:** Series numbers use "No." (e.g., "Resolution No. 7SP 2026-047"), not "#" or "no" lowercase.
 
