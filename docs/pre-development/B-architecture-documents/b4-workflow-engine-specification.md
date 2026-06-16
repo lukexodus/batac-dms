@@ -336,22 +336,22 @@ Events are never emitted speculatively. An event is always evidence of something
 
 **Valid outcome codes (the config `allowed_outcomes` must be a subset of these):**
 
-|Code|Meaning|Who Sets It|
-|---|---|---|
-|`APPROVED`|Actor approves|Actor|
-|`REJECTED`|Actor rejects; requires comment|Actor|
-|`RETURNED_FOR_REVISION`|Sent back for amendment; requires comment|Actor|
-|`SIGNED`|Document signed (used for VP and Mayor signature steps)|Actor|
-|`VETOED`|Mayor vetoes|Actor|
-|`LAPSED`|Mayor took no action within 10 calendar days|Scheduler only (see Section 7.3)|
-|`OVERRIDE_SUCCEEDED`|SP voted to override veto (2/3 majority = 8 of 12)|Secretariat actor|
-|`OVERRIDE_FAILED`|SP veto override failed|Secretariat actor|
-|`VALID`|Panlalawigan approved|Secretariat actor|
-|`VALID_IN_PART`|Panlalawigan partially approved|Secretariat actor|
-|`RETURNED`|Panlalawigan returned with objections|Secretariat actor|
-|`OPERATIVE_IN_ITS_ENTIRETY`|Panlalawigan outcome for Appropriation Ordinances; treated identically to `VALID`|Secretariat actor|
-|`DEEMED_APPROVED`|Panlalawigan 30-day lapse; see Section 7.4|Scheduler only|
-|`REPORT_ACCEPTED`|SP Secretary accepts unified committee report; used in `multi_referral` acceptance sub-step|Actor|
+| Code                        | Meaning                                                                                     | Who Sets It                      |
+| --------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------- |
+| `APPROVED`                  | Actor approves                                                                              | Actor                            |
+| `REJECTED`                  | Actor rejects; requires comment                                                             | Actor                            |
+| `RETURNED_FOR_REVISION`     | Sent back for amendment; requires comment                                                   | Actor                            |
+| `SIGNED`                    | Document signed (used for VP and Mayor signature steps)                                     | Actor                            |
+| `VETOED`                    | Mayor vetoes                                                                                | Actor                            |
+| `LAPSED`                    | Mayor took no action within 10 calendar days                                                | Scheduler only (see Section 7.3) |
+| `OVERRIDE_SUCCEEDED`        | SP voted to override veto (2/3 majority = 8 of 12)                                          | Secretariat actor                |
+| `OVERRIDE_FAILED`           | SP veto override failed                                                                     | Secretariat actor                |
+| `VALID`                     | Panlalawigan approved                                                                       | Secretariat actor                |
+| `VALID_IN_PART`             | Panlalawigan partially approved                                                             | Secretariat actor                |
+| `RETURNED`                  | Panlalawigan returned with objections                                                       | Secretariat actor                |
+| `OPERATIVE_IN_ITS_ENTIRETY` | Panlalawigan outcome for Appropriation Ordinances; treated identically to `VALID`           | Secretariat actor                |
+| `DEEMED_APPROVED`           | Panlalawigan 30-day lapse; see Section 7.4                                                  | Scheduler only                   |
+| `REPORT_ACCEPTED`           | SP Secretary accepts unified committee report; used in `multi_referral` acceptance sub-step | Actor                            |
 
 **Guard on scheduler-only outcomes:** `engine.submitStepAction` must validate that `outcome` values of `LAPSED` and `DEEMED_APPROVED` are only accepted when `actor_type = system`. A human actor submitting either of these outcomes must receive `FORBIDDEN`.
 

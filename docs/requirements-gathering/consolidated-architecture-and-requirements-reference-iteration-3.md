@@ -164,20 +164,20 @@ Note: The Vice Mayor and a previous Mayor share the surname Chua but are distinc
 
 ### 3.2 SP Members — 7th Sangguniang Panlungsod
 
-|Name|Role|
-|---|---|
-|Hon. Kichel Jomarie G. Pungtilan|City Councilor|
-|Hon. Eleuterio A. Salamangkit Jr.|City Councilor|
-|Hon. Martha Louise Aurora M. Borleo|City Councilor|
-|Hon. Gwyneth S. Quidang|City Councilor|
-|Hon. John Gabrielle Dominique M. Daguio|City Councilor|
-|Hon. Lucky Rene G. Bunye|City Councilor|
-|Hon. Violeta Eugenia D. Nalupta|City Councilor|
-|Hon. Macarthur A. Aguinaldo|City Councilor|
-|Hon. Rizal P. Castillo|City Councilor|
-|Hon. Juan Paulo P. Flojo|City Councilor|
-|Hon. Gilbert O. Medina|ABC Representative|
-|Hon. Reign Gwendia T. Mirasol|SK Representative|
+| Name                                    | Role               |
+| --------------------------------------- | ------------------ |
+| Hon. Kichel Jomarie G. Pungtilan        | City Councilor     |
+| Hon. Eleuterio A. Salamangkit Jr.       | City Councilor     |
+| Hon. Martha Louise Aurora M. Borleo     | City Councilor     |
+| Hon. Gwyneth S. Quidang                 | City Councilor     |
+| Hon. John Gabrielle Dominique M. Daguio | City Councilor     |
+| Hon. Lucky Rene G. Bunye                | City Councilor     |
+| Hon. Violeta Eugenia D. Nalupta         | City Councilor     |
+| Hon. Macarthur A. Aguinaldo             | City Councilor     |
+| Hon. Rizal P. Castillo                  | City Councilor     |
+| Hon. Juan Paulo P. Flojo                | City Councilor     |
+| Hon. Gilbert O. Medina                  | ABC Representative |
+| Hon. Reign Gwendia T. Mirasol           | SK Representative  |
 
 **Voting threshold:** 12 members; half+1 required = **7 votes to pass**. No proxy voting. `[CONFIRMED]`
 
@@ -185,21 +185,21 @@ Note: The Vice Mayor and a previous Mayor share the surname Chua but are distinc
 
 ### 3.3 Office of the Secretary to the Sangguniang Panlungsod
 
-|Name|Position|
-|---|---|
-|Gladys R. Lagura|SP Secretary|
-|Mia Prima M. Mesina|Administrative Officer II — Ordinances & Resolutions Section|
-|Ronald P. Beltran|Administrative Officer II — Franchise Section|
-|Bonn Roger G. Rosales|Administrative Aide VI (Clerk III) — Administrative Section|
-|Kathielyn R. Ilayat|Administrative Aide VI (Clerk III) — Administrative Section|
-|Paul Josiah N. Chua|Administrative Aide VI (Clerk III) — Administrative Section|
-|Joanne Marie Q. Macugay|Administrative Aide VI (Clerk III) — Franchise Section|
-|Jeniffer S. Gaoiran|Administrative Aide VI (Clerk III) — Franchise Section|
-|Antonia Elizabeth G. Yaplag|Administrative Aide VI (Clerk III) — Franchise Section|
-|Florentino Pablo R. Lumang|Administrative Aide VI (Data Controller I) — Franchise Section|
-|Ronell R. Purisima|Administrative Aide III (Utility Worker II)|
-|Ramil F. Rante|Administrative Aide IV (Driver III)|
-|Cherill S. Malicad|Librarian I — City Library|
+| Name                        | Position                                                       |
+| --------------------------- | -------------------------------------------------------------- |
+| Gladys R. Lagura            | SP Secretary                                                   |
+| Mia Prima M. Mesina         | Administrative Officer II — Ordinances & Resolutions Section   |
+| Ronald P. Beltran           | Administrative Officer II — Franchise Section                  |
+| Bonn Roger G. Rosales       | Administrative Aide VI (Clerk III) — Administrative Section    |
+| Kathielyn R. Ilayat         | Administrative Aide VI (Clerk III) — Administrative Section    |
+| Paul Josiah N. Chua         | Administrative Aide VI (Clerk III) — Administrative Section    |
+| Joanne Marie Q. Macugay     | Administrative Aide VI (Clerk III) — Franchise Section         |
+| Jeniffer S. Gaoiran         | Administrative Aide VI (Clerk III) — Franchise Section         |
+| Antonia Elizabeth G. Yaplag | Administrative Aide VI (Clerk III) — Franchise Section         |
+| Florentino Pablo R. Lumang  | Administrative Aide VI (Data Controller I) — Franchise Section |
+| Ronell R. Purisima          | Administrative Aide III (Utility Worker II)                    |
+| Ramil F. Rante              | Administrative Aide IV (Driver III)                            |
+| Cherill S. Malicad          | Librarian I — City Library                                     |
 
 ### 3.4 Personal Staff of the Vice Mayor
 
@@ -798,21 +798,22 @@ A session agenda document generated and managed by the SP Secretariat.
 
 ### 5.1 Confirmed Number Formats
 
-|Document Type|Preliminary Format|Final Format|Counter Scope|
-|---|---|---|---|
-|Resolution|`Draft 7SP {YEAR}-{NN}`|`7SP {YEAR}-{NN}`|Per year; resets. Final assigned after Second Reading vote, before VP sign.|
-|Ordinance|`Draft 7SP {YEAR}-{NN}`|`7SP {YEAR}-{NN}`|Per year; resets. Final assigned after Third Reading vote, before VP sign.|
-|Appropriation Ordinance|Same as Ordinance|Same as Ordinance|Per year; resets|
-|Franchise Ordinance|**OUT OF SCOPE**|—|—|
-|Notice of Committee Hearing|N/A|`NCH {YEAR}-{NN}`|Per year; resets; **separate counter from NOSP**|
-|Notice of Special Session|N/A|`NOSP {YEAR}-{NN}`|Per year; resets; **separate counter from NCH** `[CONFIRMED — Interview 2]`|
-|Designation|N/A|`D {YEAR}-{NN}`|Per year; resets|
-|Letters Received|N/A|`SPR {YEAR}-{NN}`|Per year; resets; **separate from SPS** `[CONFIRMED — Interview 2]`|
-|Letters Sent|N/A|`SPS {YEAR}-{NN}`|Per year; resets; **separate from SPR** `[CONFIRMED — Interview 2]`|
-|Memo Outgoing|N/A|`MO {YEAR}-{NN}`|Per year; resets; **separate from MI** `[CONFIRMED — Interview 2]`|
-|Memo Incoming|N/A|`MI {YEAR}-{NN}`|Per year; resets; **separate from MO** `[CONFIRMED — Interview 2]`|
-|Sangguniang Panlalawigan Review (SP's log)|N/A|`{YEAR}-{NN}`|Per year; resets|
-|Panlalawigan's own reference|N/A|`R{YEAR}-{NNNN}`|Panlalawigan-assigned; stored as metadata|
+| Document Type                              | Preliminary Format      | Final Format       | Counter Scope                                                               |
+| ------------------------------------------ | ----------------------- | ------------------ | --------------------------------------------------------------------------- |
+| Resolution                                 | `Draft 7SP {YEAR}-{NN}` | `7SP {YEAR}-{NN}`  | Per year; resets. Final assigned after Second Reading vote, before VP sign. |
+| Ordinance                                  | `Draft 7SP {YEAR}-{NN}` | `7SP {YEAR}-{NN}`  | Per year; resets. Final assigned after Third Reading vote, before VP sign.  |
+| Appropriation Ordinance                    | Same as Ordinance       | Same as Ordinance  | Per year; resets                                                            |
+| Franchise Ordinance                        | **OUT OF SCOPE**        | —                  | —                                                                           |
+| Notice of Committee Hearing                | N/A                     | `NCH {YEAR}-{NN}`  | Per year; resets; **separate counter from NOSP**                            |
+| Notice of Special Session                  | N/A                     | `NOSP {YEAR}-{NN}` | Per year; resets; **separate counter from NCH** `[CONFIRMED — Interview 2]` |
+| Designation                                | N/A                     | `D {YEAR}-{NN}`    | Per year; resets                                                            |
+| Letters Received                           | N/A                     | `SPR {YEAR}-{NN}`  | Per year; resets; **separate from SPS** `[CONFIRMED — Interview 2]`         |
+| Letters Sent                               | N/A                     | `SPS {YEAR}-{NN}`  | Per year; resets; **separate from SPR** `[CONFIRMED — Interview 2]`         |
+| Memo Outgoing                              | N/A                     | `MO {YEAR}-{NN}`   | Per year; resets; **separate from MI** `[CONFIRMED — Interview 2]`          |
+| Memo Incoming                              | N/A                     | `MI {YEAR}-{NN}`   | Per year; resets; **separate from MO** `[CONFIRMED — Interview 2]`          |
+| Sangguniang Panlalawigan Review (SP's log) | N/A                     | `{YEAR}-{NN}`      | Per year; resets                                                            |
+| Panlalawigan's own reference               | N/A                     | `R{YEAR}-{NNNN}`   | Panlalawigan-assigned; stored as metadata                                   |
+|                                            |                         |                    |                                                                             |
 
 **`{SP_NUMBER}`** = The ordinal SP (currently 7th SP → prefix "7"). Changes with each administration.
 
@@ -834,37 +835,37 @@ A session agenda document generated and managed by the SP Secretariat.
 
 ### 5.2 Numbering Architecture Decisions `[UPDATED — Interview 2]`
 
-|Rule|Decision|
-|---|---|
-|Preliminary number format|`"Draft " + {series_prefix} + " " + {YEAR} + "-" + {NN}` — e.g., `Draft 7SP 2026-02`. Assigned at secretariat logging. Space delimiter throughout. `[CONFIRMED — Interview 2; RESOLVES Q-A01]`|
-|Preliminary number mutability|Draft numbers can change before finalization. Nullable `preliminary_number` field on `document_numbers`; replaced when finalized. `[CONFIRMED — Interview 2]`|
-|Final number assignment|Resolutions: after Second Reading vote. Ordinances: after Third Reading vote. Always before VP and Mayor sign. Secretariat assigns and decides. `[CONFIRMED — Interview 2; SUPERSEDES Interview 1]`|
-|"Draft" prefix|Distinguishes preliminary from final. Removal of "Draft" = promotion to final number. `[CONFIRMED — Interview 2]`|
-|Delimiter|**Space** confirmed for all document types: `SPR 2026-01`, `MO 2025-01`, `D 2024-01`, `NCH 2026-01`, `NOSP 2026-01`. `[RESOLVES Q-A01]`|
-|Deferred assignment|For letters/memos: control numbers may not be assigned immediately at receipt. Nullable `control_number` supported; assignment is a distinct recorded action.|
-|Immutability|Final numbers (after "Draft" removed) are immutable. Preliminary numbers can be replaced before finalization.|
-|Gaps|Permitted only for cancelled documents; gap logged with cancellation reason|
-|Reuse|Never, even if cancelled|
-|Counters|Separate PostgreSQL sequence per document type per year — no shared counter|
-|QR tracking number|System-generated UUID, independent of preliminary and final numbers. Assigned at secretariat logging (before preliminary number). Immutable for document's life.|
+| Rule                          | Decision                                                                                                                                                                                            |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Preliminary number format     | `"Draft " + {series_prefix} + " " + {YEAR} + "-" + {NN}` — e.g., `Draft 7SP 2026-02`. Assigned at secretariat logging. Space delimiter throughout. `[CONFIRMED — Interview 2; RESOLVES Q-A01]`      |
+| Preliminary number mutability | Draft numbers can change before finalization. Nullable `preliminary_number` field on `document_numbers`; replaced when finalized. `[CONFIRMED — Interview 2]`                                       |
+| Final number assignment       | Resolutions: after Second Reading vote. Ordinances: after Third Reading vote. Always before VP and Mayor sign. Secretariat assigns and decides. `[CONFIRMED — Interview 2; SUPERSEDES Interview 1]` |
+| "Draft" prefix                | Distinguishes preliminary from final. Removal of "Draft" = promotion to final number. `[CONFIRMED — Interview 2]`                                                                                   |
+| Delimiter                     | **Space** confirmed for all document types: `SPR 2026-01`, `MO 2025-01`, `D 2024-01`, `NCH 2026-01`, `NOSP 2026-01`. `[RESOLVES Q-A01]`                                                             |
+| Deferred assignment           | For letters/memos: control numbers may not be assigned immediately at receipt. Nullable `control_number` supported; assignment is a distinct recorded action.                                       |
+| Immutability                  | Final numbers (after "Draft" removed) are immutable. Preliminary numbers can be replaced before finalization.                                                                                       |
+| Gaps                          | Permitted only for cancelled documents; gap logged with cancellation reason                                                                                                                         |
+| Reuse                         | Never, even if cancelled                                                                                                                                                                            |
+| Counters                      | Separate PostgreSQL sequence per document type per year — no shared counter                                                                                                                         |
+| QR tracking number            | System-generated UUID, independent of preliminary and final numbers. Assigned at secretariat logging (before preliminary number). Immutable for document's life.                                    |
 
 ### 5.3 Index of Ordinances — Tracked Fields `[CONFIRMED]`
 
 The Index of Ordinances is an active operational record. All these fields must be tracked:
 
-|Field|Notes|
-|---|---|
-|Title of Ordinance|Full title text|
-|Authored By|All co-authors (VM + Councilors)|
-|Introduced By|Subset of authors who formally introduced|
-|General Subject Matter|Category|
-|Specific Subject Matter|Subcategory|
-|Date Approved by SP|Third Reading vote date|
-|Date Approved by LCE|Mayor's signature date|
-|Date Received by Higher Sanggunian|Date sent to Panlalawigan|
-|Sangguniang Panlalawigan Action Taken|Outcome code + Panlalawigan resolution number + date|
-|Remarks / Post Review Action of SP|Notes on any corrections or follow-up|
-|Publication|Newspaper name + **publication date** (if required). SP Secretariat arranges placement. Date is a mandatory tracked field. `[RESOLVES Q-C04]`|
+| Field                                 | Notes                                                                                                                                         |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Title of Ordinance                    | Full title text                                                                                                                               |
+| Authored By                           | All co-authors (VM + Councilors)                                                                                                              |
+| Introduced By                         | Subset of authors who formally introduced                                                                                                     |
+| General Subject Matter                | Category                                                                                                                                      |
+| Specific Subject Matter               | Subcategory                                                                                                                                   |
+| Date Approved by SP                   | Third Reading vote date                                                                                                                       |
+| Date Approved by LCE                  | Mayor's signature date                                                                                                                        |
+| Date Received by Higher Sanggunian    | Date sent to Panlalawigan                                                                                                                     |
+| Sangguniang Panlalawigan Action Taken | Outcome code + Panlalawigan resolution number + date                                                                                          |
+| Remarks / Post Review Action of SP    | Notes on any corrections or follow-up                                                                                                         |
+| Publication                           | Newspaper name + **publication date** (if required). SP Secretariat arranges placement. Date is a mandatory tracked field. `[RESOLVES Q-C04]` |
 
 ---
 
@@ -872,31 +873,31 @@ The Index of Ordinances is an active operational record. All these fields must b
 
 **22 standing committees confirmed.** Committee membership changes with each administration.
 
-|Committee|Chairman|Vice Chairman|Member|
-|---|---|---|---|
-|Laws, Rules, Ethics & Privileges|Flojo|Daguio|Borleo|
-|Peace & Order, Public Safety & Dangerous Drugs|Aguinaldo|Flojo|Salamangkit|
-|Social Welfare Development, Public Service & Calamities|Pungtilan|Salamangkit|Daguio|
-|Education, Culture, Science & Technology|Daguio|Pungtilan|Mirasol|
-|Health and Sanitation & Public Welfare|Borleo|Daguio|Mirasol|
-|Appropriations & Finance, Ways and Means|Borleo|Daguio|Salamangkit|
-|Human Rights & CSOs|Quidang|Bunye|Flojo|
-|Special Projects & Corporate Affairs|Aguinaldo|Borleo|Nalupta|
-|Barangay Affairs|Medina|Salamangkit|Castillo|
-|Transportation and Communication|Medina|Aguinaldo|Pungtilan|
-|Tourism & Public Information|Daguio|Salamangkit|Borleo|
-|Games and Amusements|Mirasol|Flojo|Quidang|
-|Senior Citizens & NGOs|Castillo|Pungtilan|Aguinaldo|
-|Economic Enterprise, Market & Slaughterhouse|Flojo|Aguinaldo|Pungtilan|
-|Landed Estates & Assessments|Nalupta|Quidang|Daguio|
-|Good Government / Public Ethics & Accountability|Bunye|Nalupta|Flojo|
-|Public Works, Infrastructure, Housing & Urban Development|Salamangkit|Medina|Aguinaldo|
-|Agriculture, Food, Cooperatives and Livelihood|Salamangkit|Pungtilan|Mirasol|
-|Environment, Natural Resources, Climate Change, Water & Energy|Salamangkit|Castillo|Medina|
-|Trade, Commerce & Industry|Aguinaldo|Salamangkit|Bunye|
-|Women, Children, Family Relations & Indigenous Peoples|Pungtilan|Borleo|Flojo|
-|Labor, Employment & Civil Service|Flojo|Mirasol|Borleo|
-|Youth & Sports Development|Mirasol|Daguio|Pungtilan|
+| Committee                                                      | Chairman    | Vice Chairman | Member      |
+| -------------------------------------------------------------- | ----------- | ------------- | ----------- |
+| Laws, Rules, Ethics & Privileges                               | Flojo       | Daguio        | Borleo      |
+| Peace & Order, Public Safety & Dangerous Drugs                 | Aguinaldo   | Flojo         | Salamangkit |
+| Social Welfare Development, Public Service & Calamities        | Pungtilan   | Salamangkit   | Daguio      |
+| Education, Culture, Science & Technology                       | Daguio      | Pungtilan     | Mirasol     |
+| Health and Sanitation & Public Welfare                         | Borleo      | Daguio        | Mirasol     |
+| Appropriations & Finance, Ways and Means                       | Borleo      | Daguio        | Salamangkit |
+| Human Rights & CSOs                                            | Quidang     | Bunye         | Flojo       |
+| Special Projects & Corporate Affairs                           | Aguinaldo   | Borleo        | Nalupta     |
+| Barangay Affairs                                               | Medina      | Salamangkit   | Castillo    |
+| Transportation and Communication                               | Medina      | Aguinaldo     | Pungtilan   |
+| Tourism & Public Information                                   | Daguio      | Salamangkit   | Borleo      |
+| Games and Amusements                                           | Mirasol     | Flojo         | Quidang     |
+| Senior Citizens & NGOs                                         | Castillo    | Pungtilan     | Aguinaldo   |
+| Economic Enterprise, Market & Slaughterhouse                   | Flojo       | Aguinaldo     | Pungtilan   |
+| Landed Estates & Assessments                                   | Nalupta     | Quidang       | Daguio      |
+| Good Government / Public Ethics & Accountability               | Bunye       | Nalupta       | Flojo       |
+| Public Works, Infrastructure, Housing & Urban Development      | Salamangkit | Medina        | Aguinaldo   |
+| Agriculture, Food, Cooperatives and Livelihood                 | Salamangkit | Pungtilan     | Mirasol     |
+| Environment, Natural Resources, Climate Change, Water & Energy | Salamangkit | Castillo      | Medina      |
+| Trade, Commerce & Industry                                     | Aguinaldo   | Salamangkit   | Bunye       |
+| Women, Children, Family Relations & Indigenous Peoples         | Pungtilan   | Borleo        | Flojo       |
+| Labor, Employment & Civil Service                              | Flojo       | Mirasol       | Borleo      |
+| Youth & Sports Development                                     | Mirasol     | Daguio        | Pungtilan   |
 
 **Key architectural implications confirmed:**
 
