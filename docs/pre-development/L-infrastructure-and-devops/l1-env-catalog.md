@@ -456,11 +456,11 @@ pgboss uses the same PostgreSQL database and stores job state in a dedicated sch
 
 ### 15.1 pgboss Configuration
 
-| Variable | Class | Required | Secret | Default | Example | Description |
-|---|---|---|---|---|---|---|
-| `PGBOSS_SCHEMA` | OPT | No | No | `pgboss` | `pgboss` | PostgreSQL schema name for pgboss job tables. Isolated from application schemas. |
-| `PGBOSS_ARCHIVE_COMPLETED_AFTER_SECONDS` | OPT | No | No | `86400` | `86400` | Seconds after which a completed job is archived. Default is 24 hours. |
-| `PGBOSS_DELETE_AFTER_DAYS` | OPT | No | No | `7` | `7` | Days after which archived jobs are permanently deleted from the pgboss schema. |
+| Variable                                 | Class | Required | Secret | Default  | Example  | Description                                                                      |
+| ---------------------------------------- | ----- | -------- | ------ | -------- | -------- | -------------------------------------------------------------------------------- |
+| `PGBOSS_SCHEMA`                          | OPT   | No       | No     | `pgboss` | `pgboss` | PostgreSQL schema name for pgboss job tables. Isolated from application schemas. |
+| `PGBOSS_ARCHIVE_COMPLETED_AFTER_SECONDS` | OPT   | No       | No     | `86400`  | `86400`  | Seconds after which a completed job is archived. Default is 24 hours.            |
+| `PGBOSS_DELETE_AFTER_DAYS`               | OPT   | No       | No     | `7`      | `7`      | Days after which archived jobs are permanently deleted from the pgboss schema.   |
 
 ### 15.2 Job Worker Configuration
 
@@ -475,17 +475,17 @@ pgboss uses the same PostgreSQL database and stores job state in a dedicated sch
 
 These variables control when periodic checks run. Values must be valid cron expressions.
 
-| Variable | Class | Required | Secret | Default | Example | Description |
-|---|---|---|---|---|---|---|
-| `CRON_SLA_CHECK` | OPT | No | No | `*/15 * * * *` | `*/15 * * * *` | Cron expression for the ARTA SLA compliance check. Runs every 15 minutes. Identifies documents approaching or exceeding SLA thresholds and emits escalation notifications. ARTA requires simple ≤3 days, complex ≤7 days, highly technical ≤20 working days. |
-| `CRON_MAYOR_LAPSE_CHECK` | OPT | No | No | `0 6 * * *` | `0 6 * * *` | Cron expression for the Mayor's 10-calendar-day lapse check. Runs daily at 06:00 (Asia/Manila). Identifies resolutions and ordinances that have been with the Mayor for 10 days without action and transitions them to "Lapsed into Law" status, logging the RA 7160 legal basis. |
-| `CRON_PANLALAWIGAN_TIMER_CHECK` | OPT | No | No | `0 7 * * *` | `0 7 * * *` | Cron expression for the Sangguniang Panlalawigan 30-day review timer. Runs daily at 07:00. Identifies documents that have been with the Panlalawigan for 30 days with no recorded outcome and transitions them to "Deemed Approved per RA 7160 Section 56(d)", populating the Remarks field accordingly. |
-| `CRON_SESSION_CLEANUP` | OPT | No | No | `0 3 * * *` | `0 3 * * *` | Cron expression for expired session cleanup. Runs daily at 03:00. Removes refresh token records past their expiry date from `iam.refresh_tokens`. |
-| `CRON_NOTIFICATION_CLEANUP` | OPT | No | No | `0 2 * * *` | `0 2 * * *` | Cron expression for old notification cleanup. Runs daily at 02:00. Removes delivered notifications older than `NOTIF_RETENTION_DAYS` days. |
-| `CRON_AUDIT_EXPORT` | OPT | No | No | `0 1 1 * *` | `0 1 1 * *` | Cron expression for the monthly audit log export to the TSA and backup S3 bucket. Runs at 01:00 on the first of each month. Effective only when `AUDIT_EXPORT_ENABLED` is `true`. |
-| `CRON_DELEGATION_EXPIRY_CHECK` | OPT | No | No | `*/5 * * * *` | `*/5 * * * *` | Cron expression for designation (delegation) expiry. Runs every 5 minutes. Identifies `delegation_grants` records past their `end_date` and marks them inactive, triggering routing reassignment back to the original authority. |
-| `CRON_BACKUP_DATABASE` | OPT, PROD | No | No | `0 0 * * *` | `0 0 * * *` | Cron expression for the daily encrypted `pg_dump` backup to S3. Runs at midnight. Effective only in production. |
-| `CRON_ORDER_OF_BUSINESS_ALERT` | OPT | No | No | `0 9 * * 4` | `0 9 * * 4` | Cron expression for the Thursday Order of Business cutoff alert. Runs every Thursday at 09:00. Notifies the SP Secretary about measures with missing committee reports that would otherwise be delayed from the upcoming Tuesday session. |
+| Variable                        | Class     | Required | Secret | Default        | Example        | Description                                                                                                                                                                                                                                                                                              |
+| ------------------------------- | --------- | -------- | ------ | -------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CRON_SLA_CHECK`                | OPT       | No       | No     | `*/15 * * * *` | `*/15 * * * *` | Cron expression for the ARTA SLA compliance check. Runs every 15 minutes. Identifies documents approaching or exceeding SLA thresholds and emits escalation notifications. ARTA requires simple ≤3 days, complex ≤7 days, highly technical ≤20 working days.                                             |
+| `CRON_MAYOR_LAPSE_CHECK`        | OPT       | No       | No     | `0 6 * * *`    | `0 6 * * *`    | Cron expression for the Mayor's 10-calendar-day lapse check. Runs daily at 06:00 (Asia/Manila). Identifies resolutions and ordinances that have been with the Mayor for 10 days without action and transitions them to "Lapsed into Law" status, logging the RA 7160 legal basis.                        |
+| `CRON_PANLALAWIGAN_TIMER_CHECK` | OPT       | No       | No     | `0 7 * * *`    | `0 7 * * *`    | Cron expression for the Sangguniang Panlalawigan 30-day review timer. Runs daily at 07:00. Identifies documents that have been with the Panlalawigan for 30 days with no recorded outcome and transitions them to "Deemed Approved per RA 7160 Section 56(d)", populating the Remarks field accordingly. |
+| `CRON_SESSION_CLEANUP`          | OPT       | No       | No     | `0 3 * * *`    | `0 3 * * *`    | Cron expression for expired session cleanup. Runs daily at 03:00. Removes refresh token records past their expiry date from `iam.refresh_tokens`.                                                                                                                                                        |
+| `CRON_NOTIFICATION_CLEANUP`     | OPT       | No       | No     | `0 2 * * *`    | `0 2 * * *`    | Cron expression for old notification cleanup. Runs daily at 02:00. Removes delivered notifications older than `NOTIF_RETENTION_DAYS` days.                                                                                                                                                               |
+| `CRON_AUDIT_EXPORT`             | OPT       | No       | No     | `0 1 1 * *`    | `0 1 1 * *`    | Cron expression for the monthly audit log export to the TSA and backup S3 bucket. Runs at 01:00 on the first of each month. Effective only when `AUDIT_EXPORT_ENABLED` is `true`.                                                                                                                        |
+| `CRON_DELEGATION_EXPIRY_CHECK`  | OPT       | No       | No     | `*/5 * * * *`  | `*/5 * * * *`  | Cron expression for designation (delegation) expiry. Runs every 5 minutes. Identifies `delegation_grants` records past their `end_date` and marks them inactive, triggering routing reassignment back to the original authority.                                                                         |
+| `CRON_BACKUP_DATABASE`          | OPT, PROD | No       | No     | `0 0 * * *`    | `0 0 * * *`    | Cron expression for the daily encrypted `pg_dump` backup to S3. Runs at midnight. Effective only in production.                                                                                                                                                                                          |
+| `CRON_ORDER_OF_BUSINESS_ALERT`  | OPT       | No       | No     | `0 9 * * 4`    | `0 9 * * 4`    | Cron expression for the Thursday Order of Business cutoff alert. Runs every Thursday at 09:00. Notifies the SP Secretary about measures with missing committee reports that would otherwise be delayed from the upcoming Tuesday session.                                                                |
 
 ---
 
