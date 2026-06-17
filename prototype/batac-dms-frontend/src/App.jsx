@@ -1660,14 +1660,16 @@ const navGroups = [
   {
     label: "OPERATIONS",
     items: [
-      { id: "dts",  label: "Document Tracking",  icon: Activity   },
       { id: "wms",  label: "Approval Interface", icon: FileCheck  },
       { id: "dms",  label: "Document Repository",icon: Folder     },
     ],
   },
   {
     label: "PUBLIC",
-    items: [{ id: "portal", label: "Citizen Portal", icon: Globe }],
+    items: [
+      { id: "portal", label: "Citizen Portal", icon: Globe },
+      { id: "login", label: "Login / Register", icon: User },
+    ],
   },
 ]
 
@@ -1728,6 +1730,20 @@ const Sidebar = ({ page, setPage, collapsed, setCollapsed }) => (
           </div>
         </div>
       )}
+      {/* Citizen Portal login/register quick links */}
+      <div className="mt-2">
+        <button
+          onClick={() => setPage("portal")}
+          className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors"
+          style={{ color: "rgba(255,255,255,0.65)" }}
+          onMouseEnter={e => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)"}
+          onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}>
+          <Globe size={14} className="flex-shrink-0" />
+          {!collapsed && <span className="truncate">Citizen Portal</span>}
+        </button>
+
+      </div>
+
       <button onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center justify-center gap-1.5 p-2 rounded-lg text-xs transition-colors"
         style={{ color: "rgba(255,255,255,0.5)" }}
@@ -1735,6 +1751,7 @@ const Sidebar = ({ page, setPage, collapsed, setCollapsed }) => (
         onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}>
         {collapsed ? <ChevronRight size={15} /> : <><ChevronLeft size={15} /><span>Collapse</span></>}
       </button>
+
     </div>
   </div>
 )
@@ -2173,15 +2190,19 @@ const SPSecretaryPage = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: DTS TIMELINE
 // ─────────────────────────────────────────────────────────────────────────────
-const DTSPage = () => {
+const DTSPage = ({ selectedDocId, setSelectedDocId, setPage }) => {
   const [showPrint, setShowPrint] = useState(false)
+  
+  // Find the document from mockDocuments based on selectedDocId
+  const selectedDoc = selectedDocId ? mockDocuments.find(d => d.id === selectedDocId) : mockDocuments[0]
+  
   return (
   <div className="p-6">
     <PrintCoverSheetModal open={showPrint} onClose={() => setShowPrint(false)} />
     <PageHdr
       title="Document Tracking View"
       subtitle="Complete routing history and physical custody record"
-      breadcrumb={["Operations", "Document Tracking"]}
+      breadcrumb={["Operations", "Document Repository", selectedDoc?.id || "DTS-2026-000045"]}
       actions={<>
         <Btn variant="secondary" size="sm" icon={Printer} onClick={() => setShowPrint(true)}>Print Cover Sheet</Btn>
         <Btn variant="secondary" size="sm" icon={Download}>Download PDF</Btn>
@@ -2196,14 +2217,14 @@ const DTSPage = () => {
           <div className="flex items-start gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className="font-mono text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">DTS-2026-000045</span>
-                <StatusBadge status="Released" />
-                <ClassificationBadge level="Public" />
+                <span className="font-mono text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">{selectedDoc?.id || "DTS-2026-000045"}</span>
+                <StatusBadge status={selectedDoc?.status || "Released"} />
+                <ClassificationBadge level={selectedDoc?.classification || "Public"} />
               </div>
-              <p className="text-base font-semibold text-gray-900 mb-0.5">Resolution No. 7SP 2026-047</p>
-              <p className="text-sm text-gray-600 line-clamp-2">Resolution Authorizing the City Mayor to Negotiate and Enter into a Memorandum of Agreement with the Department of Interior and Local Government (DILG) for the Community-Based Solid Waste Management Project of Batac City</p>
+              <p className="text-base font-semibold text-gray-900 mb-0.5">{selectedDoc?.title || "Resolution No. 7SP 2026-047"}</p>
+              <p className="text-sm text-gray-600 line-clamp-2">{selectedDoc?.title || "Resolution Authorizing the City Mayor to Negotiate and Enter into a Memorandum of Agreement with the Department of Interior and Local Government (DILG) for the Community-Based Solid Waste Management Project of Batac City"}</p>
               <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100">
-                {[["Type","SP Resolution"],["Author","Coun. Dela Cruz"],["Created","May 15, 2026"],["Released","Jun 2, 2026"]].map(([k,v]) => (
+                {[["Type",selectedDoc?.type || "SP Resolution"],["Office",selectedDoc?.office || "SP Secretariat"],["Date",selectedDoc?.date || "May 15, 2026"],["Version",`v${selectedDoc?.ver || "1"}`]].map(([k,v]) => (
                   <div key={k}>
                     <p className="text-[10px] text-gray-400 uppercase tracking-wide">{k}</p>
                     <p className="text-sm font-medium text-gray-900 mt-0.5">{v}</p>
@@ -2523,11 +2544,16 @@ const WMSPage = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: DMS REPOSITORY
 // ─────────────────────────────────────────────────────────────────────────────
-const DMSPage = () => {
+const DMSPage = ({ selectedDocId, setSelectedDocId, setPage }) => {
   const [search, setSearch] = useState("")
   const [filters, setFilters] = useState({ type: "All Types", office: "All Offices", status: "All Statuses", classification: "All" })
   const [showUpload, setShowUpload] = useState(false)
   const [showNewDoc, setShowNewDoc] = useState(false)
+
+  const handleDocumentClick = (docId) => {
+    setSelectedDocId(docId)
+    setPage("dts")
+  }
 
   const filtered = mockDocuments.filter(d => {
     const q = search.toLowerCase()
@@ -2636,12 +2662,12 @@ const DMSPage = () => {
                   </td>
                 </tr>
               ) : filtered.map((doc, i) => (
-                <tr key={doc.id} className={`hover:bg-gray-50 cursor-pointer transition-colors group ${i !== filtered.length - 1 ? "border-b border-gray-50" : ""}`}>
+                <tr key={doc.id} className={`hover:bg-gray-50 cursor-pointer transition-colors group ${i !== filtered.length - 1 ? "border-b border-gray-50" : ""}`} onClick={() => handleDocumentClick(doc.id)}>
                   <td className="px-4 py-3.5">
-                    <span className="font-mono text-xs text-green-600 hover:text-green-800">{doc.id}</span>
+                    <span className="font-mono text-xs text-green-600 hover:text-green-800 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleDocumentClick(doc.id); }}>{doc.id}</span>
                   </td>
                   <td className="px-4 py-3.5" style={{ maxWidth: 260 }}>
-                    <p className="text-sm font-medium text-gray-900 truncate">{doc.title}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate cursor-pointer" onClick={(e) => { e.stopPropagation(); handleDocumentClick(doc.id); }}>{doc.title}</p>
                     <p className="text-xs text-gray-400 mt-0.5">v{doc.ver} · {doc.size}</p>
                   </td>
                   <td className="px-4 py-3.5 whitespace-nowrap">
@@ -2657,8 +2683,8 @@ const DMSPage = () => {
                   <td className="px-4 py-3.5"><ClassificationBadge level={doc.classification} /></td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {[[Eye,"View"],[Activity,"Track"],[Download,"Download"],[MoreHorizontal,"More"]].map(([Icon, title]) => (
-                        <button key={title} title={title} className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors">
+                      {[[Eye,"View"],[Activity,"Track"],[Download,"Download"]].map(([Icon, title]) => (
+                        <button key={title} title={title} onClick={(e) => { e.stopPropagation(); if (title === "Track") handleDocumentClick(doc.id); }} className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors">
                           <Icon size={13} />
                         </button>
                       ))}
@@ -2683,8 +2709,212 @@ const DMSPage = () => {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PAGE: LOGIN / REGISTER
+// ─────────────────────────────────────────────────────────────────────────────
+const LoginRegisterPage = () => {
+  const [mode, setMode] = useState("login") // "login" or "register"
+  const [loginForm, setLoginForm] = useState({ email: "", password: "" })
+  const [registerForm, setRegisterForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "", agreeTerms: false })
+  const [showPassword, setShowPassword] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+
+  const handleLogin = () => {
+    if (loginForm.email && loginForm.password) setSubmitted(true)
+  }
+
+  const handleRegister = () => {
+    if (registerForm.fullName && registerForm.email && registerForm.password && registerForm.password === registerForm.confirmPassword && registerForm.agreeTerms) {
+      setSubmitted(true)
+    }
+  }
+
+  return (
+    <div className="min-h-full bg-gray-50">
+      {/* Gov header */}
+      <div style={{ backgroundColor: "#0D3D20" }} className="text-white">
+        <div className="max-w-2xl mx-auto px-6 py-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CitySealOfficial size={52} />
+            <div>
+              <p className="text-xs opacity-60">Republic of the Philippines · Province of Ilocos Norte</p>
+              <p className="text-base font-bold leading-tight">City Government of Batac</p>
+              <p className="text-xs" style={{ color: "#86efac" }}>Document Management System</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Auth container */}
+      <div className="max-w-md mx-auto px-6 py-12">
+        {!submitted ? (
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+            {/* Mode toggle */}
+            <div className="flex gap-2 mb-8 bg-gray-100 p-1 rounded-lg">
+              {[
+                { id: "login", label: "Sign In" },
+                { id: "register", label: "Create Account" }
+              ].map(m => (
+                <button key={m.id} onClick={() => setMode(m.id)}
+                  className={`flex-1 py-2 px-3 rounded-md font-medium text-sm transition-colors ${
+                    mode === m.id
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            {/* LOGIN MODE */}
+            {mode === "login" && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-lg font-bold text-gray-900 mb-1">Sign In to Your Account</p>
+                  <p className="text-sm text-gray-500">Access the citizen portal and track documents</p>
+                </div>
+
+                <div className="space-y-4 pt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+                    <input type="email" value={loginForm.email} onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
+                      placeholder="you@example.com"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none brand-ring" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                    <div className="relative">
+                      <input type={showPassword ? "text" : "password"} value={loginForm.password} onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
+                        placeholder="••••••••"
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none brand-ring pr-10" />
+                      <button onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPassword ? <Eye size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" className="accent-green-600" />
+                      <span className="text-sm text-gray-600">Remember me</span>
+                    </label>
+                    <a href="#" className="text-sm text-green-700 hover:underline">Forgot password?</a>
+                  </div>
+
+                  <Btn variant="primary" className="w-full justify-center" onClick={handleLogin}>Sign In</Btn>
+
+                  <div className="pt-4 border-t border-gray-100">
+                    <p className="text-sm text-gray-600 text-center">
+                      Don't have an account?{" "}
+                      <button onClick={() => setMode("register")} className="text-green-700 font-medium hover:underline">
+                        Create one
+                      </button>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* REGISTER MODE */}
+            {mode === "register" && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-lg font-bold text-gray-900 mb-1">Create Your Account</p>
+                  <p className="text-sm text-gray-500">Register to access document tracking and services</p>
+                </div>
+
+                <div className="space-y-4 pt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+                    <input type="text" value={registerForm.fullName} onChange={e => setRegisterForm({ ...registerForm, fullName: e.target.value })}
+                      placeholder="Juan Dela Cruz"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none brand-ring" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+                    <input type="email" value={registerForm.email} onChange={e => setRegisterForm({ ...registerForm, email: e.target.value })}
+                      placeholder="you@example.com"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none brand-ring" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                    <div className="relative">
+                      <input type={showPassword ? "text" : "password"} value={registerForm.password} onChange={e => setRegisterForm({ ...registerForm, password: e.target.value })}
+                        placeholder="••••••••"
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none brand-ring pr-10" />
+                      <button onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPassword ? <Eye size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
+                    <input type={showPassword ? "text" : "password"} value={registerForm.confirmPassword} onChange={e => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
+                      placeholder="••••••••"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none brand-ring" />
+                    {registerForm.password !== registerForm.confirmPassword && registerForm.confirmPassword && (
+                      <p className="text-xs text-red-600 mt-1">Passwords do not match</p>
+                    )}
+                  </div>
+
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input type="checkbox" checked={registerForm.agreeTerms} onChange={e => setRegisterForm({ ...registerForm, agreeTerms: e.target.checked })}
+                      className="mt-0.5 accent-green-600" />
+                    <span className="text-xs text-gray-600 leading-relaxed">
+                      I agree to the <a href="#" className="text-green-700 hover:underline">Terms of Service</a> and{" "}
+                      <a href="#" className="text-green-700 hover:underline">Privacy Policy</a>
+                    </span>
+                  </label>
+
+                  <Btn variant="primary" className="w-full justify-center" disabled={!registerForm.fullName || !registerForm.email || !registerForm.password || registerForm.password !== registerForm.confirmPassword || !registerForm.agreeTerms} onClick={handleRegister}>Create Account</Btn>
+
+                  <div className="pt-4 border-t border-gray-100">
+                    <p className="text-sm text-gray-600 text-center">
+                      Already have an account?{" "}
+                      <button onClick={() => setMode("login")} className="text-green-700 font-medium hover:underline">
+                        Sign in
+                      </button>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Success state */
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: "#E8F5ED" }}>
+              <CheckCircle size={32} className="brand-text" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">
+              {mode === "login" ? "Sign In Successful" : "Account Created Successfully"}
+            </h2>
+            <p className="text-sm text-gray-500 mb-6">
+              {mode === "login"
+                ? "Welcome back! You are now signed into your account."
+                : "Your account has been created. You can now access the citizen portal and track documents."}
+            </p>
+            <Btn variant="primary" className="w-full justify-center" onClick={() => { setSubmitted(false); setMode("login"); setLoginForm({ email: "", password: "" }); setRegisterForm({ fullName: "", email: "", password: "", confirmPassword: "", agreeTerms: false }); }}>
+              {mode === "login" ? "Go to Dashboard" : "Continue to Sign In"}
+            </Btn>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PAGE: CITIZEN PORTAL
 // ─────────────────────────────────────────────────────────────────────────────
+const CitizenAuthFooter = () => null
+
+
 const CitizenPortalPage = () => {
   const [tab, setTab] = useState("track")
   const [query, setQuery] = useState("")
@@ -2697,6 +2927,7 @@ const CitizenPortalPage = () => {
 
   return (
     <div className="min-h-full bg-gray-50">
+
       {/* Gov header */}
       <div style={{ backgroundColor: "#0D3D20" }} className="text-white">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -2738,9 +2969,16 @@ const CitizenPortalPage = () => {
 
       <div className="max-w-4xl mx-auto px-6 py-8">
 
+        {/* Public auth (Login/Register) — moved here to the citizen portal “public lower” area */}
+        <div className="pt-2">
+          <CitizenAuthFooter />
+        </div>
+
         {/* ── TRACK TAB ── */}
+
         {tab === "track" && (
           <div>
+
             <div className="bg-white rounded-xl border border-gray-200 p-6 mb-5">
               <h2 className="text-lg font-bold text-gray-900 mb-1">Track Your Document</h2>
               <p className="text-sm text-gray-500 mb-4">Enter the tracking number from your document's cover sheet or official receipt to view its current status and complete routing history.</p>
@@ -2932,14 +3170,23 @@ const pages = {
   wms:      { component: WMSPage,            title: "Approval Interface",       subtitle: "WMS — Document Review & Action" },
   dms:      { component: DMSPage,            title: "Document Repository",      subtitle: "DMS — Internal Document Search & Management" },
   portal:   { component: CitizenPortalPage,  title: "Citizen Portal",          subtitle: "Public Access — sp.batac.gov.ph" },
+  login:    { component: LoginRegisterPage,  title: "Login / Register",        subtitle: "Authentication Portal" },
 }
 
 export default function App() {
   const [page, setPage] = useState("mayor")
   const [collapsed, setCollapsed] = useState(false)
-  const isPortal = page === "portal"
+  const [selectedDocId, setSelectedDocId] = useState(null)
+  const isPortal = page === "portal" || page === "login"
   const cfg = pages[page]
   const Pg = cfg?.component
+
+  // Props to pass to page components
+  const pageProps = {
+    selectedDocId,
+    setSelectedDocId,
+    setPage,
+  }
 
   return (
     <div className="flex overflow-hidden" style={{ height: "100vh", fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }}>
@@ -2948,7 +3195,7 @@ export default function App() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {!isPortal && <TopBar title={cfg?.title} subtitle={cfg?.subtitle} />}
         <main className="flex-1 overflow-y-auto" style={{ backgroundColor: "#F6F8F6" }}>
-          {Pg && <Pg />}
+          {Pg && <Pg {...pageProps} />}
         </main>
       </div>
     </div>
