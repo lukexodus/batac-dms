@@ -1,0 +1,505 @@
+{
+  "pendingSignatures": [
+    {
+      "id": "DTS-2026-000076",
+      "title": "Leave Application — CSWDO Director Annual Leave",
+      "type": "Leave Application",
+      "submittedBy": "Dir. Rosa S. Fernandez",
+      "office": "CSWDO",
+      "daysInQueue": 6,
+      "dueDate": "2026-06-05",
+      "priority": "overdue"
+    }
+  ],
+  "slaData": [
+    {
+      "name": "Jan",
+      "compliant": 94,
+      "breach": 6,
+      "id": "Jan"
+    },
+    {
+      "name": "Feb",
+      "compliant": 91,
+      "breach": 9,
+      "id": "Feb"
+    },
+    {
+      "name": "Mar",
+      "compliant": 96,
+      "breach": 4,
+      "id": "Mar"
+    },
+    {
+      "name": "Apr",
+      "compliant": 93,
+      "breach": 7,
+      "id": "Apr"
+    },
+    {
+      "name": "May",
+      "compliant": 97,
+      "breach": 3,
+      "id": "May"
+    },
+    {
+      "name": "Jun",
+      "compliant": 95,
+      "breach": 5,
+      "id": "Jun"
+    }
+  ],
+  "deptWorkload": [
+    {
+      "name": "Engineering",
+      "pending": 12,
+      "completed": 45,
+      "overdue": 2,
+      "id": "Eng"
+    },
+    {
+      "name": "Health",
+      "pending": 8,
+      "completed": 32,
+      "overdue": 1,
+      "id": "Health"
+    },
+    {
+      "name": "Budget",
+      "pending": 15,
+      "completed": 28,
+      "overdue": 3,
+      "id": "Budget"
+    },
+    {
+      "name": "HRMO",
+      "pending": 6,
+      "completed": 54,
+      "overdue": 0,
+      "id": "HRMO"
+    },
+    {
+      "name": "Treasurer",
+      "pending": 9,
+      "completed": 41,
+      "overdue": 1,
+      "id": "Treas"
+    },
+    {
+      "name": "CSWDO",
+      "pending": 4,
+      "completed": 23,
+      "overdue": 0,
+      "id": "CSWDO"
+    }
+  ],
+  "legislativeQueue": [
+    {
+      "id": "DTS-2026-000092",
+      "title": "Resolution Authorizing the City Mayor to Negotiate and Enter into MOA with DILG for Community-Based Solid Waste Management",
+      "type": "Resolution",
+      "status": "For 1st Reading",
+      "committee": "Environment",
+      "author": "Coun. Salamangkit",
+      "session": "June 12, 2026"
+    },
+    {
+      "id": "DTS-2026-000088",
+      "title": "Ordinance Establishing the Batac City Youth Development Office and Defining Its Powers and Functions",
+      "type": "Ordinance",
+      "status": "In Committee",
+      "committee": "Youth & Sports",
+      "author": "Coun. Daguio",
+      "session": "TBD"
+    },
+    {
+      "id": "DTS-2026-000084",
+      "title": "Resolution Congratulating BNRHS Athletes for 2026 Regional Meet Championship",
+      "type": "Resolution",
+      "status": "For 2nd Reading",
+      "committee": "Education",
+      "author": "Coun. Borleo",
+      "session": "June 12, 2026"
+    },
+    {
+      "id": "DTS-2026-000080",
+      "title": "Ordinance Regulating Outdoor Advertising and Signage Within the Territorial Jurisdiction of Batac City",
+      "type": "Ordinance",
+      "status": "3rd Reading",
+      "committee": "Trade & Commerce",
+      "author": "Coun. Flojo",
+      "session": "June 12, 2026"
+    },
+    {
+      "id": "DTS-2026-000077",
+      "title": "Resolution Supporting the National Socialized Housing Program and Creating a Local Coordinating Committee",
+      "type": "Resolution",
+      "status": "VP Certification",
+      "committee": "Housing",
+      "author": "Coun. Quidang",
+      "session": "Completed"
+    },
+    {
+      "id": "eXCXILUQG1c",
+      "title": "Myself",
+      "type": "Resolution",
+      "status": "For 1st Reading",
+      "committee": "TBD",
+      "author": "I",
+      "session": "TBD"
+    }
+  ],
+  "sessionCalendar": [
+    {
+      "date": "2026-06-12",
+      "day": "12",
+      "title": "Regular Session",
+      "time": "9:00 AM",
+      "type": "regular",
+      "items": 6,
+      "id": "1"
+    },
+    {
+      "date": "2026-06-19",
+      "day": "19",
+      "title": "Regular Session",
+      "time": "9:00 AM",
+      "type": "regular",
+      "items": 4,
+      "id": "2"
+    },
+    {
+      "date": "2026-06-26",
+      "day": "26",
+      "title": "Special Session",
+      "time": "2:00 PM",
+      "type": "special",
+      "items": 2,
+      "id": "3"
+    },
+    {
+      "date": "2026-06-19",
+      "day": "19",
+      "title": "Regular Session",
+      "time": "09:00",
+      "type": "regular",
+      "items": 5,
+      "id": "Q3azIrJ78oc"
+    }
+  ],
+  "legislativeOutput": [
+    {
+      "month": "Jan",
+      "resolutions": 8,
+      "ordinances": 2,
+      "id": "1"
+    },
+    {
+      "month": "Feb",
+      "resolutions": 12,
+      "ordinances": 1,
+      "id": "2"
+    },
+    {
+      "month": "Mar",
+      "resolutions": 6,
+      "ordinances": 3,
+      "id": "3"
+    },
+    {
+      "month": "Apr",
+      "resolutions": 9,
+      "ordinances": 2,
+      "id": "4"
+    },
+    {
+      "month": "May",
+      "resolutions": 11,
+      "ordinances": 4,
+      "id": "5"
+    },
+    {
+      "month": "Jun",
+      "resolutions": 5,
+      "ordinances": 1,
+      "id": "6"
+    }
+  ],
+  "routingHistory": [
+    {
+      "id": "1",
+      "office": "Office of Coun. Jose R. Dela Cruz",
+      "action": "Document Drafted",
+      "detail": "Initial draft of SP Resolution prepared and submitted to the SP Secretariat for logging.",
+      "timestamp": "May 15, 2026 — 9:30 AM",
+      "status": "done",
+      "user": "Coun. Jose R. Dela Cruz",
+      "role": "Author / SP Member"
+    },
+    {
+      "id": "2",
+      "office": "SP Secretariat",
+      "action": "Document Logged & Numbered",
+      "detail": "Document received and logged. Assigned tracking number DTS-2026-000045. QR cover sheet and preliminary series number generated.",
+      "timestamp": "May 15, 2026 — 10:15 AM",
+      "status": "done",
+      "user": "Sec. Ana Maria T. Reyes",
+      "role": "SP Secretary"
+    },
+    {
+      "id": "3",
+      "office": "SP Committee on Environment, NR, Climate Change",
+      "action": "Committee Referral",
+      "detail": "Referred jointly to the Committee on Environment and the Committee on Laws, Rules, Ethics & Privileges for review.",
+      "timestamp": "May 15, 2026 — 2:00 PM",
+      "status": "done",
+      "user": "VM Albert D. Chua",
+      "role": "Presiding Officer"
+    },
+    {
+      "id": "4",
+      "office": "Committee on Environment / Committee on Laws",
+      "action": "Committee Report Submitted",
+      "detail": "Joint Committee Report submitted with a FAVORABLE recommendation. Committees recommend approval with minor amendments incorporated.",
+      "timestamp": "May 20, 2026 — 11:00 AM",
+      "status": "done",
+      "user": "Coun. Salamangkit / Coun. Flojo",
+      "role": "Committee Chairpersons"
+    },
+    {
+      "id": "5",
+      "office": "SP Secretariat — Plenary Session",
+      "action": "First Reading",
+      "detail": "Resolution read by title and referred. Calendared for Second Reading at the next regular session.",
+      "timestamp": "May 22, 2026 — 10:00 AM",
+      "status": "done",
+      "user": "VM Albert D. Chua",
+      "role": "Presiding Officer"
+    },
+    {
+      "id": "6",
+      "office": "SP Secretariat — Plenary Session",
+      "action": "Second Reading & Final Vote",
+      "detail": "Resolution read in full. Deliberations conducted. Amendments accepted. Put to a vote. Result: 10 Ayes, 0 Nays, 0 Abstentions. APPROVED.",
+      "timestamp": "May 29, 2026 — 10:45 AM",
+      "status": "done",
+      "user": "VM Albert D. Chua",
+      "role": "Presiding Officer"
+    },
+    {
+      "id": "7",
+      "office": "Office of the Vice Mayor",
+      "action": "VP Certification & Series Number Assigned",
+      "detail": "Approved resolution formally certified by the Presiding Officer. Final series number assigned: Resolution No. 7SP 2026-047. Official copy produced.",
+      "timestamp": "May 29, 2026 — 2:30 PM",
+      "status": "done",
+      "user": "VM Albert D. Chua",
+      "role": "Vice Mayor / Presiding Officer"
+    },
+    {
+      "id": "8",
+      "office": "Office of the City Mayor",
+      "action": "Reference Copy Transmitted",
+      "detail": "Official copy transmitted to the Mayor's Office for filing and reference. Copy also transmitted to SP Secretariat archive.",
+      "timestamp": "May 30, 2026 — 9:00 AM",
+      "status": "done",
+      "user": "Sec. Ana Maria T. Reyes",
+      "role": "SP Secretary"
+    },
+    {
+      "id": "9",
+      "office": "Records Office — SP Secretariat",
+      "action": "Archived & Published",
+      "detail": "Resolution archived as a permanent official record. Classified Public. Published to the Citizen Portal. Transmitted to the Sangguniang Panlalawigan for review.",
+      "timestamp": "June 2, 2026 — 3:15 PM",
+      "status": "current",
+      "user": "RO Maria B. Soriano",
+      "role": "Records Officer"
+    }
+  ],
+  "documents": [
+    {
+      "id": "DTS-2026-000092",
+      "title": "Resolution Authorizing MOA with DILG for Community-Based SWM",
+      "type": "SP Resolution",
+      "office": "SP Secretariat",
+      "date": "2026-06-01",
+      "status": "In Workflow",
+      "classification": "Public",
+      "size": "1.2 MB",
+      "ver": 1
+    },
+    {
+      "id": "DTS-2026-000091",
+      "title": "Travel Order — Engineering Site Inspection June 2026",
+      "type": "Travel Order",
+      "office": "City Engineering",
+      "date": "2026-05-30",
+      "status": "Approved",
+      "classification": "Internal",
+      "size": "0.5 MB",
+      "ver": 1
+    },
+    {
+      "id": "DTS-2026-000090",
+      "title": "Purchase Request — IT Equipment Procurement Q3",
+      "type": "Purchase Request",
+      "office": "City IT Office",
+      "date": "2026-05-29",
+      "status": "Pending Approval",
+      "classification": "Internal",
+      "size": "0.8 MB",
+      "ver": 2
+    },
+    {
+      "id": "DTS-2026-000089",
+      "title": "Citizen Request — Road Repair Brgy. 1-S Valdez",
+      "type": "Citizen Request",
+      "office": "Mayor's Office",
+      "date": "2026-05-28",
+      "status": "In Workflow",
+      "classification": "Internal",
+      "size": "0.3 MB",
+      "ver": 1
+    },
+    {
+      "id": "DTS-2026-000088",
+      "title": "SP Ordinance — Batac City Youth Development Office",
+      "type": "SP Ordinance",
+      "office": "SP Secretariat",
+      "date": "2026-05-27",
+      "status": "In Workflow",
+      "classification": "Public",
+      "size": "2.1 MB",
+      "ver": 3
+    },
+    {
+      "id": "DTS-2026-000087",
+      "title": "Memorandum — Adjusted Office Hours During Holiday Season",
+      "type": "Internal Memorandum",
+      "office": "City Administrator",
+      "date": "2026-05-26",
+      "status": "Released",
+      "classification": "Internal",
+      "size": "0.4 MB",
+      "ver": 1
+    },
+    {
+      "id": "DTS-2026-000086",
+      "title": "Citizen Complaint — Illegal Dumping Brgy. 2 (Ref: CC-2026-019)",
+      "type": "Citizen Complaint",
+      "office": "Mayor's Office",
+      "date": "2026-05-25",
+      "status": "Under Investigation",
+      "classification": "Confidential",
+      "size": "0.7 MB",
+      "ver": 1
+    },
+    {
+      "id": "DTS-2026-000085",
+      "title": "Purchase Request — Medical Supplies Q3 2026",
+      "type": "Purchase Request",
+      "office": "City Health",
+      "date": "2026-05-24",
+      "status": "Pending Approval",
+      "classification": "Internal",
+      "size": "1.1 MB",
+      "ver": 1
+    },
+    {
+      "id": "DTS-2026-000084",
+      "title": "Leave Application — HRMO Director Annual Leave June",
+      "type": "Leave Application",
+      "office": "HRMO",
+      "date": "2026-05-23",
+      "status": "Approved",
+      "classification": "Internal",
+      "size": "0.2 MB",
+      "ver": 1
+    },
+    {
+      "id": "DTS-2026-000083",
+      "title": "Project Proposal — Flood Control System Brgy. 5 Phase 2",
+      "type": "Project Proposal",
+      "office": "City Engineering",
+      "date": "2026-05-22",
+      "status": "Pending Approval",
+      "classification": "Internal",
+      "size": "3.5 MB",
+      "ver": 2
+    },
+    {
+      "id": "DTS-2026-000082",
+      "title": "Resolution No. 7SP 2026-046 — Supporting National Housing Program",
+      "type": "SP Resolution",
+      "office": "SP Secretariat",
+      "date": "2026-05-20",
+      "status": "Released",
+      "classification": "Public",
+      "size": "0.9 MB",
+      "ver": 1
+    },
+    {
+      "id": "DTS-2026-000081",
+      "title": "Administrative Case — Complaint Against Barangay Official (AC-2026-04)",
+      "type": "Admin Case",
+      "office": "SP Secretariat",
+      "date": "2026-05-18",
+      "status": "Under Investigation",
+      "classification": "Confidential",
+      "size": "1.8 MB",
+      "ver": 2
+    }
+  ],
+  "publicOrdinances": [
+    {
+      "id": "Ord. 7SP 2026-005",
+      "number": "Ord. 7SP 2026-005",
+      "title": "Ordinance Establishing the Batac City Youth Development Office",
+      "date": "2026-05-30",
+      "type": "Ordinance",
+      "pages": 12
+    },
+    {
+      "id": "Res. 7SP 2026-047",
+      "number": "Res. 7SP 2026-047",
+      "title": "Resolution Authorizing City Mayor to Enter into MOA with DILG for CBSWM Project",
+      "date": "2026-06-02",
+      "type": "Resolution",
+      "pages": 4
+    },
+    {
+      "id": "Res. 7SP 2026-046",
+      "number": "Res. 7SP 2026-046",
+      "title": "Resolution Supporting the National Socialized Housing Program",
+      "date": "2026-05-28",
+      "type": "Resolution",
+      "pages": 3
+    },
+    {
+      "id": "Ord. 7SP 2026-004",
+      "number": "Ord. 7SP 2026-004",
+      "title": "Ordinance Regulating Outdoor Advertising and Signage in Batac City",
+      "date": "2026-05-20",
+      "type": "Ordinance",
+      "pages": 18
+    },
+    {
+      "id": "Res. 7SP 2026-043",
+      "number": "Res. 7SP 2026-043",
+      "title": "Resolution Congratulating BNRHS Athletes for Regional Championships",
+      "date": "2026-05-15",
+      "type": "Resolution",
+      "pages": 2
+    },
+    {
+      "id": "Ord. 7SP 2026-003",
+      "number": "Ord. 7SP 2026-003",
+      "title": "Anti-Littering and Solid Waste Management Ordinance of Batac City",
+      "date": "2026-04-22",
+      "type": "Ordinance",
+      "pages": 24
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}
