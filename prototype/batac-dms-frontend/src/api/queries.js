@@ -156,19 +156,6 @@ export const useUpdateLegislativeQueue = () => {
   });
 };
 
-export const useAddDocument = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (item) => {
-      const { data } = await apiClient.post('/documents', item);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
-    },
-  });
-};
-
 export const useUpdatePendingSignature = () => {
   const queryClient = useQueryClient();
   return useMutation({
