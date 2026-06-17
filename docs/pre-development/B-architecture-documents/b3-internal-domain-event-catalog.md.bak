@@ -34,10 +34,10 @@ Three source documents use different names for what appear to be the same events
 
 |B3 Context Reference Name|B2 Module Contract Name|B4 Workflow Spec Name|Status|
 |---|---|---|---|
-|`document.logged`|`document.created`|—|**[RESOLVED — OI-1]** `document.created` ratified as canonical. Rationale: B2 is the module boundary contract for the Documents module, and this catalog's stated purpose (§1, §2.1) is to reconcile B2/B4 into one canonical set — `document.created` is also the name already used consistently throughout this catalog (§6.1, §8 row 9). No further action.|
-|`preliminary_number.assigned`|`document.number_assigned` with `numberType: 'preliminary'`|—|**[RESOLVED — OI-2]** Unified event with `numberType` discriminator ratified, per B2. Rationale: this is the form already drafted and used throughout this catalog (§6.3, §8 row 11); splitting would require two new payload schemas not specified anywhere in source material. If a consumer later needs to subscribe to preliminary-only or final-only assignment, that can be done by filtering on `numberType` inside the consumer's own handler — no event-bus-level split is required. No further action.|
-|`final_number.assigned`|`document.number_assigned` with `numberType: 'final'`|—|**[RESOLVED — OI-2]** Same resolution as row above.|
-|`certification_of_urgency.attached`|— (not listed in B2 emitted events for Documents)|`documents.certification_urgency.logged`|**[RESOLVED — OI-3, OI-12]** Name normalized to `document.certification_urgency.logged` (singular prefix, matching every other Documents-module event). B4's plural `documents.` is treated as an authoring inconsistency, not an intentional naming convention — no other Documents event uses a plural prefix. **Action required outside this document:** B2's Master Event Registry does not list this event at all (per the §6.5 note); it must be added there in the same PR that introduces this event on the bus. This action item cannot be closed from within B3 alone — it requires an edit to the B2 document, which is outside this catalog's authority.|
+|`document.logged`|`document.created`|—|**[Discrepancy]** Trigger is identical (Secretariat logs a new document). This catalog uses `document.created` per B2 as the module boundary contract. Team must confirm.|
+|`preliminary_number.assigned`|`document.number_assigned` with `numberType: 'preliminary'`|—|**[Discrepancy]** B3 context reference implies a separate event; B2 unifies both numbering events into one with a discriminator field. This catalog follows B2 (unified event). Team must confirm.|
+|`final_number.assigned`|`document.number_assigned` with `numberType: 'final'`|—|**[Discrepancy]** Same as above row.|
+|`certification_of_urgency.attached`|— (not listed in B2 emitted events for Documents)|`documents.certification_urgency.logged`|**[Discrepancy]** B2 omits this event from its Master Registry. This catalog uses B4's name. Note: the `documents.` prefix (plural) is inconsistent with all other Documents events (`document.` singular). Both the name and prefix require team ratification.|
 |`panlalawigan_timer.expired`|`workflow.lapsed` with `lapseType: 'panlalawigan_30_day_deemed'`|`workflow.panlalawigan.deemed_approved`|**[Discrepancy]** B4 splits B2's unified `workflow.lapsed` into two separate events. This catalog adopts B4's two-event model. Team must confirm.|
 |—|`workflow.lapsed` with `lapseType: 'mayor_10_day_lapsed'`|`workflow.approval.lapsed`|**[Discrepancy]** Same row as above: the Mayor 10-day half of B2's unified event.|
 |`designation.activated`|`delegation.granted`|—|**[Discrepancy]** Different conceptual framing (Designation document vs. delegation grant record). This catalog uses `delegation.granted` per B2 since the underlying DB entity is a `delegation_grant` record. Team must confirm.|
@@ -58,8 +58,6 @@ B2 was authored before B4 finalized the workflow event catalog. B4's Appendix A 
 |`workflow.completed`|`workflow.instance.completed`|Same event; B4 name clarifies instance scope.|
 
 **Audit subscription discrepancy:** B4 Appendix A marks certain events with `(Audit)` rather than marking all of them. B2 states as an architectural law: _"Any new domain event added to the bus must be registered with the Audit Event Consumer in the same PR that introduces the event. No event may ship without an Audit subscription."_ This catalog applies Audit as a consumer of every event. Where B4 does not mark `(Audit)`, the subscription is added here under `[Inference per B2 mandatory rule]`.
-
-**[RESOLVED — OI-4]** `workflow.step.started` (B4 name, row 1 of the table above) is ratified as canonical, consistent with this section's stated rule that B4 names govern all Workflow module events. The B2 name `workflow.step_assigned` is retained only as a historical cross-reference in source notes; no consumer registration should use it. Field-level reconciliation between the two sources is handled separately at §7.11 (OI-5).
 
 ---
 
@@ -421,7 +419,7 @@ The Documents module does not consume any domain events. Its state is driven by 
 
 **Business Reason:** A newly logged document must immediately receive a QR tracking number (Tracking module) and a workflow instance (Workflow module). Both must happen before any other system action. The Tracking module acts first in the assignment sequence.
 
-> **Note `[RESOLVED — OI-1]`:** B3 Context Reference §18 names this event `document.logged`. `document.created` (per B2) is ratified as canonical. See §0.1.
+> **Note `[Discrepancy]`:** B3 Context Reference §18 names this event `document.logged`. This catalog uses `document.created` per B2. Team must ratify.
 
 ```typescript
 // /packages/shared/events/documents.ts
@@ -482,7 +480,7 @@ export type DocumentStateChangedPayload = z.infer<typeof DocumentStateChangedPay
 - Final numbers are immutable once the Draft prefix is removed.
 - Separate PostgreSQL sequence per document type per year; counter never reused even if the document is cancelled.
 
-> **Note `[RESOLVED — OI-2]`:** B3 Context Reference §18 named these as two separate events: `preliminary_number.assigned` and `final_number.assigned`. The unified B2 event with a `numberType` discriminator is confirmed as canonical; it is not being split. See §0.1.
+> **Note `[Discrepancy]`:** B3 Context Reference §18 names these as two separate events: `preliminary_number.assigned` and `final_number.assigned`. B2 unifies them into one event with a `numberType` discriminator. This catalog follows B2. If the team prefers two separate events (enabling consumers to subscribe independently), this schema must be split and the event type strings updated accordingly.
 
 ```typescript
 export const DocumentNumberAssignedPayloadSchema = z.object({
@@ -523,7 +521,7 @@ export type DocumentSecretariatDecisionPayload = z.infer<typeof DocumentSecretar
 
 ---
 
-#### 6.5 `document.certification_urgency.logged`
+#### 6.5 `documents.certification_urgency.logged`
 
 |||
 |---|---|
@@ -535,19 +533,21 @@ export type DocumentSecretariatDecisionPayload = z.infer<typeof DocumentSecretar
 
 **Business Reason:** A Certification of Urgency, once logged by the Secretariat, causes the workflow engine to bypass the `multi_referral` (committee referral) step for each associated measure and advance each instance directly to Second Reading. This is a legally sanctioned path (Mayor's written certification) that must be processed immediately and is frequent enough to require full Phase 1 support. One Certification can cover multiple measures in the same session. The Workflow module subscribes to this event and executes the bypass sequence for each listed `instanceId`.
 
-> **Note `[RESOLVED — OI-3]`:** B3 Context Reference §18 named this event `certification_of_urgency.attached`; B4 §6.1 named it `documents.certification_urgency.logged` (plural prefix). This catalog ratifies `document.certification_urgency.logged` (singular prefix) as canonical — consistent with every other Documents-module event in this catalog. The plural form is treated as a B4 authoring inconsistency rather than an intentional convention.
+> **Note `[Discrepancy — name]`:** B3 Context Reference §18 names this event `certification_of_urgency.attached`. B4 §6.1 names it `documents.certification_urgency.logged`. This catalog uses the B4 name.
 > 
-> **Note `[RESOLVED — OI-12, action item outside this document]`:** B2's Master Event Registry does not list this event. It must be added there (as `document.certification_urgency.logged`) in the same PR that introduces this event on the bus. This is an edit to the B2 document, outside this catalog's authority to make directly — flagged here as a required follow-up.
+> **Note `[Discrepancy — prefix]`:** All other Documents module events use the `document.` prefix (singular). This event uses `documents.` (plural) per B4 §6.1. The inconsistency may be a B4 authoring error. Team must decide whether to normalize to `document.certification_urgency.logged`.
+> 
+> **Note `[Discrepancy — B2 omission]`:** B2's Master Event Registry does not list this event. It was identified in B4 §6.1 as produced by Documents and consumed by Workflow. The B2 Master Registry must be updated to include it.
 
 ```typescript
-export const DocumentCertificationUrgencyLoggedPayloadSchema = z.object({
+export const DocumentsCertificationUrgencyLoggedPayloadSchema = z.object({
   certificationDocumentId: z.string().uuid(),
   associatedInstanceIds:   z.array(z.string().uuid()), // All workflow instances to be bypassed
   loggedBy:                z.string().uuid(),
   loggedAt:                z.string().datetime({ offset: true }),
 });
-export type DocumentCertificationUrgencyLoggedPayload =
-  z.infer<typeof DocumentCertificationUrgencyLoggedPayloadSchema>;
+export type DocumentsCertificationUrgencyLoggedPayload =
+  z.infer<typeof DocumentsCertificationUrgencyLoggedPayloadSchema>;
 ```
 
 ---
@@ -586,7 +586,7 @@ export const WorkflowInstanceCreatedPayloadSchema = z.object({
   instanceId:          z.string().uuid(),
   definitionVersionId: z.string().uuid(),
   documentId:          z.string().uuid(),
-  documentType:        z.string(), // [Inference] Full enum not confirmed for all workflow-capable document types — deferred, see OI-13 (non-blocking)
+  documentType:        z.string(), // [Inference] Full enum not confirmed for all workflow-capable document types
   slaDeadline:         z.string().datetime({ offset: true }).nullable(),
 });
 export type WorkflowInstanceCreatedPayload = z.infer<typeof WorkflowInstanceCreatedPayloadSchema>;
@@ -606,13 +606,13 @@ export type WorkflowInstanceCreatedPayload = z.infer<typeof WorkflowInstanceCrea
 
 **Business Reason:** A completed workflow instance means a legislative document has cleared all required steps (readings, signatures, transmittal, Panlalawigan review). The Records module must create an archiving record and retention schedule entry. The Portal module must update public document visibility.
 
-> **Note `[RESOLVED — OI-8]`:** B4 Appendix A lists only `instanceId`, `outcomeCode`, and `finalDocumentStatus`. `documentId` is confirmed as a required field in this payload. Rationale: both consuming modules (Records — creating an archiving/retention entry; Portal — updating public visibility) operate on a document, not merely an instance, and have no other path to the `documentId` from this event alone. Omitting it would force each consumer to make a separate lookup call back into the Workflow module for every event received, which conflicts with the event-bus design goal of decoupled, self-sufficient payloads. B4's omission is treated as a gap, not an intentional exclusion.
+> **Note `[Inference — missing field]`:** B4 Appendix A lists only `instanceId`, `outcomeCode`, and `finalDocumentStatus`. The `documentId` is not in B4's payload for this event, but consuming modules (Records, Portal) need it to perform their work. Including `documentId` is strongly recommended; team must confirm. B2's equivalent event (`workflow.completed`) did not specify a payload — it is inferred from consumer needs.
 
 ```typescript
 export const WorkflowInstanceCompletedPayloadSchema = z.object({
   instanceId:          z.string().uuid(),
   documentId:          z.string().uuid(),          // [Inference] needed by Records and Portal consumers
-  outcomeCode:         z.string(),                 // [Inference] exact outcome codes not specified in source — deferred, see OI-14 (non-blocking)
+  outcomeCode:         z.string(),                 // [Inference] exact outcome codes not specified in source
   finalDocumentStatus: DocumentLifecycleStateSchema.optional(), // [Inference] likely a DocumentLifecycleState
 });
 export type WorkflowInstanceCompletedPayload = z.infer<typeof WorkflowInstanceCompletedPayloadSchema>;
@@ -832,17 +832,17 @@ export type WorkflowInstanceMigrationReversedPayload =
 
 **Business Reason:** When a workflow step is activated and assigned, the assignee (a Councilor, committee, or staff member) must be notified so they can take timely action. ARTA SLA obligations are tracked per step. Delegation resolution (substituting the designated person for the original authority) is applied before this event fires.
 
-> **Note `[RESOLVED — OI-5]`:** B4 Appendix A's payload (`stepKey`, `assignedTo`) and B2's equivalent payload (`assigneeUserId`, `documentId`, `dueAt`) did not fully match. `documentId` and `dueAt` are confirmed as required fields in the merged schema below (not optional). Rationale: Notifications cannot compose a usable notification body without knowing which document the step belongs to, and `dueAt` is the due date displayed to the assignee — both are always known by the engine at the moment a step starts, so marking them optional would understate the actual guarantee this event makes. `dueAt` remains nullable (not every step type carries a due date, e.g. a `notification` step has none) but the field itself is always present.
+> **Note `[Discrepancy — field-level]`:** B4 Appendix A payload (`stepKey`, `assignedTo`) and B2 equivalent payload (`assigneeUserId`, `documentId`, `dueAt`) do not fully match. This schema merges both sources. Fields marked `[Inference]` are from B2's equivalent event and are required by consuming modules (e.g., Notifications needs `documentId` to compose the notification body; `dueAt` is the step due date for the notification).
 
 ```typescript
 export const WorkflowStepStartedPayloadSchema = z.object({
   instanceId:     z.string().uuid(),
   stepInstanceId: z.string().uuid(),
   stepType:       WorkflowStepTypeSchema,
-  stepKey:        z.string(),                                  // from B4; unique key within the definition
-  assignedTo:     z.string().uuid().nullable(),                // from B4; null for system-executed steps
-  documentId:     z.string().uuid(),                           // from B2 equivalent; required — Notifications needs this to compose the notification body
-  dueAt:          z.string().datetime({ offset: true }).nullable(), // from B2 equivalent; required field, nullable value — null for step types with no due date
+  stepKey:        z.string(),                                             // from B4; unique key within the definition
+  assignedTo:     z.string().uuid().nullable(),                           // from B4; null for system-executed steps
+  documentId:     z.string().uuid().optional(),                           // [Inference] from B2 equivalent; needed by Notifications
+  dueAt:          z.string().datetime({ offset: true }).nullable().optional(), // [Inference] from B2 equivalent
 });
 export type WorkflowStepStartedPayload = z.infer<typeof WorkflowStepStartedPayloadSchema>;
 ```
@@ -861,19 +861,19 @@ export type WorkflowStepStartedPayload = z.infer<typeof WorkflowStepStartedPaylo
 
 **Business Reason:** Step completion drives routing history (Tracking module appends a routing entry recording from/to office, actor, timestamp, and action type). Tracking determines the "action type" from `stepType` and `outcome`, so both are required in the payload.
 
-> **Note `[RESOLVED — OI-10]`:** B4 Appendix A marks this event `(Audit for approval/multi_referral)` only, which read literally would mean other step types (`action`, `decision`, `notification`, `termination`) are not individually audited. This catalog confirms full audit scope — Audit subscribes to every `workflow.step.completed` emission regardless of `stepType`. Rationale: B2's architectural law states "all events" with no step-type carve-out, the project architecture reference (Part 11.11) lists "all approval actions" and "all Secretariat 'Approve/Reject/Amended' logging actions" among events that can never be disabled, and this catalog's own §9 Rule 1 states "No exceptions." B4's narrower annotation is treated as the author flagging the two highest-stakes step types for emphasis, not as a deliberate scoping decision — nothing in the source material articulates a reason to exempt the remaining step types from audit.
+> **Note `[Discrepancy — audit annotation]`:** B4 Appendix A marks this event `(Audit for approval/multi_referral)` only, implying other step types may not be individually audited. B2's architectural law requires Audit subscription for all events. This catalog applies Audit to all `workflow.step.completed` emissions.
 > 
-> **Note `[RESOLVED — OI-6]`:** B4 has `actorType`, not present in B2. B2 has `stepType` and `documentId`, not present in B4. Both fields are confirmed as required (not optional) in the merged schema below. This corrects an internal inconsistency in the original draft: the Business Reason paragraph above already states "Tracking determines the 'action type' from `stepType` and `outcome`, so both are required," but the schema previously marked `stepType` as `.optional()` — required prose and optional schema cannot both be correct. `documentId` is likewise required: Tracking cannot look up the correct routing record without it.
+> **Note `[Discrepancy — field-level]`:** B4 has `actorType` not in B2. B2 has `stepType` and `documentId` not in B4. Both sets are included. `stepType` is required by Tracking to compute action type. `documentId` is required by Tracking to look up the correct routing record. Fields from B2 marked `[Inference]` since B4 does not include them.
 
 ```typescript
 export const WorkflowStepCompletedPayloadSchema = z.object({
   instanceId:     z.string().uuid(),
   stepInstanceId: z.string().uuid(),
-  outcome:        z.string(),                 // [Inference] varies by stepType; exact enum not confirmed in source — see OI-15
-  actorId:        z.string().uuid(),          // from B4; equivalent to 'completedBy' in B2
-  actorType:      z.enum(['user', 'system']), // [Inference] from B4 actor_type field
-  stepType:       WorkflowStepTypeSchema,      // from B2 equivalent; required — Tracking needs this to compute action type
-  documentId:     z.string().uuid(),           // from B2 equivalent; required — Tracking needs this to locate the routing record
+  outcome:        z.string(),                    // [Inference] varies by stepType; exact enum not confirmed in source
+  actorId:        z.string().uuid(),             // from B4; equivalent to 'completedBy' in B2
+  actorType:      z.enum(['user', 'system']),    // [Inference] from B4 actor_type field
+  stepType:       WorkflowStepTypeSchema.optional(), // [Inference] from B2 equivalent; required by Tracking
+  documentId:     z.string().uuid().optional(),      // [Inference] from B2 equivalent; required by Tracking
 });
 export type WorkflowStepCompletedPayload = z.infer<typeof WorkflowStepCompletedPayloadSchema>;
 ```
@@ -1050,13 +1050,13 @@ export type WorkflowMultiReferralCutoffMissedPayload =
 
 **Business Reason:** The workflow engine must communicate to the scheduling layer the earliest date on which Second Reading can occur. This event carries that computed date so it can be used in the Order of Business preparation.
 
-> **Note `[RESOLVED — OI-9]`:** B4 Appendix A lists `cutoffTimestampCleared` as a payload field; B4 §6.2's EMIT block pseudocode omits it. The field is confirmed as present (nullable). Rationale: the trigger condition for this event is explicitly two-branched — "either all submitted, **or** a cutoff has cleared" — so a consumer or auditor reading this event has no way to tell which branch produced it without this field. Appendix A is treated as the authoritative event catalog; §6.2 is illustrative pseudocode, and an omission there is weaker evidence of intent than its explicit inclusion in the catalog Appendix.
+> **Note `[Discrepancy — field]`:** B4 Appendix A lists `cutoffTimestampCleared` as a payload field. B4 §6.2's EMIT block pseudocode does not include it. Field is included here as nullable per Appendix A; team should confirm its meaning and presence.
 
 ```typescript
 export const WorkflowMultiReferralSecondReadingEligiblePayloadSchema = z.object({
   stepInstanceId:         z.string().uuid(),
   eligibleDate:           z.string().date(), // YYYY-MM-DD — requires Zod ≥ 3.23.0
-  cutoffTimestampCleared: z.string().datetime({ offset: true }).nullable(), // null when eligibility came from all-committees-submitted rather than a cleared cutoff
+  cutoffTimestampCleared: z.string().datetime({ offset: true }).nullable(), // from B4 Appendix A; not in §6.2 EMIT block
 });
 export type WorkflowMultiReferralSecondReadingEligiblePayload =
   z.infer<typeof WorkflowMultiReferralSecondReadingEligiblePayloadSchema>;
@@ -1148,7 +1148,7 @@ export type WorkflowPanlalawiganDeemedApprovedPayload =
 
 ### §7.G — Certification of Urgency Events
 
-A Certification of Urgency is a formal written document issued by the Mayor. When the Secretariat logs it, the `documents` module emits `document.certification_urgency.logged` (§6.5), which the Workflow module consumes and processes. The Workflow module then emits one of the four events below depending on the state of each associated instance.
+A Certification of Urgency is a formal written document issued by the Mayor. When the Secretariat logs it, the `documents` module emits `documents.certification_urgency.logged` (§6.5), which the Workflow module consumes and processes. The Workflow module then emits one of the four events below depending on the state of each associated instance.
 
 ---
 
@@ -1259,12 +1259,12 @@ ARTA (RA 11032) SLA thresholds: simple ≤ 3 working days · complex ≤ 7 worki
 |**Emitter**|`workflow`|
 |**Phase**|1|
 |**Trigger**|80% of the ARTA SLA time has elapsed for the active step|
-|**Consumers**|`notifications` · `audit`|
+|**Consumers**|`notifications` `[Inference]` · `audit` `[Inference per B2 mandatory rule]`|
 |**Source**|B4 Appendix A `[Unverified]`|
 
-**Business Reason:** Provides an advance warning before a legally mandated SLA deadline is breached, giving the assignee time to accelerate processing before the matter escalates further. ARTA non-compliance carries administrative and civil liability consequences for LGU staff.
+**Business Reason:** Provides an advance warning before a legally mandated SLA deadline is breached, giving assignees and supervisors time to accelerate processing. ARTA non-compliance carries administrative and civil liability consequences for LGU staff.
 
-> **Note `[RESOLVED — OI-11, team decision]`:** Notifications consumption confirmed (no longer `[Inference]`). The team has decided on a three-tier escalation audience, distinct at each severity: **warning (80%)** notifies the step's current **assignee only** — the person who can still act before any escalation is warranted. **Breach (100%, §7.28)** notifies the **assignee's supervisor and the Records Officer**, per the project architecture reference's stated rule ("Automatic escalation at breach: notify supervisor + Records Officer"). **Critical (150%, §7.29)** adds the relevant **Department Head** to the breach audience (Department Head already exists as a role in the platform's auth model). See §7.28's note for how the audience is technically resolved (OI-7).
+> **Note:** Notification consumer is `[Inference]`; B2 only specifies Notifications as consuming `workflow.escalated` (breach). Warning and critical consumers are not explicitly stated in either B2 or B4.
 
 ```typescript
 export const WorkflowSlaWarningPayloadSchema = z.object({
@@ -1290,7 +1290,7 @@ export type WorkflowSlaWarningPayload = z.infer<typeof WorkflowSlaWarningPayload
 
 **Business Reason:** At SLA breach, automatic escalation is required: notify the supervisor and the Records Officer. This is an ARTA compliance obligation under RA 11032. The `breachedAt` field equals `slaDeadline` per B4 (the breach moment is the deadline itself); `breachDetectedAt` is when the scheduled job detected the breach and may differ slightly from `slaDeadline` due to job scheduling timing.
 
-> **Note `[RESOLVED — OI-7]`:** B2's `workflow.escalated` payload included `escalatedToUserIds: string[]` (the specific users notified). B4's `workflow.sla.breached` does not include this field. **Decision: the event payload does not carry escalation targets.** The Notifications module resolves them at notification time by looking up the current supervisor and Records Officer for the step's office, via the workflow definition's escalation configuration. Rationale: the project architecture reference explicitly classifies "escalation targets" as an **Administrator-configurable (no developer)** setting, distinct from data that flows through the event bus — meaning escalation targets are designed to be edited by an admin at any time without a code or schema change. If the event carried a snapshot of `escalatedToUserIds` instead, an admin's mid-flight change to escalation config would not affect already-fired-but-unprocessed events, and the snapshot could go stale between emission and consumption. Resolving at notification time avoids both problems and matches the stated configuration model. The same resolution applies to warning (§7.27) and critical (§7.29) audiences, each looked up per its own tier.
+> **Note:** B2's `workflow.escalated` payload included `escalatedToUserIds: string[]` (the specific users notified). B4's `workflow.sla.breached` does not include this field. The Notifications module needs to know who to notify. [Inference] The Notifications module resolves the escalation targets from the workflow definition's escalation configuration at the time of notification, rather than receiving them in the event payload.
 
 ```typescript
 export const WorkflowSlaBreachedPayloadSchema = z.object({
@@ -1312,19 +1312,17 @@ export type WorkflowSlaBreachedPayload = z.infer<typeof WorkflowSlaBreachedPaylo
 |**Emitter**|`workflow`|
 |**Phase**|1|
 |**Trigger**|150% of the ARTA SLA time has elapsed for the active step|
-|**Consumers**|`notifications` · `audit`|
+|**Consumers**|`notifications` `[Inference]` · `audit` `[Inference per B2 mandatory rule]`|
 |**Source**|B4 Appendix A `[Unverified]`|
 
-**Business Reason:** A second escalation threshold beyond initial breach for severely overdue documents. At 150% of the SLA window, the severity warrants a distinct, wider notification. Not present in B2; B4 defines the threshold.
-
-> **Note `[RESOLVED — OI-11, team decision]`:** Notifications consumption confirmed (no longer `[Inference]`). Per the team's tiered escalation decision (see §7.27's note), the critical-tier audience is the breach-tier audience (assignee's supervisor + Records Officer) **plus the relevant Department Head**. Resolved at notification time via the escalation configuration, same mechanism as §7.28 (OI-7) — no `escalatedToUserIds`-style field is added to this payload for the same staleness/configurability reasons given there. **Caveat:** the 150% threshold itself is sourced only from B4 (`[Unverified]`) — it does not appear in the project's primary architecture reference document, which states only an 80%-warning / breach-notification model with no third numeric tier. This catalog proceeds on B4's stated threshold since no contradicting figure exists, but the 150% number specifically (as opposed to the existence of a third escalation tier, which the team has now confirmed) has not been independently corroborated.
+**Business Reason:** A second escalation threshold beyond initial breach for severely overdue documents. At 150% of the SLA window, the severity warrants a distinct notification to higher-level supervisors or department heads. Not present in B2; B4 defines the threshold.
 
 ```typescript
 export const WorkflowSlaCriticalPayloadSchema = z.object({
   instanceId:     z.string().uuid(),
   stepInstanceId: z.string().uuid(),
   slaDeadline:    z.string().datetime({ offset: true }),
-  percentElapsed: z.literal(150), // [Unverified] sourced only from B4's trigger description; no corroborating figure in the project architecture reference
+  percentElapsed: z.literal(150), // [Inference] implied by B4 trigger description "150% of SLA time elapsed"
 });
 export type WorkflowSlaCriticalPayload = z.infer<typeof WorkflowSlaCriticalPayloadSchema>;
 ```
@@ -1349,7 +1347,7 @@ Complete flat list of all 42 domain events. Every event in this table must have 
 |10|`document.state_changed`|`documents`|`tracking` · `notifications` · `audit` · `search_meta` [Ph2] · `portal` [Ph3]|1|B2|
 |11|`document.number_assigned`|`documents`|`audit`|1|B2|
 |12|`document.secretariat_decision`|`documents`|`workflow` · `audit`|1|B2|
-|13|`document.certification_urgency.logged`|`documents`|`workflow` · `audit`|1|B4 §6.1|
+|13|`documents.certification_urgency.logged`|`documents`|`workflow` · `audit` [Inf]|1|B4 §6.1|
 |14|`workflow.instance.created`|`workflow`|`audit` [Inf]|1|B4 App A|
 |15|`workflow.instance.completed`|`workflow`|`records` [Ph2] · `portal` [Ph3] · `audit`|1|B4 App A|
 |16|`workflow.instance.cancelled`|`workflow`|`audit`|1|B4 App A|
@@ -1376,9 +1374,9 @@ Complete flat list of all 42 domain events. Every event in this table must have 
 |37|`workflow.certification_urgency.bypass_deferred`|`workflow`|`audit` [Inf]|1|B4 App A|
 |38|`workflow.certification_urgency.already_past_referral`|`workflow`|`audit` [Inf]|1|B4 App A|
 |39|`workflow.certification_urgency.already_inactive`|`workflow`|`audit` [Inf]|1|B4 App A|
-|40|`workflow.sla.warning`|`workflow`|`notifications` · `audit`|1|B4 App A|
+|40|`workflow.sla.warning`|`workflow`|`notifications` [Inf] · `audit` [Inf]|1|B4 App A|
 |41|`workflow.sla.breached`|`workflow`|`notifications` · `audit`|1|B4 App A|
-|42|`workflow.sla.critical`|`workflow`|`notifications` · `audit`|1|B4 App A|
+|42|`workflow.sla.critical`|`workflow`|`notifications` [Inf] · `audit` [Inf]|1|B4 App A|
 
 **Legend:** `[Inf]` = `[Inference per B2 mandatory audit rule or logical module responsibility]` · `[Ph2]` = Phase 2 subscription · `[Ph3]` = Phase 3 subscription
 
@@ -1402,27 +1400,27 @@ The following rules are non-negotiable prior to event bus implementation. They a
 
 ---
 
-## §10 — Open Items — Resolution Status
+## §10 — Open Items — Team Decision Required Before Implementation
 
-All items below were originally raised as requiring a team decision before implementation. This table now records the disposition of each. Items resolved by inference/architectural-precedent are marked `[Resolved — decided per B3 authority]`; the one item requiring a genuine product/stakeholder judgment call is marked `[Resolved — team decision]` with the decision recorded; items intentionally deferred pending other unfinished work remain `[Deferred — non-blocking]`.
+The following items cannot be resolved by the catalog authors. Each requires a team decision, recorded as an ADR or inline update to this document.
 
-|#|Item|Blocking|Resolution|
-|---|---|---|---|
-|OI-1|Event name `document.created` vs `document.logged` (§0.1 row 1)|Yes|**[Resolved]** `document.created` ratified. See §0.1.|
-|OI-2|`document.number_assigned` unified event vs two separate events `preliminary_number.assigned` / `final_number.assigned` (§0.1 rows 2–3)|Yes|**[Resolved]** Unified event with `numberType` discriminator retained. See §0.1.|
-|OI-3|`documents.certification_urgency.logged` prefix — plural `documents.` vs singular `document.` (§6.5 notes)|Yes|**[Resolved]** Normalized to singular `document.certification_urgency.logged` throughout this catalog. See §0.1, §6.5, §7.G intro, §8 row 13.|
-|OI-4|B4 `workflow.step.started` vs B2 `workflow.step_assigned` — which name is canonical? (§0.2, §7.11)|Yes|**[Resolved]** `workflow.step.started` (B4 name) ratified, consistent with §0.2's stated B4-precedence rule for Workflow events. See §0.2.|
-|OI-5|`workflow.step.started` missing `documentId` and `dueAt` that exist in B2's equivalent (§7.11 notes)|Yes|**[Resolved]** Both confirmed required (not optional) in the payload. See §7.11.|
-|OI-6|`workflow.step.completed` missing `stepType` and `documentId` that exist in B2's equivalent (§7.12 notes)|Yes|**[Resolved]** Both confirmed required (not optional) in the payload — this also corrects an internal prose/schema contradiction in the original draft. See §7.12.|
-|OI-7|`workflow.sla.breached` missing `escalatedToUserIds` that exists in B2's `workflow.escalated` (§7.28 notes)|Yes|**[Resolved]** Confirmed: Notifications resolves escalation targets from admin-configurable escalation config at notification time; no targets field added to the payload. See §7.28.|
-|OI-8|`workflow.instance.completed` missing `documentId` (§7.2 notes)|Yes|**[Resolved]** Confirmed required in the payload. See §7.2.|
-|OI-9|`workflow.multi_referral.second_reading_eligible` — presence of `cutoffTimestampCleared` field (§7.19 notes)|Yes|**[Resolved]** Field confirmed present (nullable), following B4 Appendix A over the §6.2 EMIT-block omission. See §7.19.|
-|OI-10|Audit scope for `workflow.step.completed` — all step types, or only `approval` and `multi_referral` as B4 implies (§7.12 notes)|Yes|**[Resolved]** Confirmed: Audit subscribes to every emission regardless of step type. See §7.12.|
-|OI-11|`workflow.sla.warning` and `workflow.sla.critical` consumer list — Notifications subscription is `[Inference]` (§7.27, §7.29)|Yes|**[Resolved — team decision]** Notifications confirmed as a consumer of both. Escalation audience is tiered by severity: warning → assignee only; breach → assignee's supervisor + Records Officer; critical → breach audience + Department Head. See §7.27, §7.28, §7.29.|
-|OI-12|`documents.certification_urgency.logged` missing from B2 Master Registry — B2 must be updated|Yes|**[Resolved — action item outside this document]** Confirmed the event (under its corrected name, see OI-3) must be added to B2's Master Registry in the same PR that introduces it on the bus. This is an edit to the B2 document, not something this catalog can complete on its own. See §6.5.|
-|OI-13|`workflow.instance.created` `documentType` field — full enum of workflow-capable document types|No|**[Deferred — non-blocking, confirmed]** No enum of workflow-capable document types exists yet in any source document, including the project's primary architecture reference. Remains `z.string()` until that enum is finalized elsewhere. See §7.1.|
-|OI-14|`workflow.instance.completed` `outcomeCode` field — exact outcome code values|No|**[Deferred — non-blocking, confirmed]** No outcome-code enum exists yet in any source document. Remains `z.string()` until termination step configurations are finalized. See §7.2.|
-|OI-15|`workflow.step.completed` `outcome` field — exact outcome values per step type|No|**[Deferred — non-blocking, confirmed]** No per-step-type outcome enum exists yet in any source document. Remains `z.string()` until step type configurations are finalized. See §7.12.|
+| #     | Item                                                                                                                                    | Blocking | Decision Needed                                                                                                                                                               |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OI-1  | Event name `document.created` vs `document.logged` (§0.1 row 1)                                                                         | Yes      | Pick one canonical name; update B3 and all consumers.                                                                                                                         |
+| OI-2  | `document.number_assigned` unified event vs two separate events `preliminary_number.assigned` / `final_number.assigned` (§0.1 rows 2–3) | Yes      | If splitting: define two separate event type strings, two separate payload schemas, and separate consumer subscriptions.                                                      |
+| OI-3  | `documents.certification_urgency.logged` prefix — plural `documents.` vs singular `document.` (§6.5 notes)                              | Yes      | Normalize the prefix; update B4 if changed.                                                                                                                                   |
+| OI-4  | B4 `workflow.step.started` vs B2 `workflow.step_assigned` — which name is canonical? (§0.2, §7.11)                                      | Yes      | Ratify B4 name or revert to B2 name. Update all consumer registrations.                                                                                                       |
+| OI-5  | `workflow.step.started` missing `documentId` and `dueAt` that exist in B2's equivalent (§7.11 notes)                                    | Yes      | Confirm whether `documentId` and `dueAt` are included in the payload. Notifications module needs both.                                                                        |
+| OI-6  | `workflow.step.completed` missing `stepType` and `documentId` that exist in B2's equivalent (§7.12 notes)                               | Yes      | Confirm whether both are included. Tracking module needs `stepType` to derive action type.                                                                                    |
+| OI-7  | `workflow.sla.breached` missing `escalatedToUserIds` that exists in B2's `workflow.escalated` (§7.28 notes)                             | Yes      | Confirm whether Notifications resolves escalation targets from config at notification time, or whether the event must carry them.                                             |
+| OI-8  | `workflow.instance.completed` missing `documentId` (§7.2 notes)                                                                         | Yes      | Confirm whether `documentId` should be in the payload for Records and Portal consumers.                                                                                       |
+| OI-9  | `workflow.multi_referral.second_reading_eligible` — presence of `cutoffTimestampCleared` field (§7.19 notes)                            | Yes      | B4 Appendix A includes it; B4 §6.2 EMIT block does not. Confirm correct payload.                                                                                              |
+| OI-10 | Audit scope for `workflow.step.completed` — all step types, or only `approval` and `multi_referral` as B4 implies (§7.12 notes)         | Yes      | B2's law says all events → Audit. Confirm if B4's annotation is intentional scoping or a documentation omission.                                                              |
+| OI-11 | `workflow.sla.warning` and `workflow.sla.critical` consumer list — Notifications subscription is `[Inference]` (§7.27, §7.29)           | Yes      | Confirm whether Notifications subscribes to warning and critical in addition to breached.                                                                                     |
+| OI-12 | `documents.certification_urgency.logged` missing from B2 Master Registry — B2 must be updated                                           | Yes      | Add the event to B2 Master Registry (row 13) in the same PR that introduces the event.                                                                                        |
+| OI-13 | `workflow.instance.created` `documentType` field — full enum of workflow-capable document types                                         | No       | Refine `z.string()` to a proper enum once all document types that can have workflow instances are finalized.                                                                  |
+| OI-14 | `workflow.instance.completed` `outcomeCode` field — exact outcome code values                                                           | No       | Define the enum of outcome codes (e.g. `PUBLISHED`, `ARCHIVED`, `VETO_OVERRIDE_FAILED`, `REPASSED`) once the workflow engine's termination step configurations are finalized. |
+| OI-15 | `workflow.step.completed` `outcome` field — exact outcome values per step type                                                          | No       | Define per-step-type outcome enums and replace `z.string()` with a discriminated union once step type configurations are finalized.                                           |
 
 ---
 
