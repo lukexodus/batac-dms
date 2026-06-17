@@ -89,17 +89,17 @@ This document does **not** cover:
 }
 ```
 
-|Claim|Purpose|Notes|
-|---|---|---|
-|`uid`|User identity for downstream lookups|Redundant with `sub` but avoids casting ambiguity|
-|`oid`|Primary office assignment for office scoping in ABAC|The office this user belongs to in `organization.assignments`|
-|`rid`|Role IDs for RBAC entry-point check|Array; populated at token issue from active role assignments|
-|`perm`|Resolved permission codes|Derived from `rid` at token issue; format: `<resource>:<action>`|
-|`dg`|Active delegation grant UUID|Null if user is not currently acting under a delegation; populated if active `delegation_grant` exists with `delegated_to_user_id = uid`|
-|`city`|`city_id` for tenant isolation|Always `batac-city-uuid` in Phase 1; multi-tenancy path for future|
-|`sid`|Session UUID from `iam.sessions`|Used for concurrent session enforcement at every authenticated request|
-|`is_ita`|Boolean: is this an IT Admin session|Shortcircuits to content access denial in ABAC evaluation step 2|
-|`is_pa`|Boolean: is this a Platform Administrator session|Shortcircuits to operational denial in ABAC evaluation step 3|
+| Claim    | Purpose                                              | Notes                                                                                                                                    |
+| -------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `uid`    | User identity for downstream lookups                 | Redundant with `sub` but avoids casting ambiguity                                                                                        |
+| `oid`    | Primary office assignment for office scoping in ABAC | The office this user belongs to in `organization.assignments`                                                                            |
+| `rid`    | Role IDs for RBAC entry-point check                  | Array; populated at token issue from active role assignments                                                                             |
+| `perm`   | Resolved permission codes                            | Derived from `rid` at token issue; format: `<resource>:<action>`                                                                         |
+| `dg`     | Active delegation grant UUID                         | Null if user is not currently acting under a delegation; populated if active `delegation_grant` exists with `delegated_to_user_id = uid` |
+| `city`   | `city_id` for tenant isolation                       | Always `batac-city-uuid` in Phase 1; multi-tenancy path for future                                                                       |
+| `sid`    | Session UUID from `iam.sessions`                     | Used for concurrent session enforcement at every authenticated request                                                                   |
+| `is_ita` | Boolean: is this an IT Admin session                 | Shortcircuits to content access denial in ABAC evaluation step 2                                                                         |
+| `is_pa`  | Boolean: is this a Platform Administrator session    | Shortcircuits to operational denial in ABAC evaluation step 3                                                                            |
 
 **Critical timing note [Inference]:** `perm` and `rid` are resolved at token issue time. A role assignment change during an active token's lifetime does not take effect until the next token refresh. Role changes that must take effect immediately (e.g., employee termination, emergency revocation) require a forced session termination. The forced logout mechanism (Part 11.17) covers this case.
 
@@ -1117,18 +1117,18 @@ POST /api/auth/login
 
 The following items are within this document's scope and are marked `[Unresolved]`. They must be formally decided and recorded in an ADR (Architecture Decision Record) before the IAM module's first database migration is written.
 
-|#|Item|Why It Matters|Required Before|
-|---|---|---|---|
-|D-AUTH-01|JWT signing algorithm: HS256 vs. RS256|RS256 enables public key verification by external services (useful for future SSO relying party setup); HS256 is simpler. If SSO is a near-term priority, RS256 is preferred.|First IAM migration|
-|D-AUTH-02|Argon2id parameters (m, t, p)|Must be benchmarked on the target server hardware to meet OWASP guidance (≥ 19ms per hash) without degrading login throughput. Default values: `m=65536 (64 MB), t=2, p=1` as a starting point.|First IAM migration|
-|D-AUTH-03|Refresh token lifetime|7 days is a reasonable starting point for a government intranet with infrequent access. Must balance security with user experience on shared workstations.|First IAM migration|
-|D-AUTH-04|Refresh token hash algorithm: Argon2id vs. SHA-256|Argon2id adds brute-force resistance if the DB is compromised; SHA-256 is faster and sufficient if tokens have sufficient entropy (32 random bytes). For 32-byte random tokens, SHA-256 with a salt may be sufficient.|First IAM migration|
-|D-AUTH-05|Full list of document-processing roles for Platform Admin exclusion trigger|The DB trigger at Section 8.4 checks `type_code = 'document_processor'`. The full mapping of named roles to this type code must be defined before the IAM schema is seeded.|IAM seed data|
-|D-AUTH-06|`delegation_grant.scope` field schema|The scope field in `organization.delegation_grants` must define a structure that the ABAC evaluator can interpret at request time (e.g., a JSON object with `roles: []` and `office_ids: []`). This affects both the Organization module schema and the ABAC evaluator.|Organization module migration|
-|D-AUTH-07|Account lockout policy on repeated login failures|Rate limiting (Section 10.4) handles IP-based throttling. A separate account-level lockout (e.g., lock the account after N failures from any IP) adds protection against distributed attacks. Whether this is needed and the threshold value must be decided.|First IAM migration|
-|D-AUTH-08|External TSA provider for audit log timestamps|Monthly RFC 3161 export is confirmed (Part 11.11). The specific TSA provider must be selected before the first audit export runs.|Pre-production|
-|D-AUTH-09|RLS policy expression for cross-office read grants|The `has_cross_office_read_grant()` function referenced in the RLS policy examples (Section 6.5) must be defined and the grants table must be designed.|Documents module migration|
-|D-AUTH-10|Session `locked_at` behavior when access token expires while locked|If a user locks the screen and the access token expires before they return, should the unlock prompt: (a) refresh the token automatically, or (b) require full re-login? The answer affects the lock/unlock implementation.|Frontend login flow|
+| #         | Item                                                                        | Why It Matters                                                                                                                                                                                                                                                          | Required Before               |
+| --------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| D-AUTH-01 | JWT signing algorithm: HS256 vs. RS256                                      | RS256 enables public key verification by external services (useful for future SSO relying party setup); HS256 is simpler. If SSO is a near-term priority, RS256 is preferred.                                                                                           | First IAM migration           |
+| D-AUTH-02 | Argon2id parameters (m, t, p)                                               | Must be benchmarked on the target server hardware to meet OWASP guidance (≥ 19ms per hash) without degrading login throughput. Default values: `m=65536 (64 MB), t=2, p=1` as a starting point.                                                                         | First IAM migration           |
+| D-AUTH-03 | Refresh token lifetime                                                      | 7 days is a reasonable starting point for a government intranet with infrequent access. Must balance security with user experience on shared workstations.                                                                                                              | First IAM migration           |
+| D-AUTH-04 | Refresh token hash algorithm: Argon2id vs. SHA-256                          | Argon2id adds brute-force resistance if the DB is compromised; SHA-256 is faster and sufficient if tokens have sufficient entropy (32 random bytes). For 32-byte random tokens, SHA-256 with a salt may be sufficient.                                                  | First IAM migration           |
+| D-AUTH-05 | Full list of document-processing roles for Platform Admin exclusion trigger | The DB trigger at Section 8.4 checks `type_code = 'document_processor'`. The full mapping of named roles to this type code must be defined before the IAM schema is seeded.                                                                                             | IAM seed data                 |
+| D-AUTH-06 | `delegation_grant.scope` field schema                                       | The scope field in `organization.delegation_grants` must define a structure that the ABAC evaluator can interpret at request time (e.g., a JSON object with `roles: []` and `office_ids: []`). This affects both the Organization module schema and the ABAC evaluator. | Organization module migration |
+| D-AUTH-07 | Account lockout policy on repeated login failures                           | Rate limiting (Section 10.4) handles IP-based throttling. A separate account-level lockout (e.g., lock the account after N failures from any IP) adds protection against distributed attacks. Whether this is needed and the threshold value must be decided.           | First IAM migration           |
+| D-AUTH-08 | External TSA provider for audit log timestamps                              | Monthly RFC 3161 export is confirmed (Part 11.11). The specific TSA provider must be selected before the first audit export runs.                                                                                                                                       | Pre-production                |
+| D-AUTH-09 | RLS policy expression for cross-office read grants                          | The `has_cross_office_read_grant()` function referenced in the RLS policy examples (Section 6.5) must be defined and the grants table must be designed.                                                                                                                 | Documents module migration    |
+| D-AUTH-10 | Session `locked_at` behavior when access token expires while locked         | If a user locks the screen and the access token expires before they return, should the unlock prompt: (a) refresh the token automatically, or (b) require full re-login? The answer affects the lock/unlock implementation.                                             | Frontend login flow           |
 
 ---
 

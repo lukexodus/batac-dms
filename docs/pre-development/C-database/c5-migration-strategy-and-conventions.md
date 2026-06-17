@@ -6,10 +6,10 @@
 
 ## Label Convention Used in This Document
 
-|Label|Meaning|
-|---|---|
-|_(no label)_|Directly stated in or directly derived from the source documents.|
-|[Inference]|Logically reasoned from confirmed facts. Not explicitly stated in source.|
+| Label        | Meaning                                                                   |
+| ------------ | ------------------------------------------------------------------------- |
+| _(no label)_ | Directly stated in or directly derived from the source documents.         |
+| [Inference]  | Logically reasoned from confirmed facts. Not explicitly stated in source. |
 
 ---
 
