@@ -351,6 +351,7 @@ const LogDocumentModal = ({ open, onClose }) => {
   const [step, setStep] = useState(1) // 1 = form, 2 = success
   const [trackingId, setTrackingId] = useState("");
   const addLegislativeQueue = useAddLegislativeQueue();
+  const addDocument = useAddDocument();
   const [form, setForm] = useState({
     docType: "", sender: "", senderOffice: "",
     dateReceived: "2026-06-14", title: "", author: "",
@@ -366,11 +367,27 @@ const LogDocumentModal = ({ open, onClose }) => {
     const newId = "DTS-2026-" + Math.floor(1000 + Math.random() * 9000);
     setTrackingId(newId);
 
+    // 1. Add to the global documents list
+    addDocument.mutate({
+      id: newId,
+      title: form.title || "Untitled Document",
+      type: form.docType || "General Document",
+      office: form.senderOffice || "External",
+      date: form.dateReceived,
+      status: "In Workflow",
+      classification: form.classification,
+      size: "0.1 MB",
+      ver: 1,
+      submittedBy: form.sender || form.author || "Unknown User",
+      daysInQueue: 0
+    });
+
+    // 2. Add to legislative queue if applicable
     if (isLegislative) {
       addLegislativeQueue.mutate({
         id: newId,
-        title: form.title,
-        type: form.docType.replace("SP ", ""),
+        title: form.title || "Untitled Document",
+        type: form.docType.replace("SP ", "") || "Resolution",
         status: "For 1st Reading",
         committee: form.committee || "TBD",
         author: form.author || form.sender || "Unknown",
@@ -1681,7 +1698,7 @@ const QRDisplay = ({ size = 80 }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // SIDEBAR
 // ─────────────────────────────────────────────────────────────────────────────
-export const DEBUG_USER_ROLE = "mayor"; // "mayor" or "sp"
+export const DEBUG_USER_ROLE = "sp"; // "mayor" or "sp"
 
 
 
@@ -1971,11 +1988,11 @@ const MayorPage = () => {
   const queryClient = useQueryClient()
   const [timeFilter, setTimeFilter] = useState("year")
   const { data: documents = [] } = useDocuments()
-  
+
   const pendingCount = mockPendingSignatures.length;
   const overdueDocs = mockPendingSignatures.filter(d => d.priority === "overdue");
   const overdueCount = overdueDocs.length;
-  
+
   // 1. Dynamic Dept Workload
   const activeDocs = documents.filter(d => !["Approved", "Released", "Archived", "Completed"].includes(d.status)).length;
   const cityWideOverdue = documents.filter(d => d.priority === "overdue" || (d.daysInQueue && d.daysInQueue > 5)).length;
@@ -2009,7 +2026,7 @@ const MayorPage = () => {
 
   // 2. Dynamic SLA Data
   const slaGroups = {};
-  
+
   if (timeFilter === "year") {
     // Group by month
     const months = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
@@ -2118,7 +2135,7 @@ const MayorPage = () => {
           <Btn variant="secondary" icon={Layers}>View Department Queue</Btn>
           <Btn variant="secondary" icon={Briefcase}>City Council Agenda</Btn>
           <Btn variant="secondary" icon={AlertCircle}>Escalated Documents</Btn>
-          
+
           <div className="mt-auto pt-4 border-t border-gray-100">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-gray-700">Digital Signature Status</span>
@@ -2490,11 +2507,11 @@ const WMSPage = () => {
   const [action, setAction] = useState(null)
   const [comment, setComment] = useState("")
   const [done, setDone] = useState(false)
-  
+
   const targetDocId = new URLSearchParams(window.location.search).get("docId");
-  const doc = mockPendingSignatures.find(d => d.id === targetDocId) || 
-              mockLegislativeQueue.find(d => d.id === targetDocId) ||
-              mockDocuments.find(d => d.id === targetDocId) || {
+  const doc = mockPendingSignatures.find(d => d.id === targetDocId) ||
+    mockLegislativeQueue.find(d => d.id === targetDocId) ||
+    mockDocuments.find(d => d.id === targetDocId) || {
     id: "DTS-2026-000085",
     title: "Medical Supplies — Q3 2026",
     type: "Purchase Request",
@@ -2512,7 +2529,7 @@ const WMSPage = () => {
 
   const handleSubmit = () => {
     if ((action === "reject" || action === "return") && !comment.trim()) return
-    
+
     const isPendingSig = mockPendingSignatures.some(d => d.id === doc.id);
     const isLegQueue = mockLegislativeQueue.some(d => d.id === doc.id);
 
@@ -2526,7 +2543,7 @@ const WMSPage = () => {
       if (isPendingSig) updatePendingSignature.mutate({ id: doc.id, priority: "returned" });
       if (isLegQueue) updateLegislativeQueue.mutate({ id: doc.id, status: "Needs Revision" });
     }
-    
+
     setDone(true)
   }
 
@@ -2596,19 +2613,19 @@ const WMSPage = () => {
                 <p className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{doc.type}</p>
                 <h2 className="text-lg font-bold text-gray-900 mt-1">{doc.title}</h2>
               </div>
-              
+
               {/* Just a generic mockup body that adapts slightly */}
               <div className="grid grid-cols-2 gap-3 bg-gray-50 p-4 rounded-lg text-xs mb-6">
                 {[
-                  ["Requesting Office", doc.office], 
-                  ["Requested By", doc.submittedBy || "Unknown User"], 
-                  ["Status", doc.daysInQueue ? `${doc.daysInQueue} days in queue` : "Active"], 
+                  ["Requesting Office", doc.office],
+                  ["Requested By", doc.submittedBy || "Unknown User"],
+                  ["Status", doc.daysInQueue ? `${doc.daysInQueue} days in queue` : "Active"],
                   ["Purpose", `Official documentation for ${doc.title}`]
                 ].map(([k, v]) => (
                   <div key={k}><span className="text-gray-400">{k}:</span><br /><strong>{v}</strong></div>
                 ))}
               </div>
-              
+
               <div className="p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50 text-center mb-6">
                 <FileText size={32} className="mx-auto text-gray-300 mb-2" />
                 <p className="text-sm font-medium text-gray-600">Document Body Content</p>
@@ -2636,12 +2653,12 @@ const WMSPage = () => {
             <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-2"><FileText size={14} />Document Summary</p>
             <dl className="space-y-2">
               {[
-                ["Tracking No.", doc.id, "font-mono text-xs"], 
-                ["Document Type", doc.type, "text-xs"], 
-                ["Submitted By", doc.submittedBy || "Unknown", "text-xs"], 
-                ["Office", doc.office, "text-xs"], 
-                ["Days in Queue", doc.daysInQueue ? <span className={doc.priority === "overdue" ? "text-red-600 font-bold text-xs" : "text-amber-600 font-bold text-xs"}>{doc.daysInQueue} days</span> : "N/A", ""], 
-                ["Deadline", doc.dueDate || "N/A", "text-xs font-medium"], 
+                ["Tracking No.", doc.id, "font-mono text-xs"],
+                ["Document Type", doc.type, "text-xs"],
+                ["Submitted By", doc.submittedBy || "Unknown", "text-xs"],
+                ["Office", doc.office, "text-xs"],
+                ["Days in Queue", doc.daysInQueue ? <span className={doc.priority === "overdue" ? "text-red-600 font-bold text-xs" : "text-amber-600 font-bold text-xs"}>{doc.daysInQueue} days</span> : "N/A", ""],
+                ["Deadline", doc.dueDate || "N/A", "text-xs font-medium"],
                 ["Classification", <ClassificationBadge level={doc.classification || "Internal"} />, ""]
               ].map(([k, v, cls]) => (
                 <div key={k} className="flex justify-between items-center gap-2">
