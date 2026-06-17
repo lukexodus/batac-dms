@@ -2200,19 +2200,200 @@ const MayorPage = () => {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SP Secretary Modals
+// ─────────────────────────────────────────────────────────────────────────────
+
+const OrderOfBusinessModal = ({ open, onClose, items }) => {
+  if (!open) return null;
+  const firstReading = items.filter(i => i.status === "For 1st Reading");
+  const committee = items.filter(i => i.status === "In Committee");
+  const secondReading = items.filter(i => i.status === "For 2nd Reading");
+  const thirdReading = items.filter(i => i.status === "3rd Reading");
+
+  const renderList = (list) => {
+    if (list.length === 0) return <p className="text-xs text-gray-400 py-2">No items</p>
+    return (
+      <ul className="space-y-2">
+        {list.map(item => (
+          <li key={item.id} className="text-sm bg-gray-50 border border-gray-100 rounded p-2">
+            <span className="font-mono text-xs text-green-600 mr-2">{item.id}</span>
+            <span className="font-medium text-gray-800">{item.title}</span>
+            <div className="text-xs text-gray-500 mt-1">{item.type} | {item.author} | {item.committee}</div>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Order of Business" subtitle="Generated Session Agenda" width="max-w-3xl">
+      <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
+        <div>
+          <h4 className="font-bold text-gray-900 mb-3 border-b pb-1">I. First Reading & Referral to Committees</h4>
+          {renderList(firstReading)}
+        </div>
+        <div>
+          <h4 className="font-bold text-gray-900 mb-3 border-b pb-1">II. Committee Reports</h4>
+          {renderList(committee)}
+        </div>
+        <div>
+          <h4 className="font-bold text-gray-900 mb-3 border-b pb-1">III. Second Reading</h4>
+          {renderList(secondReading)}
+        </div>
+        <div>
+          <h4 className="font-bold text-gray-900 mb-3 border-b pb-1">IV. Third Reading</h4>
+          {renderList(thirdReading)}
+        </div>
+      </div>
+      <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
+        <Btn variant="secondary" onClick={onClose}>Close</Btn>
+        <Btn variant="primary" icon={Printer} onClick={() => window.alert('Printing...')}>Print Agenda</Btn>
+      </div>
+    </Modal>
+  )
+}
+
+const LogCommitteeReportModal = ({ open, onClose, items, onSave }) => {
+  const [selectedId, setSelectedId] = useState("");
+  const [outcome, setOutcome] = useState("Approved");
+  const [notes, setNotes] = useState("");
+
+  const eligibleItems = items.filter(i => i.status === "In Committee" || i.status === "For 1st Reading");
+
+  const handleSubmit = () => {
+    if (!selectedId) return;
+    let nextStatus = "For 2nd Reading";
+    if (outcome === "Deferred") {
+      nextStatus = "In Committee"; // Stays in committee
+    }
+    onSave({ id: selectedId, status: nextStatus });
+    onClose();
+  }
+
+  if (!open) return null;
+
+  return (
+    <Modal open={open} onClose={onClose} title="Log Committee Report" subtitle="Record the outcome of a committee hearing">
+      <div className="p-6 space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Select Document</label>
+          <select className="w-full border rounded-lg p-2 text-sm" value={selectedId} onChange={e => setSelectedId(e.target.value)}>
+            <option value="">-- Select a document --</option>
+            {eligibleItems.map(i => <option key={i.id} value={i.id}>[{i.id}] {i.title}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Committee Decision</label>
+          <select className="w-full border rounded-lg p-2 text-sm" value={outcome} onChange={e => setOutcome(e.target.value)}>
+            <option value="Approved">Approved / Recommended</option>
+            <option value="Amended">Approved with Amendments</option>
+            <option value="Deferred">Deferred</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Remarks</label>
+          <textarea className="w-full border rounded-lg p-2 text-sm" rows={3} value={notes} onChange={e => setNotes(e.target.value)} />
+        </div>
+      </div>
+      <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
+        <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" onClick={handleSubmit} disabled={!selectedId}>Log Report</Btn>
+      </div>
+    </Modal>
+  )
+}
+
+const FloorVotingModal = ({ open, onClose, items, onSave }) => {
+  const [selectedId, setSelectedId] = useState("");
+  const [vote, setVote] = useState("Approve");
+
+  const eligibleItems = items.filter(i => i.status === "For 2nd Reading" || i.status === "3rd Reading");
+  const selectedDoc = eligibleItems.find(i => i.id === selectedId);
+
+  const handleSubmit = () => {
+    if (!selectedDoc) return;
+
+    let nextStatus = "Archived"; // Default if rejected
+
+    if (vote === "Approve") {
+      if (selectedDoc.type === "Resolution") {
+        nextStatus = "VP Certification";
+      } else if (selectedDoc.type === "Ordinance") {
+        nextStatus = selectedDoc.status === "For 2nd Reading" ? "3rd Reading" : "VP Certification";
+      }
+    }
+
+    onSave({ id: selectedId, status: nextStatus });
+    onClose();
+  }
+
+  if (!open) return null;
+
+  return (
+    <Modal open={open} onClose={onClose} title="Record Floor Vote" subtitle="Log the session voting outcome">
+      <div className="p-6 space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Select Document</label>
+          <select className="w-full border rounded-lg p-2 text-sm" value={selectedId} onChange={e => setSelectedId(e.target.value)}>
+            <option value="">-- Select a document --</option>
+            {eligibleItems.map(i => <option key={i.id} value={i.id}>[{i.status}] {i.id} - {i.title}</option>)}
+          </select>
+        </div>
+
+        {selectedDoc && (
+          <div className="bg-blue-50 text-blue-800 p-3 rounded-lg text-xs">
+            <span className="font-bold">{selectedDoc.type}</span> currently at <span className="font-bold">{selectedDoc.status}</span>.
+            {selectedDoc.type === "Resolution" && vote === "Approve" ? " Will proceed to VP Certification." : ""}
+            {selectedDoc.type === "Ordinance" && selectedDoc.status === "For 2nd Reading" && vote === "Approve" ? " Will proceed to 3rd Reading." : ""}
+            {selectedDoc.type === "Ordinance" && selectedDoc.status === "3rd Reading" && vote === "Approve" ? " Will proceed to VP Certification." : ""}
+          </div>
+        )}
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Session Vote Outcome</label>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="vote" value="Approve" checked={vote === "Approve"} onChange={e => setVote(e.target.value)} />
+              <span className="text-sm font-medium">Approved</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="vote" value="Reject" checked={vote === "Reject"} onChange={e => setVote(e.target.value)} />
+              <span className="text-sm font-medium">Voted Down</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
+        <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" onClick={handleSubmit} disabled={!selectedId}>Record Vote</Btn>
+      </div>
+    </Modal>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 const SPSecretaryPage = () => {
   const [showLogDoc, setShowLogDoc] = useState(false)
   const [showScheduleSession, setShowScheduleSession] = useState(false)
+  const [showOrderOfBusiness, setShowOrderOfBusiness] = useState(false)
+  const [showCommitteeReport, setShowCommitteeReport] = useState(false)
+  const [showFloorVote, setShowFloorVote] = useState(false)
+
+  // Use dynamic queries
+  const { data: legislativeQueue = [] } = useLegislativeQueue();
+  const updateLegislativeQueue = useUpdateLegislativeQueue();
+  const { data: sessionCalendar = [] } = useSessionCalendar();
+  const { data: legislativeOutput = [] } = useLegislativeOutput();
 
   // Dynamic calculations for SP Secretary Dashboard
-  const activeQueueCount = mockLegislativeQueue.filter(i => !["Completed", "Archived"].includes(i.status)).length;
+  const activeQueueCount = legislativeQueue.filter(i => !["Completed", "Archived"].includes(i.status)).length;
 
-  const nextSession = mockSessionCalendar.length > 0 ? mockSessionCalendar[0] : null;
+  const nextSession = sessionCalendar.length > 0 ? sessionCalendar[0] : null;
   const nextSessionItems = nextSession ? nextSession.items : 0;
   const nextSessionDate = nextSession ? nextSession.date : "TBD";
 
-  const latestOutput = mockLegislativeOutput.length > 0 ? mockLegislativeOutput[mockLegislativeOutput.length - 1] : { resolutions: 0, ordinances: 0 };
+  const latestOutput = legislativeOutput.length > 0 ? legislativeOutput[legislativeOutput.length - 1] : { resolutions: 0, ordinances: 0 };
   const approvedThisMonth = latestOutput.resolutions + latestOutput.ordinances;
 
   const forMayorReview = mockLegislativeQueue.filter(i => i.status === "VP Certification").length;
@@ -2221,6 +2402,9 @@ const SPSecretaryPage = () => {
     <div className="p-6">
       <LogDocumentModal open={showLogDoc} onClose={() => setShowLogDoc(false)} />
       <ScheduleSessionModal open={showScheduleSession} onClose={() => setShowScheduleSession(false)} />
+      <OrderOfBusinessModal open={showOrderOfBusiness} onClose={() => setShowOrderOfBusiness(false)} items={legislativeQueue} />
+      <LogCommitteeReportModal open={showCommitteeReport} onClose={() => setShowCommitteeReport(false)} items={legislativeQueue} onSave={updateLegislativeQueue.mutate} />
+      <FloorVotingModal open={showFloorVote} onClose={() => setShowFloorVote(false)} items={legislativeQueue} onSave={updateLegislativeQueue.mutate} />
       <PageHdr
         title="SP Secretary's Dashboard"
         subtitle="Office of the Secretary, Sangguniang Panlungsod · 7th SP · Batac City"
@@ -2256,7 +2440,7 @@ const SPSecretaryPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {mockLegislativeQueue.map((item, i) => (
+                {legislativeQueue.map((item, i) => (
                   <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors last:border-0">
                     <td className="px-4 py-3 font-mono text-xs text-green-600 whitespace-nowrap">{item.id}</td>
                     <td className="px-4 py-3" style={{ maxWidth: 260 }}>
@@ -2303,9 +2487,9 @@ const SPSecretaryPage = () => {
             <div className="space-y-2">
               {[
                 [Plus, "Log Incoming Document", () => setShowLogDoc(true)],
-                [Printer, "Print Session Agenda", null],
-                [FileText, "Draft Session Minutes", null],
-                [Archive, "Archive Released Docs", null],
+                [Printer, "Generate Session Agenda", () => setShowOrderOfBusiness(true)],
+                [FileText, "Log Committee Report", () => setShowCommitteeReport(true)],
+                [Archive, "Record Floor Vote", () => setShowFloorVote(true)],
               ].map(([Icon, label, handler]) => (
                 <button key={label} onClick={handler || undefined} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-colors text-left">
                   <Icon size={14} className="brand-text flex-shrink-0" />
