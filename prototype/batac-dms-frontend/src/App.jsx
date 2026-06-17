@@ -30,7 +30,9 @@ import {
   useAddDocument,
   useRemovePendingSignature,
   useAddSession,
-  useAddLegislativeQueue
+  useAddLegislativeQueue,
+  useUpdateLegislativeQueue,
+  useUpdatePendingSignature
 } from './api/queries';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -363,7 +365,7 @@ const LogDocumentModal = ({ open, onClose }) => {
   const handleLogDocument = () => {
     const newId = "DTS-2026-" + Math.floor(1000 + Math.random() * 9000);
     setTrackingId(newId);
-    
+
     if (isLegislative) {
       addLegislativeQueue.mutate({
         id: newId,
@@ -1679,7 +1681,7 @@ const QRDisplay = ({ size = 80 }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // SIDEBAR
 // ─────────────────────────────────────────────────────────────────────────────
-export const DEBUG_USER_ROLE = "sp"; // "mayor" or "sp"
+export const DEBUG_USER_ROLE = "mayor"; // "mayor" or "sp"
 
 
 
@@ -1967,13 +1969,81 @@ const KitchenSinkPage = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 const MayorPage = () => {
   const queryClient = useQueryClient()
-
+  const [timeFilter, setTimeFilter] = useState("year")
+  const { data: documents = [] } = useDocuments()
+  
   const pendingCount = mockPendingSignatures.length;
   const overdueDocs = mockPendingSignatures.filter(d => d.priority === "overdue");
   const overdueCount = overdueDocs.length;
-  const cityWideOverdue = mockDeptWorkload.reduce((sum, d) => sum + d.overdue, 0);
-  const activeDocs = mockDeptWorkload.reduce((sum, d) => sum + d.pending, 0);
-  const currentSLA = mockSLAData.length > 0 ? mockSLAData[mockSLAData.length - 1].compliant : 95.3;
+  
+  // 1. Dynamic Dept Workload
+  const activeDocs = documents.filter(d => !["Approved", "Released", "Archived", "Completed"].includes(d.status)).length;
+  const cityWideOverdue = documents.filter(d => d.priority === "overdue" || (d.daysInQueue && d.daysInQueue > 5)).length;
+
+  const now = new Date("2026-06-17");
+  const filteredDocs = documents.filter(doc => {
+    const docDate = new Date(doc.date || doc.dueDate || "2026-05-01");
+    const diffTime = Math.abs(now - docDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (timeFilter === "month") return diffDays <= 30;
+    return diffDays <= 365;
+  });
+
+  const deptGroups = {};
+  filteredDocs.forEach(doc => {
+    if (!deptGroups[doc.office]) {
+      deptGroups[doc.office] = { A: 0, fullMark: 0 };
+    }
+    deptGroups[doc.office].fullMark += 1;
+    if (!["Approved", "Released", "Archived", "Completed"].includes(doc.status)) {
+      deptGroups[doc.office].A += 1;
+    }
+  });
+  const dynamicDeptWorkload = Object.keys(deptGroups).map(office => ({
+    id: office,
+    subject: office.replace("City ", ""),
+    A: deptGroups[office].A,
+    fullMark: Math.max(10, deptGroups[office].fullMark),
+    overdue: 0
+  }));
+
+  // 2. Dynamic SLA Data
+  const slaGroups = {};
+  
+  if (timeFilter === "year") {
+    // Group by month
+    const months = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
+    months.forEach(m => slaGroups[m] = { total: 0, comp: 0 });
+    filteredDocs.forEach(doc => {
+      const dDate = new Date(doc.date || "2026-05-01");
+      const mName = dDate.toLocaleString('default', { month: 'short' });
+      if (slaGroups[mName]) {
+        slaGroups[mName].total += 1;
+        if (doc.daysInQueue <= 5) slaGroups[mName].comp += 1;
+      }
+    });
+  } else {
+    // Group by week
+    const weeks = ["Week 1", "Week 2", "Week 3", "Week 4"];
+    weeks.forEach(w => slaGroups[w] = { total: 0, comp: 0 });
+    filteredDocs.forEach(doc => {
+      const dDate = new Date(doc.date || "2026-05-01");
+      const diff = Math.ceil(Math.abs(now - dDate) / (1000 * 60 * 60 * 24));
+      let wIdx = Math.floor((30 - diff) / 7);
+      if (wIdx < 0) wIdx = 0; if (wIdx > 3) wIdx = 3;
+      const wName = weeks[wIdx];
+      slaGroups[wName].total += 1;
+      if (doc.daysInQueue <= 5) slaGroups[wName].comp += 1;
+    });
+  }
+
+  const dynamicSLAData = Object.keys(slaGroups).map(k => {
+    const total = slaGroups[k].total || 1; // avoid divide by zero
+    const comp = slaGroups[k].total === 0 ? 95 : Math.round((slaGroups[k].comp / total) * 100);
+    return { name: k, compliant: comp, breach: 100 - comp };
+  });
+
+  const currentSLA = dynamicSLAData.length > 0 ? dynamicSLAData[dynamicSLAData.length - 1].compliant : 95;
 
   const handleRefresh = () => {
     queryClient.invalidateQueries()
@@ -1983,7 +2053,7 @@ const MayorPage = () => {
     <div className="p-6">
       <PageHdr
         title="Mayor's Dashboard"
-        subtitle="Mayor Mark Christian 'Markee' R. Chua · City of Batac, Ilocos Norte"
+        subtitle="Mayor Mark Christian 'Markee' R. Chua — City of Batac, Ilocos Norte"
         breadcrumb={["Dashboards", "Mayor's Dashboard"]}
         actions={<>
           <Btn variant="secondary" size="sm" icon={RefreshCw} onClick={handleRefresh}>Refresh</Btn>
@@ -2007,7 +2077,7 @@ const MayorPage = () => {
       <div className="grid grid-cols-4 gap-4 mb-6">
         <StatCard title="Pending Signature" value={pendingCount.toString()} subtitle={`${overdueCount} are overdue`} icon={FileCheck} color={overdueCount > 0 ? "red" : "amber"} trend={pendingCount > 10 ? "up" : "down"} trendValue="" />
         <StatCard title="City-Wide Overdue" value={cityWideOverdue.toString()} subtitle="Across departments" icon={AlertTriangle} color={cityWideOverdue > 5 ? "red" : "amber"} trend="up" trendValue="" />
-        <StatCard title="SLA Compliance" value={`${currentSLA}%`} subtitle="This month · Target: 95%" icon={Activity} color={currentSLA >= 95 ? "green" : "red"} trend={currentSLA >= 95 ? "up" : "down"} trendValue="" />
+        <StatCard title="SLA Compliance" value={`${currentSLA}%`} subtitle="This month — Target: 95%" icon={Activity} color={currentSLA >= 95 ? "green" : "red"} trend={currentSLA >= 95 ? "up" : "down"} trendValue="" />
         <StatCard title="Active Documents" value={activeDocs.toString()} subtitle="In workflow system" icon={FileText} color="blue" trend="up" trendValue="" />
       </div>
 
@@ -2015,22 +2085,22 @@ const MayorPage = () => {
         {/* Pending signatures table */}
         <div className="col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
-            <SectionHdr title="Pending Your Signature" subtitle="Sorted by urgency — ARTA deadlines apply"
-              action={<Btn variant="ghost" size="xs" icon={Eye}>View All ({pendingCount})</Btn>} />
+            <SectionHdr title="Pending Your Signature" subtitle="Sorted by urgency — ARTA deadlines apply" />
           </div>
-          <div>
+          <div className="divide-y divide-gray-100 max-h-[300px] overflow-y-auto">
             {mockPendingSignatures.map((doc, i) => (
-              <div key={doc.id} className={`px-5 py-3.5 flex items-center gap-4 hover:bg-gray-50 cursor-pointer transition-colors ${i !== mockPendingSignatures.length - 1 ? "border-b border-gray-50" : ""}`}>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs text-gray-400">{doc.id}</span>
-                    <PriorityTag priority={doc.priority} />
+              <div key={i} className={`p-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${doc.priority === "overdue" ? "bg-red-50/50" : ""}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${doc.priority === "overdue" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"}`}>
+                    <FileCheck size={16} />
                   </div>
-                  <p className="text-sm font-medium text-gray-900 truncate">{doc.title}</p>
-                  <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-xs text-gray-400 flex items-center gap-1"><Building size={10} />{doc.office}</span>
-                    <span className="text-xs text-gray-400 flex items-center gap-1"><Clock size={10} />{doc.daysInQueue}d in queue</span>
-                    <span className={`text-xs ${doc.priority === "overdue" ? "text-red-600 font-medium" : "text-gray-400"}`}>Due: {doc.dueDate}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{doc.title}</p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-xs text-gray-400 flex items-center gap-1"><Building size={10} />{doc.office}</span>
+                      <span className="text-xs text-gray-400 flex items-center gap-1"><Clock size={10} />{doc.daysInQueue}d in queue</span>
+                      <span className={`text-xs ${doc.priority === "overdue" ? "text-red-600 font-medium" : "text-gray-400"}`}>Due: {doc.dueDate}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-1.5 flex-shrink-0">
@@ -2041,11 +2111,36 @@ const MayorPage = () => {
           </div>
         </div>
 
+        {/* Action Panel */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3">
+          <SectionHdr title="Quick Actions" subtitle="Frequently used tasks" />
+          <Btn variant="primary" icon={Plus} onClick={() => window.alert('Route New Memorandum')}>Route New Memorandum</Btn>
+          <Btn variant="secondary" icon={Layers}>View Department Queue</Btn>
+          <Btn variant="secondary" icon={Briefcase}>City Council Agenda</Btn>
+          <Btn variant="secondary" icon={AlertCircle}>Escalated Documents</Btn>
+          
+          <div className="mt-auto pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-700">Digital Signature Status</span>
+              <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">ACTIVE</span>
+            </div>
+            <p className="text-xs text-gray-400">Your PKI token is validated and ready for document signing.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-5">
         {/* SLA chart */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <SectionHdr title="SLA Compliance Trend" subtitle="Monthly compliance rate (%)" />
+          <div className="flex items-center justify-between mb-4">
+            <SectionHdr title="SLA Compliance Trend" subtitle="Dynamic ARTA compliance rate (%)" />
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button onClick={() => setTimeFilter("year")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${timeFilter === "year" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Year</button>
+              <button onClick={() => setTimeFilter("month")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${timeFilter === "month" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Month</button>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={185}>
-            <AreaChart data={mockSLAData} margin={{ top: 2, right: 2, left: -24, bottom: 0 }}>
+            <AreaChart data={dynamicSLAData} margin={{ top: 2, right: 2, left: -24, bottom: 0 }}>
               <defs>
                 <linearGradient id="slaG" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#00A651" stopOpacity={0.15} />
@@ -2054,40 +2149,40 @@ const MayorPage = () => {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis domain={[85, 100]} tick={{ fontSize: 10 }} />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
               <Tooltip />
               <Area type="monotone" dataKey="compliant" stroke="#00A651" fill="url(#slaG)" strokeWidth={2} dot={{ r: 3 }} name="Compliant %" />
             </AreaChart>
           </ResponsiveContainer>
-          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-xs text-gray-400">Target: 95%</span>
-            <span className="text-xs font-medium text-green-600 flex items-center gap-1"><TrendingUp size={12} />Above target</span>
-          </div>
         </div>
-      </div>
 
-      {/* Department workload */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <SectionHdr title="Department Document Workload" subtitle="Active documents by department and status" />
-        <ResponsiveContainer width="100%" height={195}>
-          <BarChart data={mockDeptWorkload} barSize={18} margin={{ top: 2, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 10 }} />
-            <Tooltip />
-            <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="completed" fill="#bbf7d0" name="Completed" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="pending" fill="#00A651" name="Pending" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="overdue" fill="#dc2626" name="Overdue" radius={[2, 2, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        {/* Dept workload */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <SectionHdr title="Department Document Workload" subtitle="Active vs Total Processed" />
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button onClick={() => setTimeFilter("year")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${timeFilter === "year" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Year</button>
+              <button onClick={() => setTimeFilter("month")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${timeFilter === "month" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>Month</button>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={185}>
+            <BarChart data={dynamicDeptWorkload} margin={{ top: 2, right: 2, left: -24, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <XAxis dataKey="subject" tick={{ fontSize: 9 }} interval={0} angle={-30} textAnchor="end" height={40} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: '10px' }} />
+              <Bar dataKey="fullMark" fill="#e5e7eb" name="Total Documents" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="A" fill="#3b82f6" name="Active / Pending" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PAGE: SP SECRETARY DASHBOARD
 // ─────────────────────────────────────────────────────────────────────────────
 const SPSecretaryPage = () => {
   const [showLogDoc, setShowLogDoc] = useState(false)
@@ -2095,14 +2190,14 @@ const SPSecretaryPage = () => {
 
   // Dynamic calculations for SP Secretary Dashboard
   const activeQueueCount = mockLegislativeQueue.filter(i => !["Completed", "Archived"].includes(i.status)).length;
-  
+
   const nextSession = mockSessionCalendar.length > 0 ? mockSessionCalendar[0] : null;
   const nextSessionItems = nextSession ? nextSession.items : 0;
   const nextSessionDate = nextSession ? nextSession.date : "TBD";
 
   const latestOutput = mockLegislativeOutput.length > 0 ? mockLegislativeOutput[mockLegislativeOutput.length - 1] : { resolutions: 0, ordinances: 0 };
   const approvedThisMonth = latestOutput.resolutions + latestOutput.ordinances;
-  
+
   const forMayorReview = mockLegislativeQueue.filter(i => i.status === "VP Certification").length;
 
   return (
@@ -2395,9 +2490,43 @@ const WMSPage = () => {
   const [action, setAction] = useState(null)
   const [comment, setComment] = useState("")
   const [done, setDone] = useState(false)
+  
+  const targetDocId = new URLSearchParams(window.location.search).get("docId");
+  const doc = mockPendingSignatures.find(d => d.id === targetDocId) || 
+              mockLegislativeQueue.find(d => d.id === targetDocId) ||
+              mockDocuments.find(d => d.id === targetDocId) || {
+    id: "DTS-2026-000085",
+    title: "Medical Supplies — Q3 2026",
+    type: "Purchase Request",
+    office: "City Health Office",
+    submittedBy: "Dr. Juan C. Reyes",
+    daysInQueue: 4,
+    dueDate: "2026-06-07",
+    priority: "overdue",
+    classification: "Internal"
+  };
+
+  const removePendingSignature = useRemovePendingSignature();
+  const updatePendingSignature = useUpdatePendingSignature();
+  const updateLegislativeQueue = useUpdateLegislativeQueue();
 
   const handleSubmit = () => {
     if ((action === "reject" || action === "return") && !comment.trim()) return
+    
+    const isPendingSig = mockPendingSignatures.some(d => d.id === doc.id);
+    const isLegQueue = mockLegislativeQueue.some(d => d.id === doc.id);
+
+    if (action === "approve") {
+      if (isPendingSig) removePendingSignature.mutate(doc.id);
+      if (isLegQueue) updateLegislativeQueue.mutate({ id: doc.id, status: "Completed" });
+    } else if (action === "reject") {
+      if (isPendingSig) updatePendingSignature.mutate({ id: doc.id, priority: "rejected" });
+      if (isLegQueue) updateLegislativeQueue.mutate({ id: doc.id, status: "Archived" });
+    } else if (action === "return") {
+      if (isPendingSig) updatePendingSignature.mutate({ id: doc.id, priority: "returned" });
+      if (isLegQueue) updateLegislativeQueue.mutate({ id: doc.id, status: "Needs Revision" });
+    }
+    
     setDone(true)
   }
 
@@ -2405,15 +2534,15 @@ const WMSPage = () => {
     <div className="p-6 flex items-center justify-center" style={{ minHeight: "60vh" }}>
       <div className="bg-white rounded-xl border border-gray-200 p-10 max-w-md w-full text-center">
         {action === "approve" && <CheckCircle size={52} className="text-green-500 mx-auto mb-4" />}
-        {action === "reject"  && <XCircle     size={52} className="text-red-500 mx-auto mb-4" />}
-        {action === "return"  && <RotateCcw   size={52} className="text-amber-500 mx-auto mb-4" />}
+        {action === "reject" && <XCircle size={52} className="text-red-500 mx-auto mb-4" />}
+        {action === "return" && <RotateCcw size={52} className="text-amber-500 mx-auto mb-4" />}
         <h2 className="text-lg font-bold text-gray-900 mb-2">
           {action === "approve" ? "Document Approved" : action === "reject" ? "Document Rejected" : "Returned for Revision"}
         </h2>
         <p className="text-sm text-gray-500 mb-4">
-          {action === "approve" ? "Forwarded to the next workflow step. The City Budget Office has been notified."
-           : action === "reject" ? "The request has been rejected. The submitter (Dr. Reyes, City Health) has been notified."
-           : "Returned to Dr. Reyes (City Health) with your revision instructions."}
+          {action === "approve" ? "Forwarded to the next workflow step. The concerned office has been notified."
+            : action === "reject" ? `The request has been rejected. The submitter (${doc.submittedBy || "Unknown"}, ${doc.office}) has been notified.`
+              : `Returned to ${doc.submittedBy || "Unknown"} (${doc.office}) with your revision instructions.`}
         </p>
         {comment && (
           <div className="bg-gray-50 rounded-lg p-3 mb-4 text-left">
@@ -2440,9 +2569,9 @@ const WMSPage = () => {
         <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50 flex-shrink-0">
             <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span className="font-medium text-gray-700">Purchase Request — Medical Supplies Q3 2026</span>
+              <span className="font-medium text-gray-700">{doc.type} — {doc.title}</span>
               <span className="text-gray-300">·</span>
-              <span className="font-mono">DTS-2026-000085</span>
+              <span className="font-mono">{doc.id}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Btn variant="ghost" size="xs" icon={Download}>Download</Btn>
@@ -2456,48 +2585,39 @@ const WMSPage = () => {
                 <div>
                   <p className="text-[9px] text-gray-400 uppercase tracking-widest">Republic of the Philippines · Province of Ilocos Norte</p>
                   <p className="text-base font-bold text-gray-800 mt-0.5">City Government of Batac</p>
-                  <p className="text-xs text-gray-500">City Health Office</p>
+                  <p className="text-xs text-gray-500">{doc.office}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-mono text-[10px] text-gray-400">DTS-2026-000085</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">May 24, 2026</p>
+                  <p className="font-mono text-[10px] text-gray-400">{doc.id}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{doc.dueDate ? "Due: " + doc.dueDate : "May 24, 2026"}</p>
                 </div>
               </div>
               <div className="text-center mb-7">
-                <p className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Purchase Request</p>
-                <h2 className="text-lg font-bold text-gray-900 mt-1">Medical Supplies — Q3 2026</h2>
+                <p className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{doc.type}</p>
+                <h2 className="text-lg font-bold text-gray-900 mt-1">{doc.title}</h2>
               </div>
+              
+              {/* Just a generic mockup body that adapts slightly */}
               <div className="grid grid-cols-2 gap-3 bg-gray-50 p-4 rounded-lg text-xs mb-6">
-                {[["Requesting Office","City Health Office"],["Requested By","Dr. Juan C. Reyes, City Health Officer"],["Date Requested","May 24, 2026"],["Purpose","Quarterly medical supplies for CHO operations"]].map(([k,v]) => (
+                {[
+                  ["Requesting Office", doc.office], 
+                  ["Requested By", doc.submittedBy || "Unknown User"], 
+                  ["Status", doc.daysInQueue ? `${doc.daysInQueue} days in queue` : "Active"], 
+                  ["Purpose", `Official documentation for ${doc.title}`]
+                ].map(([k, v]) => (
                   <div key={k}><span className="text-gray-400">{k}:</span><br /><strong>{v}</strong></div>
                 ))}
               </div>
-              <table className="w-full text-xs border-collapse mb-6">
-                <thead>
-                  <tr className="bg-gray-100">
-                    {["Item Description","Qty","Unit","Estimated Cost"].map(h => (
-                      <th key={h} className={`p-2 border border-gray-200 font-semibold text-gray-600 ${h === "Estimated Cost" ? "text-right" : "text-left"}`}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[["Amoxicillin 500mg Capsules","500","capsules","₱2,500.00"],["Metformin 500mg Tablets","1,000","tablets","₱3,200.00"],["IV Fluids (NSS 1L)","200","bags","₱8,000.00"],["Surgical Gloves Medium (box)","50","boxes","₱4,500.00"],["N95 Respirator Masks","100","pieces","₱5,000.00"]].map((row, i) => (
-                    <tr key={i}>
-                      <td className="p-2 border border-gray-200">{row[0]}</td>
-                      <td className="p-2 border border-gray-200">{row[1]}</td>
-                      <td className="p-2 border border-gray-200">{row[2]}</td>
-                      <td className="p-2 border border-gray-200 text-right">{row[3]}</td>
-                    </tr>
-                  ))}
-                  <tr className="bg-gray-100 font-bold">
-                    <td colSpan={3} className="p-2 border border-gray-200 text-right">TOTAL ESTIMATED COST</td>
-                    <td className="p-2 border border-gray-200 text-right">₱23,200.00</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p className="text-xs text-gray-500 italic">I hereby certify that the above items are necessary and will be used for the official functions of the City Health Office of Batac City, Ilocos Norte.</p>
+              
+              <div className="p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50 text-center mb-6">
+                <FileText size={32} className="mx-auto text-gray-300 mb-2" />
+                <p className="text-sm font-medium text-gray-600">Document Body Content</p>
+                <p className="text-xs text-gray-400 mt-1">Full content is available in the original PDF attachment.</p>
+              </div>
+
+              <p className="text-xs text-gray-500 italic">I hereby certify that the above statements are true and correct and will be used for the official functions of the {doc.office} of Batac City.</p>
               <div className="mt-8 grid grid-cols-3 gap-4 pt-5 border-t border-gray-200">
-                {[["Requested By","Dr. Juan C. Reyes","[Signed]"],["Noted By","City Administrator","[Signed]"],["Approved By","Mayor's Office","____________"]].map(([r,n,s]) => (
+                {[["Requested By", doc.submittedBy || "Submitter", "[Signed]"], ["Noted By", "Department Head", "[Signed]"], ["Approved By", "Mayor's Office", "____________"]].map(([r, n, s]) => (
                   <div key={r} className="text-center">
                     <p className="text-xs text-gray-400 italic mb-6">{s}</p>
                     <p className="text-xs font-semibold text-gray-700">{n}</p>
@@ -2515,7 +2635,15 @@ const WMSPage = () => {
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-2"><FileText size={14} />Document Summary</p>
             <dl className="space-y-2">
-              {[["Tracking No.","DTS-2026-000085","font-mono text-xs"],["Document Type","Purchase Request","text-xs"],["Submitted By","Dr. Juan C. Reyes","text-xs"],["Office","City Health Office","text-xs"],["Days in Queue",<span className="text-red-600 font-bold text-xs">4 days ⚠ OVERDUE</span>,""],["ARTA Deadline",<span className="text-red-600 font-medium text-xs">June 7, 2026</span>,""],["Classification",<ClassificationBadge level="Internal" />,""]].map(([k,v,cls]) => (
+              {[
+                ["Tracking No.", doc.id, "font-mono text-xs"], 
+                ["Document Type", doc.type, "text-xs"], 
+                ["Submitted By", doc.submittedBy || "Unknown", "text-xs"], 
+                ["Office", doc.office, "text-xs"], 
+                ["Days in Queue", doc.daysInQueue ? <span className={doc.priority === "overdue" ? "text-red-600 font-bold text-xs" : "text-amber-600 font-bold text-xs"}>{doc.daysInQueue} days</span> : "N/A", ""], 
+                ["Deadline", doc.dueDate || "N/A", "text-xs font-medium"], 
+                ["Classification", <ClassificationBadge level={doc.classification || "Internal"} />, ""]
+              ].map(([k, v, cls]) => (
                 <div key={k} className="flex justify-between items-center gap-2">
                   <dt className="text-[10px] text-gray-400 flex-shrink-0">{k}</dt>
                   <dd className={cls || "text-xs font-medium text-right"}>{v}</dd>
@@ -2528,7 +2656,7 @@ const WMSPage = () => {
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <p className="text-xs font-semibold text-gray-700 mb-3">Workflow Position</p>
             <div className="space-y-1.5">
-              {[["Submitted by CHO",true,false],["Department Head Endorsement",true,false],["Budget Office Certification",true,false],["Mayor's Office Approval",false,true],["Release to Requesting Office",false,false]].map(([step, done, current], i) => (
+              {[["Submitted by Originator", true, false], ["Department Head Endorsement", true, false], ["Budget / Admin Certification", true, false], ["Executive Approval", false, true], ["Release to Requesting Office", false, false]].map(([step, done, current], i) => (
                 <div key={i} className={`flex items-center gap-2 p-1.5 rounded ${current ? "bg-amber-50" : ""}`}>
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${done ? "bg-green-100" : current ? "bg-amber-100 border-2 border-amber-400" : "bg-gray-100"}`}>
                     {done ? <Check size={10} className="text-green-600" /> : current ? <Clock size={9} className="text-amber-600" /> : null}
@@ -2545,9 +2673,9 @@ const WMSPage = () => {
             <p className="text-xs font-semibold text-gray-700 mb-3">Take Action</p>
             <div className="space-y-2 mb-4">
               {[
-                { id: "approve", icon: Check,     border: "border-green-500",  bg: "bg-green-50",  label: "Approve",             sub: "Forward to next step" },
-                { id: "return",  icon: RotateCcw, border: "border-amber-400",  bg: "bg-amber-50",  label: "Return for Revision",  sub: "Send back with comments" },
-                { id: "reject",  icon: X,         border: "border-red-500",    bg: "bg-red-50",    label: "Reject",               sub: "Terminate this request" },
+                { id: "approve", icon: Check, border: "border-green-500", bg: "bg-green-50", label: "Approve", sub: "Forward to next step" },
+                { id: "return", icon: RotateCcw, border: "border-amber-400", bg: "bg-amber-50", label: "Return for Revision", sub: "Send back with comments" },
+                { id: "reject", icon: X, border: "border-red-500", bg: "bg-red-50", label: "Reject", sub: "Terminate this request" },
               ].map(({ id, icon: Icon, border, bg, label, sub }) => (
                 <button key={id} onClick={() => setAction(id)}
                   className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${action === id ? `${border} ${bg}` : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"}`}>
@@ -2574,7 +2702,7 @@ const WMSPage = () => {
               )}
             </div>
 
-            <button onClick={handleSubmit} disabled={!action || (( action === "reject" || action === "return") && !comment.trim())}
+            <button onClick={handleSubmit} disabled={!action || ((action === "reject" || action === "return") && !comment.trim())}
               className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed ${action === "reject" ? "bg-red-600 hover:bg-red-700" : action === "return" ? "bg-amber-500 hover:bg-amber-600" : "brand-btn"}`}>
               {action === "approve" ? <><Check size={15} /> Confirm Approval</> : action === "reject" ? <><X size={15} /> Confirm Rejection</> : action === "return" ? <><RotateCcw size={15} /> Send for Revision</> : "Select an Action First"}
             </button>
@@ -2586,7 +2714,6 @@ const WMSPage = () => {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PAGE: DMS REPOSITORY
 // ─────────────────────────────────────────────────────────────────────────────
 const DMSPage = () => {
   const [search, setSearch] = useState("")
@@ -2609,7 +2736,7 @@ const DMSPage = () => {
   return (
     <div className="p-6">
       <UploadDocumentModal open={showUpload} onClose={() => setShowUpload(false)} />
-      <NewDocumentModal   open={showNewDoc} onClose={() => setShowNewDoc(false)} />
+      <NewDocumentModal open={showNewDoc} onClose={() => setShowNewDoc(false)} />
       <PageHdr
         title="Document Repository"
         subtitle="DMS — Search, filter, and manage all registered documents"
@@ -2630,14 +2757,14 @@ const DMSPage = () => {
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none brand-ring" />
           </div>
           <Btn variant="secondary" size="sm" icon={Filter}>Filters</Btn>
-          <Btn variant="ghost" size="sm" icon={RefreshCw} onClick={() => { setSearch(""); setFilters({ type:"All Types", office:"All Offices", status:"All Statuses", classification:"All" }) }}>Reset</Btn>
+          <Btn variant="ghost" size="sm" icon={RefreshCw} onClick={() => { setSearch(""); setFilters({ type: "All Types", office: "All Offices", status: "All Statuses", classification: "All" }) }}>Reset</Btn>
         </div>
         <div className="grid grid-cols-4 gap-3">
           {[
-            ["type", "All Types", ["All Types","SP Resolution","SP Ordinance","Travel Order","Purchase Request","Leave Application","Internal Memorandum","Citizen Request","Citizen Complaint","Project Proposal","Admin Case"]],
-            ["office", "All Offices", ["All Offices","SP Secretariat","Mayor's Office","City Engineering","City Health","City Budget","HRMO","City Administrator","CSWDO","City IT Office"]],
-            ["status", "All Statuses", ["All Statuses","In Workflow","Pending Approval","Approved","Released","Rejected","Under Investigation","Archived"]],
-            ["classification", "All", ["All","Public","Internal","Confidential","Restricted"]],
+            ["type", "All Types", ["All Types", "SP Resolution", "SP Ordinance", "Travel Order", "Purchase Request", "Leave Application", "Internal Memorandum", "Citizen Request", "Citizen Complaint", "Project Proposal", "Admin Case"]],
+            ["office", "All Offices", ["All Offices", "SP Secretariat", "Mayor's Office", "City Engineering", "City Health", "City Budget", "HRMO", "City Administrator", "CSWDO", "City IT Office"]],
+            ["status", "All Statuses", ["All Statuses", "In Workflow", "Pending Approval", "Approved", "Released", "Rejected", "Under Investigation", "Archived"]],
+            ["classification", "All", ["All", "Public", "Internal", "Confidential", "Restricted"]],
           ].map(([key, def, opts]) => (
             <select key={key} value={filters[key]} onChange={e => setFilters({ ...filters, [key]: e.target.value })}
               className="px-3 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none brand-ring">
@@ -2664,7 +2791,7 @@ const DMSPage = () => {
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-400">Sort by:</span>
           <select className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none brand-ring">
-            {["Date (newest first)","Title A–Z","Status","Type","Office"].map(o => <option key={o}>{o}</option>)}
+            {["Date (newest first)", "Title A–Z", "Status", "Type", "Office"].map(o => <option key={o}>{o}</option>)}
           </select>
         </div>
       </div>
@@ -2697,7 +2824,7 @@ const DMSPage = () => {
                   <td colSpan={8} className="text-center py-16">
                     <Search size={28} className="mx-auto text-gray-300 mb-2" />
                     <p className="text-sm text-gray-400">No documents match your filters</p>
-                    <button className="mt-2 text-xs brand-text hover:underline" onClick={() => { setSearch(""); setFilters({ type:"All Types", office:"All Offices", status:"All Statuses", classification:"All" }) }}>Clear all filters</button>
+                    <button className="mt-2 text-xs brand-text hover:underline" onClick={() => { setSearch(""); setFilters({ type: "All Types", office: "All Offices", status: "All Statuses", classification: "All" }) }}>Clear all filters</button>
                   </td>
                 </tr>
               ) : filtered.map((doc, i) => (
@@ -2722,7 +2849,7 @@ const DMSPage = () => {
                   <td className="px-4 py-3.5"><ClassificationBadge level={doc.classification} /></td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {[[Eye,"View"],[Activity,"Track"],[Download,"Download"],[MoreHorizontal,"More"]].map(([Icon, title]) => (
+                      {[[Eye, "View"], [Activity, "Track"], [Download, "Download"], [MoreHorizontal, "More"]].map(([Icon, title]) => (
                         <button key={title} title={title} onClick={() => title === "Track" ? window.open("?page=dts&docId=" + doc.id, "_blank") : null} className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors">
                           <Icon size={13} />
                         </button>

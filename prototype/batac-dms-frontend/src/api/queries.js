@@ -142,3 +142,30 @@ export const useAddLegislativeQueue = () => {
     },
   });
 };
+
+export const useUpdateLegislativeQueue = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }) => {
+      const { data } = await apiClient.patch(`/legislativeQueue/${id}`, updates);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['legislativeQueue'] });
+    },
+  });
+};
+
+export const useUpdatePendingSignature = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }) => {
+      const { data } = await apiClient.patch(`/pendingSignatures/${id}`, updates);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pendingSignatures'] });
+    },
+  });
+};
+
