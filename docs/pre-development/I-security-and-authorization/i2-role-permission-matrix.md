@@ -8,12 +8,12 @@ Audience: Development team — IAM configuration reference
 
 ## How to Read This Matrix
 
-| Symbol | Meaning |
-|--------|---------|
-| ✅ | **Allow** — role may perform this action unconditionally |
-| ❌ | **Deny** — role may never perform this action |
-| 🔶 | **Conditional** — allowed subject to the stated condition (see footnotes) |
-| — | **Not applicable** — the action category does not apply to this role |
+| Symbol | Meaning                                                                   |
+| ------ | ------------------------------------------------------------------------- |
+| ✅      | **Allow** — role may perform this action unconditionally                  |
+| ❌      | **Deny** — role may never perform this action                             |
+| 🔶     | **Conditional** — allowed subject to the stated condition (see footnotes) |
+| —      | **Not applicable** — the action category does not apply to this role      |
 
 **Scope rule:** All permissions are additionally bounded by office scope via ABAC. A Department Approver who has Allow on "Approve document" can only approve documents belonging to their own office. The matrix states the permission category; ABAC policies enforce the scope constraint at request time. PostgreSQL Row-Level Security enforces isolation at the database layer as a second line of defense.
 

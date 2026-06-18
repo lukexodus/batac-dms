@@ -97,19 +97,19 @@ and why it was not chosen. This section justifies the decision by documenting wh
 
 ## ADR Index
 
-|ID|Title|Status|Date|
-|---|---|---|---|
-|ADR-001|Modular Monolith over Microservices|Accepted|June 2026|
-|ADR-002|Custom Workflow Engine over Off-the-Shelf BPM Solutions|Accepted|June 2026|
-|ADR-003|PostgreSQL as the Sole Database Engine|Accepted|June 2026|
-|ADR-004|Pessimistic Locking for Document Editing|Accepted|June 2026|
-|ADR-005|Multi-Referral Step Type for Committee Referral (Option B)|Accepted|June 2026|
-|ADR-006|Parallel Split/Join Engine Deferred to Phase 2|Accepted|June 2026|
-|ADR-007|QR Tracking Number Assigned at Secretariat Logging, Before Preliminary Series Number|Accepted|June 2026|
-|ADR-008|No-Deletion Invariant with Soft-Delete on Every Table|Accepted|June 2026|
-|ADR-009|Two-Stage Preliminary/Final Document Numbering|Accepted|June 2026|
-|ADR-010|sp.batac.gov.ph Coexistence Without Mandatory Migration|Accepted|June 2026|
-|ADR-011|No Existing Digital QR System Assumed for Letters and Memos|Accepted|June 2026|
+| ID      | Title                                                                                | Status   | Date      |
+| ------- | ------------------------------------------------------------------------------------ | -------- | --------- |
+| ADR-001 | Modular Monolith over Microservices                                                  | Accepted | June 2026 |
+| ADR-002 | Custom Workflow Engine over Off-the-Shelf BPM Solutions                              | Accepted | June 2026 |
+| ADR-003 | PostgreSQL as the Sole Database Engine                                               | Accepted | June 2026 |
+| ADR-004 | Pessimistic Locking for Document Editing                                             | Accepted | June 2026 |
+| ADR-005 | Multi-Referral Step Type for Committee Referral (Option B)                           | Accepted | June 2026 |
+| ADR-006 | Parallel Split/Join Engine Deferred to Phase 2                                       | Accepted | June 2026 |
+| ADR-007 | QR Tracking Number Assigned at Secretariat Logging, Before Preliminary Series Number | Accepted | June 2026 |
+| ADR-008 | No-Deletion Invariant with Soft-Delete on Every Table                                | Accepted | June 2026 |
+| ADR-009 | Two-Stage Preliminary/Final Document Numbering                                       | Accepted | June 2026 |
+| ADR-010 | sp.batac.gov.ph Coexistence Without Mandatory Migration                              | Accepted | June 2026 |
+| ADR-011 | No Existing Digital QR System Assumed for Letters and Memos                          | Accepted | June 2026 |
 
 ---
 

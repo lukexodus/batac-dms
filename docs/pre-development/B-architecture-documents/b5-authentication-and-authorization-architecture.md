@@ -54,7 +54,7 @@ This document does **not** cover:
 |Lifetime|15–60 minutes — configurable per environment via `JWT_ACCESS_TTL_SECONDS`|[CONFIRMED]|
 |Storage|HTTP-only cookie exclusively|[CONFIRMED]|
 |Client-side localStorage / sessionStorage|**Never** — architectural prohibition|[CONFIRMED]|
-|Signing algorithm|[Unresolved] — HS256 or RS256; see Section 9|[Unresolved]|
+|Signing algorithm|RS256|[Resolved — ADR-AUTH-01. SSO integration confirmed as a near-term priority; RS256 selected to support public-key verification by external relying parties. Key pair generation and secure private-key storage required before first IAM migration.]|
 
 #### JWT Payload — Registered Claims
 
@@ -111,10 +111,10 @@ This document does **not** cover:
 |---|---|---|
 |Format|Cryptographically random opaque string|[CONFIRMED intent; format is [Inference]]|
 |Generation|32 bytes from `crypto.randomBytes(32)`, base64url-encoded|[Inference]|
-|Server-side storage|PostgreSQL `iam.refresh_tokens`, hashed with Argon2id|[CONFIRMED intent; hash algorithm is [Inference]]|
+|Server-side storage|PostgreSQL `iam.refresh_tokens`, hashed with SHA-256 + per-token salt|[Resolved — ADR-AUTH-04. Argon2id is unnecessary here: the raw token is a 32-byte (256-bit) cryptographically random value with no guessing-feasible search space, so a slow hash adds CPU cost on every refresh (up to 20/min/session per Section 10.4) with no corresponding security benefit. Argon2id remains the algorithm for `iam.credentials` password hashing, which is unaffected by this decision.]|
 |Client-side storage|HTTP-only cookie|[CONFIRMED]|
 |Rotation policy|One-time use — rotated on every use|[CONFIRMED]|
-|Lifetime|[Unresolved] — see Section 9|[Unresolved]|
+|Lifetime|14 days|[Resolved — ADR-AUTH-03. Chosen over the document's original 7-day starting point to prioritize convenience for staff with infrequent access; offset by the existing reuse-detection design (token families) as the primary mitigation against a stolen token's 14-day usability window. Interacts directly with the Section 4.6 shared-workstation lock behavior — see that section.]|
 |Reuse detection|Token families; family-wide revocation on reuse|[Inference]|
 
 #### Refresh Token Table Schema [Inference — not confirmed]
@@ -124,7 +124,8 @@ CREATE TABLE iam.refresh_tokens (
   id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id           UUID        NOT NULL REFERENCES iam.users(id),
   session_id        UUID        NOT NULL REFERENCES iam.sessions(id),
-  token_hash        TEXT        NOT NULL,          -- Argon2id hash of the raw 32-byte token
+  token_hash        TEXT        NOT NULL,          -- SHA-256(token + salt); see ADR-AUTH-04
+  salt              TEXT        NOT NULL,           -- Per-token random salt for token_hash
   family_id         UUID        NOT NULL,           -- Groups all tokens in one auth chain
   used_at           TIMESTAMPTZ,                    -- NULL = not yet used; set on first (and only) use
   expires_at        TIMESTAMPTZ NOT NULL,
@@ -362,6 +363,9 @@ The "Switch User / Lock Screen" action does not terminate the session. It sets `
 - A lock screen UI is shown.
 - Re-authentication (password only; no full login flow) resumes the session and clears `locked_at`.
 - The refresh endpoint continues to rotate tokens while locked (to maintain token freshness when the user unlocks).
+- **[Resolved — ADR-AUTH-10]** If the access token has expired by the time the user unlocks, the unlock flow performs a silent refresh using the still-valid (still-rotating) refresh token, gated only on the same validity checks already defined in Section 1.2 (not found / already used / revoked / expired). The user is not separately prompted about token expiry — re-entering their password to unlock (already required, above) is the security control; token refresh itself is invisible. A full re-login is required only if the refresh token itself is invalid per those existing checks, not merely because the access token expired while locked.
+    - Explicitly out of scope for this decision, deferred to Phase 2: step-up (re-)authentication for specific high-risk actions (approvals, signing, role changes) regardless of recent login — this would require an in-session challenge mechanism not present anywhere in this design, and depends on TOTP infrastructure that Section 10.5 does not activate until Phase 2.
+    - Explicitly not adopted: a separate "maximum session age" ceiling shorter than the 14-day refresh token lifetime (Section 1.2). Introducing one would cut against the rationale for that 14-day lifetime; if a hard ceiling independent of refresh-token validity is wanted, it requires its own deliberate decision and is not introduced by default here.
 
 ### 4.7 Administration Transition Sessions [CONFIRMED]
 
@@ -560,10 +564,25 @@ When a user holds an active delegation grant, the ABAC evaluator expands their e
 **At request time:**
 
 1. The JWT `dg` claim carries the active delegation grant UUID (null if none active).
+    
 2. If `dg` is not null: the evaluator loads the `organization.delegation_grants` row for that UUID.
-3. The row's `scope` field describes the extended authority (roles, offices, action types included in the delegation). [Inference — scope field structure not yet defined; see Section 9.]
+    
+3. **[Resolved — ADR-AUTH-06]** The row's `scope` field is a `JSONB` column with the following required shape, mirroring the three dimensions this section already requires the evaluator to check:
+    
+    ```json
+    {
+      "roles": ["<role-uuid>", "..."],
+      "office_ids": ["<office-uuid>", "..."],
+      "actions": ["<action-string>", "..."]
+    }
+    ```
+    
+    All three keys are required arrays (empty array, not null, when a dimension grants nothing extra). `roles` and `office_ids` reference `iam.roles.id` and `organization.offices.id`. `actions` uses the existing action vocabulary from Section 5.4. Note: this schema has no wildcard convention for "all actions a role can perform" — a delegation covering every action for a role must enumerate them. If a future scenario needs an "everything this role can do" delegation, that requires a follow-up decision rather than assuming a wildcard works.
+    
 4. The user's effective roles and office scope are temporarily expanded to match the delegation's scope for the duration of the request.
+    
 5. Step 7d of the evaluation cascade checks that the requested action falls within the delegation scope.
+    
 
 **One active delegation per user enforced at DB level:** [CONFIRMED — Part 12, Invariant 16]
 
@@ -698,6 +717,41 @@ CREATE POLICY p_office_scope ON documents.documents
   );
 ```
 
+**`has_cross_office_read_grant()` definition and backing table [Resolved — ADR-AUTH-09]:**
+
+```sql
+CREATE TABLE organization.cross_office_grants (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  role_id         UUID NOT NULL REFERENCES iam.roles(id),
+  office_scope    TEXT NOT NULL,   -- 'all' | specific office_id list via join table, see note below
+  access_level    TEXT NOT NULL,   -- 'metadata_only' | 'full'
+  resource_types  TEXT[] NOT NULL, -- e.g. ARRAY['document'], ARRAY['workflow_step_instance']
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE OR REPLACE FUNCTION has_cross_office_read_grant(
+  p_user_id UUID,
+  p_office_id UUID
+) RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM organization.cross_office_grants g
+    JOIN iam.role_assignments ra ON ra.role_id = g.role_id
+    WHERE ra.user_id = p_user_id
+      AND ra.revoked_at IS NULL
+      AND (g.office_scope = 'all')
+      -- specific-office-scope branch intentionally omitted; see note below
+  );
+$$ LANGUAGE sql STABLE;
+```
+
+Seed data: one row per role from Section 5.6's Cross-Office Permissions table (Records Officer, SP Secretary, Platform Administrator, IT Admin), to be added alongside IAM seed data.
+
+**Two known limitations of this implementation, not yet built out:**
+
+- The function only handles `office_scope = 'all'`, which covers all four roles currently in Section 5.6 (none are scoped to a specific subset of offices today). A future role needing access to _some but not all_ offices requires a real "specific office list" branch, not built here since no confirmed role currently needs it.
+- `access_level = 'metadata_only'` is stored in the table but not yet enforced by this function — it only answers "can this user read across offices at all," not "metadata or full content." That distinction must be enforced by an additional condition in the calling policy, similar to how `p_it_admin_content_block` (below) separately gates on classification level. Wiring this in is Documents module migration work, not resolved here.
+
 **IT Admin document content block (versions and attachments):**
 
 ```sql
@@ -809,7 +863,7 @@ The Platform Administrator role cannot be combined with any document-processing 
 
 The Platform Administrator configures the rules that govern document workflows: role definitions, permission assignments, workflow step definitions, SLA thresholds, and numbering series. A user who both defines the rules and operates within them could configure their own permissions, modify workflow definitions to bypass steps on their own documents, or create gaps in the audit trail for their own actions. Separation is required.
 
-### 8.3 Definition of Document-Processing Roles [Inference — role list not formally defined]
+### 8.3 Definition of Document-Processing Roles [Resolved for seeding — ADR/D-AUTH-05; see flag below]
 
 The following role categories are incompatible with Platform Administrator:
 
@@ -822,6 +876,8 @@ The following role categories are incompatible with Platform Administrator:
 |Citizen-facing|Citizen (portal user)|
 
 **Platform Administrator may be combined with:** IT Admin-adjacent technical roles where no document-processing actions are involved. [Inference]
+
+**Seeding decision:** This list is confirmed for use, verbatim, as the mapping to `type_code = 'document_processor'` (Section 8.4) — see Remaining Open Items at the end of this document for one unresolved accuracy flag on "Acting Mayor" and "OIC (any)" that should be checked before the literal `iam.roles` seed insert is written.
 
 ### 8.4 Enforcement
 
@@ -1086,6 +1142,27 @@ ABAC denials (`abac_denial`) are always audited, including for routine denials (
 
 **After exceeding login limit [Inference]:** Account is rate-limited for 15 minutes from that IP. The account is not globally locked (to prevent denial-of-service attacks from locking out legitimate users). A notification is sent to the account owner. The lockout event is audit-logged. IT Admin can clear the rate limit record manually.
 
+### 10.4.1 Account-Level Lockout Policy [Resolved — ADR-AUTH-07; one value still open]
+
+This supplements the per-IP throttling above with per-account tracking, to address distributed attacks (many IPs, each making a few attempts against the same account) that IP-based throttling alone does not stop.
+
+**Decision: progressive per-account delay, not a hard lockout.** A hard lockout after N failures is itself a denial-of-service vector — it lets an attacker lock a legitimate (and possibly privileged) account out of use without ever needing to guess the password.
+
+|Failures (this account, any IP)|Response|
+|---|---|
+|1–5|Normal response time|
+|6|30-second delay before response|
+|7|60-second delay|
+|8|2-minute delay|
+|9|5-minute delay|
+|10+|15-minute delay (repeats; does not escalate further)|
+
+The account is never fully locked — authentication remains eventually possible for a legitimate user, just with increasing delay. This runs alongside, not instead of, the per-IP limits above. Every failure increments an audit-logged counter; an administrator alert fires once a threshold is crossed.
+
+**[Unresolved] Alert threshold value:** not set by this resolution. It depends on expected legitimate failure-rate volume, which has no production data yet to calibrate against. See Remaining Open Items.
+
+**Explicitly deferred to Phase 2, not part of this decision:** MFA-triggered escalation (e.g., requiring TOTP after N failures for privileged roles) is a reasonable enhancement, but depends on the MFA hook point in Section 10.5, which is not active in Phase 1 — `MFA_REQUIRED_ROLES` and `user.totp_enabled` do not exist until Phase 2 activation. This is noted as a recommended Phase 2 follow-on once Section 10.5 activates, not a Phase 1 commitment.
+
 ### 10.5 MFA Readiness: Phase 1 Design, Phase 2 Activation
 
 **Source:** Consolidated Reference Part 11.1 ("MFA architecture: Designed from day one; TOTP not enabled in Phase 1 but auth flow accommodates it. TOTP required in Phase 2 for Mayor, SP Secretary, Department Heads, Platform Administrator, IT Admin").
@@ -1115,21 +1192,34 @@ POST /api/auth/login
 
 ## 11. Deferred Decisions (Must Resolve Before IAM Module Migration)
 
-The following items are within this document's scope and are marked `[Unresolved]`. They must be formally decided and recorded in an ADR (Architecture Decision Record) before the IAM module's first database migration is written.
+**Status as of this revision: 8 of 10 items resolved outright; 1 (D-AUTH-08) remains fully open; 3 otherwise-resolved items (D-AUTH-02, D-AUTH-05, D-AUTH-07) carry a narrower follow-up that doesn't block migration.** Resolutions are recorded in the relevant body sections above (cross-referenced below) and in the corresponding ADRs. The fully-open item and the three follow-ups are moved to Section 12 (Remaining Open Items) rather than left in this table, since this table's original purpose — tracking what's still unresolved — is better served by not mixing closed and open items together.
 
-|#|Item|Why It Matters|Required Before|
+|#|Item|Resolution|Recorded In|
 |---|---|---|---|
-|D-AUTH-01|JWT signing algorithm: HS256 vs. RS256|RS256 enables public key verification by external services (useful for future SSO relying party setup); HS256 is simpler. If SSO is a near-term priority, RS256 is preferred.|First IAM migration|
-|D-AUTH-02|Argon2id parameters (m, t, p)|Must be benchmarked on the target server hardware to meet OWASP guidance (≥ 19ms per hash) without degrading login throughput. Default values: `m=65536 (64 MB), t=2, p=1` as a starting point.|First IAM migration|
-|D-AUTH-03|Refresh token lifetime|7 days is a reasonable starting point for a government intranet with infrequent access. Must balance security with user experience on shared workstations.|First IAM migration|
-|D-AUTH-04|Refresh token hash algorithm: Argon2id vs. SHA-256|Argon2id adds brute-force resistance if the DB is compromised; SHA-256 is faster and sufficient if tokens have sufficient entropy (32 random bytes). For 32-byte random tokens, SHA-256 with a salt may be sufficient.|First IAM migration|
-|D-AUTH-05|Full list of document-processing roles for Platform Admin exclusion trigger|The DB trigger at Section 8.4 checks `type_code = 'document_processor'`. The full mapping of named roles to this type code must be defined before the IAM schema is seeded.|IAM seed data|
-|D-AUTH-06|`delegation_grant.scope` field schema|The scope field in `organization.delegation_grants` must define a structure that the ABAC evaluator can interpret at request time (e.g., a JSON object with `roles: []` and `office_ids: []`). This affects both the Organization module schema and the ABAC evaluator.|Organization module migration|
-|D-AUTH-07|Account lockout policy on repeated login failures|Rate limiting (Section 10.4) handles IP-based throttling. A separate account-level lockout (e.g., lock the account after N failures from any IP) adds protection against distributed attacks. Whether this is needed and the threshold value must be decided.|First IAM migration|
-|D-AUTH-08|External TSA provider for audit log timestamps|Monthly RFC 3161 export is confirmed (Part 11.11). The specific TSA provider must be selected before the first audit export runs.|Pre-production|
-|D-AUTH-09|RLS policy expression for cross-office read grants|The `has_cross_office_read_grant()` function referenced in the RLS policy examples (Section 6.5) must be defined and the grants table must be designed.|Documents module migration|
-|D-AUTH-10|Session `locked_at` behavior when access token expires while locked|If a user locks the screen and the access token expires before they return, should the unlock prompt: (a) refresh the token automatically, or (b) require full re-login? The answer affects the lock/unlock implementation.|Frontend login flow|
+|D-AUTH-01|JWT signing algorithm: HS256 vs. RS256|**Resolved: RS256.** SSO confirmed as a near-term priority.|Section 1.1; ADR-AUTH-01|
+|D-AUTH-02|Argon2id parameters (m, t, p) for password hashing|**Resolved: `m=65536 (64 MB), t=2, p=1`**, exposed via environment variables (`ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`) rather than hardcoded, adopted as OWASP's published baseline. **Hardware benchmarking against target server hardware remains required before production** — this is not optional and is carried forward; see Section 12.|ADR-AUTH-02 (no other body location exists for this parameter; password hashing is otherwise only referenced at Section 9.2)|
+|D-AUTH-03|Refresh token lifetime|**Resolved: 14 days.**|Section 1.2; ADR-AUTH-03|
+|D-AUTH-04|Refresh token hash algorithm: Argon2id vs. SHA-256|**Resolved: SHA-256 with per-token salt** (not Argon2id) — token entropy makes a slow hash unnecessary; Argon2id is retained for password hashing (D-AUTH-02), which is unaffected.|Section 1.2; ADR-AUTH-04|
+|D-AUTH-05|Full list of document-processing roles for Platform Admin exclusion trigger|**Resolved for seeding: Section 8.3's list, used verbatim.** One accuracy flag on "Acting Mayor" / "OIC (any)" not fully closed — carried forward; see Section 12.|Section 8.3|
+|D-AUTH-06|`delegation_grant.scope` field schema|**Resolved:** `JSONB` with required `{ roles: [], office_ids: [], actions: [] }` shape.|Section 5.7; ADR-AUTH-06|
+|D-AUTH-07|Account lockout policy on repeated login failures|**Resolved: progressive per-account delay, no hard lockout** (Section 10.4.1), alongside the existing per-IP limits. Alert threshold value not set — carried forward; see Section 12. MFA-tier escalation explicitly deferred to Phase 2.|Section 10.4.1; ADR-AUTH-07|
+|D-AUTH-08|External TSA provider for audit log timestamps|**Not resolved.** Vendor/procurement selection, out of architectural scope — see Section 12.|Section 12|
+|D-AUTH-09|RLS policy expression for cross-office read grants|**Resolved:** `organization.cross_office_grants` table and `has_cross_office_read_grant()` function defined. Two specific limitations (non-"all" office scoping; `access_level` not yet enforced) remain implementation work, not blocking.|Section 6.5; ADR-AUTH-09|
+|D-AUTH-10|Session `locked_at` behavior when access token expires while locked|**Resolved: silent refresh on unlock** using the existing rotating refresh token, gated on existing validity checks only. Step-up authentication for high-risk actions and a separate "max session age" concept were both explicitly considered and **not adopted** in Phase 1.|Section 4.6; ADR-AUTH-10|
 
 ---
 
-_This document is the pre-development baseline for the authentication and authorization architecture. All `[Inference]` items require development team confirmation. All `[Unresolved]` items in Section 11 must be decided and recorded in ADRs before IAM module development begins. This document supersedes any earlier auth/auth notes and is the reference for the IAM module schema design._
+## 12. Remaining Open Items
+
+One item is entirely unresolved, and three otherwise-resolved items each carry a narrower follow-up. None of these four rows block the IAM module's first migration on their own — each is scoped narrowly below, with the reason it doesn't block stated explicitly so this isn't mistaken for a blanket deferral.
+
+| Item                | What's Open                                                                                                                                                                                                                                                                                                                                                                            | Why It Doesn't Block the IAM Migration                                                                                                                                                                                                                | Required Before                                                                                                                          |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| D-AUTH-02 follow-up | Argon2id parameters (`m=65536, t=2, p=1`) are set as a default, but have **not been benchmarked on actual target server hardware**.                                                                                                                                                                                                                                                    | The parameters are env-configurable (`ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`), so the migration can proceed with the default and the values adjusted later without a schema change.                                            | Production deployment                                                                                                                    |
+| D-AUTH-05 follow-up | "Acting Mayor" and "OIC (any)" in Section 8.3's role list read as role _categories_, not confirmed literal `iam.roles.name` rows — "OIC (any)" in particular may need to be several office-specific seeded roles rather than one literal row, or a different enforcement mechanism entirely. This was not resolved, only flagged; the list was used verbatim per explicit instruction. | The trigger logic (Section 8.4) operates on `type_code`, not on the specific role name — so the migration and trigger can be written now. This only affects the literal seed `INSERT` statements for `iam.roles`, not the schema or trigger function. | IAM seed data (i.e., before the seed `INSERT`s are written, not before the migration creating the tables/trigger)                        |
+| D-AUTH-07 follow-up | The administrator alert threshold for repeated account-level login failures (Section 10.4.1) has no value. No production traffic data exists yet to calibrate a number that distinguishes normal mistyped-password volume from an actual attack pattern, and no value should be guessed without that data.                                                                             | The counter, audit logging, and progressive-delay mechanism don't require the threshold to be set to be built — the threshold is a comparison value that can be added or changed via configuration after launch, using observed data.                 | Should be set using real post-launch data, or provisionally set conservatively high and tuned down — either way, not a schema dependency |
+| D-AUTH-08           | External RFC 3161 Time-Stamping Authority (TSA) provider for the monthly audit log export — entirely unresolved. This is a vendor/procurement decision requiring current research into provider offerings, pricing, and any government-procurement constraints; it is not an architectural design choice and was not researched as part of this resolution.                            | The audit export mechanism and schedule are already defined independently of which TSA is used; the provider is a configuration/integration detail at export time, not a schema or application-logic dependency.                                      | Pre-production (per original deadline, unchanged)                                                                                        |
+
+---
+
+_This document is the pre-development baseline for the authentication and authorization architecture. As of this revision, 8 of the 10 items originally listed in Section 11 are resolved and reflected in the relevant body sections above; the remaining 2 fully open items (D-AUTH-08) plus 3 narrower follow-ups on otherwise-resolved items (D-AUTH-02, D-AUTH-05, D-AUTH-07) are tracked in Section 12 above, each with an explicit account of why it does not block the IAM module's first migration. Remaining `[Inference]` items elsewhere in this document still require development team confirmation. This document supersedes any earlier auth/auth notes and is the reference for the IAM module schema design._

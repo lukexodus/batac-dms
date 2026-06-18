@@ -10,11 +10,11 @@
 
 ### C4 Levels Covered
 
-|Level|Diagram Type|Describes|
-|---|---|---|
-|1|System Context|Platform as one box; all external actors and systems it interacts with|
-|2|Container|Every deployable unit and how they communicate|
-|3|Component|Internal structure of the Application Server, one diagram per module|
+| Level | Diagram Type   | Describes                                                              |
+| ----- | -------------- | ---------------------------------------------------------------------- |
+| 1     | System Context | Platform as one box; all external actors and systems it interacts with |
+| 2     | Container      | Every deployable unit and how they communicate                         |
+| 3     | Component      | Internal structure of the Application Server, one diagram per module   |
 
 ### Source Fidelity
 

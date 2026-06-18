@@ -1,52 +1,52 @@
 ## Prerequisite Table
 
-| ID  | Document                                       | Prerequisites from this list |
-| --- | ---------------------------------------------- | ---------------------------- |
-| A1  | Master Phased Task List                        | All other documents          |
-| A2  | Risk Register                                  | None                         |
-| B1  | System Architecture Document (C4 L1–L3)        | None                         |
-| B2  | Module Boundary and Internal API Contracts     | B1                           |
-| B3  | Internal Domain Event Catalog                  | B2, B4                       |
-| B4  | Workflow Engine Specification                  | None                         |
-| B5  | Authentication and Authorization Architecture  | None                         |
-| C1  | Full Database Schema DDL                       | B2, B4, D4, H2, H3           |
-| C2  | Entity-Relationship Diagrams                   | C1                           |
-| C3  | PostgreSQL RLS Policy Specifications           | C1, I1                       |
-| C4  | Index Strategy Document                        | C1, E1                       |
-| C5  | Migration Strategy and Conventions             | None                         |
-| D1  | Use Case Diagrams                              | None                         |
-| D2  | Sequence Diagrams — All Phase 1 Workflows      | B2, B4, H1                   |
-| D3  | State Machine Diagrams                         | B4                           |
-| D4  | Domain Class Diagram                           | None                         |
-| D5  | Deployment Diagram                             | None                         |
-| D6  | Data Flow Diagrams — Key Operations            | B4, H1                       |
-| E1  | tRPC Router and Procedure Catalog              | C1, B2, I1, I2               |
-| E2  | REST API Specification (OpenAPI 3.0)           | C1, B2                       |
-| E3  | Shared Zod Schema Catalog                      | C1                           |
-| F1  | Application Route Map                          | I2, E1                       |
-| F2  | Zustand Store Design                           | F1, E3                       |
-| F3  | TanStack Query Key Factory                     | E1                           |
-| F4  | Component Hierarchy Specification              | F1                           |
-| G1  | End-to-End Type Safety Chain                   | C1, E1, E3                   |
-| H1  | Phase 1 Workflow Definitions (Structured Data) | B4, D3                       |
-| H2  | Document Type Catalog with JSONB Schemas       | B4, H3                       |
-| H3  | Numbering Series Configuration                 | None                         |
-| H4  | Notification Event and Template Catalog        | B3, I2, H1                   |
-| I1  | ABAC Policy Specification                      | B5, I2, H2                   |
-| I2  | Role-Permission Matrix                         | None                         |
-| I3  | Security Design Document                       | B5, I1                       |
-| J1  | Software Design Patterns Document              | B2                           |
-| J2  | Error Handling and Response Normalization      | None                         |
-| J3  | Coding Standards and Conventions               | None                         |
-| J4  | Module Structure Template                      | B2, J1                       |
-| J5  | ADR Templates and Initial ADR Set              | None                         |
-| K1  | Test Strategy Document                         | B4                           |
-| K2  | Workflow Engine Test Suite Design              | B4, D3, H1                   |
-| K3  | Critical E2E Test Scenarios                    | F1, H1                       |
-| L1  | Environment Variables Catalog                  | None                         |
-| L2  | Docker and Docker Compose Specification        | D5, L1                       |
-| L3  | CI/CD Pipeline Specification                   | K1, L2                       |
-| L4  | Backup and DR Runbooks                         | C1, D5                       |
+| ID  | Document                                       | Prerequisites from this list |     |
+| --- | ---------------------------------------------- | ---------------------------- | --- |
+| A1  | Master Phased Task List                        | All other documents          |     |
+| A2  | Risk Register                                  | None                         |     |
+| B1  | System Architecture Document (C4 L1–L3)        | None                         |     |
+| B2  | Module Boundary and Internal API Contracts     | B1                           |     |
+| B3  | Internal Domain Event Catalog                  | B2, B4                       |     |
+| B4  | Workflow Engine Specification                  | None                         |     |
+| B5  | Authentication and Authorization Architecture  | None                         |     |
+| C1  | Full Database Schema DDL                       | B2, B4, D4, H2, H3           |     |
+| C2  | Entity-Relationship Diagrams                   | C1                           |     |
+| C3  | PostgreSQL RLS Policy Specifications           | C1, I1                       |     |
+| C4  | Index Strategy Document                        | C1, E1                       |     |
+| C5  | Migration Strategy and Conventions             | None                         |     |
+| D1  | Use Case Diagrams                              | None                         |     |
+| D2  | Sequence Diagrams — All Phase 1 Workflows      | B2, B4, H1                   |     |
+| D3  | State Machine Diagrams                         | B4                           |     |
+| D4  | Domain Class Diagram                           | None                         |     |
+| D5  | Deployment Diagram                             | None                         |     |
+| D6  | Data Flow Diagrams — Key Operations            | B4, H1                       |     |
+| E1  | tRPC Router and Procedure Catalog              | C1, B2, I1, I2               |     |
+| E2  | REST API Specification (OpenAPI 3.0)           | C1, B2                       |     |
+| E3  | Shared Zod Schema Catalog                      | C1                           |     |
+| F1  | Application Route Map                          | I2, E1                       |     |
+| F2  | Zustand Store Design                           | F1, E3                       |     |
+| F3  | TanStack Query Key Factory                     | E1                           |     |
+| F4  | Component Hierarchy Specification              | F1                           |     |
+| G1  | End-to-End Type Safety Chain                   | C1, E1, E3                   |     |
+| H1  | Phase 1 Workflow Definitions (Structured Data) | B4, D3                       |     |
+| H2  | Document Type Catalog with JSONB Schemas       | B4, H3                       |     |
+| H3  | Numbering Series Configuration                 | None                         |     |
+| H4  | Notification Event and Template Catalog        | B3, I2, H1                   |     |
+| I1  | ABAC Policy Specification                      | B5, I2, H2                   |     |
+| I2  | Role-Permission Matrix                         | None                         |     |
+| I3  | Security Design Document                       | B5, I1                       |     |
+| J1  | Software Design Patterns Document              | B2                           |     |
+| J2  | Error Handling and Response Normalization      | None                         |     |
+| J3  | Coding Standards and Conventions               | None                         |     |
+| J4  | Module Structure Template                      | B2, J1                       |     |
+| J5  | ADR Templates and Initial ADR Set              | None                         |     |
+| K1  | Test Strategy Document                         | B4                           |     |
+| K2  | Workflow Engine Test Suite Design              | B4, D3, H1                   |     |
+| K3  | Critical E2E Test Scenarios                    | F1, H1                       |     |
+| L1  | Environment Variables Catalog                  | None                         |     |
+| L2  | Docker and Docker Compose Specification        | D5, L1                       |     |
+| L3  | CI/CD Pipeline Specification                   | K1, L2                       |     |
+| L4  | Backup and DR Runbooks                         | C1, D5                       |     |
 
 ---
 
