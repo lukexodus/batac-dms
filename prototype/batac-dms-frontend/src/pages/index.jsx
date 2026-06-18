@@ -21,7 +21,8 @@ import {
   usePendingSignatures, useSLAData, useDeptWorkload, useLegislativeQueue,
   useSessionCalendar, useLegislativeOutput, useRoutingHistory, useDocuments,
   usePublicOrdinances, useAddDocument, useRemovePendingSignature, useAddSession,
-  useAddLegislativeQueue, useUpdateLegislativeQueue, useUpdatePendingSignature
+  useAddLegislativeQueue, useUpdateLegislativeQueue, useUpdatePendingSignature,
+  useUpdateDocument
 } from '../hooks/use-documents';
 
 import {
@@ -33,7 +34,7 @@ import {
   LogDocumentModal, PrintCoverSheetModal, UploadDocumentModal,
   NewDocumentModal, ReviewDocumentModal, SignDocumentModal,
   ScheduleSessionModal, OrderOfBusinessModal, LogCommitteeReportModal,
-  FloorVotingModal
+  FloorVotingModal, RouteComplaintModal, ResolveComplaintModal
 } from '../modals';
 
 import { CitySealOfficial, QRDisplay } from '../layout';
@@ -427,17 +428,32 @@ export const MayorPage = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const SPSecretaryPage = () => {
+  const [activeTab, setActiveTab] = useState("legislative")
   const [showLogDoc, setShowLogDoc] = useState(false)
   const [showScheduleSession, setShowScheduleSession] = useState(false)
   const [showOrderOfBusiness, setShowOrderOfBusiness] = useState(false)
   const [showCommitteeReport, setShowCommitteeReport] = useState(false)
   const [showFloorVote, setShowFloorVote] = useState(false)
 
+  const [showRouteComplaint, setShowRouteComplaint] = useState(false);
+  const [showResolveComplaint, setShowResolveComplaint] = useState(false);
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
+
   // Use dynamic queries
   const { data: legislativeQueue = [] } = useLegislativeQueue();
   const updateLegislativeQueue = useUpdateLegislativeQueue();
   const { data: sessionCalendar = [] } = useSessionCalendar();
   const { data: legislativeOutput = [] } = useLegislativeOutput();
+
+  const { data: allDocuments = [] } = useDocuments();
+  const updateDocument = useUpdateDocument();
+  const allComplaints = allDocuments.filter(d => ["Citizen Complaint", "Citizen Request"].includes(d.type));
+  const complaints = allComplaints.filter(d => !["Archived", "Completed", "Resolved"].includes(d.status));
+
+  // Complaint statistics
+  const resolvedComplaintsCount = allComplaints.filter(d => ["Completed", "Resolved"].includes(d.status)).length;
+  const pendingRoutingCount = allComplaints.filter(d => ["Pending Approval", "In Workflow"].includes(d.status)).length;
+  const underInvestigationCount = allComplaints.filter(d => ["Under Investigation"].includes(d.status)).length;
 
   // Dynamic calculations for SP Secretary Dashboard
   const activeQueueCount = legislativeQueue.filter(i => !["Completed", "Archived"].includes(i.status)).length;
@@ -458,6 +474,10 @@ export const SPSecretaryPage = () => {
       <OrderOfBusinessModal open={showOrderOfBusiness} onClose={() => setShowOrderOfBusiness(false)} items={legislativeQueue} />
       <LogCommitteeReportModal open={showCommitteeReport} onClose={() => setShowCommitteeReport(false)} items={legislativeQueue} onSave={updateLegislativeQueue.mutate} />
       <FloorVotingModal open={showFloorVote} onClose={() => setShowFloorVote(false)} items={legislativeQueue} onSave={updateLegislativeQueue.mutate} />
+
+      <RouteComplaintModal open={showRouteComplaint} onClose={() => setShowRouteComplaint(false)} complaint={selectedComplaint} onSave={updateDocument.mutate} />
+      <ResolveComplaintModal open={showResolveComplaint} onClose={() => setShowResolveComplaint(false)} complaint={selectedComplaint} onSave={updateDocument.mutate} />
+
       <PageHdr
         title="SP Secretary's Dashboard"
         subtitle="Office of the Secretary, Sangguniang Panlungsod · 7th SP · Batac City"
@@ -468,8 +488,20 @@ export const SPSecretaryPage = () => {
         </>}
       />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-6">
+        <button onClick={() => setActiveTab("legislative")} className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "legislative" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-800"}`}>
+          Legislative Work
+        </button>
+        <button onClick={() => setActiveTab("submissions")} className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "submissions" ? "border-green-600 text-green-700" : "border-transparent text-gray-500 hover:text-gray-800"}`}>
+          Citizen Submissions ({complaints.length})
+        </button>
+      </div>
+
+      {activeTab === "legislative" && (
+        <>
+          {/* KPIs */}
+          <div className="grid grid-cols-4 gap-4 mb-6">
         <StatCard title="Active in Queue" value={activeQueueCount.toString()} subtitle="Legislative documents" icon={ClipboardList} color="blue" />
         <StatCard title="Next Session" value={nextSessionItems.toString()} subtitle={`Items · ${nextSessionDate}`} icon={Calendar} color="green" />
         <StatCard title="Approved This Month" value={approvedThisMonth.toString()} subtitle="Resolutions & Ordinances" icon={CheckCircle} color="green" trend="up" trendValue="+3 vs May" />
@@ -560,6 +592,62 @@ export const SPSecretaryPage = () => {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      </>
+      )}
+
+      {activeTab === "submissions" && (
+        <>
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <StatCard title="Active Submissions" value={complaints.length.toString()} subtitle="Pending resolution" icon={AlertCircle} color="amber" />
+            <StatCard title="Resolved" value={resolvedComplaintsCount.toString()} subtitle="Total completed" icon={CheckCircle} color="green" />
+            <StatCard title="Needs Routing" value={pendingRoutingCount.toString()} subtitle="Unassigned submissions" icon={LogOut} color="blue" />
+            <StatCard title="Under Investigation" value={underInvestigationCount.toString()} subtitle="In committee" icon={Search} color="purple" />
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">Active Citizen Submissions</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Manage and route complaints and requests submitted via the Citizen Portal</p>
+            </div>
+            <Btn variant="ghost" size="xs" icon={Plus} onClick={() => alert("Add manual submission")}>Log Submission</Btn>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  {["Tracking ID", "Subject & Sender", "Date", "Status", "Actions"].map(h => (
+                    <th key={h} className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500 whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {complaints.length === 0 ? (
+                  <tr><td colSpan={6} className="p-8 text-center text-sm text-gray-500">No active submissions</td></tr>
+                ) : complaints.map(c => (
+                  <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-mono text-xs text-green-600 whitespace-nowrap">{c.id}</td>
+                    <td className="px-4 py-3" style={{ maxWidth: 300 }}>
+                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{c.title}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">From: {c.submittedBy}</p>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{c.date}</td>
+                    <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={c.status} /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => { setSelectedComplaint(c); setShowRouteComplaint(true); }} className="px-2 py-1 text-xs bg-white border border-gray-200 rounded text-gray-600 hover:bg-gray-50">Route</button>
+                        <button onClick={() => alert("Log Report modal placeholder")} className="px-2 py-1 text-xs bg-white border border-gray-200 rounded text-gray-600 hover:bg-gray-50">Report</button>
+                        <button onClick={() => { setSelectedComplaint(c); setShowResolveComplaint(true); }} className="px-2 py-1 text-xs bg-green-50 border border-green-200 rounded text-green-700 hover:bg-green-100">Resolve</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        </>
+      )}
     </div>
   )
 }
@@ -1163,11 +1251,14 @@ export const DMSPage = () => {
 export const CitizenPortalPage = () => {
   const { data: publicOrdinances = [] } = usePublicOrdinances();
   const { data: documents = [] } = useDocuments();
+  const addDocument = useAddDocument();
 
   const [tab, setTab] = useState("track")
   const [query, setQuery] = useState("")
   const [result, setResult] = useState(null)
   const [submitted, setSubmitted] = useState(false)
+  const [newTrackingId, setNewTrackingId] = useState("");
+  const [form, setForm] = useState({ type: "Complaint (General)", subject: "", name: "" });
 
   const handleTrack = () => {
     if (query.trim()) {
@@ -1330,23 +1421,28 @@ export const CitizenPortalPage = () => {
               <p className="text-sm text-gray-500 mb-4">Your request has been logged and assigned a tracking number. You will receive status updates via your registered contact details.</p>
               <div className="bg-gray-50 rounded-xl p-4 mb-5">
                 <p className="text-xs text-gray-400 mb-1">Your Tracking Number</p>
-                <p className="font-mono text-lg font-bold text-gray-900">DTS-2026-000099</p>
+                <p className="font-mono text-lg font-bold text-gray-900">{newTrackingId}</p>
                 <p className="text-xs text-gray-400 mt-1">Save this number to track your submission status.</p>
               </div>
-              <Btn variant="primary" onClick={() => { setSubmitted(false); setTab("track"); setQuery("DTS-2026-000099") }}>
+              <Btn variant="primary" onClick={() => { setSubmitted(false); setTab("track"); setQuery(newTrackingId); handleTrack(); }}>
                 Track My Submission
               </Btn>
             </div>
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-1">Submit a Request or Complaint</h2>
-              <p className="text-sm text-gray-500 mb-5">Your submission will be logged and tracked. You will receive a tracking number immediately. Fields marked <span className="text-red-500">*</span> are required.</p>
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900 mb-1">Submit a Request or Complaint</h2>
+                  <p className="text-sm text-gray-500">Your submission will be logged and tracked. Fields marked <span className="text-red-500">*</span> are required.</p>
+                </div>
+                <Btn variant="secondary" size="sm" icon={Download} onClick={() => alert("Downloading Citizen_Complaint_Form_v2.pdf")}>Download Template</Btn>
+              </div>
 
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Type <span className="text-red-500">*</span></label>
-                    <select className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none brand-ring">
+                    <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none brand-ring">
                       {["Service Request", "Complaint (Transportation)", "Complaint (General)", "Information Request", "Document Copy Request"].map(o => <option key={o}>{o}</option>)}
                     </select>
                   </div>
@@ -1358,7 +1454,7 @@ export const CitizenPortalPage = () => {
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Full Name <span className="text-red-500">*</span></label>
-                    <input type="text" placeholder="Juan dela Cruz" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none brand-ring" />
+                    <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Juan dela Cruz" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none brand-ring" />
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Contact Number <span className="text-red-500">*</span></label>
@@ -1374,7 +1470,7 @@ export const CitizenPortalPage = () => {
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Subject <span className="text-red-500">*</span></label>
-                  <input type="text" placeholder="Brief description of your request or complaint" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none brand-ring" />
+                  <input type="text" value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="Brief description of your request or complaint" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none brand-ring" />
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Details <span className="text-red-500">*</span></label>
@@ -1395,7 +1491,27 @@ export const CitizenPortalPage = () => {
                   </label>
                 </div>
                 <div className="pt-2">
-                  <Btn variant="primary" size="md" onClick={() => setSubmitted(true)} icon={Send}>
+                  <Btn variant="primary" size="md" onClick={() => {
+                    const isComplaint = form.type.includes("Complaint");
+                    const docType = isComplaint ? "Citizen Complaint" : "Citizen Request";
+                    const newId = "DTS-2026-" + Math.floor(1000 + Math.random() * 9000);
+                    setNewTrackingId(newId);
+
+                    addDocument.mutate({
+                      id: newId,
+                      title: form.subject || (docType + " - Web Submission"),
+                      type: docType,
+                      office: "SP Secretariat", // By default routed to SP Secretariat
+                      date: new Date().toISOString().split("T")[0],
+                      status: "In Workflow",
+                      classification: "Public",
+                      size: "0 MB",
+                      ver: 1,
+                      submittedBy: form.name || "Citizen Portal User",
+                      daysInQueue: 0
+                    });
+                    setSubmitted(true);
+                  }} icon={Send}>
                     Submit Request
                   </Btn>
                   <p className="text-xs text-gray-400 mt-2">You will receive a tracking number immediately upon submission.</p>

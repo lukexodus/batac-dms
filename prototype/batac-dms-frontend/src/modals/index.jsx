@@ -1456,4 +1456,65 @@ export const FloorVotingModal = ({ open, onClose, items, onSave }) => {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// COMPLAINT MANAGEMENT MODALS
 // ─────────────────────────────────────────────────────────────────────────────
+
+export const RouteComplaintModal = ({ open, onClose, complaint, onSave }) => {
+  const [committee, setCommittee] = useState("");
+  const handleSubmit = () => {
+    onSave({ id: complaint.id, status: "Under Investigation", committee });
+    onClose();
+  }
+  if (!open) return null;
+  return (
+    <Modal open={open} onClose={onClose} title="Route Complaint" subtitle={`Route ${complaint?.id} for investigation`}>
+      <div className="p-6 space-y-4">
+        <FRow>
+          <FLabel>Route To</FLabel>
+          <select className="w-full border rounded-lg p-2 text-sm" value={committee} onChange={e => setCommittee(e.target.value)}>
+            <option value="">-- Select Committee or Official --</option>
+            <option value="Committee on Good Governance">Committee on Good Governance</option>
+            <option value="Committee on Public Order">Committee on Public Order</option>
+            <option value="Vice Mayor's Office">Vice Mayor's Office</option>
+            <option value="City Administrator">City Administrator</option>
+          </select>
+        </FRow>
+      </div>
+      <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
+        <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" onClick={handleSubmit} disabled={!committee}>Route Complaint</Btn>
+      </div>
+    </Modal>
+  )
+}
+
+export const ResolveComplaintModal = ({ open, onClose, complaint, onSave }) => {
+  const [resolution, setResolution] = useState("");
+  const [notify, setNotify] = useState(true);
+  const handleSubmit = () => {
+    onSave({ id: complaint.id, status: "Resolved", resolution });
+    onClose();
+  }
+  if (!open) return null;
+  return (
+    <Modal open={open} onClose={onClose} title="Resolve Complaint" subtitle={`Close ${complaint?.id}`}>
+      <div className="p-6 space-y-4">
+        <FRow>
+          <FLabel>Resolution Details</FLabel>
+          <textarea rows={4} className="w-full border rounded-lg p-2 text-sm" value={resolution} onChange={e => setResolution(e.target.value)} placeholder="Enter details of the resolution..." />
+        </FRow>
+        <FRow>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} className="accent-green-600" />
+            <span className="text-sm">Notify Complainant of Outcome</span>
+          </label>
+        </FRow>
+      </div>
+      <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
+        <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" onClick={handleSubmit} disabled={!resolution}>Mark as Resolved</Btn>
+      </div>
+    </Modal>
+  )
+}
+

@@ -62,5 +62,9 @@ export const mockApi = {
   updatePendingSignature: async (item: any): Promise<any> => {
     const res = await axios.put(`${API_BASE}/pendingSignatures/${item.id}`, item)
     return res.data
+  },
+  updateDocument: async (item: any): Promise<any> => {
+    const res = await axios.patch(`${API_BASE}/documents/${item.id}`, item)
+    return res.data
   }
 }

@@ -125,3 +125,13 @@ export function useUpdatePendingSignature() {
     }
   })
 }
+
+export function useUpdateDocument() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (item: any) => mockApi.updateDocument(item),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
+    }
+  })
+}
