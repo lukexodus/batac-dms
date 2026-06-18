@@ -2341,6 +2341,11 @@ const SPSecretaryPage = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 const DTSPage = ({ selectedDocId, setSelectedDocId, setPage }) => {
   const [showPrint, setShowPrint] = useState(false)
+  // Get the selected document or use the first one as default
+  const doc = selectedDocId 
+    ? mockDocuments.find(d => d.id === selectedDocId) 
+    : mockDocuments[0]
+  
   return (
   <div className="p-6">
     <PrintCoverSheetModal open={showPrint} onClose={() => setShowPrint(false)} />
@@ -2362,14 +2367,14 @@ const DTSPage = ({ selectedDocId, setSelectedDocId, setPage }) => {
           <div className="flex items-start gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className="font-mono text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">DTS-2026-000045</span>
-                <StatusBadge status="Released" />
-                <ClassificationBadge level="Public" />
+                <span className="font-mono text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">{doc.id}</span>
+                <StatusBadge status={doc.status} />
+                <ClassificationBadge level={doc.classification} />
               </div>
-              <p className="text-base font-semibold text-gray-900 mb-0.5">Resolution No. 7SP 2026-047</p>
-              <p className="text-sm text-gray-600 line-clamp-2">Resolution Authorizing the City Mayor to Negotiate and Enter into a Memorandum of Agreement with the Department of Interior and Local Government (DILG) for the Community-Based Solid Waste Management Project of Batac City</p>
+              <p className="text-base font-semibold text-gray-900 mb-0.5">{doc.title}</p>
+              <p className="text-sm text-gray-600 line-clamp-2">{doc.title}</p>
               <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100">
-                {[["Type","SP Resolution"],["Author","Coun. Dela Cruz"],["Created","May 15, 2026"],["Released","Jun 2, 2026"]].map(([k,v]) => (
+                {[["Type",doc.type],["Office",doc.office],["Date",doc.date],["Status",doc.status]].map(([k,v]) => (
                   <div key={k}>
                     <p className="text-[10px] text-gray-400 uppercase tracking-wide">{k}</p>
                     <p className="text-sm font-medium text-gray-900 mt-0.5">{v}</p>
@@ -3341,10 +3346,11 @@ const pages = {
   kitchen:  { component: KitchenSinkPage,   title: "Design System",          subtitle: "Component Library & Design Tokens · v0.1" },
   mayor:    { component: MayorPage,          title: "Mayor's Dashboard",       subtitle: "Executive Operations Overview" },
   sp:       { component: SPSecretaryPage,    title: "SP Secretary's Dashboard",subtitle: "Sangguniang Panlungsod · Legislative Workflow" },
-  dts:      { component: DTSPage,            title: "Document Tracking",       subtitle: "Complete Routing History · DTS-2026-000045" },
+  dts:      { component: DTSPage,            title: "Document Tracking",       subtitle: "Complete Routing History & Physical Custody Record" },
   wms:      { component: WMSPage,            title: "Approval Interface",       subtitle: "WMS — Document Review & Action" },
   dms:      { component: DMSPage,            title: "Document Repository",      subtitle: "DMS — Internal Document Search & Management" },
   portal:   { component: CitizenPortalPage,  title: "Citizen Portal",          subtitle: "Public Access — sp.batac.gov.ph" },
+  login:    { component: LoginRegisterPage,  title: "Login / Register",         subtitle: "Sign in to your account or create a new one" },
 }
 
 const DataFetcher = () => {
