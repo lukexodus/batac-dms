@@ -39,28 +39,38 @@ All endpoints support standard REST methods (`GET`, `POST`, `PUT`, `PATCH`, `DEL
 
 ## 2. Global Data Synchronization
 
-The application synchronizes data from the `json-server` into the React component tree using **TanStack Query (React Query)** combined with a root-level `<DataFetcher />` component.
+The application synchronizes data from the `json-server` into the React component tree using **TanStack Query (React Query)** via custom hooks in `src/hooks/use-documents.ts`.
 
 1.  **Hooks:** Custom hooks (e.g., `usePendingSignatures()`) wrap `useQuery` to fetch from `http://localhost:3001/...`
-2.  **Mutations:** Action hooks (e.g., `useRemovePendingSignature(id)`) use `useMutation` to send `DELETE` or `POST` requests and automatically invalidate the cache.
-3.  **Synchronization:** The `<DataFetcher />` executes these hooks and directly splices the returned data into globally exported mutable arrays (e.g., `mockPendingSignatures`).
-4.  **Reactivity:** Because `App.jsx` handles state updates during rendering, altering the global mock arrays instantly updates all downstream components (like KPI cards and charts).
+2.  **Mutations:** Action hooks (e.g., `useRemovePendingSignature(id)`) use `useMutation` to send `DELETE` or `POST` requests and automatically invalidate the cache using `queryClient.invalidateQueries()`.
+3.  **Reactivity:** By relying on TanStack Query, the prototype components inherently remain in sync. Component updates and re-renders happen automatically as the cache resolves new fetches or completes mutations.
 
 ---
 
 ## 3. Frontend Routing Strategy
 
-Because this is a single-file prototype (`App.jsx`), it does not use a heavy router like `react-router-dom`. Instead, it relies on simple URL parameter parsing via `window.location.search`.
+Because this is a single-file prototype (`App.jsx`), it does not use a heavy router like `react-router-dom`. Instead, it relies on a **Zustand** global store combined with simple URL parameter parsing via `window.location.search`.
 
-### The `?page=` Parameter
-Navigation is handled by reading the `page` query parameter.
+### The Global Zustand Store (`useAppStore`)
+Navigation and user roles are handled globally via the `useAppStore`:
 
 *   **Logic:**
-    ```javascript
-    const queryPage = new URLSearchParams(window.location.search).get("page");
-    const [page, setPage] = useState(queryPage || DEBUG_USER_ROLE);
+    ```typescript
+    import { create } from "zustand";
+
+    export const useAppStore = create((set) => ({
+      page: new URLSearchParams(window.location.search).get("page") || "sp", 
+      setPage: (page) => {
+        set({ page });
+        const url = new URL(window.location.href);
+        url.searchParams.set("page", page);
+        window.history.pushState({}, "", url.toString());
+      },
+      userRole: "sp",
+      setUserRole: (userRole) => set({ userRole }),
+    }));
     ```
-*   **Component Rendering:** A dictionary maps the `page` string to a specific React Component:
+*   **Component Rendering:** A dictionary maps the `page` string to a specific React Component inside `App.jsx`:
     ```javascript
     const pages = {
       mayor: { component: MayorPage },
@@ -81,10 +91,11 @@ To simulate opening a document in a dedicated workspace without losing the dashb
     </Btn>
     ```
 *   **Handling (WMS Page):**
-    The `WMSPage` extracts the `docId` from the URL, searches the global arrays for the specific document details, and generates a dynamic mockup.
+    The `WMSPage` extracts the `docId` from the URL, queries the document via TanStack Query, and generates a dynamic mockup.
     ```javascript
     const targetDocId = new URLSearchParams(window.location.search).get("docId");
-    const doc = mockPendingSignatures.find(d => d.id === targetDocId);
+    const { data: documents = [] } = useDocuments();
+    const doc = documents.find(d => d.id === targetDocId);
     ```
 *   **Completion:**
     Upon completing an action (Approve/Reject/Return), a mutation is fired, and the user is provided a button to cleanly close the spawned tab:
@@ -93,13 +104,13 @@ To simulate opening a document in a dedicated workspace without losing the dashb
     ```
 
 ## 4. Role-Based Views
-Role switching is achieved via the `DEBUG_USER_ROLE` constant.
+Role switching is managed by the `userRole` variable inside the global **Zustand** store.
 
-```javascript
-export const DEBUG_USER_ROLE = "sp"; // "mayor" or "sp"
+```typescript
+const { userRole, setUserRole } = useAppStore();
 ```
 
 This variable automatically:
-1.  Filters the sidebar navigation items.
-2.  Changes the user profile identity at the bottom of the sidebar.
-3.  Sets the default `page` state if no URL parameter is provided.
+1.  Filters the sidebar navigation items in the global Shadcn layout.
+2.  Changes the user profile identity displayed at the bottom of the sidebar.
+3.  Determines default dashboard rendering behaviors and accessible sub-routes.
