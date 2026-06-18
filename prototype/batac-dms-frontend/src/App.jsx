@@ -26,7 +26,7 @@ import {
 } from './modals';
 
 import {
-  KitchenSinkPage, MayorPage, SPSecretaryPage, DTSPage, WMSPage, DMSPage, CitizenPortalPage
+  KitchenSinkPage, MayorPage, SPSecretaryPage, DTSPage, WMSPage, DMSPage, CitizenPortalPage, LoginRegisterPage
 } from './pages';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,29 +38,30 @@ function AppContent() {
   const queryPage = new URLSearchParams(window.location.search).get("page");
   const [page, setPage] = useState(queryPage || DEBUG_USER_ROLE)
   const [collapsed, setCollapsed] = useState(false)
-  const isPortal = page === "portal"
+  const isFullscreen = page === "portal" || page === "login"
 
-  const renderPage = () => {
-    switch (page) {
-      case "kitchen": return <KitchenSinkPage />
-      case "mayor": return <MayorPage />
-      case "sp": return <SPSecretaryPage />
-      case "dts": return <DTSPage />
-      case "wms": return <WMSPage />
-      case "dms": return <DMSPage />
-      case "portal": return <CitizenPortalPage />
-      default: return <div className="p-6 text-gray-500">Page not found ({page})</div>
-    }
+  const pages = {
+    kitchen:  { component: KitchenSinkPage,   title: "Design System",          subtitle: "Component Library & Design Tokens v0.1" },
+    mayor:    { component: MayorPage,         title: "Mayor's Dashboard",      subtitle: "Executive Operations Overview" },
+    sp:       { component: SPSecretaryPage,   title: "SP Secretary's Dashboard",subtitle: "Sangguniang Panlungsod Legislative Workflow" },
+    dts:      { component: DTSPage,           title: "Document Tracking",      subtitle: "Complete Routing History" },
+    wms:      { component: WMSPage,           title: "Approval Interface",     subtitle: "WMS - Document Review & Action" },
+    dms:      { component: DMSPage,           title: "Document Repository",    subtitle: "DMS - Internal Document Search & Management" },
+    portal:   { component: CitizenPortalPage, title: "Citizen Portal",         subtitle: "Public Access" },
+    login:    { component: LoginRegisterPage, title: "Login / Register",       subtitle: "Authentication Portal" },
   }
+
+  const cfg = pages[page] || {}
+  const PageComponent = cfg.component
 
   return (
     <div className="flex overflow-hidden" style={{ height: "100vh", fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }}>
       <GlobalStyles />
-      {!isPortal && <Sidebar page={page} setPage={setPage} collapsed={collapsed} setCollapsed={setCollapsed} />}
+      {!isFullscreen && <Sidebar page={page} setPage={setPage} collapsed={collapsed} setCollapsed={setCollapsed} />}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {!isPortal && <TopBar title="City of Batac" subtitle="Document Tracking System" />}
+        {!isFullscreen && <TopBar title={cfg.title || "City of Batac"} subtitle={cfg.subtitle || "Document Tracking System"} />}
         <main className="flex-1 overflow-y-auto bg-gray-50/50">
-          {renderPage()}
+          {PageComponent ? <PageComponent /> : <div className="p-6 text-gray-500">Page not found ({page})</div>}
         </main>
       </div>
     </div>

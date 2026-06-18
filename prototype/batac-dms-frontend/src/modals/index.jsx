@@ -15,6 +15,7 @@ import {
   useAddDocument, useAddLegislativeQueue, useUpdateLegislativeQueue, useUpdatePendingSignature, useRemovePendingSignature, useAddSession
 } from '../api/queries';
 import { Modal, FLabel, FRow, Btn, StatusBadge } from '../components/ui';
+import { QRDisplay, CitySealOfficial } from '../layout';
 
 
 export const LogDocumentModal = ({ open, onClose }) => {
