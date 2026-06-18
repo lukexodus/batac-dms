@@ -860,13 +860,13 @@ export const WMSPage = () => {
     legislativeQueue.find(d => d.id === targetDocId) ||
     documents.find(d => d.id === targetDocId) || pendingSignatures[0] || legislativeQueue[0] || documents[0];
 
-  if (!doc) {
-    return <div className="p-6 text-center text-gray-500 mt-10">No pending document found for approval. Please wait or select a valid document.</div>;
-  }
-
   const removePendingSignature = useRemovePendingSignature();
   const updatePendingSignature = useUpdatePendingSignature();
   const updateLegislativeQueue = useUpdateLegislativeQueue();
+
+  if (!doc) {
+    return <div className="p-6 text-center text-gray-500 mt-10">No pending document found for approval. Please wait or select a valid document.</div>;
+  }
 
   const handleSubmit = () => {
     if ((action === "reject" || action === "return") && !comment.trim()) return
