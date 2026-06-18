@@ -22,7 +22,7 @@ import {
   useSessionCalendar, useLegislativeOutput, useRoutingHistory, useDocuments,
   usePublicOrdinances, useAddDocument, useRemovePendingSignature, useAddSession,
   useAddLegislativeQueue, useUpdateLegislativeQueue, useUpdatePendingSignature
-} from '../api/queries';
+} from '../hooks/use-documents';
 
 import {
   StatusBadge, ClassificationBadge, PriorityTag, Btn, StatCard,

@@ -1,19 +1,97 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-*, *::before, *::after {
-  box-sizing: border-box;
+/*
+  Brand HSL Conversions:
+  #00A651 -> 149 100% 33%
+  #1E3A8A -> 224 64% 33%
+  #DC2626 -> 0 72% 51%
+  #FBBF24 -> 43 96% 56%
+  #0D3D20 -> 144 65% 15%
+*/
+
+@layer base {
+  :root {
+    --background: 120 14% 97%; /* #F6F8F6 */
+    --foreground: 221 39% 11%; /* #111827 */
+    --card: 0 0% 100%;
+    --card-foreground: 221 39% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 221 39% 11%;
+    --primary: 149 100% 33%; /* #00A651 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 144 65% 15%; /* #0D3D20 */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 72% 51%; /* #DC2626 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 149 100% 33%; /* Primary */
+    --radius: 0.5rem;
+
+    /* Custom DMS Status tokens */
+    --status-draft: 215.4 16.3% 46.9%; /* Muted foreground */
+    --status-filed: 221 83% 53%; /* Blue */
+    --status-approved: 142 71% 45%; /* Green */
+    --status-archived: 45 93% 47%; /* Yellow/Amber */
+    --status-rejected: 0 72% 51%; /* Red */ --sidebar-background: 0 0% 98%; --sidebar-foreground: 240 5.3% 26.1%; --sidebar-primary: 240 5.9% 10%; --sidebar-primary-foreground: 0 0% 98%; --sidebar-accent: 240 4.8% 95.9%; --sidebar-accent-foreground: 240 5.9% 10%; --sidebar-border: 220 13% 91%; --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* TODO: dark mode */
+    --background: 120 14% 97%;
+    --foreground: 221 39% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 221 39% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 221 39% 11%;
+    --primary: 149 100% 33%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 144 65% 15%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 149 100% 33%;
+    --radius: 0.5rem;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
 }
 
-html, body, #root {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  min-height: 100vh;
-  width: 100%;
-  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
-  background-color: #F6F8F6;
-  color: #111827;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    min-height: 100vh;
+    width: 100%;
+  }
+  #root {
+    height: 100%;
+    min-height: 100vh;
+  }
 }
 
 .font-mono {
@@ -57,31 +135,31 @@ html, body, #root {
 
 /* Custom Design System Colors */
 .sidebar-bg {
-  background-color: #0D3D20;
+  background-color: hsl(var(--secondary));
 }
 .sidebar-mid {
   background-color: #1A6B35;
 }
 .nav-active {
-  background-color: #00A651 !important;
+  background-color: hsl(var(--primary)) !important;
 }
 .nav-hover:hover {
   background-color: #1A6B35;
 }
 .brand-btn {
-  background-color: #00A651;
+  background-color: hsl(var(--primary));
 }
 .brand-btn:hover {
-  background-color: #0D3D20;
+  background-color: hsl(var(--secondary));
 }
 .brand-text {
-  color: #00A651;
+  color: hsl(var(--primary));
 }
 .brand-border {
-  border-color: #00A651;
+  border-color: hsl(var(--primary));
 }
 .brand-ring:focus {
-  outline: 2px solid #00A651;
+  outline: 2px solid hsl(var(--primary));
   outline-offset: 2px;
 }
 .brand-bg-light {

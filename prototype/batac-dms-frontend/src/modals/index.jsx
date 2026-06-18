@@ -11,9 +11,7 @@ import {
   Mail, BookOpen, Inbox, Home, MessageSquare,
   ClipboardList
 } from 'lucide-react';
-import {
-  useAddDocument, useAddLegislativeQueue, useUpdateLegislativeQueue, useUpdatePendingSignature, useRemovePendingSignature, useAddSession
-} from '../api/queries';
+import { useAddDocument, useAddLegislativeQueue, useUpdateLegislativeQueue, useUpdatePendingSignature, useRemovePendingSignature, useAddSession } from "../hooks/use-documents";
 import { Modal, FLabel, FRow, Btn, StatusBadge, ClassificationBadge } from '../components/ui';
 import { QRDisplay, CitySealOfficial } from '../layout';
 

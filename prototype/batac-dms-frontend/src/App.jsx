@@ -5,7 +5,7 @@ import {
   useSessionCalendar, useLegislativeOutput, useRoutingHistory, useDocuments,
   usePublicOrdinances, useAddDocument, useRemovePendingSignature, useAddSession,
   useAddLegislativeQueue, useUpdateLegislativeQueue, useUpdatePendingSignature
-} from './api/queries';
+} from './hooks/use-documents';
 
 
 
@@ -26,8 +26,9 @@ import {
 } from './modals';
 
 import {
-  KitchenSinkPage, MayorPage, SPSecretaryPage, DTSPage, WMSPage, DMSPage, CitizenPortalPage, LoginRegisterPage
+  MayorPage, SPSecretaryPage, DTSPage, WMSPage, DMSPage, CitizenPortalPage, LoginRegisterPage
 } from './pages';
+import { KitchenSinkPage } from './pages/dev/KitchenSink';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN APP COMPONENT
