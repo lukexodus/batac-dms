@@ -29,16 +29,16 @@ These runbooks must be tested end-to-end in the staging environment before any p
 
 These are binding SLAs for the production environment. Every runbook in this document exists to protect them.
 
-| Metric | Target | Source |
-|---|---|---|
-| Recovery Time Objective (RTO) | ≤ 4 hours | Consolidated reference Part 11.14 |
-| Recovery Point Objective (RPO) | ≤ 1 hour | Consolidated reference Part 11.14 |
-| Replication lag ceiling | ≤ 60 seconds | D5 — WAL streaming replication |
-| Failover trigger threshold | 60 seconds of primary heartbeat loss | D5 — failover behavior |
-| Hot backup retention | 30 days | Consolidated reference Part 11.14 |
-| Cold backup retention | 1 year, write-once (object lock) | Consolidated reference Part 11.14 |
-| Restoration test frequency | Monthly | Consolidated reference Part 11.14 |
-| DR drill frequency | Quarterly | Consolidated reference Part 11.14 |
+| Metric                         | Target                               | Source                            |
+| ------------------------------ | ------------------------------------ | --------------------------------- |
+| Recovery Time Objective (RTO)  | ≤ 4 hours                            | Consolidated reference Part 11.14 |
+| Recovery Point Objective (RPO) | ≤ 1 hour                             | Consolidated reference Part 11.14 |
+| Replication lag ceiling        | ≤ 60 seconds                         | D5 — WAL streaming replication    |
+| Failover trigger threshold     | 60 seconds of primary heartbeat loss | D5 — failover behavior            |
+| Hot backup retention           | 30 days                              | Consolidated reference Part 11.14 |
+| Cold backup retention          | 1 year, write-once (object lock)     | Consolidated reference Part 11.14 |
+| Restoration test frequency     | Monthly                              | Consolidated reference Part 11.14 |
+| DR drill frequency             | Quarterly                            | Consolidated reference Part 11.14 |
 
 ---
 
