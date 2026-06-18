@@ -191,6 +191,32 @@ $$;
 
 Every table below that has an `updated_at` column gets a `BEFORE UPDATE ... EXECUTE FUNCTION public.fn_set_updated_at()` trigger immediately after its `CREATE TABLE` statement. This is not repeated as prose at every table — only the trigger statement itself appears.
 
+### 0.5 Shared/Infrastructure Tables
+
+Per ADR-B2-1, a dedicated dead-letter table in the `public` schema (owned by no business module) stores failed event handler invocations for retry and operator review.
+
+```sql
+CREATE TABLE public.event_bus_dead_letters (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id         UUID NOT NULL,  -- tenant isolation anchor (Convention §1.3)
+    event_id        UUID NOT NULL,  -- UUID of the original event
+    event_type      TEXT NOT NULL,  -- type of the event (e.g. 'document.created')
+    payload         JSONB NOT NULL, -- canonical JSON representation of the event payload
+    failed_module   TEXT NOT NULL,  -- name of the module that failed to process the event
+    error_message   TEXT NOT NULL,  -- error message/stack trace reported by the failure
+    retry_count     INTEGER NOT NULL DEFAULT 0, -- number of delivery retries attempted
+    failed_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at      TIMESTAMPTZ NULL,
+    deleted_by      UUID NULL
+);
+
+CREATE TRIGGER trg_event_bus_dead_letters_set_updated_at
+    BEFORE UPDATE ON public.event_bus_dead_letters
+    FOR EACH ROW EXECUTE FUNCTION public.fn_set_updated_at();
+```
+
 ---
 
 ## Part 2 — Schema `iam`
@@ -781,7 +807,7 @@ CREATE TRIGGER trg_committee_memberships_set_updated_at
 
 ## Part 4 — Schema `documents`
 
-**Owning module:** Documents (B2 Module 3). **Responsibility:** document lifecycle state machine, immutable versioning, two-stage series numbering, OCR-on-upload metadata, QR cover sheet generation, Secretariat decision logging. **Tables:** `document_types`, `number_series`, `documents`, `versions`, `attachments`, `numbers`, `signatures`, `panlalawigan_reviews` — eight tables, using the literal short table names from the consolidated reference's own schema map (Part 9/10.2: "`documents → document_types, documents, versions, attachments, numbers, number_series, signatures`") plus one addition (`panlalawigan_reviews`) justified at §4.8.
+**Owning module:** Documents (B2 Module 3). **Responsibility:** document lifecycle state machine, immutable versioning, two-stage series numbering, OCR-on-upload metadata, QR cover sheet generation. (Note: Secretariat Approve/Reject/Amended decisions are processed by the Workflow module and transitioned via Documents.transitionState, per ADR-B2-3). **Tables:** `document_types`, `number_series`, `documents`, `versions`, `attachments`, `numbers`, `signatures`, `panlalawigan_reviews` — eight tables, using the literal short table names from the consolidated reference's own schema map (Part 9/10.2: "`documents → document_types, documents, versions, attachments, numbers, number_series, signatures`") plus one addition (`panlalawigan_reviews`) justified at §4.8.
 
 ### 4.1 Three Resolutions Made Before Any DDL in This Schema
 
