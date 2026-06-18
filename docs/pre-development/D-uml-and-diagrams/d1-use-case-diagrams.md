@@ -8,15 +8,30 @@
 
 ---
 
+## Table of Contents
+
+- [L26–38] Notation — Diagram legend (actor/use-case shapes, solid vs. dashed arrow meaning) and the Phase 1B exclusion rule with its Transmittal Letter exception.
+- [L40–145] ACT-01 · SP Secretary — 7 use-case groups (intake, legislative workflow, Panlalawigan, sessions, complaints, document requests, workflow admin); the system's primary operator role.
+- [L147–191] ACT-02 · SP Member / Councilor — Drafting, committee participation, session voting; most actions shown as Secretariat-mediated (dashed arrows), per the [Inference] note on dashboards.
+- [L193–235] ACT-03 · Vice Mayor — Session presiding, First Reading referral, certifying/co-signing approved measures, co-approving copy requests.
+- [L237–282] ACT-04 · Mayor — Sign/veto/lapse decisions on resolutions and ordinances, issuing Certification of Urgency (mediated via dashed arrow), dashboard.
+- [L284–330] ACT-05 · Records Officer — Archiving, classification, scan-vs-physical verification, bulk search/export; role's actual personnel assignment flagged [Inference].
+- [L332–389] ACT-06 · Platform Administrator — No-developer config scope: users/roles, workflow definitions, document types/numbering, notification/SLA settings, reporting.
+- [L391–441] ACT-07 · System Administrator (IT Admin) — Infra, DB migrations/grants, backup/DR, session/security controls; explicitly no document-content access.
+- [L443–498] ACT-08 · Citizen (Portal User) — Public search/viewing, QR tracking, copy-request and complaint submission flows, account registration/OTP.
+- [L500–516] Notes — 7 numbered caveats: Phase 1B exclusion list, Transmittal Letter exception, Councilor-access [Inference], Mayor Cert. of Urgency mediation, Records Officer personnel [Inference], untracked System actor, Designation note.
+
+---
+
 ## Notation
 
-|Element|Representation|
-|---|---|
-|Actor|Double circle `(( ))` — placed left of the system boundary|
-|Use case|Rounded rectangle `( )` — inside a functional grouping|
-|`→` solid arrow|Actor directly initiates action in the system|
-|`⇢` dashed arrow|Actor participates; action is mediated by the Secretariat or the outcome is logged by another role|
-|Subgraph border|Functional grouping within the Phase 1 system boundary|
+| Element          | Representation                                                                                     |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| Actor            | Double circle `(( ))` — placed left of the system boundary                                         |
+| Use case         | Rounded rectangle `( )` — inside a functional grouping                                             |
+| `→` solid arrow  | Actor directly initiates action in the system                                                      |
+| `⇢` dashed arrow | Actor participates; action is mediated by the Secretariat or the outcome is logged by another role |
+| Subgraph border  | Functional grouping within the Phase 1 system boundary                                             |
 
 **Scope rule:** Phase 1B and Phase 2+ items are excluded from all diagrams. Exception: where a Phase 1B document type appears as a generated artifact within a confirmed Phase 1 workflow step (e.g., Transmittal Letter / SPS produced during the SP Resolution workflow), it is treated as Phase 1 scope.
 

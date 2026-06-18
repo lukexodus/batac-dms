@@ -1,8 +1,37 @@
 # J4 — Module Structure Template
 
-**Document ID:** J4 **Type:** Module Structure Reference **Status:** Pre-Development **Version:** 1.0 **Date:** June 2026 **Based on:** J1 (Software Design Patterns), B2 (Module Boundary and Internal API Contracts Extract), Consolidated Architecture & Requirements Reference (Iteration 3) **Audience:** Development team — internal reference
+**Document ID:** J4
+**Type:** Module Structure Reference
+**Status:** Pre-Development
+**Version:** 1.0
+**Date:** June 2026
+**Based on:** J1 (Software Design Patterns), B2 (Module Boundary and Internal API Contracts Extract), Consolidated Architecture & Requirements Reference (Iteration 3)
+**Audience:** Development team — internal reference
 
 > **Conflict note — `index.ts` role:** The J4 scope brief assigned "Fastify plugin registration" to `index.ts`. This conflicts with two source documents. B2 (Enforcement Mechanisms) states that `index.ts` is the Published API barrel file: it "exports **only** the Published API interface. Internal files, services, and repositories are not re-exported." J1 (§4 Module Plugin Pattern) places Fastify plugin registration in `{module}.plugin.ts`. This document follows J1 and B2. If the intent is to merge plugin registration into `index.ts`, that is a deviation and requires an ADR before implementation.
+
+---
+
+## Table of Contents
+
+- [L38–L50] 1. Purpose and Scope — states the file layout applies to all 11 modules and that deviations require an ADR; points to J1/B2 for the underlying pattern rules.
+- [L52–L72] 2. Canonical Module Folder Layout — the 10-file tree for the `documents` example, naming convention (module-name prefix, `index.ts` excepted), and file-count note.
+- [L74–L335] 3. File Reference — per-file Role/Source/Key rules/Contains/Must-not-contain for all 10 files; parent section, see 3.1–3.10 below for individual files.
+  - [L76–L99] 3.1 `index.ts` — Published API Barrel — barrel exports only the Published API and its types; explicitly forbids re-exporting services, repositories, or the Fastify plugin.
+  - [L101–L140] 3.2 `documents.plugin.ts` — Fastify Plugin — `fp`-wrapped registration order (service → decorate → tRPC → nested REST), `dependencies` array, export shape example.
+  - [L142–L168] 3.3 `documents.service.ts` — Service Layer — factory-function service holding business logic, transaction creation, and the commit → audit → emit ordering rule.
+  - [L170–L193] 3.4 `documents.repository.ts` — Repository — Drizzle-only data access scoped to the `documents` schema; cross-schema queries explicitly prohibited.
+  - [L195–L218] 3.5 `documents.events.ts` — Domain Events — re-exports event keys from the master `domain-events.ts` registry; new events require same-PR Audit consumer registration.
+  - [L220–L247] 3.6 `documents.types.ts` — Domain Types — repository/service interfaces, Fastify augmentation; flags that "module-private" in the brief is only partially accurate since some types here are re-exported via `index.ts`.
+  - [L249–L273] 3.7 `documents.schemas.ts` — Module-Private Zod Schemas — module-internal Zod only; shared schemas redirect to `/packages/shared/schemas/`; conditional, omittable if nothing is module-private.
+  - [L275–L299] 3.8 `documents.router.ts` — tRPC Router — `/web` tRPC procedures that validate input and call the service only; maps typed domain errors to `TRPCError`.
+  - [L301–L314] 3.9 `documents.routes.ts` — REST Routes — external/portal REST handlers nested in the plugin without `fp`; conditional, omitted if a module has no external REST surface.
+  - [L316–L335] 3.10 `documents.errors.ts` — Typed Error Classes — named domain error classes thrown by the service and caught by the router/routes for protocol-level mapping.
+- [L337–L354] 4. File Classification — Core vs. Conditional table for all 10 files plus the open [Inference] flag on whether `router.ts` is truly Core for every module.
+- [L356–L374] 5. Module Applicability — all 11 modules with their schema name and delivery phase (1/2/3); notes Phase 2–3 schemas are reserved early but code lands later.
+- [L376–L390] 6. Infrastructure Files — Not Part of This Template — lists the 4 infra-level files (`domain-events.ts`, `event-bus.ts`, two `.plugin.ts` files) that are not created per module.
+- [L392–L403] 7. Relationship to Other Documents — table mapping J1/B2/Consolidated Reference/shared-schemas/domain-events/app.ts to what each is authoritative for relative to this document.
+- [L405–L417] 8. Deviation Policy — five example changes (new file type, file merges, moving the plugin into `index.ts`, etc.) that require an ADR before implementation.
 
 ---
 
@@ -57,12 +86,10 @@ This document names the files and defines the role, permitted contents, and key 
 - Any new type added to the Published API surface must be declared in `documents.types.ts` and re-exported here.
 
 **Contains:**
-
 - The `DocumentsPublicAPI` interface (declared in `documents.types.ts` and re-exported here, or declared directly if brief)
 - Named exports of public-facing types (e.g., `DocumentSummary`, `DocumentLifecycleState`, `AttachmentRef`) that cross-module callers need to use the Published API
 
 **Must not contain:**
-
 - Service factory functions or implementations
 - Repository factory functions or implementations
 - Drizzle schema references
@@ -80,27 +107,24 @@ This document names the files and defines the role, permitted contents, and key 
 **Key rules:**
 
 - Plugin responsibilities execute in this order:
-    
-    1. Instantiate the service via its factory, injecting `fastify.db`, `fastify.eventBus`, and any upstream module services already decorated onto `fastify`.
-    2. Decorate the service onto `fastify` (`fastify.decorate('documentsService', service)`).
-    3. Attach the tRPC router for this module.
-    4. Register REST routes inside a **nested** `fastify.register()` scope **without** `fp` — route-specific hooks must not leak to sibling plugins.
+  1. Instantiate the service via its factory, injecting `fastify.db`, `fastify.eventBus`, and any upstream module services already decorated onto `fastify`.
+  2. Decorate the service onto `fastify` (`fastify.decorate('documentsService', service)`).
+  3. Attach the tRPC router for this module.
+  4. Register REST routes inside a **nested** `fastify.register()` scope **without** `fp` — route-specific hooks must not leak to sibling plugins.
+
 - Plugin export shape:
-    
-    ```typescript
-    export default fp(documentsPlugin, {
-      name: 'documents',
-      dependencies: ['database', 'event-bus', 'tracking', 'audit'],
-    });
-    ```
-    
+  ```typescript
+  export default fp(documentsPlugin, {
+    name: 'documents',
+    dependencies: ['database', 'event-bus', 'tracking', 'audit'],
+  });
+  ```
+
 - Registration order is declared in `dependencies`. The Fastify runtime enforces that all named plugins are registered before this one.
-    
+
 - The global registration order across all modules is managed in `/apps/server/src/app.ts`.
-    
 
 **Contains:**
-
 - The plugin function and its `fp` wrapper
 - `dependencies` array listing all prerequisite plugin names
 - Service instantiation via `createDocumentsService(deps)`
@@ -109,7 +133,6 @@ This document names the files and defines the role, permitted contents, and key 
 - `fastify.register(documentsRoutes)` call (nested, no `fp`)
 
 **Must not contain:**
-
 - Business logic
 - Drizzle queries
 - Domain event emits
@@ -131,7 +154,6 @@ This document names the files and defines the role, permitted contents, and key 
 - Domain error classes are imported from `documents.errors.ts` and thrown to signal expected failure states.
 
 **Contains:**
-
 - `createDocumentsService(deps: DocumentsServiceDeps)` factory function
 - Business invariant validation
 - Transaction creation and repository coordination
@@ -139,7 +161,6 @@ This document names the files and defines the role, permitted contents, and key 
 - Domain event emits after commit and after audit write
 
 **Must not contain:**
-
 - Drizzle queries (all queries delegate to the repository)
 - Route-level input parsing
 - HTTP status codes or tRPC error codes (those are the router's concern)
@@ -160,12 +181,10 @@ This document names the files and defines the role, permitted contents, and key 
 - **Cross-schema queries are prohibited.** This repository queries the `documents` schema only. Any data from another module's schema must be obtained through that module's Published API.
 
 **Contains:**
-
 - `createDocumentsRepository(db: DbClient | DbTransaction)` factory function
 - All Drizzle query implementations for the `documents` schema
 
 **Must not contain:**
-
 - Business logic or invariant validation
 - Transaction creation
 - Queries against any schema other than `documents`
@@ -188,12 +207,10 @@ This document names the files and defines the role, permitted contents, and key 
 - Events fire **after** the primary transaction commits and after the audit log entry is written. This ordering is enforced in the service layer — not here.
 
 **Contains:**
-
 - Named re-exports of the event key constants this module publishes (e.g., `export { DOCUMENT_CREATED } from '../../infrastructure/domain-events'`)
 - Subscription registration logic for events this module consumes, called from the plugin at initialization time
 
 **Must not contain:**
-
 - New event type declarations (all event types go in `domain-events.ts`)
 - Business logic triggered by events (that belongs in service methods called from the subscription handler)
 - Runtime subscription registration (all subscriptions registered at initialization)
@@ -216,7 +233,6 @@ This document names the files and defines the role, permitted contents, and key 
 > **Note on "module-private" scope:** The J4 scope brief described `types.ts` as holding "module-private types." This is partially accurate — many types here are internal. However, types that are part of the Published API (e.g., `DocumentSummary`) are declared here and re-exported through `index.ts` for cross-module use. Not all types in this file are private. [Inference — the precise split between public and private types in `types.ts` will be determined per module.]
 
 **Contains:**
-
 - Domain types and Drizzle-inferred row types (`type DocumentRow = typeof documents.$inferSelect`)
 - `DocumentsRepository` interface
 - `DocumentsService` interface
@@ -225,7 +241,6 @@ This document names the files and defines the role, permitted contents, and key 
 - Any other module-internal type that does not warrant its own file
 
 **Must not contain:**
-
 - Zod schemas (those live in `documents.schemas.ts` or `/packages/shared/schemas/`)
 - Implementation code
 
@@ -245,13 +260,11 @@ This document names the files and defines the role, permitted contents, and key 
 - Schemas here are module-internal. They are not re-exported through `index.ts`.
 
 **Contains:**
-
 - Zod schemas for tRPC procedure input validation
 - Zod schemas for REST request body and query parameter validation
 - TypeScript types derived via `z.infer<typeof ...>`
 
 **Must not contain:**
-
 - Schemas intended for cross-module or cross-package use (those go in `/packages/shared/schemas/`)
 - Business logic
 
@@ -273,14 +286,12 @@ This document names the files and defines the role, permitted contents, and key 
 - Export shape: `createDocumentsRouter(fastify: FastifyInstance)` factory function.
 
 **Contains:**
-
 - tRPC procedure definitions (`query`, `mutation`)
 - Input validation via Zod
 - Calls to `fastify.documentsService.*`
 - Error mapping from domain error classes to `TRPCError`
 
 **Must not contain:**
-
 - Business logic
 - Direct repository calls
 - Drizzle queries
@@ -314,12 +325,10 @@ This document names the files and defines the role, permitted contents, and key 
 - Route handlers (tRPC router, REST routes) catch typed errors and map them to appropriate protocol-level error responses.
 
 **Contains:**
-
 - Named error classes extending a base error (e.g., `DocumentAlreadyFinalizedError`, `DocumentNotFoundError`)
 - Error codes or message templates where applicable
 
 **Must not contain:**
-
 - Business logic
 - Database queries
 
@@ -327,18 +336,18 @@ This document names the files and defines the role, permitted contents, and key 
 
 ## 4. File Classification
 
-|File|Classification|Omit when|
-|---|---|---|
-|`index.ts`|Core|— Required for all modules|
-|`{module}.plugin.ts`|Core|— Required for all modules|
-|`{module}.service.ts`|Core|— Required for all modules|
-|`{module}.repository.ts`|Core|— Required for all modules|
-|`{module}.types.ts`|Core|— Required for all modules|
-|`{module}.events.ts`|Core|— Required for all modules|
-|`{module}.errors.ts`|Core|— Required for all modules|
-|`{module}.router.ts`|Core|[Inference] Module has no tRPC surface for `/web`|
-|`{module}.routes.ts`|Conditional|Module has no external REST surface|
-|`{module}.schemas.ts`|Conditional|All schemas live in `/packages/shared/schemas/`|
+| File | Classification | Omit when |
+|------|---------------|-----------|
+| `index.ts` | Core | — Required for all modules |
+| `{module}.plugin.ts` | Core | — Required for all modules |
+| `{module}.service.ts` | Core | — Required for all modules |
+| `{module}.repository.ts` | Core | — Required for all modules |
+| `{module}.types.ts` | Core | — Required for all modules |
+| `{module}.events.ts` | Core | — Required for all modules |
+| `{module}.errors.ts` | Core | — Required for all modules |
+| `{module}.router.ts` | Core | [Inference] Module has no tRPC surface for `/web` |
+| `{module}.routes.ts` | Conditional | Module has no external REST surface |
+| `{module}.schemas.ts` | Conditional | All schemas live in `/packages/shared/schemas/` |
 
 > **[Inference — `router.ts` classification]:** Whether every module requires a `router.ts` is not explicitly confirmed in J1 or B2. Some modules (e.g., `notifications`, `audit`, `tracking`) are primarily consumed via Published API or domain events rather than direct user interaction. The Core classification for `router.ts` is a reasonable inference from the architecture; it should be confirmed per module before scaffolding.
 
@@ -346,19 +355,19 @@ This document names the files and defines the role, permitted contents, and key 
 
 ## 5. Module Applicability
 
-|Module|Schema|Phase|
-|---|---|---|
-|`iam`|`iam`|1|
-|`organization`|`organization`|1|
-|`documents`|`documents`|1|
-|`workflow`|`workflow`|1|
-|`tracking`|`tracking`|1|
-|`notifications`|`notifications`|1|
-|`audit`|`audit`|1|
-|`records`|`records`|2 (schema reserved in Phase 1)|
-|`search_meta`|`search_meta`|2 (schema reserved in Phase 1)|
-|`reporting`|`reporting`|2|
-|`portal`|`portal`|3|
+| Module | Schema | Phase |
+|--------|--------|-------|
+| `iam` | `iam` | 1 |
+| `organization` | `organization` | 1 |
+| `documents` | `documents` | 1 |
+| `workflow` | `workflow` | 1 |
+| `tracking` | `tracking` | 1 |
+| `notifications` | `notifications` | 1 |
+| `audit` | `audit` | 1 |
+| `records` | `records` | 2 (schema reserved in Phase 1) |
+| `search_meta` | `search_meta` | 2 (schema reserved in Phase 1) |
+| `reporting` | `reporting` | 2 |
+| `portal` | `portal` | 3 |
 
 Phase 2 and Phase 3 modules follow this same file structure. Their schemas are reserved in Phase 1 migrations; module code is not added until the relevant phase begins.
 
@@ -382,14 +391,14 @@ The following files are infrastructure-level, not module-level, and are not crea
 
 ## 7. Relationship to Other Documents
 
-|Document|Relationship|
-|---|---|
-|J1 — Software Design Patterns|Authoritative source for the five mandatory patterns implemented in each file. J4 names the files; J1 defines the rules inside them.|
-|B2 — Module Boundary and Internal API Contracts|Authoritative source for the `index.ts` barrel rule, the Published API surface per module, event tables, and the P2 cross-module import prohibition.|
-|Consolidated Architecture & Requirements Reference|Architectural Laws 1–3 are the high-level constraints this file layout enforces. Database conventions in §11.9 apply to all repository files.|
-|`/packages/shared/schemas/`|Home for Zod schemas shared across modules or packages. Module-private schemas belong in `{module}.schemas.ts`, not here.|
-|`/apps/server/src/infrastructure/domain-events.ts`|Master event registry. `{module}.events.ts` re-exports from here; it does not declare new event types locally.|
-|`/apps/server/src/app.ts`|Registers all module plugins in declared dependency order. The registration order is defined there, not in individual plugin files.|
+| Document | Relationship |
+|----------|-------------|
+| J1 — Software Design Patterns | Authoritative source for the five mandatory patterns implemented in each file. J4 names the files; J1 defines the rules inside them. |
+| B2 — Module Boundary and Internal API Contracts | Authoritative source for the `index.ts` barrel rule, the Published API surface per module, event tables, and the P2 cross-module import prohibition. |
+| Consolidated Architecture & Requirements Reference | Architectural Laws 1–3 are the high-level constraints this file layout enforces. Database conventions in §11.9 apply to all repository files. |
+| `/packages/shared/schemas/` | Home for Zod schemas shared across modules or packages. Module-private schemas belong in `{module}.schemas.ts`, not here. |
+| `/apps/server/src/infrastructure/domain-events.ts` | Master event registry. `{module}.events.ts` re-exports from here; it does not declare new event types locally. |
+| `/apps/server/src/app.ts` | Registers all module plugins in declared dependency order. The registration order is defined there, not in individual plugin files. |
 
 ---
 
@@ -405,4 +414,4 @@ Deviations from this file structure require an ADR before implementation. Exampl
 
 ---
 
-_End of document. Pending review before first module scaffold._
+*End of document. Pending review before first module scaffold.*
