@@ -587,10 +587,34 @@ export const DTSPage = () => {
     return <div className="p-6 text-center text-gray-500 mt-10">No document found. Please wait or select a valid document.</div>;
   }
 
-  const dynamicRoutingHistory = routingHistory.map(entry => ({
-    ...entry,
-    detail: entry.detail.replace("Purchase Request", doc.type).replace("Leave Application", doc.type)
-  }));
+  let timelineSteps = 1;
+  if (["Pending Approval", "In Committee", "For 1st Reading", "Endorsed"].includes(doc.status)) timelineSteps = 2;
+  if (["Approved", "Fund Certified", "VP Certification"].includes(doc.status)) timelineSteps = 3;
+  if (["Released", "Completed", "Archived"].includes(doc.status)) timelineSteps = 4;
+
+  const dynamicRoutingHistory = routingHistory.slice(0, timelineSteps).map((entry, i) => {
+    const isLast = i === timelineSteps - 1;
+    const isDone = ["Released", "Completed", "Archived"].includes(doc.status);
+    return {
+      ...entry,
+      detail: entry.detail.replace(/Purchase Request/g, doc.type).replace(/Leave Application/g, doc.type),
+      status: (isLast && !isDone) ? "current" : "done",
+      timestamp: i === 0 ? (doc.date || entry.timestamp) : ((isLast && !isDone) ? "Pending..." : entry.timestamp)
+    };
+  });
+
+  if (doc.status === "Rejected") {
+    dynamicRoutingHistory.push({
+      id: "reject-step",
+      office: "Reviewing Office",
+      action: "Rejected / Returned",
+      detail: "Document was rejected and returned to originator.",
+      timestamp: "Pending...",
+      status: "current",
+      user: "System",
+      role: "Reviewer"
+    });
+  }
 
   return (
     <div className="p-6">
@@ -620,7 +644,7 @@ export const DTSPage = () => {
                 <p className="text-base font-semibold text-gray-900 mb-0.5">{doc.type} — Version {doc.ver || 1}</p>
                 <p className="text-sm text-gray-600 line-clamp-2">{doc.title}</p>
                 <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100">
-                  {[["Type", doc.type], ["Office", doc.office], ["Created", doc.date], ["Released", doc.status === "Released" ? "Jun 2, 2026" : "—"]].map(([k, v]) => (
+                  {[["Type", doc.type], ["Office", doc.office], ["Created", doc.date], ["Released", ["Released", "Completed", "Archived"].includes(doc.status) ? "Yes" : "—"]].map(([k, v]) => (
                     <div key={k}>
                       <p className="text-[10px] text-gray-400 uppercase tracking-wide">{k}</p>
                       <p className="text-sm font-medium text-gray-900 mt-0.5">{v}</p>
@@ -708,13 +732,13 @@ export const DTSPage = () => {
             <p className="text-sm font-semibold text-gray-700 mb-3">Document Details</p>
             <dl className="space-y-3">
               {[
-                ["Classification", <ClassificationBadge level={doc.classification} />],
+                ["Classification", <ClassificationBadge level={doc.classification || "Internal"} />],
                 ["Owning Office", doc.office],
                 ["Retention Policy", "Permanent Record"],
-                ["Current Custodian", "Records Officer"],
-                ["Physical Custody", <span className="text-xs text-green-700 font-medium flex items-center gap-1"><CheckCircle size={12} />Records Archive Room</span>],
-                ["Total Transit Time", "18 calendar days"],
-                ["Total Steps", `${routingHistory.length} workflow steps`],
+                ["Current Custodian", ["Released", "Completed"].includes(doc.status) ? "Records Officer" : doc.office],
+                ["Physical Custody", ["Released", "Completed"].includes(doc.status) ? <span className="text-xs text-green-700 font-medium flex items-center gap-1"><CheckCircle size={12} />Records Archive Room</span> : <span className="text-xs text-amber-700 font-medium flex items-center gap-1"><Clock size={12} />In Transit / Office</span>],
+                ["Total Transit Time", doc.daysInQueue ? `${doc.daysInQueue} calendar days` : "Just logged"],
+                ["Total Steps", `${dynamicRoutingHistory.length} workflow steps`],
               ].map(([label, val]) => (
                 <div key={label} className="flex items-start justify-between gap-2">
                   <dt className="text-xs text-gray-400 flex-shrink-0">{label}</dt>
@@ -1059,8 +1083,7 @@ export const DMSPage = () => {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 {[
-                  ["Tracking No.", "whitespace-nowrap"],
-                  ["Title", ""],
+                  ["Document Identifier", ""],
                   ["Type", "whitespace-nowrap"],
                   ["Office", "whitespace-nowrap"],
                   ["Date", "whitespace-nowrap"],
@@ -1077,7 +1100,7 @@ export const DMSPage = () => {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-16">
+                  <td colSpan={7} className="text-center py-16">
                     <Search size={28} className="mx-auto text-gray-300 mb-2" />
                     <p className="text-sm text-gray-400">No documents match your filters</p>
                     <button className="mt-2 text-xs brand-text hover:underline" onClick={() => { setSearch(""); setFilters({ type: "All Types", office: "All Offices", status: "All Statuses", classification: "All" }) }}>Clear all filters</button>
@@ -1085,12 +1108,12 @@ export const DMSPage = () => {
                 </tr>
               ) : filtered.map((doc, i) => (
                 <tr key={doc.id} className={`hover:bg-gray-50 cursor-pointer transition-colors group ${i !== filtered.length - 1 ? "border-b border-gray-50" : ""}`}>
-                  <td className="px-4 py-3.5">
-                    <span className="font-mono text-xs text-green-600 hover:text-green-800">{doc.id}</span>
-                  </td>
-                  <td className="px-4 py-3.5" style={{ maxWidth: 260 }}>
-                    <p className="text-sm font-medium text-gray-900 truncate">{doc.title}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">v{doc.ver} · {doc.size}</p>
+                  <td className="px-4 py-3.5" style={{ maxWidth: 300 }}>
+                    <p className="text-sm font-bold text-gray-900 truncate mb-0.5" title={doc.title}>{doc.title}</p>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{doc.id}</span>
+                      <span className="text-gray-400">v{doc.ver} · {doc.size}</span>
+                    </div>
                   </td>
                   <td className="px-4 py-3.5 whitespace-nowrap">
                     <span className="text-xs text-gray-600">{doc.type}</span>

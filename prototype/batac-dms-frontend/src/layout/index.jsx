@@ -118,7 +118,7 @@ export const QRDisplay = ({ size = 80 }) => {
   )
 }
 
-export const DEBUG_USER_ROLE = "mayor"; // "mayor" or "sp"
+export const DEBUG_USER_ROLE = "sp"; // "mayor" or "sp"
 
 const navGroups = [
   {
