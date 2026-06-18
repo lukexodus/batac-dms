@@ -280,15 +280,15 @@ This section catalogs every notification event the `notifications` module must h
 
 ---
 
-### 4.8 Complaint Respondent Notification `[B3 Gap]`
+### 4.8 Complaint Respondent Notification `[B3 Gap — routing resolved by ADR-B2-4]`
 
 | Field | Value |
 |---|---|
 | **Notification Event Name** | Complaint Respondent Alert |
-| **Triggering Domain Event** | Not currently registered in B3 as a domain event with a `notifications` consumer. Triggered by the complaint workflow within the platform. See Section 8.4 for the required follow-up action. |
-| **Emitter Module** | Complaint workflow (within the `documents` or `portal` module boundary) |
+| **Triggering Domain Event** | Not currently registered in B3 as a domain event with a `notifications` consumer. Triggered by the complaint workflow within the platform. See Section 8.4 for the follow-up action still required in B3. |
+| **Emitter Module** | `portal` (Respondent Notice Service — routing confirmed via `Notifications.sendNotification()` per ADR-B2-4) |
 | **Phase** | 1 |
-| **Source** | Consolidated ref Part 4.14; I2 Section 11, Conditional note ¹⁸; I2 Section 12 |
+| **Source** | Consolidated ref Part 4.14; I2 Section 11, Conditional note ¹⁸; I2 Section 12; ADR-B2-4 — Respondent Notice Channel (June 2026) |
 
 **Description:** Notifies the named respondent in a citizen complaint that a formal written notice has been issued and requires their attention. Delivery method depends entirely on what contact information is available for the respondent.
 
@@ -671,11 +671,11 @@ The `session.terminated` domain event (B3 §4.3) currently lists only `audit` as
 
 The complaint respondent notification (Section 4.8) is not currently represented in B3 as a formal domain event with a `notifications` consumer. It is, however, an explicit Phase 1 requirement (consolidated ref Part 4.14; I2 Section 11, Conditional note ¹⁸).
 
-**Required decision:** The implementation team must decide whether to:
-1. Define a new domain event (e.g., `complaint.respondent_notice.issued`) on the event bus and register `notifications` as a consumer in B3, or
-2. Implement this as a direct notification service call from the complaint workflow, bypassing the event bus (with the exception documented in an ADR).
+**[RESOLVED — ADR-B2-4: Respondent Notice Channel, June 2026]** The **routing** question is resolved: Portal's Respondent Notice Service calls `Notifications.sendNotification()` — not a direct SMTP call, and not a separate domain event on the bus. The Notifications module handles delivery and logs every attempt in `notifications.delivery_log`. B1's direct-SMTP diagram for Module 10 (Portal) is superseded by ADR-B2-4.
 
-This decision must be made before the complaint module is implemented. If option 1 is chosen, a new entry must be added to B3's Master Event Registry in the same PR.
+**Remaining open item (still a B3 action):** Whether this call path is accompanied by a formal domain event (e.g., `complaint.respondent_notice.issued`) or is purely a direct Published API call is still the team's choice when implementing the complaint module. If a domain event is introduced, a new entry must be added to B3's Master Event Registry in the same PR that introduces it on the bus.
+
+**Phase 1/2 behavior for phone-only respondents:** When only a contact number is available, `Notifications.sendNotification()` with `channel: 'sms'` logs a `delivery_log` entry of type `phone_call_required` in Phase 1/2 (the SMS gateway is reserved for Phase 3). The actual phone call and in-person notice handoff remain manual Secretariat actions. This ensures every respondent notice *attempt* is logged centrally regardless of delivery channel.
 
 ### 8.5 Escalation Target Resolution — Not in Event Payload
 
@@ -724,11 +724,11 @@ This catalog defines nine notification events and ten associated templates requi
 
 **Key implementation decisions required before work begins:**
 
-| # | Decision | Section |
-|---|---|---|
-| 1 | Add `notifications` as a consumer of `session.terminated` in B3 | §8.3 |
-| 2 | Decide whether complaint respondent notification uses the event bus or a direct service call; update B3 accordingly if bus-based | §8.4 |
-| 3 | Confirm the 150% SLA critical threshold with stakeholders before configuring `pgboss` timers | §8.10 |
+| # | Decision | Section | Status |
+|---|---|---|---|
+| 1 | Add `notifications` as a consumer of `session.terminated` in B3 | §8.3 | **Open** |
+| 2 | Complaint respondent notification routing: **resolved** — Portal's Respondent Notice Service calls `Notifications.sendNotification()`; B1 direct-SMTP diagram superseded (ADR-B2-4) | §8.4 | **Resolved — ADR-B2-4** |
+| 3 | Confirm the 150% SLA critical threshold with stakeholders before configuring `pgboss` timers | §8.10 | **Open** |
 
 **Ongoing maintenance:** This document must be updated whenever a new notification event is introduced, an existing event's recipient logic changes, or a delivery channel is added. Changes to template message content do not require a revision to this document — that content is managed by the Platform Administrator in the admin interface.
 

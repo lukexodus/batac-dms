@@ -551,7 +551,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Output | `z.object({ items: z.array(z.object({ documentId: z.string().uuid(), title: z.string(), documentTypeName: z.string(), finalNumber: z.string().nullable(), currentState: documentLifecycleStateEnum, relevanceScore: z.number().optional() })), nextCursor: z.string().nullable() })` |
 | Callable by | `records_officer`, `dept_encoder` (🔶 scoped), `dept_approver` (🔶 scoped), `sp_secretary`, `sp_member` (🔶 scoped), `sp_presiding_officer`, `mayor`, `auditor` |
 | ABAC conditions | Per I2 Conditional Note ¹⁰: Encoders/Approvers/SP Members are scoped to documents in their own office (or, for SP Members, their committee/session scope) — enforced as an additional `WHERE` clause layered on top of the PostgreSQL FTS query itself, not a separate code path. |
-| Business operation | Phase 1: executes `tsvector`/`tsquery` directly against `documents.documents`/`documents.versions.ocr_text` (no Search Meta abstraction call in Phase 1, per B2 Module 9's Phase 1 note). `[Confirmed — I2 Section 5 "Full-text search across documents"; B2 Module 9 Phase 1 note; 2-stack-context Search Strategy table]` |
+| Business operation | Phase 1: calls `SearchMeta.search(queryText, filters, callerContext)` — the thin pass-through layer introduced by ADR-B2-5. Under the hood, `SearchMeta.search()` executes a `tsvector`/`tsquery` query against `documents.documents`/`documents.versions.ocr_text` in Phase 1 (same SQL, different call site). In Phase 2, `SearchMeta.search()` will delegate to Elasticsearch without callers changing. This is the **one explicit cross-schema exception** to B2 Law #2/P1: the Documents schema's `ocr_text` column is a dedicated FTS surface — SearchMeta's read of it is the single allowed direct cross-schema query, documented in ADR-B2-5. `[Confirmed — I2 Section 5 "Full-text search across documents"; ADR-B2-5 — FTS Abstraction Layer (June 2026); B2 Module 9 Phase 1 note superseded by ADR-B2-5]` |
 
 ### `documents.update`
 
@@ -755,7 +755,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | ABAC conditions | None beyond role gate. |
 | Business operation | Confirms the scanned-back version as the official digital copy after manual review. `[Confirmed — I2 Section 9 "Accept scanned-back signed document as official copy"]` |
 
-## 3.4 Secretariat Decision Logging
+## 3.4 Secretariat Decision Logging `[Routing superseded by ADR-B2-3]`
 
 ### `documents.logSecretariatDecision`
 
@@ -766,7 +766,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Output | `z.object({ success: z.literal(true) })` |
 | Callable by | `sp_secretary` only |
 | ABAC conditions | `step.step_type IN ('action','approval')`, `step.assignee_office_id = SP_SECRETARIAT_OFFICE_ID` (I1 §6.8). |
-| Business operation | This is the literal `docRouter`-side caller B2 Module 3 describes: it calls `documentService.recordDecision()` internally, which writes the decision and emits `document.secretariat_decision` with `decision: 'APPROVED' | 'REJECTED' | 'AMENDED'` (B2 Module 3). The **Workflow** module's event consumer then advances the step — meaning this procedure's effect on workflow state is asynchronous via the event bus, not a direct synchronous call from this router into the Workflow schema (consistent with B2's explicit flow note: "Approve / Reject / Amended trigger flows Documents → Workflow via the event bus, not the reverse"). `[Confirmed — I1 §6.8 in full; B2 Module 3 "Note on Secretariat Decision Flow" and event table]` |
+| Business operation | **[ADR-B2-3 — Secretariat Decision Entry Point, June 2026]** The Secretariat's "Approve / Reject / Amended" action now enters through the **Workflow Router**, not the Document Router. This procedure **delegates immediately** to `Workflow.submitStepAction(stepInstanceId, outcome)`, which atomically: (1) advances the workflow step, (2) synchronously calls `Documents.transitionState()` to update the document lifecycle state, and (3) emits `workflow.step.completed` with `outcome: 'APPROVED' | 'REJECTED' | 'AMENDED'` (B3 §7.12). `document.secretariat_decision` is no longer emitted. See B3 §6.4 superseded notice. The pre-ADR flow (Document Router → `documentService.recordDecision()` → async event bus → Workflow) is superseded; the direct Workflow → Documents sync path (which already existed in the B2 Published API Call Matrix) is now the sole code path. `[Confirmed — I1 §6.8 in full; ADR-B2-3; B3 §6.4; B3 §7.12]` |
 
 ---
 

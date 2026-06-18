@@ -445,16 +445,18 @@ CREATE INDEX idx_documents_metadata_gin
 -- the ? key-existence operator) is acceptable here because all confirmed metadata queries
 -- in E1 and I1 use @> containment, not standalone key-existence checks.
 
--- ── Full-text search (Phase 1: PostgreSQL FTS; Phase 2: Meilisearch supplements) ──
+-- ── Full-text search (Phase 1: PostgreSQL FTS via SearchMeta.search(); Phase 2: Meilisearch supplements) ──
 
 -- tsvector index on title: Phase 1 FTS for documents.search procedure.
--- This index is Phase 1 scope; Phase 2 adds Meilisearch, which absorbs the typo-tolerance
--- and faceted-filtering load, but the tsvector index remains for authenticated internal
--- searches that bypass Meilisearch (e.g., audit-trail queries that need DB-level FTS).
+-- Call sites in Phase 1 route through SearchMeta.search() (ADR-B2-5), which in Phase 1
+-- wraps this GIN index directly. In Phase 2, SearchMeta.search() will delegate to Meilisearch
+-- for typo-tolerant and multilingual search; this GIN index remains for the DB-level path
+-- (authenticated internal searches requiring exact consistency with source-of-truth data;
+-- Meilisearch has eventual consistency by design).
 CREATE INDEX idx_documents_title_fts
     ON documents.documents USING GIN (to_tsvector('english', title))
     WHERE deleted_at IS NULL;
--- [Phase 1] [Confirmed — 2-stack-context Search Strategy "Phase 1: PostgreSQL FTS (tsvector/tsquery)"; E1 documents.search]
+-- [Phase 1] [Confirmed — ADR-B2-5 FTS Abstraction Layer; 2-stack-context Search Strategy "Phase 1: PostgreSQL FTS (tsvector/tsquery)"; E1 documents.search]
 -- Note: A separate Filipino/Ilocano FTS configuration is not available as a built-in
 -- PostgreSQL text-search dictionary. Phase 1 uses the 'english' configuration as an
 -- approximation for title-word tokenization; this is acceptable for the confirmed Phase 1
@@ -478,14 +480,15 @@ CREATE INDEX idx_versions_ocr_unprocessed
 -- [Phase 1] [Confirmed — consolidated reference Q-C01 "OCR runs automatically on upload"; E1 documents.confirmUpload]
 
 -- OCR text full-text search: Phase 1 FTS searches ocr_text in addition to title.
--- The column is TEXT (not a tsvector column) so a functional GIN index is used.
+-- Call sites route through SearchMeta.search() (ADR-B2-5); this GIN index is the
+-- underlying implementation in Phase 1.
 CREATE INDEX idx_versions_ocr_text_fts
     ON documents.versions USING GIN (to_tsvector('english', coalesce(ocr_text, '')))
     WHERE ocr_processed = true AND deleted_at IS NULL;
--- [Phase 1] [Confirmed — E1 documents.search "backed directly by PostgreSQL FTS"; OCR text included in search scope]
--- [Phase 2 note] When Meilisearch is live, it will index ocr_text via the sync job and
--- handle multilingual/typo-tolerant search. This GIN index remains for internal DB-level
--- queries but its usage from documents.search may shift to a Meilisearch query call.
+-- [Phase 1] [Confirmed — ADR-B2-5 FTS Abstraction Layer; E1 documents.search; OCR text included in search scope]
+-- [Phase 2 note] When Meilisearch is live, SearchMeta.search() will delegate to Meilisearch
+-- for multilingual/typo-tolerant search. This GIN index remains for the DB-level path
+-- (exact-consistency searches); SearchMeta.search() chooses the path at call time.
 
 -- Scan quality filter: Records Officers and Secretariat staff filter by quality category.
 CREATE INDEX idx_versions_scan_quality
@@ -919,7 +922,7 @@ export const documentsOfficeStateIdx = index('idx_documents_office_state')
 
 **Partial index drift.** Partial indexes scoped to `WHERE deleted_at IS NULL` become less selective as the soft-deleted row fraction grows over time. The DBA should monitor `pg_stat_user_indexes` quarterly and consider converting to a full index if the live-row fraction drops below 60% of total rows on any table — this would indicate that the partial condition is no longer providing meaningful index size savings.
 
-**FTS index vs. Meilisearch handoff (Phase 2).** When Meilisearch is provisioned in Phase 2, the `idx_documents_title_fts` and `idx_versions_ocr_text_fts` GIN indexes will continue to exist and will continue to be maintained by PostgreSQL. They are not dropped at Phase 2 — the Meilisearch layer handles citizen-facing public portal search and typo-tolerant internal search; the PostgreSQL FTS indexes remain for audit-trail queries and any authenticated internal search path that requires exact consistency with the source-of-truth data (Meilisearch has eventual consistency by design). This dual-path is explicitly the design per the 2-stack-context search strategy: "Design the search interface as an abstraction layer so the underlying provider is swappable without touching call sites."
+**FTS index vs. Meilisearch handoff (Phase 2) `[ADR-B2-5]`.** All Phase 1 full-text search call sites route through `SearchMeta.search()` — the thin pass-through layer introduced by ADR-B2-5 — which in Phase 1 wraps the PostgreSQL FTS GIN indexes directly. When Meilisearch is provisioned in Phase 2, `SearchMeta.search()` will switch to Meilisearch for typo-tolerant and multilingual search without callers changing. The `idx_documents_title_fts` and `idx_versions_ocr_text_fts` GIN indexes continue to exist and are maintained by PostgreSQL at Phase 2 — `SearchMeta.search()` uses them for the exact-consistency DB-level path (authenticated internal queries where Meilisearch's eventual-consistency model is unacceptable). This dual-path is explicitly the design per the 2-stack-context search strategy: "Design the search interface as an abstraction layer so the underlying provider is swappable without touching call sites." The Documents schema's `ocr_text` column (read by SearchMeta in Phase 1) is the **one explicit cross-schema exception** to B2 Law #2/P1, documented in ADR-B2-5.
 
 ---
 

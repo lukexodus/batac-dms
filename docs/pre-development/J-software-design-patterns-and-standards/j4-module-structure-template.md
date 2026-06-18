@@ -371,6 +371,8 @@ This document names the files and defines the role, permitted contents, and key 
 
 Phase 2 and Phase 3 modules follow this same file structure. Their schemas are reserved in Phase 1 migrations; module code is not added until the relevant phase begins.
 
+> **`search_meta` Phase 1 exception `[ADR-B2-5]`:** Although the full `search_meta` module (schema, Meilisearch sync jobs, admin UI) is Phase 2, ADR-B2-5 requires a thin `SearchMeta.search()` pass-through interface to exist in Phase 1 so that all FTS call sites are routed through a stable abstraction from the start. This Phase 1 stub is **not** a separate module folder under `modules/search_meta/` — it lives in the `documents` module's service layer (`documents.service.ts`) as a local utility that calls into the PostgreSQL FTS GIN indexes directly. When Phase 2 begins, this stub is extracted into the full `modules/search_meta/` folder per this template; callers do not change because the interface contract (`SearchMeta.search(queryText, filters, callerContext)`) is preserved.
+
 ---
 
 ## 6. Infrastructure Files — Not Part of This Template

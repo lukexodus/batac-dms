@@ -531,29 +531,27 @@ export type DocumentNumberAssignedPayload = z.infer<typeof DocumentNumberAssigne
 
 ---
 
-#### 6.4 `document.secretariat_decision`
+#### 6.4 `document.secretariat_decision` ~~[REMOVED — ADR-B2-3]~~
 
-|||
-|---|---|
-|**Emitter**|`documents`|
-|**Phase**|1|
-|**Trigger**|Secretariat logs an Approve, Reject, or Amended decision via the Document Router|
-|**Consumers**|`workflow` · `audit`|
-|**Source**|B2 Module 3, B2 Master Registry|
+> **[SUPERSEDED — ADR-B2-3: Secretariat Decision Entry Point, June 2026]**
+>
+> This event has been **removed from the event taxonomy**. It is retained here for historical traceability only — per this team's practice of flagging superseded entries explicitly rather than silently deleting them.
+>
+> **What changed:** The Secretariat's "Approve / Reject / Amended" action now enters through the **Workflow Router**, not the Document Router. The Workflow Engine synchronously calls `Documents.transitionState()` as part of the same atomic operation, and emits `workflow.step.completed` (§7.12) with the `outcome` field carrying the decision result. `document.secretariat_decision` is no longer emitted by any module.
+>
+> **Why:** B2's own sync/async decision rule identifies "document state transition driven by workflow" as requiring the sync path for atomicity. Routing through Documents and then firing an async event to Workflow created a drift window (decision recorded in Documents while Workflow step silently failed). The direct Workflow → Documents sync path already existed in the Published API Call Matrix; the async event-driven path was a redundant second route to the same outcome.
+>
+> **Authoritative record:** `b2-module-boundary-and-internal-api-contracts-adrs/ADR-B2-3-secretariat-decision-entry-point.md`
+>
+> **Replacement:** See §7.12 `workflow.step.completed` — the `outcome` field carries `'APPROVED'` / `'REJECTED'` / `'AMENDED'` for `approval`-type steps.
 
-**Business Reason:** The Secretariat's Approve / Reject / Amended action on a submitted document must advance the corresponding workflow step. This event decouples the Documents module (which owns the decision record) from the Workflow module (which owns step progression). The flow is Documents → Workflow via event bus, not the reverse.
+~~**Original entry (Version 1.0, preserved for traceability):**~~
 
-[Inference — from B2 Module 3 note on `recordDecision()`]: The Document Router calls `documentService.recordDecision()` internally, which records the decision and emits this event. The Workflow module's event consumer then advances the corresponding workflow step.
+~~Emitter: `documents` · Phase: 1 · Trigger: Secretariat logs an Approve, Reject, or Amended decision via the Document Router · Consumers: `workflow` · `audit` · Source: B2 Module 3, B2 Master Registry~~
 
-```typescript
-export const DocumentSecretariatDecisionPayloadSchema = z.object({
-  documentId: z.string().uuid(),
-  decision:   z.enum(['APPROVED', 'REJECTED', 'AMENDED']),
-  actorId:    z.string().uuid(),
-  remarks:    z.string().optional(),
-});
-export type DocumentSecretariatDecisionPayload = z.infer<typeof DocumentSecretariatDecisionPayloadSchema>;
-```
+~~Business Reason: The Secretariat's Approve / Reject / Amended action on a submitted document must advance the corresponding workflow step. This event decoupled the Documents module (which owned the decision record) from the Workflow module (which owned step progression). The flow was Documents → Workflow via event bus.~~
+
+~~`[Inference — from B2 Module 3 note on recordDecision()]`: The Document Router called `documentService.recordDecision()` internally, which recorded the decision and emitted this event. The Workflow module's event consumer then advanced the corresponding workflow step.~~
 
 ---
 
@@ -1382,7 +1380,7 @@ Complete flat list of all 42 domain events. Every event in this table must have 
 |9|`document.created`|`documents`|`tracking` · `workflow` · `audit`|1|B2|
 |10|`document.state_changed`|`documents`|`tracking` · `notifications` · `audit` · `search_meta` [Ph2] · `portal` [Ph3]|1|B2|
 |11|`document.number_assigned`|`documents`|`audit`|1|B2|
-|12|`document.secretariat_decision`|`documents`|`workflow` · `audit`|1|B2|
+|12|~~`document.secretariat_decision`~~ **[REMOVED — ADR-B2-3]**|~~`documents`~~|~~`workflow` · `audit`~~|~~1~~|Superseded — see §6.4 and ADR-B2-3. Outcome now carried in `workflow.step.completed` (row 25). `document.secretariat_decision` is no longer emitted.|
 |13|`document.certification_urgency.logged`|`documents`|`workflow` · `audit`|1|B4 §6.1|
 |14|`workflow.instance.created`|`workflow`|`audit` [Inf]|1|B4 App A|
 |15|`workflow.instance.completed`|`workflow`|`records` [Ph2] · `portal` [Ph3] · `audit`|1|B4 App A|

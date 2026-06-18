@@ -852,7 +852,7 @@ SELECT
 FROM audit.events
 ORDER BY occurred_at DESC
 LIMIT 20;
--- Visually confirm chain_hash values are non-null and uniform length (SHA-256 = 64 hex chars)
+-- Visually confirm chain_hash values are non-null and uniform length (HMAC-SHA-256 = 64 hex chars — ADR-B2-2)
 ```
 
 ### 4.6 Recording the Test Result

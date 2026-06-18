@@ -54,6 +54,16 @@ One sequence diagram per workflow or feature showing the exact message sequence 
 - `rect` = conditional or looping block
 - All timer-based transitions (Mayor 10-day lapse, Panlalawigan 30-day) are shown as scheduler-initiated sequences
 
+> **Event naming note `[B3 Reconciliation — ADR-B2-3 / B3 §0.2]`:** This document was authored using B2's draft event naming conventions. B3 (`b3-internal-domain-event-catalog.md`) ratified the canonical event names. The table below maps each D2 usage to the B3 canonical name. The diagrams themselves are not revised (to preserve mermaid structural integrity and readability) — implementors should use the B3 canonical names in code. One event is **removed** and not merely renamed (ADR-B2-3).
+>
+> | D2 usage (diagram labels) | B3 Canonical Name | Notes |
+> |---|---|---|
+> | `workflow.step_assigned` | `workflow.step.started` | B3 §7.11; B4 name ratified over B2 equivalent |
+> | `workflow.step_completed` | `workflow.step.completed` | B3 §7.12 |
+> | `workflow.completed(...)` | `workflow.instance.completed` | B3 §7.2; outcome code now in `outcomeCode` payload field |
+> | `documents.certification_urgency.logged` | `document.certification_urgency.logged` | B3 OI-3 — singular prefix; also corrected in Diagrams 2 and 5 below |
+> | `document.secretariat_decision` | ~~removed~~ | **ADR-B2-3** — this event no longer exists. The secretariat's Approve/Reject/Amended action now enters via the Workflow Router, which atomically calls `Documents.transitionState()` and emits `workflow.step.completed`. No sequence diagram in D2 shows this specific event — D2 correctly omitted it because the step was already modeled as a workflow step action (see §2 tRPC calls `submitStepAction`). |
+
 ---
 
 ## 1. SP Resolution — Standard Path
@@ -341,10 +351,10 @@ sequenceDiagram
     Note over DocMod: Certification has NO standalone series number
     DocMod->>DB: INSERT documents (type=certification_of_urgency, no series number)
     DocMod->>DB: INSERT document_attachments linking certification to each associated measure
-    DocMod->>EventBus: emit documents.certification_urgency.logged(certification_document_id, [instance_ids])
+    DocMod->>EventBus: emit document.certification_urgency.logged(certification_document_id, [instance_ids])
 
     %% ── WORKFLOW ENGINE PROCESSES BYPASS ─────────────────────────────────────
-    EventBus->>WF: consume documents.certification_urgency.logged
+    EventBus->>WF: consume document.certification_urgency.logged
 
     loop For each associated instance_id
         WF->>DB: SELECT instance WHERE id=instance_id; verify status=Running
@@ -678,9 +688,9 @@ sequenceDiagram
     Web->>Server: tRPC logCertificationOfUrgency(file, [ordinance_document_id, ...])
     Server->>DocMod: createDocument(type=certification_of_urgency, no series number)
     DocMod->>DB: INSERT certification document; INSERT attachments linking to each ordinance
-    DocMod->>EventBus: emit documents.certification_urgency.logged([instance_ids])
+    DocMod->>EventBus: emit document.certification_urgency.logged([instance_ids])
 
-    EventBus->>WF: consume documents.certification_urgency.logged
+    EventBus->>WF: consume document.certification_urgency.logged
     WF->>DB: UPDATE instance.context: certified_urgent=true
     WF->>DB: UPDATE step_instances[committee_referral]: status=Skipped, outcome=BYPASSED_CERTIFIED_URGENT
     WF->>DB: INSERT step_instances[second_reading_vote] status=active
