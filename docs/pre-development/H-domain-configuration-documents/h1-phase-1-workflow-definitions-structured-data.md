@@ -104,7 +104,7 @@ The following outcome codes from B4 Section 4.2 and 4.6 are used in these defini
 
 ### 2.4 Certified Urgent Path
 
-Both the standard path and the Certified Urgent path are handled within a single workflow definition. The Certified Urgent bypass is event-driven: when `documents.certification_urgency.logged` fires on the event bus, the engine bypasses the `committee_referral` step on each associated instance (B4 Section 6.1). The workflow definition only needs a transition rule with `outcome_filter = 'BYPASSED_CERTIFIED_URGENT'` on the `committee_referral` step. No `decision` step or second definition is required.
+Both the standard path and the Certified Urgent path are handled within a single workflow definition. The Certified Urgent bypass is event-driven: when `document.certification_urgency.logged` fires on the event bus, the engine bypasses the `committee_referral` step on each associated instance (B4 Section 6.1). The workflow definition only needs a transition rule with `outcome_filter = 'BYPASSED_CERTIFIED_URGENT'` on the `committee_referral` step. No `decision` step or second definition is required.
 
 ### 2.5 D3 / B4 Enum Reconciliation Status
 
@@ -2458,7 +2458,7 @@ The table below maps which steps write which context keys. Source: B4 Appendix B
 |`series_number_preliminary`|string \| null|Documents module|`intake_logging` completion|
 |`series_number_final`|string \| null|Documents module|`final_number_assignment` completion|
 |`qr_tracking_id`|UUID|Documents module|`intake_logging` completion|
-|`certified_urgent`|boolean|Engine|`documents.certification_urgency.logged` event|
+|`certified_urgent`|boolean|Engine|`document.certification_urgency.logged` event|
 |`certified_urgent_document_id`|UUID \| null|Engine|Same event|
 |`second_reading_eligible_date`|date \| null|Engine scheduler|Thursday cutoff job (`evaluateThursdayCutoffs`)|
 |`mayor_transmittal_date`|TIMESTAMPTZ \| null|Engine|`transmittal_letter_to_mayor` completion [Extension]|

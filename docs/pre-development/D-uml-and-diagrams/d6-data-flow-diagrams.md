@@ -57,7 +57,7 @@ Several automated operations run on schedule via `node-cron` and `pgboss`:
 - The **Thursday cutoff evaluator** (`evaluateThursdayCutoffs`, runs every Thursday at 23:59:59 PHT) — computes the `second_reading_eligible_date` for committee referral steps. (Source: B4 §6.2)
 - The **SLA breach monitor** (`evaluateSlaBreaches`, runs every 15 minutes and on startup) — enforces RA 11032 (ARTA) SLA obligations, which continue regardless of system outages. (Source: B4 §8.2)
 
-An event-driven path handles **Certified Urgent** measures: when the Mayor's formal written Certification of Urgency is logged by Secretariat Staff, the engine subscribes to the `documents.certification_urgency.logged` internal event bus message and immediately bypasses the `committee_referral` step on each associated workflow instance. (Source: B4 §6.1; Consolidated Ref Part 4.17)
+An event-driven path handles **Certified Urgent** measures: when the Mayor's formal written Certification of Urgency is logged by Secretariat Staff, the engine subscribes to the `document.certification_urgency.logged` internal event bus message and immediately bypasses the `committee_referral` step on each associated workflow instance. (Source: B4 §6.1; Consolidated Ref Part 4.17)
 
 Every state change produces an immutable entry in the append-only `audit.events` schema. Each entry is HMAC-SHA-256 signed and SHA-256 hash-chained to the previous entry. The application DB user holds only `INSERT` on the audit schema — no `UPDATE` or `DELETE`. (Source: Consolidated Ref Part 11.11; B4 §9 Invariant 13)
 
@@ -574,7 +574,7 @@ flowchart TD
 
 ### DFD 7 — Certified Urgent Bypass
 
-This diagram shows the event-driven data flow when the Mayor issues a formal Certification of Urgency. A single Certification can cover multiple measures in the same session. When Secretariat Staff logs it, the `documents.certification_urgency.logged` event fires on the internal event bus, and the workflow engine immediately bypasses the `committee_referral` step on each associated instance.
+This diagram shows the event-driven data flow when the Mayor issues a formal Certification of Urgency. A single Certification can cover multiple measures in the same session. When Secretariat Staff logs it, the `document.certification_urgency.logged` event fires on the internal event bus, and the workflow engine immediately bypasses the `committee_referral` step on each associated instance.
 
 **Source:** B4 §6.1; Consolidated Ref Part 4.17; H1 §2.4.
 
@@ -587,7 +587,7 @@ This diagram shows the event-driven data flow when the Mayor issues a formal Cer
 flowchart TD
     E_Mayor["Mayor\nIssues formal written\nCertification of Urgency"]
     E_Staff["Secretariat Staff\nLogs Certification;\ndoes not create or authorize"]
-    E_Bus["Internal Event Bus\ndocuments.certification_urgency.logged"]
+    E_Bus["Internal Event Bus\ndocument.certification_urgency.logged"]
     E_Engine["Workflow Engine\nEvent Bus Subscriber"]
 
     P1("7.1 Log Certification of\nUrgency Document")
@@ -644,7 +644,7 @@ flowchart TD
 | Process | Description |
 |---|---|
 | 7.1–7.2 Log and Attach Certification | Secretariat Staff logs the Mayor's formal written Certification of Urgency. The Certification document has no standalone numbering series — it is always attached to the associated legislative measure documents. A single Certification can cover multiple measures in the same session. |
-| 7.3 Emit Event | The documents module emits `documents.certification_urgency.logged` on the internal in-process event bus with the list of all `associated_instance_ids` covered by this Certification. |
+| 7.3 Emit Event | The documents module emits `document.certification_urgency.logged` on the internal in-process event bus with the list of all `associated_instance_ids` covered by this Certification. |
 | 7.5–7.6 Case A: Bypass Active Step | If the `multi_referral` step instance is currently active, the engine sets `status = bypassed`, `outcome = BYPASSED_CERTIFIED_URGENT`, and `bypass_reason = CERTIFIED_URGENT` within a single database transaction. `bypassed_by` is null because this is a system-triggered action, not a human actor action. Transition evaluation then fires; the workflow definition is required to have a transition rule with `outcome_filter = BYPASSED_CERTIFIED_URGENT` pointing to the Second Reading step. |
 | 7.7 Case B: Deferred Bypass | If the `multi_referral` step is pending (not yet activated), a record is written to `pending_certified_urgent_bypasses`. When the step would normally be activated, the engine checks for this flag and executes the Case A bypass logic instead. |
 | 7.8 Case C: Already Past Referral | If the workflow has already moved past the committee referral stage, the engine emits `workflow.certification_urgency.already_past_referral` at warning level and makes no workflow changes. |
