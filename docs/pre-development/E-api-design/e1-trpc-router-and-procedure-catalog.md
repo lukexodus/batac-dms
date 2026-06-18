@@ -241,14 +241,14 @@ const roleCodeEnum = z.enum([
 
 ### `iam.listActiveSessions`
 
-| | |
-|---|---|
-| Type | `query` |
-| Input | `z.void()` |
-| Output | `z.array(z.object({ sessionId: z.string().uuid(), ipAddress: z.string().nullable(), userAgent: z.string().nullable(), createdAt: z.coerce.date(), expiresAt: z.coerce.date() }))` |
-| Callable by | All 12 authenticated roles |
-| ABAC conditions | `WHERE user_id = subject.user_id` only — own sessions. |
-| Business operation | Reads `iam.sessions` filtered to the caller. `[Confirmed — I2 Section 1 "View active sessions (own)"]` |
+|                    |                                                                                                                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type               | `query`                                                                                                                                                                           |
+| Input              | `z.void()`                                                                                                                                                                        |
+| Output             | `z.array(z.object({ sessionId: z.string().uuid(), ipAddress: z.string().nullable(), userAgent: z.string().nullable(), createdAt: z.coerce.date(), expiresAt: z.coerce.date() }))` |
+| Callable by        | All 12 authenticated roles                                                                                                                                                        |
+| ABAC conditions    | `WHERE user_id = subject.user_id` only — own sessions.                                                                                                                            |
+| Business operation | Reads `iam.sessions` filtered to the caller. `[Confirmed — I2 Section 1 "View active sessions (own)"]`                                                                            |
 
 ### `iam.listAllActiveSessions`
 
@@ -274,14 +274,14 @@ const roleCodeEnum = z.enum([
 
 ### `iam.listUserDirectory`
 
-| | |
-|---|---|
-| Type | `query` |
-| Input | `paginationInput.extend({ officeId: z.string().uuid().optional(), search: z.string().max(200).optional() })` |
-| Output | `z.object({ items: z.array(z.object({ userId: z.string().uuid(), displayName: z.string(), officeId: z.string().uuid().nullable(), officeName: z.string().nullable(), positionTitle: z.string().nullable(), roleCodes: z.array(roleCodeEnum) })), nextCursor: z.string().nullable() })` |
-| Callable by | `sys_admin`, `plat_admin`, `records_officer`, `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `auditor` |
-| ABAC conditions | For `dept_encoder`, `dept_approver`, `sp_member`: output is limited to name/office/position only — `lastLoginAt`/credential-status fields are never included in the output schema for this procedure at all (not filtered post-hoc), satisfying I2 Conditional Note ¹ by construction. |
-| Business operation | Reads `iam.users` joined to `organization.employees`/`assignments`/`role_assignments`. `[Confirmed — I2 Section 1 "View user directory", with 🔶¹ for the three limited-view roles]` |
+|                    |                                                                                                                                                                                                                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type               | `query`                                                                                                                                                                                                                                                                                |
+| Input              | `paginationInput.extend({ officeId: z.string().uuid().optional(), search: z.string().max(200).optional() })`                                                                                                                                                                           |
+| Output             | `z.object({ items: z.array(z.object({ userId: z.string().uuid(), displayName: z.string(), officeId: z.string().uuid().nullable(), officeName: z.string().nullable(), positionTitle: z.string().nullable(), roleCodes: z.array(roleCodeEnum) })), nextCursor: z.string().nullable() })` |
+| Callable by        | `sys_admin`, `plat_admin`, `records_officer`, `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `auditor`                                                                                                                                 |
+| ABAC conditions    | For `dept_encoder`, `dept_approver`, `sp_member`: output is limited to name/office/position only — `lastLoginAt`/credential-status fields are never included in the output schema for this procedure at all (not filtered post-hoc), satisfying I2 Conditional Note ¹ by construction. |
+| Business operation | Reads `iam.users` joined to `organization.employees`/`assignments`/`role_assignments`. `[Confirmed — I2 Section 1 "View user directory", with 🔶¹ for the three limited-view roles]`                                                                                                   |
 
 ### `iam.createUserAccount`
 
