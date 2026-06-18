@@ -8,6 +8,33 @@
 **Source Documents:** `k1-test-strategy.md`; `l2-docker-compose-specification.md`; `2-stack-context.md`
 **Prerequisites:** L2 — Docker and Docker Compose Specification; K1 — Test Strategy
 
+
+## Table of Contents
+
+- [L40–L56] About This Document — Scope, early-dev justification, GitHub Actions reference target, and topics excluded from this pipeline specification.
+- [L57–L70] 1. Design Principles — Core guidelines on test order, narrow merge gates, Turborepo scoping, ephemeral databases, and non-blocking code coverage.
+- [L71–L150] 2. Pipeline Topology — Execution flow and staging/production gates for the pull request pipeline and the main branch pipeline.
+- [L151–L292] 3. Stage Definitions — Overview of tools, commands, scope, and pass/fail logic for each individual pipeline stage.
+  - [L153–L164] 3.1 Lint — ESLint execution config, scope across all packages, and informational handling of warnings.
+  - [L165–L175] 3.2 Typecheck — TypeScript typecheck details using tsc --noEmit, running in parallel with lint in Job A.
+  - [L176–L189] 3.3 Unit Tests — Vitest configuration for pure functions, 60-second budget, database exclusion rule, and coverage upload.
+  - [L190–L246] 3.4 Integration Tests — Vitest setup with PostgreSQL/MinIO service containers, role bootstrapping, schema migration, and sequential run rules.
+  - [L247–L259] 3.5 Build — Production compilation verification using Turborepo on Vite and server, and build output caching.
+  - [L260–L274] 3.6 E2E Tests (main branch only) — Playwright tests against the live staging environment, blocking production deploy on failure.
+  - [L275–L282] 3.7 Deploy — Staging (automatic, main branch only) — Automatic deployment to the staging VPS triggered by pushes to main, using staging secrets.
+  - [L283–L292] 3.8 Deploy — Production (manual gate) — Manual approval requirements, reviewer roles, and staging E2E pass prerequisite for production deployment.
+- [L293–L309] 4. Merge Gate Summary — Tabular overview of which stages block pull request merges versus production deployments.
+- [L310–L373] 5. Turborepo Remote Cache — Transition from GitHub Actions directory cache (Phase 1) to self-hosted Turborepo cache backed by MinIO.
+- [L374–L418] 6. Turborepo Task Configuration — Root turbo.json task graph definition and caching rules for builds, checks, and tests.
+- [L419–L450] 7. Environment Configuration in CI — Mapping of ephemeral test credentials, JWT/HMAC secrets, and staging versus production environment scoping.
+- [L451–L469] 8. Branch and Trigger Strategy — Workflow triggers, branch protection rules for main, and required status checks before merging.
+- [L470–L487] 9. Timing Budgets and Targets — Maximum time budgets and remediation strategies for lint, typecheck, unit, integration, and E2E tests.
+- [L488–L495] 10. Scheduler Jobs in CI — Deterministic testing of pgboss and cron scheduler logic using injected clocks instead of system time.
+- [L496–L522] 11. pnpm Installation in CI — Dependency installation enforcement via frozen lockfile, store caching, and node_modules reuse.
+- [L523–L540] 12. Constraints and Invariants — Consolidated checklist of ten structural invariants that must be preserved in the CI/CD pipeline.
+
+---
+
 ---
 
 ## About This Document

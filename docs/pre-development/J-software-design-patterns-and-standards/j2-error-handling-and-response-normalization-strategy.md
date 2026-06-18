@@ -5,6 +5,36 @@
 **Scope:** `/apps/server` (Fastify + tRPC + REST), `/apps/web` (Vite + React), `/packages/shared`  
 **Audience:** Development team (internal reference)
 
+## Table of Contents
+
+- [L40–L56] 1. Purpose and Scope — Scope of platform error handling and response serialization across server, web, and shared packages.
+- [L57–L99] 2. Error Architecture Overview — Flow diagram of error propagation, request-specific traceId generation format, and Sentry operational policy.
+- [L100–L285] 3. Standard tRPC Error Shape — Format and client consumption patterns for tRPC error payloads.
+  - [L102–L138] 3.1 Wire Format — JSON payload shape for tRPC responses containing trace identifiers, validation states, and domain details.
+  - [L139–L162] 3.2 tRPC Error Code → HTTP Status Mapping — Table defining tRPC-to-HTTP code translations and rules for throwing appropriate status-mapped conflict errors.
+  - [L163–L210] 3.3 Custom tRPC Error Formatter — Server-side error formatter implementation in init.ts mapping internal errors to the unified tRPC schema.
+  - [L211–L285] 3.4 Frontend Consumption Pattern — Client-side error narrowing helpers, type-safe schema guards, and component-level mutation handling patterns.
+- [L286–L444] 4. Standard REST Error Shape — Format and routing middleware for REST error payloads.
+  - [L290–L329] 4.1 Wire Format — JSON envelope requirements for REST responses containing validation details and HTTP status constraints.
+  - [L330–L444] 4.2 Fastify Error Handler — Global Fastify error handler configuration wrapping Zod validations, custom domain exceptions, and Sentry triggers.
+- [L445–L556] 5. Zod Validation Error Serialization — Serialization and binding protocols for schema validation errors.
+  - [L447–L482] 5.1 In tRPC Procedures (Input Validation) — Payload shape for tRPC parser failures using flattened schema field and form error structures.
+  - [L483–L507] 5.2 In REST Routes (fastify-type-provider-zod) — REST validation error normalization using Fastify type provider to align wire formats with tRPC.
+  - [L508–L556] 5.3 Frontend Form Binding — Helper function mapping backend Zod validation failures back to React Hook Form inline field errors.
+- [L557–L895] 6. Domain Error Design — Core domain error architecture and specific code registries.
+  - [L559–L646] 6.1 AppError Base Class — Server-side AppError base class definition and module-specific concrete error subclass implementations.
+  - [L647–L734] 6.2 Domain Error Code Registry — Complete catalog of Phase 1 domain errors, trigger conditions, HTTP status codes, and Sentry behaviors.
+  - [L735–L774] 6.3 Domain Error Propagation in tRPC Procedures — Guidelines and code patterns for wrapping custom domain exceptions inside standard tRPC TRPCErrors.
+  - [L775–L802] 6.4 Domain Error Propagation in REST Routes — Guidelines for throwing domain exceptions directly inside REST routes to trigger Fastify handler serialization.
+  - [L803–L895] 6.5 Domain Error Detail Types — Client-safe Zod validation schemas and runtime parsing helpers for typed domain error payload details.
+- [L896–L1131] 7. Sentry Integration — Configuration, triggers, and privacy compliance rules for Sentry.
+  - [L898–L922] 7.1 Sentry Initialization — Global Sentry setup configuration, sample rates, and integration hook points for request logging.
+  - [L923–L1070] 7.2 Integration Points — Middleware and service hooks for capturing unhandled exceptions, security anomalies, and telemetry tags.
+  - [L1071–L1116] 7.3 PII Scrubbing Rules (RA 10173 Compliance) — Compliance rules and scrubbing denylists protecting citizen data from leaking to third-party monitoring.
+  - [L1117–L1131] 7.4 Sentry Severity Reference — Severity mapping table designating capture levels for specific system events and infrastructure exceptions.
+- [L1132–L1210] 8. Frontend Error Handling Boundaries — Global TanStack Query error interception, local UI fallback decisions, and rendering error boundary setups.
+- [L1211–L1234] Appendix: Domain Error Quick Reference — Reference table listing Phase 1 domain error codes, HTTP statuses, module mappings, and Sentry capture rules.
+
 ---
 
 ## 1. Purpose and Scope

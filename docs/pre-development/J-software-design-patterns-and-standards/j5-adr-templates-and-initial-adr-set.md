@@ -2,6 +2,28 @@
 
 **Status:** Pre-Development Baseline **Project Phase:** Pre-Development — Iteration 3 (Post-Interview 2 + Developer Decisions Resolved) **Last Updated:** June 2026 **Audience:** Development team; LGU IT Office (post-delivery reference)
 
+## Table of Contents
+
+- [L29–L56] What Is an ADR? — Definition of an ADR, when to write one, and status value definitions.
+- [L57–L69] ADR Template — A copyable markdown template for recording new architecture decision records.
+- [L70–L76] Context — Template section for describing the background context, forces, and constraints of the decision.
+- [L77–L82] Decision — Template section for stating the chosen architecture or design decision in active voice.
+- [L83–L95] Alternatives Considered — Template section for listing and justifying why other evaluated options were rejected.
+- [L96–L112] Consequences — Template section for documenting benefits, negative trade-offs, and required follow-on actions.
+- [L113–L119] Related Decisions — Template section for listing cross-references to other closely related ADRs.
+- [L120–L137] ADR Index — A summary table of all initial ADRs showing their ID, title, status, and acceptance date.
+- [L138–L187] ADR-001: Modular Monolith over Microservices — Builds the platform as a modular monolith with hard schema and event-bus boundaries.
+- [L188–L256] ADR-002: Custom Workflow Engine over Off-the-Shelf BPM Solutions — Implements a custom TypeScript workflow engine to support specific legislative processes and administrator configurations.
+- [L257–L317] ADR-003: PostgreSQL as the Sole Database Engine — Uses PostgreSQL as the sole database engine to leverage RLS, JSONB, and append-only audits.
+- [L318–L369] ADR-004: Pessimistic Locking for Document Editing — Uses pessimistic locking with a 15-minute timeout to prevent concurrent editing conflicts on documents.
+- [L370–L421] ADR-005: Multi-Referral Step Type for Committee Referral (Option B) — Adds a multi_referral step type to support simultaneous committee reviews and a unified report.
+- [L422–L470] ADR-006: Parallel Split/Join Engine Deferred to Phase 2 — Reserves parallel split/join step type schema values but defers their implementation to Phase 2.
+- [L471–L525] ADR-007: QR Tracking Number Assigned at Secretariat Logging, Before Preliminary Series Number — Assigns an immutable tracking UUID at logging before assigning any preliminary series numbers.
+- [L526–L583] ADR-008: No-Deletion Invariant with Soft-Delete on Every Table — Enforces a strict no-deletion policy, implementing soft-delete across all database tables.
+- [L584–L647] ADR-009: Two-Stage Preliminary/Final Document Numbering — Defines two-stage numbering: a preliminary draft number at logging, promoted to a final number after approval.
+- [L648–L700] ADR-010: sp.batac.gov.ph Coexistence Without Mandatory Migration — Coexists with the current website, deferring historical data migration to avoid Phase 1 launch risks.
+- [L701–L749] ADR-011: No Existing Digital QR System Assumed for Letters and Memos — Implements all QR tracking within batac-dms, treating existing codes as pre-system artifacts.
+
 ---
 
 ## What Is an ADR?

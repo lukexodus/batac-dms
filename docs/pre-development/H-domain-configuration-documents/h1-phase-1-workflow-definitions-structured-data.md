@@ -2,6 +2,35 @@
 
 **Document:** H1 **Platform:** Batac City LGU Platform **Status:** BLOCKING — These seed records must be reviewed and confirmed before the `workflow` module migration is written. No step, transition rule, or termination outcome defined here may be omitted from the first seed file. **Last Updated:** June 2026 **Audience:** Backend development team **Source Documents:** `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2, developer decisions incorporated); `b4-workflow-engine-specification.md` (B4); `d3-state-machine-diagrams.md` (D3)
 
+
+## Table of Contents
+
+- [L36–L57] About This Document — Scope of Phase 1 legislative workflow seed data definitions, out-of-scope engine features, and conventions on inferences.
+- [L58–L86] 1. Source Document Cross-References — Cross-reference table mapping workflow topics to sections in consolidated reference, B4 specification, and D3 diagrams.
+- [L87–L161] 2. Conventions — Workflow configuration conventions including step naming, deterministic UUID generation, outcome codes, and D3/B4 enum reconciliation.
+- [L162–L333] 3. TypeScript Type Definitions — TypeScript interfaces defining the structured schema for workflow steps, configs, transition rules, and seed definitions.
+- [L334–L367] 4. Shared Role Key Constants — Constant mappings of organizational roles to dynamic assignee resolution strings used across the workflow definitions.
+- [L368–L1385] 5. SP Resolution — Workflow Definition — Process rules, step and transition tables, flow diagram, and TypeScript seed constant for the SP Resolution workflow.
+  - [L370–L379] 5.1 Process Notes — Legislative process rules for resolutions, including readings, amendments, series numbering, and Mayor/Panlalawigan review timelines.
+  - [L380–L412] 5.2 Steps — Summary table of the 28 SP Resolution steps including keys, types, mandating flags, assignees, and config notes.
+  - [L413–L456] 5.3 Transition Rules — Summary table of the 39 transition rules detailing from/to steps, exit outcomes, priority levels, and labels.
+  - [L457–L528] 5.4 Step Flow Diagram — Mermaid flowchart visualizing the SP Resolution step transitions, legally mandated steps, and timer triggers.
+  - [L529–L1385] 5.5 TypeScript Constant — Complete TypeScript constant `SP_RESOLUTION_WORKFLOW` defining all step configurations, transition rules, and metadata.
+- [L1386–L2098] 6. SP Ordinance — Workflow Definition — Process changes, steps delta, flow diagram, and TypeScript seed constant for the SP Ordinance workflow.
+  - [L1388–L1397] 6.1 Process Notes — Differences from Resolution including three readings, newspaper publication for penalty clauses, and the requires_publication key gap.
+  - [L1398–L1424] 6.2 Steps (delta from SP Resolution) — Table of step modifications and additions (third_reading_vote, publication_check, newspaper_publication) for the SP Ordinance.
+  - [L1425–L2031] 6.3 TypeScript Constant — Complete TypeScript constant `SP_ORDINANCE_WORKFLOW` implementing the three-reading flow and conditional newspaper publication step.
+  - [L2032–L2098] 6.4 Step Flow Diagram — Mermaid flowchart visualizing the SP Ordinance workflow, including Third Reading and conditional newspaper publication paths.
+- [L2099–L2462] 7. Appropriation Ordinance — Workflow Definition — Process rules, flow differences, and TypeScript seed constant for the Appropriation Ordinance workflow.
+  - [L2101–L2110] 7.1 Process Notes — Differences from SP Ordinance, specifically omitting newspaper publication and adding the Panlalawigan OPERATIVE_IN_ITS_ENTIRETY review outcome.
+  - [L2111–L2462] 7.2 TypeScript Constant — Complete TypeScript constant `APPROPRIATION_ORDINANCE_WORKFLOW` implementing the three-reading flow without newspaper publication.
+- [L2463–L2478] 8. Minimum Step Guard Contract — Tables defining legally mandated steps per workflow type and their RA 7160 legal basis for editor validation.
+- [L2479–L2511] 9. Context Keys Written by These Definitions — Table mapping database context keys to their types, setting components, and triggering workflow steps.
+- [L2512–L2551] 10. Seed Script Notes — Database seeding details including file location, step insertion sequence, deterministic UUID resolution, and timer config logic.
+- [L2552–L2571] 11. Open Items Affecting These Definitions — Table detailing resolved D3/H1 open items, including document status mappings, repass behavior, and timer triggers.
+
+---
+
 ---
 
 ## About This Document

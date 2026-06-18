@@ -1,4 +1,44 @@
 # Environment Variable Catalog
+
+## Table of Contents
+
+- [L42–L51] Batac City LGU Platform — Document metadata including version, status, target audience, and classification.
+- [L52–L87] 1. Introduction — Purpose of the catalog, environmental scope, deployment philosophy, and core configuration principles.
+- [L88–L131] 2. Naming Convention — Structured prefix hierarchy, syntax guidelines, and naming rules for all environment variables.
+- [L132–L148] 3. Variable Classification Matrix — Legend defining classifications like required, optional, secret, public, and phase-specific variables.
+- [L149–L172] 4. Core Application Variables — Identity, runtime mode, port, host, logging level, and tenant details for the Fastify server.
+- [L173–L225] 5. Database Configuration — Database connection strings for partitioned roles, connection pool limits, and Drizzle ORM logs.
+- [L226–L283] 6. Authentication & Security — JWT tokens, cookie attributes, session inactivity timeouts, Argon2id hashing parameters, and MFA configuration.
+- [L284–L302] 7. Audit Log Security — Cryptographic HMAC signing secret, genesis hash, retention settings, and RFC 3161 TSA export options.
+- [L303–L327] 8. File Storage Configuration — S3-compatible credentials, endpoints, path styles, upload limits, and separate write-once backup bucket details.
+- [L328–L348] 9. Email Configuration — SMTP connection credentials, TLS/STARTTLS security settings, from address, and connection pool sizing.
+- [L349–L370] 10. OCR Configuration — OCR engine backend, language packs, worker threads, confidence quality thresholds, and migration batch sizes.
+- [L371–L396] 11. Search Configuration — PostgreSQL full-text search settings and Meilisearch configuration for typo-tolerant query features.
+- [L397–L411] 12. Notifications (SSE) — Server-Sent Events heartbeat intervals, connection limits, and in-app notification retention and cleanup thresholds.
+- [L412–L440] 13. Error Monitoring & Observability — Sentry integration options, structured log redaction rules, and server health check endpoint path.
+- [L441–L459] 14. Public Portal Configuration — URLs, citizen OTP parameters, and annual account re-verification schedules for the Phase 3 portal.
+- [L460–L502] 15. Background Jobs — Pgboss queue concurrency, retry settings, and cron expressions for compliance, cleanup, and backup tasks.
+- [L503–L519] 16. Rate Limiting — Fastify rate limiting thresholds and window durations for authentication, API, portal, and uploads.
+- [L520–L535] 17. QR Codes & Document Numbering — QR code generation options, Sangguniang Panlungsod legislative ordinals, and document tracking number prefixes.
+- [L536–L548] 18. Internationalisation & Regional Settings — Node.js system timezone, language locales supported, and translation fallback settings.
+- [L549–L567] 19. Feature Flags — Flags enabling or disabling system capabilities like MFA, OCR, search backends, SMS, and portal.
+- [L568–L608] 20. Infrastructure & Deployment — Docker image tags, database backup encryption keys, retention settings, and disaster recovery hot-standby options.
+- [L609–L973] 21. Zod Validation Schema Strategy — Startup validation logic, schema files architecture, and client/server environment variable parsing.
+  - [L613–L620] 21.1 Architecture — Three-file layout separating server, client-side Vite, and Next.js portal validation rules.
+  - [L621–L906] 21.2 Server Environment Schema (`env.server.ts`) — Zod schemas and cross-field validation rules for all backend-only environment configuration variables.
+  - [L907–L925] 21.3 Startup Validation Entry Point — Application entry point script performing parse and process exit on invalid startup configurations.
+  - [L926–L950] 21.4 Vite Client Schema (`env.client.ts`) — Zod validation schema for frontend client-side environment variables exposed to Vite builds.
+  - [L951–L973] 21.5 Next.js Portal Schema (`env.portal.ts`) — Validation rules partitioning server-side portal parameters and public NEXT_PUBLIC_ client-side variables.
+- [L974–L1212] 22. Sample Environment Files — Template env configurations for local development, staging integration, and production reference.
+  - [L978–L1074] 22.1 `.env.example` (Root — Committed to Git) — Comprehensive template showing default development settings and placeholder values for all parameters.
+  - [L1075–L1098] 22.2 `.env.development` (Local Override) — Local configuration overrides disabling production features like Sentry, SSL, and DB backup.
+  - [L1099–L1132] 22.3 `.env.staging` (Staging Environment) — Production-like environment template using staging URLs, enabling logs, and omitting actual secrets.
+  - [L1133–L1212] 22.4 `.env.production` (Production Reference) — Authoritative production template detailing non-secret settings, pool limits, and required cloud endpoints.
+- [L1213–L1288] 23. Secret Management Strategy — Docker secrets integration scripts, encryption rotation policies, and sealed break-glass recovery procedures.
+- [L1289–L1488] 24. Master Variable Catalog — Consolidated reference table listing every environment variable, its category, defaults, and phase.
+
+---
+
 ## Batac City LGU Platform
 
 **Document Version:** 1.0.0
@@ -6,35 +46,6 @@
 **Audience:** Development Team, DevOps, LGU IT Office
 **Last Updated:** June 2026
 **Classification:** Internal — Development Reference
-
----
-
-## Table of Contents
-
-1. [Introduction](#1-introduction)
-2. [Naming Convention](#2-naming-convention)
-3. [Variable Classification Matrix](#3-variable-classification-matrix)
-4. [Core Application Variables](#4-core-application-variables)
-5. [Database Configuration](#5-database-configuration)
-6. [Authentication & Security](#6-authentication--security)
-7. [Audit Log Security](#7-audit-log-security)
-8. [File Storage Configuration](#8-file-storage-configuration)
-9. [Email Configuration](#9-email-configuration)
-10. [OCR Configuration](#10-ocr-configuration)
-11. [Search Configuration](#11-search-configuration)
-12. [Notifications (SSE)](#12-notifications-sse)
-13. [Error Monitoring & Observability](#13-error-monitoring--observability)
-14. [Public Portal Configuration](#14-public-portal-configuration)
-15. [Background Jobs](#15-background-jobs)
-16. [Rate Limiting](#16-rate-limiting)
-17. [QR Codes & Document Numbering](#17-qr-codes--document-numbering)
-18. [Internationalisation & Regional Settings](#18-internationalisation--regional-settings)
-19. [Feature Flags](#19-feature-flags)
-20. [Infrastructure & Deployment](#20-infrastructure--deployment)
-21. [Zod Validation Schema Strategy](#21-zod-validation-schema-strategy)
-22. [Sample Environment Files](#22-sample-environment-files)
-23. [Secret Management Strategy](#23-secret-management-strategy)
-24. [Master Variable Catalog](#24-master-variable-catalog)
 
 ---
 

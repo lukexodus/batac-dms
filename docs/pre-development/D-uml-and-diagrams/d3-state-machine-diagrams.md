@@ -4,6 +4,24 @@
 
 **Status change from Iteration 1:** All seven items in the prior Appendix C ("Open Items") are now resolved via ADR-013 through ADR-016. This document is no longer blocking on open questions. It remains subject to the same B4 reconciliation requirement described in Appendix B — B4 must still be physically updated to match these enum values before the first migration is written; that work is tracked separately and is not itself blocked by anything in this document.
 
+
+## Table of Contents
+
+- [L27–L46] Overview — Introduces the three state machines, database columns, cardinality, and epistemic status conventions for transitions and guards.
+- [L47–L160] 1. Document Lifecycle State Machine — Overall milestone status definitions and reachability rules for document records of all types.
+  - [L61–L106] 1.1 Diagram — Mermaid state diagram visualising all lifecycle states and transitions.
+  - [L107–L122] 1.2 State Definitions — Detailed definition of all lifecycle states, including newly added Pending Panlalawigan Review and Superseded states.
+  - [L123–L148] 1.3 Transition Table — Events, guard conditions, and rationale for all lifecycle transitions, revised for post-triage updates.
+  - [L149–L160] 1.4 Notes — Key system invariants including directionality constraints, QR code immutability, and document numbering checkpoints.
+- [L161–L237] 2. Workflow Instance State Machine — State machine governing the execution, pause, stuck, and SLA tracking behavior of running workflow instances.
+- [L238–L330] 3. Workflow Step Instance State Machine — State machine for individual step execution, defining step states, routing bypasses, returns, and engine failure handling.
+- [L331–L342] Appendix A: Terminal State Summary — Summary of terminal states for all machines and the soft-delete invariant rule.
+- [L343–L373] Appendix B: B4 Reconciliation — Required Changes — Required enum name, casing, and schema changes to align the B4 specification with D3 authority.
+- [L374–L391] Appendix C: Open Items — Resolution Record — Historical resolution record of the seven open architecture items settled by ADR-013 through ADR-016.
+- [L392–L455] Appendix D: Proposed PostgreSQL Enum Stubs — PostgreSQL DDL enum stubs and new column definitions required on the documents table.
+
+---
+
 ---
 
 ## Overview

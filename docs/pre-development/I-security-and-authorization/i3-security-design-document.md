@@ -6,6 +6,40 @@
 **Last Updated:** June 2026
 **Version:** 1.0
 
+
+## Table of Contents
+
+- [L45–L107] 1. Document Overview — Purpose, scope limits, 9 regulatory security objectives, intended audience, and architectural source references.
+- [L108–L204] 2. Security Architecture Overview — Trust zones, internal/external user routing, tRPC context, REST Swagger APIs, PostgreSQL roles, S3 uploads, and on-premise OCR.
+- [L205–L222] 3. Security Principles — Definitions and concrete system applications for 11 security principles including Least Privilege, Zero Trust, and Auditability.
+- [L223–L450] 4. Identity and Access Management (IAM) — Parent section for authentication architecture, authorization tiered models, and functional LGU user role assignments.
+  - [L225–L365] 4.1 Authentication Architecture — Short-lived JWTs, rotating refresh token families, PKCE login flow, session concurrency rules, and Phase 2 MFA hooks.
+  - [L366–L428] 4.2 Authorization Architecture — ABAC engine with RBAC entry point, three authorization tiers, delegation constraints, and office-based access boundaries.
+  - [L429–L450] 4.3 Role Categories — Security profiles and office-scopings for 13 system roles including Mayor, Councilors, Auditor, and IT Admin.
+- [L451–L590] 5. ABAC Security Model — Parent section detailing ABAC attributes (Subject, Resource, Environment), evaluation cascade, and global security gates.
+  - [L453–L470] 5.1 Subject Attributes — Data fields populated in SubjectContext for active sessions, including delegation-expanded offices and roles.
+  - [L471–L484] 5.2 Resource Attributes — Database attributes fetched at request time to evaluate document, version, workflow, delegation, and audit permissions.
+  - [L485–L492] 5.3 Environment Attributes — Request IP address, timestamp, and transaction-level PostgreSQL session variables used for RLS policies.
+  - [L493–L545] 5.4 Evaluation Cascade — Diagrammed 8-step deny-first authorization workflow checking city, IT Admin, Platform Admin, RBAC, and office states.
+  - [L546–L590] 5.5 Global Security Gates — Five non-configurable application gates enforcing tenant isolation, administrator restrictions, classification allowlists, and soft-delete locks.
+- [L591–L637] 6. Data Classification and Information Protection — Four classification levels, document metadata/content access matrix, public portal blurring, and Administrative Case controls.
+- [L638–L696] 7. Document Security Architecture — Lifecycle security locks, version history controls, two-stage numbering fraud prevention, and tracking QR code rules.
+- [L697–L769] 8. Database Security Design — PostgreSQL role separation, Row-Level Security policies, schema integrity constraints, and INSERT-only audit log protection.
+- [L770–L851] 9. Audit Logging and Non-Repudiation — Tamper-evident log architecture with SHA-256 hash chaining, HMAC signing, monthly TSA export, and chain validation.
+- [L852–L912] 10. File Storage Security — S3-compatible architecture, upload file restrictions, on-premise OCR isolation, server-proxied downloads, and backup encryption.
+- [L913–L989] 11. API Security Design — tRPC/REST context validation, shared Zod input schemas, rate limiting with progressive delay, and security headers.
+- [L990–L1052] 12. Infrastructure Security — Stateless container deployments, TLS 1.2+ requirements, secret environment variables, and RTO/RPO backup parameters.
+- [L1053–L1101] 13. Monitoring and Incident Response — Pino structured logging, Sentry PII scrubbing, intrusion detection signals, and threat-specific incident response procedures.
+- [L1102–L1154] 14. Privacy and Regulatory Compliance — Data Privacy Act constraints, ARTA SLA compliance during outages, Local Government Code mandated steps, and COA retention.
+- [L1155–L1237] 15. Threat Model — Asset catalog, threat actor definitions, attack surfaces, 18 threat scenarios with controls, and residual risk matrix.
+- [L1238–L1336] 16. Security Invariants — Sixteen non-negotiable architectural invariants enforced across application code, trigger rules, and database schema constraints.
+- [L1337–L1363] 17. Security Architecture Decisions — Confirmation status, technical rationales, and security impacts for 20 core security architecture decisions.
+- [L1364–L1402] 18. Security Decisions — Resolution Status — Resolution logs for 15 previous security decisions and follow-up paths for 4 open items.
+- [L1403–L1414] Appendix A: Regulatory Reference Summary — Cross-reference table mapping Data Privacy, ARTA, Local Government Code, and COA obligations to platform controls.
+- [L1415–L1457] Appendix B: Security Controls Quick Reference — Quick-reference matrix indexing all security controls, categories, and their specific architectural enforcement points.
+
+---
+
 ---
 
 ## 1. Document Overview

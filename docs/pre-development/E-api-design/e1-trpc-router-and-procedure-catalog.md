@@ -12,6 +12,34 @@
 
 ---
 
+## Table of Contents
+
+- [L43–L63] Purpose — Purpose, team workflow rules, parallel-work contracts, and the 7 required metadata fields defined per procedure.
+- [L64–L78] Note on Scope — Phase 1 in-scope tRPC routers and excluded citizen self-service REST endpoints, reporting modules, and search meta.
+- [L79–L88] Notation — Definitions of traceability and status tags mapping requirements to confirmed, inferred, or deferred procedures.
+- [L89–L148] Global Conventions — Directory layouts, camelCase naming verbs, the 5-step middleware security chain, list envelopes, and standard error shapes.
+- [L149–L232] Shared Fragment Schemas — Reusable Zod validators for pagination, date ranges, summary shapes, and document/role/classification enums.
+- [L233–L381] Module 1 — IAM Router (`iamRouter`) — Profile management, session termination, account CRUD, and role assignments enforcing the Platform Admin exclusion invariant.
+- [L382–L520] Module 2 — Organization Router (`organizationRouter`) — Office and position hierarchies, employee assignments, and designation grants enforcing singular-active-holder invariants.
+- [L521–L800] Module 3 — Documents Router (`documentsRouter`) — Core document lifecycle actions including general CRUD, legislative numbering, versioning, attachments, and decision logging.
+  - [L527–L616] 3.1 General Document CRUD — Draft creation, classification-gated reads, IT Admin metadata bypass, search FTS, and soft deletion rules.
+  - [L617–L684] 3.2 SP Workflow Document Specifics — Document submission sequencing, QR code attachment, and legislative preliminary or final series number assignments.
+  - [L685–L785] 3.3 File, Version, and Attachment Handling — Presigned S3 upload URLs, OCR text extraction, scan quality checks, and scanned-back signed copy acceptance.
+  - [L786–L800] 3.4 Secretariat Decision Logging `[Routing superseded by ADR-B2-3]` — superseded by workflow step completion — delegates directly to Workflow router per ADR-B2-3.
+- [L801–L1004] Module 4 — Workflow Router (`workflowRouter`) — Execution lifecycle, role/ABAC gates, multi-referral committee reports, Mayor lapse, Panlalawigan reviews, and ARTA SLA reporting.
+- [L1005–L1065] Module 5 — Tracking Router (`trackingRouter`) — Tracking record retrieval, paper-saving QR cover sheet layout, routing histories, and authenticated scanner blurred pages.
+- [L1066–L1137] Module 6 — Session Router (`sessionRouter`) — Session attendance and statistics, quorum validation, first reading scheduling, and committee hearing date inputs.
+- [L1138–L1198] Module 7 — Records Router (`recordsRouter`) — Phase 1 Subset — Retention schedule lookups, classification updates, and legal holds preventing document disposal in Phase 1.
+- [L1199–L1248] Module 8 — Notifications Router (`notificationsRouter`) — User SSE in-app notifications, custom preference settings, and administrator delivery logs.
+- [L1249–L1309] Module 9 — Audit Router (`auditRouter`) — Read-only logs for own actions, office actions, full auditor logs, SHA-256 chain validation, and exports.
+- [L1310–L1370] Module 10 — Complaints Router (`complaintsRouter`) — Internal Staff Side Only — In-person clerk intake, committee assignments, reports, outcomes, and respondent email or pickup notification rules.
+- [L1371–L1479] Module 11 — Document Requests Router (`documentRequestsRouter`) — Internal Staff Side Only — Counter-assisted requests, dual-signature approval by VM and Secretary, and payment-deferred copy release.
+- [L1443–L1468] Cross-Reference: Procedure-to-Policy Traceability Index — Inverted trace index mapping permission matrix sections to in-scope, deferred, or inferred router procedures.
+- [L1469–L1479] Required Follow-Up Before Full Sign-Off — Deferred action items for platform admin CRUD, records bulk operations, and signature uploads.
+
+---
+
+
 ## Purpose
 
 This document catalogs every tRPC router and every procedure within each router required for Phase 1 of the Batac City LGU Platform. Per the stack decision recorded in `2-stack-context.md`, tRPC is used **exclusively** for `/web` (the internal authenticated Vite + React SPA) communicating with `/server` (Fastify). The public portal, mobile clients, and third parties are REST-only and are **not** covered by this document — see Note on Scope below.

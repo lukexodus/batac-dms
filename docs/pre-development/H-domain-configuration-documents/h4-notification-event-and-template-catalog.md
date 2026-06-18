@@ -20,6 +20,41 @@
 >
 > `[B3 Gap]` — a notification requirement found in the consolidated reference or role-permission matrix that is not currently registered in B3 as a domain event with a `notifications` consumer. Each gap requires a follow-up action documented in Section 8.
 
+
+## Table of Contents
+
+- [L60–L69] 1. Introduction — Overview of the notifications module role, core Phase 1 requirements, event-driven architecture, and catalog organization.
+- [L70–L115] 2. Purpose and Scope — Implementation goals, delivery channels by phase, out-of-scope details, and owned PostgreSQL schemas/tables.
+- [L116–L147] 3. Delivery Infrastructure — Technical stack for Server-Sent Events (SSE), email exceptions, SMS timelines, and channel identifier definitions.
+- [L148–L368] 4. Notification Event Catalog — Trigger events and consumer registry mapping for legislative, ARTA, and administrative actions.
+  - [L154–L177] 4.1 Step Assignment Notification — Triggers when a workflow step is activated to notify the designated assignee via workflow.step.started event.
+  - [L178–L199] 4.2 Document State Change Notification — Notifies affected users of document lifecycle phase transitions via document.state_changed event.
+  - [L200–L223] 4.3 SLA Warning Notification — Warns assignees when 80% of the ARTA-configured SLA duration has elapsed using workflow.sla.warning.
+  - [L224–L245] 4.4 SLA Breach Escalation Notification — Triggers supervisor and Records Officer notifications upon missed SLA deadlines via workflow.sla.breached.
+  - [L246–L269] 4.5 SLA Critical Escalation Notification — Triggers high-priority alerts to supervisors, Records Officers, and Department Heads at 150% SLA threshold.
+  - [L270–L293] 4.6 Mayor 10-Day Lapse-Into-Law Notification — Alerts the SP Secretary via workflow.approval.lapsed when the Mayor's 10-day review period expires.
+  - [L294–L317] 4.7 Panlalawigan 30-Day Deemed Approval Notification — Alerts the SP Secretary via workflow.panlalawigan.deemed_approved when the Sangguniang Panlalawigan's 30-day review expires.
+  - [L318–L346] 4.8 Complaint Respondent Notification `[B3 Gap — routing resolved by ADR-B2-4]` — Email/phone alerting for external respondents via ADR-B2-4 direct API call, bypassing the main event bus.
+  - [L347–L368] 4.9 Session Security Notification `[B3 Gap]` — In-app notification sent to a displaced user when their active session is terminated due to multi-device login.
+- [L369–L629] 5. Notification Template Catalog — Administrator-managed templating syntax and database configuration details for notification message bodies.
+  - [L375–L392] 5.1 Template Framework — Template schema definition, identifier patterns, is_active status, and Phase 2 react-email rendering rules.
+  - [L393–L419] 5.2 Template T-01: Step Assignment — In-App — In-app message configuration and payload variables for step routing alerts under workflow.step.started.
+  - [L420–L436] 5.3 Template T-02: Step Assignment — Email (Phase 2) — Phase 2 email message setup and variables for step routing alerts under workflow.step.started.
+  - [L437–L461] 5.4 Template T-03: Document State Change — In-App — In-app message payload and transition configuration for document lifecycle state changes.
+  - [L462–L485] 5.5 Template T-04: SLA Warning — In-App — In-app alert format for 80% SLA warning thresholds using workflow instance context variables.
+  - [L486–L510] 5.6 Template T-05: SLA Breach Escalation — In-App — In-app alert structure for supervisor/Records Officer notifications when SLA deadlines are first missed.
+  - [L511–L534] 5.7 Template T-06: SLA Critical Escalation — In-App — In-app alert format for three-tier supervisor, Records Officer, and Department Head escalations at 150% SLA.
+  - [L535–L557] 5.8 Template T-07: Mayor 10-Day Lapse — In-App — In-app alert for SP Secretary containing the verbatim 'RA 7160 Section 47' legal basis.
+  - [L558–L581] 5.9 Template T-08: Panlalawigan 30-Day Deemed Approval — In-App — In-app alert for SP Secretary containing the verbatim 'RA 7160 Section 56(d)' legal basis.
+  - [L582–L606] 5.10 Template T-09: Complaint Respondent Notification — Email — Phase 1 exception email template for citizen respondents containing complaint tracking and Secretariat details.
+  - [L607–L629] 5.11 Template T-10: Session Displaced — In-App — In-app security alert template delivered to force-logged-out users upon their subsequent login.
+- [L630–L646] 6. Mapping of Notification Events to Templates — Reference table mapping all nine notification events to their corresponding templates, channels, and delivery phases.
+- [L647–L686] 7. Role-Based Notification Permissions — Matrix defining which roles receive step, SLA, or respondent alerts, plus self-service and delivery log permissions.
+- [L687–L751] 8. Notes and Considerations — Known B3 gaps, email delivery staging, SLA timer confirmation, and verbatim legal basis constraints.
+- [L752–L772] 9. Conclusion — Summary of Phase 1 notifications, required implementation decisions, and ongoing maintenance guidelines.
+
+---
+
 ---
 
 ## 1. Introduction

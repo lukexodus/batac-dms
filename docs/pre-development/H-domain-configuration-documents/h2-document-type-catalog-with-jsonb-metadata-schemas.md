@@ -2,6 +2,27 @@
 
 **Document:** H2 **Platform:** Batac City LGU Platform **Status:** BLOCKING — `documents.document_types` seed must run before the `number_series` seed (H3) and before any workflow definition is published (B4). Workflow definitions resolve `document_type_id` at publish time; number series records reference `document_type_code` as a logical FK. **Last Updated:** June 2026 **Audience:** Backend development team **Source documents:** Consolidated Architecture & Requirements Reference (Iteration 3) — Parts 4, 5, 11.4, 11.7, 11.21; Numbering Series Configuration Specification (H3); Workflow Engine Specification (B4)
 
+
+## Table of Contents
+
+- [L28–L39] Notation in This Document — Definitions for verification labels marking source-confirmed facts, logical inferences, and unverified parameters.
+- [L40–L78] What Is Not in `documents.metadata` JSONB — Global document columns and external schema fields that must be excluded from the metadata JSONB object.
+- [L79–L113] Catalog Summary Table — Initial seed values, naming codes, numbering series, and default classifications for the eight Phase 1 document types.
+- [L114–L126] Public Visibility Rule Definitions — Initial public portal visibility rule definitions governing document and status accessibility for citizens and requesters.
+- [L127–L137] Retention Schedule ID Definitions — Retention period rules mapping default document lifecycles to permanent or correspondence-based schedules.
+- [L138–L940] JSONB Metadata Schemas — Per Document Type — Introduction to JSON Schema validation configurations for the metadata column of all document types.
+  - [L146–L235] 1. SP Resolution (`SP_RESOLUTION`) — Sponsors, subject matter, and urgent certification links used for index reporting and workflow routing.
+  - [L236–L334] 2. SP Ordinance (`SP_ORDINANCE`) — Sponsor and subject fields, plus newspaper publication details required for ordinances containing penalty provisions.
+  - [L335–L417] 3. Appropriation Ordinance (`SP_APPROPRIATION_ORDINANCE`) — Budget period year and supplemental budget flags used to identify and distinguish fiscal appropriation measures.
+  - [L418–L483] 4. Certification of Urgency (`CERTIFICATION_OF_URGENCY`) — Mayor issuance details, target session dates, and atomic writes mapping urgency to associated measures.
+  - [L484–L620] 5. Citizen Complaint (`CITIZEN_COMPLAINT`) — Complainant, respondent, incident details, physical signature modes, and complaint-specific resolution outcome states.
+  - [L621–L773] 6. Document Request Form (`DOCUMENT_REQUEST_FORM`) — Requester info, requested document arrays, fee-based payment placeholders, and VM/Secretary approval flags.
+  - [L774–L838] 7. Transmittal Letter (`TRANSMITTAL_LETTER`) — Mayor transmittal letters containing references to the associated measure, recipient office, and SP Secretary signatory.
+  - [L839–L940] 8. Designation (`DESIGNATION`) — Delegation mapping from original authority to designee, including position, scope, and explicit validity periods.
+- [L941–L999] Implementation Notes — Database seed ordering, workflow context mappings, GIN index expressions, and validation rules for application-enforced relationships.
+
+---
+
 ---
 
 ### Notation in This Document

@@ -4,6 +4,33 @@
 Status: Pre-Development Baseline | June 2026
 Audience: Development team — IAM configuration reference
 
+
+## Table of Contents
+
+- [L36–L52] How to Read This Matrix — Key for symbols, office-scoping boundaries (ABAC), role precedence rules, and notes reference.
+- [L53–L72] Roles Reference — List of the 13 platform roles and their primary organizational or system scopes.
+- [L73–L94] Section 1 — Identity and Access Management (IAM) — Permissions for user account provisioning, role assignments, profile management, session control, and citizen self-registration.
+- [L95–L111] Section 2 — Organization Structure — Permissions for managing offices, positions, employee assignments, organizational charts, and temporal delegation grants.
+- [L112–L133] Section 3 — Platform Configuration — Administrative permissions for document types, workflows, role configurations, SLA targets, retention schedules, database schema migrations, and backups.
+- [L134–L154] Section 4 — Document Creation and Submission — Permissions for document drafting, uploading attachments, submission workflows, clerk-assisted creation, serial numbering, and generating legislative transmittals.
+- [L155–L171] Section 5 — Document Viewing and Search — Read permissions for document metadata, files, version history, full-text search, and classification levels (Internal, Confidential, Public).
+- [L172–L199] Section 6 — Workflow Execution — Permissions for workflow initiation, action/approval steps, legislative/executive decisions, veto overrides, publication dates, and definition migration.
+- [L200–L215] Section 7 — Document Tracking (DTS) — Permissions for QR code generation, physical routing logs, status scans, and public/internal tracking history.
+- [L216–L229] Section 8 — Session Attendance and Order of Business — Permissions for managing legislative sessions, recording attendance, scheduling business items, and viewing session participation stats.
+- [L230–L240] Section 9 — Signature Recording — Permissions for signature image uploads, validating and accepting scanned-back signed documents, and viewing signature records.
+- [L241–L259] Section 10 — Records Management (RMS) — Permissions for official record promotion, retention schedules, archiving, legal holds, bulk exports, and PII erasure.
+- [L260–L272] Section 11 — Notifications — Permissions for receiving and managing in-app, escalation, and respondent notifications, preference configuration, and delivery logging.
+- [L273–L287] Section 12 — Citizen Complaints — Permissions for complaint filing, committee assignment, resolving outcomes, and viewing complaints as requester, respondent, or secretariat.
+- [L288–L302] Section 13 — Document and Records Request — Permissions for requesting documents, generating request forms, review and approval steps, record release, and request status tracking.
+- [L303–L314] Section 14 — Public Portal Access — Permissions for public document lookups, publishing or unpublishing files, and posting announcements on the public portal.
+- [L315–L329] Section 15 — Audit Log — Permissions for accessing action or office logs, full audit log export, and hash chain validation constraints.
+- [L330–L345] Section 16 — Reporting and Dashboards — Permissions for role-specific dashboards, task inboxes, SLA compliance reporting, and running or exporting system reports.
+- [L346–L356] Section 17 — OCR and File Processing — Permissions for viewing OCR quality indicators, re-uploading documents, triggering manual re-OCR, and reading extracted text.
+- [L357–L396] Conditional Notes — Specific footnotes detailing policy rules, scope restrictions, validation constraints, and workflow conditions referenced in the matrix.
+- [L397–L411] Architectural Invariants Encoded in This Matrix — Mapping of specific matrix permissions and notes to system-wide architectural invariants enforced at the database or application layers.
+
+---
+
 ---
 
 ## How to Read This Matrix

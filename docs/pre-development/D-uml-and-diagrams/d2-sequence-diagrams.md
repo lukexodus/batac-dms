@@ -7,6 +7,29 @@
 **Audience:** Development team — internal reference
 **Source Documents:** `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2); `b4-workflow-engine-specification.md` (B4); `b2-module-boundary-and-internal-api-contracts.md` (B2); `h1-phase-1-workflow-definitions-structured-data.md` (H1)
 
+
+## Table of Contents
+
+- [L35–L91] About This Document — Actor and component keys, notation conventions, and the canonical B2-to-B3 event reconciliation mapping table.
+- [L92–L343] 1. SP Resolution — Standard Path — Standard resolution lifecycle covering intake, Thursday committee cutoff, final numbering sequence, Mayor signature, and valid Panlalawigan review.
+- [L344–L418] 2. SP Resolution — Certified Urgent Path — Divergent path where Mayor's urgency certification skips committee referral, allowing same-session first and second readings.
+- [L419–L514] 3. SP Resolution — Veto and Override Path — Process for Mayor's veto, 2/3 SP override votes (succeed/fail outcomes), and the 10-day Mayor lapse timer logic.
+- [L515–L689] 4. SP Ordinance — Standard Path — Standard ordinance lifecycle including amendments logging, third reading, final numbering, and the penalty-clause newspaper publication check.
+- [L690–L741] 5. SP Ordinance — Certified Urgent Path — Urgency bypass for ordinances; duplicates Diagram 2 logic with minor ordinance-type adjustments for amendments and third reading.
+- [L742–L815] 6. Appropriation Ordinance — Full Lifecycle — Ordinance lifecycle omitting publication checks, allowing 'operative in its entirety' Panlalawigan outcome, and routing directly to portal.
+- [L816–L1016] 7. Panlalawigan Review — All Four Outcome Paths — Index of outcomes for Sangguniang Panlalawigan reviews, detail-mapped across sub-sections §7A through §7D.
+  - [L820–L821] 7A. VALID / DEEMED_APPROVED / OPERATIVE_IN_ITS_ENTIRETY (covered in Diagrams 1, 4, 6 above) — Superseded by §1, §4, §6 — see those sections for standard approval paths.
+  - [L822–L912] 7B. VALID_IN_PART — All Four Resolution Paths — Four resolution paths for partial validity: in-place, routed to Legal, routed to Committee, or directly revised by Secretariat.
+  - [L913–L975] 7C. RETURNED — Repass or Resolve Directly — Objections resolution via repass (spawns new document, reuses series number) or direct Secretariat revision without repassing.
+  - [L976–L1016] 7D. DEEMED_APPROVED — 30-Day Lapse — Daily scheduler-driven 30-day timer that auto-approves measures if Sangguniang Panlalawigan fails to act.
+- [L1017–L1135] 8. Citizen Complaint — Full Lifecycle — Three intake modes (physical, digital-to-print, clerk-assisted), committee routing, and email/phone notification rules for citizen complaints.
+- [L1136–L1231] 9. Designation Grant and Auto-Expiry — Immediate delegation mechanics, DB constraints (one active grant per user), active task re-routing, and automatic expiry restoration.
+- [L1232–L1318] 10. QR Code Assignment and Scan-to-Lookup — QR generation sequence (assigned before series numbers), cover sheet layout, and public lookup displaying blurred non-first pages.
+- [L1319–L1418] 11. Document Request Form — All Three Access Modes — Copy request intake modes, required VM and SP Secretary approvals, fee notification, and S3 full-document release mechanics.
+- [L1419–L1507] 12. Control Number Deferred Assignment Flow — Deferred control numbering for letters, immutable assignment after Vice Mayor review, and mistake correction via gap-creating soft-deletion.
+
+---
+
 ---
 
 ## About This Document

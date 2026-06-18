@@ -7,6 +7,36 @@
 **Audience:** Development team  
 **Source Documents:** `2-stack-context.md`; `consolidated-architecture-and-requirements-reference-iteration-3.md` (Iteration 3); `b4-workflow-engine-specification.md`
 
+
+## Table of Contents
+
+- [L42–L49] 1. Purpose — Scope, layer boundaries, and priorities governing all test authoring decisions.
+- [L50–L63] 2. Guiding Principles — Core policies on test value, deterministic execution, layer boundaries, and mandatory invariant enforcement.
+- [L64–L79] 3. Testing Stack — Tool selection and strict prohibitions against mocking databases or the workflow engine.
+- [L80–L91] 4. Priority Order — Sequence of testing efforts prioritizing the state machine, ABAC route authorization, and E2E journeys.
+- [L92–L307] 5. Layer 1 — Vitest Unit Tests — Verification rules and test cases for isolated business logic, state transitions, and schemas.
+  - [L94–L101] 5.1 What Belongs Here — Criteria defining isolated unit tests, excluding database writes, Fastify routes, and event bus wiring.
+  - [L102–L190] 5.2 Workflow Engine — State Machine Transitions — Contracts and logic paths for step completions, rule evaluation, multi-referral branching, and termination conditions.
+  - [L191–L241] 5.3 Workflow Engine — Special Control Flows — Unit tests for Certified Urgent bypasses, Thursday cutoffs, and time-dependent lapse/deemed-approval timers.
+  - [L242–L256] 5.4 Workflow Engine — Invariant Rejection Tests — Unit tests for invariants 2, 3, 7, 9, 10, and 11, which require no database state.
+  - [L257–L288] 5.5 Pure Service-Layer Functions — Assignee resolution, SLA deadline and breach percentage calculations, and comment validations (Tuesday computation covered in §5.3.2).
+  - [L289–L307] 5.6 Zod Schema Validations — Validation rules for instance context, step configurations, transition rules, numbering formats, and delegation grants.
+- [L308–L485] 6. Layer 2 — Vitest Integration Tests — Verification rules and environment setup for database-connected components, API endpoints, and event subscriptions.
+  - [L310–L320] 6.1 What Belongs Here — Integration scope requiring live PostgreSQL, Fastify in test mode, and real event bus connections.
+  - [L321–L331] 6.2 Test PostgreSQL Setup — Drizzle migrations, static seeding, test transaction rollbacks, database truncation, and parallelism constraints.
+  - [L332–L392] 6.3 Engine Entry Point Coverage — Database verification for the seven engine entry points and the version migration reversibility contract.
+  - [L393–L431] 6.4 Special Control Flow Integration Tests — Database state verification for Certified Urgent bypasses, Thursday cutoffs, and time-dependent lapse/approval jobs.
+  - [L432–L447] 6.5 Database Constraint Enforcement — Database schema constraint enforcement of invariants 1, 4, 5, 6, 8, 12, and 13.
+  - [L448–L460] 6.6 tRPC Procedure Integration Tests — Procedure-level authorization checks verifying role and office scopes via tRPC caller contexts.
+  - [L461–L473] 6.7 ABAC-Protected Route Integration Tests (Fastify `.inject()`) — Fastify inject testing of endpoint access control, classification levels, and role restrictions without a network.
+  - [L474–L485] 6.8 Event Bus Wiring — End-to-end subscriber side-effects for bypass, repassed documents, audit logging, and SLA breach events.
+- [L486–L495] 7. Layer 3 — Playwright E2E Tests — Boundary decisions for browser-based testing, with full E2E journeys defined in K3.
+- [L496–L511] 8. What Not to Test (or Not to Chase) — List of out-of-scope targets including CRUD actions, notification delivery, OCR accuracy, and UI layouts.
+- [L512–L560] 9. Test Data and Fixtures — Deterministic testing fixtures and clock injection rules for time-dependent calculations.
+- [L561–L577] 10. CI Requirements — Execution limits, database setup, and scheduling rules for CI runs on pull requests.
+
+---
+
 ---
 
 ## 1. Purpose

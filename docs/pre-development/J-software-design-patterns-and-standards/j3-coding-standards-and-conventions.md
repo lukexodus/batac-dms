@@ -2,21 +2,45 @@
 
 **Project:** Batac City LGU Platform (`batac-dms`) **Applies to:** All code in the monorepo (`/apps`, `/packages`, `/tools`) **Audience:** Development team (internal reference) **Status:** Pre-Development Baseline
 
----
 
 ## Table of Contents
 
-1. [TypeScript Configuration and Strictness](https://claude.ai/chat/ea7b942a-8f0e-4c1e-935f-a081b748cdd3#1-typescript-configuration-and-strictness)
-2. [Naming Conventions](https://claude.ai/chat/ea7b942a-8f0e-4c1e-935f-a081b748cdd3#2-naming-conventions)
-3. [Import Ordering](https://claude.ai/chat/ea7b942a-8f0e-4c1e-935f-a081b748cdd3#3-import-ordering)
-4. [Module Boundary Rules](https://claude.ai/chat/ea7b942a-8f0e-4c1e-935f-a081b748cdd3#4-module-boundary-rules)
-5. [Comment Conventions](https://claude.ai/chat/ea7b942a-8f0e-4c1e-935f-a081b748cdd3#5-comment-conventions)
-6. [Prettier Configuration](https://claude.ai/chat/ea7b942a-8f0e-4c1e-935f-a081b748cdd3#6-prettier-configuration)
-7. [ESLint Configuration](https://claude.ai/chat/ea7b942a-8f0e-4c1e-935f-a081b748cdd3#7-eslint-configuration)
-8. [File and Directory Organization](https://claude.ai/chat/ea7b942a-8f0e-4c1e-935f-a081b748cdd3#8-file-and-directory-organization)
-9. [Zod and the Type-Safety Chain](https://claude.ai/chat/ea7b942a-8f0e-4c1e-935f-a081b748cdd3#9-zod-and-the-type-safety-chain)
-10. [Error Handling Conventions](https://claude.ai/chat/ea7b942a-8f0e-4c1e-935f-a081b748cdd3#10-error-handling-conventions)
-11. [Quick-Reference Cheat Sheet](https://claude.ai/chat/ea7b942a-8f0e-4c1e-935f-a081b748cdd3#11-quick-reference-cheat-sheet)
+- [L47–L231] 1. TypeScript Configuration and Strictness — Global rules for TypeScript compiler config, strict type checks, `any` prohibition, and function return type requirements.
+  - [L49–L106] 1.1 Base `tsconfig.json` — Monorepo-wide base compiler options in `/packages/config` and permissible package/app overrides.
+  - [L107–L128] 1.2 The `strict: true` Flag Means All of These — Explicit compiler strictness flags including exact property types and unchecked index access controls.
+  - [L129–L177] 1.3 The `any` Prohibition — Mandatory ban on `any`, safe use of `unknown`, type assertions (`as`), and prohibition of `@ts-ignore` bypasses.
+  - [L178–L231] 1.4 Explicit Return Types on Exported Functions — Mandatory return type annotations for functions exported from `/packages` and guidelines for internal helpers.
+- [L232–L436] 2. Naming Conventions — Casing standards across codebases for variables, components, constants, files, directories, DB tables, schemas, and events.
+  - [L234–L258] 2.1 PascalCase — Types, Interfaces, Components, Enums, Classes — PascalCase formatting rules for types, interfaces, React components, classes, and const object enums.
+  - [L259–L281] 2.2 camelCase — Functions, Variables, Object Properties, Method Names — camelCase formatting rules for functions, local variables, object attributes, and class methods.
+  - [L282–L318] 2.3 SCREAMING_SNAKE_CASE — True Constants — SCREAMING_SNAKE_CASE requirements for module-level immutable configurations, thresholds, and environment variables.
+  - [L319–L357] 2.4 kebab-case — File and Directory Names — kebab-case filenames in apps/packages, specific file suffixes (e.g. `.schema.ts`), and `index.ts` public exports.
+  - [L358–L381] 2.5 Database Schema and Column Names — PostgreSQL and Drizzle schema naming requirements using snake_case for tables and columns.
+  - [L382–L399] 2.6 Zod Schema Names — Zod naming schema suffix (`{Entity}Schema`), and required type inference (`z.infer`) instead of duplication.
+  - [L400–L416] 2.7 tRPC Procedure Names — camelCase naming patterns for tRPC procedures using specific verb-resource actions instead of generic handles.
+  - [L417–L436] 2.8 Event Bus Event Names — SCREAMING_SNAKE_CASE event naming convention (`MODULE_NOUN_PAST_VERB`) and locations for their exports.
+- [L437–L496] 3. Import Ordering — Linter-enforced import group ordering, spacing requirements, and mandatory use of `import type`.
+- [L497–L571] 4. Module Boundary Rules — Strict schema isolation boundaries between server modules and their permitted communication patterns.
+- [L572–L688] 5. Comment Conventions — Requirements for JSDoc documentation, meaningful inline notes, and structured task comments.
+  - [L574–L631] 5.1 JSDoc — Required on All Exported Functions in `/packages/shared` — Mandatory JSDoc tagging format (`@param`, `@returns`, `@throws`) for exports in the shared package.
+  - [L632–L668] 5.2 Inline Comments — When and How — Guidelines for writing explanatory inline comments that clarify complex logic instead of restating code.
+  - [L669–L688] 5.3 TODO / FIXME / HACK Format — Standardized formatting for temporary comments requiring issue numbers and developer identifiers.
+- [L689–L746] 6. Prettier Configuration — Monorepo formatting settings (print width, quotes, trailing commas) and editor configurations for save-actions.
+- [L747–L867] 7. ESLint Configuration — Linter rules, base configurations, and plugins for monorepo validation, safety, and import order.
+  - [L749–L752] 7.1 Base Config Location — Location of the base ESLint config and rules for extending it in individual packages.
+  - [L753–L764] 7.2 Core Plugins — List of ESLint plugins utilized across the codebase for boundary checks, TypeScript safety, and style.
+  - [L765–L830] 7.3 Key Rule Decisions — Specific ESLint rules governing TypeScript strictness, forbidden patterns, import sorting, and environment access.
+  - [L831–L847] 7.4 `no-console` Enforcement — Mandatory prohibition of `console.*` in favor of structured Pino JSON logging.
+  - [L848–L867] 7.5 React-Specific Rules (Web App Only) — React-specific lint rule overrides for props, hooks, and async event handlers.
+- [L868–L968] 8. File and Directory Organization — Standard directory layout structures for server modules, React components, and the shared package.
+  - [L870–L913] 8.1 Server Module Structure — File layout within server modules, routing, services, repository, and strict `index.ts` public APIs.
+  - [L914–L944] 8.2 React Component Structure (`/apps/web`) — Feature-based layout guidelines in web app, single-component default exports, and tightly-coupled subcomponents.
+  - [L945–L968] 8.3 Shared Package Structure (`/packages/shared`) — Directory organization of schemas, types, constants, utilities, and events in the shared codebase.
+- [L969–L1046] 9. Zod and the Type-Safety Chain — Schema-first type-safety chain, deriving types from schemas, and parsing error handling conventions.
+- [L1047–L1138] 10. Error Handling Conventions — Rules for throwing custom Errors, catch type narrowing, promise handling, and tRPC error codes.
+- [L1139–L1171] 11. Quick-Reference Cheat Sheet — Summary table of standard conventions for TypeScript, naming, imports, modules, comments, and errors.
+
+---
 
 ---
 

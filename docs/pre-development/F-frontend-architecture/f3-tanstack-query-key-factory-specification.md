@@ -12,6 +12,40 @@
 | **Based on**    | E1 (tRPC Router and Procedure Catalog), 2-stack-context (Stack Decisions), C1 (Full Database Schema DDL) |
 | **Audience**    | Frontend development team (`/apps/web`)                                                                  |
 
+
+## Table of Contents
+
+- [L51–L58] Purpose — Contract role of the query key factory in preventing stale data bugs across /apps/web.
+- [L59–L115] Conventions — Cache key hierarchy, tRPC v11 compatibility, naming conventions, and file locations for the shared package.
+- [L116–L672] Key Factories — Module-specific key factories specifying query scopes and parameters for tRPC routers.
+  - [L118–L161] 1. `iamKeys` — `iamRouter` — Cache keys for current user, active sessions, and the user directory.
+  - [L162–L201] 2. `orgKeys` — `organizationRouter` — Cache keys for the office tree hierarchy and authority designation records.
+  - [L202–L287] 3. `documentKeys` — `documentsRouter` — Cache keys for document details, admin metadata, search, version history, and OCR status.
+  - [L288–L345] 4. `workflowKeys` — `workflowRouter` — Cache keys for workflow instances, active steps, user tasks, and SLA compliance data.
+  - [L346–L405] 5. `trackingKeys` — `trackingRouter` — Cache keys for QR codes, routing histories, cover sheets, and authenticated QR scans.
+  - [L406–L452] 6. `sessionKeys` — `sessionRouter` — Cache keys for council attendance records, statistics, and the scheduled Order of Business.
+  - [L453–L489] 7. `recordsKeys` — `recordsRouter` — Cache keys for document retention schedules and legal hold statuses.
+  - [L490–L537] 8. `notificationKeys` — `notificationsRouter` — Cache keys for user notifications, channel preferences, and system delivery logs.
+  - [L538–L608] 9. `auditKeys` — `auditRouter` — Cache keys for user actions, office actions, full system logs, and hash chain integrity.
+  - [L609–L636] 10. `complaintKeys` — `complaintsRouter` — Cache keys for the legislative committee and secretariat complaint list.
+  - [L637–L672] 11. `documentRequestKeys` — `documentRequestsRouter` — Cache keys for copy requests and printable request forms.
+- [L673–L829] Mutation Invalidation Matrix — Required cache invalidation targets mapped to each database mutation procedure.
+  - [L683–L698] IAM Mutations — Invalidation mappings for profile, password, session termination, user accounts, and role assignment mutations.
+  - [L699–L713] Organization Mutations — Invalidation mappings for office, position, employee, designation grant, and committee mutations.
+  - [L714–L737] Document Mutations — Invalidation mappings for document creation, deletion, submission, numbers, upload confirmation, and secretariat decisions.
+  - [L738–L761] Workflow Mutations — Invalidation mappings for step progression, approvals, revisions, mayor actions, and provincial review outcomes.
+  - [L762–L769] Tracking Mutations — Invalidation mappings for logging explicit document routing entries.
+  - [L770–L779] Session Mutations — Invalidation mappings for attendance records, first readings, and committee hearing dates.
+  - [L780–L790] Records Mutations — Invalidation mappings for retention schedules, classification changes, and legal holds.
+  - [L791–L799] Notifications Mutations — Invalidation mappings for marking notifications as read and updating preferences.
+  - [L800–L807] Audit Mutations — Invalidation mapping for export mutations (no active cache invalidation required).
+  - [L808–L818] Complaints Mutations — Invalidation mappings for complaint creation, assignment, committee reports, and final outcomes.
+  - [L819–L829] Document Request Mutations — Invalidation mappings for document copy requests, approvals, and releases.
+- [L830–L845] Cross-Module Invalidation Chains — Consolidated rules for multi-router invalidations triggered by workflow, designations, lifecycle, and OCR polling.
+- [L846–L868] Index Re-export — Barrel exports file location and frontend/mutation query client usage guidelines.
+
+---
+
 ---
 
 ## Purpose

@@ -5,6 +5,15 @@
 **Status:** Pre-development baseline — Post-Interview 2 + Developer Decisions  
 **Reference:** Consolidated Architecture & Requirements Reference, Iteration 3
 
+## Table of Contents
+
+- [L19–L33] Overview — Scope, guidelines for domain-level modeling, Phase 2/3 entity inclusion, and instructions for navigating the diagram.
+- [L34–L43] Diagram Legend — Visual representation key explaining class diagram symbols for composition, association, and inheritance relationships.
+- [L44–L547] Class Diagram — Single Mermaid class diagram containing 62 entities across 12 modules, representing the complete pre-development domain model.
+- [L548–L617] Entity Index — Reference table mapping all 62 domain entities to their respective modules, database schemas, and implementation phases.
+- [L618–L671] Key Enum Types — Tables of domain enum values categorized by document lifecycle, workflow engine, legislative, organization, complaints, and notifications.
+- [L672–L702] Relationship Notes — Detailed architectural rules, invariants, and implementation notes for fifteen key entity relationships and domain behaviors.
+
 ---
 
 ## Overview

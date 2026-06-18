@@ -3,6 +3,57 @@
 **Status:** Pre-Development Reference | Audience: Development Team
 **Stack baseline:** See `2-stack-context.md` — Fastify + tRPC + Drizzle ORM + TanStack Query
 
+
+## Table of Contents
+
+- [L59–L71] Purpose and Scope — Mandatory codebase patterns, system objectives (isolation, auditability), and architectural deviation (ADR) requirement.
+- [L72–L83] Pattern Index — Quick-reference table listing the five design patterns, their primary concerns, and associated file naming conventions.
+- [L84–L249] 1. Repository Pattern
+  - [L86–L91] What It Solves — Isolating Drizzle queries within a single module schema to hide data-access details from services.
+  - [L92–L99] Directory Placement — File path conventions for repository files and domain types in the server module directory.
+  - [L100–L209] Canonical Implementation — Factory function pattern returning a typed interface, avoiding classes, singletons, and decorators.
+  - [L210–L229] Transaction Support — Executing repository operations within service-managed transactions by passing the transaction context.
+  - [L230–L237] Rules — Mandatory repository constraints including interface definitions, soft-delete requirements, and transaction parameter types.
+  - [L238–L249] Prohibitions — Prohibitions against direct database client imports, cross-schema queries, embedded business logic, and class usage.
+- [L250–L477] 2. Service Layer Pattern
+  - [L252–L255] What It Solves — Enforcing business logic isolation, coordinating repositories, managing transaction boundaries, and emitting domain events.
+  - [L256–L262] Directory Placement — Target location for business logic service implementation files within each module folder.
+  - [L263–L405] Canonical Implementation — Service factory function with dependencies, transaction coordination, post-commit actions, event emission, and router injection.
+  - [L406–L457] Where Services Are Consumed — Consuming services exclusively inside tRPC procedures and Fastify REST route handlers.
+  - [L458–L465] Rules — Dependency injection via Deps, transaction owner rules, and strict order of operations for audit/events.
+  - [L466–L477] Prohibitions — Prohibitions against logic in handlers, cross-module repository imports, transaction-nested events, and generic errors.
+- [L478–L706] 3. Domain Event Pattern
+  - [L480–L485] What It Solves — Decoupling modules using a fire-and-forget event bus for side effects rather than direct service calls.
+  - [L486–L493] Infrastructure Files — Target paths for the event registry and the TypedEventBus infrastructure files.
+  - [L494–L574] Canonical Implementation — Event Registry — Defining type-safe event names and payload schemas in a single master event registry.
+  - [L575–L642] Canonical Implementation — TypedEventBus — TypedEventBus wrapper class with listener management, async error handling, and process-wide singleton factory.
+  - [L643–L670] How a Module Subscribes — Registering event handlers inside module plugins during Fastify server startup.
+  - [L671–L686] Event Naming Convention — Naming conventions enforcing lowercase module namespaces and past-tense verbs for event identifiers.
+  - [L687–L694] Rules — Mandatory event rules regarding master declaration, post-transaction timing, and startup handler registration.
+  - [L695–L706] Prohibitions — Prohibitions against transaction-nested emissions, synchronous event results, critical-path coupling, and self-subscription.
+- [L707–L902] 4. Module Plugin Pattern
+  - [L709–L712] What It Solves — Enforcing module scope isolation by wiring repositories, services, and routes through Fastify plugins.
+  - [L713–L720] Key Fastify Behavior to Understand — Lexical scope differences between Fastify's encapsulated plugins and global plugins wrapped with fastify-plugin.
+  - [L721–L731] Directory Placement — Location requirements for module plugin files and registration order within the app entrypoint.
+  - [L732–L786] Canonical Implementation — Standard plugin wiring, including global service decoration, tRPC router mapping, and nested REST routing.
+  - [L787–L804] TypeScript Augmentation — Extending FastifyInstance types with module service and router signatures for type safety.
+  - [L805–L845] App Registration Order — Declaring and ordering module registration, starting with infrastructure followed by dependency-sequenced modules.
+  - [L846–L882] Infrastructure Plugin Example — Concrete code example showing database connection decorator and connection cleanup hooks.
+  - [L883–L890] Rules — Mandatory plugin structure, dependency arrays, nested REST scopes, and database connection cleanup hooks.
+  - [L891–L902] Prohibitions — Prohibitions against direct service imports, un-wrapped plugins, top-scope REST registration, and circular dependencies.
+- [L903–L1136] 5. Query Key Factory Pattern
+  - [L905–L914] What It Solves — Ensuring cache invalidation consistency via tRPC useUtils and hierarchical REST query key factories.
+  - [L915–L927] Directory Placement — File path conventions for hierarchical REST query key files and shared tRPC invalidation helpers.
+  - [L928–L1007] Tier 1 — tRPC Cache Invalidation via `useUtils` — Creating custom hooks to bundle related tRPC query invalidations inside useMutation success callbacks.
+  - [L1008–L1098] Tier 2 — Explicit Query Keys for REST Calls — Defining type-safe, hierarchical query key factories using as const tuples for REST endpoints.
+  - [L1099–L1116] Hierarchical Invalidation — Targeting cache invalidations at specific resources, full listing arrays, or entire domain scopes.
+  - [L1117–L1124] Rules — Mandatory caching rules including tRPC-REST division, as const tuple returns, and unique root keys.
+  - [L1125–L1136] Prohibitions — Prohibitions against inline query key literals, tRPC custom keys, global invalidations, and mutable keys.
+- [L1137–L1218] 6. How the Patterns Compose — End-to-end execution trace and mapping table showing how all five patterns coordinate during operations.
+- [L1219–L1248] Appendix — File Structure Reference — Complete list of files and folder paths required to implement a fully conforming module.
+
+---
+
 ---
 
 ## Purpose and Scope

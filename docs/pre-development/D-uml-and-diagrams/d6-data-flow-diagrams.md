@@ -11,6 +11,24 @@
 
 ---
 
+## Table of Contents
+
+- [L2–L31] Batac City LGU Platform — Phase 1 — Document metadata, target audience, and referenced source documentation.
+- [L32–L46] 1. Introduction — Purpose of the data flow diagrams and visual notation conventions for external entities, processes, and data stores.
+- [L47–L66] 2. Purpose and Scope — Visual overview target and specific list of in-scope Phase 1 operations and explicitly out-of-scope features.
+- [L67–L83] 3. Overview of Key Operations — Summary of legislative lifecycle steps, scheduled background cron/pgboss timer operations, Certified Urgent bypass path, and audit invariants.
+- [L84–L672] 4. Data Flow Diagrams — Collection of context, initialization, execution, referral, review, and bypass diagrams representing Phase 1 operations.
+  - [L88–L167] DFD 1 — Context Diagram (Level 0) — Level 0 boundary diagram mapping interactions between the LGU platform, scheduler, public citizens, and all external role players.
+  - [L168–L247] DFD 2 — Document Intake and Initialization — Draft logging, direct-to-S3 streaming, scan quality validation, QR tracking, preliminary series numbering, and start-step assignee resolution.
+  - [L248–L331] DFD 3 — Workflow Step Execution — Generic tRPC engine loop covering actor authorization, JSONLogic transition evaluation, delegation-aware assignee resolution, domain events, and audit logging.
+  - [L332–L420] DFD 4 — Multi-Committee Referral with Thursday Cutoff — Concurrent committee submissions, unified report upload/acceptance, Thursday cutoff scheduler calculations, and the SP Secretary manual advance override.
+  - [L421–L499] DFD 5 — Mayor Review with 10-Day Lapse Timer — Mayor review submissions, hourly lapse timer checks, SELECT FOR UPDATE row locking, Veto Override voting, and docketing routing.
+  - [L500–L592] DFD 6 — Panlalawigan Review with 30-Day Timer — Sangguniang Panlalawigan 30-day deemed-approval timer, manual outcome logging, VALID_IN_PART resolution routing, and RETURNED repass or direct resolution.
+  - [L593–L672] DFD 7 — Certified Urgent Bypass — Event-driven bypass of the committee referral stage for active, pending, or completed steps upon logging a Certification of Urgency.
+- [L673–L701] 5. Summary — DFD-to-datastore mapping table and key system-wide database, storage, and cryptographic invariants.
+
+---
+
 ## 1. Introduction
 
 This document presents Data Flow Diagrams (DFDs) for the key operations of the Batac City LGU Platform. All content is derived exclusively from the four source documents listed above. No assumptions are made beyond what the sources confirm.

@@ -2,6 +2,76 @@
 
 **Batac City LGU Platform** **Status:** Pre-Development Baseline — Blocking Document **Last Updated:** June 2026 **Audience:** Backend development team **Depends on:** I2 (Role-Permission Matrix), B5 (Authentication & Authorization Architecture), Consolidated Architecture & Requirements Reference (Iteration 3)
 
+## Table of Contents
+
+- [L77–L101] Document Notes — Definitions of status notation labels and cross-document specification relationships to B5, I2, and H2.
+- [L102–L126] 1. Subject Attributes Reference — Schema sources, JWT caching rules, and refresh staleness limits for subject attributes including committee memberships.
+- [L127–L219] 2. Global Cascade Gates — Pre-RBAC security checks covering multi-tenancy, IT and Platform Admin isolation invariants, classification allowlists, and soft-delete gates.
+- [L220–L546] 3. Resource Type: `document`
+  - [L224–L230] Subject Attributes Used — List of fields on the SubjectContext object referenced by document resource policy conditions.
+  - [L231–L241] Resource Attributes Used — List of document-specific schema columns and logic fields evaluated in document policy rules.
+  - [L242–L276] 3.1 `document:create` — Role permission rules for document drafting, including special originating office defaults for SP ordinances and resolutions.
+  - [L277–L341] 3.2 `document:read` (metadata) — Access rules for document metadata, including committee-scoped access and the has_cross_office_read_grant database helper function definition.
+  - [L342–L373] 3.3 `document:update` (non-state-change edits: title, metadata fields, attachments) — Direct update rules for drafts, restricting SP members to self-authored documents and locking direct edits post-submission.
+  - [L374–L398] 3.4 `document:delete` (soft-delete only) — Soft-delete rules limiting encoder delete authority to pre-workflow states, and absolute prohibition of hard database deletes.
+  - [L399–L420] 3.5 `document:submit` (Draft → Submitted) — Rules for submitting drafts, including the requirement of the SP Secretary role for SP workflow documents.
+  - [L421–L448] 3.6 `document:cancel` (any active state → Cancelled) — Cancellation authority rules across lifecycle states, requiring mandatory audit-logged reasons for all cancellation actions.
+  - [L449–L468] 3.7 `document:number_assign` (assign preliminary number) — Rules for assigning preliminary numbers to SP measures, restricted to the SP Secretary at secretariat logging.
+  - [L469–L492] 3.8 `document:number_promote` (assign final number, remove Draft prefix) — Promotion rules from preliminary to final numbers after reading votes, enforcing immutability via database constraints.
+  - [L493–L509] 3.9 `document:certify_urgent` (log Certification of Urgency) — Logging rules for certifications of urgency, restricting logging to the SP Secretary for active committee-stage measures.
+  - [L510–L528] 3.10 `document:archive` (Completed/Released → Archived) — Archiving permissions for completed documents, restricted to Records Officers and SP Secretaries within their office scopes.
+  - [L529–L546] 3.11 `document:publish_portal` (publish to public portal) — Portal publication rules for public or partially-visible SP measures, restricted to the SP Secretary.
+- [L547–L653] 4. Resource Type: `document_version` and `document_attachment`
+  - [L551–L557] Resource Attributes Used — List of document-specific schema columns and logic fields evaluated in document policy rules.
+  - [L558–L597] 4.1 `document_version:read` / `document_attachment:read` (file content) — Access rules for document version and attachment files, inheriting document classification constraints and enforcing IT Admin content block.
+  - [L598–L613] 4.2 `document_version:create` (upload new version / attachment) — Permissions for uploading new versions and attachments, restricting SP members to self-authored documents.
+  - [L614–L632] 4.3 OCR Text Access — Access policies for OCR-extracted text, treated as document content and matching file version read permissions.
+  - [L633–L653] 4.4 Scan Quality Indicator Access — Access rules for document scan and OCR quality metrics, limited to authoring and owning office users.
+- [L654–L708] 5. Resource Type: `workflow_instance` — Read rules for workflow tracking, and migration authority of in-flight instances restricted to Platform Administrators.
+- [L709–L896] 6. Resource Type: `workflow_step_instance`
+  - [L713–L720] Resource Attributes Used — List of document-specific schema columns and logic fields evaluated in document policy rules.
+  - [L721–L741] 6.1 `step_instance:read` (view assigned step) — Read access rules for pending and active steps, limited to assignee, owning office, or specific supervisor roles.
+  - [L742–L766] 6.2 `step_instance:complete_action` (action step — encoder/operational) — Execution rules for action-type steps, restricting encoder roles to steps they created or are explicitly assigned.
+  - [L767–L805] 6.3 `step_instance:approve` / `step_instance:reject` / `step_instance:return` — Approval step rules, including the final approver segregation check and the is_final_approval_step schema configuration definition.
+  - [L806–L818] 6.4 `step_instance:certify` (VP certification step) — Certification step permissions restricted to the SP Presiding Officer or their explicitly delegated representative.
+  - [L819–L834] 6.5 `step_instance:mayor_sign` / `step_instance:mayor_veto` — Executive review step actions restricted to the Mayor or their designated delegates under active authorization.
+  - [L835–L851] 6.6 `step_instance:submit_committee_report` (multi-referral step) — Submission rules for committee reports, limited to SP Secretary and committee members cached via JWT claims.
+  - [L852–L865] 6.7 `step_instance:advance` (manual override — skip missing committee report) — Manual override rules allowing the SP Secretary to bypass pending committee reports with mandatory audit-logged justifications.
+  - [L866–L879] 6.8 Secretariat Decision Actions — Decision logging rules restricted to the SP Secretary for steps assigned to the SP Secretariat office.
+  - [L880–L896] 6.9 Panlalawigan Review Actions — Outcome tracking rules for provincial review, including manual logging of deemed approval status by the SP Secretary.
+- [L897–L987] 7. Resource Type: `tracking_record` and `routing_entry` — Permissions for tracking history, physical routing logs, QR code generation, and public versus authenticated QR scanning details.
+- [L988–L1073] 8. Resource Type: `audit_event` — Write isolation invariants, read permissions for own-actions or office-scoped events, auditor export limits, and hash chain validation.
+- [L1074–L1197] 9. Resource Type: `record` (RMS)
+  - [L1078–L1085] Resource Attributes Used — List of document-specific schema columns and logic fields evaluated in document policy rules.
+  - [L1086–L1102] 9.1 `record:promote` (document → official record) — Permissions for promoting completed documents to official records, restricted to Records Officers and SP Secretaries.
+  - [L1103–L1111] 9.2 `record:apply_retention_schedule` — Authority rules for applying retention schedules to records, restricted to the Records Officer role.
+  - [L1112–L1124] 9.3 `record:apply_classification` — Authority for applying classification levels to records, restricted to Records Officers and SP Secretariat staff.
+  - [L1125–L1135] 9.4 `record:archive` — Archiving permissions for active or inactive records, restricted to Records Officers and blocked under legal holds.
+  - [L1136–L1151] 9.5 `record:bulk_archive` — Safety rules for bulk archiving, including dry-run previews, classification allowlist checks, and individual audit logging.
+  - [L1152–L1160] 9.6 `record:place_legal_hold` / `record:remove_legal_hold` — Legal hold control permissions restricted to Records Officers, preventing modifications to record retention periods.
+  - [L1161–L1179] 9.7 `record:initiate_disposition` — Disposition rules for expired records, requiring manual Records Officer action and prohibiting hard database deletions.
+  - [L1180–L1197] 9.8 `record:pii_erasure` (RA 10173) — PII erasure rules under RA 10173, requiring legal clearance and generating permanent, non-erasable audit entries.
+- [L1198–L1282] 10. Resource Type: `citizen_complaint` — Creation, assignment, reading, and outcome resolution rules for complaints, covering citizens, Secretariat clerks, and committee members.
+- [L1283–L1350] 11. Resource Type: `delegation_grant` — Designation creation constraints, early revocation procedures, read scopes, and the database unique active-designation index validation.
+- [L1351–L1388] 12. Resource Type: `session` — Session read permissions and IT Admin authority to force terminate active sessions with mandatory audit logging.
+- [L1389–L1445] 13. Resource Type: `document_request` — Request submission rules and sequential approval workflows requiring signatures from both the Vice Mayor and SP Secretary.
+- [L1446–L1484] 14. Resource Type: `number_series` — Read and management permissions for number series configs, and internal sequence consumption rules for the numbering service.
+- [L1485–L1633] 15. Architectural Invariants — Complete Formal Statement
+  - [L1489–L1500] Invariant #2 — No Hard Deletes — Absolute system-wide prohibition of hard database deletes, enforcing soft-delete only across all resources and subjects.
+  - [L1501–L1516] Invariant #3 — Audit Log Write Isolation — Enforcement of write access limits to the audit log, restricting write operations solely to the audit service.
+  - [L1517–L1526] Invariant #8 — Tenant Isolation — Mandatory isolation check denying cross-city resource requests based on matching subject and resource city identifiers.
+  - [L1527–L1539] Invariant #9 — Final Number Immutability — Absolute immutability of assigned final numbers, enforced via application checks and database-level constraints.
+  - [L1540–L1556] Invariant #10 — IT Admin Document Content Isolation — Content isolation rules blocking IT Administrators from reading or exporting confidential/restricted document content, versions, or OCR text.
+  - [L1557–L1585] Invariant #12 — Platform Administrator Role Exclusion — Trigger-enforced prohibition against combining Platform Administrator and operational document-processor roles, with noted acting-mayor delegation gaps.
+  - [L1586–L1611] Invariant #13 — Encoder Cannot Be Final Approver — Segregation of duties rule preventing a document's creator or submitter from executing its final workflow approval step.
+  - [L1612–L1633] Invariant #16 — One Active Designation Per Person — Uniqueness constraint preventing multiple concurrent delegation grants per user, enforced by database partial unique index.
+- [L1634–L1686] 16. Delegation Grant Scope Expansion — Scope expansion mechanics for designations, listing non-overridable constraints, auto-expiry behaviors, and Step 7d scope narrowing rules.
+- [L1687–L1712] 17. State-Action Compatibility Matrix — Grid mapping valid actions per document lifecycle state, including numbering promotion rules and disposed document audit visibility.
+- [L1713–L1729] 18. Deferred Decisions (Resolved This Revision) — Tracking table documenting the resolutions and document locations for six previously deferred design decisions (D-ABAC-01 through 06).
+- [L1730–L1740] 19. Remaining Open Items — Table tracking unresolved items, specifically the delegation-exclusion trigger gap, along with its resolution urgency and impact.
+
+---
+
 ---
 
 ## Document Notes

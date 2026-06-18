@@ -2,6 +2,18 @@
 
 **Status:** Pre-development baseline **Last updated:** June 2026 **Audience:** Development team (internal reference)
 
+
+## Table of Contents
+
+- [L19–L30] Overview — Phase 1 containerization, static SPA bundle serving, and the co-location of tRPC, REST, and pgboss in Fastify.
+- [L31–L115] Deployment Topology — Mermaid diagram visualizing container boundaries, active Phase 1 connections, on-premise migration path, and future phase integrations.
+- [L116–L142] Traffic and Protocol Reference — Protocol and direction mapping for all interfaces, detailing Nginx static SPA serving, API proxying, and SSE connections.
+- [L143–L160] On-Premise Migration Path — Steps and environmental configuration to migrate database backups and document storage from Cloudflare R2 to on-premise MinIO.
+- [L161–L173] Phase 2+ Reserved Slots — Integration details for Meilisearch and Next.js portal, including the Phase 1 PostgreSQL FTS search fallback.
+- [L174–L193] Deployment Constraints — Mandatory infrastructure rules including direct file streaming, database failover targets, backup retention, and RLS admin isolation.
+
+---
+
 ---
 
 ## Overview
