@@ -38,7 +38,7 @@ import {
 
 import { CitySealOfficial, QRDisplay } from '../layout';
 
-import { DEBUG_USER_ROLE } from '../layout';
+
 
 
 export const KitchenSinkPage = () => (
@@ -519,7 +519,7 @@ export const SPSecretaryPage = () => {
             <SectionHdr title="Upcoming Sessions" subtitle="June 2026" />
             <div className="space-y-3">
               {sessionCalendar.map((s, i) => (
-                <div key={i} className={`flex items-start gap-3 p-3 rounded-lg ${s.type === "special" ? "bg-amber-50 border border-amber-200" : "border border-green-100"}`} style={s.type === "regular" ? { backgroundColor: "#F0FAF4" } : {}}>
+                <div key={i} onClick={() => setShowOrderOfBusiness(true)} className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer hover:shadow-sm transition-all ${s.type === "special" ? "bg-amber-50 border border-amber-200 hover:border-amber-300" : "border border-green-100 hover:border-green-300"}`} style={s.type === "regular" ? { backgroundColor: "#F0FAF4" } : {}}>
                   <div className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center flex-shrink-0 text-white ${s.type === "special" ? "bg-amber-500" : ""}`} style={s.type === "regular" ? { backgroundColor: "#00A651" } : {}}>
                     <span className="font-bold text-lg leading-tight">{s.day}</span>
                     <span className="text-[9px] opacity-80">June</span>
@@ -539,7 +539,6 @@ export const SPSecretaryPage = () => {
             <div className="space-y-2">
               {[
                 [Plus, "Log Incoming Document", () => setShowLogDoc(true)],
-                [Printer, "Generate Session Agenda", () => setShowOrderOfBusiness(true)],
                 [FileText, "Log Committee Report", () => setShowCommitteeReport(true)],
                 [Archive, "Record Floor Vote", () => setShowFloorVote(true)],
               ].map(([Icon, label, handler]) => (

@@ -15,7 +15,7 @@ import {
 } from './components/ui';
 
 import {
-  GlobalStyles, CitySeal, CitySealOfficial, QRDisplay, DEBUG_USER_ROLE, Sidebar, TopBar
+  GlobalStyles, CitySeal, CitySealOfficial, QRDisplay, Sidebar, TopBar
 } from './layout';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 

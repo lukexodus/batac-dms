@@ -168,7 +168,7 @@
       "type": "SP Resolution",
       "office": "City Administrator",
       "date": "2026-05-10",
-      "status": "In Workflow",
+      "status": "For 1st Reading",
       "classification": "Public",
       "size": "2.4 MB",
       "ver": 2,
@@ -182,7 +182,7 @@
       "type": "SP Resolution",
       "office": "City Engineering",
       "date": "2026-05-15",
-      "status": "Pending Approval",
+      "status": "In Committee",
       "classification": "Confidential",
       "size": "3.2 MB",
       "ver": 3,
@@ -196,7 +196,7 @@
       "type": "SP Ordinance",
       "office": "HRMO",
       "date": "2026-05-07",
-      "status": "In Workflow",
+      "status": "For 2nd Reading",
       "classification": "Internal",
       "size": "4.3 MB",
       "ver": 3,
@@ -205,94 +205,8 @@
       "daysInQueue": 5
     },
     {
-      "id": "umpmYDSTCoQ",
-      "title": "Test",
-      "type": "Resolution",
-      "status": "VP Certification",
-      "committee": "TBD",
-      "author": "Test",
-      "session": "TBD"
-    },
-    {
-      "id": "IuRIZbn_2lI",
-      "title": "Test",
-      "type": "Ordinance",
-      "status": "3rd Reading",
-      "committee": "TBD",
-      "author": "Test",
-      "session": "TBD"
-    },
-    {
-      "id": "SA-MugFINio",
-      "title": "Test",
-      "type": "Ordinance",
-      "status": "For 1st Reading",
-      "committee": "TBD",
-      "author": "TEst",
-      "session": "TBD"
-    },
-    {
-      "id": "M2WAc62r8WM",
-      "title": "Test",
-      "type": "Resolution",
-      "status": "For 1st Reading",
-      "committee": "TBD",
-      "author": "Test4",
-      "session": "TBD"
-    },
-    {
-      "id": "_Qmk6x9Ek60",
-      "title": "test",
-      "type": "Resolution",
-      "status": "For 1st Reading",
-      "committee": "TBD",
-      "author": "Test5",
-      "session": "TBD"
-    },
-    {
-      "id": "7rvyceirEHI",
-      "title": "Test5",
-      "type": "Resolution",
-      "status": "For 1st Reading",
-      "committee": "TBD",
-      "author": "test",
-      "session": "TBD"
-    },
-    {
-      "id": "InCKM9yyzsA",
-      "title": "Test2322",
-      "type": "Resolution",
-      "status": "For 1st Reading",
-      "committee": "TBD",
-      "author": "C",
-      "session": "TBD"
-    },
-    {
-      "id": "dWYoLXIa8Jk",
-      "title": "Test4124124",
-      "type": "Resolution",
-      "status": "For 1st Reading",
-      "committee": "TBD",
-      "author": "T",
-      "session": "TBD"
-    },
-    {
-      "id": "TpjDjLd7Vsk",
-      "title": "asdasdasd",
-      "type": "Resolution",
-      "status": "For 1st Reading",
-      "committee": "TBD",
-      "author": "T",
-      "session": "TBD"
-    },
-    {
-      "id": "aX_ju7t2Roo",
-      "title": "Migrtea",
-      "type": "Resolution",
-      "status": "For 1st Reading",
-      "committee": "TBD",
-      "author": "Migrtea",
-      "session": "TBD"
+      "id": "TSo7KfF6Ayc",
+      "session": "42th Regular Session"
     }
   ],
   "sessionCalendar": [
@@ -320,17 +234,8 @@
       "title": "Regular Session",
       "time": "09:00",
       "type": "regular",
-      "items": 0,
-      "id": "3J6Gc2LoqZ4"
-    },
-    {
-      "date": "2026-06-19",
-      "day": "19",
-      "title": "Regular Session",
-      "time": "09:00",
-      "type": "regular",
-      "items": 2,
-      "id": "X-n6TAYaP8E"
+      "items": 3,
+      "id": "_nFT8rP6Kig"
     },
     {
       "date": "2026-06-19",
@@ -339,16 +244,7 @@
       "time": "09:00",
       "type": "regular",
       "items": 1,
-      "id": "meEZJdPExUI"
-    },
-    {
-      "date": "2026-06-19",
-      "day": "19",
-      "title": "Regular Session",
-      "time": "09:00",
-      "type": "regular",
-      "items": 1,
-      "id": "WmztR-qiEes"
+      "id": "XR1KcYmD2mA"
     }
   ],
   "legislativeOutput": [
@@ -1133,33 +1029,7 @@
       "daysInQueue": 4
     },
     {
-      "id": "Wpm0I-ZlozA",
-      "title": "Test",
-      "type": "SP Resolution",
-      "office": "SP Secretariat",
-      "date": "2026-06-14",
-      "status": "In Workflow",
-      "classification": "Internal",
-      "size": "0.1 MB",
-      "ver": 1,
-      "submittedBy": "Test",
-      "daysInQueue": 0
-    },
-    {
-      "id": "ZxLjnL9ywk0",
-      "title": "Test",
-      "type": "SP Ordinance",
-      "office": "External",
-      "date": "2026-06-14",
-      "status": "In Workflow",
-      "classification": "Internal",
-      "size": "0.1 MB",
-      "ver": 1,
-      "submittedBy": "Test",
-      "daysInQueue": 0
-    },
-    {
-      "id": "Pr9Gu0wXJeM",
+      "id": "KnuAC0PtSPY",
       "title": "Test",
       "type": "SP Ordinance",
       "office": "SP Secretariat",
@@ -1168,98 +1038,7 @@
       "classification": "Internal",
       "size": "0.1 MB",
       "ver": 1,
-      "submittedBy": "Test3",
-      "daysInQueue": 0
-    },
-    {
-      "id": "vXJtntMSlkk",
-      "title": "Test",
-      "type": "SP Resolution",
-      "office": "SP Secretariat",
-      "date": "2026-06-14",
-      "status": "In Workflow",
-      "classification": "Internal",
-      "size": "0.1 MB",
-      "ver": 1,
-      "submittedBy": "Test4",
-      "daysInQueue": 0
-    },
-    {
-      "id": "lJVMjQ9_IiQ",
-      "title": "test",
-      "type": "SP Resolution",
-      "office": "SP Secretariat",
-      "date": "2026-06-14",
-      "status": "In Workflow",
-      "classification": "Internal",
-      "size": "0.1 MB",
-      "ver": 1,
-      "submittedBy": "Test5",
-      "daysInQueue": 0
-    },
-    {
-      "id": "Ad2UxWqBFaI",
-      "title": "Test5",
-      "type": "SP Resolution",
-      "office": "SP Secretariat",
-      "date": "2026-06-14",
-      "status": "In Workflow",
-      "classification": "Internal",
-      "size": "0.1 MB",
-      "ver": 1,
-      "submittedBy": "test",
-      "daysInQueue": 0
-    },
-    {
-      "id": "c5FThdyD3Ds",
-      "title": "Test2322",
-      "type": "SP Resolution",
-      "office": "SP Secretariat",
-      "date": "2026-06-14",
-      "status": "In Workflow",
-      "classification": "Internal",
-      "size": "0.1 MB",
-      "ver": 1,
-      "submittedBy": "C",
-      "daysInQueue": 0
-    },
-    {
-      "id": "zhOTPg2YfNs",
-      "title": "Test4124124",
-      "type": "SP Resolution",
-      "office": "SP Secretariat",
-      "date": "2026-06-14",
-      "status": "In Workflow",
-      "classification": "Internal",
-      "size": "0.1 MB",
-      "ver": 1,
-      "submittedBy": "T",
-      "daysInQueue": 0
-    },
-    {
-      "id": "rkO1ns9UFqE",
-      "title": "asdasdasd",
-      "type": "SP Resolution",
-      "office": "SP Secretariat",
-      "date": "2026-06-14",
-      "status": "In Workflow",
-      "classification": "Internal",
-      "size": "0.1 MB",
-      "ver": 1,
-      "submittedBy": "T",
-      "daysInQueue": 0
-    },
-    {
-      "id": "7NrKFyuvBYI",
-      "title": "Migrtea",
-      "type": "SP Resolution",
-      "office": "SP Secretariat",
-      "date": "2026-06-14",
-      "status": "In Workflow",
-      "classification": "Internal",
-      "size": "0.1 MB",
-      "ver": 1,
-      "submittedBy": "Migrtea",
+      "submittedBy": "Test",
       "daysInQueue": 0
     }
   ],

@@ -153,38 +153,35 @@ export const QRDisplay = ({ size = 80 }: { size?: number }) => {
   )
 }
 
-export const DEBUG_USER_ROLE = "sp"; // "mayor" or "sp"
-
-const navGroups = [
-  {
-    label: "PROTOTYPE",
-    items: [{ id: "kitchen", label: "Design System", icon: Layers }],
-  },
-  {
-    label: "DASHBOARDS",
-    items: [
-      { id: "mayor", label: "Mayor's Dashboard", icon: Briefcase },
-      { id: "sp", label: "SP Secretary Dashboard", icon: Scale },
-    ].filter(i => i.id === DEBUG_USER_ROLE),
-  },
-  {
-    label: "OPERATIONS",
-    items: [
-      { id: "dts", label: "Document Tracking", icon: Activity },
-      { id: "wms", label: "Approval Interface", icon: FileCheck },
-      { id: "dms", label: "Document Repository", icon: Folder },
-    ],
-  },
-  {
-    label: "PUBLIC",
-    items: [{ id: "portal", label: "Citizen Portal", icon: Globe }],
-  },
-]
-
 export const Sidebar = () => {
   const { page, setPage, userRole } = useAppStore();
   const { state, isMobile } = useSidebar()
   const isCollapsed = state === "collapsed" && !isMobile
+
+  const navGroups = [
+    {
+      label: "PROTOTYPE",
+      items: [{ id: "kitchen", label: "Design System", icon: Layers }],
+    },
+    {
+      label: "DASHBOARDS",
+      items: [
+        { id: userRole, label: "Dashboard", icon: userRole === "mayor" ? Briefcase : Scale },
+      ],
+    },
+    {
+      label: "OPERATIONS",
+      items: [
+        { id: "dts", label: "Document Tracking", icon: Activity },
+        { id: "wms", label: "Approval Interface", icon: FileCheck },
+        { id: "dms", label: "Document Repository", icon: Folder },
+      ],
+    },
+    {
+      label: "PUBLIC",
+      items: [{ id: "portal", label: "Citizen Portal", icon: Globe }],
+    },
+  ]
 
   const handleNav = (id: string) => {
     setPage(id)
@@ -240,15 +237,15 @@ export const Sidebar = () => {
               className="w-full h-auto p-2 justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center font-bold text-xs shrink-0">
-                <AvatarFallback className="bg-transparent">{DEBUG_USER_ROLE === "mayor" ? "MK" : "SP"}</AvatarFallback>
+                <AvatarFallback className="bg-transparent">{userRole === "mayor" ? "MK" : "SP"}</AvatarFallback>
               </Avatar>
               {!isCollapsed && (
                 <div className="flex flex-col items-start ml-2 min-w-0">
                   <span className="text-xs font-semibold truncate w-full">
-                    {DEBUG_USER_ROLE === "mayor" ? "Mark Christian R. Chua" : "SP Secretary"}
+                    {userRole === "mayor" ? "Mark Christian R. Chua" : "SP Secretary"}
                   </span>
                   <span className="text-[10px] text-sidebar-foreground/60 truncate w-full">
-                    {DEBUG_USER_ROLE === "mayor" ? "Mayor · City of Batac" : "Secretariat · City of Batac"}
+                    {userRole === "mayor" ? "Mayor · City of Batac" : "Secretariat · City of Batac"}
                   </span>
                 </div>
               )}
@@ -257,9 +254,9 @@ export const Sidebar = () => {
           <DropdownMenuContent className="w-56" align="start" side="right" sideOffset={8}>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{DEBUG_USER_ROLE === "mayor" ? "Mark Christian R. Chua" : "SP Secretary"}</p>
+                <p className="text-sm font-medium leading-none">{userRole === "mayor" ? "Mark Christian R. Chua" : "SP Secretary"}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  {DEBUG_USER_ROLE === "mayor" ? "mayor@batac.gov.ph" : "sp@batac.gov.ph"}
+                  {userRole === "mayor" ? "mayor@batac.gov.ph" : "sp@batac.gov.ph"}
                 </p>
               </div>
             </DropdownMenuLabel>
@@ -280,6 +277,7 @@ export const Sidebar = () => {
 }
 
 export const TopBar = ({ title, subtitle }: { title: string, subtitle?: string }) => {
+  const { userRole } = useAppStore();
   return (
     <header className="sticky top-0 z-10 flex h-[65px] shrink-0 items-center justify-between border-b bg-background px-6">
       <div className="flex items-center gap-4">
@@ -299,7 +297,7 @@ export const TopBar = ({ title, subtitle }: { title: string, subtitle?: string }
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="pl-2 pr-2 h-9 gap-2 hover:bg-muted">
               <div className="h-6 w-6 rounded-full bg-[#00A651] text-white flex items-center justify-center text-[10px] font-bold">
-                {DEBUG_USER_ROLE === "mayor" ? "MK" : "SP"}
+                {userRole === "mayor" ? "MK" : "SP"}
               </div>
               <ChevronDown className="h-3 w-3 text-muted-foreground" />
             </Button>
