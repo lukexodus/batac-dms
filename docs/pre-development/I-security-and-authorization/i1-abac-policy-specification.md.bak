@@ -1,6 +1,10 @@
 # I1 — ABAC Policy Specification
 
-**Batac City LGU Platform** **Status:** Pre-Development Baseline — Blocking Document **Last Updated:** June 2026 **Audience:** Backend development team **Depends on:** I2 (Role-Permission Matrix), B5 (Authentication & Authorization Architecture), Consolidated Architecture & Requirements Reference (Iteration 3)
+**Batac City LGU Platform**
+**Status:** Pre-Development Baseline — Blocking Document
+**Last Updated:** June 2026
+**Audience:** Backend development team
+**Depends on:** I2 (Role-Permission Matrix), B5 (Authentication & Authorization Architecture), Consolidated Architecture & Requirements Reference (Iteration 3)
 
 ---
 
@@ -8,12 +12,11 @@
 
 ### Notation
 
-|Label|Meaning|
+| Label | Meaning |
 |---|---|
-|[Confirmed — source]|Present in a cited part of the Consolidated Architecture & Requirements Reference or stack documents|
-|[Inference]|Logically derived from confirmed facts; not stated verbatim in the source. Requires team review before implementation.|
-|[Unresolved]|Must be decided before the IAM module's first migration or relevant feature implementation. Tracked in Section 19.|
-|[Resolved — D-XXX-NN] / [Decision — D-XXX-NN]|Formally decided in this revision for a previously [Unresolved] item. Recorded against the item's ID in Section 18. Where the decision required organizational/product judgment rather than pure schema design, it was confirmed with the development team lead before being recorded here, not assumed unilaterally.|
+| [Confirmed — source] | Present in a cited part of the Consolidated Architecture & Requirements Reference or stack documents |
+| [Inference] | Logically derived from confirmed facts; not stated verbatim in the source. Requires team review before implementation. |
+| [Unresolved] | Must be decided before the IAM module's first migration. Tracked in Section 10. |
 
 Policy condition expressions use a pseudo-code format intended to be language-agnostic. The implementer translates these into the TypeScript `PolicyEvaluator` service described in B5 §10.1–10.2. Exact attribute names follow the column names in the database schema where known; where the schema is not yet finalised, logical names are used and marked [Inference].
 
@@ -33,24 +36,21 @@ This document does **not** redefine the cascade structure from B5 §5.5. It assu
 
 Every policy evaluation receives a `SubjectContext` object populated by the `verifyAccessToken` and `loadDelegationContext` hooks (B5 §10.1). All policies below reference these attributes by name.
 
-|Attribute|Type|Source|Notes|
+| Attribute | Type | Source | Notes |
 |---|---|---|---|
-|`subject.user_id`|UUID|JWT `uid` claim|Internal `iam.users.id`|
-|`subject.office_id`|UUID|JWT `oid` claim|Primary office from `organization.assignments`|
-|`subject.roles`|string[]|JWT `rid` claim (role codes)|Active role assignments at token issue time|
-|`subject.permissions`|string[]|JWT `perm` claim|Resolved permission codes at token issue time|
-|`subject.city_id`|UUID|JWT `city` claim|Always Batac City UUID in Phase 1|
-|`subject.session_id`|UUID|JWT `sid` claim|Active `iam.sessions.id`|
-|`subject.is_ita`|boolean|JWT `is_ita` claim|True when holding System Administrator role|
-|`subject.is_pa`|boolean|JWT `is_pa` claim|True when holding Platform Administrator role|
-|`subject.delegation_grant_id`|UUID \| null|JWT `dg` claim|Active `organization.delegation_grants.id`; null if none|
-|`subject.effective_office_ids`|UUID[]|Loaded by `loadDelegationContext`|Includes delegation-extended offices; always includes `subject.office_id`|
-|`subject.effective_roles`|string[]|Loaded by `loadDelegationContext`|Includes delegation-extended roles|
-|`subject.committee_ids`|UUID[]|JWT `cid` claim|Active `organization.committee_memberships` rows for the subject at token issue time. **[Resolved — D-ABAC-06]**|
+| `subject.user_id` | UUID | JWT `uid` claim | Internal `iam.users.id` |
+| `subject.office_id` | UUID | JWT `oid` claim | Primary office from `organization.assignments` |
+| `subject.roles` | string[] | JWT `rid` claim (role codes) | Active role assignments at token issue time |
+| `subject.permissions` | string[] | JWT `perm` claim | Resolved permission codes at token issue time |
+| `subject.city_id` | UUID | JWT `city` claim | Always Batac City UUID in Phase 1 |
+| `subject.session_id` | UUID | JWT `sid` claim | Active `iam.sessions.id` |
+| `subject.is_ita` | boolean | JWT `is_ita` claim | True when holding System Administrator role |
+| `subject.is_pa` | boolean | JWT `is_pa` claim | True when holding Platform Administrator role |
+| `subject.delegation_grant_id` | UUID \| null | JWT `dg` claim | Active `organization.delegation_grants.id`; null if none |
+| `subject.effective_office_ids` | UUID[] | Loaded by `loadDelegationContext` | Includes delegation-extended offices; always includes `subject.office_id` |
+| `subject.effective_roles` | string[] | Loaded by `loadDelegationContext` | Includes delegation-extended roles |
 
 **Timing note:** `roles` and `permissions` are resolved at token issue time. Role changes during an active token's lifetime do not take effect until next refresh. Emergency revocations require forced session termination (B5 §4.5). [Confirmed — B5 §1.1]
-
-**Timing note — `committee_ids`:** Cached into the JWT at token issue, following the same pattern as `roles` and `permissions`. A committee membership change (added or removed) does not take effect until the subject's next token refresh — identical staleness behavior to role changes. This keeps a single timing model for "things that can change while a token is live" rather than introducing a second, live-lookup model alongside it. Emergency removal from a committee for cause would use the same forced session termination path used for emergency role revocations (B5 §4.5). [Decision — D-ABAC-06]
 
 ---
 
@@ -108,31 +108,9 @@ IF resource.classification_level IN ('confidential', 'restricted')
   AND subject does not appear in the explicit_allowlist for resource.document_type_id
   THEN DENY
   REASON: "classification_denied"
-
-"appears in the explicit_allowlist" resolves to:
-  EXISTS (
-    SELECT 1 FROM documents.classification_allowlists a
-    WHERE a.document_type_id = resource.document_type_id
-      AND a.role_code = ANY(subject.roles)
-  )
 ```
 
 Explicit allowlists for Confidential and Restricted document types are configured per document type by the Platform Administrator. The default allowlist for Administrative Cases (the only confirmed Confidential type) includes SP Secretary and Mayor roles only. [Confirmed — I2 Conditional Note ⁹; Consolidated Reference Part 4.13]
-
-**Allowlist schema — [Resolved — D-ABAC-02]:** `documents.classification_allowlists` is a role-membership table, not a JSONB field on the document type row:
-
-```sql
-CREATE TABLE documents.classification_allowlists (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  document_type_id UUID NOT NULL REFERENCES documents.document_types(id),
-  role_code TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by UUID NOT NULL REFERENCES iam.users(id),
-  UNIQUE (document_type_id, role_code)
-);
-```
-
-A discrete row-per-(document_type, role) table was chosen over a JSONB array column on `document_types` for three reasons: (1) Gate 4 runs on every read/download/export of every Confidential/Restricted document, so the check should be a simple indexed `EXISTS` rather than a JSONB containment scan; (2) the Platform Administrator allowlist-management UI (Tier 2, Part 11.8) needs to add/remove single rows with individual `created_by`/`created_at` provenance, which a JSONB blob would not give without an extra audit layer on top; (3) every other permission-like check in this document is modeled as role-set membership (`subject.roles ∩ {...}`), so this keeps the same shape rather than introducing a second pattern. This is a schema-design decision made under the discretion granted for this item; it does not require further stakeholder confirmation but should be reviewed by the team alongside other `[Inference]`-derived schema choices before the Documents module migration is written.
 
 ### Gate 5 — Soft-Delete Gate
 
@@ -222,16 +200,13 @@ ALLOW IF:
     subject.roles ∩ { 'records_officer', 'sp_secretary', 'sp_presiding_officer',
                        'mayor', 'auditor' } ≠ ∅
     AND document.classification_level IN ('public', 'internal')
-    AND has_cross_office_read_grant(subject, document.office_id) = true
   )
   OR (
     -- SP Members: documents in their assigned committees or SP sessions
     subject.roles CONTAINS 'sp_member'
     AND (
       document is assigned to a workflow step whose assignee_office_id
-      matches a committee in subject.committee_ids
-        [Resolved — D-ABAC-06: subject.committee_ids is the JWT-cached
-         committee membership claim defined in Section 1]
+      matches a committee the subject is a member of
       OR document has been read into an SP session
     )
     [Inference — consistent with I2 Conditional Note ⁸]
@@ -243,29 +218,6 @@ ALLOW IF:
 ```
 
 **Negative — Confidential/Restricted:** Gate 4 blocks access unless the subject is on the explicit allowlist. IT Admin may read metadata (title, status, number) of Confidential/Restricted documents but not content (Gate 2 covers content). [Confirmed — B5 §7.3]
-
-**`has_cross_office_read_grant()` — [Resolved — D-ABAC-03]:** This document's RLS policies call a function of this name; B5 §6.5 [as reported — not independently verified against B5 itself] resolved the underlying grant storage as `organization.cross_office_grants` (D-AUTH-09), with two named limitations carried forward there as non-blocking: non-"all" office scoping, and `access_level` not yet enforced. This document's contribution is the function signature that the policies above and the RLS layer actually invoke:
-
-```sql
-CREATE FUNCTION has_cross_office_read_grant(
-  p_user_id UUID,
-  p_target_office_id UUID
-) RETURNS BOOLEAN
-LANGUAGE sql STABLE AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM organization.cross_office_grants g
-    WHERE g.user_id = p_user_id
-      AND (g.office_id = p_target_office_id OR g.office_id IS NULL)
-        -- NULL office_id = "all offices" grant; per B5's carried-forward
-        -- limitation, non-"all" scoping beyond a single office_id is not
-        -- yet modelled (e.g. "all offices in district X")
-      AND g.revoked_at IS NULL
-      AND (g.expires_at IS NULL OR g.expires_at > now())
-  );
-$$;
-```
-
-This signature takes `p_user_id` rather than the full `SubjectContext`, since it is called directly from a PostgreSQL RLS policy expression (which has access to `current_setting()`-derived user id, not the application-layer object) as well as from the `PolicyEvaluator` service. The pseudo-code call sites above (`has_cross_office_read_grant(subject, document.office_id)`) should be read as `has_cross_office_read_grant(subject.user_id, document.office_id)` at the application layer, and as the RLS-context equivalent inside PostgreSQL policies. **`access_level` enforcement (B5's second carried-forward limitation) is out of scope for this function as currently defined** — it returns a boolean grant/no-grant result only; if read access needs to be further restricted to a subset of fields once granted, that is a separate mechanism not yet designed, and is not introduced here as a guess.
 
 ---
 
@@ -717,21 +669,18 @@ ALLOW IF:
 ```
 DENY IF:
   action IN ('approve', 'reject', 'return')
-  AND step.is_final_approval_step = true
-    [Resolved — D-ABAC-05]
+  AND step is the final approval step for the document
+    [Inference: 'final approval step' = the last approval-type step in the
+     workflow definition that transitions the document to 'completed' state]
   AND subject.user_id = resolved_document.created_by
 
 DENY IF:
   action IN ('approve', 'reject', 'return')
-  AND step.is_final_approval_step = true
+  AND step is the final approval step
   AND subject.user_id appears as the submitter in workflow.instances.submitted_by
 ```
 
 This invariant is checked **after** the role-based check passes — an approver who is also the encoder of the same document is denied at this step. Enforced at both the application layer (workflow step completion handler checks `submitted_by ≠ subject.user_id` when completing a final approval step) and as a workflow engine constraint. [Confirmed — Consolidated Reference Part 12 Invariant #13; I2 §Architectural Invariants]
-
-**`is_final_approval_step` — [Resolved — D-ABAC-05]:** Rather than the workflow engine computing "is this the last approval-type step" at enforcement time by traversing the definition graph, `is_final_approval_step BOOLEAN NOT NULL DEFAULT false` is a declared column on `workflow.steps` (the step _definition_, not the step instance), set explicitly by whoever authors the workflow definition. A workflow definition publish-time validation (already referenced generally in Section 6.3's enforcement note, and consistent with Part 11.3's "version pinning" and "hardcoded workflow constraints" sections) rejects any definition where: zero steps are marked `is_final_approval_step = true`, more than one step is marked true on a single linear path, or a step marked true is not of `step_type = 'approval'`.
-
-This was chosen over leaving it inferred at runtime for two reasons: (1) the previous `[Inference]` defined "final" by reference to a transition to a `'completed'` lifecycle state, but Section 17's State-Action Compatibility Matrix and Section 3.10 (`document:archive`) both treat `'completed'` and `'released'` as related-but-distinct states reachable through different paths, so "the step that transitions to completed" is not actually an unambiguous graph property for every document type's workflow without first picking a side in that ambiguity — declaring the flag explicitly sidesteps needing to resolve that separately; (2) Invariant #13 is security-relevant (it is what prevents an encoder from rubber-stamping their own document), and a security invariant should not depend on the workflow engine correctly inferring graph topology — an explicit author-declared flag, checked at publish time, is the more defensible enforcement point. This does not change anything about _how_ Section 3.8 (`document:number_promote`) or Section 17's footnote ² identify the reading-vote-completion step for numbering purposes; those remain keyed to specific named workflow steps (`second_reading_vote_completed`, `third_reading_vote_completed`) rather than to `is_final_approval_step`, since numbering promotion and final-approval-for-encoder-exclusion are not necessarily the same step and this document does not assert that they are.
 
 ### 6.4 `step_instance:certify` (VP certification step)
 
@@ -772,9 +721,9 @@ ALLOW IF:
     subject.roles CONTAINS 'sp_secretary'
     OR (
       subject.roles CONTAINS 'sp_member'
-      AND subject.committee_ids ∩ step.metadata.assigned_committee_ids ≠ ∅
-         [Confirmed — I2 Conditional Note ¹⁴; lookup mechanism
-          Resolved — D-ABAC-06]
+      AND subject is a confirmed member of at least one committee
+         listed in step.metadata.assigned_committee_ids
+         [Confirmed — I2 Conditional Note ¹⁴]
     )
   )
 ```
@@ -950,6 +899,8 @@ ALLOW IF:
 ```
 ALLOW IF:
   audit_event.resource_office_id ∈ subject.effective_office_ids
+    [Inference — audit events carry a resource_office_id field or the office
+     is resolved from the document_id; exact schema TBD]
   AND subject.roles ∩ {
     'records_officer', 'dept_approver', 'sp_secretary',
     'sp_presiding_officer', 'mayor', 'brgy_captain', 'auditor'
@@ -957,8 +908,6 @@ ALLOW IF:
 ```
 
 [Confirmed — I2 Section 15]
-
-**`resource_office_id` schema — [Resolved — D-ABAC-04]:** `audit.events` carries `resource_office_id UUID NULL` as a denormalized column, populated by the audit service at write time from the resource's owning office at that moment — not resolved via a live join to `documents.documents.office_id` (or the equivalent owning table for other resource types) at read time. This is a deliberate choice, not the default option: the audit schema is INSERT-only and append-only (Invariant #3), and an audit record's purpose is to state what was true when the event happened. A live join would silently change historical audit results if a document's owning office were ever corrected or reassigned after the fact, which defeats the tamper-evidence goal stated for this schema elsewhere in this document (Section 8, Part 11.11). The column is nullable because not every audited resource type necessarily has a resolvable single owning office (e.g. a `session` resource, Section 12, is not office-scoped) — for those event types the column is left null and Section 8.3's filter naturally excludes them from office-scoped views without needing a special case in the policy itself. The audit service is the only writer to `audit.events` (Section 8.1), so it is also the only place responsible for populating this field correctly per resource type; this is implementation work for that service, not a further policy decision.
 
 ### 8.4 `audit_event:read_full_log` (all entries)
 
@@ -1192,8 +1141,8 @@ ALLOW IF:
   subject.roles ∩ { 'sp_secretary', 'sp_presiding_officer', 'auditor' } ≠ ∅
   OR (
     subject.roles CONTAINS 'sp_member'
-    AND complaint.assigned_office_id ∈ subject.committee_ids
-      [Resolved — D-ABAC-06]
+    AND complaint.assigned_office_id matches a committee
+       the subject is a member of
   )
 ```
 
@@ -1220,7 +1169,7 @@ Delegation grants are rows in `organization.delegation_grants`. They are created
 - `grant.delegated_to_user_id`
 - `grant.active`
 - `grant.effective_from`, `grant.effective_until`
-- `grant.scope` — `JSONB`, required shape `{ roles: [], office_ids: [], actions: [] }`. [Resolved in B5 §11 — D-AUTH-06, as reported; not independently re-verified against B5 itself in this document]
+- `grant.scope` — [Unresolved — D-AUTH-06 in B5 §11]
 
 ### 11.1 `delegation_grant:create`
 
@@ -1494,7 +1443,7 @@ FOR ALL subjects WHERE subject.is_pa = true:
 
 At role assignment time:
   IF incoming role type = 'platform_admin'
-    AND target user already holds any role WHERE iam.roles.type_code = 'document_processor'
+    AND target user already holds any 'document_processor' role
   → DENY role assignment
   REASON: "platform_admin_combination_prohibited"
 
@@ -1505,24 +1454,15 @@ Enforced by:
 [Confirmed — Part 12 Invariant #12; B5 §8]
 ```
 
-**`document_processor` role list — [Resolved, with one carried-forward gap — D-ABAC-01]:** The trigger checks `iam.roles.type_code = 'document_processor'`, not a hardcoded role-name list — `type_code` is a seeded classification column on `iam.roles`, and the trigger's logic does not change regardless of which literal roles are seeded with that type. For the seed data itself, the following roles — every role referenced as a document-processing subject anywhere in this document's policies (Sections 3, 6, 9, 10, 13) — are seeded with `type_code = 'document_processor'`:
-
-`dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain`
-
-The following roles, also referenced throughout this document, are explicitly seeded with a different `type_code` (not `'document_processor'`) and are therefore compatible with holding a Platform Administrator role: `records_officer`, `auditor`, `sys_admin`, `citizen`. This matches how this document already treats those roles elsewhere — e.g. Section 3.1's negative note already excludes Platform Administrators, System Administrators, Records Officers, Auditors, and Citizens from `document:create`, which is consistent with only the first list being operational document-processors.
-
-**Carried-forward gap, not resolved here:** This list does not resolve how **delegated** acting-capacity holds up against the trigger — specifically "Acting Mayor" and "OIC (any)" scenarios reached via `organization.delegation_grants` rather than a direct `iam.role_assignments` row. B5's own resolution of the equivalent item (D-AUTH-05) flagged the identical ambiguity and left it open rather than guessing: whether an Acting Mayor's `document_processor` exclusion should be enforced as a literal seeded role per office (e.g. a distinct `acting_mayor` role with its own `type_code`), or via some other mechanism that inspects the _delegation_grant.scope_ rather than a static role row. This document does not invent a different answer than B5 already left open — the gap is carried forward here in the same shape, for the same reason: the trigger as defined operates on `iam.role_assignments` rows, and a delegation grant is a separate table (`organization.delegation_grants`) that this trigger does not currently inspect. Whether that's the intended final behavior (i.e., a Platform Admin who later becomes Acting Mayor via delegation is _not_ caught by this trigger at all, only by whatever Section 16.2 already says delegation cannot override) or whether the trigger needs a second, delegation-aware enforcement path is the open question, identical in scope to B5's D-AUTH-05 follow-up. **This is not required before IAM seed data is written** (the seed list above is unaffected by it, exactly as B5 reasoned for its own version of this gap) but should be resolved before delegation grants for Mayor-equivalent authority go live in production.
-
 ### Invariant #13 — Encoder Cannot Be Final Approver
 
 ```
 FOR ALL subjects:
   resource.type = 'workflow_step_instance'
   AND action IN ('approve', 'reject', 'return')
-  AND step.is_final_approval_step = true
-    [Resolved — D-ABAC-05: declared boolean column on workflow.steps,
-     set by the workflow definition author and validated at publish time.
-     See Section 6.3 for the full resolution.]
+  AND step is the final approval step for the document
+    (i.e. the step whose completion transitions document.lifecycle_state
+     to 'completed' or 'released')
   AND (
     subject.user_id = resolved_document.created_by
     OR subject.user_id = workflow_instance.submitted_by
@@ -1532,10 +1472,10 @@ FOR ALL subjects:
 
 Enforced by:
   1. Workflow step completion handler checks submitted_by ≠ subject.user_id
-     before processing any step where is_final_approval_step = true
+     before processing any final approval step
   2. Workflow engine constraint validated at workflow definition publish time:
      the definition must guarantee that the encoder role cannot be assigned
-     to any step where is_final_approval_step = true, for the same document type
+     to the final approval step for the same document type
 [Confirmed — Part 12 Invariant #13; I2 §Architectural Invariants]
 ```
 
@@ -1618,17 +1558,17 @@ the Mayor could not do either.
 
 This matrix defines which actions are valid for a document in a given `lifecycle_state`. An action attempted against a document in an incompatible state is denied at Gate 5 / Step 7c of the cascade.
 
-|`lifecycle_state`|`create`|`read`|`update`|`submit`|`approve`|`reject`|`cancel`|`archive`|`dispose`|`number_assign`|`number_promote`|
-|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-|Draft|✅|✅|✅|✅|❌|❌|✅|❌|❌|❌|❌|
-|Submitted|—|✅|❌|❌|❌|❌|✅|❌|❌|✅|❌|
-|In-Workflow|—|✅|❌¹|❌|✅|✅|✅|❌|❌|✅|❌|
-|Pending-Approval|—|✅|❌¹|❌|✅|✅|✅|❌|❌|❌|✅²|
-|Completed|—|✅|❌|❌|❌|❌|✅|✅|❌|❌|❌|
-|Released|—|✅|❌|❌|❌|❌|✅|✅|❌|❌|❌|
-|Archived|—|✅|❌|❌|❌|❌|❌|❌|✅|❌|❌|
-|Disposed|—|✅³|❌|❌|❌|❌|❌|❌|❌|❌|❌|
-|Cancelled|—|✅|❌|❌|❌|❌|❌|❌|❌|❌|❌|
+| `lifecycle_state` | `create` | `read` | `update` | `submit` | `approve` | `reject` | `cancel` | `archive` | `dispose` | `number_assign` | `number_promote` |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Draft | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Submitted | — | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| In-Workflow | — | ✅ | ❌¹ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Pending-Approval | — | ✅ | ❌¹ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅² |
+| Completed | — | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Released | — | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Archived | — | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Disposed | — | ✅³ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Cancelled | — | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 **Notes:**
 
@@ -1640,31 +1580,20 @@ This matrix defines which actions are valid for a document in a given `lifecycle
 
 ---
 
-## 18. Deferred Decisions (Resolved This Revision)
+## 18. Unresolved Items
 
-**Status as of this revision: 6 of 6 items in this section resolved; 1 (D-ABAC-01) carries a narrower follow-up that doesn't block the IAM module's first migration, mirroring how B5 treated its own D-AUTH-05.** Resolutions are recorded in the relevant body sections above, cross-referenced below. The fully-resolved items are listed here rather than left mixed with open items, for the same reason B5's Section 11 gave: this table's job is tracking what's been decided, and that's clearer when it isn't mixed with what's still open.
+The following items affect policy specification and must be resolved before the IAM module's first migration or before the relevant feature is implemented.
 
-|ID|Item|Resolution|Recorded In|
+| ID | Item | Impact | Must Resolve Before |
 |---|---|---|---|
-|D-ABAC-01|Full list of `document_processor` role type codes for Invariant #12 trigger|**Resolved for direct role assignment:** `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain` seeded with `type_code = 'document_processor'`; `records_officer`, `auditor`, `sys_admin`, `citizen` seeded otherwise. **Delegated Acting-Mayor/OIC scenarios not resolved** — carried forward; see Section 19.|Section 15, Invariant #12|
-|D-ABAC-02|Explicit allowlist structure for Confidential/Restricted document types|**Resolved:** `documents.classification_allowlists` table, one row per (`document_type_id`, `role_code`), queried via indexed `EXISTS` from Gate 4.|Section 2, Gate 4|
-|D-ABAC-03|`has_cross_office_read_grant()` function definition|**Resolved:** SQL function signature defined, built on top of B5's `organization.cross_office_grants` table (D-AUTH-09, as reported). B5's two carried-forward limitations on that underlying table (non-"all" office scoping; `access_level` not enforced) are inherited here unchanged, not re-resolved.|Section 3.2|
-|D-ABAC-04|Audit event `resource_office_id` field|**Resolved:** denormalized `resource_office_id UUID NULL` column on `audit.events`, populated by the audit service at write time (not a live join), nullable for resource types with no single owning office.|Section 8.3|
-|D-ABAC-05|Definition of "final approval step" in workflow definition|**Resolved:** `is_final_approval_step BOOLEAN` declared on `workflow.steps` by the definition author, validated at publish time, rather than computed at runtime from lifecycle-state transitions.|Section 6.3; Section 15, Invariant #13|
-|D-ABAC-06|SP Member committee membership lookup at policy evaluation time|**Resolved: JWT-cached.** `subject.committee_ids` added as a new claim (`cid`), following the same token-issue-time / refresh-gated staleness model already used for `roles` and `permissions`.|Section 1; Sections 3.2, 6.6, 10.6|
-
-**Note on D-AUTH-06:** This document also referenced B5's D-AUTH-06 (`delegation_grant.scope` schema) at Section 11 as `[Unresolved]`. That reference has been corrected to reflect B5's actual resolution (`JSONB`, shape `{ roles: [], office_ids: [], actions: [] }`) — see Section 11. This was a stale cross-reference fix, not a decision made independently in this document.
+| D-AUTH-06 | `delegation_grant.scope` field schema | Step 7d of cascade cannot be fully specified without knowing the scope structure | Organization module migration |
+| D-ABAC-01 | Full list of `document_processor` role type codes for Invariant #12 trigger | DB trigger `trg_enforce_platform_admin_exclusion` references `type_code`; the mapping of named roles to `'document_processor'` type must be seeded | IAM seed data |
+| D-ABAC-02 | Explicit allowlist structure for Confidential/Restricted document types | Gate 4 checks an explicit allowlist; the schema for storing and querying that allowlist per `document_type_id` is not yet defined | Documents module migration |
+| D-ABAC-03 | `has_cross_office_read_grant()` function definition | RLS policy in B5 §6.5 references this function; cross-office read permissions for Records Officer and Auditor must be modelled as either role-based grants or a dedicated grants table | Documents module migration |
+| D-ABAC-04 | Audit event `resource_office_id` field | Section 8.3 requires filtering audit events by office; the audit event schema must include a resolvable reference to the affected resource's owning office | Audit module schema |
+| D-ABAC-05 | Definition of "final approval step" in workflow definition | Invariant #13 requires the workflow engine to identify which step is the final approval step at enforcement time; this must be a declared property on the step type in the workflow definition schema | Workflow engine schema (B4) |
+| D-ABAC-06 | SP Member committee membership lookup at policy evaluation time | Policies for SP Member scoped access (Sections 3.2, 6.6, 10.6) require `subject is a confirmed member of committee X`; the membership data source and lookup performance must be confirmed | IAM / Organization module |
 
 ---
 
-## 19. Remaining Open Items
-
-One item carries a narrower follow-up, identical in shape and severity to how B5 handled its own equivalent ambiguity. It does not block the IAM module's first migration, for the reason stated.
-
-|Item|What's Open|Why It Doesn't Block the IAM Migration|Required Before|
-|---|---|---|---|
-|D-ABAC-01 follow-up|"Acting Mayor" and "OIC (any)" reached via `organization.delegation_grants` are not covered by `trg_enforce_platform_admin_exclusion`, which operates on `iam.role_assignments` rows only. Whether delegated acting-capacity should be caught by this same trigger (requiring a delegation-aware enforcement path) or is intentionally out of its scope (relying instead on Section 16.2's existing statement that delegation cannot grant Platform Administrator operational access) has not been decided. This mirrors B5's D-AUTH-05 follow-up exactly — same ambiguity, carried forward rather than guessed at twice.|The seed list for direct role assignment (the eight roles above) is unaffected by how this gets resolved, and the trigger as defined functions correctly against `iam.role_assignments` regardless.|Before delegation grants for Mayor-equivalent authority go live in production|
-
----
-
-_This document is the authoritative implementation spec for the `PolicyEvaluator` service. All `[Inference]` items require team review. The Section 19 open item must be formally decided and recorded in an ADR before delegation grants for Mayor-equivalent authority go live in production. This document supersedes any implicit policy assumptions in prior architecture documents and must be updated whenever a new resource type or action is introduced._
+*This document is the authoritative implementation spec for the `PolicyEvaluator` service. All `[Inference]` items require team review. All `[Unresolved]` items in Section 18 must be formally decided and recorded in ADRs before the relevant module migrations are written. This document supersedes any implicit policy assumptions in prior architecture documents and must be updated whenever a new resource type or action is introduced.*
