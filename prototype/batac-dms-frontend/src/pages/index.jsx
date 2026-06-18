@@ -1575,4 +1575,7 @@ export const LoginRegisterPage = () => {
             </Btn>
           </div>
         )}
-      </div>
+      </div>
+    </div>
+  )
+}
