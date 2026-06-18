@@ -203,6 +203,24 @@
       "submittedBy": "Mayor Albert D. Chua",
       "dueDate": "2026-06-24",
       "daysInQueue": 5
+    },
+    {
+      "id": "umpmYDSTCoQ",
+      "title": "Test",
+      "type": "Resolution",
+      "status": "VP Certification",
+      "committee": "TBD",
+      "author": "Test",
+      "session": "TBD"
+    },
+    {
+      "id": "IuRIZbn_2lI",
+      "title": "Test",
+      "type": "Ordinance",
+      "status": "3rd Reading",
+      "committee": "TBD",
+      "author": "Test",
+      "session": "TBD"
     }
   ],
   "sessionCalendar": [
@@ -223,6 +241,42 @@
       "date": "June 24, 2026",
       "type": "Special Session",
       "items": 3
+    },
+    {
+      "date": "2026-06-19",
+      "day": "19",
+      "title": "Regular Session",
+      "time": "09:00",
+      "type": "regular",
+      "items": 0,
+      "id": "3J6Gc2LoqZ4"
+    },
+    {
+      "date": "2026-06-19",
+      "day": "19",
+      "title": "Regular Session",
+      "time": "09:00",
+      "type": "regular",
+      "items": 2,
+      "id": "X-n6TAYaP8E"
+    },
+    {
+      "date": "2026-06-19",
+      "day": "19",
+      "title": "Regular Session",
+      "time": "09:00",
+      "type": "regular",
+      "items": 1,
+      "id": "meEZJdPExUI"
+    },
+    {
+      "date": "2026-06-19",
+      "day": "19",
+      "title": "Regular Session",
+      "time": "09:00",
+      "type": "regular",
+      "items": 1,
+      "id": "WmztR-qiEes"
     }
   ],
   "legislativeOutput": [
@@ -1005,6 +1059,32 @@
       "submittedBy": "Sec. Ana Maria T. Reyes",
       "dueDate": "2026-06-21",
       "daysInQueue": 4
+    },
+    {
+      "id": "Wpm0I-ZlozA",
+      "title": "Test",
+      "type": "SP Resolution",
+      "office": "SP Secretariat",
+      "date": "2026-06-14",
+      "status": "In Workflow",
+      "classification": "Internal",
+      "size": "0.1 MB",
+      "ver": 1,
+      "submittedBy": "Test",
+      "daysInQueue": 0
+    },
+    {
+      "id": "ZxLjnL9ywk0",
+      "title": "Test",
+      "type": "SP Ordinance",
+      "office": "External",
+      "date": "2026-06-14",
+      "status": "In Workflow",
+      "classification": "Internal",
+      "size": "0.1 MB",
+      "ver": 1,
+      "submittedBy": "Test",
+      "daysInQueue": 0
     }
   ],
   "publicOrdinances": [
@@ -1032,5 +1112,6 @@
       "type": "SP Ordinance",
       "pages": 8
     }
-  ]
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
 }
