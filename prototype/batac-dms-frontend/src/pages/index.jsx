@@ -1249,6 +1249,7 @@ export const DMSPage = () => {
 // PAGE: CITIZEN PORTAL
 // ─────────────────────────────────────────────────────────────────────────────
 export const CitizenPortalPage = () => {
+  const setPage = useAppStore(s => s.setPage);
   const { data: publicOrdinances = [] } = usePublicOrdinances();
   const { data: documents = [] } = useDocuments();
   const addDocument = useAddDocument();
@@ -1283,6 +1284,7 @@ export const CitizenPortalPage = () => {
           <div className="flex items-center gap-4 text-xs opacity-60">
             <span className="flex items-center gap-1"><Phone size={11} />(077) 670-7091</span>
             <span className="flex items-center gap-1"><MapPin size={11} />Washington St., Batac City</span>
+            <button onClick={() => setPage("login")} className="ml-4 flex items-center gap-1 hover:text-white transition-colors border border-white/30 rounded px-2 py-1 bg-white/10"><User size={12}/> Sign In</button>
           </div>
         </div>
       </div>
@@ -1530,6 +1532,7 @@ export const CitizenPortalPage = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const LoginRegisterPage = () => {
+  const setPage = useAppStore(s => s.setPage);
   const [mode, setMode] = useState("login") // "login" or "register"
   const [loginForm, setLoginForm] = useState({ email: "", password: "" })
   const [registerForm, setRegisterForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "", agreeTerms: false })
@@ -1551,7 +1554,7 @@ export const LoginRegisterPage = () => {
       {/* Gov header */}
       <div style={{ backgroundColor: "#0D3D20" }} className="text-white">
         <div className="max-w-2xl mx-auto px-6 py-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setPage("portal")}>
             <CitySealOfficial size={52} />
             <div>
               <p className="text-xs opacity-60">Republic of the Philippines · Province of Ilocos Norte</p>
@@ -1716,7 +1719,13 @@ export const LoginRegisterPage = () => {
                 ? "Welcome back! You are now signed into your account."
                 : "Your account has been created. You can now access the citizen portal and track documents."}
             </p>
-            <Btn variant="primary" className="w-full justify-center" onClick={() => { setSubmitted(false); setMode("login"); setLoginForm({ email: "", password: "" }); setRegisterForm({ fullName: "", email: "", password: "", confirmPassword: "", agreeTerms: false }); }}>
+            <Btn variant="primary" className="w-full justify-center" onClick={() => { 
+                setSubmitted(false); 
+                setMode("login"); 
+                setLoginForm({ email: "", password: "" }); 
+                setRegisterForm({ fullName: "", email: "", password: "", confirmPassword: "", agreeTerms: false }); 
+                if (mode === "login") setPage("portal");
+            }}>
               {mode === "login" ? "Go to Dashboard" : "Continue to Sign In"}
             </Btn>
           </div>
