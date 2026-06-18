@@ -481,7 +481,13 @@ export const SPSecretaryPage = () => {
         <div className="col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
             <SectionHdr title="Active Legislative Queue" subtitle="All SP resolutions and ordinances currently in workflow"
-              action={<Btn variant="ghost" size="xs" icon={Plus} onClick={() => setShowLogDoc(true)}>Log New</Btn>} />
+              action={
+                <div className="flex items-center gap-2">
+                  <Btn variant="ghost" size="xs" icon={FileText} onClick={() => setShowCommitteeReport(true)}>Log Committee Report</Btn>
+                  <Btn variant="ghost" size="xs" icon={Archive} onClick={() => setShowFloorVote(true)}>Record Floor Vote</Btn>
+                  <Btn variant="ghost" size="xs" icon={Plus} onClick={() => setShowLogDoc(true)}>Log New</Btn>
+                </div>
+              } />
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -535,21 +541,7 @@ export const SPSecretaryPage = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <SectionHdr title="Quick Actions" />
-            <div className="space-y-2">
-              {[
-                [Plus, "Log Incoming Document", () => setShowLogDoc(true)],
-                [FileText, "Log Committee Report", () => setShowCommitteeReport(true)],
-                [Archive, "Record Floor Vote", () => setShowFloorVote(true)],
-              ].map(([Icon, label, handler]) => (
-                <button key={label} onClick={handler || undefined} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-colors text-left">
-                  <Icon size={14} className="brand-text flex-shrink-0" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+
         </div>
       </div>
 
