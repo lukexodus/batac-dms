@@ -2,15 +2,15 @@
 
 ## F3 — TanStack Query Key Factory Specification — Pre-dev
 
-|Field|Value|
-|---|---|
-|**Document ID**|F3|
-|**Type**|Frontend Query Cache Specification — `/web` Cache Key Contract|
-|**Status**|BLOCKING — Pre-Development Baseline|
-|**Version**|1.0|
-|**Date**|June 2026|
-|**Based on**|E1 (tRPC Router and Procedure Catalog), 2-stack-context (Stack Decisions), C1 (Full Database Schema DDL)|
-|**Audience**|Frontend development team (`/apps/web`)|
+| Field           | Value                                                                                                    |
+| --------------- | -------------------------------------------------------------------------------------------------------- |
+| **Document ID** | F3                                                                                                       |
+| **Type**        | Frontend Query Cache Specification — `/web` Cache Key Contract                                           |
+| **Status**      | BLOCKING — Pre-Development Baseline                                                                      |
+| **Version**     | 1.0                                                                                                      |
+| **Date**        | June 2026                                                                                                |
+| **Based on**    | E1 (tRPC Router and Procedure Catalog), 2-stack-context (Stack Decisions), C1 (Full Database Schema DDL) |
+| **Audience**    | Frontend development team (`/apps/web`)                                                                  |
 
 ---
 
