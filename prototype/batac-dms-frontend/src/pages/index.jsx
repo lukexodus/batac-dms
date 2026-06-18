@@ -581,17 +581,11 @@ export const DTSPage = () => {
 
   const [showPrint, setShowPrint] = useState(false)
   const targetDocId = new URLSearchParams(window.location.search).get("docId");
-  const doc = documents.find(d => d.id === targetDocId) || documents[0] || {
-    id: "DTS-2026-000045",
-    title: "Resolution Authorizing the City Mayor to Negotiate and Enter into a Memorandum of Agreement with the Department of Interior and Local Government (DILG) for the Community-Based Solid Waste Management Project of Batac City",
-    type: "SP Resolution",
-    office: "SP Secretariat",
-    status: "Released",
-    classification: "Public",
-    date: "2026-05-15",
-    author: "Coun. Dela Cruz",
-    ver: 1
-  };
+  const doc = documents.find(d => d.id === targetDocId) || documents[0];
+
+  if (!doc) {
+    return <div className="p-6 text-center text-gray-500 mt-10">No document found. Please wait or select a valid document.</div>;
+  }
 
   return (
     <div className="p-6">
@@ -755,17 +749,11 @@ export const WMSPage = () => {
   const targetDocId = new URLSearchParams(window.location.search).get("docId");
   const doc = pendingSignatures.find(d => d.id === targetDocId) ||
     legislativeQueue.find(d => d.id === targetDocId) ||
-    documents.find(d => d.id === targetDocId) || {
-    id: "DTS-2026-000085",
-    title: "Medical Supplies — Q3 2026",
-    type: "Purchase Request",
-    office: "City Health Office",
-    submittedBy: "Dr. Juan C. Reyes",
-    daysInQueue: 4,
-    dueDate: "2026-06-07",
-    priority: "overdue",
-    classification: "Internal"
-  };
+    documents.find(d => d.id === targetDocId) || pendingSignatures[0] || legislativeQueue[0] || documents[0];
+
+  if (!doc) {
+    return <div className="p-6 text-center text-gray-500 mt-10">No pending document found for approval. Please wait or select a valid document.</div>;
+  }
 
   const removePendingSignature = useRemovePendingSignature();
   const updatePendingSignature = useUpdatePendingSignature();
@@ -1142,6 +1130,7 @@ export const DMSPage = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 export const CitizenPortalPage = () => {
   const { data: publicOrdinances = [] } = usePublicOrdinances();
+  const { data: documents = [] } = useDocuments();
 
   const [tab, setTab] = useState("track")
   const [query, setQuery] = useState("")
@@ -1149,7 +1138,10 @@ export const CitizenPortalPage = () => {
   const [submitted, setSubmitted] = useState(false)
 
   const handleTrack = () => {
-    if (query.trim()) setResult({ found: true })
+    if (query.trim()) {
+      const found = documents.find(d => d.id === query.trim().toUpperCase());
+      setResult(found || { notFound: true });
+    }
   }
 
   return (
@@ -1213,15 +1205,15 @@ export const CitizenPortalPage = () => {
               <p className="text-xs text-gray-400 mt-2">The tracking number is printed on the QR cover sheet of your physical document. Format: DTS-YYYY-NNNNNN</p>
             </div>
 
-            {result && (
+            {result && !result.notFound && (
               <div className="bg-white rounded-xl border border-green-200 p-6 mb-5" style={{ borderColor: "#00A651" }}>
                 <div className="flex items-start gap-4">
                   <CheckCircle size={24} className="text-green-500 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-base font-bold text-gray-900">Resolution No. 7SP 2026-047</p>
-                    <p className="font-mono text-xs text-gray-400 mt-0.5">DTS-2026-000045</p>
+                    <p className="text-base font-bold text-gray-900">{result.title}</p>
+                    <p className="font-mono text-xs text-gray-400 mt-0.5">{result.id}</p>
                     <div className="grid grid-cols-3 gap-4 mt-4">
-                      {[["Current Status", <StatusBadge status="Released" />], ["Current Office", "Records Archive — SP Secretariat"], ["Last Updated", "June 2, 2026"]].map(([k, v]) => (
+                      {[["Current Status", <StatusBadge status={result.status} />], ["Current Office", result.office], ["Date Logged", result.date]].map(([k, v]) => (
                         <div key={k}>
                           <p className="text-xs text-gray-400">{k}</p>
                           <div className="mt-1 text-sm font-medium text-gray-900">{v}</div>
@@ -1235,6 +1227,13 @@ export const CitizenPortalPage = () => {
                   </div>
                 </div>
               </div>
+            )}
+            {result && result.notFound && (
+               <div className="text-center py-12 text-gray-500">
+                  <AlertCircle size={36} className="mx-auto mb-3 text-red-400 opacity-80" />
+                  <p className="text-sm font-medium">Tracking number not found</p>
+                  <p className="text-xs mt-1">Please check the number and try again.</p>
+               </div>
             )}
 
             {!result && (
