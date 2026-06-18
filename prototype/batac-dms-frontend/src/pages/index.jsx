@@ -10,7 +10,7 @@ import {
   User, Building, LogOut, Bell, Settings,
   Shield, Lock, Star, Archive, Calendar, MapPin, Phone,
   Mail, BookOpen, Inbox, Home, MessageSquare,
-  ClipboardList
+  ClipboardList, QrCode
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area,
@@ -1260,10 +1260,12 @@ export const CitizenPortalPage = () => {
   const [submitted, setSubmitted] = useState(false)
   const [newTrackingId, setNewTrackingId] = useState("");
   const [form, setForm] = useState({ type: "Complaint (General)", subject: "", name: "" });
+  const [showScanner, setShowScanner] = useState(false);
 
   const handleTrack = () => {
     if (query.trim()) {
-      const found = documents.find(d => d.id === query.trim().toUpperCase());
+      const q = query.trim().toUpperCase();
+      const found = documents.find(d => d.id && d.id.toUpperCase() === q);
       setResult(found || { notFound: true });
     }
   }
@@ -1326,8 +1328,41 @@ export const CitizenPortalPage = () => {
                     className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none brand-ring" />
                 </div>
                 <Btn variant="primary" size="md" onClick={handleTrack} icon={Search}>Track Document</Btn>
+                <Btn variant="outline" size="md" onClick={() => setShowScanner(!showScanner)} icon={QrCode}>Scan QR</Btn>
               </div>
               <p className="text-xs text-gray-400 mt-2">The tracking number is printed on the QR cover sheet of your physical document. Format: DTS-YYYY-NNNNNN</p>
+              
+              {showScanner && (
+                <div className="mt-4 bg-gray-900 rounded-xl overflow-hidden relative border border-gray-800" style={{ height: 260 }}>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <QrCode className="text-white opacity-20 mb-3" size={48} />
+                    <p className="text-white opacity-50 text-sm font-medium">Camera Preview</p>
+                    <p className="text-white opacity-30 text-xs mt-1">(Awaiting backend integration)</p>
+                  </div>
+                  {/* Fake scanner viewfinder overlay */}
+                  <div className="absolute inset-8 border-2 border-white/10 rounded-lg pointer-events-none flex items-center justify-center">
+                    <div className="w-4 h-4 border-t-2 border-l-2 border-green-500 absolute top-0 left-0" />
+                    <div className="w-4 h-4 border-t-2 border-r-2 border-green-500 absolute top-0 right-0" />
+                    <div className="w-4 h-4 border-b-2 border-l-2 border-green-500 absolute bottom-0 left-0" />
+                    <div className="w-4 h-4 border-b-2 border-r-2 border-green-500 absolute bottom-0 right-0" />
+                  </div>
+                  <div className="absolute top-4 right-4">
+                    <button onClick={() => setShowScanner(false)} className="bg-black/50 text-white rounded-full p-1.5 hover:bg-black/70">
+                      <X size={16} />
+                    </button>
+                  </div>
+                  {/* Simulate successful scan button inside for testing */}
+                  <button onClick={() => {
+                      setShowScanner(false);
+                      const demoId = "DTS-2026-000042";
+                      setQuery(demoId);
+                      const found = documents.find(d => d.id && d.id.toUpperCase() === demoId);
+                      setResult(found || { notFound: true });
+                  }} className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/20 transition-colors">
+                    [Simulate Successful Scan]
+                  </button>
+                </div>
+              )}
             </div>
 
             {result && !result.notFound && (
@@ -1496,11 +1531,19 @@ export const CitizenPortalPage = () => {
                   <Btn variant="primary" size="md" onClick={() => {
                     const isComplaint = form.type.includes("Complaint");
                     const docType = isComplaint ? "Citizen Complaint" : "Citizen Request";
-                    const newId = "DTS-2026-" + Math.floor(1000 + Math.random() * 9000);
+                    
+                    const prefix = isComplaint ? "CMP" : "REQ";
+                    const year = new Date().getFullYear();
+                    const existingOfSameType = documents.filter(d => d.number && d.number.startsWith(`${prefix}-${year}`));
+                    const seq = String(existingOfSameType.length + 1).padStart(4, '0');
+                    const newNumber = `${prefix}-${year}-${seq}`;
+
+                    const newId = "DTS-" + year + "-" + Math.floor(100000 + Math.random() * 900000);
                     setNewTrackingId(newId);
 
                     addDocument.mutate({
                       id: newId,
+                      number: newNumber,
                       title: form.subject || (docType + " - Web Submission"),
                       type: docType,
                       office: "SP Secretariat", // By default routed to SP Secretariat
