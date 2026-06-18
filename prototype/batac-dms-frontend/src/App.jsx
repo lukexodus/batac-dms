@@ -1,5 +1,5 @@
-import { useState } from "react"
 import { useQueryClient } from '@tanstack/react-query';
+import { useAppStore } from './store/useAppStore';
 import {
   usePendingSignatures, useSLAData, useDeptWorkload, useLegislativeQueue,
   useSessionCalendar, useLegislativeOutput, useRoutingHistory, useDocuments,
@@ -17,6 +17,7 @@ import {
 import {
   GlobalStyles, CitySeal, CitySealOfficial, QRDisplay, DEBUG_USER_ROLE, Sidebar, TopBar
 } from './layout';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
 import {
   LogDocumentModal, PrintCoverSheetModal, UploadDocumentModal,
@@ -36,9 +37,7 @@ import { KitchenSinkPage } from './pages/dev/KitchenSink';
 export default function App() { return <AppContent />; }
 
 function AppContent() {
-  const queryPage = new URLSearchParams(window.location.search).get("page");
-  const [page, setPage] = useState(queryPage || DEBUG_USER_ROLE)
-  const [collapsed, setCollapsed] = useState(false)
+  const { page } = useAppStore();
   const isFullscreen = page === "portal" || page === "login"
 
   const pages = {
@@ -56,15 +55,17 @@ function AppContent() {
   const PageComponent = cfg.component
 
   return (
-    <div className="flex overflow-hidden" style={{ height: "100vh", fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }}>
-      <GlobalStyles />
-      {!isFullscreen && <Sidebar page={page} setPage={setPage} collapsed={collapsed} setCollapsed={setCollapsed} />}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {!isFullscreen && <TopBar title={cfg.title || "City of Batac"} subtitle={cfg.subtitle || "Document Tracking System"} />}
-        <main className="flex-1 overflow-y-auto bg-gray-50/50">
-          {PageComponent ? <PageComponent /> : <div className="p-6 text-gray-500">Page not found ({page})</div>}
-        </main>
+    <SidebarProvider>
+      <div className="flex w-full overflow-hidden" style={{ height: "100vh", fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }}>
+        <GlobalStyles />
+        {!isFullscreen && <Sidebar />}
+        <SidebarInset className="flex-1 flex flex-col overflow-hidden min-w-0 bg-gray-50/50">
+          {!isFullscreen && <TopBar title={cfg.title || "City of Batac"} subtitle={cfg.subtitle || "Document Tracking System"} />}
+          <main className="flex-1 overflow-y-auto">
+            {PageComponent ? <PageComponent /> : <div className="p-6 text-gray-500">Page not found ({page})</div>}
+          </main>
+        </SidebarInset>
       </div>
-    </div>
+    </SidebarProvider>
   )
 }

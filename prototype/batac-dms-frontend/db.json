@@ -284,6 +284,15 @@
       "committee": "TBD",
       "author": "T",
       "session": "TBD"
+    },
+    {
+      "id": "aX_ju7t2Roo",
+      "title": "Migrtea",
+      "type": "Resolution",
+      "status": "For 1st Reading",
+      "committee": "TBD",
+      "author": "Migrtea",
+      "session": "TBD"
     }
   ],
   "sessionCalendar": [
@@ -1238,6 +1247,19 @@
       "size": "0.1 MB",
       "ver": 1,
       "submittedBy": "T",
+      "daysInQueue": 0
+    },
+    {
+      "id": "7NrKFyuvBYI",
+      "title": "Migrtea",
+      "type": "SP Resolution",
+      "office": "SP Secretariat",
+      "date": "2026-06-14",
+      "status": "In Workflow",
+      "classification": "Internal",
+      "size": "0.1 MB",
+      "ver": 1,
+      "submittedBy": "Migrtea",
       "daysInQueue": 0
     }
   ],
