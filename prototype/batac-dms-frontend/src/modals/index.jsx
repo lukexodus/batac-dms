@@ -14,7 +14,7 @@ import {
 import {
   useAddDocument, useAddLegislativeQueue, useUpdateLegislativeQueue, useUpdatePendingSignature, useRemovePendingSignature, useAddSession
 } from '../api/queries';
-import { Modal, FLabel, FRow, Btn, StatusBadge } from '../components/ui';
+import { Modal, FLabel, FRow, Btn, StatusBadge, ClassificationBadge } from '../components/ui';
 import { QRDisplay, CitySealOfficial } from '../layout';
 
 
@@ -237,8 +237,21 @@ export const LogDocumentModal = ({ open, onClose }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // MODAL: PRINT COVER SHEET (preview + print)
 // ─────────────────────────────────────────────────────────────────────────────
-export const PrintCoverSheetModal = ({ open, onClose }) => {
-  const doc = {
+export const PrintCoverSheetModal = ({ open, onClose, document }) => {
+  const doc = document ? {
+    trackingNo: document.id,
+    seriesNo: document.title,
+    type: document.type,
+    title: document.title,
+    author: document.submittedBy || "Unknown",
+    office: document.office,
+    dateReceived: document.date,
+    dateReleased: document.status === "Released" ? "Released" : "Pending",
+    classification: document.classification || "Internal",
+    retention: "Permanent",
+    custodian: "Records Officer",
+    status: document.status,
+  } : {
     trackingNo: "DTS-2026-000045",
     seriesNo: "Resolution No. 7SP 2026-047",
     type: "SP Resolution",
@@ -254,7 +267,7 @@ export const PrintCoverSheetModal = ({ open, onClose }) => {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Print Cover Sheet" subtitle="DTS-2026-000045 · Resolution No. 7SP 2026-047" width="max-w-2xl">
+    <Modal open={open} onClose={onClose} title="Print Cover Sheet" subtitle={`${doc.trackingNo} · ${doc.type}`} width="max-w-2xl">
       <div className="px-6 pt-4 pb-3 flex items-center justify-between border-b border-gray-100 bg-gray-50 sticky top-0 z-10">
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500">Preview — A4 portrait</span>
@@ -299,7 +312,7 @@ export const PrintCoverSheetModal = ({ open, onClose }) => {
               <div className="bg-black p-2 rounded-lg">
                 <QRDisplay size={88} />
               </div>
-              <p className="text-[9px] text-gray-400 mt-1 text-center font-mono">DTS-2026-000045</p>
+              <p className="text-[9px] text-gray-400 mt-1 text-center font-mono">{doc.trackingNo}</p>
               <p className="text-[8px] text-gray-300 text-center">Scan to verify status</p>
             </div>
           </div>

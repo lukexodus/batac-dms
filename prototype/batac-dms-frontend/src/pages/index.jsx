@@ -587,9 +587,14 @@ export const DTSPage = () => {
     return <div className="p-6 text-center text-gray-500 mt-10">No document found. Please wait or select a valid document.</div>;
   }
 
+  const dynamicRoutingHistory = routingHistory.map(entry => ({
+    ...entry,
+    detail: entry.detail.replace("Purchase Request", doc.type).replace("Leave Application", doc.type)
+  }));
+
   return (
     <div className="p-6">
-      <PrintCoverSheetModal open={showPrint} onClose={() => setShowPrint(false)} />
+      <PrintCoverSheetModal open={showPrint} onClose={() => setShowPrint(false)} document={doc} />
       <PageHdr
         title="Document Tracking View"
         subtitle="Complete routing history and physical custody record"
@@ -636,7 +641,7 @@ export const DTSPage = () => {
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <SectionHdr title="Complete Routing History" subtitle="Tamper-evident audit trail — append-only record" />
             <div>
-              {routingHistory.map((entry, i) => (
+              {dynamicRoutingHistory.map((entry, i) => (
                 <div key={entry.id} className="flex gap-4">
                   {/* Spine */}
                   <div className="flex flex-col items-center flex-shrink-0" style={{ width: 32 }}>
@@ -646,13 +651,13 @@ export const DTSPage = () => {
                         ? <Clock size={13} className="text-white" />
                         : <Check size={13} className="text-green-600" />}
                     </div>
-                    {i < routingHistory.length - 1 && (
+                    {i < dynamicRoutingHistory.length - 1 && (
                       <div className="w-0.5 flex-1 mt-0" style={{ backgroundColor: "#bbf7d0", minHeight: 24 }} />
                     )}
                   </div>
 
                   {/* Content */}
-                  <div className={`flex-1 mb-4 ${i === routingHistory.length - 1 ? "mb-0" : ""}`}>
+                  <div className={`flex-1 mb-4 ${i === dynamicRoutingHistory.length - 1 ? "mb-0" : ""}`}>
                     <div className={`rounded-lg p-4 ${entry.status === "current" ? "border border-green-200" : "bg-gray-50"}`}
                       style={entry.status === "current" ? { backgroundColor: "#F0FAF4" } : {}}>
                       <div className="flex items-start justify-between gap-2 mb-1">
@@ -1061,7 +1066,7 @@ export const DMSPage = () => {
                   ["Date", "whitespace-nowrap"],
                   ["Status", "whitespace-nowrap"],
                   ["Classification", "whitespace-nowrap"],
-                  ["", ""],
+                  ["Actions", "whitespace-nowrap"],
                 ].map(([h, cls]) => (
                   <th key={h} className={`text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-gray-500 ${cls}`}>
                     {h && <div className="flex items-center gap-1">{h} {h !== "" && <ChevronDown size={11} className="text-gray-300" />}</div>}
@@ -1229,11 +1234,11 @@ export const CitizenPortalPage = () => {
               </div>
             )}
             {result && result.notFound && (
-               <div className="text-center py-12 text-gray-500">
-                  <AlertCircle size={36} className="mx-auto mb-3 text-red-400 opacity-80" />
-                  <p className="text-sm font-medium">Tracking number not found</p>
-                  <p className="text-xs mt-1">Please check the number and try again.</p>
-               </div>
+              <div className="text-center py-12 text-gray-500">
+                <AlertCircle size={36} className="mx-auto mb-3 text-red-400 opacity-80" />
+                <p className="text-sm font-medium">Tracking number not found</p>
+                <p className="text-xs mt-1">Please check the number and try again.</p>
+              </div>
             )}
 
             {!result && (
@@ -1425,11 +1430,10 @@ export const LoginRegisterPage = () => {
                 { id: "register", label: "Create Account" }
               ].map(m => (
                 <button key={m.id} onClick={() => setMode(m.id)}
-                  className={`flex-1 py-2 px-3 rounded-md font-medium text-sm transition-colors ${
-                    mode === m.id
+                  className={`flex-1 py-2 px-3 rounded-md font-medium text-sm transition-colors ${mode === m.id
                       ? "bg-white text-gray-900 shadow-sm"
                       : "text-gray-500 hover:text-gray-700"
-                  }`}>
+                    }`}>
                   {m.label}
                 </button>
               ))}
@@ -1577,4 +1581,4 @@ export const LoginRegisterPage = () => {
       </div>
     </div>
   )
-}
+}
