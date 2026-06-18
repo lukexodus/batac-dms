@@ -4,6 +4,34 @@
 
 **Document ID:** B2 **Type:** Module Contract Specification — Architectural Law Enforcement **Status:** Pre-Development Baseline — ADRs Resolved **Version:** 1.1 **Date:** June 2026 **Based on:** B1 (System Architecture, C4 Model); Consolidated Architecture and Requirements Reference (Iteration 3); ADR-B2-1 through ADR-B2-7 **Audience:** Development team — internal reference
 
+---
+
+## Table of Contents
+
+- [L35–L50] Version 1.1 Change Log — Traceability table mapping resolved ADR-B2-1 through ADR-B2-7 to specific module modifications and document updates.
+- [L51–L68] Purpose — Scope of Architectural Law #2, cross-module communication rules, and the single allowed Phase 1 FTS read exception.
+- [L69–L78] Notation — Definitions of source fidelity labels, including inferred behaviors and phase boundaries used throughout the contracts.
+- [L79–L131] Enforcement Model — Implementation of Law #2, static analysis enforcement, sync vs. async decision rules, event envelope structure, and API versioning policy.
+- [L132–L206] Module 1 — IAM — ABAC engine authorization policy evaluation, display user summary retrieval, and authentication/role assignment audit events.
+- [L207–L322] Module 2 — Organization — Office hierarchy tree, designation logging, and active delegation resolution for step routing and ABAC policy evaluation.
+- [L323–L499] Module 3 — Documents — Document state machine, draft and final numbering sequences, attachment upload presigning, and Secretariat decision integration.
+- [L500–L643] Module 4 — Workflow — Engine step types, multi-committee referral cutoffs, certified urgent bypass, version pinning, and SLA escalation monitors.
+- [L644–L714] Module 5 — Tracking — Immutable QR tracking number assignment, physical custody logging, append-only routing history, and public document blurring rules.
+- [L715–L785] Module 6 — Records — Permanent retention schedules, four-tier classification rules, legal holds, and audited Records Officer bulk operations.
+- [L786–L845] Module 7 — Notifications — SSE in-app, SMTP email, and Phase 3 SMS delivery channels, template engines, and respondent notice routing rules.
+- [L846–L955] Module 8 — Audit — Append-only hash chain and HMAC cryptographics, monthly TSA export, and the global domain event auditing consumer.
+- [L956–L1025] Module 9 — Search Meta — Search provider abstraction, Phase 1 PostgreSQL FTS trigger, Phase 2 Meilisearch sync, and the temporary FTS query exception.
+- [L1026–L1060] Module 10 — Portal — OTP citizen authentication, public document lookup, citizen complaint channels, and three access modes for document requests.
+- [L1061–L1088] Module 11 — Reporting — On-demand and scheduled PDF/spreadsheet generation, and ARTA compliance reporting via the Workflow Published API.
+- [L1089–L1232] Cross-Module Reference — Master matrices for the internal event registry, synchronous call pathways, and direct module dependencies.
+  - [L1091–L1119] Master Event Bus Registry — Comprehensive catalog of all in-process event names, emitting modules, registered subscribers, and source references.
+  - [L1120–L1149] Published API Call Matrix — Traceability matrix of all authorized synchronous cross-module calls, method names, and trigger contexts.
+  - [L1150–L1232] Module Dependency Map — ASCII reference map showing dependency directions for synchronous calls, event emissions, and event consumption.
+- [L1233–L1254] Prohibited Patterns — Seven prohibited development patterns that violate modular boundaries, caught by compiler rules or static analysis.
+- [L1255–L1273] Resolved ADRs — Historical log preserving the original requirements and final resolutions for ADR-B2-1 through ADR-B2-7.
+
+---
+
 ### Version 1.1 Change Log
 
 All seven Required ADRs identified in Version 1.0 of this document have been resolved and are recorded as standalone decision records (ADR-B2-1 through ADR-B2-7). Four of those decisions change this document's content directly; this revision incorporates them. The remaining three (ADR-B2-1, ADR-B2-2, ADR-B2-7) formalize detail that was already correctly stated here and required no content change — they are noted in the table below for traceability only.

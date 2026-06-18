@@ -2,6 +2,53 @@
 
 **Status:** Pre-Development Baseline — Blocking Document **Last Updated:** June 2026 **Audience:** Development team (internal reference) **Source authority:** Consolidated Architecture & Requirements Reference (Iteration 3, June 2026); Stack Context document
 
+## Table of Contents
+
+- [L54–L91] Document Notes — Rules for confirmed/inferred content labels and lists of covered and out-of-scope security topics.
+- [L92–L227] 1. Token Architecture
+  - [L94–L152] 1.1 Access Token (JWT) — Specifications for RS256 signing, TTL configuration, cookie storage, registered/private claims, and immediate revocation rules.
+  - [L153–L227] 1.2 Refresh Token — Requirements for opaque string format, SHA-256 server-side hashing, family-wide reuse-detection flow, and table schema.
+- [L228–L265] 2. Cookie Configuration — HttpOnly, Secure, and SameSite attributes, scoping access/refresh tokens, expiration behavior, and development environment config.
+- [L266–L310] 3. PKCE for the SPA — Client-side code verifier/challenge generation flow, token exchange protocol, and memory-only storage rules.
+- [L311–L425] 4. Session Management
+  - [L315–L326] 4.1 Session Lifecycle — Core lifecycle events and rules for inactivity, concurrent sessions, forced logout, and shared workstation locking.
+  - [L327–L354] 4.2 Session Table Schema [Inference — not confirmed] — PostgreSQL schema for iam.sessions with partial unique index to enforce single active session.
+  - [L355–L376] 4.3 Concurrent Session Enforcement — Step-by-step logic for terminating existing sessions and notifying users during concurrent login attempts.
+  - [L377–L383] 4.4 Inactivity Detection — Server-side route handler hook checks, UI-driven 25-minute warnings, and keepalive logic.
+  - [L384–L404] 4.5 Forced Logout [Inference for implementation; rule is CONFIRMED] — Step-by-step API endpoint execution sequence, role requirements, and mandatory audit log reasoning.
+  - [L405–L416] 4.6 Shared Workstation Lock [Inference for implementation] — Lock screen suspension flow, credential checks, and silent token refresh mechanics during unlock.
+  - [L417–L425] 4.7 Administration Transition Sessions [CONFIRMED] — Graceful expiration rules, soft-deletion handling, and fallback step assignment during mayoral transitions.
+- [L426–L646] 5. Authorization Model
+  - [L428–L439] 5.1 ABAC with RBAC as Entry Point — Rationale for combining ABAC and RBAC to support office-scoped rules, and binary evaluation outcome.
+  - [L440–L451] 5.2 Authorization Tiers — Definitions and examples of system-level, platform-level, and instance-level access tiers.
+  - [L452–L473] 5.3 Resource Types — Reference table mapping core resource types to their key attributes used in authorization policies.
+  - [L474–L503] 5.4 Actions — List of operational actions defining permissions for LGU workflows, document management, and administration.
+  - [L504–L568] 5.5 Policy Evaluation Order — Sequence of the deny-first cascade checking tenant isolation, IT admin limits, RBAC, and ABAC scopes.
+  - [L569–L604] 5.6 Office Scoping — Office-scoped restriction mechanisms, cross-office read permissions, and multi-referral step logic.
+  - [L605–L646] 5.7 Delegation Scope in ABAC — Evaluation-time scope expansion, required JSONB schema structure, and single-active-delegation database index.
+- [L647–L831] 6. Row-Level Security
+  - [L649–L663] 6.1 Principle — Dual-layer defense philosophy using PostgreSQL RLS as a database-level backstop behind application-level ABAC.
+  - [L664–L675] 6.2 Database Roles — Purpose and key privileges for specific database accounts including runtime, audit, and IT admin.
+  - [L676–L690] 6.3 Session Context Variables — Transaction-scoped PostgreSQL session variables set by Fastify middleware to inform RLS policies.
+  - [L691–L739] 6.4 Tables with RLS Enabled — Mapping of tables in all five schemas to their specific RLS policy intent.
+  - [L740–L831] 6.5 Example RLS Policy Patterns [Inference] — SQL patterns for city isolation, office scope, IT admin block, and has_cross_office_read_grant logic.
+- [L832–L900] 7. IT Admin Data Isolation — Invariant blocking IT Admin access to Confidential/Restricted document content via three-layer enforcement.
+- [L901–L1009] 8. Platform Administrator Role Exclusion Invariant
+  - [L905–L908] 8.1 Rule — Prohibition of combining the Platform Administrator role with any operational document-processing role on one account.
+  - [L909–L912] 8.2 Rationale — Fraud prevention reasoning based on avoiding conflicts of interest between rule definitions and operational execution.
+  - [L913–L928] 8.3 Definition of Document-Processing Roles [Resolved for seeding — ADR/D-AUTH-05; see flag below] — Incompatible role categories, compatible technical roles, and seed data decisions.
+  - [L929–L1009] 8.4 Enforcement — TypeScript application-level validations and database-level trigger code to block illegal role combinations.
+- [L1010–L1083] 9. Future SSO Migration Path — Design choices for OAuth/OIDC compatibility, external identity mapping column additions, and token exchange flow.
+- [L1084–L1239] 10. Implementation Notes
+  - [L1086–L1120] 10.1 Fastify Plugin Structure [Inference] — Verification hooks, database session variable setup, and public route configurations.
+  - [L1121–L1148] 10.2 tRPC Context [Inference] — Definition of AuthContext and Context TypeScript types used to supply information to ABAC evaluators.
+  - [L1149–L1175] 10.3 Audit Events for Authentication and Authorization Actions — Payload fields for 17 auditable events covering logins, logouts, role changes, and ABAC denials.
+  - [L1176–L1191] 10.4 Rate Limiting — IP-based and session-based request limits per minute/hour for login, logout, and password resets.
+  - [L1192–L1212] 10.4.1 Account-Level Lockout Policy [Resolved — ADR-AUTH-07; one value still open] — Progressive delays (up to 15 minutes) for repeated login failures instead of hard lockout.
+  - [L1213–L1239] 10.5 MFA Readiness: Phase 1 Design, Phase 2 Activation — Phase 1 flow structure supporting environment-gated TOTP validation in Phase 2.
+- [L1240–L1258] 11. Deferred Decisions (Must Resolve Before IAM Module Migration) — Summary of resolutions for the 10 deferred decisions; open follow-ups are superseded by Section 12.
+- [L1259–L1272] 12. Remaining Open Items — Four unresolved or follow-up items not blocking IAM migration, detailing what is open and when resolution is required.
+
 ---
 
 ## Document Notes

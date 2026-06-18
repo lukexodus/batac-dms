@@ -4,6 +4,13 @@
 
 This register captures the risks visible in the architecture and requirements baseline before Phase 1 development begins, drawing on the Consolidated Architecture & Requirements Reference, Iteration 3 (cited below as *AR*) and the Stack Context document (cited below as *SC*). Four areas of residual uncertainty carry the most weight: items the architecture explicitly defers to real-world testing or operation rather than settling in advance (OCR accuracy, a numbering edge case, the audit log's external timestamp provider); the LMITS migration, which depends on an unconfirmed data format and an office — CPDO — outside the project's direct control; the decision to let sp.batac.gov.ph and the new portal coexist indefinitely with no migration date; and a compliance gap where COA and DILG engagement is scheduled only "before Production Rollout," after most of the records and privacy design will already be built. A smaller set of adjacent risks surfaced from the same source material is included for completeness.
 
+## Table of Contents
+
+- [L14–L20] Rating Scale — Definitions of the likelihood and impact criteria used to rate risks as High, Medium, or Low.
+- [L24–L33] Technical Risks — Mitigation strategies for OCR testing, LMITS migration unknowns, numbering concurrency, portal coexistence, and RFC 3161 audit log timestamps.
+- [L35–L43] Organizational Risks — Mitigation of ownership gaps, CPDO coordination, SP Secretary sign-off gates, manual entry SLA risks, and LGU IT knowledge silos.
+- [L45–L53] Legal & Compliance Risks — Mitigation of COA retention/digital-acceptance, DILG compliance, early Privacy Impact Assessments, audit log claim boundaries, and signature sign-offs.
+
 ## Rating Scale
 
 |Level|Likelihood means|Impact means|

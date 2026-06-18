@@ -14,6 +14,44 @@
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` — Parts 10–12 (module boundaries, architectural invariants, RLS strategy) and Part 9 (search strategy by phase)
 - `2-stack-context.md` — PostgreSQL non-negotiables (JSONB GIN requirement, FTS strategy, search phase transition), stack decisions
 
+## Table of Contents
+
+- [L57–L91] About This Document — Scope boundaries, tag definitions, and global index design conventions like RLS filters and soft-delete partial indexing.
+- [L92–L201] Part 1 — Schema `iam` — High-frequency read indexes for session validation, JWT role expansion, and active MFA checks.
+  - [L96–L120] 1.1 `iam.users` — Lookup indexes for login by username, email duplicate-checks, and user directory status-filtering.
+  - [L121–L142] 1.2 `iam.sessions` — Query indexes for user active-session counts, single-session enforcement, and admin recency lists.
+  - [L143–L156] 1.3 `iam.refresh_tokens` — Revocation check index for active refresh tokens during token rotation middleware flows.
+  - [L157–L176] 1.4 `iam.role_assignments` — Indexes for JWT middleware role expansion and office-scoped ABAC delegation context lookup.
+  - [L177–L187] 1.5 `iam.role_permissions` — Query index mapping roles to permissions for evaluatePolicy checks inside the protectedProcedure middleware.
+  - [L188–L201] 1.6 `iam.mfa_records` — Partial index resolving active MFA records during user authentication flows.
+- [L202–L313] Part 2 — Schema `organization` — Traversals and lookups for office hierarchies, employee positions, active delegations, and committee assignments.
+  - [L206–L224] 2.1 `organization.offices` — Covering indexes for recursive CTE office hierarchy traversal and stable office code lookups.
+  - [L225–L243] 2.2 `organization.employees` — Employee lookups by user ID and civil-service employee number for admin directories.
+  - [L244–L260] 2.3 `organization.assignments` — Lookup indexes for active position holders and employee designation/assignment histories.
+  - [L261–L294] 2.4 `organization.delegation_grants` — Middleware delegation lookup by delegatee or delegator, plus issuance document and validity range indexes.
+  - [L295–L313] 2.5 `organization.committee_memberships` — Query indexes for committee-scope ABAC token claims and active committee roster views.
+- [L314–L573] Part 3 — Schema `documents` — High-volume query indexes for document search, lifecycle queue filtering, OCR queue polling, and reviews.
+  - [L318–L336] 3.1 `documents.document_types` — Lookup indexes for document metadata validation and active type-picker dropdown rendering.
+  - [L337–L357] 3.2 `documents.number_series` — Indexes for gapless number generation sequences and document-type foreign key joins.
+  - [L358–L463] 3.3 `documents.documents` — Office queue filters, JSONB metadata GIN, title FTS, and tracking/number lookup indexes.
+  - [L464–L496] 3.4 `documents.versions` — Indexes for version histories, OCR worker polling, OCR text FTS, and scan quality filters.
+  - [L497–L506] 3.5 `documents.attachments` — Join index retrieving all attachments associated with a specific document ID.
+  - [L507–L529] 3.6 `documents.numbers` — Lookups for current document numbers and gapless sequence verification across series years.
+  - [L530–L545] 3.7 `documents.signatures` — Indexes for rendering signature lists and auditor searches by signing employee ID.
+  - [L546–L573] 3.8 `documents.panlalawigan_reviews` — Outcome recording index, 30-day deeming timer poll, and Panlalawigan control number lookup.
+- [L574–L693] Part 4 — Schema `workflow` — Real-time and analytical indexes supporting inbox queues, step transitions, SLA escalation polling, and audits.
+  - [L580–L611] 4.1 `workflow.instances` — Indexes for active document instances, definition migrations, and pgboss SLA breach escalations.
+  - [L612–L654] 4.2 `workflow.step_instances` — Inbox queues by user or office, step sequences, and mayor/Panlalawigan review pending filters.
+  - [L655–L675] 4.3 `workflow.workflow_events` — Event-replay history, action audits, and user event logs for append-only workflow events.
+  - [L676–L693] 4.4 `workflow.definitions` and `workflow.definition_versions` — Resolution indexes for active definitions and version pinning during workflow instance creation.
+- [L694–L737] Part 5 — Schema `tracking` — Lookups for document tracking records, QR code numbers, and chronological routing history.
+- [L738–L775] Part 6 — Schema `records` — Retention schedules, legal holds, and records disposition indexes for the Phase 2 RMS.
+- [L776–L826] Part 7 — Schema `notifications` — Unread/read inbox logs, related document notifications, and email delivery/retry diagnostic logs.
+- [L827–L876] Part 8 — Schema `audit` — Actor action queries, office logs, full audits, and hash chain validateChainIntegrity forward scans.
+- [L877–L892] Part 9 — Phase 2 Index Additions (Deferred) — List of deferred reporting, Meilisearch sync, RMS classification, and portal schema indexes.
+- [L893–L915] Part 10 — Drizzle ORM Implementation Notes — Naming conventions, partial index syntax, GIN migration paths, and production CONCURRENTLY execution rules.
+- [L916–L926] Part 11 — Index Maintenance Considerations — Procedures for reindexing bloated GINs, monitoring partial indexes, and PostgreSQL-Meilisearch coexistence.
+
 ---
 
 ## About This Document

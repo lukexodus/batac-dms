@@ -6,6 +6,29 @@
 
 ---
 
+## Table of Contents
+
+- [L32–L61] Notation and Conventions — C4 level mappings, source fidelity labels (e.g. Inference, Phase N), and Phase 1-4+ delivery scope mappings.
+- [L62–L103] Level 1 — System Context — C4 context diagram defining platform boundaries, user roles (Citizen, Secretariat, Mayor), and integrations with external LGU systems.
+- [L104–L158] Level 2 — Container Diagram — C4 container diagram and constraints including static SPA, Fastify server, direct S3 uploads, and PostgreSQL-backed job queues.
+- [L159–L628] Level 3 — Component Diagrams — C4 component diagrams for cross-cutting infrastructure and the 11 domain modules governing application server internals.
+  - [L165–L174] Cross-Cutting Infrastructure (referenced throughout) — Architectural details on the in-process event bus, Drizzle ORM usage rules, and pgboss job queue integrations.
+  - [L175–L215] Module 1 — IAM — Components for Argon2id hashing, session limits, JWT issuance, ABAC engine, and Phase 2 MFA enforcement rules.
+  - [L216–L254] Module 2 — Organization — Components for office hierarchies, employee positions, and automatic delegation scaling with no admin activation step required.
+  - [L255–L307] Module 3 — Documents — Two-stage numbering rules, direct S3 uploads, OCR integration, version tracking, soft-deletes, and tracking QR generation.
+  - [L308–L354] Module 4 — Workflow — Workflow engine logic, multi-committee rules with Thursday cutoffs, urgent path bypassing, lapse timers, and ARTA SLA escalations.
+  - [L355–L392] Module 5 — Tracking — Immutable QR assignment order, physical custody vs. digital status tracking, and public lookup page blurring rules.
+  - [L393–L432] Module 6 — Records — Archive rules, permanent retention lists, four-tier classification logic, and restricted Records Officer bulk operation schemas.
+  - [L433–L469] Module 7 — Notifications — SSE in-app pushes, SMTP/Nodemailer email routing, Phase 3 SMS placeholders, and configurable notification template mechanics.
+  - [L470–L507] Module 8 — Audit — HMAC and hash-chained tamper-evident design, Postgres insert-only constraints, and monthly RFC 3161 TSA export triggers.
+  - [L508–L544] Module 9 — Search Meta [Phase 2] — Search abstraction details, Phase 1 PostgreSQL FTS, Phase 2 Meilisearch sync queue, and typo-tolerant search rules.
+  - [L545–L592] Module 10 — Portal [Phase 3] — Next.js portal REST endpoints, citizen OTP authentication, document blurring logic, and complaint intake access channels.
+  - [L593–L628] Module 11 — Reporting [Phase 2] — Configurable templates, React-PDF/SheetJS generation engines, and automated ARTA compliance reporting using live SLA details.
+- [L629–L656] Appendix A — Cross-Module Event Reference [Inference] — Tabulated catalog of in-process event contracts defining publishers, subscribers, and side-effects across all 11 modules.
+- [L657–L675] Appendix B — Architectural Invariants Affecting This Document — Twelve rigid architectural rules mapping system-wide invariants to specific diagram implementations and database constraints.
+
+---
+
 ## Notation and Conventions
 
 ### C4 Levels Covered

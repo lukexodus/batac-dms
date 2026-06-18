@@ -4,6 +4,32 @@
 
 ---
 
+## Table of Contents
+
+- [L33–L52] Source Coverage and Confidence — Fidelity, confidence ratings, and verification status for all phase 1 database schemas.
+- [L53–L93] Notation and Conventions — Mermaid relationship symbols, column key tags, tenant isolation columns, and logical foreign keys rules.
+- [L94–L115] Infrastructure: Schema `public` — The event-bus dead-letter queue table definition for storing failed event handler invocations.
+- [L116–L249] Schema: `iam` — User authentication, sessions, role/permission tables, and Multi-Factor Authentication records.
+  - [L221–L226] Logical FK Index — `iam` — Cross-schema logical references targeting organization office scopes.
+  - [L227–L249] Join Table Annotations — `iam` — ABAC policy rules, role-revocation checks, session limits, and refresh-token chain behavior.
+- [L250–L374] Schema: `organization` — Office hierarchies, positions, employee records, and active designation tracking.
+  - [L344–L351] Logical FK Index — `organization` — Outbound references targeting employees' user accounts, delegation documents, and revoking users.
+  - [L352–L374] Join Table Annotations — `organization` — Active designation time-bounds, single-active-delegation constraints, and singular position assignments.
+- [L375–L572] Schema: `documents` — Document state transitions, immutability rules, OCR processing metadata, and two-stage numbering.
+  - [L519–L534] Logical FK Index — `documents` — Outbound references for document types, offices, creators, and signature metadata.
+  - [L535–L543] Bidirectional Optional Link: `document_types` ↔ `number_series` — Breaking circular dependency between document types and number series.
+  - [L544–L572] Join Table Annotations — `documents` — Two-stage draft/final numbering, Panlalawigan reviews, required steps, and OCR quality scores.
+- [L573–L702] Schema: `workflow` [Inference] — State-transition checks, definition versioning, SLA clocks, and step assignments.
+  - [L674–L683] Logical FK Index — `workflow` — Target endpoints for workflows, associated documents, cancelling users, and event actors.
+  - [L684–L702] Step Type Annotations — `workflow` — Assignee configs, multi-referral step structures, and version pinning for active instances.
+- [L703–L767] Schema: `tracking` [Inference] — Physical routing history, scan-to-lookup endpoints, and QR code generation sequences.
+- [L768–L850] Schema: `records` [Inference] — Retention schedules, archive entries, classification rules, and soft-delete disposition logs.
+- [L851–L910] Schema: `notifications` [Inference] — Event-triggered dispatch, delivery logs, templates, and SSE real-time push endpoints.
+- [L911–L959] Schema: `audit` [Inference] — Append-only event logs, tamper-evident HMAC chains, and monthly external TSA export rules.
+- [L960–L1037] Cross-Schema Reference Summary — Consolidated lookup tables grouping all logical foreign key columns by target schema.
+
+---
+
 ## Source Coverage and Confidence
 
 The C1 DDL provided covers **three of eight** Phase 1 schemas in full. ERD fidelity varies by schema:

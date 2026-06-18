@@ -26,6 +26,40 @@
 
 ---
 
+## Table of Contents
+
+- [L63–L99] §0 — Naming Discrepancies — Resolve Before Implementation — Conflict resolution tables for cross-document event names and B2/B4 workflow module discrepancies.
+- [L100–L119] §1 — Purpose and Scope — Coverage of the in-process event bus across phases and relationship to the B2 and B4 specifications.
+- [L120–L153] §2 — How to Read This Catalog — Event entry format, camelCase naming rules, Zod validators, and transaction-bound async emission mechanics.
+- [L154–L208] §3 — Common Types and Event Envelope — Shared Zod schemas for document states, step types, and the universal event envelope wrapper.
+- [L209–L337] §4 — IAM Module Events — Authentication and role management events for user identity, sessions, and permissions.
+  - [L217–L241] 4.1 user.login — Successful user authentication, session creation, and IP/user-agent tracking for audit writes.
+  - [L242–L264] 4.2 user.logout — Voluntary session termination to close the active user audit trail.
+  - [L265–L288] 4.3 session.terminated — Admin-forced logouts or inactivity timeouts to enforce single-session policies.
+  - [L289–L313] 4.4 role.assigned — Role grants to users, including optional office-scoping boundaries.
+  - [L314–L337] 4.5 role.revoked — Role removals from users for security and access-control compliance.
+- [L338–L431] §5 — Organization Module Events — Events for designation grants, natural expiries, and early revocations that trigger immediate workflow re-routing.
+- [L432–L588] §6 — Documents Module Events — Document lifecycle events, series numbering, and Secretariat decision integration.
+  - [L446–L474] 6.1 document.created — Secretariat logging event that triggers QR code generation and workflow instantiation.
+  - [L475–L499] 6.2 document.state_changed — Document state transition triggers for search index, portal, and notification updates.
+  - [L500–L533] 6.3 document.number_assigned — Assignments of preliminary and final series numbers for legislative records.
+  - [L534–L559] 6.4 document.secretariat_decision — Superseded by §7.12 — removed event replaced by synchronous transitions on step completion.
+  - [L560–L588] 6.5 document.certification_urgency.logged — Attachment of written urgency certifications to bypass committee referral steps.
+- [L589–L1367] §7 — Workflow Module Events — Custom domain-specific legislative workflow engine events for steps, context, and SLAs.
+  - [L599–L770] §7.A — Instance Lifecycle Events — Events tracking instance creation, completion, cancellations, suspensions, and stuck state snapshots.
+  - [L771–L852] §7.B — Instance Migration Events — Migration start, completion, and reversal events within the 24-hour safety window.
+  - [L853–L966] §7.C — Step Lifecycle Events — Events for step start, completion, bypass, and engine-level execution failures.
+  - [L967–L995] §7.D — Context Events — Event carrying diff-style audit trail of workflow instance context JSONB updates.
+  - [L996–L1126] §7.E — Multi-Referral Step Events — Committee submissions, Thursday cutoff misses, reading eligibility, and manual overrides.
+  - [L1127–L1182] §7.F — Timer and Lapse Events — pgboss job events for Mayor 10-day review and Panlalawigan 30-day review lapses.
+  - [L1183–L1282] §7.G — Certification of Urgency Events — Bypasses applied, deferred, or skipped for inactive or past-referral documents.
+  - [L1283–L1367] §7.H — SLA Events — Warning, breach, and critical escalation notifications for legislative step deadlines.
+- [L1368–L1420] §8 — Master Event Registry — Flat matrix listing consumer subscriptions, active phases, and sources for all 42 events.
+- [L1421–L1438] §9 — Mandatory Rules — Six non-negotiable architectural rules for event audit, packaging, and emission safety.
+- [L1439–L1463] §10 — Open Items — Resolution Status — Status registry documenting disposition of open requirements issues OI-1 through OI-15.
+
+---
+
 ## §0 — Naming Discrepancies — Resolve Before Implementation
 
 Three source documents use different names for what appear to be the same events. These conflicts cannot be resolved by inference. **All rows in the table below require an explicit team decision before any event bus code is written.**

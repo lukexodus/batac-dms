@@ -9,6 +9,41 @@
 
 ---
 
+## Table of Contents
+
+- [L47–L69] About This Document — Scope of the specification (included and excluded modules) and authority of the design decisions.
+- [L70–L83] 1. Design Principles — Core architectural tenets: custom engine justification, determinism, event-driven state, fail-closed rules, and audit-first logging.
+- [L84–L243] 2. Data Model — PostgreSQL schema rules and metadata for definitions, versions, steps, transitions, instances, events, and lifecycle enums.
+  - [L90–L106] 2.1 `workflow.definitions` — Schema for admin-authored templates, mapping to document types with multi-tenant anchors.
+  - [L107–L123] 2.2 `workflow.definition_versions` — Schema for immutable definition snapshots, tracking versioning, publishing metadata, and active status.
+  - [L124–L141] 2.3 `workflow.steps` — Schema for denormalized step configurations and display ordering, including the valid step type enum values.
+  - [L142–L157] 2.4 `workflow.transition_rules` — Schema for transition rules between steps, containing JSONLogic condition expressions, outcome filters, and execution priority.
+  - [L158–L178] 2.5 `workflow.instances` — Schema for running workflows, capturing pinned version references, SLA deadlines, and mutable context state.
+  - [L179–L202] 2.6 `workflow.step_instances` — Schema for active step execution, tracking resolved assignees, outcomes, comments, step-level SLAs, and bypass details.
+  - [L203–L218] 2.7 `workflow.workflow_events` — Schema for the append-only event log capturing all instance state changes transactionally.
+  - [L219–L243] 2.8 Lifecycle State Enums — Database enum definitions mapping instance and step execution states to their descriptions.
+- [L244–L327] 3. Execution Model — Engine entry points, instance initialization, step resolution sequence, JSONLogic transition checks, assignee resolution, and event emission.
+- [L328–L555] 4. Phase 1 Step Type Behavior Contracts — Execution specifications, configuration schemas, metadata structures, outcome codes, and completion rules for Phase 1 step types.
+  - [L330–L358] 4.1 `action` — Rules for non-branching user tasks or automated system steps yielding a single `DONE` outcome.
+  - [L359–L398] 4.2 `approval` — Configuration and outcomes for manual review decisions, with strict system guards on scheduling automatic lapse outcomes.
+  - [L399–L477] 4.3 `multi_referral` — Concurrent multi-committee document referrals, specifying metadata structures, Secretary manual overrides, and Order of Business scheduling integration.
+  - [L478–L506] 4.4 `decision` — Automated branching step executing JSONLogic expressions on instance context without user interaction.
+  - [L507–L523] 4.5 `notification` — Asynchronous template-based notification dispatching to resolved recipients across in-app, email, and SMS channels.
+  - [L524–L555] 4.6 `termination` — Final execution step resolving workflows, specifying document status updates, cancellation cleanup, and the special `REPASSED` loop.
+- [L556–L571] 5. Phase 2 Reserved Step Types — Definitions and strict Phase 1 execution blocks for upcoming multi-branch split and join steps.
+- [L572–L828] 6. Special Control Flows — Business logic and automated scheduler actions for legislative exceptions, deadlines, vetoes, and deemed approvals.
+  - [L574–L623] 6.1 Certified Urgent Bypass Path — Automatic bypass of committee referrals upon receipt of a Mayor's logged Certification of Urgency.
+  - [L624–L687] 6.2 Thursday Cutoff Enforcement and Second Reading Delay — Idempotent scheduler job computing next-week Second Reading eligibility dates based on Thursday cutoff times.
+  - [L688–L751] 6.3 10-Day Mayor Lapse Timer — Hourly scheduler job handling the 10-day Mayor review deadline, veto overrides, and race condition prevention.
+  - [L752–L828] 6.4 30-Day Panlalawigan Timer — Daily scheduler job implementing deemed-approval lapses and Secretariat manual response routing for Sangguniang Panlalawigan reviews.
+- [L829–L875] 7. Version Management — Definition pinning rules at creation, default execution (Option A), and administrative migration controls (Option B).
+- [L876–L920] 8. SLA Clock and Escalation — Wall-clock SLA definitions, ARTA-compliant system outage behaviors, and automated multi-stage warning and breach escalations.
+- [L921–L942] 9. Engine Invariants — Thirteen runtime engine and database constraints governing definition state, actor conflicts, and step completions.
+- [L943–L980] Appendix A: Domain Events Catalog — Canonical list of all Workflow module domain events, execution triggers, and core payload structures.
+- [L981–L1043] Appendix B: Workflow Instance Context Schema — JSONB payload keys and type definitions schema for storing mutable workflow instance context state variables.
+
+---
+
 ## About This Document
 
 This document specifies the complete behavior of the custom workflow engine. It covers:
