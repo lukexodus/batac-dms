@@ -16,6 +16,6 @@ export const useAppStore = create<AppState>((set) => ({
     url.searchParams.set("page", page);
     window.history.pushState({}, "", url.toString());
   },
-  userRole: "mayor",
+  userRole: "sp",
   setUserRole: (userRole) => set({ userRole }),
 }));

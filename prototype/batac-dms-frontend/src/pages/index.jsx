@@ -37,6 +37,7 @@ import {
 } from '../modals';
 
 import { CitySealOfficial, QRDisplay } from '../layout';
+import { useAppStore } from '../store/useAppStore';
 
 
 
@@ -993,7 +994,19 @@ export const WMSPage = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 export const DMSPage = () => {
-  const { data: documents = [] } = useDocuments();
+  const { userRole } = useAppStore();
+  const { data: allDocuments = [] } = useDocuments();
+
+  const documents = React.useMemo(() => {
+    return allDocuments.filter(d => {
+      if (userRole === "sp") {
+        return d.office === "SP Secretariat" || (d.type && d.type.startsWith("SP"));
+      } else if (userRole === "mayor") {
+        return d.office === "Mayor's Office" || (d.submittedBy && d.submittedBy.includes("Mayor"));
+      }
+      return true;
+    });
+  }, [allDocuments, userRole]);
 
   const [search, setSearch] = useState("")
   const [filters, setFilters] = useState({ type: "All Types", office: "All Offices", status: "All Statuses", classification: "All" })
@@ -1126,9 +1139,9 @@ export const DMSPage = () => {
                   <td className="px-4 py-3.5"><StatusBadge status={doc.status} /></td>
                   <td className="px-4 py-3.5"><ClassificationBadge level={doc.classification} /></td>
                   <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 transition-opacity">
                       {[[Eye, "View"], [Activity, "Track"], [Download, "Download"], [MoreHorizontal, "More"]].map(([Icon, title]) => (
-                        <button key={title} title={title} onClick={() => title === "Track" ? window.open("?page=dts&docId=" + doc.id, "_blank") : null} className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors">
+                        <button key={title} title={title} onClick={() => title === "Track" ? window.open("?page=dts&docId=" + doc.id, "_blank") : null} className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors shadow-sm">
                           <Icon size={13} />
                         </button>
                       ))}
