@@ -6,38 +6,39 @@
 **Status:** DRAFT — pre-development proposal
 **Date:** June 2026
 **Based on:**
-- F1 — `f1-application-route-map.md`
+- F1 — `f1-application-route-map-v2.md` `[Resolved — ADR-001 through ADR-010]`
 - 2-Stack-Context — `2-stack-context.md`
 - Consolidated Architecture & Requirements Reference — Iteration 3
 
 **Audience:** Frontend development team
 
-> **Inheritance of inference boundary from F1:** Component names, parent–child relationships derived from true route nesting, sub-component listings (panels, widgets), and required-role assignments are sourced directly from F1. Route paths, component names, and all frontend information-architecture decisions remain F1's own proposed synthesis — not approved architecture — per F1's own opening caveat. All inference-status tags below carry the same meaning as in F1 §1.
-
+> **Inheritance of inference boundary from F1:** Component names, parent–child relationships derived from true route nesting, sub-component listings (panels, widgets), and required-role assignments are sourced directly from F1. Route paths, component names, and all frontend information-architecture decisions remain F1's own proposed synthesis — not approved architecture — per F1's own opening caveat. All inference-status tags below carry the same meaning as in F1-v2 §1. Resolved gaps from F1 are marked `[Resolved — ADR-00x]` throughout.
 
 ## Table of Contents
 
-- [L44–L54] 1. Notation — Confidence tags indicating whether component hierarchy decisions are confirmed, inferred, unverified, or deferred.
-- [L55–L93] 2. Overview — High-level summary of internal and public contexts, component count totals, and authorization role codes.
-- [L94–L195] 3. Component Hierarchy — Visual nesting maps showing parent-child page routes and navigational cross-links for internal and portal contexts.
-  - [L96–L176] 3.1 Internal Authenticated App (`/apps/web`) — Nesting outline of SP Secretary, platform admin, document management, and workflow inbox pages.
-  - [L177–L195] 3.2 Public Portal Subset — Flat route sibling hierarchy for citizen registration, login, document requests, and complaint pages.
-- [L196–L322] 4. Mermaid Diagrams — Flowcharts illustrating navigation maps, nested pages, conditional workflow panels, and secretary dashboard widgets.
-  - [L198–L260] 4.1 Internal App — Full Page Hierarchy — Visual flowchart of internal routes, nested sub-pages, and navigational cross-links.
-  - [L261–L296] 4.2 WorkflowStepActionPage — Conditional Panels — Visual diagram of the eleven workflow action and approval panels rendered dynamically.
-  - [L297–L322] 4.3 SecretaryDashboardPage — Widget Composition — Visual composition of the five widgets within the SP Secretary's primary dashboard.
-- [L323–L915] 5. Component Descriptions — Route properties, access roles, and specific tRPC/REST data dependencies for each frontend component.
-  - [L325–L390] 5.1 Internal App — Dashboard & Scheduling Pages — Secretary and Mayor dashboard widgets, data queries, and session scheduling pages.
-  - [L391–L457] 5.2 Internal App — Document Routes — Browsing, search, creation, and detail views for tracking document lifecycle actions and metadata.
-  - [L458–L519] 5.3 Internal App — Workflow Routes & Conditional Panels — Inbox page and the eleven step-action panels gated by specific user roles.
-  - [L520–L619] 5.4 Internal App — Staff-Side Complaint & Document Request Routes — Secretariat intake and detail views for managing in-person complaints and copy requests.
-  - [L620–L655] 5.5 Internal App — Session Attendance Routes — Attendance statistics and detail entry pages, including Substitution and Designation edge cases.
-  - [L656–L689] 5.6 Internal App — Audit Log Routes — User-specific actions, office-scoped document tracking, and tamper-evident chain validation pages.
-  - [L690–L799] 5.7 Internal App — Platform Administration Routes — Committee, platform config, notification logs, role assignments, office hierarchy, and retention schedules.
-  - [L800–L813] 5.8 Internal App — SecretaryDashboardPage Widgets — Task queue, pending items, session calendar, agenda summary, and SLA compliance sub-components.
-  - [L814–L915] 5.9 Public Portal Subset — Page Components — Citizen registration, login, document lookup, complaint forms, and request tracking endpoints.
-- [L916–L977] 6. Parent–Child Relationships — Tabular summary of structural route nesting, sub-component containments, and navigational cross-links.
-- [L978–L997] 7. Open Items Inherited from F1 — Developer visibility tracker mapping design gaps and missing tRPC/REST backend procedures.
+- [L2–L44] Batac City LGU Platform — Phase 1
+- [L45–L55] 1. Notation — Confidence tags indicating whether component hierarchy decisions are confirmed, inferred, unverified, or deferred.
+- [L56–L94] 2. Overview — High-level summary of internal and public contexts, component count totals, and authorization role codes.
+- [L95–L203] 3. Component Hierarchy — Visual nesting maps showing parent-child page routes and navigational cross-links for internal and portal contexts.
+  - [L97–L183] 3.1 Internal Authenticated App (`/apps/web`) — Nesting outline of SP Secretary, platform admin, document management, and workflow inbox pages.
+  - [L184–L203] 3.2 Public Portal Subset — Flat route sibling hierarchy for citizen registration, login, document requests, and complaint pages.
+- [L204–L337] 4. Mermaid Diagrams — Flowcharts illustrating navigation maps, nested pages, conditional workflow panels, and secretary dashboard widgets.
+  - [L206–L275] 4.1 Internal App — Full Page Hierarchy — Visual flowchart of internal routes, nested sub-pages, and navigational cross-links.
+  - [L276–L311] 4.2 WorkflowStepActionPage — Conditional Panels — Visual diagram of the eleven workflow action and approval panels rendered dynamically.
+  - [L312–L337] 4.3 SecretaryDashboardPage — Widget Composition — Visual composition of the five widgets within the SP Secretary's primary dashboard.
+- [L338–L1015] 5. Component Descriptions — Route properties, access roles, and specific tRPC/REST data dependencies for each frontend component.
+  - [L340–L405] 5.1 Internal App — Dashboard & Scheduling Pages — Secretary and Mayor dashboard widgets, data queries, and session scheduling pages.
+  - [L406–L472] 5.2 Internal App — Document Routes — Browsing, search, creation, and detail views for tracking document lifecycle actions and metadata.
+  - [L473–L534] 5.3 Internal App — Workflow Routes & Conditional Panels — Inbox page and the eleven step-action panels gated by specific user roles.
+  - [L535–L630] 5.4 Internal App — Staff-Side Complaint & Document Request Routes — Secretariat intake and detail views for managing in-person complaints and copy requests.
+  - [L631–L664] 5.5 Internal App — Session Attendance Routes — Attendance statistics and detail entry pages, including Designation document integration.
+  - [L665–L698] 5.6 Internal App — Audit Log Routes — User-specific actions, office-scoped document tracking, and tamper-evident chain validation pages.
+  - [L699–L821] 5.7 Internal App — Platform Administration Routes — Committee, config CRUD, notifications, role assignments, office hierarchy, and retention schedules.
+  - [L822–L835] 5.8 Internal App — SecretaryDashboardPage Widgets — Task queue, pending items, session calendar, agenda summary, and SLA compliance sub-components.
+  - [L836–L951] 5.9 Public Portal Subset — Page Components — Citizen registration, login, lookup, request forms, and complaint status page components.
+  - [L952–L1015] 5.10 Internal App — System Administration Routes — Landing homepage, active sessions, user account management, and chain integrity verification pages.
+- [L1016–L1081] 6. Parent–Child Relationships — Tabular summary of structural route nesting, sub-component containments, and navigational cross-links.
+- [L1082–L1108] 7. Resolved Gaps Register — Closure record mapping the resolutions of the ten pre-development architectural gaps and follow-ups.
 
 ---
 
@@ -59,17 +60,17 @@ Phase 1 frontend comprises two application contexts:
 | Context | Root App | Stack | Authentication |
 |---|---|---|---|
 | Internal Authenticated App | `/apps/web` | Vite + React SPA; tRPC-backed | All routes require authentication; role-gated via ABAC + RBAC `[Confirmed — 2-Stack-Context]` |
-| Public Portal Subset | Hosting app unresolved — may be unauthenticated routes inside `/apps/web` or inside `/apps/portal` (Next.js) `[Unverified — F1 §2.1, §13.1]` | REST-backed; not tRPC `[Confirmed — F1 §2.3]` | Mixed: public (no auth required) + citizen-authenticated routes |
+| Public Portal Subset | `/apps/portal` (Next.js), built now `[Resolved — ADR-001]` | REST-backed; not tRPC `[Confirmed — F1 §2.3]` | Mixed: public (no auth required) + citizen-authenticated routes |
 
 **Component count summary:**
 
 | Category | Count |
 |---|---|
-| Internal app — page-level components | 25 |
+| Internal app — page-level components | 30 |
 | Internal app — `WorkflowStepActionPage` conditional panels | 11 |
 | Internal app — `SecretaryDashboardPage` widgets | 5 |
-| Public portal — page-level components | 8 |
-| **Total** | **49** |
+| Public portal — page-level components | 9 |
+| **Total** | **55** |
 
 **Role codes referenced throughout this document** `[Confirmed — F1 §2.2]`:
 
@@ -147,11 +148,17 @@ InternalApp
 ├── AuditLogPage                                            [/audit]
 │   └── AuditFullLogPage                                    [/audit/full]
 │
-└── PlatformAdminHomePage                                   [/admin]
-    ├── CommitteeManagementPage                             [/admin/committees]
-    ├── PlatformConfigPage                                  [/admin/config]
-    ├── NotificationDeliveryLogsPage                        [/admin/delivery-logs]
-    └── RoleAssignmentPage                                  [/admin/roles]
+├── PlatformAdminHomePage                                   [/admin]
+│   ├── CommitteeManagementPage                             [/admin/committees]
+│   ├── PlatformConfigPage                                  [/admin/config]
+│   ├── NotificationDeliveryLogsPage                        [/admin/delivery-logs]
+│   ├── RoleAssignmentPage                                  [/admin/roles]
+│   └── AnnouncementManagementPage                          [/admin/announcements]
+│
+└── SystemAdminHomePage                                     [/sysadmin]
+    ├── ActiveSessionsPage                                  [/sysadmin/sessions]
+    ├── UserAccountManagementPage                           [/sysadmin/users]
+    └── AuditIntegrityStatusPage                            [/sysadmin/audit-integrity]
 
 (a) Placed at the top level of the route tree — not nested under /admin — because
     multiple non-Platform-Administrator roles need direct view access to these pages.
@@ -179,7 +186,7 @@ Dotted lines in the route hierarchy diagram. A cross-link is a navigation action
 No true route nesting exists within the portal subset. All eight pages are siblings under the portal root context.
 
 ```
-PublicPortalSubset  [hosting app unresolved — see §2]
+PublicPortalSubset  [/apps/portal (Next.js) — Resolved — ADR-001]
 │
 ├── PortalTrackingLookupPage                [/portal/lookup]
 ├── PortalDocumentViewPage                  [/portal/documents/:trackingNumber]
@@ -188,7 +195,8 @@ PublicPortalSubset  [hosting app unresolved — see §2]
 ├── PortalDocumentRequestFormPage           [/portal/requests/new]
 ├── PortalDocumentRequestStatusPage         [/portal/requests/:requestId/status]
 ├── PortalComplaintFormPage                 [/portal/complaints/new]
-└── PortalComplaintStatusPage               [/portal/complaints/:complaintId/status]
+├── PortalComplaintStatusPage               [/portal/complaints/:complaintId/status]
+└── PortalAnnouncementsPage                 [/portal/announcements]
 ```
 
 ---
@@ -206,7 +214,7 @@ flowchart TD
     classDef root fill:#f1f5f9,stroke:#475569,color:#000,font-weight:bold
 
     ROOT_INT["Internal Authenticated App\n/apps/web"]:::root
-    ROOT_PORT["Public Portal Subset\nhosting app unresolved"]:::root
+    ROOT_PORT["Public Portal Subset\n/apps/portal (Next.js)"]:::root
 
     %% Top-level internal pages
     ROOT_INT --> SEC["SecretaryDashboardPage\n/secretary"]:::page
@@ -221,6 +229,7 @@ flowchart TD
     ROOT_INT --> SESL["SessionAttendanceOverviewPage\n/sessions"]:::page
     ROOT_INT --> AUDL["AuditLogPage\n/audit"]:::page
     ROOT_INT --> ADMP["PlatformAdminHomePage\n/admin"]:::page
+    ROOT_INT --> SADM["SystemAdminHomePage\n/sysadmin"]:::page
 
     %% True nested route children
     DOCL --> DOCN["DocumentIntakeFormPage\n/documents/new"]:::page
@@ -236,6 +245,11 @@ flowchart TD
     ADMP --> ADMCFG["PlatformConfigPage\n/admin/config"]:::page
     ADMP --> ADMDL["NotificationDeliveryLogsPage\n/admin/delivery-logs"]:::page
     ADMP --> ADMR["RoleAssignmentPage\n/admin/roles"]:::page
+    ADMP --> ADMAN["AnnouncementManagementPage\n/admin/announcements"]:::page
+    
+    SADM --> SADS["ActiveSessionsPage\n/sysadmin/sessions"]:::page
+    SADM --> SADU["UserAccountManagementPage\n/sysadmin/users"]:::page
+    SADM --> SADA["AuditIntegrityStatusPage\n/sysadmin/audit-integrity"]:::page
 
     %% Navigational cross-links
     SEC -. "nav" .-> OOB
@@ -256,6 +270,7 @@ flowchart TD
     ROOT_PORT --> PRS["PortalDocumentRequestStatusPage\n/portal/requests/:requestId/status"]:::portal
     ROOT_PORT --> PCN["PortalComplaintFormPage\n/portal/complaints/new"]:::portal
     ROOT_PORT --> PCS["PortalComplaintStatusPage\n/portal/complaints/:complaintId/status"]:::portal
+    ROOT_PORT --> PANN["PortalAnnouncementsPage\n/portal/announcements"]:::portal
 ```
 
 ### 4.2 WorkflowStepActionPage — Conditional Panels
@@ -486,7 +501,7 @@ Task inbox listing all workflow steps currently assigned to the authenticated us
 | **Parent (routed)** | `MyAssignedStepsPage` |
 | **Children (sub-components)** | 11 conditional panels — see §5.3.1 |
 
-A single dynamic route that renders one conditional panel at a time based on `currentStepType` and `step.name` returned by `workflow.getInstance`. Dynamic segment is `:instanceId` (not `:stepInstanceId`) because `workflow.getInstance` takes `instanceId` as its input and returns `currentStepInstanceId` in its output, allowing all write-action mutations to receive `currentStepInstanceId` directly without a second lookup. `[Inference — F1 §8.2]`
+A single dynamic route that renders one conditional panel at a time based on `currentStepType` and `step.name` returned by `workflow.getInstance`. Dynamic segment is `:instanceId` (not `:stepInstanceId`) because `workflow.getInstance` takes `instanceId` as its input and returns `currentStepInstanceId` in its output, allowing all write-action mutations to receive `currentStepInstanceId` directly without a second lookup. `[Resolved — ADR-010]`
 
 **Primary data dependencies** `[Confirmed — F1 §8.2]`:
 
@@ -508,7 +523,7 @@ Each panel is a sub-component rendered inside `WorkflowStepActionPage`. Only one
 | `MayorDecisionPanel` | `step.name = 'mayor_review'` or `'mayor_signature'` | Mayor | `workflow.mayorSign`, `workflow.mayorVeto` |
 | `MayorLapseConfirmationPanel` | System-triggered 10-day lapse pending confirmation | SP Secretary | `workflow.logMayorLapseConfirmation` |
 | `VetoOverrideRecordingPanel` | Post-veto-override-vote step | SP Secretary | `workflow.recordVetoOverrideVote` |
-| `MultiReferralPanel` | `step_type = 'multi_referral'` | SP Secretary; SP Member (committee-scoped) | `workflow.submitCommitteeReport`, `workflow.manuallyAdvanceMultiReferralStep` (SP Secretary only), `session.enterCommitteeHearingDate` (SP Secretary only) |
+| `MultiReferralPanel` | `step_type = 'multi_referral'` | SP Secretary; SP Member (committee-scoped) | `workflow.submitCommitteeReport`, `workflow.manuallyAdvanceMultiReferralStep` (SP Secretary only), `session.enterCommitteeHearingDate` (SP Secretary only), `organization.listCommittees` `[Resolved — ADR-004]` |
 | `DocketingPanel` | `step.name = 'docketing'` `[Inference — literal step-name value not confirmed in source]` | SP Secretary | `workflow.logDocketingCompletion` |
 | `PanlalawiganOutcomePanel` | `step.name = 'panlalawigan_review'` | SP Secretary | `workflow.recordPanlalawiganOutcome`, `workflow.resolveValidInPart`, `workflow.confirmPanlalawiganDeemedApproved` |
 | `PublicationDatePanel` | Penalty ordinance pending newspaper publication | SP Secretary | `workflow.recordNewspaperPublicationDate` |
@@ -564,9 +579,7 @@ In-person, clerk-assisted complaint intake. Implements mode 3 of the three acces
 
 Complaint detail view with routing, committee report entry, and outcome-setting actions. Four outcome states: Pending Hearing, Received/Seen, Dismissed, Resolved. `[Confirmed — Architecture Reference §4.14]`
 
-**Primary data dependencies** `[Confirmed — F1 §8.3]`: `complaints.logAndAssign`, `complaints.enterCommitteeReport`, `complaints.setOutcome`
-
-**Gap:** No single-record read procedure (`complaints.get`) exists in E1. The detail page would need to either filter an already-loaded `complaints.listAll` result client-side, or require a new backend procedure. `[Unverified — F1 §8.3, §14 item 5]`
+**Primary data dependencies** `[Confirmed — F1 §8.3]`: `complaints.get` `[Resolved — ADR-005]`, `complaints.logAndAssign`, `complaints.enterCommitteeReport`, `complaints.setOutcome`
 
 ---
 
@@ -611,9 +624,7 @@ In-person, clerk-assisted document request intake. Generates a printable form th
 
 Two-stage approval and release. Approval requires both the Vice Mayor (SP Presiding Officer) and SP Secretary signature per Architecture Reference §4.15. `[Confirmed — Architecture Reference §4.15; F1 §8.4]`
 
-**Primary data dependencies** `[Confirmed — F1 §8.4]`: `documentRequests.approveAsPresidingOfficer`, `documentRequests.approveAsSecretary`, `documentRequests.releaseCopy`, `documentRequests.generatePrintableForm`
-
-**Gap:** No single-record read procedure (`documentRequests.get`) exists in E1 — same issue as `ComplaintDetailPage`. `[Unverified — F1 §8.4, §14 item 5]`
+**Primary data dependencies** `[Confirmed — F1 §8.4]`: `documentRequests.get` `[Resolved — ADR-005]`, `documentRequests.approveAsPresidingOfficer`, `documentRequests.approveAsSecretary`, `documentRequests.releaseCopy`, `documentRequests.generatePrintableForm`
 
 ---
 
@@ -645,11 +656,9 @@ Overview of session attendance history with statistics — count of present/abse
 | **Phase** | Phase 1 |
 | **Parent (routed)** | `SessionAttendanceOverviewPage` |
 
-Per-session attendance record showing which councilors are absent and their absence reason (OB, sick leave, vacation leave, unqualified absent), plus quorum calculation (7 of 12 required). `[Confirmed — Architecture Reference §7.3; F1 §9]`
+Per-session attendance record showing which councilors are absent and their absence reason (OB, sick leave, vacation leave, unqualified absent), plus quorum calculation (7 of 12 required). The designated substitute field for substitute presiding officers now carries a genuine Designation-document linkage, as the Designation document type is pulled into Phase 1 `[Resolved — ADR-007]`.
 
 **Primary data dependencies**: `session.getAttendanceRecord`, `session.recordAttendance`
-
-**Tension:** F1 §9 notes that the "designated substitute" field (for when the SP Presiding Officer is absent) textually depends on the Designation document type, which is Phase 1B. How this field behaves before Phase 1B ships is not resolved by either source. `[Unverified — F1 §9, §14 item 7]`
 
 ---
 
@@ -713,11 +722,9 @@ Navigation shell for Platform Administrator views. Holds no data of its own. Cro
 | **Phase** | Phase 1 |
 | **Parent (routed)** | `PlatformAdminHomePage` |
 
-Create, update, and assign membership to SP standing committees. Currently write-only against an unverifiable read state because no list/read procedure for committees exists in E1. `[Confirmed — F1 §12.2; Unverified — F1 §8.5, §14 item 4]`
+Create, update, and assign membership to SP standing committees. Read actions are supported by `organization.listCommittees` `[Resolved — ADR-004]`.
 
-**Primary data dependencies**: `organization.createCommittee`, `organization.updateCommittee`, `organization.assignCommitteeMembership`
-
-**Gap:** No committee list/read procedure in E1. This affects both this page and the committee picker in `MultiReferralPanel`. `[Unverified — F1 §8.5, §14 item 4]`
+**Primary data dependencies**: `organization.listCommittees` `[Resolved — ADR-004]`, `organization.createCommittee`, `organization.updateCommittee`, `organization.assignCommitteeMembership`
 
 ---
 
@@ -730,9 +737,9 @@ Create, update, and assign membership to SP standing committees. Currently write
 | **Phase** | Phase 1 |
 | **Parent (routed)** | `PlatformAdminHomePage` |
 
-Configuration surface for document types, workflow definitions, notification templates, SLA thresholds, numbering series, and public visibility rules — all Tier-2 Platform Administrator capabilities per Architecture Reference §11.8. No confirmed tRPC procedures exist for any of these six configuration entities. `[Deferred — F1 §12.4; E1 follow-up item E1-F1]`
+Configuration surface for document types, workflow definitions, notification templates, SLA thresholds, numbering series, and public visibility rules — all Tier-2 Platform Administrator capabilities per Architecture Reference §11.8. The configuration CRUD procedures for these six entities are pulled into Phase 1 scope `[Resolved — ADR-002]`.
 
-**Primary data dependencies**: `[Deferred — no confirmed procedures per E1]`
+**Primary data dependencies**: `[Resolved — ADR-002]` new CRUD procedures for the six Tier-2 configuration entities
 
 ---
 
@@ -766,6 +773,21 @@ Assign and revoke one of the 13 fixed roles (per the closed `roleCodeEnum` in E1
 
 ---
 
+#### `AnnouncementManagementPage`
+
+| Field | Value |
+|---|---|
+| **Route** | `/admin/announcements` |
+| **Required role(s)** | Platform Administrator, SP Secretary `[Confirmed — I2 §14]` |
+| **Phase** | Phase 1 |
+| **Parent (routed)** | `PlatformAdminHomePage` |
+
+Manage announcements posted on the public portal. Platform Administrator and SP Secretary can create, edit, publish, and archive announcements. `[Resolved — ADR-006]`
+
+**Primary data dependencies**: new announcement write procedures (e.g., `portal.createAnnouncement`, `portal.updateAnnouncement`, etc.) and new public-read announcement procedure (e.g., `portal.listAnnouncements`) `[Resolved — ADR-006]`
+
+---
+
 #### `OrganizationManagementPage`
 
 | Field | Value |
@@ -791,9 +813,9 @@ View and manage the office hierarchy, positions, employees, and position assignm
 | **Required role(s)** | View: Platform Administrator, Records Officer, SP Secretary, Auditor. Propose new schedule: Records Officer. Activate: Platform Administrator `[Confirmed — F1 §12.6; I2]` |
 | **Phase** | Phase 1 |
 
-View confirmed retention schedules. Records Officer can propose new schedules; Platform Administrator gives final activation. No creation or activation procedure for retention schedules exists in E1 (only `records.getRetentionSchedule` for read and `records.applyRetentionSchedule` for applying to a specific record). `[Unverified — F1 §12.6, §14 item 3]`
+View confirmed retention schedules. Records Officer can propose new schedules; Platform Administrator gives final activation. Propose and activate procedures are pulled into Phase 1 scope `[Resolved — ADR-003]`.
 
-**Primary data dependencies**: `records.getRetentionSchedule`
+**Primary data dependencies**: `records.getRetentionSchedule`, new propose and activate procedures `[Resolved — ADR-003]`
 
 ---
 
@@ -870,10 +892,10 @@ Citizen login with password and phone OTP. `[Confirmed — Architecture Referenc
 | Field | Value |
 |---|---|
 | **Route** | `/portal/requests/new` |
-| **Required role(s)** | Public / Citizen — whether login is required before submitting is unresolved `[Unverified — F1 §13.2, §14 item 9]` |
+| **Required role(s)** | Public — no authentication required `[Resolved — ADR-009]` |
 | **Phase** | Phase 1 |
 
-Digital-form intake for document copy requests (mode 2 of three access modes). System generates a printable form from citizen-input details; citizen prints, signs, and submits physically. Physical signature is still required. `[Confirmed — Architecture Reference §4.15; F1 §13.2]`
+Digital-form intake for document copy requests (mode 2 of three access modes). System generates a printable form from citizen-input details; citizen prints, signs, and submits physically. Physical signature is still required. Submissions are public and anonymous by default, requiring no account `[Resolved — ADR-009]`.
 
 ---
 
@@ -894,10 +916,10 @@ Citizen's view of their own document request status, including whether it has be
 | Field | Value |
 |---|---|
 | **Route** | `/portal/complaints/new` |
-| **Required role(s)** | Public / Citizen — whether login is required before submitting is unresolved `[Unverified — F1 §13.2, §14 item 9]` |
+| **Required role(s)** | Public — no authentication required `[Resolved — ADR-009]` |
 | **Phase** | Phase 1 |
 
-Digital-form intake for citizen complaints (mode 2 of three access modes). Not limited to transportation complaints — any LGU-related complaint may be filed. Physical signature still required after form generation. `[Confirmed — Architecture Reference §4.14; F1 §13.2]`
+Digital-form intake for citizen complaints (mode 2 of three access modes). Not limited to transportation complaints — any LGU-related complaint may be filed. Physical signature still required after form generation. Submissions are public and anonymous by default, requiring no account `[Resolved — ADR-009]`.
 
 ---
 
@@ -910,6 +932,84 @@ Digital-form intake for citizen complaints (mode 2 of three access modes). Not l
 | **Phase** | Phase 1 |
 
 Citizen's view of their own complaint status across the four outcome states: Pending Hearing, Received/Seen, Dismissed, Resolved. `[Confirmed — Architecture Reference §4.14; F1 §13.2]`
+
+---
+
+#### `PortalAnnouncementsPage`
+
+| Field | Value |
+|---|---|
+| **Route** | `/portal/announcements` |
+| **Required role(s)** | Public — no authentication required `[Confirmed — F1 §14.4]` |
+| **Phase** | Phase 1 |
+
+Public landing page displaying announcements posted by the SP Secretariat or Platform Administrator. `[Resolved — ADR-006]`
+
+**Primary data dependencies**: public-read announcements procedure (e.g., `portal.listAnnouncements`) `[Resolved — ADR-006]`
+
+---
+
+### 5.10 Internal App — System Administration Routes
+
+All routes in this section are System Administrator only, Vite + React SPA-based, and Phase 1 `[Resolved — ADR-008]`.
+
+---
+
+#### `SystemAdminHomePage`
+
+| Field | Value |
+|---|---|
+| **Route** | `/sysadmin` |
+| **Required role(s)** | System Administrator only `[Confirmed — I2; Resolved — ADR-008]` |
+| **Phase** | Phase 1 |
+| **Children (routed)** | `ActiveSessionsPage`, `UserAccountManagementPage`, `AuditIntegrityStatusPage` |
+
+Navigation landing shell for System Administrator actions. Holds no data of its own. `[Resolved — ADR-008]`
+
+---
+
+#### `ActiveSessionsPage`
+
+| Field | Value |
+|---|---|
+| **Route** | `/sysadmin/sessions` |
+| **Required role(s)** | System Administrator only `[Confirmed — I2; Resolved — ADR-008]` |
+| **Phase** | Phase 1 |
+| **Parent (routed)** | `SystemAdminHomePage` |
+
+Monitor all active user sessions and force session termination. `[Resolved — ADR-008]`
+
+**Primary data dependencies**: `iam.listAllActiveSessions` (read), `iam.forceTerminateSession` (write)
+
+---
+
+#### `UserAccountManagementPage`
+
+| Field | Value |
+|---|---|
+| **Route** | `/sysadmin/users` |
+| **Required role(s)** | System Administrator only `[Confirmed — I2; Resolved — ADR-008]` |
+| **Phase** | Phase 1 |
+| **Parent (routed)** | `SystemAdminHomePage` |
+
+Create, edit, deactivate, and reactivate user accounts. `[Resolved — ADR-008]`
+
+**Primary data dependencies**: `iam.createUserAccount`, `iam.editUserAccount`, `iam.deactivateUserAccount`, `iam.reactivateUserAccount`
+
+---
+
+#### `AuditIntegrityStatusPage`
+
+| Field | Value |
+|---|---|
+| **Route** | `/sysadmin/audit-integrity` |
+| **Required role(s)** | System Administrator only `[Confirmed — I2; Resolved — ADR-008]` |
+| **Phase** | Phase 1 |
+| **Parent (routed)** | `SystemAdminHomePage` |
+
+Verify the tamper-evident hash chain integrity of the audit logs without having visibility into the full audit log contents. `[Resolved — ADR-008]`
+
+**Primary data dependencies**: `audit.validateChainIntegrity`
 
 ---
 
@@ -934,6 +1034,10 @@ These relationships represent the React Router nested route tree where the paren
 | `PlatformAdminHomePage` | `PlatformConfigPage` | `/admin/config` |
 | `PlatformAdminHomePage` | `NotificationDeliveryLogsPage` | `/admin/delivery-logs` |
 | `PlatformAdminHomePage` | `RoleAssignmentPage` | `/admin/roles` |
+| `PlatformAdminHomePage` | `AnnouncementManagementPage` | `/admin/announcements` |
+| `SystemAdminHomePage` | `ActiveSessionsPage` | `/sysadmin/sessions` |
+| `SystemAdminHomePage` | `UserAccountManagementPage` | `/sysadmin/users` |
+| `SystemAdminHomePage` | `AuditIntegrityStatusPage` | `/sysadmin/audit-integrity` |
 
 ### 6.2 Sub-Component Containment (Within-Page)
 
@@ -975,22 +1079,29 @@ Navigation actions from one independently-routed page to another. Do not imply s
 
 ---
 
-## 7. Open Items Inherited from F1
+## 7. Resolved Gaps Register
 
-The following gaps from F1 §14 directly affect component design decisions and are re-stated here for developer visibility.
+`[Resolved — ADR-001 through ADR-010]` An earlier pass over this same source material identified ten outstanding gaps and open questions. All ten are now resolved by the ADRs below. This section is a closure record, not an open-items list.
 
-| # | Gap | Affected Component(s) |
-|---|---|---|
-| 1 | Hosting app for the public portal subset is unresolved (`/apps/web` unauthenticated routes or `/apps/portal`) | All portal pages (§5.9) |
-| 2 | Platform Admin Tier-2 config CRUD has no confirmed tRPC procedures | `PlatformConfigPage` |
-| 3 | Retention schedule creation/activation has no confirmed procedure | `RetentionSchedulesPage` |
-| 4 | Committee list/read procedure missing — affects the committee picker in `MultiReferralPanel` and `CommitteeManagementPage` | `CommitteeManagementPage`, `MultiReferralPanel` |
-| 5 | No single-record read procedure for `complaints` or `documentRequests` routers | `ComplaintDetailPage`, `DocumentRequestDetailPage` |
-| 6 | Portal announcements page write permission exists in I2 but no procedure or named page exists | Unresolved — no component built for this |
-| 7 | `SessionAttendanceDetailPage` "designated substitute" field depends on the Designation document type (Phase 1B) | `SessionAttendanceDetailPage` |
-| 8 | Whether System Administrator needs distinct views separate from Platform Administrator | `PlatformAdminHomePage` and its children |
-| 9 | Whether `/portal/requests/new` and `/portal/complaints/new` require authenticated citizen login | `PortalDocumentRequestFormPage`, `PortalComplaintFormPage` |
-| 10 | Whether `WorkflowStepActionPage` should key on `instanceId` (proposed here) or `stepInstanceId` | `WorkflowStepActionPage` |
+| # | Gap (as originally identified) | Resolution | ADR | Affected Component(s) |
+|---|---|---|---|---|
+| 1 | Which app hosts the Phase 1 public portal | `/apps/portal` (Next.js), built now | [ADR-001](./f1-adrs-application-route-map/ADR-001-public-portal-hosting-app.md) | All portal pages (§5.9) |
+| 2 | Platform Admin Tier-2 config CRUD has no confirmed procedure | Pulled into Phase 1 scope; procedures to be designed and built | [ADR-002](./f1-adrs-application-route-map/ADR-002-tier2-config-crud-scope.md) | `PlatformConfigPage` |
+| 3 | Retention schedule creation/activation has no confirmed procedure | Pulled into Phase 1 scope; propose/activate procedures to be built | [ADR-003](./f1-adrs-application-route-map/ADR-003-retention-schedule-crud-scope.md) | `RetentionSchedulesPage` |
+| 4 | Committee list/read has no confirmed procedure | `organization.listCommittees` added | [ADR-004](./f1-adrs-application-route-map/ADR-004-committee-list-procedure.md) | `CommitteeManagementPage`, `MultiReferralPanel` |
+| 5 | `complaints`/`documentRequests` have no single-record read | `complaints.get`, `documentRequests.get` added | [ADR-005](./f1-adrs-application-route-map/ADR-005-single-record-read-procedures.md) | `ComplaintDetailPage`, `DocumentRequestDetailPage` |
+| 6 | Public-portal announcement posting has no backing procedure or page | Built now — `/admin/announcements` + `/portal/announcements` | [ADR-006](./f1-adrs-application-route-map/ADR-006-public-portal-announcements.md) | `AnnouncementManagementPage`, `PortalAnnouncementsPage` |
+| 7 | Session Attendance substitute field depends on Phase 1B Designation document | Designation pulled into Phase 1 | [ADR-007](./f1-adrs-application-route-map/ADR-007-designation-document-type-phase1.md) | `SessionAttendanceDetailPage` |
+| 8 | Whether System Administrator needs dedicated views | Yes — minimal section built (§13 of F1-v2) | [ADR-008](./f1-adrs-application-route-map/ADR-008-system-administrator-views.md) | `SystemAdminHomePage` and its children |
+| 9 | Whether portal request/complaint forms require a citizen account | No — no-login, public forms | [ADR-009](./f1-adrs-application-route-map/ADR-009-portal-form-no-login.md) | `PortalDocumentRequestFormPage`, `PortalComplaintFormPage` |
+| 10 | Whether the workflow step detail route keys on `instanceId` or `stepInstanceId` | `instanceId`, confirmed against `workflow.getInstance` | [ADR-010](./f1-adrs-application-route-map/ADR-010-workflow-step-route-key.md) | `WorkflowStepActionPage` |
+
+**Items each ADR leaves open as a named follow-up** (not closed by this resolution pass; tracked here so they are not lost):
+
+- Whether "Designation scope confirmation by Platform Admin — not required" still holds once Designation is Phase 1, not Phase 1B (ADR-007).
+- Four Tier-1 System Administrator capabilities (system health, encryption keys, schema migrations, backup/restore) with no catalogued procedure (ADR-008).
+- Whether a citizen can retroactively link a no-login submission to an account registered afterward (ADR-009).
+- Whether Phase 1 timeline/resourcing can absorb the six items pulled forward across ADR-001, 002, 003, 006, 007, and 008 — `[Unverified]`, not assessable from the documents reviewed.
 
 ---
 

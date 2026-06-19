@@ -550,16 +550,16 @@ This closes a gap in the underlying source material: I2's permission matrix alre
 
 | # | Gap (as originally identified) | Resolution | ADR |
 |---|---|---|---|
-| 1 | Which app hosts the Phase 1 public portal | `/apps/portal` (Next.js), built now | [ADR-001](./ADR-001-public-portal-hosting-app.md) |
-| 2 | Platform Admin Tier-2 config CRUD has no confirmed procedure | Pulled into Phase 1 scope; procedures to be designed and built | [ADR-002](./ADR-002-tier2-config-crud-scope.md) |
-| 3 | Retention schedule creation/activation has no confirmed procedure | Pulled into Phase 1 scope; propose/activate procedures to be built | [ADR-003](./ADR-003-retention-schedule-crud-scope.md) |
-| 4 | Committee list/read has no confirmed procedure | `organization.listCommittees` added | [ADR-004](./ADR-004-committee-list-procedure.md) |
-| 5 | `complaints`/`documentRequests` have no single-record read | `complaints.get`, `documentRequests.get` added | [ADR-005](./ADR-005-single-record-read-procedures.md) |
-| 6 | Public-portal announcement posting has no backing procedure or page | Built now — `/admin/announcements` + `/portal/announcements` | [ADR-006](./ADR-006-public-portal-announcements.md) |
-| 7 | Session Attendance substitute field depends on Phase 1B Designation document | Designation pulled into Phase 1 | [ADR-007](./ADR-007-designation-document-type-phase1.md) |
-| 8 | Whether System Administrator needs dedicated views | Yes — minimal section built (§13) | [ADR-008](./ADR-008-system-administrator-views.md) |
-| 9 | Whether portal request/complaint forms require a citizen account | No — no-login, public forms | [ADR-009](./ADR-009-portal-form-no-login.md) |
-| 10 | Whether the workflow step detail route keys on `instanceId` or `stepInstanceId` | `instanceId`, confirmed against `workflow.getInstance` | [ADR-010](./ADR-010-workflow-step-route-key.md) |
+| 1 | Which app hosts the Phase 1 public portal | `/apps/portal` (Next.js), built now | [ADR-001](./f1-adrs-application-route-map/ADR-001-public-portal-hosting-app.md) |
+| 2 | Platform Admin Tier-2 config CRUD has no confirmed procedure | Pulled into Phase 1 scope; procedures to be designed and built | [ADR-002](./f1-adrs-application-route-map/ADR-002-tier2-config-crud-scope.md) |
+| 3 | Retention schedule creation/activation has no confirmed procedure | Pulled into Phase 1 scope; propose/activate procedures to be built | [ADR-003](./f1-adrs-application-route-map/ADR-003-retention-schedule-crud-scope.md) |
+| 4 | Committee list/read has no confirmed procedure | `organization.listCommittees` added | [ADR-004](./f1-adrs-application-route-map/ADR-004-committee-list-procedure.md) |
+| 5 | `complaints`/`documentRequests` have no single-record read | `complaints.get`, `documentRequests.get` added | [ADR-005](./f1-adrs-application-route-map/ADR-005-single-record-read-procedures.md) |
+| 6 | Public-portal announcement posting has no backing procedure or page | Built now — `/admin/announcements` + `/portal/announcements` | [ADR-006](./f1-adrs-application-route-map/ADR-006-public-portal-announcements.md) |
+| 7 | Session Attendance substitute field depends on Phase 1B Designation document | Designation pulled into Phase 1 | [ADR-007](./f1-adrs-application-route-map/ADR-007-designation-document-type-phase1.md) |
+| 8 | Whether System Administrator needs dedicated views | Yes — minimal section built (§13) | [ADR-008](./f1-adrs-application-route-map/ADR-008-system-administrator-views.md) |
+| 9 | Whether portal request/complaint forms require a citizen account | No — no-login, public forms | [ADR-009](./f1-adrs-application-route-map/ADR-009-portal-form-no-login.md) |
+| 10 | Whether the workflow step detail route keys on `instanceId` or `stepInstanceId` | `instanceId`, confirmed against `workflow.getInstance` | [ADR-010](./f1-adrs-application-route-map/ADR-010-workflow-step-route-key.md) |
 
 **Items each ADR leaves open as a named follow-up** (not closed by this resolution pass; tracked here so they are not lost):
 
