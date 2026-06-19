@@ -2,6 +2,68 @@
 
 **Status:** Post-Interview 2 (June 15) | Developer Decisions Resolved | Pre-Development Baseline **Last Updated:** June 2026 **Audience:** Development team (internal reference)
 
+
+## Table of Contents
+
+- [L69–L140] Document Notes — Historical record of merged source files, merging approach, and key changes introduced by Interview 2 and developer decisions.
+- [L141–L164] Part 1 — Project Identity and Scope — Platform names, LGU scoping, legal/operational sources of truth, and priority order for DMS, DTS, WMS modules.
+- [L165–L215] Part 2 — Phase 1 Scope Decision `[UPDATED — Interview 2]` — List of priority legislative workflows, dashboards, and core features delivered in Phase 1 versus deferred modules.
+- [L216–L280] Part 3 — Confirmed Stakeholders and Organizational Structure `[CONFIRMED from Interview 1]` — Names, titles, voting thresholds, and organizational roles for the Mayor, Vice Mayor, SP members, and Secretariat staff.
+- [L281–L858] Part 4 — Confirmed Document Types, Workflows, and Numbering — Core overview of Philippine local government document types, workflows, numbering rules, and life-cycle flows.
+  - [L283–L373] 4.1 SP Resolution `[UPDATED — Interview 2: two readings confirmed; numbering change; flowchart updated]` — Two-reading legislative lifecycle, numbering transitions, flowchart, VM/Mayor signature rules, transmittal, and public portal visibility restrictions.
+  - [L374–L462] 4.2 SP Ordinance `[UPDATED — Interview 2: numbering change; docketing step added]` — Three-reading legislative workflow, flowchart, Mayor review, veto override, and mandatory newspaper publication rules for penalty ordinances.
+  - [L463–L528] 4.3 Sangguniang Panlalawigan Review `[UPDATED — Interview 2]` — Provincial review sequence, tracked log fields, outcome actions for returned/valid-in-part cases, and automated 30-day timer.
+  - [L529–L545] 4.4 Barangay Resolution `[CONFIRMED]` — Workflow steps for Secretariat intake, committee review, and physical return of barangay-level resolutions.
+  - [L546–L563] 4.5 Barangay Budget `[CONFIRMED — introduces parallel steps]` — Sequential and parallel review workflow involving local finance, budget, treasury, and CPDO offices for barangay budgets.
+  - [L564–L583] 4.6 Internal Memo Outgoing `[UPDATED — Interview 2: prefix confirmed as MO]` — Outgoing memorandum numbering, routing flow, dual reference numbers, and QR tracking rules for the Vice Mayor.
+  - [L584–L599] 4.7 Memo Incoming `[UPDATED — Interview 2: prefix confirmed as MI]` — Incoming internal memo categorization, numbering format, source offices, and metadata fields tracked by the Secretariat.
+  - [L600–L629] 4.8 Letters Received `[UPDATED — Interview 2: prefix confirmed as SPR; routing rules added]` — Incoming correspondence tracking, routing rules through the Vice Mayor, control number immutability, and QR code assignment.
+  - [L630–L648] 4.9 Letters Sent `[UPDATED — Interview 2: prefix confirmed as SPS]` — Outgoing official correspondence numbering, signing authorities, routing workflows, and common document content types.
+  - [L649–L677] 4.10 Notice of Committee Hearing (NCH) `[UPDATED — Interview 2: joint hearing rules added]` — Committee hearing scheduling, joint hearing rules, unified reporting guidelines, and date entry procedures for the Secretariat.
+  - [L678–L693] 4.11 Notice of Special Session `[RESOLVED — Interview 2]` — Purpose, tracking fields, signatories, and separate sequence numbering for urgent special session notifications.
+  - [L694–L735] 4.12 Designation `[SIGNIFICANTLY UPDATED — Interview 2]` — Acting authority rules, automatic expiration, unique active designation constraints, and direct system routing updates.
+  - [L736–L741] 4.13 Administrative Cases `[CONFIRMED]` — Restricted legislative access rules for handling complaints against local officials.
+  - [L742–L779] 4.14 Citizen Complaint `[UPDATED — developer decisions; formerly Transportation-only]` — Intake, routing, resolution states, email/SMS respondent notifications, and public access modes for general citizen complaints.
+  - [L780–L803] 4.15 Document and Records Request Form `[UPDATED — Interview 2: three access modes confirmed]` — Fee-based document retrieval fields, signatures, public portal preview behaviors, and three physical/digital access modes.
+  - [L804–L814] 4.16 Documents Removed from Scope — List of excluded documents including Executive Orders, Purchase Requests, and Franchise Ordinances.
+  - [L815–L840] 4.17 Certification of Urgency `[UPDATED — developer decisions; RESOLVES Q-B01]` — Urgency certification requirements, attachment rules to measures, committee review bypass, and multi-measure batch support.
+  - [L841–L858] 4.18 Order of Business `[NEW — Interview 2]` — Weekly agenda compilation rules, submission cutoffs, and red-flag indicator logic for missing committee reports.
+- [L859–L933] Part 5 — Numbering System `[SIGNIFICANTLY UPDATED — Interview 2]` — Central database numbering format table, delimiter conventions, Draft promotion rules, and UUID tracking logic.
+- [L934–L980] Part 6 — Standing Committees — 7th SP `[CONFIRMED; joint hearing rules added]` — Directory of 22 committees, membership, multi-committee joint hearing rules, and system inbox implications.
+- [L981–L1061] Part 7 — Confirmed Operational Context — Scheduling patterns, quorum attendance tracking, historical document volumes, and legacy systems migration context.
+- [L1062–L1097] Part 8 — Key Architectural Finding: Multi-Committee Referral `[CONFIRMED AND UPDATED]` — Multi-committee referral system design, Option B implementation details, deadline constraints, and manual override workflows.
+- [L1098–L1170] Part 9 — Technology Stack — Frontend, backend, database, monorepo packages, and third-party library selections for application architecture.
+- [L1171–L1209] Part 10 — Architecture Pattern and Module Boundaries — Modular monolith pattern rules, database schema boundary definitions, and cross-module communications constraints.
+- [L1210–L1657] Part 11 — Key Design Decisions (Consolidated) — Consolidated design choices covering security, databases, user management, and system integration strategies.
+  - [L1212–L1234] 11.1 Authentication and Non-Repudiation — Scanned signature limits, TOTP multi-factor expansion plans, and secure JWT/refresh token storage parameters.
+  - [L1235–L1250] 11.2 Infrastructure and Cloud Agnosticism — Vendor-neutral deployment requirements, target hardware environments, and network offline tolerance parameters.
+  - [L1251–L1309] 11.3 Workflow Engine `[UPDATED — Interview 2]` — Custom engine step types, 10-day lapse handling, Certified Urgent rules, version pinning, and ARTA SLA escalations.
+  - [L1310–L1360] 11.4 Document Management `[UPDATED — Interview 2]` — Document states, classification levels, QR cover sheets, OCR upload policies, and Secretariat action logging.
+  - [L1361–L1378] 11.5 Document Numbering `[UPDATED — Interview 2]` — Numbering rules table, draft promotion timing, space delimiter invariants, and DB uniqueness checks.
+  - [L1379–L1396] 11.6 Document Tracking (DTS) `[UPDATED — Interview 2]` — UUID QR tracking, intake assignment timing, routing history data, and public preview blur rules.
+  - [L1397–L1418] 11.7 Records Management — Permanent retention schedules, disposition approvals, and DPA-compliant citizen records deletion constraints.
+  - [L1419–L1434] 11.8 Authorization Model — RLS database isolation, ABAC policies, role separation, and content read restrictions for IT administrators.
+  - [L1435–L1464] 11.9 Database Conventions (Invariants) — Primary key, timestamp, soft-delete invariants, database schema mapping, and PostgreSQL constraints rules.
+  - [L1465–L1479] 11.10 Object Storage — S3 API usage, Cloudflare R2/MinIO configurations, UUID file keys, and supported attachment formats.
+  - [L1480–L1495] 11.11 Audit Log — Append-only database structure, cryptographic hash-chaining, tamper detection, and mandatory audited action events.
+  - [L1496–L1505] 11.12 Concurrency and Locking — Pessimistic concurrency locking model, 15-minute timeout configuration, and active lock notification messages.
+  - [L1506–L1541] 11.13 Delegation and Acting Authority `[SIGNIFICANTLY UPDATED — Interview 2]` — Designation intake workflow, automatic delegation expiry, and in-flight document handling during administration changes.
+  - [L1542–L1561] 11.14 Disaster Recovery and Backup — RTO/RPO targets, database streaming replication, failover routines, daily backups, and immutable cold storage.
+  - [L1562–L1572] 11.15 Offline and Connectivity `[CONFIRMED]` — Outage tolerances, hybrid offline queuing design, and uninterrupted SLA clock compliance requirements.
+  - [L1573–L1585] 11.16 Mobile and Device Support `[CONFIRMED]` — Mobile-responsive web design strategy for personal phones and Windows 11 desktop systems.
+  - [L1586–L1598] 11.17 Session Management — Standard 30-minute inactivity thresholds, concurrent device session restrictions, and forced administrator logouts.
+  - [L1599–L1619] 11.18 Citizen Portal and Identity — Citizen registration requirements, two-factor OTP verification, government ID listings, and public preview layouts.
+  - [L1620–L1631] 11.19 Compliance — Legal compliance rules mapping ARTA, DPA, COA audits, and local government code constraints.
+  - [L1632–L1645] 11.20 Post-Delivery and Governance — LGU ownership transition, source code escrow, ADR requirements, and production database emergency access rules.
+  - [L1646–L1657] 11.21 Extensibility Tiers — Permissions structure separating user preferences, administrator configuration settings, and developer-only code adjustments.
+- [L1658–L1682] Part 12 — Architectural Invariants — Central registry of 16 protected system rules enforced via database schemas and code linting.
+- [L1683–L1719] Part 13 — Roadmap — Five-phase development plan detailing feature rollouts from core legislative workflows to integrations.
+- [L1720–L1955] Part 14 — Remaining Open Questions — superseded by preceding sections — historical record of resolved interview and developer questions.
+  - [L1726–L1740] Questions Resolved by Interview 2 — superseded by preceding sections — historical index of questions answered by Interview 2.
+  - [L1741–L1955] Questions Resolved by Developer Decisions (Post-Interview 2) — superseded by preceding sections — historical log of technical decisions made post-interview.
+
+---
+
 ---
 
 ## Document Notes
