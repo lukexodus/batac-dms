@@ -14,28 +14,31 @@
 
 > **Notation note:** This document applies the same inference tagging used in F1. `[Confirmed — source]` means directly traceable to a named section of a source document. `[Inference]` means a reasonable conclusion drawn from confirmed facts. `[Speculation]` means an unconfirmed possibility raised because source material is silent. Every store design, slice boundary, and state shape decision not explicitly required by the source material is individually tagged at the point it is made. Read this document as a draft for team review, not as approved architecture.
 
----
-
 ## Table of Contents
 
-1. [The Zustand / TanStack Query boundary](#1-the-zustand--tanstack-query-boundary)
-2. [Store inventory](#2-store-inventory)
-3. [File structure](#3-file-structure)
-4. [Store 1 — `useShellStore` (sidebar, global layout)](#4-store-1--useshellstore)
-5. [Store 2 — `useSessionStore` (active auth context)](#5-store-2--usesessionstore)
-6. [Store 3 — `useModalStore` (global modal stack)](#6-store-3--usemodalstore)
-7. [Store 4 — `useNotificationDrawerStore` (SSE-pushed notifications)](#7-store-4--usenotificationdrawerstore)
-8. [Store 5 — `useDocumentIntakeStore` (multi-step document intake form)](#8-store-5--usedocumentintakestore)
-9. [Store 6 — `useWorkflowActionStore` (step-action panel transient state)](#9-store-6--useworkflowactionstore)
-10. [Store 7 — `useComplaintIntakeStore` (clerk-assisted complaint intake)](#10-store-7--usecomplaintintakestore)
-11. [Store 8 — `useDocumentRequestIntakeStore` (clerk-assisted document request intake)](#11-store-8--usedocumentrequestintakestore)
-12. [Store 9 — `useQrScannerStore` (QR scan overlay)](#12-store-9--useqrscannerstore)
-13. [Store 10 — `useOrderOfBusinessStore` (session scheduling)](#13-store-10--useorderofbusinessstore)
-14. [Store 11 — `useAttendanceStore` (session attendance recording)](#14-store-11--useattendancestore)
-15. [Cross-store interaction rules](#15-cross-store-interaction-rules)
-16. [Persistence rules](#16-persistence-rules)
-17. [Testing guidance](#17-testing-guidance)
-18. [Known gaps and open questions](#18-known-gaps-and-open-questions)
+- [L47–L74] 1. The Zustand / TanStack Query Boundary — Core rule separating client-side UI state from server-side state, with concrete boundary examples and SSE/auth exceptions.
+- [L75–L92] 2. Store Inventory — A reference table of the 11 Zustand stores and their primary architectural concerns.
+- [L93–L119] 3. File Structure — File layout of stores in the mono-repo and rules prohibiting direct cross-store dependencies.
+- [L120–L165] 4. Store 1 — `useShellStore` — Sidebar collapse status, active navigation route highlights, and their respective device-specific behaviors.
+- [L166–L223] 5. Store 2 — `useSessionStore` — Decoded auth identity, role codes for synchronous route guards/ABAC checks, and session hydration rules.
+- [L224–L293] 6. Store 3 — `useModalStore` — TypeScript-typed global modal stack registry, rendering rules, and session timeout/scan warning triggers.
+- [L294–L352] 7. Store 4 — `useNotificationDrawerStore` — Real-time SSE notification count increments, last event preview, and bell badge display logic.
+- [L353–L466] 8. Store 5 — `useDocumentIntakeStore` — Multi-step form cache, S3 upload progress tracking, and per-type metadata storage for document creation.
+  - [L362–L373] Steps — The 5-step sequence of the document intake workflow.
+  - [L374–L414] State shape — Types for tracking upload progress, core metadata, and form inputs.
+  - [L415–L450] Actions — Setters, form step navigation, and upload lifecycle action definitions.
+  - [L451–L460] Usage notes — Integration with React Hook Form, scan quality check triggers, and discard/reset rules.
+  - [L461–L466] What does NOT go here — Reminder that document search results and existing records belong in TanStack Query.
+- [L467–L539] 9. Store 6 — `useWorkflowActionStore` — Active sub-panel selections, comment drafts, and veto options for the dynamic workflow action page.
+- [L540–L631] 10. Store 7 — `useComplaintIntakeStore` — In-person complaint intake cache mapping complainant, incident, respondent, and Secretariat routing decisions.
+- [L632–L711] 11. Store 8 — `useDocumentRequestIntakeStore` — In-person document request flow buffering requester info, purpose, payment reference, and printable PDF URL.
+- [L712–L760] 12. Store 9 — `useQrScannerStore` — Camera scanner state, inline metadata preview, and navigation triggers to detail views.
+- [L761–L814] 13. Store 10 — `useOrderOfBusinessStore` — Buffer for staging first readings and hearing dates before batch-saving the Tuesday agenda.
+- [L815–L881] 14. Store 11 — `useAttendanceStore` — SP session attendance buffer tracking roll call, derived quorum count, and regular session blocks.
+- [L882–L902] 15. Cross-Store Interaction Rules — Coding conventions prohibiting cross-store imports and defining hooks, reset patterns, and read-only constraints.
+- [L903–L927] 16. Persistence Rules — Storage configurations specifying which store buffers persist to sessionStorage and what fields are excluded.
+- [L928–L945] 17. Testing Guidance — Vitest unit testing instructions for verifying actions, vanilla API state, and sessionStorage serialization.
+- [L946–L958] 18. Known Gaps and Open Questions — Unresolved issues concerning role mapping, presiding substitutes, document schema picker, partial batch errors, and SSE.
 
 ---
 
