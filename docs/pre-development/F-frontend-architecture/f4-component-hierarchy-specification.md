@@ -14,33 +14,30 @@
 
 > **Inheritance of inference boundary from F1:** Component names, parent–child relationships derived from true route nesting, sub-component listings (panels, widgets), and required-role assignments are sourced directly from F1. Route paths, component names, and all frontend information-architecture decisions remain F1's own proposed synthesis — not approved architecture — per F1's own opening caveat. All inference-status tags below carry the same meaning as in F1 §1.
 
----
 
 ## Table of Contents
 
-1. [Notation](#1-notation)
-2. [Overview](#2-overview)
-3. [Component Hierarchy](#3-component-hierarchy)
-   - 3.1 Internal Authenticated App
-   - 3.2 Public Portal Subset
-4. [Mermaid Diagrams](#4-mermaid-diagrams)
-   - 4.1 Internal App — Full Page Hierarchy
-   - 4.2 WorkflowStepActionPage — Conditional Panels
-   - 4.3 SecretaryDashboardPage — Widget Composition
-5. [Component Descriptions](#5-component-descriptions)
-   - 5.1 Internal App — Dashboard & Scheduling Pages
-   - 5.2 Internal App — Document Routes
-   - 5.3 Internal App — Workflow Routes & Conditional Panels
-   - 5.4 Internal App — Staff-Side Complaint & Document Request Routes
-   - 5.5 Internal App — Session Attendance Routes
-   - 5.6 Internal App — Audit Log Routes
-   - 5.7 Internal App — Platform Administration Routes
-   - 5.8 Internal App — SecretaryDashboardPage Widgets
-   - 5.9 Public Portal Subset — Page Components
-6. [Parent–Child Relationships](#6-parentchild-relationships)
-   - 6.1 True Route Nesting
-   - 6.2 Sub-Component Containment
-   - 6.3 Navigational Cross-Links
+- [L44–L54] 1. Notation — Confidence tags indicating whether component hierarchy decisions are confirmed, inferred, unverified, or deferred.
+- [L55–L93] 2. Overview — High-level summary of internal and public contexts, component count totals, and authorization role codes.
+- [L94–L195] 3. Component Hierarchy — Visual nesting maps showing parent-child page routes and navigational cross-links for internal and portal contexts.
+  - [L96–L176] 3.1 Internal Authenticated App (`/apps/web`) — Nesting outline of SP Secretary, platform admin, document management, and workflow inbox pages.
+  - [L177–L195] 3.2 Public Portal Subset — Flat route sibling hierarchy for citizen registration, login, document requests, and complaint pages.
+- [L196–L322] 4. Mermaid Diagrams — Flowcharts illustrating navigation maps, nested pages, conditional workflow panels, and secretary dashboard widgets.
+  - [L198–L260] 4.1 Internal App — Full Page Hierarchy — Visual flowchart of internal routes, nested sub-pages, and navigational cross-links.
+  - [L261–L296] 4.2 WorkflowStepActionPage — Conditional Panels — Visual diagram of the eleven workflow action and approval panels rendered dynamically.
+  - [L297–L322] 4.3 SecretaryDashboardPage — Widget Composition — Visual composition of the five widgets within the SP Secretary's primary dashboard.
+- [L323–L915] 5. Component Descriptions — Route properties, access roles, and specific tRPC/REST data dependencies for each frontend component.
+  - [L325–L390] 5.1 Internal App — Dashboard & Scheduling Pages — Secretary and Mayor dashboard widgets, data queries, and session scheduling pages.
+  - [L391–L457] 5.2 Internal App — Document Routes — Browsing, search, creation, and detail views for tracking document lifecycle actions and metadata.
+  - [L458–L519] 5.3 Internal App — Workflow Routes & Conditional Panels — Inbox page and the eleven step-action panels gated by specific user roles.
+  - [L520–L619] 5.4 Internal App — Staff-Side Complaint & Document Request Routes — Secretariat intake and detail views for managing in-person complaints and copy requests.
+  - [L620–L655] 5.5 Internal App — Session Attendance Routes — Attendance statistics and detail entry pages, including Substitution and Designation edge cases.
+  - [L656–L689] 5.6 Internal App — Audit Log Routes — User-specific actions, office-scoped document tracking, and tamper-evident chain validation pages.
+  - [L690–L799] 5.7 Internal App — Platform Administration Routes — Committee, platform config, notification logs, role assignments, office hierarchy, and retention schedules.
+  - [L800–L813] 5.8 Internal App — SecretaryDashboardPage Widgets — Task queue, pending items, session calendar, agenda summary, and SLA compliance sub-components.
+  - [L814–L915] 5.9 Public Portal Subset — Page Components — Citizen registration, login, document lookup, complaint forms, and request tracking endpoints.
+- [L916–L977] 6. Parent–Child Relationships — Tabular summary of structural route nesting, sub-component containments, and navigational cross-links.
+- [L978–L997] 7. Open Items Inherited from F1 — Developer visibility tracker mapping design gaps and missing tRPC/REST backend procedures.
 
 ---
 
