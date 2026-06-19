@@ -1,39 +1,40 @@
 # K2. Workflow Engine Test Suite Design — Pre-dev
 
-**Document ID:** K2
-**Status:** Pre-dev. No engine code exists yet. Every "expected result" below describes specified behavior per the four source documents, not observed or tested behavior — there is nothing running to observe yet.
+**Document ID:** K2 v2
+**Status:** Pre-dev. No engine code exists yet. Every "expected result" below describes specified behavior per the four source documents and the resolved ADRs (K2-ADR-01 through K2-ADR-09), not observed or tested behavior — there is nothing running to observe yet.
 **Platform:** Batac City LGU Platform
 **Purpose:** The complete test case specification for the workflow engine — every valid and invalid step transition, the multi-referral completion conditions, Thursday cutoff enforcement, the Certified Urgent bypass path, the 10-day and 30-day timer transitions, version pinning behavior, and the one-active-designation-per-person constraint — written before any engine code exists.
 **Source Documents:** K2-context (`k2-context-workflow-engine-test-suite-design.md`); H1 (`h1-phase-1-workflow-definitions.md`); B4 (`b4-workflow-engine-specification.md`); D3 (`d3-state-machine-diagrams.md`) — D3 Parts 1–3 and Appendix A only, per the source-mapping note that accompanied this document's upload; D3's Appendix B, C, D and closing paragraph were excluded at the source and are not used here.
+**ADR Set:** K2-ADR-01 through K2-ADR-09 (`k4-adr-set.md`) — all nine §21 open items resolved; merged into this document. See §22 for the closure record.
 **Testing Framework:** Vitest (unit/integration), per K2-context §1. Playwright E2E journeys and ABAC-protected API route tests are separate suites and are out of scope here.
-**Last Updated:** June 2026
+**Last Updated:** June 2026 (v2 — ADR merge)
 **Audience:** Backend development team
-
 
 ## Table of Contents
 
-- [L42–L55] 0. Epistemic Conventions for This Document — Defines epistemic labeling conventions (`[Inference]`, `[Speculation]`, `[Unverified]`) and rules for pre-dev test cases.
-- [L56–L82] 1. Scope and Source Mapping — Maps test areas to source documents and defines out-of-scope features (e.g., E2E journeys, Phase 2 step types).
-- [L83–L93] 2. Test Environment Assumptions — Specifies test environment assumptions, including Vitest setup, Asia/Manila (PHT) timezone, and mock clocks.
-- [L94–L116] 3. Test Identifier Prefixes — Maps test case category prefixes to specific engine and workflow areas for organization.
-- [L117–L139] 4. Workflow Instance State Machine — Valid Transitions (INST-V) — Defines valid state transition tests for workflow instances, covering states from Running to Cancelled.
-- [L140–L157] 5. Workflow Instance State Machine — Invalid Transitions (INST-I) — Defines test cases verifying that invalid workflow instance state transitions and creation attempts throw errors.
-- [L158–L183] 6. Workflow Step Instance State Machine — Valid Transitions (STEP-V) — Defines valid transitions for step instances, including activation, skips, manual overrides, returns, and failures.
-- [L184–L209] 7. Workflow Step Instance State Machine — Invalid Transitions (STEP-I) — Defines invalid step transition test cases that must throw, focusing on state and guard violations.
-- [L210–L259] 8. SP Resolution Workflow — Valid Transitions (RES-V) — Specifies valid transition test cases for all 39 sequential step rules in the SP Resolution workflow.
-- [L260–L283] 9. SP Resolution Workflow — Invalid Transitions (RES-I) — Specifies invalid transition test cases for SP Resolutions, enforcing role guards, sequence rules, and thresholds.
-- [L284–L322] 10. SP Ordinance and Appropriation Ordinance — Delta Tests (ORD-V, ORD-I, APP-V, APP-I) — Specifies delta test cases for SP and Appropriation Ordinances, including Third Reading and penalty publication.
-- [L323–L340] 11. Multi-Referral Completion Conditions (MREF) — Specifies test cases for committee multi-referrals, including signature rules, SP Secretary overrides, and cutoff flags.
-- [L341–L364] 12. Thursday Cutoff Enforcement (THU) — Specifies scheduler tests for Thursday 23:59:59 PHT cutoff enforcement, Tuesday session eligibility, and idempotency.
-- [L365–L385] 13. Certified Urgent Bypass Path (CU) — Specifies test cases for Certified Urgent bypasses on active, pending, and past-referral workflow instances.
-- [L386–L411] 14. 10-Day Mayor Lapse Timer (MAYOR) — Specifies test cases for the 10-day Mayor review lapse timer, vetoes, and override vote threshold counts.
-- [L412–L437] 15. 30-Day Panlalawigan Timer (PANLA) — Specifies test cases for the 30-day Panlalawigan lapse timer, including the four Valid-In-Part resolution paths.
-- [L438–L469] 16. Version Pinning Behavior (VER) — Specifies version pinning tests, detailing Option B migration preconditions, admin approval, rollback windows, and invariants.
-- [L470–L496] 17. One-Active-Designation-Per-Person Constraint (DESIG) — Specifies tests for the one-active-designation-per-person constraint, including DB index checks, auto-expiry, and routing.
-- [L497–L530] 18. Domain Events — Assertions Required — Consolidates required domain event assertions and payload fields for key workflow engine operations.
-- [L531–L554] 19. Workflow Instance Context — Key Assertions — Consolidates expected state values and assertion timing for workflow database instance context keys.
-- [L555–L576] 20. Engine Invariants — Consolidated Test Map — Maps the 13 core B4 workflow engine invariants to their corresponding test cases in this suite.
-- [L577–L595] 21. Open Items and Unverified Gaps — Identifies open design gaps and unverified items requiring upstream specification before tests can be written.
+- [L43–L57] 0. Epistemic Conventions for This Document — Defines epistemic labeling conventions ([Inference], [Speculation], [Unverified]) and rules for pre-dev test cases.
+- [L58–L86] 1. Scope and Source Mapping — Maps test areas to source documents and defines out-of-scope features (e.g., E2E journeys, Phase 2 step types).
+- [L87–L97] 2. Test Environment Assumptions — Specifies test environment assumptions, including Vitest setup, Asia/Manila (PHT) timezone, and mock clocks.
+- [L98–L122] 3. Test Identifier Prefixes — Maps test case category prefixes to specific engine and workflow areas for organization.
+- [L123–L145] 4. Workflow Instance State Machine — Valid Transitions (INST-V) — Defines valid state transition tests for workflow instances, covering states from Running to Cancelled.
+- [L146–L163] 5. Workflow Instance State Machine — Invalid Transitions (INST-I) — Defines test cases verifying that invalid workflow instance state transitions and creation attempts throw errors.
+- [L164–L189] 6. Workflow Step Instance State Machine — Valid Transitions (STEP-V) — Defines valid transitions for step instances, including activation, skips, manual overrides, returns, and failures.
+- [L190–L215] 7. Workflow Step Instance State Machine — Invalid Transitions (STEP-I) — Defines invalid step transition test cases that must throw, focusing on state and guard violations.
+- [L216–L267] 8. SP Resolution Workflow — Valid Transitions (RES-V) — Specifies valid transition test cases for all 39 sequential step rules in the SP Resolution workflow.
+- [L268–L291] 9. SP Resolution Workflow — Invalid Transitions (RES-I) — Specifies invalid transition test cases for SP Resolutions, enforcing role guards, sequence rules, and thresholds.
+- [L292–L337] 10. SP Ordinance and Appropriation Ordinance — Delta Tests (ORD-V, ORD-I, APP-V, APP-I) — Specifies delta test cases for SP and Appropriation Ordinances, including Third Reading and penalty publication.
+- [L338–L355] 11. Multi-Referral Completion Conditions (MREF) — Specifies test cases for committee multi-referrals, including signature rules, SP Secretary overrides, and cutoff flags.
+- [L356–L379] 12. Thursday Cutoff Enforcement (THU) — Specifies scheduler tests for Thursday 23:59:59 PHT cutoff enforcement, Tuesday session eligibility, and idempotency.
+- [L380–L400] 13. Certified Urgent Bypass Path (CU) — Specifies test cases for Certified Urgent bypasses on active, pending, and past-referral workflow instances.
+- [L401–L426] 14. 10-Day Mayor Lapse Timer (MAYOR) — Specifies test cases for the 10-day Mayor review lapse timer, vetoes, and override vote threshold counts.
+- [L427–L452] 15. 30-Day Panlalawigan Timer (PANLA) — Specifies test cases for the 30-day Panlalawigan lapse timer, including the four Valid-In-Part resolution paths.
+- [L453–L484] 16. Version Pinning Behavior (VER) — Specifies version pinning tests, detailing Option B migration preconditions, admin approval, rollback windows, and invariants.
+- [L485–L511] 17. One-Active-Designation-Per-Person Constraint (DESIG) — Specifies tests for the one-active-designation-per-person constraint, including DB index checks, auto-expiry, and routing.
+- [L512–L545] 18. Domain Events — Assertions Required — Consolidates required domain event assertions and payload fields for key workflow engine operations.
+- [L546–L570] 19. Workflow Instance Context — Key Assertions — Consolidates expected state values and assertion timing for workflow database instance context keys.
+- [L571–L594] 20. Engine Invariants — Consolidated Test Map — Maps the 13 core B4 workflow engine invariants to their corresponding test cases in this suite.
+- [L595–L612] 21. Open Items and Unverified Gaps — Identifies open design gaps and unverified items requiring upstream specification before tests can be written.
+- [L613–L680] 22. ADR Merge Closure Record — Confirms all nine §21 items are resolved; lists three proposed error codes pending confirmation against the engine error registry.
 
 ---
 
@@ -43,6 +44,7 @@
 
 This document inherits the labeling discipline already in use across K2-context, H1, B4, and D3. Per explicit instruction for this document specifically, three labels are used here:
 
+- **`[Decision]`** — a binding resolution recorded in the K2-ADR set (K2-ADR-01 through K2-ADR-09). Decisions are not hedged with `[Inference]` or `[Unverified]` tags since they are explicit choices, not claims about pre-existing fact. Where a decision rests on an assumption that is itself unconfirmed, that assumption is called out within the relevant ADR rather than folded into the decision silently.
 - **`[Inference]`** — logically reasoned from explicit statements in the four source documents, but not itself a verbatim statement in any of them. Most test-case rows below fall in this category in a mild sense: turning a transition-rule table row into a Given/When/Then test case is a restatement, not a leap, but the restatement itself is constructed here, not copied. Rows doing more than restating — combining a transition rule with a typed error from a different section, or noticing a tension between two source documents — are marked `[Inference]` explicitly inline.
 - **`[Speculation]`** — offered only where a source document itself ventures a tentative, hedged answer to a question it otherwise leaves open (for example, K2-context's own "likely: invalid input; throw" framing for one Panlalawigan edge case). Speculation is never presented as an expected test result; it is presented as speculation, attributed to the document that speculated it.
 - **`[Unverified]`** — no source among the four documents states this, and none even speculates an answer. These are listed again, consolidated, in §18 (Open Items).
@@ -77,6 +79,8 @@ Per explicit preference for this document, absolute terms — prevent, guarantee
 - Phase 1B document types — Letters, Memos, Notices, Designations — as workflow types in their own right (H1, "What this document does not cover").
 - Form definitions and notification templates, referenced by `form_key` / `template_key` but not defined in H1.
 - The D3 Appendix B enum-name reconciliation itself (B4's lowercase enum values versus D3's capitalized authoritative names). This document uses D3's authoritative names throughout — `Running`, `Stuck`, `Skipped`, and so on — consistent with D3's own statement that its names are authoritative over B4 and the Drizzle schema, but the migration work to reconcile B4's literal enum values is a separate tracked item, not a test-suite concern.
+- ARTA SLA 80% warning and escalation behavior — [Decision — ADR-08] deliberate exclusion, not an unresolved gap. K2-context §1's stated testing priority order does not include SLA monitoring in the engine test scope; if SLA enforcement is engine-side, it belongs in a named follow-on suite.
+- True parallel multi-committee re-review after `VALID_IN_PART` — [Decision — ADR-03] out of scope for Phase 1, for the same reason `parallel_split`/`parallel_join` are out of scope (B4 §5). `committee_revisions_review` (H1 §5.2 row 19) is a single-assignee `approval` step; supporting parallel committee approval in that step would require a schema change deferred to Phase 2.
 
 ---
 
@@ -109,6 +113,8 @@ All test case IDs in this document use the following scheme.
 | `PANLA-##` | 30-day Panlalawigan timer |
 | `VER-##` | Version pinning behavior |
 | `DESIG-##` | One-active-designation-per-person constraint |
+| `PUBVAL-##` | Publish-time definition validation tests (ADR-06, ADR-07) |
+| `INV##-##` | Dedicated invariant tests not naturally grouped under domain sections (ADR-04, ADR-05) |
 
 `V` = valid transitions (system should complete the transition); `I` = invalid transitions (system must throw). Source keys (`Source: ...`) cite the specific section in the four source documents directly; inline `[Inference]` on individual rows applies only to that row.
 
@@ -244,7 +250,9 @@ The SP Resolution workflow has 28 steps and 39 transition rules (H1 §5.2, §5.3
 | RES-V27 | `valid_in_part_action` | — (unconditional) | `valid_in_part_decision` | `valid_in_part_action` completes; mandatory comment recorded | `valid_in_part_decision` activated | H1 §5.3 rule 27 |
 | RES-V28 | `valid_in_part_decision` | `RESOLVED_IN_PLACE` | `portal_publication` | SP Secretary records `RESOLVED_IN_PLACE` with mandatory comment; document annotated | `portal_publication` activated | H1 §5.3 rule 28 |
 | RES-V29 | `valid_in_part_decision` | `ROUTED_TO_LEGAL` | `legal_office_review` | SP Secretary records `ROUTED_TO_LEGAL` | `legal_office_review` activated; Legal Officer is assignee | H1 §5.3 rule 29 |
-| RES-V30 | `valid_in_part_decision` | `ROUTED_TO_COMMITTEE` | `committee_revisions_review` | SP Secretary records `ROUTED_TO_COMMITTEE` | `committee_revisions_review` activated; Committee Chair is assignee (resolution mechanism `[Unverified]` — see H1 §4) | H1 §5.3 rule 30 |
+| RES-V30 | `valid_in_part_decision` | `ROUTED_TO_COMMITTEE` | `committee_revisions_review` | [Decision — ADR-03] SP Secretary records `ROUTED_TO_COMMITTEE`; selects one lead committee from the originally-referred set (single choice if only one committee was referred); mandatory non-empty comment required (B4 invariant 10) | `instance.context.referred_committee_chair_id` set to the resolved chair of the selected committee; `committee_revisions_review` activated with that chair as sole assignee | H1 §5.3 rule 30; ADR-03 |
+| RES-V30a | `valid_in_part_decision` | `ROUTED_TO_COMMITTEE` | `committee_revisions_review` | [Decision — ADR-03] Original referral was to a **single** committee; SP Secretary records `ROUTED_TO_COMMITTEE` with non-empty comment | No selection ambiguity; that committee's chair is resolved via `actor_from_context:referred_committee_chair_id`; same context-population mechanism as multi-committee case | ADR-03 |
+| RES-V30b | `valid_in_part_decision` | `ROUTED_TO_COMMITTEE` | *(rejected)* | [Decision — ADR-03] SP Secretary records `ROUTED_TO_COMMITTEE` but the mandatory comment is empty or whitespace-only | Must throw; rejected per invariant 10 (`COMMENT_REQUIRED` or equivalent); consistent with `SECRETARY_ADVANCED` guard (B4 §4.3) and paths 1 and 4 comment requirements (H1 §5.3 rules 28, 31) | ADR-03; B4 §8 invariant 10 |
 | RES-V31 | `valid_in_part_decision` | `REVISED_DIRECTLY` | `portal_publication` | SP Secretary records `REVISED_DIRECTLY` with mandatory comment; Secretariat implements revisions | `portal_publication` activated | H1 §5.3 rule 31 |
 | RES-V32 | `legal_office_review` | `RESOLVED_IN_PLACE` | `portal_publication` | Legal Officer records `RESOLVED_IN_PLACE` | `portal_publication` activated | H1 §5.3 rule 32 |
 | RES-V33 | `committee_revisions_review` | `RESOLVED_IN_PLACE` | `portal_publication` | Committee Chair records `RESOLVED_IN_PLACE` | `portal_publication` activated | H1 §5.3 rule 33 |
@@ -320,6 +328,13 @@ The SP Ordinance has three readings instead of two. A `third_reading_vote` step 
 
 ---
 
+### 10.4 Appropriation Ordinance — Additional Invalid Transitions (APP-I)
+
+| ID | Attempted Transition | Guard Violated | Expected Outcome | Source |
+|---|---|---|---|---|
+| APP-I01 | [Decision — ADR-02] `panlalawigan_review` step active on an **Appropriation Ordinance** instance; Secretariat submits `OPERATIVE_IN_ITS_ENTIRETY` | *(valid for Appropriation Ordinance — this is not an error)* | Not an invalid transition — see PANLA-11 for the valid case. APP-I01 is superseded by PANLA-15 which covers the invalid case (non-Appropriation document). | ADR-02 |
+| APP-I02 | [Decision — ADR-02] `panlalawigan_review` step active on a **non-Appropriation** instance (SP Resolution or SP Ordinance); Secretariat submits `OPERATIVE_IN_ITS_ENTIRETY` | `OPERATIVE_IN_ITS_ENTIRETY` is only valid for `document_type = 'appropriation_ordinance'` (B4 §4.2) | Must throw; proposed error `OUTCOME_NOT_VALID_FOR_DOCUMENT_TYPE`; step remains `Active`; no context keys set; no transition fires | K2-context §3.3; B4 §4.2; ADR-02 |
+
 ## 11. Multi-Referral Completion Conditions (MREF)
 
 Source: K2-context §4; H1 §5.2 (step 4), §5.3 (rules 4–6); B4 §4.3, §8 (invariants 2, 7); D3 §3.3 (Active→Completed sub-point c), §3.4.
@@ -379,7 +394,7 @@ The Certified Urgent bypass is triggered by the event `documents.certification_u
 | CU-07 | Certification has no standalone number | Certification of Urgency document logged | No separate certification number is assigned; certification is attached to each associated measure, not filed independently | K2-context §6 |
 | CU-08 | Certification logged after `multi_referral` already started (Case A) | `committee_referral` step is `Active`; one committee has already submitted | Engine executes Case A bypass immediately; committee's prior submission record is irrelevant — step goes to `Skipped` regardless of intermediate state; `BYPASSED_CERTIFIED_URGENT` outcome set | B4 §6.1 |
 | CU-09 | Transition rule `BYPASSED_CERTIFIED_URGENT` absent from definition | Definition published without a `committee_referral → BYPASSED_CERTIFIED_URGENT → second_reading_vote` transition rule | Must be rejected at publish time (B4 §6.1: "admin UI enforces this at publish time"); if somehow bypassed at runtime, engine has no matching rule → instance goes `Stuck` | B4 §6.1 |
-| CU-10 | Revocation after bypass already applied | Certified Urgent bypass has already fired (Case A or B executed); caller attempts to revoke or reverse the certification | `[Speculation — K2-context §6]`: K2-context names this as a required test ("behavior must be defined and tested") but does not specify what the behavior should be. This test case is a placeholder; the behavior contract must be specified before this test can be written | K2-context §6 |
+| CU-10 | [Decision — ADR-01] Revocation attempt after bypass already applied | Certified Urgent bypass has already fired (Case A or B executed); caller attempts to revoke or reverse the certification | Engine has no entry point for this operation — `engine.bypassStep` is not designed for reversal, and no other engine method supports revocation of an already-applied CU bypass. Assert: no API surface accepts a revocation call; the `committee_referral` step instance remains in `Skipped`/`bypassed` status with its original `bypass_reason = 'CERTIFIED_URGENT'` unchanged. Note: this ADR concerns the workflow engine only — any real-world procedural recourse (e.g., cancelling the instance via `engine.cancelInstance` and starting over) is outside the engine's scope | K2-context §6; ADR-01 |
 
 ---
 
@@ -422,7 +437,7 @@ The `evaluatePanlalawiganTimers` scheduler job runs daily at 06:00 PHT. Idempote
 | PANLA-03 | VALID-IN-PART: step placed in Awaiting SP Secretariat Action | Secretariat records `VALID_IN_PART`; Panlalawigan response attached | Step completes with `VALID_IN_PART`; `valid_in_part_action` activated; SP Secretary must choose one of four paths | K2-context §8; B4 §6.4 |
 | PANLA-04 | VALID-IN-PART path 1: `RESOLVED_IN_PLACE` | SP Secretary records `RESOLVED_IN_PLACE` with mandatory comment | `valid_in_part_decision` routes to `portal_publication`; mandatory comment stored | K2-context §8; B4 §6.4; H1 §5.3 rule 28 |
 | PANLA-05 | VALID-IN-PART path 2: `ROUTED_TO_LEGAL` | SP Secretary records `ROUTED_TO_LEGAL` | `legal_office_review` activated; Legal Officer is assignee; upon `RESOLVED_IN_PLACE`, routes to `portal_publication` | K2-context §8; B4 §6.4; H1 §5.3 rules 29, 32 |
-| PANLA-06 | VALID-IN-PART path 3: `ROUTED_TO_COMMITTEE` | SP Secretary records `ROUTED_TO_COMMITTEE` | `committee_revisions_review` activated; Committee Chair assignee (resolution mechanism `[Unverified]`); upon `RESOLVED_IN_PLACE`, routes to `portal_publication` | K2-context §8; B4 §6.4; H1 §5.3 rules 30, 33 |
+| PANLA-06 | VALID-IN-PART path 3: `ROUTED_TO_COMMITTEE` | SP Secretary records `ROUTED_TO_COMMITTEE`; selects lead committee with mandatory comment | [Decision — ADR-03] `committee_revisions_review` activated; `instance.context.referred_committee_chair_id` set (populated at routing decision, not at original referral); resolved chair is sole assignee; upon `RESOLVED_IN_PLACE`, routes to `portal_publication` | K2-context §8; B4 §6.4; H1 §5.3 rules 30, 33; ADR-03 |
 | PANLA-07 | VALID-IN-PART path 4: `REVISED_DIRECTLY` | SP Secretary records `REVISED_DIRECTLY` with mandatory comment; Secretariat implements revisions | Routes to `portal_publication` | K2-context §8; B4 §6.4; H1 §5.3 rule 31 |
 | PANLA-08 | RETURNED outcome — high-priority flag; implementation stops | Secretariat records `RETURNED` | `returned_review` activated; high-priority flag set; implementation stops | K2-context §8; B4 §6.4; H1 §5.3 rule 26 |
 | PANLA-09 | RETURNED → `RESOLVED_DIRECTLY` | SP Secretary records `RESOLVED_DIRECTLY` on `returned_review` with mandatory comment | Routes to `portal_publication` | H1 §5.3 rule 34; B4 §6.4 |
@@ -431,7 +446,7 @@ The `evaluatePanlalawiganTimers` scheduler job runs daily at 06:00 PHT. Idempote
 | PANLA-12 | Multiple SP documents in one Panlalawigan resolution batch | Panlalawigan acts on two SP documents in a single resolution; Secretariat logs each | Each document's `panlalawigan_review` step resolved independently; Panlalawigan resolution number and action date associated with each individual SP document's step record | K2-context §8 |
 | PANLA-13 | `DEEMED_APPROVED` submitted by human actor | Human actor attempts to submit `DEEMED_APPROVED` to `panlalawigan_review` | Must throw `FORBIDDEN`; `DEEMED_APPROVED` is scheduler-only per B4 §4.2 and §8 invariant 3 | B4 §4.2, §8 invariant 3 |
 | PANLA-14 | Timer context keys set correctly at transmission logging | `panlalawigan_transmission_logging` step completes with `triggers_panlalawigan_timer: true` | `instance.context.panlalawigan_transmission_date = NOW()`; `panlalawigan_action_deadline = NOW() + 30 days`; both `TIMESTAMPTZ`; `panlalawigan_review` step activated | B4 §6.4; H1 §5.2 step 14 |
-| PANLA-15 | `[Speculation]` `OPERATIVE_IN_ITS_ENTIRETY` on a regular SP Ordinance (not Appropriation) | Secretariat records `OPERATIVE_IN_ITS_ENTIRETY` on a regular SP Ordinance | K2-context §8 states "likely: invalid input; throw" but marks this as a behavior that "must be defined." This is K2-context's own tentative framing — not a confirmed contract. Test should at minimum verify the engine does not silently accept and route this as `VALID` | K2-context §8 |
+| PANLA-15 | [Decision — ADR-02] `OPERATIVE_IN_ITS_ENTIRETY` on a non-Appropriation-Ordinance instance (SP Resolution or regular SP Ordinance) | Secretariat records `OPERATIVE_IN_ITS_ENTIRETY` against a `panlalawigan_review` step on an instance whose `document_type ≠ 'appropriation_ordinance'` | Engine rejects the submission with a validation error (proposed code: `OUTCOME_NOT_VALID_FOR_DOCUMENT_TYPE` — naming proposal pending confirmation against the engine error registry); step remains `Active`; no transition evaluation fires; no context keys set | K2-context §8; ADR-02 |
 
 ---
 
@@ -487,7 +502,7 @@ Source: K2-context §10; B4 §9.
 | DESIG-04 | Designation auto-expiry at end date | `delegation_grant` has a defined end date; end date reached | `delegation_grant` status transitions to inactive automatically; routing for affected steps returns to original authority (`delegation_aware:` resolution falls back to original role) | K2-context §10; B4 §9 |
 | DESIG-05 | Early revocation by delegating authority | Delegating authority revokes active designation before end date | `delegation_grant` transitions to inactive immediately; routing returns to original authority for all in-progress steps | K2-context §10 |
 | DESIG-06 | Open-ended designation (no end date) | Attempt to create a `delegation_grant` with no end date specified | Must throw; duration must always be explicit; open-ended designations are prohibited | K2-context §10; B4 §9 |
-| DESIG-07 | Designation created by non-original-authority | Platform Admin attempts to create a designation (not the original delegating authority — Mayor or Vice Mayor) | Must throw; only the original authority may issue a designation | K2-context §10 |
+| DESIG-07 | [Decision — ADR-09] Designation created by non-original-authority | Platform Admin attempts to create a designation (not the original delegating authority — Mayor or Vice Mayor) | Must throw `UNAUTHORIZED_DESIGNATION_ISSUER` (proposed — naming proposal pending confirmation against the engine error registry; not sourced from any of the four documents); no `delegation_grant` record created | K2-context §10; ADR-09 |
 | DESIG-08 | Workflow step assigned to designated person mid-workflow | Active designation for Acting Mayor exists; `mayor_review` step is activated | `delegation_aware:mayor` resolves to the designated Acting Mayor; step `assigned_to` set to Acting Mayor; Acting Mayor is the actor for that step's duration | B4 §9; K2-context §10 |
 | DESIG-09 | Designation expires mid-workflow — routing returns to original authority | `mayor_review` step is `Active`; designation for Acting Mayor expires while the step is in progress | `[Inference]` — B4 §9 states "`step_instances.assigned_to` is a snapshot — authoritative for permission checks during the step's lifetime" (B4 §2.2). The snapshot was captured at activation time and does not change mid-step, even if the designation expires during the step. The test should confirm the snapshot behavior rather than assuming re-evaluation mid-step | B4 §2.2, §9; K2-context §10 |
 | DESIG-10 | New step activation after designation expires | Prior step `Completed`; new step being activated after Acting Mayor designation has expired | `delegation_aware:mayor` now resolves to original Mayor (no active delegation); new step `assigned_to = original_mayor` | B4 §9; K2-context §10 |
@@ -548,6 +563,7 @@ The following context keys must be asserted at the specific lifecycle points lis
 | `panlalawigan_transmission_date` | `panlalawigan_transmission_logging` step completes | `NOW()` at completion | Before step completes |
 | `panlalawigan_action_deadline` | `panlalawigan_transmission_logging` step completes | `panlalawigan_transmission_date + 30 days` | Before step completes |
 | `panlalawigan_outcome` | Secretariat records outcome or timer fires | `VALID`, `VALID_IN_PART`, `RETURNED`, `DEEMED_APPROVED`, or `OPERATIVE_IN_ITS_ENTIRETY` | Before Panlalawigan review step completes |
+| `referred_committee_chair_id` | [Decision — ADR-03] SP Secretary selects lead committee at `valid_in_part_decision` → `ROUTED_TO_COMMITTEE` | User ID of the resolved chair of the selected lead committee (or the committee ID itself — implementation sub-choice deferred; see ADR-03) | Before `ROUTED_TO_COMMITTEE` path is taken; null for all other `valid_in_part_decision` paths |
 | `panlalawigan_response_date` | Secretariat records manually | `NOW()` for human; `panlalawigan_action_deadline` for timer | Before Panlalawigan review step completes |
 
 ---
@@ -561,35 +577,104 @@ Source: B4 §8 (invariants 1–13). Each invariant below has a corresponding tes
 | 1 | `instances.definition_version_id` written once; only `engine.migrateInstance` may update it | VER-03 |
 | 2 | `multi_referral` with `require_all_committee_signatures = true` cannot complete `REPORT_ACCEPTED` unless all committees have submissions or `manual_advance = true` | MREF-01 through MREF-06; RES-I01 |
 | 3 | `LAPSED` and `DEEMED_APPROVED` may only be submitted with `actor_type = system` | MAYOR-11; PANLA-13; RES-I10, RES-I11 |
-| 4 | Every `approval` step with `LAPSED` in `allowed_outcomes` must have an outgoing `LAPSED` transition rule | `[Inference]` — tested implicitly by VER-10 (publish-time validation gate); should also be covered by a dedicated publish-time validation test (not yet separately itemized; flagged as gap in §21) |
+| 4 | Every `approval` step with `LAPSED` in `allowed_outcomes` must have an outgoing `LAPSED` transition rule | [Decision — ADR-06] PUBVAL-01; VER-10 (implicit). See §22 for PUBVAL-01 test definition. |
 | 5 | No definition version may include `parallel_split` or `parallel_join` in Phase 1 | STEP-I16 |
 | 6 | An instance with `status = completed` or `status = cancelled` cannot have any step activated | INST-I01, INST-I02; INST-I09 |
 | 7 | SP Secretary manual advance of `multi_referral` requires non-empty `outcome_comment` | MREF-06; RES-I03 |
 | 8 | Option B migration requires valid, unexpired City Administrator approval; consumed atomically | VER-04 through VER-13 |
 | 9 | Termination step with `REPASSED` outcome must NOT set `instances.status = completed` | RES-V35; PANLA-10 |
 | 10 | All mandatory `reason`/`comment` parameters rejected if empty or whitespace-only | RES-I03; MREF-06; VER-08; multiple others |
-| 11 | Encoder and final approver of same document cannot be the same user | `[Unverified]` — no specific test case covers this yet; flagged in §21 |
+| 11 | Encoder and final approver of same document cannot be the same user | [Decision — ADR-04] INV11-01 (RES-I16). `vp_certification` carries `is_final_approval = true`. See §22 for test definition and rationale. |
 | 12 | No outgoing transition rule may reference a `to_step_id` from a different `definition_version_id` than the instance's pin | VER-14 |
-| 13 | `workflow_events` rows may only be inserted; no update or delete path | `[Inference]` — DB-level constraint; should be verified by attempting UPDATE/DELETE on `workflow_events` in a test; flagged in §21 |
+| 13 | `workflow_events` rows may only be inserted; no update or delete path | [Decision — ADR-05] INV13-01. DB-level `REVOKE UPDATE, DELETE` tested directly via `workflow_app_user` role connection. See §22 for test definition. |
+
+**Additional publish-time validation coverage — not directly mapped to a numbered invariant row:** PUBVAL-02 ([Decision — ADR-07]) covers B4 §4.2's general rule that any `approval` step `allowed_outcomes` code missing an outgoing transition rule causes publish rejection with `MISSING_OUTCOME_TRANSITION`. This is broader than invariant 4 (which covers only the `LAPSED` outcome specifically) and the two should be tested independently to confirm the engine distinguishes the specific `MISSING_LAPSE_TRANSITION` from the general `MISSING_OUTCOME_TRANSITION`. See §22.
 
 ---
 
 ## 21. Open Items and Unverified Gaps
 
-Items in this section are either `[Unverified]` (no source document specifies the behavior) or explicitly flagged by source documents as "must be defined" without yet being defined. None of these items have expected results in §§3–17; they need specification before tests can be written for them.
+All nine items originally listed in this section have been resolved by K2-ADR-01 through K2-ADR-09. This section is retained for traceability; the closure record and new test definitions are in §22.
 
-| # | Topic | Gap Description | Source |
+| # | Topic | Original Status | Resolution |
 |---|---|---|---|
-| 1 | Certified Urgent revocation | Revocation or rollback of a Certification of Urgency after bypass already applied (CU-10). Behavior is explicitly unspecified — "must be defined and tested." | K2-context §6 |
-| 2 | `OPERATIVE_IN_ITS_ENTIRETY` on regular SP Ordinance | Whether submitting this outcome to a non-Appropriation Ordinance throws, or routes differently (PANLA-15, APP-I01). K2-context §8 speculates "likely: invalid input; throw" but marks it as needing definition. | K2-context §3.3, §8 |
-| 3 | Committee Chair assignee resolution | `COMMITTEE_CHAIR: "instance_aware:committee_chair_of_referred_committee"` is a placeholder string (H1 §4). The engine-side resolution grammar for "whichever committee this measure was originally referred to" is `[Unverified]` — not checked against B4's actual assignee-resolution grammar (B4 §3.5). Affects PANLA-06 and RES-V30. | H1 §4 |
-| 4 | Encoder ≠ final approver constraint | B4 §8 invariant 11 states this constraint exists and is enforced. No test case in this document covers it yet — no source document in this set defines which specific step carries `is_final_approval = true` or what the error behavior is if the same user tries. Needs a dedicated test. | B4 §8 invariant 11 |
-| 5 | `workflow_events` immutability | B4 §8 invariant 13 states the constraint is DB-level (`REVOKE UPDATE, DELETE`). No test case verifies this is actually enforced at the DB level. A test attempting UPDATE/DELETE on `workflow_events` and asserting rejection would cover it. | B4 §8 invariant 13 |
-| 6 | Publish-time validation: `MISSING_LAPSE_TRANSITION` | B4 §8 invariant 4 states that a definition lacking a `LAPSED` transition rule for an approval step that includes `LAPSED` in `allowed_outcomes` must be rejected at publish time with `MISSING_LAPSE_TRANSITION`. No dedicated publish-time validation test is itemized in this document. | B4 §8 invariant 4 |
-| 7 | Publish-time validation: `MISSING_OUTCOME_TRANSITION` | B4 §4.2 states definitions where an `approval` step's `allowed_outcomes` code has no outgoing transition rule must be rejected with `MISSING_OUTCOME_TRANSITION`. No dedicated publish-time validation test is itemized. | B4 §4.2 |
-| 8 | ARTA SLA 80% warning and escalation | K2-context §13 defines SLA defaults and warning/escalation rules. No test cases are written for SLA behavior in this document — K2-context §1 defines the engine state machine as priority 1 and does not include SLA monitoring in the test scope of K2 specifically. If SLA enforcement is engine-side, it belongs in a follow-on. | K2-context §13 |
-| 9 | Designation created by non-original-authority | DESIG-07 asserts a Platform Admin attempt must throw, but neither K2-context nor B4 specifies the exact typed error code. The test can only assert "must throw"; the exact error type is `[Unverified]`. | K2-context §10 |
+| 1 | Certified Urgent revocation | `[Unverified]` | [Decision — ADR-01] Irreversible by design; CU-10 updated. |
+| 2 | `OPERATIVE_IN_ITS_ENTIRETY` on non-Appropriation Ordinance | `[Speculation]` | [Decision — ADR-02] Throws `OUTCOME_NOT_VALID_FOR_DOCUMENT_TYPE` (proposed); PANLA-15 and APP-I02 updated. |
+| 3 | Committee Chair assignee resolution | `[Unverified]` | [Decision — ADR-03] `actor_from_context:referred_committee_chair_id`; SP Secretary selects lead committee at routing; Phase 2 for parallel multi-committee. RES-V30/30a/30b updated. |
+| 4 | Encoder ≠ final approver: which step | `[Unverified]` | [Decision — ADR-04] `vp_certification` carries `is_final_approval = true`; new test INV11-01 in §22. |
+| 5 | `workflow_events` immutability test | Test coverage gap | [Decision — ADR-05] New test INV13-01 in §22. |
+| 6 | `MISSING_LAPSE_TRANSITION` publish-time test | Test coverage gap | [Decision — ADR-06] New test PUBVAL-01 in §22. |
+| 7 | `MISSING_OUTCOME_TRANSITION` publish-time test | Test coverage gap | [Decision — ADR-07] New test PUBVAL-02 in §22. |
+| 8 | ARTA SLA test scope | Scoping question | [Decision — ADR-08] Deliberate exclusion; moved to §1 "Out of scope." |
+| 9 | DESIG-07 typed error code | `[Unverified]` | [Decision — ADR-09] `UNAUTHORIZED_DESIGNATION_ISSUER` (proposed); DESIG-07 updated. |
 
 ---
 
-*End of K2. Workflow Engine Test Suite Design.*
+## 22. ADR Merge Closure Record
+
+This section defines the new test cases introduced by the ADR merge and records the three proposed error codes that remain naming proposals pending confirmation.
+
+### 22.1 New Test Cases Introduced in v2
+
+**INV11-01** [Decision — ADR-04] Encoder ≠ Final Approver — `vp_certification` step:
+
+| Case | Given | When | Expected |
+|---|---|---|---|
+| INV11-01a | `vp_certification` step is `Active`; the resolved VP/Acting-VM actor's user ID equals `instance.context.created_by` | Actor attempts to submit outcome `SIGNED` | Engine rejects with `ENCODER_CANNOT_BE_FINAL_APPROVER` (proposed); step remains `Active`; `mayor_transmittal_date` and all downstream context keys unaffected; no transition fires |
+| INV11-01b (companion) | `vp_certification` step is `Active`; actor's user ID does **not** equal `instance.context.created_by` | Actor attempts to submit outcome `SIGNED` | Succeeds normally per RES-V14; no rejection |
+
+Source: B4 §8 invariant 11; ADR-04. Note: `instance.context.created_by` is the actor ID of the caller who invoked `engine.createInstance` (set by the engine at instance creation, per B4 §2.2).
+
+---
+
+**INV13-01** [Decision — ADR-05] `workflow_events` immutability — DB-level enforcement:
+
+| Case | Given | When | Expected |
+|---|---|---|---|
+| INV13-01a | A `workflow_events` row exists (created via normal `engine.submitStepAction` or similar) | Test connects as `workflow_app_user` (the same DB role the application uses, **not** a superuser/migration role) and attempts `UPDATE workflow.workflow_events SET ... WHERE id = ...` | Database rejects with a permissions error (Postgres error code `42501 insufficient_privilege`); no application-level error — the DB itself enforces this |
+| INV13-01b (companion) | Same setup | `DELETE FROM workflow.workflow_events WHERE id = ...` attempted as `workflow_app_user` | Same DB-level rejection |
+
+Source: B4 §8 invariant 13; ADR-05.
+
+---
+
+**PUBVAL-01** [Decision — ADR-06] `MISSING_LAPSE_TRANSITION` publish-time validation:
+
+| Case | Given | When | Expected |
+|---|---|---|---|
+| PUBVAL-01a | Draft definition version; `mayor_review` step config includes `LAPSED` in `allowed_outcomes`; no transition rule exists with `from_step_key = 'mayor_review'`, `outcome_filter = 'LAPSED'` | Platform Administrator attempts to publish this version | Publish rejected with `MISSING_LAPSE_TRANSITION`; version remains unpublished; `definition_versions.status` unchanged |
+| PUBVAL-01b (negative control) | Same definition, but the `LAPSED → docketing` transition rule is present and correctly formed | Platform Administrator attempts to publish | Publish succeeds |
+
+Source: B4 §8 invariant 4; ADR-06.
+
+---
+
+**PUBVAL-02** [Decision — ADR-07] `MISSING_OUTCOME_TRANSITION` publish-time validation:
+
+| Case | Given | When | Expected |
+|---|---|---|---|
+| PUBVAL-02a | Draft definition version; `second_reading_vote` step config includes `REJECTED` in `allowed_outcomes`; no transition rule with `outcome_filter = 'REJECTED'` exists from that step, and no unconditional default rule exists | Platform Administrator attempts to publish | Publish rejected with `MISSING_OUTCOME_TRANSITION` |
+| PUBVAL-02b (negative control) | Same definition, but the `REJECTED → end_rejected_at_vote` rule (RES-V09) is present | Platform Administrator attempts to publish | Publish succeeds |
+| PUBVAL-02c (PUBVAL-01 vs PUBVAL-02 disambiguation) | Definition violates **only** the `LAPSED` rule (no `LAPSED` transition for a step that lists `LAPSED` in `allowed_outcomes`) | Platform Administrator attempts to publish | Engine returns `MISSING_LAPSE_TRANSITION`, not the generic `MISSING_OUTCOME_TRANSITION`; confirms the engine emits the more-specific error when applicable |
+
+Source: B4 §4.2; ADR-07. Relationship to PUBVAL-01: `MISSING_LAPSE_TRANSITION` is a stricter named special case of this general rule; both validations run independently at publish time.
+
+---
+
+### 22.2 Proposed Error Codes — Pending Confirmation
+
+Three error code names introduced in this ADR merge are **naming proposals**, not confirmed engine contracts. Each follows the existing `SCREAMING_SNAKE_CASE`, semantically-descriptive convention (B4 §8: `NO_ACTIVE_VERSION`, `MISSING_OUTCOME_TRANSITION`, `COMMENT_REQUIRED`, etc.), but none of the four source documents names them. They must be confirmed against any authoritative engine error registry before being treated as final.
+
+| Proposed Code | ADR | Used In | Notes |
+|---|---|---|---|
+| `OUTCOME_NOT_VALID_FOR_DOCUMENT_TYPE` | ADR-02 | PANLA-15, APP-I02 | Confirms K2-context §8's "likely: invalid input; throw" speculation as the real contract |
+| `ENCODER_CANNOT_BE_FINAL_APPROVER` | ADR-04 | INV11-01a | Named to distinguish from generic `FORBIDDEN`; specific to invariant 11's encoder/final-approver constraint |
+| `UNAUTHORIZED_DESIGNATION_ISSUER` | ADR-09 | DESIG-07 | Named to distinguish from bare `FORBIDDEN` (already used for actor-authorization failures in B4 §4.1–4.2); this is a different failure class: wrong category of authority entirely |
+
+### 22.3 H1 Cross-Reference Note
+
+H1 §4's `COMMITTEE_CHAIR` assignee string (`"instance_aware:committee_chair_of_referred_committee"`) is a placeholder that does not appear in B4 §3.5's actual grammar. [Decision — ADR-03] it should be corrected in H1 to `"actor_from_context:referred_committee_chair_id"` (or equivalent context key name, pending the implementation sub-choice noted in ADR-03). The `[Unverified]` / `[Extension]` comment block in H1 §4 for this entry should be replaced with a reference to ADR-03. This note is informational — it is an H1 edit, not a K2 edit.
+
+---
+
+*End of K2 v2. Workflow Engine Test Suite Design.*
