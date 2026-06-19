@@ -1,48 +1,46 @@
-# F2. Zustand Store Design — Pre-dev (v3)
+# F2. Zustand Store Design — Pre-dev
 
-**Document ID:** F2 (v3 — supersedes the original `f2-zustand-store-design.md.bak`)
+**Document ID:** F2
 **Type:** Frontend UI-state design — `/apps/web`, Phase 1
-**Status:** DRAFT — pre-development proposal, not yet reviewed or approved. Updated to reflect ADR-001 through ADR-016.
-**Date:** June 2026 (v3 revision: 2026-06-19)
+**Status:** DRAFT — pre-development proposal, not yet reviewed or approved
+**Date:** June 2026
 **Based on:**
-- F1 v2 — `f1-application-route-map-v2.md`
+- F1 — `f1-application-route-map.md`
 - E3 — `e3-shared-zod-schema-catalog.md`
 - Stack Context — `2-stack-context.md`
 - Consolidated Architecture & Requirements Reference Iteration 3 — `consolidated-architecture-and-requirements-reference-iteration-3.md`
-- ADR-001 through ADR-011 (prior revisions) and ADR-012 through ADR-016 (this revision's direct cause)
 
 **Audience:** Frontend development team; cross-referenced by any developer wiring a modal, drawer, sidebar, multi-step form, or notification surface in `/apps/web`
 
 > **Notation note:** This document applies the same inference tagging used in F1. `[Confirmed — source]` means directly traceable to a named section of a source document. `[Inference]` means a reasonable conclusion drawn from confirmed facts. `[Speculation]` means an unconfirmed possibility raised because source material is silent. Every store design, slice boundary, and state shape decision not explicitly required by the source material is individually tagged at the point it is made. Read this document as a draft for team review, not as approved architecture.
 
-> **v3 revision note:** This is a standalone, complete document. It incorporates all resolutions from `F2 v3 — Delta Against f2-zustand-store-design.md (v2)` based on ADR-012 through ADR-016. All five "Still open" items from v2 §18 have been resolved (concerning role codes shape, document type picker scope, partial batch failure handling, SSE reconnection strategy, and presiding officer substitute lookup procedure/test coverage), leaving zero open items inherited from v1/v2. See §18 for details.
-
 ## Table of Contents
 
-- [L49–L76] 1. The Zustand / TanStack Query Boundary — Core rule separating client-side UI state from server-side state, with concrete boundary examples and SSE/auth exceptions.
-- [L77–L94] 2. Store Inventory — A reference table of the 11 Zustand stores and their primary architectural concerns.
-- [L95–L121] 3. File Structure — File layout of stores in the mono-repo and rules prohibiting direct cross-store dependencies.
-- [L122–L167] 4. Store 1 — `useShellStore` — Sidebar collapse status, active navigation route highlights, and their respective device-specific behaviors.
-- [L168–L227] 5. Store 2 — `useSessionStore` — Decoded auth identity, role codes for synchronous route guards/ABAC checks, and session hydration rules.
-- [L228–L297] 6. Store 3 — `useModalStore` — TypeScript-typed global modal stack registry, rendering rules, and session timeout/scan warning triggers.
-- [L298–L356] 7. Store 4 — `useNotificationDrawerStore` — Real-time SSE notification count increments, last event preview, and bell badge display logic.
-- [L357–L479] 8. Store 5 — `useDocumentIntakeStore` — Multi-step form cache, S3 upload progress tracking, and per-type metadata storage for document creation.
-  - [L366–L377] Steps — The sequential phases of the multi-step document intake form.
-  - [L378–L418] State shape — TypeScript interface defining the layout and fields stored for document intake.
-  - [L419–L454] Actions — Store methods for managing step navigation, field updates, and file upload progress.
-  - [L455–L464] Usage notes — Integration details for React Hook Form validation and automatic OCR trigger handling.
-  - [L465–L473] Step 1 picker scope — Confirmed exclusions (Urgent Certification, Request Form) and selectable types in the intake picker.
-  - [L474–L479] What does NOT go here — Clarification on server-state data exclusions like document search results.
-- [L480–L554] 9. Store 6 — `useWorkflowActionStore` — Active sub-panel selections, comment drafts, and veto options for the dynamic workflow action page.
-- [L555–L650] 10. Store 7 — `useComplaintIntakeStore` — In-person, clerk-assisted complaint intake cache mapping complainant, incident, respondent, and routing decisions.
-- [L651–L732] 11. Store 8 — `useDocumentRequestIntakeStore` — In-person, clerk-assisted document request flow buffering requester info, purpose, payment reference, and PDF URL.
-- [L733–L781] 12. Store 9 — `useQrScannerStore` — Camera scanner state, inline metadata preview, and navigation triggers to detail views.
-- [L782–L862] 13. Store 10 — `useOrderOfBusinessStore` — Staged schedule changes before batch save, with sequential commit error handling for partial failures.
-- [L863–L948] 14. Store 11 — `useAttendanceStore` — Attendance-recording buffer tracking quorum status and active designation-backed presiding officer substitutes.
-- [L949–L969] 15. Cross-Store Interaction Rules — Coding conventions prohibiting cross-store imports and defining hooks and read-only constraints.
-- [L970–L996] 16. Persistence Rules — Storage configurations specifying which store buffers persist to sessionStorage and what fields are excluded.
-- [L997–L1015] 17. Testing Guidance — Vitest unit testing instructions for verifying actions, vanilla API state, and sessionStorage serialization.
-- [L1016–L1038] 18. Known Gaps and Open Questions — Follow-up tracking on resolved issues and the remaining presiding officer substitute display name confirmation.
+- [L47–L74] 1. The Zustand / TanStack Query Boundary — Core rule separating client-side UI state from server-side state, with concrete boundary examples and SSE/auth exceptions.
+- [L75–L92] 2. Store Inventory — A reference table of the 11 Zustand stores and their primary architectural concerns.
+- [L93–L119] 3. File Structure — File layout of stores in the mono-repo and rules prohibiting direct cross-store dependencies.
+- [L120–L165] 4. Store 1 — `useShellStore` — Sidebar collapse status, active navigation route highlights, and their respective device-specific behaviors.
+- [L166–L223] 5. Store 2 — `useSessionStore` — Decoded auth identity, role codes for synchronous route guards/ABAC checks, and session hydration rules.
+- [L224–L293] 6. Store 3 — `useModalStore` — TypeScript-typed global modal stack registry, rendering rules, and session timeout/scan warning triggers.
+- [L294–L352] 7. Store 4 — `useNotificationDrawerStore` — Real-time SSE notification count increments, last event preview, and bell badge display logic.
+- [L353–L466] 8. Store 5 — `useDocumentIntakeStore` — Multi-step form cache, S3 upload progress tracking, and per-type metadata storage for document creation.
+  - [L362–L373] Steps — The 5-step sequence of the document intake workflow.
+  - [L374–L414] State shape — Types for tracking upload progress, core metadata, and form inputs.
+  - [L415–L450] Actions — Setters, form step navigation, and upload lifecycle action definitions.
+  - [L451–L460] Usage notes — Integration with React Hook Form, scan quality check triggers, and discard/reset rules.
+  - [L461–L466] What does NOT go here — Reminder that document search results and existing records belong in TanStack Query.
+- [L467–L539] 9. Store 6 — `useWorkflowActionStore` — Active sub-panel selections, comment drafts, and veto options for the dynamic workflow action page.
+- [L540–L631] 10. Store 7 — `useComplaintIntakeStore` — In-person complaint intake cache mapping complainant, incident, respondent, and Secretariat routing decisions.
+- [L632–L711] 11. Store 8 — `useDocumentRequestIntakeStore` — In-person document request flow buffering requester info, purpose, payment reference, and printable PDF URL.
+- [L712–L760] 12. Store 9 — `useQrScannerStore` — Camera scanner state, inline metadata preview, and navigation triggers to detail views.
+- [L761–L814] 13. Store 10 — `useOrderOfBusinessStore` — Buffer for staging first readings and hearing dates before batch-saving the Tuesday agenda.
+- [L815–L881] 14. Store 11 — `useAttendanceStore` — SP session attendance buffer tracking roll call, derived quorum count, and regular session blocks.
+- [L882–L902] 15. Cross-Store Interaction Rules — Coding conventions prohibiting cross-store imports and defining hooks, reset patterns, and read-only constraints.
+- [L903–L927] 16. Persistence Rules — Storage configurations specifying which store buffers persist to sessionStorage and what fields are excluded.
+- [L928–L945] 17. Testing Guidance — Vitest unit testing instructions for verifying actions, vanilla API state, and sessionStorage serialization.
+- [L946–L958] 18. Known Gaps and Open Questions — Unresolved issues concerning role mapping, presiding substitutes, document schema picker, partial batch errors, and SSE.
+
+---
 
 ---
 
@@ -173,8 +171,6 @@ interface ShellActions {
 `[Confirmed — E3 Part 2: `AuthResponseSchema` carries `user: UserSelectSchema`, `sessionId: UuidSchema`, `expiresAt: TimestampSchema`]`
 `[Confirmed — Consolidated Reference Part 11.1: auth token delivered via HTTP-only cookies; PKCE for the SPA]`
 `[Confirmed — F1 §2.2: role codes list; roles determine gate access throughout the route map]`
-
-`[Confirmed — ADR-012]` `AuthResponseSchema` (E3 Part 2) is confirmed to return `roleCodes: string[]`, `officeScopeId`, and `officeCode` directly as part of the login response, computed server-side from the user's active role assignments at session-issue time. No second resolving call is made. This was previously `[Unverified]` (F2 v2 §18 item 1) and is now resolved — the `ActiveUserIdentity` state shape below was already designed for this exact payload and requires no change.
 
 ### State shape
 
@@ -462,15 +458,6 @@ interface DocumentIntakeActions {
 
 `[Inference]` `reset()` is called in three situations: after a successful `documents.create` mutation; after the user explicitly clicks "Discard"; and when the user navigates away from `/documents/new` via the router's `onBeforeLeave` guard (the guard prompts with `CONFIRM_ACTION` first).
 
-### Step 1 picker scope
-
-`[Confirmed — ADR-013]` `CERTIFICATION_OF_URGENCY` and `DOCUMENT_REQUEST_FORM` — though both have metadata schemas defined in E3 Part 5 — are **excluded** from the Step 1 document-type picker. Neither is reachable through this store's flow:
-
-- `CERTIFICATION_OF_URGENCY` is logged via `useModalStore`'s `LOG_CERTIFICATION_OF_URGENCY` modal (§6), scoped to an existing measure via `stepInstanceId`. It has no standalone title/classification/series number (Consolidated Reference Part 4.17) and does not fit the Step 2 core-fields shape.
-- `DOCUMENT_REQUEST_FORM` is created via the dedicated `useDocumentRequestIntakeStore` (§11), which already models its distinct requester/purpose/payment/printable-PDF shape.
-
-The Step 1 picker's selectable set is: `SP_RESOLUTION`, `SP_ORDINANCE`, `APPROPRIATION_ORDINANCE`, `CITIZEN_COMPLAINT`, and the Phase 1B administrative types as they come online (Letters Received/Sent, Memos Incoming/Outgoing, Notices of Committee Hearing/Special Session, Designations, Barangay Resolutions) — i.e., types that are genuinely freestanding documents with their own title, classification, and series number assigned through the standard intake path.
-
 ### What does NOT go here
 
 Document list results, existing document metadata fetched for review — TanStack Query. `[Confirmed — boundary rule §1]`
@@ -480,8 +467,6 @@ Document list results, existing document metadata fetched for review — TanStac
 ## 9. Store 6 — `useWorkflowActionStore`
 
 **Concern:** Transient UI state for the workflow step action page (`/workflow/steps/:instanceId`). The page renders different action panels conditionally based on `step_type` and `step.name` (F1 §8.2). This store tracks which panel is "active" when a step could legitimately show more than one panel surface, and holds the comment/decision fields before they are submitted. `[Confirmed — F1 §8.2: ten named panels; single dynamic route with conditional rendering]`
-
-`[Confirmed — ADR-010]` The route's identifier is reconfirmed as `instanceId`, matching `workflow.getInstance`'s actual input parameter. No shape change to this store was needed — F2 had already used the correct key prior to ADR-010; ADR-010 closes F1's parallel gap (§14 item 10) on the same question, and this note records that the two documents were checked against each other and found consistent. See ADR-011 for the full propagation review.
 
 ### State shape
 
@@ -555,10 +540,6 @@ The workflow instance data, current step data, and committee assignment list —
 ## 10. Store 7 — `useComplaintIntakeStore`
 
 **Concern:** Clerk-assisted complaint intake form state for the in-person intake mode (`/complaints/new`). `[Confirmed — F1 §8.3: `ComplaintIntakeClerkAssistedPage` — SP Secretary only — `complaints.createClerkAssisted`]` `[Confirmed — Consolidated Reference Part 4.14: three access modes; clerk-assisted = mode 3]`
-
-`[Confirmed — ADR-009]` This store is structurally distinct from the citizen self-service form at `/portal/complaints/new`, which ADR-009 confirms is a no-login public form hosted in `/apps/portal` (per ADR-001) — outside this store's app boundary entirely. `useComplaintIntakeStore` exists only for mode 3 (clerk-assisted, in-person, SP Secretary operating the form on the citizen's behalf); it has no relationship to mode 2's digital self-service entry point. The two should not be conflated in implementation.
-
-`[Confirmed — ADR-004]` `routedToCommitteeId` (Step 4, below) is populated from a committee list now backed by the confirmed `organization.listCommittees` procedure. This was already implicitly a TanStack-Query-sourced list under this document's boundary rule (§1); ADR-004 supplies the procedure name but does not change this store's shape.
 
 `[Confirmed — E3 Part 5: `CitizenComplaintMetadataSchema` — complainant, incident, respondent fields; `ComplaintOutcomeStateSchema` default `pending_hearing`]`
 
@@ -651,8 +632,6 @@ interface ComplaintIntakeActions {
 ## 11. Store 8 — `useDocumentRequestIntakeStore`
 
 **Concern:** Clerk-assisted document request intake form for the in-person intake mode (`/document-requests/new`). `[Confirmed — F1 §8.4: `DocumentRequestIntakeClerkAssistedPage` — SP Secretary only — `documentRequests.createClerkAssisted`, `documentRequests.generatePrintableForm`]` `[Confirmed — Consolidated Reference Part 4.15: three access modes; physical signature still required after digital form generation]`
-
-`[Confirmed — ADR-009]` As with `useComplaintIntakeStore` (§10), this store is structurally distinct from the citizen self-service form at `/portal/requests/new`, which ADR-009 confirms is a no-login public form hosted in `/apps/portal`. This store exists only for mode 3 (clerk-assisted, in-person, SP Secretary operating the form). No shape change results from ADR-009; this note exists to prevent future conflation of the two flows.
 
 `[Confirmed — E3 Part 5: `DocumentRequestFormMetadataSchema`]`
 
@@ -783,35 +762,13 @@ interface QrScannerActions {
 
 **Concern:** Pending unsaved changes to the Order of Business view before the SP Secretary commits them to the server. `[Confirmed — F1 §6: `OrderOfBusinessPage`; primary actions: `session.scheduleDocumentForFirstReading`, `session.enterCommitteeHearingDate`, `workflow.manuallyAdvanceMultiReferralStep`]` `[Confirmed — Consolidated Reference Part 4.18: "Order of Business generated from documents scheduled for the upcoming Tuesday session; cutoff Thursday"]`
 
-`[Confirmed — ADR-010, ADR-011]` The `ENTER_HEARING_DATE` variant below was patched in this revision against the confirmed `session.enterCommitteeHearingDate` input schema. `stepInstanceId` is the correct targeting identifier for this procedure — consistent with ADR-010's separate confirmation that `instanceId` and `stepInstanceId` are distinct, both-real identifiers in E1; `enterCommitteeHearingDate` is one of the procedures that keys on the step-level identifier. See the usage notes below for the `committeeId` strip-before-send rule and the nullable-`hearingDate` rationale.
-
 ### State shape
 
 ```typescript
 // Represents a pending scheduling change not yet submitted to the server
 type PendingScheduleChange =
   | { changeType: "SCHEDULE_FIRST_READING"; documentId: string; sessionDate: string; }
-  | {
-      changeType: "ENTER_HEARING_DATE";
-      stepInstanceId: string;
-      /**
-       * UI-display-only field. Carries the committee name or ID so the pending-changes
-       * list can render a human-readable label (e.g. "Committee on Laws — 2026-07-15")
-       * instead of a bare UUID. This field is NOT sent to the server.
-       * Stripped before the `session.enterCommitteeHearingDate` mutation fires.
-       * [Confirmed — E1 `session.enterCommitteeHearingDate` input schema:
-       *   z.object({ stepInstanceId, hearingDate }) — no committeeId parameter]
-       */
-      committeeId: string;
-      /**
-       * null = "assigned; date TBD" — a committee referral step may begin without a
-       * scheduled hearing date. Matches E1 input: hearingDate z.coerce.date().nullish().
-       * [Confirmed — E1; Consolidated Reference Q-C05]
-       * Note: sessionDate on SCHEDULE_FIRST_READING is always a non-null Tuesday date;
-       * that variant is unaffected.
-       */
-      hearingDate: string | null;
-    }
+  | { changeType: "ENTER_HEARING_DATE";     stepInstanceId: string; committeeId: string; hearingDate: string; }
   ;
 
 interface OrderOfBusinessState {
@@ -835,7 +792,7 @@ interface OrderOfBusinessActions {
   setViewingSessionDate: (date: string | null) => void;
 
   addScheduleFirstReading: (documentId: string, sessionDate: string) => void;
-  addEnterHearingDate: (stepInstanceId: string, committeeId: string, hearingDate: string | null) => void;
+  addEnterHearingDate: (stepInstanceId: string, committeeId: string, hearingDate: string) => void;
   removeChange: (index: number) => void;
   clearPendingChanges: () => void;
 
@@ -847,26 +804,19 @@ interface OrderOfBusinessActions {
 
 `[Inference]` A "pending changes" buffer is used rather than immediate per-action mutations because the SP Secretary typically makes several scheduling adjustments together while reviewing the Order of Business (e.g. scheduling five first readings and entering three committee hearing dates before saving). Batching them into a single review-and-commit flow reduces the risk of partial saves and gives the Secretariat a chance to review the full set of changes before committing.
 
-`[Confirmed — ADR-014]` On save, the component iterates `pendingChanges` **sequentially, in array order** — not in parallel via `Promise.all` — firing each item's corresponding tRPC mutation one at a time and tracking each item's status as `pending` → `committing` → `succeeded` | `failed`. On an item's success, it is immediately removed from the buffer. On an item's failure, it remains in the buffer marked `failed` with its error surfaced inline, and the iteration **continues** to the remaining items rather than aborting the batch. No rollback of already-succeeded items is performed on a later failure — each scheduling change is an independent fact with no transactional relationship to the others. After the pass completes, `session.getOrderOfBusiness` is invalidated once. The buffer, after a partial failure, contains only the failed items; a subsequent save attempt retries only what remains. This was previously `[Inference]` (F2 v2 §18 item 4, "team to confirm") and is now resolved.
-
-`[Confirmed — E1 session.enterCommitteeHearingDate input schema; developer decision June 2026]` When iterating `pendingChanges` on save, the component constructing the `session.enterCommitteeHearingDate` mutation payload must omit `committeeId` — it is a UI-display-only field and is not part of the procedure's input schema. Only `stepInstanceId` and `hearingDate` are sent. A `hearingDate` of `null` is passed as-is; E1 accepts `.nullish()` and the backend treats it as "date TBD."
+`[Inference]` On save, the component iterates `pendingChanges` and fires each corresponding tRPC mutation in sequence. On success, `clearPendingChanges` is called and TanStack Query's `session.getOrderOfBusiness` cache is invalidated. On error, the failed change is highlighted in the pending list; successfully committed changes are removed from the buffer.
 
 `[Confirmed — Consolidated Reference Part 8.3, Q-A02: "SP Secretary can manually advance the step — must be audit-logged with a mandatory comment"]` `workflow.manuallyAdvanceMultiReferralStep` (the bypass action) is handled via `useModalStore` → `CONFIRM_ACTION` → inline TanStack Query mutation on the Order of Business page. It is not buffered in this store because it requires an immediate confirmation + mandatory reason, not a staged batch save.
 
 `[Confirmed — Consolidated Reference Part 7.2: "Documents received by Secretariat before the Thursday cutoff are included in the next Tuesday Order of Business"]` `viewingSessionDate` tracks which session the Secretariat is building the Order of Business for. It defaults to the next upcoming Tuesday.
 
-`[Confirmed — Consolidated Reference Part 4.10, Part 7.2, Q-C05: "A committee referral step can begin without a scheduled date (assigned; date TBD)"]` The nullable `hearingDate` directly supports this confirmed business rule: Secretariat staff can stage an `ENTER_HEARING_DATE` pending change for a committee referral before the committee has communicated a hearing date, then return later (a separate pending change, or an edit to this one before save) to fill in the date once known.
-
 ---
-
 
 ## 14. Store 11 — `useAttendanceStore`
 
 **Concern:** A local buffer of attendance records being entered for a single SP session before batch submission. `[Confirmed — F1 §9: `SessionAttendanceDetailPage`; `session.recordAttendance` — SP Secretary only]` `[Confirmed — Consolidated Reference Part 7.3: "Absence input timing: recorded before the session; absence reasons: OB, sick leave, vacation leave, absent (unqualified)"]`
 
 `[Confirmed — E3 Part 11: `CreateSpSessionInputSchema` — `attendanceRecords: z.array(...)` — quorum requires ≥ 7 present; `AttendanceStatusSchema`: ["present", "absent_ob", "absent_sick", "absent_vacation", "absent"]]`
-
-`[Confirmed — ADR-007]` The Designation document type is pulled into Phase 1, resolving the dependency this store previously deferred (F1 §9, §14 item 7). The state shape below now models `presidingOfficerSubstituteId` directly. See the usage notes for sourcing details.
 
 ### State shape
 
@@ -890,13 +840,6 @@ interface AttendanceState {
   presentCount: number;
   quorumMet: boolean;                 // presentCount >= 7 (Confirmed — consolidated reference Part 3.2)
 
-  // Designated presiding officer substitute for this session, if the active VP/presiding
-  // officer is unavailable and a Designation document has assigned a substitute beforehand.
-  // null = no active substitute designation for this session; the regular presiding officer
-  // (SpSessionSelectSchema.presidingOfficerEmployeeId) applies.
-  // [Confirmed — ADR-007: Designation document type is Phase 1]
-  presidingOfficerSubstituteId: string | null;
-
   isSubmitting: boolean;
 }
 ```
@@ -915,8 +858,6 @@ interface AttendanceActions {
   markPresent: (employeeId: string) => void;
   markAbsent: (employeeId: string, status: Exclude<AttendanceRecord["status"], "present">, reason?: string) => void;
 
-  setPresidingOfficerSubstitute: (employeeId: string | null) => void;
-
   setSubmitting: (isSubmitting: boolean) => void;
   reset: () => void;                   // called after successful submission
 }
@@ -930,19 +871,11 @@ interface AttendanceActions {
 
 `[Confirmed — E3 Part 11: `CreateSpSessionInputSchema` refine — "at least 7 members must be present"]` The quorum check (`quorumMet`) is surfaced in the UI as a warning indicator while the Secretary is recording attendance. Submission is blocked if `quorumMet === false` and the session type is `"regular"`. `[Inference — the source confirms the quorum rule; the block-on-submit behavior is this document's proposed implementation]`
 
-`[Confirmed — ADR-007, ADR-016, Developer Decision June 2026]` `presidingOfficerSubstituteId` is populated by `setPresidingOfficerSubstitute`, called when the component resolves an active Designation-backed substitute for the SP Presiding Officer role covering `sessionDate`. The confirmed procedure is **`organization.getActiveDesignations`** (E1, Organization Router) — a `query` taking `z.void()` input and returning **every** currently active designation system-wide, unfiltered by role, office, or date. There is no server-side parameter to narrow this to "the presiding officer, for this date" — the component must:
-
-1. Filter the returned array client-side for the row whose `positionTitle` matches the SP Presiding Officer position's literal display string (confirmed as `"Presiding Officer"`);
-2. Confirm `sessionDate` falls within that row's `[validFrom, validUntil]`;
-3. Pass the matching row's `delegatedToUserId` to `setPresidingOfficerSubstitute`; pass `null` if no row matches.
-
-Because only one active designation per person is permitted and designations auto-expire (Consolidated Reference Part 11.13), at most one row can match the position-title filter at a given moment — but the *query itself* returns the full unfiltered list, so naively taking `data[0]` without the filter above would pick an unrelated active designation (e.g. Acting Mayor grant) if one happens to exist concurrently. This procedure name and shape were previously `[Unverified]` (F2 v2 §18 item 6) and are now resolved.
-
-`[Confirmed — Consolidated Reference Part 11.13: "One active designation per person enforced... Auto-expires at end date: routing returns to original authority automatically"]` Because only one active designation per person is permitted and designations auto-expire, the component does not need to handle multiple competing substitute candidates — at most one active Designation-backed substitute can exist for the presiding-officer role at any given session date.
+`[Confirmed — F1 §9: "designated substitute" field creates a tension with Phase 1B Designation document type]` This store does not model a `presidingOfficerSubstituteId` field. The presiding officer is selected at session creation and comes from the existing `SpSessionSelectSchema.presidingOfficerEmployeeId` field. The Phase 1B resolution to this tension (F1 §9, §14 item 7) is noted here but not pre-implemented.
 
 ### What does NOT go here
 
-Historical attendance records across sessions, the attendance statistics graph data, the Designation document record itself, and the underlying `delegation_grant` row — all TanStack Query. `[Confirmed — boundary rule §1]`
+Historical attendance records across sessions, the attendance statistics graph data — TanStack Query. `[Confirmed — boundary rule §1]`
 
 ---
 
@@ -988,8 +921,6 @@ The modal stack is never persisted to `localStorage` or `sessionStorage`. On pag
 
 `[Inference]` Zustand's `persist` middleware with `storage: sessionStorage` is used for the stores marked above. `sessionStorage` (not `localStorage`) is chosen because the data is session-scoped — a new browser tab should start fresh, and the data must not persist across logout. The `partialize` option on each `persist` call explicitly excludes `isSubmitting` and derived fields (e.g. `quorumMet`, `presentCount`) from the persisted subset; only raw input values are persisted.
 
-`[Inference]` `useAttendanceStore`'s `presidingOfficerSubstituteId` (added in this revision per ADR-007) is a raw input value, not a derived field — it persists under the existing "all fields" rule with no `partialize` exclusion needed.
-
 `[Confirmed — boundary rule §1]` Persisted draft data in `sessionStorage` is UI state, not server state, and does not violate the JWT/cookie-only auth constraint. It holds form field strings and IDs, not credentials, tokens, or server-side entity data.
 
 ---
@@ -1004,7 +935,6 @@ Each store should have a Vitest unit test file alongside it (`shell.store.test.t
 - Each action's effect on state in isolation
 - Persistence round-trip (for stores using `sessionStorage` persist): serialize → deserialize → state matches
 - Cross-action sequences that mirror real user flows (e.g. for `useDocumentIntakeStore`: `selectDocumentType` → `setCoreFields` → `setMetadata` → `setUploadComplete` → confirm state shape is correct before submit)
-- `[Confirmed — ADR-016]` **Required:** a test asserting that the Order of Business save-orchestration logic (§13), when given a `pendingChanges` buffer containing an `ENTER_HEARING_DATE` item with a non-null `committeeId`, assembles a `session.enterCommitteeHearingDate` mutation payload containing exactly `{ stepInstanceId, hearingDate }` — with no `committeeId` key present at all, including as `undefined`. This guards against `committeeId` (a UI-display-only field per §13's state shape) leaking onto the wire via an incautious object-spread during a future refactor. This test lives at the component/hook level (the save-orchestration logic, not the store itself, per §15 Rule 1) but is listed here as required Phase 1 sign-off coverage rather than left to be inferred from the general cross-action-sequence guidance above.
 - `reset()` returns all fields to initial values
 
 `[Inference]` Stores should be tested without any React rendering (plain function calls on the store's `getState()` and action functions). This is straightforward with Zustand's vanilla store API. No component or hook is needed in store unit tests.
@@ -1015,20 +945,14 @@ Each store should have a Vitest unit test file alongside it (`shell.store.test.t
 
 ## 18. Known Gaps and Open Questions
 
-`[Confirmed — ADR-012 through ADR-016, Developer Decision June 2026]` All items, including the subsequent follow-up on the presiding officer's position title string, are resolved. F2 carries zero open items.
-
-### Resolved in this revision (and carried forward from v2)
-
-| # | Gap (as originally identified) | Resolution | ADR |
+| # | Gap / question | Where it surfaces | Status |
 |---|---|---|---|
-| 1 | `useSessionStore` must hold `roleCodes` for synchronous ABAC checks; login response shape (flat `string[]` vs. full `RoleAssignmentSelectSchema[]`) was unconfirmed. | `AuthResponseSchema` extended to return `roleCodes: string[]`, `officeScopeId`, `officeCode` directly, computed server-side at login. No second call; no store shape change. | [ADR-012](./ADR-012-session-store-rolecodes-shape.md) |
-| 2 (orig.) | The Phase 1B Designation document type tension in `useAttendanceStore` (presiding-officer substitute field deferred pending Designation reaching Phase 1). | Designation pulled into Phase 1; `presidingOfficerSubstituteId` modeled directly. | [ADR-007](./ADR-007-designation-document-type-phase1.md), [ADR-011](./ADR-011-f2-propagation-of-f1-adrs.md) |
-| 3 | Whether CERTIFICATION_OF_URGENCY and DOCUMENT_REQUEST_FORM appear in the Step 1 document-type picker needed a product decision. | Both excluded; each is created only through its own dedicated entry point (`LOG_CERTIFICATION_OF_URGENCY` modal; `useDocumentRequestIntakeStore`). | [ADR-013](./ADR-013-document-intake-picker-scope.md) |
-| 4 | Partial batch-failure UX for `useOrderOfBusinessStore.pendingChanges` was not detailed in any source document. | Sequential per-item commit; failed items remain in the buffer, highlighted, and retryable; no rollback of prior successes. | [ADR-014](./ADR-014-order-of-business-batch-save-error-handling.md) |
-| 5 | SSE reconnection strategy for `useNotificationDrawerStore.newArrivalCount` was not described in any source document. | Native `EventSource` reconnect + server-side `Last-Event-ID` replay as primary mechanism; unconditional TanStack Query refetch on drawer open as a correctness backstop; no continuous background poll added. | [ADR-015](./ADR-015-sse-reconnection-strategy.md) |
-| 6 | Procedure name for the presiding-officer-substitute lookup was unconfirmed; `committeeId` strip-before-send convention lacked specified test coverage. | Confirmed as `organization.getActiveDesignations` (unscoped — client-side filter by `positionTitle` + date range required). Strip-before-send Vitest case added as an explicit required test in §17. | [ADR-016](./ADR-016-designation-lookup-procedure-and-test-coverage.md) |
-| 7 | The literal display string for the SP Presiding Officer `positionTitle` value returned by `organization.getActiveDesignations` (e.g. `"Vice Mayor"`, `"Presiding Officer"`, or something else) is not confirmed against actual `organization.positions` seed data. `useAttendanceStore`'s client-side filter (§14, per ADR-016) cannot be implemented exactly until this string is confirmed. | Confirmed as `"Presiding Officer"`. §14's client-side filter is updated to use this literal string. | Developer decision / seed data check |
+| 1 | `useSessionStore` must hold `roleCodes` for synchronous ABAC checks, but the server returns role data via `RoleAssignmentSelectSchema` (E3 Part 2), not as a flat code array. The login response shape needs to be confirmed: does it return a resolved `string[]` of role codes, or the full `RoleAssignmentSelectSchema[]`? | §5 `useSessionStore` | `[Unverified]` — E3's `AuthResponseSchema` contains only `user: UserSelectSchema` which has no `roleCodes` field; role resolution may require an additional call |
+| 2 | The Phase 1B Designation document type tension in `useAttendanceStore` (the "designated substitute" presiding officer field requires a Designation document, but Designation is Phase 1B). This store defers the field; the presiding officer is always the active VP unless set manually at session creation. | §14 `useAttendanceStore`, F1 §9 | `[Unverified]` — inherited from F1 §14 item 7 |
+| 3 | `useDocumentIntakeStore` Step 3 renders different React Hook Form instances per `selectedDocumentTypeCode`. CERTIFICATION_OF_URGENCY and DOCUMENT_REQUEST_FORM have their own metadata schemas (E3 Part 5) but are arguably not "new document" types that go through the standard intake form — they are generated or logged differently. Whether these types appear in the Step 1 document type picker needs a product decision. | §8 `useDocumentIntakeStore` | `[Speculation]` |
+| 4 | `useOrderOfBusinessStore.pendingChanges` batches scheduling mutations. If any one mutation in the batch fails, the UI must distinguish successfully committed changes (removed from buffer) from failed ones (highlighted). The error-handling pattern for partial batch failure is not detailed in any source document. | §13 `useOrderOfBusinessStore` | `[Inference]` — proposed approach is to iterate sequentially and track per-item status; team to confirm |
+| 5 | SSE reconnection behavior: if the SSE connection drops and reconnects, `newArrivalCount` in `useNotificationDrawerStore` may miss events delivered during the gap. The source documents do not describe the SSE reconnection strategy. The standard `EventSource` browser API handles reconnection automatically with the `Last-Event-ID` header, but the server must support event replay for this to work. | §7 `useNotificationDrawerStore` | `[Speculation]` — the team should decide whether missed events during reconnection are acceptable or require a fallback TanStack Query poll |
 
 ---
 
-*This document supersedes any informal or ad-hoc Zustand store definitions that may exist in `/apps/web` prior to Phase 1 development start, and supersedes the original (v1/v2) `f2-zustand-store-design.md` in full as a standalone document. All new stores must be added to this catalog with the same structure: store name, state shape, actions, usage notes, and explicit boundary from TanStack Query. This document is updated after any stakeholder interview, developer decision, or UI design change that introduces a new modal, multi-step form, or persistent UI state requirement. This v3 revision incorporates the resolutions of all gaps from v2 via ADR-012 through ADR-016, plus the follow-up confirmation on the presiding officer's position title.*
+*This document supersedes any informal or ad-hoc Zustand store definitions that may exist in `/apps/web` prior to Phase 1 development start. All new stores must be added to this catalog with the same structure: store name, state shape, actions, usage notes, and explicit boundary from TanStack Query. This document is updated after any stakeholder interview, developer decision, or UI design change that introduces a new modal, multi-step form, or persistent UI state requirement.*
