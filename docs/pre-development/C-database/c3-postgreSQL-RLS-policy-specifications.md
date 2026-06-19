@@ -8,6 +8,36 @@
 **Prerequisites:** C1 (Full Database Schema DDL), I1 (ABAC Policy Specification), B5 (Authentication & Authorization Architecture)
 **Downstream:** C4 (Index Strategy), E1/E2/E3 (API and Schema Catalogs)
 
+
+## Table of Contents
+
+- [L43–L52] 1. Introduction — Role of RLS as a secondary enforcement layer complementing application-level ABAC.
+- [L53–L82] 2. Purpose and Scope — Scope of RLS enforcement and mappings to core architectural invariants like tenant isolation.
+- [L83–L311] 3. Row-Level Security Architecture Overview — Structural architecture of the database security layers, session context, and RLS helpers.
+  - [L85–L104] 3.1 Enforcement Layers — Interactive relationship between application ABAC, PostgreSQL RLS, and role grant layers.
+  - [L105–L127] 3.2 Database Roles — Definitions of database roles and the proposed IT admin role implementation.
+  - [L128–L147] 3.3 Session Context Variables — Transaction-scoped context variables used by the application to pass user security context to PostgreSQL.
+  - [L148–L266] 3.4 RLS Helper Functions — Stable SQL helper functions encapsulating session variable retrieval and role/office checking.
+  - [L267–L277] 3.5 Policy Naming Convention — Naming format standard for prefixing, qualifying, and identifying RLS policy targets.
+  - [L278–L302] 3.6 Global Policy Patterns — Reusable SQL snippets for tenant isolation and soft-delete visibility check.
+  - [L303–L311] 3.7 Initial Setup — BYPASSRLS — Command granting bypass privilege to the migration role for DDL applications.
+- [L312–L366] 4. Tables Requiring RLS — Master List — Matrix of all Phase 1 database tables mapped to their RLS complexity tier.
+- [L367–L390] 5. Application Role Reference — Reference mapping application-level security roles to their logical database access permissions.
+- [L391–L2012] 6. RLS Policy Specifications — Detailed CREATE POLICY definitions for all tables across the eight Phase 1 schemas.
+  - [L393–L728] 6.1 Schema: `iam` — Security policies restricting credentials/sessions to owners and gating user provisioning to IT admins.
+  - [L729–L933] 6.2 Schema: `organization` — Read-access policies for LGU structures and specific delegation grant management rules.
+  - [L934–L1400] 6.3 Schema: `documents` — Classification gate implementation and restrictive policies isolating confidential content from IT admins.
+  - [L1401–L1643] 6.4 Schema: `workflow` — Platform Admin workflow configuration limits and office/assignee visibility rules for runtimes.
+  - [L1644–L1734] 6.5 Schema: `tracking` — Document-office access for tracking metadata and SP Secretariat restricted insert privileges.
+  - [L1735–L1832] 6.6 Schema: `records` — Management permissions restricted to Records Officers and retention schedule access configuration.
+  - [L1833–L1929] 6.7 Schema: `notifications` — Recipient-only visibility for notification events and delivery log append-only rules.
+  - [L1930–L2012] 6.8 Schema: `audit` — Tamper-resistant, insert-only RLS and role rules restricting direct audit reading.
+- [L2013–L2106] 7. Grant Statements — Privilege baseline grants for roles and the SECURITY DEFINER audit reading function.
+- [L2107–L2159] 8. Security Considerations — In-depth analysis of risks, policy ordering, performance, and session variable injection mitigations.
+- [L2160–L2189] 9. Conclusion — High-level security posture summary and pre-migration implementation checklist.
+
+---
+
 ---
 
 ## 1. Introduction
