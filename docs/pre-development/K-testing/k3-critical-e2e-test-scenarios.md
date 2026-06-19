@@ -6,31 +6,30 @@
 **Date:** June 2026
 **Based on:**
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2, developer decisions incorporated)
-- `f1-application-route-map.md` (F1) — route paths and component names
+- `f1-application-route-map-v2.md` (F1) — route paths and component names
 - `h1-phase-1-workflow-definitions-structured-data.md` (H1) — step keys, outcome codes, transition rules
 - `2-stack-context.md` — test tooling (Vitest + Playwright)
 
 **Audience:** Development team — whoever writes Playwright tests
 
-
 ## Table of Contents
 
-- [L39–L46] Purpose — Overview and rationale for testing the six highest-risk user journeys in Phase 1.
-- [L47–L63] How to Use This Document — Guide to scenario structure, role codes, step keys, outcome codes, and epistemic markers.
-- [L64–L87] Shared Seed Data Requirements — Base database state and mock users required as preconditions for all six test scenarios.
-- [L88–L233] S1. Full SP Resolution Lifecycle — Standard Path to Panlalawigan VALID — Happy path E2E test for the complete SP Resolution workflow ending in public portal publication.
-  - [L90–L95] Goal — Objective and legal basis of the happy path test scenario.
-  - [L96–L99] Roles involved — List of six specific system roles required to execute the S1 scenario.
-  - [L100–L103] Routes exercised (F1 paths) — The sequence of F1 frontend application route paths tested in S1.
-  - [L104–L107] Workflow steps exercised (H1 step_keys, SP Resolution) — Chronological order of Custom Workflow Engine step keys and outcomes.
-  - [L108–L111] Preconditions — Initial setup constraints including active SP Resolution workflow definition version 1.
-  - [L112–L233] Scenario script — Fifteen-step test actions and assertions verifying QR, numbering, signature, and audit transitions.
-- [L234–L279] S2. Certified Urgent Path — Same-Session Second Reading — Verifies committee referral bypass and direct transition to second reading via Certification of Urgency.
-- [L280–L330] S3. Mayor 10-Day Lapse-into-Law — Verifies automated transition to docketing when Mayor fails to act within ten calendar days.
-- [L331–L398] S4. Citizen Complaint — All Three Access Modes Through to Resolution — Tests intake via physical, digital portal, and clerk-assisted modes and subsequent committee resolution.
-- [L399–L448] S5. QR Code Scan on Mobile Device Resolving to Document Status — Verifies mobile viewport rendering of public tracking page, first-page visibility, and blurred pages.
-- [L449–L508] S6. SP Secretary Manual Override of Missing Committee Report — Mandatory Audit Log Entry — Verifies SP Secretary manual committee bypass requirement for comment, audit trail, and role lock.
-- [L509–L544] Notes for Test Implementation — Technical instructions for handling timers, database isolation, URL ambiguity, and Playwright folder structure.
+- [L38–L45] Purpose — Overview and rationale for testing the six highest-risk user journeys in Phase 1.
+- [L46–L62] How to Use This Document — Guide to scenario structure, role codes, step keys, outcome codes, and epistemic markers.
+- [L63–L86] Shared Seed Data Requirements — Base database state and mock users required as preconditions for all six test scenarios.
+- [L87–L232] S1. Full SP Resolution Lifecycle — Standard Path to Panlalawigan VALID — Happy path E2E test for the complete SP Resolution workflow ending in public portal publication.
+  - [L89–L94] Goal — Objective and legal basis of the happy path test scenario.
+  - [L95–L98] Roles involved — List of six specific system roles required to execute the S1 scenario.
+  - [L99–L102] Routes exercised (F1 paths) — The sequence of F1 frontend application route paths tested in S1.
+  - [L103–L106] Workflow steps exercised (H1 step_keys, SP Resolution) — Chronological order of Custom Workflow Engine step keys and outcomes.
+  - [L107–L110] Preconditions — Initial setup constraints including active SP Resolution workflow definition version 1.
+  - [L111–L232] Scenario script — Fifteen-step test actions and assertions verifying QR, numbering, signature, and audit transitions.
+- [L233–L278] S2. Certified Urgent Path — Same-Session Second Reading — Verifies committee referral bypass and direct transition to second reading via Certification of Urgency.
+- [L279–L329] S3. Mayor 10-Day Lapse-into-Law — Verifies automated transition to docketing when Mayor fails to act within ten calendar days.
+- [L330–L397] S4. Citizen Complaint — All Three Access Modes Through to Resolution — Tests complaint intake via physical, digital portal, and clerk-assisted modes and subsequent resolution.
+- [L398–L447] S5. QR Code Scan on Mobile Device Resolving to Document Status — Verifies mobile viewport rendering of public tracking page, first-page visibility, and blurred pages.
+- [L448–L507] S6. SP Secretary Manual Override of Missing Committee Report — Mandatory Audit Log Entry — Verifies SP Secretary manual committee bypass requirement for comment, audit trail, and role lock.
+- [L508–L543] Notes for Test Implementation — Technical instructions for handling timers, database isolation, URL configuration, and Playwright folder structure.
 
 ---
 
@@ -344,9 +343,9 @@ Mode 1: `/complaints/new` (staff-side, clerk enters physical submission) → `/c
 Mode 2: `/portal/complaints/new` (citizen portal, self-service) → `/portal/complaints/:complaintId/status` → `/complaints/:complaintId` (staff-side resolution)
 Mode 3: `/complaints/new` (staff-side, clerk-assisted in-person, same route as mode 1 but intent differs)
 
-> **[Unverified — F1 §13.1, §14 item 1]** Whether `/portal/complaints/new` is served from `/apps/web` (unauthenticated route) or `/apps/portal` is not settled. This scenario exercises the portal URL as written in F1 §13.2; if the hosting decision changes the physical URL, the test must be updated. The assertion content does not depend on which app hosts it.
+> **[Resolved — ADR-001]** The public portal URL `/portal/complaints/new` is served from the Next.js portal application `/apps/portal` (built now).
 
-> **[Unverified — F1 §13.2 note]** Whether portal complaint submission requires a citizen account (login) or is a public no-login form is not confirmed. The test must be written to accommodate either gate; if login is required, the citizen user from the base seed is used.
+> **[Resolved — ADR-009]** Citizen complaint submission is a public no-login form that does not require an authenticated citizen account.
 
 ### Preconditions
 
@@ -410,7 +409,7 @@ Unauthenticated (public)
 
 `/portal/lookup` → `/portal/documents/:trackingNumber`
 
-> **[Unverified — F1 §13.1]** Same hosting-app ambiguity applies. Test against the portal URL path as defined; update if hosting decision changes physical URL.
+> **[Resolved — ADR-001]** Served from `/apps/portal` (Next.js).
 
 ### Preconditions
 
@@ -516,9 +515,9 @@ S3 and S6 both require advancing or bypassing real-time deadlines. The test impl
 
 Each scenario should run against a clean database snapshot or use a rollback strategy so that residual state from one scenario does not affect another. Playwright's `test.beforeEach` hook is the natural place for this.
 
-### Portal hosting ambiguity
+### Portal hosting configuration
 
-S4 (Mode 2) and S5 both exercise portal routes. Until the hosting-app decision (F1 §14 item 1) is resolved, the Playwright config must be prepared to point portal routes at either the same base URL as `/apps/web` (unauthenticated route group) or a separate base URL for `/apps/portal`. Parameterize the portal base URL in `playwright.config.ts` via an environment variable rather than hardcoding.
+S4 (Mode 2) and S5 both exercise portal routes. Since the hosting-app decision is resolved in favor of a separate `/apps/portal` Next.js app `[Resolved — ADR-001]`, the Playwright config should be configured to target its base URL (which should be parameterized in `playwright.config.ts` via an environment variable rather than hardcoding).
 
 ### Test execution priority
 
