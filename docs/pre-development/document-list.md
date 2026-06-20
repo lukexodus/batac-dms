@@ -26,7 +26,9 @@
 | F1  | Application Route Map                          | I2, E1                       |     |
 | F2  | Zustand Store Design                           | F1, E3                       |     |
 | F3  | TanStack Query Key Factory                     | E1                           |     |
-| F4  | Component Hierarchy Specification              | F1                           |     |
+| F4  | Component Hierarchy Specification              | F1, F5                       |     |
+| F5  | UI Component Library Setup and Package Architecture | None                    |     |
+| F6  | Accessibility Compliance Checklist (WCAG 2.1 AA)   | F5                       |     |
 | G1  | End-to-End Type Safety Chain                   | C1, E1, E3                   |     |
 | H1  | Phase 1 Workflow Definitions (Structured Data) | B4, D3                       |     |
 | H2  | Document Type Catalog with JSONB Schemas       | B4, H3                       |     |
@@ -40,6 +42,7 @@
 | J3  | Coding Standards and Conventions               | None                         |     |
 | J4  | Module Structure Template                      | B2, J1                       |     |
 | J5  | ADR Templates and Initial ADR Set              | None                         |     |
+| J6  | Kitchen-Sink Migration and Domain Component Catalog | F5                      |     |
 | K1  | Test Strategy Document                         | B4                           |     |
 | K2  | Workflow Engine Test Suite Design              | B4, D3, H1                   |     |
 | K3  | Critical E2E Test Scenarios                    | F1, H1                       |     |
@@ -56,8 +59,8 @@ Documents within the same wave have no dependency on each other and can be gener
 
 | Wave | Documents                                              | Count |
 | ---- | ------------------------------------------------------ | ----- |
-| 1    | A2, B1, B4, B5, C5, D1, D4, D5, H3, I2, J2, J3, J5, L1 | 14    |
-| 2    | B2, D3, H2, K1, L2                                     | 5     |
+| 1    | A2, B1, B4, B5, C5, D1, D4, D5, H3, I2, J2, J3, J5, L1, F5 | 15    |
+| 2    | B2, D3, H2, K1, L2, F6, J6                                  | 7     |
 | 3    | B3, C1, H1, I1, J1, L3                                 | 6     |
 | 4    | C2, C3, D2, D6, E1, E2, E3, H4, I3, J4, K2, L4         | 12    |
 | 5    | C4, F1, F3, G1                                         | 4     |
@@ -137,7 +140,7 @@ For each schema: the indexes beyond primary keys that are needed for the expecte
 
 **C5. Migration Strategy and Conventions Document** — Pre-dev
 
-Rules for the Drizzle Kit migration workflow: naming conventions for migration files, review checklist before applying (the "review the SQL before applying" rule from 2-stack-context.md, formalized), what constitutes a breaking migration and how to handle it in a zero-downtime context, the prohibition on reset-and-regenerate in production, and the linting rules that enforce Invariants #1, #6, #7 automatically.
+Rules for the Drizzle Kit migration workflow: naming conventions for migration files, review checklist before applying (the "review the SQL before applying" rule from tech-stack.md, formalized), what constitutes a breaking migration and how to handle it in a zero-downtime context, the prohibition on reset-and-regenerate in production, and the linting rules that enforce Invariants #1, #6, #7 automatically.
 
 ---
 
@@ -181,7 +184,7 @@ OpenAPI 3.0 YAML spec for all public REST endpoints. Phase 1 public endpoints ar
 
 **E3. Shared Zod Schema Catalog** — Blocking
 
-The catalog of every Zod schema that lives in `/packages/shared`. Organized by domain. Each entry: schema name, fields, types, validation rules, and which layers consume it (backend validation, tRPC input, form validation, response type). This document enforces that the shared package is the single source of truth per the type safety chain in 2-stack-context.md.
+The catalog of every Zod schema that lives in `/packages/shared`. Organized by domain. Each entry: schema name, fields, types, validation rules, and which layers consume it (backend validation, tRPC input, form validation, response type). This document enforces that the shared package is the single source of truth per the type safety chain in tech-stack.md.
 
 ---
 
@@ -201,7 +204,15 @@ The complete key factory for all TanStack Query cache keys in the application. F
 
 **F4. Component Hierarchy Specification** — Early-dev
 
-Top-down breakdown of the React component tree for Phase 1's primary views: the SP Secretary dashboard, the document detail view (with routing history, step timeline, QR cover sheet preview), the Order of Business view with red-flagging logic, and the Mayor dashboard. Specifies which components are in `/packages/ui` (reusable) vs. in `/apps/web` (page-specific). This can be refined during development but the top two levels should be settled before UI work begins.
+Top-down breakdown of the React component tree for Phase 1's primary views: the SP Secretary dashboard, the document detail view (with routing history, step timeline, QR cover sheet preview), the Order of Business view with red-flagging logic, and the Mayor dashboard. For each view, specifies the three-tier decomposition: (1) which shadcn Tier 1 primitives are used directly, (2) which Tier 2 CVA-overridden components (`Button`, `Tabs`, `Avatar`) are used, and (3) which Tier 3 domain compound components from `packages/ui` (`StatusBadge`, `DocumentNumberBadge`, `SLATimer`, `WorkflowStepIndicator`, etc.) are placed. Specifies which components live in `/packages/ui` (reusable across views) vs. `/apps/web` (page-specific compositions). Prerequisite: F5 must be complete before F4 is written, since the Tier 3 component inventory in F5 is what F4 places into the tree. This can be refined during development but the top two levels must be settled before view implementation begins.
+
+**F5. UI Component Library Setup and Package Architecture** — Blocking
+
+Complete specification of the `packages/ui` library: its scope, what it owns, and what it does not own (no business logic, no tRPC types, no Zod schemas). A locked technology table for decisions now irrevocable: Tailwind v4 (`@theme` block in `globals.css` — no `tailwind.config.ts`), shadcn/ui with `rsc: false`, CVA for variant management, `clsx` + `tailwind-merge` via `cn()`, Lucide icons exclusively, Sonner for toasts, Radix UI primitives as the accessibility layer. A confirmed deviations table documenting every place the implementation files diverge from DESIGN.md, including the WCAG-required `text-muted` correction (`#868e96` → `#5a6470`) and the extended token scale stops (`danger-50/200/700`, `success-300`) added from kitchen-sink.jsx usage. The core section: a three-tier component inventory — Tier 1 (shadcn primitives, used as-is: Card, Input, Textarea, Label, Separator, Skeleton, Badge, Dialog, Sheet, Tooltip, Table, Alert, Command, Popover, Select, Checkbox, Calendar, Chart, Breadcrumb, Sonner); Tier 2 (shadcn primitives with CVA overrides, already implemented: `Button`, `Tabs`, `Avatar`); Tier 3 (domain compound components to be built: `DocumentNumberBadge`, `StatusBadge`, `WorkflowStepIndicator`, `SLATimer`, `ScanQualityIndicator`, `RoutingHistoryTimeline`, `StatCard`, `EmptyState`, `OrderOfBusinessRow`, `CommitteeReferralBlock`, `DocumentPreviewCard`, `QRCodeDisplay`, `AppShell`, `Sidebar`, `Topbar`, `PageHeader`) — each Tier 3 entry includes the props interface, which DESIGN.md section defines its visual behavior, and which Tier 1 primitives it composes. Token exposure and CSS consumption rules. The `package.json` exports map. The PR boundary definition between foundation setup (Tier 1 + Tier 2, single PR) and feature work (each Tier 3 component ships in its own PR). A runbook for adding components. Source documents: DESIGN.md, `globals.css`, `button.tsx`, `tabs.tsx`, `avatar.tsx`, `components.json`, `INSTALL.sh`, `date-locale.ts`, `utils.ts`, `kitchen-sink.jsx`.
+
+**F6. Accessibility Compliance Checklist (WCAG 2.1 AA)** — Blocking
+
+The engineering accessibility specification and PR gate for all frontend work. Compliance target: WCAG 2.1 AA. Primary environment: Windows 11 workstations at City Hall (keyboard + mouse); secondary: personal phones for barangay users (touch). Screen reader target: NVDA + Chrome (primary), VoiceOver + Safari on iOS (secondary). Sections: universal rules applicable to every PR (focus ring, touch targets, no color-alone meaning, reduced motion, page title, language attribute); component-specific ARIA contracts for every Tier 3 domain component with non-trivial requirements (`SLATimer`: `role="timer"` + `aria-live="polite"` + progress bar `role="progressbar"`; `WorkflowStepIndicator`: `<ol>` with `aria-current="step"` on active node; `QRCodeDisplay`: `role="img"` + `aria-label`; `OrderOfBusinessRow`: red-flag icon `role="img"` + `aria-label`; `Sidebar`: `aria-current="page"` + `aria-expanded` on collapse toggle; command palette: focus trap + Escape return; Dialog: focus trap + `aria-describedby`; DataTable: `<table>` required, `aria-sort`; file upload: `role="region"` + `aria-live`; Sonner toasts: `aria-live` variant by severity); form accessibility rules (every field must have an associated `<label>` via `htmlFor`; error messages in `role="alert"`; `aria-required="true"` on required fields — the no-`<form>`-element rule does not exempt fields from label association); keyboard navigation contract (Tab, Enter, Space, Arrow, Escape, `⌘K`/`Ctrl+K`); color contrast reference table for every foreground/background token pair with computed ratios and AA pass/fail; a one-page markdown checklist version of all rules for direct paste into PR review comments. Source documents: DESIGN.md, `globals.css`, F5.
 
 ---
 
@@ -273,13 +284,17 @@ The canonical folder and file layout for a server-side module. Example for `docu
 
 An ADR template following the standard format (Context, Decision, Consequences, Status). The initial set of ADRs covering every non-obvious decision already made: modular monolith over microservices, custom workflow engine over Camunda/Temporal, PostgreSQL over MySQL, pessimistic locking, the multi-referral step type (Option B), deferred parallel split/join to Phase 2, the QR tracking number timing decision, the no-deletion invariant, the two-stage preliminary/final numbering architecture, the sp.batac.gov.ph coexistence decision, and the assume-no-existing-QR-system decision for letters and memos.
 
+**J6. Kitchen-Sink Migration and Domain Component Catalog** — Blocking
+
+The engineering interface specification for all Tier 3 domain components in `packages/ui`, and the migration guide from `kitchen-sink.jsx` to production. Serves three purposes: (1) complete enough that a developer can implement any Tier 3 component from this document alone without reading kitchen-sink.jsx; (2) defines the canonical shared TypeScript types used across components (`DocumentState` full union, `NumberVariant`, `SLAStatus`, `ScanQualityLevel`, `RoutingAction`, `CommitteeReportStatus`, `RoutingEntry`, `WorkflowStep`, `CommitteeReferral`, `OrderOfBusinessItem`, `DocumentPreview`); (3) defines the production `STATUS_META` constant as `Record<DocumentState, StatusMetaEntry>` with all class values as Tailwind utilities from the `@theme` block — no hardcoded hex values — reconciled line-by-line against both kitchen-sink.jsx and DESIGN.md §7, with every discrepancy annotated. For each Tier 3 component: the final props interface (more complete than F5's initial sketch, derived from kitchen-sink.jsx usage), a kitchen-sink.jsx-to-production diff summary (token replacement, `cn()` adoption, ARIA additions, `.touch-exempt` on non-actionable chips), a minimal usage example using SP Resolution `7SP 2026-001` as specimen data, and a "do not do this" counter-example for the most likely wrong implementation. A ten-step numbered migration procedure for moving any component from kitchen-sink.jsx to `packages/ui`. A deferred components table for Phase 1B+ components visible in kitchen-sink.jsx that must not be built in Phase 1. Source documents: `kitchen-sink.jsx`, DESIGN.md, `globals.css`, F5, `consolidated-architecture-and-requirements-reference-iteration-3.md` (Parts 2, 4.1, 4.2, 4.18, 5.1, 11.4–11.6).
+
 ---
 
 ## Group K — Testing
 
 **K1. Test Strategy Document** — Pre-dev
 
-Testing priorities (from 2-stack-context.md, formalized): (1) Workflow engine state machine — every valid and invalid state transition, (2) API integration tests for all ABAC-protected routes using Fastify's `.inject()`, (3) E2E tests for critical journeys. Defines: what belongs in Vitest unit tests (service layer pure functions, state machine transitions, Zod schema validations), what belongs in Vitest integration tests (database operations with a test PostgreSQL instance, full tRPC procedure calls), what belongs in Playwright E2E (see K3). Explicitly notes: no coverage targets for CRUD modules.
+Testing priorities (from tech-stack.md, formalized): (1) Workflow engine state machine — every valid and invalid state transition, (2) API integration tests for all ABAC-protected routes using Fastify's `.inject()`, (3) E2E tests for critical journeys. Defines: what belongs in Vitest unit tests (service layer pure functions, state machine transitions, Zod schema validations), what belongs in Vitest integration tests (database operations with a test PostgreSQL instance, full tRPC procedure calls), what belongs in Playwright E2E (see K3). Explicitly notes: no coverage targets for CRUD modules.
 
 **K2. Workflow Engine Test Suite Design** — Pre-dev
 
@@ -315,15 +330,15 @@ Operational runbooks for: daily encrypted `pg_dump` to S3, WAL-based PITR archiv
 
 **M1. Stack Context Addendum** — Pre-dev
 
-2-stack-context.md is substantially complete and does **not** need a full rewrite. However, three confirmed decisions are missing and should be added:
+tech-stack.md is substantially complete and does **not** need a full rewrite. However, three confirmed decisions are missing and should be added:
 
 First, an OCR library entry is absent. Phase 1 requires OCR on upload (confirmed in the consolidated reference). The stack choice for this — `tesseract.js` (pure Node, no system dependency) vs. a cloud OCR service — is still an open technical decision [Inference: tesseract.js is the most common self-hostable choice given the on-premise constraint, but this has not been confirmed]. Add the entry once the choice is made.
 
-Second, the S3 provider decision is in the consolidated reference (Part 11.10: Cloudflare R2 for Phase 1, MinIO for on-premise migration) but is absent from 2-stack-context.md. Add it for completeness.
+Second, the S3 provider decision is in the consolidated reference (Part 11.10: Cloudflare R2 for Phase 1, MinIO for on-premise migration) but is absent from tech-stack.md. Add it for completeness.
 
 Third, the audit log hash-chaining implementation library (if any external crypto library is used beyond Node's built-in `crypto` module) should be noted.
 
-Everything else in 2-stack-context.md is still accurate. No rewrites needed.
+Everything else in tech-stack.md is still accurate. No rewrites needed.
 
 ---
 
