@@ -210,7 +210,7 @@ As each committee (`sp_member` user), open the step and submit a committee repor
 
 **Step 1.13 — Portal publication.** As `secretariat_staff`, open `portal_publication`. Submit.
 
-> **Assert 1.13.a — Document lifecycle status.** Document lifecycle_status = `Released`. `[Inference — H1 §5.5 step 21 comment]`
+> **Assert 1.13.a — Document lifecycle state.** Document lifecycle_state = `released`. `[Inference — H1 §5.5 step 21 comment]`
 
 > **Assert 1.13.b — Public portal visibility.** Navigate (unauthenticated) to `/portal/documents/{trackingNumber}`. The document type and title are visible. The first page is visible. Pages beyond the first are blurred / not accessible. A "Get a copy" button is present. `[Confirmed — consolidated ref Parts 4.1, 4.15, 11.4]`
 
@@ -220,7 +220,7 @@ As each committee (`sp_member` user), open the step and submit a committee repor
 
 **Step 1.14 — Archive.** Switch to `records_officer`. Open `archive`. Submit.
 
-> **Assert 1.14.a — Lifecycle status.** Document lifecycle_status = `Archived`. `[Inference — H1 §5.5 step 22 comment]`
+> **Assert 1.14.a — Lifecycle state.** Document lifecycle_state = `superseded` (if replacing an older resolution) or remains `released` with a `closure_reason`. `[Inference — H1 §5.5 step 22 comment]`
 
 > **Assert 1.14.b — Workflow terminal.** Workflow instance proceeds through `final_outcome_check` (TRUE branch, since `panlalawigan_outcome` = `VALID`) and reaches `end_approved_and_released`. Instance status = `Completed`. Termination outcome code = `APPROVED_AND_RELEASED`. `[Confirmed — H1 §5.3 rules 37–38, §5.5 step T1]`
 

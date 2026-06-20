@@ -721,7 +721,7 @@ CREATE TRIGGER trg_document_types_set_updated_at
 -- [Decision 3.11] Simple UUID FK to document_types (not the original's
 -- composite (city_id, document_type_code) FK). document_type_id is NULL
 -- specifically for the panlalawigan_review_log series, which has no
--- document_types row (confirmed per ADR-C1-1, not deferred).
+-- document_types row (confirmed per ADR-DB-001, not deferred).
 -- series_type and phase are load-bearing columns per H3 Table 1/D4 §SeriesType.
 CREATE TABLE documents.number_series (
     id                           UUID        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1069,7 +1069,7 @@ CREATE TABLE documents.panlalawigan_reviews (
     city_id                    UUID        NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
     document_id                UUID        NOT NULL REFERENCES documents.documents(id),
     -- number_series_id → panlalawigan_review_log series (document_type_id = NULL
-    -- on that number_series row; confirmed per ADR-C1-1, not deferred).
+    -- on that number_series row; confirmed per ADR-DB-001, not deferred).
     number_series_id           UUID        NULL REFERENCES documents.number_series(id),
     -- control_no: the SP Secretariat's sequential log number (e.g. '2026-01').
     -- Not unique: multiple documents per Panlalawigan batch share one reference.
@@ -1623,7 +1623,7 @@ CREATE TABLE records.classification_rules (
 
 CREATE INDEX idx_classification_rules_schedule ON records.classification_rules(retention_schedule_id);
 
--- record_type constrained per ADR-D4-1. Six values ratified from Consolidated Reference Part 11.7.
+-- record_type constrained per ADR-WFL-005. Six values ratified from Consolidated Reference Part 11.7.
 CREATE TABLE records.records (
     id                UUID        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     city_id           UUID        NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
@@ -1973,9 +1973,9 @@ The `search_meta`, `portal`, and `reporting` schemas were created in Part 2. No 
 
 | Item | Resolution | Reference |
 |---|---|---|
-| `panlalawigan_review_log` entity classification | **Formalized as an internal tracking/log entity, not a public document type.** `documents.number_series.document_type_id = NULL` for this series is confirmed permanent, not provisional. `documents.panlalawigan_reviews` remains the authoritative table in the `documents` schema. Control numbers from this series do not appear in the standard document catalog, search, or listings — only as a field on the parent document. No DDL change required. | `ADR-C1-1` (`c1-full-database-schema-ddl-v3-adrs/ADR-C1-1-panlalawigan-review-log-classification.md`) |
+| `panlalawigan_review_log` entity classification | **Formalized as an internal tracking/log entity, not a public document type.** `documents.number_series.document_type_id = NULL` for this series is confirmed permanent, not provisional. `documents.panlalawigan_reviews` remains the authoritative table in the `documents` schema. Control numbers from this series do not appear in the standard document catalog, search, or listings — only as a field on the parent document. No DDL change required. | `ADR-DB-001` (`c1-full-database-schema-ddl-v3-adrs/ADR-DB-001-panlalawigan-review-log-classification.md`) |
 | Migration-owning role name (`batac_migrate`) | **Confirmed as-is.** Already defined and used consistently in this document (§3.16, DB roles list, `fn_get_next_sequence_value` `OWNER TO`). C5 did not previously name it; an addendum cross-referencing this document's §3.16 has been prepared for C5 rather than introducing a second definition. No DDL change required. | C5 addendum — "Migration-Owning Role Name (`batac_migrate`)" |
-| `RecordType` enum values | **Six-value enum defined**, ratifying the categories already present in Part 11.7 of the Consolidated Reference (Permanent-Legislative, Financial, Personnel, Correspondence, Internal Memo, Draft), plus a `document_type` → `RecordType` mapping. `records.records.record_type` should be updated from unconstrained `TEXT` to a `CHECK` constraint or native enum over the six values (see DDL change below). **Retention-period figures behind each category remain `[Unverified]` pending NAP/COA/DILG confirmation — this ADR resolves the enum only, not the legal retention durations.** | `ADR-D4-1` (`c1-full-database-schema-ddl-v3-adrs/ADR-D4-1-recordtype-enum-values.md`) |
+| `RecordType` enum values | **Six-value enum defined**, ratifying the categories already present in Part 11.7 of the Consolidated Reference (Permanent-Legislative, Financial, Personnel, Correspondence, Internal Memo, Draft), plus a `document_type` → `RecordType` mapping. `records.records.record_type` should be updated from unconstrained `TEXT` to a `CHECK` constraint or native enum over the six values (see DDL change below). **Retention-period figures behind each category remain `[Unverified]` pending NAP/COA/DILG confirmation — this ADR resolves the enum only, not the legal retention durations.** | `ADR-WFL-005` (`c1-full-database-schema-ddl-v3-adrs/ADR-WFL-005-recordtype-enum-values.md`) |
 
 ### Still Open
 

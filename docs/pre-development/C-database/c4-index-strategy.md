@@ -30,27 +30,27 @@
   - [L244–L260] 2.3 `organization.assignments` — Lookup indexes for active position holders and employee designation/assignment histories.
   - [L261–L294] 2.4 `organization.delegation_grants` — Middleware delegation lookup by delegatee or delegator, plus issuance document and validity range indexes.
   - [L295–L313] 2.5 `organization.committee_memberships` — Query indexes for committee-scope ABAC token claims and active committee roster views.
-- [L314–L573] Part 3 — Schema `documents` — High-volume query indexes for document search, lifecycle queue filtering, OCR queue polling, and reviews.
+- [L314–L602] Part 3 — Schema `documents` — High-volume query indexes for document search, lifecycle queue filtering, supersession tracking, OCR queue polling, and reviews.
   - [L318–L336] 3.1 `documents.document_types` — Lookup indexes for document metadata validation and active type-picker dropdown rendering.
   - [L337–L357] 3.2 `documents.number_series` — Indexes for gapless number generation sequences and document-type foreign key joins.
-  - [L358–L463] 3.3 `documents.documents` — Office queue filters, JSONB metadata GIN, title FTS, and tracking/number lookup indexes.
-  - [L464–L496] 3.4 `documents.versions` — Indexes for version histories, OCR worker polling, OCR text FTS, and scan quality filters.
-  - [L497–L506] 3.5 `documents.attachments` — Join index retrieving all attachments associated with a specific document ID.
-  - [L507–L529] 3.6 `documents.numbers` — Lookups for current document numbers and gapless sequence verification across series years.
-  - [L530–L545] 3.7 `documents.signatures` — Indexes for rendering signature lists and auditor searches by signing employee ID.
-  - [L546–L573] 3.8 `documents.panlalawigan_reviews` — Outcome recording index, 30-day deeming timer poll, and Panlalawigan control number lookup.
-- [L574–L693] Part 4 — Schema `workflow` — Real-time and analytical indexes supporting inbox queues, step transitions, SLA escalation polling, and audits.
-  - [L580–L611] 4.1 `workflow.instances` — Indexes for active document instances, definition migrations, and pgboss SLA breach escalations.
-  - [L612–L654] 4.2 `workflow.step_instances` — Inbox queues by user or office, step sequences, and mayor/Panlalawigan review pending filters.
-  - [L655–L675] 4.3 `workflow.workflow_events` — Event-replay history, action audits, and user event logs for append-only workflow events.
-  - [L676–L693] 4.4 `workflow.definitions` and `workflow.definition_versions` — Resolution indexes for active definitions and version pinning during workflow instance creation.
-- [L694–L737] Part 5 — Schema `tracking` — Lookups for document tracking records, QR code numbers, and chronological routing history.
-- [L738–L775] Part 6 — Schema `records` — Retention schedules, legal holds, and records disposition indexes for the Phase 2 RMS.
-- [L776–L826] Part 7 — Schema `notifications` — Unread/read inbox logs, related document notifications, and email delivery/retry diagnostic logs.
-- [L827–L876] Part 8 — Schema `audit` — Actor action queries, office logs, full audits, and hash chain validateChainIntegrity forward scans.
-- [L877–L892] Part 9 — Phase 2 Index Additions (Deferred) — List of deferred reporting, Meilisearch sync, RMS classification, and portal schema indexes.
-- [L893–L915] Part 10 — Drizzle ORM Implementation Notes — Naming conventions, partial index syntax, GIN migration paths, and production CONCURRENTLY execution rules.
-- [L916–L926] Part 11 — Index Maintenance Considerations — Procedures for reindexing bloated GINs, monitoring partial indexes, and PostgreSQL-Meilisearch coexistence.
+  - [L358–L491] 3.3 `documents.documents` — Office queue filters, supersession/closure indexes, JSONB metadata GIN, title FTS, and tracking/number lookup indexes.
+  - [L492–L525] 3.4 `documents.versions` — Indexes for version histories, OCR worker polling, OCR text FTS, and scan quality filters.
+  - [L526–L535] 3.5 `documents.attachments` — Join index retrieving all attachments associated with a specific document ID.
+  - [L536–L558] 3.6 `documents.numbers` — Lookups for current document numbers and gapless sequence verification across series years.
+  - [L559–L574] 3.7 `documents.signatures` — Indexes for rendering signature lists and auditor searches by signing employee ID.
+  - [L575–L602] 3.8 `documents.panlalawigan_reviews` — Outcome recording index, 30-day deeming timer poll, and Panlalawigan control number lookup.
+- [L603–L722] Part 4 — Schema `workflow` — Real-time and analytical indexes supporting inbox queues, step transitions, SLA escalation polling, and audits.
+  - [L609–L640] 4.1 `workflow.instances` — Indexes for active document instances, definition migrations, and pgboss SLA breach escalations.
+  - [L641–L683] 4.2 `workflow.step_instances` — Inbox queues by user or office, step sequences, and mayor/Panlalawigan review pending filters.
+  - [L684–L704] 4.3 `workflow.workflow_events` — Event-replay history, action audits, and user event logs for append-only workflow events.
+  - [L705–L722] 4.4 `workflow.definitions` and `workflow.definition_versions` — Resolution indexes for active definitions and version pinning during workflow instance creation.
+- [L723–L766] Part 5 — Schema `tracking` — Lookups for document tracking records, QR code numbers, and chronological routing history.
+- [L767–L812] Part 6 — Schema `records` — Retention schedules, legal holds, record type filtering, and records disposition indexes for the Phase 2 RMS.
+- [L813–L863] Part 7 — Schema `notifications` — Unread/read inbox logs, related document notifications, and email delivery/retry diagnostic logs.
+- [L864–L913] Part 8 — Schema `audit` — Actor action queries, office logs, full audits, and hash chain validateChainIntegrity forward scans.
+- [L914–L929] Part 9 — Phase 2 Index Additions (Deferred) — List of deferred reporting, Meilisearch sync, RMS classification, and portal schema indexes.
+- [L930–L952] Part 10 — Drizzle ORM Implementation Notes — Naming conventions, partial index syntax, GIN migration paths, and production CONCURRENTLY execution rules.
+- [L953–L963] Part 11 — Index Maintenance Considerations — Procedures for reindexing bloated GINs, monitoring partial indexes, and PostgreSQL-Meilisearch coexistence.
 
 ---
 
@@ -430,6 +430,32 @@ CREATE INDEX idx_documents_city_updated_desc
     WHERE deleted_at IS NULL;
 -- [Phase 1] [Inference — universal list ordering pattern per E1 Global Conventions §5]
 
+-- ── Supersession and closure columns (C1 v3) ─────────────────────────────────
+
+-- Superseded-by back-reference: partial index on rows that have actually been superseded.
+-- Only a small fraction of documents will ever be superseded, so the partial condition
+-- keeps the index tiny. Used by the "supersession chain" display on the document detail
+-- screen and by the workflow engine when validating that a superseding document is in an
+-- appropriate lifecycle state.
+CREATE INDEX idx_documents_superseded_by
+    ON documents.documents (superseded_by)
+    WHERE superseded_by IS NOT NULL AND deleted_at IS NULL;
+-- [Phase 1] [Confirmed — C1 v3 superseded_by UUID NULL column; document supersession chain traversal]
+
+-- Superseded-at timestamp: supports chronological ordering of supersession events
+-- in audit and history views.
+CREATE INDEX idx_documents_superseded_at
+    ON documents.documents (city_id, superseded_at DESC)
+    WHERE superseded_at IS NOT NULL AND deleted_at IS NULL;
+-- [Phase 1] [Inference — supersession history ordering; audit trail chronological display]
+
+-- Closure reason filter: lifecycle closure audit queries filter by closure_reason
+-- (set when a document transitions to cancelled or rejected).
+CREATE INDEX idx_documents_closure_reason
+    ON documents.documents (city_id, closure_reason)
+    WHERE closure_reason IS NOT NULL AND deleted_at IS NULL;
+-- [Phase 1] [Inference — closure audit reporting; administrative review of cancellation/rejection reasons]
+
 -- ── JSONB GIN indexes ─────────────────────────────────────────────────────────
 
 -- metadata GIN: admin-configurable metadata fields (sponsors, publication date,
@@ -766,6 +792,14 @@ CREATE INDEX idx_records_legal_hold
     ON records.records (city_id, legal_hold)
     WHERE legal_hold = true AND deleted_at IS NULL;
 -- [Phase 1] [Confirmed — E1 records.placeLegalHold / isUnderLegalHold; consolidated reference Part 11.7]
+
+-- Record type filter: record_type has a 6-value CHECK constraint
+-- ('Permanent-Legislative','Financial','Personnel','Correspondence','Internal Memo','Draft').
+-- Archive and search paths filter by record_type to scope retrieval to a specific category.
+CREATE INDEX idx_records_record_type
+    ON records.records (city_id, record_type)
+    WHERE deleted_at IS NULL;
+-- [Phase 1] [Confirmed — C1 v3 record_type 6-value CHECK constraint; records archive/search filtering]
 
 -- Retention schedule join: archive batch operations filter by retention_schedule_id.
 CREATE INDEX idx_records_retention_schedule

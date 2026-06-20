@@ -12,9 +12,9 @@
 | **Based on**    | E1 (tRPC Router and Procedure Catalog), tech-stack (Stack Decisions), C1 (Full Database Schema DDL) |
 | **Audience**    | Frontend development team (`/apps/web`)                                                                  |
 
-
 ## Table of Contents
 
+- [L3–L50] F3 — TanStack Query Key Factory Specification — Pre-dev — Main title.
 - [L51–L58] Purpose — Contract role of the query key factory in preventing stale data bugs across /apps/web.
 - [L59–L115] Conventions — Cache key hierarchy, tRPC v11 compatibility, naming conventions, and file locations for the shared package.
 - [L116–L672] Key Factories — Module-specific key factories specifying query scopes and parameters for tRPC routers.
@@ -235,7 +235,7 @@ export const documentKeys = {
     cursor?: string | null;
     pageSize?: number;
     documentTypeId?: string;
-    lifecycleState?: string;
+    lifecycleState?: string; // draft, under_review, pending_mayor_action, pending_panlalawigan_review, approved, released, superseded, cancelled, rejected
     officeId?: string;
     from?: Date | null;
     to?: Date | null;
@@ -835,7 +835,7 @@ Some mutations trigger effects that propagate across multiple modules. These pat
 
 **Designation grant/revoke chain.** These operations have the widest invalidation surface: `orgKeys.activeDesignations`, `orgKeys.designationHistories`, `iamKeys.currentUser` (the SubjectContext's `delegation_grant_id` and `effective_office_ids` are affected), and `workflowKeys.all()` (step routing is immediately reassigned). The `workflowKeys.all()` broad invalidation is intentional here — it is not possible to enumerate which specific instances are affected without a server roundtrip, and the delegation change takes effect immediately.
 
-**Document lifecycle state change chain.** Any mutation that transitions `lifecycle_state` — which includes `documents.submit`, `documents.cancel`, `documents.archive`, `workflow.approveStep` at terminal steps, and `workflow.confirmPanlalawiganDeemedApproved` — must invalidate both `documentKeys.detail(id)` and `documentKeys.lists()`. Lists are invalidated because lifecycle state is a common list filter and stale state values cause phantom items in queue views (e.g., a "pending approval" document remaining visible after it has moved to "released").
+**Document lifecycle state change chain.** Any mutation that transitions `lifecycle_state` — which includes `documents.submit`, `documents.cancel`, `documents.archive`, `workflow.approveStep` at terminal steps, and `workflow.confirmPanlalawiganDeemedApproved` — must invalidate both `documentKeys.detail(id)` and `documentKeys.lists()`. Lists are invalidated because lifecycle state is a common list filter and stale state values cause phantom items in queue views (e.g., an "under_review" document remaining visible after it has moved to "released").
 
 **Committee report status chain.** When a committee report is submitted, manually advanced, or when a document is scheduled for or removed from the Order of Business, the `sessionKeys.orderOfBusinesses()` procedure scope key must be invalidated in addition to the step-level workflow keys. The Order of Business is a derived computed view; its data source spans both the `documents` and `workflow` schemas and TanStack Query has no way to know it is stale without an explicit invalidation signal.
 

@@ -12,22 +12,21 @@
 - `b2-module-boundary-and-internal-api-contracts.md` — Module 5 (Tracking), Module 10 (Portal); Published API contracts; event bus
 - `c1-full-database-schema-ddl.md` — Schema types for `documents`, `tracking`, `portal` (column names, enums, constraints)
 
-
 ## Table of Contents
 
-- [L36–L81] About This Document — Scope, out-of-scope items, and cross-document dependencies for the public Phase 1 REST endpoints.
-- [L82–L155] API Conventions — Global HTTP request/response standards, including versioning, error formats, timezone handling, language localization, and security protocols.
-- [L156–L170] Phase 1 Endpoint Summary — A matrix detailing paths, HTTP methods, authentication requirements, and module owners for the six public endpoints.
-- [L171–L1811] OpenAPI 3.0 Specification — The complete YAML schema for all public endpoints, schemas, parameters, and rate-limiting response headers.
-- [L1812–L1941] @fastify/swagger Integration — Implementation rules and setup patterns for auto-generating the OpenAPI contract via Fastify plugins and Zod.
-  - [L1814–L1857] Plugin Registration — Code configuration for registering Fastify Swagger and UI plugins in the server application.
-  - [L1858–L1894] Route Schema Definition Pattern — TypeScript templates demonstrating route registration with Zod validation schemas for request and response mapping.
-  - [L1895–L1914] Zod Type Provider Setup — Bootstrap code configuration for binding the Zod compiler and serializer to the main Fastify instance.
-  - [L1915–L1933] Shared Package Schema Location — Folder structure and organization rules for sharing Zod schemas between backend and frontend packages.
-  - [L1934–L1941] Schema Synchronization Rule — Strict consistency invariant between this markdown contract and shared Zod code files, enforced via CI testing.
-- [L1942–L1960] Rate Limiting Configuration — Per-IP rate limits, headers, and window configuration parameters for anti-abuse protection of each endpoint.
-- [L1961–L1977] CORS Configuration — Allowed origins, HTTP methods, preflight cache timing, and credential policies for client-side cross-origin access.
-- [L1978–L2005] Change Management — Standard protocols for adding endpoints, releasing breaking changes, making minor additions, and managing phase-based addenda.
+- [L35–L80] About This Document — Scope, out-of-scope items, and cross-document dependencies for the public Phase 1 REST endpoints.
+- [L81–L154] API Conventions — Global HTTP request/response standards, including versioning, error formats, timezone handling, language localization, and security protocols.
+- [L155–L169] Phase 1 Endpoint Summary — A matrix detailing paths, HTTP methods, authentication requirements, and module owners for the six public endpoints.
+- [L170–L1869] OpenAPI 3.0 Specification — The complete YAML schema for all public endpoints, schemas, parameters, and rate-limiting response headers.
+- [L1870–L1999] @fastify/swagger Integration — Implementation rules and setup patterns for auto-generating the OpenAPI contract via Fastify plugins and Zod.
+  - [L1872–L1915] Plugin Registration — Code configuration for registering Fastify Swagger and UI plugins in the server application.
+  - [L1916–L1952] Route Schema Definition Pattern — TypeScript templates demonstrating route registration with Zod validation schemas for request and response mapping.
+  - [L1953–L1972] Zod Type Provider Setup — Bootstrap code configuration for binding the Zod compiler and serializer to the main Fastify instance.
+  - [L1973–L1991] Shared Package Schema Location — Folder structure and organization rules for sharing Zod schemas between backend and frontend packages.
+  - [L1992–L1999] Schema Synchronization Rule — Strict consistency invariant between this markdown contract and shared Zod code files, enforced via CI testing.
+- [L2000–L2018] Rate Limiting Configuration — Per-IP rate limits, headers, and window configuration parameters for anti-abuse protection of each endpoint.
+- [L2019–L2035] CORS Configuration — Allowed origins, HTTP methods, preflight cache timing, and credential policies for client-side cross-origin access.
+- [L2036–L2063] Change Management — Standard protocols for adding endpoints, releasing breaking changes, making minor additions, and managing phase-based addenda.
 
 ---
 
@@ -1228,7 +1227,7 @@ components:
             lifecycle state (locale-aware). Not an enum — the label is
             derived from both the lifecycle_state and the current workflow
             step for richer display (e.g. "With Mayor — Pending Signature"
-            rather than the raw "in_workflow").
+            rather than the raw "under_review").
           example: 'With Mayor — Pending Signature'
         remarks:
           type: string
@@ -1253,6 +1252,23 @@ components:
             with the document reference pre-populated. Clicking this
             link initiates the copy request process.
           example: 'https://portal.batac.gov.ph/document-requests?ref=7SP+2026-04'
+        supersededBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: 'UUID of the document that supersedes this one, if any'
+          example: null
+        supersededAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 'Timestamp when this document was superseded'
+          example: null
+        closureReason:
+          type: string
+          nullable: true
+          description: 'Reason for closure (cancellation, rejection, etc.)'
+          example: null
 
     TrackingLookupResponse:
       type: object
@@ -1358,6 +1374,23 @@ components:
           format: uri
           description: 'URL to request a full copy via Document Request Form'
           example: 'https://portal.batac.gov.ph/document-requests?ref=7SP+2026-02'
+        supersededBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: 'UUID of the document that supersedes this one, if any'
+          example: null
+        supersededAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 'Timestamp when this document was superseded'
+          example: null
+        closureReason:
+          type: string
+          nullable: true
+          description: 'Reason for closure (cancellation, rejection, etc.)'
+          example: null
 
     PublishedDocumentDetail:
       allOf:
@@ -1805,6 +1838,31 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/DocumentRequestSubmissionResult'
+
+    LifecycleState:
+      type: string
+      enum:
+        - 'draft'
+        - 'under_review'
+        - 'pending_mayor_action'
+        - 'pending_panlalawigan_review'
+        - 'approved'
+        - 'released'
+        - 'superseded'
+        - 'cancelled'
+        - 'rejected'
+      description: 'Document lifecycle state values per post-ADR-013/ADR-014.'
+
+    RecordType:
+      type: string
+      enum:
+        - 'Permanent-Legislative'
+        - 'Financial'
+        - 'Personnel'
+        - 'Correspondence'
+        - 'Internal Memo'
+        - 'Draft'
+      description: 'Record type categories.'
 ```
 
 ---

@@ -8,33 +8,32 @@
 **Prerequisites:** C1 (Full Database Schema DDL), I1 (ABAC Policy Specification), B5 (Authentication & Authorization Architecture)
 **Downstream:** C4 (Index Strategy), E1/E2/E3 (API and Schema Catalogs)
 
-
 ## Table of Contents
 
-- [L43–L52] 1. Introduction — Role of RLS as a secondary enforcement layer complementing application-level ABAC.
-- [L53–L82] 2. Purpose and Scope — Scope of RLS enforcement and mappings to core architectural invariants like tenant isolation.
-- [L83–L311] 3. Row-Level Security Architecture Overview — Structural architecture of the database security layers, session context, and RLS helpers.
-  - [L85–L104] 3.1 Enforcement Layers — Interactive relationship between application ABAC, PostgreSQL RLS, and role grant layers.
-  - [L105–L127] 3.2 Database Roles — Definitions of database roles and the proposed IT admin role implementation.
-  - [L128–L147] 3.3 Session Context Variables — Transaction-scoped context variables used by the application to pass user security context to PostgreSQL.
-  - [L148–L266] 3.4 RLS Helper Functions — Stable SQL helper functions encapsulating session variable retrieval and role/office checking.
-  - [L267–L277] 3.5 Policy Naming Convention — Naming format standard for prefixing, qualifying, and identifying RLS policy targets.
-  - [L278–L302] 3.6 Global Policy Patterns — Reusable SQL snippets for tenant isolation and soft-delete visibility check.
-  - [L303–L311] 3.7 Initial Setup — BYPASSRLS — Command granting bypass privilege to the migration role for DDL applications.
-- [L312–L366] 4. Tables Requiring RLS — Master List — Matrix of all Phase 1 database tables mapped to their RLS complexity tier.
-- [L367–L390] 5. Application Role Reference — Reference mapping application-level security roles to their logical database access permissions.
-- [L391–L2012] 6. RLS Policy Specifications — Detailed CREATE POLICY definitions for all tables across the eight Phase 1 schemas.
-  - [L393–L728] 6.1 Schema: `iam` — Security policies restricting credentials/sessions to owners and gating user provisioning to IT admins.
-  - [L729–L933] 6.2 Schema: `organization` — Read-access policies for LGU structures and specific delegation grant management rules.
-  - [L934–L1400] 6.3 Schema: `documents` — Classification gate implementation and restrictive policies isolating confidential content from IT admins.
-  - [L1401–L1643] 6.4 Schema: `workflow` — Platform Admin workflow configuration limits and office/assignee visibility rules for runtimes.
-  - [L1644–L1734] 6.5 Schema: `tracking` — Document-office access for tracking metadata and SP Secretariat restricted insert privileges.
-  - [L1735–L1832] 6.6 Schema: `records` — Management permissions restricted to Records Officers and retention schedule access configuration.
-  - [L1833–L1929] 6.7 Schema: `notifications` — Recipient-only visibility for notification events and delivery log append-only rules.
-  - [L1930–L2012] 6.8 Schema: `audit` — Tamper-resistant, insert-only RLS and role rules restricting direct audit reading.
-- [L2013–L2106] 7. Grant Statements — Privilege baseline grants for roles and the SECURITY DEFINER audit reading function.
-- [L2107–L2159] 8. Security Considerations — In-depth analysis of risks, policy ordering, performance, and session variable injection mitigations.
-- [L2160–L2189] 9. Conclusion — High-level security posture summary and pre-migration implementation checklist.
+- [L42–L51] 1. Introduction — Role of RLS as a secondary enforcement layer complementing application-level ABAC.
+- [L52–L81] 2. Purpose and Scope — Scope of RLS enforcement and mappings to core architectural invariants like tenant isolation.
+- [L82–L303] 3. Row-Level Security Architecture Overview — Structural architecture of the database security layers, session context, and RLS helpers.
+  - [L84–L103] 3.1 Enforcement Layers — Interactive relationship between application ABAC, PostgreSQL RLS, and role grant layers.
+  - [L104–L119] 3.2 Database Roles — Five database roles (batac_app, batac_audit, batac_it_admin, batac_readonly, batac_migrate) and DELETE revocation policy.
+  - [L120–L139] 3.3 Session Context Variables — Transaction-scoped context variables used by the application to pass user security context to PostgreSQL.
+  - [L140–L258] 3.4 RLS Helper Functions — Stable SQL helper functions encapsulating session variable retrieval and role/office checking.
+  - [L259–L269] 3.5 Policy Naming Convention — Naming format standard for prefixing, qualifying, and identifying RLS policy targets.
+  - [L270–L294] 3.6 Global Policy Patterns — Reusable SQL snippets for tenant isolation and soft-delete visibility check.
+  - [L295–L303] 3.7 Initial Setup — BYPASSRLS — Command granting bypass privilege to batac_migrate for DDL applications.
+- [L304–L358] 4. Tables Requiring RLS — Master List — Matrix of all Phase 1 database tables mapped to their RLS complexity tier.
+- [L359–L382] 5. Application Role Reference — Reference mapping application-level security roles to their logical database access permissions.
+- [L383–L2004] 6. RLS Policy Specifications — Detailed CREATE POLICY definitions for all tables across the eight Phase 1 schemas.
+  - [L385–L720] 6.1 Schema: `iam` — Security policies restricting credentials/sessions to owners and gating user provisioning to IT admins.
+  - [L721–L925] 6.2 Schema: `organization` — Read-access policies for LGU structures and specific delegation grant management rules.
+  - [L926–L1392] 6.3 Schema: `documents` — Classification gate implementation and restrictive policies isolating confidential content from IT admins.
+  - [L1393–L1635] 6.4 Schema: `workflow` — Platform Admin workflow configuration limits and office/assignee visibility rules for runtimes.
+  - [L1636–L1726] 6.5 Schema: `tracking` — Document-office access for tracking metadata and SP Secretariat restricted insert privileges.
+  - [L1727–L1824] 6.6 Schema: `records` — Management permissions restricted to Records Officers and retention schedule access configuration.
+  - [L1825–L1921] 6.7 Schema: `notifications` — Recipient-only visibility for notification events and delivery log append-only rules.
+  - [L1922–L2004] 6.8 Schema: `audit` — Tamper-resistant, insert-only RLS and role rules restricting direct audit reading.
+- [L2005–L2148] 7. Grant Statements — Privilege baseline grants for five roles, DELETE revocation, and SECURITY DEFINER audit reading function.
+- [L2149–L2201] 8. Security Considerations — In-depth analysis of risks, policy ordering, performance, and session variable injection mitigations.
+- [L2202–L2236] 9. Conclusion — Five-role security posture summary, DELETE revocation verification, and pre-migration implementation checklist.
 
 ---
 
@@ -73,8 +72,8 @@ The following architectural invariants from the Consolidated Reference (Part 12)
 
 | Invariant | Mechanism in this Document |
 |---|---|
-| #2 — No hard deletes | No `DELETE` policy is created for `app_user` on any table; hard deletes are structurally impossible via the application role |
-| #3 — Audit log INSERT-only | `audit.events` has `FORCE ROW LEVEL SECURITY`; `app_user` has no SELECT/UPDATE/DELETE policy on it |
+| #2 — No hard deletes | No `DELETE` policy is created for `batac_app` on any table; `DELETE` is revoked from all application-facing roles (`batac_app`, `batac_it_admin`, `batac_readonly`); hard deletes are structurally impossible via any runtime role |
+| #3 — Audit log INSERT-only | `audit.events` has `FORCE ROW LEVEL SECURITY`; `batac_app` has no SELECT/UPDATE/DELETE policy on it |
 | #8 — Tenant isolation | `city_id = current_setting('app.current_city_id', true)::uuid` is the base condition in every single policy `USING` and `WITH CHECK` clause |
 | #10 — IT Admin content isolation | Dedicated RESTRICTIVE policies on `documents.versions` and `documents.attachments` block IT Admin reads on Confidential/Restricted content |
 
@@ -97,37 +96,30 @@ Layer 2 — PostgreSQL RLS (this document)
 
 Layer 3 — PostgreSQL Role Grants (C1 Part 9; §8 of this document)
   ↳ Schema- and table-level GRANT/REVOKE statements
-  ↳ app_user has no access to the audit schema at all (enforced by REVOKE, not RLS)
+  ↳ batac_app has no access to the audit schema at all (enforced by REVOKE, not RLS)
 ```
 
 A row that passes Layer 1 must also pass Layer 2. A query that passes Layer 2 must also satisfy Layer 3 grants. The three layers are additive, never substitutes for one another.
 
 ### 3.2 Database Roles
 
-Three database roles are defined in C1 Part 0.2. Their relationship to RLS is:
+Five database roles are defined in C1 Part 0.2. Their relationship to RLS is:
 
 | DB Role | RLS Status | Notes |
 |---|---|---|
-| `migrate_user` | `BYPASSRLS` | DDL-only; never used at application runtime. Granted BYPASSRLS so schema migrations work unconditionally. |
-| `app_user` | Subject to RLS | The sole runtime role for all application queries. Policies in this document target `app_user`. |
-| `audit_user` | Subject to RLS | INSERT + SELECT on `audit` schema only. Policies for `audit.events` target this role for its permitted operations. |
+| `batac_migrate` | `BYPASSRLS` | DDL-only; never used at application runtime. Granted BYPASSRLS so schema migrations work unconditionally. |
+| `batac_app` | Subject to RLS | The primary runtime role for all application queries. Policies in this document target `batac_app`. `DELETE` is revoked from this role on all tables. |
+| `batac_audit` | Subject to RLS | INSERT + SELECT on `audit` schema only. Policies for `audit.events` target this role for its permitted operations. `DELETE` is revoked. |
+| `batac_it_admin` | Subject to RLS | IT Admin runtime role. Connects with the same session variables as `batac_app`. IT Admin users are assigned this DB role instead of `batac_app`. Has **no access** to `documents.versions` or `documents.attachments` (grant-level revocation enforcing Invariant #10). `DELETE` is revoked. |
+| `batac_readonly` | Subject to RLS | Read-only role for reporting and monitoring dashboards. SELECT only on all schemas except `audit`. `DELETE` is revoked. |
 
-Additionally, I1 Invariant #10 references a `batac_it_admin` DB role for grant-level revocations on document content. This document recommends adding a fourth role:
+> **Note on DELETE revocation:** Per C1 v3, `DELETE` is revoked from all application-facing roles (`batac_app`, `batac_audit`, `batac_it_admin`, `batac_readonly`). Hard deletes are structurally impossible via any runtime role. Only `batac_migrate` retains `DELETE` for DDL migration purposes.
 
-```sql
--- Recommended addition (outside C1's three-role baseline):
-CREATE ROLE batac_it_admin WITH LOGIN PASSWORD NULL;
--- REVOKE SELECT on documents.versions (s3_key, ocr_text) FROM batac_it_admin;
--- REVOKE SELECT on documents.attachments (s3_key) FROM batac_it_admin;
--- This role connects with the same session variables as app_user.
--- IT Admin users are assigned this DB role instead of app_user.
-```
-
-Until `batac_it_admin` is created, the IT Admin isolation invariant is enforced at RLS Layer 2 via the `app.is_ita` session variable check on `documents.versions` and `documents.attachments`. Both layers are defined in this document; implementation may proceed with either or both.
+The IT Admin content isolation invariant (I1 Invariant #10) is enforced at **two layers**: (1) grant-level revocation on `documents.versions` and `documents.attachments` for `batac_it_admin`, and (2) RESTRICTIVE RLS policies on those same tables using the `app.is_ita` session variable. Both layers are defined in this document.
 
 ### 3.3 Session Context Variables
 
-Because all application queries run under the single `app_user` database role, the application must supply the current user's security context as PostgreSQL session-local variables before executing any business query. These are set using `SET LOCAL` within each transaction:
+Because application queries run under `batac_app` or `batac_it_admin` database roles, the application must supply the current user's security context as PostgreSQL session-local variables before executing any business query. These are set using `SET LOCAL` within each transaction:
 
 ```sql
 -- Must be set at the start of every transaction that touches RLS-protected tables.
@@ -249,7 +241,7 @@ AS $$
 $$;
 ```
 
-All helper functions are granted EXECUTE to `app_user` and `audit_user`:
+All helper functions are granted EXECUTE to `batac_app`, `batac_audit`, `batac_it_admin`, and `batac_readonly`:
 
 ```sql
 GRANT EXECUTE ON FUNCTION
@@ -261,7 +253,7 @@ GRANT EXECUTE ON FUNCTION
     public.rls_is_ita(),
     public.rls_is_pa(),
     public.has_cross_office_read_grant(UUID, UUID)
-TO app_user, audit_user;
+TO batac_app, batac_audit, batac_it_admin, batac_readonly;
 ```
 
 ### 3.5 Policy Naming Convention
@@ -303,8 +295,8 @@ Append-only tables (`workflow.workflow_events`, `audit.events`, `tracking.routin
 ### 3.7 Initial Setup — BYPASSRLS
 
 ```sql
--- Grant migrate_user the ability to bypass RLS for all DDL and migration work.
-ALTER ROLE migrate_user BYPASSRLS;
+-- Grant batac_migrate the ability to bypass RLS for all DDL and migration work.
+ALTER ROLE batac_migrate BYPASSRLS;
 ```
 
 ---
@@ -358,7 +350,7 @@ All 49 Phase 1 tables plus the two I1-introduced tables require RLS. The complex
 | notifications | templates | B | plat_admin write; authenticated read |
 | notifications | notification_events | C | Self-read; system INSERT |
 | notifications | delivery_log | A | Append-only; system INSERT; self-read |
-| audit | events | E | FORCE RLS; audit_user INSERT; auditor SELECT via procedure |
+| audit | events | E | FORCE RLS; batac_audit INSERT; auditor SELECT via procedure |
 
 **Tier key:** A = city + soft-delete only | B = city + role gate | C = city + role + office/user scope | D = city + role + office + classification | E = append-only isolation
 
@@ -407,7 +399,7 @@ The `iam` schema holds identity and access management records. It is self-refere
 ALTER TABLE iam.users ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_users_select ON iam.users
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -417,14 +409,14 @@ CREATE POLICY pol_users_select ON iam.users
     );
 
 CREATE POLICY pol_users_insert ON iam.users
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_has_any_role('sys_admin', 'plat_admin')
     );
 
 CREATE POLICY pol_users_update ON iam.users
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND deleted_at IS NULL
@@ -442,13 +434,13 @@ CREATE POLICY pol_users_update ON iam.users
 
 #### 6.1.2 `iam.credentials`
 
-Credentials are extremely sensitive — only readable by the authentication service itself (acting as `app_user` during login), and only the row belonging to the authenticating user.
+Credentials are extremely sensitive — only readable by the authentication service itself (acting as `batac_app` during login), and only the row belonging to the authenticating user.
 
 ```sql
 ALTER TABLE iam.credentials ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_credentials_select ON iam.credentials
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -459,7 +451,7 @@ CREATE POLICY pol_credentials_select ON iam.credentials
     );
 
 CREATE POLICY pol_credentials_insert ON iam.credentials
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND (
@@ -469,7 +461,7 @@ CREATE POLICY pol_credentials_insert ON iam.credentials
     );
 
 CREATE POLICY pol_credentials_update ON iam.credentials
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -495,7 +487,7 @@ Sessions are readable by the session owner and by IT Admins (who may force-termi
 ALTER TABLE iam.sessions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_sessions_select ON iam.sessions
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -506,7 +498,7 @@ CREATE POLICY pol_sessions_select ON iam.sessions
     );
 
 CREATE POLICY pol_sessions_insert ON iam.sessions
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         -- Only the auth service creates sessions; user_id is validated by app layer
@@ -514,7 +506,7 @@ CREATE POLICY pol_sessions_insert ON iam.sessions
 
 -- Sessions are updated to record termination (terminated_at, termination_reason).
 CREATE POLICY pol_sessions_update ON iam.sessions
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -536,14 +528,14 @@ Refresh tokens are managed by the auth service on behalf of the authenticated us
 ALTER TABLE iam.refresh_tokens ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_refresh_tokens_select ON iam.refresh_tokens
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND user_id = public.rls_current_user_id()
     );
 
 CREATE POLICY pol_refresh_tokens_insert ON iam.refresh_tokens
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND user_id = public.rls_current_user_id()
@@ -551,7 +543,7 @@ CREATE POLICY pol_refresh_tokens_insert ON iam.refresh_tokens
 
 -- Refresh tokens are updated only to set is_revoked = true.
 CREATE POLICY pol_refresh_tokens_update ON iam.refresh_tokens
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND user_id = public.rls_current_user_id()
@@ -571,21 +563,21 @@ These are reference/configuration tables. All authenticated users may read them 
 ALTER TABLE iam.roles ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_roles_select ON iam.roles
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin'))
     );
 
 CREATE POLICY pol_roles_insert ON iam.roles
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_is_pa()
     );
 
 CREATE POLICY pol_roles_update ON iam.roles
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND deleted_at IS NULL
@@ -599,21 +591,21 @@ CREATE POLICY pol_roles_update ON iam.roles
 ALTER TABLE iam.permissions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_permissions_select ON iam.permissions
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin'))
     );
 
 CREATE POLICY pol_permissions_insert ON iam.permissions
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_is_pa()
     );
 
 CREATE POLICY pol_permissions_update ON iam.permissions
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 
@@ -621,21 +613,21 @@ CREATE POLICY pol_permissions_update ON iam.permissions
 ALTER TABLE iam.role_permissions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_role_permissions_select ON iam.role_permissions
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin'))
     );
 
 CREATE POLICY pol_role_permissions_insert ON iam.role_permissions
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_is_pa()
     );
 
 CREATE POLICY pol_role_permissions_update ON iam.role_permissions
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 ```
@@ -648,7 +640,7 @@ Role assignments are readable by the assigned user (own assignments), by IT Admi
 ALTER TABLE iam.role_assignments ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_role_assignments_select ON iam.role_assignments
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -661,7 +653,7 @@ CREATE POLICY pol_role_assignments_select ON iam.role_assignments
     );
 
 CREATE POLICY pol_role_assignments_insert ON iam.role_assignments
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND (public.rls_is_ita() OR public.rls_is_pa())
@@ -669,7 +661,7 @@ CREATE POLICY pol_role_assignments_insert ON iam.role_assignments
 
 -- Assignments are "updated" when is_active is set to false on revocation.
 CREATE POLICY pol_role_assignments_update ON iam.role_assignments
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (public.rls_is_ita() OR public.rls_is_pa())
@@ -688,7 +680,7 @@ MFA records are own-user-only for read and write. IT Admins may read for support
 ALTER TABLE iam.mfa_records ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_mfa_records_select ON iam.mfa_records
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -699,14 +691,14 @@ CREATE POLICY pol_mfa_records_select ON iam.mfa_records
     );
 
 CREATE POLICY pol_mfa_records_insert ON iam.mfa_records
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND user_id = public.rls_current_user_id()
     );
 
 CREATE POLICY pol_mfa_records_update ON iam.mfa_records
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -744,40 +736,40 @@ ALTER TABLE organization.committees ENABLE ROW LEVEL SECURITY;
 
 -- offices
 CREATE POLICY pol_offices_select ON organization.offices
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin'))
     );
 CREATE POLICY pol_offices_insert ON organization.offices
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_offices_update ON organization.offices
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 
 -- positions (same pattern)
 CREATE POLICY pol_positions_select ON organization.positions
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin')));
 CREATE POLICY pol_positions_insert ON organization.positions
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_positions_update ON organization.positions
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 
 -- committees (same pattern)
 CREATE POLICY pol_committees_select ON organization.committees
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin')));
 CREATE POLICY pol_committees_insert ON organization.committees
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_committees_update ON organization.committees
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 ```
@@ -793,19 +785,19 @@ ALTER TABLE organization.committee_memberships ENABLE ROW LEVEL SECURITY;
 
 -- employees
 CREATE POLICY pol_employees_select ON organization.employees
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin'))
     );
 CREATE POLICY pol_employees_insert ON organization.employees
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND (public.rls_is_ita() OR public.rls_is_pa())
     );
 CREATE POLICY pol_employees_update ON organization.employees
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (
         city_id = public.rls_current_city_id()
@@ -814,25 +806,25 @@ CREATE POLICY pol_employees_update ON organization.employees
 
 -- assignments (same insert/update restriction; select is broad)
 CREATE POLICY pol_assignments_select ON organization.assignments
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin')));
 CREATE POLICY pol_assignments_insert ON organization.assignments
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND (public.rls_is_ita() OR public.rls_is_pa()));
 CREATE POLICY pol_assignments_update ON organization.assignments
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND (public.rls_is_ita() OR public.rls_is_pa()));
 
 -- committee_memberships
 CREATE POLICY pol_committee_memberships_select ON organization.committee_memberships
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin')));
 CREATE POLICY pol_committee_memberships_insert ON organization.committee_memberships
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND (public.rls_is_ita() OR public.rls_is_pa()));
 CREATE POLICY pol_committee_memberships_update ON organization.committee_memberships
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND (public.rls_is_ita() OR public.rls_is_pa()));
 ```
@@ -845,7 +837,7 @@ Delegation grants are security-sensitive. Per I1 §11: readable by the delegatin
 ALTER TABLE organization.delegation_grants ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_delegation_grants_select ON organization.delegation_grants
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -868,7 +860,7 @@ CREATE POLICY pol_delegation_grants_select ON organization.delegation_grants
     );
 
 CREATE POLICY pol_delegation_grants_insert ON organization.delegation_grants
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         -- SP Secretary logs delegation grants (I1 §11.1)
@@ -876,7 +868,7 @@ CREATE POLICY pol_delegation_grants_insert ON organization.delegation_grants
     );
 
 CREATE POLICY pol_delegation_grants_update ON organization.delegation_grants
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND deleted_at IS NULL
@@ -912,7 +904,7 @@ This table was introduced by B5 decision D-AUTH-09 (referenced in I1 §3.2). It 
 ALTER TABLE organization.cross_office_grants ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_cross_office_grants_select ON organization.cross_office_grants
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         -- All authenticated users can read (needed by has_cross_office_read_grant function)
         -- Row-level filtering within the function's WHERE clause handles user scoping
@@ -920,11 +912,11 @@ CREATE POLICY pol_cross_office_grants_select ON organization.cross_office_grants
     );
 
 CREATE POLICY pol_cross_office_grants_insert ON organization.cross_office_grants
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (public.rls_is_pa());
 
 CREATE POLICY pol_cross_office_grants_update ON organization.cross_office_grants
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (deleted_at IS NULL)
     WITH CHECK (public.rls_is_pa());
 ```
@@ -945,31 +937,31 @@ ALTER TABLE documents.number_series ENABLE ROW LEVEL SECURITY;
 
 -- document_types
 CREATE POLICY pol_document_types_select ON documents.document_types
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin'))
     );
 CREATE POLICY pol_document_types_insert ON documents.document_types
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_document_types_update ON documents.document_types
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 
 -- number_series
 CREATE POLICY pol_number_series_select ON documents.number_series
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin', 'records_officer', 'sp_secretary'))
     );
 CREATE POLICY pol_number_series_insert ON documents.number_series
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_number_series_update ON documents.number_series
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 ```
@@ -985,7 +977,7 @@ ALTER TABLE documents.documents ENABLE ROW LEVEL SECURITY;
 -- SELECT — implements I1 §3.2 document:read (metadata)
 -- ──────────────────────────────────────────────────────────────────────────
 CREATE POLICY pol_documents_select ON documents.documents
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         -- Base: tenant isolation
         city_id = public.rls_current_city_id()
@@ -1054,7 +1046,7 @@ CREATE POLICY pol_documents_select ON documents.documents
 -- INSERT — implements I1 §3.1 document:create
 -- ──────────────────────────────────────────────────────────────────────────
 CREATE POLICY pol_documents_insert ON documents.documents
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_has_any_role(
@@ -1072,7 +1064,7 @@ CREATE POLICY pol_documents_insert ON documents.documents
 -- RLS enforces only the role + office scope base conditions.
 -- ──────────────────────────────────────────────────────────────────────────
 CREATE POLICY pol_documents_update ON documents.documents
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND deleted_at IS NULL
@@ -1113,7 +1105,7 @@ ALTER TABLE documents.versions ENABLE ROW LEVEL SECURITY;
 -- cannot override it.
 -- ──────────────────────────────────────────────────────────────────────────
 CREATE POLICY pol_versions_select_ita_restrict ON documents.versions
-    AS RESTRICTIVE FOR SELECT TO app_user
+    AS RESTRICTIVE FOR SELECT TO batac_app
     USING (
         -- IT Admins are BLOCKED from version rows where the parent document
         -- is classified Confidential or Restricted (I1 Invariant #10, layer 2).
@@ -1131,7 +1123,7 @@ CREATE POLICY pol_versions_select_ita_restrict ON documents.versions
 -- PERMISSIVE SELECT — normal role-based and office-scoped access
 -- ──────────────────────────────────────────────────────────────────────────
 CREATE POLICY pol_versions_select ON documents.versions
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'records_officer'))
@@ -1165,7 +1157,7 @@ CREATE POLICY pol_versions_select ON documents.versions
     );
 
 CREATE POLICY pol_versions_insert ON documents.versions
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_has_any_role(
@@ -1183,7 +1175,7 @@ CREATE POLICY pol_versions_insert ON documents.versions
     );
 
 CREATE POLICY pol_versions_update ON documents.versions
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND deleted_at IS NULL
@@ -1203,7 +1195,7 @@ ALTER TABLE documents.attachments ENABLE ROW LEVEL SECURITY;
 
 -- RESTRICTIVE: IT Admin blocked from Confidential/Restricted parent documents
 CREATE POLICY pol_attachments_select_ita_restrict ON documents.attachments
-    AS RESTRICTIVE FOR SELECT TO app_user
+    AS RESTRICTIVE FOR SELECT TO batac_app
     USING (
         NOT (
             public.rls_is_ita()
@@ -1217,7 +1209,7 @@ CREATE POLICY pol_attachments_select_ita_restrict ON documents.attachments
 
 -- PERMISSIVE: office-scoped access with classification gate
 CREATE POLICY pol_attachments_select ON documents.attachments
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'records_officer'))
@@ -1249,7 +1241,7 @@ CREATE POLICY pol_attachments_select ON documents.attachments
     );
 
 CREATE POLICY pol_attachments_insert ON documents.attachments
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_has_any_role(
@@ -1267,7 +1259,7 @@ CREATE POLICY pol_attachments_insert ON documents.attachments
     );
 
 CREATE POLICY pol_attachments_update ON documents.attachments
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (
         city_id = public.rls_current_city_id()
@@ -1292,7 +1284,7 @@ ALTER TABLE documents.panlalawigan_reviews ENABLE ROW LEVEL SECURITY;
 
 -- documents.numbers
 CREATE POLICY pol_numbers_select ON documents.numbers
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'records_officer'))
@@ -1307,7 +1299,7 @@ CREATE POLICY pol_numbers_select ON documents.numbers
         )
     );
 CREATE POLICY pol_numbers_insert ON documents.numbers
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         -- Number assignment is an sp_secretary action (I1 §3.7, §3.8, §14.3)
@@ -1315,13 +1307,13 @@ CREATE POLICY pol_numbers_insert ON documents.numbers
     );
 -- numbers are append-only (no UPDATE needed in normal flow; is_current flipped via app logic)
 CREATE POLICY pol_numbers_update ON documents.numbers
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_has_role('sp_secretary'));
 
 -- documents.signatures
 CREATE POLICY pol_signatures_select ON documents.signatures
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'records_officer'))
@@ -1336,19 +1328,19 @@ CREATE POLICY pol_signatures_select ON documents.signatures
         )
     );
 CREATE POLICY pol_signatures_insert ON documents.signatures
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_has_any_role('sp_secretary', 'sp_presiding_officer', 'mayor')
     );
 CREATE POLICY pol_signatures_update ON documents.signatures
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_has_role('sp_secretary'));
 
 -- documents.panlalawigan_reviews (SP Secretary manages; broader read; I1 §6.9)
 CREATE POLICY pol_panlalawigan_reviews_select ON documents.panlalawigan_reviews
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'records_officer'))
@@ -1358,13 +1350,13 @@ CREATE POLICY pol_panlalawigan_reviews_select ON documents.panlalawigan_reviews
         )
     );
 CREATE POLICY pol_panlalawigan_reviews_insert ON documents.panlalawigan_reviews
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_has_role('sp_secretary')
     );
 CREATE POLICY pol_panlalawigan_reviews_update ON documents.panlalawigan_reviews
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (
         city_id = public.rls_current_city_id()
@@ -1382,16 +1374,16 @@ Introduced by I1 D-ABAC-02. Managed exclusively by Platform Admins. Readable to 
 ALTER TABLE documents.classification_allowlists ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_classification_allowlists_select ON documents.classification_allowlists
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (TRUE); -- Intentionally open: this table is read by RLS expressions on other tables;
                   -- restricting SELECT here would break the classification gate.
 
 CREATE POLICY pol_classification_allowlists_insert ON documents.classification_allowlists
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (public.rls_is_pa());
 
 CREATE POLICY pol_classification_allowlists_update ON documents.classification_allowlists
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (TRUE)
     WITH CHECK (public.rls_is_pa());
 ```
@@ -1416,51 +1408,51 @@ ALTER TABLE workflow.transition_rules ENABLE ROW LEVEL SECURITY;
 -- Shown fully for definitions; definitions_versions, steps, transition_rules are identical.
 
 CREATE POLICY pol_definitions_select ON workflow.definitions
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin'))
     );
 CREATE POLICY pol_definitions_insert ON workflow.definitions
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_definitions_update ON workflow.definitions
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 
 -- definition_versions, steps, transition_rules: identical pattern (omitted for brevity;
 -- substitute table name in each statement above).
 CREATE POLICY pol_definition_versions_select ON workflow.definition_versions
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor','sys_admin')));
 CREATE POLICY pol_definition_versions_insert ON workflow.definition_versions
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_definition_versions_update ON workflow.definition_versions
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 
 CREATE POLICY pol_steps_select ON workflow.steps
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor','sys_admin')));
 CREATE POLICY pol_steps_insert ON workflow.steps
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_steps_update ON workflow.steps
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 
 CREATE POLICY pol_transition_rules_select ON workflow.transition_rules
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor','sys_admin')));
 CREATE POLICY pol_transition_rules_insert ON workflow.transition_rules
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_transition_rules_update ON workflow.transition_rules
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 ```
@@ -1473,7 +1465,7 @@ Workflow instances are runtime execution records tied to documents. Access follo
 ALTER TABLE workflow.instances ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_instances_select ON workflow.instances
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'records_officer'))
@@ -1505,7 +1497,7 @@ CREATE POLICY pol_instances_select ON workflow.instances
 
 -- Instances are created by the workflow engine (acting as sp_secretary or dept role)
 CREATE POLICY pol_instances_insert ON workflow.instances
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_has_any_role(
@@ -1515,7 +1507,7 @@ CREATE POLICY pol_instances_insert ON workflow.instances
     );
 
 CREATE POLICY pol_instances_update ON workflow.instances
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND deleted_at IS NULL
@@ -1551,7 +1543,7 @@ Step instances are individual step executions. Access follows I1 §6.1: assignee
 ALTER TABLE workflow.step_instances ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_step_instances_select ON workflow.step_instances
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'records_officer'))
@@ -1568,7 +1560,7 @@ CREATE POLICY pol_step_instances_select ON workflow.step_instances
     );
 
 CREATE POLICY pol_step_instances_insert ON workflow.step_instances
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         -- Step instances are created by the workflow engine; broad role check here;
@@ -1580,7 +1572,7 @@ CREATE POLICY pol_step_instances_insert ON workflow.step_instances
     );
 
 CREATE POLICY pol_step_instances_update ON workflow.step_instances
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND deleted_at IS NULL
@@ -1610,7 +1602,7 @@ Append-only event log for the workflow engine. All operational users may read ev
 ALTER TABLE workflow.workflow_events ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_workflow_events_select ON workflow.workflow_events
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         -- Readable if the user can see the associated workflow instance
@@ -1634,7 +1626,7 @@ CREATE POLICY pol_workflow_events_select ON workflow.workflow_events
 
 -- Workflow events are inserted by the workflow engine
 CREATE POLICY pol_workflow_events_insert ON workflow.workflow_events
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id());
 -- No UPDATE policy — append-only
 ```
@@ -1651,7 +1643,7 @@ The `tracking` schema records physical custody and QR routing history. Per I1 §
 ALTER TABLE tracking.tracking_records ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_tracking_records_select ON tracking.tracking_records
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'records_officer'))
@@ -1680,7 +1672,7 @@ CREATE POLICY pol_tracking_records_select ON tracking.tracking_records
     );
 
 CREATE POLICY pol_tracking_records_insert ON tracking.tracking_records
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         -- QR assignment is initiated at secretariat logging (I1 §7.5)
@@ -1688,7 +1680,7 @@ CREATE POLICY pol_tracking_records_insert ON tracking.tracking_records
     );
 
 CREATE POLICY pol_tracking_records_update ON tracking.tracking_records
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (
         city_id = public.rls_current_city_id()
@@ -1704,7 +1696,7 @@ Append-only routing log. Per I1 §7.2, physical routing is logged exclusively by
 ALTER TABLE tracking.routing_entries ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_routing_entries_select ON tracking.routing_entries
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -1722,7 +1714,7 @@ CREATE POLICY pol_routing_entries_select ON tracking.routing_entries
 
 -- Routing entries are created (inserted) only by sp_secretary (I1 §7.2)
 CREATE POLICY pol_routing_entries_insert ON tracking.routing_entries
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_has_role('sp_secretary')
@@ -1745,24 +1737,24 @@ ALTER TABLE records.retention_schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE records.classification_rules ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_retention_schedules_select ON records.retention_schedules
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor','sys_admin')));
 CREATE POLICY pol_retention_schedules_insert ON records.retention_schedules
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_retention_schedules_update ON records.retention_schedules
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 
 CREATE POLICY pol_classification_rules_select ON records.classification_rules
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor','sys_admin')));
 CREATE POLICY pol_classification_rules_insert ON records.classification_rules
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_classification_rules_update ON records.classification_rules
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 ```
@@ -1778,7 +1770,7 @@ ALTER TABLE records.dispositions ENABLE ROW LEVEL SECURITY;
 
 -- records.records
 CREATE POLICY pol_records_select ON records.records
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin'))
@@ -1788,13 +1780,13 @@ CREATE POLICY pol_records_select ON records.records
         )
     );
 CREATE POLICY pol_records_insert ON records.records
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (
         city_id = public.rls_current_city_id()
         AND public.rls_has_any_role('records_officer', 'sp_secretary')
     );
 CREATE POLICY pol_records_update ON records.records
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (
         city_id = public.rls_current_city_id()
@@ -1803,27 +1795,27 @@ CREATE POLICY pol_records_update ON records.records
 
 -- records.archive_entries (records_officer only manages; auditor reads)
 CREATE POLICY pol_archive_entries_select ON records.archive_entries
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor','sys_admin'))
            AND public.rls_has_any_role('records_officer', 'auditor', 'sp_secretary', 'sys_admin'));
 CREATE POLICY pol_archive_entries_insert ON records.archive_entries
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_has_role('records_officer'));
 CREATE POLICY pol_archive_entries_update ON records.archive_entries
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_has_role('records_officer'));
 
 -- records.dispositions (records_officer only)
 CREATE POLICY pol_dispositions_select ON records.dispositions
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor','sys_admin'))
            AND public.rls_has_any_role('records_officer', 'auditor', 'sys_admin'));
 CREATE POLICY pol_dispositions_insert ON records.dispositions
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_has_role('records_officer'));
 CREATE POLICY pol_dispositions_update ON records.dispositions
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_has_role('records_officer'));
 ```
@@ -1842,13 +1834,13 @@ Platform Admin configuration. All authenticated users may read (the notification
 ALTER TABLE notifications.templates ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_notif_templates_select ON notifications.templates
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (city_id = public.rls_current_city_id() AND (deleted_at IS NULL OR public.rls_has_any_role('auditor','sys_admin')));
 CREATE POLICY pol_notif_templates_insert ON notifications.templates
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 CREATE POLICY pol_notif_templates_update ON notifications.templates
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (city_id = public.rls_current_city_id() AND deleted_at IS NULL)
     WITH CHECK (city_id = public.rls_current_city_id() AND public.rls_is_pa());
 ```
@@ -1861,7 +1853,7 @@ Users see their own notifications. IT Admin and SP Secretary may see all for ope
 ALTER TABLE notifications.notification_events ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_notification_events_select ON notifications.notification_events
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (deleted_at IS NULL OR public.rls_has_any_role('auditor', 'sys_admin'))
@@ -1872,14 +1864,14 @@ CREATE POLICY pol_notification_events_select ON notifications.notification_event
         )
     );
 
--- Notification events are inserted by the notification service (app_user)
+-- Notification events are inserted by the notification service (batac_app)
 CREATE POLICY pol_notification_events_insert ON notifications.notification_events
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id());
 
 -- Users may update their own notifications (e.g., marking as read)
 CREATE POLICY pol_notification_events_update ON notifications.notification_events
-    AS PERMISSIVE FOR UPDATE TO app_user
+    AS PERMISSIVE FOR UPDATE TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -1905,7 +1897,7 @@ Append-only delivery log. No UPDATE (per C1 §1.4).
 ALTER TABLE notifications.delivery_log ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_delivery_log_select ON notifications.delivery_log
-    AS PERMISSIVE FOR SELECT TO app_user
+    AS PERMISSIVE FOR SELECT TO batac_app
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -1920,7 +1912,7 @@ CREATE POLICY pol_delivery_log_select ON notifications.delivery_log
     );
 
 CREATE POLICY pol_delivery_log_insert ON notifications.delivery_log
-    AS PERMISSIVE FOR INSERT TO app_user
+    AS PERMISSIVE FOR INSERT TO batac_app
     WITH CHECK (city_id = public.rls_current_city_id());
 -- No UPDATE policy — append-only
 ```
@@ -1934,9 +1926,9 @@ The `audit` schema is the most tightly controlled in the platform. It implements
 #### 6.8.1 `audit.events` — Tier E (Append-Only Isolation)
 
 Key design decisions reflected in these policies:
-- `FORCE ROW LEVEL SECURITY` prevents even the `migrate_user` BYPASSRLS grant from overriding the audit isolation during normal operation. **Exception:** `migrate_user` may still bypass for DDL migrations during scheduled maintenance windows.
-- `app_user` has **no SELECT policy** on `audit.events`. The absence of a SELECT policy means `app_user` can never read the audit log directly. Full log reads go through the `audit_user` role via a stored procedure.
-- `audit_user` has INSERT and SELECT policies only (UPDATE/DELETE revoked at the grant level per C1 Part 0.2).
+- `FORCE ROW LEVEL SECURITY` prevents even the `batac_migrate` BYPASSRLS grant from overriding the audit isolation during normal operation. **Exception:** `batac_migrate` may still bypass for DDL migrations during scheduled maintenance windows.
+- `batac_app` has **no SELECT policy** on `audit.events`. The absence of a SELECT policy means `batac_app` can never read the audit log directly. Full log reads go through the `batac_audit` role via a stored procedure.
+- `batac_audit` has INSERT and SELECT policies only (UPDATE/DELETE revoked at the grant level per C1 Part 0.2).
 - The `resource_office_id` column (introduced by I1 D-ABAC-04) enables office-scoped filtering in the SELECT policy.
 
 ```sql
@@ -1944,35 +1936,35 @@ ALTER TABLE audit.events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit.events FORCE ROW LEVEL SECURITY;
 
 -- ──────────────────────────────────────────────────────────────────────────
--- app_user: INSERT only — no SELECT, no UPDATE, no DELETE
+-- batac_app: INSERT only — no SELECT, no UPDATE, no DELETE
 -- This INSERT policy is used by the audit service when it writes events on
--- behalf of the audit_user (via the audit service DB connection).
+-- behalf of the batac_audit (via the audit service DB connection).
 -- ──────────────────────────────────────────────────────────────────────────
--- NOTE: If the audit service connects via audit_user (not app_user), this
+-- NOTE: If the audit service connects via batac_audit (not batac_app), this
 -- policy may be omitted. Define based on which DB role the audit service uses.
--- The canonical model from C1 Part 0.2 is audit_user for the audit service.
--- This INSERT policy targets app_user only as a fallback/bridge if needed.
+-- The canonical model from C1 Part 0.2 is batac_audit for the audit service.
+-- This INSERT policy targets batac_app only as a fallback/bridge if needed.
 
--- No SELECT policy for app_user on audit.events — SELECT is intentionally absent.
--- app_user CANNOT read audit.events via any path.
+-- No SELECT policy for batac_app on audit.events — SELECT is intentionally absent.
+-- batac_app CANNOT read audit.events via any path.
 
 -- ──────────────────────────────────────────────────────────────────────────
--- audit_user: INSERT (the audit service writes events)
+-- batac_audit: INSERT (the audit service writes events)
 -- ──────────────────────────────────────────────────────────────────────────
 CREATE POLICY pol_audit_events_insert ON audit.events
-    AS PERMISSIVE FOR INSERT TO audit_user
+    AS PERMISSIVE FOR INSERT TO batac_audit
     WITH CHECK (
         city_id = public.rls_current_city_id()
         -- The audit service must set app.current_city_id before writing
     );
 
 -- ──────────────────────────────────────────────────────────────────────────
--- audit_user: SELECT — role-gated read access (I1 §8.2–8.6)
+-- batac_audit: SELECT — role-gated read access (I1 §8.2–8.6)
 -- The audit service acts on behalf of authorized application users.
 -- It resolves the requesting user's roles and applies them here.
 -- ──────────────────────────────────────────────────────────────────────────
 CREATE POLICY pol_audit_events_select ON audit.events
-    AS PERMISSIVE FOR SELECT TO audit_user
+    AS PERMISSIVE FOR SELECT TO batac_audit
     USING (
         city_id = public.rls_current_city_id()
         AND (
@@ -2004,8 +1996,8 @@ CREATE POLICY pol_audit_events_select ON audit.events
         )
     );
 
--- No UPDATE policy for audit_user — UPDATE revoked at grant level (C1 Part 9).
--- No DELETE policy for audit_user — DELETE revoked at grant level.
+-- No UPDATE policy for batac_audit — UPDATE revoked at grant level (C1 Part 9).
+-- No DELETE policy for batac_audit — DELETE revoked at grant level.
 ```
 
 ---
@@ -2016,54 +2008,104 @@ The following grant statements complement C1's role definitions and the policies
 
 ```sql
 -- ──────────────────────────────────────────────────────────────────────────
--- migrate_user: full DDL on all schemas (BYPASSRLS set above)
+-- batac_migrate: full DDL on all schemas (BYPASSRLS set above)
 -- ──────────────────────────────────────────────────────────────────────────
 GRANT ALL PRIVILEGES ON SCHEMA
     iam, organization, documents, workflow, tracking, records, notifications, audit, public
-TO migrate_user;
+TO batac_migrate;
 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA
     iam, organization, documents, workflow, tracking, records, notifications, audit
-TO migrate_user;
+TO batac_migrate;
 
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA
     documents, iam, organization, workflow, tracking, records, notifications, audit
-TO migrate_user;
+TO batac_migrate;
 
 -- ──────────────────────────────────────────────────────────────────────────
--- app_user: SELECT/INSERT/UPDATE/DELETE on all schemas EXCEPT audit
--- (C1 Part 0.2 verbatim)
+-- batac_app: SELECT/INSERT/UPDATE on all schemas EXCEPT audit.
+-- DELETE is revoked from all app roles per C1 v3 (Invariant #2).
 -- ──────────────────────────────────────────────────────────────────────────
 GRANT USAGE ON SCHEMA
     iam, organization, documents, workflow, tracking, records, notifications, public
-TO app_user;
+TO batac_app;
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA
     iam, organization, documents, workflow, tracking, records, notifications
-TO app_user;
+TO batac_app;
+
+REVOKE DELETE ON ALL TABLES IN SCHEMA
+    iam, organization, documents, workflow, tracking, records, notifications
+FROM batac_app;
 
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA
     documents, organization, iam, workflow, tracking, records, notifications
-TO app_user;
+TO batac_app;
 
--- Explicitly NO access to audit schema for app_user
-REVOKE ALL ON SCHEMA audit FROM app_user;
+-- Explicitly NO access to audit schema for batac_app
+REVOKE ALL ON SCHEMA audit FROM batac_app;
 
 -- ──────────────────────────────────────────────────────────────────────────
--- audit_user: INSERT and SELECT only on audit schema.
+-- batac_it_admin: Same as batac_app, but with NO access to
+-- documents.versions and documents.attachments (Invariant #10).
+-- DELETE is revoked.
+-- ──────────────────────────────────────────────────────────────────────────
+GRANT USAGE ON SCHEMA
+    iam, organization, documents, workflow, tracking, records, notifications, public
+TO batac_it_admin;
+
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA
+    iam, organization, documents, workflow, tracking, records, notifications
+TO batac_it_admin;
+
+REVOKE DELETE ON ALL TABLES IN SCHEMA
+    iam, organization, documents, workflow, tracking, records, notifications
+FROM batac_it_admin;
+
+-- Invariant #10: IT Admin has NO access to document content tables
+REVOKE ALL ON documents.versions FROM batac_it_admin;
+REVOKE ALL ON documents.attachments FROM batac_it_admin;
+
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA
+    documents, organization, iam, workflow, tracking, records, notifications
+TO batac_it_admin;
+
+-- Explicitly NO access to audit schema for batac_it_admin
+REVOKE ALL ON SCHEMA audit FROM batac_it_admin;
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- batac_readonly: SELECT-only on all schemas except audit.
+-- For reporting and monitoring dashboards.
+-- ──────────────────────────────────────────────────────────────────────────
+GRANT USAGE ON SCHEMA
+    iam, organization, documents, workflow, tracking, records, notifications, public
+TO batac_readonly;
+
+GRANT SELECT ON ALL TABLES IN SCHEMA
+    iam, organization, documents, workflow, tracking, records, notifications
+TO batac_readonly;
+
+-- Explicitly NO write access and NO access to audit schema for batac_readonly
+REVOKE INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA
+    iam, organization, documents, workflow, tracking, records, notifications
+FROM batac_readonly;
+REVOKE ALL ON SCHEMA audit FROM batac_readonly;
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- batac_audit: INSERT and SELECT only on audit schema.
 -- UPDATE and DELETE explicitly revoked (C1 Part 0.2; Invariant #3).
 -- ──────────────────────────────────────────────────────────────────────────
-GRANT USAGE ON SCHEMA audit TO audit_user;
-GRANT INSERT, SELECT ON audit.events TO audit_user;
-REVOKE UPDATE, DELETE ON audit.events FROM audit_user;
+GRANT USAGE ON SCHEMA audit TO batac_audit;
+GRANT INSERT, SELECT ON audit.events TO batac_audit;
+REVOKE UPDATE, DELETE ON audit.events FROM batac_audit;
 
--- audit_user also needs to call the helper functions (for session var reads)
-GRANT USAGE ON SCHEMA public TO audit_user;
+-- batac_audit also needs to call the helper functions (for session var reads)
+GRANT USAGE ON SCHEMA public TO batac_audit;
 
 -- ──────────────────────────────────────────────────────────────────────────
 -- Audit reader stored procedure (I1 §8.4)
 -- Full log read access for Auditors goes through this procedure,
--- which runs as audit_user (SECURITY DEFINER).
+-- which runs as batac_audit (SECURITY DEFINER).
 -- ──────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION audit.fn_read_audit_log(
     p_from_time     TIMESTAMPTZ DEFAULT NULL,
@@ -2095,11 +2137,11 @@ END;
 $$;
 
 ALTER FUNCTION audit.fn_read_audit_log(TIMESTAMPTZ, TIMESTAMPTZ, TEXT, UUID)
-    OWNER TO migrate_user;
+    OWNER TO batac_migrate;
 REVOKE ALL ON FUNCTION audit.fn_read_audit_log(TIMESTAMPTZ, TIMESTAMPTZ, TEXT, UUID)
     FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION audit.fn_read_audit_log(TIMESTAMPTZ, TIMESTAMPTZ, TEXT, UUID)
-    TO app_user;
+    TO batac_app;
 ```
 
 ---
@@ -2125,13 +2167,13 @@ This means that even if a future PERMISSIVE policy is added that would otherwise
 
 ### 8.3 `FORCE ROW LEVEL SECURITY` on `audit.events`
 
-`FORCE ROW LEVEL SECURITY` on `audit.events` means the RLS policies apply even to roles that would normally bypass RLS (e.g., if `migrate_user` were temporarily used in a production context). The only escape is a superuser with `BYPASSRLS` explicitly set at the server level. This provides a strong additional guarantee for the tamper-evidence property of the audit log.
+`FORCE ROW LEVEL SECURITY` on `audit.events` means the RLS policies apply even to roles that would normally bypass RLS (e.g., if `batac_migrate` were temporarily used in a production context). The only escape is a superuser with `BYPASSRLS` explicitly set at the server level. This provides a strong additional guarantee for the tamper-evidence property of the audit log.
 
 ### 8.4 Cross-Schema RLS Function Dependency
 
 The `has_cross_office_read_grant` function and the SELECT policies on `documents.documents`, `documents.versions`, and `documents.attachments` execute subqueries against other schemas (`organization.cross_office_grants`, `documents.classification_allowlists`, `documents.documents`). These cross-schema reads happen inside policy expressions, which run in the security context of the calling query — not the table owner. Ensure that:
-- `app_user` has SELECT on `organization.cross_office_grants`.
-- `app_user` has SELECT on `documents.classification_allowlists`.
+- `batac_app` has SELECT on `organization.cross_office_grants`.
+- `batac_app` has SELECT on `documents.classification_allowlists`.
 - The helper functions that encapsulate these reads are marked `STABLE` (already done in §3.4) so the query planner can cache results within a single query.
 
 ### 8.5 Performance: RLS and the Query Planner
@@ -2159,19 +2201,21 @@ Soft-deleted rows (`deleted_at IS NOT NULL`) remain visible to `auditor`, `recor
 
 ## 9. Conclusion
 
-This document specifies the complete PostgreSQL RLS policy set for the eight Phase 1 schemas of the Batac City LGU Platform. The policies are implemented against two database roles (`app_user` and `audit_user`) and enforce a layered security posture:
+This document specifies the complete PostgreSQL RLS policy set for the eight Phase 1 schemas of the Batac City LGU Platform. The policies are implemented against five database roles (`batac_app`, `batac_audit`, `batac_it_admin`, `batac_readonly`, `batac_migrate`) and enforce a layered security posture:
 
 1. **Tenant isolation** (`city_id`) is present in every single policy as the non-negotiable outer gate.
 2. **Role and office scope** policies implement the bulk of I1's ABAC rules at the database layer.
 3. **RESTRICTIVE policies** enforce the IT Admin content isolation invariant for Confidential and Restricted document content in a non-overridable way.
 4. **`FORCE ROW LEVEL SECURITY`** on `audit.events` protects the tamper-evident audit log.
-5. **Grant-level exclusion** (no SELECT grant to `app_user` on the audit schema) provides the first, non-RLS layer of audit isolation.
+5. **Grant-level exclusion** (no SELECT grant to `batac_app` on the audit schema) provides the first, non-RLS layer of audit isolation.
+6. **DELETE revocation** from all application-facing roles (`batac_app`, `batac_audit`, `batac_it_admin`, `batac_readonly`) makes hard deletes structurally impossible at the database layer.
 
 ### Implementation Checklist
 
 Before the first Phase 1 database migration is applied:
 
-- [ ] `ALTER ROLE migrate_user BYPASSRLS;` executed.
+- [ ] `ALTER ROLE batac_migrate BYPASSRLS;` executed.
+- [ ] All five DB roles created: `batac_app`, `batac_audit`, `batac_it_admin`, `batac_readonly`, `batac_migrate`.
 - [ ] All helper functions in §3.4 created and granted.
 - [ ] `has_cross_office_read_grant` function verified against `organization.cross_office_grants` schema.
 - [ ] `documents.classification_allowlists` DDL added to the documents schema migration (I1 D-ABAC-02).
@@ -2179,9 +2223,12 @@ Before the first Phase 1 database migration is applied:
 - [ ] `resource_office_id UUID NULL` column added to `audit.events` DDL (I1 D-ABAC-04).
 - [ ] All `ENABLE ROW LEVEL SECURITY` statements applied before any data is inserted.
 - [ ] `FORCE ROW LEVEL SECURITY` applied to `audit.events` before audit service goes live.
-- [ ] Grant statements in §7 applied; `REVOKE ALL ON SCHEMA audit FROM app_user` confirmed.
+- [ ] Grant statements in §7 applied; `REVOKE ALL ON SCHEMA audit FROM batac_app` confirmed.
+- [ ] `REVOKE ALL ON documents.versions FROM batac_it_admin` and `REVOKE ALL ON documents.attachments FROM batac_it_admin` confirmed.
+- [ ] `DELETE` revoked from `batac_app`, `batac_audit`, `batac_it_admin`, and `batac_readonly` on all tables.
 - [ ] Integration tests verify that an unauthenticated session (no `SET LOCAL app.*`) cannot read any row from any schema.
 - [ ] Integration tests verify IT Admin (`is_ita = true`) cannot SELECT rows from `documents.versions` or `documents.attachments` where the parent document `classification_level IN ('confidential', 'restricted')`.
+- [ ] Integration tests verify `batac_readonly` can only SELECT (no INSERT/UPDATE/DELETE).
 - [ ] C4 index strategy reviewed alongside these policies to ensure all correlated subqueries in USING clauses have supporting indexes.
 
 ---

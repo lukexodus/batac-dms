@@ -36,13 +36,13 @@
 - [L480–L554] 9. Store 6 — `useWorkflowActionStore` — Active sub-panel selections, comment drafts, and veto options for the dynamic workflow action page.
 - [L555–L650] 10. Store 7 — `useComplaintIntakeStore` — In-person, clerk-assisted complaint intake cache mapping complainant, incident, respondent, and routing decisions.
 - [L651–L732] 11. Store 8 — `useDocumentRequestIntakeStore` — In-person, clerk-assisted document request flow buffering requester info, purpose, payment reference, and PDF URL.
-- [L733–L781] 12. Store 9 — `useQrScannerStore` — Camera scanner state, inline metadata preview, and navigation triggers to detail views.
-- [L782–L862] 13. Store 10 — `useOrderOfBusinessStore` — Staged schedule changes before batch save, with sequential commit error handling for partial failures.
-- [L863–L948] 14. Store 11 — `useAttendanceStore` — Attendance-recording buffer tracking quorum status and active designation-backed presiding officer substitutes.
-- [L949–L969] 15. Cross-Store Interaction Rules — Coding conventions prohibiting cross-store imports and defining hooks and read-only constraints.
-- [L970–L996] 16. Persistence Rules — Storage configurations specifying which store buffers persist to sessionStorage and what fields are excluded.
-- [L997–L1015] 17. Testing Guidance — Vitest unit testing instructions for verifying actions, vanilla API state, and sessionStorage serialization.
-- [L1016–L1038] 18. Known Gaps and Open Questions — Follow-up tracking on resolved issues and the remaining presiding officer substitute display name confirmation.
+- [L733–L784] 12. Store 9 — `useQrScannerStore` — Camera scanner state, inline metadata preview, and navigation triggers to detail views.
+- [L785–L865] 13. Store 10 — `useOrderOfBusinessStore` — Staged schedule changes before batch save, with sequential commit error handling for partial failures.
+- [L866–L951] 14. Store 11 — `useAttendanceStore` — Attendance-recording buffer tracking quorum status and active designation-backed presiding officer substitutes.
+- [L952–L972] 15. Cross-Store Interaction Rules — Coding conventions prohibiting cross-store imports and defining hooks and read-only constraints.
+- [L973–L999] 16. Persistence Rules — Storage configurations specifying which store buffers persist to sessionStorage and what fields are excluded.
+- [L1000–L1018] 17. Testing Guidance — Vitest unit testing instructions for verifying actions, vanilla API state, and sessionStorage serialization.
+- [L1019–L1037] 18. Known Gaps and Open Questions — Follow-up tracking on resolved issues and the remaining presiding officer substitute display name confirmation.
 
 ---
 
@@ -745,11 +745,14 @@ interface QrScannerState {
     trackingNumber: string;
     documentTitle: string;
     documentTypeLabel: string;
-    lifecycleState: string;            // LifecycleStateSchema value
+    lifecycleState: string;            // LifecycleStateSchema value (draft, under_review, pending_mayor_action, pending_panlalawigan_review, approved, released, superseded, cancelled, rejected)
     remarks: string | null;
     firstPageS3Key: string | null;
     canRequestCopy: boolean;
     routingHistoryCount: number;       // just the count for the preview; full history on navigate
+    supersededBy: string | null;
+    supersededAt: string | null;
+    closureReason: string | null;
   } | null;
   scanError: string | null;
 }

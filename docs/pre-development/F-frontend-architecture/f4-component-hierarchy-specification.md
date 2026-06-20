@@ -16,7 +16,7 @@
 
 ## Table of Contents
 
-- [L2–L44] Batac City LGU Platform — Phase 1
+- [L2–L44] Batac City LGU Platform — Phase 1 — Subtitle.
 - [L45–L55] 1. Notation — Confidence tags indicating whether component hierarchy decisions are confirmed, inferred, unverified, or deferred.
 - [L56–L94] 2. Overview — High-level summary of internal and public contexts, component count totals, and authorization role codes.
 - [L95–L203] 3. Component Hierarchy — Visual nesting maps showing parent-child page routes and navigational cross-links for internal and portal contexts.

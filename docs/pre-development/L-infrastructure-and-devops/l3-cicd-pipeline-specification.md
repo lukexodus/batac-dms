@@ -5,33 +5,32 @@
 **Status:** Early-dev — implement in the first week of development; not a pre-dev prerequisite
 **Last Updated:** June 2026
 **Audience:** Development team
-**Source Documents:** `k1-test-strategy.md`; `l2-docker-compose-specification.md`; `tech-stack.md`
+**Source Documents:** `k1-test-strategy.md`; `l2-docker-and-docker-compose-specification.md`; `tech-stack.md`
 **Prerequisites:** L2 — Docker and Docker Compose Specification; K1 — Test Strategy
-
 
 ## Table of Contents
 
-- [L40–L56] About This Document — Scope, early-dev justification, GitHub Actions reference target, and topics excluded from this pipeline specification.
-- [L57–L70] 1. Design Principles — Core guidelines on test order, narrow merge gates, Turborepo scoping, ephemeral databases, and non-blocking code coverage.
-- [L71–L150] 2. Pipeline Topology — Execution flow and staging/production gates for the pull request pipeline and the main branch pipeline.
-- [L151–L292] 3. Stage Definitions — Overview of tools, commands, scope, and pass/fail logic for each individual pipeline stage.
-  - [L153–L164] 3.1 Lint — ESLint execution config, scope across all packages, and informational handling of warnings.
-  - [L165–L175] 3.2 Typecheck — TypeScript typecheck details using tsc --noEmit, running in parallel with lint in Job A.
-  - [L176–L189] 3.3 Unit Tests — Vitest configuration for pure functions, 60-second budget, database exclusion rule, and coverage upload.
-  - [L190–L246] 3.4 Integration Tests — Vitest setup with PostgreSQL/MinIO service containers, role bootstrapping, schema migration, and sequential run rules.
-  - [L247–L259] 3.5 Build — Production compilation verification using Turborepo on Vite and server, and build output caching.
-  - [L260–L274] 3.6 E2E Tests (main branch only) — Playwright tests against the live staging environment, blocking production deploy on failure.
-  - [L275–L282] 3.7 Deploy — Staging (automatic, main branch only) — Automatic deployment to the staging VPS triggered by pushes to main, using staging secrets.
-  - [L283–L292] 3.8 Deploy — Production (manual gate) — Manual approval requirements, reviewer roles, and staging E2E pass prerequisite for production deployment.
-- [L293–L309] 4. Merge Gate Summary — Tabular overview of which stages block pull request merges versus production deployments.
-- [L310–L373] 5. Turborepo Remote Cache — Transition from GitHub Actions directory cache (Phase 1) to self-hosted Turborepo cache backed by MinIO.
-- [L374–L418] 6. Turborepo Task Configuration — Root turbo.json task graph definition and caching rules for builds, checks, and tests.
-- [L419–L450] 7. Environment Configuration in CI — Mapping of ephemeral test credentials, JWT/HMAC secrets, and staging versus production environment scoping.
-- [L451–L469] 8. Branch and Trigger Strategy — Workflow triggers, branch protection rules for main, and required status checks before merging.
-- [L470–L487] 9. Timing Budgets and Targets — Maximum time budgets and remediation strategies for lint, typecheck, unit, integration, and E2E tests.
-- [L488–L495] 10. Scheduler Jobs in CI — Deterministic testing of pgboss and cron scheduler logic using injected clocks instead of system time.
-- [L496–L522] 11. pnpm Installation in CI — Dependency installation enforcement via frozen lockfile, store caching, and node_modules reuse.
-- [L523–L540] 12. Constraints and Invariants — Consolidated checklist of ten structural invariants that must be preserved in the CI/CD pipeline.
+- [L39–L55] About This Document — Scope, early-dev justification, GitHub Actions reference target, and topics excluded from this pipeline specification.
+- [L56–L69] 1. Design Principles — Core guidelines on test order, narrow merge gates, Turborepo scoping, ephemeral databases, and non-blocking code coverage.
+- [L70–L149] 2. Pipeline Topology — Execution flow and staging/production gates for the pull request pipeline and the main branch pipeline.
+- [L150–L291] 3. Stage Definitions — Overview of tools, commands, scope, and pass/fail logic for each individual pipeline stage.
+  - [L152–L163] 3.1 Lint — ESLint execution config, scope across all packages, and informational handling of warnings.
+  - [L164–L174] 3.2 Typecheck — TypeScript typecheck details using tsc --noEmit, running in parallel with lint in Job A.
+  - [L175–L188] 3.3 Unit Tests — Vitest configuration for pure functions, 60-second budget, database exclusion rule, and coverage upload.
+  - [L189–L245] 3.4 Integration Tests — Vitest setup with PostgreSQL/MinIO service containers, role bootstrapping, schema migration, and sequential run rules.
+  - [L246–L258] 3.5 Build — Production compilation verification using Turborepo on Vite and server, and build output caching.
+  - [L259–L273] 3.6 E2E Tests (main branch only) — Playwright tests against the live staging environment, blocking production deploy on failure.
+  - [L274–L281] 3.7 Deploy — Staging (automatic, main branch only) — Automatic deployment to the staging VPS triggered by pushes to main, using staging secrets.
+  - [L282–L291] 3.8 Deploy — Production (manual gate) — Manual approval requirements, reviewer roles, and staging E2E pass prerequisite for production deployment.
+- [L292–L308] 4. Merge Gate Summary — Tabular overview of which stages block pull request merges versus production deployments.
+- [L309–L372] 5. Turborepo Remote Cache — Transition from GitHub Actions directory cache (Phase 1) to self-hosted Turborepo cache backed by MinIO.
+- [L373–L417] 6. Turborepo Task Configuration — Root turbo.json task graph definition and caching rules for builds, checks, and tests.
+- [L418–L449] 7. Environment Configuration in CI — Mapping of ephemeral test credentials, JWT/HMAC secrets, and staging versus production environment scoping.
+- [L450–L468] 8. Branch and Trigger Strategy — Workflow triggers, branch protection rules for main, and required status checks before merging.
+- [L469–L486] 9. Timing Budgets and Targets — Maximum time budgets and remediation strategies for lint, typecheck, unit, integration, and E2E tests.
+- [L487–L494] 10. Scheduler Jobs in CI — Deterministic testing of pgboss and cron scheduler logic using injected clocks instead of system time.
+- [L495–L521] 11. pnpm Installation in CI — Dependency installation enforcement via frozen lockfile, store caching, and node_modules reuse.
+- [L522–L539] 12. Constraints and Invariants — Consolidated checklist of ten structural invariants that must be preserved in the CI/CD pipeline.
 
 ---
 
@@ -62,7 +61,7 @@ This document specifies the CI/CD pipeline for the Batac City LGU Platform monor
 
 **Turborepo determines what actually runs.** Every stage invokes a Turborepo task rather than running commands directly against individual packages. Turborepo uses its task graph and cached outputs to skip work whose inputs have not changed. A PR that only modifies `apps/web` does not re-run server unit tests if the server's inputs are unchanged. This keeps CI fast as the codebase grows without requiring the team to maintain per-package job matrices manually.
 
-**No shared mutable state between CI runs.** The test PostgreSQL instance is created fresh per run, migrated from scratch using the same `entrypoint-migrate.sh` and `entrypoint-seed.sh` scripts that L2 defines, and destroyed after the run. No CI database persists between runs.
+**No shared mutable state between CI runs.** The test PostgreSQL instance is created fresh per run, migrated from scratch using the same migration and seeding scripts (`migrate.js`, `seed.js`) that L2 defines, and destroyed after the run. No CI database persists between runs.
 
 **Coverage metrics are never a gate.** K1 is explicit: coverage is collected for informational purposes and stored as a CI artifact. No threshold exists. No stage fails because line coverage dropped. This remains true indefinitely.
 
@@ -95,7 +94,7 @@ Triggered on: every push to a PR branch targeting `main`.
                               ▼
 ┌──────────────────────────────────────────────────────────────┐
 │  Job C — test:integration                                    │
-│    services: postgres:17-alpine, minio/minio                 │
+│    services: postgres:16-alpine, minio/minio                 │
 │    run migrate → seed → pnpm turbo run test:integration      │
 │    Budget: 5 minutes                                         │
 └──────────────────────────────────────────────────────────────┘
@@ -195,14 +194,14 @@ Coverage is collected in this step with `--coverage` and the report is uploaded 
 **Must pass for merge:** yes  
 **Budget:** 5 minutes
 
-Integration tests require two service containers spun up by the CI environment before Vitest runs: a PostgreSQL instance (version 17) and a MinIO instance. Both must be healthy before the test runner starts.
+Integration tests require two service containers spun up by the CI environment before Vitest runs: a PostgreSQL instance (version 16) and a MinIO instance. Both must be healthy before the test runner starts.
 
 **Service container configuration (GitHub Actions excerpt):**
 
 ```yaml
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:16-alpine
     env:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ci_postgres_password
@@ -234,9 +233,9 @@ services:
 
 **Before Vitest runs, the test database is bootstrapped in three steps:**
 
-1. Role bootstrap: run `tools/scripts/docker/postgres-init/01-create-roles.sh` targeting the CI postgres instance to create `app_user`, `audit_user`, and `migrate_user`.
-2. Migration: run `tools/scripts/docker/entrypoint-migrate.sh` (Drizzle Kit migrations + pgboss schema bootstrap) via `DATABASE_URL_MIGRATE`.
-3. Seed: run `tools/scripts/docker/entrypoint-seed.sh` to load fixtures.
+1. Role bootstrap: run `tools/db/init/01-create-roles.sh` targeting the CI postgres instance to create `batac_app`, `batac_audit`, and `batac_migrate`.
+2. Migration: run the migration runner (`node packages/database/dist/migrate.js`) which runs Drizzle migrations and post-migrate grants via `DATABASE_URL_MIGRATE`.
+3. Seed: run the seed runner (`node packages/database/dist/seed.js`) to load fixtures.
 
 These are the same scripts L2 defines for local development. CI uses no separate mechanism; parity with local development is guaranteed by using the same entry points.
 
@@ -251,7 +250,7 @@ Integration test files run sequentially within each file and may run in parallel
 **Scope:** `apps/server` and `apps/web`; all upstream packages  
 **Must pass for merge:** yes
 
-The build step uses the `build` Dockerfile target defined in L2 Section 6. It does not run the full Docker build in CI for every PR (that would be too slow); instead it runs `pnpm turbo run build --filter=@batac/server... --filter=@batac/web...` directly on the CI runner to verify the production TypeScript compiles and Vite bundles without errors.
+The build step compiles the packages using the `builder` Dockerfile stages defined in L2 Part 4 and Part 5. It does not run the full Docker build in CI for every PR (that would be too slow); instead it runs `pnpm turbo run build --filter=@batac/server... --filter=@batac/web...` directly on the CI runner to verify the production TypeScript compiles and Vite bundles without errors.
 
 The full Docker image build (targeting the `production` Dockerfile stage) runs only on the main branch pipeline (Job D equivalent on `main`), immediately before staging deployment. On PRs, the TypeScript/Vite build is sufficient to catch contract breakage.
 
@@ -420,13 +419,13 @@ The `turbo.json` at the repo root wires all CI-invoked tasks. The following is t
 
 ### 7.1 Environment Variables per Stage
 
-CI jobs receive application environment variables via GitHub Actions secrets, not via a `.env` file (which is gitignored and must never be committed). The mapping follows the same logic as L2 Section 9: variables that differ between the container context and the outside world are overridden explicitly.
+CI jobs receive application environment variables via GitHub Actions secrets, not via a `.env` file (which is gitignored and must never be committed). The mapping follows the same logic as L2 Part 9: variables that differ between the container context and the outside world are overridden explicitly.
 
 | Variable | Source in CI | Notes |
 |---|---|---|
 | `DATABASE_URL_APP` | Constructed from secrets | Points to the CI service container postgres at `localhost:5432` |
-| `DATABASE_URL_AUDIT` | Constructed from secrets | Same CI postgres instance, `audit_user` role |
-| `DATABASE_URL_MIGRATE` | Constructed from secrets | Same CI postgres instance, `migrate_user` role |
+| `DATABASE_URL_AUDIT` | Constructed from secrets | Same CI postgres instance, `batac_audit` role |
+| `DATABASE_URL_MIGRATE` | Constructed from secrets | Same CI postgres instance, `batac_migrate` role |
 | `S3_ENDPOINT` | `http://localhost:9000` | CI MinIO service container |
 | `S3_ACCESS_KEY` | `ci_minio_access` (fixed CI value) | Not a production secret |
 | `S3_SECRET_KEY` | `ci_minio_secret` (fixed CI value) | Not a production secret |
@@ -531,7 +530,7 @@ The `node_modules` directory is cached between CI jobs using `actions/cache` on 
 | 5 | No CI run ever uses a persistent shared test database | Service container spun up per run; no `DATABASE_URL` pointing to a shared host |
 | 6 | Meilisearch is absent from CI in Phase 1 | No Meilisearch service container in any job definition until Phase 2 begins |
 | 7 | `pnpm install --frozen-lockfile` on every CI run | Lockfile drift fails the install step before any test runs |
-| 8 | The same bootstrap scripts (entrypoint-migrate, entrypoint-seed) run in CI and local dev | No CI-specific database setup script; direct invocation of L2 scripts |
+| 8 | The same bootstrap scripts (migrate.js, seed.js) run in CI and container entrypoint | No CI-specific database setup script; direct invocation of L2 scripts |
 | 9 | Turborepo remote cache stores no build artifacts outside LGU-controlled infrastructure | Self-hosted turborepo-remote-cache backed by MinIO; Vercel remote cache never used |
 | 10 | A failed E2E run cannot be bypassed to trigger a production deployment | Job G has a hard `needs: [test:e2e]` dependency in the GitHub Actions workflow |
 

@@ -8,25 +8,25 @@
 
 - [L33–L52] Source Coverage and Confidence — Fidelity, confidence ratings, and verification status for all phase 1 database schemas.
 - [L53–L93] Notation and Conventions — Mermaid relationship symbols, column key tags, tenant isolation columns, and logical foreign keys rules.
-- [L94–L115] Infrastructure: Schema `public` — The event-bus dead-letter queue table definition for storing failed event handler invocations.
-- [L116–L249] Schema: `iam` — User authentication, sessions, role/permission tables, and Multi-Factor Authentication records.
-  - [L221–L226] Logical FK Index — `iam` — Cross-schema logical references targeting organization office scopes.
-  - [L227–L249] Join Table Annotations — `iam` — ABAC policy rules, role-revocation checks, session limits, and refresh-token chain behavior.
-- [L250–L374] Schema: `organization` — Office hierarchies, positions, employee records, and active designation tracking.
-  - [L344–L351] Logical FK Index — `organization` — Outbound references targeting employees' user accounts, delegation documents, and revoking users.
-  - [L352–L374] Join Table Annotations — `organization` — Active designation time-bounds, single-active-delegation constraints, and singular position assignments.
-- [L375–L572] Schema: `documents` — Document state transitions, immutability rules, OCR processing metadata, and two-stage numbering.
-  - [L519–L534] Logical FK Index — `documents` — Outbound references for document types, offices, creators, and signature metadata.
+- [L94–L99] Infrastructure: Schema `public` — Dropped in C1 v3; public schema contains only shared functions, no application tables.
+- [L100–L234] Schema: `iam` — User authentication, sessions, role/permission tables, and Multi-Factor Authentication records.
+  - [L206–L211] Logical FK Index — `iam` — Cross-schema logical references targeting organization office scopes.
+  - [L212–L234] Join Table Annotations — `iam` — ABAC policy rules, role-revocation checks, session limits, and refresh-token chain behavior.
+- [L235–L359] Schema: `organization` — Office hierarchies, positions, employee records, and active designation tracking.
+  - [L329–L336] Logical FK Index — `organization` — Outbound references targeting employees' user accounts, delegation documents, and revoking users.
+  - [L337–L359] Join Table Annotations — `organization` — Active designation time-bounds, single-active-delegation constraints, and singular position assignments.
+- [L360–L581] Schema: `documents` — Document state transitions, immutability rules, OCR processing metadata, sponsorships, and two-stage numbering.
+  - [L518–L534] Logical FK Index — `documents` — Outbound references for document types, offices, creators, sponsors, and signature metadata.
   - [L535–L543] Bidirectional Optional Link: `document_types` ↔ `number_series` — Breaking circular dependency between document types and number series.
-  - [L544–L572] Join Table Annotations — `documents` — Two-stage draft/final numbering, Panlalawigan reviews, required steps, and OCR quality scores.
-- [L573–L702] Schema: `workflow` [Inference] — State-transition checks, definition versioning, SLA clocks, and step assignments.
-  - [L674–L683] Logical FK Index — `workflow` — Target endpoints for workflows, associated documents, cancelling users, and event actors.
-  - [L684–L702] Step Type Annotations — `workflow` — Assignee configs, multi-referral step structures, and version pinning for active instances.
-- [L703–L767] Schema: `tracking` [Inference] — Physical routing history, scan-to-lookup endpoints, and QR code generation sequences.
-- [L768–L850] Schema: `records` [Inference] — Retention schedules, archive entries, classification rules, and soft-delete disposition logs.
-- [L851–L910] Schema: `notifications` [Inference] — Event-triggered dispatch, delivery logs, templates, and SSE real-time push endpoints.
-- [L911–L959] Schema: `audit` [Inference] — Append-only event logs, tamper-evident HMAC chains, and monthly external TSA export rules.
-- [L960–L1037] Cross-Schema Reference Summary — Consolidated lookup tables grouping all logical foreign key columns by target schema.
+  - [L544–L581] Join Table Annotations — `documents` — Two-stage draft/final numbering, Panlalawigan reviews, sponsorships, required steps, and OCR quality scores.
+- [L582–L711] Schema: `workflow` [Inference] — State-transition checks, definition versioning, SLA clocks, and step assignments.
+  - [L683–L692] Logical FK Index — `workflow` — Target endpoints for workflows, associated documents, cancelling users, and event actors.
+  - [L693–L711] Step Type Annotations — `workflow` — Assignee configs, multi-referral step structures, and version pinning for active instances.
+- [L712–L776] Schema: `tracking` [Inference] — Physical routing history, scan-to-lookup endpoints, and QR code generation sequences.
+- [L777–L859] Schema: `records` [Inference] — Retention schedules, archive entries, classification rules, and soft-delete disposition logs.
+- [L860–L919] Schema: `notifications` [Inference] — Event-triggered dispatch, delivery logs, templates, and SSE real-time push endpoints.
+- [L920–L968] Schema: `audit` [Inference] — Append-only event logs, tamper-evident HMAC chains, and monthly external TSA export rules.
+- [L969–L1047] Cross-Schema Reference Summary — Consolidated lookup tables grouping all logical foreign key columns by target schema.
 
 ---
 
@@ -36,10 +36,10 @@ The C1 DDL provided covers **three of eight** Phase 1 schemas in full. ERD fidel
 
 |Schema|Tables|ERD Basis|Confidence|
 |---|---|---|---|
-|`public`|1|C1 DDL §0.5|Confirmed|
+|`public`|0|Dropped (C1 v3)|N/A|
 |`iam`|9|C1 DDL Part 2|Confirmed|
 |`organization`|7|C1 DDL Part 3|Confirmed|
-|`documents`|8|C1 DDL Part 4|Confirmed|
+|`documents`|9|C1 DDL Part 4|Confirmed|
 |`workflow`|7|Architecture ref Part 11.3; C1 §1.7, §1.9; B4 spec (cited in C1)|[Inference]|
 |`tracking`|3|Architecture ref Parts 11.6, 4.5; C1 §1.6|[Inference]|
 |`records`|5|Architecture ref Parts 11.7, 10.2|[Inference]|
@@ -93,23 +93,7 @@ Every table: `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`. Shown as `uuid id 
 
 ## Infrastructure: Schema `public`
 
-One shared table, not owned by any module. Stores failed event handler invocations for operator review and retry. Source: C1 §0.5 (ADR-B2-1).
-
-```mermaid
-erDiagram
-    EVENT_BUS_DEAD_LETTERS {
-        uuid id PK
-        uuid event_id
-        text event_type
-        jsonb payload
-        text failed_module
-        text error_message
-        int retry_count
-        timestamptz failed_at
-    }
-```
-
-No relationships — this table is written to by any module whose event handler fails and is read only by platform operators. It intentionally has no FK constraints to any module's tables (those tables may not exist at the point of failure).
+~~The `public.event_bus_dead_letters` table was present in earlier DDL drafts but has been **dropped in C1 v3**. There are no application tables in the `public` schema.~~ The `public` schema contains only shared functions (`fn_set_updated_at`, `fn_get_next_sequence_value`, `check_number_immutability`) and no user-facing tables.
 
 ---
 
@@ -119,7 +103,7 @@ No relationships — this table is written to by any module whose event handler 
 
 **Module responsibility:** User identity, Argon2id credential management, single-active-session enforcement, JWT/refresh-token rotation, role and permission resolution, MFA enrollment (Phase 1 wired, Phase 2 enforced).
 
-**Enums defined in this schema:** `user_status_enum` (`active`, `inactive`, `suspended`, `deactivated`), `mfa_type_enum` (`totp`), `session_termination_reason_enum` (`user_logout`, `forced`, `timeout`), `permission_decision_enum` (`allow`, `deny`, `conditional`).
+**Enums defined in this schema (native PostgreSQL ENUM is NOT used here — `TEXT NOT NULL CHECK(...)` strategy per C1 v3):** `user_status` (`active`, `inactive`, `suspended`, `deactivated`), `mfa_type` (`totp`), `session_termination_reason` (`user_logout`, `forced`, `timeout`), `permission_decision` (`allow`, `deny`). Note: the `iam` schema uses `TEXT CHECK(...)` constraints, not native `ENUM` types (native `ENUM` is reserved for the `workflow` schema only).
 
 **Outbound logical FKs (cross-schema):** `role_assignments.office_scope_id` → `organization.offices.id`. All other references go the other direction — every other module references _into_ `iam.users`, not out of it.
 
@@ -159,7 +143,8 @@ erDiagram
         text token_hash
         timestamptz expires_at
         bool is_revoked
-        uuid replaced_by_token_id FK
+        uuid replaced_by FK
+        timestamptz revoked_at
     }
 
     ROLES {
@@ -181,7 +166,7 @@ erDiagram
         uuid id PK
         uuid role_id FK
         uuid permission_id FK
-        enum decision
+        text decision
         text condition_reference
     }
 
@@ -230,20 +215,20 @@ erDiagram
 
 |Column|Type|Semantics|
 |---|---|---|
-|`decision`|`permission_decision_enum`|`allow` or `deny` are straightforward. `conditional` requires `condition_reference` to be non-NULL (enforced by `ck_role_permissions_condition_required`).|
-|`condition_reference`|`TEXT NULL`|Key into the I1 ABAC policy table. Only present when `decision = 'conditional'`. References a named policy expression that the ABAC engine evaluates at request time.|
+|`decision`|`TEXT CHECK(decision IN ('allow','deny'))`|`allow` grants the permission; `deny` explicitly blocks it. C1 v3 defines two values only.|
+|`condition_reference`|`TEXT NULL`|Key into the I1 ABAC policy table. When non-NULL, the ABAC engine evaluates the referenced policy expression at request time.|
 
 **`iam.role_assignments`** — Annotated columns:
 
 |Column|Type|Semantics|
 |---|---|---|
 |`office_scope_id`|`UUID NULL`|Scopes a role to a specific office. NULL = city-wide assignment. Partial unique index: `(user_id, role_id, COALESCE(office_scope_id, '00000000...'))` WHERE `is_active = true AND deleted_at IS NULL`. The NULL-to-sentinel coalesce prevents two unscoped assignments of the same role to the same user from slipping past Postgres's "NULLs are always distinct" unique-index behaviour.|
-|`assigned_by`|`UUID NULL FK`|Nullable to accommodate bootstrap seed assignments (no human assigner exists yet). Real FK to `iam.users`.|
+|`assigned_by`|`UUID NOT NULL FK`|NOT NULL — every role assignment must record who made it. Real FK to `iam.users`. Bootstrap seed assignments use a designated system user.|
 |`is_active`|`BOOLEAN`|`false` + `revoked_at IS NOT NULL` = revoked assignment. CHECK constraint `ck_role_assignments_revocation_consistency` enforces this pair. No `updated_at` — the revocation fields are themselves the timestamped record of the only state change this row undergoes.|
 
 **`iam.sessions`** — Dual-FK note: `user_id` (owner) and `terminated_by` both reference `iam.users.id`. Only the ownership line is drawn in the diagram above; `terminated_by` is a same-schema real FK used specifically when `termination_reason = 'forced'` (IT/security admin force-terminates). The CHECK constraint `ck_sessions_termination_consistency` enforces `terminated_at IS NULL ↔ termination_reason IS NULL`.
 
-**`iam.refresh_tokens`** — `replaced_by_token_id` is a self-referential FK within the same table, forming a singly-linked chain of rotated tokens. `session_id` is nullable: a refresh token may exist independently of a session row (e.g., issued before session tracking was introduced, or in a recovery flow). The diagram shows the `SESSIONS ||--o{` line with the understanding that session_id is nullable on refresh_tokens.
+**`iam.refresh_tokens`** — B5 family-rotation model. `replaced_by` is a self-referential FK within the same table, forming a singly-linked chain of rotated tokens. `revoked_at TIMESTAMPTZ NULL` records when the token was revoked (set on rotation or explicit revocation). Both `replaced_by` and `revoked_at` are present per C1 v3. `session_id` is nullable: a refresh token may exist independently of a session row (e.g., issued before session tracking was introduced, or in a recovery flow). The diagram shows the `SESSIONS ||--o{` line with the understanding that session_id is nullable on refresh_tokens.
 
 ---
 
@@ -253,7 +238,7 @@ erDiagram
 
 **Module responsibility:** Office hierarchy, employee identity records, position assignments, standing committee structure, and delegation management (Designation documents). First-class module — `delegation_grants` is written 10+ times per year (routine Acting Mayor designations).
 
-**Enums defined in this schema:** `office_type_enum` (`sp_office`, `mayors_office`, `city_department`, `barangay`, `other`) [Unverified values — C1 §3.1 placeholder pending B1/B5 confirmation], `authority_level_enum` (`executive`, `managerial`, `staff`, `support`) [Unverified values], `committee_role_enum` (`chairman`, `vice_chairman`, `member`) [Confirmed — D4].
+**Enums defined in this schema (TEXT CHECK strategy):** `office_type` — five values: `executive`, `legislative`, `department`, `barangay`, `external` (`barangay` is reserved and not seeded in Phase 1), `authority_level` (`executive`, `managerial`, `staff`, `support`) [Unverified values], `committee_role` (`chairman`, `vice_chairman`, `member`) [Confirmed — D4].
 
 **Inbound logical FKs from other schemas:** `iam.role_assignments.office_scope_id`, `documents.documents.originating_office_id`, `documents.documents.owned_by_office_id`, `documents.number_series.authority_office_id`, `workflow.instances.owning_office_id` [Inference], `tracking.routing_entries.from_office_id` [Inference], `tracking.routing_entries.to_office_id` [Inference].
 
@@ -278,10 +263,10 @@ erDiagram
     EMPLOYEES {
         uuid id PK
         uuid user_id
-        text employee_number
+        text employee_number "NOT NULL"
         text first_name
         text last_name
-        text email
+        text email "NULL"
         text phone_number
     }
 
@@ -305,7 +290,7 @@ erDiagram
         text scope_description
         text legal_basis
         date valid_from
-        date valid_until
+        date end_date "NOT NULL"
         bool is_active
         timestamptz revoked_at
         uuid revoked_by
@@ -357,7 +342,7 @@ erDiagram
 |---|---|---|
 |`delegating_employee_id`|`UUID NOT NULL FK`|The authority who issued the Designation (Mayor or Vice Mayor, depending on scope). Real FK to `organization.employees`. D4 models parties as `Employee`, not `User`; this document follows D4 since `employees` is the table in this schema.|
 |`delegated_to_employee_id`|`UUID NOT NULL FK`|The person receiving the designation. Cannot equal `delegating_employee_id` (`ck_delegation_grants_distinct_parties`).|
-|`valid_until`|`DATE NOT NULL`|`NOT NULL` by design — open-ended delegations are prohibited (architecture ref Part 11.13). Workflow routing returns to the original authority automatically at midnight on `valid_until`.|
+|`end_date`|`DATE NOT NULL`|`NOT NULL` by design — open-ended delegations are prohibited (C1 v3). Workflow routing returns to the original authority automatically at midnight on `end_date`.|
 |`is_active`|`BOOLEAN`|**Partial unique index:** `(delegated_to_employee_id)` WHERE `is_active = true AND deleted_at IS NULL`. This directly implements Architectural Invariant #16: at most one active delegation per person at any time.|
 |`revoked_at`|`TIMESTAMPTZ NULL`|Populated by early revocation only. Normal expiry is handled by the scheduler checking `valid_until`; `revoked_at` is only set when a delegation is cancelled mid-period by the delegating authority.|
 
@@ -374,13 +359,13 @@ erDiagram
 
 ## Schema: `documents`
 
-**Source: C1 DDL Part 4 — Confirmed. 8 tables.**
+**Source: C1 DDL Part 4 — Confirmed. 9 tables.**
 
 **Module responsibility:** Document lifecycle state machine, immutable version storage, two-stage series numbering (preliminary `Draft` → final), OCR-on-upload, QR cover sheet generation, Panlalawigan review log, scanned signature tracking.
 
-**Enums defined in this schema:** `lifecycle_state_enum` (`draft`, `submitted`, `in_workflow`, `pending_approval`, `completed`, `released`, `archived`, `disposed`, `cancelled`), `classification_level_enum` (`public`, `internal`, `confidential`, `restricted`), `public_visibility_rule_enum` (`title_and_first_page_public`, `not_public`, `complainant_restricted`, `requester_restricted`), `owning_module_enum` (all 11 module names), `number_type_enum` (`preliminary`, `final`), `attachment_type_enum` (`certification_of_urgency`, `committee_report`, `transmittal_letter`, `scan`, `other`), `signature_type_enum` (`presiding_officer`, `mayor`, `sp_secretary`, `vice_mayor`, `committee_chair`), `panlalawigan_outcome_enum` (`valid`, `valid_in_part`, `returned`, `operative_in_its_entirety`, `deemed_approved`), `scan_quality_category_enum` (`good`, `fair`, `poor`).
+**Enums defined in this schema (TEXT CHECK strategy):** `lifecycle_state` (`draft`, `under_review`, `pending_mayor_action`, `pending_panlalawigan_review`, `approved`, `released`, `superseded`, `cancelled`, `rejected`) — post-ADR-013/ADR-014 authoritative set; `classification_level` (`public`, `internal`, `confidential`, `restricted`), `public_visibility_rule` (`title_and_first_page_public`, `not_public`, `complainant_restricted`, `requester_restricted`), `owning_module` (all 11 module names), `number_type` (`preliminary`, `final`), `attachment_type` (`certification_of_urgency`, `committee_report`, `transmittal_letter`, `scan`, `other`), `signature_type` (`presiding_officer`, `mayor`, `sp_secretary`, `vice_mayor`, `committee_chair`), `panlalawigan_outcome` (`valid`, `valid_in_part`, `returned`, `operative_in_its_entirety`, `deemed_approved`), `scan_quality_category` (`good`, `fair`, `poor`).
 
-**State-transition enforcement:** `documents.lifecycle_state` transitions are enforced by a `BEFORE UPDATE` trigger (`fn_enforce_document_lifecycle_transition`), not a plain `CHECK` constraint (plain CHECK cannot see `OLD` values). The same trigger enforces `final_number` immutability — once non-NULL, any attempt to change it raises an exception.
+**State-transition enforcement:** `documents.lifecycle_state` transitions are enforced by a `BEFORE UPDATE` trigger (`fn_enforce_document_lifecycle_transition`), not a plain `CHECK` constraint (plain CHECK cannot see `OLD` values). `FINAL` and `CONTROL` number immutability is enforced by a dedicated DB trigger (`check_number_immutability()`), not just application-layer logic. Valid transitions include `released → cancelled`.
 
 ```mermaid
 erDiagram
@@ -397,7 +382,7 @@ erDiagram
         enum public_visibility_rule
         jsonb metadata_schema
         jsonb required_step_types
-        bool is_active
+        bool is_active "DEFAULT false"
     }
 
     NUMBER_SERIES {
@@ -422,8 +407,8 @@ erDiagram
         uuid id PK
         uuid document_type_id FK
         text title
-        enum lifecycle_state
-        enum classification_level
+        text lifecycle_state
+        text classification_level
         uuid qr_tracking_number
         text preliminary_number
         text final_number
@@ -436,6 +421,9 @@ erDiagram
         uuid retention_schedule_id
         int version_number
         jsonb metadata
+        uuid superseded_by "NULL"
+        timestamptz superseded_at "NULL"
+        text closure_reason "NULL"
     }
 
     VERSIONS {
@@ -499,10 +487,17 @@ erDiagram
         timestamptz transmitted_at
         timestamptz received_at
         timestamptz date_referred
-        enum outcome
-        text panlalawigan_resolution_number
+        text outcome
+        text resolution_number
         text remarks
         int days_elapsed
+    }
+
+    DOCUMENT_SPONSORSHIPS {
+        uuid id PK
+        uuid document_id FK
+        uuid sponsor_employee_id
+        int display_order
     }
 
     DOCUMENT_TYPES o|--o| NUMBER_SERIES : "linked to"
@@ -514,7 +509,11 @@ erDiagram
     DOCUMENTS ||--o{ NUMBERS : "numbered via"
     DOCUMENTS ||--o{ SIGNATURES : "signed by"
     DOCUMENTS ||--o| PANLALAWIGAN_REVIEWS : "reviewed by"
+    DOCUMENTS ||--o{ DOCUMENT_SPONSORSHIPS : "sponsored by"
 ```
+
+> [!NOTE]
+> **Publication data:** The `publication_records` table has been **dropped in C1 v3**. Publication data (gazette issue, publication date, etc.) is stored in `workflow.instances.context JSONB` as part of the workflow execution context, not as a standalone table.
 
 ### Logical FK Index — `documents`
 
@@ -531,6 +530,7 @@ erDiagram
 |`uploaded_by`|`attachments`|`iam.users.id`|NOT NULL.|
 |`assigned_by`|`numbers`|`iam.users.id`|NOT NULL — Secretariat actor who triggered number assignment.|
 |`signed_by_employee_id`|`signatures`|`organization.employees.id`|NOT NULL. Follows D4's `Employee` (not `User`) reference, since employees may sign without having a platform login (e.g., Mayor who exists as employee before account activation).|
+|`sponsor_employee_id`|`document_sponsorships`|`organization.employees.id`|NOT NULL. Logical FK — cross-schema reference to the sponsoring employee.|
 
 ### Bidirectional Optional Link: `document_types` ↔ `number_series`
 
@@ -556,15 +556,24 @@ The FK for `document_types.number_series_id` is added via `ALTER TABLE` **after*
 
 No `updated_at` — rows are written once and transition `is_current = true → false` via `superseded_at` (itself the timestamped record of that change). Treated as append-only-with-one-flag-flip.
 
-**`documents.panlalawigan_reviews`** — One row per document (UNIQUE on `document_id`):
+**`documents.panlalawigan_reviews`** — Dedicated table in `documents` schema. One row per document (UNIQUE on `document_id`):
 
 |Column|Type|Semantics|
 |---|---|---|
 |`control_number`|`TEXT NULL`|**Not unique** — the Panlalawigan frequently acts on multiple SP documents under one shared batch reference (architecture ref Part 4.3). Nullable: assigned by SP Secretariat when the document is transmitted, not at document creation.|
-|`outcome`|`panlalawigan_outcome_enum NULL`|NULL until the Panlalawigan acts or 30 days elapse. The scheduler sets this to `deemed_approved` at day 30 with no response; SP Secretary confirms.|
+|`resolution_number`|`TEXT NULL`|The Panlalawigan's resolution number for this review (column name is `resolution_number`, not `resolution_no`).|
+|`outcome`|`TEXT CHECK(outcome IN ('valid','valid_in_part','returned','operative_in_its_entirety','deemed_approved')) NULL`|NULL until the Panlalawigan acts or 30 days elapse. The scheduler sets this to `deemed_approved` at day 30 with no response; SP Secretary confirms.|
 |`days_elapsed`|`INTEGER NULL`|Computed by application on outcome receipt. Used for reporting and for the 30-day timer display on the SP Secretary dashboard.|
 
-**`documents.document_types`** — `required_step_types JSONB NULL` is a `[Gap-fill]` addition: B2's `DocumentTypeSummary.requiredStepTypes` is returned by the Published API, and B4's "legally mandated minimum steps" (Architectural Invariant #14) needs concrete storage. This column gives the workflow-editor validation logic somewhere to read from. The eight Phase 1 document types and their values are defined in H2.
+**`documents.document_sponsorships`** — Dedicated table linking documents to their sponsoring employees:
+
+|Column|Type|Semantics|
+|---|---|---|
+|`document_id`|`UUID NOT NULL FK`|The document being sponsored. Real FK to `documents.documents`.|
+|`sponsor_employee_id`|`UUID NOT NULL`|Logical FK → `organization.employees.id`. The sponsoring council member or official.|
+|`display_order`|`INTEGER NULL`|Optional ordering for display of multiple sponsors on a single document.|
+
+**`documents.document_types`** — `required_step_types JSONB NULL` is a `[Gap-fill]` addition: B2's `DocumentTypeSummary.requiredStepTypes` is returned by the Published API, and B4's "legally mandated minimum steps" (Architectural Invariant #14) needs concrete storage. This column gives the workflow-editor validation logic somewhere to read from. The eight Phase 1 document types and their values are defined in H2. `is_active DEFAULT false` — document types must be explicitly activated; they are not active by default.
 
 **`documents.versions`** — `scan_quality_score NUMERIC(4,3)` is a 0.0–1.0 confidence value from the OCR engine. The `scan_quality_category` enum (`good`, `fair`, `poor`) is derived by application logic at OCR-completion time against the `OCR_QUALITY_THRESHOLD` environment variable — not a DB generated column (a `GENERATED ALWAYS` column cannot read an env var). Both are stored: the numeric score for threshold re-evaluation if the threshold changes; the category for immediate UI display.
 
@@ -965,7 +974,7 @@ All logical FK columns across all eight schemas, consolidated. Grouped by target
 
 |Column|Source Table|Notes|
 |---|---|---|
-|`assigned_by`|`iam.role_assignments`|Nullable (bootstrap seed)|
+|`assigned_by`|`iam.role_assignments`|NOT NULL (C1 v3)|
 |`revoked_by`|`iam.role_assignments`|Nullable|
 |`created_by`|`documents.documents`|NOT NULL|
 |`uploaded_by`|`documents.versions`|NOT NULL|
@@ -1002,6 +1011,7 @@ All logical FK columns across all eight schemas, consolidated. Grouped by target
 |Column|Source Table|Notes|
 |---|---|---|
 |`signed_by_employee_id`|`documents.signatures`|NOT NULL|
+|`sponsor_employee_id`|`documents.document_sponsorships`|NOT NULL — logical FK|
 
 ### Targeting `documents.documents`
 

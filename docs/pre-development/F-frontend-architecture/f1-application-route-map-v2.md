@@ -14,26 +14,25 @@
 
 > **[Unverified — applies to this entire document]** Route paths, component names, and frontend information architecture are not defined anywhere in the original source material. Every path, component name, page-composition choice, and navigation/nesting decision below is this document's own proposed synthesis — not a confirmed fact — even in rows that are not individually re-tagged `[Inference]`. Ten items that were open gaps in an earlier pass over this same material are now resolved by formal ADRs; those resolutions are reflected throughout this document and are marked `[Resolved — ADR-00x]` at each affected point, rather than left as `[Unverified]`/`[Speculation]`/`[Deferred]`. Read this whole document as a draft for development-team review, not as approved architecture.
 
-
 ## Table of Contents
 
-- [L42–L60] 1. Notation and how to read this document — Definitions of status tags, inference rules, prohibited absolute terms, and correction protocols for unverified claims.
-- [L61–L113] 2. Cross-cutting notes (apply to every route below) — App boundaries, role codes, tRPC/REST protocol boundaries, excluded scopes, and additions to the nine named views.
-- [L114–L207] 3. Route hierarchy — Mermaid flowchart visualizing nested and cross-linked route hierarchy for internal apps and public portal.
-- [L208–L255] 4. Master route table (by path) — Tabular index of all internal and public routes, mapping paths to components, roles, and procedures.
-- [L256–L275] 5. SP Secretary dashboard — Widget data dependencies for the SP Secretary landing page and rationale for non-nested Order of Business routing.
-- [L276–L291] 6. Order of Business view — Role permissions and data dependencies for managing, scheduling, and overriding legislative session orders of business.
-- [L292–L331] 7. Document intake form (and the document list / document detail routes it depends on) — Path structure, roles, and procedure groups for document listing, single-file intake, and multi-faceted detail pages.
-- [L332–L393] 8. Workflow step action views (and staff-side complaint / document request management) — Task inbox routing, conditional step-type panels, staff-side complaint/request management, and committee picker procedures.
-- [L394–L406] 9. Session attendance tracking — Attendance overview and detail page routing, including role gates and Designation-document integration for substitute officers.
-- [L407–L416] 10. Mayor dashboard — Proposed data dependencies and filtering logic for the Mayor's dashboard widgets.
-- [L417–L430] 11. Audit log viewer — User-specific audit log pages versus the Auditor-restricted full log with hash chain validation rules.
-- [L431–L480] 12. Platform Administrator views — Platform Admin landing page, committee/role assignment, Tier-2 configuration panels, and retention/organization views.
-- [L481–L510] 13. System Administrator views (ADR-008) — Session termination, user account CRUD, hash chain validation routes, and outstanding infrastructure gaps for sysadmins.
-- [L511–L546] 14. Phase 1 public portal subset — Next.js public portal route definitions, no-login intake options, and public announcement display page.
-- [L547–L572] 15. Resolved gaps register — Summary table of resolved pre-development gaps (ADRs 1–10) and unresolved follow-up questions.
-- [L573–L583] 16. Items considered and not given a dedicated route — List of features, views, and documents deliberately excluded from having dedicated route definitions.
-- [L584–L588] Correction check — Quality assurance verification process and mandatory correction statement for unverified claims.
+- [L41–L59] 1. Notation and how to read this document — Definitions of status tags, inference rules, prohibited absolute terms, and correction protocols for unverified claims.
+- [L60–L112] 2. Cross-cutting notes (apply to every route below) — App boundaries, role codes, tRPC/REST protocol boundaries, excluded scopes, and additions to the nine named views.
+- [L113–L206] 3. Route hierarchy — Mermaid flowchart visualizing nested and cross-linked route hierarchy for internal apps and public portal.
+- [L207–L254] 4. Master route table (by path) — Tabular index of all internal and public routes, mapping paths to components, roles, and procedures.
+- [L255–L274] 5. SP Secretary dashboard — Widget data dependencies for the SP Secretary landing page and rationale for non-nested Order of Business routing.
+- [L275–L290] 6. Order of Business view — Role permissions and data dependencies for managing, scheduling, and overriding legislative session orders of business.
+- [L291–L330] 7. Document intake form (and the document list / document detail routes it depends on) — Path structure, roles, and procedure groups for document listing, single-file intake, and multi-faceted detail pages.
+- [L331–L392] 8. Workflow step action views (and staff-side complaint / document request management) — Task inbox routing, conditional step-type panels, staff-side complaint/request management, and committee picker procedures.
+- [L393–L405] 9. Session attendance tracking — Attendance overview and detail page routing, including role gates and Designation-document integration for substitute officers.
+- [L406–L415] 10. Mayor dashboard — Proposed data dependencies and filtering logic for the Mayor's dashboard widgets.
+- [L416–L429] 11. Audit log viewer — User-specific audit log pages versus the Auditor-restricted full log with hash chain validation rules.
+- [L430–L479] 12. Platform Administrator views — Platform Admin landing page, committee/role assignment, Tier-2 configuration panels, and retention/organization views.
+- [L480–L509] 13. System Administrator views (ADR-008) — Session termination, user account CRUD, hash chain validation routes, and outstanding infrastructure gaps for sysadmins.
+- [L510–L545] 14. Phase 1 public portal subset — Next.js public portal route definitions, no-login intake options, and public announcement display page.
+- [L546–L571] 15. Resolved gaps register — Summary table of resolved pre-development gaps (ADRs 1–10) and unresolved follow-up questions.
+- [L572–L582] 16. Items considered and not given a dedicated route — List of features, views, and documents deliberately excluded from having dedicated route definitions.
+- [L583–L587] Correction check — Quality assurance verification process and mandatory correction statement for unverified claims.
 
 ---
 

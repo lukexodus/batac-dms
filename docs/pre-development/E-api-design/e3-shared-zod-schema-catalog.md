@@ -14,73 +14,78 @@
 
 ## Table of Contents
 
-- [L89–L106] About This Document — Catalog role as the single source of truth for all shared Zod schemas and type safety chain.
-- [L107–L168] Conventions — Prefix conventions, layer symbols, sensitive field restrictions, and file structure inside the shared package.
-- [L169–L372] Part 1 — Common / Utility Schemas — Reusable schemas for identifiers, pagination, dates, API errors, and pre-signed S3 file upload requests.
-  - [L175–L187] `UuidSchema` — Standard UUID v4 validation schema for primary keys and cross-schema references.
-  - [L188–L200] `TimestampSchema` — ISO 8601 datetime validation with timezone offset mapping to database TIMESTAMPTZ columns.
-  - [L201–L215] `DateSchema` — YYYY-MM-DD date-only validation schema mapping to database DATE columns.
-  - [L216–L236] `PaginationInputSchema` — Standard cursor-based pagination parameters limit (1 to 100) and UUID cursor for list endpoints.
-  - [L237–L252] `OffsetPaginationInputSchema` — Offset-based pagination schema for reports and exports.
-  - [L253–L263] `SortOrderSchema` — Enum validator for sorting direction defaulting to ascending order.
-  - [L264–L284] `DateRangeSchema` — Date range filter ensuring start date does not succeed end date.
-  - [L285–L301] `PaginatedResponseSchema` — Generic wrapper schema for paginated API list responses.
-  - [L302–L316] `IdParamsSchema` — Path parameter validator containing a single UUID identifier.
-  - [L317–L333] `ApiErrorSchema` — Standardized error payload schema for all REST and tRPC error responses.
-  - [L334–L372] `PresignedUploadRequestSchema` / `PresignedUploadResponseSchema` — File upload request and response contracts specifying allowed MIME types and a 25MB file size limit.
-- [L373–L732] Part 2 — IAM Domain — User profiles, credentials, logins, MFA setup, role-based access control, and active session tracking.
-  - [L380–L426] Enum Schemas — Enumerations for user status, MFA types, session termination reasons, and permission decisions.
-  - [L427–L540] User Schemas — User selection, registration inputs, updates, search filters, and summary entities.
-  - [L541–L613] Auth Schemas — Credentials validation, authentication payloads, password changes, and TOTP MFA registration.
-  - [L614–L732] Role and Permission Schemas — Role definitions, permissions matrices, system role creation, assignment workflows, and active session details.
-- [L733–L1185] Part 3 — Organization Domain — Municipal office hierarchy, staff positions, employee records, job assignments, committee rosters, and authority delegation.
-  - [L740–L776] Enum Schemas — Enumerations for user status, MFA types, session termination reasons, and permission decisions.
-  - [L777–L873] Office Schemas — Office properties, parent-child hierarchies, creation inputs, modification validation, and list filters.
-  - [L874–L910] Position Schemas — Department job positions and authority levels creation schemas.
-  - [L911–L979] Employee Schemas — Employee profile details, creation validations, and summaries for committee and workflow rosters.
-  - [L980–L1026] Assignment Schemas — Job assignments linking employees to specific offices and positions with date limits.
-  - [L1027–L1088] Committee Schemas — Committee detail forms, member assignments, roles, and creation schemas.
-  - [L1089–L1185] Delegation Schemas — Authorization grants delegating power from one official to another based on designations.
-- [L1186–L1744] Part 4 — Documents Domain — Central document record, version history, attachments, signature tracking, numbering series, and provincial review actions.
-  - [L1193–L1309] Enum Schemas — Enumerations for user status, MFA types, session termination reasons, and permission decisions.
-  - [L1310–L1355] Document Type Schemas — Definitions of system-supported document types, classification defaults, and metadata structure.
-  - [L1356–L1493] Core Document Schemas — Main document attributes, registration inputs, cancellation flows, and search criteria.
-  - [L1494–L1540] Version Schemas — Document file versions, S3 key references, page counts, and OCR status.
-  - [L1541–L1581] Attachment Schemas — Supplemental document attachments, upload payloads, and attachment types classification.
-  - [L1582–L1625] Number Schemas — Assignment history for preliminary and immutable final numbers of a document.
-  - [L1626–L1670] Signature Schemas — Digital and wet-ink signature entries containing signer names and image references.
-  - [L1671–L1744] Panlalawigan Review Schemas — Provincial board reviews, transmittal timelines, and outcome logs for resolutions or ordinances.
-- [L1745–L2161] Part 5 — Document Metadata Schemas — Specific JSONB schemas validating attributes of all document types, including ordinances, resolutions, and complaints.
-  - [L1753–L1806] Shared Sub-schemas — Reusable metadata components for sponsors, legislative readings, mayor actions, veto overrides, and publications.
-  - [L1807–L1848] `SpResolutionMetadataSchema` — Metadata for Sangguniang Panlungsod resolutions including readings, sponsors, and urgency paths.
-  - [L1849–L1880] `SpOrdinanceMetadataSchema` — Metadata for legislative ordinances requiring three readings and publication details.
-  - [L1881–L1897] `AppropriationOrdinanceMetadataSchema` — Sub-type of ordinances validating fiscal year budget details and appropriation totals.
-  - [L1898–L1917] `CertificationOfUrgencyMetadataSchema` — Metadata documenting urgency certifications covering one or more active legislative measures.
-  - [L1918–L1969] `CitizenComplaintMetadataSchema` — Form fields for public complaints against personnel or services, incident locations, and outcomes.
-  - [L1970–L1998] `DocumentRequestFormMetadataSchema` — Data structures for public copy requests, officer collections, and multi-signature approvals.
-  - [L1999–L2134] Phase 1B Document Type Metadata Schemas — Metadata schemas for letters, memos, hearings, special sessions, and delegations reserved for Phase 1B.
-  - [L2135–L2161] Discriminated Metadata Union — Discriminator union matching a document type code to its corresponding metadata schema.
-- [L2162–L2453] Part 6 — Workflow Domain — Actionable workflow definitions, step types, progress instances, committee report submissions, and bypass records.
-  - [L2169–L2235] Enum Schemas — Enumerations for user status, MFA types, session termination reasons, and permission decisions.
-  - [L2236–L2281] Workflow Definition Schemas — Template patterns and configured steps for routing specific document lifecycle workflows.
-  - [L2282–L2453] Workflow Instance Schemas — Real-time workflow states, action inputs, committee submissions, bypass actions, and event history.
-- [L2454–L2560] Part 7 — Tracking Domain — QR tracking scanners, routing history, and custody verification inputs for physical documents.
-  - [L2460–L2502] `QrCodeScanResultSchema` — Response — Response payload returned on QR code scan containing document metadata and routing history.
-  - [L2503–L2540] `RoutingEntrySelectSchema` — Select (Append-only) — Append-only routing events tracking transfer logs between departments.
-  - [L2541–L2560] `TrackingRecordSelectSchema` — Select — Combined tracking records detailing physical custody status and complete routing history.
-- [L2561–L2656] Part 8 — Records Domain — Document retention policies, archive inventory logs, and bulk archiving tools for records officers.
-- [L2657–L2734] Part 9 — Notifications Domain — In-app alerts, read markers, search criteria, and SSE stream envelopes for real-time notifications.
-- [L2735–L2798] Part 10 — Audit Domain — Tamper-evident, read-only system audit logs containing hashes, actions, and filtering mechanisms.
-- [L2799–L2914] Part 11 — Session Attendance — Council session attendance records, legislative quorum enforcement, and planned legislative session orders.
-  - [L2807–L2819] `AttendanceStatusSchema` — Enumerated presence, official business, and excused or unexcused absence validators.
-  - [L2820–L2850] `SpSessionSelectSchema` — Select — Details of SP session dates, attendee list, and quorum metrics.
-  - [L2851–L2878] `CreateSpSessionInputSchema` — Input — Form for initiating a session requiring quorum validation of at least seven present members.
-  - [L2879–L2914] `OrderOfBusinessSchema` — Response — Scheduled reading items and red-flag indicator details for SP Secretary dashboards.
-- [L2915–L2986] Part 12 — Dashboard Schemas — Aggregated summaries, SLA task warnings, and action lists for secretary and mayor roles.
-- [L2987–L3100] Part 13 — Layer Consumption Summary Matrix — Matrix matching all catalogued schemas to their usage across application execution layers.
-- [L3101–L3115] Part 14 — Naming Conventions — Rules and suffix standardizations for naming input, filter, response, and select schemas.
-- [L3116–L3167] Part 15 — Import and Export Conventions — Barrel export setup in packages/shared and consumer import examples for backend and frontend.
-- [L3168–L3190] Part 16 — Schema Enforcement Rules — Governance policies Drizzle derivations, sensitive column exclusions, and validation constraints.
+- [L94–L111] About This Document — Catalog role as the single source of truth for all shared Zod schemas and type safety chain.
+- [L112–L173] Conventions — Prefix conventions, layer symbols, sensitive field restrictions, and file structure inside the shared package.
+- [L174–L377] Part 1 — Common / Utility Schemas — Reusable schemas for identifiers, pagination, dates, API errors, and pre-signed S3 file upload requests.
+  - [L180–L192] `UuidSchema` — Standard UUID v4 validation schema for primary keys and cross-schema references.
+  - [L193–L205] `TimestampSchema` — ISO 8601 datetime validation with timezone offset mapping to database TIMESTAMPTZ columns.
+  - [L206–L220] `DateSchema` — YYYY-MM-DD date-only validation schema mapping to database DATE columns.
+  - [L221–L241] `PaginationInputSchema` — Standard cursor-based pagination parameters limit (1 to 100) and UUID cursor for list endpoints.
+  - [L242–L257] `OffsetPaginationInputSchema` — Offset-based pagination schema for reports and exports.
+  - [L258–L268] `SortOrderSchema` — Enum validator for sorting direction defaulting to ascending order.
+  - [L269–L289] `DateRangeSchema` — Date range filter ensuring start date does not succeed end date.
+  - [L290–L306] `PaginatedResponseSchema` — Generic wrapper schema for paginated API list responses.
+  - [L307–L321] `IdParamsSchema` — Path parameter validator containing a single UUID identifier.
+  - [L322–L338] `ApiErrorSchema` — Standardized error payload schema for all REST and tRPC error responses.
+  - [L339–L377] `PresignedUploadRequestSchema` / `PresignedUploadResponseSchema` — File upload request and response contracts specifying allowed MIME types and a 25MB file size limit.
+- [L378–L755] Part 2 — IAM Domain — User profiles, credentials, logins, MFA setup, role-based access control, and active session tracking.
+  - [L385–L431] Enum Schemas — Enumerations for user status, MFA types, session termination reasons, and permission decisions.
+  - [L432–L545] User Schemas — User selection, registration inputs, updates, search filters, and summary entities.
+  - [L546–L618] Auth Schemas — Credentials validation, authentication payloads, password changes, and TOTP MFA registration.
+  - [L619–L755] Role and Permission Schemas — Role definitions, permissions matrices, system role creation, assignment workflows, and active session details.
+- [L756–L1208] Part 3 — Organization Domain — Municipal office hierarchy, staff positions, employee records, job assignments, committee rosters, and authority delegation.
+  - [L763–L799] Enum Schemas — Enumerations for user status, MFA types, session termination reasons, and permission decisions.
+  - [L800–L896] Office Schemas — Office properties, parent-child hierarchies, creation inputs, modification validation, and list filters.
+  - [L897–L933] Position Schemas — Department job positions and authority levels creation schemas.
+  - [L934–L1002] Employee Schemas — Employee profile details, creation validations, and summaries for committee and workflow rosters.
+  - [L1003–L1049] Assignment Schemas — Job assignments linking employees to specific offices and positions with date limits.
+  - [L1050–L1111] Committee Schemas — Committee detail forms, member assignments, roles, and creation schemas.
+  - [L1112–L1208] Delegation Schemas — Authorization grants delegating power from one official to another based on designations.
+- [L1209–L1773] Part 4 — Documents Domain — Central document record, version history, attachments, signature tracking, numbering series, and provincial review actions.
+  - [L1216–L1332] Enum Schemas — Enumerations for user status, MFA types, session termination reasons, and permission decisions.
+  - [L1333–L1378] Document Type Schemas — Definitions of system-supported document types, classification defaults, and metadata structure.
+  - [L1379–L1522] Core Document Schemas — Main document attributes, registration inputs, cancellation flows, and search criteria.
+  - [L1523–L1569] Version Schemas — Document file versions, S3 key references, page counts, and OCR status.
+  - [L1570–L1610] Attachment Schemas — Supplemental document attachments, upload payloads, and attachment types classification.
+  - [L1611–L1654] Number Schemas — Assignment history for preliminary and immutable final numbers of a document.
+  - [L1655–L1699] Signature Schemas — Digital and wet-ink signature entries containing signer names and image references.
+  - [L1700–L1773] Panlalawigan Review Schemas — Provincial board reviews, transmittal timelines, and outcome logs for resolutions or ordinances.
+- [L1774–L2192] Part 5 — Document Metadata Schemas — Specific JSONB schemas validating attributes of all document types, including ordinances, resolutions, and complaints.
+  - [L1784–L1837] Shared Sub-schemas — Reusable metadata components for sponsors, legislative readings, mayor actions, veto overrides, and publications.
+  - [L1838–L1879] `SpResolutionMetadataSchema` — Metadata for Sangguniang Panlungsod resolutions including readings, sponsors, and urgency paths.
+  - [L1880–L1911] `SpOrdinanceMetadataSchema` — Metadata for legislative ordinances requiring three readings and publication details.
+  - [L1912–L1928] `AppropriationOrdinanceMetadataSchema` — Sub-type of ordinances validating fiscal year budget details and appropriation totals.
+  - [L1929–L1948] `CertificationOfUrgencyMetadataSchema` — Metadata documenting urgency certifications covering one or more active legislative measures.
+  - [L1949–L2000] `CitizenComplaintMetadataSchema` — Form fields for public complaints against personnel or services, incident locations, and outcomes.
+  - [L2001–L2029] `DocumentRequestFormMetadataSchema` — Data structures for public copy requests, officer collections, and multi-signature approvals.
+  - [L2030–L2165] Phase 1B Document Type Metadata Schemas — Metadata schemas for letters, memos, hearings, special sessions, and delegations reserved for Phase 1B.
+  - [L2166–L2192] Discriminated Metadata Union — Discriminator union matching a document type code to its corresponding metadata schema.
+- [L2193–L2484] Part 6 — Workflow Domain — Actionable workflow definitions, step types, progress instances, committee report submissions, and bypass records.
+  - [L2200–L2266] Enum Schemas — Enumerations for user status, MFA types, session termination reasons, and permission decisions.
+  - [L2267–L2312] Workflow Definition Schemas — Template patterns and configured steps for routing specific document lifecycle workflows.
+  - [L2313–L2484] Workflow Instance Schemas — Real-time workflow states, action inputs, committee submissions, bypass actions, and event history.
+- [L2485–L2591] Part 7 — Tracking Domain — QR tracking scanners, routing history, and custody verification inputs for physical documents.
+  - [L2491–L2533] `QrCodeScanResultSchema` — Response — Response payload returned on QR code scan containing document metadata and routing history.
+  - [L2534–L2571] `RoutingEntrySelectSchema` — Select (Append-only) — Append-only routing events tracking transfer logs between departments.
+  - [L2572–L2591] `TrackingRecordSelectSchema` — Select — Combined tracking records detailing physical custody status and complete routing history.
+- [L2592–L2702] Part 8 — Records Domain — Document retention policies, archive inventory logs, and bulk archiving tools for records officers.
+  - [L2598–L2612] Enum Schemas — Enumerations for user status, MFA types, session termination reasons, and permission decisions.
+  - [L2613–L2637] `RetentionScheduleSelectSchema` — Select — SP Resolutions and Ordinances are permanent per consolidated reference.
+  - [L2638–L2663] `ArchiveEntrySelectSchema` — Select — Archive entry records detailing retention schedules and review due dates.
+  - [L2664–L2681] `BulkArchiveInputSchema` — Input — Records Officers only bulk archive inputs with dry run preview required.
+  - [L2682–L2702] `BulkArchivePreviewSchema` — Response — Response for bulk archive previews returned when dryRun is true.
+- [L2703–L2780] Part 9 — Notifications Domain — In-app alerts, read markers, search criteria, and SSE stream envelopes for real-time notifications.
+- [L2781–L2844] Part 10 — Audit Domain — Tamper-evident, read-only system audit logs containing hashes, actions, and filtering mechanisms.
+- [L2845–L2960] Part 11 — Session Attendance — Council session attendance records, legislative quorum enforcement, and planned legislative session orders.
+  - [L2853–L2865] `AttendanceStatusSchema` — Enumerated presence, official business, and excused or unexcused absence validators.
+  - [L2866–L2896] `SpSessionSelectSchema` — Select — Details of SP session dates, attendee list, and quorum metrics.
+  - [L2897–L2924] `CreateSpSessionInputSchema` — Input — Form for initiating a session requiring quorum validation of at least seven present members.
+  - [L2925–L2960] `OrderOfBusinessSchema` — Response — Scheduled reading items and red-flag indicator details for SP Secretary dashboards.
+- [L2961–L3032] Part 12 — Dashboard Schemas — Aggregated summaries, SLA task warnings, and action lists for secretary and mayor roles.
+- [L3033–L3146] Part 13 — Layer Consumption Summary Matrix — Matrix matching all catalogued schemas to their usage across application execution layers.
+- [L3147–L3161] Part 14 — Naming Conventions — Rules and suffix standardizations for naming input, filter, response, and select schemas.
+- [L3162–L3213] Part 15 — Import and Export Conventions — Barrel export setup in packages/shared and consumer import examples for backend and frontend.
+- [L3214–L3236] Part 16 — Schema Enforcement Rules — Governance policies Drizzle derivations, sensitive column exclusions, and validation constraints.
 
 ---
 
@@ -648,6 +653,24 @@ export type PermissionSelect = z.infer<typeof PermissionSelectSchema>;
 
 ---
 
+#### `RolePermissionSelectSchema` — Select
+
+```typescript
+export const RolePermissionSelectSchema = z.object({
+  id:                 UuidSchema,
+  roleId:             UuidSchema,
+  permissionId:       UuidSchema,
+  permission:         PermissionSelectSchema,
+  decision:           z.enum(["allow", "deny", "conditional"]),
+  conditionReference: z.string().nullable(),
+});
+export type RolePermissionSelect = z.infer<typeof RolePermissionSelectSchema>;
+```
+
+**Layers:** [R]
+
+---
+
 #### `CreateRoleInputSchema` — Input
 
 ```typescript
@@ -743,7 +766,7 @@ export type SessionSelect = z.infer<typeof SessionSelectSchema>;
 
 ```typescript
 export const OfficeTypeSchema = z.enum([
-  "sp_office", "mayors_office", "city_department", "barangay", "other",
+  "executive", "legislative", "department", "barangay", "external",
 ]);
 export type OfficeType = z.infer<typeof OfficeTypeSchema>;
 ```
@@ -1196,8 +1219,8 @@ export type RevokeDelegationInput = z.infer<typeof RevokeDelegationInputSchema>;
 
 ```typescript
 export const LifecycleStateSchema = z.enum([
-  "draft", "submitted", "in_workflow", "pending_approval",
-  "completed", "released", "archived", "disposed", "cancelled",
+  "draft", "under_review", "pending_mayor_action", "pending_panlalawigan_review",
+  "approved", "released", "superseded", "cancelled", "rejected",
 ]);
 export type LifecycleState = z.infer<typeof LifecycleStateSchema>;
 ```
@@ -1377,6 +1400,9 @@ export type DocumentTypeSelect = z.infer<typeof DocumentTypeSelectSchema>;
 | `workflowInstanceId` | `UuidSchema.nullable()` | |
 | `versionNumber` | `z.number().int()` | |
 | `metadata` | `z.record(z.unknown())` | Narrowed per document type by callers |
+| `supersededBy` | `UuidSchema.nullable()` | |
+| `supersededAt` | `TimestampSchema.nullable()` | |
+| `closureReason` | `z.string().nullable()` | |
 
 ```typescript
 export const DocumentSelectSchema = z.object({
@@ -1397,6 +1423,9 @@ export const DocumentSelectSchema = z.object({
   workflowInstanceId:  UuidSchema.nullable(),
   versionNumber:       z.number().int().min(1),
   metadata:            z.record(z.unknown()),
+  supersededBy:        UuidSchema.nullable(),
+  supersededAt:        TimestampSchema.nullable(),
+  closureReason:       z.string().nullable(),
   createdAt:           TimestampSchema,
   updatedAt:           TimestampSchema,
 });
@@ -1747,6 +1776,8 @@ export type LogPanlalawiganOutcomeInput = z.infer<typeof LogPanlalawiganOutcomeI
 **File:** `packages/shared/src/schemas/document-metadata.ts`
 
 These schemas validate the JSONB `metadata` column of `documents.documents` for each Phase 1 document type. The server applies the correct per-type schema at document creation and at each workflow-step submission that touches metadata. The frontend form uses the same schema via `zodResolver` for real-time field validation.
+
+> **Note:** There is no standalone `PublicationRecordsSchema`. Publication data is embedded in the workflow context (`workflow.instances.context` JSONB).
 
 ---
 
@@ -2561,6 +2592,21 @@ export type TrackingRecordSelect = z.infer<typeof TrackingRecordSelectSchema>;
 ## Part 8 — Records Domain
 
 **File:** `packages/shared/src/schemas/records.ts`
+
+---
+
+### Enum Schemas
+
+#### `RecordTypeSchema`
+
+```typescript
+export const RecordTypeSchema = z.enum([
+  "Permanent-Legislative", "Financial", "Personnel", "Correspondence", "Internal Memo", "Draft"
+]);
+export type RecordType = z.infer<typeof RecordTypeSchema>;
+```
+
+**Source:** `records.records.record_type` | **Layers:** [B] [T] [F] [R]
 
 ---
 

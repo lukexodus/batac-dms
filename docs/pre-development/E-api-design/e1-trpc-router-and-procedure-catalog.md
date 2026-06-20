@@ -14,31 +14,109 @@
 
 ## Table of Contents
 
-- [L43–L63] Purpose — Purpose, team workflow rules, parallel-work contracts, and the 7 required metadata fields defined per procedure.
-- [L64–L78] Note on Scope — Phase 1 in-scope tRPC routers and excluded citizen self-service REST endpoints, reporting modules, and search meta.
-- [L79–L88] Notation — Definitions of traceability and status tags mapping requirements to confirmed, inferred, or deferred procedures.
-- [L89–L148] Global Conventions — Directory layouts, camelCase naming verbs, the 5-step middleware security chain, list envelopes, and standard error shapes.
-- [L149–L232] Shared Fragment Schemas — Reusable Zod validators for pagination, date ranges, summary shapes, and document/role/classification enums.
-- [L233–L381] Module 1 — IAM Router (`iamRouter`) — Profile management, session termination, account CRUD, and role assignments enforcing the Platform Admin exclusion invariant.
-- [L382–L520] Module 2 — Organization Router (`organizationRouter`) — Office and position hierarchies, employee assignments, and designation grants enforcing singular-active-holder invariants.
-- [L521–L800] Module 3 — Documents Router (`documentsRouter`) — Core document lifecycle actions including general CRUD, legislative numbering, versioning, attachments, and decision logging.
-  - [L527–L616] 3.1 General Document CRUD — Draft creation, classification-gated reads, IT Admin metadata bypass, search FTS, and soft deletion rules.
-  - [L617–L684] 3.2 SP Workflow Document Specifics — Document submission sequencing, QR code attachment, and legislative preliminary or final series number assignments.
-  - [L685–L785] 3.3 File, Version, and Attachment Handling — Presigned S3 upload URLs, OCR text extraction, scan quality checks, and scanned-back signed copy acceptance.
-  - [L786–L800] 3.4 Secretariat Decision Logging `[Routing superseded by ADR-B2-3]` — superseded by workflow step completion — delegates directly to Workflow router per ADR-B2-3.
-- [L801–L1004] Module 4 — Workflow Router (`workflowRouter`) — Execution lifecycle, role/ABAC gates, multi-referral committee reports, Mayor lapse, Panlalawigan reviews, and ARTA SLA reporting.
-- [L1005–L1065] Module 5 — Tracking Router (`trackingRouter`) — Tracking record retrieval, paper-saving QR cover sheet layout, routing histories, and authenticated scanner blurred pages.
-- [L1066–L1137] Module 6 — Session Router (`sessionRouter`) — Session attendance and statistics, quorum validation, first reading scheduling, and committee hearing date inputs.
-- [L1138–L1198] Module 7 — Records Router (`recordsRouter`) — Phase 1 Subset — Retention schedule lookups, classification updates, and legal holds preventing document disposal in Phase 1.
-- [L1199–L1248] Module 8 — Notifications Router (`notificationsRouter`) — User SSE in-app notifications, custom preference settings, and administrator delivery logs.
-- [L1249–L1309] Module 9 — Audit Router (`auditRouter`) — Read-only logs for own actions, office actions, full auditor logs, SHA-256 chain validation, and exports.
-- [L1310–L1370] Module 10 — Complaints Router (`complaintsRouter`) — Internal Staff Side Only — In-person clerk intake, committee assignments, reports, outcomes, and respondent email or pickup notification rules.
-- [L1371–L1479] Module 11 — Document Requests Router (`documentRequestsRouter`) — Internal Staff Side Only — Counter-assisted requests, dual-signature approval by VM and Secretary, and payment-deferred copy release.
-- [L1443–L1468] Cross-Reference: Procedure-to-Policy Traceability Index — Inverted trace index mapping permission matrix sections to in-scope, deferred, or inferred router procedures.
-- [L1469–L1479] Required Follow-Up Before Full Sign-Off — Deferred action items for platform admin CRUD, records bulk operations, and signature uploads.
+- [L3–L120] E1 — tRPC Router and Procedure Catalog
+- [L121–L141] Purpose — Purpose, team workflow rules, parallel-work contracts, and the 7 required metadata fields defined per procedure.
+- [L142–L156] Note on Scope — Phase 1 in-scope tRPC routers and excluded citizen self-service REST endpoints, reporting modules, and search meta.
+- [L157–L166] Notation — Definitions of traceability and status tags mapping requirements to confirmed, inferred, or deferred procedures.
+- [L167–L226] Global Conventions — Directory layouts, camelCase naming verbs, the 5-step middleware security chain, list envelopes, and standard error shapes.
+- [L227–L604] Shared Fragment Schemas — Reusable Zod validators for pagination, date ranges, summary shapes, and document/role/classification enums.
+  - [L315–L325] `iam.getCurrentUser`
+  - [L326–L336] `iam.updateOwnProfile`
+  - [L337–L347] `iam.changeOwnPassword`
+  - [L348–L358] `iam.listActiveSessions`
+  - [L359–L369] `iam.listAllActiveSessions`
+  - [L370–L380] `iam.forceTerminateSession`
+  - [L381–L391] `iam.listUserDirectory`
+  - [L392–L402] `iam.createUserAccount`
+  - [L403–L413] `iam.editUserAccount`
+  - [L414–L424] `iam.deactivateUserAccount` / `iam.reactivateUserAccount`
+  - [L425–L435] `iam.assignRole`
+  - [L436–L446] `iam.revokeRole`
+  - [L447–L463] `iam.registerCitizenAccountClerkAssisted`
+  - [L464–L474] `organization.getOfficeHierarchy`
+  - [L475–L486] `organization.createOffice` / `organization.updateOffice`
+  - [L487–L497] `organization.deactivateOffice`
+  - [L498–L508] `organization.createPosition` / `organization.updatePosition`
+  - [L509–L519] `organization.createEmployee` / `organization.updateEmployee`
+  - [L520–L530] `organization.assignEmployeeToPosition`
+  - [L531–L541] `organization.getActiveDesignations`
+  - [L542–L552] `organization.getDesignationHistory`
+  - [L553–L563] `organization.createDesignationGrant`
+  - [L564–L574] `organization.revokeDesignationGrantEarly`
+  - [L575–L585] `organization.createCommittee` / `organization.updateCommittee`
+  - [L586–L604] `organization.assignCommitteeMembership`
+- [L605–L694] 3.1 General Document CRUD — Draft creation, classification-gated reads, IT Admin metadata bypass, search FTS, and soft deletion rules.
+- [L695–L762] 3.2 SP Workflow Document Specifics — Document submission sequencing, QR code attachment, and legislative preliminary or final series number assignments.
+- [L763–L863] 3.3 File, Version, and Attachment Handling — Presigned S3 upload URLs, OCR text extraction, scan quality checks, and scanned-back signed copy acceptance.
+  - [L765–L775] `documents.requestUploadUrl`
+  - [L776–L786] `documents.confirmUpload`
+  - [L787–L797] `documents.getVersionHistory`
+  - [L798–L808] `documents.downloadVersion`
+  - [L809–L819] `documents.getOcrText`
+  - [L820–L830] `documents.getScanQualityIndicator`
+  - [L831–L841] `documents.triggerManualReOcr`
+  - [L842–L852] `documents.flagScannedBackForVerification`
+  - [L853–L863] `documents.acceptScannedBackAsOfficial`
+- [L864–L1520] 3.4 Secretariat Decision Logging `[Routing superseded by ADR-B2-3]` — superseded by workflow step completion — delegates directly to Workflow router per ADR-B2-3.
+  - [L866–L882] `documents.logSecretariatDecision`
+  - [L883–L893] `workflow.getInstance`
+  - [L894–L904] `workflow.getActiveInstanceForDocument`
+  - [L905–L915] `workflow.listMyAssignedSteps`
+  - [L916–L926] `workflow.completeActionStep`
+  - [L927–L937] `workflow.approveStep` / `workflow.rejectStep` / `workflow.returnStepForRevision`
+  - [L938–L948] `workflow.submitCommitteeReport`
+  - [L949–L959] `workflow.manuallyAdvanceMultiReferralStep`
+  - [L960–L970] `workflow.certifyAsPresidingOfficer`
+  - [L971–L981] `workflow.mayorSign` / `workflow.mayorVeto`
+  - [L982–L992] `workflow.logMayorLapseConfirmation`
+  - [L993–L1003] `workflow.recordVetoOverrideVote`
+  - [L1004–L1014] `workflow.logDocketingCompletion`
+  - [L1015–L1025] `workflow.recordPanlalawiganOutcome`
+  - [L1026–L1036] `workflow.resolveValidInPart`
+  - [L1037–L1047] `workflow.confirmPanlalawiganDeemedApproved`
+  - [L1048–L1058] `workflow.recordNewspaperPublicationDate`
+  - [L1059–L1069] `workflow.migrateInstanceToNewDefinitionVersion`
+  - [L1070–L1086] `workflow.getSlaComplianceData`
+  - [L1087–L1097] `tracking.getTrackingRecord`
+  - [L1098–L1108] `tracking.printQrCoverSheet`
+  - [L1109–L1119] `tracking.getRoutingHistory`
+  - [L1120–L1130] `tracking.logRoutingEntry`
+  - [L1131–L1147] `tracking.scanQrCodeAuthenticated`
+  - [L1148–L1158] `session.recordAttendance`
+  - [L1159–L1169] `session.getAttendanceRecord`
+  - [L1170–L1180] `session.getAttendanceStatistics`
+  - [L1181–L1191] `session.getOrderOfBusiness`
+  - [L1192–L1202] `session.scheduleDocumentForFirstReading`
+  - [L1203–L1219] `session.enterCommitteeHearingDate`
+  - [L1220–L1230] `records.getRetentionSchedule`
+  - [L1231–L1241] `records.applyRetentionSchedule`
+  - [L1242–L1252] `records.applyClassification`
+  - [L1253–L1263] `records.placeLegalHold` / `records.removeLegalHold`
+  - [L1264–L1280] `records.isUnderLegalHold`
+  - [L1281–L1291] `notifications.listMine`
+  - [L1292–L1302] `notifications.markAsRead`
+  - [L1303–L1313] `notifications.getOwnPreferences` / `notifications.updateOwnPreferences`
+  - [L1314–L1330] `notifications.listDeliveryLogs`
+  - [L1331–L1341] `audit.listOwnActions`
+  - [L1342–L1352] `audit.listOwnOfficeDocumentActions`
+  - [L1353–L1363] `audit.listFullLog`
+  - [L1364–L1374] `audit.validateChainIntegrity`
+  - [L1375–L1391] `audit.exportEvents`
+  - [L1392–L1402] `complaints.createClerkAssisted`
+  - [L1403–L1413] `complaints.logAndAssign`
+  - [L1414–L1424] `complaints.enterCommitteeReport`
+  - [L1425–L1435] `complaints.setOutcome`
+  - [L1436–L1452] `complaints.listAll`
+  - [L1453–L1463] `documentRequests.createClerkAssisted`
+  - [L1464–L1474] `documentRequests.generatePrintableForm`
+  - [L1475–L1485] `documentRequests.approveAsPresidingOfficer`
+  - [L1486–L1496] `documentRequests.approveAsSecretary`
+  - [L1497–L1507] `documentRequests.releaseCopy`
+  - [L1508–L1520] `documentRequests.listAll`
+- [L1521–L1546] Cross-Reference: Procedure-to-Policy Traceability Index — Inverted trace index mapping permission matrix sections to in-scope, deferred, or inferred router procedures.
+- [L1547–L1557] Required Follow-Up Before Full Sign-Off — Deferred action items for platform admin CRUD, records bulk operations, and signature uploads.
 
 ---
-
 
 ## Purpose
 
@@ -192,8 +270,8 @@ const auditableEntityOutput = z.object({
 
 // documentLifecycleStateEnum — mirrors C1 documents.lifecycle_state_enum exactly
 const documentLifecycleStateEnum = z.enum([
-  'draft', 'submitted', 'in_workflow', 'pending_approval',
-  'completed', 'released', 'archived', 'disposed', 'cancelled',
+  'draft', 'under_review', 'pending_mayor_action', 'pending_panlalawigan_review',
+  'approved', 'released', 'superseded', 'cancelled', 'rejected',
 ]);
 
 // classificationLevelEnum — mirrors C1 documents.classification_level_enum exactly
@@ -543,7 +621,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 |---|---|
 | Type | `query` |
 | Input | `z.object({ documentId: z.string().uuid() })` |
-| Output | `z.object({ documentId: z.string().uuid(), documentTypeId: z.string().uuid(), documentTypeName: z.string(), title: z.string(), lifecycleState: documentLifecycleStateEnum, classificationLevel: classificationLevelEnum, originatingOfficeId: z.string().uuid(), ownedByOfficeId: z.string().uuid(), preliminaryNumber: z.string().nullable(), finalNumber: z.string().nullable(), qrTrackingNumber: z.string().uuid(), metadata: z.record(z.unknown()), createdBy: z.string().uuid(), createdAt: z.coerce.date() })` |
+| Output | `z.object({ documentId: z.string().uuid(), documentTypeId: z.string().uuid(), documentTypeName: z.string(), title: z.string(), lifecycleState: documentLifecycleStateEnum, classificationLevel: classificationLevelEnum, originatingOfficeId: z.string().uuid(), ownedByOfficeId: z.string().uuid(), preliminaryNumber: z.string().nullable(), finalNumber: z.string().nullable(), qrTrackingNumber: z.string().uuid(), metadata: z.record(z.unknown()), createdBy: z.string().uuid(), createdAt: z.coerce.date(), supersededBy: z.string().uuid().nullable(), supersededAt: z.coerce.date().nullable(), closureReason: z.string().nullable() })` |
 | Callable by | `records_officer`, `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain`, `auditor` |
 | ABAC conditions | Implements I1 §3.2 in full: own-office read always allowed for the listed roles; cross-office read for `records_officer`/`sp_secretary`/`sp_presiding_officer`/`mayor`/`auditor` requires `classification_level IN ('public','internal')` **and** `has_cross_office_read_grant()`; `sp_member` cross-committee read requires `subject.committee_ids` intersecting the document's assigned committee, **or** the document having been read into an SP session; `classification_level = 'public'` is always readable by anyone authenticated. Gate 4 (Classification Gate) blocks Confidential/Restricted unless the subject is on the type's allowlist — IT Admin is excluded from this router entirely (not in the Callable-by list) per Gate 2/Invariant #10, but `sys_admin` may still reach document *metadata* via a separate, narrower procedure (`documents.getMetadataForAdmin`, defined below) since metadata (not content) remains visible to IT Admin. |
 | Business operation | Calls `Documents.getDocumentById()` (B2 Published API). `[Confirmed — I1 §3.2 in full]` |
@@ -600,7 +678,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Input | `z.object({ documentId: z.string().uuid() })` |
 | Output | `z.object({ success: z.literal(true) })` |
 | Callable by | `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain` |
-| ABAC conditions | `lifecycle_state IN ('draft','submitted')` **and** `workflow_instance_id IS NULL`. `dept_encoder`/`brgy_encoder` are restricted to exactly this same condition (no further narrowing needed for them specifically, since the base condition already excludes the case I2 Conditional Note ⁷ calls out — once a workflow instance exists, only Approver/Secretary/Captain may proceed, and Encoders are structurally blocked because the encoder branch of this rule doesn't add a *looser* condition, it's the same gate). |
+| ABAC conditions | `lifecycle_state IN ('draft','under_review')` **and** `workflow_instance_id IS NULL`. `dept_encoder`/`brgy_encoder` are restricted to exactly this same condition (no further narrowing needed for them specifically, since the base condition already excludes the case I2 Conditional Note ⁷ calls out — once a workflow instance exists, only Approver/Secretary/Captain may proceed, and Encoders are structurally blocked because the encoder branch of this rule doesn't add a *looser* condition, it's the same gate). |
 | Business operation | Soft-deletes (`deleted_at`/`deleted_by`) — never a hard `DELETE`. `[Confirmed — I1 §3.4 in full; I2 Conditional Note ⁷]` |
 
 ### `documents.cancel`
@@ -611,7 +689,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Input | `z.object({ documentId: z.string().uuid(), reason: z.string().min(1) })` — mandatory reason |
 | Output | `z.object({ success: z.literal(true) })` |
 | Callable by | `dept_approver`, `sp_secretary`, `sp_presiding_officer`, `mayor`, `brgy_captain` unconditionally; `dept_encoder`, `brgy_encoder` conditionally |
-| ABAC conditions | `lifecycle_state NOT IN ('archived','disposed','cancelled')`. For `dept_encoder`/`brgy_encoder`: additionally `lifecycle_state IN ('draft','submitted')` **and** `workflow_instance_id IS NULL`. |
+| ABAC conditions | `lifecycle_state NOT IN ('superseded','rejected','cancelled')`. For `dept_encoder`/`brgy_encoder`: additionally `lifecycle_state IN ('draft','under_review')` **and** `workflow_instance_id IS NULL`. |
 | Business operation | Calls `Documents.transitionState(documentId, 'cancelled', actorId, reason)` (B2 Published API). Every cancellation is audit-logged with the mandatory reason (consolidated reference Part 11.11). `[Confirmed — I1 §3.6 in full]` |
 
 ## 3.2 SP Workflow Document Specifics
@@ -622,10 +700,10 @@ This is the largest router. It is organized into five sub-sections: general docu
 |---|---|
 | Type | `mutation` |
 | Input | `z.object({ documentId: z.string().uuid() })` |
-| Output | `z.object({ lifecycleState: z.literal('submitted'), qrTrackingNumber: z.string().uuid().nullable(), preliminaryNumber: z.string().nullable() })` |
+| Output | `z.object({ lifecycleState: z.literal('under_review'), qrTrackingNumber: z.string().uuid().nullable(), preliminaryNumber: z.string().nullable() })` |
 | Callable by | `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain` |
 | ABAC conditions | `lifecycle_state = 'draft'`. **Special rule for SP workflow documents**: for `document_type_code IN ('SP_RESOLUTION','SP_ORDINANCE','SP_APPROPRIATION_ORDINANCE')`, the formal submission that triggers workflow instance creation and QR assignment additionally requires `subject.roles CONTAINS 'sp_secretary'` — an `sp_member` calling this on their own drafted resolution receives `FORBIDDEN` with cause `"sp_secretary_required_for_formal_submission"` and must hand off to the Secretariat instead (the draft remains visible and editable by them in the meantime via `documents.update`). |
-| Business operation | Calls `Documents.transitionState(documentId, 'submitted', actorId)`. For SP workflow types, this is also the trigger point for: (a) Tracking's QR generation (`document.created` event → Tracking module, per B2 Module 3/5), (b) Workflow instance creation pinned to the active `definition_version_id` (`document.created` → Workflow module). Note the naming subtlety carried over from B2 verbatim: the event is literally named `document.created` even though it fires at *submit*, not at the initial `draft` row insert — this document does not rename the event, since B2 already defines it and this catalog must stay consistent with the published event registry. `[Confirmed — I1 §3.5 in full; B2 Module 3 event table and Module 5 "Confirmed QR assignment sequence"]` |
+| Business operation | Calls `Documents.transitionState(documentId, 'under_review', actorId)`. For SP workflow types, this is also the trigger point for: (a) Tracking's QR generation (`document.created` event → Tracking module, per B2 Module 3/5), (b) Workflow instance creation pinned to the active `definition_version_id` (`document.created` → Workflow module). Note the naming subtlety carried over from B2 verbatim: the event is literally named `document.created` even though it fires at *submit*, not at the initial `draft` row insert — this document does not rename the event, since B2 already defines it and this catalog must stay consistent with the published event registry. `[Confirmed — I1 §3.5 in full; B2 Module 3 event table and Module 5 "Confirmed QR assignment sequence"]` |
 
 ### `documents.assignPreliminaryNumber`
 
@@ -635,7 +713,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Input | `z.object({ documentId: z.string().uuid() })` |
 | Output | `z.object({ preliminaryNumber: z.string() })` |
 | Callable by | `sp_secretary` only |
-| ABAC conditions | `document_type_code IN ('SP_RESOLUTION','SP_ORDINANCE','SP_APPROPRIATION_ORDINANCE')`, `lifecycle_state IN ('submitted','in_workflow')` (specifically at the secretariat logging step), `document.preliminary_number IS NULL`. |
+| ABAC conditions | `document_type_code IN ('SP_RESOLUTION','SP_ORDINANCE','SP_APPROPRIATION_ORDINANCE')`, `lifecycle_state IN ('under_review','pending_mayor_action','pending_panlalawigan_review')` (specifically at the secretariat logging step), `document.preliminary_number IS NULL`. |
 | Business operation | Calls the `documents.fn_assign_preliminary_number()` DB function (C1 §4.12) via the Documents module's internal numbering service. Renders `Draft 7SP {YEAR}-{NN}` using the space delimiter confirmed throughout the consolidated reference (Part 5.1, Q-A01). Emits `document.number_assigned` with `numberType: 'preliminary'` (B2 Module 3) → Audit. `[Confirmed — I1 §3.7 in full; C1 §4.12; consolidated reference Part 5.1–5.2]` |
 
 ### `documents.assignFinalNumber`
@@ -657,7 +735,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Input | `z.object({ certifyingDocumentId: z.string().uuid(), associatedMeasureIds: z.array(z.string().uuid()).min(1) })` — a single Certification can cover multiple measures |
 | Output | `z.object({ certificationDocumentId: z.string().uuid(), affectedDocumentIds: z.array(z.string().uuid()) })` |
 | Callable by | `sp_secretary` only |
-| ABAC conditions | `certifyingDocument.document_type_code = 'CERTIFICATION_OF_URGENCY'`. Every ID in `associatedMeasureIds` must reference a document of type `SP_RESOLUTION`, `SP_ORDINANCE`, or `SP_APPROPRIATION_ORDINANCE` whose `lifecycle_state = 'in_workflow'` **and** whose current workflow step is `'committee_referral_pending'` — if any referenced measure fails this check, the entire mutation is rejected (`PRECONDITION_FAILED`), not partially applied. |
+| ABAC conditions | `certifyingDocument.document_type_code = 'CERTIFICATION_OF_URGENCY'`. Every ID in `associatedMeasureIds` must reference a document of type `SP_RESOLUTION`, `SP_ORDINANCE`, or `SP_APPROPRIATION_ORDINANCE` whose `lifecycle_state = 'pending_mayor_action'` (or equivalent active state) **and** whose current workflow step is `'committee_referral_pending'` — if any referenced measure fails this check, the entire mutation is rejected (`PRECONDITION_FAILED`), not partially applied. |
 | Business operation | Inserts the Certification's `documents.documents` row (already created via `documents.create`/`submit` prior to this call — this procedure is specifically the *logging/attachment* action, not creation) and, for each associated measure, triggers the workflow bypass. Calls into Workflow's bypass logic, which emits `workflow.certified_urgent_applied` with `bypassedStepType: 'multi_referral'` (B2 Module 4) → Audit. The Certification has no standalone number (consolidated reference Part 4.17, Q-B01) — `number_series_id` is `NULL` on its `document_types` row (C1 §4.3). `[Confirmed — I1 §3.9 in full; B2 Module 4 "certified_urgent_applied" event; consolidated reference Part 4.17]` |
 
 ### `documents.publishToPortal` / `documents.unpublishFromPortal`
@@ -668,7 +746,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Input | `z.object({ documentId: z.string().uuid() })` |
 | Output | `z.object({ success: z.literal(true) })` |
 | Callable by | `sp_secretary` only |
-| ABAC conditions | `document_type_code IN ('SP_RESOLUTION','SP_ORDINANCE','SP_APPROPRIATION_ORDINANCE')`, `lifecycle_state IN ('released','archived')`, and either `classification_level = 'public'` or (`classification_level = 'internal'` AND the document type's `public_visibility_rule = 'title_and_first_page_public'`). |
+| ABAC conditions | `document_type_code IN ('SP_RESOLUTION','SP_ORDINANCE','SP_APPROPRIATION_ORDINANCE')`, `lifecycle_state IN ('released','superseded')`, and either `classification_level = 'public'` or (`classification_level = 'internal'` AND the document type's `public_visibility_rule = 'title_and_first_page_public'`). |
 | Business operation | Flips the document's portal-visibility flag (read by the Phase-3 `portal` schema's `public_documents` sync, which is out of scope for this Phase 1 router but the trigger point exists now). `[Confirmed — I1 §3.11 in full; I2 Section 14 "Publish / unpublish document to public portal"]` |
 
 ### `documents.archive`
@@ -680,7 +758,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Output | `z.object({ success: z.literal(true) })` |
 | Callable by | `records_officer`, `sp_secretary` |
 | ABAC conditions | `lifecycle_state IN ('completed','released')`. For `sp_secretary`: additionally `document.owned_by_office_id = SP_SECRETARIAT_OFFICE_ID` (I2 Conditional Note ¹⁵ — SP Secretary may only classify/archive SP-originated documents; other offices' documents require a Records Officer). |
-| Business operation | Calls `Documents.transitionState(documentId, 'archived', actorId)`. `[Confirmed — I1 §3.10 in full]` |
+| Business operation | Calls `Documents.transitionState(documentId, 'superseded', actorId)`. `[Confirmed — I1 §3.10 in full]` |
 
 ## 3.3 File, Version, and Attachment Handling
 
@@ -976,7 +1054,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Output | `z.object({ success: z.literal(true) })` |
 | Callable by | `sp_secretary` |
 | ABAC conditions | The document is `SP_ORDINANCE` or `SP_APPROPRIATION_ORDINANCE` and its type metadata indicates a penalty provision (only penalty ordinances require this field). |
-| Business operation | Writes the mandatory tracked publication date into `documents.documents.metadata` (the `publication` object, per C1 §4.1 item 1's resolution that `publication` lives in JSONB, not a dedicated column). `[Confirmed — I2 Section 6 "Record newspaper publication date"; consolidated reference Q-C04; C1 §4.1]` |
+| Business operation | Writes the mandatory tracked publication date into `workflow.instances.context` (the `publication` object, per C1 §4.1 item 1's resolution that `publication` lives in JSONB, not a dedicated column). `[Confirmed — I2 Section 6 "Record newspaper publication date"; consolidated reference Q-C04; C1 §4.1]` |
 
 ### `workflow.migrateInstanceToNewDefinitionVersion`
 
@@ -1192,7 +1270,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Output | `z.object({ underLegalHold: z.boolean() })` |
 | Callable by | `records_officer`, `sp_secretary` |
 | ABAC conditions | None beyond role gate. |
-| Business operation | Calls `Records.isUnderLegalHold()` (B2 Published API) — used before allowing a `'disposed'` transition. `[Confirmed — B2 Module 6 Published API]` |
+| Business operation | Calls `Records.isUnderLegalHold()` (B2 Published API) — used before allowing a records disposition transition. `[Confirmed — B2 Module 6 Published API]` |
 
 ---
 

@@ -1,29 +1,30 @@
 # L2 — Docker and Docker Compose Specification · Pre-Development Reference
 
-**Status:** Pre-development baseline **Last updated:** June 2026 **Audience:** Development team (internal reference) **Companion documents:** D5 (Deployment Diagram), L1 (Environment Variable Catalog)
+**Status:** Active — Part 13 decisions resolved June 2026 **Last updated:** June 2026 **Audience:** Development team (internal reference) **Companion documents:** D5 (Deployment Diagram), L1 (Environment Variable Catalog)
 
 ## Table of Contents
 
-- [L30–L45] Overview — Scope boundaries and local host-execution versus production full-stack containerization architectural models.
-- [L46–L78] File Layout — Monorepo file tree and compose filename conventions preventing accidental local production runs.
-- [L79–L259] Part 1 — Local Development Compose (`compose.yml`) — Compose definitions for local development infrastructure services including PostgreSQL, MinIO, Mailpit, and Meilisearch.
-  - [L232–L259] Developer quick reference — Docker Compose commands for starting services, viewing logs, resetting database volumes, and connecting to psql.
-- [L260–L379] Part 2 — PostgreSQL Initialization Script — Superuser bash script creating the migrate, application, and insert-only audit database roles upon first startup.
-  - [L311–L379] Post-migration grants (`packages/database/scripts/post-migrate-grants.sql`) — Idempotent SQL granting schema DML, revoking audit modifications, and giving pgboss ownership to batac_app.
-- [L380–L610] Part 3 — Production / Staging Compose (`compose.prod.yml`) — Production compose spec detailing Nginx reverse-proxying, Fastify servers, and PostgreSQL primary-standby replication configuration.
-- [L611–L743] Part 4 — Dockerfile: Fastify Server (`apps/server/Dockerfile`) — Multi-stage Fastify build using turbo prune, dumb-init PID 1, and unprivileged node user execution.
-  - [L720–L743] OCR note — WASM-based OCR setup and instructions for offline language pack pre-bundling in the production image.
-- [L744–L819] Part 5 — Dockerfile: Web SPA (`apps/web/Dockerfile`) — Multi-stage Vite build baking public environment variables into the final static frontend image.
-- [L820–L944] Part 6 — Nginx Configuration (`nginx/batac.conf`) — Reverse proxy rules for SSL termination, static caching, server-sent events buffering overrides, and API routing.
-- [L945–L963] Part 7 — Health Check Reference — Probe commands and intervals for service liveness, separating Fastify liveness from database readiness checks.
-- [L964–L998] Part 8 — Volume Strategy — Safety analysis of named volumes, bind mount mappings, and local database wipe-and-reset instructions.
-- [L999–L1066] Part 9 — Environment Variable Injection — Dotenv hierarchy, container runtime injection paths, build-time baking rules, and production secrets management guidelines.
-- [L1067–L1171] Part 10 — Migration and Seed Entrypoint — Entrypoint orchestration for database migration execution and seed runs in development and staging environments.
-  - [L1069–L1121] `apps/server/entrypoint.sh` — Shell script executing Drizzle migrations, running dev/staging seeds, and starting Fastify under dumb-init.
-  - [L1122–L1171] Migration runner (`packages/database/scripts/migrate.ts`) — TypeScript runner applying Drizzle migrations and executing post-migrate SQL grants via the migration user role.
-- [L1172–L1194] Part 11 — Native Dependencies — Native build tool requirements, Alpine binary compatibility risks for argon2, and tesseract WASM details.
-- [L1195–L1230] Part 12 — Startup Dependency Order — Sequence graph mapping service startup check dependencies for local development and production environments.
-- [L1231–L1247] Part 13 — Open Decisions — Pending architecture items including argon2 packages, PostgreSQL image choices, secrets management, and build version pinning.
+- [L31–L46] Overview — Scope boundaries and local host-execution versus production full-stack containerization architectural models.
+- [L47–L80] File Layout — Monorepo file tree and compose filename conventions preventing accidental local production runs.
+- [L81–L261] Part 1 — Local Development Compose (`compose.yml`) — Compose definitions for local development infrastructure services including PostgreSQL, MinIO, Mailpit, and Meilisearch.
+  - [L234–L261] Developer quick reference — Docker Compose commands for starting services, viewing logs, resetting database volumes, and connecting to psql.
+- [L262–L381] Part 2 — PostgreSQL Initialization Script — Superuser bash script creating the migrate, application, and insert-only audit database roles upon first startup.
+  - [L313–L381] Post-migration grants (`packages/database/scripts/post-migrate-grants.sql`) — Idempotent SQL granting schema DML, revoking audit modifications, and giving pgboss ownership to batac_app.
+- [L382–L612] Part 3 — Production / Staging Compose (`compose.prod.yml`) — Production compose spec detailing Nginx reverse-proxying, Fastify servers, and PostgreSQL primary-standby replication configuration.
+- [L613–L740] Part 4 — Dockerfile: Fastify Server (`apps/server/Dockerfile`) — Multi-stage Fastify build using turbo prune, dumb-init PID 1, and unprivileged node user execution.
+  - [L727–L740] OCR note — WASM-based OCR setup and instructions for offline language pack pre-bundling in the production image.
+- [L741–L816] Part 5 — Dockerfile: Web SPA (`apps/web/Dockerfile`) — Multi-stage Vite build baking public environment variables into the final static frontend image.
+- [L817–L952] Part 6 — Nginx Configuration (`nginx/batac.conf.template`) — Reverse proxy rules for SSL termination, static caching, server-sent events buffering overrides, and API routing.
+  - [L937–L952] New file: `nginx/entrypoint.sh` — Shell script executing envsubst on batac.conf.template and starting Nginx reverse proxy at container boot.
+- [L953–L971] Part 7 — Health Check Reference — Probe commands and intervals for service liveness, separating Fastify liveness from database readiness checks.
+- [L972–L1006] Part 8 — Volume Strategy — Safety analysis of named volumes, bind mount mappings, and local database wipe-and-reset instructions.
+- [L1007–L1082] Part 9 — Environment Variable Injection — Dotenv hierarchy, container runtime injection paths, build-time baking rules, and production secrets management guidelines.
+- [L1083–L1187] Part 10 — Migration and Seed Entrypoint — Entrypoint orchestration for database migration execution and seed runs in development and staging environments.
+  - [L1085–L1137] `apps/server/entrypoint.sh` — Shell script executing Drizzle migrations, running dev/staging seeds, and starting Fastify under dumb-init.
+  - [L1138–L1187] Migration runner (`packages/database/scripts/migrate.ts`) — TypeScript runner applying Drizzle migrations and executing post-migrate SQL grants via the migration user role.
+- [L1188–L1207] Part 11 — Native Dependencies — Native build tool requirements, Alpine binary compatibility risks for argon2, and tesseract WASM details.
+- [L1208–L1243] Part 12 — Startup Dependency Order — Sequence graph mapping service startup check dependencies for local development and production environments.
+- [L1244–L1262] Part 13 — Decision Register — All nine L2-01–L2-09 items resolved June 2026. See companion ADR files for full rationale.
 
 ---
 
@@ -52,7 +53,8 @@ In staging and production, the full stack is containerized. A single Nginx conta
 ├── .env.example                      ← committed to version control; no secrets
 ├── .env                              ← git-ignored; developer local values
 ├── nginx/
-│   └── batac.conf                    ← reverse proxy + static serving + SSE config
+│   ├── batac.conf.template           ← reverse proxy + static serving + SSE config (envsubst template — see ADR-L2-04)
+│   └── entrypoint.sh                 ← runs envsubst on batac.conf.template at container start
 ├── apps/
 │   ├── server/
 │   │   ├── Dockerfile                ← multi-stage; Fastify production image
@@ -623,7 +625,7 @@ Multi-stage build. Uses `turbo prune` to produce a pruned monorepo snapshot cont
 # The full monorepo is passed as build context but only the pruned output
 # proceeds to subsequent stages.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS pruner
+FROM node:22-alpine AS pruner
 
 RUN corepack enable
 WORKDIR /app
@@ -637,15 +639,10 @@ RUN pnpm dlx turbo prune --scope=server --docker
 # Installs all dependencies from the pruned package manifests.
 # This layer is cached separately from source so it only rebuilds when
 # package manifests change.
-# Build tools are required here for native addons (argon2). They do not
-# appear in the production image.
+# No native build tools required. @node-rs/argon2 ships prebuilt musl binaries.
+# See ADR-L2-01.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS deps
-
-# Build tools for native addon compilation (required for argon2)
-# [Inference] argon2 npm package requires native build; confirm before first build.
-# See Part 11 for the alternative if this causes Alpine compatibility issues.
-RUN apk add --no-cache python3 make g++
+FROM node:22-alpine AS deps
 
 RUN corepack enable
 WORKDIR /app
@@ -673,7 +670,7 @@ RUN pnpm --filter @batac/shared build && \
 # Stage 4 — production
 # Lean runtime image. No build tools, no TypeScript source, no dev dependencies.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 RUN apk add --no-cache \
     # wget: used by Docker health check probe
@@ -707,6 +704,16 @@ RUN chmod +x ./entrypoint.sh
 # Asia/Manila timezone (L1 §18 confirms TZ must be set at OS level)
 ENV TZ=Asia/Manila
 
+# ── OCR language packs ────────────────────────────────────────────────────────
+ENV TESSDATA_PREFIX=/app/tessdata
+RUN mkdir -p /app/tessdata && \
+    wget -q -O /app/tessdata/eng.traineddata.gz \
+      https://github.com/naptha/tessdata/raw/gh-pages/4.0.0_best/eng.traineddata.gz && \
+    wget -q -O /app/tessdata/fil.traineddata.gz \
+      https://github.com/naptha/tessdata/raw/gh-pages/4.0.0_best/fil.traineddata.gz && \
+    gunzip /app/tessdata/*.gz && \
+    chown -R node:node /app/tessdata
+
 # Run as the unprivileged node user (built into all official node: images)
 USER node
 
@@ -719,25 +726,15 @@ CMD ["./entrypoint.sh"]
 
 ### OCR note
 
-`tesseract.js` is pure JavaScript/WebAssembly (the L1 `OCR_ENGINE=tesseract` default). It does not require system-level Tesseract binaries in the Docker image. No additional `apk add` is needed for the tesseract path.
-
-Language packs are fetched from the network on first OCR execution by default. In environments without internet access (the on-premise City Hall deployment), they must be bundled in the image. If bundling is required, add the following to the production stage before `USER node`:
-
-```dockerfile
-# [Inference] The exact path that tesseract.js reads language data from
-# depends on how the OcrService wrapper configures the Tesseract scheduler.
-# The path below is illustrative; confirm against the tesseract.js API docs.
-ENV TESSDATA_PREFIX=/app/tessdata
-RUN mkdir -p /app/tessdata && \
-    wget -q -O /app/tessdata/eng.traineddata.gz \
-      https://github.com/naptha/tessdata/raw/gh-pages/4.0.0_best/eng.traineddata.gz && \
-    wget -q -O /app/tessdata/fil.traineddata.gz \
-      https://github.com/naptha/tessdata/raw/gh-pages/4.0.0_best/fil.traineddata.gz && \
-    gunzip /app/tessdata/*.gz && \
-    chown -R node:node /app/tessdata
-```
-
-If `OCR_ENGINE=service` is selected instead, add an `ocr-service` container to the compose files and set `OCR_SERVICE_URL` accordingly. No changes to the Fastify Dockerfile are required for that path.
+> **OCR language packs — always bundled (ADR-L2-03)**
+>
+> `tesseract.js` is pure JavaScript/WebAssembly (`OCR_ENGINE=tesseract`, the L1 default). No system `tesseract` binary or `apk add` is required.
+>
+> Language packs (`eng`, `fil`) are unconditionally bundled into the production image. This supports both cloud and on-premise (no guaranteed internet) deployment targets from a single image. Runtime network fetching is not used in any deployment context.
+>
+> **[Inference]** `TESSDATA_PREFIX=/app/tessdata` is the configured path. Confirm against the `tesseract.js` scheduler API in `OcrService` before the OCR feature is implemented. If the path differs, update both the `ENV` and `RUN` lines above.
+>
+> If additional language packs are needed (e.g., Ilocano), add corresponding `wget` lines to the same `RUN` block. Confirm availability in the `naptha/tessdata` repository first — Ilocano support is [Unverified].
 
 ---
 
@@ -753,7 +750,7 @@ Builds the Vite SPA. The output image contains only the compiled `/app/dist` dir
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 1 — pruner
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS pruner
+FROM node:22-alpine AS pruner
 
 RUN corepack enable
 WORKDIR /app
@@ -764,7 +761,7 @@ RUN pnpm dlx turbo prune --scope=web --docker
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 — deps
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 
 RUN corepack enable
 WORKDIR /app
@@ -817,7 +814,7 @@ COPY --from=builder /app/apps/web/dist /app/dist
 
 ---
 
-## Part 6 — Nginx Configuration (`nginx/batac.conf`)
+## Part 6 — Nginx Configuration (`nginx/batac.conf.template`)
 
 Serves as both the static bundle server and the reverse proxy. Key concerns:
 
@@ -826,19 +823,14 @@ Serves as both the static bundle server and the reverse proxy. Key concerns:
 - Static JS/CSS assets have content-hashed filenames (Vite default), so they receive long-lived `Cache-Control: immutable` headers. The HTML entry point receives `no-cache` so clients always fetch the latest.
 
 ```nginx
-# nginx/batac.conf
-# Mount at /etc/nginx/conf.d/batac.conf inside the Nginx container.
+# nginx/batac.conf.template
+# Mount at /etc/nginx/templates/batac.conf.template inside the Nginx container.
 # Companion to compose.prod.yml.
 
 # ── HTTP → HTTPS redirect ─────────────────────────────────────────────────
 server {
     listen 80;
     server_name _;
-
-    # Let's Encrypt ACME challenge passthrough
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
 
     location / {
         return 301 https://$host$request_uri;
@@ -853,10 +845,10 @@ server {
     # [Inference] Nginx does not support environment variable substitution
     # natively in config files; use envsubst in a Docker entrypoint, or
     # hardcode the domain in a deployment-specific config file.
-    server_name dms.batac.gov.ph;
+    server_name ${APP_DOMAIN};
 
-    ssl_certificate     /etc/letsencrypt/live/dms.batac.gov.ph/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/dms.batac.gov.ph/privkey.pem;
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
 
     ssl_protocols             TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers off;
@@ -938,7 +930,23 @@ server {
 }
 ```
 
-> **Domain hardcoding note [Inference]:** Nginx does not natively support environment variable substitution in configuration files. The standard workaround is to run `envsubst` on the config template inside the Nginx container's entrypoint and write the result to `/etc/nginx/conf.d/`. An alternative is to create a deployment-specific `batac.conf` per environment as part of the CI/CD pipeline. Neither approach is confirmed as the project standard — decide before first production deployment.
+> **Domain injection — resolved (ADR-L2-04):** `nginx/batac.conf.template` uses `${APP_DOMAIN}` as the substitution variable. A custom entrypoint script (`nginx/entrypoint.sh`) runs `envsubst '${APP_DOMAIN}'` at container start and writes the resolved config to `/etc/nginx/conf.d/batac.conf`. The `APP_DOMAIN` variable is injected from `.env.production` via `compose.prod.yml`. See ADR-L2-04 for full implementation details including the `envsubst` variable-quoting requirement.
+>
+> **TLS — resolved (ADR-L2-05):** Cert and key are mounted from Docker secrets to fixed paths `/etc/nginx/certs/fullchain.pem` and `/etc/nginx/certs/privkey.pem`. Let's Encrypt / Certbot is not used. See ADR-L2-05 for rotation procedure.
+
+### New file: `nginx/entrypoint.sh`
+
+```sh
+#!/bin/sh
+# nginx/entrypoint.sh
+# Substitutes ${APP_DOMAIN} in the Nginx config template and starts Nginx.
+# The explicit variable list prevents envsubst from expanding Nginx's own
+# $host, $request_uri, $scheme, etc. references.
+set -e
+envsubst '${APP_DOMAIN}' < /etc/nginx/templates/batac.conf.template \
+  > /etc/nginx/conf.d/batac.conf
+exec nginx -g 'daemon off;'
+```
 
 ---
 
@@ -1058,9 +1066,17 @@ Variables classified `SEC` in L1 must not appear in `.env` files committed to ve
 
 - CI/CD pipelines inject them as environment variables at container start time
 - Docker Secrets (`secrets:` in compose) provide file-based injection for environments that support it
-- A secrets manager (HashiCorp Vault, Infisical, or equivalent) is the recommended long-term approach for production rotation without container restarts
+> **Phase 1 secrets approach — resolved (ADR-L2-06):** Production `SEC`-classified string variables are injected via `.env.production` (not committed; managed by LGU IT Office on the production host, `root:root 600`). File-format secrets (TLS cert and key) use Docker `secrets:` mounts. No external secrets manager is used in Phase 1. Rotation of string secrets requires a container restart — accepted as a known constraint. Re-evaluate at Phase 2 planning. See ADR-L2-06.
 
-[Inference] The specific secrets manager has not been confirmed in any source document. This is an architecture decision to be made before the first production deployment.
+### New `.env.example` entries
+
+Add the following entries to `.env.example` (under a new `# Nginx / Deployment` section):
+
+```bash
+# ── Nginx / Deployment ────────────────────────────────────────────────────────
+# Domain name injected into nginx/batac.conf.template at container start (ADR-L2-04)
+APP_DOMAIN=dms.batac.gov.ph
+```
 
 ---
 
@@ -1171,16 +1187,13 @@ console.log('[migrate] Done.');
 
 ## Part 11 — Native Dependencies
 
-### argon2
+### @node-rs/argon2 (resolved — ADR-L2-01)
 
-The `argon2` npm package (Argon2id password hashing, confirmed in L1 §6.4 and architecture) uses native bindings compiled via `node-gyp`. Build tools (`python3`, `make`, `g++`) in the `deps` stage handle compilation. The compiled `.node` binary travels with `node_modules` into the production image via the `pnpm install --prod` step.
+`@node-rs/argon2` is used for Argon2id password hashing (L1 §6.4). It ships precompiled NAPI-RS binaries per platform, including `linux-x64-musl` for Alpine. No build toolchain (`python3`, `make`, `g++`) is required in any Dockerfile stage.
 
-[Inference] If Alpine version mismatches between the `deps` stage and the `production` stage cause binary incompatibility at runtime (a known risk with musl vs. glibc), two remedies are available:
+The `argon2` native build package is not used. The build tools block previously noted in the `deps` stage has been removed.
 
-1. Pin both stages to the same exact Node Alpine image digest rather than a tag.
-2. Switch to `@node-rs/argon2`, which ships precompiled binaries per platform and requires no build toolchain. This is a drop-in replacement that satisfies the Argon2id requirement.
-
-Confirm the correct package before the authentication module is implemented.
+API: `import { hash, verify } from '@node-rs/argon2'`. Drop-in replacement for the `argon2` package API. OWASP parameters (L1 §6.4 — memory cost 65,536 KiB, time cost 3, parallelism 1) apply identically.
 
 ### argon2 OWASP parameters
 
@@ -1228,19 +1241,23 @@ Nginx is the last service to become active. Until the server passes its health c
 
 ---
 
-## Part 13 — Open Decisions
+## Part 13 — Decision Register
 
-| ID    | Item                                                  | Status                                 | Detail                                                                                                                                                                                                                                                                                                     |
-| ----- | ----------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| L2-01 | `argon2` vs. `@node-rs/argon2`                        | Unresolved [Inference]                 | Test native build in multi-stage Alpine Dockerfile before the authentication module is implemented. If build fails or binary is incompatible at runtime, switch to `@node-rs/argon2`.                                                                                                                      |
-| L2-02 | Bitnami vs. official PostgreSQL image for replication | Recommended, not confirmed [Inference] | Bitnami simplifies replication setup in Docker Compose via environment variables. The official `postgres` image requires manual `pg_hba.conf` and `recovery.conf` management in init scripts. Confirm against team's operational preferences before production.                                            |
-| L2-03 | OCR language pack bundling                            | Unresolved                             | On-premise deployment (City Hall, no guaranteed internet) requires bundling. Cloud deployment can fetch at runtime. Decide before the OCR feature is built. See Part 4.                                                                                                                                    |
-| L2-04 | Nginx domain name injection                           | Unresolved [Inference]                 | `nginx/batac.conf` hardcodes the domain name because Nginx does not natively read environment variables. The deployment standard (envsubst in entrypoint, CI-time substitution, or per-environment config file) has not been confirmed. Decide before first production deploy.                             |
-| L2-05 | TLS certificate provisioning                          | Not specified                          | `nginx/batac.conf` assumes Let's Encrypt via Certbot. The certificate renewal automation method (Certbot sidecar, pre-provisioned wildcard, or other) has not been specified. Document in a deployment runbook.                                                                                            |
-| L2-06 | Production secrets manager                            | Not confirmed [Inference]              | A secrets manager for rotating production secrets without container restarts is recommended but not confirmed. Decide before the first production deployment.                                                                                                                                              |
-| L2-07 | Node.js version                                       | 20 assumed [Inference]                 | Node.js 20 LTS is used throughout. Node.js 22 reached LTS status in October 2024 and is a valid alternative. Confirm the team's preferred LTS before the first build.                                                                                                                                      |
-| L2-08 | `pnpm` version pinning                                | Not confirmed [Inference]              | `corepack enable` in the Dockerfiles relies on the `packageManager` field in `package.json` for version pinning. If that field is not set, corepack may resolve an unpinned pnpm version, making builds non-reproducible. Confirm `packageManager` is set in `package.json` before the first Docker build. |
-| L2-09 | `BACKUP_RESTORE_TEST_ENABLED` container               | Not specified [Inference]              | L1 §20.2 describes a backup restoration test job. If `BACKUP_RESTORE_TEST_ENABLED=true`, the job needs access to a scratch PostgreSQL instance. That instance is not defined in the current compose files. Add it if this feature is activated in production.                                              |
+All items resolved June 2026. Companion ADRs contain full rationale and implementation details.
+
+| ID    | Item                                                  | Status    | ADR           | Resolution summary |
+| ----- | ----------------------------------------------------- | --------- | ------------- | ------------------ |
+| L2-01 | `argon2` vs. `@node-rs/argon2`                        | Resolved  | ADR-L2-01     | Use `@node-rs/argon2`. Ships prebuilt `linux-x64-musl` binary; no build toolchain required. Remove `apk add python3 make g++` from `deps` stage. |
+| L2-02 | Bitnami vs. official PostgreSQL image for replication | Resolved  | ADR-L2-02     | Confirm `bitnami/postgresql:16` for production primary and standby. Official `postgres:16-alpine` retained for local dev (single instance, no replication). Pin to minor version tag before first production deployment. |
+| L2-03 | OCR language pack bundling                            | Resolved  | ADR-L2-03     | Bundle `eng` and `fil` language packs unconditionally in all production builds. Both cloud and on-premise deployment targets served from a single image. `TESSDATA_PREFIX` path is `[Inference]` — confirm against `tesseract.js` OcrService before OCR feature is implemented. |
+| L2-04 | Nginx domain name injection                           | Resolved  | ADR-L2-04     | `envsubst` in a custom Nginx entrypoint (`nginx/entrypoint.sh`). `nginx/batac.conf` renamed to `nginx/batac.conf.template`. `${APP_DOMAIN}` substituted at container start. `APP_DOMAIN` injected from `.env.production`. |
+| L2-05 | TLS certificate provisioning                          | Resolved  | ADR-L2-05     | Pre-provisioned wildcard cert mounted via Docker secrets to fixed paths `/etc/nginx/certs/`. Certbot and Let's Encrypt not used — ACME requires outbound internet, incompatible with on-premise deployment. Manual renewal runbook with 60-day advance reminder. |
+| L2-06 | Production secrets manager                            | Resolved (Phase 1) | ADR-L2-06 | Docker secrets (file-format) + `.env.production` (string-format), managed by LGU IT Office. No external secrets manager in Phase 1. Rotation requires container restart — accepted. Revisit at Phase 2. |
+| L2-07 | Node.js version                                       | Resolved  | ADR-L2-07     | Node.js 22 LTS (`node:22-alpine`). Node 20 entered Maintenance LTS April 2026. All Dockerfile stages updated. |
+| L2-08 | `pnpm` version pinning                                | Resolved  | ADR-L2-08     | `packageManager` field required in root `package.json` (e.g., `"packageManager": "pnpm@9.15.4"`). Set via `corepack use pnpm@<version>`. Update atomically with lockfile on intentional upgrades. |
+| L2-09 | `BACKUP_RESTORE_TEST_ENABLED` container               | Resolved (Phase 1 dormant) | ADR-L2-09 | Flag remains `false` in Phase 1. Scratch PostgreSQL container not added to `compose.prod.yml`. Infrastructure gap documented in ADR-L2-09 with a full activation checklist. |
+
+Full ADRs: `./l2-docker-and-docker-compose-specification-adrs/*`
 
 ---
 

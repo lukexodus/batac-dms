@@ -14,22 +14,21 @@
 
 This document does not independently re-review `tech-stack.md` or the consolidated architecture reference — both are cited by C1/E1/E3, but neither was provided directly for this document, so claims sourced only through those secondary citations are attributed to the catalog that cites them, not asserted first-hand.
 
-
 ## Table of Contents
 
-- [L38–L52] Notation — Defines tags for source confirmation, external verification status, and inconsistencies between source documents.
-- [L53–L90] Part 1 — Stack Decisions and Structure — Technology stack choices, monorepo directory layout, and the hybrid tRPC/REST architectural boundaries.
-- [L91–L116] Part 2 — The Chain at a Glance — Visual data flow from PostgreSQL DDL down to React components and shared schema enforcement rules.
-- [L117–L210] Part 3 — Layer 1→2: From a DDL Column to a Drizzle Table to a Zod Schema — Authoritative DDL, Drizzle mapping examples, and generated drizzle-zod schema output for the documents table.
-- [L211–L292] Part 4 — Nullable Fields: Handling Them Correctly at Each Layer — Rules for handling optional/nullable fields, the drizzle-zod refinement function trap, and cross-column database constraints.
-- [L293–L354] Part 5 — Extending drizzle-zod Schemas with Application-Layer Validation — Techniques for narrowing sensitive fields, widening schemas with joined fields, and applying business-rule constraints.
-- [L355–L404] Part 6 — Flowing Into a tRPC Procedure — tRPC input/output schema validation patterns, specific observed schema inconsistencies, and the export-name convention.
-- [L405–L448] Part 7 — REST Validation via `fastify-type-provider-zod` — Registration of Fastify Zod type providers and route validation using shared schema definitions.
-- [L449–L519] Part 8 — TanStack Query via tRPC v11 in React Components — tRPC v11 TanStack Query setup, query/mutation hook integrations, and client-server validation sequence.
-- [L520–L544] Part 9 — `@hookform/resolvers/zod` for Forms — React Hook Form integration using shared Zod schemas for client-side validation.
-- [L545–L578] Part 10 — The One-Way Rule — The strict database-to-frontend direction for type propagation and anti-patterns to avoid.
-- [L579–L592] Part 11 — Quick Reference Checklist — Pull request review checklist for verifying schema design and end-to-end compliance.
-- [L593–L608] Sources Checked for This Document — References to internal architecture catalog documents and external library documentation.
+- [L37–L51] Notation — Defines tags for source confirmation, external verification status, and inconsistencies between source documents.
+- [L52–L89] Part 1 — Stack Decisions and Structure — Technology stack choices, monorepo directory layout, and the hybrid tRPC/REST architectural boundaries.
+- [L90–L115] Part 2 — The Chain at a Glance — Visual data flow from PostgreSQL DDL down to React components and shared schema enforcement rules.
+- [L116–L215] Part 3 — Layer 1→2: From a DDL Column to a Drizzle Table to a Zod Schema — Authoritative DDL, Drizzle mapping examples, and generated drizzle-zod schema output for the documents table.
+- [L216–L297] Part 4 — Nullable Fields: Handling Them Correctly at Each Layer — Rules for handling optional/nullable fields, the drizzle-zod refinement function trap, and cross-column database constraints.
+- [L298–L359] Part 5 — Extending drizzle-zod Schemas with Application-Layer Validation — Techniques for narrowing sensitive fields, widening schemas with joined fields, and applying business-rule constraints.
+- [L360–L409] Part 6 — Flowing Into a tRPC Procedure — tRPC input/output schema validation patterns, specific observed schema inconsistencies, and the export-name convention.
+- [L410–L453] Part 7 — REST Validation via `fastify-type-provider-zod` — Registration of Fastify Zod type providers and route validation using shared schema definitions.
+- [L454–L524] Part 8 — TanStack Query via tRPC v11 in React Components — tRPC v11 TanStack Query setup, query/mutation hook integrations, and client-server validation sequence.
+- [L525–L549] Part 9 — `@hookform/resolvers/zod` for Forms — React Hook Form integration using shared Zod schemas for client-side validation.
+- [L550–L583] Part 10 — The One-Way Rule — The strict database-to-frontend direction for type propagation and anti-patterns to avoid.
+- [L584–L597] Part 11 — Quick Reference Checklist — Pull request review checklist for verifying schema design and end-to-end compliance.
+- [L598–L613] Sources Checked for This Document — References to internal architecture catalog documents and external library documentation.
 
 ---
 
@@ -141,7 +140,10 @@ CREATE TABLE documents.documents (
     created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at                  TIMESTAMPTZ NULL,
-    deleted_by                  UUID NULL
+    deleted_by                  UUID NULL,
+    superseded_by               UUID NULL,
+    superseded_at               TIMESTAMPTZ NULL,
+    closure_reason              TEXT NULL
 );
 ```
 
@@ -155,8 +157,8 @@ import { uuid, text, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
 import { documentsSchema } from "./_schema"; // pgSchema("documents"), shared across this file's tables
 
 export const lifecycleStateEnum = documentsSchema.enum("lifecycle_state_enum", [
-  "draft", "submitted", "in_workflow", "pending_approval",
-  "completed", "released", "archived", "disposed", "cancelled",
+  "draft", "under_review", "pending_mayor_action", "pending_panlalawigan_review",
+  "approved", "released", "superseded", "cancelled", "rejected",
 ]);
 
 export const classificationLevelEnum = documentsSchema.enum("classification_level_enum", [
@@ -186,6 +188,9 @@ export const documents = documentsSchema.table("documents", {
   updatedAt:           timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   deletedAt:           timestamp("deleted_at", { withTimezone: true }),
   deletedBy:           uuid("deleted_by"),
+  supersededBy:        uuid("superseded_by"),
+  supersededAt:        timestamp("superseded_at", { withTimezone: true }),
+  closureReason:       text("closure_reason"),
 });
 ```
 
