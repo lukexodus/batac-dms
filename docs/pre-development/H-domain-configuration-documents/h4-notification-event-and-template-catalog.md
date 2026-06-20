@@ -8,7 +8,7 @@
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` — requirements and architecture reference
 - `i2-role-permission-matrix.md` (I2) — role-based notification permissions
 - `h1-workflow-definitions-structured-data.md` (H1) — workflow step type contracts
-- `2-stack-context.md` — delivery infrastructure
+- `tech-stack.md` — delivery infrastructure
 
 ---
 
@@ -117,7 +117,7 @@ Delivery logs are accessible only to **System Administrators** and **Platform Ad
 
 ### 3.1 Phase 1 — In-App via SSE
 
-Real-time in-app notifications are delivered using **Server-Sent Events (SSE)** — a one-directional server-push mechanism that requires no WebSocket infrastructure (2-stack-context.md). This is the sole delivery channel for all internal-user notifications in Phase 1.
+Real-time in-app notifications are delivered using **Server-Sent Events (SSE)** — a one-directional server-push mechanism that requires no WebSocket infrastructure (tech-stack.md). This is the sole delivery channel for all internal-user notifications in Phase 1.
 
 | Component | Technology |
 |---|---|
@@ -127,7 +127,7 @@ Real-time in-app notifications are delivered using **Server-Sent Events (SSE)** 
 
 ### 3.2 Phase 2 — Email
 
-Email delivery is added in Phase 2 for the general notification system. `@react-email/components` is used for template rendering; `Nodemailer` handles transport and is compatible with any SMTP provider including the LGU mail server (2-stack-context.md).
+Email delivery is added in Phase 2 for the general notification system. `@react-email/components` is used for template rendering; `Nodemailer` handles transport and is compatible with any SMTP provider including the LGU mail server (tech-stack.md).
 
 **Phase 1 exception:** Complaint respondent notifications use email in Phase 1 for respondents who have a known email address. This is an explicit requirement sourced from the consolidated reference (Part 4.14) and is the only Phase 1 email-channel notification.
 
@@ -386,7 +386,7 @@ Each template record has the following structure. This structure is derived from
 
 Multiple templates can exist for the same notification type across different channels (e.g., one `in_app` template and one `email` template for the same event, each with a distinct `template_key`).
 
-**Templating syntax note:** The specific placeholder syntax (`{{variableName}}` notation used in this document is illustrative). The actual syntax depends on the templating library chosen during implementation. For `email` channel templates, `@react-email/components` is the specified renderer (2-stack-context.md) and uses JSX-based composition rather than a string-interpolation syntax.
+**Templating syntax note:** The specific placeholder syntax (`{{variableName}}` notation used in this document is illustrative). The actual syntax depends on the templating library chosen during implementation. For `email` channel templates, `@react-email/components` is the specified renderer (tech-stack.md) and uses JSX-based composition rather than a string-interpolation syntax.
 
 ---
 
@@ -722,7 +722,7 @@ The `workflow.approval.lapsed` event carries the literal string `"RA 7160 Sectio
 
 ### 8.7 ARTA Compliance — SLA Notifications Are Legally Significant
 
-SLA notifications are not cosmetic alerts. They carry obligations under **RA 11032 (ARTA)**. The SLA clock runs from workflow initiation and continues regardless of system outages, connectivity issues, or holidays (consolidated ref Parts 11.3, 11.15). Failure to deliver breach notifications does not relieve LGU staff of ARTA obligations. Delivery failures must be logged in `notifications.delivery_log` and monitored. The `pgboss` durable scheduler (not the simple `node-cron`) is specified for timer-based SLA events precisely because of this durability requirement (2-stack-context.md).
+SLA notifications are not cosmetic alerts. They carry obligations under **RA 11032 (ARTA)**. The SLA clock runs from workflow initiation and continues regardless of system outages, connectivity issues, or holidays (consolidated ref Parts 11.3, 11.15). Failure to deliver breach notifications does not relieve LGU staff of ARTA obligations. Delivery failures must be logged in `notifications.delivery_log` and monitored. The `pgboss` durable scheduler (not the simple `node-cron`) is specified for timer-based SLA events precisely because of this durability requirement (tech-stack.md).
 
 ### 8.8 `notification` Step Type Available but Not Used in Phase 1 Workflow Seeds
 

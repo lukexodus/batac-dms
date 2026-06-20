@@ -5,7 +5,7 @@
 **Status:** Pre-development reference — must be read before the first test file is written  
 **Last Updated:** June 2026  
 **Audience:** Development team  
-**Source Documents:** `2-stack-context.md`; `consolidated-architecture-and-requirements-reference-iteration-3.md` (Iteration 3); `b4-workflow-engine-specification.md`
+**Source Documents:** `tech-stack.md`; `consolidated-architecture-and-requirements-reference-iteration-3.md` (Iteration 3); `b4-workflow-engine-specification.md`
 
 
 ## Table of Contents
@@ -41,7 +41,7 @@
 
 ## 1. Purpose
 
-This document defines the testing strategy for the Batac City LGU Platform. It formalizes the testing priorities stated in `2-stack-context.md`, assigns each test category to the correct tool and layer, and provides concrete guidance on what must be tested, what must not be chased, and how the test environment is structured.
+This document defines the testing strategy for the Batac City LGU Platform. It formalizes the testing priorities stated in `tech-stack.md`, assigns each test category to the correct tool and layer, and provides concrete guidance on what must be tested, what must not be chased, and how the test environment is structured.
 
 It does not define individual test cases. It defines the scope, layer boundaries, and priorities that govern all test authoring decisions.
 

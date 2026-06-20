@@ -7,7 +7,7 @@
 **Status:** BLOCKING — Pre-Development Baseline
 **Version:** 1.0
 **Date:** June 2026
-**Based on:** I1 (ABAC Policy Specification), I2 (Role-Permission Matrix), B2 (Module Boundary and Internal API Contracts), C1 (Full Database Schema DDL), Consolidated Architecture and Requirements Reference (Iteration 3), 2-stack-context (Stack Decisions)
+**Based on:** I1 (ABAC Policy Specification), I2 (Role-Permission Matrix), B2 (Module Boundary and Internal API Contracts), C1 (Full Database Schema DDL), Consolidated Architecture and Requirements Reference (Iteration 3), tech-stack (Stack Decisions)
 **Audience:** Backend and frontend development team — parallel-work contract
 
 ---
@@ -42,7 +42,7 @@
 
 ## Purpose
 
-This document catalogs every tRPC router and every procedure within each router required for Phase 1 of the Batac City LGU Platform. Per the stack decision recorded in `2-stack-context.md`, tRPC is used **exclusively** for `/web` (the internal authenticated Vite + React SPA) communicating with `/server` (Fastify). The public portal, mobile clients, and third parties are REST-only and are **not** covered by this document — see Note on Scope below.
+This document catalogs every tRPC router and every procedure within each router required for Phase 1 of the Batac City LGU Platform. Per the stack decision recorded in `tech-stack.md`, tRPC is used **exclusively** for `/web` (the internal authenticated Vite + React SPA) communicating with `/server` (Fastify). The public portal, mobile clients, and third parties are REST-only and are **not** covered by this document — see Note on Scope below.
 
 This is the contract both teams build against in parallel:
 
@@ -113,7 +113,7 @@ appRouter
 
 ### 3. The `protectedProcedure` Base and Middleware Chain
 
-Every procedure in this catalog (with zero exceptions — there is no `publicProcedure` in this router set, since `/web` is "fully authenticated," per `2-stack-context.md`) is built on a shared `protectedProcedure` base that runs, in order:
+Every procedure in this catalog (with zero exceptions — there is no `publicProcedure` in this router set, since `/web` is "fully authenticated," per `tech-stack.md`) is built on a shared `protectedProcedure` base that runs, in order:
 
 1. `verifyAccessToken` — populates `ctx.subject` (the `SubjectContext` object defined in I1 §1) from the JWT
 2. `loadDelegationContext` — expands `ctx.subject.effective_office_ids` / `effective_roles` per I1 §16, if `subject.delegation_grant_id` is non-null
@@ -689,11 +689,11 @@ This is the largest router. It is organized into five sub-sections: general docu
 | | |
 |---|---|
 | Type | `mutation` |
-| Input | `z.object({ documentId: z.string().uuid(), filename: z.string().min(1), mimeType: z.string(), fileSizeBytes: z.number().int().positive().max(26214400) })` — 25 MB ceiling per `2-stack-context.md` |
+| Input | `z.object({ documentId: z.string().uuid(), filename: z.string().min(1), mimeType: z.string(), fileSizeBytes: z.number().int().positive().max(26214400) })` — 25 MB ceiling per `tech-stack.md` |
 | Output | `z.object({ presignedUploadUrl: z.string().url(), s3Key: z.string().uuid() })` |
 | Callable by | `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member` (own-authored only), `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain` |
 | ABAC conditions | `parent_document.office_id ∈ subject.effective_office_ids`. `sp_member`: `parent_document.created_by = subject.user_id` (I1 §4.2). |
-| Business operation | Generates a UUID `s3Key` (never the original filename — Architectural Law #4, C1 §1.6) and a presigned PUT URL against the configured S3-compatible endpoint. Does **not** create the `documents.versions` row yet — that happens in `documents.confirmUpload` below, after the client-side upload completes and streams directly to S3, never touching the application server's disk (`2-stack-context.md` File Storage Strategy). `[Confirmed — I1 §4.2 "document_version:create"; 2-stack-context File Storage Strategy; consolidated reference Part 11.10]` |
+| Business operation | Generates a UUID `s3Key` (never the original filename — Architectural Law #4, C1 §1.6) and a presigned PUT URL against the configured S3-compatible endpoint. Does **not** create the `documents.versions` row yet — that happens in `documents.confirmUpload` below, after the client-side upload completes and streams directly to S3, never touching the application server's disk (`tech-stack.md` File Storage Strategy). `[Confirmed — I1 §4.2 "document_version:create"; tech-stack File Storage Strategy; consolidated reference Part 11.10]` |
 
 ### `documents.confirmUpload`
 
@@ -1026,7 +1026,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Output | `z.object({ pdfPresignedUrl: z.string().url() })` |
 | Callable by | `sp_secretary` only |
 | ABAC conditions | The document(s) must be in the SP Secretariat's scope (I1 §7.5). |
-| Business operation | Generates the QR cover sheet, confirmed to contain **only three fields** — QR Code, Tracking Number, Series Number (consolidated reference Q-B02) — sized to take only the space it needs, with the `multi_per_page` layout option arranging multiple horizontal-rectangle cover sheets on one physical sheet of paper to save paper, exactly as decided in Q-B02. Uses `@react-pdf/renderer` per the stack decision. `[Confirmed — I1 §7.5; consolidated reference Q-B02 in full; 2-stack-context PDF generation row]` |
+| Business operation | Generates the QR cover sheet, confirmed to contain **only three fields** — QR Code, Tracking Number, Series Number (consolidated reference Q-B02) — sized to take only the space it needs, with the `multi_per_page` layout option arranging multiple horizontal-rectangle cover sheets on one physical sheet of paper to save paper, exactly as decided in Q-B02. Uses `@react-pdf/renderer` per the stack decision. `[Confirmed — I1 §7.5; consolidated reference Q-B02 in full; tech-stack PDF generation row]` |
 
 ### `tracking.getRoutingHistory`
 
@@ -1292,7 +1292,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Output | `z.object({ status: z.enum(['intact','broken']), brokenAtEventId: z.string().uuid().nullable() })` |
 | Callable by | `sys_admin`, `auditor` |
 | ABAC conditions | None beyond role gate. |
-| Business operation | Walks the SHA-256 hash chain on `audit.events.chain_hash`, flagging the first broken link as a tamper indicator. `[Confirmed — I1 §8.5 in full; 2-stack-context Audit Log Integrity]` |
+| Business operation | Walks the SHA-256 hash chain on `audit.events.chain_hash`, flagging the first broken link as a tamper indicator. `[Confirmed — I1 §8.5 in full; tech-stack Audit Log Integrity]` |
 
 ### `audit.exportEvents`
 

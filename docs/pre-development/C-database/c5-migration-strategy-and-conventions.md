@@ -1,34 +1,35 @@
 # C5. Migration Strategy and Conventions
 
-**Status:** Pre-Development Baseline | Internal Developer Reference **Applies to:** `/packages/database` — Drizzle ORM schema + Drizzle Kit migrations **Last Updated:** June 2026 **Source authority:** `2-stack-context.md` (Migration Rules section) and the Consolidated Architecture & Requirements Reference (Iteration 3), Parts 11.9 and 12.
+**Status:** Pre-Development Baseline | Internal Developer Reference **Applies to:** `/packages/database` — Drizzle ORM schema + Drizzle Kit migrations **Last Updated:** June 2026 **Source authority:** `tech-stack.md` (Migration Rules section) and the Consolidated Architecture & Requirements Reference (Iteration 3), Parts 11.9 and 12.
 
 
 ## Table of Contents
 
-- [L37–L45] Label Convention Used in This Document — Definition of document tags distinguishing source-derived rules from logical inferences.
-- [L46–L66] 1. Confirmed Rules from Source Documents — A summary table of database rules and constraints mandated by the project's source documents.
-- [L67–L122] 2. Drizzle Kit Migration Workflow — Directory structure, generate/apply commands, and psql execution requirements for Drizzle Kit.
-- [L123–L175] 3. Migration File Naming Conventions — Format, schema scopes, and rules for naming and scoping individual migration files.
-- [L176–L217] 4. Pre-Apply Review Checklist — Mandatory checklists verifying schema correctness, invariant compliance, performance, and executability before deploying migrations.
-- [L218–L329] 5. Breaking Migrations and Zero-Downtime Handling — Strategies for implementing database schema changes without causing application errors or service downtime.
-  - [L220–L241] 5.1 What Constitutes a Breaking Migration — Classification table of common SQL operations as breaking or non-breaking.
-  - [L242–L245] 5.2 The Default: Non-Breaking Additive Changes — Recommendation to prioritize additive schema modifications to simplify application deployment order.
-  - [L246–L283] 5.3 The Expand-Contract Pattern for Breaking Changes — Three-phase database and application deployment sequence for safely executing breaking changes.
-  - [L284–L298] 5.4 Index Creation on Existing Tables — Requirement to use CONCURRENTLY for indexes on populated tables and manage transaction blocks.
-  - [L299–L321] 5.5 Adding NOT NULL to Existing Columns — Safe multi-step process for adding NOT NULL constraints using CHECK constraints and validation.
-  - [L322–L329] 5.6 Transition Period Code Policy — Code review rule requiring dual-write code removal in the same PR as the contract migration.
-- [L330–L362] 6. The Production Prohibition on Reset-and-Regenerate — Absolute prohibition of database resets in persistent environments, including environment-specific rules and recovery alternatives.
-- [L363–L494] 7. Automated Linting Rules — Invariant Enforcement — CI pipeline rules enforcing schema invariants on all database migrations.
-  - [L375–L388] 7.1 Implementation — Technical implementation details, script location, parser, and execution commands for the migration linter.
-  - [L389–L409] 7.2 Rule: No Cross-Schema Foreign Keys (Invariant #1) — Linter rules and error output format preventing foreign keys across different database schemas.
-  - [L410–L443] 7.3 Rule: UUID v4 Primary Keys (Invariant #6) — Linter checks enforcing UUID v4 primary keys and `gen_random_uuid()` defaults, with composite PK exceptions.
-  - [L444–L469] 7.4 Rule: TIMESTAMPTZ for All Timestamps (Invariant #7) — Linter rules requiring timezone-aware types for timestamps, warning on DATE, and suppression syntax.
-  - [L470–L494] 7.5 Additional Convention Checks — Linter warnings for soft-delete, tenant isolation, destructive actions, and specific suppression syntax requirements.
-- [L495–L516] 8. Schema Module Reference — Mapping of PostgreSQL schemas to application modules and their planned implementation phases.
-- [L517–L582] 9. Migration Application Procedure — Step-by-step procedures for applying and verifying migrations in local, staging, and production environments.
-- [L583–L615] 10. Rollback — Reversal protocols via forward-revert migrations or database backups, and the append-only rule for migration history.
-- [L616–L632] Appendix A — Quick Reference: Linting Rules — Quick reference table summarizing all migration linter rules, severities, and trigger conditions.
-- [L633–L645] Appendix B — Confirmed Database Conventions Summary — Summary reference of core database structural and security conventions required for all tables.
+- [L38–L46] Label Convention Used in This Document — Definition of document tags distinguishing source-derived rules from logical inferences.
+- [L47–L67] 1. Confirmed Rules from Source Documents — A summary table of database rules and constraints mandated by the project's source documents.
+- [L68–L123] 2. Drizzle Kit Migration Workflow — Directory structure, generate/apply commands, and psql execution requirements for Drizzle Kit.
+- [L124–L176] 3. Migration File Naming Conventions — Format, schema scopes, and rules for naming and scoping individual migration files.
+- [L177–L218] 4. Pre-Apply Review Checklist — Mandatory checklists verifying schema correctness, invariant compliance, performance, and executability before deploying migrations.
+- [L219–L330] 5. Breaking Migrations and Zero-Downtime Handling — Strategies for implementing database schema changes without causing application errors or service downtime.
+  - [L221–L242] 5.1 What Constitutes a Breaking Migration — Classification table of common SQL operations as breaking or non-breaking.
+  - [L243–L246] 5.2 The Default: Non-Breaking Additive Changes — Recommendation to prioritize additive schema modifications to simplify application deployment order.
+  - [L247–L284] 5.3 The Expand-Contract Pattern for Breaking Changes — Three-phase database and application deployment sequence for safely executing breaking changes.
+  - [L285–L299] 5.4 Index Creation on Existing Tables — Requirement to use CONCURRENTLY for indexes on populated tables and manage transaction blocks.
+  - [L300–L322] 5.5 Adding NOT NULL to Existing Columns — Safe multi-step process for adding NOT NULL constraints using CHECK constraints and validation.
+  - [L323–L330] 5.6 Transition Period Code Policy — Code review rule requiring dual-write code removal in the same PR as the contract migration.
+- [L331–L363] 6. The Production Prohibition on Reset-and-Regenerate — Absolute prohibition of database resets in persistent environments, including environment-specific rules and recovery alternatives.
+- [L364–L495] 7. Automated Linting Rules — Invariant Enforcement — CI pipeline rules enforcing schema invariants on all database migrations.
+  - [L376–L389] 7.1 Implementation — Technical implementation details, script location, parser, and execution commands for the migration linter.
+  - [L390–L410] 7.2 Rule: No Cross-Schema Foreign Keys (Invariant #1) — Linter rules and error output format preventing foreign keys across different database schemas.
+  - [L411–L444] 7.3 Rule: UUID v4 Primary Keys (Invariant #6) — Linter checks enforcing UUID v4 primary keys and `gen_random_uuid()` defaults, with composite PK exceptions.
+  - [L445–L470] 7.4 Rule: TIMESTAMPTZ for All Timestamps (Invariant #7) — Linter rules requiring timezone-aware types for timestamps, warning on DATE, and suppression syntax.
+  - [L471–L495] 7.5 Additional Convention Checks — Linter warnings for soft-delete, tenant isolation, destructive actions, and specific suppression syntax requirements.
+- [L496–L517] 8. Schema Module Reference — Mapping of PostgreSQL schemas to application modules and their planned implementation phases.
+- [L518–L583] 9. Migration Application Procedure — Step-by-step procedures for applying and verifying migrations in local, staging, and production environments.
+- [L584–L616] 10. Rollback — Reversal protocols via forward-revert migrations or database backups, and the append-only rule for migration history.
+- [L617–L633] Appendix A — Quick Reference: Linting Rules — Quick reference table summarizing all migration linter rules, severities, and trigger conditions.
+- [L634–L647] Appendix B — Confirmed Database Conventions Summary — Summary reference of core database structural and security conventions required for all tables.
+- [L648–L662] Migration-Owning Role Name (`batac_migrate`) `[RESOLVES C1 Part 15 Open Item]` — Role definition, schema ownership scope, and cross-document consistency requirements for the DDL-owning PostgreSQL role.
 
 ---
 
@@ -45,14 +46,14 @@
 
 ## 1. Confirmed Rules from Source Documents
 
-The following rules are stated verbatim or unambiguously in `2-stack-context.md` and the Consolidated Architecture Reference. They are not subject to interpretation or project decision — they are in effect from the first migration.
+The following rules are stated verbatim or unambiguously in `tech-stack.md` and the Consolidated Architecture Reference. They are not subject to interpretation or project decision — they are in effect from the first migration.
 
 |Rule|Source|
 |---|---|
-|Every schema change produces a migration file committed to version control.|`2-stack-context.md` — Migration Rules|
-|Drizzle Kit generates SQL migrations from schema diffs. Review the SQL before applying.|`2-stack-context.md` — Migration Rules|
-|Never use reset-and-regenerate in production.|`2-stack-context.md` — Migration Rules|
-|Migrations must be readable, reviewable, and executable directly by `psql` if needed.|`2-stack-context.md` — Migration Rules|
+|Every schema change produces a migration file committed to version control.|`tech-stack.md` — Migration Rules|
+|Drizzle Kit generates SQL migrations from schema diffs. Review the SQL before applying.|`tech-stack.md` — Migration Rules|
+|Never use reset-and-regenerate in production.|`tech-stack.md` — Migration Rules|
+|Migrations must be readable, reviewable, and executable directly by `psql` if needed.|`tech-stack.md` — Migration Rules|
 |No cross-schema foreign key constraints. Enforced by automated migration linting and code review policy.|Invariant #1|
 |UUID v4 primary keys everywhere. Enforced by migration linting.|Invariant #6|
 |TIMESTAMPTZ on every timestamp column. Enforced by migration linting.|Invariant #7|
@@ -329,7 +330,7 @@ Application code written to support a transition period (writing to both old and
 
 ## 6. The Production Prohibition on Reset-and-Regenerate
 
-**Confirmed rule (from `2-stack-context.md`):** _"Never use reset-and-regenerate in production."_
+**Confirmed rule (from `tech-stack.md`):** _"Never use reset-and-regenerate in production."_
 
 ### 6.1 What Reset-and-Regenerate Means
 
@@ -643,3 +644,19 @@ These are the conventions every migration must satisfy, drawn directly from Part
 |Cross-schema foreign keys|Prohibited. Enforced by automated migration linting.|
 |Sequences for document numbering|One PostgreSQL sequence per document series per year; not used for primary keys|
 |Audit schema permissions|`INSERT` only; `UPDATE` and `DELETE` revoked from the application DB role, set in migration|
+
+## Addendum — Migration-Owning Role Name
+
+**Role name:** `batac_migrate`
+
+**Definition:** `NOLOGIN` PostgreSQL role. Owns all DDL operations, owns all Phase 1 schemas, and is the `SECURITY DEFINER` owner of `documents.fn_get_next_sequence_value()`. Runs all migration scripts.
+
+**Source of truth:** First named in C1 §3.16 (`CREATE ROLE batac_migrate NOLOGIN;`). This document (C5) and L2 did not previously name a migration-owning role; this addendum closes that gap by cross-referencing C1 rather than introducing a second definition.
+
+**Decided by:** Development team (ratifying detail already specified in C1; no alternate name was under consideration).
+
+If this role is ever renamed, the change must be made consistently across:
+- C1 §3.16 (`CREATE ROLE` statement and DB roles list)
+- C1's `fn_get_next_sequence_value` `OWNER TO` statement
+- This document (C5) — migration runner configuration / connection role
+- L2 (Docker/Compose environment, if the role name is referenced in any init script or environment variable)

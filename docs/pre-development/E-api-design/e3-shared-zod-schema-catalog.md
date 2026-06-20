@@ -7,7 +7,7 @@
 **Audience:** Backend and frontend development team
 **Source Documents Reviewed:**
 - `c1-full-database-schema-ddl.md` — authoritative column types, enums, and constraints for all eight Phase 1 schemas
-- `2-stack-context.md` — type safety chain; stack decisions (Zod, drizzle-zod, tRPC, React Hook Form, TanStack Query)
+- `tech-stack.md` — type safety chain; stack decisions (Zod, drizzle-zod, tRPC, React Hook Form, TanStack Query)
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` — Parts 4, 5, 9, 10, 11, 12 (document types, numbering, module boundaries, design decisions, architectural invariants)
 - `b4-workflow-engine-specification.md` — workflow enum definitions, step type semantics, instance/step status graphs
 - `h2-document-type-catalog-with-jsonb-metadata-schemas.md` — per-document-type JSONB metadata schemas and non-JSONB column list
@@ -88,7 +88,7 @@
 
 ## About This Document
 
-This catalog is the single source of truth for every Zod schema that resides in `/packages/shared`. Per the type safety chain in `2-stack-context.md`:
+This catalog is the single source of truth for every Zod schema that resides in `/packages/shared`. Per the type safety chain in `tech-stack.md`:
 
 ```
 Drizzle schema (PostgreSQL)

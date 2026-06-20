@@ -133,13 +133,13 @@ Never use words like "URGENT!!!", "ASAP", or "CRITICAL" outside the controlled `
 | Vote counts | "{Ayes} Ayes, {Nays} Nays, {Abstentions} Abstentions" | "10 Ayes, 0 Nays, 0 Abstentions" |
 | Percentages (SLA/KPI) | One decimal place | "95.3%" |
 
-All date/time formatting in code should go through `date-fns` (per `2-stack-context.md`) with explicit format strings matching the above — never rely on `toLocaleDateString()` default locale formatting, which can silently shift between MM/DD and DD/MM depending on the browser locale (a real risk for a system used by both Philippine staff and, eventually, citizens on personal devices with varied locale settings).
+All date/time formatting in code should go through `date-fns` (per `tech-stack.md`) with explicit format strings matching the above — never rely on `toLocaleDateString()` default locale formatting, which can silently shift between MM/DD and DD/MM depending on the browser locale (a real risk for a system used by both Philippine staff and, eventually, citizens on personal devices with varied locale settings).
 
 ---
 
 ## 6. Language and Multilingual Considerations
 
-Per `2-stack-context.md`, the platform targets Filipino, English, and Ilocano via i18next.
+Per `tech-stack.md`, the platform targets Filipino, English, and Ilocano via i18next.
 
 | Layer | Language (Phase 1) |
 |---|---|

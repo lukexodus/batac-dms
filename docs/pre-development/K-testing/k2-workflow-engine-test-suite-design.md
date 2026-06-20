@@ -594,7 +594,7 @@ Source: B4 §8 (invariants 1–13). Each invariant below has a corresponding tes
 
 ## 21. Open Items and Unverified Gaps
 
-All nine items originally listed in this section have been resolved by K2-ADR-01 through K2-ADR-09. This section is retained for traceability; the closure record and new test definitions are in §22.
+All nine items originally listed in this section have been resolved by K2-ADR-01 through K2-ADR-09 ([k2-workflow-engine-test-suite-design-adrs](./k2-workflow-engine-test-suite-design-adrs/k2-workflow-engine-test-suite-design-adrs)). This section is retained for traceability; the closure record and new test definitions are in §22.
 
 | # | Topic | Original Status | Resolution |
 |---|---|---|---|

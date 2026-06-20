@@ -8,7 +8,7 @@
 **Source Documents:**
 
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` — Parts 2, 4, 9, 11 (scope, document types, stack, design decisions)
-- `2-stack-context.md` — tRPC hybrid architecture; Fastify REST + OpenAPI rule; rate limiting; CORS
+- `tech-stack.md` — tRPC hybrid architecture; Fastify REST + OpenAPI rule; rate limiting; CORS
 - `b2-module-boundary-and-internal-api-contracts.md` — Module 5 (Tracking), Module 10 (Portal); Published API contracts; event bus
 - `c1-full-database-schema-ddl.md` — Schema types for `documents`, `tracking`, `portal` (column names, enums, constraints)
 
@@ -62,7 +62,7 @@ The following are explicitly not in this document:
 
 | Dependency | Direction | Notes |
 |---|---|---|
-| `2-stack-context.md` | Source | Stack choices: Fastify, `@fastify/swagger`, `fastify-type-provider-zod`, `@fastify/rate-limit`, `@fastify/cors`, `@fastify/helmet` |
+| `tech-stack.md` | Source | Stack choices: Fastify, `@fastify/swagger`, `fastify-type-provider-zod`, `@fastify/rate-limit`, `@fastify/cors`, `@fastify/helmet` |
 | `b2-module-boundary-and-internal-api-contracts.md` | Source | Module 5 Tracking `publicLookupHandler`; Module 10 Portal endpoint responsibilities |
 | `c1-full-database-schema-ddl.md` | Source | Enums, column names, constraint rules used to derive schema definitions here |
 | `C3` (RLS Policies) | Downstream | RLS policies must permit the `app_user` role to SELECT from `documents`, `tracking`, and `portal` schemas for the rows these endpoints expose |

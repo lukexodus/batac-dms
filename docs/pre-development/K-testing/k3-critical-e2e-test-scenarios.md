@@ -8,7 +8,7 @@
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2, developer decisions incorporated)
 - `f1-application-route-map-v2.md` (F1) — route paths and component names
 - `h1-phase-1-workflow-definitions-structured-data.md` (H1) — step keys, outcome codes, transition rules
-- `2-stack-context.md` — test tooling (Vitest + Playwright)
+- `tech-stack.md` — test tooling (Vitest + Playwright)
 
 **Audience:** Development team — whoever writes Playwright tests
 

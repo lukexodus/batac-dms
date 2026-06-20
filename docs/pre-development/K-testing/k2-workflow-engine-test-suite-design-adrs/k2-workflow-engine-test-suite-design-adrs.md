@@ -7,6 +7,21 @@
 **Date:** June 2026
 **Audience:** Backend development team
 
+## Table of Contents
+
+- [L27–L40] How to read this document — Structure of each ADR entry and clarification that these decisions require a separate merge step into K2.
+- [L41–L58] ADR-01 — Certified Urgent Revocation (K2 §21, item 1) — Decision that Certified Urgent bypasses are irreversible, requiring no revocation API or state transition rollback.
+- [L59–L76] ADR-02 — `OPERATIVE_IN_ITS_ENTIRETY` on a Non-Appropriation-Ordinance Instance (K2 §21, item 2) — Rejection of the `OPERATIVE_IN_ITS_ENTIRETY` outcome for non-Appropriation Ordinance documents with a custom validation error.
+- [L77–L106] ADR-03 — `COMMITTEE_CHAIR` Assignee Resolution (K2 §21, item 3) — Resolution of `COMMITTEE_CHAIR` assignee via context keys populated during routing, deferring parallel re-review to Phase 2.
+- [L107–L129] ADR-04 — Encoder ≠ Final Approver: Which Step Carries `is_final_approval = true` (K2 §21, item 4) — Designation of `vp_certification` as the final approval step and rejection of submissions where the signer is the encoder.
+- [L130–L143] ADR-05 — `workflow_events` Immutability Test (K2 §21, item 5) — Test case checking that database-level permissions reject UPDATE and DELETE actions on the `workflow_events` table.
+- [L144–L157] ADR-06 — `MISSING_LAPSE_TRANSITION` Publish-Time Validation Test (K2 §21, item 6) — Publish-time validation test rejecting workflow definitions that allow the `LAPSED` outcome without defining a matching transition.
+- [L158–L173] ADR-07 — `MISSING_OUTCOME_TRANSITION` Publish-Time Validation Test (K2 §21, item 7) — General validation test checking that every allowed step outcome has an explicit transition or a fallback default rule.
+- [L174–L183] ADR-08 — ARTA SLA Warning/Escalation Test Scope (K2 §21, item 8) — Scoping decision excluding ARTA SLA warning and escalation behaviors from K2, designating them as a deliberate exclusion.
+- [L184–L199] ADR-09 — DESIG-07 Typed Error Code (K2 §21, item 9) — Specification of `UNAUTHORIZED_DESIGNATION_ISSUER` error when a non-original authority attempts to issue a designation.
+- [L200–L215] Summary Table — A tabular summary mapping each of the nine ADR items to its decision maker and key outcome.
+- [L216–L218] Items Explicitly Not Resolved Here — Confirmation that all items are resolved, noting proposal statuses of error codes and committee chair storage.
+
 ---
 
 ## How to read this document

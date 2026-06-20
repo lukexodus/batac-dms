@@ -12,7 +12,7 @@
 - `e3-shared-zod-schema-catalog.md` — the canonical schema catalog, schema-type tags, layer-consumption notation, naming and enforcement rules
 - `end-to-end-type-safety-chain-document.md` — the stack-decision draft this document expands
 
-This document does not independently re-review `2-stack-context.md` or the consolidated architecture reference — both are cited by C1/E1/E3, but neither was provided directly for this document, so claims sourced only through those secondary citations are attributed to the catalog that cites them, not asserted first-hand.
+This document does not independently re-review `tech-stack.md` or the consolidated architecture reference — both are cited by C1/E1/E3, but neither was provided directly for this document, so claims sourced only through those secondary citations are attributed to the catalog that cites them, not asserted first-hand.
 
 
 ## Table of Contents

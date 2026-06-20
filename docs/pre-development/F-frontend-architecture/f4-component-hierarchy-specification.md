@@ -7,7 +7,7 @@
 **Date:** June 2026
 **Based on:**
 - F1 — `f1-application-route-map-v2.md` `[Resolved — ADR-001 through ADR-010]`
-- 2-Stack-Context — `2-stack-context.md`
+- tech-stack — `tech-stack.md`
 - Consolidated Architecture & Requirements Reference — Iteration 3
 
 **Audience:** Frontend development team
@@ -46,7 +46,7 @@
 
 | Tag | Meaning |
 |---|---|
-| `[Confirmed — source]` | Directly traceable to F1, 2-Stack-Context, or the Architecture Reference |
+| `[Confirmed — source]` | Directly traceable to F1, tech-stack, or the Architecture Reference |
 | `[Inference]` | Reasonable conclusion drawn from confirmed facts; carried forward from F1 |
 | `[Unverified]` | No reliable source exists either way; carried forward from F1 |
 | `[Deferred]` | Underlying tRPC procedures are deferred per E1; carried forward from F1 §12.4 |
@@ -59,7 +59,7 @@ Phase 1 frontend comprises two application contexts:
 
 | Context | Root App | Stack | Authentication |
 |---|---|---|---|
-| Internal Authenticated App | `/apps/web` | Vite + React SPA; tRPC-backed | All routes require authentication; role-gated via ABAC + RBAC `[Confirmed — 2-Stack-Context]` |
+| Internal Authenticated App | `/apps/web` | Vite + React SPA; tRPC-backed | All routes require authentication; role-gated via ABAC + RBAC `[Confirmed — tech-stack]` |
 | Public Portal Subset | `/apps/portal` (Next.js), built now `[Resolved — ADR-001]` | REST-backed; not tRPC `[Confirmed — F1 §2.3]` | Mixed: public (no auth required) + citizen-authenticated routes |
 
 **Component count summary:**
@@ -690,7 +690,7 @@ Audit log viewer showing the authenticated user's own actions. The office-scope 
 | **Phase** | Phase 1 |
 | **Parent (routed)** | `AuditLogPage` |
 
-Full audit log access, chain integrity validation, and export. The audit log is tamper-evident (not tamper-proof) — a broken hash chain is flagged as a tamper indicator at retrieval time. `[Confirmed — 2-Stack-Context §Audit Log Integrity; F1 §11.2]`
+Full audit log access, chain integrity validation, and export. The audit log is tamper-evident (not tamper-proof) — a broken hash chain is flagged as a tamper indicator at retrieval time. `[Confirmed — tech-stack §Audit Log Integrity; F1 §11.2]`
 
 **Primary data dependencies**: `audit.listFullLog`, `audit.validateChainIntegrity`, `audit.exportEvents`
 
@@ -1085,16 +1085,16 @@ Navigation actions from one independently-routed page to another. Do not imply s
 
 | # | Gap (as originally identified) | Resolution | ADR | Affected Component(s) |
 |---|---|---|---|---|
-| 1 | Which app hosts the Phase 1 public portal | `/apps/portal` (Next.js), built now | [ADR-001](./f1-adrs-application-route-map/ADR-001-public-portal-hosting-app.md) | All portal pages (§5.9) |
-| 2 | Platform Admin Tier-2 config CRUD has no confirmed procedure | Pulled into Phase 1 scope; procedures to be designed and built | [ADR-002](./f1-adrs-application-route-map/ADR-002-tier2-config-crud-scope.md) | `PlatformConfigPage` |
-| 3 | Retention schedule creation/activation has no confirmed procedure | Pulled into Phase 1 scope; propose/activate procedures to be built | [ADR-003](./f1-adrs-application-route-map/ADR-003-retention-schedule-crud-scope.md) | `RetentionSchedulesPage` |
-| 4 | Committee list/read has no confirmed procedure | `organization.listCommittees` added | [ADR-004](./f1-adrs-application-route-map/ADR-004-committee-list-procedure.md) | `CommitteeManagementPage`, `MultiReferralPanel` |
-| 5 | `complaints`/`documentRequests` have no single-record read | `complaints.get`, `documentRequests.get` added | [ADR-005](./f1-adrs-application-route-map/ADR-005-single-record-read-procedures.md) | `ComplaintDetailPage`, `DocumentRequestDetailPage` |
-| 6 | Public-portal announcement posting has no backing procedure or page | Built now — `/admin/announcements` + `/portal/announcements` | [ADR-006](./f1-adrs-application-route-map/ADR-006-public-portal-announcements.md) | `AnnouncementManagementPage`, `PortalAnnouncementsPage` |
-| 7 | Session Attendance substitute field depends on Phase 1B Designation document | Designation pulled into Phase 1 | [ADR-007](./f1-adrs-application-route-map/ADR-007-designation-document-type-phase1.md) | `SessionAttendanceDetailPage` |
-| 8 | Whether System Administrator needs dedicated views | Yes — minimal section built (§13 of F1-v2) | [ADR-008](./f1-adrs-application-route-map/ADR-008-system-administrator-views.md) | `SystemAdminHomePage` and its children |
-| 9 | Whether portal request/complaint forms require a citizen account | No — no-login, public forms | [ADR-009](./f1-adrs-application-route-map/ADR-009-portal-form-no-login.md) | `PortalDocumentRequestFormPage`, `PortalComplaintFormPage` |
-| 10 | Whether the workflow step detail route keys on `instanceId` or `stepInstanceId` | `instanceId`, confirmed against `workflow.getInstance` | [ADR-010](./f1-adrs-application-route-map/ADR-010-workflow-step-route-key.md) | `WorkflowStepActionPage` |
+| 1 | Which app hosts the Phase 1 public portal | `/apps/portal` (Next.js), built now | [ADR-001](ADR-001-public-portal-hosting-app.md) | All portal pages (§5.9) |
+| 2 | Platform Admin Tier-2 config CRUD has no confirmed procedure | Pulled into Phase 1 scope; procedures to be designed and built | [ADR-002](ADR-002-tier2-config-crud-scope.md) | `PlatformConfigPage` |
+| 3 | Retention schedule creation/activation has no confirmed procedure | Pulled into Phase 1 scope; propose/activate procedures to be built | [ADR-003](ADR-003-retention-schedule-crud-scope.md) | `RetentionSchedulesPage` |
+| 4 | Committee list/read has no confirmed procedure | `organization.listCommittees` added | [ADR-004](ADR-004-committee-list-procedure.md) | `CommitteeManagementPage`, `MultiReferralPanel` |
+| 5 | `complaints`/`documentRequests` have no single-record read | `complaints.get`, `documentRequests.get` added | [ADR-005](ADR-005-single-record-read-procedures.md) | `ComplaintDetailPage`, `DocumentRequestDetailPage` |
+| 6 | Public-portal announcement posting has no backing procedure or page | Built now — `/admin/announcements` + `/portal/announcements` | [ADR-006](ADR-006-public-portal-announcements.md) | `AnnouncementManagementPage`, `PortalAnnouncementsPage` |
+| 7 | Session Attendance substitute field depends on Phase 1B Designation document | Designation pulled into Phase 1 | [ADR-007](ADR-007-designation-document-type-phase1.md) | `SessionAttendanceDetailPage` |
+| 8 | Whether System Administrator needs dedicated views | Yes — minimal section built (§13 of F1-v2) | [ADR-008](ADR-008-system-administrator-views.md) | `SystemAdminHomePage` and its children |
+| 9 | Whether portal request/complaint forms require a citizen account | No — no-login, public forms | [ADR-009](ADR-009-portal-form-no-login.md) | `PortalDocumentRequestFormPage`, `PortalComplaintFormPage` |
+| 10 | Whether the workflow step detail route keys on `instanceId` or `stepInstanceId` | `instanceId`, confirmed against `workflow.getInstance` | [ADR-010](ADR-010-workflow-step-route-key.md) | `WorkflowStepActionPage` |
 
 **Items each ADR leaves open as a named follow-up** (not closed by this resolution pass; tracked here so they are not lost):
 

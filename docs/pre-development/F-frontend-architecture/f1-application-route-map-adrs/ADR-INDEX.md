@@ -7,16 +7,16 @@ This index tracks the ten ADRs produced to resolve every item in F1 §14. Each A
 
 | ADR | Gap # | Title | Decided by |
 |---|---|---|---|
-| [ADR-001](./ADR-001-public-portal-hosting-app.md) | 1 | Public Portal Hosting App | Luke |
-| [ADR-002](./ADR-002-tier2-config-crud-scope.md) | 2 | Tier-2 Platform Admin Config CRUD — Pulled Into Phase 1 | Luke |
-| [ADR-003](./ADR-003-retention-schedule-crud-scope.md) | 3 | Retention Schedule Creation/Activation — Pulled Into Phase 1 | Luke |
-| [ADR-004](./ADR-004-committee-list-procedure.md) | 4 | Committee List/Read Procedure | Claude (engineering convention) |
-| [ADR-005](./ADR-005-single-record-read-procedures.md) | 5 | `complaints`/`documentRequests` Single-Record Read Procedures | Claude (engineering convention) |
-| [ADR-006](./ADR-006-public-portal-announcements.md) | 6 | Public Portal Announcements — Built in Phase 1 | Luke |
-| [ADR-007](./ADR-007-designation-document-type-phase1.md) | 7 | Designation Document Type — Pulled Into Phase 1 | Luke |
-| [ADR-008](./ADR-008-system-administrator-views.md) | 8 | System Administrator — Dedicated Views Built in Phase 1 | Luke |
-| [ADR-009](./ADR-009-portal-form-no-login.md) | 9 | No Authenticated Account Required for Portal Request/Complaint Forms | Luke |
-| [ADR-010](./ADR-010-workflow-step-route-key.md) | 10 | Workflow Step Detail Route Keys on `instanceId` | Claude (engineering convention) |
+| [ADR-001](ADR-001-public-portal-hosting-app.md) | 1 | Public Portal Hosting App | Luke |
+| [ADR-002](ADR-002-tier2-config-crud-scope.md) | 2 | Tier-2 Platform Admin Config CRUD — Pulled Into Phase 1 | Luke |
+| [ADR-003](ADR-003-retention-schedule-crud-scope.md) | 3 | Retention Schedule Creation/Activation — Pulled Into Phase 1 | Luke |
+| [ADR-004](ADR-004-committee-list-procedure.md) | 4 | Committee List/Read Procedure | Claude (engineering convention) |
+| [ADR-005](ADR-005-single-record-read-procedures.md) | 5 | `complaints`/`documentRequests` Single-Record Read Procedures | Claude (engineering convention) |
+| [ADR-006](ADR-006-public-portal-announcements.md) | 6 | Public Portal Announcements — Built in Phase 1 | Luke |
+| [ADR-007](ADR-007-designation-document-type-phase1.md) | 7 | Designation Document Type — Pulled Into Phase 1 | Luke |
+| [ADR-008](ADR-008-system-administrator-views.md) | 8 | System Administrator — Dedicated Views Built in Phase 1 | Luke |
+| [ADR-009](ADR-009-portal-form-no-login.md) | 9 | No Authenticated Account Required for Portal Request/Complaint Forms | Luke |
+| [ADR-010](ADR-010-workflow-step-route-key.md) | 10 | Workflow Step Detail Route Keys on `instanceId` | Claude (engineering convention) |
 
 ## Net effect on Phase 1 scope
 

@@ -5,7 +5,7 @@
 **Status:** BLOCKING — development of the `workflow` module must not begin before this document is reviewed and accepted  
 **Last Updated:** June 2026  
 **Audience:** Backend development team  
-**Source Documents:** `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2, developer decisions incorporated); `2-stack-context.md`
+**Source Documents:** `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2, developer decisions incorporated); `tech-stack.md`
 
 ---
 

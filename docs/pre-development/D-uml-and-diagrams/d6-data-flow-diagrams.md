@@ -4,7 +4,7 @@
 **Document type:** Technical Reference — Data Flow Diagrams
 **Audience:** Backend development team
 **Source documents:**
-- `2-stack-context.md`
+- `tech-stack.md`
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2, developer decisions incorporated)
 - `b4-workflow-engine-specification.md` (B4)
 - `h1-phase-1-workflow-definitions-structured-data.md` (H1)

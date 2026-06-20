@@ -5,7 +5,7 @@
 **Status:** Early-dev — implement in the first week of development; not a pre-dev prerequisite
 **Last Updated:** June 2026
 **Audience:** Development team
-**Source Documents:** `k1-test-strategy.md`; `l2-docker-compose-specification.md`; `2-stack-context.md`
+**Source Documents:** `k1-test-strategy.md`; `l2-docker-compose-specification.md`; `tech-stack.md`
 **Prerequisites:** L2 — Docker and Docker Compose Specification; K1 — Test Strategy
 
 
@@ -169,7 +169,7 @@ Lint warnings do not fail CI. The shared ESLint config treats warnings as inform
 **Scope:** all packages  
 **Must pass for merge:** yes
 
-TypeScript compilation errors anywhere in the type-safety chain (Drizzle schema → Zod → shared types → tRPC procedures → React components) fail this step. The type-safety chain described in `2-stack-context.md` means that a DB schema change propagates as a compile error to every consuming layer; typecheck in CI is what makes that guarantee operational.
+TypeScript compilation errors anywhere in the type-safety chain (Drizzle schema → Zod → shared types → tRPC procedures → React components) fail this step. The type-safety chain described in `tech-stack.md` means that a DB schema change propagates as a compile error to every consuming layer; typecheck in CI is what makes that guarantee operational.
 
 Lint and typecheck run as steps within the same job (Job A) and execute in parallel via Turborepo's task scheduler when their dependency graphs permit. The job fails if either step fails.
 
@@ -240,7 +240,7 @@ services:
 
 These are the same scripts L2 defines for local development. CI uses no separate mechanism; parity with local development is guaranteed by using the same entry points.
 
-**Meilisearch is not present in CI for Phase 1.** The `--profile phase2` services are not started. Any code path that would reach Meilisearch must be behind the search abstraction layer specified in `2-stack-context.md`; in Phase 1, that layer delegates to PostgreSQL FTS and no Meilisearch connection is attempted.
+**Meilisearch is not present in CI for Phase 1.** The `--profile phase2` services are not started. Any code path that would reach Meilisearch must be behind the search abstraction layer specified in `tech-stack.md`; in Phase 1, that layer delegates to PostgreSQL FTS and no Meilisearch connection is attempted.
 
 Integration test files run sequentially within each file and may run in parallel across files (separate Vitest workers), each operating within its own database transaction scope per K1 Section 6.2.
 

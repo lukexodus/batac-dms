@@ -13,7 +13,7 @@
 - `h2-document-type-catalog-with-jsonb-metadata-schemas.md` — authoritative non-JSONB column list for `documents.documents`; the eight Phase 1 `document_types` rows and their `metadata` JSON Schemas
 - `h3-numbering-series-configuration-specification.md` — the eleven `number_series` rows, their format strings, padding, and PostgreSQL sequence naming convention
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` — Parts 5, 9, 10, 11, 12 (numbering, schema map, module boundaries, key design decisions, architectural invariants)
-- `2-stack-context.md` — PostgreSQL non-negotiables, audit log integrity design, migration rules
+- `tech-stack.md` — PostgreSQL non-negotiables, audit log integrity design, migration rules
 
 ---
 
@@ -114,7 +114,7 @@ Fields that are explicitly **Administrator-configurable without developer involv
 
 ### 1.9 CHECK Constraints and State Transitions
 
-A native PostgreSQL `CHECK` constraint validates a single row in isolation; it has no access to the row's prior values. It **cannot** express "valid transition from state X to state Y," because that comparison requires `OLD` and `NEW`, which only a trigger can see. Three tables in this schema have a documented state-transition graph (`documents.documents.lifecycle_state`, `workflow.instances.status`, `workflow.step_instances.status`); for these, "CHECK for state transitions" is implemented as a `BEFORE UPDATE` trigger function that raises an exception on an illegal `OLD.status → NEW.status` jump. This satisfies the same "second line of defense at the DB level" intent that `2-stack-context.md` describes under "Check constraints for state transitions," using the only mechanism PostgreSQL actually offers for it. Plain `CHECK` constraints are still used extensively throughout this document for same-row invariants that do not involve a transition (value ranges, non-empty-comment requirements, mutual-exclusivity rules).
+A native PostgreSQL `CHECK` constraint validates a single row in isolation; it has no access to the row's prior values. It **cannot** express "valid transition from state X to state Y," because that comparison requires `OLD` and `NEW`, which only a trigger can see. Three tables in this schema have a documented state-transition graph (`documents.documents.lifecycle_state`, `workflow.instances.status`, `workflow.step_instances.status`); for these, "CHECK for state transitions" is implemented as a `BEFORE UPDATE` trigger function that raises an exception on an illegal `OLD.status → NEW.status` jump. This satisfies the same "second line of defense at the DB level" intent that `tech-stack.md` describes under "Check constraints for state transitions," using the only mechanism PostgreSQL actually offers for it. Plain `CHECK` constraints are still used extensively throughout this document for same-row invariants that do not involve a transition (value ranges, non-empty-comment requirements, mutual-exclusivity rules).
 
 ### 1.10 Naming
 
@@ -156,7 +156,7 @@ CREATE ROLE app_user WITH LOGIN PASSWORD NULL;
 -- audit_user: INSERT and SELECT only on the audit schema. UPDATE and DELETE
 -- are revoked explicitly in Part 9, even though they are not granted by
 -- default, as a documentation-level statement of intent matching B4
--- Engine Invariant #13 and 2-stack-context.md's audit log design.
+-- Engine Invariant #13 and tech-stack.md's audit log design.
 CREATE ROLE audit_user WITH LOGIN PASSWORD NULL;
 ```
 

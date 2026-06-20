@@ -11,8 +11,8 @@
 - [L34–L43] Diagram Legend — Visual representation key explaining class diagram symbols for composition, association, and inheritance relationships.
 - [L44–L547] Class Diagram — Single Mermaid class diagram containing 62 entities across 12 modules, representing the complete pre-development domain model.
 - [L548–L617] Entity Index — Reference table mapping all 62 domain entities to their respective modules, database schemas, and implementation phases.
-- [L618–L671] Key Enum Types — Tables of domain enum values categorized by document lifecycle, workflow engine, legislative, organization, complaints, and notifications.
-- [L672–L702] Relationship Notes — Detailed architectural rules, invariants, and implementation notes for fifteen key entity relationships and domain behaviors.
+- [L618–L679] Key Enum Types — Tables of domain enum values categorized by document lifecycle, workflow engine, legislative, organization, complaints, notifications, and records.
+- [L680–L713] Relationship Notes — Detailed architectural rules, invariants, and implementation notes for fifteen key entity relationships and domain behaviors.
 
 ---
 
@@ -667,6 +667,14 @@ classDiagram
 |`NotificationStatus`|`Pending` · `Sent` · `Failed` · `Cancelled`|
 |`DeliveryStatus`|`Delivered` · `Bounced` · `Failed`|
 
+### Records
+
+|Enum|Values|
+|---|---|
+|`RecordType`|`LEGISLATIVE_PERMANENT` · `FINANCIAL` · `PERSONNEL` · `CORRESPONDENCE` · `INTERNAL_MEMO` · `DRAFT`|
+
+Defined in ADR-D4-1, ratifying the six categories from the Consolidated Architecture & Requirements Reference, Part 11.7. Retention periods behind each category remain unverified pending NAP/COA/DILG confirmation — this enum fixes category names and the `document_type` → `RecordType` mapping only.
+
 ---
 
 ## Relationship Notes
@@ -700,3 +708,6 @@ classDiagram
 **14 — NotificationEvent recipient polymorphism.** A `NotificationEvent` is sent either to an `Employee` (internal staff) or to a `Citizen` (external). Exactly one of the two associations will be non-null on any given event record. This is a domain-level union; the DB implementation may use a nullable foreign key pair or a polymorphic reference column.
 
 **15 — DocumentSponsorship.** Tracks all co-authors and introducers of a legislative measure, including their order of priority. Sponsorship is distinct from the drafter (`Document.draftedBy`); a document drafted by Secretariat staff may have multiple councilor sponsors. Required for the Index of Ordinances tracked fields. Ref: Part 4.1, Part 5.3.
+
+**16 — RecordType mapping.** `Record.recordType` values map from `document_type` as follows: SP_RESOLUTION, SP_ORDINANCE, SP_APPROPRIATION_ORDINANCE → LEGISLATIVE_PERMANENT; MEMO_OUTGOING, MEMO_INCOMING → INTERNAL_MEMO; LETTER_RECEIVED, LETTER_SENT → CORRESPONDENCE; NOTICE_COMMITTEE_HEARING, NOTICE_SPECIAL_SESSION, DESIGNATION → LEGISLATIVE_PERMANENT [Inference — proposed, not directly stated in source]. PANLALAWIGAN_REVIEW_LOG has no RecordType mapping — per ADR-C1-1, it is not modeled as a document_types row at all. See ADR-D4-1 (`d4-domain-class-diagram-adrs/adr-d4-1-recordtype-enum-value-list`) for full rationale and the retention-period caveat.
+

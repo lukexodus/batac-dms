@@ -145,7 +145,7 @@
 - ✅ Always pair with the tracking number in `IBM Plex Mono` directly below or beside it — the QR code is never shown without its corresponding human-readable tracking number (per `DESIGN.md` §13, "never embed document content in the QR code").
 
 ### Don'ts
-- ❌ Don't use `QRDisplay` in the real application — replace with the actual `qrcode` library output (per `2-stack-context.md` stack decisions) encoding the real tracking ID. This component exists for prototype visual fidelity only.
+- ❌ Don't use `QRDisplay` in the real application — replace with the actual `qrcode` library output (per `tech-stack.md` stack decisions) encoding the real tracking ID. This component exists for prototype visual fidelity only.
 - ❌ Don't resize below ~64px — the deterministic pattern becomes visually noisy and less "QR-like" at small sizes.
 
 ---

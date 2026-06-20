@@ -12,7 +12,7 @@
 - `c1-full-database-schema-ddl.md` — the authoritative column inventory for all 49 tables across the eight Phase 1 schemas; the primary source for every column reference below
 - `e1-trpc-router-and-procedure-catalog.md` — the confirmed query patterns, filter shapes, and sort orders for every `/web` procedure; the primary driver of index selection
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` — Parts 10–12 (module boundaries, architectural invariants, RLS strategy) and Part 9 (search strategy by phase)
-- `2-stack-context.md` — PostgreSQL non-negotiables (JSONB GIN requirement, FTS strategy, search phase transition), stack decisions
+- `tech-stack.md` — PostgreSQL non-negotiables (JSONB GIN requirement, FTS strategy, search phase transition), stack decisions
 
 ## Table of Contents
 
@@ -434,12 +434,12 @@ CREATE INDEX idx_documents_city_updated_desc
 
 -- metadata GIN: admin-configurable metadata fields (sponsors, publication date,
 -- certification references, etc.) are queried with the @> containment operator and
--- ->> accessor per the PostgreSQL non-negotiables in 2-stack-context.md.
+-- ->> accessor per the PostgreSQL non-negotiables in tech-stack.md.
 -- A single path-ops GIN index covers all JSONB containment and accessor queries
 -- on this column.
 CREATE INDEX idx_documents_metadata_gin
     ON documents.documents USING GIN (metadata jsonb_path_ops);
--- [Phase 1] [Confirmed — 2-stack-context.md "JSONB — Use GIN indexes. Query with @> operator and ->> accessors"]
+-- [Phase 1] [Confirmed — tech-stack.md "JSONB — Use GIN indexes. Query with @> operator and ->> accessors"]
 -- Rationale for jsonb_path_ops over the default jsonb_ops: jsonb_path_ops produces a
 -- smaller index and is faster for @> containment queries; the trade-off (no support for
 -- the ? key-existence operator) is acceptable here because all confirmed metadata queries
@@ -456,7 +456,7 @@ CREATE INDEX idx_documents_metadata_gin
 CREATE INDEX idx_documents_title_fts
     ON documents.documents USING GIN (to_tsvector('english', title))
     WHERE deleted_at IS NULL;
--- [Phase 1] [Confirmed — ADR-B2-5 FTS Abstraction Layer; 2-stack-context Search Strategy "Phase 1: PostgreSQL FTS (tsvector/tsquery)"; E1 documents.search]
+-- [Phase 1] [Confirmed — ADR-B2-5 FTS Abstraction Layer; tech-stack Search Strategy "Phase 1: PostgreSQL FTS (tsvector/tsquery)"; E1 documents.search]
 -- Note: A separate Filipino/Ilocano FTS configuration is not available as a built-in
 -- PostgreSQL text-search dictionary. Phase 1 uses the 'english' configuration as an
 -- approximation for title-word tokenization; this is acceptable for the confirmed Phase 1
@@ -865,7 +865,7 @@ CREATE INDEX idx_audit_events_city_occurred_desc
 -- index on (city_id, id ASC) supports the forward walk without a full table scan.
 CREATE INDEX idx_audit_events_city_id_asc
     ON audit.events (city_id, id ASC);
--- [Phase 1] [Confirmed — E1 audit.validateChainIntegrity; 2-stack-context Audit Log Integrity hash chain]
+-- [Phase 1] [Confirmed — E1 audit.validateChainIntegrity; tech-stack Audit Log Integrity hash chain]
 
 -- Target resource filter: audit queries for "all events touching document X" filter
 -- by target_id.
@@ -922,8 +922,8 @@ export const documentsOfficeStateIdx = index('idx_documents_office_state')
 
 **Partial index drift.** Partial indexes scoped to `WHERE deleted_at IS NULL` become less selective as the soft-deleted row fraction grows over time. The DBA should monitor `pg_stat_user_indexes` quarterly and consider converting to a full index if the live-row fraction drops below 60% of total rows on any table — this would indicate that the partial condition is no longer providing meaningful index size savings.
 
-**FTS index vs. Meilisearch handoff (Phase 2) `[ADR-B2-5]`.** All Phase 1 full-text search call sites route through `SearchMeta.search()` — the thin pass-through layer introduced by ADR-B2-5 — which in Phase 1 wraps the PostgreSQL FTS GIN indexes directly. When Meilisearch is provisioned in Phase 2, `SearchMeta.search()` will switch to Meilisearch for typo-tolerant and multilingual search without callers changing. The `idx_documents_title_fts` and `idx_versions_ocr_text_fts` GIN indexes continue to exist and are maintained by PostgreSQL at Phase 2 — `SearchMeta.search()` uses them for the exact-consistency DB-level path (authenticated internal queries where Meilisearch's eventual-consistency model is unacceptable). This dual-path is explicitly the design per the 2-stack-context search strategy: "Design the search interface as an abstraction layer so the underlying provider is swappable without touching call sites." The Documents schema's `ocr_text` column (read by SearchMeta in Phase 1) is the **one explicit cross-schema exception** to B2 Law #2/P1, documented in ADR-B2-5.
+**FTS index vs. Meilisearch handoff (Phase 2) `[ADR-B2-5]`.** All Phase 1 full-text search call sites route through `SearchMeta.search()` — the thin pass-through layer introduced by ADR-B2-5 — which in Phase 1 wraps the PostgreSQL FTS GIN indexes directly. When Meilisearch is provisioned in Phase 2, `SearchMeta.search()` will switch to Meilisearch for typo-tolerant and multilingual search without callers changing. The `idx_documents_title_fts` and `idx_versions_ocr_text_fts` GIN indexes continue to exist and are maintained by PostgreSQL at Phase 2 — `SearchMeta.search()` uses them for the exact-consistency DB-level path (authenticated internal queries where Meilisearch's eventual-consistency model is unacceptable). This dual-path is explicitly the design per the tech-stack search strategy: "Design the search interface as an abstraction layer so the underlying provider is swappable without touching call sites." The Documents schema's `ocr_text` column (read by SearchMeta in Phase 1) is the **one explicit cross-schema exception** to B2 Law #2/P1, documented in ADR-B2-5.
 
 ---
 
-*This document is the C4 deliverable against the stated prerequisite chain (C1 → C4). Every index defined here must correspond to a named `CREATE INDEX` statement in a Drizzle migration file. Any index added during development that is not listed here must be documented in a C4 addendum and reviewed before merging, consistent with the change-discipline stated in 2-stack-context.md Migration Rules.*
+*This document is the C4 deliverable against the stated prerequisite chain (C1 → C4). Every index defined here must correspond to a named `CREATE INDEX` statement in a Drizzle migration file. Any index added during development that is not listed here must be documented in a C4 addendum and reviewed before merging, consistent with the change-discipline stated in tech-stack.md Migration Rules.*

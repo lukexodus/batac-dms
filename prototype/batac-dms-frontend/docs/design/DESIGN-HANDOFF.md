@@ -7,7 +7,7 @@
 
 ## 1. Purpose of This Document
 
-This prototype (`batac-lgu-prototype.jsx`) is a **single-file static UI demo** — it is not the application. This document maps every design decision in the prototype to where and how it should land in the real monorepo described in `2-stack-context.md`, and flags everything that is currently mocked and must be made real.
+This prototype (`batac-lgu-prototype.jsx`) is a **single-file static UI demo** — it is not the application. This document maps every design decision in the prototype to where and how it should land in the real monorepo described in `tech-stack.md`, and flags everything that is currently mocked and must be made real.
 
 ---
 
@@ -29,7 +29,7 @@ This prototype (`batac-lgu-prototype.jsx`) is a **single-file static UI demo** �
 
 ## 3. Repository Placement
 
-The prototype is intentionally a **single file** for portability and review. It must be decomposed before merging into `/apps/web`. Suggested mapping to the monorepo structure in `2-stack-context.md`:
+The prototype is intentionally a **single file** for portability and review. It must be decomposed before merging into `/apps/web`. Suggested mapping to the monorepo structure in `tech-stack.md`:
 
 ```
 /packages/ui/src/
@@ -124,14 +124,14 @@ After this, replace:
 
 ## 5. shadcn/ui Mapping
 
-Where the prototype hand-rolls a component, the real implementation should prefer the equivalent shadcn/ui primitive (already in the approved stack per `2-stack-context.md`):
+Where the prototype hand-rolls a component, the real implementation should prefer the equivalent shadcn/ui primitive (already in the approved stack per `tech-stack.md`):
 
 | Prototype component | shadcn/ui equivalent | Notes |
 |---|---|---|
 | `Btn` | `Button` | Map `variant`/`size` props directly; extend shadcn's variant config with `warning` (not in default shadcn set) |
 | `StatusBadge`, `ClassificationBadge`, `PriorityTag` | `Badge` | Extend with custom color variants per `statusConfig`/`classConfig` — shadcn `Badge` supports custom variants via `cva` |
 | Filter `<select>` elements | `Select` | DMS filter bar, Citizen Portal form selects |
-| DMS table | `Table` (shadcn) + **TanStack Table** for sort/filter/pagination logic, per `2-stack-context.md` | The prototype's manual `.filter()` logic should become TanStack Table column filters |
+| DMS table | `Table` (shadcn) + **TanStack Table** for sort/filter/pagination logic, per `tech-stack.md` | The prototype's manual `.filter()` logic should become TanStack Table column filters |
 | WMS action selector cards | `RadioGroup` (styled as cards) | This gives the required `role="radiogroup"` semantics flagged in `ACCESSIBILITY.md` §3.2/§8 for free |
 | Comment `<textarea>` | `Textarea` + React Hook Form + `@hookform/resolvers/zod` | Validation (required-on-Reject/Return) should be a Zod conditional schema, not inline JS |
 | Citizen Portal tabs | `Tabs` | Gives `role="tablist"`/`aria-selected`/arrow-key nav per `ACCESSIBILITY.md` §3.2 automatically |
@@ -144,14 +144,14 @@ Where the prototype hand-rolls a component, the real implementation should prefe
 
 | Prototype element | Current state | Required for production |
 |---|---|---|
-| `QRDisplay` | Deterministic SVG pattern, **not a real QR code** | Replace with `qrcode` library (server-generated) per `2-stack-context.md` — encodes only the tracking ID per `DESIGN.md` §13 / `consolidated-architecture-and-requirements-reference.md` §4.2 (QR/Barcode rule) |
-| All mock data arrays (`mockPendingSignatures`, `mockRoutingHistory`, `mockDocuments`, etc.) | Hardcoded JS arrays | TanStack Query hooks against tRPC procedures (`/web`) or REST endpoints (`/portal`) per `2-stack-context.md` |
+| `QRDisplay` | Deterministic SVG pattern, **not a real QR code** | Replace with `qrcode` library (server-generated) per `tech-stack.md` — encodes only the tracking ID per `DESIGN.md` §13 / `consolidated-architecture-and-requirements-reference.md` §4.2 (QR/Barcode rule) |
+| All mock data arrays (`mockPendingSignatures`, `mockRoutingHistory`, `mockDocuments`, etc.) | Hardcoded JS arrays | TanStack Query hooks against tRPC procedures (`/web`) or REST endpoints (`/portal`) per `tech-stack.md` |
 | WMS PDF viewer | Static styled `<div>` mimicking a document | `react-pdf` per stack decision, rendering the actual uploaded file from S3-compatible storage |
 | WMS action submission | Local `useState` + fake "done" screen | Real tRPC mutation → workflow engine `approval` step transition, with optimistic UI via TanStack Query |
 | Citizen Portal "Track" search | Returns a hardcoded result for any non-empty query | Real lookup against `tracking.tracking_records` by tracking ID (public REST endpoint, no auth) |
 | Citizen Portal "Submit" | Fake tracking number `DTS-2026-000099` | Real submission creates a `CitizenRequest`/`CitizenComplaint` record, assigns tracking number per numbering rules, sends OTP-gated confirmation (per `consolidated-architecture-and-requirements-reference.md` §11.18) |
 | Sidebar user profile ("Mark Christian R. Chua / Mayor") | Hardcoded | Real session/auth context — and **the same `AppShell` must render correctly for every role**, not just Mayor. See §7. |
-| Notification bell | Static red dot, no content | Real SSE-backed notification feed per `2-stack-context.md` |
+| Notification bell | Static red dot, no content | Real SSE-backed notification feed per `tech-stack.md` |
 
 ---
 
@@ -200,7 +200,7 @@ The grouping structure (`DASHBOARDS` / `OPERATIONS` / `PUBLIC`) should remain, b
 - Bulk selection (checkboxes on row hover, mentioned in `DESIGN.md` §14) is **not yet in this prototype** — when implemented, it is Records-Officer-only per `consolidated-architecture-and-requirements-reference.md` §11.4 ("Bulk operations (Records Officers only)") and requires confirmation dialog + dry-run preview + no bulk-delete.
 
 ### Citizen Portal
-- This page deliberately has **no shared layout** with the internal app (`PortalShell` ≠ `AppShell`) — confirm this separation is preserved in routing (likely a separate Next.js app per `2-stack-context.md`, `/apps/portal`, Phase 3).
+- This page deliberately has **no shared layout** with the internal app (`PortalShell` ≠ `AppShell`) — confirm this separation is preserved in routing (likely a separate Next.js app per `tech-stack.md`, `/apps/portal`, Phase 3).
 - The "Submit" flow's OTP verification (phone + email, per `consolidated-architecture-and-requirements-reference.md` §11.18) is entirely absent from the prototype — the success screen with a fake tracking number stands in for what will be a multi-step verified submission flow.
 
 ---
