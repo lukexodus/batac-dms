@@ -2,9 +2,9 @@
 
 > **Purpose:** Filtered reference for producing the Phase 1 workflow definition seed records (`workflow.definitions` table) for SP Resolution (standard + Certified Urgent), SP Ordinance (standard + Certified Urgent), and Appropriation Ordinance.
 > 
-> **Source documents:** `2-stack-context.md` + `consolidated-architecture-and-requirements-reference-iteration-3.md`
+> **Source documents:** `tech-stack.md` + `consolidated-architecture-and-requirements-reference-iteration-3.md`
 > 
-> **What was excluded:** Stakeholder identities, numbering formats, document request/records/complaint modules, portal, IAM, org structure, file storage, OCR, audit log internals, session management, citizen identity, LMITS migration, barangay workflows, Phase 2–5 content, compliance details, DR/backup, mobile/device, extensibility tiers, all of Part 14 Q&A not bearing on workflow step logic, and all non-workflow stack detail from `2-stack-context.md`.
+> **What was excluded:** Stakeholder identities, numbering formats, document request/records/complaint modules, portal, IAM, org structure, file storage, OCR, audit log internals, session management, citizen identity, LMITS migration, barangay workflows, Phase 2–5 content, compliance details, DR/backup, mobile/device, extensibility tiers, all of Part 14 Q&A not bearing on workflow step logic, and all non-workflow stack detail from `tech-stack.md`.
 
 ---
 

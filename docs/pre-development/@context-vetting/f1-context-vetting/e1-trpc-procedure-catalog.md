@@ -20,7 +20,7 @@
 
 _Source: "The `protectedProcedure` Base and Middleware Chain" (full)_
 
-> Every procedure in this catalog (with zero exceptions — there is no `publicProcedure` in this router set, since `/web` is "fully authenticated," per `2-stack-context.md`) is built on a shared `protectedProcedure` base that runs, in order:
+> Every procedure in this catalog (with zero exceptions — there is no `publicProcedure` in this router set, since `/web` is "fully authenticated," per `tech-stack.md`) is built on a shared `protectedProcedure` base that runs, in order:
 > 
 > 1. `verifyAccessToken` — populates `ctx.subject` (the `SubjectContext` object defined in I1 §1) from the JWT
 > 2. `loadDelegationContext` — expands `ctx.subject.effective_office_ids` / `effective_roles` per I1 §16, if `subject.delegation_grant_id` is non-null
@@ -223,11 +223,11 @@ _Source: Shared Fragment Schemas referenced by name throughout the procedures be
 |||
 |---|---|
 |Type|`mutation`|
-|Input|`z.object({ documentId: z.string().uuid(), filename: z.string().min(1), mimeType: z.string(), fileSizeBytes: z.number().int().positive().max(26214400) })` — 25 MB ceiling per `2-stack-context.md`|
+|Input|`z.object({ documentId: z.string().uuid(), filename: z.string().min(1), mimeType: z.string(), fileSizeBytes: z.number().int().positive().max(26214400) })` — 25 MB ceiling per `tech-stack.md`|
 |Output|`z.object({ presignedUploadUrl: z.string().url(), s3Key: z.string().uuid() })`|
 |Callable by|`dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member` (own-authored only), `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain`|
 |ABAC conditions|`parent_document.office_id ∈ subject.effective_office_ids`. `sp_member`: `parent_document.created_by = subject.user_id` (I1 §4.2).|
-|Business operation|Generates a UUID `s3Key` (never the original filename — Architectural Law #4) and a presigned PUT URL against the configured S3-compatible endpoint. Does **not** create the `documents.versions` row yet — that happens in `documents.confirmUpload`, after the client-side upload streams directly to S3, never touching the application server's disk. `[Confirmed — I1 §4.2 "document_version:create"; 2-stack-context File Storage Strategy; consolidated reference Part 11.10]`|
+|Business operation|Generates a UUID `s3Key` (never the original filename — Architectural Law #4) and a presigned PUT URL against the configured S3-compatible endpoint. Does **not** create the `documents.versions` row yet — that happens in `documents.confirmUpload`, after the client-side upload streams directly to S3, never touching the application server's disk. `[Confirmed — I1 §4.2 "document_version:create"; tech-stack File Storage Strategy; consolidated reference Part 11.10]`|
 
 ### `documents.confirmUpload`
 
@@ -728,7 +728,7 @@ _Source: Shared Fragment Schemas referenced by name throughout the procedures be
 |Output|`z.object({ status: z.enum(['intact','broken']), brokenAtEventId: z.string().uuid().nullable() })`|
 |Callable by|`sys_admin`, `auditor`|
 |ABAC conditions|None beyond role gate.|
-|Business operation|Walks the SHA-256 hash chain on `audit.events.chain_hash`, flagging the first broken link as a tamper indicator. `[Confirmed — I1 §8.5 in full; 2-stack-context Audit Log Integrity]`|
+|Business operation|Walks the SHA-256 hash chain on `audit.events.chain_hash`, flagging the first broken link as a tamper indicator. `[Confirmed — I1 §8.5 in full; tech-stack Audit Log Integrity]`|
 
 ### `audit.exportEvents`
 
@@ -1178,7 +1178,7 @@ What this catalog _does_ contain for the public portal subset is the small set o
 |Output|`z.object({ pdfPresignedUrl: z.string().url() })`|
 |Callable by|`sp_secretary` only|
 |ABAC conditions|The document(s) must be in the SP Secretariat's scope.|
-|Business operation|Generates the QR cover sheet, confirmed to contain only three fields. `[Confirmed — I1 §7.5; consolidated reference Q-B02 in full; 2-stack-context PDF generation row]`|
+|Business operation|Generates the QR cover sheet, confirmed to contain only three fields. `[Confirmed — I1 §7.5; consolidated reference Q-B02 in full; tech-stack PDF generation row]`|
 
 [Unverified] This procedure is included here on the reasoning that QR cover sheets are the artifact a citizen later scans via the public, unauthenticated path — but the procedure itself is purely internal (`sp_secretary`-only). Flagged as a judgment call, not a stated fact.
 
@@ -1221,7 +1221,7 @@ What this catalog _does_ contain for the public portal subset is the small set o
 |Output|`z.object({ items: z.array(z.object({ documentId: z.string().uuid(), title: z.string(), documentTypeName: z.string(), finalNumber: z.string().nullable(), currentState: documentLifecycleStateEnum, relevanceScore: z.number().optional() })), nextCursor: z.string().nullable() })`|
 |Callable by|`records_officer`, `dept_encoder` (🔶 scoped), `dept_approver` (🔶 scoped), `sp_secretary`, `sp_member` (🔶 scoped), `sp_presiding_officer`, `mayor`, `auditor`|
 |ABAC conditions|Encoders/Approvers/SP Members scoped to their own office (or committee/session scope) — enforced as an additional `WHERE` clause layered on the PostgreSQL FTS query.|
-|Business operation|Phase 1: executes `tsvector`/`tsquery` directly against `documents.documents`/`documents.versions.ocr_text` (no Search Meta abstraction call in Phase 1). `[Confirmed — I2 Section 5 "Full-text search across documents"; B2 Module 9 Phase 1 note; 2-stack-context Search Strategy table]`|
+|Business operation|Phase 1: executes `tsvector`/`tsquery` directly against `documents.documents`/`documents.versions.ocr_text` (no Search Meta abstraction call in Phase 1). `[Confirmed — I2 Section 5 "Full-text search across documents"; B2 Module 9 Phase 1 note; tech-stack Search Strategy table]`|
 
 ### `documents.delete`
 

@@ -1,6 +1,6 @@
 # J1 — Software Design Patterns _(filtered for J4)_
 
-**Status:** Pre-Development Reference | Audience: Development Team **Stack baseline:** See `2-stack-context.md` — Fastify + tRPC + Drizzle ORM + TanStack Query
+**Status:** Pre-Development Reference | Audience: Development Team **Stack baseline:** See `tech-stack.md` — Fastify + tRPC + Drizzle ORM + TanStack Query
 
 ---
 

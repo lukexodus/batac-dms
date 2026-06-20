@@ -4,7 +4,7 @@
 
 ### 1.1 Monorepo and frontend/backend split
 
-_Source: `2-stack-context.md`_
+_Source: `tech-stack.md`_
 
 ```
 /apps
@@ -26,7 +26,7 @@ _Source: `2-stack-context.md`_
 
 ### 1.2 tRPC architecture (relevant to "primary data dependencies" field)
 
-_Source: `2-stack-context.md`_
+_Source: `tech-stack.md`_
 
 > **Rule:** tRPC is used exclusively for `/web` (internal app) ↔ `/server`. The public portal and any external-facing interface use REST only.
 > 
@@ -206,11 +206,11 @@ _Source: same file, Part 4.1 — SP Resolution, opening workflow node_
 
 [Inference] This first node of the resolution/ordinance workflow diagrams is the closest source description of what the "document intake form" actually captures (drafting actor, sponsors/title, then secretariat logging with QR + preliminary number assignment). No standalone "intake form field list" exists in source beyond what's quoted here and in the Document and Records Request Form section (Part 6, below) and the OCR section above.
 
-_Source: `2-stack-context.md` — OCR Strategy_
+_Source: `tech-stack.md` — OCR Strategy_
 
 > OCR is a confirmed Phase 1 requirement. All uploaded documents are scanned automatically on upload and a scan quality indicator is always shown to the user so they can decide whether to re-scan before the document is formally logged.
 
-_Source: `2-stack-context.md` — File Storage Strategy, format/size constraints_
+_Source: `tech-stack.md` — File Storage Strategy, format/size constraints_
 
 > Supported formats: PDF, DOCX, XLSX, PNG, JPG. Maximum file size: 25 MB per file (configurable via env).
 
@@ -376,7 +376,7 @@ _Source: same file, Part 11.8 — Authorization Model (audit-log-access-relevant
 
 > - Tier 1 (System-level, hardcoded): Audit log read access, backup/restore, schema migrations, encryption key management
 
-_Source: `2-stack-context.md` — Audit Log Integrity (full section)_
+_Source: `tech-stack.md` — Audit Log Integrity (full section)_
 
 > The audit log is append-only at the database permission level (`INSERT` only; `UPDATE` and `DELETE` revoked from the application DB user). The application layer adds a second integrity layer: hash chaining and HMAC.
 > 
@@ -481,7 +481,7 @@ _Source: same file, Part 7.5 — Current Systems and Migration Context, sp.batac
 
 > |SP website sp.batac.gov.ph|**Subscription has been renewed. Usage continues indefinitely.** The batac-dms is a new system primarily for **internal use** with a public portal similar to sp.batac.gov.ph. Both systems will coexist. Formal retirement of sp.batac.gov.ph is not required. `[RESOLVES Q-C07]`|
 
-_Source: `2-stack-context.md` — Stack Decisions table, public portal row_
+_Source: `tech-stack.md` — Stack Decisions table, public portal row_
 
 > |Public portal|Next.js (Phase 3)|SSG for SEO on citizen-facing document lookups|
 

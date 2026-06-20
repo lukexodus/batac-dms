@@ -2,7 +2,7 @@
 
 **Purpose:** Consolidated context for authoring B3 — the Internal Domain Event Catalog. Contains only the information needed to define every domain event: its name, producing module, consuming modules, Zod payload schema, and business reason.
 
-**Sources:** `2-stack-context.md` + `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2, developer decisions resolved)
+**Sources:** `tech-stack.md` + `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2, developer decisions resolved)
 
 ---
 
