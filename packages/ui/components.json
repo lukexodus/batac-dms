@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "zinc",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "@batac/ui/components",
+    "utils": "@batac/ui/lib/utils",
+    "ui": "@batac/ui/components/ui",
+    "lib": "@batac/ui/lib",
+    "hooks": "@batac/ui/hooks"
+  },
+  "iconLibrary": "lucide"
+}
