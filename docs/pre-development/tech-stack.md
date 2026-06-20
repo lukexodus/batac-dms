@@ -1,5 +1,24 @@
 # Stack Context — Government Platform
 
+
+## Table of Contents
+
+- [L24–L46] Monorepo Structure — App and package directories under pnpm workspaces, utilizing Turborepo for build orchestration and caching.
+- [L47–L91] Stack Decisions — Technology selection table mapping backend, frontend, database, ORM, state management, storage, search, and UI libraries.
+- [L92–L105] tRPC Architecture (Hybrid) — Internal app integration via tRPC procedures and external access via Fastify REST/OpenAPI, living in the same process.
+- [L106–L121] Type Safety Chain — Data flow schema propagation mapping Drizzle DB schemas through packages, routes, forms, and TanStack Query.
+- [L122–L133] PostgreSQL Non-Negotiables — Mandatory database features including JSONB, Row-Level Security, append-only audit tables, constraints, and gapless sequences.
+- [L134–L144] Search Strategy — Transition plan from Phase 1 PostgreSQL FTS to Phase 2+ Meilisearch via a service abstraction layer.
+- [L145–L162] File Storage Strategy — S3-compatible API client constraints, UUID keys, client-direct streaming rules, and R2/MinIO configurations.
+- [L163–L179] OCR Strategy — Selection criteria between tesseract.js and self-hosted cloud options, testing timeline, and service wrapper requirements.
+- [L180–L195] Audit Log Integrity — Append-only database rules combined with application-level SHA-256 hash chaining, HMAC signatures, and RFC 3161 timestamping.
+- [L196–L205] Authentication Architecture — Short-lived JWTs, rotated refresh tokens stored in cookies with PKCE, and SSO compatibility requirements.
+- [L206–L217] Testing Priorities — Testing priority checklist prioritizing state machines, ABAC endpoints, and Playwright E2E over CRUD unit test coverage.
+- [L218–L226] Migration Rules — Version-controlled SQL migrations generated from Drizzle schema diffs, prohibiting production database resets.
+- [L227–L233] Deployment Constraints — On-premise VPS hosting requirements, stateless server designs, and Nginx/Caddy static asset serving configurations.
+
+---
+
 ---
 
 ## Monorepo Structure
