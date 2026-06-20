@@ -9,15 +9,12 @@ below.
 
 1. Find your task in the **Task → Documents** table.
 2. Open only the documents listed in the **Read** column, in the order listed.
-3. Check the **Status** column for each. If any required document's status is not
-   `done`, stop and report which document is missing before doing any work that
-   depends on it. Do not improvise its content.
-4. Check `docs/pre-development/N-development-findings-log.md` for any `confirmed`
+3. Check `docs/pre-development/N-development-findings-log.md` for any `confirmed`
    entries tagged with the same document IDs as your task row, or with the module
    name you're working in. See Section 4.5 for how this log works.
-5. If your task is not in the table, go to **Section 3: Unlisted tasks** before
+4. If your task is not in the table, go to **Section 3: Unlisted tasks** before
    reading anything.
-6. If, while doing the work, you hit a question that none of the documents you read
+5. If, while doing the work, you hit a question that none of the documents you read
    answers, go to **Section 4: When no document has the answer** — do not guess
    silently.
 
@@ -31,7 +28,7 @@ When documents conflict, this is the resolution order, highest first:
    — stakeholder-confirmed facts. This is the ground truth for *what the system must
    do*. Architecture documents (Group B–L) are downstream interpretations of this
    document and can be wrong; this document is the thing they're implementing.
-2. `docs/ai-context-docs/2-stack-context.md` — confirmed for *how* it's built
+2. `docs/pre-development/tech-stack.md` — confirmed for *how* it's built
    (stack, libraries, conventions). Marked "open" items in this file (currently: OCR
    library choice) are not yet decided — do not treat them as decided.
 3. Any document under `docs/pre-development/` — these implement #1 and #2. If one
@@ -46,49 +43,38 @@ State the conflict and which document you followed and why.
 
 ## Section 2: Task → Documents
 
-Status values: `done` (exists, content verified against consolidated reference),
-`draft` (exists but not yet reviewed — treat content as provisional), `missing` (not
-yet written).
-
 <!--
-  MAINTENANCE NOTE: the document set and dependency graph in document-list.md are
-  final — IDs A1–M1 are the complete corpus, no new documents will be added. The
-  Status column below is updated manually by a human after each document is
-  reviewed; agents never edit this column. This means the table's accuracy depends
-  entirely on the human review step actually happening before status flips to
-  `done` — flip the status the same sitting you finish reviewing, not "later," or
-  agents will trust a status that no longer matches the file's real content. The
-  "Read" column is copied directly from the Prerequisites column already worked
-  out in document-list.md, not re-derived — if document-list.md and this table ever
-  disagree on a prerequisite, document-list.md is the source data and this table
-  has a transcription error.
+  MAINTENANCE NOTE: The "Read" column is copied directly from the Prerequisites
+  column in document-list.md, not re-derived. If document-list.md and this table
+  ever disagree on a prerequisite, document-list.md is the source data and this
+  table has a transcription error. Agents never edit this table.
 -->
 
-| Task type | Read (in order) | Status |
-|---|---|---|
-| Write/modify the workflow engine (step types, transitions, timers) | B4 → D3 → H1 | B4: missing · D3: missing · H1: missing |
-| Write/modify any DB migration or schema file | C1 → C5 | C1: missing · C5: missing |
-| Write a tRPC procedure or router | E1 → I1 → I2 | E1: missing · I1: missing · I2: missing |
-| Write a REST/public endpoint | E2 → B2 → I1 | E2: missing · B2: missing · I1: missing |
-| Write/modify a Zod schema in `/packages/shared` | E3 → C1 | E3: missing · C1: missing |
-| Write a frontend route/page in `/apps/web` | F1 → I2 → E1 | F1: missing · I2: missing · E1: missing |
-| Write a Zustand store | F2 → F1 → E3 | F2: missing · F1: missing · E3: missing |
-| Write a TanStack Query hook / cache key | F3 → E1 | F3: missing · E1: missing |
-| Build a component in `/packages/ui` or `/apps/web` | F4 → F1 | F4: missing · F1: missing |
-| Implement the workflow definitions for Resolution/Ordinance/Appropriation Ordinance | H1 → B4 → D3 | H1: missing · B4: missing · D3: missing |
-| Implement a new document type or its JSONB metadata | H2 → B4 → H3 | H2: missing · B4: missing · H3: missing |
-| Implement or modify numbering-series logic | H3 → §4.1, §5.1–5.2 of consolidated ref directly | H3: missing |
-| Implement an ABAC policy or permission check | I1 → I2 → B5 | I1: missing · I2: missing · B5: missing |
-| Implement RLS policies | C3 → C1 → I1 | C3: missing · C1: missing · I1: missing |
-| Implement audit logging for a new event type | B3 → I3 → ADR-B2-2 | B3: missing · I3: missing · ADR-B2-2: done |
-| Implement a notification | H4 → B3 → I2 | H4: missing · B3: missing · I2: missing |
-| Write/modify Docker/Compose/CI config | L1 → L2 → L3 | L1: missing · L2: missing · L3: missing |
-| Write a backup/DR procedure | L4 → C1 → D5 | L4: missing · C1: missing · D5: missing |
-| Write any unit/integration test | K1 → (whichever row above matches the code under test) | K1: missing |
-| Write a workflow-engine test specifically | K2 → B4 → D3 → H1 | K2: missing · B4: missing · D3: missing · H1: missing |
-| Write a Playwright E2E test | K3 → F1 → H1 | K3: missing · F1: missing · H1: missing |
-| Write or amend an ADR | J5 → the relevant document above for the decision's domain | J5: missing |
-| Generate or update the Master Phased Task List (A1) | **All `done` documents in this table**, plus the consolidated reference in full | — |
+| Task type | Read (in order) |
+|---|---|
+| Write/modify the workflow engine (step types, transitions, timers) | B4 → D3 → H1 |
+| Write/modify any DB migration or schema file | C1 → C5 |
+| Write a tRPC procedure or router | E1 → I1 → I2 |
+| Write a REST/public endpoint | E2 → B2 → I1 |
+| Write/modify a Zod schema in `/packages/shared` | E3 → C1 |
+| Write a frontend route/page in `/apps/web` | F1 → I2 → E1 |
+| Write a Zustand store | F2 → F1 → E3 |
+| Write a TanStack Query hook / cache key | F3 → E1 |
+| Build a component in `/packages/ui` or `/apps/web` | F4 → F1 |
+| Implement the workflow definitions for Resolution/Ordinance/Appropriation Ordinance | H1 → B4 → D3 |
+| Implement a new document type or its JSONB metadata | H2 → B4 → H3 |
+| Implement or modify numbering-series logic | H3 → §4.1, §5.1–5.2 of consolidated ref directly |
+| Implement an ABAC policy or permission check | I1 → I2 → B5 |
+| Implement RLS policies | C3 → C1 → I1 |
+| Implement audit logging for a new event type | B3 → I3 → ADR-B2-2 |
+| Implement a notification | H4 → B3 → I2 |
+| Write/modify Docker/Compose/CI config | L1 → L2 → L3 |
+| Write a backup/DR procedure | L4 → C1 → D5 |
+| Write any unit/integration test | K1 → (whichever row above matches the code under test) |
+| Write a workflow-engine test specifically | K2 → B4 → D3 → H1 |
+| Write a Playwright E2E test | K3 → F1 → H1 |
+| Write or amend an ADR | J5 → the relevant document above for the decision's domain |
+| Generate or update the Master Phased Task List (A1) | All documents in this table, plus the consolidated reference in full |
 
 If your task spans two rows (e.g., "implement the Citizen Complaint tRPC router and
 its frontend form"), read the union of both rows' documents, not just one.
@@ -163,51 +149,54 @@ the rules differ for agents and humans:
 - Every entry an agent adds is `status: proposed`. Only a human moves an entry to
   `confirmed` or `superseded`. Treat a `proposed` entry as informative but not yet
   trustworthy — read it, but don't build on it as settled the way you would a
-  `confirmed` entry or a `done` document.
+  `confirmed` entry.
 - Before starting work covered by a row in Section 2, also search the log for
   `confirmed` entries tagged with the same document ID(s) or the module you're
   about to touch. A `confirmed` entry can change how you approach a task even
-  though it isn't itself one of the documents listed in your task's `Read` column.
+  though it isn't itself one of the documents listed in your task's Read column.
 - Full format, entry numbering, and the human review rules are documented in the
   log file's own header — read that before writing your first entry there, the
-  same way you'd read a document's ToC before requesting a range.
+  same way you'd read a document's ToC before requesting a line range.
 
 ---
 
 ## Section 5: Reading documents efficiently
 
-Several documents in this corpus are long. Two rules to keep context usage down:
+Several documents in this corpus are long. Three rules to keep context usage down:
 
-1. **Check for a table of contents or heads first.** If a document has a ToC
-   section, read that before requesting the full file, then request only the line
-   range(s) you need via the view tool's range parameter.
-2. **The consolidated reference is the exception.** For `B4` (Workflow Engine
-   Specification) specifically, read the consolidated reference's Parts 4.1–4.3,
-   4.10, 4.17, 7.2, 8, and 11.3 in full rather than excerpting further — the
-   workflow logic is interdependent enough across those parts that partial reads
-   have produced incorrect specs before. For every other task row in Section 2,
-   excerpting is fine.
+1. **Check for a table of contents first.** Every document in this corpus has a ToC
+   inserted after its title/status header. Read the ToC before requesting the full
+   file, then request only the line range(s) you need via the view tool's range
+   parameter.
+2. **The consolidated reference is the exception.** For tasks touching the workflow
+   engine (B4), read the consolidated reference's Parts 4.1–4.3, 4.10, 4.17, 7.2,
+   8, and 11.3 in full rather than excerpting — the workflow logic is
+   interdependent enough across those parts that partial reads produce incorrect
+   specs. For every other task row in Section 2, excerpting from the ToC range is
+   fine.
 3. **Never read a `.bak` file** unless explicitly asked to diff against it. These
-   are superseded versions kept for history, not current source. Files currently in
-   this state: `b2-module-boundary-and-internal-api-contracts.md.bak`,
+   are superseded versions kept for history only. Files in this state:
+   `b2-module-boundary-and-internal-api-contracts.md.bak`,
    `b3-internal-domain-event-catalog.md.bak`,
    `b5-authentication-and-authorization-architecture.md.bak`,
-   `d3-state-machine-diagrams.md.bak`, `h1-workflow-definitions-structured-data.md.bak`,
-   `l2-docker-compose-specification.md.bak`, `i1-abac-policy-specification.md.bak`.
-   If a `.bak` file's content is needed, the live (non-`.bak`) file should already
-   have absorbed it — if it hasn't, that's a documentation bug, flag it rather than
-   reading the `.bak` as a substitute.
+   `d3-state-machine-diagrams.md.bak`,
+   `h1-workflow-definitions-structured-data.md.bak`,
+   `l2-docker-compose-specification.md.bak`,
+   `i1-abac-policy-specification.md.bak`.
+   If a `.bak` file's content is needed, the live file should already have absorbed
+   it — if it hasn't, that's a documentation bug; flag it rather than reading the
+   `.bak` as a substitute.
 
 ---
 
 ## Section 6: What this file is not
 
-This file does not contain document content, only routing. If you find yourself
-about to paste a chunk of architecture decisions into this file "for convenience,"
-don't — it will drift from the source document and become a second, contradicting
-copy of the truth. Update the source document; update only the Status column here.
+This file contains routing only — no document content, no architecture decisions.
+If you find yourself about to paste a chunk of architecture decisions into this file
+"for convenience," don't — it will drift from the source document and become a
+second, contradicting copy of the truth. Update the source document instead.
 
-This file is also not where discoveries from A1 execution go — that's
-`docs/pre-development/N-development-findings-log.md` (Section 4.5). If a task
-teaches you something the next agent should know, the log gets the entry, not a
+Discoveries from A1 execution go in
+`docs/pre-development/N-development-findings-log.md` (Section 4.5), not here. If a
+task teaches you something the next agent should know, the log gets the entry, not a
 new bullet point bolted onto a section here.
