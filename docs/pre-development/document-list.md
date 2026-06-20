@@ -1,3 +1,26 @@
+
+## Table of Contents
+
+- [L24–L78] Prerequisite Table — Dependency matrix mapping each planned document (A1 to L4) to its direct prerequisite documents.
+- [L79–L94] Generation Waves — Parallelizable document creation phases grouped into seven sequential execution waves based on dependency requirements.
+- [L95–L109] Critical Path — Diagram and explanation of the longest dependency sequence (B4 to A1) highlighting E1 as the primary bottleneck.
+- [L110–L121] Group A — Project Planning — Summaries of project planning documents A1 (Master Phased Task List) and A2 (Risk Register) detailing checklists and risk categories.
+- [L122–L145] Group B — Architecture Documents — Core architecture documents (B1–B5) defining C4 models, module boundaries, event schemas, workflow engine logic, and auth rules.
+- [L146–L169] Group C — Database — Database design documents (C1–C5) specifying schema DDL, Mermaid ERDs, RLS policies, indexing strategy, and migration conventions.
+- [L170–L197] Group D — UML and Diagrams — Visual blueprints (D1–D6) detailing actor use cases, sequence flows, state machines, class diagrams, deployment setups, and data flows.
+- [L198–L213] Group E — API Design — API interface specifications (E1–E3) detailing tRPC routers, OpenAPI REST endpoints, and shared Zod validation schemas.
+- [L214–L241] Group F — Frontend Architecture — Frontend specifications (F1–F6) covering routing maps, Zustand stores, query keys, component trees, package setups, and WCAG accessibility.
+- [L242–L249] Group G — End-to-End Type Safety — Single document mapping type propagation from Drizzle ORM through tRPC and Fastify down to React client components.
+- [L250–L271] Group H — Domain Configuration Documents — Configuration specs (H1–H4) outlining workflow seed data, document metadata schemas, numbering formats, and multilingual notification templates.
+- [L272–L287] Group I — Security and Authorization — Security documents (I1–I3) specifying ABAC policy attributes, role-permission matrix cells, threat models, and audit hash-chaining.
+- [L288–L315] Group J — Software Design Patterns and Standards — Development standards (J1–J6) defining design patterns, error normalization, style guides, module templates, ADRs, and component migrations.
+- [L316–L331] Group K — Testing — Testing strategies (K1–K3) defining coverage priorities, workflow state machine tests, and critical Playwright E2E user journeys.
+- [L332–L351] Group L — Infrastructure and DevOps — Operations documents (L1–L4) detailing environment variables, Docker/Compose setups, Turborepo CI/CD pipelines, and backup recovery runbooks.
+- [L352–L367] Group M — Stack Context Update — Addendum to tech-stack.md tracking OCR choices, Cloudflare R2/MinIO migration, and audit log hash-chaining cryptographic tools.
+- [L368–L381] What Can Only Be Determined During Development — Inventory of development-time issues and runtime edge cases that cannot be pre-decided in planning documentation.
+
+---
+
 ## Prerequisite Table
 
 | ID  | Document                                       | Prerequisites from this list |     |
