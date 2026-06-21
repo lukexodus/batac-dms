@@ -2,32 +2,31 @@
 
 **Document:** H1 **Platform:** Batac City LGU Platform **Status:** BLOCKING — These seed records must be reviewed and confirmed before the `workflow` module migration is written. No step, transition rule, or termination outcome defined here may be omitted from the first seed file. **Last Updated:** June 2026 **Audience:** Backend development team **Source Documents:** `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2, developer decisions incorporated); `b4-workflow-engine-specification.md` (B4); `d3-state-machine-diagrams.md` (D3)
 
-
 ## Table of Contents
 
-- [L36–L57] About This Document — Scope of Phase 1 legislative workflow seed data definitions, out-of-scope engine features, and conventions on inferences.
-- [L58–L86] 1. Source Document Cross-References — Cross-reference table mapping workflow topics to sections in consolidated reference, B4 specification, and D3 diagrams.
-- [L87–L161] 2. Conventions — Workflow configuration conventions including step naming, deterministic UUID generation, outcome codes, and D3/B4 enum reconciliation.
-- [L162–L333] 3. TypeScript Type Definitions — TypeScript interfaces defining the structured schema for workflow steps, configs, transition rules, and seed definitions.
-- [L334–L367] 4. Shared Role Key Constants — Constant mappings of organizational roles to dynamic assignee resolution strings used across the workflow definitions.
-- [L368–L1385] 5. SP Resolution — Workflow Definition — Process rules, step and transition tables, flow diagram, and TypeScript seed constant for the SP Resolution workflow.
-  - [L370–L379] 5.1 Process Notes — Legislative process rules for resolutions, including readings, amendments, series numbering, and Mayor/Panlalawigan review timelines.
-  - [L380–L412] 5.2 Steps — Summary table of the 28 SP Resolution steps including keys, types, mandating flags, assignees, and config notes.
-  - [L413–L456] 5.3 Transition Rules — Summary table of the 39 transition rules detailing from/to steps, exit outcomes, priority levels, and labels.
-  - [L457–L528] 5.4 Step Flow Diagram — Mermaid flowchart visualizing the SP Resolution step transitions, legally mandated steps, and timer triggers.
-  - [L529–L1385] 5.5 TypeScript Constant — Complete TypeScript constant `SP_RESOLUTION_WORKFLOW` defining all step configurations, transition rules, and metadata.
-- [L1386–L2098] 6. SP Ordinance — Workflow Definition — Process changes, steps delta, flow diagram, and TypeScript seed constant for the SP Ordinance workflow.
-  - [L1388–L1397] 6.1 Process Notes — Differences from Resolution including three readings, newspaper publication for penalty clauses, and the requires_publication key gap.
-  - [L1398–L1424] 6.2 Steps (delta from SP Resolution) — Table of step modifications and additions (third_reading_vote, publication_check, newspaper_publication) for the SP Ordinance.
-  - [L1425–L2031] 6.3 TypeScript Constant — Complete TypeScript constant `SP_ORDINANCE_WORKFLOW` implementing the three-reading flow and conditional newspaper publication step.
-  - [L2032–L2098] 6.4 Step Flow Diagram — Mermaid flowchart visualizing the SP Ordinance workflow, including Third Reading and conditional newspaper publication paths.
-- [L2099–L2462] 7. Appropriation Ordinance — Workflow Definition — Process rules, flow differences, and TypeScript seed constant for the Appropriation Ordinance workflow.
-  - [L2101–L2110] 7.1 Process Notes — Differences from SP Ordinance, specifically omitting newspaper publication and adding the Panlalawigan OPERATIVE_IN_ITS_ENTIRETY review outcome.
-  - [L2111–L2462] 7.2 TypeScript Constant — Complete TypeScript constant `APPROPRIATION_ORDINANCE_WORKFLOW` implementing the three-reading flow without newspaper publication.
-- [L2463–L2478] 8. Minimum Step Guard Contract — Tables defining legally mandated steps per workflow type and their RA 7160 legal basis for editor validation.
-- [L2479–L2511] 9. Context Keys Written by These Definitions — Table mapping database context keys to their types, setting components, and triggering workflow steps.
-- [L2512–L2551] 10. Seed Script Notes — Database seeding details including file location, step insertion sequence, deterministic UUID resolution, and timer config logic.
-- [L2552–L2571] 11. Open Items Affecting These Definitions — Table detailing resolved D3/H1 open items, including document status mappings, repass behavior, and timer triggers.
+- [L35–L56] About This Document — Scope of Phase 1 legislative workflow seed data definitions, out-of-scope engine features, and conventions on inferences.
+- [L57–L85] 1. Source Document Cross-References — Cross-reference table mapping workflow topics to sections in consolidated reference, B4 specification, and D3 diagrams.
+- [L86–L160] 2. Conventions — Workflow configuration conventions including step naming, deterministic UUID generation, outcome codes, and D3/B4 enum reconciliation.
+- [L161–L332] 3. TypeScript Type Definitions — TypeScript interfaces defining the structured schema for workflow steps, configs, transition rules, and seed definitions.
+- [L333–L366] 4. Shared Role Key Constants — Constant mappings of organizational roles to dynamic assignee resolution strings used across the workflow definitions.
+- [L367–L1384] 5. SP Resolution — Workflow Definition — Process rules, step and transition tables, flow diagram, and TypeScript seed constant for the SP Resolution workflow.
+  - [L369–L378] 5.1 Process Notes — Legislative process rules for resolutions, including readings, amendments, series numbering, and Mayor/Panlalawigan review timelines.
+  - [L379–L411] 5.2 Steps — Summary table of the 28 SP Resolution steps including keys, types, mandating flags, assignees, and config notes.
+  - [L412–L455] 5.3 Transition Rules — Summary table of the 39 transition rules detailing from/to steps, exit outcomes, priority levels, and labels.
+  - [L456–L527] 5.4 Step Flow Diagram — Mermaid flowchart visualizing the SP Resolution step transitions, legally mandated steps, and timer triggers.
+  - [L528–L1384] 5.5 TypeScript Constant — Complete TypeScript constant `SP_RESOLUTION_WORKFLOW` defining all step configurations, transition rules, and metadata.
+- [L1385–L2097] 6. SP Ordinance — Workflow Definition — Process changes, steps delta, flow diagram, and TypeScript seed constant for the SP Ordinance workflow.
+  - [L1387–L1396] 6.1 Process Notes — Differences from Resolution including three readings, newspaper publication for penalty clauses, and the requires_publication key gap.
+  - [L1397–L1423] 6.2 Steps (delta from SP Resolution) — Table of step modifications and additions (third_reading_vote, publication_check, newspaper_publication) for the SP Ordinance.
+  - [L1424–L2030] 6.3 TypeScript Constant — Complete TypeScript constant `SP_ORDINANCE_WORKFLOW` implementing the three-reading flow and conditional newspaper publication step.
+  - [L2031–L2097] 6.4 Step Flow Diagram — Mermaid flowchart visualizing the SP Ordinance workflow, including Third Reading and conditional newspaper publication paths.
+- [L2098–L2461] 7. Appropriation Ordinance — Workflow Definition — Process rules, flow differences, and TypeScript seed constant for the Appropriation Ordinance workflow.
+  - [L2100–L2109] 7.1 Process Notes — Differences from SP Ordinance, specifically omitting newspaper publication and adding the Panlalawigan OPERATIVE_IN_ITS_ENTIRETY review outcome.
+  - [L2110–L2461] 7.2 TypeScript Constant — Complete TypeScript constant `APPROPRIATION_ORDINANCE_WORKFLOW` implementing the three-reading flow without newspaper publication.
+- [L2462–L2477] 8. Minimum Step Guard Contract — Tables defining legally mandated steps per workflow type and their RA 7160 legal basis for editor validation.
+- [L2478–L2510] 9. Context Keys Written by These Definitions — Table mapping database context keys to their types, setting components, and triggering workflow steps.
+- [L2511–L2550] 10. Seed Script Notes — Database seeding details including file location, step insertion sequence, deterministic UUID resolution, and timer config logic.
+- [L2551–L2570] 11. Open Items Affecting These Definitions — Table detailing resolved D3/H1 open items, including document status mappings, repass behavior, and timer triggers.
 
 ---
 
@@ -147,9 +146,9 @@ Both the standard path and the Certified Urgent path are handled within a single
 |`Paused` (instance status)|`suspended`|Rename B4 → `Paused`|
 |`final_document_status: 'ARCHIVED'`|`ARCHIVED`|Confirmed in B4 Section 4.6|
 |`final_document_status: 'CANCELLED'`|`CANCELLED`|Confirmed in B4 Section 4.6|
-|`Stuck` (instance status)|not defined|[RESOLVED D3-O-4, ADR-016] Add to B4. Retained as a visible error state — an invisible one would let broken instances masquerade as healthy in SLA/ARTA reporting.|
-|`Failed` (step status)|not defined|[RESOLVED D3-O-5, ADR-016] Add to B4. Decided jointly with `Stuck` as a coupled error-state pair; same rationale.|
-|`Running` (instance status, at creation)|`Created` exists as a separate B4 value|[RESOLVED D3-O-6, ADR-016] `Created` collapsed into `Running`. B4's actual same-transaction implementation makes `Created` unobservable in practice — no reachable database row ever has that status — so the unreachable state was removed rather than retained alongside `Running`.|
+|`Stuck` (instance status)|not defined|[RESOLVED D3-O-4, [ADR-016](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-004-workflow-engine-error-states.md)] Add to B4. Retained as a visible error state — an invisible one would let broken instances masquerade as healthy in SLA/ARTA reporting.|
+|`Failed` (step status)|not defined|[RESOLVED D3-O-5, [ADR-016](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-004-workflow-engine-error-states.md)] Add to B4. Decided jointly with `Stuck` as a coupled error-state pair; same rationale.|
+|`Running` (instance status, at creation)|`Created` exists as a separate B4 value|[RESOLVED D3-O-6, [ADR-016](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-004-workflow-engine-error-states.md)] `Created` collapsed into `Running`. B4's actual same-transaction implementation makes `Created` unobservable in practice — no reachable database row ever has that status — so the unreachable state was removed rather than retained alongside `Running`.|
 
 **Decision provenance note:** the `Stuck`/`Failed`/`Created` rows above were decided by Claude under explicit stakeholder delegation in a separate conversation (the same delegation pattern as this one: "for the items that you can decide what is the best according to your discretion, do them"), with reasoning presented back to the stakeholder and explicit confirmation obtained before being finalized. They are propagated into H1 here, not freshly decided in this conversation.
 
@@ -252,7 +251,7 @@ interface NotificationStepConfig {
 // Valid final_document_status values: RELEASED, ARCHIVED, CANCELLED
 //
 // REPASSED special case (B4 Section 4.6; lifecycle modeling RESOLVED —
-// D3-O-2/O-7, ADR-014/015, propagated into H1 in this conversation):
+// D3-O-2/O-7, [ADR-014](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-002-panlalawigan-returned-repass.md)/[ADR-015](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-001-no-distinct-repassed-status.md), propagated into H1 in this conversation):
 //   The instance is NOT set to status=Completed. It remains Running
 //   indefinitely (O-7) — no distinct Repassed instance status exists.
 //   The engine emits workflow.instance.repassed.
@@ -408,7 +407,7 @@ const ROLE = {
 |25|`end_valid_in_part_resolved`|termination|||—|VALID_IN_PART_RESOLVED; ARCHIVED|
 |26|`end_rejected_at_vote`|termination|||—|REJECTED_AT_VOTE; CANCELLED|
 |27|`end_vetoed_override_failed`|termination|||—|VETOED_OVERRIDE_FAILED; CANCELLED|
-|28|`end_repassed`|termination|||—|REPASSED; `final_document_status: null` (resolved — see D3-O-2/O-7, ADR-014/015: status tracked via `documents.superseded_by`, not this field)|
+|28|`end_repassed`|termination|||—|REPASSED; `final_document_status: null` (resolved — see D3-O-2/O-7, [ADR-014](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-002-panlalawigan-returned-repass.md)/[ADR-015](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-001-no-distinct-repassed-status.md): status tracked via `documents.superseded_by`, not this field)|
 
 ### 5.3 Transition Rules
 
@@ -1166,10 +1165,10 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
 
       // T5. Panlalawigan RETURNED; Secretariat decided to repass.
       // [RESOLVED D3-O-2, D3-O-7 — already decided in the D3 resolution
-      // record (ADR-014, ADR-015), propagated into H1 in this conversation.
+      // record ([ADR-014](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-002-panlalawigan-returned-repass.md), [ADR-015](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-001-no-distinct-repassed-status.md)), propagated into H1 in this conversation.
       // Not a new decision made here.]
       //
-      // O-2 (ADR-014): Option C adopted. The original document is superseded
+      // O-2 ([ADR-014](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-002-panlalawigan-returned-repass.md)): Option C adopted. The original document is superseded
       // (documents.superseded_by + closure_reason set on the original); a new
       // document is created that inherits the original's content. The new
       // document reuses the original's final series number upon its own
@@ -1177,7 +1176,7 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
       // the "final numbers never reused" invariant (consolidated ref Parts
       // 5.2, 11.5, 12), and applies only to this repass case, not generally.
       //
-      // O-7 (ADR-015): No distinct Repassed instance status was added. This
+      // O-7 ([ADR-015](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-001-no-distinct-repassed-status.md)): No distinct Repassed instance status was added. This
       // instance remains Running indefinitely; documents.superseded_by (from
       // O-2) is the sole source of truth for "this instance's document is
       // dead." Accepted tradeoff, not fully eliminated: a Running instance
@@ -2556,11 +2555,11 @@ The following items from B4 and D3 directly affect the definitions above. **Stat
 |#|Item|Affects|Resolution Needed Before|Status|
 |---|---|---|---|---|
 |D3-O-1|Exact mapping of `Pending Approval` document lifecycle state to specific workflow steps|Dashboard document status display|Dashboard implementation|**[Inference, this conversation]** Resolved by inference from H1's own data, not a sourced team decision. H1 only states two lifecycle touchpoints directly: `Released` at `portal_publication` and `Archived` at `archive` (§5.5 comments). Reasoning from those two anchors and the consolidated reference's lifecycle sequence (`Draft → Submitted → In-Workflow → Pending Approval → Completed → Released → Archived → Disposed`, Part 11.4): `Pending Approval` plausibly spans from `vp_certification` (the document is signed/awaiting external action, no longer merely "in workflow" among internal SP steps) through `panlalawigan_review` inclusive (the last step before terminal resolution and publication). This is a single inference chain with one judgment call (where "in-workflow" ends and "pending approval" begins) — labeled as such rather than presented as confirmed. [Unverified] whether this matches what a dashboard implementer or the SP Secretary would actually expect to see. Needs confirmation at dashboard implementation time, per the original "Resolution Needed Before" column — this inference does not substitute for that confirmation, it only gives the dashboard team a documented starting hypothesis instead of an unexamined gap.|
-|D3-O-2|How is a Panlalawigan RETURNED → repass case modeled in the document lifecycle? `final_document_status: null` on `end_repassed` is a placeholder.|`end_repassed` termination config; documents module behavior|Panlalawigan integration sprint|**[RESOLVED — ADR-014]** Propagated from the D3 resolution record, this conversation. Option C: original document superseded via `documents.superseded_by` + `closure_reason`; new document created, inherits content, reuses original's final number on its own eventual approval (scoped exception to the numbering-reuse invariant). See §5.5 step 28 comment for full text.|
-|D3-O-4|Team decision: add `Stuck` instance state to D3, or remove from B4?|`workflow_instance_status` migration|Before first workflow module migration|**[RESOLVED — ADR-016]** Propagated from the D3 resolution record, this conversation. Retained — added to D3, kept in B4 (casing rename only). See §2.5.|
-|D3-O-5|Team decision: add `Failed` step state to D3, or remove from B4?|`workflow_step_status` migration|Before first workflow module migration|**[RESOLVED — ADR-016]** Propagated from the D3 resolution record, this conversation. Retained — same coupled decision as D3-O-4. See §2.5.|
-|D3-O-6|Team decision: is `Created` a discrete instance state, or is the instance `Running` from commit?|`engine.createInstance` implementation|Before first workflow module migration|**[RESOLVED — ADR-016]** Propagated from the D3 resolution record, this conversation. Collapsed into `Running` — `Created` was unobservable in B4's actual same-transaction implementation. See §2.5.|
-|D3-O-7|What is the instance status after `REPASSED` termination?|`end_repassed` behavior; `workflow_instance_status` migration|Before Panlalawigan integration|**[RESOLVED — ADR-015]** Propagated from the D3 resolution record, this conversation. No distinct `Repassed` status added; instance remains `Running` indefinitely; `documents.superseded_by` is the sole source of truth. Accepted tradeoff, not eliminated — see §5.5 step 28 comment.|
+|D3-O-2|How is a Panlalawigan RETURNED → repass case modeled in the document lifecycle? `final_document_status: null` on `end_repassed` is a placeholder.|`end_repassed` termination config; documents module behavior|Panlalawigan integration sprint|**[RESOLVED — [ADR-014](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-002-panlalawigan-returned-repass.md)]** Propagated from the D3 resolution record, this conversation. Option C: original document superseded via `documents.superseded_by` + `closure_reason`; new document created, inherits content, reuses original's final number on its own eventual approval (scoped exception to the numbering-reuse invariant). See §5.5 step 28 comment for full text.|
+|D3-O-4|Team decision: add `Stuck` instance state to D3, or remove from B4?|`workflow_instance_status` migration|Before first workflow module migration|**[RESOLVED — [ADR-016](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-004-workflow-engine-error-states.md)]** Propagated from the D3 resolution record, this conversation. Retained — added to D3, kept in B4 (casing rename only). See §2.5.|
+|D3-O-5|Team decision: add `Failed` step state to D3, or remove from B4?|`workflow_step_status` migration|Before first workflow module migration|**[RESOLVED — [ADR-016](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-004-workflow-engine-error-states.md)]** Propagated from the D3 resolution record, this conversation. Retained — same coupled decision as D3-O-4. See §2.5.|
+|D3-O-6|Team decision: is `Created` a discrete instance state, or is the instance `Running` from commit?|`engine.createInstance` implementation|Before first workflow module migration|**[RESOLVED — [ADR-016](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-004-workflow-engine-error-states.md)]** Propagated from the D3 resolution record, this conversation. Collapsed into `Running` — `Created` was unobservable in B4's actual same-transaction implementation. See §2.5.|
+|D3-O-7|What is the instance status after `REPASSED` termination?|`end_repassed` behavior; `workflow_instance_status` migration|Before Panlalawigan integration|**[RESOLVED — [ADR-015](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-001-no-distinct-repassed-status.md)]** Propagated from the D3 resolution record, this conversation. No distinct `Repassed` status added; instance remains `Running` indefinitely; `documents.superseded_by` is the sole source of truth. Accepted tradeoff, not eliminated — see §5.5 step 28 comment.|
 |H1-X-1|`triggers_mayor_lapse_timer` and `triggers_panlalawigan_timer` are [Extension] fields not in B4 §4.1. The engine mechanism for writing timer context keys on action step completion must be confirmed.|`transmittal_letter_to_mayor` and `panlalawigan_transmission_logging` step configs|Before workflow module implementation|**[RESOLVED — this conversation, decided by Claude under explicit stakeholder delegation]** Option (a) selected: the config flag itself is the mechanism — the engine recognizes `triggers_mayor_lapse_timer` / `triggers_panlalawigan_timer` as config fields and executes the context-update on step completion. Rejected (b) because H1 §2.1 explicitly permits renaming a step key when its semantic meaning changes substantially; pattern-matching on `step_key` would silently stop triggering the timer after a permitted rename, with no error and no migration prompt — a silent-failure mode worth avoiding. Rejected (c) because, while it also survives a rename, it splits timer-triggering logic into the documents module away from the step definition that documents it, which costs more for a four-person team reading one file than the module-boundary purity buys. This is a judgment call under delegation, not a sourced B4 confirmation — [Unverified] against B4 itself, which this document does not have access to. If B4 turns out to already specify a different mechanism, this decision should yield to that source.|
 |H1-X-2|`requires_publication` context key: confirm that the engine writes this from document metadata at instance creation (B4 Appendix B lists it as a context key but does not specify when/how it is set for the `publication_check` decision step).|`publication_check` decision step in SP Ordinance|Before SP Ordinance workflow implementation|**[RESOLVED as a confirmed gap — stakeholder confirmed in this conversation]** Not yet built. Blocking dependency before SP Ordinance can ship. See §6.1, §9, and the `publication_check` step comment in §6.3.|
 |H1-X-3|VALID_IN_PART Phase 1 simplified Legal and Committee paths: `legal_office_review` and `committee_revisions_review` are single action steps. Confirm this is acceptable for Phase 1 before implementation; Phase 1B will replace with routed sub-workflows.|Phase 1B planning|Before Phase 1 sign-off|**[RESOLVED — stakeholder decision, this conversation]** Converted to routed approval steps in Phase 1 (not deferred to Phase 1B): Legal Officer and Committee Chair each log their own `RESOLVED_IN_PLACE` decision; `REVISED_DIRECTLY` kept as a 4th button on `valid_in_part_decision`; no SLA timer in Phase 1 (no confirmed City Legal Office response-time data — [Unverified] whether such an SLA exists at all). New `ROLE.COMMITTEE_CHAIR` role key introduced, itself flagged `[Extension]`/`[Unverified]` pending engine-side confirmation of its resolution mechanism. See §2.6, §4, and step 18/19 in §5.5, §6.3, §7.2.|

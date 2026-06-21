@@ -673,7 +673,7 @@ classDiagram
 |---|---|
 |`RecordType`|`LEGISLATIVE_PERMANENT` · `FINANCIAL` · `PERSONNEL` · `CORRESPONDENCE` · `INTERNAL_MEMO` · `DRAFT`|
 
-Defined in ADR-WFL-005, ratifying the six categories from the Consolidated Architecture & Requirements Reference, Part 11.7. Retention periods behind each category remain unverified pending NAP/COA/DILG confirmation — this enum fixes category names and the `document_type` → `RecordType` mapping only.
+Defined in [ADR-WFL-005](d4-domain-class-diagram-adrs/ADR-WFL-005-recordtype-enum.md), ratifying the six categories from the Consolidated Architecture & Requirements Reference, Part 11.7. Retention periods behind each category remain unverified pending NAP/COA/DILG confirmation — this enum fixes category names and the `document_type` → `RecordType` mapping only.
 
 ---
 
@@ -709,5 +709,5 @@ Defined in ADR-WFL-005, ratifying the six categories from the Consolidated Archi
 
 **15 — DocumentSponsorship.** Tracks all co-authors and introducers of a legislative measure, including their order of priority. Sponsorship is distinct from the drafter (`Document.draftedBy`); a document drafted by Secretariat staff may have multiple councilor sponsors. Required for the Index of Ordinances tracked fields. Ref: Part 4.1, Part 5.3.
 
-**16 — RecordType mapping.** `Record.recordType` values map from `document_type` as follows: SP_RESOLUTION, SP_ORDINANCE, SP_APPROPRIATION_ORDINANCE → LEGISLATIVE_PERMANENT; MEMO_OUTGOING, MEMO_INCOMING → INTERNAL_MEMO; LETTER_RECEIVED, LETTER_SENT → CORRESPONDENCE; NOTICE_COMMITTEE_HEARING, NOTICE_SPECIAL_SESSION, DESIGNATION → LEGISLATIVE_PERMANENT [Inference — proposed, not directly stated in source]. PANLALAWIGAN_REVIEW_LOG has no RecordType mapping — per ADR-DB-001, it is not modeled as a document_types row at all. See ADR-WFL-005 (`d4-domain-class-diagram-adrs/ADR-WFL-005-recordtype-enum-value-list`) for full rationale and the retention-period caveat.
+**16 — RecordType mapping.** `Record.recordType` values map from `document_type` as follows: SP_RESOLUTION, SP_ORDINANCE, SP_APPROPRIATION_ORDINANCE → LEGISLATIVE_PERMANENT; MEMO_OUTGOING, MEMO_INCOMING → INTERNAL_MEMO; LETTER_RECEIVED, LETTER_SENT → CORRESPONDENCE; NOTICE_COMMITTEE_HEARING, NOTICE_SPECIAL_SESSION, DESIGNATION → LEGISLATIVE_PERMANENT [Inference — proposed, not directly stated in source]. PANLALAWIGAN_REVIEW_LOG has no RecordType mapping — per [ADR-DB-001](../C-database/c1-full-database-schema-ddl-adrs/ADR-DB-001-panlalawigan-review-log-entity-classification.md), it is not modeled as a document_types row at all. See ADR-WFL-005 (`d4-domain-class-diagram-adrs/ADR-WFL-005-recordtype-enum-value-list`) for full rationale and the retention-period caveat.
 

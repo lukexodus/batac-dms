@@ -1723,7 +1723,7 @@ This matrix defines which actions are valid for a document in a given `lifecycle
 |D-ABAC-05|Definition of "final approval step" in workflow definition|**Resolved:** `is_final_approval_step BOOLEAN` declared on `workflow.steps` by the definition author, validated at publish time, rather than computed at runtime from lifecycle-state transitions.|Section 6.3; Section 15, Invariant #13|
 |D-ABAC-06|SP Member committee membership lookup at policy evaluation time|**Resolved: JWT-cached.** `subject.committee_ids` added as a new claim (`cid`), following the same token-issue-time / refresh-gated staleness model already used for `roles` and `permissions`.|Section 1; Sections 3.2, 6.6, 10.6|
 
-**Note on D-AUTH-06:** This document also referenced B5's D-AUTH-06 (`delegation_grant.scope` schema) at Section 11 as `[Unresolved]`. That reference has been corrected to reflect B5's actual resolution (`JSONB`, shape `{ roles: [], office_ids: [], actions: [] }`) — see Section 11. This was a stale cross-reference fix, not a decision made independently in this document.
+**Note on D-AUTH-06:** This document also referenced B5's [D-AUTH-06](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-006-delegation_grant.scope-field-schema.md) (`delegation_grant.scope` schema) at Section 11 as `[Unresolved]`. That reference has been corrected to reflect B5's actual resolution (`JSONB`, shape `{ roles: [], office_ids: [], actions: [] }`) — see Section 11. This was a stale cross-reference fix, not a decision made independently in this document.
 
 ---
 

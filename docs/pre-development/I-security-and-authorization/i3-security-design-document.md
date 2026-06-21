@@ -6,37 +6,36 @@
 **Last Updated:** June 2026
 **Version:** 1.0
 
-
 ## Table of Contents
 
-- [L45–L107] 1. Document Overview — Purpose, scope limits, 9 regulatory security objectives, intended audience, and architectural source references.
-- [L108–L204] 2. Security Architecture Overview — Trust zones, internal/external user routing, tRPC context, REST Swagger APIs, PostgreSQL roles, S3 uploads, and on-premise OCR.
-- [L205–L222] 3. Security Principles — Definitions and concrete system applications for 11 security principles including Least Privilege, Zero Trust, and Auditability.
-- [L223–L450] 4. Identity and Access Management (IAM) — Parent section for authentication architecture, authorization tiered models, and functional LGU user role assignments.
-  - [L225–L365] 4.1 Authentication Architecture — Short-lived JWTs, rotating refresh token families, PKCE login flow, session concurrency rules, and Phase 2 MFA hooks.
-  - [L366–L428] 4.2 Authorization Architecture — ABAC engine with RBAC entry point, three authorization tiers, delegation constraints, and office-based access boundaries.
-  - [L429–L450] 4.3 Role Categories — Security profiles and office-scopings for 13 system roles including Mayor, Councilors, Auditor, and IT Admin.
-- [L451–L590] 5. ABAC Security Model — Parent section detailing ABAC attributes (Subject, Resource, Environment), evaluation cascade, and global security gates.
-  - [L453–L470] 5.1 Subject Attributes — Data fields populated in SubjectContext for active sessions, including delegation-expanded offices and roles.
-  - [L471–L484] 5.2 Resource Attributes — Database attributes fetched at request time to evaluate document, version, workflow, delegation, and audit permissions.
-  - [L485–L492] 5.3 Environment Attributes — Request IP address, timestamp, and transaction-level PostgreSQL session variables used for RLS policies.
-  - [L493–L545] 5.4 Evaluation Cascade — Diagrammed 8-step deny-first authorization workflow checking city, IT Admin, Platform Admin, RBAC, and office states.
-  - [L546–L590] 5.5 Global Security Gates — Five non-configurable application gates enforcing tenant isolation, administrator restrictions, classification allowlists, and soft-delete locks.
-- [L591–L637] 6. Data Classification and Information Protection — Four classification levels, document metadata/content access matrix, public portal blurring, and Administrative Case controls.
-- [L638–L696] 7. Document Security Architecture — Lifecycle security locks, version history controls, two-stage numbering fraud prevention, and tracking QR code rules.
-- [L697–L769] 8. Database Security Design — PostgreSQL role separation, Row-Level Security policies, schema integrity constraints, and INSERT-only audit log protection.
-- [L770–L851] 9. Audit Logging and Non-Repudiation — Tamper-evident log architecture with SHA-256 hash chaining, HMAC signing, monthly TSA export, and chain validation.
-- [L852–L912] 10. File Storage Security — S3-compatible architecture, upload file restrictions, on-premise OCR isolation, server-proxied downloads, and backup encryption.
-- [L913–L989] 11. API Security Design — tRPC/REST context validation, shared Zod input schemas, rate limiting with progressive delay, and security headers.
-- [L990–L1052] 12. Infrastructure Security — Stateless container deployments, TLS 1.2+ requirements, secret environment variables, and RTO/RPO backup parameters.
-- [L1053–L1101] 13. Monitoring and Incident Response — Pino structured logging, Sentry PII scrubbing, intrusion detection signals, and threat-specific incident response procedures.
-- [L1102–L1154] 14. Privacy and Regulatory Compliance — Data Privacy Act constraints, ARTA SLA compliance during outages, Local Government Code mandated steps, and COA retention.
-- [L1155–L1237] 15. Threat Model — Asset catalog, threat actor definitions, attack surfaces, 18 threat scenarios with controls, and residual risk matrix.
-- [L1238–L1336] 16. Security Invariants — Sixteen non-negotiable architectural invariants enforced across application code, trigger rules, and database schema constraints.
-- [L1337–L1363] 17. Security Architecture Decisions — Confirmation status, technical rationales, and security impacts for 20 core security architecture decisions.
-- [L1364–L1402] 18. Security Decisions — Resolution Status — Resolution logs for 15 previous security decisions and follow-up paths for 4 open items.
-- [L1403–L1414] Appendix A: Regulatory Reference Summary — Cross-reference table mapping Data Privacy, ARTA, Local Government Code, and COA obligations to platform controls.
-- [L1415–L1457] Appendix B: Security Controls Quick Reference — Quick-reference matrix indexing all security controls, categories, and their specific architectural enforcement points.
+- [L44–L106] 1. Document Overview — Purpose, scope limits, 9 regulatory security objectives, intended audience, and architectural source references.
+- [L107–L203] 2. Security Architecture Overview — Trust zones, internal/external user routing, tRPC context, REST Swagger APIs, PostgreSQL roles, S3 uploads, and on-premise OCR.
+- [L204–L221] 3. Security Principles — Definitions and concrete system applications for 11 security principles including Least Privilege, Zero Trust, and Auditability.
+- [L222–L449] 4. Identity and Access Management (IAM) — Parent section for authentication architecture, authorization tiered models, and functional LGU user role assignments.
+  - [L224–L364] 4.1 Authentication Architecture — Short-lived JWTs, rotating refresh token families, PKCE login flow, session concurrency rules, and Phase 2 MFA hooks.
+  - [L365–L427] 4.2 Authorization Architecture — ABAC engine with RBAC entry point, three authorization tiers, delegation constraints, and office-based access boundaries.
+  - [L428–L449] 4.3 Role Categories — Security profiles and office-scopings for 13 system roles including Mayor, Councilors, Auditor, and IT Admin.
+- [L450–L589] 5. ABAC Security Model — Parent section detailing ABAC attributes (Subject, Resource, Environment), evaluation cascade, and global security gates.
+  - [L452–L469] 5.1 Subject Attributes — Data fields populated in SubjectContext for active sessions, including delegation-expanded offices and roles.
+  - [L470–L483] 5.2 Resource Attributes — Database attributes fetched at request time to evaluate document, version, workflow, delegation, and audit permissions.
+  - [L484–L491] 5.3 Environment Attributes — Request IP address, timestamp, and transaction-level PostgreSQL session variables used for RLS policies.
+  - [L492–L544] 5.4 Evaluation Cascade — Diagrammed 8-step deny-first authorization workflow checking city, IT Admin, Platform Admin, RBAC, and office states.
+  - [L545–L589] 5.5 Global Security Gates — Five non-configurable application gates enforcing tenant isolation, administrator restrictions, classification allowlists, and soft-delete locks.
+- [L590–L636] 6. Data Classification and Information Protection — Four classification levels, document metadata/content access matrix, public portal blurring, and Administrative Case controls.
+- [L637–L695] 7. Document Security Architecture — Lifecycle security locks, version history controls, two-stage numbering fraud prevention, and tracking QR code rules.
+- [L696–L768] 8. Database Security Design — PostgreSQL role separation, Row-Level Security policies, schema integrity constraints, and INSERT-only audit log protection.
+- [L769–L850] 9. Audit Logging and Non-Repudiation — Tamper-evident log architecture with SHA-256 hash chaining, HMAC signing, monthly TSA export, and chain validation.
+- [L851–L911] 10. File Storage Security — S3-compatible architecture, upload file restrictions, on-premise OCR isolation, server-proxied downloads, and backup encryption.
+- [L912–L988] 11. API Security Design — tRPC/REST context validation, shared Zod input schemas, rate limiting with progressive delay, and security headers.
+- [L989–L1051] 12. Infrastructure Security — Stateless container deployments, TLS 1.2+ requirements, secret environment variables, and RTO/RPO backup parameters.
+- [L1052–L1100] 13. Monitoring and Incident Response — Pino structured logging, Sentry PII scrubbing, intrusion detection signals, and threat-specific incident response procedures.
+- [L1101–L1153] 14. Privacy and Regulatory Compliance — Data Privacy Act constraints, ARTA SLA compliance during outages, Local Government Code mandated steps, and COA retention.
+- [L1154–L1236] 15. Threat Model — Asset catalog, threat actor definitions, attack surfaces, 18 threat scenarios with controls, and residual risk matrix.
+- [L1237–L1335] 16. Security Invariants — Sixteen non-negotiable architectural invariants enforced across application code, trigger rules, and database schema constraints.
+- [L1336–L1362] 17. Security Architecture Decisions — Confirmation status, technical rationales, and security impacts for 20 core security architecture decisions.
+- [L1363–L1401] 18. Security Decisions — Resolution Status — Resolution logs for 15 previous security decisions and follow-up paths for 4 open items.
+- [L1402–L1413] Appendix A: Regulatory Reference Summary — Cross-reference table mapping Data Privacy, ARTA, Local Government Code, and COA obligations to platform controls.
+- [L1414–L1456] Appendix B: Security Controls Quick Reference — Quick-reference matrix indexing all security controls, categories, and their specific architectural enforcement points.
 
 ---
 
@@ -270,7 +269,7 @@ The JWT payload carries two categories of claims. [CONFIRMED — B5 §1.1]
 Refresh tokens use a **token family** model to detect reuse attacks. [CONFIRMED — B5 §1.2]
 
 - Generated as 32 cryptographically random bytes, base64url-encoded.
-- Stored as a **SHA-256 hash with a per-token salt** in `iam.refresh_tokens`. Token entropy (32 cryptographically random bytes) makes a slow hash unnecessary; Argon2id is retained for password hashing only. [CONFIRMED — B5 ADR-AUTH-04]
+- Stored as a **SHA-256 hash with a per-token salt** in `iam.refresh_tokens`. Token entropy (32 cryptographically random bytes) makes a slow hash unnecessary; Argon2id is retained for password hashing only. [CONFIRMED — [B5 ADR-AUTH-04](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-004-refresh-token-hash-algorithm.md)]
 - One-time use — each use issues a new token and marks the current one as `used_at`.
 - All tokens in a family share a `family_id`. If a token that has already been used (`used_at IS NOT NULL`) is presented, the entire family is immediately revoked and the session is terminated. This detects stolen refresh token scenarios.
 - Revocation reasons tracked: `logout | reuse_detected | forced | family_revoked | expired`.
@@ -1369,15 +1368,15 @@ The following invariants are non-negotiable. They are protected by design and ar
 
 | # | Decision ID | Resolution | Recorded In |
 |---|---|---|---|
-| 1 | D-AUTH-01 | **RS256.** SSO confirmed as a near-term priority; public key distribution does not expose signing key. | B5 §1.1; B5 ADR-AUTH-01 |
-| 2 | D-AUTH-02 | **`m=65536 (64 MB), t=2, p=1`**, exposed via `ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM` rather than hardcoded. Adopted as OWASP's published baseline. **Hardware benchmarking against target server hardware is required before production** — not optional; see Section 18.2. | B5 ADR-AUTH-02 |
-| 3 | D-AUTH-03 | **14 days.** Reflected in Section 4.1 token table. | B5 §1.2; B5 ADR-AUTH-03 |
-| 4 | D-AUTH-04 | **SHA-256 with per-token salt** (not Argon2id). Token entropy makes a slow hash unnecessary; Argon2id retained for password hashing only. Reflected in Section 4.1.3. | B5 §1.2; B5 ADR-AUTH-04 |
+| 1 | D-AUTH-01 | **RS256.** SSO confirmed as a near-term priority; public key distribution does not expose signing key. | B5 §1.1; [B5 ADR-AUTH-01](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-001-jwt-signing-algorithm.md) |
+| 2 | D-AUTH-02 | **`m=65536 (64 MB), t=2, p=1`**, exposed via `ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM` rather than hardcoded. Adopted as OWASP's published baseline. **Hardware benchmarking against target server hardware is required before production** — not optional; see Section 18.2. | [B5 ADR-AUTH-02](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-002-argon2id-parameters.md) |
+| 3 | D-AUTH-03 | **14 days.** Reflected in Section 4.1 token table. | B5 §1.2; [B5 ADR-AUTH-03](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-003-refresh-token-lifetime.md) |
+| 4 | D-AUTH-04 | **SHA-256 with per-token salt** (not Argon2id). Token entropy makes a slow hash unnecessary; Argon2id retained for password hashing only. Reflected in Section 4.1.3. | B5 §1.2; [B5 ADR-AUTH-04](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-004-refresh-token-hash-algorithm.md) |
 | 5 | D-AUTH-05 | **Resolved for seeding:** `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain` seeded with `type_code = 'document_processor'`; `records_officer`, `auditor`, `sys_admin`, `citizen` seeded otherwise. "Acting Mayor" / "OIC (any)" accuracy flag not fully closed — see Section 18.2. | B5 §8.3; I1 §15 (Invariant #12) |
-| 6 | D-AUTH-06 | **`JSONB`** with required shape `{ roles: [], office_ids: [], actions: [] }`. | B5 §5.7; B5 ADR-AUTH-06 |
-| 7 | D-AUTH-07 | **Progressive per-account delay, no hard lockout**, alongside existing per-IP limits. Reflected in Section 11.4. Administrator alert threshold not yet set — see Section 18.2. MFA-tier escalation explicitly deferred to Phase 2. | B5 §10.4.1; B5 ADR-AUTH-07 |
-| 8 | D-AUTH-09 | **`organization.cross_office_grants` table and `has_cross_office_read_grant()` function defined.** Two limitations (non-"all" office scoping; `access_level` not yet enforced) remain implementation work, not blocking. | B5 §6.5; B5 ADR-AUTH-09; I1 §3.2 |
-| 9 | D-AUTH-10 | **Silent refresh on unlock** using the existing rotating refresh token, gated on existing validity checks only. Step-up authentication for high-risk actions and a "max session age" concept were both considered and not adopted in Phase 1. | B5 §4.6; B5 ADR-AUTH-10 |
+| 6 | D-AUTH-06 | **`JSONB`** with required shape `{ roles: [], office_ids: [], actions: [] }`. | B5 §5.7; [B5 ADR-AUTH-06](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-006-delegation_grant.scope-field-schema.md) |
+| 7 | D-AUTH-07 | **Progressive per-account delay, no hard lockout**, alongside existing per-IP limits. Reflected in Section 11.4. Administrator alert threshold not yet set — see Section 18.2. MFA-tier escalation explicitly deferred to Phase 2. | B5 §10.4.1; [B5 ADR-AUTH-07](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md) |
+| 8 | D-AUTH-09 | **`organization.cross_office_grants` table and `has_cross_office_read_grant()` function defined.** Two limitations (non-"all" office scoping; `access_level` not yet enforced) remain implementation work, not blocking. | B5 §6.5; [B5 ADR-AUTH-09](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-009-rls-policy-expression-for-cross-office-read-grants.md); I1 §3.2 |
+| 9 | D-AUTH-10 | **Silent refresh on unlock** using the existing rotating refresh token, gated on existing validity checks only. Step-up authentication for high-risk actions and a "max session age" concept were both considered and not adopted in Phase 1. | B5 §4.6; [B5 ADR-AUTH-10](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-010-session-locked_at-behavior-when-access-token-expires-while-locked.md) |
 | 10 | D-ABAC-01 | **Resolved for direct role assignment:** eight roles seeded with `type_code = 'document_processor'` per D-AUTH-05 above. Delegated Acting-Mayor/OIC scenarios not resolved — see Section 18.2. | I1 §15 (Invariant #12); I1 §19 |
 | 11 | D-ABAC-02 | **`documents.classification_allowlists` table**, one row per (`document_type_id`, `role_code`), queried via indexed `EXISTS` from Gate 4. | I1 §2 (Gate 4) |
 | 12 | D-ABAC-03 | **SQL function signature defined**, built on top of B5's `organization.cross_office_grants` table (D-AUTH-09). B5's two carried-forward limitations on the underlying table are inherited unchanged. | I1 §3.2 |

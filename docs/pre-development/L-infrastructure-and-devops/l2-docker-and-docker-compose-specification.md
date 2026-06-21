@@ -24,7 +24,7 @@
   - [L1138–L1187] Migration runner (`packages/database/scripts/migrate.ts`) — TypeScript runner applying Drizzle migrations and executing post-migrate SQL grants via the migration user role.
 - [L1188–L1207] Part 11 — Native Dependencies — Native build tool requirements, Alpine binary compatibility risks for argon2, and tesseract WASM details.
 - [L1208–L1243] Part 12 — Startup Dependency Order — Sequence graph mapping service startup check dependencies for local development and production environments.
-- [L1244–L1262] Part 13 — Decision Register — All nine L2-01–L2-09 items resolved June 2026. See companion ADR files for full rationale.
+- [L1244–L1264] Part 13 — Decision Register — All nine L2-01–L2-09 items resolved June 2026. See companion ADR files for full rationale.
 
 ---
 
@@ -53,7 +53,7 @@ In staging and production, the full stack is containerized. A single Nginx conta
 ├── .env.example                      ← committed to version control; no secrets
 ├── .env                              ← git-ignored; developer local values
 ├── nginx/
-│   ├── batac.conf.template           ← reverse proxy + static serving + SSE config (envsubst template — see ADR-L2-04)
+│   ├── batac.conf.template           ← reverse proxy + static serving + SSE config (envsubst template — see [ADR-L2-04](l2-docker-and-docker-compose-specification-adrs/ADR-INF-004-nginx-domain-name-injection.md))
 │   └── entrypoint.sh                 ← runs envsubst on batac.conf.template at container start
 ├── apps/
 │   ├── server/
@@ -640,7 +640,7 @@ RUN pnpm dlx turbo prune --scope=server --docker
 # This layer is cached separately from source so it only rebuilds when
 # package manifests change.
 # No native build tools required. @node-rs/argon2 ships prebuilt musl binaries.
-# See ADR-L2-01.
+# See [ADR-L2-01](l2-docker-and-docker-compose-specification-adrs/ADR-INF-001-argon2-package-selection.md).
 # ─────────────────────────────────────────────────────────────────────────────
 FROM node:22-alpine AS deps
 
@@ -726,7 +726,7 @@ CMD ["./entrypoint.sh"]
 
 ### OCR note
 
-> **OCR language packs — always bundled (ADR-L2-03)**
+> **OCR language packs — always bundled ([ADR-L2-03](l2-docker-and-docker-compose-specification-adrs/ADR-INF-003-ocr-language-pack-building-strategy.md))**
 >
 > `tesseract.js` is pure JavaScript/WebAssembly (`OCR_ENGINE=tesseract`, the L1 default). No system `tesseract` binary or `apk add` is required.
 >
@@ -930,9 +930,9 @@ server {
 }
 ```
 
-> **Domain injection — resolved (ADR-L2-04):** `nginx/batac.conf.template` uses `${APP_DOMAIN}` as the substitution variable. A custom entrypoint script (`nginx/entrypoint.sh`) runs `envsubst '${APP_DOMAIN}'` at container start and writes the resolved config to `/etc/nginx/conf.d/batac.conf`. The `APP_DOMAIN` variable is injected from `.env.production` via `compose.prod.yml`. See ADR-L2-04 for full implementation details including the `envsubst` variable-quoting requirement.
+> **Domain injection — resolved (ADR-L2-04):** `nginx/batac.conf.template` uses `${APP_DOMAIN}` as the substitution variable. A custom entrypoint script (`nginx/entrypoint.sh`) runs `envsubst '${APP_DOMAIN}'` at container start and writes the resolved config to `/etc/nginx/conf.d/batac.conf`. The `APP_DOMAIN` variable is injected from `.env.production` via `compose.prod.yml`. See [ADR-L2-04](l2-docker-and-docker-compose-specification-adrs/ADR-INF-004-nginx-domain-name-injection.md) for full implementation details including the `envsubst` variable-quoting requirement.
 >
-> **TLS — resolved (ADR-L2-05):** Cert and key are mounted from Docker secrets to fixed paths `/etc/nginx/certs/fullchain.pem` and `/etc/nginx/certs/privkey.pem`. Let's Encrypt / Certbot is not used. See ADR-L2-05 for rotation procedure.
+> **TLS — resolved ([ADR-L2-05](l2-docker-and-docker-compose-specification-adrs/ADR-INF-005-tls-certificate-provisioning.md)):** Cert and key are mounted from Docker secrets to fixed paths `/etc/nginx/certs/fullchain.pem` and `/etc/nginx/certs/privkey.pem`. Let's Encrypt / Certbot is not used. See [ADR-L2-05](l2-docker-and-docker-compose-specification-adrs/ADR-INF-005-tls-certificate-provisioning.md) for rotation procedure.
 
 ### New file: `nginx/entrypoint.sh`
 
@@ -1066,7 +1066,7 @@ Variables classified `SEC` in L1 must not appear in `.env` files committed to ve
 
 - CI/CD pipelines inject them as environment variables at container start time
 - Docker Secrets (`secrets:` in compose) provide file-based injection for environments that support it
-> **Phase 1 secrets approach — resolved (ADR-L2-06):** Production `SEC`-classified string variables are injected via `.env.production` (not committed; managed by LGU IT Office on the production host, `root:root 600`). File-format secrets (TLS cert and key) use Docker `secrets:` mounts. No external secrets manager is used in Phase 1. Rotation of string secrets requires a container restart — accepted as a known constraint. Re-evaluate at Phase 2 planning. See ADR-L2-06.
+> **Phase 1 secrets approach — resolved ([ADR-L2-06](l2-docker-and-docker-compose-specification-adrs/ADR-INF-006-production-secrets-management.md)):** Production `SEC`-classified string variables are injected via `.env.production` (not committed; managed by LGU IT Office on the production host, `root:root 600`). File-format secrets (TLS cert and key) use Docker `secrets:` mounts. No external secrets manager is used in Phase 1. Rotation of string secrets requires a container restart — accepted as a known constraint. Re-evaluate at Phase 2 planning. See [ADR-L2-06](l2-docker-and-docker-compose-specification-adrs/ADR-INF-006-production-secrets-management.md).
 
 ### New `.env.example` entries
 
@@ -1074,7 +1074,7 @@ Add the following entries to `.env.example` (under a new `# Nginx / Deployment` 
 
 ```bash
 # ── Nginx / Deployment ────────────────────────────────────────────────────────
-# Domain name injected into nginx/batac.conf.template at container start (ADR-L2-04)
+# Domain name injected into nginx/batac.conf.template at container start ([ADR-L2-04](l2-docker-and-docker-compose-specification-adrs/ADR-INF-004-nginx-domain-name-injection.md))
 APP_DOMAIN=dms.batac.gov.ph
 ```
 
@@ -1187,7 +1187,7 @@ console.log('[migrate] Done.');
 
 ## Part 11 — Native Dependencies
 
-### @node-rs/argon2 (resolved — ADR-L2-01)
+### @node-rs/argon2 (resolved — [ADR-L2-01](l2-docker-and-docker-compose-specification-adrs/ADR-INF-001-argon2-package-selection.md))
 
 `@node-rs/argon2` is used for Argon2id password hashing (L1 §6.4). It ships precompiled NAPI-RS binaries per platform, including `linux-x64-musl` for Alpine. No build toolchain (`python3`, `make`, `g++`) is required in any Dockerfile stage.
 
@@ -1247,15 +1247,15 @@ All items resolved June 2026. Companion ADRs contain full rationale and implemen
 
 | ID    | Item                                                  | Status    | ADR           | Resolution summary |
 | ----- | ----------------------------------------------------- | --------- | ------------- | ------------------ |
-| L2-01 | `argon2` vs. `@node-rs/argon2`                        | Resolved  | ADR-L2-01     | Use `@node-rs/argon2`. Ships prebuilt `linux-x64-musl` binary; no build toolchain required. Remove `apk add python3 make g++` from `deps` stage. |
-| L2-02 | Bitnami vs. official PostgreSQL image for replication | Resolved  | ADR-L2-02     | Confirm `bitnami/postgresql:16` for production primary and standby. Official `postgres:16-alpine` retained for local dev (single instance, no replication). Pin to minor version tag before first production deployment. |
-| L2-03 | OCR language pack bundling                            | Resolved  | ADR-L2-03     | Bundle `eng` and `fil` language packs unconditionally in all production builds. Both cloud and on-premise deployment targets served from a single image. `TESSDATA_PREFIX` path is `[Inference]` — confirm against `tesseract.js` OcrService before OCR feature is implemented. |
-| L2-04 | Nginx domain name injection                           | Resolved  | ADR-L2-04     | `envsubst` in a custom Nginx entrypoint (`nginx/entrypoint.sh`). `nginx/batac.conf` renamed to `nginx/batac.conf.template`. `${APP_DOMAIN}` substituted at container start. `APP_DOMAIN` injected from `.env.production`. |
-| L2-05 | TLS certificate provisioning                          | Resolved  | ADR-L2-05     | Pre-provisioned wildcard cert mounted via Docker secrets to fixed paths `/etc/nginx/certs/`. Certbot and Let's Encrypt not used — ACME requires outbound internet, incompatible with on-premise deployment. Manual renewal runbook with 60-day advance reminder. |
-| L2-06 | Production secrets manager                            | Resolved (Phase 1) | ADR-L2-06 | Docker secrets (file-format) + `.env.production` (string-format), managed by LGU IT Office. No external secrets manager in Phase 1. Rotation requires container restart — accepted. Revisit at Phase 2. |
-| L2-07 | Node.js version                                       | Resolved  | ADR-L2-07     | Node.js 22 LTS (`node:22-alpine`). Node 20 entered Maintenance LTS April 2026. All Dockerfile stages updated. |
-| L2-08 | `pnpm` version pinning                                | Resolved  | ADR-L2-08     | `packageManager` field required in root `package.json` (e.g., `"packageManager": "pnpm@9.15.4"`). Set via `corepack use pnpm@<version>`. Update atomically with lockfile on intentional upgrades. |
-| L2-09 | `BACKUP_RESTORE_TEST_ENABLED` container               | Resolved (Phase 1 dormant) | ADR-L2-09 | Flag remains `false` in Phase 1. Scratch PostgreSQL container not added to `compose.prod.yml`. Infrastructure gap documented in ADR-L2-09 with a full activation checklist. |
+| L2-01 | `argon2` vs. `@node-rs/argon2`                        | Resolved  | [ADR-L2-01](l2-docker-and-docker-compose-specification-adrs/ADR-INF-001-argon2-package-selection.md) | Use `@node-rs/argon2`. Ships prebuilt `linux-x64-musl` binary; no build toolchain required. Remove `apk add python3 make g++` from `deps` stage. |
+| L2-02 | Bitnami vs. official PostgreSQL image for replication | Resolved  | [ADR-L2-02](l2-docker-and-docker-compose-specification-adrs/ADR-INF-002-postgresql-docker-image-bitnami-vs-official.md) | Confirm `bitnami/postgresql:16` for production primary and standby. Official `postgres:16-alpine` retained for local dev (single instance, no replication). Pin to minor version tag before first production deployment. |
+| L2-03 | OCR language pack bundling                            | Resolved  | [ADR-L2-03](l2-docker-and-docker-compose-specification-adrs/ADR-INF-003-ocr-language-pack-building-strategy.md) | Bundle `eng` and `fil` language packs unconditionally in all production builds. Both cloud and on-premise deployment targets served from a single image. `TESSDATA_PREFIX` path is `[Inference]` — confirm against `tesseract.js` OcrService before OCR feature is implemented. |
+| L2-04 | Nginx domain name injection                           | Resolved  | [ADR-L2-04](l2-docker-and-docker-compose-specification-adrs/ADR-INF-004-nginx-domain-name-injection.md) | `envsubst` in a custom Nginx entrypoint (`nginx/entrypoint.sh`). `nginx/batac.conf` renamed to `nginx/batac.conf.template`. `${APP_DOMAIN}` substituted at container start. `APP_DOMAIN` injected from `.env.production`. |
+| L2-05 | TLS certificate provisioning                          | Resolved  | [ADR-L2-05](l2-docker-and-docker-compose-specification-adrs/ADR-INF-005-tls-certificate-provisioning.md) | Pre-provisioned wildcard cert mounted via Docker secrets to fixed paths `/etc/nginx/certs/`. Certbot and Let's Encrypt not used — ACME requires outbound internet, incompatible with on-premise deployment. Manual renewal runbook with 60-day advance reminder. |
+| L2-06 | Production secrets manager                            | Resolved (Phase 1) | [ADR-L2-06](l2-docker-and-docker-compose-specification-adrs/ADR-INF-006-production-secrets-management.md) | Docker secrets (file-format) + `.env.production` (string-format), managed by LGU IT Office. No external secrets manager in Phase 1. Rotation requires container restart — accepted. Revisit at Phase 2. |
+| L2-07 | Node.js version                                       | Resolved  | [ADR-L2-07](l2-docker-and-docker-compose-specification-adrs/ADR-INF-007-nodejs-runtime-version.md) | Node.js 22 LTS (`node:22-alpine`). Node 20 entered Maintenance LTS April 2026. All Dockerfile stages updated. |
+| L2-08 | `pnpm` version pinning                                | Resolved  | [ADR-L2-08](l2-docker-and-docker-compose-specification-adrs/ADR-INF-008-pnpm-version-pinning-via-corepack.md) | `packageManager` field required in root `package.json` (e.g., `"packageManager": "pnpm@9.15.4"`). Set via `corepack use pnpm@<version>`. Update atomically with lockfile on intentional upgrades. |
+| L2-09 | `BACKUP_RESTORE_TEST_ENABLED` container               | Resolved (Phase 1 dormant) | [ADR-L2-09](l2-docker-and-docker-compose-specification-adrs/ADR-INF-009-backup-restore-test-container.md) | Flag remains `false` in Phase 1. Scratch PostgreSQL container not added to `compose.prod.yml`. Infrastructure gap documented in [ADR-L2-09](l2-docker-and-docker-compose-specification-adrs/ADR-INF-009-backup-restore-test-container.md) with a full activation checklist. |
 
 Full ADRs: `./l2-docker-and-docker-compose-specification-adrs/*`
 

@@ -521,9 +521,9 @@ export type DocumentNumberAssignedPayload = z.infer<typeof DocumentNumberAssigne
 
 ---
 
-#### 6.4 `document.secretariat_decision` ~~[REMOVED — ADR-B2-3]~~
+#### 6.4 `document.secretariat_decision` ~~[REMOVED — [ADR-B2-3](../B-architecture-documents/b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-003-secretariat-decision-entry-point.md)]~~
 
-> **[SUPERSEDED — ADR-B2-3: Secretariat Decision Entry Point, June 2026]**
+> **[SUPERSEDED — [ADR-B2-3](../B-architecture-documents/b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-003-secretariat-decision-entry-point.md): Secretariat Decision Entry Point, June 2026]**
 >
 > This event has been **removed from the event taxonomy**. It is retained here for historical traceability only — per this team's practice of flagging superseded entries explicitly rather than silently deleting them.
 >
@@ -531,7 +531,7 @@ export type DocumentNumberAssignedPayload = z.infer<typeof DocumentNumberAssigne
 >
 > **Why:** B2's own sync/async decision rule identifies "document state transition driven by workflow" as requiring the sync path for atomicity. Routing through Documents and then firing an async event to Workflow created a drift window (decision recorded in Documents while Workflow step silently failed). The direct Workflow → Documents sync path already existed in the Published API Call Matrix; the async event-driven path was a redundant second route to the same outcome.
 >
-> **Authoritative record:** `b2-module-boundary-and-internal-api-contracts-adrs/ADR-B2-3-secretariat-decision-entry-point.md`
+> **Authoritative record:** `[ADR-API-003-secretariat-decision-entry-point.md](../B-architecture-documents/b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-003-secretariat-decision-entry-point.md)`
 >
 > **Replacement:** See §7.12 `workflow.step.completed` — the `outcome` field carries `'APPROVED'` / `'REJECTED'` / `'AMENDED'` for `approval`-type steps.
 
@@ -602,7 +602,7 @@ The Workflow module is the custom domain-specific workflow engine for all legisl
 
 > **Note:** Not present in B2 Master Event Registry (B4 added it). Audit subscription required per B2 mandatory rule.
 
-> **Note `[RESOLVED — OI-13, ADR-EVT-001]`:** `documentType` is now a closed enum of the four document types confirmed to independently trigger `workflow.instance.created` via `document.created` in Phase 1. `SP_RESOLUTION`, `SP_ORDINANCE`, and `SP_APPROPRIATION_ORDINANCE` are confirmed by H2's Catalog Summary Table cross-checked against B4 (Source: H2 §"Catalog Summary Table"; B4 §2.1, §6.1, §6.3, Appendix B). `DOCUMENT_REQUEST_FORM` is added per ADR-EVT-001 (June 2026), which resolved H2 §6's open modeling question in favor of two `approval` steps in the Workflow Engine rather than JSONB-only approval flags — see ADR-EVT-001 for full rationale. Three H2 document types that are `owning_module: workflow` in H2's table are deliberately excluded from this enum because they do not independently trigger `workflow.instance.created`: `CERTIFICATION_OF_URGENCY` triggers a bypass action against an existing instance instead (B4 §6.1, via `documents.certification_urgency.logged`), `TRANSMITTAL_LETTER` is logged as a step within an existing parent instance (B4 §6.3, Appendix B), and `DESIGNATION` has no Phase 1 workflow definition at all (H2 Implementation Note 7 — `is_active = false` until Phase 1B). `CITIZEN_COMPLAINT` is excluded as `owning_module: portal`, tracked via its own `outcome_state`, not the Workflow Engine.
+> **Note `[RESOLVED — OI-13, [ADR-EVT-001](b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md)]`:** `documentType` is now a closed enum of the four document types confirmed to independently trigger `workflow.instance.created` via `document.created` in Phase 1. `SP_RESOLUTION`, `SP_ORDINANCE`, and `SP_APPROPRIATION_ORDINANCE` are confirmed by H2's Catalog Summary Table cross-checked against B4 (Source: H2 §"Catalog Summary Table"; B4 §2.1, §6.1, §6.3, Appendix B). `DOCUMENT_REQUEST_FORM` is added per [ADR-EVT-001](b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md) (June 2026), which resolved H2 §6's open modeling question in favor of two `approval` steps in the Workflow Engine rather than JSONB-only approval flags — see ADR-EVT-001 for full rationale. Three H2 document types that are `owning_module: workflow` in H2's table are deliberately excluded from this enum because they do not independently trigger `workflow.instance.created`: `CERTIFICATION_OF_URGENCY` triggers a bypass action against an existing instance instead (B4 §6.1, via `documents.certification_urgency.logged`), `TRANSMITTAL_LETTER` is logged as a step within an existing parent instance (B4 §6.3, Appendix B), and `DESIGNATION` has no Phase 1 workflow definition at all (H2 Implementation Note 7 — `is_active = false` until Phase 1B). `CITIZEN_COMPLAINT` is excluded as `owning_module: portal`, tracked via its own `outcome_state`, not the Workflow Engine.
 
 ```typescript
 // /packages/shared/events/workflow.ts
@@ -610,7 +610,7 @@ export const WorkflowCapableDocumentTypeSchema = z.enum([
   'SP_RESOLUTION',
   'SP_ORDINANCE',
   'SP_APPROPRIATION_ORDINANCE',
-  'DOCUMENT_REQUEST_FORM',          // [RESOLVED — OI-13, ADR-EVT-001] Added per Document Request Form approval modeling decision (two approval steps, not JSONB flags)
+  'DOCUMENT_REQUEST_FORM',          // [RESOLVED — OI-13, [ADR-EVT-001](b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md)] Added per Document Request Form approval modeling decision (two approval steps, not JSONB flags)
 ]);
 export type WorkflowCapableDocumentType = z.infer<typeof WorkflowCapableDocumentTypeSchema>;
 
@@ -636,11 +636,11 @@ export type WorkflowInstanceCreatedPayload = z.infer<typeof WorkflowInstanceCrea
 |**Consumers**|`records` `[Phase 2]` · `portal` `[Phase 3]` · `audit`|
 |**Source**|B4 Appendix A `[Unverified]`; B2 equivalent: `workflow.completed`|
 
-**Business Reason:** A completed workflow instance means a legislative document has cleared all required steps (readings, signatures, transmittal, Panlalawigan review), or — as of ADR-EVT-001 — that a Document Request Form has completed its dual-approval path. The Records module must create an archiving record and retention schedule entry. The Portal module must update public document visibility.
+**Business Reason:** A completed workflow instance means a legislative document has cleared all required steps (readings, signatures, transmittal, Panlalawigan review), or — as of [ADR-EVT-001](b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md) — that a Document Request Form has completed its dual-approval path. The Records module must create an archiving record and retention schedule entry. The Portal module must update public document visibility.
 
 > **Note `[RESOLVED — OI-8]`:** B4 Appendix A lists only `instanceId`, `outcomeCode`, and `finalDocumentStatus`. `documentId` is confirmed as a required field in this payload. Rationale: both consuming modules (Records — creating an archiving/retention entry; Portal — updating public visibility) operate on a document, not merely an instance, and have no other path to the `documentId` from this event alone. Omitting it would force each consumer to make a separate lookup call back into the Workflow module for every event received, which conflicts with the event-bus design goal of decoupled, self-sufficient payloads. B4's omission is treated as a gap, not an intentional exclusion.
 
-> **Note `[RESOLVED — OI-14]`:** `outcomeCode` is now a closed enum. The nine legislative codes come directly from B4 §4.6's `termination` step `outcome_code` table. Two additional codes, `RELEASED_TO_REQUESTER` and `REQUEST_DENIED`, are added per ADR-EVT-001 for the Document Request Form's termination outcomes. These two are deliberately new rather than reusing existing legislative codes (e.g., `APPROVED_AND_RELEASED`, `REJECTED_AT_VOTE`) — the existing codes encode legislative-voting semantics ("at vote") that would be misleading on a citizen document request with no vote involved. See ADR-EVT-001 for full rationale.
+> **Note `[RESOLVED — OI-14]`:** `outcomeCode` is now a closed enum. The nine legislative codes come directly from B4 §4.6's `termination` step `outcome_code` table. Two additional codes, `RELEASED_TO_REQUESTER` and `REQUEST_DENIED`, are added per [ADR-EVT-001](b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md) for the Document Request Form's termination outcomes. These two are deliberately new rather than reusing existing legislative codes (e.g., `APPROVED_AND_RELEASED`, `REJECTED_AT_VOTE`) — the existing codes encode legislative-voting semantics ("at vote") that would be misleading on a citizen document request with no vote involved. See ADR-EVT-001 for full rationale.
 
 ```typescript
 export const WorkflowOutcomeCodeSchema = z.enum([
@@ -654,7 +654,7 @@ export const WorkflowOutcomeCodeSchema = z.enum([
   'CANCELLED',
   'VALID_IN_PART_RESOLVED',
   'REPASSED',
-  // Document Request Form termination outcomes — ADR-EVT-001
+  // Document Request Form termination outcomes — [ADR-EVT-001](b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md)
   'RELEASED_TO_REQUESTER',
   'REQUEST_DENIED',
 ]);
@@ -935,7 +935,7 @@ export const MultiReferralOutcomeSchema = z.enum([     // B4 §4.3
 
 export const NotificationOutcomeSchema = z.literal('DISPATCHED'); // B4 §4.5
 
-// termination reuses WorkflowOutcomeCodeSchema defined in §7.2 (B4 §4.6 + ADR-EVT-001)
+// termination reuses WorkflowOutcomeCodeSchema defined in §7.2 (B4 §4.6 + [ADR-EVT-001](b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md))
 
 // Covers only the six Phase 1-executable step types (WorkflowStepTypeSchema also includes
 // 'parallel_split'/'parallel_join', reserved for Phase 2). B4 §5 confirms these cannot be
@@ -1433,7 +1433,7 @@ Complete flat list of all 42 domain events. Every event in this table must have 
 |9|`document.created`|`documents`|`tracking` · `workflow` · `audit`|1|B2|
 |10|`document.state_changed`|`documents`|`tracking` · `notifications` · `audit` · `search_meta` [Ph2] · `portal` [Ph3]|1|B2|
 |11|`document.number_assigned`|`documents`|`audit`|1|B2|
-|12|~~`document.secretariat_decision`~~ **[REMOVED — ADR-B2-3]**|~~`documents`~~|~~`workflow` · `audit`~~|~~1~~|Superseded — see §6.4 and ADR-B2-3. Outcome now carried in `workflow.step.completed` (row 25). `document.secretariat_decision` is no longer emitted.|
+|12|~~`document.secretariat_decision`~~ **[REMOVED — ADR-B2-3]**|~~`documents`~~|~~`workflow` · `audit`~~|~~1~~|Superseded — see §6.4 and [ADR-B2-3](../B-architecture-documents/b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-003-secretariat-decision-entry-point.md). Outcome now carried in `workflow.step.completed` (row 25). `document.secretariat_decision` is no longer emitted.|
 |13|`document.certification_urgency.logged`|`documents`|`workflow` · `audit`|1|B4 §6.1|
 |14|`workflow.instance.created`|`workflow`|`audit` [Inf]|1|B4 App A|
 |15|`workflow.instance.completed`|`workflow`|`records` [Ph2] · `portal` [Ph3] · `audit`|1|B4 App A|
@@ -1489,7 +1489,7 @@ The following rules are non-negotiable prior to event bus implementation. They a
 
 ## §10 — Open Items — Resolution Status
 
-All items below were originally raised as requiring a team decision before implementation. This table now records the disposition of each. Items resolved by inference/architectural-precedent are marked `[Resolved — decided per B3 authority]`; items requiring a genuine product/stakeholder judgment call are marked `[Resolved — team decision]` with the decision recorded. As of this revision, OI-1 through OI-15 are all resolved — no items remain in `[Deferred]` status. OI-13's resolution depended on ADR-EVT-001 (Document Request Form Approval Modeling), a stakeholder decision; see that ADR for full rationale.
+All items below were originally raised as requiring a team decision before implementation. This table now records the disposition of each. Items resolved by inference/architectural-precedent are marked `[Resolved — decided per B3 authority]`; items requiring a genuine product/stakeholder judgment call are marked `[Resolved — team decision]` with the decision recorded. As of this revision, OI-1 through OI-15 are all resolved — no items remain in `[Deferred]` status. OI-13's resolution depended on [ADR-EVT-001](b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md) (Document Request Form Approval Modeling), a stakeholder decision; see that ADR for full rationale.
 
 | #     | Item                                                                                                                                    | Blocking | Resolution                                                                                                                                                                                                                                                                                        |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1505,8 +1505,8 @@ All items below were originally raised as requiring a team decision before imple
 | OI-10 | Audit scope for `workflow.step.completed` — all step types, or only `approval` and `multi_referral` as B4 implies (§7.12 notes)         | Yes      | **[Resolved]** Confirmed: Audit subscribes to every emission regardless of step type. See §7.12.                                                                                                                                                                                                  |
 | OI-11 | `workflow.sla.warning` and `workflow.sla.critical` consumer list — Notifications subscription is `[Inference]` (§7.27, §7.29)           | Yes      | **[Resolved — team decision]** Notifications confirmed as a consumer of both. Escalation audience is tiered by severity: warning → assignee only; breach → assignee's supervisor + Records Officer; critical → breach audience + Department Head. See §7.27, §7.28, §7.29.                        |
 | OI-12 | `documents.certification_urgency.logged` missing from B2 Master Registry — B2 must be updated                                           | Yes      | **[Resolved — action item outside this document]** Confirmed the event (under its corrected name, see OI-3) must be added to B2's Master Registry in the same PR that introduces it on the bus. This is an edit to the B2 document, not something this catalog can complete on its own. See §6.5. |
-| OI-13 | `workflow.instance.created` `documentType` field — full enum of workflow-capable document types                                         | Yes      | **[Resolved — H2 + ADR-EVT-001]** Closed 4-value enum confirmed: `SP_RESOLUTION`, `SP_ORDINANCE`, `SP_APPROPRIATION_ORDINANCE` (H2 Catalog Summary Table; B4 §2.1) plus `DOCUMENT_REQUEST_FORM` (ADR-EVT-001). `CERTIFICATION_OF_URGENCY`, `TRANSMITTAL_LETTER`, `DESIGNATION`, and `CITIZEN_COMPLAINT` are confirmed excluded — none independently trigger `workflow.instance.created` in Phase 1. See §7.1.                                             |
-| OI-14 | `workflow.instance.completed` `outcomeCode` field — exact outcome code values                                                           | Yes      | **[Resolved — B4 §4.6 + ADR-EVT-001]** Closed 11-value enum: 9 legislative codes from B4 §4.6's `termination` step table, plus `RELEASED_TO_REQUESTER` and `REQUEST_DENIED` added by ADR-EVT-001 for Document Request Form. See §7.2.                                                                                                              |
+| OI-13 | `workflow.instance.created` `documentType` field — full enum of workflow-capable document types                                         | Yes      | **[Resolved — H2 + [ADR-EVT-001](b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md)]** Closed 4-value enum confirmed: `SP_RESOLUTION`, `SP_ORDINANCE`, `SP_APPROPRIATION_ORDINANCE` (H2 Catalog Summary Table; B4 §2.1) plus `DOCUMENT_REQUEST_FORM` (ADR-EVT-001). `CERTIFICATION_OF_URGENCY`, `TRANSMITTAL_LETTER`, `DESIGNATION`, and `CITIZEN_COMPLAINT` are confirmed excluded — none independently trigger `workflow.instance.created` in Phase 1. See §7.1.                                             |
+| OI-14 | `workflow.instance.completed` `outcomeCode` field — exact outcome code values                                                           | Yes      | **[Resolved — B4 §4.6 + [ADR-EVT-001](b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md)]** Closed 11-value enum: 9 legislative codes from B4 §4.6's `termination` step table, plus `RELEASED_TO_REQUESTER` and `REQUEST_DENIED` added by [ADR-EVT-001](b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md) for Document Request Form. See §7.2.                                                                                                              |
 | OI-15 | `workflow.step.completed` `outcome` field — exact outcome values per step type                                                          | Yes      | **[Resolved — B4 §4]** Per-stepType outcome enums confirmed from B4 §4: `action` → 1 code, `approval` → 13 codes, `multi_referral` → 3 codes, `notification` → 1 code, `termination` → reuses OI-14's 11-value enum. `decision` remains `z.string()` — its `true_outcome`/`false_outcome` values are themselves admin-configured per step instance, not a fixed catalog-wide set, so this one stepType is correctly open rather than unresolved. Modeled as a discriminated union on `stepType`. See §7.12.                                                                                                           |
 
 Full ADRs: `./b3-internal-domain-event-catalog-adrs/*`

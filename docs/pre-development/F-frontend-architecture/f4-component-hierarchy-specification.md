@@ -6,7 +6,7 @@
 **Status:** DRAFT — pre-development proposal
 **Date:** June 2026
 **Based on:**
-- F1 — `f1-application-route-map-v2.md` `[Resolved — ADR-001 through ADR-010]`
+- F1 — `f1-application-route-map-v2.md` `[Resolved — [ADR-001 through ADR-010](f1-application-route-map-adrs/ADR-INDEX.md)]`
 - tech-stack — `tech-stack.md`
 - Consolidated Architecture & Requirements Reference — Iteration 3
 
@@ -60,7 +60,7 @@ Phase 1 frontend comprises two application contexts:
 | Context | Root App | Stack | Authentication |
 |---|---|---|---|
 | Internal Authenticated App | `/apps/web` | Vite + React SPA; tRPC-backed | All routes require authentication; role-gated via ABAC + RBAC `[Confirmed — tech-stack]` |
-| Public Portal Subset | `/apps/portal` (Next.js), built now `[Resolved — ADR-001]` | REST-backed; not tRPC `[Confirmed — F1 §2.3]` | Mixed: public (no auth required) + citizen-authenticated routes |
+| Public Portal Subset | `/apps/portal` (Next.js), built now `[Resolved — [ADR-UI-001](f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md)]` | REST-backed; not tRPC `[Confirmed — F1 §2.3]` | Mixed: public (no auth required) + citizen-authenticated routes |
 
 **Component count summary:**
 
@@ -501,7 +501,7 @@ Task inbox listing all workflow steps currently assigned to the authenticated us
 | **Parent (routed)** | `MyAssignedStepsPage` |
 | **Children (sub-components)** | 11 conditional panels — see §5.3.1 |
 
-A single dynamic route that renders one conditional panel at a time based on `currentStepType` and `step.name` returned by `workflow.getInstance`. Dynamic segment is `:instanceId` (not `:stepInstanceId`) because `workflow.getInstance` takes `instanceId` as its input and returns `currentStepInstanceId` in its output, allowing all write-action mutations to receive `currentStepInstanceId` directly without a second lookup. `[Resolved — ADR-010]`
+A single dynamic route that renders one conditional panel at a time based on `currentStepType` and `step.name` returned by `workflow.getInstance`. Dynamic segment is `:instanceId` (not `:stepInstanceId`) because `workflow.getInstance` takes `instanceId` as its input and returns `currentStepInstanceId` in its output, allowing all write-action mutations to receive `currentStepInstanceId` directly without a second lookup. `[Resolved — [ADR-UI-010](f1-application-route-map-adrs/ADR-UI-010-workflow-step-route-key.md)]`
 
 **Primary data dependencies** `[Confirmed — F1 §8.2]`:
 
@@ -523,7 +523,7 @@ Each panel is a sub-component rendered inside `WorkflowStepActionPage`. Only one
 | `MayorDecisionPanel` | `step.name = 'mayor_review'` or `'mayor_signature'` | Mayor | `workflow.mayorSign`, `workflow.mayorVeto` |
 | `MayorLapseConfirmationPanel` | System-triggered 10-day lapse pending confirmation | SP Secretary | `workflow.logMayorLapseConfirmation` |
 | `VetoOverrideRecordingPanel` | Post-veto-override-vote step | SP Secretary | `workflow.recordVetoOverrideVote` |
-| `MultiReferralPanel` | `step_type = 'multi_referral'` | SP Secretary; SP Member (committee-scoped) | `workflow.submitCommitteeReport`, `workflow.manuallyAdvanceMultiReferralStep` (SP Secretary only), `session.enterCommitteeHearingDate` (SP Secretary only), `organization.listCommittees` `[Resolved — ADR-004]` |
+| `MultiReferralPanel` | `step_type = 'multi_referral'` | SP Secretary; SP Member (committee-scoped) | `workflow.submitCommitteeReport`, `workflow.manuallyAdvanceMultiReferralStep` (SP Secretary only), `session.enterCommitteeHearingDate` (SP Secretary only), `organization.listCommittees` `[Resolved — [ADR-UI-004](f1-application-route-map-adrs/ADR-UI-004-committee-list-procedure.md)]` |
 | `DocketingPanel` | `step.name = 'docketing'` `[Inference — literal step-name value not confirmed in source]` | SP Secretary | `workflow.logDocketingCompletion` |
 | `PanlalawiganOutcomePanel` | `step.name = 'panlalawigan_review'` | SP Secretary | `workflow.recordPanlalawiganOutcome`, `workflow.resolveValidInPart`, `workflow.confirmPanlalawiganDeemedApproved` |
 | `PublicationDatePanel` | Penalty ordinance pending newspaper publication | SP Secretary | `workflow.recordNewspaperPublicationDate` |
@@ -579,7 +579,7 @@ In-person, clerk-assisted complaint intake. Implements mode 3 of the three acces
 
 Complaint detail view with routing, committee report entry, and outcome-setting actions. Four outcome states: Pending Hearing, Received/Seen, Dismissed, Resolved. `[Confirmed — Architecture Reference §4.14]`
 
-**Primary data dependencies** `[Confirmed — F1 §8.3]`: `complaints.get` `[Resolved — ADR-005]`, `complaints.logAndAssign`, `complaints.enterCommitteeReport`, `complaints.setOutcome`
+**Primary data dependencies** `[Confirmed — F1 §8.3]`: `complaints.get` `[Resolved — [ADR-UI-005](f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md)]`, `complaints.logAndAssign`, `complaints.enterCommitteeReport`, `complaints.setOutcome`
 
 ---
 
@@ -624,7 +624,7 @@ In-person, clerk-assisted document request intake. Generates a printable form th
 
 Two-stage approval and release. Approval requires both the Vice Mayor (SP Presiding Officer) and SP Secretary signature per Architecture Reference §4.15. `[Confirmed — Architecture Reference §4.15; F1 §8.4]`
 
-**Primary data dependencies** `[Confirmed — F1 §8.4]`: `documentRequests.get` `[Resolved — ADR-005]`, `documentRequests.approveAsPresidingOfficer`, `documentRequests.approveAsSecretary`, `documentRequests.releaseCopy`, `documentRequests.generatePrintableForm`
+**Primary data dependencies** `[Confirmed — F1 §8.4]`: `documentRequests.get` `[Resolved — [ADR-UI-005](f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md)]`, `documentRequests.approveAsPresidingOfficer`, `documentRequests.approveAsSecretary`, `documentRequests.releaseCopy`, `documentRequests.generatePrintableForm`
 
 ---
 
@@ -656,7 +656,7 @@ Overview of session attendance history with statistics — count of present/abse
 | **Phase** | Phase 1 |
 | **Parent (routed)** | `SessionAttendanceOverviewPage` |
 
-Per-session attendance record showing which councilors are absent and their absence reason (OB, sick leave, vacation leave, unqualified absent), plus quorum calculation (7 of 12 required). The designated substitute field for substitute presiding officers now carries a genuine Designation-document linkage, as the Designation document type is pulled into Phase 1 `[Resolved — ADR-007]`.
+Per-session attendance record showing which councilors are absent and their absence reason (OB, sick leave, vacation leave, unqualified absent), plus quorum calculation (7 of 12 required). The designated substitute field for substitute presiding officers now carries a genuine Designation-document linkage, as the Designation document type is pulled into Phase 1 `[Resolved — [ADR-UI-007](f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md)]`.
 
 **Primary data dependencies**: `session.getAttendanceRecord`, `session.recordAttendance`
 
@@ -722,9 +722,9 @@ Navigation shell for Platform Administrator views. Holds no data of its own. Cro
 | **Phase** | Phase 1 |
 | **Parent (routed)** | `PlatformAdminHomePage` |
 
-Create, update, and assign membership to SP standing committees. Read actions are supported by `organization.listCommittees` `[Resolved — ADR-004]`.
+Create, update, and assign membership to SP standing committees. Read actions are supported by `organization.listCommittees` `[Resolved — [ADR-UI-004](f1-application-route-map-adrs/ADR-UI-004-committee-list-procedure.md)]`.
 
-**Primary data dependencies**: `organization.listCommittees` `[Resolved — ADR-004]`, `organization.createCommittee`, `organization.updateCommittee`, `organization.assignCommitteeMembership`
+**Primary data dependencies**: `organization.listCommittees` `[Resolved — [ADR-UI-004](f1-application-route-map-adrs/ADR-UI-004-committee-list-procedure.md)]`, `organization.createCommittee`, `organization.updateCommittee`, `organization.assignCommitteeMembership`
 
 ---
 
@@ -737,9 +737,9 @@ Create, update, and assign membership to SP standing committees. Read actions ar
 | **Phase** | Phase 1 |
 | **Parent (routed)** | `PlatformAdminHomePage` |
 
-Configuration surface for document types, workflow definitions, notification templates, SLA thresholds, numbering series, and public visibility rules — all Tier-2 Platform Administrator capabilities per Architecture Reference §11.8. The configuration CRUD procedures for these six entities are pulled into Phase 1 scope `[Resolved — ADR-002]`.
+Configuration surface for document types, workflow definitions, notification templates, SLA thresholds, numbering series, and public visibility rules — all Tier-2 Platform Administrator capabilities per Architecture Reference §11.8. The configuration CRUD procedures for these six entities are pulled into Phase 1 scope `[Resolved — [ADR-UI-002](f1-application-route-map-adrs/ADR-UI-002-tier2-config-crud-scope.md)]`.
 
-**Primary data dependencies**: `[Resolved — ADR-002]` new CRUD procedures for the six Tier-2 configuration entities
+**Primary data dependencies**: `[Resolved — [ADR-UI-002](f1-application-route-map-adrs/ADR-UI-002-tier2-config-crud-scope.md)]` new CRUD procedures for the six Tier-2 configuration entities
 
 ---
 
@@ -782,9 +782,9 @@ Assign and revoke one of the 13 fixed roles (per the closed `roleCodeEnum` in E1
 | **Phase** | Phase 1 |
 | **Parent (routed)** | `PlatformAdminHomePage` |
 
-Manage announcements posted on the public portal. Platform Administrator and SP Secretary can create, edit, publish, and archive announcements. `[Resolved — ADR-006]`
+Manage announcements posted on the public portal. Platform Administrator and SP Secretary can create, edit, publish, and archive announcements. `[Resolved — [ADR-UI-006](f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md)]`
 
-**Primary data dependencies**: new announcement write procedures (e.g., `portal.createAnnouncement`, `portal.updateAnnouncement`, etc.) and new public-read announcement procedure (e.g., `portal.listAnnouncements`) `[Resolved — ADR-006]`
+**Primary data dependencies**: new announcement write procedures (e.g., `portal.createAnnouncement`, `portal.updateAnnouncement`, etc.) and new public-read announcement procedure (e.g., `portal.listAnnouncements`) `[Resolved — [ADR-UI-006](f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md)]`
 
 ---
 
@@ -813,9 +813,9 @@ View and manage the office hierarchy, positions, employees, and position assignm
 | **Required role(s)** | View: Platform Administrator, Records Officer, SP Secretary, Auditor. Propose new schedule: Records Officer. Activate: Platform Administrator `[Confirmed — F1 §12.6; I2]` |
 | **Phase** | Phase 1 |
 
-View confirmed retention schedules. Records Officer can propose new schedules; Platform Administrator gives final activation. Propose and activate procedures are pulled into Phase 1 scope `[Resolved — ADR-003]`.
+View confirmed retention schedules. Records Officer can propose new schedules; Platform Administrator gives final activation. Propose and activate procedures are pulled into Phase 1 scope `[Resolved — [ADR-UI-003](f1-application-route-map-adrs/ADR-UI-003-retention-schedule-crud-scope.md)]`.
 
-**Primary data dependencies**: `records.getRetentionSchedule`, new propose and activate procedures `[Resolved — ADR-003]`
+**Primary data dependencies**: `records.getRetentionSchedule`, new propose and activate procedures `[Resolved — [ADR-UI-003](f1-application-route-map-adrs/ADR-UI-003-retention-schedule-crud-scope.md)]`
 
 ---
 
@@ -892,10 +892,10 @@ Citizen login with password and phone OTP. `[Confirmed — Architecture Referenc
 | Field | Value |
 |---|---|
 | **Route** | `/portal/requests/new` |
-| **Required role(s)** | Public — no authentication required `[Resolved — ADR-009]` |
+| **Required role(s)** | Public — no authentication required `[Resolved — [ADR-UI-009](f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]` |
 | **Phase** | Phase 1 |
 
-Digital-form intake for document copy requests (mode 2 of three access modes). System generates a printable form from citizen-input details; citizen prints, signs, and submits physically. Physical signature is still required. Submissions are public and anonymous by default, requiring no account `[Resolved — ADR-009]`.
+Digital-form intake for document copy requests (mode 2 of three access modes). System generates a printable form from citizen-input details; citizen prints, signs, and submits physically. Physical signature is still required. Submissions are public and anonymous by default, requiring no account `[Resolved — [ADR-UI-009](f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]`.
 
 ---
 
@@ -916,10 +916,10 @@ Citizen's view of their own document request status, including whether it has be
 | Field | Value |
 |---|---|
 | **Route** | `/portal/complaints/new` |
-| **Required role(s)** | Public — no authentication required `[Resolved — ADR-009]` |
+| **Required role(s)** | Public — no authentication required `[Resolved — [ADR-UI-009](f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]` |
 | **Phase** | Phase 1 |
 
-Digital-form intake for citizen complaints (mode 2 of three access modes). Not limited to transportation complaints — any LGU-related complaint may be filed. Physical signature still required after form generation. Submissions are public and anonymous by default, requiring no account `[Resolved — ADR-009]`.
+Digital-form intake for citizen complaints (mode 2 of three access modes). Not limited to transportation complaints — any LGU-related complaint may be filed. Physical signature still required after form generation. Submissions are public and anonymous by default, requiring no account `[Resolved — [ADR-UI-009](f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]`.
 
 ---
 
@@ -943,15 +943,15 @@ Citizen's view of their own complaint status across the four outcome states: Pen
 | **Required role(s)** | Public — no authentication required `[Confirmed — F1 §14.4]` |
 | **Phase** | Phase 1 |
 
-Public landing page displaying announcements posted by the SP Secretariat or Platform Administrator. `[Resolved — ADR-006]`
+Public landing page displaying announcements posted by the SP Secretariat or Platform Administrator. `[Resolved — [ADR-UI-006](f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md)]`
 
-**Primary data dependencies**: public-read announcements procedure (e.g., `portal.listAnnouncements`) `[Resolved — ADR-006]`
+**Primary data dependencies**: public-read announcements procedure (e.g., `portal.listAnnouncements`) `[Resolved — [ADR-UI-006](f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md)]`
 
 ---
 
 ### 5.10 Internal App — System Administration Routes
 
-All routes in this section are System Administrator only, Vite + React SPA-based, and Phase 1 `[Resolved — ADR-008]`.
+All routes in this section are System Administrator only, Vite + React SPA-based, and Phase 1 `[Resolved — [ADR-UI-008](f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]`.
 
 ---
 
@@ -964,7 +964,7 @@ All routes in this section are System Administrator only, Vite + React SPA-based
 | **Phase** | Phase 1 |
 | **Children (routed)** | `ActiveSessionsPage`, `UserAccountManagementPage`, `AuditIntegrityStatusPage` |
 
-Navigation landing shell for System Administrator actions. Holds no data of its own. `[Resolved — ADR-008]`
+Navigation landing shell for System Administrator actions. Holds no data of its own. `[Resolved — [ADR-UI-008](f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]`
 
 ---
 
@@ -977,7 +977,7 @@ Navigation landing shell for System Administrator actions. Holds no data of its 
 | **Phase** | Phase 1 |
 | **Parent (routed)** | `SystemAdminHomePage` |
 
-Monitor all active user sessions and force session termination. `[Resolved — ADR-008]`
+Monitor all active user sessions and force session termination. `[Resolved — [ADR-UI-008](f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]`
 
 **Primary data dependencies**: `iam.listAllActiveSessions` (read), `iam.forceTerminateSession` (write)
 
@@ -992,7 +992,7 @@ Monitor all active user sessions and force session termination. `[Resolved — A
 | **Phase** | Phase 1 |
 | **Parent (routed)** | `SystemAdminHomePage` |
 
-Create, edit, deactivate, and reactivate user accounts. `[Resolved — ADR-008]`
+Create, edit, deactivate, and reactivate user accounts. `[Resolved — [ADR-UI-008](f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]`
 
 **Primary data dependencies**: `iam.createUserAccount`, `iam.editUserAccount`, `iam.deactivateUserAccount`, `iam.reactivateUserAccount`
 
@@ -1007,7 +1007,7 @@ Create, edit, deactivate, and reactivate user accounts. `[Resolved — ADR-008]`
 | **Phase** | Phase 1 |
 | **Parent (routed)** | `SystemAdminHomePage` |
 
-Verify the tamper-evident hash chain integrity of the audit logs without having visibility into the full audit log contents. `[Resolved — ADR-008]`
+Verify the tamper-evident hash chain integrity of the audit logs without having visibility into the full audit log contents. `[Resolved — [ADR-UI-008](f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]`
 
 **Primary data dependencies**: `audit.validateChainIntegrity`
 
@@ -1081,20 +1081,20 @@ Navigation actions from one independently-routed page to another. Do not imply s
 
 ## 7. Resolved Gaps Register
 
-`[Resolved — ADR-001 through ADR-010]` An earlier pass over this same source material identified ten outstanding gaps and open questions. All ten are now resolved by the ADRs below. This section is a closure record, not an open-items list.
+`[Resolved — [ADR-001 through ADR-010](f1-application-route-map-adrs/ADR-INDEX.md)]` An earlier pass over this same source material identified ten outstanding gaps and open questions. All ten are now resolved by the ADRs below. This section is a closure record, not an open-items list.
 
 | # | Gap (as originally identified) | Resolution | ADR | Affected Component(s) |
 |---|---|---|---|---|
-| 1 | Which app hosts the Phase 1 public portal | `/apps/portal` (Next.js), built now | [ADR-001](ADR-001-public-portal-hosting-app.md) | All portal pages (§5.9) |
-| 2 | Platform Admin Tier-2 config CRUD has no confirmed procedure | Pulled into Phase 1 scope; procedures to be designed and built | [ADR-002](ADR-002-tier2-config-crud-scope.md) | `PlatformConfigPage` |
-| 3 | Retention schedule creation/activation has no confirmed procedure | Pulled into Phase 1 scope; propose/activate procedures to be built | [ADR-003](ADR-003-retention-schedule-crud-scope.md) | `RetentionSchedulesPage` |
-| 4 | Committee list/read has no confirmed procedure | `organization.listCommittees` added | [ADR-004](ADR-004-committee-list-procedure.md) | `CommitteeManagementPage`, `MultiReferralPanel` |
-| 5 | `complaints`/`documentRequests` have no single-record read | `complaints.get`, `documentRequests.get` added | [ADR-005](ADR-005-single-record-read-procedures.md) | `ComplaintDetailPage`, `DocumentRequestDetailPage` |
-| 6 | Public-portal announcement posting has no backing procedure or page | Built now — `/admin/announcements` + `/portal/announcements` | [ADR-006](ADR-006-public-portal-announcements.md) | `AnnouncementManagementPage`, `PortalAnnouncementsPage` |
-| 7 | Session Attendance substitute field depends on Phase 1B Designation document | Designation pulled into Phase 1 | [ADR-007](ADR-007-designation-document-type-phase1.md) | `SessionAttendanceDetailPage` |
-| 8 | Whether System Administrator needs dedicated views | Yes — minimal section built (§13 of F1-v2) | [ADR-008](ADR-008-system-administrator-views.md) | `SystemAdminHomePage` and its children |
-| 9 | Whether portal request/complaint forms require a citizen account | No — no-login, public forms | [ADR-009](ADR-009-portal-form-no-login.md) | `PortalDocumentRequestFormPage`, `PortalComplaintFormPage` |
-| 10 | Whether the workflow step detail route keys on `instanceId` or `stepInstanceId` | `instanceId`, confirmed against `workflow.getInstance` | [ADR-010](ADR-010-workflow-step-route-key.md) | `WorkflowStepActionPage` |
+| 1 | Which app hosts the Phase 1 public portal | `/apps/portal` (Next.js), built now | [ADR-UI-001](f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md) | All portal pages (§5.9) |
+| 2 | Platform Admin Tier-2 config CRUD has no confirmed procedure | Pulled into Phase 1 scope; procedures to be designed and built | [ADR-UI-002](f1-application-route-map-adrs/ADR-UI-002-tier2-config-crud-scope.md) | `PlatformConfigPage` |
+| 3 | Retention schedule creation/activation has no confirmed procedure | Pulled into Phase 1 scope; propose/activate procedures to be built | [ADR-UI-003](f1-application-route-map-adrs/ADR-UI-003-retention-schedule-crud-scope.md) | `RetentionSchedulesPage` |
+| 4 | Committee list/read has no confirmed procedure | `organization.listCommittees` added | [ADR-UI-004](f1-application-route-map-adrs/ADR-UI-004-committee-list-procedure.md) | `CommitteeManagementPage`, `MultiReferralPanel` |
+| 5 | `complaints`/`documentRequests` have no single-record read | `complaints.get`, `documentRequests.get` added | [ADR-UI-005](f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md) | `ComplaintDetailPage`, `DocumentRequestDetailPage` |
+| 6 | Public-portal announcement posting has no backing procedure or page | Built now — `/admin/announcements` + `/portal/announcements` | [ADR-UI-006](f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md) | `AnnouncementManagementPage`, `PortalAnnouncementsPage` |
+| 7 | Session Attendance substitute field depends on Phase 1B Designation document | Designation pulled into Phase 1 | [ADR-UI-007](f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md) | `SessionAttendanceDetailPage` |
+| 8 | Whether System Administrator needs dedicated views | Yes — minimal section built (§13 of F1-v2) | [ADR-UI-008](f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md) | `SystemAdminHomePage` and its children |
+| 9 | Whether portal request/complaint forms require a citizen account | No — no-login, public forms | [ADR-UI-009](f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md) | `PortalDocumentRequestFormPage`, `PortalComplaintFormPage` |
+| 10 | Whether the workflow step detail route keys on `instanceId` or `stepInstanceId` | `instanceId`, confirmed against `workflow.getInstance` | [ADR-UI-010](f1-application-route-map-adrs/ADR-UI-010-workflow-step-route-key.md) | `WorkflowStepActionPage` |
 
 **Items each ADR leaves open as a named follow-up** (not closed by this resolution pass; tracked here so they are not lost):
 

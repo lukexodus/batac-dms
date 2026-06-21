@@ -44,7 +44,7 @@
   - [L1121–L1148] 10.2 tRPC Context [Inference] — Definition of AuthContext and Context TypeScript types used to supply information to ABAC evaluators.
   - [L1149–L1175] 10.3 Audit Events for Authentication and Authorization Actions — Payload fields for 17 auditable events covering logins, logouts, role changes, and ABAC denials.
   - [L1176–L1191] 10.4 Rate Limiting — IP-based and session-based request limits per minute/hour for login, logout, and password resets.
-  - [L1192–L1212] 10.4.1 Account-Level Lockout Policy [Resolved — ADR-AUTH-007; one value still open] — Progressive delays (up to 15 minutes) for repeated login failures instead of hard lockout.
+  - [L1192–L1212] 10.4.1 Account-Level Lockout Policy [Resolved — [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md); one value still open] — Progressive delays (up to 15 minutes) for repeated login failures instead of hard lockout.
   - [L1213–L1239] 10.5 MFA Readiness: Phase 1 Design, Phase 2 Activation — Phase 1 flow structure supporting environment-gated TOTP validation in Phase 2.
 - [L1240–L1258] 11. Deferred Decisions (Must Resolve Before IAM Module Migration) — Summary of resolutions for the 10 deferred decisions; open follow-ups are superseded by Section 12.
 - [L1259–L1272] 12. Remaining Open Items — Four unresolved or follow-up items not blocking IAM migration, detailing what is open and when resolution is required.
@@ -101,7 +101,7 @@ This document does **not** cover:
 |Lifetime|15–60 minutes — configurable per environment via `JWT_ACCESS_TTL_SECONDS`|[CONFIRMED]|
 |Storage|HTTP-only cookie exclusively|[CONFIRMED]|
 |Client-side localStorage / sessionStorage|**Never** — architectural prohibition|[CONFIRMED]|
-|Signing algorithm|RS256|[Resolved — ADR-AUTH-001. SSO integration confirmed as a near-term priority; RS256 selected to support public-key verification by external relying parties. Key pair generation and secure private-key storage required before first IAM migration.]|
+|Signing algorithm|RS256|[Resolved — [ADR-AUTH-001](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-001-jwt-signing-algorithm.md). SSO integration confirmed as a near-term priority; RS256 selected to support public-key verification by external relying parties. Key pair generation and secure private-key storage required before first IAM migration.]|
 
 #### JWT Payload — Registered Claims
 
@@ -158,10 +158,10 @@ This document does **not** cover:
 |---|---|---|
 |Format|Cryptographically random opaque string|[CONFIRMED intent; format is [Inference]]|
 |Generation|32 bytes from `crypto.randomBytes(32)`, base64url-encoded|[Inference]|
-|Server-side storage|PostgreSQL `iam.refresh_tokens`, hashed with SHA-256 + per-token salt|[Resolved — ADR-AUTH-004. Argon2id is unnecessary here: the raw token is a 32-byte (256-bit) cryptographically random value with no guessing-feasible search space, so a slow hash adds CPU cost on every refresh (up to 20/min/session per Section 10.4) with no corresponding security benefit. Argon2id remains the algorithm for `iam.credentials` password hashing, which is unaffected by this decision.]|
+|Server-side storage|PostgreSQL `iam.refresh_tokens`, hashed with SHA-256 + per-token salt|[Resolved — [ADR-AUTH-004](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-004-refresh-token-hash-algorithm.md). Argon2id is unnecessary here: the raw token is a 32-byte (256-bit) cryptographically random value with no guessing-feasible search space, so a slow hash adds CPU cost on every refresh (up to 20/min/session per Section 10.4) with no corresponding security benefit. Argon2id remains the algorithm for `iam.credentials` password hashing, which is unaffected by this decision.]|
 |Client-side storage|HTTP-only cookie|[CONFIRMED]|
 |Rotation policy|One-time use — rotated on every use|[CONFIRMED]|
-|Lifetime|14 days|[Resolved — ADR-AUTH-003. Chosen over the document's original 7-day starting point to prioritize convenience for staff with infrequent access; offset by the existing reuse-detection design (token families) as the primary mitigation against a stolen token's 14-day usability window. Interacts directly with the Section 4.6 shared-workstation lock behavior — see that section.]|
+|Lifetime|14 days|[Resolved — [ADR-AUTH-003](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-003-refresh-token-lifetime.md). Chosen over the document's original 7-day starting point to prioritize convenience for staff with infrequent access; offset by the existing reuse-detection design (token families) as the primary mitigation against a stolen token's 14-day usability window. Interacts directly with the Section 4.6 shared-workstation lock behavior — see that section.]|
 |Reuse detection|Token families; family-wide revocation on reuse|[Inference]|
 
 #### Refresh Token Table Schema [Inference — not confirmed]
@@ -171,7 +171,7 @@ CREATE TABLE iam.refresh_tokens (
   id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id           UUID        NOT NULL REFERENCES iam.users(id),
   session_id        UUID        NOT NULL REFERENCES iam.sessions(id),
-  token_hash        TEXT        NOT NULL,          -- SHA-256(token + salt); see ADR-AUTH-004
+  token_hash        TEXT        NOT NULL,          -- SHA-256(token + salt); see [ADR-AUTH-004](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-004-refresh-token-hash-algorithm.md)
   salt              TEXT        NOT NULL,           -- Per-token random salt for token_hash
   family_id         UUID        NOT NULL,           -- Groups all tokens in one auth chain
   used_at           TIMESTAMPTZ,                    -- NULL = not yet used; set on first (and only) use
@@ -410,7 +410,7 @@ The "Switch User / Lock Screen" action does not terminate the session. It sets `
 - A lock screen UI is shown.
 - Re-authentication (password only; no full login flow) resumes the session and clears `locked_at`.
 - The refresh endpoint continues to rotate tokens while locked (to maintain token freshness when the user unlocks).
-- **[Resolved — ADR-AUTH-010]** If the access token has expired by the time the user unlocks, the unlock flow performs a silent refresh using the still-valid (still-rotating) refresh token, gated only on the same validity checks already defined in Section 1.2 (not found / already used / revoked / expired). The user is not separately prompted about token expiry — re-entering their password to unlock (already required, above) is the security control; token refresh itself is invisible. A full re-login is required only if the refresh token itself is invalid per those existing checks, not merely because the access token expired while locked.
+- **[Resolved — [ADR-AUTH-010](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-010-session-locked_at-behavior-when-access-token-expires-while-locked.md)]** If the access token has expired by the time the user unlocks, the unlock flow performs a silent refresh using the still-valid (still-rotating) refresh token, gated only on the same validity checks already defined in Section 1.2 (not found / already used / revoked / expired). The user is not separately prompted about token expiry — re-entering their password to unlock (already required, above) is the security control; token refresh itself is invisible. A full re-login is required only if the refresh token itself is invalid per those existing checks, not merely because the access token expired while locked.
     - Explicitly out of scope for this decision, deferred to Phase 2: step-up (re-)authentication for specific high-risk actions (approvals, signing, role changes) regardless of recent login — this would require an in-session challenge mechanism not present anywhere in this design, and depends on TOTP infrastructure that Section 10.5 does not activate until Phase 2.
     - Explicitly not adopted: a separate "maximum session age" ceiling shorter than the 14-day refresh token lifetime (Section 1.2). Introducing one would cut against the rationale for that 14-day lifetime; if a hard ceiling independent of refresh-token validity is wanted, it requires its own deliberate decision and is not introduced by default here.
 
@@ -614,7 +614,7 @@ When a user holds an active delegation grant, the ABAC evaluator expands their e
     
 2. If `dg` is not null: the evaluator loads the `organization.delegation_grants` row for that UUID.
     
-3. **[Resolved — ADR-AUTH-006]** The row's `scope` field is a `JSONB` column with the following required shape, mirroring the three dimensions this section already requires the evaluator to check:
+3. **[Resolved — [ADR-AUTH-006](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-006-delegation_grant.scope-field-schema.md)]** The row's `scope` field is a `JSONB` column with the following required shape, mirroring the three dimensions this section already requires the evaluator to check:
     
     ```json
     {
@@ -764,7 +764,7 @@ CREATE POLICY p_office_scope ON documents.documents
   );
 ```
 
-**`has_cross_office_read_grant()` definition and backing table [Resolved — ADR-AUTH-009]:**
+**`has_cross_office_read_grant()` definition and backing table [Resolved — [ADR-AUTH-009](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-009-rls-policy-expression-for-cross-office-read-grants.md)]:**
 
 ```sql
 CREATE TABLE organization.cross_office_grants (
@@ -1189,7 +1189,7 @@ ABAC denials (`abac_denial`) are always audited, including for routine denials (
 
 **After exceeding login limit [Inference]:** Account is rate-limited for 15 minutes from that IP. The account is not globally locked (to prevent denial-of-service attacks from locking out legitimate users). A notification is sent to the account owner. The lockout event is audit-logged. IT Admin can clear the rate limit record manually.
 
-### 10.4.1 Account-Level Lockout Policy [Resolved — ADR-AUTH-007; one value still open]
+### 10.4.1 Account-Level Lockout Policy [Resolved — [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md); one value still open]
 
 This supplements the per-IP throttling above with per-account tracking, to address distributed attacks (many IPs, each making a few attempts against the same account) that IP-based throttling alone does not stop.
 
@@ -1239,20 +1239,20 @@ POST /api/auth/login
 
 ## 11. Deferred Decisions (Must Resolve Before IAM Module Migration)
 
-**Status as of this revision: 8 of 10 items resolved outright; 1 (D-AUTH-08) remains fully open; 3 otherwise-resolved items (D-AUTH-02, D-AUTH-05, D-AUTH-07) carry a narrower follow-up that doesn't block migration.** Resolutions are recorded in the relevant body sections above (cross-referenced below) and in the corresponding ADRs. The fully-open item and the three follow-ups are moved to Section 12 (Remaining Open Items) rather than left in this table, since this table's original purpose — tracking what's still unresolved — is better served by not mixing closed and open items together.
+**Status as of this revision: 8 of 10 items resolved outright; 1 (D-AUTH-08) remains fully open; 3 otherwise-resolved items (D-AUTH-02, D-AUTH-05, D-AUTH-07) carry a narrower follow-up that doesn't block migration.** Resolutions are recorded in the relevant body sections above (cross-referenced below) and in the corresponding ADRs. The fully-open item and the three follow-ups are moved to Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md) (Remaining Open Items) rather than left in this table, since this table's original purpose — tracking what's still unresolved — is better served by not mixing closed and open items together.
 
 |#|Item|Resolution|Recorded In|
 |---|---|---|---|
-|D-AUTH-01|JWT signing algorithm: HS256 vs. RS256|**Resolved: RS256.** SSO confirmed as a near-term priority.|Section 1.1; ADR-AUTH-001|
-|D-AUTH-02|Argon2id parameters (m, t, p) for password hashing|**Resolved: `m=65536 (64 MB), t=2, p=1`**, exposed via environment variables (`ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`) rather than hardcoded, adopted as OWASP's published baseline. **Hardware benchmarking against target server hardware remains required before production** — this is not optional and is carried forward; see Section 12.|ADR-AUTH-002 (no other body location exists for this parameter; password hashing is otherwise only referenced at Section 9.2)|
-|D-AUTH-03|Refresh token lifetime|**Resolved: 14 days.**|Section 1.2; ADR-AUTH-003|
-|D-AUTH-04|Refresh token hash algorithm: Argon2id vs. SHA-256|**Resolved: SHA-256 with per-token salt** (not Argon2id) — token entropy makes a slow hash unnecessary; Argon2id is retained for password hashing (D-AUTH-02), which is unaffected.|Section 1.2; ADR-AUTH-004|
-|D-AUTH-05|Full list of document-processing roles for Platform Admin exclusion trigger|**Resolved for seeding: Section 8.3's list, used verbatim.** One accuracy flag on "Acting Mayor" / "OIC (any)" not fully closed — carried forward; see Section 12.|Section 8.3|
-|D-AUTH-06|`delegation_grant.scope` field schema|**Resolved:** `JSONB` with required `{ roles: [], office_ids: [], actions: [] }` shape.|Section 5.7; ADR-AUTH-006|
-|D-AUTH-07|Account lockout policy on repeated login failures|**Resolved: progressive per-account delay, no hard lockout** (Section 10.4.1), alongside the existing per-IP limits. Alert threshold value not set — carried forward; see Section 12. MFA-tier escalation explicitly deferred to Phase 2.|Section 10.4.1; ADR-AUTH-007|
-|D-AUTH-08|External TSA provider for audit log timestamps|**Not resolved.** Vendor/procurement selection, out of architectural scope — see Section 12.|Section 12|
-|D-AUTH-09|RLS policy expression for cross-office read grants|**Resolved:** `organization.cross_office_grants` table and `has_cross_office_read_grant()` function defined. Two specific limitations (non-"all" office scoping; `access_level` not yet enforced) remain implementation work, not blocking.|Section 6.5; ADR-AUTH-009|
-|D-AUTH-10|Session `locked_at` behavior when access token expires while locked|**Resolved: silent refresh on unlock** using the existing rotating refresh token, gated on existing validity checks only. Step-up authentication for high-risk actions and a separate "max session age" concept were both explicitly considered and **not adopted** in Phase 1.|Section 4.6; ADR-AUTH-010|
+|D-AUTH-01|JWT signing algorithm: HS256 vs. RS256|**Resolved: RS256.** SSO confirmed as a near-term priority.|Section 1.1; [ADR-AUTH-001](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-001-jwt-signing-algorithm.md)|
+|D-AUTH-02|Argon2id parameters (m, t, p) for password hashing|**Resolved: `m=65536 (64 MB), t=2, p=1`**, exposed via environment variables (`ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`) rather than hardcoded, adopted as OWASP's published baseline. **Hardware benchmarking against target server hardware remains required before production** — this is not optional and is carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).|[ADR-AUTH-002](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-002-argon2id-parameters.md) (no other body location exists for this parameter; password hashing is otherwise only referenced at Section 9.2)|
+|D-AUTH-03|Refresh token lifetime|**Resolved: 14 days.**|Section 1.2; [ADR-AUTH-003](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-003-refresh-token-lifetime.md)|
+|D-AUTH-04|Refresh token hash algorithm: Argon2id vs. SHA-256|**Resolved: SHA-256 with per-token salt** (not Argon2id) — token entropy makes a slow hash unnecessary; Argon2id is retained for password hashing (D-AUTH-02), which is unaffected.|Section 1.2; [ADR-AUTH-004](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-004-refresh-token-hash-algorithm.md)|
+|D-AUTH-05|Full list of document-processing roles for Platform Admin exclusion trigger|**Resolved for seeding: Section 8.3's list, used verbatim.** One accuracy flag on "Acting Mayor" / "OIC (any)" not fully closed — carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).|Section 8.3|
+|D-AUTH-06|`delegation_grant.scope` field schema|**Resolved:** `JSONB` with required `{ roles: [], office_ids: [], actions: [] }` shape.|Section 5.7; [ADR-AUTH-006](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-006-delegation_grant.scope-field-schema.md)|
+|D-AUTH-07|Account lockout policy on repeated login failures|**Resolved: progressive per-account delay, no hard lockout** (Section 10.4.1), alongside the existing per-IP limits. Alert threshold value not set — carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md). MFA-tier escalation explicitly deferred to Phase 2.|Section 10.4.1; [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md)|
+|D-AUTH-08|External TSA provider for audit log timestamps|**Not resolved.** Vendor/procurement selection, out of architectural scope — see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).|Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md)|
+|D-AUTH-09|RLS policy expression for cross-office read grants|**Resolved:** `organization.cross_office_grants` table and `has_cross_office_read_grant()` function defined. Two specific limitations (non-"all" office scoping; `access_level` not yet enforced) remain implementation work, not blocking.|Section 6.5; [ADR-AUTH-009](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-009-rls-policy-expression-for-cross-office-read-grants.md)|
+|D-AUTH-10|Session `locked_at` behavior when access token expires while locked|**Resolved: silent refresh on unlock** using the existing rotating refresh token, gated on existing validity checks only. Step-up authentication for high-risk actions and a separate "max session age" concept were both explicitly considered and **not adopted** in Phase 1.|Section 4.6; [ADR-AUTH-010](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-010-session-locked_at-behavior-when-access-token-expires-while-locked.md)|
 
 ---
 
@@ -1269,4 +1269,4 @@ One item is entirely unresolved, and three otherwise-resolved items each carry a
 
 ---
 
-_This document is the pre-development baseline for the authentication and authorization architecture. As of this revision, 8 of the 10 items originally listed in Section 11 are resolved and reflected in the relevant body sections above; the remaining 2 fully open items (D-AUTH-08) plus 3 narrower follow-ups on otherwise-resolved items (D-AUTH-02, D-AUTH-05, D-AUTH-07) are tracked in Section 12 above, each with an explicit account of why it does not block the IAM module's first migration. Remaining `[Inference]` items elsewhere in this document still require development team confirmation. This document supersedes any earlier auth/auth notes and is the reference for the IAM module schema design._
+_This document is the pre-development baseline for the authentication and authorization architecture. As of this revision, 8 of the 10 items originally listed in Section 11 are resolved and reflected in the relevant body sections above; the remaining 2 fully open items (D-AUTH-08) plus 3 narrower follow-ups on otherwise-resolved items (D-AUTH-02, D-AUTH-05, D-AUTH-07) are tracked in Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md) above, each with an explicit account of why it does not block the IAM module's first migration. Remaining `[Inference]` items elsewhere in this document still require development team confirmation. This document supersedes any earlier auth/auth notes and is the reference for the IAM module schema design._

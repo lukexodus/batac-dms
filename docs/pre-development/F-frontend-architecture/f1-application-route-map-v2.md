@@ -1,14 +1,14 @@
 # F1. Application Route Map — Pre-dev
 
 **Document ID:** F1
-**Type:** Frontend route map — `/apps/web`, Phase 1, `/apps/portal` (Phase 1 — see ADR-001), and System Administrator views
+**Type:** Frontend route map — `/apps/web`, Phase 1, `/apps/portal` (Phase 1 — see [ADR-UI-001](./f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md)), and System Administrator views
 **Status:** DRAFT — pre-development proposal, reflects ten resolved gaps; not yet reviewed or approved
 **Date:** June 19, 2026
 **Based on:**
 - F1-Context — `f1-context-application-route-map.md`
 - I2 — `i2-application-route-map-role-permissions.md`
 - E1 — `e1-trpc-router-and-procedure-catalog.md`
-- ADR-001 through ADR-010 (see `ADR-INDEX.md`)
+- [ADR-001 through ADR-010](./f1-application-route-map-adrs/ADR-INDEX.md) (see `ADR-INDEX.md`)
 
 **Audience:** Frontend development team; cross-referenced by backend team for role/procedure alignment
 
@@ -28,7 +28,7 @@
 - [L406–L415] 10. Mayor dashboard — Proposed data dependencies and filtering logic for the Mayor's dashboard widgets.
 - [L416–L429] 11. Audit log viewer — User-specific audit log pages versus the Auditor-restricted full log with hash chain validation rules.
 - [L430–L479] 12. Platform Administrator views — Platform Admin landing page, committee/role assignment, Tier-2 configuration panels, and retention/organization views.
-- [L480–L509] 13. System Administrator views (ADR-008) — Session termination, user account CRUD, hash chain validation routes, and outstanding infrastructure gaps for sysadmins.
+- [L480–L509] 13. System Administrator views ([ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)) — Session termination, user account CRUD, hash chain validation routes, and outstanding infrastructure gaps for sysadmins.
 - [L510–L545] 14. Phase 1 public portal subset — Next.js public portal route definitions, no-login intake options, and public announcement display page.
 - [L546–L571] 15. Resolved gaps register — Summary table of resolved pre-development gaps (ADRs 1–10) and unresolved follow-up questions.
 - [L572–L582] 16. Items considered and not given a dedicated route — List of features, views, and documents deliberately excluded from having dedicated route definitions.
@@ -63,7 +63,7 @@ If any statement below is later found to assert an unverified claim as fact, the
 
 `[Confirmed — F1-Context §1.1–1.2, §10]` Sections 5–13 belong to `/apps/web` (the Vite + React SPA, tRPC-backed), with the exception of the new System Administrator section (§13), which also lives in `/apps/web` since System Administrator is an internal-staff role.
 
-`[Resolved — ADR-001]` Section 14's public-portal routes are served from `/apps/portal` (Next.js), built now rather than deferred to its originally planned Phase 3 slot. F1-Context §10 had raised this as an open question without settling it — specifically, whether these routes would be served from unauthenticated paths inside `/apps/web` or from the separately documented `/apps/portal` stack — and that question is now closed by ADR-001.
+`[Resolved — [ADR-UI-001](./f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md)]` Section 14's public-portal routes are served from `/apps/portal` (Next.js), built now rather than deferred to its originally planned Phase 3 slot. F1-Context §10 had raised this as an open question without settling it — specifically, whether these routes would be served from unauthenticated paths inside `/apps/web` or from the separately documented `/apps/portal` stack — and that question is now closed by [ADR-UI-001](./f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md).
 
 ### 2.2 Role reference
 
@@ -89,13 +89,13 @@ If any statement below is later found to assert an unverified claim as fact, the
 
 ### 2.3 tRPC vs. REST boundary
 
-`[Confirmed — E1, "Note on Scope"]` tRPC procedures cover `/web` only. Citizen self-service — complaint submission, document request submission, public tracking lookup, public document browsing, and public announcement viewing — is explicitly out of E1's scope and is REST, served by the portal module, consumed by `/apps/portal` per ADR-001 rather than by unauthenticated `/apps/web` routes.
+`[Confirmed — E1, "Note on Scope"]` tRPC procedures cover `/web` only. Citizen self-service — complaint submission, document request submission, public tracking lookup, public document browsing, and public announcement viewing — is explicitly out of E1's scope and is REST, served by the portal module, consumed by `/apps/portal` per [ADR-UI-001](./f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md) rather than by unauthenticated `/apps/web` routes.
 
 ### 2.4 Scope inherited from prior curation
 
 `[Confirmed — F1-Context §12; I2 §13]` Carried forward as out of scope for this route map: Barangay Resolution/Budget workflows (Phase 1B), Letters/Memos/NCH/NOSP document types (Phase 1B), generic account-settings/profile screens (no named F1 view covers them), and Phase 2 items (`parallel_split`/`parallel_join` step types, the Reporting module, the Search-meta module, RMS bulk operations).
 
-`[Resolved — ADR-007]` The Designation document type, previously treated as Phase 1B in the underlying source material, is **pulled into Phase 1 scope** and is therefore **no longer** an exclusion. It is removed from this list and is now addressed directly in §9.
+`[Resolved — [ADR-UI-007](./f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md)]` The Designation document type, previously treated as Phase 1B in the underlying source material, is **pulled into Phase 1 scope** and is therefore **no longer** an exclusion. It is removed from this list and is now addressed directly in §9.
 
 ### 2.5 Two routes this document adds beyond the nine named areas
 
@@ -103,10 +103,10 @@ If any statement below is later found to assert an unverified claim as fact, the
 
 ### 2.6 Two further additions, resolved by ADR
 
-`[Resolved — ADR-006, ADR-008]` Two additions beyond the nine named areas, both decided via ADR rather than silently introduced:
+`[Resolved — [ADR-UI-006](./f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md), [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]` Two additions beyond the nine named areas, both decided via ADR rather than silently introduced:
 
-- **System Administrator views** (§13) — previously a named gap with no built section in earlier drafts of this material; now built per ADR-008.
-- **Public Portal Announcements** (§14.4) — previously an orphaned permission with no backing procedure or page; now built per ADR-006.
+- **System Administrator views** (§13) — previously a named gap with no built section in earlier drafts of this material; now built per [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md).
+- **Public Portal Announcements** (§14.4) — previously an orphaned permission with no backing procedure or page; now built per [ADR-UI-006](./f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md).
 
 ---
 
@@ -177,7 +177,7 @@ flowchart TD
         R_SYS --> R_SYSAUD["/sysadmin/audit-integrity"]
     end
 
-    subgraph POR["Public Portal subset — §14 — apps/portal (Next.js), per ADR-001"]
+    subgraph POR["Public Portal subset — §14 — apps/portal (Next.js), per [ADR-UI-001](./f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md)"]
         R_PL["/portal/lookup"]
         R_PD["/portal/documents/:trackingNumber"]
         R_PRN["/portal/requests/new"]
@@ -198,9 +198,9 @@ flowchart TD
     SEC -.-> DOC
 ```
 
-`[Resolved — ADR-008]` New subgraph `SYSADM` added: `/sysadmin`, `/sysadmin/sessions`, `/sysadmin/users`, `/sysadmin/audit-integrity`.
-`[Resolved — ADR-006]` `/admin/announcements` added as a fourth child of `/admin`.
-`[Resolved — ADR-001]` `POR` subgraph annotated as living in `/apps/portal`, not `/apps/web`; `/portal/announcements` added as a ninth portal route.
+`[Resolved — [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]` New subgraph `SYSADM` added: `/sysadmin`, `/sysadmin/sessions`, `/sysadmin/users`, `/sysadmin/audit-integrity`.
+`[Resolved — [ADR-UI-006](./f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md)]` `/admin/announcements` added as a fourth child of `/admin`.
+`[Resolved — [ADR-UI-001](./f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md)]` `POR` subgraph annotated as living in `/apps/portal`, not `/apps/web`; `/portal/announcements` added as a ninth portal route.
 
 ---
 
@@ -211,43 +211,43 @@ flowchart TD
 | Path | App | Component | Required role(s) | Primary data dependency |
 |---|---|---|---|---|
 | `/admin` | `/apps/web` | `PlatformAdminHomePage` | Platform Administrator | — (landing shell) |
-| `/admin/announcements` | `/apps/web` | `AnnouncementManagementPage` | Platform Administrator, SP Secretary | `[Resolved — ADR-006]` new announcements procedures (see §14.4) |
-| `/admin/committees` | `/apps/web` | `CommitteeManagementPage` | Platform Administrator | `organization.listCommittees` `[Resolved — ADR-004]`, `organization.createCommittee`, `updateCommittee`, `assignCommitteeMembership` |
-| `/admin/config` | `/apps/web` | `PlatformConfigPage` | Platform Administrator | `[Resolved — ADR-002]` six Tier-2 config CRUD surfaces (see §12.4) |
+| `/admin/announcements` | `/apps/web` | `AnnouncementManagementPage` | Platform Administrator, SP Secretary | `[Resolved — [ADR-UI-006](./f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md)]` new announcements procedures (see §14.4) |
+| `/admin/committees` | `/apps/web` | `CommitteeManagementPage` | Platform Administrator | `organization.listCommittees` `[Resolved — [ADR-UI-004](./f1-application-route-map-adrs/ADR-UI-004-committee-list-procedure.md)]`, `organization.createCommittee`, `updateCommittee`, `assignCommitteeMembership` |
+| `/admin/config` | `/apps/web` | `PlatformConfigPage` | Platform Administrator | `[Resolved — [ADR-UI-002](./f1-application-route-map-adrs/ADR-UI-002-tier2-config-crud-scope.md)]` six Tier-2 config CRUD surfaces (see §12.4) |
 | `/admin/delivery-logs` | `/apps/web` | `DeliveryLogsPage` | Platform Administrator (System Administrator also reads, per I2) | `notifications.listDeliveryLogs` |
 | `/admin/roles` | `/apps/web` | `RoleAssignmentPage` | Platform Administrator | `iam.listUserDirectory`, `iam.assignRole`, `iam.revokeRole`, `iam.editUserAccount` |
 | `/audit` | `/apps/web` | `AuditLogPage` | All 12 internal roles (own actions); office-scope tab for a named subset | `audit.listOwnActions`, `audit.listOwnOfficeDocumentActions` |
 | `/audit/full` | `/apps/web` | `AuditFullLogPage` | Auditor only | `audit.listFullLog`, `audit.validateChainIntegrity`, `audit.exportEvents` |
 | `/complaints` | `/apps/web` | `ComplaintsListPage` | SP Secretary, SP Presiding Officer, Auditor; SP Member (committee-scoped) | `complaints.listAll` |
 | `/complaints/new` | `/apps/web` | `ComplaintIntakeClerkAssistedPage` | SP Secretary | `complaints.createClerkAssisted` |
-| `/complaints/:complaintId` | `/apps/web` | `ComplaintDetailPage` | SP Secretary, SP Member (committee-scoped), SP Presiding Officer/Auditor (read) | `complaints.get` `[Resolved — ADR-005]`, `complaints.logAndAssign`, `enterCommitteeReport`, `setOutcome` |
+| `/complaints/:complaintId` | `/apps/web` | `ComplaintDetailPage` | SP Secretary, SP Member (committee-scoped), SP Presiding Officer/Auditor (read) | `complaints.get` `[Resolved — [ADR-UI-005](./f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md)]`, `complaints.logAndAssign`, `enterCommitteeReport`, `setOutcome` |
 | `/document-requests` | `/apps/web` | `DocumentRequestsListPage` | SP Secretary, SP Presiding Officer, Auditor | `documentRequests.listAll` |
 | `/document-requests/new` | `/apps/web` | `DocumentRequestIntakeClerkAssistedPage` | SP Secretary | `documentRequests.createClerkAssisted`, `generatePrintableForm` |
-| `/document-requests/:requestId` | `/apps/web` | `DocumentRequestDetailPage` | SP Presiding Officer, SP Secretary | `documentRequests.get` `[Resolved — ADR-005]`, `approveAsPresidingOfficer`, `approveAsSecretary`, `releaseCopy`, `generatePrintableForm` |
+| `/document-requests/:requestId` | `/apps/web` | `DocumentRequestDetailPage` | SP Presiding Officer, SP Secretary | `documentRequests.get` `[Resolved — [ADR-UI-005](./f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md)]`, `approveAsPresidingOfficer`, `approveAsSecretary`, `releaseCopy`, `generatePrintableForm` |
 | `/documents` | `/apps/web` | `DocumentListPage` | Records Officer, Department Encoder, Department Approver, SP Secretary, SP Member, SP Presiding Officer, Mayor, Barangay Encoder, Barangay Captain, Auditor | `documents.list`, `documents.search` |
 | `/documents/new` | `/apps/web` | `DocumentIntakeFormPage` | Department Encoder, Department Approver, SP Secretary, SP Member, SP Presiding Officer, Mayor, Barangay Encoder, Barangay Captain | `documents.create`, `documents.requestUploadUrl`, `documents.confirmUpload`, `documents.getScanQualityIndicator` |
 | `/documents/:documentId` | `/apps/web` | `DocumentDetailPage` | Same 10 roles as `/documents`, ABAC-scoped | `documents.get` plus full lifecycle/portal/file/tracking/workflow/records procedure groups (see §7.3) |
 | `/mayor` | `/apps/web` | `MayorDashboardPage` | Mayor only | `workflow.listMyAssignedSteps` (filtered), `workflow.getSlaComplianceData` |
 | `/order-of-business` | `/apps/web` | `OrderOfBusinessPage` | SP Secretary (manage); SP Member/SP Presiding Officer/Mayor/Auditor (view) | `session.getOrderOfBusiness`, `session.scheduleDocumentForFirstReading`, `session.enterCommitteeHearingDate`, `workflow.manuallyAdvanceMultiReferralStep` |
 | `/organization` | `/apps/web` | `OrganizationPage` | View: most internal roles; Manage: Platform Administrator only | `organization.getOfficeHierarchy` (read); create/update/deactivate/assign procedures (manage) |
-| `/retention-schedules` | `/apps/web` | `RetentionSchedulesPage` | View: Platform Administrator, Records Officer, SP Secretary, Auditor; Propose: Records Officer; Activate: Platform Administrator | `records.getRetentionSchedule`; `[Resolved — ADR-003]` new propose/activate procedures (see §12.6) |
+| `/retention-schedules` | `/apps/web` | `RetentionSchedulesPage` | View: Platform Administrator, Records Officer, SP Secretary, Auditor; Propose: Records Officer; Activate: Platform Administrator | `records.getRetentionSchedule`; `[Resolved — [ADR-UI-003](./f1-application-route-map-adrs/ADR-UI-003-retention-schedule-crud-scope.md)]` new propose/activate procedures (see §12.6) |
 | `/secretary` | `/apps/web` | `SecretaryDashboardPage` | SP Secretary only | `workflow.listMyAssignedSteps`, `documents.list` (filtered), `session.getOrderOfBusiness`, `workflow.getSlaComplianceData` |
 | `/sessions` | `/apps/web` | `SessionAttendanceOverviewPage` | SP Secretary, SP Member, SP Presiding Officer, Mayor, Auditor | `session.getAttendanceStatistics` |
-| `/sessions/:sessionDate` | `/apps/web` | `SessionAttendanceDetailPage` | Same view roles; recording is SP Secretary only | `session.getAttendanceRecord`, `session.recordAttendance`; `[Resolved — ADR-007]` Designation document linkage now in scope |
-| `/sysadmin` | `/apps/web` | `SystemAdminHomePage` | System Administrator only | — (landing shell) `[Resolved — ADR-008]` |
-| `/sysadmin/audit-integrity` | `/apps/web` | `AuditIntegrityStatusPage` | System Administrator only | `audit.validateChainIntegrity` `[Resolved — ADR-008]` |
-| `/sysadmin/sessions` | `/apps/web` | `ActiveSessionsPage` | System Administrator only | `iam.listAllActiveSessions`, `iam.forceTerminateSession` `[Resolved — ADR-008]` |
-| `/sysadmin/users` | `/apps/web` | `UserAccountManagementPage` | System Administrator only | `iam.createUserAccount`, `editUserAccount`, `deactivateUserAccount`, `reactivateUserAccount` `[Resolved — ADR-008]` |
+| `/sessions/:sessionDate` | `/apps/web` | `SessionAttendanceDetailPage` | Same view roles; recording is SP Secretary only | `session.getAttendanceRecord`, `session.recordAttendance`; `[Resolved — [ADR-UI-007](./f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md)]` Designation document linkage now in scope |
+| `/sysadmin` | `/apps/web` | `SystemAdminHomePage` | System Administrator only | — (landing shell) `[Resolved — [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]` |
+| `/sysadmin/audit-integrity` | `/apps/web` | `AuditIntegrityStatusPage` | System Administrator only | `audit.validateChainIntegrity` `[Resolved — [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]` |
+| `/sysadmin/sessions` | `/apps/web` | `ActiveSessionsPage` | System Administrator only | `iam.listAllActiveSessions`, `iam.forceTerminateSession` `[Resolved — [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]` |
+| `/sysadmin/users` | `/apps/web` | `UserAccountManagementPage` | System Administrator only | `iam.createUserAccount`, `editUserAccount`, `deactivateUserAccount`, `reactivateUserAccount` `[Resolved — [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]` |
 | `/workflow/steps` | `/apps/web` | `MyAssignedStepsPage` | Records Officer, Department Encoder, Department Approver, SP Secretary, SP Member, SP Presiding Officer, Mayor, Barangay Encoder, Barangay Captain | `workflow.listMyAssignedSteps` |
-| `/workflow/steps/:instanceId` | `/apps/web` | `WorkflowStepActionPage` | Varies by panel — see §8.2 | `workflow.getInstance` plus the panel-specific procedure set in §8.2; `[Resolved — ADR-010]` keyed on `instanceId`, confirmed against `workflow.getInstance`'s actual input signature |
-| `/portal/announcements` | `/apps/portal` | `PortalAnnouncementsPage` | Public, no authentication required | `[Resolved — ADR-006]` new public-read announcements procedure |
-| `/portal/complaints/new` | `/apps/portal` | `PortalComplaintFormPage` | Public, no authentication required | `[Resolved — ADR-009]` REST, not catalogued in any tRPC source |
+| `/workflow/steps/:instanceId` | `/apps/web` | `WorkflowStepActionPage` | Varies by panel — see §8.2 | `workflow.getInstance` plus the panel-specific procedure set in §8.2; `[Resolved — [ADR-UI-010](./f1-application-route-map-adrs/ADR-UI-010-workflow-step-route-key.md)]` keyed on `instanceId`, confirmed against `workflow.getInstance`'s actual input signature |
+| `/portal/announcements` | `/apps/portal` | `PortalAnnouncementsPage` | Public, no authentication required | `[Resolved — [ADR-UI-006](./f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md)]` new public-read announcements procedure |
+| `/portal/complaints/new` | `/apps/portal` | `PortalComplaintFormPage` | Public, no authentication required | `[Resolved — [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]` REST, not catalogued in any tRPC source |
 | `/portal/complaints/:complaintId/status` | `/apps/portal` | `PortalComplaintStatusPage` | Citizen, authenticated | REST, not catalogued |
 | `/portal/documents/:trackingNumber` | `/apps/portal` | `PortalDocumentViewPage` | Public, no authentication required | REST, not catalogued |
 | `/portal/login` | `/apps/portal` | `PortalCitizenLoginPage` | Public (unauthenticated, by definition) | REST, not catalogued |
 | `/portal/lookup` | `/apps/portal` | `PortalTrackingLookupPage` | Public, no authentication required | REST, not catalogued |
 | `/portal/register` | `/apps/portal` | `PortalCitizenRegisterPage` | Public (unauthenticated, by definition) | REST, not catalogued |
-| `/portal/requests/new` | `/apps/portal` | `PortalDocumentRequestFormPage` | Public, no authentication required | `[Resolved — ADR-009]` REST, not catalogued |
+| `/portal/requests/new` | `/apps/portal` | `PortalDocumentRequestFormPage` | Public, no authentication required | `[Resolved — [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]` REST, not catalogued |
 | `/portal/requests/:requestId/status` | `/apps/portal` | `PortalDocumentRequestStatusPage` | Citizen, authenticated | REST, not catalogued |
 
 ---
@@ -308,7 +308,7 @@ The task names "document intake form" as a single view, but a usable intake flow
 
 ### 7.3 `/documents/:documentId` — document detail
 
-**Component:** `DocumentDetailPage` · **Role:** same 10 roles as `/documents`, each additionally scoped by office/classification ABAC `[Confirmed — E1 §3.1, documents.get callable-by list]`. System Administrator has a separate, narrower `documents.getMetadataForAdmin` procedure — `[Resolved — ADR-008]` this is now reachable from System Administrator's own section (§13), not as a conditional branch on this page, consistent with §13 being a dedicated System Administrator area rather than a shared shell.
+**Component:** `DocumentDetailPage` · **Role:** same 10 roles as `/documents`, each additionally scoped by office/classification ABAC `[Confirmed — E1 §3.1, documents.get callable-by list]`. System Administrator has a separate, narrower `documents.getMetadataForAdmin` procedure — `[Resolved — [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]` this is now reachable from System Administrator's own section (§13), not as a conditional branch on this page, consistent with §13 being a dedicated System Administrator area rather than a shared shell.
 
 This is the richest page in the route map — nearly every document lifecycle action funnels through it. Grouped by purpose:
 
@@ -342,7 +342,7 @@ I2 itself flags that this is "very likely not one route but a family of routes/c
 
 **Component:** `WorkflowStepActionPage`
 
-`[Resolved — ADR-010]` The dynamic segment is named `:instanceId`, not `:stepInstanceId`. This is confirmed, not merely proposed: `workflow.getInstance` — the procedure that loads this page — takes `instanceId` as its input and returns `currentStepInstanceId` and `currentStepType` in its output. The various write actions (below) take `stepInstanceId` directly. Routing by `instanceId` lets the page load with one read call and then pass the resulting `currentStepInstanceId` straight into whichever action mutation applies, without a second lookup.
+`[Resolved — [ADR-UI-010](./f1-application-route-map-adrs/ADR-UI-010-workflow-step-route-key.md)]` The dynamic segment is named `:instanceId`, not `:stepInstanceId`. This is confirmed, not merely proposed: `workflow.getInstance` — the procedure that loads this page — takes `instanceId` as its input and returns `currentStepInstanceId` and `currentStepType` in its output. The various write actions (below) take `stepInstanceId` directly. Routing by `instanceId` lets the page load with one read call and then pass the resulting `currentStepInstanceId` straight into whichever action mutation applies, without a second lookup.
 
 The page renders one of the following panels conditionally, based on `currentStepType` and `step.name` from the loaded instance, and on the caller's role:
 
@@ -355,7 +355,7 @@ The page renders one of the following panels conditionally, based on `currentSte
 | Mayor Decision Panel | `step.name` is `mayor_review` or `mayor_signature` | Mayor | `workflow.mayorSign`, `workflow.mayorVeto` |
 | Mayor Lapse Confirmation Panel | system-triggered 10-day lapse, pending confirmation | SP Secretary | `workflow.logMayorLapseConfirmation` |
 | Veto Override Recording Panel | post-veto-override-vote step | SP Secretary | `workflow.recordVetoOverrideVote` |
-| Multi-Referral Panel | `step_type = 'multi_referral'` | SP Secretary; SP Member (committee-scoped) | `workflow.submitCommitteeReport`, `workflow.manuallyAdvanceMultiReferralStep` (SP Secretary only), `session.enterCommitteeHearingDate` (SP Secretary only), `organization.listCommittees` (read, `[Resolved — ADR-004]`) |
+| Multi-Referral Panel | `step_type = 'multi_referral'` | SP Secretary; SP Member (committee-scoped) | `workflow.submitCommitteeReport`, `workflow.manuallyAdvanceMultiReferralStep` (SP Secretary only), `session.enterCommitteeHearingDate` (SP Secretary only), `organization.listCommittees` (read, `[Resolved — [ADR-UI-004](./f1-application-route-map-adrs/ADR-UI-004-committee-list-procedure.md)]`) |
 | Docketing Panel | `step.name = 'docketing'` `[Inference — the literal step-name value is not confirmed in source, only the existence of the action]` | SP Secretary | `workflow.logDocketingCompletion` |
 | Panlalawigan Outcome Panel | `step.name = 'panlalawigan_review'` | SP Secretary | `workflow.recordPanlalawiganOutcome`, `workflow.resolveValidInPart` (when outcome is valid-in-part), `workflow.confirmPanlalawiganDeemedApproved` (after the 30-day window) |
 | Publication Date Panel | penalty ordinance pending newspaper publication | SP Secretary | `workflow.recordNewspaperPublicationDate` |
@@ -370,9 +370,9 @@ These are placed here, not under §14, because they are internal-staff, tRPC-bac
 
 - **`/complaints` (`ComplaintsListPage`):** Role — SP Secretary, SP Presiding Officer, Auditor (unconditional), SP Member (committee-scoped). Data — `complaints.listAll`.
 - **`/complaints/new` (`ComplaintIntakeClerkAssistedPage`):** Role — SP Secretary only. Data — `complaints.createClerkAssisted`, used for the in-person, clerk-assisted intake mode described in F1-Context §10.
-- **`/complaints/:complaintId` (`ComplaintDetailPage`):** Role — SP Secretary (log and assign, set outcome), SP Member (committee-scoped report entry), SP Presiding Officer/Auditor (read). Data — `complaints.get` `[Resolved — ADR-005]`, `complaints.logAndAssign`, `complaints.enterCommitteeReport`, `complaints.setOutcome`.
+- **`/complaints/:complaintId` (`ComplaintDetailPage`):** Role — SP Secretary (log and assign, set outcome), SP Member (committee-scoped report entry), SP Presiding Officer/Auditor (read). Data — `complaints.get` `[Resolved — [ADR-UI-005](./f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md)]`, `complaints.logAndAssign`, `complaints.enterCommitteeReport`, `complaints.setOutcome`.
 
-`[Resolved — ADR-005]` The detail page fetches the single record directly via `complaints.get` rather than filtering the already-loaded `complaints.listAll` result client-side. This closes a gap in the underlying source material: E1's `complaints` router previously had no single-record read procedure.
+`[Resolved — [ADR-UI-005](./f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md)]` The detail page fetches the single record directly via `complaints.get` rather than filtering the already-loaded `complaints.listAll` result client-side. This closes a gap in the underlying source material: E1's `complaints` router previously had no single-record read procedure.
 
 ### 8.4 `/document-requests`, `/document-requests/new`, `/document-requests/:requestId` — staff-side document request management
 
@@ -380,13 +380,13 @@ Same placement reasoning as §8.3: E1's `documentRequests` router is marked "Int
 
 - **`/document-requests` (`DocumentRequestsListPage`):** Role — SP Secretary, SP Presiding Officer, Auditor. Data — `documentRequests.listAll`.
 - **`/document-requests/new` (`DocumentRequestIntakeClerkAssistedPage`):** Role — SP Secretary only. Data — `documentRequests.createClerkAssisted`, `documentRequests.generatePrintableForm`.
-- **`/document-requests/:requestId` (`DocumentRequestDetailPage`):** Role — SP Presiding Officer (first approval), SP Secretary (second approval, then release). Data — `documentRequests.get` `[Resolved — ADR-005]`, `documentRequests.approveAsPresidingOfficer`, `documentRequests.approveAsSecretary`, `documentRequests.releaseCopy`, `documentRequests.generatePrintableForm`.
+- **`/document-requests/:requestId` (`DocumentRequestDetailPage`):** Role — SP Presiding Officer (first approval), SP Secretary (second approval, then release). Data — `documentRequests.get` `[Resolved — [ADR-UI-005](./f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md)]`, `documentRequests.approveAsPresidingOfficer`, `documentRequests.approveAsSecretary`, `documentRequests.releaseCopy`, `documentRequests.generatePrintableForm`.
 
-`[Resolved — ADR-005]` Same fix as §8.3: `documentRequests.get` was added, closing the matching single-record-read gap for this router.
+`[Resolved — [ADR-UI-005](./f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md)]` Same fix as §8.3: `documentRequests.get` was added, closing the matching single-record-read gap for this router.
 
 ### 8.5 Committee picker — resolved
 
-`[Resolved — ADR-004]` The Multi-Referral Panel in §8.2 needs to know which committees exist in order to let SP Secretary assign or reassign a referral. E1's `organization` router previously had no list/read procedure for committees — only `createCommittee`, `updateCommittee`, and `assignCommitteeMembership` existed. `organization.listCommittees` has been added (see also §12.2, where the same gap affected `/admin/committees`).
+`[Resolved — [ADR-UI-004](./f1-application-route-map-adrs/ADR-UI-004-committee-list-procedure.md)]` The Multi-Referral Panel in §8.2 needs to know which committees exist in order to let SP Secretary assign or reassign a referral. E1's `organization` router previously had no list/read procedure for committees — only `createCommittee`, `updateCommittee`, and `assignCommitteeMembership` existed. `organization.listCommittees` has been added (see also §12.2, where the same gap affected `/admin/committees`).
 
 ---
 
@@ -397,9 +397,9 @@ Same placement reasoning as §8.3: E1's `documentRequests` router is marked "Int
 - **`/sessions` (`SessionAttendanceOverviewPage`):** Role — SP Secretary, SP Member, SP Presiding Officer, Mayor, Auditor `[Confirmed — I2 §3]`. Data — `session.getAttendanceStatistics`.
 - **`/sessions/:sessionDate` (`SessionAttendanceDetailPage`):** Role — same view roles; recording attendance is SP Secretary only. Data — `session.getAttendanceRecord`, `session.recordAttendance`.
 
-`[Resolved — ADR-007]` The underlying source material flagged a direct tension here: the "designated substitute" field (used when the Vice Mayor/SP Presiding Officer is absent) textually depends on a Designation document, but the Designation document type itself was treated as Phase 1B — a Phase 1 view depending on a not-yet-built Phase 1B entity. This is resolved by pulling the Designation document type into Phase 1 scope (rather than working around its absence with an unlinked field or a hidden field). The substitute-officer field on `/sessions/:sessionDate` now has a genuine Designation-document linkage rather than a placeholder.
+`[Resolved — [ADR-UI-007](./f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md)]` The underlying source material flagged a direct tension here: the "designated substitute" field (used when the Vice Mayor/SP Presiding Officer is absent) textually depends on a Designation document, but the Designation document type itself was treated as Phase 1B — a Phase 1 view depending on a not-yet-built Phase 1B entity. This is resolved by pulling the Designation document type into Phase 1 scope (rather than working around its absence with an unlinked field or a hidden field). The substitute-officer field on `/sessions/:sessionDate` now has a genuine Designation-document linkage rather than a placeholder.
 
-`[Inference — carried from ADR-007]` This requires the Designation document type's own schema, intake/lifecycle handling, and the SP-Secretary-only "Log Designation document" action (`[Confirmed — I2 §4]`, permission already existed; only its phase placement changed) to be built as part of this same Phase 1 push. See ADR-007 for full consequences, including the open follow-up question on whether "Designation scope confirmation by Platform Admin — not required" still holds once Designation is a Phase 1, not Phase 1B, entity.
+`[Inference — carried from [ADR-UI-007](./f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md)]` This requires the Designation document type's own schema, intake/lifecycle handling, and the SP-Secretary-only "Log Designation document" action (`[Confirmed — I2 §4]`, permission already existed; only its phase placement changed) to be built as part of this same Phase 1 push. See [ADR-UI-007](./f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md) for full consequences, including the open follow-up question on whether "Designation scope confirmation by Platform Admin — not required" still holds once Designation is a Phase 1, not Phase 1B, entity.
 
 ---
 
@@ -423,7 +423,7 @@ Same placement reasoning as §8.3: E1's `documentRequests` router is marked "Int
 
 **Component:** `AuditFullLogPage` · **Role:** Auditor only. **Data:** `audit.listFullLog`, `audit.validateChainIntegrity`, `audit.exportEvents`.
 
-`[Confirmed — I2 §15]` I2's permission matrix shows "View audit log — all entries (full log)" checked only for Auditor, with System Administrator explicitly unchecked on that row — even though System Administrator separately holds "Validate audit log hash chain integrity." `[Resolved — ADR-008]` This asymmetry is no longer an unplaced gap: System Administrator's narrow chain-validation-only need is now served by `/sysadmin/audit-integrity` (§13.4), which exposes `audit.validateChainIntegrity` without granting System Administrator access to the full log itself. `/audit/full` here remains Auditor-only, preserving the distinction I2's matrix draws between the two capabilities.
+`[Confirmed — I2 §15]` I2's permission matrix shows "View audit log — all entries (full log)" checked only for Auditor, with System Administrator explicitly unchecked on that row — even though System Administrator separately holds "Validate audit log hash chain integrity." `[Resolved — [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]` This asymmetry is no longer an unplaced gap: System Administrator's narrow chain-validation-only need is now served by `/sysadmin/audit-integrity` (§13.4), which exposes `audit.validateChainIntegrity` without granting System Administrator access to the full log itself. `/audit/full` here remains Auditor-only, preserving the distinction I2's matrix draws between the two capabilities.
 
 ---
 
@@ -435,7 +435,7 @@ Same placement reasoning as §8.3: E1's `documentRequests` router is marked "Int
 
 ### 12.2 `/admin/committees`
 
-**Role:** Platform Administrator. **Data:** `organization.listCommittees` `[Resolved — ADR-004]` (read), `organization.createCommittee`, `updateCommittee`, `assignCommitteeMembership` (write). This route is no longer write-only against an unverifiable read state: until ADR-004, E1's `organization` router had no list/read procedure for committees at all, only the three write procedures above, leaving this page with write actions but no way to display existing committees. That gap is now closed (see also §8.5, where the same gap affected the Multi-Referral Panel's committee picker).
+**Role:** Platform Administrator. **Data:** `organization.listCommittees` `[Resolved — [ADR-UI-004](./f1-application-route-map-adrs/ADR-UI-004-committee-list-procedure.md)]` (read), `organization.createCommittee`, `updateCommittee`, `assignCommitteeMembership` (write). This route is no longer write-only against an unverifiable read state: until ADR-004, E1's `organization` router had no list/read procedure for committees at all, only the three write procedures above, leaving this page with write actions but no way to display existing committees. That gap is now closed (see also §8.5, where the same gap affected the Multi-Referral Panel's committee picker).
 
 ### 12.3 `/admin/roles`
 
@@ -445,15 +445,15 @@ Same placement reasoning as §8.3: E1's `documentRequests` router is marked "Int
 
 ### 12.4 `/admin/config`
 
-`[Resolved — ADR-002]` **Role:** Platform Administrator. **Data:** procedures for all six Tier-2 config entities — document types, workflow definitions, notification templates, SLA thresholds, numbering series, and public visibility rules — pulled into Phase 1 scope. This was previously `[Deferred]` per E1's own follow-up item E1-F1; it is no longer deferred.
+`[Resolved — [ADR-UI-002](./f1-application-route-map-adrs/ADR-UI-002-tier2-config-crud-scope.md)]` **Role:** Platform Administrator. **Data:** procedures for all six Tier-2 config entities — document types, workflow definitions, notification templates, SLA thresholds, numbering series, and public visibility rules — pulled into Phase 1 scope. This was previously `[Deferred]` per E1's own follow-up item E1-F1; it is no longer deferred.
 
-`[Inference — carried from ADR-002]` A config-screen spec detailed enough to design these six procedure sets against must be produced before backend work on this route can proceed; this document does not supply that spec. Likely UI shape: six sub-sections or tabs within `/admin/config`, one per entity, following the same list/create/edit/deactivate pattern already used by `/admin/committees`.
+`[Inference — carried from [ADR-UI-002](./f1-application-route-map-adrs/ADR-UI-002-tier2-config-crud-scope.md)]` A config-screen spec detailed enough to design these six procedure sets against must be produced before backend work on this route can proceed; this document does not supply that spec. Likely UI shape: six sub-sections or tabs within `/admin/config`, one per entity, following the same list/create/edit/deactivate pattern already used by `/admin/committees`.
 
 ### 12.5 `/admin/announcements`
 
-`[Resolved — ADR-006]` **Component:** `AnnouncementManagementPage` · **Role:** Platform Administrator, SP Secretary `[Confirmed — I2 §14, "Post announcement on public portal" row]`. **Data:** a new write procedure (e.g. `portal.createAnnouncement` or equivalent — exact name not yet finalized) plus the public-read procedure that backs `/portal/announcements` (§14.4).
+`[Resolved — [ADR-UI-006](./f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md)]` **Component:** `AnnouncementManagementPage` · **Role:** Platform Administrator, SP Secretary `[Confirmed — I2 §14, "Post announcement on public portal" row]`. **Data:** a new write procedure (e.g. `portal.createAnnouncement` or equivalent — exact name not yet finalized) plus the public-read procedure that backs `/portal/announcements` (§14.4).
 
-This closes a gap in the underlying source material: I2's permission matrix already granted this action to Platform Administrator and SP Secretary, but no procedure or page existed anywhere to back it. The `announcements` entity sits under the `portal` module per F1-Context's module-boundary list, consistent with `/apps/portal` (§14) being pulled into Phase 1 by ADR-001.
+This closes a gap in the underlying source material: I2's permission matrix already granted this action to Platform Administrator and SP Secretary, but no procedure or page existed anywhere to back it. The `announcements` entity sits under the `portal` module per F1-Context's module-boundary list, consistent with `/apps/portal` (§14) being pulled into Phase 1 by [ADR-UI-001](./f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md).
 
 ### 12.6 `/admin/delivery-logs`
 
@@ -461,9 +461,9 @@ This closes a gap in the underlying source material: I2's permission matrix alre
 
 ### 12.7 `/retention-schedules` (top-level, cross-linked from `/admin`)
 
-`[Resolved — ADR-003]` **Role:** View — Platform Administrator, Records Officer, SP Secretary, Auditor `[Confirmed — I2, retention-schedule-list row]`. Propose — Records Officer (new). Activate — Platform Administrator (new). **Data:** `records.getRetentionSchedule` (read, unchanged); new propose/activate procedures, pulled into Phase 1 scope, replacing what was previously an unbacked gap (only `getRetentionSchedule` and `applyRetentionSchedule`-to-an-existing-record existed in the underlying source material).
+`[Resolved — [ADR-UI-003](./f1-application-route-map-adrs/ADR-UI-003-retention-schedule-crud-scope.md)]` **Role:** View — Platform Administrator, Records Officer, SP Secretary, Auditor `[Confirmed — I2, retention-schedule-list row]`. Propose — Records Officer (new). Activate — Platform Administrator (new). **Data:** `records.getRetentionSchedule` (read, unchanged); new propose/activate procedures, pulled into Phase 1 scope, replacing what was previously an unbacked gap (only `getRetentionSchedule` and `applyRetentionSchedule`-to-an-existing-record existed in the underlying source material).
 
-`[Inference — carried from ADR-003]` Whether "propose" and "activate" are two calls against one mutable draft row, or two separate procedures against a status field, is an implementation detail not resolved by the ADR or by this document.
+`[Inference — carried from [ADR-UI-003](./f1-application-route-map-adrs/ADR-UI-003-retention-schedule-crud-scope.md)]` Whether "propose" and "activate" are two calls against one mutable draft row, or two separate procedures against a status field, is an implementation detail not resolved by the ADR or by this document.
 
 #### 12.8 `/organization` (top-level, cross-linked from `/admin`)
 
@@ -473,13 +473,13 @@ This closes a gap in the underlying source material: I2's permission matrix alre
 
 ### 12.9 System Administrator — no longer a named gap
 
-`[Resolved — ADR-008]` This was previously named as a gap — System Administrator was identified as needing dedicated views distinct from Platform Administrator's, but no route section had been built for them — rather than a built section. It is now built — see §13 below.
+`[Resolved — [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]` This was previously named as a gap — System Administrator was identified as needing dedicated views distinct from Platform Administrator's, but no route section had been built for them — rather than a built section. It is now built — see §13 below.
 
 ---
 
-## 13. System Administrator views (ADR-008)
+## 13. System Administrator views ([ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md))
 
-`[Resolved — ADR-008]` Previously, several Tier-1 procedures existed for System-Administrator-level actions with no Platform-Administrator overlap (`iam.listAllActiveSessions`, `iam.forceTerminateSession`, `iam.createUserAccount`/`editUserAccount`/`deactivateUserAccount`/`reactivateUserAccount`, `audit.validateChainIntegrity`), but no route section had been built for them, since the original task scope named only "Platform Administrator views." This is now resolved: a minimal, dedicated System Administrator section is built.
+`[Resolved — [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)]` Previously, several Tier-1 procedures existed for System-Administrator-level actions with no Platform-Administrator overlap (`iam.listAllActiveSessions`, `iam.forceTerminateSession`, `iam.createUserAccount`/`editUserAccount`/`deactivateUserAccount`/`reactivateUserAccount`, `audit.validateChainIntegrity`), but no route section had been built for them, since the original task scope named only "Platform Administrator views." This is now resolved: a minimal, dedicated System Administrator section is built.
 
 ### 13.1 `/sysadmin` — landing shell
 
@@ -501,7 +501,7 @@ This closes a gap in the underlying source material: I2's permission matrix alre
 
 ### 13.5 Remaining System Administrator gap — not built in this pass
 
-`[Unverified — carried from ADR-008, not resolved]` Four further Tier-1 System Administrator capabilities are confirmed in F1-Context §1.4 — system health/infrastructure metrics, encryption key management, schema migrations, and backup/restore — but no corresponding tRPC procedures exist anywhere in E1's catalog for any of the four. This document does not invent procedure names for them and does not build routes for them in this pass. `[Speculation]` These may be intended to live in an operations console outside this web app's scope entirely. This remains a distinct, separately-trackable gap, not closed by ADR-008.
+`[Unverified — carried from [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md), not resolved]` Four further Tier-1 System Administrator capabilities are confirmed in F1-Context §1.4 — system health/infrastructure metrics, encryption key management, schema migrations, and backup/restore — but no corresponding tRPC procedures exist anywhere in E1's catalog for any of the four. This document does not invent procedure names for them and does not build routes for them in this pass. `[Speculation]` These may be intended to live in an operations console outside this web app's scope entirely. This remains a distinct, separately-trackable gap, not closed by [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md).
 
 **Children:** None nested beyond the three listed above.
 
@@ -511,7 +511,7 @@ This closes a gap in the underlying source material: I2's permission matrix alre
 
 ### 14.1 Hosting app — resolved
 
-`[Resolved — ADR-001]` All routes below are served from `/apps/portal` (Next.js), built now rather than deferred to Phase 3. This closes an open question from the underlying source material — specifically, F1-Context §10 raised but did not settle which app would host these routes — and is the same resolution noted in §2.1 above.
+`[Resolved — [ADR-UI-001](./f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md)]` All routes below are served from `/apps/portal` (Next.js), built now rather than deferred to Phase 3. This closes an open question from the underlying source material — specifically, F1-Context §10 raised but did not settle which app would host these routes — and is the same resolution noted in §2.1 above.
 
 ### 14.2 Routes
 
@@ -521,23 +521,23 @@ This closes a gap in the underlying source material: I2's permission matrix alre
 | `/portal/documents/:trackingNumber` | `PortalDocumentViewPage` | Public, no authentication required | Shows a document only after `documents.publishToPortal` has been called from `/documents/:documentId` |
 | `/portal/register` | `PortalCitizenRegisterPage` | Public (unauthenticated, by definition) | Citizen registration/OTP-verification flow |
 | `/portal/login` | `PortalCitizenLoginPage` | Public (unauthenticated, by definition) | Password + phone OTP |
-| `/portal/requests/new` | `PortalDocumentRequestFormPage` | Public, no authentication required `[Resolved — ADR-009]` | Digital-form intake mode (mode 2 of three access modes); no citizen account required |
-| `/portal/requests/:requestId/status` | `PortalDocumentRequestStatusPage` | Citizen, authenticated citizen session `[Confirmed — I2]` | Status-tracking remains authenticated, unaffected by ADR-009 |
-| `/portal/complaints/new` | `PortalComplaintFormPage` | Public, no authentication required `[Resolved — ADR-009]` | Same no-login basis as document requests |
-| `/portal/complaints/:complaintId/status` | `PortalComplaintStatusPage` | Citizen, authenticated citizen session `[Confirmed — I2]` | Status-tracking remains authenticated, unaffected by ADR-009 |
-| `/portal/announcements` | `PortalAnnouncementsPage` | Public, no authentication required | `[Resolved — ADR-006]` |
+| `/portal/requests/new` | `PortalDocumentRequestFormPage` | Public, no authentication required `[Resolved — [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]` | Digital-form intake mode (mode 2 of three access modes); no citizen account required |
+| `/portal/requests/:requestId/status` | `PortalDocumentRequestStatusPage` | Citizen, authenticated citizen session `[Confirmed — I2]` | Status-tracking remains authenticated, unaffected by [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md) |
+| `/portal/complaints/new` | `PortalComplaintFormPage` | Public, no authentication required `[Resolved — [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]` | Same no-login basis as document requests |
+| `/portal/complaints/:complaintId/status` | `PortalComplaintStatusPage` | Citizen, authenticated citizen session `[Confirmed — I2]` | Status-tracking remains authenticated, unaffected by [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md) |
+| `/portal/announcements` | `PortalAnnouncementsPage` | Public, no authentication required | `[Resolved — [ADR-UI-006](./f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md)]` |
 
-**Primary data dependencies for every row above:** REST, not catalogued in any tRPC source — E1 explicitly scopes citizen self-service out of its tRPC catalogue; no REST endpoint catalogue exists to cross-reference, so no endpoint names are stated here. This is unchanged by ADR-001 (the REST/tRPC boundary is about which protocol the backend exposes, not which frontend app consumes it).
+**Primary data dependencies for every row above:** REST, not catalogued in any tRPC source — E1 explicitly scopes citizen self-service out of its tRPC catalogue; no REST endpoint catalogue exists to cross-reference, so no endpoint names are stated here. This is unchanged by [ADR-UI-001](./f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md) (the REST/tRPC boundary is about which protocol the backend exposes, not which frontend app consumes it).
 
 ### 14.3 Citizen account requirement — resolved
 
-`[Resolved — ADR-009]` `/portal/requests/new` and `/portal/complaints/new` are no-login, public forms. This matches the two confirmed offline/clerk-assisted access modes (which never require an account) and reflects that the physical signature, not the digital account, is what is legally operative for both document requests and complaints.
+`[Resolved — [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]` `/portal/requests/new` and `/portal/complaints/new` are no-login, public forms. This matches the two confirmed offline/clerk-assisted access modes (which never require an account) and reflects that the physical signature, not the digital account, is what is legally operative for both document requests and complaints.
 
-`[Inference — carried from ADR-009]` Since no account exists at submission time, a tracking-number mechanism (the same one already used by `/portal/lookup`) is the natural way to let a citizen later check status without an account, or to retroactively associate a submission with an account if they register afterward. `[Speculation — carried from ADR-009]` Whether retroactive linking is actually supported is not addressed by any source document and remains open.
+`[Inference — carried from [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]` Since no account exists at submission time, a tracking-number mechanism (the same one already used by `/portal/lookup`) is the natural way to let a citizen later check status without an account, or to retroactively associate a submission with an account if they register afterward. `[Speculation — carried from [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]` Whether retroactive linking is actually supported is not addressed by any source document and remains open.
 
 ### 14.4 Public-portal announcements
 
-`[Resolved — ADR-006]` `/portal/announcements` is a new public, no-login route displaying announcements posted via `/admin/announcements` (§12.5). This closes a gap in the underlying source material, where I2's matrix already granted a "Post announcement on public portal" permission to Platform Administrator and SP Secretary with no backing procedure or named page anywhere.
+`[Resolved — [ADR-UI-006](./f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md)]` `/portal/announcements` is a new public, no-login route displaying announcements posted via `/admin/announcements` (§12.5). This closes a gap in the underlying source material, where I2's matrix already granted a "Post announcement on public portal" permission to Platform Administrator and SP Secretary with no backing procedure or named page anywhere.
 
 **Children:** None nested for any portal route in this draft.
 
@@ -545,27 +545,27 @@ This closes a gap in the underlying source material: I2's permission matrix alre
 
 ## 15. Resolved gaps register
 
-`[Resolved — ADR-001 through ADR-010]` An earlier pass over this same source material identified ten outstanding gaps and open questions. All ten are now resolved by the ADRs below. This section is a closure record, not an open-items list.
+`[Resolved — [ADR-001 through ADR-010](./f1-application-route-map-adrs/ADR-INDEX.md)]` An earlier pass over this same source material identified ten outstanding gaps and open questions. All ten are now resolved by the ADRs below. This section is a closure record, not an open-items list.
 
 | # | Gap (as originally identified) | Resolution | ADR |
 |---|---|---|---|
-| 1 | Which app hosts the Phase 1 public portal | `/apps/portal` (Next.js), built now | [ADR-001](./f1-application-route-map-adrs/ADR-001-public-portal-hosting-app.md) |
-| 2 | Platform Admin Tier-2 config CRUD has no confirmed procedure | Pulled into Phase 1 scope; procedures to be designed and built | [ADR-002](./f1-application-route-map-adrs/ADR-002-tier2-config-crud-scope.md) |
-| 3 | Retention schedule creation/activation has no confirmed procedure | Pulled into Phase 1 scope; propose/activate procedures to be built | [ADR-003](./f1-application-route-map-adrs/ADR-003-retention-schedule-crud-scope.md) |
-| 4 | Committee list/read has no confirmed procedure | `organization.listCommittees` added | [ADR-004](./f1-application-route-map-adrs/ADR-004-committee-list-procedure.md) |
-| 5 | `complaints`/`documentRequests` have no single-record read | `complaints.get`, `documentRequests.get` added | [ADR-005](./f1-application-route-map-adrs/ADR-005-single-record-read-procedures.md) |
-| 6 | Public-portal announcement posting has no backing procedure or page | Built now — `/admin/announcements` + `/portal/announcements` | [ADR-006](./f1-application-route-map-adrs/ADR-006-public-portal-announcements.md) |
-| 7 | Session Attendance substitute field depends on Phase 1B Designation document | Designation pulled into Phase 1 | [ADR-007](./f1-application-route-map-adrs/ADR-007-designation-document-type-phase1.md) |
-| 8 | Whether System Administrator needs dedicated views | Yes — minimal section built (§13) | [ADR-008](./f1-application-route-map-adrs/ADR-008-system-administrator-views.md) |
-| 9 | Whether portal request/complaint forms require a citizen account | No — no-login, public forms | [ADR-009](./f1-application-route-map-adrs/ADR-009-portal-form-no-login.md) |
-| 10 | Whether the workflow step detail route keys on `instanceId` or `stepInstanceId` | `instanceId`, confirmed against `workflow.getInstance` | [ADR-010](./f1-application-route-map-adrs/ADR-010-workflow-step-route-key.md) |
+| 1 | Which app hosts the Phase 1 public portal | `/apps/portal` (Next.js), built now | [ADR-UI-001](./f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md) |
+| 2 | Platform Admin Tier-2 config CRUD has no confirmed procedure | Pulled into Phase 1 scope; procedures to be designed and built | [ADR-UI-002](./f1-application-route-map-adrs/ADR-UI-002-tier2-config-crud-scope.md) |
+| 3 | Retention schedule creation/activation has no confirmed procedure | Pulled into Phase 1 scope; propose/activate procedures to be built | [ADR-UI-003](./f1-application-route-map-adrs/ADR-UI-003-retention-schedule-crud-scope.md) |
+| 4 | Committee list/read has no confirmed procedure | `organization.listCommittees` added | [ADR-UI-004](./f1-application-route-map-adrs/ADR-UI-004-committee-list-procedure.md) |
+| 5 | `complaints`/`documentRequests` have no single-record read | `complaints.get`, `documentRequests.get` added | [ADR-UI-005](./f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md) |
+| 6 | Public-portal announcement posting has no backing procedure or page | Built now — `/admin/announcements` + `/portal/announcements` | [ADR-UI-006](./f1-application-route-map-adrs/ADR-UI-006-public-portal-announcements.md) |
+| 7 | Session Attendance substitute field depends on Phase 1B Designation document | Designation pulled into Phase 1 | [ADR-UI-007](./f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md) |
+| 8 | Whether System Administrator needs dedicated views | Yes — minimal section built (§13) | [ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md) |
+| 9 | Whether portal request/complaint forms require a citizen account | No — no-login, public forms | [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md) |
+| 10 | Whether the workflow step detail route keys on `instanceId` or `stepInstanceId` | `instanceId`, confirmed against `workflow.getInstance` | [ADR-UI-010](./f1-application-route-map-adrs/ADR-UI-010-workflow-step-route-key.md) |
 
 **Items each ADR leaves open as a named follow-up** (not closed by this resolution pass; tracked here so they are not lost):
 
-- Whether "Designation scope confirmation by Platform Admin — not required" still holds once Designation is Phase 1, not Phase 1B (ADR-007).
-- Four Tier-1 System Administrator capabilities (system health, encryption keys, schema migrations, backup/restore) with no catalogued procedure (ADR-008).
-- Whether a citizen can retroactively link a no-login submission to an account registered afterward (ADR-009).
-- Whether Phase 1 timeline/resourcing can absorb the six items pulled forward across ADR-001, 002, 003, 006, 007, and 008 — `[Unverified]`, not assessable from the documents reviewed.
+- Whether "Designation scope confirmation by Platform Admin — not required" still holds once Designation is Phase 1, not Phase 1B ([ADR-UI-007](./f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md)).
+- Four Tier-1 System Administrator capabilities (system health, encryption keys, schema migrations, backup/restore) with no catalogued procedure ([ADR-UI-008](./f1-application-route-map-adrs/ADR-UI-008-system-administrator-views.md)).
+- Whether a citizen can retroactively link a no-login submission to an account registered afterward ([ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)).
+- Whether Phase 1 timeline/resourcing can absorb the six items pulled forward across [ADR-UI-001](./f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md), 002, 003, 006, 007, and 008 — `[Unverified]`, not assessable from the documents reviewed.
 
 ---
 
@@ -575,7 +575,7 @@ Consistent with the exclusions already established in F1-Context §12 and I2 §1
 
 - **Generic account settings / profile management** (`iam.getCurrentUser`, `iam.updateOwnProfile`, `iam.changeOwnPassword`) — no named F1 view covers this; `iam.getCurrentUser` is treated as cross-cutting app-shell plumbing (auth/role gating) rather than a page's primary data dependency.
 - **A dedicated notifications inbox/preferences page** — `notifications.listMine`, `markAsRead`, `getOwnPreferences`, `updateOwnPreferences` are assumed to back a header dropdown widget shared across authenticated pages, not a standalone route, since no named F1 view calls for one. `[Speculation]`
-- **Barangay Resolution/Budget, Letters/Memos/NCH/NOSP** — Phase 1B per §2.4. *(Designation removed from this list — see §2.4 and ADR-007.)*
+- **Barangay Resolution/Budget, Letters/Memos/NCH/NOSP** — Phase 1B per §2.4. *(Designation removed from this list — see §2.4 and [ADR-UI-007](./f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md).)*
 - **Phase 2 reporting/dashboard-builder pages** — `report_definitions` CRUD and the broader Reporting module are out of Phase 1 per E1's own scope notes.
 
 ---
