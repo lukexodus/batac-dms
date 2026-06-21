@@ -1,10 +1,10 @@
-# Batac City LGU Platform — ADR Templates and Initial ADR Set
+# Batac City LGU Platform — ADR Master Index
 
 **Status:** Pre-Development Baseline **Project Phase:** Pre-Development — Iteration 3 (Post-Interview 2 + Developer Decisions Resolved) **Last Updated:** June 2026 **Audience:** Development team; LGU IT Office (post-delivery reference)
 
 ## Table of Contents
 
-- [L11–L27] ADR Index — Central master index linking to all architectural decisions across the platform.
+- [L11–L90] ADR Index — Central master index linking to all architectural decisions across the platform.
 
 ---
 

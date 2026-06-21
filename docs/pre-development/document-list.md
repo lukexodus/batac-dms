@@ -1,23 +1,22 @@
 
 ## Table of Contents
 
-- [L24–L78] Prerequisite Table — Dependency matrix mapping each planned document (A1 to L4) to its direct prerequisite documents.
-- [L79–L94] Generation Waves — Parallelizable document creation phases grouped into seven sequential execution waves based on dependency requirements.
-- [L95–L109] Critical Path — Diagram and explanation of the longest dependency sequence (B4 to A1) highlighting E1 as the primary bottleneck.
-- [L110–L121] Group A — Project Planning — Summaries of project planning documents A1 (Master Phased Task List) and A2 (Risk Register) detailing checklists and risk categories.
-- [L122–L145] Group B — Architecture Documents — Core architecture documents (B1–B5) defining C4 models, module boundaries, event schemas, workflow engine logic, and auth rules.
-- [L146–L169] Group C — Database — Database design documents (C1–C5) specifying schema DDL, Mermaid ERDs, RLS policies, indexing strategy, and migration conventions.
-- [L170–L197] Group D — UML and Diagrams — Visual blueprints (D1–D6) detailing actor use cases, sequence flows, state machines, class diagrams, deployment setups, and data flows.
-- [L198–L213] Group E — API Design — API interface specifications (E1–E3) detailing tRPC routers, OpenAPI REST endpoints, and shared Zod validation schemas.
-- [L214–L241] Group F — Frontend Architecture — Frontend specifications (F1–F6) covering routing maps, Zustand stores, query keys, component trees, package setups, and WCAG accessibility.
-- [L242–L249] Group G — End-to-End Type Safety — Single document mapping type propagation from Drizzle ORM through tRPC and Fastify down to React client components.
-- [L250–L271] Group H — Domain Configuration Documents — Configuration specs (H1–H4) outlining workflow seed data, document metadata schemas, numbering formats, and multilingual notification templates.
-- [L272–L287] Group I — Security and Authorization — Security documents (I1–I3) specifying ABAC policy attributes, role-permission matrix cells, threat models, and audit hash-chaining.
-- [L288–L315] Group J — Software Design Patterns and Standards — Development standards (J1–J6) defining design patterns, error normalization, style guides, module templates, ADRs, and the domain component reference.
-- [L316–L331] Group K — Testing — Testing strategies (K1–K3) defining coverage priorities, workflow state machine tests, and critical Playwright E2E user journeys.
-- [L332–L351] Group L — Infrastructure and DevOps — Operations documents (L1–L4) detailing environment variables, Docker/Compose setups, Turborepo CI/CD pipelines, and backup recovery runbooks.
-- [L352–L367] Group M — Stack Context Update — Addendum to tech-stack.md tracking OCR choices, Cloudflare R2/MinIO migration, and audit log hash-chaining cryptographic tools.
-- [L368–L381] What Can Only Be Determined During Development — Inventory of development-time issues and runtime edge cases that cannot be pre-decided in planning documentation.
+- [L23–L77] Prerequisite Table — Dependency matrix mapping each planned document (A1 to L4) to its direct prerequisite documents.
+- [L78–L93] Generation Waves — Parallelizable document creation phases grouped into seven sequential execution waves based on dependency requirements.
+- [L94–L111] Existing Reference Documents — Three pre-existing inputs the planning document set is built from: the consolidated requirements reference, the technology stack decisions, and the design system reference.
+- [L112–L123] Group A — Project Planning — Summaries of project planning documents A1 (Master Phased Task List) and A2 (Risk Register) detailing checklists and risk categories.
+- [L124–L147] Group B — Architecture Documents — Core architecture documents (B1–B5) defining C4 models, module boundaries, event schemas, workflow engine logic, and auth rules.
+- [L148–L171] Group C — Database — Database design documents (C1–C5) specifying schema DDL, Mermaid ERDs, RLS policies, indexing strategy, and migration conventions.
+- [L172–L199] Group D — UML and Diagrams — Visual blueprints (D1–D6) detailing actor use cases, sequence flows, state machines, class diagrams, deployment setups, and data flows.
+- [L200–L215] Group E — API Design — API interface specifications (E1–E3) detailing tRPC routers, OpenAPI REST endpoints, and shared Zod validation schemas.
+- [L216–L243] Group F — Frontend Architecture — Frontend specifications (F1–F6) covering routing maps, Zustand stores, query keys, component trees, package setups, and WCAG accessibility.
+- [L244–L251] Group G — End-to-End Type Safety — Single document mapping type propagation from Drizzle ORM through tRPC and Fastify down to React client components.
+- [L252–L273] Group H — Domain Configuration Documents — Configuration specs (H1–H4) outlining workflow seed data, document metadata schemas, numbering formats, and multilingual notification templates.
+- [L274–L289] Group I — Security and Authorization — Security documents (I1–I3) specifying ABAC policy attributes, role-permission matrix cells, threat models, and audit hash-chaining.
+- [L290–L317] Group J — Software Design Patterns and Standards — Development standards (J1–J6) defining design patterns, error normalization, style guides, module templates, the master ADR index, and the domain component reference.
+- [L318–L333] Group K — Testing — Testing strategies (K1–K3) defining coverage priorities, workflow state machine tests, and critical Playwright E2E user journeys.
+- [L334–L353] Group L — Infrastructure and DevOps — Operations documents (L1–L4) detailing environment variables, Docker/Compose setups, Turborepo CI/CD pipelines, and backup recovery runbooks.
+- [L354–L367] What Can Only Be Determined During Development — Inventory of development-time issues and runtime edge cases that cannot be pre-decided in planning documentation.
 
 ---
 
@@ -64,7 +63,7 @@
 | J2  | Error Handling and Response Normalization      | None                         |     |
 | J3  | Coding Standards and Conventions               | None                         |     |
 | J4  | Module Structure Template                      | B2, J1                       |     |
-| J5  | ADR Templates and Initial ADR Set              | None                         |     |
+| J5  | ADR Master Index                               | None                         |     |
 | J6  | Kitchen-Sink Migration and Domain Component Catalog | F5                      |     |
 | K1  | Test Strategy Document                         | B4                           |     |
 | K2  | Workflow Engine Test Suite Design              | B4, D3, H1                   |     |
@@ -92,20 +91,23 @@ Documents within the same wave have no dependency on each other and can be gener
 
 ---
 
-## Critical Path
+## Existing Reference Documents
 
-The longest dependency chain — the sequence that determines the minimum total time regardless of parallelism — is:
+These three documents pre-exist the planning document set (A1–M1) and are not generated by it. They are inputs that the prerequisite table's documents cite, implement, or are downstream of. They have no prerequisites of their own and are not part of the Generation Waves.
 
-```
-B4 → D3 → H1 → (E1 needs C1 which needs H1's siblings B2, H2, H3)
-                  ↓
-              C1 → E1 → F1 → F2
-                       → F3
-                       → G1
-                            → A1
-```
+**consolidated-architecture-and-requirements-reference-iteration-3.md** — Source of truth (located in /docs/requirement-gathering)
 
-The most constrained single document is **E1** (tRPC Procedure Catalog). It sits at Wave 4 and is a prerequisite for five documents in Waves 5 and 6 (C4, F1, F3, G1, and transitively F2, F4, K3). If E1 is delayed, it cascades into the entire frontend architecture group and the type safety document. Prioritize completing C1 and I1 first, since both are required by E1 and are themselves Wave 3 documents with their own chains behind them.
+The stakeholder-confirmed ground truth for what the system must do. Status: Post-Interview 2 (June 15), Developer Decisions Resolved, Pre-Development Baseline. Covers Parts 1–14: project identity and scope, Phase 1 scope decisions, confirmed stakeholders, all 18 confirmed document types and workflows (SP Resolution, SP Ordinance, Panlalawigan Review, Barangay Resolution/Budget, internal memos, letters, hearing notices, designations, citizen complaints, document requests, certification of urgency, order of business), the numbering system, standing committees, confirmed operational context, the multi-committee referral architectural finding, technology stack, architecture pattern and module boundaries, 21 consolidated key design decisions, 16 architectural invariants, the five-phase roadmap, and a historical record of resolved open questions (Part 14). Per AGENTS-v2.md Section 1, this document outranks all Group B–L architecture documents when they conflict with it — those documents are downstream interpretations of this one and can be wrong; this document is the thing they're implementing.
+
+**tech-stack.md** — Source of truth (located in /docs/pre-development)
+
+Confirmed for *how* the system is built: stack, libraries, and conventions. Covers: monorepo structure (pnpm workspaces, Turborepo), the full stack decisions table (Fastify, tRPC, Vite + React, PostgreSQL, Drizzle ORM, Zod, TanStack Query, Zustand, shadcn/ui, and other library choices with their hard constraints), the tRPC/REST hybrid architecture, the end-to-end type safety chain, PostgreSQL non-negotiables, the search strategy (PostgreSQL FTS → Meilisearch), file storage strategy, OCR strategy, audit log integrity approach, authentication architecture, testing priorities, migration rules, and deployment constraints. One open decision remains as of this version: the OCR library choice (`tesseract.js` preferred vs. a self-hosted cloud alternative) is explicitly marked unresolved — per AGENTS-v2.md Section 1, this item is not to be treated as decided until tech-stack.md itself is updated. Per AGENTS-v2.md Section 1, this document is outranked only by the consolidated reference; any pre-development document under Groups B–L that contradicts it has a bug.
+
+**DESIGN.md** — Living; pending J6 update (located in /docs/design)
+
+Version 1.1. The authoritative reference for the `batac-dms` design system. Covers: Brand DNA observed from batac.gov.ph (§1), the public-site-to-internal-app adaptation rationale (§2), the complete CSS token dictionary (§3), Tailwind v4 `@theme` config (§4), shadcn/ui theme overrides (§5), component usage guidelines for layout, navigation, data display, forms, feedback, and specialized components (§6), the State Color Map for 17 legislative and complaint statuses (§7), twelve UI Do/Don't rules (§8), a typography specimen (§9), and a running log of known implementation gaps (§10). §7 is the authoritative source for STATUS_META; its own §10 (Gap 2) notes that reconciliation against the `kitchen-sink.jsx` prototype's STATUS_META table is deferred to J6, and that until J6 is complete, `kitchen-sink.jsx`'s table is prototype-only. Status: will be updated again once J6 (Domain Component Engineering Reference) is generated, per the DESIGN.md Delta section J6 is required to produce.
+
+---
 
 ## Group A — Project Planning
 
@@ -303,9 +305,9 @@ TypeScript strictness settings (`strict: true`, no `any`, explicit return types 
 
 The canonical folder and file layout for a server-side module. Example for `documents`: `documents/index.ts` (Fastify plugin registration), `documents/router.ts` (tRPC router), `documents/service.ts` (business logic), `documents/repository.ts` (Drizzle queries), `documents/events.ts` (domain event definitions and emitters), `documents/types.ts` (module-private types), `documents/schemas.ts` (Zod schemas not shared externally). This template is used for all 11 modules. Deviations require an ADR.
 
-**J5. ADR Templates and Initial ADR Set** — Pre-dev
+**J5. ADR Master Index** — Pre-dev
 
-An ADR template following the standard format (Context, Decision, Consequences, Status). The initial set of ADRs covering every non-obvious decision already made: modular monolith over microservices, custom workflow engine over Camunda/Temporal, PostgreSQL over MySQL, pessimistic locking, the multi-referral step type (Option B), deferred parallel split/join to Phase 2, the QR tracking number timing decision, the no-deletion invariant, the two-stage preliminary/final numbering architecture, the sp.batac.gov.ph coexistence decision, and the assume-no-existing-QR-system decision for letters and memos.
+A master index of all Architectural Decision Records (ADRs) across the platform, linking to specific decision documents for APIs, authentication, database schemas, events, general architecture, testing, and UI decisions.
 
 **J6. Domain Component Engineering Reference** — Blocking
 
@@ -346,22 +348,6 @@ The pipeline stages: lint → typecheck → unit tests → integration tests (ag
 **L4. Backup and DR Runbooks** — Early-dev
 
 Operational runbooks for: daily encrypted `pg_dump` to S3, WAL-based PITR archiving configuration, streaming replication setup and lag monitoring, the monthly restoration test procedure, the quarterly DR drill procedure, and the break-glass procedure (physical sealed envelope, who opens it, what is logged). These must exist before any production data is written.
-
----
-
-## Group M — Stack Context Update
-
-**M1. Stack Context Addendum** — Pre-dev
-
-tech-stack.md is substantially complete and does **not** need a full rewrite. However, three confirmed decisions are missing and should be added:
-
-First, an OCR library entry is absent. Phase 1 requires OCR on upload (confirmed in the consolidated reference). The stack choice for this — `tesseract.js` (pure Node, no system dependency) vs. a cloud OCR service — is still an open technical decision [Inference: tesseract.js is the most common self-hostable choice given the on-premise constraint, but this has not been confirmed]. Add the entry once the choice is made.
-
-Second, the S3 provider decision is in the consolidated reference (Part 11.10: Cloudflare R2 for Phase 1, MinIO for on-premise migration) but is absent from tech-stack.md. Add it for completeness.
-
-Third, the audit log hash-chaining implementation library (if any external crypto library is used beyond Node's built-in `crypto` module) should be noted.
-
-Everything else in tech-stack.md is still accurate. No rewrites needed.
 
 ---
 
