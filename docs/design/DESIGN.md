@@ -1,31 +1,36 @@
 # Batac City LGU Platform — Design System Reference
 
-## Table of Contents
-
-- [L24–L29] `batac-dms` · `/packages/ui` · Version 1.0 — Document scope, authoritative reference guidelines, and version metadata.
-- [L30–L116] 1. Brand DNA — Observed brand colors, typography, spacing, and visual tone extracted from the official batac.gov.ph website.
-- [L117–L142] 2. Adaptation Rationale — Differences between the citizen-facing portal and internal DMS, including the signature document number monospace pill.
-- [L143–L366] 3. Complete Token Dictionary — Authoritative CSS custom properties for colors, typography, spacing, border radius, shadows, and z-index tokens.
-- [L367–L531] 4. Tailwind Config Extension — Tailwind CSS configuration extending the utility framework with the design system's custom tokens.
-- [L532–L664] 5. shadcn/ui Theme Override — Mapping of tokens to shadcn/ui HSL variables, global CSS resets, and touch target rules.
-- [L665–L1114] 6. Component Usage Guidelines — Implementation rules, design patterns, and Tailwind classes for the application's UI components.
-  - [L667–L735] 6.1 Layout & Shell — Structure and responsive layouts for the app shell, collapsible sidebar, topbar, and page headers.
-  - [L736–L777] 6.2 Navigation — Usage and styling rules for breadcrumbs, document tabs, and the command palette search overlays.
-  - [L778–L926] 6.3 Data Display — Guidelines for data tables, the signature document badge, status colors, SLA timers, and timelines.
-  - [L927–L1001] 6.4 Forms & Inputs — Styling and constraints for standard inputs, date pickers, drag-and-drop file uploaders, and form wrappers.
-  - [L1002–L1064] 6.5 Feedback & Overlays — System alerts, temporary toast notifications, confirm modals, drawers, tooltips, and loading skeletons.
-  - [L1065–L1114] 6.6 Specialized Components — Implementation of QR displays, preview cards, agenda rows, referral blocks, and user avatar formatting.
-- [L1115–L1148] 7. State Color Map — Authoritative mapping of legislative workflow states to specific token colors and border styling.
-- [L1149–L1234] 8. Do / Don't Rules — Twelve mandatory guidelines covering typography, color usage, form tags, empty states, and accessibility requirements.
-- [L1235–L1300] 9. Typography Specimen — Visual examples of typography and font styles using actual system document data as specimens.
-
 ---
 
-## `batac-dms` · `/packages/ui` · Version 1.0
+## `batac-dms` · `/packages/ui` · Version 1.1
 
 > **Scope:** This document is the single authoritative reference for the `batac-dms` design system. Every color, spacing value, component decision, and state mapping here is canonical. When in doubt, consult this document before inventing a solution.
 
 ---
+
+## Table of Contents
+
+- [L35–L121] 1. Brand DNA — Observed colors, typography, spacing, components, and the civic visual tone crawled from official city portals.
+- [L122–L147] 2. Adaptation Rationale — Justifications for layout, density, and navigation changes, plus design specifications for the signature monospace document-number pill.
+- [L148–L383] 3. Complete Token Dictionary — CSS custom properties defining the design system's color scales, typography, spacing, borders, shadows, and focus rings.
+- [L384–L402] 3.1 Date Display Formats — Standard date and time format strings, Philippine locale configurations, and Manila timezone rules.
+- [L403–L529] 4. Tailwind Config Extension — Tailwind CSS v4 `@theme` configurations mapping the custom design tokens to utility classes.
+- [L530–L677] 5. shadcn/ui Theme Override — shadcn/ui HSL color overrides, global CSS resets, minimum touch target exceptions, and animation rules.
+  - [L532–L677] Confirmed Decisions — Finalized design choices for base colors, contrast adjustments, toast libraries, and font-loading strategies.
+- [L678–L1142] 6. Component Usage Guidelines — HTML structures, Tailwind class patterns, and behavioral states for page layout and interactive UI components.
+  - [L680–L748] 6.1 Layout & Shell — Fixed coordinates, dimensions, and Tailwind classes for the sidebar, topbar, and page header containers.
+  - [L749–L790] 6.2 Navigation — Breadcrumb formatting, tab state styles, and command palette overlay panel classes.
+  - [L791–L939] 6.3 Data Display — Table density toggle, document number badge variants, SLA timer conditions, routing timeline, and stat cards.
+  - [L940–L1014] 6.4 Forms & Inputs — Validation states, date pickers, drag-and-drop file upload zones, and inline editing triggers.
+  - [L1015–L1077] 6.5 Feedback & Overlays — Toast notifications, inline alerts, confirmation dialogs, drawer panels, tooltips, and skeleton loaders.
+  - [L1078–L1142] 6.6 Specialized Components — QR code printing, document preview cards, agenda rows, committee referral blocks, and avatar color hashing.
+- [L1143–L1176] 7. State Color Map — Visual specifications mapping 17 legislative and complaint statuses to background, text, and border tokens.
+- [L1177–L1262] 8. Do / Don't Rules — Twelve UI invariants governing document numbering, status badges, focus rings, and HTML `<form>` tag restrictions.
+- [L1263–L1329] 9. Typography Specimen — Visual typography specimens showing actual interface copy styled with font-size, weight, and color utility classes.
+- [L1330–L1352] 10. Known Implementation Gaps (as of v1.1) — Unresolved issues including missing packages, unaligned status tables, and font loading strategies.
+
+---
+
 
 ## 1. Brand DNA
 
@@ -196,6 +201,7 @@ All tokens are defined as CSS custom properties. The `:root` block below is the 
      Usage: Valid, Deemed Approved, approved workflow steps
      ------------------------------------------------------- */
   --color-success-100: #d1fae5;
+  --color-success-300: #6ee7b7;  /* added — DEEMED_APPROVED left-border accent per §7 state color map */
   --color-success-500: #10b981;
   --color-success-900: #064e3b;
 
@@ -213,8 +219,11 @@ All tokens are defined as CSS custom properties. The `:root` block below is the 
      SEMANTIC — Danger (red)
      Usage: Vetoed, Returned, SLA breached, missing report
      ------------------------------------------------------- */
+  --color-danger-50:  #fef2f2;  /* added — used in kitchen-sink.jsx STATUS_META (MISSING_REPORT row bg) */
   --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;  /* added — used in kitchen-sink.jsx StatusBadge hover states */
   --color-danger-500: #ef4444;
+  --color-danger-700: #b91c1c;  /* added — used in button.tsx ghost-danger hover */
   --color-danger-900: #7f1d1d;
 
   /* -------------------------------------------------------
@@ -246,7 +255,7 @@ All tokens are defined as CSS custom properties. The `:root` block below is the 
      ------------------------------------------------------- */
   --color-text-primary:   #212529;  /* Body text, table cell content */
   --color-text-secondary: #495057;  /* Subtitles, secondary labels */
-  --color-text-muted:     #868e96;  /* Helper text, timestamps, placeholders */
+  --color-text-muted:     #5a6470;  /* Helper text, timestamps, placeholders — WCAG AA corrected from #868e96 (3.8:1 fails AA) → #5a6470 (6.01:1 passes AA) */
   --color-text-inverse:   #ffffff;  /* Text on dark backgrounds (sidebar, header) */
   --color-text-disabled:  #ced4da;  /* Disabled inputs and labels */
   --color-text-link:      #1e3d7a;  /* Inline text links (primary-700) */
@@ -260,6 +269,14 @@ All tokens are defined as CSS custom properties. The `:root` block below is the 
   --font-sans:  'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-serif: 'Lora', Georgia, serif;  /* Reserved: formal document rendering */
   --font-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+
+  /*
+   * Tailwind v4 naming: In the @theme block, these are declared as
+   * --font-family-sans, --font-family-serif, --font-family-mono to generate
+   * the font-sans, font-serif, font-mono utilities. The --font-sans etc. CSS
+   * custom properties remain available in @layer base for use in non-Tailwind
+   * CSS (e.g., font-family: var(--font-sans) in the body reset).
+   */
 
   /* Type scale */
   --text-xs:   0.75rem;    /* 12px — captions, micro labels */
@@ -364,183 +381,179 @@ All tokens are defined as CSS custom properties. The `:root` block below is the 
 
 ---
 
+## 3.1 Date Display Formats
+
+The `DATE_FORMATS` constants below are defined in `date-locale.ts` and are the standard format strings used throughout the app. All `date-fns format()` calls must pass `{ locale: phLocale }`.
+
+| Constant | Format string | Example output | Usage |
+|---|---|---|---|
+| `display` | `d MMM yyyy` | `18 Jun 2026` | Document timestamps, routing history |
+| `displayWithTime` | `d MMM yyyy · hh:mm a` | `18 Jun 2026 · 09:15 AM` | Full audit log entries |
+| `iso` | `yyyy-MM-dd` | `2026-06-18` | DB storage, URL params |
+| `isoWithTime` | `yyyy-MM-dd HH:mm:ss` | `2026-06-18 09:15:32` | Monospace timestamps per §9 |
+| `sessionHeading` | `EEEE, d MMMM yyyy` | `Monday, 23 June 2026` | Session headers |
+| `monthYear` | `MMM yyyy` | `Jun 2026` | Month navigation in Calendar |
+
+**Locale:** `phLocale` extends `en-US` with `weekStartsOn: 1` (Monday).
+
+**Timezone:** `Asia/Manila` (UTC+8). Use `date-fns-tz`'s `formatInTimeZone()` for server-side formatting. Client-side display uses local browser time (expected to be Manila time for all users on this deployment).
+
+---
+
 ## 4. Tailwind Config Extension
 
-```typescript
-// tailwind.config.ts
-import type { Config } from 'tailwindcss'
+> **This project uses Tailwind CSS v4.** Token extension is handled via the `@theme` block inside `globals.css`, not via `tailwind.config.ts`. The block below is the production configuration. Refer to `globals.css` for the authoritative source — this section documents the token names and values only.
 
-const config: Config = {
-  content: [
-    './apps/web/src/**/*.{ts,tsx}',
-    './apps/portal/src/**/*.{ts,tsx}',
-    './packages/ui/src/**/*.{ts,tsx}',
-  ],
-  theme: {
-    extend: {
-      colors: {
-        // Primary brand navy
-        primary: {
-          50:  '#eef2f9',
-          100: '#d5e0f0',
-          200: '#adc2e3',
-          300: '#7d9fd2',
-          400: '#527cbf',
-          500: '#3560ad',
-          600: '#274d93',
-          700: '#1e3d7a',
-          800: '#162e60',
-          900: '#0e2044',
-          950: '#081229',
-          DEFAULT: '#162e60',  // primary-800 — use for buttons, active states
-        },
+```css
+@theme {
 
-        // Semantic colors
-        success: {
-          100: '#d1fae5',
-          500: '#10b981',
-          900: '#064e3b',
-        },
-        warning: {
-          100: '#fef3c7',
-          500: '#f59e0b',
-          900: '#78350f',
-        },
-        danger: {
-          100: '#fee2e2',
-          500: '#ef4444',
-          900: '#7f1d1d',
-        },
-        info: {
-          100: '#dbeafe',
-          500: '#3b82f6',
-          900: '#1e3a8a',
-        },
+  /* Primary */
+  --color-primary-50:  #eef2f9;
+  --color-primary-100: #d5e0f0;
+  --color-primary-200: #adc2e3;
+  --color-primary-300: #7d9fd2;
+  --color-primary-400: #527cbf;
+  --color-primary-500: #3560ad;
+  --color-primary-600: #274d93;
+  --color-primary-700: #1e3d7a;
+  --color-primary-800: #162e60;
+  --color-primary-900: #0e2044;
+  --color-primary-950: #081229;
 
-        // Surfaces
-        surface: {
-          base:    '#ffffff',
-          raised:  '#f8f9fa',
-          overlay: '#ffffff',
-          sunken:  '#f1f3f5',
-        },
+  /* Neutral */
+  --color-neutral-50:  #f8f9fa;
+  --color-neutral-100: #f1f3f5;
+  --color-neutral-200: #e9ecef;
+  --color-neutral-300: #dee2e6;
+  --color-neutral-400: #ced4da;
+  --color-neutral-500: #adb5bd;
+  --color-neutral-600: #868e96;
+  --color-neutral-700: #495057;
+  --color-neutral-800: #343a40;
+  --color-neutral-900: #212529;
+  --color-neutral-950: #0d0f12;
 
-        // Borders
-        border: {
-          DEFAULT: '#dee2e6',
-          strong:  '#ced4da',
-          subtle:  '#e9ecef',
-          brand:   '#adc2e3',
-        },
+  /* Semantic */
+  --color-success-100: #d1fae5;
+  --color-success-300: #6ee7b7;
+  --color-success-500: #10b981;
+  --color-success-900: #064e3b;
 
-        // Text
-        text: {
-          primary:   '#212529',
-          secondary: '#495057',
-          muted:     '#868e96',
-          inverse:   '#ffffff',
-          disabled:  '#ced4da',
-          link:      '#1e3d7a',
-        },
-      },
+  --color-warning-100: #fef3c7;
+  --color-warning-500: #f59e0b;
+  --color-warning-900: #78350f;
 
-      fontFamily: {
-        sans:  ['Inter', 'Segoe UI', 'system-ui', '-apple-system', 'sans-serif'],
-        serif: ['Lora', 'Georgia', 'serif'],
-        mono:  ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'ui-monospace', 'monospace'],
-      },
+  --color-danger-50:   #fef2f2;
+  --color-danger-100:  #fee2e2;
+  --color-danger-200:  #fecaca;
+  --color-danger-500:  #ef4444;
+  --color-danger-700:  #b91c1c;
+  --color-danger-900:  #7f1d1d;
 
-      fontSize: {
-        xs:   ['0.75rem',   { lineHeight: '1rem' }],
-        sm:   ['0.875rem',  { lineHeight: '1.25rem' }],
-        base: ['1rem',      { lineHeight: '1.5rem' }],
-        lg:   ['1.125rem',  { lineHeight: '1.625rem' }],
-        xl:   ['1.25rem',   { lineHeight: '1.75rem' }],
-        '2xl': ['1.5rem',   { lineHeight: '2rem' }],
-        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
-      },
+  --color-info-100:    #dbeafe;
+  --color-info-500:    #3b82f6;
+  --color-info-900:    #1e3a8a;
 
-      spacing: {
-        '0':  '0px',
-        '1':  '4px',
-        '2':  '8px',
-        '3':  '12px',
-        '4':  '16px',
-        '5':  '20px',
-        '6':  '24px',
-        '7':  '28px',
-        '8':  '32px',
-        '10': '40px',
-        '12': '48px',
-        '16': '64px',
-        '20': '80px',
-        '24': '96px',
-        // Layout constants
-        'sidebar':           '240px',
-        'sidebar-collapsed': '56px',
-        'topbar':            '56px',
-      },
+  /* Surfaces */
+  --color-surface-base:    #ffffff;
+  --color-surface-raised:  #f8f9fa;
+  --color-surface-overlay: #ffffff;
+  --color-surface-sunken:  #f1f3f5;
 
-      borderRadius: {
-        none: '0px',
-        sm:   '2px',
-        DEFAULT: '4px',
-        md:   '4px',
-        lg:   '8px',
-        xl:   '12px',
-        full: '9999px',
-      },
+  /* Borders */
+  --color-border-default:  #dee2e6;
+  --color-border-strong:   #ced4da;
+  --color-border-subtle:   #e9ecef;
+  --color-border-brand:    #adc2e3;
 
-      boxShadow: {
-        sm:  '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        md:  '0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.06)',
-        lg:  '0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06)',
-        xl:  '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05)',
-      },
+  /* Text — text-muted corrected to #5a6470 for WCAG AA */
+  --color-text-primary:    #212529;
+  --color-text-secondary:  #495057;
+  --color-text-muted:      #5a6470;
+  --color-text-inverse:    #ffffff;
+  --color-text-disabled:   #ced4da;
+  --color-text-link:       #1e3d7a;
+  --color-text-link-hover: #0e2044;
 
-      zIndex: {
-        base:     '0',
-        raised:   '10',
-        sticky:   '100',
-        dropdown: '200',
-        modal:    '300',
-        toast:    '400',
-      },
+  /* Font families */
+  --font-family-sans:  'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-family-serif: 'Lora', Georgia, serif;
+  --font-family-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
 
-      transitionDuration: {
-        fast: '100ms',
-        base: '200ms',
-        slow: '300ms',
-      },
+  /* Font size scale */
+  --font-size-xs:   0.75rem;
+  --font-size-sm:   0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg:   1.125rem;
+  --font-size-xl:   1.25rem;
+  --font-size-2xl:  1.5rem;
+  --font-size-3xl:  1.875rem;
 
-      transitionTimingFunction: {
-        default:  'cubic-bezier(0.4, 0, 0.2, 1)',
-        'in':     'cubic-bezier(0.4, 0, 1, 1)',
-        out:      'cubic-bezier(0, 0, 0.2, 1)',
-        'in-out': 'cubic-bezier(0.4, 0, 0.2, 1)',
-      },
-    },
-  },
-  plugins: [],
+  /* Border radius */
+  --radius-none:    0px;
+  --radius-sm:      2px;
+  --radius-DEFAULT: 4px;
+  --radius-md:      4px;
+  --radius-lg:      8px;
+  --radius-xl:      12px;
+  --radius-full:    9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+  --shadow-md: 0 1px 3px 0 rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.06);
+  --shadow-xl: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.05);
+
+  /* Z-index — generates z-sticky, z-dropdown, z-modal, z-toast */
+  --z-index-base:     0;
+  --z-index-raised:   10;
+  --z-index-sticky:   100;
+  --z-index-dropdown: 200;
+  --z-index-modal:    300;
+  --z-index-toast:    400;
+
+  /* Transitions */
+  --transition-duration-fast: 100ms;
+  --transition-duration-base: 200ms;
+  --transition-duration-slow: 300ms;
+
+  /* Layout constants — usable as arbitrary values */
+  --width-sidebar:           240px;
+  --width-sidebar-collapsed:  56px;
+  --height-topbar:            56px;
+  --width-page-max:         1280px;
 }
-
-export default config
 ```
 
 ---
 
 ## 5. shadcn/ui Theme Override
 
+### Confirmed Decisions
+
+The following decisions were open when DESIGN.md was first written. They are now locked. Sources are confirmed from production files.
+
+| Decision | Resolution | Source |
+|---|---|---|
+| baseColor for shadcn | `zinc` (closest hue match to neutral scale) | `globals.css` header comment |
+| `text-muted` contrast | `#5a6470` replacing `#868e96` (WCAG AA correction) | `globals.css` line 132 |
+| Button variant naming | `"default"` with brand-navy; `"primary"` as CVA alias | `button.tsx` |
+| Tabs variant | shadcn Tabs primitive + `underline` CVA override | `tabs.tsx` |
+| Toast library | Sonner (confirmed; replaces any custom toast) | `INSTALL.sh` |
+| Date locale | Custom en-US base with `weekStartsOn: 1` (Monday) | `date-locale.ts` |
+| Dark mode | Deferred to Phase 2; class strategy when implemented | `globals.css` comment |
+| Lora font loading | Deferred — loaded per-component by document-render components only; NOT in global `@import` | `globals.css` header comment, `index.html` |
+
+> **Architecture note:** Tokens, shadcn HSL overrides, global resets, and the `@theme` extension are all consolidated in a single `globals.css` file. No separate `tokens.css` file exists.
+
+---
+
 ```css
 /* packages/ui/src/styles/globals.css */
 /* shadcn/ui HSL variable overrides for batac-dms brand */
 
-@import './tokens.css';
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @layer base {
 
@@ -1110,6 +1123,21 @@ Thumbnail:  w-full aspect-[3/4] bg-neutral-100 rounded object-cover mb-3
 
 **Sizes:** `h-6 w-6` (table cell), `h-8 w-8` (inline in timeline), `h-10 w-10` (header/card).
 
+**`AvatarName` confirmed color palette (deterministic: `hash(name) % 6`):**
+
+```
+- bg-primary-700   (#1e3d7a) — navy blue
+- bg-info-900      (#1e3a8a) — deep blue
+- bg-success-900   (#064e3b) — deep green
+- bg-warning-900   (#78350f) — deep amber
+- bg-neutral-700   (#495057) — gray
+- bg-danger-900    (#7f1d1d) — deep red
+```
+
+All combinations verified: white text (`#ffffff`) on each background passes WCAG AA. Algorithm: `hash = name.charCodeAt(i)` accumulated with `* 31 >>> 0`; `index = hash % 6`.
+
+> **Token cross-check:** `info-900` (`#1e3a8a`) is present in §3 and confirmed in the `@theme` block in §4.
+
 ---
 
 ## 7. State Color Map
@@ -1297,4 +1325,28 @@ The specimens below show each text style with the actual content it will carry i
 
 ---
 
-*End of DESIGN.md — Version 1.0 · batac-dms · Batac City LGU Platform*
+---
+
+## 10. Known Implementation Gaps (as of v1.1)
+
+This section records items discovered during foundation file generation that are not yet resolved in either DESIGN.md or the codebase. Future maintainers should resolve these before marking v1.1 complete.
+
+**Gap 1 — `date-fns-tz` missing from `INSTALL.sh`**
+
+`date-locale.ts` references `formatInTimeZone` from `date-fns-tz`, but `date-fns-tz` is not included in the `INSTALL.sh` install command. Add `date-fns-tz` to the `pnpm add` command for both `@batac/web` and `@batac/ui`.
+
+**Gap 2 — `kitchen-sink.jsx` STATUS_META not yet reconciled against §7**
+
+The prototype's STATUS_META table may contain states or color values that diverge from DESIGN.md §7. Reconciliation is deferred to J6. Until J6 is complete, §7 is authoritative and `kitchen-sink.jsx` STATUS_META is prototype-only.
+
+**Gap 3 — `info-700` usage unverified**
+
+Verify against `kitchen-sink.jsx` whether `info-700` is used anywhere. If so, add `--color-info-700` to the §3 token dictionary and the `@theme` block in `globals.css`.
+
+**Gap 4 — Lora font loading strategy unspecified**
+
+The `globals.css` Google Fonts `@import` loads Inter and JetBrains Mono but not Lora (intentionally deferred — see §5 Confirmed Decisions). The loading strategy for document-render components has not yet been specified. A future implementation note is needed for whichever component first renders formal document content (the component that triggers the Lora load should be documented here once identified).
+
+---
+
+*End of DESIGN.md — Version 1.1 · batac-dms · Batac City LGU Platform*
