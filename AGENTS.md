@@ -1,4 +1,4 @@
-# AGENTS.md — Batac City LGU Platform
+# Batac City LGU Platform
 
 This file tells an AI agent which documents to read for a given task, and — just
 as important — what to do when no document answers the question. Read this file
