@@ -55,7 +55,7 @@ conflict and which document you followed in the Module Summary.
 |---|---|---|
 | **Step 1 — Skeleton** | Structural contract: task ID convention, module list with wave order, phase scope table, cross-module dependency rules, special tags, Phase 1 task count estimates | `docs/document-list.md` → `tech-stack.md` → consolidated ref §10.2, §13 |
 | **Step 2 — Module: INFRA** | TASK-INFRA-001…NNN | Skeleton → `tech-stack.md` → L1 → L2 → L3 → L4 → D5 → C5 → J3 |
-| **Step 2 — Module: UI** | TASK-UI-001…NNN | Skeleton → F5 → J6 → F6 → F4 → F1 → DESIGN.md → globals.css |
+| **Step 2 — Module: UI** | TASK-UI-001…NNN | Skeleton → F5 → J6 → F6 → F4 → F1 → DESIGN.md → globals.css → F7 (Frontend Foundation Plans 0, 1, 2) |
 | **Step 2 — Module: IAM** | TASK-IAM-001…NNN | Skeleton → TASK-INFRA list → B5 → I2 → I1 → C1 §iam → J1 → J2 → J3 → J4 |
 | **Step 2 — Module: AUDIT** | TASK-AUDIT-001…NNN | Skeleton → TASK-INFRA list → C1 §audit → `tech-stack.md` §"Audit Log Integrity" → I3 |
 | **Step 2 — Module: ORG** | TASK-ORG-001…NNN | Skeleton → TASK-IAM list → TASK-AUDIT list → C1 §organization → B2 → I1 → I2 |
@@ -215,6 +215,30 @@ capabilities this module must deliver before generating a single task.
 **While writing tasks:** reference task IDs from prerequisite modules wherever a
 dependency exists. Do not write `[TBD]` for a cross-module reference when the
 prerequisite module's list was supplied — look up the actual ID.
+
+**UI module pass — additional rules.** The UI module pass receives F7 (Frontend
+Foundation Plans). F7 contains three plan templates that must be instantiated as
+tasks, not described or summarized:
+
+- Plan 0 → one Foundation PR task (Tier 1 install + Tier 2 replacement + token
+  system + `/dev/components` route)
+- Plan 1 → one task per Tier 3 component, instantiated from the per-component
+  fill-in table in F7. The authoritative component count is in F5 — if F7's table
+  and F5 disagree on the component list, F5 wins and the discrepancy is a
+  `[SPEC GAP]` in the Module Summary.
+- Plan 2 → one cross-component integration page task, run after all Tier 3
+  component tasks
+
+The tasks must encode the Group A/B/C/D ordering from F7 as explicit prerequisites:
+Group A components (PageHeader, Sidebar, Topbar, AppShell) have no Tier 3
+prerequisites. AppShell depends on Sidebar and Topbar. Group B components
+(standalone display) have no Tier 3 dependencies and can run in parallel with Group
+A. Group C components (CommitteeReferralBlock, StatusBadge, WorkflowStepIndicator)
+require J6 types — their tasks must list the J6-generation task as a prerequisite.
+Group D components (DocumentPreviewCard, OrderOfBusinessRow) depend on specific
+Group B and C components — encode those as prerequisites, not just "Group B done."
+The integration page task (Plan 2) must list all 16+ Tier 3 component tasks as
+prerequisites.
 
 **After the last task,** produce a **Module Summary** with these four items:
 
