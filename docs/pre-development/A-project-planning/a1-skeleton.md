@@ -1,12 +1,28 @@
-# A1 Skeleton — Structural Contract
+# A1 Skeleton — Structural Contract (v2)
 
 Generated per `A1-AGENTS.md` §6 "Step 1 — Skeleton." This document is the
 structural contract for all later A1 generation passes. It contains no tasks.
 
+**Supersedes:** `a1-skeleton.md` (v1, archived as `a1-skeleton.md.bak`).
+
+**Reason for v2:** v1 flagged seven open items (one `[CONFLICT]`, six
+`[SPEC GAP]` / `[Unverified]`). All seven were resolved via direct Q&A with
+the project owner on 2026-06-22. One of the seven — the `search_meta` /
+`reporting` module-code gap — also required a small structural edit to
+`A1-AGENTS.md` itself (two new module codes added directly to its Pass Types
+table, Wave-order notes, and Module field enum). The other six are
+content-level resolutions that live only in this document. Because the new
+module codes alone touch this document's Sections 1, 2, 3, and 6, and the
+remaining six resolutions touch Sections 3 and 4, this is a full rewrite
+rather than a delta. See the changelog at the end for the complete list of
+what changed and why.
+
 **Documents loaded for this pass, in order:** `docs/pre-development/document-list.md`
 → `docs/pre-development/tech-stack.md` → consolidated reference §10.2 and §13 only.
 (`A1-AGENTS.md` itself was read first, per the routing instructions, to obtain the
-Pass Types table and the Step 1 rules this document follows.)
+Pass Types table and the Step 1 rules this document follows. `A1-AGENTS.md` was
+re-read for this v2 pass after its own §2/§3 were amended to add the `SEARCH`/
+`REPORT` module codes.)
 
 **Sourcing & confidence legend** (applied throughout this document):
 - Unmarked statements are taken directly from one of the three loaded sources or
@@ -18,6 +34,11 @@ Pass Types table and the Step 1 rules this document follows.)
   invented; left for human resolution per `A1-AGENTS.md` §8.
 - `[CONFLICT]` — an apparent disagreement between two loaded sources, flagged
   rather than resolved by guessing, per `A1-AGENTS.md` §1.
+- `[Resolved — 2026-06-22]` — **new in v2.** An item v1 flagged as `[CONFLICT]`,
+  `[SPEC GAP]`, or `[Unverified]`, settled by direct decision from the project
+  owner rather than derived from a loaded document. The original v1 flag is kept
+  visible in parentheses for audit trail; the resolution itself is a decision,
+  not a sourced fact.
 - Where something cannot be determined from the loaded sources at all, this
   document says so directly instead of presenting a guess as settled.
 
@@ -27,8 +48,18 @@ Pass Types table and the Step 1 rules this document follows.)
 
 **Format:** `TASK-{MODULE}-{NNN}`
 
-**Module codes (11, exhaustive — `A1-AGENTS.md` §3):**
-`INFRA | UI | IAM | AUDIT | ORG | DOCS | WF | TRACK | REC | NOTIF | PORTAL`
+**Module codes (13, exhaustive — `A1-AGENTS.md` §3):**
+`INFRA | UI | IAM | AUDIT | ORG | DOCS | WF | TRACK | REC | NOTIF | PORTAL | SEARCH | REPORT`
+
+`[Resolved — 2026-06-22]` (v1 `[SPEC GAP]`, Section 2): `SEARCH` and `REPORT`
+are new codes covering consolidated ref §10.2's `search_meta` and `reporting`
+schemas, which had no A1 module code in v1. Both carry **zero Phase 1 tasks**
+this round — Meilisearch sync is a Phase 2 capability; ARTA compliance reports
+is Phase 2 and the configurable report builder is Phase 4 (§13). They exist in
+the enum now only so Phase 2/4 title-only entries (Step 3 Outline pass) have a
+valid Module value to reference. Their own full-spec Step 2 module pass does
+not run until a future Phase 2 A1 update — see Section 2 below and
+`A1-AGENTS.md` §2's "Deferred Phase 2 module passes."
 
 **Zero-padding:** `NNN` is a three-digit, zero-padded integer, starting at `001`
 within each module (e.g., `TASK-DOCS-001`, `TASK-DOCS-002`, … `TASK-DOCS-014`).
@@ -55,9 +86,11 @@ module pass does not need to coordinate ID ranges with other modules in advance
 | D | `DOCS` | Documents | C1 §documents; H2; H3; E1 §documents; E3; B2; I1; I2 | ORG |
 | E | `WF` | Workflow | B4; C1 §workflow; H1; D3; K2; E1 §workflow; B2 | DOCS |
 | E | `TRACK` | Tracking | C1 §tracking; consolidated ref §11.6; E1 §tracking; B2 | DOCS |
-| F | `REC` | Records | C1 §records; E1 §records; B2; I1; I2 | WF, TRACK |
+| F | `REC` | Records [‡, see note below] | C1 §records; E1 §records; B2; I1; I2 | WF, TRACK |
 | F | `NOTIF` | Notifications | H4; C1 §notifications; E1 §notifications; B2; B3 | WF [†2] |
 | G | `PORTAL` | Portal | E2; F1 §portal; consolidated ref §13 Phase 3 | INFRA, UI, IAM, AUDIT, ORG, DOCS, WF, TRACK, REC, NOTIF |
+| H1 `[Phase 2 — deferred]` | `SEARCH` | Search Index Metadata | `[Phase 2 Meilisearch source documents — not yet authored in this document set]` | DOCS |
+| H2 `[Phase 2/4 — deferred]` | `REPORT` | Reporting | `[Phase 2/4 reporting source documents — not yet authored in this document set]` | WF, DOCS, TRACK, ORG |
 
 **[†1]** `INFRA` and `UI` are not among the 11 schema-owning modules named in
 consolidated ref §10.2 (`iam, organization, documents, workflow, tracking,
@@ -73,14 +106,29 @@ per-module dependency on `TRACK`. Until a Step 2 pass shows otherwise, `NOTIF`
 task Prerequisites fields should only reference `TASK-WF-*` IDs, not
 `TASK-TRACK-*`.
 
-**[SPEC GAP]** Consolidated ref §10.2 names two further schema-owning modules —
-`search_meta` (Phase 2) and `reporting` (Phase 2) — with no corresponding code in
-`A1-AGENTS.md` §3's Module enum and no row in the Pass Types table. Phase 2
-capabilities belonging to these domains (Meilisearch sync work; ARTA/configurable
-reporting) currently have no module task list to land in. Out of scope for this
-Phase 1 skeleton, but should be resolved — new module codes added, or these
-capabilities reassigned to an existing module — before any Phase 2 module pass
-runs.
+**[‡] [Resolved — 2026-06-22]** (v1 `[CONFLICT]`, Section 3): `REC`'s Phase 1
+scope is real but narrow — **schema reservation only**. See Section 3 below
+for the full resolution and Section 6 for the revised task-count estimate.
+
+**`SEARCH` and `REPORT` rows above** carry no current-round Pre-Dev Source
+Documents because their own Step 2 module pass is deferred to a future Phase 2
+(and, for `REPORT`, Phase 4) A1 update — see `A1-AGENTS.md` §2. Their Wave
+labels (`H1`, `H2`) are placeholders recording dependency order only, not a
+scheduled position in the current Wave A–G sequence. `[Resolved — 2026-06-22]`
+(v1 `[SPEC GAP]`, this section): `SEARCH` depends on `DOCS` task IDs only (it
+indexes document content); `REPORT` depends on `WF` + `DOCS` + `TRACK` + `ORG`
+task IDs (it reports on data those four modules produce) — both dependency
+chains were confirmed directly by the project owner rather than inferred here.
+
+**[SPEC GAP] — partially resolved.** v1 flagged that consolidated ref §10.2's
+two Phase-2 schema-owning modules had no A1 module code. That structural gap
+is now closed (`SEARCH`, `REPORT` added). What remains open, and is **not**
+resolved by this v2 pass: the actual Phase 2 source documents for `SEARCH`
+(Meilisearch integration spec) and for `REPORT` (ARTA report spec, configurable
+report builder spec) do not yet exist anywhere in `docs/pre-development/`.
+Someone will need to author them — likely new lettered-group documents — before
+either module's real Step 2 pass can run. Out of scope for this Phase 1
+skeleton.
 
 ---
 
@@ -92,58 +140,107 @@ Cell values: **Full spec** / **Title only** / **N/A**, per the rule in
 
 | Module | Phase 1 | Phase 1B | Phase 2 | Phase 3 | Phase 4 | Phase 5 |
 |---|---|---|---|---|---|---|
-| INFRA | Full spec | N/A | N/A | N/A | N/A | Title only |
+| INFRA | Full spec | N/A | N/A | N/A | N/A | Title only [‡‡] |
 | UI | Full spec | N/A | N/A | N/A | N/A | N/A |
 | IAM | Full spec | N/A | Title only | N/A | N/A | Title only [†] |
-| AUDIT | Full spec | N/A | Title only | N/A | N/A | N/A |
+| AUDIT | Full spec | N/A | Title only | Title only [‡‡] | N/A | N/A |
 | ORG | Full spec [*] | Full spec [†] | Title only | Title only [†] | N/A | Title only [†] |
 | DOCS | Full spec | Full spec | Title only [†] | Title only [†] | Title only | Title only |
-| WF | Full spec | Full spec | Title only | N/A | Title only | N/A |
+| WF | Full spec | Full spec | Title only [‡‡] | N/A | Title only | N/A |
 | TRACK | Full spec | Full spec [†] | N/A | N/A | N/A | N/A |
-| REC | Full spec [CONFLICT — see below] | N/A | Title only | N/A | N/A | N/A |
+| REC | Full spec [‡] | N/A | Title only | N/A | N/A | N/A |
 | NOTIF | Full spec | Full spec [†] | Title only | Title only | N/A | N/A |
-| PORTAL | Full spec | N/A | N/A | Title only | N/A | N/A |
+| PORTAL | Full spec | N/A | N/A | Title only [†] | N/A | Title only [‡‡] |
+| SEARCH | N/A | N/A | Title only [‡‡] | N/A | N/A | N/A |
+| REPORT | N/A | N/A | Title only [‡‡] | N/A | Title only [‡‡] | N/A |
 
 `[†]` = module assignment is an `[Inference]` — the roadmap text (§13) names a
 capability, not an A1 module code; the cell reflects matching that capability to
 the closest module owner per §10.2's schema-ownership text. `[*]` = see
-conflict note immediately below.
+conflict note immediately below. `[‡]` = REC's Phase 1 scope, resolved — see
+below. `[‡‡]` = **new in v2** — cell changed or added by one of the six
+content-level resolutions; see the per-item notes below the table.
 
-**Phase 1 basis:** marked "Full spec" for all 11 modules because `A1-AGENTS.md`
-§2 defines an explicit Step 2 module-generation pass for each of the 11 codes,
-and §6's Step 2 instructions open with "read the capability list for this module
-in consolidated ref §13 Phase 1" for every pass without exception.
+**Phase 1 basis:** marked "Full spec" for all 11 Phase-1-eligible modules
+because `A1-AGENTS.md` §2 defines an explicit Step 2 module-generation pass for
+each, and §6's Step 2 instructions open with "read the capability list for this
+module in consolidated ref §13 Phase 1" for every pass without exception.
+`SEARCH` and `REPORT` are excluded from this basis entirely — neither has a
+Phase 1 capability, so neither gets a Phase 1 cell value beyond `N/A`.
 
-**[CONFLICT] REC / Phase 1:** Consolidated ref §13's Phase 1 "Included" capability
-list does not name Records or a records module, and §13's Phase 2 list explicitly
-states "Records Management module" is a Phase 2 addition. This appears to
-disagree with `A1-AGENTS.md` §2, which defines a Phase 1 `REC` module pass with
-real source documents (C1 §records, E1 §records, B2, I1, I2). Per `A1-AGENTS.md`
-§1, this is flagged rather than resolved by guessing which document is more
-recent. One plausible reading — `[Speculation]`, not confirmed — is that Phase 1
-`REC` work is limited to schema/scaffolding (e.g., the `retention_schedule_id`
-field H2 already references) while the full Records Management feature set ships
-in Phase 2; this is not stated anywhere in the loaded sources and should be
-confirmed by a human before the `REC` Step 2 pass runs.
+**[‡] REC / Phase 1 scope — `[Resolved — 2026-06-22]` (was `[CONFLICT]` in v1):**
+v1 flagged a disagreement: consolidated ref §13's Phase 1 "Included" list does
+not name Records, and §13's Phase 2 list explicitly states "Records Management
+module" is a Phase 2 addition — yet `A1-AGENTS.md` §2 defines a Phase 1 `REC`
+module pass with real source documents. The project owner's resolution: **REC
+has real Phase 1 scope, but it is schema-reservation only** — the `records` and
+`retention_schedules` placeholder tables, and the `retention_schedule_id`
+reservation column H2 already references from the `documents` schema. No
+records CRUD, no retention-policy enforcement, no archival workflow — those
+ship with the full Records Management feature in Phase 2. This is now a
+decision, not a guess: the original `[Speculation]` note in v1 proposing this
+exact scope split is confirmed correct. See Section 6 for the revised task-
+count estimate this produces.
 
-**Capabilities named in §13 that this skeleton could not confidently assign to a
-single module (not entered in the table above):**
-- Meilisearch (Phase 2) and ARTA compliance reports / configurable report builder
-  (Phase 2, Phase 4) — `[SPEC GAP]`, see §10.2's `search_meta`/`reporting` gap
-  noted in Section 2 above.
-- DPA compliance features (Phase 3) — `[Unverified]`, no single-module fit
-  determinable from §10.2/§13 alone (candidates: AUDIT, IAM, or a cross-cutting
-  legal/compliance concern not yet modeled).
-- Advanced executive dashboards (Phase 3) / Advanced KPI dashboards (Phase 4) —
-  `[Unverified]`; `A1-AGENTS.md` §2's Wave-order note explicitly excludes
-  feature-specific dashboards from the `UI` module's scope, and no other module
-  is named as dashboard owner in the loaded sources.
-- Public REST API gateway (Phase 5) — `[Unverified]`, ambiguous between PORTAL
-  (citizen/public-facing precedent) and INFRA (platform/gateway plumbing).
-- Multi-LGU assessment (Phase 5) — `[Unverified]`, no module fit identifiable.
-- Notice of Committee Hearing auto-generation "from committee referral step"
-  (Phase 2) — assigned to `WF` in the table above; `TRACK` was considered and
-  rejected as primary owner. `[Inference]`, low confidence either way.
+**[‡‡] AUDIT / Phase 3 — `[Resolved — 2026-06-22]` (was `[Unverified]` in v1,
+listed under "DPA compliance features"):** DPA (Data Privacy Act) compliance
+features, a Phase 3 addition per §13, are assigned to `AUDIT`. Rationale from
+the project owner: DPA compliance work (erasure requests, PII handling
+controls) ties directly to the tamper-evidence and access-logging work I3
+already defines for `AUDIT`. Phase 3 cell changes from v1's `N/A` to `Title
+only`.
+
+**[‡‡] WF / Phase 2 — `[Resolved — 2026-06-22]` (was a low-confidence
+`[Inference]` in v1, listed under "Notice of Committee Hearing auto-generation
+from committee referral step"):** Confirmed as `WF`, not `TRACK` — the
+capability is workflow-step-triggered (it fires when a committee-referral step
+completes), which matches `WF`'s existing ownership of step-transition logic
+more directly than `TRACK`'s routing-history/QR-lookup scope. The table cell
+value itself does not change (`WF` Phase 2 was already `Title only` in v1);
+what changes is the confidence marker — this is now a confirmed assignment, not
+an inference.
+
+**[‡‡] PORTAL / Phase 5 — `[Resolved — 2026-06-22]` (was `[Unverified]` in v1,
+listed under "Public REST API gateway"):** Assigned to `PORTAL`. Phase 5 cell
+changes from v1's `N/A` to `Title only`.
+
+**[‡‡] INFRA / Phase 5 — `[Resolved — 2026-06-22]` (was `[Unverified]` in v1,
+listed under "Multi-LGU assessment"):** Assigned to `INFRA` as a
+platform/deployment-scaling concern. The cell value itself does not change
+(`INFRA` Phase 5 was already `Title only` in v1, covering other §13 Phase 5
+integration items such as HRIS/Payroll, procurement-system integration, and
+on-premise migration tooling); Multi-LGU assessment now joins that same
+title-only set explicitly rather than sitting unassigned.
+
+**[‡‡] SEARCH and REPORT rows — new in v2:** added per the `A1-AGENTS.md`
+module-code resolution (Section 1/2 above). `SEARCH` Phase 2 = Title only
+(Meilisearch sync). `REPORT` Phase 2 = Title only (ARTA compliance reports);
+`REPORT` Phase 4 = Title only (configurable report builder). Neither has Phase
+1, 1B, 3, or 5 capability per §13.
+
+**Dashboards — `[Resolved — 2026-06-22]` (was `[Unverified]` in v1, listed
+under "Advanced executive dashboards (Phase 3) / Advanced KPI dashboards
+(Phase 4)"):** Not assigned to a single module. The project owner's resolution
+is a **rule, not a module**: each dashboard belongs to whichever module owns
+the underlying data it displays, determined case-by-case when that specific
+dashboard capability is actually planned (at the relevant Step 2 module pass or
+the Step 3 Outline pass). This does not get a row of its own in the table above
+— it is a dependency rule, stated formally in Section 4. It is removed from the
+"could not confidently assign" list below because it is no longer an open gap;
+it is an intentionally distributed assignment.
+
+**Capabilities named in §13 that this skeleton could not confidently assign to
+a single module — remaining after the 2026-06-22 resolutions:**
+- **UI Tier-3 component count discrepancy** — still open, **by deliberate
+  choice**, not oversight. The project owner reviewed this item on 2026-06-22
+  and chose to keep Section 6's existing 17–19 estimate as-is rather than
+  reconcile F5 against F7 now. This is the one item of the original seven not
+  closed by this pass; it is deferred to whenever the `UI` Step 2 module pass
+  actually runs and reads F5/F7 directly.
+
+All other items from the v1 "could not confidently assign" list — Meilisearch/
+ARTA/reporting, DPA compliance, dashboards, the public REST API gateway, and
+Multi-LGU assessment — are resolved above and removed from this list.
 
 ---
 
@@ -159,7 +256,10 @@ module's Step 2 pass has run and its task list exists, look up the real ID —
 `[TBD]` is not an acceptable substitute at that point (`A1-AGENTS.md` §5, §6 Step
 2). This is also why wave order matters: a module pass cannot resolve real
 prerequisite IDs for a module whose list has not been generated yet, so it must
-not start before that prerequisite module's wave completes.
+not start before that prerequisite module's wave completes. This applies to
+`SEARCH` and `REPORT` exactly as it does to any other module once their Phase 2
+passes are eventually scheduled — they reference `TASK-DOCS-*` (and, for
+`REPORT`, `TASK-WF-*` / `TASK-TRACK-*` / `TASK-ORG-*`) IDs, not document names.
 
 **UI feature-page rule (stated explicitly in `A1-AGENTS.md` §6 Step 1's own
 requirement text):** the `UI` module's task list itself covers only the
@@ -174,6 +274,26 @@ Secretary dashboard belongs to whichever module is determined to own it, not to
    catalog, then finding that procedure's implementing task in the procedure's
    owning module's task list.
 
+**Dashboard ownership rule — `[Resolved — 2026-06-22]`, new in v2.** This is a
+direct extension of the UI feature-page rule immediately above, applied
+specifically to the executive/KPI dashboard capabilities named in §13 Phase 3
+and Phase 4. A dashboard is a feature page, not a `UI`-module deliverable, and
+it is also not automatically a `PORTAL` or `REPORT` deliverable just because it
+visualizes data: **each dashboard's owning module is whichever module owns the
+underlying data it displays**, decided per dashboard, not in bulk, at the time
+that specific dashboard capability reaches a Step 2 module pass or the Step 3
+Outline pass. A dashboard that displays workflow throughput belongs to `WF`; one
+that displays organization-wide staffing belongs to `ORG`; one that aggregates
+across multiple modules' data (the more likely case for the Phase 3/4
+capabilities named in §13) should be split per-widget by data owner rather than
+assigned whole to one module, following the same Tier-3-component-composition
+pattern as any other feature page. `REPORT`'s own Phase 2/4 scope (ARTA
+compliance reports; the configurable report builder) is a related but distinct
+capability — `REPORT` owns report *generation and scheduling infrastructure*,
+not the executive dashboards themselves, unless a specific future dashboard
+turns out to be built on top of a `REPORT`-generated report rather than live
+module data.
+
 **No cross-schema reference, even informally.** Consolidated ref §10.3
 Architectural Laws (read as part of §10.2's surrounding text): each module owns
 its own PostgreSQL schema, with no cross-schema foreign key constraints, and
@@ -181,7 +301,12 @@ modules communicate only through the event bus or published module APIs — neve
 direct schema access. This is a design constraint on what a dependency may
 legitimately represent, not only a bookkeeping rule for the Prerequisites field:
 a task should not be written to read or join across another module's tables even
-if no TASK ID prerequisite is technically broken by doing so.
+if no TASK ID prerequisite is technically broken by doing so. This law applies
+identically to `search_meta` (owned by `SEARCH`) and `reporting` (owned by
+`REPORT`) once those schemas exist — `REPORT`, in particular, must consume
+`WF`/`DOCS`/`TRACK`/`ORG` data through the event bus or published module APIs,
+never by querying those schemas directly, regardless of how convenient a direct
+join across four modules' worth of reporting source data might seem.
 
 ---
 
@@ -189,7 +314,7 @@ if no TASK ID prerequisite is technically broken by doing so.
 
 | Tag | Definition | Apply when |
 |---|---|---|
-| `[MIGRATION]` | Task produces a database migration file | Any task that changes a Drizzle schema and generates a corresponding SQL migration — `[Inference]` typically concentrated in `INFRA` (initial setup/conventions), and in whichever module owns the schema being changed (`IAM`, `ORG`, `DOCS`, `WF`, `TRACK`, `REC`, `NOTIF`, `AUDIT`) |
+| `[MIGRATION]` | Task produces a database migration file | Any task that changes a Drizzle schema and generates a corresponding SQL migration — `[Inference]` typically concentrated in `INFRA` (initial setup/conventions), and in whichever module owns the schema being changed (`IAM`, `ORG`, `DOCS`, `WF`, `TRACK`, `REC`, `NOTIF`, `AUDIT`, and eventually `SEARCH`, `REPORT` once their Phase 2 passes run) |
 | `[ABAC]` | Task implements or modifies an ABAC policy check | Any task that adds or changes a permission condition from I1 — `[Inference]` concentrated in `IAM` (the policy engine itself) and in any other module's procedure that enforces a non-trivial condition beyond a basic role check |
 | `[AUDIT]` | Task writes to the audit schema or emits an audit event | Any task whose procedure mutates state that consolidated ref Architectural Law #3 (audit writes go through the audit service only) requires to be logged — `[Inference]` concentrated in `AUDIT` (the emitter/service itself) plus call-sites in any state-mutating procedure across other modules |
 
@@ -198,6 +323,9 @@ Tags are added to the Title field; a task may carry more than one, e.g.:
 (`A1-AGENTS.md` §4 — definitions and example are verbatim from that section;
 the "which task types must carry them" elaboration above is `[Inference]`,
 since §4 states the trigger condition but does not enumerate task types itself.)
+No change to this section in v2 — the tag definitions are module-agnostic; only
+the `[MIGRATION]` row's illustrative module list is extended to note `SEARCH`/
+`REPORT` will eventually need it too.
 
 ---
 
@@ -208,25 +336,54 @@ actual task exists to count. Ranges are derived by counting named
 capabilities/sub-deliverables for that module in the three loaded sources,
 calibrated against the one-task-one-PR rule (`A1-AGENTS.md` §5) and, for `UI`
 only, against the explicit per-Tier-3-component task rule (`A1-AGENTS.md` §6).
-Treat as rough planning order-of-magnitude, not a commitment.
+Treat as rough planning order-of-magnitude, not a commitment. `SEARCH` and
+`REPORT` have no row — both carry zero Phase 1 capability (Section 3), so there
+is nothing to estimate here; see `A1-AGENTS.md` §2 for their deferred scope.
 
-| Module | Estimated Range | Rationale                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------ | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| INFRA  | 12–18 tasks     | Spans env-var validation, Docker Compose for Postgres/MinIO/pgboss, the CI/CD pipeline stages, and the full backup/DR runbook set (daily dump, WAL PITR, replication, monthly restore test, quarterly drill, break-glass) — each separately reviewable per the one-task-one-PR rule.                                                                                                       |
-| UI     | 17–19 tasks     | Structurally fixed by F7's instantiation rule: one Foundation task (Plan 0), one task per Tier 3 component (16 per F5), one integration task (Plan 2); range allows for the F5/F7 component-count discrepancy `A1-AGENTS.md` §6 flags as a possible `[SPEC GAP]`.                                                                                                                          |
-| IAM    | 10–16 tasks     | Covers the full auth flow (JWT issuance, refresh rotation, cookie handling, PKCE), the ABAC policy engine, and seeding the 13-role permission matrix named in I2's description — each a distinct reviewable unit.                                                                                                                                                                          |
-| AUDIT  | 6–10 tasks      | Narrowly bounded by tech-stack.md's Audit Log Integrity section to the append-only schema, SHA-256 hash chaining, HMAC signing, and chain-validation-at-retrieval.                                                                                                                                                                                                                         |
-| ORG    | 8–12 tasks      | Bounded to offices, positions, employees, and assignment CRUD; delegation's active workflow is named as a Phase 2 addition in §13, so Phase 1 ORG scope is comparatively contained.                                                                                                                                                                                                        |
+| Module | Estimated Range | Rationale |
+| ------ | --------------- | --------- |
+| INFRA  | 12–18 tasks     | Spans env-var validation, Docker Compose for Postgres/MinIO/pgboss, the CI/CD pipeline stages, and the full backup/DR runbook set (daily dump, WAL PITR, replication, monthly restore test, quarterly drill, break-glass) — each separately reviewable per the one-task-one-PR rule. |
+| UI     | 17–19 tasks     | Structurally fixed by F7's instantiation rule: one Foundation task (Plan 0), one task per Tier 3 component (16 per F5), one integration task (Plan 2); range allows for the F5/F7 component-count discrepancy `A1-AGENTS.md` §6 flags as a possible `[SPEC GAP]`. **Kept unchanged in v2 by deliberate choice** — see Section 3's closing note; not reconciled now. |
+| IAM    | 10–16 tasks     | Covers the full auth flow (JWT issuance, refresh rotation, cookie handling, PKCE), the ABAC policy engine, and seeding the 13-role permission matrix named in I2's description — each a distinct reviewable unit. |
+| AUDIT  | 6–10 tasks      | Narrowly bounded by tech-stack.md's Audit Log Integrity section to the append-only schema, SHA-256 hash chaining, HMAC signing, and chain-validation-at-retrieval. Phase 1 estimate unaffected by v2's new AUDIT/Phase 3 DPA assignment — DPA compliance is Phase 3, out of scope for this Phase 1 count. |
+| ORG    | 8–12 tasks      | Bounded to offices, positions, employees, and assignment CRUD; delegation's active workflow is named as a Phase 2 addition in §13, so Phase 1 ORG scope is comparatively contained. |
 | DOCS   | 14–22 tasks     | The largest Phase 1 module by named capability count: the document core schema, the document-type catalog and numbering-series seed data, the OCR service wrapper, and procedure/schema catalogs for every Phase 1 document type §13 names (SP Resolution, SP Ordinance, Appropriation Ordinance, Certification of Urgency, Transmittal Letter, Citizen Complaint, Document Request Form). |
-| WF     | 16–24 tasks     | The most logic-dense module per §13's Phase 1 list: the engine itself, three full workflow definitions each with standard + Certified Urgent paths, the multi-committee all-signatures rule, Thursday-cutoff/Second-Reading delay logic, and the 10-day Mayor lapse timer.                                                                                                                 |
-| TRACK  | 6–10 tasks      | Bounded to QR assignment at logging, routing-history recording, and scan-to-lookup — the three sub-capabilities §13 names under "DTS."                                                                                                                                                                                                                                                     |
-| REC    | 2–8 tasks       | Wide range directly reflects the `[CONFLICT]` noted in Section 3 — cannot be tightened until the Phase 1 vs. Phase 2 scope question for Records is resolved by a human.                                                                                                                                                                                                                    |
-| NOTIF  | 10–14 tasks     | In-app/SSE channel only (email is named as a Phase 2 addition in §13) across the eight named Phase 1 priority events, each needing trilingual template content.                                                                                                                                                                                                                            |
-| PORTAL | 8–12 tasks      | Deliberately the smallest scope: only the four no-auth public capabilities §13 frames as the "Phase 1 subset" (status lookup, published-documents listing, citizen complaint submission, document request submission).                                                                                                                                                                     |
+| WF     | 16–24 tasks     | The most logic-dense module per §13's Phase 1 list: the engine itself, three full workflow definitions each with standard + Certified Urgent paths, the multi-committee all-signatures rule, Thursday-cutoff/Second-Reading delay logic, and the 10-day Mayor lapse timer. |
+| TRACK  | 6–10 tasks      | Bounded to QR assignment at logging, routing-history recording, and scan-to-lookup — the three sub-capabilities §13 names under "DTS." |
+| REC    | 3–5 tasks `[Resolved — 2026-06-22]` | **Revised down from v1's 2–8 range** now that the Phase 1 scope question is settled (Section 3 above): schema-reservation only. Estimated unit of work: (1) `[MIGRATION]` create the `records` schema with placeholder `records` and `retention_schedules` tables; (2) `[MIGRATION]` add the `retention_schedule_id` reservation column to the relevant `documents`-schema table per H2; (3) baseline RLS policy stub(s) for the two new placeholder tables per the C3 convention that every table gets one even before a feature is wired to it; possibly (4) a verification task confirming the reservation does not interfere with `DOCS` Phase 1 (migration applies cleanly; `documents` Phase 1 writes succeed with the new column left null). No CRUD, no retention-policy enforcement — those are Phase 2. |
+| NOTIF  | 10–14 tasks     | In-app/SSE channel only (email is named as a Phase 2 addition in §13) across the eight named Phase 1 priority events, each needing trilingual template content. |
+| PORTAL | 8–12 tasks      | Deliberately the smallest scope: only the four no-auth public capabilities §13 frames as the "Phase 1 subset" (status lookup, published-documents listing, citizen complaint submission, document request submission). |
 
 **Aggregate, heavily caveated:** summing the ranges above gives a rough span of
-**109–165 Phase 1 tasks**. This is a `[Inference]` built on eleven independent
-`[Inference]` estimates — an explicitly chained, compounding figure, not a
-sourced number. It is included only as an order-of-magnitude pointer for
-planning purposes and should not be treated as more reliable than its weakest
-input (`REC`'s 2–8 range, itself gated on an unresolved conflict).
+**110–162 Phase 1 tasks** (revised from v1's 109–165; only `REC`'s range
+changed, from 2–8 down to 3–5). This is a `[Inference]` built on eleven
+independent `[Inference]` estimates — an explicitly chained, compounding
+figure, not a sourced number. It is included only as an order-of-magnitude
+pointer for planning purposes and should not be treated as more reliable than
+its weakest input. With the `REC` conflict resolved, the weakest remaining
+input is `UI`'s 17–19 range, left open by deliberate choice rather than
+genuine uncertainty about scope.
+
+---
+
+## Changelog — v1 → v2 (2026-06-22)
+
+All seven items v1 flagged are addressed below. Six are resolved by explicit
+decision; one remains open by deliberate choice.
+
+| #   | Item (v1 flag)                                                   | Resolution                                                                                      | Where in this document |
+| --- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------- |
+| 1   | REC Phase 1 scope `[CONFLICT]`                                   | Real but narrow: schema reservation only; full feature is Phase 2                               | §2 [‡], §3 [‡], §6     |
+| 2   | `search_meta`/`reporting` no module code `[SPEC GAP]`            | Added `SEARCH`, `REPORT` module codes (also required a small `A1-AGENTS.md` edit)               | §1, §2, §3, §5, §6     |
+| 3   | `SEARCH` wave dependency (new item, surfaced while resolving #2) | Depends on `DOCS` only                                                                          | §2                     |
+| 4   | `REPORT` wave dependency (new item, surfaced while resolving #2) | Depends on `WF` + `DOCS` + `TRACK` + `ORG`                                                      | §2                     |
+| 5   | DPA compliance features (Phase 3) `[Unverified]`                 | Assigned to `AUDIT`                                                                             | §3 [‡‡]                |
+| 6   | Dashboards (Phase 3/4) `[Unverified]`                            | Not a module — a rule: owner = whichever module owns the underlying data, decided per dashboard | §3, §4                 |
+| 7   | Public REST API gateway (Phase 5) `[Unverified]`                 | Assigned to `PORTAL`                                                                            | §3 [‡‡]                |
+| 8   | Multi-LGU assessment (Phase 5) `[Unverified]`                    | Assigned to `INFRA`                                                                             | §3 [‡‡]                |
+| 9   | NCH auto-generation (Phase 2) low-confidence `[Inference]`       | Confirmed `WF` (not `TRACK`)                                                                    | §3 [‡‡]                |
+| 10  | UI Tier-3 component count range (17–19)                          | **Not resolved — kept as-is by deliberate choice**, not reconciled now                          | §3 (closing note), §6  |
+
+(Items 3 and 4 are sub-decisions of item 2, not separate v1 flags — listed
+separately here because they were resolved as distinct questions during the
+Q&A.)

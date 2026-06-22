@@ -68,6 +68,22 @@ conflict and which document you followed in the Module Summary.
 | **Step 3 — Outline** | Phase 1B full spec; Phases 2–5 titles + module assignments only | Skeleton → all Phase 1 module task lists → consolidated ref §13 |
 | **Step 4 — Integration** | Final assembled A1 document | Skeleton → all module task lists → Step 3 outline |
 
+### Deferred Phase 2 module passes (not part of this A1 Phase 1 round)
+
+Added 2026-06-22, resolving the `search_meta` / `reporting` module-code gap
+flagged in the Step 1 Skeleton output (`a1-skeleton.md` v1, Section 2). Both
+modules carry zero Phase 1 capability per consolidated ref §13 — Meilisearch
+sync is a Phase 2 addition; ARTA compliance reports is Phase 2 and the
+configurable report builder is Phase 4. Neither pass below runs during this
+Phase 1 A1 generation effort. These rows exist solely so the Module field
+enum (Section 3) is complete for the Phase 2/4 title-only entries the Step 3
+Outline pass will write against them.
+
+| Pass | What you produce | Load (in order, once this pass actually runs) |
+|---|---|---|
+| **Step 2 — Module: SEARCH** `[Phase 2 — deferred]` | TASK-SEARCH-001…NNN (Phase 2 only) | Skeleton → TASK-DOCS list → `[Phase 2 search/Meilisearch source documents — not yet authored]` |
+| **Step 2 — Module: REPORT** `[Phase 2/4 — deferred]` | TASK-REPORT-001…NNN (Phase 2/4 only) | Skeleton → TASK-WF list → TASK-DOCS list → TASK-TRACK list → TASK-ORG list → `[Phase 2/4 reporting source documents — not yet authored]` |
+
 ### Wave order for Step 2
 
 Each wave can only begin after all prerequisite wave task lists exist, because
@@ -96,6 +112,26 @@ Wave G — needs all above:
   PORTAL
 ```
 
+### Deferred wave placement — SEARCH, REPORT (Phase 2; not part of Wave A–G)
+
+Recorded 2026-06-22 so the dependency reasoning is locked in before either
+module's Step 2 pass is actually scheduled — neither runs in this Phase 1
+round:
+
+```
+SEARCH depends on TASK-DOCS list only (it indexes document content).
+  Earliest readiness: after Wave D (DOCS).
+
+REPORT depends on TASK-WF list + TASK-DOCS list + TASK-TRACK list +
+TASK-ORG list (it reports on data those four modules produce).
+  Earliest readiness: after Wave E (WF, TRACK) — ORG (Wave C) and DOCS
+  (Wave D) are already satisfied by that point.
+```
+
+This fixes dependency order only. It does not schedule either module into
+the current round; that happens whenever a future Phase 2 (and, for REPORT,
+Phase 4) A1 update is generated.
+
 UI is Wave A because it has no server dependencies — it is entirely
 `packages/ui` and `/apps/web` static composition. The UI module tasks cover only
 the component library foundation and the domain component library (the 16 Tier 3
@@ -115,7 +151,7 @@ TASK-{MODULE}-{NNN}
 
 Phase:          1 | 1B | 2 | 3 | 4 | 5
 Module:         INFRA | UI | IAM | AUDIT | ORG | DOCS | WF | TRACK |
-                REC | NOTIF | PORTAL
+                REC | NOTIF | PORTAL | SEARCH | REPORT
 Title:          Human-readable, max 12 words. Add tags if applicable (see Section 4).
 Prerequisites:  [TASK-XXX-NNN, TASK-XXX-NNN] or [NONE]
 Deliverables:
@@ -136,6 +172,12 @@ AI Prompt:
 **Task ID format:** `TASK-{MODULE}-{NNN}` where NNN is a zero-padded three-digit
 integer starting at 001 within each module. IDs are unique across the entire
 document; the integration pass (Step 4) verifies this.
+
+**`SEARCH` and `REPORT`** are valid Module values but carry no Phase 1 tasks —
+see "Deferred Phase 2 module passes" in Section 2. They appear in this enum only
+so Phase 2/4 title-only entries (Step 3 Outline pass) have a valid Module value
+to reference. Do not generate a `TASK-SEARCH-NNN` or `TASK-REPORT-NNN` full-spec
+task during this round.
 
 ---
 
@@ -328,6 +370,11 @@ immediately after the monorepo is initialized.
   TRACK → REC → NOTIF → PORTAL
 - Phase 1B full spec
 - Phases 2–5 outline
+
+`SEARCH` and `REPORT` have no module section in this list — they carry no
+Phase 1 tasks this round (see Section 2). Their Phase 2/4 capabilities appear
+only as title-only entries inside the Phases 2–5 outline, tagged
+`Module: SEARCH` / `Module: REPORT`.
 
 ---
 
