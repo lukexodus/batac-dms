@@ -2,7 +2,7 @@
 
 ---
 
-## `batac-dms` · `/packages/ui` · Version 1.1
+## `batac-dms` · `/packages/ui` · Version 1.2
 
 > **Scope:** This document is the single authoritative reference for the `batac-dms` design system. Every color, spacing value, component decision, and state mapping here is canonical. When in doubt, consult this document before inventing a solution.
 
@@ -10,27 +10,26 @@
 
 ## Table of Contents
 
-- [L35–L121] 1. Brand DNA — Observed colors, typography, spacing, components, and the civic visual tone crawled from official city portals.
-- [L122–L147] 2. Adaptation Rationale — Justifications for layout, density, and navigation changes, plus design specifications for the signature monospace document-number pill.
-- [L148–L383] 3. Complete Token Dictionary — CSS custom properties defining the design system's color scales, typography, spacing, borders, shadows, and focus rings.
-- [L384–L402] 3.1 Date Display Formats — Standard date and time format strings, Philippine locale configurations, and Manila timezone rules.
-- [L403–L529] 4. Tailwind Config Extension — Tailwind CSS v4 `@theme` configurations mapping the custom design tokens to utility classes.
-- [L530–L677] 5. shadcn/ui Theme Override — shadcn/ui HSL color overrides, global CSS resets, minimum touch target exceptions, and animation rules.
-  - [L532–L677] Confirmed Decisions — Finalized design choices for base colors, contrast adjustments, toast libraries, and font-loading strategies.
-- [L678–L1142] 6. Component Usage Guidelines — HTML structures, Tailwind class patterns, and behavioral states for page layout and interactive UI components.
-  - [L680–L748] 6.1 Layout & Shell — Fixed coordinates, dimensions, and Tailwind classes for the sidebar, topbar, and page header containers.
-  - [L749–L790] 6.2 Navigation — Breadcrumb formatting, tab state styles, and command palette overlay panel classes.
-  - [L791–L939] 6.3 Data Display — Table density toggle, document number badge variants, SLA timer conditions, routing timeline, and stat cards.
-  - [L940–L1014] 6.4 Forms & Inputs — Validation states, date pickers, drag-and-drop file upload zones, and inline editing triggers.
-  - [L1015–L1077] 6.5 Feedback & Overlays — Toast notifications, inline alerts, confirmation dialogs, drawer panels, tooltips, and skeleton loaders.
-  - [L1078–L1142] 6.6 Specialized Components — QR code printing, document preview cards, agenda rows, committee referral blocks, and avatar color hashing.
-- [L1143–L1176] 7. State Color Map — Visual specifications mapping 17 legislative and complaint statuses to background, text, and border tokens.
-- [L1177–L1262] 8. Do / Don't Rules — Twelve UI invariants governing document numbering, status badges, focus rings, and HTML `<form>` tag restrictions.
-- [L1263–L1329] 9. Typography Specimen — Visual typography specimens showing actual interface copy styled with font-size, weight, and color utility classes.
-- [L1330–L1352] 10. Known Implementation Gaps (as of v1.1) — Unresolved issues including missing packages, unaligned status tables, and font loading strategies.
+- [L34–L120] 1. Brand DNA — Observed colors, typography, spacing, components, and the civic visual tone crawled from official city portals.
+- [L121–L146] 2. Adaptation Rationale — Justifications for layout, density, and navigation changes, plus design specifications for the signature monospace document-number pill.
+- [L147–L382] 3. Complete Token Dictionary — CSS custom properties defining the design system's color scales, typography, spacing, borders, shadows, and focus rings.
+- [L383–L401] 3.1 Date Display Formats — Standard date and time format strings, Philippine locale configurations, and Manila timezone rules.
+- [L402–L528] 4. Tailwind Config Extension — Tailwind CSS v4 `@theme` configurations mapping the custom design tokens to utility classes.
+- [L529–L676] 5. shadcn/ui Theme Override — shadcn/ui HSL color overrides, global CSS resets, minimum touch target exceptions, and animation rules.
+  - [L531–L676] Confirmed Decisions — Finalized design choices for base colors, contrast adjustments, toast libraries, and font-loading strategies.
+- [L677–L1169] 6. Component Usage Guidelines — HTML structures, Tailwind class patterns, and behavioral states for page layout and interactive UI components.
+  - [L679–L747] 6.1 Layout & Shell — Fixed coordinates, dimensions, and Tailwind classes for the sidebar, topbar, and page header containers.
+  - [L748–L789] 6.2 Navigation — Breadcrumb formatting, tab state styles, and command palette overlay panel classes.
+  - [L790–L952] 6.3 Data Display — Table density toggle, document number badge variants, SLA timer conditions, routing timeline (with `RoutingAction` dot-color map), workflow step indicator, and stat cards.
+  - [L953–L1027] 6.4 Forms & Inputs — Validation states, date pickers, drag-and-drop file upload zones, and inline editing triggers.
+  - [L1028–L1090] 6.5 Feedback & Overlays — Toast notifications, inline alerts, confirmation dialogs, drawer panels, tooltips, and skeleton loaders.
+  - [L1091–L1169] 6.6 Specialized Components — QR code printing, document preview cards (with embedded SLATimer spec), order of business rows (with reading-type chip spec), committee referral blocks (with `CommitteeReportStatus` display value table), and avatar color hashing.
+- [L1170–L1210] 7. State Color Map — Visual specifications mapping legislative and complaint statuses to background, text, and border tokens (v1.2: adds SUBMITTED, IN_WORKFLOW, PENDING_APPROVAL, COMPLETED, RELEASED, DISPOSED, RECEIVED_SEEN; corrects neutral-600 token labels on DRAFT and DISMISSED borders).
+- [L1211–L1296] 8. Do / Don't Rules — Twelve UI invariants governing document numbering, status badges, focus rings, and HTML `<form>` tag restrictions.
+- [L1297–L1363] 9. Typography Specimen — Visual typography specimens showing actual interface copy styled with font-size, weight, and color utility classes.
+- [L1364–L1386] 10. Known Implementation Gaps (as of v1.2) — Unresolved issues including missing packages, unaligned status tables, and font loading strategies.
 
 ---
-
 
 ## 1. Brand DNA
 
@@ -842,7 +841,7 @@ Full state table is in Section 7. Abbreviated examples:
 
 | State | Background | Text | Border-left |
 |---|---|---|---|
-| DRAFT | `bg-neutral-100` | `text-neutral-700` | `border-l-2 border-neutral-500` |
+| DRAFT | `bg-neutral-100` | `text-neutral-700` | `border-l-2 border-neutral-600` |
 | IN_COMMITTEE | `bg-info-100` | `text-info-900` | `border-l-2 border-info-500` |
 | PENDING_MAYOR | `bg-warning-100` | `text-warning-900` | `border-l-2 border-warning-500` |
 | VALID | `bg-success-100` | `text-success-900` | `border-l-2 border-success-500` |
@@ -894,6 +893,20 @@ Full state table is in Section 7. Abbreviated examples:
 **Dot colors:** Match action type — `Transmitted` → info, `Approved` → success, `Returned` → danger, `Filed` → neutral.
 
 **Timestamp:** `text-xs text-text-muted font-mono` (monospace for alignment).
+
+**`RoutingAction` dot-color mapping:**
+
+| `RoutingAction` literal | Dot color token | Tailwind class |
+|---|---|---|
+| `'TRANSMITTED'` | info-500 | `bg-info-500` |
+| `'RECEIVED'` | info-500 | `bg-info-500` |
+| `'APPROVED'` | success-500 | `bg-success-500` |
+| `'SIGNED'` | success-500 | `bg-success-500` |
+| `'RETURNED'` | danger-500 | `bg-danger-500` |
+| `'VETOED'` | danger-500 | `bg-danger-500` |
+| `'FILED'` | neutral-400 | `bg-neutral-400` |
+| `'ARCHIVED'` | neutral-400 | `bg-neutral-400` |
+| `'NOTED'` | neutral-600 | `bg-neutral-600` |
 
 ---
 
@@ -1099,21 +1112,35 @@ Card:       bg-white rounded-lg border border-border-default shadow-sm hover:sha
 Thumbnail:  w-full aspect-[3/4] bg-neutral-100 rounded object-cover mb-3
 ```
 
+**Embedded SLATimer rule:** When both `slaDeadlineAt` and `slaStartedAt` are present and `documentState` is `PENDING_MAYOR` or `PANLALAWIGAN_REVIEW`, render an embedded `SLATimer` below the last-action timestamp. In all other states, the SLA fields are unused and no timer is rendered.
+
 ---
 
 #### Order of Business Row
 
-**Contents (left to right):** Agenda number (monospace) · Document Number Badge · Title (truncated, flex-1) · Committee referral chips · Report status chip · Red-flag icon (if missing report).
+**Contents (left to right):** Agenda number (monospace) · Reading type chip · Document Number Badge · Title (truncated, flex-1) · Committee referral chips · Report status chip · Red-flag icon (if missing report).
 
 **Red flag:** `text-danger-500` Lucide `Flag` icon with `aria-label="Missing committee report"`. Row background: `bg-danger-50`.
 
 **Certified Urgent:** Gold `bg-warning-100 text-warning-900` chip: `CERTIFIED URGENT` prepended to document number column.
 
+**Reading type chip:** Renders to the right of the document number, using shadcn `Badge` in `bg-info-100 text-info-900` for `FIRST`, `bg-warning-100 text-warning-900` for `SECOND`, `bg-primary-100 text-primary-800` for `THIRD`. Uses `.touch-exempt`.
+
 ---
 
 #### Committee Referral Block
 
-**Each committee entry:** Committee name · Status (`SUBMITTED` in success-100, `PENDING` in warning-100, `ABSENT/NOT HEARD` in neutral-100) · Submitted-by (if applicable) · Submission timestamp.
+**Each committee entry:** Committee name · Status · Submitted-by (if applicable) · Submission timestamp.
+
+**`CommitteeReportStatus` display values:**
+
+| TypeScript literal | Display label | Visual style |
+|---|---|---|
+| `'SUBMITTED'` | Submitted | `bg-success-100 text-success-900` |
+| `'PENDING'` | Pending | `bg-warning-100 text-warning-900` |
+| `'ABSENT_NOT_HEARD'` | Absent / Not Heard | `bg-neutral-100 text-neutral-600` |
+
+> **Naming note:** The canonical TypeScript literal is `'ABSENT_NOT_HEARD'` (not `'ABSENT'`). The display label is `"Absent / Not Heard"`. The prior `ABSENT/NOT HEARD` slash notation in this section was ambiguous as a TypeScript literal and has been replaced.
 
 ---
 
@@ -1146,7 +1173,7 @@ All hex values resolve from the token system defined in Section 3.
 
 | State | Token Category | Background | Text | Left-border | Notes |
 |---|---|---|---|---|---|
-| `DRAFT` | neutral | `#f1f3f5` (neutral-100) | `#495057` (neutral-700) | `#868e96` (neutral-500) | Default starting state |
+| `DRAFT` | neutral | `#f1f3f5` (neutral-100) | `#495057` (neutral-700) | `#868e96` (neutral-600) | Default starting state |
 | `IN_COMMITTEE` | info | `#dbeafe` (info-100) | `#1e3a8a` (info-900) | `#3b82f6` (info-500) | Active committee deliberation |
 | `FIRST_READING` | info | `#dbeafe` | `#1e3a8a` | `#3b82f6` | Same as In Committee, label distinguishes |
 | `SECOND_READING` | info | `#dbeafe` | `#1e3a8a` | `#3b82f6` | Same |
@@ -1163,7 +1190,7 @@ All hex values resolve from the token system defined in Section 3.
 | `ARCHIVED` | neutral | `#f1f3f5` | `#868e96` | `#ced4da` | Read-only historical record |
 | `CANCELLED` | neutral (strikethrough) | `#f1f3f5` | `#868e96 line-through` | `#ced4da` | Withdrawn/cancelled |
 | `PENDING_HEARING` (complaint) | warning | `#fef3c7` | `#78350f` | `#f59e0b` | Complaint awaiting schedule |
-| `DISMISSED` (complaint) | neutral | `#f1f3f5` | `#495057` | `#868e96` | Complaint dismissed |
+| `DISMISSED` (complaint) | neutral | `#f1f3f5` | `#495057` | `#868e96` (neutral-600) | Complaint dismissed |
 | `RESOLVED` (complaint) | success | `#d1fae5` | `#064e3b` | `#10b981` | Complaint resolved |
 | `CERTIFIED_URGENT` | warning overlay | `#fef3c7` | `#78350f` | — | Tag overlay, not standalone state |
 | `SLA_AT_RISK` | warning | `#fef3c7` | `#78350f` | `#f59e0b` | >80% SLA elapsed |
@@ -1171,6 +1198,13 @@ All hex values resolve from the token system defined in Section 3.
 | `MISSING_REPORT` | danger flag | `#fee2e2` row bg | `#7f1d1d` | `#ef4444` | Red-flag on Order of Business row |
 | Doc: `PRELIMINARY` | neutral (dashed) | `#f8f9fa` | `#495057 italic` | — | Dashed border-1 `#ced4da` |
 | Doc: `FINAL` | brand | `#eef2f9` (primary-50) | `#162e60` (primary-800) | 2px solid `#162e60` | Solid left border |
+| `SUBMITTED` | neutral | `#f8f9fa` (neutral-50) | `#495057` (neutral-700) | `#adb5bd` (neutral-500) | Document received by Secretariat; pending intake logging. Lighter neutral than DRAFT to signal progression into the pipeline. |
+| `IN_WORKFLOW` | info | `#dbeafe` (info-100) | `#1e3a8a` (info-900) | `#3b82f6` (info-500) | Broad umbrella state for any active workflow instance; use granular reading states when available. See J6 Ambiguity Note A. Border style: solid. |
+| `PENDING_APPROVAL` | warning | `#fef3c7` (warning-100) | `#78350f` (warning-900) | `#f59e0b` (warning-500) | Generic pre-approval waiting state for non-SP document types. Use PENDING_MAYOR for SP Resolutions and Ordinances. |
+| `COMPLETED` | success | `#d1fae5` (success-100) | `#064e3b` (success-900) | `#10b981` (success-500) | Terminal approved outcome — workflow instance completed; document not yet released to portal. |
+| `RELEASED` | success (muted) | `#d1fae5` (success-100) | `#064e3b` (success-900) | `#6ee7b7` (success-300) | Published to public portal; title and first page visible. success-300 left border distinguishes RELEASED from VALID (lighter = passive publication). |
+| `DISPOSED` | neutral | `#f1f3f5` (neutral-100) | `#868e96` (neutral-600) | `#ced4da` (neutral-400) | Records-managed disposition — no data deleted; audit record created. Identical visual to ARCHIVED (both are terminal read-only). |
+| `RECEIVED_SEEN` (complaint) | info | `#dbeafe` (info-100) | `#1e3a8a` (info-900) | `#3b82f6` (info-500) | Complaint acknowledged by Vice Mayor or Committee; intermediate state between PENDING_HEARING and resolution. Sourced from consolidated ref Part 4.14 — was not listed in J6 task prompt. `RECEIVED_SEEN` is a formal named state in the complaint lifecycle and must be included in the `DocumentState` union type. |
 
 ---
 
@@ -1327,7 +1361,7 @@ The specimens below show each text style with the actual content it will carry i
 
 ---
 
-## 10. Known Implementation Gaps (as of v1.1)
+## 10. Known Implementation Gaps (as of v1.2)
 
 This section records items discovered during foundation file generation that are not yet resolved in either DESIGN.md or the codebase. Future maintainers should resolve these before marking v1.1 complete.
 
@@ -1349,4 +1383,4 @@ The `globals.css` Google Fonts `@import` loads Inter and JetBrains Mono but not 
 
 ---
 
-*End of DESIGN.md — Version 1.1 · batac-dms · Batac City LGU Platform*
+*End of DESIGN.md — Version 1.2 · batac-dms · Batac City LGU Platform*
