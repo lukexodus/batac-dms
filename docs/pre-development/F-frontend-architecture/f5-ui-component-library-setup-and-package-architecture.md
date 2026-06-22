@@ -5,20 +5,19 @@
 **Audience:** Development team — internal reference only
 **Source files:** `DESIGN.md` v1.0, `globals.css`, `button.tsx`, `tabs.tsx`, `avatar.tsx`, `components.json`, `INSTALL.sh`, `date-locale.ts`, `utils.ts`, consolidated architecture reference (Parts 2, 9, 10, 13), `tech-stack.md`
 
-
 ## Table of Contents
 
-- [L27–L32] 1. Package Identity and Scope — Defines @batac/ui boundaries, design tokens, component types, and exclusion of business logic, server state, and Zod schemas.
-- [L33–L52] 2. Confirmed Technology Lock-in — Table of settled package technologies including Tailwind v4, shadcn/ui configuration, CVA usage, icon/date libraries, and form constraints.
-- [L53–L67] 3. Confirmed Deviations from DESIGN.md — Tracks design deviations, contrast corrections, added tokens, syntax adaptations, and positional conflicts between production code and DESIGN.md.
-- [L68–L587] 4. Component Inventory — Group header for Tier 1 primitives, Tier 2 CVA overrides, and Tier 3 domain compound components.
-  - [L70–L102] 4.1 Tier 1 — shadcn Primitives, Used As-Is — Roster of 20 unmodified shadcn components, CLI installation details, custom-color/RSC cleanup checks, and badge type distinctions.
-  - [L103–L154] 4.2 Tier 2 — shadcn Primitives with CVA Overrides — Specifications for custom CVA overrides of Button (8 variants), Tabs (underline style), and Avatar (deterministic hashing).
-  - [L155–L587] 4.3 Tier 3 — Domain Compound Components — Construction rules, overview table, and props interface specifications for 16 custom, domain-specific legislative and layout components.
-- [L588–L607] 5. Token Exposure and CSS Consumption Rules — Rules for importing globals.css, theme token utilities, global font loading, and resolving the date-fns-tz package installation gap.
-- [L608–L696] 6. Package Export Map — Configuration of package.json exports mapping and the index.ts barrel file re-exporting all public library APIs.
-- [L697–L731] 7. PR Boundary Definition — Foundation vs. Feature — Phased rollout plan separating the initial UI foundation PR checklist and acceptance criteria from subsequent Tier 3 feature work.
-- [L732–L753] 8. Runbook: Adding a Component — Step-by-step instructions for installing Tier 1 shadcn primitives and implementing Tier 3 domain components with proper standards.
+- [L26–L31] 1. Package Identity and Scope — Defines @batac/ui boundaries, design tokens, component types, and exclusion of business logic, server state, and Zod schemas.
+- [L32–L51] 2. Confirmed Technology Lock-in — Table of settled package technologies including Tailwind v4, shadcn/ui configuration, CVA usage, icon/date libraries, and form constraints.
+- [L52–L66] 3. Confirmed Deviations from DESIGN.md — Tracks design deviations, contrast corrections, added tokens, syntax adaptations, and positional conflicts between production code and DESIGN.md.
+- [L67–L595] 4. Component Inventory — Group header for Tier 1 primitives, Tier 2 CVA overrides, and Tier 3 domain compound components.
+  - [L69–L101] 4.1 Tier 1 — shadcn Primitives, Used As-Is — Roster of 20 unmodified shadcn components, CLI installation details, custom-color/RSC cleanup checks, and badge type distinctions.
+  - [L102–L153] 4.2 Tier 2 — shadcn Primitives with CVA Overrides — Specifications for custom CVA overrides of Button (8 variants), Tabs (underline style), and Avatar (deterministic hashing).
+  - [L154–L595] 4.3 Tier 3 — Domain Compound Components — Construction rules, overview table, and props interface specifications for 16 custom, domain-specific legislative and layout components.
+- [L596–L615] 5. Token Exposure and CSS Consumption Rules — Rules for importing globals.css, theme token utilities, global font loading, and resolving the date-fns-tz package installation gap.
+- [L616–L704] 6. Package Export Map — Configuration of package.json exports mapping and the index.ts barrel file re-exporting all public library APIs.
+- [L705–L739] 7. PR Boundary Definition — Foundation vs. Feature — Phased rollout plan separating the initial UI foundation PR checklist and acceptance criteria from subsequent Tier 3 feature work.
+- [L740–L761] 8. Runbook: Adding a Component — Step-by-step instructions for installing Tier 1 shadcn primitives and implementing Tier 3 domain components with proper standards.
 
 ---
 
@@ -264,6 +263,10 @@ interface WorkflowStep {
   state: WorkflowStepState;
   /** Optional text shown in Tooltip on hover */
   tooltip?: string;
+  /** When this step was completed — enables tooltip content with exact completion timestamp */
+  completedAt?: Date;
+  /** Current or past assignee, displayed below the active step label */
+  assigneeName?: string;
 }
 
 interface WorkflowStepIndicatorProps {
@@ -332,12 +335,14 @@ type RoutingActionType =
 
 interface RoutingEntry {
   id: string;
-  actor: string;
-  actorOffice: string;
+  actorName: string;
+  actorOfficeName: string;
   action: RoutingActionType;
-  fromOffice?: string;
-  toOffice?: string;
+  fromOfficeName?: string;
+  toOfficeName?: string;
   timestamp: Date;
+  /** Free-text note attached to this routing event */
+  notes?: string;
 }
 
 interface RoutingHistoryTimelineProps {
@@ -400,15 +405,14 @@ interface EmptyStateProps {
 One row in the session Order of Business view. Left-to-right layout: monospace agenda number, `DocumentNumberBadge` (Tier 3), title (truncated, `flex-1`), committee chips (shadcn `Badge`, Tier 1), report status chip (shadcn `Badge`), Lucide `Flag` icon with `Tooltip` when a committee report is missing. When `isMissingReport` is true, the row background becomes `bg-danger-50`. When `isCertifiedUrgent` is true, a `bg-warning-100 text-warning-900` chip reading "CERTIFIED URGENT" is prepended to the document number column. The `Flag` icon carries `aria-label="Missing committee report"`. [Confirmed — DESIGN.md §6.6 Order of Business Row; arch ref Part 4.18]
 
 ```typescript
-type CommitteeReportStatus = 'SUBMITTED' | 'PENDING' | 'ABSENT_NOT_HEARD';
-
 interface OrderOfBusinessItem {
-  agendaNumber: string;                            // monospace, e.g. "1."
+  agendaNumber: number;                            // monospace, e.g. "1."
   documentNumber: string;
-  documentNumberVariant: 'final' | 'preliminary';
+  numberVariant: NumberVariant;
   title: string;
-  committees: string[];                            // short committee names for Badge chips
-  reportStatus: CommitteeReportStatus;
+  committeeReferrals: CommitteeReferral[];         // referral entries backing committee chips
+  documentState: DocumentState;
+  scheduledReadingType: 'FIRST' | 'SECOND' | 'THIRD';
   isMissingReport: boolean;                        // true → bg-danger-50 row + Flag icon
   isCertifiedUrgent: boolean;                      // true → CERTIFIED URGENT chip prepended
 }
@@ -426,12 +430,12 @@ interface OrderOfBusinessRowProps {
 One block entry per committee assigned to a document. Each entry renders: committee name, status chip (shadcn `Badge`), submitted-by name (rendered via `AvatarName`, Tier 2, if present), and submission timestamp (rendered via `DATE_FORMATS.displayWithTime`). Status chip colours per DESIGN.md §6.6: `SUBMITTED` → `success-100` background; `PENDING` → `warning-100`; `ABSENT_NOT_HEARD` → `neutral-100`. [Confirmed — DESIGN.md §6.6 Committee Referral Block]
 
 ```typescript
-type CommitteeReferralStatus = 'SUBMITTED' | 'PENDING' | 'ABSENT_NOT_HEARD';
+type CommitteeReportStatus = 'SUBMITTED' | 'PENDING' | 'ABSENT_NOT_HEARD';
 
 interface CommitteeReferral {
   id: string;
   committeeName: string;
-  status: CommitteeReferralStatus;
+  status: CommitteeReportStatus;
   /** Name of the person who submitted — renders via AvatarName if present */
   submittedBy?: string;
   /** Renders via DATE_FORMATS.displayWithTime */
@@ -454,12 +458,16 @@ Clickable card shown in document list and search-result grid views. Contents in 
 interface DocumentPreview {
   id: string;
   documentNumber: string;
-  documentNumberVariant: 'final' | 'preliminary';
+  numberVariant: NumberVariant;
   title: string;
-  state: DocumentState;
+  documentState: DocumentState;
   lastActionAt: Date;
   /** Omit to show bg-neutral-100 placeholder thumbnail */
   thumbnailUrl?: string;
+  /** When the SLA window expires — enables an embedded SLATimer without a second fetch */
+  slaDeadlineAt?: Date;
+  /** When the SLA clock started — enables an embedded SLATimer without a second fetch */
+  slaStartedAt?: Date;
 }
 
 interface DocumentPreviewCardProps {
