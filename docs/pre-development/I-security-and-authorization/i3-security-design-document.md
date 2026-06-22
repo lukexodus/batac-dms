@@ -1413,43 +1413,43 @@ One item is entirely unresolved; three otherwise-resolved items each carry a nar
 
 ## Appendix B: Security Controls Quick Reference
 
-| Control Category | Control | Enforcement Point |
-|---|---|---|
-| Authentication | Argon2id password hashing | `iam.credentials` (application + DB) |
-| Authentication | PKCE for SPA | Login flow (application) |
-| Authentication | HTTP-only cookies (no localStorage) | Cookie configuration (application) |
-| Authentication | SameSite=Strict (CSRF prevention) | Cookie configuration (application) |
-| Authentication | Token reuse family detection | Refresh endpoint (application + DB) |
-| Authentication | Single active session (concurrent session enforcement) | DB partial unique index + application |
-| Authentication | Forced logout with mandatory reason | IT Admin endpoint + audit log |
-| Session | 30-minute inactivity timeout | Fastify preHandler hook |
-| Session | Shared workstation lock (suspend, not terminate) | Application session state |
-| Authorization | ABAC 8-step deny-first cascade | `PolicyGuard` + `PolicyEvaluator` (application) |
-| Authorization | PostgreSQL Row-Level Security | PostgreSQL (independent) |
-| Authorization | DB role least-privilege grants | PostgreSQL role setup (migration) |
-| Authorization | IT Admin content isolation (3 layers) | Application + RLS + DB role |
-| Authorization | Platform Admin operational exclusion | Application validation + DB trigger |
-| Authorization | Office scope enforcement | ABAC Step 7a + RLS |
-| Authorization | Encoder ≠ final approver (Invariant #13) | Workflow engine + ABAC |
-| Data Protection | UUID file keys (never original filenames) | S3 upload handler |
-| Data Protection | Files stream through app (never to disk) | S3 streaming upload |
-| Data Protection | Classification-based content blurring | Portal rendering (first page only) |
-| Audit | SHA-256 hash chaining | Audit service (application) |
-| Audit | HMAC-signed payloads | Audit service (application) |
-| Audit | INSERT-only DB permissions | PostgreSQL role grant (migration) |
-| Audit | Monthly RFC 3161 TSA export | Scheduled export (application) |
-| Integrity | Final document numbers immutable | Application validation + DB check constraint |
-| Integrity | No hard deletes | Repository layer + application validation |
-| Integrity | Soft-delete pattern everywhere | Schema + application |
-| Compliance | SLA tracking (ARTA) | Workflow engine timer |
-| Compliance | On-premise OCR (RA 10173) | OCR service (tesseract.js) |
-| Compliance | PII erasure with legal review gate | Records management module |
-| Infrastructure | TLS for all external connections | Nginx/Caddy configuration |
-| Infrastructure | Security headers (`@fastify/helmet`) | Fastify plugin |
-| Infrastructure | CORS strict origin allowlist | `@fastify/cors` |
-| Infrastructure | Rate limiting on auth/portal endpoints | `@fastify/rate-limit` |
-| Infrastructure | Encrypted backups; backup credentials separate | Infrastructure / Terraform |
-| Infrastructure | Zero dev team production access | Operational policy + LGU IT custody |
+| Control Category | Control                                                | Enforcement Point                               |
+| ---------------- | ------------------------------------------------------ | ----------------------------------------------- |
+| Authentication   | Argon2id password hashing                              | `iam.credentials` (application + DB)            |
+| Authentication   | PKCE for SPA                                           | Login flow (application)                        |
+| Authentication   | HTTP-only cookies (no localStorage)                    | Cookie configuration (application)              |
+| Authentication   | SameSite=Strict (CSRF prevention)                      | Cookie configuration (application)              |
+| Authentication   | Token reuse family detection                           | Refresh endpoint (application + DB)             |
+| Authentication   | Single active session (concurrent session enforcement) | DB partial unique index + application           |
+| Authentication   | Forced logout with mandatory reason                    | IT Admin endpoint + audit log                   |
+| Session          | 30-minute inactivity timeout                           | Fastify preHandler hook                         |
+| Session          | Shared workstation lock (suspend, not terminate)       | Application session state                       |
+| Authorization    | ABAC 8-step deny-first cascade                         | `PolicyGuard` + `PolicyEvaluator` (application) |
+| Authorization    | PostgreSQL Row-Level Security                          | PostgreSQL (independent)                        |
+| Authorization    | DB role least-privilege grants                         | PostgreSQL role setup (migration)               |
+| Authorization    | IT Admin content isolation (3 layers)                  | Application + RLS + DB role                     |
+| Authorization    | Platform Admin operational exclusion                   | Application validation + DB trigger             |
+| Authorization    | Office scope enforcement                               | ABAC Step 7a + RLS                              |
+| Authorization    | Encoder ≠ final approver (Invariant #13)               | Workflow engine + ABAC                          |
+| Data Protection  | UUID file keys (never original filenames)              | S3 upload handler                               |
+| Data Protection  | Files stream through app (never to disk)               | S3 streaming upload                             |
+| Data Protection  | Classification-based content blurring                  | Portal rendering (first page only)              |
+| Audit            | SHA-256 hash chaining                                  | Audit service (application)                     |
+| Audit            | HMAC-signed payloads                                   | Audit service (application)                     |
+| Audit            | INSERT-only DB permissions                             | PostgreSQL role grant (migration)               |
+| Audit            | Monthly RFC 3161 TSA export                            | Scheduled export (application)                  |
+| Integrity        | Final document numbers immutable                       | Application validation + DB check constraint    |
+| Integrity        | No hard deletes                                        | Repository layer + application validation       |
+| Integrity        | Soft-delete pattern everywhere                         | Schema + application                            |
+| Compliance       | SLA tracking (ARTA)                                    | Workflow engine timer                           |
+| Compliance       | On-premise OCR (RA 10173)                              | OCR service (tesseract.js)                      |
+| Compliance       | PII erasure with legal review gate                     | Records management module                       |
+| Infrastructure   | TLS for all external connections                       | Nginx/Caddy configuration                       |
+| Infrastructure   | Security headers (`@fastify/helmet`)                   | Fastify plugin                                  |
+| Infrastructure   | CORS strict origin allowlist                           | `@fastify/cors`                                 |
+| Infrastructure   | Rate limiting on auth/portal endpoints                 | `@fastify/rate-limit`                           |
+| Infrastructure   | Encrypted backups; backup credentials separate         | Infrastructure / Terraform                      |
+| Infrastructure   | Zero dev team production access                        | Operational policy + LGU IT custody             |
 
 ---
 
