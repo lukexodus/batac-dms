@@ -1,22 +1,22 @@
 
 ## Table of Contents
 
-- [L23–L77] Prerequisite Table — Dependency matrix mapping each planned document (A1 to L4) to its direct prerequisite documents.
-- [L78–L93] Generation Waves — Parallelizable document creation phases grouped into seven sequential execution waves based on dependency requirements.
-- [L94–L111] Existing Reference Documents — Three pre-existing inputs the planning document set is built from: the consolidated requirements reference, the technology stack decisions, and the design system reference.
-- [L112–L123] Group A — Project Planning — Summaries of project planning documents A1 (Master Phased Task List) and A2 (Risk Register) detailing checklists and risk categories.
-- [L124–L147] Group B — Architecture Documents — Core architecture documents (B1–B5) defining C4 models, module boundaries, event schemas, workflow engine logic, and auth rules.
-- [L148–L171] Group C — Database — Database design documents (C1–C5) specifying schema DDL, Mermaid ERDs, RLS policies, indexing strategy, and migration conventions.
-- [L172–L199] Group D — UML and Diagrams — Visual blueprints (D1–D6) detailing actor use cases, sequence flows, state machines, class diagrams, deployment setups, and data flows.
-- [L200–L215] Group E — API Design — API interface specifications (E1–E3) detailing tRPC routers, OpenAPI REST endpoints, and shared Zod validation schemas.
-- [L216–L243] Group F — Frontend Architecture — Frontend specifications (F1–F6) covering routing maps, Zustand stores, query keys, component trees, package setups, and WCAG accessibility.
-- [L244–L251] Group G — End-to-End Type Safety — Single document mapping type propagation from Drizzle ORM through tRPC and Fastify down to React client components.
-- [L252–L273] Group H — Domain Configuration Documents — Configuration specs (H1–H4) outlining workflow seed data, document metadata schemas, numbering formats, and multilingual notification templates.
-- [L274–L289] Group I — Security and Authorization — Security documents (I1–I3) specifying ABAC policy attributes, role-permission matrix cells, threat models, and audit hash-chaining.
-- [L290–L317] Group J — Software Design Patterns and Standards — Development standards (J1–J6) defining design patterns, error normalization, style guides, module templates, the master ADR index, and the domain component reference.
-- [L318–L333] Group K — Testing — Testing strategies (K1–K3) defining coverage priorities, workflow state machine tests, and critical Playwright E2E user journeys.
-- [L334–L353] Group L — Infrastructure and DevOps — Operations documents (L1–L4) detailing environment variables, Docker/Compose setups, Turborepo CI/CD pipelines, and backup recovery runbooks.
-- [L354–L367] What Can Only Be Determined During Development — Inventory of development-time issues and runtime edge cases that cannot be pre-decided in planning documentation.
+- [L23–L78] Prerequisite Table — Dependency matrix mapping each planned document (A1 to L4) to its direct prerequisite documents.
+- [L79–L95] Generation Waves — Parallelizable document creation phases grouped into seven sequential execution waves based on dependency requirements.
+- [L96–L113] Existing Reference Documents — Three pre-existing inputs the planning document set is built from: the consolidated requirements reference, the technology stack decisions, and the design system reference.
+- [L114–L125] Group A — Project Planning — Summaries of project planning documents A1 (Master Phased Task List) and A2 (Risk Register) detailing checklists and risk categories.
+- [L126–L149] Group B — Architecture Documents — Core architecture documents (B1–B5) defining C4 models, module boundaries, event schemas, workflow engine logic, and auth rules.
+- [L150–L173] Group C — Database — Database design documents (C1–C5) specifying schema DDL, Mermaid ERDs, RLS policies, indexing strategy, and migration conventions.
+- [L174–L201] Group D — UML and Diagrams — Visual blueprints (D1–D6) detailing actor use cases, sequence flows, state machines, class diagrams, deployment setups, and data flows.
+- [L202–L217] Group E — API Design — API interface specifications (E1–E3) detailing tRPC routers, OpenAPI REST endpoints, and shared Zod validation schemas.
+- [L218–L265] Group F — Frontend Architecture — Frontend specifications (F1–F7) covering routing maps, Zustand stores, query keys, component trees, package setups, WCAG accessibility, and implementation plans.
+- [L266–L273] Group G — End-to-End Type Safety — Single document mapping type propagation from Drizzle ORM through tRPC and Fastify down to React client components.
+- [L274–L295] Group H — Domain Configuration Documents — Configuration specs (H1–H4) outlining workflow seed data, document metadata schemas, numbering formats, and multilingual notification templates.
+- [L296–L311] Group I — Security and Authorization — Security documents (I1–I3) specifying ABAC policy attributes, role-permission matrix cells, threat models, and audit hash-chaining.
+- [L312–L339] Group J — Software Design Patterns and Standards — Development standards (J1–J6) defining design patterns, error normalization, style guides, module templates, the master ADR index, and the domain component reference.
+- [L340–L355] Group K — Testing — Testing strategies (K1–K3) defining coverage priorities, workflow state machine tests, and critical Playwright E2E user journeys.
+- [L356–L375] Group L — Infrastructure and DevOps — Operations documents (L1–L4) detailing environment variables, Docker/Compose setups, Turborepo CI/CD pipelines, and backup recovery runbooks.
+- [L376–L389] What Can Only Be Determined During Development — Inventory of development-time issues and runtime edge cases that cannot be pre-decided in planning documentation.
 
 ---
 
@@ -51,6 +51,7 @@
 | F4  | Component Hierarchy Specification              | F1, F5                       |     |
 | F5  | UI Component Library Setup and Package Architecture | None                    |     |
 | F6  | Accessibility Compliance Checklist (WCAG 2.1 AA)   | F5                       |     |
+| F7 | Frontend Implementation Plans | F4, F5, F6, J6 | |
 | G1  | End-to-End Type Safety Chain                   | C1, E1, E3                   |     |
 | H1  | Phase 1 Workflow Definitions (Structured Data) | B4, D3                       |     |
 | H2  | Document Type Catalog with JSONB Schemas       | B4, H3                       |     |
@@ -87,6 +88,7 @@ Documents within the same wave have no dependency on each other and can be gener
 | 4    | C2, C3, D2, D6, E1, E2, E3, H4, I3, J4, K2, L4         | 12    |
 | 5    | C4, F1, F3, G1                                         | 4     |
 | 6    | F2, F4, K3                                             | 3     |
+| 6.5 | F7           | 1 | 
 | 7    | A1                                                     | 1     |
 
 ---
@@ -238,6 +240,26 @@ Complete specification of the `packages/ui` library: its scope, what it owns, an
 **F6. Accessibility Compliance Checklist (WCAG 2.1 AA)** — Blocking
 
 The engineering accessibility specification and PR gate for all frontend work. Compliance target: WCAG 2.1 AA. Primary environment: Windows 11 workstations at City Hall (keyboard + mouse); secondary: personal phones for barangay users (touch). Screen reader target: NVDA + Chrome (primary), VoiceOver + Safari on iOS (secondary). Sections: universal rules applicable to every PR (focus ring, touch targets, no color-alone meaning, reduced motion, page title, language attribute); component-specific ARIA contracts for every Tier 3 domain component with non-trivial requirements (`SLATimer`: `role="timer"` + `aria-live="polite"` + progress bar `role="progressbar"`; `WorkflowStepIndicator`: `<ol>` with `aria-current="step"` on active node; `QRCodeDisplay`: `role="img"` + `aria-label`; `OrderOfBusinessRow`: red-flag icon `role="img"` + `aria-label`; `Sidebar`: `aria-current="page"` + `aria-expanded` on collapse toggle; command palette: focus trap + Escape return; Dialog: focus trap + `aria-describedby`; DataTable: `<table>` required, `aria-sort`; file upload: `role="region"` + `aria-live`; Sonner toasts: `aria-live` variant by severity); form accessibility rules (every field must have an associated `<label>` via `htmlFor`; error messages in `role="alert"`; `aria-required="true"` on required fields — the no-`<form>`-element rule does not exempt fields from label association); keyboard navigation contract (Tab, Enter, Space, Arrow, Escape, `⌘K`/`Ctrl+K`); color contrast reference table for every foreground/background token pair with computed ratios and AA pass/fail; a one-page markdown checklist version of all rules for direct paste into PR review comments. Source documents: DESIGN.md, `globals.css`, F5.
+
+---
+
+**F7. Frontend Implementation Plans** — Pre-dev
+
+AI-agent–ready implementation plans for the entire `packages/ui` build sequence.
+Synthesizes DESIGN.md, F4, F5, F6, and J6 into three self-contained plan
+templates: Plan 0 (Foundation PR — Tier 1 install, Tier 2 replacement,
+`/dev/components` smoke test, token verification), Plan 1 (Tier 3 Component
+Template — a reusable AI Agent Prompt template with a per-component fill-in
+table covering all 16 Tier 3 domain components, each row specifying the
+DESIGN.md section, J6 types, composing primitives, Tier 3 dependencies, and
+dev-route states to render), and Plan 2 (Cross-Component Integration Page —
+the `/dev/all-components` task that catches proportion and composition issues
+invisible when reviewing components individually). Includes a reconciliation
+notes section recording deviations corrected against F5 §4.3 (the authoritative
+Tier 3 composition source). The canonical input for the A1 UI module pass;
+replaces any informal "Frontend Foundation Plans" conversation artifact. Source
+documents: DESIGN.md, F4, F5, F6, J6, `globals.css`, `button.tsx`, `tabs.tsx`,
+`avatar.tsx`, `components.json`, `INSTALL.sh`.
 
 ---
 
