@@ -11,16 +11,17 @@
 
 ## Table of Contents
 
-- [§1] Part 1 — Tier 1, 2, 3 Explained — Ownership model for the three component tiers; construction rules and the bar for each tier.
-- [§2] Part 2 — The UI Building Process — Strict layer-by-layer dependency sequence from tokens through Tier 3 to pages; what each AI agent needs to implement a Tier 3 component.
-- [§3] Part 3 — What's Missing Without the Kitchen-Sink — Two gaps closed by per-component dev routes; one genuine gap (cross-component visual consistency) filled by task ordering in A1.
-- [§4] Part 4 — Implementation Plans
-  - [§4.1] Plan 0 — Foundation PR — Spec, prerequisites, and AI Agent Prompt for the Tier 1 + Tier 2 base PR.
-  - [§4.2] Plan 1 — Tier 3 Component Template — Reusable AI Agent Prompt template and fill-in table for all 16 Tier 3 components.
-  - [§4.2.1] Per-Component Fill-In Table — One row per component; corrected against F5 §4.3 overview table.
-  - [§4.3] Plan 2 — Cross-Component Integration Page — AI Agent Prompt for the `/dev/all-components` integration page task.
-  - [§4.4] Execution Order — Group A → B → C → D dependency graph; parallelism notes.
-  - [§4.5] On Plans 0, 1, 2 — Why these plans belong in A1, not as standalone prompts.
+- [L28–L41] Reconciliation Notes (F7 vs. Conversation Artifact) — Reconciliation and corrections made to the original plans against F5 §4.3 overview table.
+- [L42–L71] Part 1 — Tier 1, 2, 3 Explained — Ownership model for the three component tiers; construction rules and the bar for each tier.
+- [L72–L98] Part 2 — The UI Building Process — Strict layer-by-layer dependency sequence from tokens through Tier 3 to pages; what each AI agent needs to implement a Tier 3 component.
+- [L99–L114] Part 3 — What's Missing Without the Kitchen-Sink — Two gaps closed by per-component dev routes; one genuine gap (cross-component visual consistency) filled by task ordering in A1.
+- [L115–L354] Part 4 — Implementation Plans — Overview of plans for foundation setup, component creation, and integration pages.
+  - [L117–L180] Plan 0 — Foundation PR — Spec, prerequisites, and AI Agent Prompt for the Tier 1 + Tier 2 base PR.
+  - [L181–L246] Plan 1 — Tier 3 Component Template — Reusable AI Agent Prompt template and fill-in table for all 16 Tier 3 components.
+  - [L247–L273] Per-Component Fill-In Table — One row per component; corrected against F5 §4.3 overview table.
+  - [L274–L304] Plan 2 — Cross-Component Integration Page — AI Agent Prompt for the /dev/all-components integration page task.
+  - [L305–L343] Execution Order — Group A → B → C → D dependency graph; parallelism notes.
+  - [L344–L354] On Plans 0, 1, 2: Prompt Directly or Wait for A1? — Why these plans belong in A1, not as standalone prompts.
 
 ---
 

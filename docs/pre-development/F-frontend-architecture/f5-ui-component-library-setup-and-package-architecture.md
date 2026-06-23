@@ -9,15 +9,15 @@
 
 - [L26–L31] 1. Package Identity and Scope — Defines @batac/ui boundaries, design tokens, component types, and exclusion of business logic, server state, and Zod schemas.
 - [L32–L51] 2. Confirmed Technology Lock-in — Table of settled package technologies including Tailwind v4, shadcn/ui configuration, CVA usage, icon/date libraries, and form constraints.
-- [L52–L66] 3. Confirmed Deviations from DESIGN.md — Tracks design deviations, contrast corrections, added tokens, syntax adaptations, and positional conflicts between production code and DESIGN.md.
-- [L67–L595] 4. Component Inventory — Group header for Tier 1 primitives, Tier 2 CVA overrides, and Tier 3 domain compound components.
+- [L52–L66] 3. Confirmed Deviations from DESIGN.md — Tracks design deviations, contrast corrections, added tokens, syntax adaptations, and resolved conflicts between production code and DESIGN.md.
+- [L67–L611] 4. Component Inventory — Group header for Tier 1 primitives, Tier 2 CVA overrides, and Tier 3 domain compound components.
   - [L69–L101] 4.1 Tier 1 — shadcn Primitives, Used As-Is — Roster of 20 unmodified shadcn components, CLI installation details, custom-color/RSC cleanup checks, and badge type distinctions.
   - [L102–L153] 4.2 Tier 2 — shadcn Primitives with CVA Overrides — Specifications for custom CVA overrides of Button (8 variants), Tabs (underline style), and Avatar (deterministic hashing).
-  - [L154–L595] 4.3 Tier 3 — Domain Compound Components — Construction rules, overview table, and props interface specifications for 16 custom, domain-specific legislative and layout components.
-- [L596–L615] 5. Token Exposure and CSS Consumption Rules — Rules for importing globals.css, theme token utilities, global font loading, and resolving the date-fns-tz package installation gap.
-- [L616–L704] 6. Package Export Map — Configuration of package.json exports mapping and the index.ts barrel file re-exporting all public library APIs.
-- [L705–L739] 7. PR Boundary Definition — Foundation vs. Feature — Phased rollout plan separating the initial UI foundation PR checklist and acceptance criteria from subsequent Tier 3 feature work.
-- [L740–L761] 8. Runbook: Adding a Component — Step-by-step instructions for installing Tier 1 shadcn primitives and implementing Tier 3 domain components with proper standards.
+  - [L154–L611] 4.3 Tier 3 — Domain Compound Components — Construction rules, overview table, and props interface specifications for 16 custom, domain-specific legislative and layout components.
+- [L612–L631] 5. Token Exposure and CSS Consumption Rules — Rules for importing globals.css, theme token utilities, global font loading, and resolving the date-fns-tz package installation gap.
+- [L632–L720] 6. Package Export Map — Configuration of package.json exports mapping and the index.ts barrel file re-exporting all public library APIs.
+- [L721–L755] 7. PR Boundary Definition — Foundation vs. Feature — Phased rollout plan separating the initial UI foundation PR checklist and acceptance criteria from subsequent Tier 3 feature work.
+- [L756–L777] 8. Runbook: Adding a Component — Step-by-step instructions for installing Tier 1 shadcn primitives and implementing Tier 3 domain components with proper standards.
 
 ---
 

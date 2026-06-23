@@ -5,30 +5,25 @@
 **Audience:** Frontend development team — internal reference; applies to every `apps/web` pull request
 **Source files:** `DESIGN.md` v1.0 (§5, §6.3–§6.6, §8 Rules 5/10/11/12), `globals.css`, F5 — UI Component Library Setup and Package Architecture (component inventory, Tier 1/2/3 tables)
 
-
 ## Table of Contents
 
-- [L37–L42] 1. Scope and Compliance Target — WCAG 2.1 AA target, primary/secondary test environments, NVDA+Chrome and VoiceOver+Safari screen reader pairings, and this document's relationship to PR review.
-- [L43–L56] 2. Universal Rules (apply to every PR) — Seven single-statement, reviewer-testable rules covering focus rings, touch targets, hardcoded colors, reduced motion, the lang attribute, document title, and color-only meaning.
-- [L57–L257] 3. Component-Specific Checklist — Required ARIA attributes, keyboard contract, and screen reader announcement for the ten Tier 3 components with non-trivial accessibility requirements.
-  - [L61–L79] 3.1 SLATimer — Timer/progressbar roles, the aria-live="polite" requirement, and aria-valuenow clamping.
-  - [L80–L102] 3.2 WorkflowStepIndicator — Ordered-list structure, aria-current/aria-label/aria-disabled per step state, and the resolved pending/error ARIA treatment.
-  - [L103–L118] 3.3 QRCodeDisplay — role="img" flattening behavior and the required sibling-not-child placement of the document number text.
-  - [L119–L135] 3.4 OrderOfBusinessRow — Flag icon and Certified Urgent chip labeling, and keyboard activation of the row.
-  - [L136–L157] 3.5 Sidebar navigation — Active-item and collapse-toggle ARIA, plus a documented conflict with F5's hidden-attribute label treatment.
-  - [L158–L178] 3.6 Topbar command palette — Focus trap, initial focus, and Escape-to-trigger return for the ⌘K palette.
-  - [L179–L197] 3.7 Dialog / Modal — Radix focus-trap defaults, aria-describedby for destructive confirmations, and native-disabled submit gating.
-  - [L198–L215] 3.8 DataTable — Native table markup requirement, aria-sort placement on the th, and row-selection checkbox labeling.
-  - [L216–L234] 3.9 FileUpload dropzone — Region/live-region ARIA and the keyboard-operability limits of native drag-and-drop.
-  - [L235–L257] 3.10 Toast (Sonner) — Verified finding that Sonner's default behavior does not differentiate aria-live by toast variant, and the required role="alert" override.
-- [L258–L271] 4. Form Accessibility Rules — Label/id association, role="alert" error messages, and aria-required for every form field, plus an open question on the DatePicker trigger element.
-- [L272–L286] 5. Keyboard Navigation Contract — Table of required key bindings across the app, plus the sidebar collapse tab-order requirement.
-- [L287–L306] 6. Color Contrast Reference Table — Computed WCAG 2.1 contrast ratios for nine token pairs and the explicit text-muted correction note.
-- [L307–L342] 7. PR Review Gate — One-page checklist version of §2–§5 formatted for pasting directly into a PR review comment.
-  - [L311–L319] Universal (every PR)
-  - [L320–L331] Component-specific
-  - [L332–L336] Forms
-  - [L337–L342] Keyboard
+- [L32–L37] 1. Scope and Compliance Target — WCAG 2.1 AA target, primary/secondary test environments, NVDA+Chrome and VoiceOver+Safari screen reader pairings, and this document's relationship to PR review.
+- [L38–L51] 2. Universal Rules (apply to every PR) — Seven single-statement, reviewer-testable rules covering focus rings, touch targets, hardcoded colors, reduced motion, the lang attribute, document title, and color-only meaning.
+- [L52–L252] 3. Component-Specific Checklist — Required ARIA attributes, keyboard contract, and screen reader announcement for the ten Tier 3 components with non-trivial accessibility requirements.
+  - [L56–L74] 3.1 `SLATimer` — Timer/progressbar roles, the aria-live="polite" requirement, and aria-valuenow clamping.
+  - [L75–L97] 3.2 `WorkflowStepIndicator` — Ordered-list structure, aria-current/aria-label/aria-disabled per step state, and the resolved pending/error ARIA treatment.
+  - [L98–L113] 3.3 `QRCodeDisplay` — role="img" flattening behavior and the required sibling-not-child placement of the document number text.
+  - [L114–L130] 3.4 `OrderOfBusinessRow` — Flag icon and Certified Urgent chip labeling, and keyboard activation of the row.
+  - [L131–L152] 3.5 Sidebar navigation — Active-item and collapse-toggle ARIA, plus a documented conflict with F5's hidden-attribute label treatment.
+  - [L153–L173] 3.6 Topbar command palette — Focus trap, initial focus, and Escape-to-trigger return for the ⌘K palette.
+  - [L174–L192] 3.7 Dialog / Modal — Radix focus-trap defaults, aria-describedby for destructive confirmations, and native-disabled submit gating.
+  - [L193–L210] 3.8 `DataTable` (TanStack Table + Tier 1 shadcn `Table`) — Native table markup requirement, aria-sort placement on the th, and row-selection checkbox labeling.
+  - [L211–L229] 3.9 `FileUpload` dropzone — Region/live-region ARIA and the keyboard-operability limits of native drag-and-drop.
+  - [L230–L252] 3.10 Toast (Sonner) — Verified finding that Sonner's default behavior does not differentiate aria-live by toast variant, and the required role="alert" override.
+- [L253–L266] 4. Form Accessibility Rules — Label/id association, role="alert" error messages, and aria-required for every form field, plus an open question on the DatePicker trigger element.
+- [L267–L281] 5. Keyboard Navigation Contract — Table of required key bindings across the app, plus the sidebar collapse tab-order requirement.
+- [L282–L301] 6. Color Contrast Reference Table — Computed WCAG 2.1 contrast ratios for nine token pairs and the explicit text-muted correction note.
+- [L302–L337] 7. PR Review Gate — One-page checklist version of §2–§5 formatted for pasting directly into a PR review comment.
 
 ---
 
