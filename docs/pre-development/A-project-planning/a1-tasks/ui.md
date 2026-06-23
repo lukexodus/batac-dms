@@ -27,6 +27,41 @@ This document does not use the words "prevent," "guarantee," "will never," "fixe
 
 ---
 
+## Table of Contents
+
+- [L65–L74] Note on Section 6's general Step-2 capability-list instruction — Verification that UI is a cross-cutting build module rather than a schema-owning domain module.
+- [L75–L78] Resolution pass — 2026-06-23 — Scope and findings of the resolution pass, including edits made to pre-dev documents.
+- [L79–L93] Pre-task reconciliation findings — Compares F5, J6, F6, and F7 to reconcile conflicts on components, accessibility, and naming conventions.
+- [L94–L101] Task ID convention used in this list — Details the TASK-UI-NNN ID format, non-applicability of special tags, and final task count rationale.
+- [L102–L199] TASK-UI-001 — Sets up the UI package foundation, including token CSS, utilities, 20 Tier 1 shadcn primitives, Tier 2 overrides, and /dev/components route.
+- [L200–L391] TASK-UI-002 — Generates canonical J6 shared domain types and the 26-member STATUS_META styling constant record.
+- [L392–L395] Group A — layout shell (PageHeader, Sidebar, Topbar, AppShell) — Parent section for core layout shell components that have no Tier 3 domain dependencies.
+- [L396–L480] TASK-UI-003 — Implements the PageHeader component displaying titles, subtitles, breadcrumbs, and consumer-provided action slots.
+- [L481–L583] TASK-UI-004 — Implements the Sidebar component supporting collapsibility, active route states, and accessible-name hiding rules.
+- [L584–L672] TASK-UI-005 — Implements the Topbar component containing branding, LGU logo, breadcrumbs, and user session details.
+- [L673–L759] TASK-UI-006 — Implements the AppShell layout component composing Sidebar and Topbar slots.
+- [L760–L763] Group B — standalone display (no Tier 3 dependencies) — Parent section for standalone visual display components that do not compose other Tier 3 elements.
+- [L764–L839] TASK-UI-007 — Implements the DocumentNumberBadge component for rendering styled final and preliminary document numbers.
+- [L840–L912] TASK-UI-008 — Implements the StatCard component displaying dashboard metrics with trend indicators.
+- [L913–L991] TASK-UI-009 — Implements the EmptyState component for representing empty states with optional illustrations and CTA buttons.
+- [L992–L1060] TASK-UI-010 — Implements the ScanQualityIndicator component visualizing OCR quality thresholds.
+- [L1061–L1144] TASK-UI-011 — Implements the SLATimer component displaying deadline countdowns with priority-based warning thresholds.
+- [L1145–L1243] TASK-UI-012 — Implements the RoutingHistoryTimeline component visualizing document tracking steps.
+- [L1244–L1326] TASK-UI-013 — Implements the QRCodeDisplay component rendering document QR codes with fallback mono labels.
+- [L1327–L1330] Group C — require J6 types (CommitteeReferralBlock, StatusBadge, WorkflowStepIndicator) — Parent section for components that require J6 domain types and STATUS_META stylings.
+- [L1331–L1403] TASK-UI-014 — Implements the CommitteeReferralBlock component displaying referral details, status badge, and timeline.
+- [L1404–L1479] TASK-UI-015 — Implements the StatusBadge component rendering document states with STATUS_META styles.
+- [L1480–L1592] TASK-UI-016 — Implements the WorkflowStepIndicator component displaying workflow steps with step-state visual styling and ARIA tags.
+- [L1593–L1596] Group D — composed (DocumentPreviewCard, OrderOfBusinessRow) — Parent section for components that compose other Tier 3 component primitives.
+- [L1597–L1675] TASK-UI-017 — Implements the DocumentPreviewCard component composing DocumentNumberBadge, SLATimer, StatusBadge, and ScanQualityIndicator.
+- [L1676–L1774] TASK-UI-018 — Implements the OrderOfBusinessRow component composing DocumentNumberBadge, StatusBadge, and inline referral badges.
+- [L1775–L1776] Plan 2 — Cross-component integration — Parent section for the final cross-component integration page task.
+- [L1777–L1818] TASK-UI-019 — Implements the /dev/all-components route rendering all Tier 3 components in all states.
+- [L1819–L1853] Module Summary — UI — Summarizes UI module tasks, prerequisites, files created/edited, and the final verification checklist.
+
+---
+
+
 ## Note on Section 6's general Step-2 capability-list instruction
 
 `A1-AGENTS.md` §6 "Step 2 — Module passes" opens: *"Before writing any task: read the capability list for this module in consolidated ref §13 Phase 1, then read the module-specific documents in the order listed in the Pass Types table."* `a1-skeleton.md` §3 reads this as applying "for every pass without exception."
