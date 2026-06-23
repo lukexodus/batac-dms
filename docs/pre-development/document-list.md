@@ -1,22 +1,22 @@
 
 ## Table of Contents
 
-- [L23–L78] Prerequisite Table — Dependency matrix mapping each planned document (A1 to L4) to its direct prerequisite documents.
-- [L79–L95] Generation Waves — Parallelizable document creation phases grouped into seven sequential execution waves based on dependency requirements.
-- [L96–L113] Existing Reference Documents — Three pre-existing inputs the planning document set is built from: the consolidated requirements reference, the technology stack decisions, and the design system reference.
-- [L114–L125] Group A — Project Planning — Summaries of project planning documents A1 (Master Phased Task List) and A2 (Risk Register) detailing checklists and risk categories.
-- [L126–L149] Group B — Architecture Documents — Core architecture documents (B1–B5) defining C4 models, module boundaries, event schemas, workflow engine logic, and auth rules.
-- [L150–L173] Group C — Database — Database design documents (C1–C5) specifying schema DDL, Mermaid ERDs, RLS policies, indexing strategy, and migration conventions.
-- [L174–L201] Group D — UML and Diagrams — Visual blueprints (D1–D6) detailing actor use cases, sequence flows, state machines, class diagrams, deployment setups, and data flows.
-- [L202–L217] Group E — API Design — API interface specifications (E1–E3) detailing tRPC routers, OpenAPI REST endpoints, and shared Zod validation schemas.
-- [L218–L265] Group F — Frontend Architecture — Frontend specifications (F1–F7) covering routing maps, Zustand stores, query keys, component trees, package setups, WCAG accessibility, and implementation plans.
-- [L266–L273] Group G — End-to-End Type Safety — Single document mapping type propagation from Drizzle ORM through tRPC and Fastify down to React client components.
-- [L274–L295] Group H — Domain Configuration Documents — Configuration specs (H1–H4) outlining workflow seed data, document metadata schemas, numbering formats, and multilingual notification templates.
-- [L296–L311] Group I — Security and Authorization — Security documents (I1–I3) specifying ABAC policy attributes, role-permission matrix cells, threat models, and audit hash-chaining.
-- [L312–L339] Group J — Software Design Patterns and Standards — Development standards (J1–J6) defining design patterns, error normalization, style guides, module templates, the master ADR index, and the domain component reference.
-- [L340–L355] Group K — Testing — Testing strategies (K1–K3) defining coverage priorities, workflow state machine tests, and critical Playwright E2E user journeys.
-- [L356–L375] Group L — Infrastructure and DevOps — Operations documents (L1–L4) detailing environment variables, Docker/Compose setups, Turborepo CI/CD pipelines, and backup recovery runbooks.
-- [L376–L389] What Can Only Be Determined During Development — Inventory of development-time issues and runtime edge cases that cannot be pre-decided in planning documentation.
+- [L23–L79] Prerequisite Table — Dependency matrix mapping each planned document (A1 to L5) to its direct prerequisite documents.
+- [L80–L96] Generation Waves — Parallelizable document creation phases grouped into seven sequential execution waves based on dependency requirements.
+- [L97–L114] Existing Reference Documents — Three pre-existing inputs: consolidated requirements reference, technology stack decisions, and design system reference.
+- [L115–L126] Group A — Project Planning — Summaries of project planning documents A1 (Master Phased Task List) and A2 (Risk Register) detailing checklists and risk categories.
+- [L127–L150] Group B — Architecture Documents — Core architecture documents (B1–B5) defining C4 models, module boundaries, event schemas, workflow engine logic, and auth rules.
+- [L151–L174] Group C — Database — Database design documents (C1–C5) specifying schema DDL, Mermaid ERDs, RLS policies, indexing strategy, and migration conventions.
+- [L175–L202] Group D — UML and Diagrams — Visual blueprints (D1–D6) detailing actor use cases, sequence flows, state machines, class diagrams, deployment setups, and data flows.
+- [L203–L218] Group E — API Design — API interface specifications (E1–E3) detailing tRPC routers, OpenAPI REST endpoints, and shared Zod validation schemas.
+- [L219–L266] Group F — Frontend Architecture — Frontend specifications (F1–F7) covering routing maps, Zustand stores, query keys, component trees, package setups, WCAG accessibility, and implementation plans.
+- [L267–L274] Group G — End-to-End Type Safety — Single document mapping type propagation from Drizzle ORM through tRPC and Fastify down to React client components.
+- [L275–L296] Group H — Domain Configuration Documents — Configuration specs (H1–H4) outlining workflow seed data, document metadata schemas, numbering formats, and multilingual notification templates.
+- [L297–L312] Group I — Security and Authorization — Security documents (I1–I3) specifying ABAC policy attributes, role-permission matrix cells, threat models, and audit hash-chaining.
+- [L313–L340] Group J — Software Design Patterns and Standards — Development standards (J1–J6) defining design patterns, error normalization, style guides, module templates, the master ADR index, and the domain component reference.
+- [L341–L356] Group K — Testing — Testing strategies (K1–K3) defining coverage priorities, workflow state machine tests, and critical Playwright E2E user journeys.
+- [L357–L380] Group L — Infrastructure and DevOps — Operations documents (L1–L5) detailing environment variables, Docker/Compose setups, Turborepo CI/CD pipelines, backup recovery runbooks, and infrastructure-as-code specification.
+- [L381–L394] What Can Only Be Determined During Development — Inventory of development-time issues and runtime edge cases that cannot be pre-decided in planning documentation.
 
 ---
 
@@ -73,6 +73,7 @@
 | L2  | Docker and Docker Compose Specification        | D5, L1                       |     |
 | L3  | CI/CD Pipeline Specification                   | K1, L2                       |     |
 | L4  | Backup and DR Runbooks                         | C1, D5                       |     |
+| L5  | Infrastructure as Code Specification           | L1, L2, L4                   |     |
 
 ---
 
@@ -86,7 +87,7 @@ Documents within the same wave have no dependency on each other and can be gener
 | 2    | B2, D3, H2, K1, L2, F6, J6                                  | 7     |
 | 3    | B3, C1, H1, I1, J1, L3                                 | 6     |
 | 4    | C2, C3, D2, D6, E1, E2, E3, H4, I3, J4, K2, L4         | 12    |
-| 5    | C4, F1, F3, G1                                         | 4     |
+| 5    | C4, F1, F3, G1, L5                                     | 5     |
 | 6    | F2, F4, K3                                             | 3     |
 | 6.5 | F7           | 1 | 
 | 7    | A1                                                     | 1     |
@@ -370,6 +371,10 @@ The pipeline stages: lint → typecheck → unit tests → integration tests (ag
 **L4. Backup and DR Runbooks** — Early-dev
 
 Operational runbooks for: daily encrypted `pg_dump` to S3, WAL-based PITR archiving configuration, streaming replication setup and lag monitoring, the monthly restoration test procedure, the quarterly DR drill procedure, and the break-glass procedure (physical sealed envelope, who opens it, what is logged). These must exist before any production data is written.
+
+**L5. Infrastructure as Code Specification** — Pre-dev
+
+Specifies the infrastructure-as-code layer using Pulumi and TypeScript to provision compute (DigitalOcean Droplets), private VPC networks, Cloud Firewalls, and object/block storage databases. Integrates Backblaze B2 with Object Lock for cold backups. Identifies key infrastructure decisions and handoff secrets configuration steps required before deployment.
 
 ---
 
