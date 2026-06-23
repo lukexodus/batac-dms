@@ -86,10 +86,17 @@ pnpm add -D \
 # ── Step 5: Sonner ToastProvider setup ───────────────────────────────────────
 # Add to apps/web/src/main.tsx (or root provider):
 #
+# RESOLVED [A1 UI module pass, human-authorized]: position is bottom-right, per
+# DESIGN.md §6.5 ("Position: Bottom-right (bottom-4 right-4). Duration: 5s
+# auto-dismiss."), which is the deliberate, specific design-system decision.
+# This script previously showed "top-right" as an example value — that was
+# never DESIGN.md's stated position and is corrected below.
+#
 #   import { Toaster } from "sonner";
 #   // ...
 #   <Toaster
-#     position="top-right"
+#     position="bottom-right"
+#     duration={5000}
 #     toastOptions={{
 #       classNames: {
 #         success: "bg-success-100 text-success-900 border border-success-500",

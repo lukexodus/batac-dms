@@ -25,7 +25,7 @@
 
 ## 1. Package Identity and Scope
 
-`@batac/ui` is the single shared React component library for the `batac-dms` monorepo, located at `packages/ui` and consumed by `apps/web` (the internal Vite SPA) and, in Phase 3, by `apps/portal` (the public Next.js citizen portal). The package owns four categories of output: (1) the design token layer — `src/styles/globals.css`, which contains the `:root` CSS custom property block, the Tailwind v4 `@theme {}` extension, and the shadcn/ui HSL variable map, and which is the single source of truth for every color, radius, shadow, and spacing value in the system; (2) shadcn/ui primitive components installed via the CLI and stored as owned source code under `src/components/ui/`, where they can be modified freely without waiting for upstream releases; (3) three CVA-extended overrides of those primitives where the batac-dms design system diverges from shadcn defaults (`Button`, `Tabs`, `Avatar`); and (4) sixteen domain compound components that encode government-document–specific visual logic (`DocumentNumberBadge`, `StatusBadge`, layout shell, and others), living under `src/components/domain/`. The package additionally owns `src/lib/utils.ts` (the `cn()` utility combining `clsx` and `tailwind-merge`) and `src/lib/date-locale.ts` (the `phLocale` customization of `date-fns` `enUS`, the `PH_TIMEZONE` constant, and the `DATE_FORMATS` display-format map). `@batac/ui` explicitly does not own server state, business logic, tRPC router types, or Zod validation schemas — those belong to `packages/shared` and `apps/server`. Any Tier 3 domain component that needs a domain type (e.g., `DocumentState` for `StatusBadge`) receives it as a TypeScript prop whose canonical definition lives in `packages/shared` and is imported by both the component and its consumer; the component is never the source of truth for a domain type.
+`@batac/ui` is the single shared React component library for the `batac-dms` monorepo, located at `packages/ui` and consumed by `apps/web` (the internal Vite SPA) and, in Phase 3, by `apps/portal` (the public Next.js citizen portal). The package owns four categories of output: (1) the design token layer — `src/styles/globals.css`, which contains the `:root` CSS custom property block, the Tailwind v4 `@theme {}` extension, and the shadcn/ui HSL variable map, and which is the single source of truth for every color, radius, shadow, and spacing value in the system; (2) shadcn/ui primitive components installed via the CLI and stored as owned source code under `src/components/ui/`, where they can be modified freely without waiting for upstream releases; (3) three CVA-extended overrides of those primitives where the batac-dms design system diverges from shadcn defaults (`Button`, `Tabs`, `Avatar`); and (4) sixteen domain compound components that encode government-document–specific visual logic (`DocumentNumberBadge`, `StatusBadge`, layout shell, and others), living under `src/components/domain/`. The package additionally owns `src/lib/utils.ts` (the `cn()` utility combining `clsx` and `tailwind-merge`) and `src/lib/date-locale.ts` (the `phLocale` customization of `date-fns` `enUS`, the `PH_TIMEZONE` constant, and the `DATE_FORMATS` display-format map). `@batac/ui` explicitly does not own server state, business logic, tRPC router types, or Zod validation schemas — those belong to `packages/shared` and `apps/server`. *[Corrected by the A1 UI module pass, with human authorization, following J6 §1: domain types referenced in Tier 3 props interfaces (e.g., `DocumentState`) are canonically defined in `packages/ui/src/types/domain.ts`, not `packages/shared` as this section originally stated. J6's stated rationale: `packages/ui` already depends on `packages/shared` for tRPC/Zod types, so having `packages/shared` import back from `packages/ui` would close a circular dependency. A Tier 3 component imports these types from `@batac/ui/types/domain`; it is still never the source of truth for a domain type's definition — it imports the canonical type rather than redeclaring it — but the canonical definition's location has moved from this section's original claim.]*
 
 ---
 
@@ -60,7 +60,7 @@ These entries record every place where the production implementation files diver
 | 3 | Extra success token: `success-300 (#6ee7b7)` | Present in `globals.css` `:root` (line 76) and `@theme {}` block | Absent from DESIGN.md §3 — only `success-100`, `success-500`, `success-900` are defined | `globals.css` comment: "kitchen-sink.jsx also uses success-300 (#6ee7b7) for DEEMED_APPROVED border accent" | **Errata** — DESIGN.md §3 success token set is incomplete; §7 DEEMED_APPROVED left-border references `#6ee7b7` without a named token | Add `success-300` to DESIGN.md §3 success token block; update §7 DEEMED_APPROVED row to reference the named token |
 | 4 | Tailwind configuration method | Tailwind v4 `@theme {}` block inside `src/styles/globals.css` — single file, single source of truth | DESIGN.md §4 presents a `tailwind.config.ts` file with an `extend` block | `globals.css` `@theme {}` block (confirmed 2026-06-19) | **Adaptation** — identical token values, different v4 syntax; DESIGN.md §4 is a documentation reference, not a production artefact | Add a note to DESIGN.md §4 stating that `tailwind.config.ts` is a reference only and that the production extension point is the `@theme {}` block in `globals.css` |
 | 5 | `AvatarName` background color palette uses `bg-info-900` | `bg-info-900` (`#1e3a8a`) is one of six entries in `AVATAR_COLORS` in `avatar.tsx` (line 94) | `info-900` is defined as a token in DESIGN.md §3 but is not referenced in the §6.6 avatar color palette description (which contains no palette specification at all) | `avatar.tsx` `AVATAR_COLORS` constant | **Extension** — the token is valid (defined in §3) but its avatar usage is undocumented in §6.6 | Update DESIGN.md §6.6 "Avatar + Name" subsection to document the full six-color deterministic palette |
-| 6 | Toaster position | `INSTALL.sh` Step 5 comment specifies `position="top-right"` | DESIGN.md §6.5 specifies bottom-right: `Position: Bottom-right (bottom-4 right-4)` | `INSTALL.sh` Step 5 comment (line 92) | **Conflict** — two authoritative sources contradict each other | Decide the canonical position before implementing the Toaster registration. DESIGN.md is the design system reference; `bottom-right` is recommended unless there is a documented UX rationale for `top-right`. Whichever is chosen, update the other source. |
+| 6 | Toaster position | `INSTALL.sh` Step 5 comment specifies `position="top-right"` | DESIGN.md §6.5 specifies bottom-right: `Position: Bottom-right (bottom-4 right-4)` | `INSTALL.sh` Step 5 comment (line 92) | **Resolved** — was a conflict between two authoritative sources; resolved by the A1 UI module pass, with human authorization | `bottom-right` is the canonical position, per DESIGN.md §6.5. `INSTALL.sh` Step 5 has been updated to `position="bottom-right"` with `duration={5000}`. This row is kept for the change history; no further action needed. |
 
 ---
 
@@ -163,7 +163,7 @@ Sixteen domain compound components encode batac-dms–specific visual logic that
 - No `<form>` HTML elements. Containers are `<div>` or `<section>`. [DESIGN.md §8 Rule 8]
 - No `"use client"` directive. [`components.json` `"rsc": false`]
 - Apply `.touch-exempt` class to non-actionable chips and badges. [DESIGN.md §8 Rule 11]
-- Domain types referenced in props interfaces (e.g., `DocumentState`) are defined in `packages/shared` and imported — never redefined locally.
+- Domain types referenced in props interfaces (e.g., `DocumentState`) are defined in `packages/ui/src/types/domain.ts` and imported — never redefined locally. *[Corrected from `packages/shared` by the A1 UI module pass, following J6 §1 — see the package-overview note above for the circular-dependency rationale.]*
 
 **Overview table:**
 
@@ -210,37 +210,53 @@ interface DocumentNumberBadgeProps {
 
 #### `StatusBadge`
 
-Maps each workflow and complaint state to the background colour, text colour, and left-border accent defined in DESIGN.md §7. Implemented as a CVA component with one case per `DocumentState` member. All styling uses token utilities from the `@theme {}` block. Applies `.touch-exempt`. The `DocumentState` union type is the canonical domain type defined in `packages/shared`. [Confirmed — DESIGN.md §6.3 Status Badge; §7 complete state colour map]
+Maps each workflow and complaint state to the background colour, text colour, and left-border accent defined in DESIGN.md §7. Implemented as a CVA component with one case per `DocumentState` member. All styling uses token utilities from the `@theme {}` block. Applies `.touch-exempt`. The `DocumentState` union type is the canonical domain type defined in `packages/ui/src/types/domain.ts` *[corrected from `packages/shared` — see J6 §1, and the package-overview note above]*. [Confirmed — DESIGN.md §6.3 Status Badge; §7 complete state colour map]
 
 ```typescript
 /**
- * Full union of document lifecycle and complaint states from DESIGN.md §7.
- * Canonical definition belongs in packages/shared; imported here for the interface.
+ * Full union of document lifecycle and complaint states.
+ * Canonical definition lives in packages/ui/src/types/domain.ts (J6 §1) —
+ * NOT packages/shared, to avoid a circular dependency (packages/ui already
+ * depends on packages/shared for tRPC/Zod types).
+ *
+ * CORRECTED by the A1 UI module pass, following J6 §1, with human
+ * authorization: this union previously had 23 members and included four
+ * "overlay" pseudo-states (`CERTIFIED_URGENT`, `SLA_AT_RISK`, `SLA_BREACHED`,
+ * `MISSING_REPORT`) that are not document lifecycle states at all — they are
+ * now correctly modeled as `isCertifiedUrgent` / `isMissingReport` booleans
+ * on `OrderOfBusinessItem` and a separate `SLAStatus` type derived inside
+ * `SLATimer`. J6 also adds seven lifecycle states this union was missing
+ * (`SUBMITTED`, `IN_WORKFLOW`, `PENDING_APPROVAL`, `COMPLETED`, `RELEASED`,
+ * `DISPOSED`, `RECEIVED_SEEN`). The union below is J6's canonical 26-member
+ * version.
  */
 type DocumentState =
   | 'DRAFT'
-  | 'IN_COMMITTEE'
+  | 'SUBMITTED'
+  | 'IN_WORKFLOW'
+  | 'PENDING_APPROVAL'
+  | 'COMPLETED'
+  | 'RELEASED'
+  | 'ARCHIVED'
+  | 'DISPOSED'
+  | 'CANCELLED'
   | 'FIRST_READING'
   | 'SECOND_READING'
   | 'THIRD_READING'
+  | 'IN_COMMITTEE'
   | 'PENDING_MAYOR'
-  | 'LAPSED'
   | 'VETOED'
   | 'OVERRIDE_PENDING'
+  | 'LAPSED'
   | 'PANLALAWIGAN_REVIEW'
   | 'VALID'
   | 'VALID_IN_PART'
   | 'RETURNED'
   | 'DEEMED_APPROVED'
-  | 'ARCHIVED'
-  | 'CANCELLED'
   | 'PENDING_HEARING'    // complaint state
+  | 'RECEIVED_SEEN'      // complaint state
   | 'DISMISSED'          // complaint state
-  | 'RESOLVED'           // complaint state
-  | 'CERTIFIED_URGENT'   // tag overlay, not a primary document state
-  | 'SLA_AT_RISK'        // computed overlay
-  | 'SLA_BREACHED'       // computed overlay
-  | 'MISSING_REPORT';    // computed overlay, triggers red-flag row treatment
+  | 'RESOLVED';          // complaint state
 
 interface StatusBadgeProps {
   state: DocumentState;
@@ -749,7 +765,7 @@ The foundation PR delivers, in order:
 
 ### Procedure B — Adding a Tier 3 Domain Component
 
-1. Locate this component's entry in the §4.3 overview table and copy its props interface verbatim as the starting point. If the interface imports a type from `packages/shared` (e.g., `DocumentState`), add `import type { DocumentState } from '@batac/shared'` — do not redefine domain types locally.
+1. Locate this component's entry in the §4.3 overview table and copy its props interface verbatim as the starting point. If the interface imports a domain type (e.g., `DocumentState`), add `import type { DocumentState } from '@batac/ui/types/domain'` *[corrected from `@batac/shared` by the A1 UI module pass — see J6 §1 and the package-overview note in §1 above]* — do not redefine domain types locally.
 2. Create `src/components/domain/<ComponentName>.tsx` with a named export: `export function ComponentName(props: ComponentNameProps) { ... }`. No default export.
 3. Build using only Tailwind utility classes from the `@theme {}` block. Zero hardcoded colour values anywhere in the file. Zero inline `style` props with colour or spacing values.
 4. Compose only from the Tier 1 and Tier 2 primitives listed in the "Composes" column for this component in the §4.3 overview table. Do not introduce new npm packages into `packages/ui` without an ADR. Do not import a Radix primitive directly if it is already transitively available through an installed shadcn component.

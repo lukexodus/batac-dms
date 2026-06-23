@@ -1,4 +1,4 @@
-# A1 Skeleton — Structural Contract (v2)
+# A1 Skeleton — Structural Contract (v2.1)
 
 Generated per `A1-AGENTS.md` §6 "Step 1 — Skeleton." This document is the
 structural contract for all later A1 generation passes. It contains no tasks.
@@ -230,17 +230,28 @@ the Step 3 Outline pass). This does not get a row of its own in the table above
 it is an intentionally distributed assignment.
 
 **Capabilities named in §13 that this skeleton could not confidently assign to
-a single module — remaining after the 2026-06-22 resolutions:**
-- **UI Tier-3 component count discrepancy** — still open, **by deliberate
-  choice**, not oversight. The project owner reviewed this item on 2026-06-22
-  and chose to keep Section 6's existing 17–19 estimate as-is rather than
-  reconcile F5 against F7 now. This is the one item of the original seven not
-  closed by this pass; it is deferred to whenever the `UI` Step 2 module pass
-  actually runs and reads F5/F7 directly.
+a single module — as of v2 (2026-06-22), one item remained: the UI Tier-3
+component count discrepancy below. It is now resolved too, leaving this list
+empty.**
+- **UI Tier-3 component count discrepancy — resolved.** *[Resolved by the UI
+  Step 2 module pass, 2026-06-23; see `docs/pre-development/A-project-planning/a1-tasks/ui.md`.]*
+  Reading F5 and F7 directly: both agree at **16** Tier 3 components. F7's own
+  "Reconciliation Notes" record that an earlier draft input said "17" and that
+  F7 had already corrected its own prose to "16" before being written to disk
+  — so there was no live discrepancy left to reconcile once the module pass
+  actually read both documents, only a stale flag carried forward from before
+  that correction. The task count came out to 19, the top of this section's
+  17–19 estimate, because of one task neither F5 nor F7 separately
+  instantiates: `A1-AGENTS.md` §6's UI-specific rule requires a named
+  "J6-generation task" as a prerequisite for Group C components, and that
+  task (generating `packages/ui/src/types/domain.ts` and `status-meta.ts`)
+  needed its own task entry. Final breakdown: Foundation (1) + J6-generation
+  (1) + 16 Tier 3 components + integration (1) = 19.
 
-All other items from the v1 "could not confidently assign" list — Meilisearch/
-ARTA/reporting, DPA compliance, dashboards, the public REST API gateway, and
-Multi-LGU assessment — are resolved above and removed from this list.
+All items from the v1 "could not confidently assign" list — Meilisearch/
+ARTA/reporting, DPA compliance, dashboards, the public REST API gateway,
+Multi-LGU assessment, and now UI's component count — are resolved above. As
+of 2026-06-23, this list has no remaining open items.
 
 ---
 
@@ -343,7 +354,7 @@ is nothing to estimate here; see `A1-AGENTS.md` §2 for their deferred scope.
 | Module | Estimated Range | Rationale |
 | ------ | --------------- | --------- |
 | INFRA  | 12–18 tasks     | Spans env-var validation, Docker Compose for Postgres/MinIO/pgboss, the CI/CD pipeline stages, and the full backup/DR runbook set (daily dump, WAL PITR, replication, monthly restore test, quarterly drill, break-glass) — each separately reviewable per the one-task-one-PR rule. |
-| UI     | 17–19 tasks     | Structurally fixed by F7's instantiation rule: one Foundation task (Plan 0), one task per Tier 3 component (16 per F5), one integration task (Plan 2); range allows for the F5/F7 component-count discrepancy `A1-AGENTS.md` §6 flags as a possible `[SPEC GAP]`. **Kept unchanged in v2 by deliberate choice** — see Section 3's closing note; not reconciled now. |
+| UI     | 19 tasks `[Resolved — 2026-06-23]` | Structurally fixed by F7's instantiation rule: one Foundation task (Plan 0), one J6-generation task (required by `A1-AGENTS.md` §6 but not separately instantiated in F5/F7), one task per Tier 3 component (16, confirmed by direct reading — F5 and F7 agree), one integration task (Plan 2). The estimated F5/F7 component-count discrepancy did not materialize on direct reading; see Section 3's closing note. |
 | IAM    | 10–16 tasks     | Covers the full auth flow (JWT issuance, refresh rotation, cookie handling, PKCE), the ABAC policy engine, and seeding the 13-role permission matrix named in I2's description — each a distinct reviewable unit. |
 | AUDIT  | 6–10 tasks      | Narrowly bounded by tech-stack.md's Audit Log Integrity section to the append-only schema, SHA-256 hash chaining, HMAC signing, and chain-validation-at-retrieval. Phase 1 estimate unaffected by v2's new AUDIT/Phase 3 DPA assignment — DPA compliance is Phase 3, out of scope for this Phase 1 count. |
 | ORG    | 8–12 tasks      | Bounded to offices, positions, employees, and assignment CRUD; delegation's active workflow is named as a Phase 2 addition in §13, so Phase 1 ORG scope is comparatively contained. |
@@ -354,22 +365,25 @@ is nothing to estimate here; see `A1-AGENTS.md` §2 for their deferred scope.
 | NOTIF  | 10–14 tasks     | In-app/SSE channel only (email is named as a Phase 2 addition in §13) across the eight named Phase 1 priority events, each needing trilingual template content. |
 | PORTAL | 8–12 tasks      | Deliberately the smallest scope: only the four no-auth public capabilities §13 frames as the "Phase 1 subset" (status lookup, published-documents listing, citizen complaint submission, document request submission). |
 
-**Aggregate, heavily caveated:** summing the ranges above gives a rough span of
-**110–162 Phase 1 tasks** (revised from v1's 109–165; only `REC`'s range
-changed, from 2–8 down to 3–5). This is a `[Inference]` built on eleven
-independent `[Inference]` estimates — an explicitly chained, compounding
-figure, not a sourced number. It is included only as an order-of-magnitude
-pointer for planning purposes and should not be treated as more reliable than
-its weakest input. With the `REC` conflict resolved, the weakest remaining
-input is `UI`'s 17–19 range, left open by deliberate choice rather than
-genuine uncertainty about scope.
+**Aggregate, heavily caveated:** summing the ranges above (with `UI` now a
+confirmed 19 rather than a 17–19 range) gives a rough span of **112–162 Phase
+1 tasks** (revised from v1's 109–165, then v2's 110–162; `REC`'s range changed
+from 2–8 down to 3–5, and `UI`'s range collapsed to a single resolved number,
+raising the floor by 2). This is a `[Inference]` built on ten independent
+`[Inference]` estimates plus one resolved count — still a compounding figure
+for the ten unresolved modules, not a sourced number for the total. It is
+included only as an order-of-magnitude pointer for planning purposes and
+should not be treated as more reliable than its weakest remaining input —
+which, with `UI` now resolved, is whichever of the other ten ranges turns out
+to be least accurate once that module's own Step 2 pass runs.
 
 ---
 
 ## Changelog — v1 → v2 (2026-06-22)
 
-All seven items v1 flagged are addressed below. Six are resolved by explicit
-decision; one remains open by deliberate choice.
+All seven items v1 flagged are addressed below. Six were resolved by explicit
+decision in v2 (2026-06-22); the seventh — `UI`'s component-count range — was
+resolved the following day when the `UI` Step 2 module pass actually ran.
 
 | #   | Item (v1 flag)                                                   | Resolution                                                                                      | Where in this document |
 | --- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------- |
@@ -382,7 +396,7 @@ decision; one remains open by deliberate choice.
 | 7   | Public REST API gateway (Phase 5) `[Unverified]`                 | Assigned to `PORTAL`                                                                            | §3 [‡‡]                |
 | 8   | Multi-LGU assessment (Phase 5) `[Unverified]`                    | Assigned to `INFRA`                                                                             | §3 [‡‡]                |
 | 9   | NCH auto-generation (Phase 2) low-confidence `[Inference]`       | Confirmed `WF` (not `TRACK`)                                                                    | §3 [‡‡]                |
-| 10  | UI Tier-3 component count range (17–19)                          | **Not resolved — kept as-is by deliberate choice**, not reconciled now                          | §3 (closing note), §6  |
+| 10  | UI Tier-3 component count range (17–19)                          | **Resolved 2026-06-23** — UI Step 2 module pass read F5/F7 directly; both agree at 16 components; final task count is 19, see §6 row above | §3 (closing note), §6  |
 
 (Items 3 and 4 are sub-decisions of item 2, not separate v1 flags — listed
 separately here because they were resolved as distinct questions during the
