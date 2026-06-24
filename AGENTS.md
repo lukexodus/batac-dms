@@ -59,8 +59,8 @@ State the conflict and which document you followed and why.
 | Write/modify a Zod schema in `/packages/shared` | E3 → C1 |
 | Write a Zustand store | F2 → F1 → E3 |
 | Write a TanStack Query hook / cache key | F3 → E1 |
-| Build the `packages/ui` foundation (Tier 1 + Tier 2) | F5 → DESIGN.md → globals.css |
-| Build a Tier 3 domain component in `packages/ui` | F5 → J6 → F6 → DESIGN.md |
+| Build the `packages/ui` foundation (Tier 1 + Tier 2) | F5 → DESIGN.md → globals.css → F7 |
+| Build a Tier 3 domain component in `packages/ui` | F5 → J6 → F6 → DESIGN.md → F7 |
 | Build a frontend page or view in `/apps/web` | F4 → F1 → F5 → J6 → I2 → E1 |
 | Implement the workflow definitions for Resolution/Ordinance/Appropriation Ordinance | H1 → B4 → D3 |
 | Implement a new document type or its JSONB metadata | H2 → B4 → H3 |
@@ -70,6 +70,7 @@ State the conflict and which document you followed and why.
 | Implement audit logging for a new event type | B3 → I3 → ADR-B2-2 |
 | Implement a notification | H4 → B3 → I2 |
 | Write/modify Docker/Compose/CI config | L1 → L2 → L3 |
+| Write/modify Infrastructure as Code (IaC) configuration | L1 → L2 → L4 → L5 |
 | Write a backup/DR procedure | L4 → C1 → D5 |
 | Write any unit/integration test | K1 → (whichever row above matches the code under test) |
 | Write a workflow-engine test specifically | K2 → B4 → D3 → H1 |
@@ -94,7 +95,7 @@ its frontend form"), read the union of both rows' documents, not just one.
 If your task isn't in the table above:
 
 1. Check `docs/document-list.md` directly — it has the full prerequisite table (IDs
-   A1–L4, the complete and final document set) and may cover something this routing
+   A1–L5, the complete and final document set) and may cover something this routing
    table hasn't been transcribed for yet.
 2. If it's there, follow its listed prerequisites the same way as Section 2, and
    flag to the human that Section 2 is missing a row for it so the table stays in
