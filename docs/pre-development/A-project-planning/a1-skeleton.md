@@ -89,21 +89,21 @@ module pass does not need to coordinate ID ranges with other modules in advance
 
 ## 2. Module List in Wave Order
 
-| Wave | Module | Full Name | Pre-Dev Source Documents | Depends On |
-|---|---|---|---|---|
-| A | `INFRA` | Infrastructure [†1] | `tech-stack.md`; L1; L2; L3; L4; D5; C5; J3 | None |
-| A | `UI` | UI Component Library Foundation [†1] | F5; J6; F6; F4; F1; `DESIGN.md`; `globals.css`; F7 | None |
-| B | `IAM` | Identity and Access Management | B5; I2; I1; C1 §iam; J1; J2; J3; J4 | INFRA |
-| B | `AUDIT` | Audit | C1 §audit; `tech-stack.md` §"Audit Log Integrity"; I3 | INFRA |
-| C | `ORG` | Organization | C1 §organization; B2; I1; I2 | IAM, AUDIT |
-| D | `DOCS` | Documents | C1 §documents; H2; H3; E1 §documents; E3; B2; I1; I2 | ORG |
-| E | `WF` | Workflow | B4; C1 §workflow; H1; D3; K2; E1 §workflow; B2 | DOCS |
-| E | `TRACK` | Tracking | C1 §tracking; consolidated ref §11.6; E1 §tracking; B2 | DOCS |
-| F | `REC` | Records [‡, see note below] | C1 §records; E1 §records; B2; I1; I2 | WF, TRACK |
-| F | `NOTIF` | Notifications | H4; C1 §notifications; E1 §notifications; B2; B3 | WF [†2] |
-| G | `PORTAL` | Portal | E2; F1 §portal; consolidated ref §13 Phase 3 | INFRA, UI, IAM, AUDIT, ORG, DOCS, WF, TRACK, REC, NOTIF |
-| H1 `[Phase 2 — deferred]` | `SEARCH` | Search Index Metadata | `[Phase 2 Meilisearch source documents — not yet authored in this document set]` | DOCS |
-| H2 `[Phase 2/4 — deferred]` | `REPORT` | Reporting | `[Phase 2/4 reporting source documents — not yet authored in this document set]` | WF, DOCS, TRACK, ORG |
+| Wave                        | Module   | Full Name                            | Pre-Dev Source Documents                                                         | Depends On                                              |
+| --------------------------- | -------- | ------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| A                           | `INFRA`  | Infrastructure [†1]                  | `tech-stack.md`; L1; L2; L3; L4; D5; C5; J3                                      | None                                                    |
+| A                           | `UI`     | UI Component Library Foundation [†1] | F5; J6; F6; F4; F1; `DESIGN.md`; `globals.css`; F7                               | None                                                    |
+| B                           | `IAM`    | Identity and Access Management       | B5; I2; I1; C1 §iam; J1; J2; J3; J4                                              | INFRA                                                   |
+| B                           | `AUDIT`  | Audit                                | C1 §audit; `tech-stack.md` §"Audit Log Integrity"; I3                            | INFRA                                                   |
+| C                           | `ORG`    | Organization                         | C1 §organization; B2; I1; I2                                                     | IAM, AUDIT                                              |
+| D                           | `DOCS`   | Documents                            | C1 §documents; H2; H3; E1 §documents; E3; B2; I1; I2                             | ORG                                                     |
+| E                           | `WF`     | Workflow                             | B4; C1 §workflow; H1; D3; K2; E1 §workflow; B2                                   | DOCS                                                    |
+| E                           | `TRACK`  | Tracking                             | C1 §tracking; consolidated ref §11.6; E1 §tracking; B2                           | DOCS                                                    |
+| F                           | `REC`    | Records [‡, see note below]          | C1 §records; E1 §records; B2; I1; I2                                             | WF, TRACK                                               |
+| F                           | `NOTIF`  | Notifications                        | H4; C1 §notifications; E1 §notifications; B2; B3                                 | WF [†2]                                                 |
+| G                           | `PORTAL` | Portal                               | E2; F1 §portal; consolidated ref §13 Phase 3                                     | INFRA, UI, IAM, AUDIT, ORG, DOCS, WF, TRACK, REC, NOTIF |
+| H1 `[Phase 2 — deferred]`   | `SEARCH` | Search Index Metadata                | `[Phase 2 Meilisearch source documents — not yet authored in this document set]` | DOCS                                                    |
+| H2 `[Phase 2/4 — deferred]` | `REPORT` | Reporting                            | `[Phase 2/4 reporting source documents — not yet authored in this document set]` | WF, DOCS, TRACK, ORG                                    |
 
 **[†1]** `INFRA` and `UI` are not among the 11 schema-owning modules named in
 consolidated ref §10.2 (`iam, organization, documents, workflow, tracking,
