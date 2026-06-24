@@ -151,21 +151,21 @@ Cell values: **Full spec** / **Title only** / **N/A**, per the rule in
 `A1-AGENTS.md` §6 Step 3 (Phase 1 and 1B always use the full task schema; Phases
 2–5 are title + module only).
 
-| Module | Phase 1 | Phase 1B | Phase 2 | Phase 3 | Phase 4 | Phase 5 |
-|---|---|---|---|---|---|---|
-| INFRA | Full spec | N/A | N/A | N/A | N/A | Title only [‡‡] |
-| UI | Full spec | N/A | N/A | N/A | N/A | N/A |
-| IAM | Full spec | N/A | Title only | N/A | N/A | Title only [†] |
-| AUDIT | Full spec | N/A | Title only | Title only [‡‡] | N/A | N/A |
-| ORG | Full spec [*] | Full spec [†] | Title only | Title only [†] | N/A | Title only [†] |
-| DOCS | Full spec | Full spec | Title only [†] | Title only [†] | Title only | Title only |
-| WF | Full spec | Full spec | Title only [‡‡] | N/A | Title only | N/A |
-| TRACK | Full spec | Full spec [†] | N/A | N/A | N/A | N/A |
-| REC | Full spec [‡] | N/A | Title only | N/A | N/A | N/A |
-| NOTIF | Full spec | Full spec [†] | Title only | Title only | N/A | N/A |
-| PORTAL | Full spec | N/A | N/A | Title only [†] | N/A | Title only [‡‡] |
-| SEARCH | N/A | N/A | Title only [‡‡] | N/A | N/A | N/A |
-| REPORT | N/A | N/A | Title only [‡‡] | N/A | Title only [‡‡] | N/A |
+| Module | Phase 1       | Phase 1B      | Phase 2         | Phase 3         | Phase 4         | Phase 5         |
+| ------ | ------------- | ------------- | --------------- | --------------- | --------------- | --------------- |
+| INFRA  | Full spec     | N/A           | N/A             | N/A             | N/A             | Title only [‡‡] |
+| UI     | Full spec     | N/A           | N/A             | N/A             | N/A             | N/A             |
+| IAM    | Full spec     | N/A           | Title only      | N/A             | N/A             | Title only [†]  |
+| AUDIT  | Full spec     | N/A           | Title only      | Title only [‡‡] | N/A             | N/A             |
+| ORG    | Full spec [*] | Full spec [†] | Title only      | Title only [†]  | N/A             | Title only [†]  |
+| DOCS   | Full spec     | Full spec     | Title only [†]  | Title only [†]  | Title only      | Title only      |
+| WF     | Full spec     | Full spec     | Title only [‡‡] | N/A             | Title only      | N/A             |
+| TRACK  | Full spec     | Full spec [†] | N/A             | N/A             | N/A             | N/A             |
+| REC    | Full spec [‡] | N/A           | Title only      | N/A             | N/A             | N/A             |
+| NOTIF  | Full spec     | Full spec [†] | Title only      | Title only      | N/A             | N/A             |
+| PORTAL | Full spec     | N/A           | N/A             | Title only [†]  | N/A             | Title only [‡‡] |
+| SEARCH | N/A           | N/A           | Title only [‡‡] | N/A             | N/A             | N/A             |
+| REPORT | N/A           | N/A           | Title only [‡‡] | N/A             | Title only [‡‡] | N/A             |
 
 `[†]` = module assignment is an `[Inference]` — the roadmap text (§13) names a
 capability, not an A1 module code; the cell reflects matching that capability to
