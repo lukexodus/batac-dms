@@ -7,63 +7,62 @@
 **Audience:** Development team (authoring and initial testing); LGU IT Office (operational ownership from Production Rollout onward)
 **Related documents:** C1 (Full Database Schema DDL), D5 (Deployment Diagram), L1 (Environment Catalog)
 
-
 ## Table of Contents
 
-- [L72–L87] Prerequisite: Conditions Before Production Rollout — Mandatory staging verification checklist and gates for all six runbooks required before any production deployment.
-- [L88–L104] Service Commitments — Binding SLAs defining RTO, RPO, replication lag limits, backup retention periods, and restoration/drill frequencies.
-- [L105–L136] Architecture Reference — Data flow diagram, database roles (migration, app, audit), and required S3 and encryption environment variables.
-- [L137–L370] Runbook 1 — WAL-Based PITR Archiving Configuration — Continuous PostgreSQL WAL archiving using wal-g to S3 storage for Point-in-Time Recovery.
-  - [L139–L142] 1.1 Purpose — Continuous WAL archiving target to meet the 1-hour RPO via point-in-time recovery.
-  - [L143–L157] 1.2 Tools Required — Required utility versions and environment validation commands for wal-g, aws CLI, and psql.
-  - [L158–L176] 1.3 Backup Bucket Setup — Setup commands for versioned, object-locked S3 buckets for hot and cold WAL backups.
-  - [L177–L208] 1.4 `wal-g` Environment Configuration — Environment variables template for configuring WAL-G S3 access, compression, and libsodium encryption.
-  - [L209–L248] 1.5 PostgreSQL Configuration Changes — Required postgresql.conf settings and commands to enable archiving and reload server configuration.
-  - [L249–L269] 1.6 Initial Base Backup — Commands to run, verify, and debug the initial base database backup to S3.
-  - [L270–L281] 1.7 Scheduling Recurring Base Backups — Cron job configuration for running daily base backups at 02:00 Asia/Manila.
-  - [L282–L295] 1.8 Verifying the Archive Is Active — Verification commands and health-check monitoring integration to detect stale backups.
-  - [L296–L324] 1.9 Retention — Hot and Cold — Weekly pruning rules for 30-day hot backups and monthly copying to cold storage.
-  - [L325–L370] 1.10 PITR Recovery — Step by Step — Detailed steps to restore a base backup and replay WAL segments to a target timestamp.
-- [L371–L551] Runbook 2 — Daily Encrypted `pg_dump` to S3 — Daily pg_dump database export, AES-256-CBC encryption, S3 upload, verification, and rotation.
-  - [L373–L376] 2.1 Purpose — Role of pg_dump as an independent recovery fallback and source for monthly restoration tests.
-  - [L377–L456] 2.2 Backup Script — Bash script executing compressed dump, AES-256-CBC encryption, S3 upload, and checksum generation.
-  - [L457–L475] 2.3 Schedule — Cron schedule at 03:00 Asia/Manila and integration with application health-check alerts.
-  - [L476–L525] 2.4 Retention Policy — Pruning script for 30-day hot dumps and monthly archival to locked cold storage.
-  - [L526–L551] 2.5 Decryption (Used in Restoration — See Runbook 4) — Commands to verify checksums, decrypt the backup file, and run parallel database restoration.
-- [L552–L783] Runbook 3 — Streaming Replication Setup and Lag Monitoring — Configuration of hot standby database, continuous synchronization, and disaster failover procedure.
-  - [L554–L557] 3.1 Purpose — Objective of hot standby synchronization to support rapid primary failover within RTO/RPO limits.
-  - [L558–L590] 3.2 Initial Setup — Primary — Replication role creation, pg_hba.conf access controls, and primary server settings.
-  - [L591–L629] 3.3 Initial Setup — Standby — Procedures for pg_basebackup streaming, standby configuration, and replica database initialization.
-  - [L630–L674] 3.4 Verifying Replication Is Active — SQL queries to monitor replication state, replay status, and connection health.
-  - [L675–L701] 3.5 Lag Monitoring — Queries to track replication lag and defined notification routing paths for alerts.
-  - [L702–L764] 3.6 Failover Procedure — Unplanned Standby Promotion — Split-brain safety rules and step-by-step standby promotion and DNS redirect commands.
-  - [L765–L783] 3.7 Failover Checklist — Sequential step matrix for tracking role-specific actions during primary database failover.
-- [L784–L951] Runbook 4 — Monthly Restoration Test Procedure — Verification of daily dumps via decryption and restoration to a test host.
-  - [L786–L794] 4.1 Purpose — Frequency, environment, and participant rules for validating the daily encrypted pg_dump backups.
-  - [L795–L804] 4.2 Pre-Test Checklist — Required readiness checks and resource availability verification before commencing restoration.
-  - [L805–L818] 4.3 Identify the Backup to Test — S3 commands to list and select the latest successful daily dump for testing.
-  - [L819–L868] 4.4 Restoration Steps — Downloading, verifying checksums, decrypting, and executing pg_restore on the test host.
-  - [L869–L917] 4.5 Post-Restoration Verification Queries — SQL validation queries checking schema presence, row counts, data age, and audit integrity.
-  - [L918–L951] 4.6 Recording the Test Result — Template schema and guidelines for logging test results and raising anomalies.
-- [L952–L1128] Runbook 5 — Quarterly DR Drill Procedure — Structured simulator for primary database outage to test failover readiness and recovery timing.
-  - [L954–L962] 5.1 Purpose — DR drill frequency, timing windows, notification list, and team participation requirements.
-  - [L963–L975] 5.2 Pre-Drill Checklist — Pre-drill prerequisites, stakeholder notifications, and physical envelope integrity verification.
-  - [L976–L1077] 5.3 Drill Phases and Steps — Execution steps for failure simulation, standby promotion, DNS update, and PITR recovery.
-  - [L1078–L1093] 5.4 Timing Targets and Pass/Fail — Specific target times for recovery phases to declare a drill successful.
-  - [L1094–L1128] 5.5 Drill Log Entry — Markdown logging template documenting drill timings, issues, actions, and signatures.
-- [L1129–L1323] Runbook 6 — Break-Glass Procedure — Emergency procedure for opening the physical credential envelope and rotating access secrets.
-  - [L1131–L1136] 6.1 Purpose — Rules restricting developer production access and defining emergency envelope custody.
-  - [L1137–L1159] 6.2 Envelope Contents — Inventory of printed database connection strings, API keys, and encryption secrets.
-  - [L1160–L1171] 6.3 Who May Authorize Opening — Authorized roles who can approve opening the physical break-glass envelope.
-  - [L1172–L1231] 6.4 Opening Procedure — Step-by-step checklist for authorization, photographing, logging, and using the credentials.
-  - [L1232–L1267] 6.5 Credential Rotation After Opening — Sequential commands to rotate database, S3, and encryption keys after an opening.
-  - [L1268–L1302] 6.6 Sealing a New Envelope — Security steps to print, verify, package, and log a new credential sheet.
-  - [L1303–L1312] 6.7 Envelope Replacement Schedule — Triggers and deadlines for replacing the sealed break-glass envelope.
-  - [L1313–L1323] 6.8 Quarterly Seal Verification (Without Opening) — Procedures to visually inspect seal integrity during quarterly DR drills.
-- [L1324–L1338] Appendix A — Alert Summary — Consolidated reference table of all system alerts, trigger thresholds, recipients, and channels.
-- [L1339–L1350] Appendix B — Key Contacts — List of roles, responsibilities, and emergency contact details for database administration.
-- [L1351–L1366] Appendix C — Operational Calendar — Schedule of routine operational tasks, frequencies, and roles responsible for execution.
-- [L1367–L1380] Appendix D — Document Maintenance — Rules for updating and version-controlling this operational runbook document after incidents.
+- [L71–L86] Prerequisite: Conditions Before Production Rollout — Mandatory staging verification checklist and gates required before production deployment.
+- [L87–L103] Service Commitments — Binding SLAs defining RTO, RPO, lag limits, retention, and restore test frequencies.
+- [L104–L135] Architecture Reference — Data flow diagram, database roles, and required S3/encryption environment variables.
+- [L136–L369] Runbook 1 — WAL-Based PITR Archiving Configuration — Continuous PostgreSQL WAL archiving using wal-g to S3 for Point-in-Time Recovery.
+  - [L138–L141] 1.1 Purpose — Continuous WAL archiving target to meet the 1-hour RPO.
+  - [L142–L156] 1.2 Tools Required — Required utility versions and environment validation commands for replication tools.
+  - [L157–L175] 1.3 Backup Bucket Setup — Setup commands for versioned, object-locked S3 buckets for WAL backups.
+  - [L176–L207] 1.4 `wal-g` Environment Configuration — Environment variables template for configuring WAL-G S3 access and encryption.
+  - [L208–L247] 1.5 PostgreSQL Configuration Changes — Required postgresql.conf settings and commands to enable archiving.
+  - [L248–L268] 1.6 Initial Base Backup — Commands to run, verify, and debug the initial base database backup.
+  - [L269–L280] 1.7 Scheduling Recurring Base Backups — Cron job configuration for running daily base backups at 02:00.
+  - [L281–L294] 1.8 Verifying the Archive Is Active — Verification commands and health-check monitoring integration to detect stale backups.
+  - [L295–L323] 1.9 Retention — Hot and Cold — Weekly pruning rules for hot backups and monthly copying to cold storage.
+  - [L324–L369] 1.10 PITR Recovery — Step by Step — Detailed steps to restore base backup and replay WAL segments.
+- [L370–L550] Runbook 2 — Daily Encrypted `pg_dump` to S3 — Daily pg_dump database export, AES-256-CBC encryption, S3 upload, and rotation.
+  - [L372–L375] 2.1 Purpose — Role of pg_dump as independent recovery fallback and test source.
+  - [L376–L455] 2.2 Backup Script — Bash script executing compressed dump, AES encryption, and S3 upload.
+  - [L456–L474] 2.3 Schedule — Cron schedule at 03:00 and integration with health-check alerts.
+  - [L475–L524] 2.4 Retention Policy — Pruning script for hot dumps and monthly archival to cold storage.
+  - [L525–L550] 2.5 Decryption (Used in Restoration — See Runbook 4) — Commands to verify checksums, decrypt backup, and run parallel restoration.
+- [L551–L786] Runbook 3 — Streaming Replication Setup and Lag Monitoring — Configuration of hot standby database, continuous synchronization, and failover procedure.
+  - [L553–L558] 3.1 Purpose — Objective of hot standby synchronization to support rapid primary failover.
+  - [L559–L591] 3.2 Initial Setup — Primary — Replication role creation, pg_hba.conf access, and primary server settings.
+  - [L592–L630] 3.3 Initial Setup — Standby — Procedures for pg_basebackup streaming and replica database initialization.
+  - [L631–L675] 3.4 Verifying Replication Is Active — SQL queries to monitor replication state and connection health.
+  - [L676–L702] 3.5 Lag Monitoring — Queries to track replication lag and defined notification routing paths.
+  - [L703–L767] 3.6 Failover Procedure — Unplanned Standby Promotion — Manual failover steps, split-brain safety rules, and DNS redirect commands.
+  - [L768–L786] 3.7 Failover Checklist — Sequential step matrix for tracking actions during primary database failover.
+- [L787–L954] Runbook 4 — Monthly Restoration Test Procedure — Verification of daily dumps via decryption and restoration to a test host.
+  - [L789–L797] 4.1 Purpose — Frequency, environment, and participant rules for validating pg_dump backups.
+  - [L798–L807] 4.2 Pre-Test Checklist — Required readiness checks and resource availability verification before restoration.
+  - [L808–L821] 4.3 Identify the Backup to Test — S3 commands to list and select successful daily dump for testing.
+  - [L822–L871] 4.4 Restoration Steps — Downloading, verifying checksums, decrypting, and executing pg_restore on test host.
+  - [L872–L920] 4.5 Post-Restoration Verification Queries — SQL validation queries checking schema presence, row counts, and audit integrity.
+  - [L921–L954] 4.6 Recording the Test Result — Logging test results in restoration-test-log.md and signing off.
+- [L955–L1131] Runbook 5 — Quarterly DR Drill Procedure — Structured simulator for primary database outage to test failover readiness.
+  - [L957–L965] 5.1 Purpose — DR drill frequency, timing windows, notifications, and team participation requirements.
+  - [L966–L978] 5.2 Pre-Drill Checklist — Pre-drill prerequisites, stakeholder notifications, and seal verification.
+  - [L979–L1080] 5.3 Drill Phases and Steps — Execution steps for failure simulation, standby promotion, DNS update, and PITR.
+  - [L1081–L1096] 5.4 Timing Targets and Pass/Fail — Specific target times for recovery phases to declare drill success.
+  - [L1097–L1131] 5.5 Drill Log Entry — Markdown logging template documenting drill timings, issues, and signatures.
+- [L1132–L1326] Runbook 6 — Break-Glass Procedure — Emergency procedure for opening credential envelope and rotating access secrets.
+  - [L1134–L1139] 6.1 Purpose — Rules restricting developer production access and defining envelope custody.
+  - [L1140–L1162] 6.2 Envelope Contents — Inventory of printed connection strings, API keys, and encryption secrets.
+  - [L1163–L1174] 6.3 Who May Authorize Opening — Authorized roles who can approve opening the physical break-glass envelope.
+  - [L1175–L1234] 6.4 Opening Procedure — Step-by-step checklist for authorization, photographing, logging, and credential usage.
+  - [L1235–L1270] 6.5 Credential Rotation After Opening — Sequential commands to rotate database, S3, and encryption keys.
+  - [L1271–L1305] 6.6 Sealing a New Envelope — Security steps to print, verify, package, and log new envelope.
+  - [L1306–L1315] 6.7 Envelope Replacement Schedule — Triggers and deadlines for replacing the sealed break-glass envelope.
+  - [L1316–L1326] 6.8 Quarterly Seal Verification (Without Opening) — Procedures to visually inspect seal integrity during quarterly DR drills.
+- [L1327–L1341] Appendix A — Alert Summary — Consolidated reference table of all system alerts, thresholds, and recipients.
+- [L1342–L1353] Appendix B — Key Contacts — List of roles, responsibilities, and emergency contact details for DBA.
+- [L1354–L1369] Appendix C — Operational Calendar — Schedule of routine operational tasks, frequencies, and roles responsible.
+- [L1370–L1383] Appendix D — Document Maintenance — Rules for updating and version-controlling operational runbooks after incidents.
 
 ---
 

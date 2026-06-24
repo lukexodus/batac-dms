@@ -4,27 +4,28 @@
 
 ## Table of Contents
 
-- [L31–L46] Overview — Scope boundaries and local host-execution versus production full-stack containerization architectural models.
-- [L47–L80] File Layout — Monorepo file tree and compose filename conventions preventing accidental local production runs.
-- [L81–L261] Part 1 — Local Development Compose (`compose.yml`) — Compose definitions for local development infrastructure services including PostgreSQL, MinIO, Mailpit, and Meilisearch.
-  - [L234–L261] Developer quick reference — Docker Compose commands for starting services, viewing logs, resetting database volumes, and connecting to psql.
-- [L262–L381] Part 2 — PostgreSQL Initialization Script — Superuser bash script creating the migrate, application, and insert-only audit database roles upon first startup.
-  - [L313–L381] Post-migration grants (`packages/database/scripts/post-migrate-grants.sql`) — Idempotent SQL granting schema DML, revoking audit modifications, and giving pgboss ownership to batac_app.
-- [L382–L612] Part 3 — Production / Staging Compose (`compose.prod.yml`) — Production compose spec detailing Nginx reverse-proxying, Fastify servers, and PostgreSQL primary-standby replication configuration.
-- [L613–L740] Part 4 — Dockerfile: Fastify Server (`apps/server/Dockerfile`) — Multi-stage Fastify build using turbo prune, dumb-init PID 1, and unprivileged node user execution.
-  - [L727–L740] OCR note — WASM-based OCR setup and instructions for offline language pack pre-bundling in the production image.
-- [L741–L816] Part 5 — Dockerfile: Web SPA (`apps/web/Dockerfile`) — Multi-stage Vite build baking public environment variables into the final static frontend image.
-- [L817–L952] Part 6 — Nginx Configuration (`nginx/batac.conf.template`) — Reverse proxy rules for SSL termination, static caching, server-sent events buffering overrides, and API routing.
-  - [L937–L952] New file: `nginx/entrypoint.sh` — Shell script executing envsubst on batac.conf.template and starting Nginx reverse proxy at container boot.
-- [L953–L971] Part 7 — Health Check Reference — Probe commands and intervals for service liveness, separating Fastify liveness from database readiness checks.
-- [L972–L1006] Part 8 — Volume Strategy — Safety analysis of named volumes, bind mount mappings, and local database wipe-and-reset instructions.
-- [L1007–L1082] Part 9 — Environment Variable Injection — Dotenv hierarchy, container runtime injection paths, build-time baking rules, and production secrets management guidelines.
-- [L1083–L1187] Part 10 — Migration and Seed Entrypoint — Entrypoint orchestration for database migration execution and seed runs in development and staging environments.
-  - [L1085–L1137] `apps/server/entrypoint.sh` — Shell script executing Drizzle migrations, running dev/staging seeds, and starting Fastify under dumb-init.
-  - [L1138–L1187] Migration runner (`packages/database/scripts/migrate.ts`) — TypeScript runner applying Drizzle migrations and executing post-migrate SQL grants via the migration user role.
-- [L1188–L1207] Part 11 — Native Dependencies — Native build tool requirements, Alpine binary compatibility risks for argon2, and tesseract WASM details.
-- [L1208–L1243] Part 12 — Startup Dependency Order — Sequence graph mapping service startup check dependencies for local development and production environments.
-- [L1244–L1264] Part 13 — Decision Register — All nine L2-01–L2-09 items resolved June 2026. See companion ADR files for full rationale.
+- [L32–L47] Overview — Scope boundaries and local host-execution versus production full-stack containerization models.
+- [L48–L81] File Layout — Monorepo file tree and compose filename conventions preventing accidental local production runs.
+- [L82–L262] Part 1 — Local Development Compose (`compose.yml`) — Compose definitions for local development infrastructure services including PostgreSQL, MinIO, Mailpit, and Meilisearch.
+  - [L235–L262] Developer quick reference — Docker Compose commands for starting services, viewing logs, resetting volumes, and psql connection.
+- [L263–L382] Part 2 — PostgreSQL Initialization Script — Superuser bash script creating the migrate, application, and insert-only audit database roles.
+  - [L314–L382] Post-migration grants (`packages/database/scripts/post-migrate-grants.sql`) — Idempotent SQL granting schema DML, revoking audit modifications, and giving pgboss ownership.
+- [L383–L674] Part 3 — Production / Staging Compose (`compose.prod.yml`) — Production compose spec detailing Nginx reverse-proxying, Fastify servers, and PostgreSQL replication configuration.
+  - [L614–L674] Two-Host Production Topology — Compose File Split — Split compose files for production to run primary and standby databases on separate hosts.
+- [L675–L802] Part 4 — Dockerfile: Fastify Server (`apps/server/Dockerfile`) — Multi-stage Fastify build using turbo prune, dumb-init, and unprivileged user execution.
+  - [L789–L802] OCR note — WASM-based OCR setup and instructions for offline language pack pre-bundling.
+- [L803–L878] Part 5 — Dockerfile: Web SPA (`apps/web/Dockerfile`) — Multi-stage Vite build baking public environment variables into the static frontend image.
+- [L879–L1014] Part 6 — Nginx Configuration (`nginx/batac.conf.template`) — Reverse proxy rules for SSL termination, static caching, SSE buffering, and API routing.
+  - [L999–L1014] New file: `nginx/entrypoint.sh` — Shell script executing envsubst on batac.conf.template and starting Nginx at container boot.
+- [L1015–L1033] Part 7 — Health Check Reference — Probe commands and intervals for service liveness and database readiness checks.
+- [L1034–L1068] Part 8 — Volume Strategy — Safety analysis of named volumes, bind mount mappings, and local database reset.
+- [L1069–L1144] Part 9 — Environment Variable Injection — Dotenv hierarchy, runtime injection paths, build-time baking, and secrets management guidelines.
+- [L1145–L1249] Part 10 — Migration and Seed Entrypoint — Entrypoint orchestration for database migration execution and seed runs in dev/staging.
+  - [L1147–L1199] `apps/server/entrypoint.sh` — Shell script executing Drizzle migrations, running seeds, and starting Fastify.
+  - [L1200–L1249] Migration runner (`packages/database/scripts/migrate.ts`) — TypeScript runner applying migrations and executing post-migrate SQL grants.
+- [L1250–L1269] Part 11 — Native Dependencies — Native build tool requirements, Alpine binary compatibility risks, and tesseract WASM details.
+- [L1270–L1305] Part 12 — Startup Dependency Order — Sequence graph mapping service startup check dependencies for local and production environments.
+- [L1306–L1326] Part 13 — Decision Register — List of resolved L2-01–L2-09 items with companion ADR references.
 
 ---
 

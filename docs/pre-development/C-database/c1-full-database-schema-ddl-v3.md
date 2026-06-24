@@ -11,22 +11,22 @@
 
 ## Table of Contents
 
-- [L33–L90] Part 0 — Source Preamble and Notation — Source documents cited, notation tags ([Confirmed]/[Inference]/[Gap-fill]/[Decision]), and conflict-resolution summary.
-- [L91–L166] Part 1 — Conventions — Cross-schema FK rules, PK/city_id/timestamp/soft-delete standards, enum strategy, composite FKs, updated_at trigger, number immutability, lifecycle enforcement.
-- [L167–L217] Part 2 — Extensions, Roles, and Schemas — pgcrypto extension, fn_set_updated_at trigger function, schema creation (Phase 1 + reserved), and five DB role declarations.
-- [L218–L456] Part 3 — Schema `iam` — Users, credentials, sessions (B5 §4.2), refresh tokens (B5 §1.2 family-rotation model), roles, permissions, role_permissions (with decision/condition_reference), role_assignments, mfa_records.
-- [L457–L666] Part 4 — Schema `organization` — Offices (5 office_type values), positions, employees (employee_number NOT NULL), assignments, delegation_grants (delegating_employee_id + delegated_to_employee_id, end_date NOT NULL), committees, committee_memberships.
-- [L667–L1159] Part 5 — Schema `documents` — Document types, number series, documents (D3 post-ADR-013/014 lifecycle + superseded_by columns), numbers ledger (immutability trigger), versions (OCR + FTS), attachments, signatures, sponsorships, panlalawigan_reviews, fn_get_next_sequence_value (auto-create + was_created flag).
-- [L1160–L1497] Part 6 — Schema `workflow` — Workflow native ENUMs, definitions, definition_versions (status GENERATED column), steps, transition_rules, instances (context JSONB for publication data), step_instances, workflow_events (append-only), pending_certified_urgent_bypasses, committee_reports, sp_sessions, session_attendances, order_of_business.
-- [L1498–L1576] Part 7 — Schema `tracking` — QR codes (tracking_id mirrors documents.qr_tracking_number), tracking_records (current_custodian_office_id), routing_entries (B2 RoutingEntry shape, append-only).
-- [L1577–L1696] Part 8 — Schema `records` — Retention schedules, classification_rules, records (legal_hold columns), archive_entries, dispositions (RA 10173 erasure gate).
-- [L1697–L1767] Part 9 — Schema `notifications` — Templates, notification_events, delivery_log — Phase 1 internal employees + external recipient columns.
-- [L1768–L1804] Part 10 — Schema `audit` — Append-only BIGINT-sequence hash-chained HMAC-signed audit.events; no soft-delete columns.
-- [L1805–L1828] Part 11 — 2026 Numbering Sequences — Eleven INTEGER sequences for Phase 1 series; annual migration pattern; fn_get_next_sequence_value auto-create safety net.
-- [L1829–L1936] Part 12 — Roles, Grants, and Row-Level Security — batac_app/audit/it_admin/readonly/migrate grants; DELETE never granted; workflow_events UPDATE/DELETE revoked; RLS on documents.documents and iam.sessions.
-- [L1937–L1948] Part 13 — Reserved Phase 2/3 Schemas — search_meta (Phase 2), portal (Phase 3), reporting (Phase 2) — namespaces only; no tables created.
-- [L1949–L1969] Part 14 — Invariant and Non-Negotiable Compliance Checklist — 14-row table mapping each architectural invariant/non-negotiable to its DDL enforcement mechanism.
-- [L1970–L1984] Part 15 — Open Items Requiring Confirmation — Three resolved (panlalawigan_review_log classification, batac_migrate role name, RecordType enum), one still open (barangay-phase `employee_number` constraint — may resolve with no DDL change, pending Barangay Resolution/Budget detailed design); RecordType retention-period figures remain unverified pending NAP Sanggunian-specific GRDS confirmation.
+- [L33–L90] Part 0 — Source Preamble and Notation — Source documents cited, notation tags, and conflict-resolution summary.
+- [L91–L166] Part 1 — Conventions — Cross-schema FK rules, PK/city_id/timestamp/soft-delete standards, and lifecycle enforcement.
+- [L167–L229] Part 2 — Extensions, Roles, and Schemas — pgcrypto extension, trigger function, schema creation, and database roles.
+- [L230–L468] Part 3 — Schema `iam` — Users, credentials, sessions, refresh tokens, permissions, assignments, and MFA records.
+- [L469–L678] Part 4 — Schema `organization` — Offices, positions, employees, assignments, delegation grants, and committees.
+- [L679–L1171] Part 5 — Schema `documents` — DDL for document types, numbers ledger, versions, attachments, signatures, sponsorships, and reviews.
+- [L1172–L1509] Part 6 — Schema `workflow` — DDL for workflow definitions, steps, transitions, events, sessions, attendances, and business order.
+- [L1510–L1588] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
+- [L1589–L1708] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
+- [L1709–L1779] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
+- [L1780–L1816] Part 10 — Schema `audit` — Append-only hash-chained HMAC-signed audit events.
+- [L1817–L1840] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
+- [L1841–L1948] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policy definitions.
+- [L1949–L1960] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
+- [L1961–L1981] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
+- [L1982–L1996] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
 
 ---
 

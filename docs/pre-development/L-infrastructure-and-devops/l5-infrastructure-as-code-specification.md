@@ -19,6 +19,25 @@ resolutions are summarized inline where relevant and not repeated in full.
 
 ---
 
+## Table of Contents
+
+- [L41–L73] 1. Scope and Non-Goals — Definement of what cloud resources are provisioned and explicit out-of-scope items.
+- [L74–L83] 2. Tool Choice — Pulumi (TypeScript) — Decision to use Pulumi and TypeScript for infrastructure definition and tooling integration.
+- [L84–L89] 3. Cloud Provider — DigitalOcean (`sgp1`) — Confirmed DigitalOcean sgp1 region for primary compute and live storage.
+- [L90–L122] 4. Project Structure — Directory structure and configuration files for staging and production stacks.
+- [L123–L128] 5. State Management — Rationale and confirmation of Pulumi Cloud free tier for state storage.
+- [L129–L201] 6. Compute — Sizing, provisioning, and two-host topology for staging and production hosts.
+- [L202–L250] 7. Networking — VPC and firewall rules restricting inbound access to ports 22, 80, and 443.
+- [L251–L313] 8. Object Storage — Configuration of live storage on DigitalOcean and immutable cold-backups on Backblaze B2.
+- [L314–L340] 9. Block Storage — Provisioning of a separate block storage volume for PostgreSQL data persistence.
+- [L341–L370] 10. DNS — Setup of staging and production subdomains under batac.gov.ph and DNS delegation.
+- [L371–L410] 11. Secrets Handling in IaC vs. at Runtime — Separation of Pulumi config secrets from application runtime secrets.
+- [L411–L425] 12. Relationship to the CI/CD Pipeline (L3 / `TASK-INFRA-013`/`014`) — Separation of infrastructure runs from continuous application deployments.
+- [L426–L438] 13. Resolved Items Log — Final dispositions and log of all resolved infrastructure open items.
+
+---
+
+
 ## 1. Scope and Non-Goals
 
 **In scope:**
