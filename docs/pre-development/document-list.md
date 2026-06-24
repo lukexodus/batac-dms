@@ -374,7 +374,7 @@ Operational runbooks for: daily encrypted `pg_dump` to S3, WAL-based PITR archiv
 
 **L5. Infrastructure as Code Specification** — Pre-dev
 
-Specifies the infrastructure-as-code layer using Pulumi and TypeScript to provision compute (DigitalOcean Droplets), private VPC networks, Cloud Firewalls, and object/block storage databases. Integrates Backblaze B2 with Object Lock for cold backups. Identifies key infrastructure decisions and handoff secrets configuration steps required before deployment.
+The Pulumi TypeScript program (`/infra/`) that provisions all cloud resources: two-Droplet production VPC topology (Droplet A: app host `s-2vcpu-4gb`; Droplet B: standby host `s-1vcpu-2gb`), Cloud Firewall rules, DigitalOcean Spaces live-document bucket, Backblaze B2 immutable cold-backup bucket (Object Lock, Compliance mode, 365-day retention), Block Volume for PostgreSQL data, and DNS A-records for `dms.batac.gov.ph` / `staging.dms.batac.gov.ph`. Includes the `./tools/ops/bootstrap-host.sh` secrets handoff script. **Depends on L2, L4.** Three ADRs accompany this document in `l5-infrastructure-as-code-specification-adrs/`: `ADR-IAC-001` (Pulumi over Terraform), `ADR-IAC-002` (DigitalOcean `sgp1`), `ADR-IAC-003` (Backblaze B2 with Object Lock). All open items from L5 §13 are resolved; two items remain pending human input: the LGU IT Office's SSH CIDR(s) (needed before `pulumi up`) and the Backblaze B2 account ownership decision.
 
 ---
 

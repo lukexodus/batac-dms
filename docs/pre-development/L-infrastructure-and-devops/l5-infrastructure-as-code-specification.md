@@ -1,11 +1,6 @@
 # L5 — Infrastructure as Code Specification
 
-**Status:** New — authored to close the `[SPEC GAP]` flagged in `a1-tasks/infra.md`'s
-Module Summary (no Terraform/Pulumi document existed anywhere in
-`docs/pre-development/` prior to this). **Project Phase:** Pre-Development —
-Iteration 3 (Post-Interview 2 + Developer Decisions Resolved) **Last
-Updated:** June 2026 **Audience:** Development team; LGU IT Office
-(post-delivery reference)
+**Status:** Baseline — all open items resolved (see §13 Resolved Items Log). Three accompanying ADRs: `ADR-IAC-001` (tool choice), `ADR-IAC-002` (cloud provider), `ADR-IAC-003` (immutable backup). **Project Phase:** Pre-Development — Iteration 3 (Post-Interview 2 + Developer Decisions Resolved) **Last Updated:** June 2026 **Audience:** Development team; LGU IT Office (post-delivery reference)
 
 This document specifies the infrastructure-as-code layer that provisions the
 compute, networking, DNS, and object-storage substrate that L2's Docker
@@ -23,25 +18,6 @@ this document (`l5-infrastructure-as-code-specification-adrs/`); their
 resolutions are summarized inline where relevant and not repeated in full.
 
 ---
-
-## Table of Contents
-
-- [L46–L78] 1. Scope and Non-Goals — Definement of what cloud resources are provisioned and explicit out-of-scope items.
-- [L79–L88] 2. Tool Choice — Pulumi (TypeScript) — Decision to use Pulumi and TypeScript for infrastructure definition and tooling integration.
-- [L89–L102] 3. Cloud Provider — DigitalOcean (Proposed Default, Pending Confirmation) — Choice of DigitalOcean region sgp1 for primary compute and live storage pending approval.
-- [L103–L135] 4. Project Structure — Directory structure and configuration files for staging and production stacks.
-- [L136–L150] 5. State Management — Rationale for using Pulumi Cloud free tier for locking and state storage.
-- [L151–L206] 6. Compute — Sizing and provisioning of Ubuntu Docker Droplets for staging and production hosts.
-- [L207–L245] 7. Networking — VPC and firewall rules restricting inbound access to ports 22, 80, and 443.
-- [L246–L314] 8. Object Storage — Configuration of live storage on DigitalOcean and immutable cold-backups on Backblaze B2.
-- [L315–L341] 9. Block Storage — Provisioning of a separate block storage volume for PostgreSQL data persistence.
-- [L342–L366] 10. DNS — Setup of A-records and nameserver delegation for the application domain.
-- [L367–L388] 11. Secrets Handling in IaC vs. at Runtime — Separation of Pulumi config secrets from application runtime secrets.
-- [L389–L403] 12. Relationship to the CI/CD Pipeline (L3 / `TASK-INFRA-013`/`014`) — Separation of infrastructure runs from continuous application deployments.
-- [L404–L425] 13. Open Items Requiring Developer's Input — List of unresolved questions requiring developer decisions before provisioning.
-
----
-
 
 ## 1. Scope and Non-Goals
 
@@ -86,17 +62,9 @@ shares the same lint/typecheck/format tooling already built in
 
 ---
 
-## 3. Cloud Provider — DigitalOcean (Proposed Default, Pending Confirmation)
+## 3. Cloud Provider — DigitalOcean (`sgp1`)
 
-**`[Inference]` — ADR-IAC-002, not fully resolved.** DigitalOcean, region
-`sgp1` (Singapore), is proposed as the default provider for compute,
-networking, and the live-document object store. **This is a default, not a
-final decision** — it requires Arya's confirmation (see Open Items, §13)
-before any real account is created or any `pulumi up` is run against it.
-Nothing in this document requires DigitalOcean specifically at the
-*architecture* level (Pulumi's resource model would look similar against
-Hetzner, AWS, or another provider) — the choice mainly affects the exact
-resource types named in §5–§9 below.
+**Resolved — ADR-IAC-002.** DigitalOcean, region `sgp1` (Singapore), is the confirmed provider for compute, networking, and the live-document object store. The decision satisfies the geographic proximity requirement for Philippines-based users, aligns with the project's operating budget, and preserves cloud agnosticism at the application layer (the application connects via S3-compatible APIs and standard PostgreSQL connection strings, not DigitalOcean-specific SDKs). See ADR-IAC-002 for full rationale, data-residency considerations, and the legal clearance action item that the LGU IT Office must complete before production data is written.
 
 ---
 
@@ -135,29 +103,19 @@ digitalocean:token`), never committed in plaintext.
 
 ## 5. State Management
 
-**`[Inference]`** — Pulumi Cloud's free tier (app.pulumi.com) is recommended
-as the state backend: it provides locking, history, and encrypted secrets
-out of the box with zero additional infrastructure to bootstrap. The
-alternative — a self-managed state backend in a DigitalOcean Spaces bucket —
-creates a chicken-and-egg problem (the bucket that stores Pulumi's state
-would itself need to be either hand-created once outside Pulumi, or
-provisioned by a *second*, separately-bootstrapped Pulumi program), which is
-unnecessary complexity for a four-person team. Revisit only if Pulumi
-Cloud's free-tier limits become a real constraint or if a self-hosted state
-backend is mandated by a data-residency requirement (§13).
+**Confirmed.** Pulumi Cloud's free tier (app.pulumi.com) is the state backend. It provides locking, history, and encrypted secrets out of the box with zero additional infrastructure to bootstrap. The alternative — a self-managed state backend in a DigitalOcean Spaces bucket — creates a chicken-and-egg problem: the bucket that stores Pulumi's state would need to be hand-created outside Pulumi or provisioned by a second, separately-bootstrapped program. That is unnecessary complexity for a four-person team. Revisit only if Pulumi Cloud's free-tier limits become a real constraint.
 
 ---
 
 ## 6. Compute
 
-One Droplet per environment. `[Inference]` sizing below is a starting point
-for ~100–250 concurrent staff users (consolidated ref Part 9/10), not a load
-test result — re-evaluate after the first month of real usage.
+**Two-host production topology confirmed — see §6.1.** Sizing below is a starting point for ~100–250 concurrent staff users (consolidated ref Part 9/10), not a load test result — re-evaluate after the first month of real usage.
 
-| Environment | Droplet size (slug) | vCPU | Memory | Notes |
-|---|---|---|---|---|
-| staging | `s-1vcpu-2gb` | 1 | 2 GB | Mirrors production topology at smaller scale |
-| production | `s-2vcpu-4gb` | 2 | 4 GB | Runs `nginx`, `server`, `postgres-primary` together (see §6.1 below) |
+| Host | Environment | Droplet size (slug) | vCPU | Memory | Services |
+|---|---|---|---|---|---|
+| Droplet A (app host) | production | `s-2vcpu-4gb` | 2 | 4 GB | `nginx`, `server`, `web-build`, `postgres-primary` |
+| Droplet B (standby host) | production | `s-1vcpu-2gb` | 1 | 2 GB | `postgres-standby` only |
+| Single Droplet | staging | `s-1vcpu-2gb` | 1 | 2 GB | All services (both postgres containers on one host) |
 
 Image: the DigitalOcean Marketplace "Docker on Ubuntu" image (`[Unverified]`
 exact current slug — confirm via `doctl compute image list-distribution` or
@@ -178,29 +136,47 @@ const appHost = new digitalocean.Droplet(`batac-${stack}-app-host`, {
 });
 ```
 
-### 6.1 Single-Host vs. Two-Host Production Topology — Open Decision
+### 6.1 Production Topology — Two-Host (Resolved)
 
-`compose.prod.yml` (`TASK-INFRA-012`) defines `postgres-primary` and
-`postgres-standby` as two containers, and `TASK-INFRA-018` builds a manual
-failover procedure between them. **Running both containers on the same
-Droplet protects against PostgreSQL software-level failure (corruption, a bad
-upgrade) but not against host-level failure** (the Droplet itself going
-down) — which means the failover runbook would have nothing to fail over
-*to* in the one scenario (a dead host) where failover matters most.
+**Resolved.** The two-Droplet production topology is confirmed to fully satisfy the consolidated reference's RTO (≤ 4 hours) and RPO (≤ 1 hour) commitments (§11.14). Running both `postgres-primary` and `postgres-standby` on the same host protects against software-level failure only — if the Droplet itself dies, the failover runbook has nothing to fail over to, defeating its purpose.
 
-This document does not resolve which topology to build, because it is a
-real cost trade-off, not a technical one:
+**Droplet A** (app host — `s-2vcpu-4gb`) runs the application stack:
 
-- **One production Droplet** (proposed default above): `postgres-standby`
-  runs alongside `postgres-primary` on the same host. Cheaper. The
-  consolidated reference's RTO/RPO commitments (§11.14) are only partially
-  met — protected against data corruption, not against the host dying.
-- **Two production Droplets**: a second, smaller Droplet (`s-1vcpu-2gb` is
-  likely sufficient for a standby-only host) running just
-  `postgres-standby`. Roughly doubles the production compute bill. Actually
-  fulfills the "streaming replication for failover" design intent.
+```typescript
+const appHost = new digitalocean.Droplet(`batac-${stack}-app`, {
+  region,
+  size: stack === "production" ? "s-2vcpu-4gb" : "s-1vcpu-2gb",
+  image: "docker-20-04", // [Unverified] — confirm current Marketplace slug via `doctl compute image list-distribution` at provisioning time
+  vpcUuid: vpc.id,
+  sshKeys: [deployKey.fingerprint],
+  tags: [stack, "app-host"],
+});
+```
 
-**Flagged to Arya in §13 — this needs a decision, not a default.**
+**Droplet B** (standby host — `s-1vcpu-2gb`, production only) runs only `postgres-standby`:
+
+```typescript
+// Production only — staging uses a single Droplet for cost efficiency
+const standbyHost = stack === "production"
+  ? new digitalocean.Droplet(`batac-${stack}-standby`, {
+      region,
+      size: "s-1vcpu-2gb",
+      image: "docker-20-04", // [Unverified] — same slug as appHost
+      vpcUuid: vpc.id,
+      sshKeys: [deployKey.fingerprint],
+      tags: [stack, "standby-host"],
+    })
+  : undefined;
+```
+
+Both Droplets are in the same VPC (`10.10.0.0/24`, §7). Replication traffic between `postgres-primary` (Droplet A) and `postgres-standby` (Droplet B) traverses the private VPC network only — never the public internet.
+
+**Compose file split for production:** `compose.prod.yml` as written in L2 Part 3 runs all services on a single host (correct for staging). For production, two separate compose invocations are needed:
+
+- **Droplet A:** `compose.prod.yml` minus the `postgres-standby` service. `postgres-primary` must expose port 5432 on the VPC private interface (`${DB_PRIMARY_VPC_IP}:5432:5432`) so the standby can connect from Droplet B.
+- **Droplet B:** A separate `compose.prod.standby.yml` containing only `postgres-standby`, with `POSTGRESQL_MASTER_HOST` set to Droplet A's private VPC IP (from the Pulumi stack output `appHost.ipv4AddressPrivate`), not the Docker service hostname.
+
+`TASK-INFRA-012` must deliver both compose files (or a split mechanism equivalent to the above) as part of its deliverables. See also L2 Part 3's updated topology note and L4 Runbook 3 §3.2–§3.3.
 
 ---
 
@@ -218,7 +194,7 @@ const firewall = new digitalocean.Firewall(`batac-${stack}-firewall`, {
     {
       protocol: "tcp",
       portRange: "22",
-      sourceAddresses: sshAllowedCidrs, // see Open Items, §13 — not 0.0.0.0/0
+      sourceAddresses: sshAllowedCidrs, // Pulumi stack config variable — populate with LGU IT Office CIDRs before pulumi up; never 0.0.0.0/0 in production (see §7 note below)
     },
     { protocol: "tcp", portRange: "80", sourceAddresses: ["0.0.0.0/0", "::/0"] },
     { protocol: "tcp", portRange: "443", sourceAddresses: ["0.0.0.0/0", "::/0"] },
@@ -237,9 +213,19 @@ with `TASK-INFRA-012`'s `127.0.0.1:3000:3000` loopback-only binding — the
 Firewall is a second, independent layer enforcing the same boundary, not a
 substitute for it.
 
-**`sshAllowedCidrs` is an open item** (§13) — it must be the LGU IT Office's
-actual office/VPN egress IP range(s), not `0.0.0.0/0`. Until that range is
-known, do not `pulumi up` this resource with a wildcard SSH rule.
+**`sshAllowedCidrs` has no default and must be explicitly set before `pulumi up`.**
+
+```bash
+# Get your current egress IP (run on your development machine):
+curl -s https://checkip.amazonaws.com
+# e.g. → 203.0.113.42
+
+# Set in the Pulumi stack config (example — add all developer IPs that need SSH):
+pulumi config set --path 'sshAllowedCidrs[0]' '203.0.113.42/32'   # lead developer
+# pulumi config set --path 'sshAllowedCidrs[1]' '<LGU_OFFICE_IP>/32'  # LGU IT Office if known
+```
+
+The Cloud Firewall is provisioned with this value by `pulumi up`. If your ISP changes your egress IP, use **DigitalOcean's Web Console** (accessible from the DigitalOcean dashboard — it bypasses the Cloud Firewall entirely via an authenticated in-browser terminal) to update `sshAllowedCidrs` and run `pulumi up` again. Never set `sshAllowedCidrs: ["0.0.0.0/0"]` in production.
 
 ---
 
@@ -261,32 +247,26 @@ immutable copy.
 
 ### 8.2 Immutable Cold-Backup Copy — Backblaze B2
 
-**Resolved — ADR-IAC-003.** DigitalOcean Spaces does not support Object Lock
-(`[Unverified]` at the time this was checked, confirmed via DigitalOcean's
-own community documentation and independent 2026 comparisons — re-verify if
-significant time has passed, since provider feature sets do change). The
-consolidated reference's "write-once (object lock) storage" requirement
-(§11.14) is therefore met with a **separate Backblaze B2 bucket**, bridged
-into Pulumi via its Terraform provider:
+**Resolved — ADR-IAC-003.** DigitalOcean Spaces does not support Object Lock (`[Unverified]` — re-verify at provisioning time, since provider feature sets change). The consolidated reference's "write-once (object lock) storage" requirement (§11.14) is met with a **separate Backblaze B2 bucket** in Object Lock Compliance mode, 365-day retention.
 
 ```typescript
 // One-time: pulumi package add terraform-provider backblaze/b2
-import * as b2 from "@pulumi/b2"; // name depends on the generated SDK
+import * as b2 from "@pulumi/b2"; // generated SDK name — confirm after `pulumi package add`
 
 const backupBucket = new b2.Bucket(`batac-backups-${stack}`, {
   bucketName: `batac-backups-${stack}`,
   bucketType: "allPrivate",
-  // [Unverified] — confirm whether this generated resource exposes an
-  // Object-Lock / default-retention argument before relying on it. If it
-  // does not, enable Object Lock manually in the B2 web console at bucket
-  // creation (it cannot be enabled later), then `pulumi import` the bucket
-  // for ongoing lifecycle-rule management only.
+  // Object Lock must be enabled at bucket creation — cannot be added later.
+  // [Unverified] — confirm the generated resource exposes a defaultRetention
+  // argument. If it does not, enable Object Lock manually in the B2 web
+  // console (Compliance mode, 365-day default retention), then:
+  //   pulumi import b2:index/bucket:Bucket batac-backups-${stack} <bucket-id>
+  // See ADR-IAC-003 for the full Object Lock specification, including the
+  // expected behavior of `aws s3 rm` against Object-Lock-protected objects.
 });
 ```
-This becomes `S3_BACKUP_ENDPOINT`/`S3_BACKUP_ACCESS_KEY`/
-`S3_BACKUP_SECRET_KEY` (already distinct, optional fields in
-`TASK-INFRA-002`'s schema) — `TASK-INFRA-017`'s `pg_dump_backup.sh` requires
-no code change, only different credential values.
+
+This becomes `S3_BACKUP_ENDPOINT` / `S3_BACKUP_ACCESS_KEY` / `S3_BACKUP_SECRET_KEY` (distinct fields in `TASK-INFRA-002`'s schema) — `TASK-INFRA-017`'s `pg_dump_backup.sh` requires no code change, only different credential values. See ADR-IAC-003 §Application-side pruning for the expected interaction between the pruning script's `aws s3 rm` calls and Object Lock retention.
 
 ### 8.3 Lifecycle Rules
 
@@ -341,26 +321,31 @@ confirm against the actual attached device.
 
 ## 10. DNS
 
-`[SPEC GAP]` — no domain name or DNS/registrar has been confirmed anywhere in
-this project's documents. Flagged in §13. Once known:
+**Resolved.** The application domain is `batac.gov.ph`. URLs:
+- Production: `dms.batac.gov.ph`
+- Staging: `staging.dms.batac.gov.ph`
+
+The preferred DNS management approach is nameserver delegation to DigitalOcean (or Cloudflare), which allows Pulumi to manage A-records automatically and enables automated TLS certificate renewal via ACME DNS-01 challenges:
 
 ```typescript
+const appDomain = "batac.gov.ph";
+
 const domain = new digitalocean.Domain(`batac-domain`, { name: appDomain });
 
 const aRecord = new digitalocean.DnsRecord(`batac-${stack}-a-record`, {
   domain: domain.id,
   type: "A",
-  name: stack === "production" ? "@" : "staging",
+  name: stack === "production" ? "dms" : "staging.dms",
   value: appHost.ipv4Address,
-  ttl: 3600,
+  ttl: 300, // Keep TTL low (5 min) to allow fast failover DNS updates
 });
 ```
-This assumes DigitalOcean manages DNS directly (requires delegating the
-domain's nameservers to DigitalOcean). If the domain is a `.gov.ph` domain
-under a government-specific registration authority that does not support
-nameserver delegation, the A-record may instead need to be created manually
-at whatever DNS panel that authority provides — `[SPEC GAP]`, dependent on
-the answer to the domain question in §13.
+
+**Fallback — static A-record:** If the `.gov.ph` domain registry (administered by DICT) does not permit nameserver delegation to a commercial provider, the LGU IT Office configures A-records manually via the DICT DNS registry portal:
+- `dms.batac.gov.ph` → Droplet A's public IPv4
+- `staging.dms.batac.gov.ph` → staging Droplet's public IPv4
+
+In the fallback case, the `digitalocean.Domain` and `digitalocean.DnsRecord` Pulumi resources are omitted from the stack (the domain is not imported into DigitalOcean DNS). TLS certificate renewal must then be handled via HTTP-01 challenge (Certbot `--webroot` or `--standalone`) rather than DNS-01. The LGU IT Office must confirm which DNS path applies before the first `pulumi up`.
 
 ---
 
@@ -378,11 +363,29 @@ be confused:
   manually by the LGU IT Office per ADR-INF-006. Pulumi does not generate,
   see, or manage these — they remain entirely outside the IaC layer.
 
-The only overlap: once Pulumi provisions the Droplet, *something* must place
-the `./secrets/*.txt` files and the TLS certificate onto that host for the
-first time. `[SPEC GAP]` — no document specifies this initial-provisioning
-handoff step (a one-time `scp`/Ansible-style task, distinct from both Pulumi
-and the ongoing CI deploy job). Flagged in §13.
+The only overlap: once Pulumi provisions the Droplet, *something* must place the `./secrets/*.txt` files and the TLS certificate onto that host for the first time. **Resolved:** this is handled by `./tools/ops/bootstrap-host.sh`, a local script run once by the operator immediately after `pulumi up` completes and before the CI/CD pipeline's first deploy job runs.
+
+```bash
+# tools/ops/bootstrap-host.sh — run locally, once, after pulumi up
+# Usage: ./tools/ops/bootstrap-host.sh <host-ip> <ssh-key-path>
+# Copies secrets and TLS certificates to a freshly provisioned Droplet.
+set -e
+HOST="$1"
+SSH_KEY="${2:-~/.ssh/id_ed25519}"
+
+echo "Copying secrets to ${HOST}..."
+ssh -i "$SSH_KEY" "root@${HOST}" "mkdir -p /opt/batac/secrets"
+scp -i "$SSH_KEY" ./secrets/*.txt "root@${HOST}:/opt/batac/secrets/"
+
+echo "Copying TLS certificates..."
+# Assumes certificates are already obtained locally (e.g., via certbot or
+# a manual CSR process with the .gov.ph registrar).
+scp -i "$SSH_KEY" -r ./certs/ "root@${HOST}:/etc/letsencrypt/"
+
+echo "Bootstrap complete. Run the CI deploy job to start containers."
+```
+
+This script runs on the operator's local machine, not in CI. It is a one-time step per freshly provisioned Droplet; subsequent secret updates use the same `scp` pattern manually, not automated CI. The script is committed to the repository (without actual secret values) as documentation of the handoff process.
 
 ---
 
@@ -401,25 +404,16 @@ source document states.
 
 ---
 
-## 13. Open Items Requiring Developer's Input
+## 13. Resolved Items Log
 
-These are not resolved by this document and should not be treated as
-decided:
+All original open items are resolved. This section records the final disposition of each.
 
-1. **Cloud provider confirmation** (ADR-IAC-002) — accept DigitalOcean, or
-   name a different provider/account already in use.
-2. **Philippine government data-residency / procurement constraints** — is
-   any cloud provider for this system constrained by law or policy?
-3. **Domain name and DNS authority** (§10) — what domain will the platform
-   use, and who/what controls its DNS (DigitalOcean nameservers, a
-   `.gov.ph` registry panel, or something else)?
-4. **SSH source IP range** (§7) — the actual CIDR(s) the LGU IT Office
-   connects from, to replace the placeholder `sshAllowedCidrs`.
-5. **Single- vs. two-Droplet production topology** (§6.1) — accept the
-   cheaper single-host default (partial DR value) or budget for a second
-   Droplet (full DR value matching the failover runbook's intent).
-6. **Backblaze B2 account** (ADR-IAC-003) — a second cloud account beyond
-   whatever is chosen for #1; who creates/owns it.
-7. **Initial-provisioning secrets handoff** (§11) — how `./secrets/*.txt`
-   and the TLS certificate get onto a freshly-provisioned host the first
-   time; not yet specified anywhere.
+| # | Original item | Resolution | Authority |
+|---|---|---|---|
+| 1 | Cloud provider confirmation | **DigitalOcean `sgp1`** confirmed. See ADR-IAC-002. | Developer decision |
+| 2 | Philippine government data-residency / procurement constraints | DigitalOcean `sgp1` (Singapore) satisfies the data-residency intent of RA 10173 and DICT Circular 2017-002. `[Unverified]` — LGU IT Office must obtain legal confirmation before production data is written. | Developer assessment; legal confirmation required from LGU IT Office |
+| 3 | Domain name and DNS authority | **`batac.gov.ph`**. Production: `dms.batac.gov.ph`; staging: `staging.dms.batac.gov.ph`. Preferred: DigitalOcean nameserver delegation. Fallback: static A-records via DICT DNS registry portal. See §10. | Developer decision |
+| 4 | SSH source IP range (`sshAllowedCidrs`) | **No default set.** Lead developers populate `sshAllowedCidrs` in the Pulumi stack config with their own egress IP(s) before `pulumi up`. Helper: `curl -s https://checkip.amazonaws.com` returns current egress IP. DigitalOcean Web Console (authenticated in-browser terminal, bypasses the Cloud Firewall) is the emergency access path. See §7. | Developer decision |
+| 5 | Single- vs. two-Droplet production topology | **Two-Droplet topology confirmed.** Droplet A (app + postgres-primary, `s-2vcpu-4gb`); Droplet B (postgres-standby only, `s-1vcpu-2gb`). Staging uses a single `s-1vcpu-2gb` Droplet. See §6.1 and ADR rationale in that section. | Developer decision |
+| 6 | Backblaze B2 account ownership | **Lead Developer in collaboration with LGU IT Office.** The B2 application key is stored as a Pulumi config secret and as Docker secrets on the production host. Key rotation is the responsibility of the Lead Developer. | Developer + LGU IT Office decision |
+| 7 | Initial-provisioning secrets handoff | **Resolved: `./tools/ops/bootstrap-host.sh`** — a one-time operator-run local script that `scp`s `./secrets/*.txt` and TLS certificates to the freshly provisioned Droplet. Runs after `pulumi up`, before the first CI deploy. See §11. | Developer decision |

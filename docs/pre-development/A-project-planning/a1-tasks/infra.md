@@ -30,6 +30,35 @@ per `A1-AGENTS.md` §8.
 
 ---
 
+## Table of Contents
+
+- [L62–L103] Phase 1 INFRA capabilities identified before task generation — Summarizes the nine deliverables defined for Phase 1 INFRA scope and notes deferred capabilities.
+- [L104–L333] TASK-INFRA-001 — Bootstrap workspace layout, root package.json, pnpm workspace, Turborepo config, and shared typescript/eslint/prettier settings.
+- [L334–L666] TASK-INFRA-002 — Define Fastify server and Vite client environment variable validation schemas using Zod to enforce fail-fast configuration at startup.
+- [L667–L800] TASK-INFRA-003 — Create root .env.example with placeholders and load-docker-secrets.ts helper to load mounted Docker secrets into process.env.
+- [L801–L950] TASK-INFRA-004 — Define local compose.yml with PostgreSQL, MinIO (with bucket auto-init), Mailpit, and profile-gated Meilisearch services.
+- [L951–L1074] TASK-INFRA-005 — Implement database role creation script and post-migration privileges to establish the least-privilege three-role access model.
+- [L1075–L1188] TASK-INFRA-006 — Implement drizzle-kit config and database migration runner script to apply Drizzle migrations and run post-migrate privilege grants.
+- [L1189–L1291] TASK-INFRA-007 — Create automated migration linter for CI to enforce key constraints on schemas, primary keys, and timestamp columns.
+- [L1292–L1425] TASK-INFRA-008 — Configure multi-stage Fastify server Dockerfile with dumb-init, offline Tesseract language packs, and db migrate/seed entrypoint.
+- [L1426–L1500] TASK-INFRA-009 — Configure multi-stage Vite web SPA Dockerfile to compile static assets into a dedicated volume-seeding container.
+- [L1501–L1628] TASK-INFRA-010 — Configure Nginx template and envsubst entrypoint for HTTPS serving, static asset caching, and SSE-compatible proxying.
+- [L1629–L1690] TASK-INFRA-011 — Implement lightweight, database-independent server liveness health endpoint mapped to the configured HEALTH_CHECK_PATH.
+- [L1691–L1922] TASK-INFRA-012 — Define compose.prod.yml for staging/production with replication, secrets, proxy, and profile-gated MinIO and Meilisearch.
+- [L1923–L2087] TASK-INFRA-013 — Build CI merge-gate workflow for parallel linting, typechecking, unit/integration testing, and Docker builds.
+- [L2088–L2203] TASK-INFRA-014 — Extend CI workflow with post-merge Playwright E2E tests, staging deploy, and manual-approval production deployment gate.
+- [L2204–L2276] TASK-INFRA-015 — Establish version-controlled operational backup/DR runbooks and empty verification logs under /docs/ops/.
+- [L2277–L2374] TASK-INFRA-016 — Configure WAL-G S3 settings, primary database archiving rules, and weekly full base backup cron job.
+- [L2375–L2472] TASK-INFRA-017 — Create cron script for nightly AES256-encrypted database dumps uploaded to S3 with a 30-day retention policy.
+- [L2473–L2569] TASK-INFRA-018 — Define replication lag monitoring script and manual standby-to-primary promotion and failover procedure checklist.
+- [L2570–L2664] TASK-INFRA-019 — Create script and checklist to test latest database dump restoration into a disposable scratch database monthly.
+- [L2665–L2726] TASK-INFRA-020 — Establish quarterly disaster-recovery checklist requiring two-person simulated failover and PITR restoration spot checks on staging.
+- [L2727–L2825] TASK-INFRA-021 — Detail emergency database direct-access checklist and post-incident script to rotate all application database passwords.
+- [L2826–L2907] Module Summary — INFRA — Summarize task count, list deferred capabilities, and document resolved specification gaps and cross-document inconsistencies.
+
+---
+
+
 ## Phase 1 INFRA capabilities identified before task generation
 
 Per `A1-AGENTS.md` §6 Step 2: the consolidated reference's Phase 1 "Included"
@@ -2325,11 +2354,14 @@ AI Prompt:
   > **Retention** (consolidated ref §11.14): hot retention 30 days, cold
   > retention 1 year, with at least one cold copy in write-once (S3 object
   > lock) storage. `wal-g delete retain FULL 4 --confirm` above retains four
-  > weekly full backups (~28 days); confirm the bucket's own object-lock
-  > policy (a bucket-level S3 setting, not application code) separately
-  > implements the 1-year cold/immutable tier — that bucket policy is
-  > `[SPEC GAP]`, since no loaded document specifies the exact S3 lifecycle
-  > rule JSON or object-lock retention-mode configuration.
+  > weekly full backups (~28 days). The 1-year cold/immutable tier is
+  > implemented at the bucket level by the Backblaze B2 Object Lock policy
+  > specified in ADR-IAC-003 and L5 §8.2: Object Lock in Compliance mode
+  > with a 365-day default retention period, set at bucket creation. The
+  > `[SPEC GAP]` originally flagged here is **closed** — the exact
+  > configuration is in ADR-IAC-003. The pruning script's `aws s3 rm` calls
+  > will be blocked by Object Lock for objects aged 30–365 days; see
+  > ADR-IAC-003 §Application-side pruning for the expected log behavior.
   >
   > Before submitting this PR, confirm each item:
   > - [ ] `wal-g backup-push` against a local test data directory completes and is listed by `wal-g backup-list`
@@ -2418,11 +2450,16 @@ AI Prompt:
   > the schema, can.
   >
   > **Retention** (consolidated ref §11.14): 30-day hot retention is enforced
-  > above; the 1-year cold tier and the "at least one cold copy in write-once
-  > storage" requirement depend on the destination bucket's own S3 lifecycle
-  > and object-lock configuration, which is `[SPEC GAP]` — same gap already
-  > noted in TASK-INFRA-016, since no loaded document gives the exact bucket
-  > policy.
+  > above. The 1-year cold tier and "at least one cold copy in write-once
+  > storage" requirement are satisfied by the Backblaze B2 bucket's Object
+  > Lock Compliance mode (365-day default retention), specified in
+  > ADR-IAC-003 and L5 §8.2. The `[SPEC GAP]` originally noted here is
+  > **closed**. Note: `aws s3 rm` calls in the pruning loop will receive
+  > rejection errors from B2 for objects aged 30–365 days (Object Lock
+  > blocks the delete). These rejections are expected and should be logged
+  > as `[INFO - Object Lock active, retention preserved]`, not `[ALERT]`.
+  > Distinguish Object Lock rejections from other S3 errors by checking the
+  > error message for "Object Lock" or "OBJECT_LOCK".
   >
   > Before submitting this PR, confirm each item:
   > - [ ] A manual run against local `compose.yml` produces an encrypted dump and uploads it to MinIO
@@ -2799,22 +2836,9 @@ writes to the `audit` schema / emits an audit event from application code
 procedures that *reference* the audit system as a downstream consumer once it
 exists, but no INFRA deliverable itself performs an audit write.
 
-**Spec gaps:**
-- `[SPEC GAP]` No Terraform, Pulumi, or other infrastructure-as-code document
-  exists anywhere in `docs/pre-development/`. L3's own scope note excludes
-  "Infrastructure provisioning (Terraform/Pulumi for the VPS)" as "a separate
-  IaC document not yet in the plan," yet the consolidated reference's
-  Architectural Law #5 ("All infrastructure is defined in code"), §11.2, and
-  D5's Deployment Constraints table all require it "from day one." Every task
-  in this list that assumes a working Docker host (`TASK-INFRA-012` onward)
-  is therefore unable to specify how that host itself is provisioned,
-  hardened, or network-configured. A human must author the missing IaC
-  document before this gap can be closed.
-- `[SPEC GAP]` The S3 bucket lifecycle/object-lock configuration that
-  implements the consolidated reference's "1-year cold retention" and "at
-  least one cold copy in write-once storage" requirements (§11.14) is not
-  specified in any loaded document — `TASK-INFRA-016` and `TASK-INFRA-017`
-  implement the application-side retention pruning only.
+**Spec gaps — all resolved:**
+- `[SPEC GAP → CLOSED]` No IaC document existed. **Closed:** `L5 — Infrastructure as Code Specification` was authored post-generation to fill this gap. It covers the two-Droplet production topology, VPC/Firewall, DNS (`dms.batac.gov.ph`), object storage (DigitalOcean Spaces + Backblaze B2), block storage, and the Pulumi TypeScript project structure. Three accompanying ADRs (`ADR-IAC-001`, `ADR-IAC-002`, `ADR-IAC-003`) record the tool, cloud provider, and immutable backup provider decisions. A `TASK-INFRA-022` for implementing the `/infra/` Pulumi program should be generated in the next A1 task-list pass with L5 as its source document.
+- `[SPEC GAP → CLOSED]` S3 bucket lifecycle/object-lock configuration for the 1-year cold retention and write-once storage requirements. **Closed:** `ADR-IAC-003` specifies the Backblaze B2 bucket with Object Lock Compliance mode, 365-day default retention. TASK-INFRA-016 and TASK-INFRA-017 AI Prompts updated in-line above to reference this resolution.
 
 **Deferred capabilities:**
 - `[DEFERRED — Phase 2: Meilisearch activation]` The `meilisearch` service is
@@ -2830,31 +2854,38 @@ exists, but no INFRA deliverable itself performs an audit write.
   endpoint-swap already covered by D5 and reflected in `TASK-INFRA-012`'s
   `onpremise` profile.
 
-**Document conflicts followed (per `A1-AGENTS.md` §1):**
-1. `[CONFLICT]` C5's addendum states `batac_migrate` is `NOLOGIN` (citing C1
-   §3.16); L2 — and `TASK-INFRA-005` — create it as a `LOGIN` role with a
-   password, because `DATABASE_URL_MIGRATE` requires password authentication
-   to function. Followed L2. C1 itself was not loaded in this pass (it is not
-   in INFRA's document list); a human should confirm what C1 §3.16 actually
-   specifies before this is resolved.
-2. `[CONFLICT]` L1 §21.2's `AppEnv` Zod enum does not include `"test"`
-   (`development | staging | production | on-premise`), but L3 §7.1's
-   example CI environment table sets `APP_ENV: test`. Followed L1's enum;
-   `TASK-INFRA-013`'s CI workflow uses `APP_ENV=development` with
-   `NODE_ENV=test` instead.
-3. `[CONFLICT]` D5's Deployment Constraints and the consolidated reference's
-   §11.14 both describe automated, DNS-triggered failover after 60 seconds of
-   heartbeat loss. L4 Runbook 3 — the only concretely specified version —
+**Document conflicts — all resolved:**
+1. `[CONFLICT — RESOLVED: C1 UPDATED TO LOGIN]` C5's addendum cited C1 §3.16
+   as defining `batac_migrate` as NOLOGIN. On review, `DATABASE_URL_MIGRATE`
+   is a direct connection string — NOLOGIN roles cannot authenticate directly.
+   **C1 §3.16 has been updated** to define `batac_migrate` as `LOGIN`. The
+   password is not set in DDL; it is applied post-creation by `TASK-INFRA-005`
+   via `ALTER ROLE batac_migrate PASSWORD '<from-DB_MIGRATE_PASSWORD-secret>'`.
+   `TASK-INFRA-005`'s implementation and `DATABASE_URL_MIGRATE` are correct
+   as-written. The C5 addendum's NOLOGIN reference is superseded. See C1
+   Part 15 resolved items.
+2. `[CONFLICT — RESOLVED: FOLLOW L1]` L1 §21.2's `AppEnv` Zod enum does not
+   include `"test"` (`development | staging | production | on-premise`), but
+   L3 §7.1's example CI environment table sets `APP_ENV: test`. Resolution:
+   L1 is the authoritative schema; `TASK-INFRA-013`'s CI workflow uses
+   `APP_ENV=development` with `NODE_ENV=test`. L3 §7.1's `APP_ENV: test`
+   entry is a documentation inconsistency in L3 to be corrected when L3 is
+   next revised.
+3. `[CONFLICT — CONFIRMED: PHASE 2 DEFERRAL]` D5's Deployment Constraints
+   and the consolidated reference's §11.14 both describe automated,
+   DNS-triggered failover after 60 seconds of heartbeat loss. L4 Runbook 3
    describes an entirely manual, human-executed failover procedure. Followed
-   L4; `TASK-INFRA-018` implements the manual procedure and does not invent
-   an automated promotion/DNS-update mechanism.
-4. `[CONFLICT]` J3 §7.3's ESLint rule message names `@batac/config/env` as
-   the approved environment-access path; L1 §21.1 places the actual env
-   validation modules at `/apps/server/src/config/env.server.ts` and
-   `/apps/web/src/config/env.client.ts` — per-app, not inside the shared
-   `@batac/config` package. `TASK-INFRA-001` reworded the rule message
-   generically rather than asserting either path as settled; `TASK-INFRA-002`
-   followed L1's explicit per-app paths for the actual files.
+   L4; `TASK-INFRA-018` implements the manual procedure. **Phase 1 ships with
+   the manual runbook only. Automated failover (health-check script +
+   DigitalOcean API DNS update) is a confirmed Phase 2 scope item.** See L4
+   Runbook 3 §3.6 note.
+4. `[CONFLICT — RESOLVED: GENERIC WORDING]` J3 §7.3's ESLint rule message
+   names `@batac/config/env` as the approved environment-access path; L1
+   §21.1 places the actual env validation modules at per-app paths.
+   `TASK-INFRA-001` reworded the rule message generically; `TASK-INFRA-002`
+   followed L1's per-app paths. Closed: the generic wording is correct; J3
+   §7.3 should be updated to reflect per-app convention when J3 is next
+   revised.
 5. `[Inference]`-resolved internal inconsistency (not a cross-document
    conflict): L1 §13.2 and §13.3 document `LOG_DESTINATION` and
    `HEALTH_CHECK_PATH` respectively, with unambiguous name/type/default, but
@@ -2862,3 +2893,15 @@ exists, but no INFRA deliverable itself performs an audit write.
    includes both fields, sourced from §13, to avoid breaking
    `TASK-INFRA-011`'s health endpoint. A human should reconcile L1 §21.2
    against §13 directly.
+
+**Developer answers (all questions resolved — no further input required):**
+- **Q1 (`batac_migrate` LOGIN):** C1 §3.16 updated to `LOGIN`. TASK-INFRA-005
+  and DATABASE_URL_MIGRATE are correct as-written. ✓
+- **Q2 (SSH CIDRs):** Lead developers populate `sshAllowedCidrs` with their
+  own egress IP(s) before `pulumi up`. No default is set. Use
+  `curl -s https://checkip.amazonaws.com` to retrieve current egress IP.
+  DigitalOcean Web Console is the out-of-band emergency SSH path. ✓
+- **Q3 (B2 account ownership):** Lead Developer in collaboration with LGU IT
+  Office. ✓
+- **Q4 (automated failover):** Confirmed deferred to Phase 2. Phase 1 ships
+  with L4 Runbook 3 manual procedure only. ✓

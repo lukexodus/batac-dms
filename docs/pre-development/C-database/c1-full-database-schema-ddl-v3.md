@@ -202,14 +202,26 @@ CREATE SCHEMA IF NOT EXISTS reporting;     -- Phase 2: report_definitions, sched
 
 -- ── Database Roles ───────────────────────────────────────────────────────────
 -- Confirmed role set per I3 §8.1 [CONFIRMED — Stack Context; B5 §6.2] and L2.
--- Credentials and login provisioning via secrets manager / Terraform (Invariant #15).
+-- Credentials and login provisioning via Pulumi (L5) and Docker secrets (L2; TASK-INFRA-005).
+-- batac_migrate is LOGIN (can connect directly via DATABASE_URL_MIGRATE).
+-- All other application roles are NOLOGIN; they are activated via SET ROLE or GRANT
+-- after connecting as the appropriate LOGIN user.
 
 CREATE ROLE batac_app     NOLOGIN;   -- Runtime application service account (SELECT, INSERT, UPDATE; RLS applies)
+                                     -- Created as LOGIN by Docker/Bitnami via POSTGRESQL_USERNAME env var (L2).
+                                     -- This CREATE ROLE statement sets up the role object; the LOGIN attribute
+                                     -- is conferred by Bitnami init before this script runs.
+                                     -- Init scripts must use CREATE ROLE IF NOT EXISTS to avoid collision.
 CREATE ROLE batac_audit   NOLOGIN;   -- Audit log writes: INSERT-only on audit.events (Invariant #3)
 CREATE ROLE batac_it_admin NOLOGIN;  -- IT Admin ops; DDL via migrations; REVOKE on document content tables
 CREATE ROLE batac_readonly NOLOGIN;  -- Read-only monitoring/reporting; RLS applies
-CREATE ROLE batac_migrate  NOLOGIN;  -- DDL owner; SECURITY DEFINER function owner; runs migration scripts
-                                     -- [Decision] Named here for the first time; no prior document names this role.
+CREATE ROLE batac_migrate  LOGIN;    -- DDL owner; SECURITY DEFINER function owner; runs migration scripts
+                                     -- [Decision — resolved 2026-06] LOGIN is required: DATABASE_URL_MIGRATE
+                                     -- is a direct connection string; NOLOGIN roles cannot authenticate.
+                                     -- Password is NOT set in DDL — it is applied via ALTER ROLE by TASK-INFRA-005
+                                     -- using the DB_MIGRATE_PASSWORD Docker secret after role creation:
+                                     --   ALTER ROLE batac_migrate PASSWORD '<from-secret>';
+                                     -- Named here for the first time; no prior document names this role.
                                      -- Seed order: batac_migrate schema-owns all Phase 1 schemas.
 ```
 
@@ -1974,7 +1986,7 @@ The `search_meta`, `portal`, and `reporting` schemas were created in Part 2. No 
 | Item | Resolution | Reference |
 |---|---|---|
 | `panlalawigan_review_log` entity classification | **Formalized as an internal tracking/log entity, not a public document type.** `documents.number_series.document_type_id = NULL` for this series is confirmed permanent, not provisional. `documents.panlalawigan_reviews` remains the authoritative table in the `documents` schema. Control numbers from this series do not appear in the standard document catalog, search, or listings — only as a field on the parent document. No DDL change required. | `ADR-DB-001` (`c1-full-database-schema-ddl-v3-adrs/ADR-DB-001-panlalawigan-review-log-classification.md`) |
-| Migration-owning role name (`batac_migrate`) | **Confirmed as-is.** Already defined and used consistently in this document (§3.16, DB roles list, `fn_get_next_sequence_value` `OWNER TO`). C5 did not previously name it; an addendum cross-referencing this document's §3.16 has been prepared for C5 rather than introducing a second definition. No DDL change required. | C5 addendum — "Migration-Owning Role Name (`batac_migrate`)" |
+| Migration-owning role name (`batac_migrate`) | **Confirmed as-is, with LOGIN correction.** Already defined and used consistently in this document (§3.16, DB roles list, `fn_get_next_sequence_value` `OWNER TO`). C5's addendum cited this document's §3.16 as defining `batac_migrate` as NOLOGIN, but `DATABASE_URL_MIGRATE` (L1) is a direct connection string, which requires a LOGIN role. **§3.16 updated (2026-06): `batac_migrate` is now `LOGIN`.** Password is not set in DDL; it is applied post-creation by `TASK-INFRA-005` via `ALTER ROLE batac_migrate PASSWORD '<from-DB_MIGRATE_PASSWORD-secret>'`. The C5 addendum's NOLOGIN reference is superseded by this correction. | `a1-tasks/infra.md` Conflict #1 (resolved); C5 addendum — "Migration-Owning Role Name" |
 | `RecordType` enum values | **Six-value enum defined**, ratifying the categories already present in Part 11.7 of the Consolidated Reference (Permanent-Legislative, Financial, Personnel, Correspondence, Internal Memo, Draft), plus a `document_type` → `RecordType` mapping. `records.records.record_type` should be updated from unconstrained `TEXT` to a `CHECK` constraint or native enum over the six values (see DDL change below). **Retention-period figures behind each category remain `[Unverified]` pending NAP/COA/DILG confirmation — this ADR resolves the enum only, not the legal retention durations.** | `ADR-WFL-005` (`c1-full-database-schema-ddl-v3-adrs/ADR-WFL-005-recordtype-enum-values.md`) |
 
 ### Still Open

@@ -4,7 +4,7 @@
 
 ## Table of Contents
 
-- [L11–L90] ADR Index — Central master index linking to all architectural decisions across the platform.
+- [L11–L93] ADR Index — Central master index linking to all architectural decisions across the platform.
 
 ---
 
@@ -88,5 +88,8 @@
 | ADR-UI-015 | SSE Reconnection — Native `EventSource` Replay, with TanStack Query Poll as Fallback on Drawer Open | Frontend / UI (F1, F2) | [View](../F-frontend-architecture/f2-zustand-store-design-adrs/ADR-UI-015-sse-reconnection-strategy.md) |
 | ADR-UI-016 | Presiding-Officer Substitute Lookup Confirmed as `organization.getActiveDesignations`; Mandatory Vitest Coverage for `committeeId` Strip-Before-Send | Frontend / UI (F1, F2) | [View](../F-frontend-architecture/f2-zustand-store-design-adrs/ADR-UI-016-designation-lookup-procedure-and-test-coverage.md) |
 | ADR-WFL-005 | RecordType` Enum Value List | Workflow / UML (D3, D4) | [View](../D-uml-and-diagrams/d4-domain-class-diagram-adrs/ADR-WFL-005-recordtype-enum.md) |
+| ADR-IAC-001 | IaC Tool Choice: Pulumi (TypeScript) over Terraform | Infrastructure as Code (L5) | [View](../L-infrastructure-and-devops/l5-infrastructure-as-code-specification-adrs/ADR-IAC-001-tool-choice-pulumi-typescript.md) |
+| ADR-IAC-002 | Cloud Provider: DigitalOcean (`sgp1`) | Infrastructure as Code (L5) | [View](../L-infrastructure-and-devops/l5-infrastructure-as-code-specification-adrs/ADR-IAC-002-cloud-provider-digitalocean.md) |
+| ADR-IAC-003 | Immutable Cold Backup Copy: Backblaze B2 with Object Lock | Infrastructure as Code (L5) | [View](../L-infrastructure-and-devops/l5-infrastructure-as-code-specification-adrs/ADR-IAC-003-immutable-cold-backup-copy-backblaze-b2.md) |
 
 ---

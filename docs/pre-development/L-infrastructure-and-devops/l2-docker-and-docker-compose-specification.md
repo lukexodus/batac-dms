@@ -610,6 +610,67 @@ volumes:
 
 ---
 
+### Two-Host Production Topology — Compose File Split
+
+The `compose.prod.yml` above runs all services on a **single host** — correct for **staging** (L5 §6). For **production**, the confirmed two-Droplet topology (L5 §6.1, ADR rationale in that section) requires `postgres-primary` and `postgres-standby` to run on separate hosts. A single Docker Compose file cannot span two hosts, so two compose files are required:
+
+**Droplet A (app host) — `compose.prod.app.yml`**
+- Services: `web-build`, `nginx`, `server`, `postgres-primary` (and optionally `minio`/`meilisearch` profiles)
+- `postgres-primary` must expose port 5432 bound **only to its VPC private interface** — never the public interface — so the standby on Droplet B can reach it:
+
+```yaml
+# In compose.prod.app.yml — postgres-primary ports binding
+postgres-primary:
+  # ... all other config from compose.prod.yml ...
+  ports:
+    # Bind ONLY to the VPC private IP; never to 0.0.0.0 or the public IP.
+    # DB_PRIMARY_VPC_IP = Droplet A's private VPC address (from Pulumi output,
+    # e.g. appHost.ipv4AddressPrivate → stored in .env.production on each host)
+    - "${DB_PRIMARY_VPC_IP}:5432:5432"
+```
+
+**Droplet B (standby host) — `compose.prod.standby.yml`**
+- Services: `postgres-standby` only
+- `POSTGRESQL_MASTER_HOST` must be set to Droplet A's **private VPC IP** (not the Docker service hostname `postgres-primary`, which is only resolvable within a single host's Docker network):
+
+```yaml
+# compose.prod.standby.yml — entire file
+name: batac-prod-standby
+
+services:
+  postgres-standby:
+    image: bitnami/postgresql:16
+    restart: unless-stopped
+    environment:
+      POSTGRESQL_REPLICATION_MODE: slave
+      # Must be the private VPC IP of Droplet A, NOT "postgres-primary"
+      POSTGRESQL_MASTER_HOST: ${DB_PRIMARY_VPC_IP}
+      POSTGRESQL_MASTER_PORT_NUMBER: "5432"
+      POSTGRESQL_REPLICATION_USER: replicator
+      POSTGRESQL_REPLICATION_PASSWORD: ${DB_REPLICATION_PASSWORD}
+      POSTGRESQL_USERNAME: batac_app
+      POSTGRESQL_PASSWORD: ${DB_APP_PASSWORD}
+      TZ: Asia/Manila
+    volumes:
+      - postgres_standby_data:/bitnami/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U batac_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  postgres_standby_data:
+    driver: local
+```
+
+`DB_PRIMARY_VPC_IP` is a new environment variable, resolved at provisioning time from the `appHost.ipv4AddressPrivate` Pulumi stack output (L5 §6.1). It must be written into `.env.production` on **both** Droplets by `./tools/ops/bootstrap-host.sh` (L5 §11) before the first compose deployment.
+
+**`TASK-INFRA-012` deliverables update:** In addition to `compose.prod.yml` (staging / single-host), deliver `compose.prod.app.yml` and `compose.prod.standby.yml` as production two-host compose files per the specs above. See also L4 Runbook 3 §3.2–§3.3 and L5 §6.1.
+
+---
+
 ## Part 4 — Dockerfile: Fastify Server (`apps/server/Dockerfile`)
 
 Multi-stage build. Uses `turbo prune` to produce a pruned monorepo snapshot containing only packages the server depends on, which stabilizes the dependency-install cache layer.

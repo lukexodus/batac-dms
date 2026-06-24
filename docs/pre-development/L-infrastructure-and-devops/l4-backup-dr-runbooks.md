@@ -555,6 +555,8 @@ pg_restore \
 
 The hot standby is the fastest recovery path for primary server failure. It must be continuously synchronized (lag ≤ 60 s) and promotable within the 4-hour RTO. This runbook covers initial setup, ongoing monitoring, and the failover procedure.
 
+> **Topology reference (L5 §6.1):** Production runs a confirmed two-Droplet topology. **Droplet A** (app host, `s-2vcpu-4gb`) runs `nginx`, `server`, `web-build`, and `postgres-primary` via `compose.prod.app.yml`. **Droplet B** (standby host, `s-1vcpu-2gb`) runs `postgres-standby` only via `compose.prod.standby.yml`. Both Droplets are in the same DigitalOcean VPC (`10.10.0.0/24`, L5 §7). **All replication traffic between `postgres-primary` and `postgres-standby` must traverse the private VPC network only — never the public interface.** In §3.2–§3.3 below, `<primary_ip>` and `<standby_ip>` refer to each Droplet's **private VPC IP address** (obtainable from the Pulumi stack outputs `appHost.ipv4AddressPrivate` and `standbyHost.ipv4AddressPrivate`, or via `doctl compute droplet list --format PrivateIPv4` at the time of setup). Staging runs both containers on a single `s-1vcpu-2gb` Droplet with `compose.prod.yml`; in that case `<primary_ip>` is the loopback address `127.0.0.1` or the Docker service name `postgres-primary` as applicable.
+
 ### 3.2 Initial Setup — Primary
 
 Run once, before the standby is provisioned.
@@ -700,6 +702,8 @@ WHERE application_name = 'batac_standby';
 Common causes of lag spikes: sustained write burst on primary; S3 slowness affecting `restore_command` fallback; network congestion between primary and standby. Investigate the standby's `pg_stat_wal_receiver.last_msg_receipt_time` first.
 
 ### 3.6 Failover Procedure — Unplanned Standby Promotion
+
+> **Phase 1 scope — manual only.** This runbook describes a fully human-executed failover. Automated DNS-triggered promotion (health-check daemon + DigitalOcean API DNS update after 60-second heartbeat loss, as described in D5 Deployment Constraints §11.14) is confirmed as a **Phase 2 scope item** and is not implemented here. Until Phase 2, this runbook is the sole failover procedure.
 
 Use when the primary is irrecoverably down. For planned maintenance failover, follow the same steps but stop the primary deliberately in Step 1 and skip the reachability checks.
 
