@@ -50,34 +50,34 @@ State the conflict and which document you followed and why.
   table has a transcription error. Agents never edit this table.
 -->
 
-| Task type | Read (in order) |
-|---|---|
-| Write/modify the workflow engine (step types, transitions, timers) | B4 → D3 → H1 |
-| Write/modify any DB migration or schema file | C1 → C5 |
-| Write a tRPC procedure or router | E1 → I1 → I2 |
-| Write a REST/public endpoint | E2 → B2 → I1 |
-| Write/modify a Zod schema in `/packages/shared` | E3 → C1 |
-| Write a Zustand store | F2 → F1 → E3 |
-| Write a TanStack Query hook / cache key | F3 → E1 |
-| Build the `packages/ui` foundation (Tier 1 + Tier 2) | F5 → DESIGN.md → globals.css → F7 |
-| Build a Tier 3 domain component in `packages/ui` | F5 → J6 → F6 → DESIGN.md → F7 |
-| Build a frontend page or view in `/apps/web` | F4 → F1 → F5 → J6 → I2 → E1 |
-| Implement the workflow definitions for Resolution/Ordinance/Appropriation Ordinance | H1 → B4 → D3 |
-| Implement a new document type or its JSONB metadata | H2 → B4 → H3 |
-| Implement or modify numbering-series logic | H3 → §4.1, §5.1–5.2 of consolidated ref directly |
-| Implement an ABAC policy or permission check | I1 → I2 → B5 |
-| Implement RLS policies | C3 → C1 → I1 |
-| Implement audit logging for a new event type | B3 → I3 → ADR-B2-2 |
-| Implement a notification | H4 → B3 → I2 |
-| Write/modify Docker/Compose/CI config | L1 → L2 → L3 |
-| Write/modify Infrastructure as Code (IaC) configuration | L1 → L2 → L4 → L5 |
-| Write a backup/DR procedure | L4 → C1 → D5 |
-| Write any unit/integration test | K1 → (whichever row above matches the code under test) |
-| Write a workflow-engine test specifically | K2 → B4 → D3 → H1 |
-| Write a Playwright E2E test | K3 → F1 → H1 |
-| Write or amend an ADR | J5 → the relevant document above for the decision's domain |
-| Execute an A1 task (development phase) | AGENTS.md (this file) + the row matching the task type above + `docs/development-findings-log.md` confirmed entries for the relevant module |
-| Generate or update A1 itself (A1-generation phase) | See `docs/pre-development/A1-AGENTS.md` — a separate routing file governs A1 generation |
+| Task type                                                                           | Read (in order)                                                                                                                             |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Write/modify the workflow engine (step types, transitions, timers)                  | B4 → D3 → H1                                                                                                                                |
+| Write/modify any DB migration or schema file                                        | C1 → C5                                                                                                                                     |
+| Write a tRPC procedure or router                                                    | E1 → I1 → I2                                                                                                                                |
+| Write a REST/public endpoint                                                        | E2 → B2 → I1                                                                                                                                |
+| Write/modify a Zod schema in `/packages/shared`                                     | E3 → C1                                                                                                                                     |
+| Write a Zustand store                                                               | F2 → F1 → E3                                                                                                                                |
+| Write a TanStack Query hook / cache key                                             | F3 → E1                                                                                                                                     |
+| Build the `packages/ui` foundation (Tier 1 + Tier 2)                                | F5 → DESIGN.md → globals.css → F7                                                                                                           |
+| Build a Tier 3 domain component in `packages/ui`                                    | F5 → J6 → F6 → DESIGN.md → F7                                                                                                               |
+| Build a frontend page or view in `/apps/web`                                        | F4 → F1 → F5 → J6 → I2 → E1                                                                                                                 |
+| Implement the workflow definitions for Resolution/Ordinance/Appropriation Ordinance | H1 → B4 → D3                                                                                                                                |
+| Implement a new document type or its JSONB metadata                                 | H2 → B4 → H3                                                                                                                                |
+| Implement or modify numbering-series logic                                          | H3 → §4.1, §5.1–5.2 of consolidated ref directly                                                                                            |
+| Implement an ABAC policy or permission check                                        | I1 → I2 → B5                                                                                                                                |
+| Implement RLS policies                                                              | C3 → C1 → I1                                                                                                                                |
+| Implement audit logging for a new event type                                        | B3 → I3 → ADR-B2-2                                                                                                                          |
+| Implement a notification                                                            | H4 → B3 → I2                                                                                                                                |
+| Write/modify Docker/Compose/CI config                                               | L1 → L2 → L3                                                                                                                                |
+| Write/modify Infrastructure as Code (IaC) configuration                             | L1 → L2 → L4 → L5                                                                                                                           |
+| Write a backup/DR procedure                                                         | L4 → C1 → D5                                                                                                                                |
+| Write any unit/integration test                                                     | K1 → (whichever row above matches the code under test)                                                                                      |
+| Write a workflow-engine test specifically                                           | K2 → B4 → D3 → H1                                                                                                                           |
+| Write a Playwright E2E test                                                         | K3 → F1 → H1                                                                                                                                |
+| Write or amend an ADR                                                               | J5 → the relevant document above for the decision's domain                                                                                  |
+| Execute an A1 task (development phase)                                              | AGENTS.md (this file) + the row matching the task type above + `docs/development-findings-log.md` confirmed entries for the relevant module |
+| Generate or update A1 itself (A1-generation phase)                                  | See `docs/pre-development/A1-AGENTS.md` — a separate routing file governs A1 generation                                                     |
 
 **Note on Tier 3 component tasks:** Every Tier 3 component PR includes a
 `/dev/{component-name}` dev route as a mandatory deliverable — not a separate
