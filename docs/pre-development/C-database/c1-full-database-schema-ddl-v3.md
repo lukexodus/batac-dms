@@ -21,12 +21,12 @@
 - [L1510–L1588] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
 - [L1589–L1708] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
 - [L1709–L1779] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
-- [L1780–L1816] Part 10 — Schema `audit` — Append-only hash-chained HMAC-signed audit events.
-- [L1817–L1840] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
-- [L1841–L1948] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policy definitions.
-- [L1949–L1960] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
-- [L1961–L1981] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
-- [L1982–L1996] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
+- [L1780–L1825] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
+- [L1826–L1849] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
+- [L1850–L1964] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
+- [L1965–L1976] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
+- [L1977–L1997] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
+- [L1998–L2012] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
 
 ---
 

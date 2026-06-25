@@ -30,18 +30,17 @@ Phase 1 capability list for AUDIT was read first.
 
 ## Table of Contents
 
-- [L46–L81]   Phase 1 AUDIT capabilities identified before task generation
-- [L82–L208]  TASK-AUDIT-001 — [MIGRATION] Create audit schema Drizzle file and append-only events table migration
-- [L209–L369]  TASK-AUDIT-002 — Implement audit crypto utility: SHA-256 hash chain and HMAC-SHA-256 signing
-- [L370–L580]  TASK-AUDIT-003 — Implement audit write service, batac_audit connection pool, and public module API
-- [L581–L719]  TASK-AUDIT-004 — [AUDIT] Register audit domain event bus consumer for all domain events
-- [L720–L855] TASK-AUDIT-005 — Implement audit query service with on-read chain validation
-- [L856–L974] TASK-AUDIT-006 — [ABAC] Implement audit tRPC router for sys_admin and auditor roles
-- [L975–L1161] TASK-AUDIT-007 — Implement monthly RFC 3161 TSA export scheduled job and provider interface
-- [L1162–L1242] Module Summary — AUDIT
+- [L45–L80] Phase 1 AUDIT capabilities identified before task generation — Summarize the seven Phase 1 audit capabilities and list deferred features.
+- [L81–L218] TASK-AUDIT-001 — Create the Drizzle schema and migrations for the append-only, tenant-isolated audit.events table.
+- [L219–L379] TASK-AUDIT-002 — Implement Node crypto-based SHA-256 hash chaining, HMAC-SHA-256 signing, and deterministic payload serialization.
+- [L380–L598] TASK-AUDIT-003 — Implement AuditRepository using batac_audit connection pool, AuditWriteService, and the public module write API.
+- [L599–L747] TASK-AUDIT-004 — Register EventBus consumer for 18 domain event types scoped for office-based ABAC.
+- [L748–L883] TASK-AUDIT-005 — Implement AuditQueryService executing on-read integrity verification of chain hashes and HMAC signatures.
+- [L884–L1002] TASK-AUDIT-006 — Implement audit tRPC router enforcing sys_admin and auditor access controls.
+- [L1003–L1189] TASK-AUDIT-007 — Implement monthly RFC 3161 TSA export pgboss job and swappable provider interface.
+- [L1190–L1287] Module Summary — AUDIT — Summarize task count, deferred capabilities, resolved conflict items, and developer answers.
 
 ---
-
 
 ## Phase 1 AUDIT capabilities identified before task generation
 
