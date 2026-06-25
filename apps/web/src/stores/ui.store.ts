@@ -18,7 +18,7 @@ interface ToastState {
   open: boolean;
   variant: ToastVariant;
   title: string;
-  body?: string;
+  body?: string | undefined;
 }
 
 /* ── Full store shape ─────────────────────────────────────── */
