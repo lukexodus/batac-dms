@@ -20,6 +20,17 @@
 # Note: CREATE ROLE ... IF NOT EXISTS is not supported in PostgreSQL. Idempotency
 # is achieved via DO $$ ... IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = ...) $$
 # which is the standard PostgreSQL pattern for conditional role creation.
+#
+# ── LOGIN vs NOLOGIN for batac_migrate ────────────────────────────────────────
+# C5's addendum ("Migration-Owning Role Name") states batac_migrate is NOLOGIN,
+# citing C1 §3.16 as the source of truth.  C1 §3.16 has since been updated with
+# a resolved decision comment: batac_migrate MUST be LOGIN because
+# DATABASE_URL_MIGRATE is a direct connection string and NOLOGIN roles cannot
+# authenticate (resolved 2026-06, documented inline in C1 §3.16).
+# This script follows C1 §3.16 (LOGIN) and L2 practical behaviour.
+# The residual NOLOGIN text in C5's addendum is a documentation lag; a human
+# reviewer should update C5 to match C1 §3.16 and close the conflict.
+# ──────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
@@ -46,6 +57,8 @@ BEGIN
   -- ── batac_app: runtime application service account (LOGIN) ───────────────────
   -- Applications connect as this role; schema-level grants applied in
   -- post-migrate-grants.sql after migrations create the schemas.
+  -- Full DML on all domain schemas EXCEPT the audit schema
+  -- (B2 Prohibited Pattern P3 — zero audit access).
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_app') THEN
     CREATE ROLE batac_app WITH LOGIN;
   ELSE
@@ -57,7 +70,9 @@ BEGIN
   -- ── batac_audit: audit log INSERT + chain-hash SELECT; no modifications (LOGIN)
   -- SELECT required by AuditRepository.fetchPreviousChainHash() (TASK-AUDIT-003)
   -- and AuditQueryService.queryEvents() (TASK-AUDIT-005).
-  -- UPDATE and DELETE revoked in post-migrate-grants.sql.
+  -- UPDATE and DELETE revoked explicitly at the grant layer (not just application
+  -- code) per Invariant #3 and D-ABAC-04. Schema-level grants applied by
+  -- post-migrate-grants.sql after each migration.
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_audit') THEN
     CREATE ROLE batac_audit WITH LOGIN;
   ELSE
@@ -68,6 +83,9 @@ BEGIN
 
   -- ── batac_it_admin: IT Admin ops; metadata access; no document content ───────
   -- NOLOGIN; no password. Connected to via SET ROLE after batac_app login.
+  -- Schema-level grants (SELECT, UPDATE on documents.documents; REVOKE ALL on
+  -- documents.versions and documents.attachments) applied by
+  -- post-migrate-grants.sql per Invariant #10.
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_it_admin') THEN
     CREATE ROLE batac_it_admin WITH NOLOGIN;
   ELSE
@@ -75,7 +93,8 @@ BEGIN
   END IF;
 
   -- ── batac_readonly: read-only monitoring/reporting ───────────────────────────
-  -- NOLOGIN; no password.
+  -- NOLOGIN; no password. Connected to via SET ROLE after batac_app login.
+  -- Schema-level SELECT grants applied by post-migrate-grants.sql.
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_readonly') THEN
     CREATE ROLE batac_readonly WITH NOLOGIN;
   ELSE
