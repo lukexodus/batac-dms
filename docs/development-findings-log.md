@@ -143,4 +143,18 @@ This pattern was used in `01-create-roles.sh`. Tested against `postgres:16-alpin
 and confirmed working. The prompt's sample code was treated as illustrative
 pseudocode, not executable SQL.
 
+### [LOG-0003] batac_app and batac_audit roles must have LOGIN attribute to authenticate
+
+- date: 2026-06-25
+- task_id: TASK-INFRA-005
+- status: proposed
+- affects: C1 (Part 2), C5 (Addendum)
+
+C1 Part 2 explicitly specifies `CREATE ROLE batac_app NOLOGIN;` and `CREATE ROLE batac_audit NOLOGIN;` while noting that `batac_app` is expected to be created as `LOGIN` by Docker/Bitnami via environment variables. However, because both `batac_app` and `batac_audit` have connection strings (`DATABASE_URL_APP` and `DATABASE_URL_AUDIT`) and must authenticate directly, setting them to `NOLOGIN` in `01-create-roles.sh` prevents connection.
+
+To resolve this discrepancy, `01-create-roles.sh` has been updated to create and alter both `batac_app` and `batac_audit` with the `LOGIN` attribute and set their passwords via environment variables. `batac_it_admin` and `batac_readonly` correctly remain `NOLOGIN` as they are only accessed via `SET ROLE`.
+
+[Inference]: The literal DDL text of C1 Part 2 uses `NOLOGIN` for `batac_app` and `batac_audit`, but this contradicts the intent and practical connection requirements of these roles. This correction aligns the created roles with their connection needs.
+
+
 

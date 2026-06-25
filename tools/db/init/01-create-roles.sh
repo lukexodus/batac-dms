@@ -9,8 +9,8 @@
 # Prerequisites:
 #   Environment variables must be set before this script is invoked:
 #     DB_MIGRATE_PASSWORD  — password for batac_migrate (LOGIN; DDL owner)
-#     DB_APP_PASSWORD      — password for batac_app     (NOLOGIN; runtime DML)
-#     DB_AUDIT_PASSWORD    — password for batac_audit   (NOLOGIN; audit only)
+#     DB_APP_PASSWORD      — password for batac_app     (LOGIN; runtime DML)
+#     DB_AUDIT_PASSWORD    — password for batac_audit   (LOGIN; audit only)
 #
 #   batac_it_admin and batac_readonly are NOLOGIN service roles with no
 #   password; applications connect via batac_app and SET ROLE as needed.
@@ -37,25 +37,31 @@ BEGIN
   -- credential never appears in pg_stat_activity query text.
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_migrate') THEN
     CREATE ROLE batac_migrate WITH LOGIN;
+  ELSE
+    ALTER ROLE batac_migrate WITH LOGIN;
   END IF;
   ALTER ROLE batac_migrate PASSWORD '${DB_MIGRATE_PASSWORD:-migrate_devpassword}';
   GRANT ALL PRIVILEGES ON DATABASE "${POSTGRES_DB:-batac_lgu}" TO batac_migrate;
 
-  -- ── batac_app: runtime application service account (NOLOGIN) ────────────────
+  -- ── batac_app: runtime application service account (LOGIN) ───────────────────
   -- Applications connect as this role; schema-level grants applied in
   -- post-migrate-grants.sql after migrations create the schemas.
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_app') THEN
-    CREATE ROLE batac_app WITH NOLOGIN;
+    CREATE ROLE batac_app WITH LOGIN;
+  ELSE
+    ALTER ROLE batac_app WITH LOGIN;
   END IF;
   ALTER ROLE batac_app PASSWORD '${DB_APP_PASSWORD:-app_devpassword}';
   GRANT CONNECT ON DATABASE "${POSTGRES_DB:-batac_lgu}" TO batac_app;
 
-  -- ── batac_audit: audit log INSERT + chain-hash SELECT; no modifications ─────
+  -- ── batac_audit: audit log INSERT + chain-hash SELECT; no modifications (LOGIN)
   -- SELECT required by AuditRepository.fetchPreviousChainHash() (TASK-AUDIT-003)
   -- and AuditQueryService.queryEvents() (TASK-AUDIT-005).
   -- UPDATE and DELETE revoked in post-migrate-grants.sql.
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_audit') THEN
-    CREATE ROLE batac_audit WITH NOLOGIN;
+    CREATE ROLE batac_audit WITH LOGIN;
+  ELSE
+    ALTER ROLE batac_audit WITH LOGIN;
   END IF;
   ALTER ROLE batac_audit PASSWORD '${DB_AUDIT_PASSWORD:-audit_devpassword}';
   GRANT CONNECT ON DATABASE "${POSTGRES_DB:-batac_lgu}" TO batac_audit;
@@ -64,12 +70,16 @@ BEGIN
   -- NOLOGIN; no password. Connected to via SET ROLE after batac_app login.
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_it_admin') THEN
     CREATE ROLE batac_it_admin WITH NOLOGIN;
+  ELSE
+    ALTER ROLE batac_it_admin WITH NOLOGIN;
   END IF;
 
   -- ── batac_readonly: read-only monitoring/reporting ───────────────────────────
   -- NOLOGIN; no password.
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_readonly') THEN
     CREATE ROLE batac_readonly WITH NOLOGIN;
+  ELSE
+    ALTER ROLE batac_readonly WITH NOLOGIN;
   END IF;
 
 END
