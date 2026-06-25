@@ -15,6 +15,7 @@ pnpm add \
   lucide-react \
   sonner \
   date-fns \
+  date-fns-tz \
   --filter @batac/ui
 
 # ── Step 2: shadcn/ui component install ──────────────────────────────────────

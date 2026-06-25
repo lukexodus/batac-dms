@@ -16,7 +16,7 @@
  *
  * Source: DESIGN.md §6.2
  */
-"use client";
+
 
 import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";

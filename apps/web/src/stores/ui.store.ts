@@ -54,6 +54,7 @@ interface UIState {
   dismissToast: () => void;
 }
 
+
 export const useUIStore = create<UIState>()((set) => ({
   sheetOpen: false,
   sheetDocId: null,
@@ -67,7 +68,6 @@ export const useUIStore = create<UIState>()((set) => ({
     open: false,
     variant: "info",
     title: "",
-    body: undefined,
   },
 
   openSheet: (docId) => set({ sheetOpen: true, sheetDocId: docId }),
@@ -80,7 +80,7 @@ export const useUIStore = create<UIState>()((set) => ({
   closePalette: () => set({ paletteOpen: false }),
 
   showToast: (variant, title, body) =>
-    set({ toast: { open: true, variant, title, body } }),
+    set({ toast: { open: true, variant, title, ...(body !== undefined && { body }) } }),
   dismissToast: () =>
     set((s) => ({ toast: { ...s.toast, open: false } })),
 }));
