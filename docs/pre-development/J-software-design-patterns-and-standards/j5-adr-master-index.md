@@ -4,7 +4,7 @@
 
 ## Table of Contents
 
-- [L11–L93] ADR Index — Central master index linking to all architectural decisions across the platform.
+- [L11–L96] ADR Index — Central master index linking to all architectural decisions across the platform.
 
 ---
 
@@ -41,6 +41,7 @@
 | ADR-GEN-009 | Two-Stage Preliminary/Final Document Numbering | General Architecture (J5) | [View](j5-initial-adrs/ADR-GEN-009-two-stage-preliminary-final-document-numbering.md) |
 | ADR-GEN-010 | sp.batac.gov.ph Coexistence Without Mandatory Migration | General Architecture (J5) | [View](j5-initial-adrs/ADR-GEN-010-sp.batac.gov.ph-coexistence-without-mandatory-migration.md) |
 | ADR-GEN-011 | No Existing Digital QR System Assumed for Letters and Memos | General Architecture (J5) | [View](j5-initial-adrs/ADR-GEN-011-no-existing-digital-qr-system-assumed-for-letters-and-memos.md) |
+| ADR-GEN-012 | Environment Variable Access Pattern | General Architecture (J5) | [View](j5-initial-adrs/ADR-GEN-012-environment-variable-access-pattern.md) |
 | ADR-REQ-001 | Authentication and Non-Repudiation | Key Design Decisions (Consolidated Ref) | [View](../../requirements-gathering/consolidated-architecture-and-requirements-reference-iteration-3.md#111-authentication-and-non-repudiation) |
 | ADR-REQ-002 | Infrastructure and Cloud Agnosticism | Key Design Decisions (Consolidated Ref) | [View](../../requirements-gathering/consolidated-architecture-and-requirements-reference-iteration-3.md#112-infrastructure-and-cloud-agnosticism) |
 | ADR-REQ-003 | Workflow Engine | Key Design Decisions (Consolidated Ref) | [View](../../requirements-gathering/consolidated-architecture-and-requirements-reference-iteration-3.md#113-workflow-engine) |
