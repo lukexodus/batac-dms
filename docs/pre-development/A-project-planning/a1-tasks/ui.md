@@ -107,7 +107,7 @@ TASK-UI-001
 Phase:          1
 Module:         UI
 Title:          Foundation PR — Tier 1 install, Tier 2 overrides, token system, /dev/components
-Prerequisites:  [NONE]
+Prerequisites:  [TASK-INFRA-001]
 Deliverables:
   - /packages/ui/src/styles/globals.css — Tailwind v4 token layer (@theme block), shadcn HSL variable map, global resets, focus-ring rule, reduced-motion rule, touch-target rule, .touch-exempt and .font-doc-number utility classes. Provided file, committed as-is.
   - /packages/ui/src/lib/utils.ts — cn() helper composing clsx + tailwind-merge. Provided file, committed as-is.

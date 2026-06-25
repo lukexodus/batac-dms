@@ -1302,7 +1302,7 @@ AI Prompt:
 Phase:          1
 Module:         INFRA
 Title:          Write Fastify server production Dockerfile and entrypoint
-Prerequisites:  [TASK-INFRA-006]
+Prerequisites:  [TASK-INFRA-006, TASK-INFRA-023]
 Deliverables:
   - /apps/server/Dockerfile — multi-stage production build (pruner → deps → builder → production)
   - /apps/server/entrypoint.sh — migrate → seed (dev/staging only) → start Fastify
@@ -1436,7 +1436,7 @@ AI Prompt:
 Phase:          1
 Module:         INFRA
 Title:          Write web SPA production Dockerfile
-Prerequisites:  [TASK-INFRA-001]
+Prerequisites:  [TASK-INFRA-001, TASK-UI-001, TASK-INFRA-023]
 Deliverables:
   - /apps/web/Dockerfile — multi-stage build producing only the compiled `/app/dist` Vite output
 Acceptance Criteria:
@@ -1933,7 +1933,7 @@ AI Prompt:
 Phase:          1
 Module:         INFRA
 Title:          Build CI pull-request merge-gate workflow
-Prerequisites:  [TASK-INFRA-001, TASK-INFRA-005, TASK-INFRA-006]
+Prerequisites:  [TASK-INFRA-001, TASK-INFRA-005, TASK-INFRA-006, TASK-INFRA-008, TASK-INFRA-009]
 Deliverables:
   - /.github/workflows/ci.yml — Jobs A (lint+typecheck), B (unit tests), C (integration tests with service containers), D (build); pnpm/Turborepo caching
   - /turbo.json (updated) — `test:unit`, `test:integration` task definitions added to TASK-INFRA-001's stub
