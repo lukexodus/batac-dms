@@ -1,5 +1,9 @@
 import 'dotenv/config';
+import { loadDockerSecrets } from './load-docker-secrets';
 import { serverEnvSchema } from './env.server';
+
+// Load container secrets into process.env before validation runs
+loadDockerSecrets();
 
 const result = serverEnvSchema.safeParse(process.env);
 
