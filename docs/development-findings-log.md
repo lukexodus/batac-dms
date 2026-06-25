@@ -90,3 +90,57 @@ entry is later superseded.
 ## Entries
 
 _(none yet — first entry goes below this line)_
+
+### [LOG-0001] 01-create-roles.sh creates five roles, not three
+
+- date: 2026-06-25
+- task_id: TASK-INFRA-005
+- status: proposed
+- affects: C1 (Part 2), infra.md (TASK-INFRA-005 AI Prompt)
+
+The TASK-INFRA-005 AI Prompt and its three acceptance criteria name exactly
+three roles: `batac_migrate`, `batac_app`, `batac_audit`. However, C1 Part 2
+(the authoritative schema DDL document) defines five roles:
+`batac_migrate`, `batac_app`, `batac_audit`, `batac_it_admin`, `batac_readonly`.
+I3 §8.1 is cited as the source for this role set in C1.
+
+Per the Section 1 hierarchy (C1 outranks task-prompt text), `01-create-roles.sh`
+was implemented to create all five roles. `batac_it_admin` and `batac_readonly`
+are NOLOGIN with no passwords; they require no Docker secret and will not break
+any acceptance criterion. The `\du` check after `docker compose up -d` will show
+all five roles rather than three — this is consistent with C1 but not with the
+task-prompt's wording.
+
+[Inference]: The task-prompt text was written before the full role set in C1 Part 2
+was finalised and simply omitted the two supplementary roles. The implementation
+in 01-create-roles.sh follows C1 as the higher-priority source.
+
+A human reviewer should confirm whether the task-prompt acceptance criterion
+(`\du` lists `batac_migrate`, `batac_app`, and `batac_audit`) is intentionally
+restrictive (three-role minimum) or whether it should be updated to reflect all
+five roles from C1 Part 2.
+
+### [LOG-0002] CREATE ROLE IF NOT EXISTS not valid PostgreSQL syntax; DO block pattern used
+
+- date: 2026-06-25
+- task_id: TASK-INFRA-005
+- status: proposed
+- affects: none (implementation detail; no architecture document references this syntax)
+
+The TASK-INFRA-005 AI Prompt shows `CREATE ROLE IF NOT EXISTS batac_migrate WITH LOGIN;`
+in its sample script. This syntax is not valid in PostgreSQL 16 (verified against
+`postgres:16-alpine` — the image used in compose.yml — which emitted:
+`ERROR: syntax error at or near "NOT"` when the prompt's exact syntax was used).
+
+The idiomatic PostgreSQL pattern for conditional role creation is a DO block:
+```sql
+IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_migrate') THEN
+  CREATE ROLE batac_migrate WITH LOGIN;
+END IF;
+```
+
+This pattern was used in `01-create-roles.sh`. Tested against `postgres:16-alpine`
+and confirmed working. The prompt's sample code was treated as illustrative
+pseudocode, not executable SQL.
+
+
