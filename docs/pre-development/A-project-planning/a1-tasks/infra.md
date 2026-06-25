@@ -960,7 +960,8 @@ Deliverables:
 Acceptance Criteria:
   - [ ] `docker compose down -v && docker compose up -d`, then `docker compose exec postgres psql -U postgres -d batac_lgu -c "\du"` lists `batac_migrate`, `batac_app`, and `batac_audit`
   - [ ] Running `post-migrate-grants.sql` twice in a row against the same database produces no errors on the second run (idempotency)
-  - [ ] As `batac_app`: `INSERT` into a table in the `audit` schema succeeds; `UPDATE` or `DELETE` against the same table fails with a permission-denied error
+  - [ ] As `batac_audit`: `SELECT` on `audit.events` succeeds; `INSERT` on `audit.events` succeeds; `UPDATE` or `DELETE` against `audit.events` fails with a permission-denied error
+  - [ ] As `batac_app`: any `SELECT`, `INSERT`, `UPDATE`, or `DELETE` against any table in the `audit` schema fails with a permission-denied error (B2 Prohibited Pattern P3; [CONFLICT 2 → RESOLVED])
   - [ ] Manual: a reviewer confirms `01-create-roles.sh` sources every password from an environment variable (`${DB_MIGRATE_PASSWORD}`, `${DB_APP_PASSWORD}`, `${DB_AUDIT_PASSWORD}`) and never hardcodes a credential
 AI Prompt:
   > Implement the two scripts that establish the platform's three-role
@@ -970,8 +971,8 @@ AI Prompt:
   > | Role | Connects via | Purpose | Notes |
   > |---|---|---|---|
   > | `batac_migrate` | `DATABASE_URL_MIGRATE` | DDL; schema migrations | Never used at application runtime |
-  > | `batac_app` | `DATABASE_URL_APP` | DML on all schemas except `audit` | No access to write the `audit` schema beyond `INSERT` |
-  > | `batac_audit` | `DATABASE_URL_AUDIT` | `INSERT` + `SELECT` on `audit` only | `UPDATE`/`DELETE` revoked explicitly |
+  > | `batac_app` | `DATABASE_URL_APP` | DML on all domain schemas; no audit schema access | No USAGE, SELECT, INSERT, UPDATE, or DELETE on the `audit` schema (B2 P3) |
+  > | `batac_audit` | `DATABASE_URL_AUDIT` | `SELECT` + `INSERT` on `audit` only | `UPDATE`/`DELETE` revoked explicitly; SELECT needed for chain-hash reads |
   >
   > **`/tools/db/init/01-create-roles.sh`** — runs once, automatically, the
   > first time the PostgreSQL container starts against an empty
@@ -1026,7 +1027,7 @@ AI Prompt:
   >   app_schemas TEXT[] := ARRAY[
   >     'iam', 'organization', 'documents', 'workflow',
   >     'tracking', 'records', 'notifications',
-  >     'search_meta', 'portal', 'reporting'
+  >     'search_meta', 'portal', 'reporting', 'shared'
   >   ];
   > BEGIN
   >   FOREACH s IN ARRAY app_schemas LOOP
@@ -1039,12 +1040,17 @@ AI Prompt:
   > END
   > $$;
   >
-  > GRANT USAGE ON SCHEMA audit TO batac_app, batac_audit;
-  > GRANT INSERT ON ALL TABLES IN SCHEMA audit TO batac_app, batac_audit;
+  > -- ── audit schema: batac_audit ONLY — batac_app has zero access (B2 P3) ──────
+  > -- [CONFLICT 2 → RESOLVED 2026-06-24]: original draft incorrectly granted
+  > -- batac_app INSERT on the audit schema. batac_app has no USAGE on audit.
+  > -- batac_audit requires SELECT (for chain-hash reads in TASK-AUDIT-003 /
+  > -- TASK-AUDIT-005) and INSERT (write path). UPDATE and DELETE revoked.
+  > GRANT USAGE ON SCHEMA audit TO batac_audit;
+  > GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA audit TO batac_audit;
   > ALTER DEFAULT PRIVILEGES IN SCHEMA audit
-  >   GRANT INSERT ON TABLES TO batac_app, batac_audit;
+  >   GRANT SELECT, INSERT ON TABLES TO batac_audit;
   > REVOKE UPDATE, DELETE ON ALL TABLES IN SCHEMA audit
-  >   FROM batac_app, batac_audit;
+  >   FROM batac_audit;
   >
   > DO $$
   > BEGIN
@@ -1061,12 +1067,14 @@ AI Prompt:
   > Note: schema-level grants are not applied in `01-create-roles.sh` because
   > the schemas do not exist yet at that point — they are created later by
   > Drizzle migrations (owned by each domain module), and this SQL file is what
-  > grants access to them once they exist.
+  > grants access to them once they exist. The `shared` schema entry covers the
+  > `shared.event_bus_dead_letters` table created by TASK-INFRA-023.
   >
   > Before submitting this PR, confirm each item:
   > - [ ] `\du` after a fresh `docker compose up -d` lists all three roles
   > - [ ] Re-running `post-migrate-grants.sql` twice produces no errors
-  > - [ ] `batac_app` can `INSERT` but not `UPDATE`/`DELETE` in the `audit` schema
+  > - [ ] `batac_audit` can `SELECT` and `INSERT` but not `UPDATE`/`DELETE` in the `audit` schema
+  > - [ ] `batac_app` has zero access to the `audit` schema (SELECT, INSERT, UPDATE, DELETE all denied) — B2 Prohibited Pattern P3
   > - [ ] Every password in `01-create-roles.sh` is sourced from an environment variable, never hardcoded
   > A reviewer will verify each one independently.
 
@@ -2823,22 +2831,367 @@ AI Prompt:
 
 ---
 
+## TASK-INFRA-023
+
+Phase:          1
+Module:         INFRA
+Title:          [MIGRATION] Implement shared EventBus, DomainEvent types, event_bus_dead_letters table, and dead-letter retry job
+Prerequisites:  [TASK-INFRA-005, TASK-INFRA-006, TASK-INFRA-007]
+Deliverables:
+  - /packages/shared/src/events/domain-event.ts — `DomainEvent<T>` envelope type
+  - /packages/shared/src/events/event-payload-map.ts — `EventPayloadMap` interface with 18 typed entries (B2 Master Event Bus Registry Phase 1)
+  - /packages/shared/src/event-bus.ts — typed `EventBus` class wrapping Node's built-in `EventEmitter`; per-handler isolation; dead-letter routing
+  - /packages/database/schema/shared.schema.ts — Drizzle schema for `shared` schema and `shared.event_bus_dead_letters` table
+  - /packages/database/migrations/<timestamp>_create_shared_event_bus_dead_letters.sql — generated migration
+  - /apps/server/src/infra/dead-letter.repository.ts — `DeadLetterRepository` wrapping the Drizzle `shared` schema
+  - /apps/server/src/jobs/event-bus-dead-letter-retry.ts — pgboss job: retries dead-lettered events with exponential backoff; max 5 attempts (ADR-API-001 §4)
+Acceptance Criteria:
+  - [ ] `pnpm typecheck` passes with all source files in place
+  - [ ] `bus.emit('nonexistent.event', ...)` is a TypeScript compile error, not a runtime error
+  - [ ] `bus.on('user.login', (e) => { e.payload.someField })` accepts only fields declared in `UserLoginPayload`; wrong field is a compile error
+  - [ ] Integration test: a handler registered via `bus.on(...)` that throws does NOT propagate the error to the `bus.emit(...)` caller; emitter call resolves successfully
+  - [ ] Integration test: a failed handler invocation creates one row in `shared.event_bus_dead_letters` with non-null `event_id`, `event_type`, `failed_module`, `error_message`
+  - [ ] Integration test: the dead-letter retry job retries a failed row up to 5 times, then marks it with `exhausted_at` set and stops retrying
+  - [ ] `pnpm --filter @batac/database db:generate` produces a migration containing `CREATE SCHEMA IF NOT EXISTS shared` and `CREATE TABLE shared.event_bus_dead_letters (...)`
+  - [ ] `pnpm --filter @batac/database db:migrate` applies the migration without error; second run is idempotent
+  - [ ] `pnpm --filter @batac/scripts lint:migrations` passes for the generated migration
+  - [ ] Manual: reviewer confirms `EventBus.emit()` iterates handlers individually with per-handler try/catch; Pino error logged per failing handler
+  - [ ] Manual: reviewer confirms the Audit module handler failure path calls `Sentry.captureException` (ADR-API-001 §4) — even if Sentry SDK is a stub in Phase 1
+AI Prompt:
+  > Implement the shared EventBus infrastructure owned by INFRA (not by any
+  > domain module) per ADR-API-001. All domain modules depend on this to
+  > emit and consume typed in-process events. Prerequisite for TASK-AUDIT-004
+  > and for every module task that emits domain events (IAM, Organization,
+  > Documents, Workflow). [SPEC GAP → RESOLVED 2026-06-24; was tentatively
+  > TASK-INFRA-022 in audit.md — renumbered to TASK-INFRA-023 because
+  > TASK-INFRA-022 is reserved for the Pulumi /infra/ program; see infra.md
+  > Module Summary.]
+  >
+  > Sources: ADR-API-001 (canonical); B2 §"Common Event Envelope";
+  > B2 §"Master Event Bus Registry".
+  >
+  > ---
+  >
+  > ## 1 — DomainEvent envelope
+  >
+  > **`/packages/shared/src/events/domain-event.ts`**
+  >
+  > ```typescript
+  > export interface DomainEvent<TPayload = unknown> {
+  >   eventId:       string;   // UUID v4 — unique per event instance
+  >   eventType:     string;   // namespaced string, e.g. 'document.created'
+  >   occurredAt:    string;   // ISO 8601 / TIMESTAMPTZ precision
+  >   cityId:        string;   // UUID — tenant isolation; Batac City UUID in Phase 1
+  >   schemaVersion: number;   // starts at 1; increment on breaking payload change
+  >   payload:       TPayload;
+  > }
+  > ```
+  >
+  > ---
+  >
+  > ## 2 — EventPayloadMap
+  >
+  > **`/packages/shared/src/events/event-payload-map.ts`**
+  >
+  > Declare 18 entries (Phase 1, B2 Master Event Bus Registry). Each payload
+  > type is a stub `Record<string, unknown>` until the owning module's task
+  > fills it in with a concrete type. Remove the stub import when the concrete
+  > type is imported from the owning module.
+  >
+  > ```typescript
+  > // Stub until each module fills in its payload types.
+  > type Stub = Record<string, unknown>;
+  >
+  > export interface EventPayloadMap {
+  >   'user.login':                        Stub;
+  >   'user.logout':                       Stub;
+  >   'session.terminated':                Stub;
+  >   'role.assigned':                     Stub;
+  >   'role.revoked':                      Stub;
+  >   'delegation.granted':                Stub;
+  >   'delegation.expired':                Stub;
+  >   'delegation.revoked':                Stub;
+  >   'document.created':                  Stub;
+  >   'document.state_changed':            Stub;
+  >   'document.number_assigned':          Stub;
+  >   'workflow.step_assigned':            Stub;
+  >   'workflow.step_completed':           Stub;
+  >   'workflow.lapsed':                   Stub;
+  >   'workflow.escalated':                Stub;
+  >   'workflow.certified_urgent_applied': Stub;
+  >   'workflow.manually_advanced':        Stub;
+  >   'workflow.completed':                Stub;
+  > }
+  > ```
+  >
+  > The compiler rejects any `bus.emit()` or `bus.on()` call using a key not
+  > in this interface. Any new domain event added to B2 must also be added
+  > here in the same PR or the build fails (ADR-API-001 §6 follow-on).
+  >
+  > ---
+  >
+  > ## 3 — EventBus class
+  >
+  > **`/packages/shared/src/event-bus.ts`**
+  >
+  > ```typescript
+  > import EventEmitter from 'node:events';
+  > import type { Logger }               from 'pino';
+  > import type { EventPayloadMap }      from './events/event-payload-map';
+  > import type { DomainEvent }          from './events/domain-event';
+  > import type { DeadLetterRepository } from '../../apps/server/src/infra/dead-letter.repository';
+  >
+  > type AnyHandler = (envelope: DomainEvent<unknown>) => void | Promise<void>;
+  >
+  > export class EventBus {
+  >   private readonly emitter = new EventEmitter();
+  >   private readonly moduleNames = new Map<AnyHandler, string>();
+  >
+  >   constructor(
+  >     private readonly logger: Logger,
+  >     private readonly deadLetterRepo: DeadLetterRepository,
+  >   ) {
+  >     this.emitter.setMaxListeners(50);
+  >   }
+  >
+  >   on<K extends keyof EventPayloadMap>(
+  >     eventType:  K,
+  >     handler:    (envelope: DomainEvent<EventPayloadMap[K]>) => void | Promise<void>,
+  >     moduleName: string,   // 'audit', 'notifications', etc.
+  >   ): void {
+  >     this.moduleNames.set(handler as AnyHandler, moduleName);
+  >     this.emitter.on(eventType as string, handler as AnyHandler);
+  >   }
+  >
+  >   /** ADR-API-001 §3: iterate handlers individually; never propagate exceptions. */
+  >   emit<K extends keyof EventPayloadMap>(
+  >     eventType: K,
+  >     envelope:  DomainEvent<EventPayloadMap[K]>,
+  >   ): void {
+  >     const listeners = this.emitter.rawListeners(eventType as string) as AnyHandler[];
+  >     for (const handler of listeners) {
+  >       const mod = this.moduleNames.get(handler) ?? 'unknown';
+  >       try {
+  >         const result = handler(envelope as DomainEvent<unknown>);
+  >         if (result instanceof Promise) {
+  >           result.catch((err: unknown) => this.onHandlerFailure(envelope, mod, err));
+  >         }
+  >       } catch (err) {
+  >         this.onHandlerFailure(envelope, mod, err);
+  >       }
+  >     }
+  >   }
+  >
+  >   private onHandlerFailure(
+  >     envelope:   DomainEvent<unknown>,
+  >     moduleName: string,
+  >     err:        unknown,
+  >   ): void {
+  >     this.logger.error(
+  >       { err, eventId: envelope.eventId, eventType: envelope.eventType, moduleName },
+  >       '[event-bus] subscriber failure — routing to dead-letter table',
+  >     );
+  >     // Sentry alert for audit handler specifically (ADR-API-001 §4: "priority alert").
+  >     if (moduleName === 'audit') {
+  >       // Sentry.captureException(err, { extra: { envelope, moduleName } });
+  >     }
+  >     // Fire-and-forget; if the dead-letter write itself fails, log and move on.
+  >     void this.deadLetterRepo.insert({
+  >       eventId:      envelope.eventId,
+  >       eventType:    envelope.eventType,
+  >       payload:      envelope.payload as Record<string, unknown>,
+  >       failedModule: moduleName,
+  >       errorMessage: err instanceof Error ? err.message : String(err),
+  >     }).catch((dlErr: unknown) =>
+  >       this.logger.error({ dlErr, envelope }, '[event-bus] dead-letter write also failed'));
+  >   }
+  > }
+  > ```
+  >
+  > Instantiate ONE `EventBus` at Fastify server startup:
+  > ```typescript
+  > const bus = new EventBus(logger, deadLetterRepo);
+  > ```
+  > Pass it into each module's factory function. Never create a second instance.
+  > (ADR-API-001 §1: "Single bus instance.")
+  >
+  > ---
+  >
+  > ## 4 — Drizzle schema and migration
+  >
+  > **`/packages/database/schema/shared.schema.ts`**
+  >
+  > ```typescript
+  > import {
+  >   pgSchema, uuid, text, jsonb, integer, timestamp
+  > } from 'drizzle-orm/pg-core';
+  >
+  > export const sharedSchema = pgSchema('shared');
+  >
+  > export const eventBusDeadLetters = sharedSchema.table('event_bus_dead_letters', {
+  >   id:           uuid('id').primaryKey().defaultRandom(),
+  >   eventId:      uuid('event_id').notNull(),
+  >   eventType:    text('event_type').notNull(),
+  >   payload:      jsonb('payload').notNull().$type<Record<string, unknown>>(),
+  >   failedModule: text('failed_module').notNull(),
+  >   errorMessage: text('error_message').notNull(),
+  >   failedAt:     timestamp('failed_at', { withTimezone: true }).notNull().defaultNow(),
+  >   retryCount:   integer('retry_count').notNull().default(0),
+  >   exhaustedAt:  timestamp('exhausted_at', { withTimezone: true }),
+  > });
+  > ```
+  >
+  > Run `pnpm --filter @batac/database db:generate`. Confirm the generated
+  > SQL contains `CREATE SCHEMA IF NOT EXISTS shared` before the table — Drizzle
+  > Kit emits this automatically for `pgSchema(...)` tables.
+  >
+  > The `shared` schema is accessible to `batac_app` via
+  > `post-migrate-grants.sql` (TASK-INFRA-005 updated to include `'shared'`
+  > in the `app_schemas` array). No additional grant work needed here.
+  >
+  > ---
+  >
+  > ## 5 — DeadLetterRepository
+  >
+  > **`/apps/server/src/infra/dead-letter.repository.ts`**
+  >
+  > ```typescript
+  > import { and, lt, isNull, asc } from 'drizzle-orm';
+  > import { eventBusDeadLetters } from '@batac/database/schema/shared.schema';
+  > import type { AppDb } from '../db'; // the main batac_app Drizzle instance
+  >
+  > export class DeadLetterRepository {
+  >   constructor(private readonly db: AppDb) {}
+  >
+  >   async insert(row: {
+  >     eventId: string; eventType: string;
+  >     payload: Record<string, unknown>; failedModule: string; errorMessage: string;
+  >   }): Promise<void> {
+  >     await this.db.insert(eventBusDeadLetters).values(row);
+  >   }
+  >
+  >   async fetchPending(opts: { maxRetries: number }) {
+  >     return this.db
+  >       .select()
+  >       .from(eventBusDeadLetters)
+  >       .where(and(
+  >         lt(eventBusDeadLetters.retryCount, opts.maxRetries),
+  >         isNull(eventBusDeadLetters.exhaustedAt),
+  >       ))
+  >       .orderBy(asc(eventBusDeadLetters.failedAt))
+  >       .limit(100);
+  >   }
+  >
+  >   async markRetried(id: string): Promise<void> {
+  >     await this.db.delete(eventBusDeadLetters)
+  >       .where(/* eq(eventBusDeadLetters.id, id) */ undefined as never);
+  >     // Use Drizzle eq() here — omitted for brevity
+  >   }
+  >
+  >   async incrementRetry(id: string, backoffSeconds: number): Promise<void> {
+  >     await this.db.execute(
+  >       /* sql`UPDATE shared.event_bus_dead_letters
+  >              SET retry_count = retry_count + 1,
+  >                  failed_at   = NOW() + (${backoffSeconds} * interval '1 second')
+  >              WHERE id = ${id}` */
+  >       undefined as never
+  >     );
+  >   }
+  >
+  >   async markExhausted(id: string): Promise<void> {
+  >     // SET exhausted_at = NOW() WHERE id = id
+  >     // Use Drizzle sql`` template or .update() with eq(); omitted for brevity
+  >   }
+  > }
+  > ```
+  >
+  > Fill in the `eq()` and `sql`` usages per the Drizzle ORM patterns established
+  > by TASK-INFRA-006. The pseudocode above shows intent; the implementation
+  > must use the actual Drizzle query builders.
+  >
+  > ---
+  >
+  > ## 6 — Dead-letter retry job
+  >
+  > **`/apps/server/src/jobs/event-bus-dead-letter-retry.ts`**
+  >
+  > ```typescript
+  > import type PgBoss from 'pg-boss';
+  > import type { DeadLetterRepository } from '../infra/dead-letter.repository';
+  > import type { EventBus }             from '@batac/shared/event-bus';
+  > import type { Logger }               from 'pino';
+  >
+  > const JOB_NAME    = 'infra:dead-letter-retry';
+  > const MAX_RETRIES = 5; // ADR-API-001 §4 default
+  > const backoff = (attempt: number) => 30 * Math.pow(2, attempt); // seconds
+  >
+  > export async function registerDeadLetterRetryJob(deps: {
+  >   boss:           PgBoss;
+  >   deadLetterRepo: DeadLetterRepository;
+  >   bus:            EventBus;
+  >   logger:         Logger;
+  > }): Promise<void> {
+  >   const { boss, deadLetterRepo, bus, logger } = deps;
+  >   await boss.schedule(JOB_NAME, '*/5 * * * *');
+  >   await boss.work<void>(JOB_NAME, async () => {
+  >     const rows = await deadLetterRepo.fetchPending({ maxRetries: MAX_RETRIES });
+  >     for (const row of rows) {
+  >       const envelope = {
+  >         eventId: row.eventId, eventType: row.eventType,
+  >         occurredAt: row.failedAt.toISOString(),
+  >         cityId: 'retry', schemaVersion: 1, payload: row.payload,
+  >       };
+  >       try {
+  >         bus.emit(
+  >           row.eventType as keyof import('@batac/shared').EventPayloadMap,
+  >           envelope as never,
+  >         );
+  >         await deadLetterRepo.markRetried(row.id);
+  >         logger.info({ id: row.id, eventType: row.eventType }, '[dead-letter] retried');
+  >       } catch (err) {
+  >         const next = row.retryCount + 1;
+  >         if (next >= MAX_RETRIES) {
+  >           await deadLetterRepo.markExhausted(row.id);
+  >           logger.error({ id: row.id, eventType: row.eventType, err },
+  >             '[dead-letter] exhausted — manual review required');
+  >         } else {
+  >           await deadLetterRepo.incrementRetry(row.id, backoff(next));
+  >         }
+  >       }
+  >     }
+  >   });
+  > }
+  > ```
+  >
+  > Register `registerDeadLetterRetryJob(...)` at Fastify server startup after
+  > pg-boss is started (same startup sequence as `registerTsaExportJob` in
+  > TASK-AUDIT-007).
+  >
+  > ---
+  >
+  > Before submitting this PR, confirm each item:
+  > - [ ] `pnpm typecheck` passes; `bus.emit('unlisted.event', ...)` is a compile error
+  > - [ ] A throwing handler does not propagate to the `bus.emit()` caller
+  > - [ ] A failed handler produces one dead-letter row in `shared.event_bus_dead_letters`
+  > - [ ] Retry job marks row exhausted after 5 attempts; row is never auto-deleted
+  > - [ ] Migration includes `CREATE SCHEMA IF NOT EXISTS shared` and the table DDL
+  > A reviewer will verify each one independently.
+
+---
+
+
 ## Module Summary — INFRA
 
-**Total tasks:** 21 (`TASK-INFRA-001` through `TASK-INFRA-021`)
+**Total tasks:** 22 written (`TASK-INFRA-001` through `TASK-INFRA-021`, plus `TASK-INFRA-023`). `TASK-INFRA-022` is reserved for the `/infra/` Pulumi program (L5 source document); it has not yet been generated and is not included in this count.
 
 **First executable task:** `TASK-INFRA-001` (Prerequisites: `[NONE]`)
 
-**Special tags used:** None. No `INFRA` task in this list writes a Drizzle
-schema migration (`[MIGRATION]`), performs an ABAC policy check (`[ABAC]`), or
-writes to the `audit` schema / emits an audit event from application code
-(`[AUDIT]`) — the runbook tasks (`TASK-INFRA-016`–`021`) describe operational
-procedures that *reference* the audit system as a downstream consumer once it
-exists, but no INFRA deliverable itself performs an audit write.
+**Special tags used:** `[MIGRATION]` — TASK-INFRA-023 (creates the `shared` schema and `event_bus_dead_letters` table). All other INFRA tasks produce runbooks, scripts, config files, or Dockerfiles — no `[ABAC]` or `[AUDIT]` tags are used in this module.
 
 **Spec gaps — all resolved:**
-- `[SPEC GAP → CLOSED]` No IaC document existed. **Closed:** `L5 — Infrastructure as Code Specification` was authored post-generation to fill this gap. It covers the two-Droplet production topology, VPC/Firewall, DNS (`dms.batac.gov.ph`), object storage (DigitalOcean Spaces + Backblaze B2), block storage, and the Pulumi TypeScript project structure. Three accompanying ADRs (`ADR-IAC-001`, `ADR-IAC-002`, `ADR-IAC-003`) record the tool, cloud provider, and immutable backup provider decisions. A `TASK-INFRA-022` for implementing the `/infra/` Pulumi program should be generated in the next A1 task-list pass with L5 as its source document.
+- `[SPEC GAP → CLOSED]` No IaC document existed. **Closed:** `L5 — Infrastructure as Code Specification` was authored post-generation to fill this gap. It covers the two-Droplet production topology, VPC/Firewall, DNS (`dms.batac.gov.ph`), object storage (DigitalOcean Spaces + Backblaze B2), block storage, and the Pulumi TypeScript project structure. Three accompanying ADRs (`ADR-IAC-001`, `ADR-IAC-002`, `ADR-IAC-003`) record the tool, cloud provider, and immutable backup provider decisions. `TASK-INFRA-022` for implementing the `/infra/` Pulumi program is still pending its own A1 pass with L5 as source document.
 - `[SPEC GAP → CLOSED]` S3 bucket lifecycle/object-lock configuration for the 1-year cold retention and write-once storage requirements. **Closed:** `ADR-IAC-003` specifies the Backblaze B2 bucket with Object Lock Compliance mode, 365-day default retention. TASK-INFRA-016 and TASK-INFRA-017 AI Prompts updated in-line above to reference this resolution.
+- `[SPEC GAP → CLOSED — 2026-06-24]` EventBus shared infrastructure was missing from the INFRA task list. **Closed:** `TASK-INFRA-023` written above covers the typed EventBus wrapper, `EventPayloadMap` interface, `DomainEvent<T>` envelope, `shared.event_bus_dead_letters` Drizzle migration, `DeadLetterRepository`, and the pgboss dead-letter retry job. `TASK-INFRA-023` is a prerequisite for `TASK-AUDIT-004` and for every module task that emits domain events (IAM, Organization, Documents, Workflow). Note: this gap was tentatively numbered `TASK-INFRA-022` in `audit.md`'s Module Summary; the task is renumbered `TASK-INFRA-023` because `TASK-INFRA-022` is reserved for the Pulumi program. `audit.md` updated to reference `TASK-INFRA-023`.
 
 **Deferred capabilities:**
 - `[DEFERRED — Phase 2: Meilisearch activation]` The `meilisearch` service is
@@ -2893,6 +3246,23 @@ exists, but no INFRA deliverable itself performs an audit write.
    includes both fields, sourced from §13, to avoid breaking
    `TASK-INFRA-011`'s health endpoint. A human should reconcile L1 §21.2
    against §13 directly.
+6. `[CONFLICT — RESOLVED: FOLLOW C1 / B2 P3 — 2026-06-24]` The original
+   draft of `TASK-INFRA-005`'s `post-migrate-grants.sql` incorrectly granted
+   `USAGE ON SCHEMA audit` and `INSERT ON ALL TABLES IN SCHEMA audit` to
+   `batac_app`, and also lacked a `SELECT` grant to `batac_audit` (needed by
+   `AuditRepository.fetchPreviousChainHash()` and `AuditQueryService.queryEvents()`).
+   **Three defects corrected in TASK-INFRA-005 (2026-06-24):**
+   (a) `batac_app` has zero access to the `audit` schema — removed from all
+   audit grants; aligns with C1 Part 12, B2 Prohibited Pattern P3, and the
+   application-layer intent that audit writes go exclusively through
+   `DATABASE_URL_AUDIT` / `batac_audit`. The former acceptance criterion
+   asserting `batac_app` can INSERT into `audit` has been corrected to assert
+   the opposite. (b) `batac_audit` now receives `GRANT SELECT, INSERT` (not
+   INSERT only) so the chain-hash read in the write transaction and the
+   `queryEvents()` SELECT can succeed. (c) `REVOKE UPDATE, DELETE` retained.
+   C1 Part 12's erroneous `REVOKE SELECT, UPDATE, DELETE` comment also
+   corrected (see C1 Part 12 resolved-items note). `audit.md` CONFLICT 2
+   updated accordingly.
 
 **Developer answers (all questions resolved — no further input required):**
 - **Q1 (`batac_migrate` LOGIN):** C1 §3.16 updated to `LOGIN`. TASK-INFRA-005

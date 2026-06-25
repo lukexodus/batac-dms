@@ -212,7 +212,7 @@ CREATE ROLE batac_app     NOLOGIN;   -- Runtime application service account (SEL
                                      -- This CREATE ROLE statement sets up the role object; the LOGIN attribute
                                      -- is conferred by Bitnami init before this script runs.
                                      -- Init scripts must use CREATE ROLE IF NOT EXISTS to avoid collision.
-CREATE ROLE batac_audit   NOLOGIN;   -- Audit log writes: INSERT-only on audit.events (Invariant #3)
+CREATE ROLE batac_audit   NOLOGIN;   -- Audit log: SELECT + INSERT on audit.events; UPDATE/DELETE revoked (Invariant #3; D-ABAC-04)
 CREATE ROLE batac_it_admin NOLOGIN;  -- IT Admin ops; DDL via migrations; REVOKE on document content tables
 CREATE ROLE batac_readonly NOLOGIN;  -- Read-only monitoring/reporting; RLS applies
 CREATE ROLE batac_migrate  LOGIN;    -- DDL owner; SECURITY DEFINER function owner; runs migration scripts
@@ -1799,6 +1799,11 @@ CREATE TABLE audit.events (
     actor_id        UUID    NULL,
     target_id       UUID    NULL,
     target_type     TEXT    NULL,
+    -- resource_office_id: denormalized owning office for ABAC gate I1 §8.3;
+    -- populated by audit write service at INSERT time (not a live join);
+    -- null for resource types with no single owning office (e.g. session events).
+    -- Decision: D-ABAC-04 (I3 §18.1 / I1 §8.3). [RESOLVED — 2026-06-24]
+    resource_office_id UUID NULL,
     payload         JSONB   NOT NULL,
     chain_hash      TEXT    NOT NULL CHECK (chain_hash ~ '^[a-f0-9]{64}$'),
     hmac            TEXT    NOT NULL CHECK (hmac ~ '^[a-f0-9]{64}$'),
@@ -1810,6 +1815,10 @@ CREATE UNIQUE INDEX uq_audit_events_sequence    ON audit.events(sequence_number)
 CREATE INDEX idx_audit_events_city_occurred     ON audit.events(city_id, occurred_at);
 CREATE INDEX idx_audit_events_actor             ON audit.events(actor_id);
 CREATE INDEX idx_audit_events_target            ON audit.events(target_id);
+-- Partial index: most session/system events have resource_office_id = NULL;
+-- office-scoped ABAC reads (I1 §8.3) query only non-null rows.
+CREATE INDEX idx_audit_events_resource_office   ON audit.events(resource_office_id)
+    WHERE resource_office_id IS NOT NULL;
 ```
 
 ---
@@ -1874,12 +1883,19 @@ REVOKE UPDATE, DELETE ON workflow.workflow_events FROM batac_app;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA documents TO batac_app;
 GRANT USAGE ON SEQUENCE audit.events_sequence_seq TO batac_audit;
 
--- ── batac_audit: audit log writes only ───────────────────────────────────────
+-- ── batac_audit: audit log INSERT + chain-hash reads; no modifications ───────
 
 GRANT USAGE ON SCHEMA audit TO batac_audit;
-GRANT INSERT ON audit.events TO batac_audit;
--- Explicitly confirm: no SELECT, UPDATE, or DELETE on audit.events for batac_audit.
-REVOKE SELECT, UPDATE, DELETE ON audit.events FROM batac_audit;
+-- SELECT is required by AuditRepository.fetchPreviousChainHash() (TASK-AUDIT-003)
+-- and by AuditQueryService.queryEvents() (TASK-AUDIT-005).  INSERT is the
+-- only write permitted (Invariant #3).  UPDATE and DELETE are explicitly revoked.
+GRANT SELECT, INSERT ON audit.events TO batac_audit;
+-- Invariant #3: append-only.  No modifications after INSERT.
+REVOKE UPDATE, DELETE ON audit.events FROM batac_audit;
+-- [CONFLICT 2 → RESOLVED 2026-06-24] The original draft included a SELECT
+-- revoke, which would have broken fetchPreviousChainHash().  Corrected to
+-- GRANT SELECT and REVOKE UPDATE, DELETE only.  batac_app has no access to
+-- the audit schema (see batac_app section above and B2 Prohibited Pattern P3).
 
 -- ── batac_it_admin: IT Admin ops, no document content ────────────────────────
 
@@ -1964,7 +1980,7 @@ The `search_meta`, `portal`, and `reporting` schemas were created in Part 2. No 
 |---|---|---|
 | 1 | No cross-schema FK constraints | All cross-schema references are plain UUID columns with inline comments; no `REFERENCES` clause crosses schema boundary |
 | 2 | No hard deletes | `DELETE` not granted to any application role (`batac_app`, `batac_audit`, `batac_it_admin`, `batac_readonly`) |
-| 3 | Audit log INSERT-only | `batac_audit` granted only `INSERT` on `audit.events`; `REVOKE UPDATE, DELETE` on `audit.events` from all roles |
+| 3 | Audit log append-only | `batac_audit` granted `SELECT, INSERT` on `audit.events` (SELECT required for chain-hash reads); `REVOKE UPDATE, DELETE` on `audit.events` from all roles. `batac_app` has zero access to the `audit` schema (B2 P3). [CONFLICT 2 → RESOLVED 2026-06-24] |
 | 4 | Document lifecycle transitions enforced at DB | `documents.check_lifecycle_transition()` `BEFORE UPDATE` trigger |
 | 5 | S3 file keys are UUIDs, never original filenames | `versions.file_key UUID`, `attachments.file_key UUID`; no `original_filename` as a key column |
 | 6 | One active session per user | Partial unique index `idx_sessions_one_active_per_user` on `iam.sessions(user_id) WHERE active = true` |
