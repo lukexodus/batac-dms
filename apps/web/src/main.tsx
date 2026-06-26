@@ -11,6 +11,7 @@ import TopbarPage from "./pages/dev/TopbarPage";
 import AppShellPage from "./pages/dev/AppShellPage";
 import DocumentNumberBadgePage from "./pages/dev/DocumentNumberBadgePage";
 import StatCardPage from "./pages/dev/StatCardPage";
+import ScanQualityIndicatorPage from "./pages/dev/ScanQualityIndicatorPage";
 
 const router = createBrowserRouter([
   {
@@ -44,6 +45,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/stat-card",
     element: <StatCardPage />,
+  },
+  {
+    path: "/dev/components/scan-quality-indicator",
+    element: <ScanQualityIndicatorPage />,
   },
 ]);
 
