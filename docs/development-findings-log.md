@@ -187,3 +187,17 @@ As a result, utility classes like `justify-between`, `items-start`, `bg-primary-
 @source "../../../apps/web/src/**/*.{ts,tsx}";
 ```
 This forces the Tailwind compiler to scan these folders and generate the necessary CSS rules in the output stylesheet. Verified that adding this resolved the styling on both the PageHeader page and the main design components preview page.
+
+### [LOG-0006] Tooltip popovers clipped by overflow-hidden containers; wrapped content in Radix Portal
+
+- date: 2026-06-26
+- task_id: TASK-UI-004
+- status: proposed
+- affects: tooltip.tsx (Tier 1), Sidebar.tsx (Tier 3)
+
+During visual verification of the collapsed `Sidebar` component (which is styled with `overflow-hidden` per DESIGN.md §6.1 to prevent layout layout shifts during transitions), the tooltips associated with the icon-only navigation links were completely invisible on hover. 
+
+Upon inspection of the Tier 1 `packages/ui/src/components/ui/tooltip.tsx` component, it was discovered that `TooltipContent` did not wrap the underlying `TooltipPrimitive.Content` inside `TooltipPrimitive.Portal`. Consequently, the tooltip popover was rendered inline in the DOM tree, causing it to be clipped by the parent element's `overflow: hidden` styling.
+
+[Tested]: Resolved by wrapping `TooltipPrimitive.Content` inside `TooltipPrimitive.Portal` in `tooltip.tsx`, aligning it with the standard shadcn/ui and Radix UI portal patterns. Verified using the browser subagent that tooltips for collapsed items now display correctly over the sidebar and page boundaries.
+
