@@ -48,21 +48,96 @@
 
 ## Table of Contents
 
-- [L~] TASK-IAM-001 — [MIGRATION] Create Drizzle iam schema definitions and generate DDL migration
-- [L~] TASK-IAM-002 — Scaffold IAM module file structure (stub files)
-- [L~] TASK-IAM-003 — Implement IAM repository layer
-- [L~] TASK-IAM-004 — [ABAC] Implement PolicyGuard and PolicyEvaluator services
-- [L~] TASK-IAM-005 — Implement Fastify auth preHandler middleware chain
-- [L~] TASK-IAM-006 — [AUDIT] Implement POST /api/auth/login (PKCE, JWT, session, cookies)
-- [L~] TASK-IAM-007 — [AUDIT] Implement POST /api/auth/refresh (token rotation + reuse detection)
-- [L~] TASK-IAM-008 — [AUDIT] Implement POST /api/auth/logout
-- [L~] TASK-IAM-009 — [ABAC][AUDIT] Implement role assignment and revocation service
-- [L~] TASK-IAM-010 — [AUDIT] Implement POST /api/admin/sessions/:id/terminate (force logout)
-- [L~] TASK-IAM-011 — [AUDIT] Implement workstation lock and unlock endpoints
-- [L~] TASK-IAM-012 — Implement IAM tRPC router for internal SPA
-- [L~] TASK-IAM-013 — Seed IAM roles, permissions, and role-permission matrix
-- [L~] TASK-IAM-014 — Wire IAM Fastify module plugin and register in app.ts
-- [L~] Module Summary — IAM
+- [L144–L164] TASK-IAM-001
+- [L165–L175] Project-wide DDL conventions
+- [L176–L376] Table definitions
+  - [L178–L199] iam.users
+  - [L200–L216] iam.credentials
+  - [L217–L251] iam.sessions
+  - [L252–L278] iam.refresh_tokens
+  - [L279–L299] iam.roles
+  - [L300–L316] iam.permissions
+  - [L317–L329] iam.role_permissions
+  - [L330–L356] iam.role_assignments
+  - [L357–L376] iam.mfa_records
+- [L377–L413] Platform Administrator exclusion trigger (append manually to migration file)
+- [L414–L422] Runtime grants (append manually to migration file after the trigger)
+- [L423–L443] Steps
+- [L444–L471] TASK-IAM-002
+- [L472–L474] Module folder
+- [L475–L478] File naming rule
+- [L479–L487] Pattern rules
+- [L488–L526] iam.types.ts — define these types
+- [L527–L547] iam.errors.ts
+- [L548–L562] iam.plugin.ts stub
+- [L563–L603] iam.policy.ts stub
+- [L604–L621] TASK-IAM-003
+- [L622–L624] File
+- [L625–L632] Pattern
+- [L633–L638] Rules
+- [L639–L709] Required interface methods
+- [L710–L728] TASK-IAM-004
+- [L729–L824] Two classes in iam.policy.ts
+- [L825–L848] ResourceDescriptor shape
+- [L849–L868] TASK-IAM-005
+- [L869–L871] File
+- [L872–L878] Cookie names and JWT algorithm
+- [L879–L894] JWT private claims (beyond iss/sub/iat/exp/jti)
+- [L895–L910] Hook 1: verifyAccessToken
+- [L911–L941] Hook 2: loadDelegationContext
+- [L942–L964] Hook 3: setDatabaseSessionVars
+- [L965–L970] Hook 4: updateLastActivity
+- [L971–L993] Export
+- [L994–L1018] TASK-IAM-006
+- [L1019–L1035] PKCE (RFC 7636 — S256 method only)
+- [L1036–L1122] Org-context resolver design [RESOLVED — formerly two SPEC GAPs in the Module Summary]
+- [L1123–L1224] Login flow (execute in order; abort on first failure)
+- [L1225–L1235] Progressive account lockout delays
+- [L1236–L1242] Audit events (via fastify.auditService.log — decorated by AUDIT module prerequisite)
+- [L1243–L1263] is_ita and is_pa computation
+- [L1264–L1283] TASK-IAM-007
+- [L1284–L1289] Cookie value format (established in TASK-IAM-006)
+- [L1290–L1350] Token rotation flow
+- [L1351–L1369] TASK-IAM-008
+- [L1370–L1402] Logout flow
+- [L1403–L1422] TASK-IAM-009
+- [L1423–L1429] Platform Administrator exclusion invariant
+- [L1430–L1437] type_code classification (authoritative)
+- [L1438–L1468] assignRole()
+- [L1469–L1488] revokeRole()
+- [L1489–L1503] Important: token staleness
+- [L1504–L1523] TASK-IAM-010
+- [L1524–L1541] ABAC enforcement (before any service call)
+- [L1542–L1572] Force termination flow
+- [L1573–L1593] TASK-IAM-011
+- [L1594–L1599] Behavior overview
+- [L1600–L1607] POST /api/auth/lock (PROTECTED route)
+- [L1608–L1651] POST /api/auth/unlock (SPECIAL route)
+- [L1652–L1670] TASK-IAM-012
+- [L1671–L1673] File
+- [L1674–L1678] Export
+- [L1679–L1682] All procedures use protectedProcedure
+- [L1683–L1751] Procedures
+- [L1752–L1772] Error mapping
+- [L1773–L1791] TASK-IAM-013
+- [L1792–L1797] File
+- [L1798–L1803] Constants
+- [L1804–L1811] Step 1: System user sentinel
+- [L1812–L1831] Step 2: 13 roles
+- [L1832–L1872] Step 3: Permission catalog
+- [L1873–L1907] Step 4: role_permissions matrix
+- [L1908–L1927] TASK-IAM-014
+- [L1928–L1982] iam.plugin.ts — complete implementation
+- [L1983–L1988] registerIamRoutes() — route partitioning
+- [L1989–L2009] app.ts registration order
+- [L2010–L2020] TypeScript module augmentation (ensure in iam.types.ts)
+- [L2021–L2036] fp() call semantics
+- [L2037–L2226] Module Summary — IAM
+  - [L2046–L2122] Spec Gaps Identified — RESOLVED 2026-06-25
+  - [L2123–L2154] Cross-document changes made as part of this resolution
+  - [L2155–L2173] Forward note for the ORG module's Step 2 pass
+  - [L2174–L2224] Resolved developer decisions (2026-06-26) — primary-office is_primary flag (ADR-AUTH-011); refresh silent/cookie-only
+  - [L2225–L2247] Deferred Capabilities (not in Phase 1 scope)
 
 ---
 
@@ -416,13 +491,17 @@ AI Prompt: |
   export type AuthContext = {
     userId:             string;
     sessionId:          string;
-    officeId:           string;
+    officeId:           string | null;   // [RESOLVED — see Module Summary "cid/oid spec gaps"]
+                                          // null until the ORG module's Step 2 pass wires a real
+                                          // resolver (organization.employees has no row, or no
+                                          // active organization.assignments row, for this user).
+                                          // Never an empty string — see rationale in Module Summary.
     cityId:             string;
     roles:              string[];
     permissions:        string[];        // 'resource:action' codes
     committeeIds:       string[];
     delegationGrantId:  string | null;
-    effectiveOfficeIds: string[];
+    effectiveOfficeIds: string[];        // never contains null; see TASK-IAM-005 Hook 2
     effectiveRoles:     string[];
     isItAdmin:          boolean;
     isPlatformAdmin:    boolean;
@@ -781,6 +860,7 @@ Acceptance Criteria:
   - [ ] Request where NOW() - session.last_activity_at > 30 min is rejected 401; session row is terminated with termination_reason = 'inactivity'; both cookies are cleared
   - [ ] Request on a session where locked_at IS NOT NULL is rejected 423 Locked (except POST /api/auth/unlock which must bypass this check)
   - [ ] After each valid authenticated request, iam.sessions.last_activity_at is updated to within 1 second of now()
+  - [ ] A request from a user whose AuthContext.officeId is null does not throw at the setDatabaseSessionVars hook (app.current_office_id session var is set to SQL NULL, not the string 'null' or an empty string)
   - [ ] `pnpm typecheck` passes
 AI Prompt: |
   You are implementing the Fastify authentication preHandler middleware chain for the Batac
@@ -799,10 +879,12 @@ AI Prompt: |
   ## JWT private claims (beyond iss/sub/iat/exp/jti)
   ```
   uid  — user UUID
-  oid  — primary office UUID
+  oid  — primary office UUID, or null  [RESOLVED — see iam.md Module Summary;
+         null whenever no organization.employees row, or no active
+         organization.assignments row, exists for this user]
   rid  — string[] of role codes
   perm — string[] of 'resource:action' permission codes
-  cid  — string[] of committee UUIDs ([] in Phase 1)
+  cid  — string[] of committee UUIDs ([] if no active organization.committee_memberships rows)
   dg   — delegation grant UUID or null
   city — city UUID
   sid  — session UUID
@@ -829,21 +911,40 @@ AI Prompt: |
   ## Hook 2: loadDelegationContext
   ```
   1. If request.auth.delegationGrantId IS NULL → skip.
-  2. SELECT * FROM organization.delegation_grants WHERE id = delegationGrantId
-     AND effective_until > NOW() AND revoked_at IS NULL.
-     (Cross-schema direct SQL in Phase 1; OrganizationService not yet available.)
-     If not found or expired → set request.auth.delegationGrantId = null; skip.
-  3. Merge grant.scope into request.auth:
-     effectiveOfficeIds = [auth.officeId, ...grant.scope.office_ids]
-     effectiveRoles     = [...auth.roles,  ...grant.scope.roles]
+  2. const grant = await fastify.iamService.resolveActiveDelegationGrant(request.auth.delegationGrantId);
+     [RESOLVED — see Module Summary "Hook 2 cross-schema access" finding. This previously read
+     organization.delegation_grants directly via SQL, which is a Law #2 violation per B2 §"Enforcement
+     Mechanisms" (no module may read another module's schema directly). resolveActiveDelegationGrant
+     is a method on IamService backed by an injected resolver function (see TASK-IAM-006's
+     IamServiceDeps), defaulting to a Phase-1 no-op (returns null) until the ORG module's Step 2
+     pass wires the real organization-backed implementation. The method internally applies the same
+     filter the old SQL did: row not found, expired (effective_until <= NOW()), or revoked → null.]
+  3. If grant === null → set request.auth.delegationGrantId = null; skip.
+  4. Merge grant.scope into request.auth:
+     effectiveOfficeIds = [request.auth.officeId, ...grant.scope.officeIds].filter(
+       (id): id is string => id !== null
+     )
+     effectiveRoles      = [...auth.roles, ...grant.scope.roles]
   ```
+  Note: `effectiveOfficeIds` is typed `string[]` (never contains `null`) — `request.auth.officeId`
+  itself may be `null` (see TASK-IAM-002), and the filter above drops it rather than letting a
+  literal `null` flow into an array ABAC office-membership checks treat as `string[]`. This is a
+  type-safety filter only; it has no security effect either way, since `document.officeId ∈ [..., null]`
+  cannot match a real (non-null) office UUID regardless of whether the `null` is filtered out.
+
+  Note: `resolveActiveDelegationGrant` is declared on `IamService` and defined as part of
+  `IamServiceDeps` in TASK-IAM-006 (the task that also introduces the other two org-context
+  resolver functions). TASK-IAM-005's own test suite does not need the production
+  `createIamService` — mock `fastify.iamService.resolveActiveDelegationGrant` directly to
+  return `null` (no active delegation) or a fake grant object, the same way any other
+  collaborator on `fastify.iamService` would be mocked for a middleware-only test.
 
   ## Hook 3: setDatabaseSessionVars
   ```typescript
   // Within the same DB connection used for this request, SET LOCAL vars:
   await db.execute(sql`
     SELECT set_config('app.current_user_id',   ${request.auth.userId},   true),
-           set_config('app.current_office_id', ${request.auth.officeId}, true),
+           set_config('app.current_office_id', ${request.auth.officeId ?? null}, true),
            set_config('app.city_id',           ${request.auth.cityId},   true),
            set_config('app.current_role_tier', ${roleTier},             true),
            set_config('app.is_ita', ${String(request.auth.isItAdmin)},  true),
@@ -851,6 +952,15 @@ AI Prompt: |
   `);
   // roleTier: 'IT_ADMIN' if isItAdmin, 'SECURITY_ADMIN' if roles includes 'auditor', else 'STANDARD'
   ```
+  **`app.current_office_id` when `request.auth.officeId` is `null` [RESOLVED — see Module Summary]:**
+  `set_config(..., NULL, true)` is valid — it sets the session variable to SQL NULL, not the
+  3-character string `'null'`. Any RLS policy comparing `current_setting('app.current_office_id')::uuid
+  = documents.office_id` then evaluates to `NULL` (neither true nor false) for that row, which
+  PostgreSQL treats as not-matching — the row is excluded, the same fail-closed behavior as the
+  application-layer ABAC check (see TASK-IAM-005 Hook 2 note above). This replaces the previous
+  empty-string placeholder design (`oid=''`), which would have made this same line throw
+  `invalid input syntax for type uuid` the moment any RLS policy attempted the `::uuid` cast on it —
+  a crash on every request for a user with no resolved office, rather than a clean, safe denial.
 
   ## Hook 4: updateLastActivity
   ```typescript
@@ -875,6 +985,7 @@ AI Prompt: |
   - [ ] Inactivity > 30 min → 401; session terminated; cookies cleared
   - [ ] locked_at IS NOT NULL (and URL ≠ /api/auth/unlock) → 423 Locked
   - [ ] Valid request: last_activity_at updated to within 1 second of now()
+  - [ ] Null officeId does not throw at setDatabaseSessionVars; app.current_office_id set to SQL NULL
   - [ ] `pnpm typecheck` passes
 
 
@@ -887,11 +998,12 @@ Module:         IAM
 Title:          [AUDIT] Implement POST /api/auth/login (PKCE, JWT issuance, HTTP-only cookies)
 Prerequisites:  [TASK-IAM-005, CROSS-MODULE REF: AUDIT — task list not yet supplied]
 Deliverables:
-  - /apps/server/src/modules/iam/iam.service.ts — Adds login(input: LoginInput): Promise<void> method to createIamService(); handles PKCE verification, Argon2id credential check, concurrent-session enforcement, progressive account lockout, JWT (RS256) issuance, refresh-token issuance, cookie delivery, MFA no-op hook, audit events
+  - /apps/server/src/modules/iam/iam.service.ts — Adds login(input: LoginInput): Promise<void> method to createIamService(); handles PKCE verification, Argon2id credential check, concurrent-session enforcement, progressive account lockout, JWT (RS256) issuance, refresh-token issuance, cookie delivery, MFA no-op hook, audit events. Also adds the `IamServiceDeps` org-context resolver fields (`getPrimaryOffice`, `getCommitteeIds`, `resolveActiveDelegationGrant`) and a private `buildAccessTokenClaims()` helper — see "Org-context resolver design" below. [RESOLVED — see Module Summary, formerly two SPEC GAPs]
   - /apps/server/src/modules/iam/iam.routes.ts — Registers POST /api/auth/login as a public route (no auth preHandlers); rate limited 5 req / 15 min per IP via @fastify/rate-limit
-  - /apps/server/src/modules/iam/__tests__/iam.login.test.ts — Integration tests: success flow, wrong password, PKCE mismatch, concurrent session replacement, lockout counter
+  - /apps/server/src/modules/iam/__tests__/iam.login.test.ts — Integration tests: success flow, wrong password, PKCE mismatch, concurrent session replacement, lockout counter, response body shape, null-office login
 Acceptance Criteria:
-  - [ ] POST /api/auth/login valid credentials + PKCE → 200; two Set-Cookie headers (batac_at, batac_rt); empty JSON body `{}`; no token value in response body
+  - [ ] POST /api/auth/login valid credentials + PKCE → 200; two Set-Cookie headers (batac_at, batac_rt); JSON body matches AuthResponseSchema (`user`, `sessionId`, `expiresAt`, `roleCodes`, `officeScopeId`, `officeCode`); no token value anywhere in the response body [RESOLVED — see Module Summary "login response body" finding; previously specified as an empty body, which contradicted the already-accepted ADR-UI-012/F2 frontend design]
+  - [ ] When the authenticating user has no resolvable primary office (no `organization.employees` row, or no active `organization.assignments` row — the expected case for every Phase-1 login, since the ORG module does not exist yet): `officeScopeId` and `officeCode` are both `null` in the response body, and the JWT `oid` claim is `null` — not an empty string, and the request does not throw
   - [ ] POST /api/auth/login wrong password → 401; audit login_failed event emitted with attempted_identifier_hash = SHA-256(username) — never plaintext
   - [ ] POST /api/auth/login PKCE code_verifier that does not satisfy SHA-256(code_verifier) = code_challenge → 400
   - [ ] POST /api/auth/login when an active session already exists: old session terminated (termination_reason='replaced'), session_replaced audit event emitted, new session created — all in one transaction
@@ -920,6 +1032,93 @@ AI Prompt: |
 
   Server verifies: `base64url(SHA-256(code_verifier)) === code_challenge`.
   Mismatch → 400 Bad Request, body: `{ code: 'PKCE_MISMATCH' }`.
+
+  ## Org-context resolver design [RESOLVED — formerly two SPEC GAPs in the Module Summary]
+
+  The JWT `oid` (primary office) and `cid` (committee memberships) claims, and the login
+  response body's `officeScopeId`/`officeCode` fields, all depend on `organization` schema
+  data. The ORG module owns that schema and is built in Wave C — after IAM (Wave B). At the
+  time this task is implemented, `organization.*` does not exist as a module, so
+  `iam.service.ts` cannot import anything from it.
+
+  This is solved the same way TASK-IAM-004's Gate 4 solved the identical problem one module
+  over (DOCS module not yet built; `getAllowlistRoles?: (resourceTypeId) => Promise<string[]>`
+  injected with a `[]`-returning default): `IamServiceDeps` gains three **optional** functions,
+  each defaulting to a safe no-op. `createIamService` uses the provided function if present,
+  the no-op default otherwise — IAM's own code never branches on "has ORG been built yet,"
+  it just always calls `deps.getPrimaryOffice(...)` etc., and that call happens to be a no-op
+  until a later task supplies the real one.
+
+  ```typescript
+  // iam.service.ts — added to IamServiceDeps
+
+  interface IamServiceDeps {
+    db: DbClient;
+    auditService: AuditService;
+    eventBus: TypedEventBus;
+    policyEvaluator: PolicyEvaluator;
+
+    /**
+     * Resolve a user's primary office. Returns null if the user has no
+     * organization.employees row, or that employee has no active
+     * organization.assignments row — both expected outcomes, not error
+     * conditions (e.g. every Phase-1 login, before the ORG module exists;
+     * also any real future user who is IAM-only with no LGU employment
+     * record, since organization.employees.user_id is nullable by design).
+     * [Inference] Phase-1 default below returns null unconditionally.
+     * The ORG module's Step 2 pass supplies the real implementation —
+     * see this file's Module Summary, "Forward note for the ORG module".
+     */
+    getPrimaryOffice?: (userId: string) => Promise<{ officeId: string; officeCode: string } | null>;
+
+    /**
+     * Active organization.committee_memberships rows for this user, as
+     * committee UUIDs. Empty array if none — a normal outcome (most staff
+     * are not SP Members), not just the Phase-1 default.
+     * [Inference] Phase-1 default below returns [] unconditionally.
+     */
+    getCommitteeIds?: (userId: string) => Promise<string[]>;
+
+    /**
+     * Load an organization.delegation_grants row by id, applying the same
+     * filter TASK-IAM-005's Hook 2 needs (not found, expired, or revoked → null).
+     * Used by the auth preHandler chain, not by login directly — login only
+     * needs this if a user can somehow start a session while already holding
+     * a delegation; exposed here because IamServiceDeps is the one place all
+     * three org-context resolvers are wired, per TASK-IAM-014.
+     * [Inference] Phase-1 default below returns null unconditionally.
+     */
+    resolveActiveDelegationGrant?: (delegationGrantId: string) => Promise<{
+      scope: { roles: string[]; officeIds: string[]; actions: string[] };
+    } | null>;
+  }
+
+  // Inside createIamService(deps), near the top:
+  const getPrimaryOffice = deps.getPrimaryOffice ?? (async () => null);
+  const getCommitteeIds  = deps.getCommitteeIds  ?? (async () => []);
+  const resolveActiveDelegationGrant =
+    deps.resolveActiveDelegationGrant ?? (async () => null);
+  ```
+
+  **Why this is safe to leave un-implemented through all of Wave B:** every consumer of these
+  three claims already treats "no office" / "no committees" / "no delegation" as a normal,
+  expected value, not an error path — `subject.office_id` participates in ABAC checks via
+  array membership (`document.office_id ∈ subject.effective_office_ids`), where `null`/`[]`
+  simply fails to match anything and the request is denied on that branch, the same fail-closed
+  outcome as a genuinely officeless user. No Phase-1 acceptance criterion anywhere in this
+  module depends on `oid`/`cid` resolving to a real value, because no Phase-1 capability needs
+  office-scoped or committee-scoped data to be correct yet — ORG, which provides the only data
+  that could populate it, has not run.
+
+  **What happens when the ORG module's Step 2 pass runs (Wave C):** a new task in that pass —
+  not generated as part of this file — implements `Organization.getPrimaryOfficeForUser()`,
+  `Organization.getCommitteeIdsForUser()`, and `Organization.getDelegationGrantById()` on the
+  Organization Published API (see B2's Organization module section, which this resolution
+  also updates), and edits `iam.plugin.ts` (TASK-IAM-014) to pass three small adapter functions
+  into `createIamService`'s `deps`, e.g. `getPrimaryOffice: (userId) =>
+  fastify.organizationService.getPrimaryOfficeForUser(userId)`. No change to `iam.service.ts`
+  itself is needed at that point — only to the plugin wiring that constructs its `deps`. See
+  the Module Summary's "Forward note for the ORG module" for the exact task this implies.
 
   ## Login flow (execute in order; abort on first failure)
 
@@ -950,15 +1149,50 @@ AI Prompt: |
           Emit audit event session_replaced({ user_id, old_session_id, new_session_id_placeholder, ip_address }).
      c. INSERT new iam.sessions row (user_id, session_token_hash=SHA256(jti_placeholder), ip_address, user_agent).
      d. Commit transaction; capture new session id.
-  9. Issue JWT (RS256, JWT_PRIVATE_KEY env var, PEM-encoded RSA private key):
-     Registered claims: iss='batac-lgu-platform', sub=user.id, iat=NOW(), exp=NOW()+JWT_ACCESS_TTL_SECONDS, jti=uuidv4()
-     Private claims:
-       uid=user.id, oid='', /* placeholder; ORG module populates when built — see spec gap in Module Summary */
-       rid=[active role codes from iamRepo.findActiveRoleAssignmentsByUserId],
-       perm=[resolved 'resource:action' strings from iamRepo.findPermissionsByRoleIds],
-       cid=[], /* placeholder; ORG module populates when built */
-       dg=null, city=BATAC_CITY_ID, sid=<new_session_id>, is_ita=<computed>, is_pa=<computed>
-     Update session_token_hash = SHA256(jti) on the new session row.
+  9. Build claims and issue JWT via the shared buildAccessTokenClaims() helper (see below) —
+     this helper is also used, unchanged, by TASK-IAM-007 (refresh) and TASK-IAM-011 (unlock's
+     silent refresh path), so all three flows resolve oid/cid/dg identically and can never drift:
+     ```typescript
+     async function buildAccessTokenClaims(userId: string, sessionId: string) {
+       const activeRoles = await iamRepo.findActiveRoleAssignmentsByUserId(userId);
+       const roleCodes    = activeRoles.map(ra => ra.role.code);
+       const [office, committeeIds] = await Promise.all([
+         getPrimaryOffice(userId),
+         getCommitteeIds(userId),
+       ]);
+       return {
+         registered: { iss: 'batac-lgu-platform', sub: userId, jti: uuidv4() },
+         private: {
+           uid: userId,
+           oid: office?.officeId ?? null,
+           rid: roleCodes,
+           perm: await iamRepo.findPermissionsByRoleIds(activeRoles.map(ra => ra.roleId)),
+           cid: committeeIds,
+           dg: null,   // login always starts dg null; a delegation is picked up at next refresh
+                       // if one becomes active later in the session — same staleness model as roles
+           city: BATAC_CITY_ID,
+           sid: sessionId,
+           is_ita: activeRoles.some(ra => ra.role.code === 'sys_admin'),
+           is_pa: activeRoles.some(ra => ra.role.is_platform_admin === true),
+         },
+         display: { roleCodes, officeScopeId: office?.officeId ?? null, officeCode: office?.officeCode ?? null },
+       };
+     }
+     ```
+     Takes `userId` rather than a full user row deliberately — TASK-IAM-007 (refresh) only has
+     `row.user_id` from the refresh-token row at the point it needs this, and should not need an
+     extra `findUserById` call just to satisfy this helper's signature.
+     Call site: `const claims = await buildAccessTokenClaims(user.id, newSessionId);` then sign:
+     ```typescript
+     const accessToken = jwt.sign(
+       { ...claims.registered, ...claims.private },
+       JWT_PRIVATE_KEY,
+       { algorithm: 'RS256', expiresIn: JWT_ACCESS_TTL_SECONDS },
+     );
+     ```
+     Sign with RS256 (JWT_PRIVATE_KEY env var, PEM-encoded RSA private key); `iat=NOW()`,
+     `exp=NOW()+JWT_ACCESS_TTL_SECONDS`. Update `session_token_hash = SHA256(jti)` on the new
+     session row.
   10. Issue refresh token:
       raw = crypto.randomBytes(32) → base64url
       salt = crypto.randomBytes(16) → base64url
@@ -969,7 +1203,23 @@ AI Prompt: |
       Cookie value format: `${token_id}.${raw}`
   11. Reset lockout: iamRepo.resetLoginFailure(user.id).
   12. Emit audit event login_success({ user_id, session_id, ip_address, user_agent }).
-  13. Set cookies and return 200 {}.
+  13. Set cookies (batac_at, batac_rt) and return 200 with a body matching `AuthResponseSchema`
+      (E3 Part 2 — RESOLVED to include `roleCodes`, `officeScopeId`, `officeCode`; see Module
+      Summary "login response body" finding):
+      ```typescript
+      return reply.status(200).send({
+        user: toUserSelectSchema(user),       // existing projection; excludes credential fields
+        sessionId,
+        expiresAt: new Date(Date.now() + JWT_ACCESS_TTL_SECONDS * 1000),
+        roleCodes: claims.display.roleCodes,
+        officeScopeId: claims.display.officeScopeId,
+        officeCode: claims.display.officeCode,
+      });
+      ```
+      Tokens themselves are never in this body — they are only ever in the two Set-Cookie
+      headers set in this same step. This body exists purely so `/web`'s `useSessionStore`
+      (F2 §5, ADR-UI-012) can hydrate identity synchronously from the login response, per the
+      already-accepted frontend design — it carries no security-sensitive value of its own.
   ```
 
   ## Progressive account lockout delays
@@ -991,14 +1241,16 @@ AI Prompt: |
   attempted_identifier_hash MUST be SHA-256(username) in hex. NEVER log the plaintext username.
 
   ## is_ita and is_pa computation
+  Computed inside `buildAccessTokenClaims()` (see "Org-context resolver design" above) from
+  the same `activeRoles` lookup used for `rid`/`perm` — not a separate query:
   ```typescript
-  const activeRoles = await iamRepo.findActiveRoleAssignmentsByUserId(user.id);
   const is_ita = activeRoles.some(ra => ra.role.code === 'sys_admin');
   const is_pa  = activeRoles.some(ra => ra.role.is_platform_admin === true);
   ```
 
   Confirm before submitting:
-  - [ ] Valid login → 200 with two Set-Cookie headers; empty body; no token in response body
+  - [ ] Valid login → 200 with two Set-Cookie headers; body matches AuthResponseSchema; no token in response body
+  - [ ] Login with no resolvable primary office → officeScopeId/officeCode null in response; oid null (not '') in JWT; no throw
   - [ ] Wrong password → 401; audit login_failed with SHA-256 hash (never plaintext)
   - [ ] PKCE mismatch → 400 with code PKCE_MISMATCH
   - [ ] Existing active session → replaced in one transaction; session_replaced audit emitted
@@ -1057,12 +1309,25 @@ AI Prompt: |
      c. Insert new token: same session_id, same family_id, new token_hash, new salt,
           new id, expires_at = NOW() + 14 days.
      d. Update replaced_by on old token: UPDATE WHERE id = row.id SET replaced_by = new_id.
-     e. Issue new JWT (same RS256 flow as login; reload roles and permissions freshly from DB).
+     e. Issue new JWT via `buildAccessTokenClaims(row.user_id, row.session_id)` — the exact same
+        helper TASK-IAM-006 (login) uses. [RESOLVED — see that task's Module Summary cross-reference.]
+        This re-resolves `oid`, `cid`, `rid`, and `perm` freshly from the DB on every refresh —
+        the previous text here ("reload roles and permissions freshly from DB") named only two
+        of the four claims that actually need re-resolution on refresh; calling the shared
+        helper instead of re-deriving each claim inline here removes the risk of the two flows
+        drifting apart as either gets modified later. `dg` is set from
+        `resolveActiveDelegationGrant`-equivalent logic if `request.auth.delegationGrantId`
+        carried a still-valid grant; otherwise null — same rule as TASK-IAM-005 Hook 2.
      f. UPDATE iam.sessions SET last_activity_at = NOW() WHERE id = row.session_id.
   9. Set new cookies (same cookie attributes as login).
   10. Emit audit: token_refresh({ user_id: row.user_id, session_id: row.session_id }).
   11. Return 200 {}.
   ```
+
+  **[RESOLVED — 2026-06-26]** The refresh response body (`200 {}`, cookie-only) is final.
+  `useSessionStore` does not re-hydrate from background token renewal. Role, office, and
+  committee changes take effect at next full login. See iam.md Module Summary
+  "Resolved developer decisions (2026-06-26)" item 2 for the full rationale.
 
   Rate limit: 20 req / min per session. Key the rate limiter on the session_id parsed from
   the refresh token (available after step 3 succeeds).
@@ -1648,6 +1913,7 @@ Acceptance Criteria:
   - [ ] fastify.iamService and fastify.policyEvaluator are accessible in plugins registered after IAM (confirmed by temporary log in a downstream plugin's init)
   - [ ] POST /api/auth/login is reachable (returns 400 or 401 on a bad request — not 404)
   - [ ] The tRPC iam.* procedures are callable from the SPA (merged into app-wide tRPC router)
+  - [ ] A full login (POST /api/auth/login) succeeds end-to-end with no `organization` module registered — confirms the default no-op org-context resolvers (TASK-IAM-006) are sufficient for the app to boot and serve requests through Wave B alone
 AI Prompt: |
   You are wiring the complete IAM module plugin and registering it in the application entry
   point for the Batac City LGU document-management platform.
@@ -1677,6 +1943,12 @@ AI Prompt: |
       auditService:   fastify.auditService,   // decorated by audit plugin (in dependencies)
       eventBus:       fastify.eventBus,
       policyEvaluator,
+      // getPrimaryOffice, getCommitteeIds, resolveActiveDelegationGrant: intentionally omitted.
+      // createIamService defaults all three to safe no-ops (see TASK-IAM-006, "Org-context
+      // resolver design"). [RESOLVED — see Module Summary, "Forward note for the ORG module"]
+      // The ORG module's Step 2 pass adds a task that edits ONLY this object literal — passing
+      // three adapter functions backed by fastify.organizationService — and does not otherwise
+      // touch iam.service.ts, iam.middleware.ts, or this plugin file.
     });
     fastify.decorate('iamService', iamService);
 
@@ -1751,6 +2023,7 @@ AI Prompt: |
   - [ ] fastify.iamService and fastify.policyEvaluator accessible in downstream plugins
   - [ ] POST /api/auth/login reachable (returns 400 or 401 — not 404)
   - [ ] tRPC iam.* procedures callable from the SPA
+  - [ ] Login succeeds end-to-end with no organization module registered (default resolvers sufficient)
 
 ---
 
@@ -1763,26 +2036,191 @@ First executable:      TASK-IAM-001 (requires only TASK-INFRA-005, TASK-INFRA-00
 Estimated PR size:     Each task = 1 PR; average ~3–8 files changed per PR
 ```
 
-### Spec Gaps Identified
+### Spec Gaps Identified — RESOLVED 2026-06-25
 
-**[SPEC GAP — committee_ids (cid) JWT claim]**
-The JWT private claim `cid` (array of committee UUIDs) must be populated at token-issue
-time from `organization.committee_memberships`. However, the ORG module (Wave C) is built
-after IAM (Wave B). TASK-IAM-006 hardcodes `cid = []` as a placeholder for Phase 1.
-When the ORG module's Step 2 pass runs, it must extend the IAM login service to populate
-`cid` by querying `organization.committee_memberships`. The exact extension mechanism
-(IAM service option callback vs. cross-schema direct SQL vs. ORG-event subscription) is
-unspecified in B5, I1, or the consolidated reference. Requires resolution before ORG tasks
-are generated.
+Both gaps below were originally recorded when this file was generated (2026-06-24) and are
+resolved as of this revision. Resolution authorized directly by the project owner, who granted
+explicit authority to edit this file, other pre-dev documents, and A1-AGENTS.md's normal
+"a human resolves spec gaps" restriction for this specific resolution pass — see the chat
+record for that authorization; it is not re-derived from any pre-dev document.
 
-**[SPEC GAP — primary office (oid) JWT claim]**
-The JWT claim `oid` (user's primary office UUID) requires reading
-`organization.assignments.office_id` for the authenticating user. The organization schema
-is owned by the ORG module (Wave C). In Phase 1, TASK-IAM-006 sets `oid = ''` (empty
-string) as a placeholder, or reads it via direct cross-schema SQL (violating module
-boundary). A clean solution via `OrganizationService.getPrimaryOfficeForUser(userId)` is
-not available until Wave C. This must be resolved when the ORG module is built; neither
-B5 nor I1 specifies the cross-module interface for this claim's population path.
+**[RESOLVED — committee_ids (cid) and primary office (oid) JWT claims]**
+Original gap: both claims depend on `organization` schema data, but the ORG module (Wave C) is
+built after IAM (Wave B), so `iam.service.ts` cannot import anything from it at the time
+TASK-IAM-006 is implemented. The three candidate mechanisms named in the original gap text —
+IAM service option callback, cross-schema direct SQL, ORG-event subscription — are no longer
+all live options:
+- **Cross-schema direct SQL** is ruled out, not just discouraged: B2's Enforcement Mechanisms
+  state a direct cross-module schema query is blocked in code review with exactly one named
+  exception (Search Meta's Phase 1 `documents.tsvector` read, ADR-B2-5) — this is not that
+  exception.
+- **ORG-event subscription** is ruled out by B2's own sync-vs-async decision rule: "Use the
+  Published API (sync) when the caller needs a return value to proceed... the action must
+  complete atomically with the caller's transaction." Login must embed `oid`/`cid` in the JWT
+  before it can respond; an async event has no defined arrival time relative to that response.
+- **IAM service option callback** — chosen. `IamServiceDeps` gains three optional functions
+  (`getPrimaryOffice`, `getCommitteeIds`, `resolveActiveDelegationGrant`), each defaulting to a
+  safe no-op, exactly mirroring the pattern TASK-IAM-004's Gate 4 already established in this
+  same module for the structurally identical problem (DOCS module not yet built;
+  `getAllowlistRoles?` defaults to `[]`). Full design, code, and rationale are in TASK-IAM-006
+  ("Org-context resolver design"); the consuming sites are TASK-IAM-006 (login), TASK-IAM-007
+  (refresh, via the same shared helper), and TASK-IAM-005 (Hook 2, see below). No new task ID
+  was needed in this module — this is a Deps-shape and call-site change within already-planned
+  tasks, not new work.
+
+This also addressed two related problems found while resolving the above, not originally flagged
+as separate gaps in this file:
+
+**[RESOLVED — Hook 2 cross-schema SQL was a Law #2 violation, not a Phase 1 placeholder]**
+TASK-IAM-005's `loadDelegationContext` hook read `organization.delegation_grants` via direct
+SQL, annotated only as "Cross-schema direct SQL in Phase 1; OrganizationService not yet
+available" — stated as a Phase 1 convenience, but it is the same forward-dependency problem as
+`oid`/`cid`, and B2's Enforcement Mechanisms make no Phase 1 exception for it. Fixed with the
+same mechanism: a third optional `resolveActiveDelegationGrant` function on `IamServiceDeps`,
+defaulting to `async () => null`, exposed on `IamService` for the middleware to call.
+
+**[RESOLVED — `oid` typed and placeholdered as a non-nullable empty string]**
+TASK-IAM-002's `AuthContext.officeId` was typed `string`, and TASK-IAM-006 set the Phase-1
+placeholder to `''`. Two independent problems with this, not one: (1) `''` is not a valid UUID,
+and B5 §6.3's RLS session-var hook casts this value `::uuid` in policy expressions —
+`set_config('app.current_office_id', '', true)` followed by any policy's `::uuid` cast throws
+`invalid input syntax for type uuid` on every request from a user with no resolved office,
+which in Phase 1 is every user, since ORG does not exist yet. (2) Even after ORG exists, not
+every `iam.users` row necessarily resolves to an office — `organization.employees.user_id` is
+nullable by design (C1 Part 4: "not every employee has a platform account," and the relationship
+holds in both directions: not every user has an employee row either), so "no primary office" is
+a permanent, legitimate state, not only a Phase-1 gap. Changed `oid`/`AuthContext.officeId` to
+`string | null` throughout (TASK-IAM-002, TASK-IAM-005, TASK-IAM-006). This is independently
+consistent with ADR-UI-012 (frontend, accepted 2026-06-19, predates this file), which already
+specified the equivalent frontend field `officeScopeId: z.string().uuid().nullable()` —
+this resolution did not have to invent that nullability decision, only propagate it to where
+the IAM module's own types and the JWT claim had not yet caught up to it. ABAC office-scope
+checks already use array-membership comparisons (`document.office_id ∈ subject.effective_office_ids`,
+I1 §3.2), where a `null` office safely fails to match any real document — confirmed by reading
+I1's existing comparison logic, not assumed.
+
+**[RESOLVED — TASK-IAM-006's login response body contradicted the accepted frontend design]**
+Found while updating TASK-IAM-006 for the above: it specified `POST /api/auth/login` returning
+an empty body (`200 {}`), but F2 §5 and ADR-UI-012 (accepted 2026-06-19) require the login
+response to carry `AuthResponseSchema` — `user`, `sessionId`, `expiresAt`, `roleCodes`,
+`officeScopeId`, `officeCode` — so `useSessionStore` can hydrate synchronously with no second
+round-trip, which is the entire point of that ADR's decision. This is not a new design choice;
+ADR-UI-012 was already "Accepted" five days before this file's original generation date, and
+this file's IAM Step 2 pass simply never loaded F2 or its ADRs — A1-AGENTS.md §2's Pass Types
+table does not list any F-series document in the IAM module's Read column, so the prior pass
+had no path to discover this. TASK-IAM-006 now returns the `AuthResponseSchema`-shaped body.
+E3's `AuthResponseSchema` itself was also still missing the three fields ADR-UI-012 already
+called for — also addressed; see this resolution's changes to E3 below. Tokens remain cookie-only;
+nothing about where the JWT/refresh token live changed.
+
+### Cross-document changes made as part of this resolution
+
+- **B5** (`b5-authentication-and-authorization-architecture.md`): §1.1 — added the missing `cid`
+  row to the JWT Private Claims table (I1 introduced `cid` as D-ABAC-06 after B5 was written;
+  B5's own claims table was never updated to include it — found while correcting `oid`, corrected at
+  the same time since both rows are in the same table); marked `oid` nullable with a short
+  rationale and a pointer to this Module Summary's longer explanation. §5.6 — flagged the
+  office-assignment-uniqueness ambiguity as an open question (does not resolve it). §5.7 — noted
+  the delegation-grant lookup's access mechanism is now resolved via Organization's Published
+  API, not direct SQL. §12 — added the office-assignment-uniqueness item as a new row, with an
+  explicit account of why it doesn't block Wave B or Wave C, per this same Module Summary's
+  "Open questions for the developer" item 1.
+- **I3** (`i3-security-design-document.md`): §4.1.2 and §5.1 — same `cid`/`oid` corrections as B5,
+  for the same reason (I3's private-claims and subject-attribute tables are second copies of the
+  same information and would otherwise now contradict the corrected B5 tables). §18.2 — added
+  the same new office-assignment-uniqueness row as B5 §12, for the same reason.
+- **B2** (`b2-module-boundary-and-internal-api-contracts-v1.1.md`) Module 2 (Organization):
+  added `getPrimaryOfficeForUser()`, `getCommitteeIdsForUser()`, and `getDelegationGrantById()`
+  to the Organization Published API, and added IAM as a caller of all three in the Published
+  API Call Matrix and the Module Dependency Map. This gives the ORG module's future Step 2 pass
+  a concrete target interface to implement, rather than leaving the "real" side of the
+  IAM-owned resolver functions undefined anywhere.
+- **E3** (`e3-shared-zod-schema-catalog.md`): extended `AuthResponseSchema` with `roleCodes`,
+  `officeScopeId`, `officeCode`, per ADR-UI-012's already-accepted decision (this is the E3 edit
+  that ADR-UI-012's own "Consequences" section already said was required and had not yet been
+  made — not a new decision introduced here).
+- All four documents' Tables of Contents (B5, B2, E3 — I3's left for the project owner to redo)
+  were corrected for the line-number drift these edits caused, since each used a line-numbered
+  ToC convention. Verified mechanically against each file's actual header positions, not by
+  arithmetic alone, after an arithmetic-only first pass on E3 produced an off-by-one error that
+  was caught and corrected.
+
+### Forward note for the ORG module's Step 2 pass
+
+When that pass runs (Wave C, per A1-AGENTS.md §2), in addition to its own Read list, it should
+load this file's "Org-context resolver design" (TASK-IAM-006) and the three new B2 Organization
+Published API methods above. It will need one new task — something like
+`TASK-ORG-NNN — Wire OrganizationContextPort into IAM service` — whose AI Prompt is already
+almost fully determined by this resolution: implement the three methods against
+`organization.employees` → `organization.assignments` (office) / `organization.committee_memberships`
+(committees) / `organization.delegation_grants` (by id), then edit only the `createIamService({...})`
+call site in TASK-IAM-014's `iam.plugin.ts`, adding three adapter functions that call
+`fastify.organizationService`. No other IAM file changes. This is not generated as a full task
+here — A1-AGENTS.md §2's Pass Types table requires the ORG pass to load the IAM and AUDIT task
+lists in order, which this file doesn't have authority to do on ORG's behalf — but the shape of
+that one task is determined by this resolution, not open for the ORG pass to redesign.
+**[RESOLVED — ADR-AUTH-011, 2026-06-26]** The `getPrimaryOfficeForUser` tie-break rule is now
+defined: return the `organization.assignments` row where `is_primary = true AND is_active = true
+AND deleted_at IS NULL`. At most one such row per employee is guaranteed by the partial unique
+index `uq_assignments_one_primary_per_employee`. If no `is_primary` row exists, returns `null`.
+
+### Resolved developer decisions (2026-06-26)
+
+**[RESOLVED — 2026-06-26, ADR-AUTH-011] 1. "Primary office" tie-break in `organization.assignments`.**
+
+Decision: **Option (c)** — add an explicit `is_primary BOOLEAN NOT NULL DEFAULT false` column to
+`organization.assignments`. The application layer (ORG module service) is responsible for
+maintaining the one-primary-per-employee invariant atomically: a "set primary" operation must
+unset any other `is_primary = true` row for the same `employee_id` within the same transaction.
+A partial unique index serves as a DB-level safety net:
+
+```sql
+CREATE UNIQUE INDEX uq_assignments_one_primary_per_employee
+    ON organization.assignments (employee_id)
+    WHERE is_primary = true AND is_active = true AND deleted_at IS NULL;
+```
+
+`getPrimaryOfficeForUser`'s concrete query is now: `SELECT office_id, office_code FROM
+organization.assignments WHERE employee_id = :id AND is_primary = true AND is_active = true
+AND deleted_at IS NULL LIMIT 1` — returning `null` if no row matches.
+
+Rationale: concurrent active assignments are confirmed possible for Batac City LGU staff (ruling
+out option a — hard DB constraint). An explicit flag is more transparent and auditable than an
+implicit start-date or authority-level ordering (option b), which produces non-deterministic
+results on ties. The partial unique index provides corruption protection while allowing
+multi-assignment data.
+
+Cross-document effects (all applied 2026-06-26):
+- C1 DDL: `is_primary BOOLEAN NOT NULL DEFAULT false` + `uq_assignments_one_primary_per_employee` added to `organization.assignments`.
+- C2 ERD: `bool is_primary` added to ASSIGNMENTS entity.
+- E3: `isPrimary: z.boolean()` added to `AssignmentSelectSchema`.
+- B2 Module 2: `getPrimaryOfficeForUser` doc-comment updated — open-question `[Inference]` note replaced with `[RESOLVED — ADR-AUTH-011]`.
+- B5 §11: D-AUTH-11 row added; §12 Office-assignment-uniqueness row updated to resolved.
+- I3 §18.1: row 16 (D-AUTH-11) added; §18.2 item updated to resolved.
+- ADR-UI-012: "Open Follow-Up" section closed.
+
+---
+
+**[RESOLVED — 2026-06-26] 2. `POST /api/auth/refresh` response body and UI re-hydration.**
+
+Decision: **Silent/cookie-only** — the refresh endpoint returns `200 {}` (empty body) as currently
+designed in TASK-IAM-007. `useSessionStore` does not re-hydrate from a background refresh call.
+Role, office, and committee changes take effect at the user's next full login. Displaying a
+potentially-stale permission set between logins is an accepted product trade-off for this system.
+No changes are needed to TASK-IAM-007's response body design.
+
+Rationale: silent background token renewal is a UX-smoothness mechanism, not a re-authentication
+event. Re-hydrating the store on every background refresh would require returning identity data
+(role codes, office scope, committee ids) on every access-token renewal, adding non-trivial
+payload overhead and an SPA code path that F2 does not currently describe. Given the low rate
+of role/office/committee reassignments in the Batac City LGU context (administrative staff roles
+are typically stable), staleness until next login is an acceptable trade-off. If real-time
+propagation is later required (e.g., for sensitive permission escalations during an active
+session), a server-sent event or a separate `/api/auth/identity` endpoint can be introduced
+without changing the refresh contract.
+
+Cross-document effects: none — TASK-IAM-007's existing `200 {}` design is already correct;
+this entry formally closes the open-question framing that was left in that task's AI Prompt.
 
 ### Deferred Capabilities (not in Phase 1 scope)
 

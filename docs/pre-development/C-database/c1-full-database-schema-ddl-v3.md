@@ -15,18 +15,18 @@
 - [L91–L166] Part 1 — Conventions — Cross-schema FK rules, PK/city_id/timestamp/soft-delete standards, and lifecycle enforcement.
 - [L167–L229] Part 2 — Extensions, Roles, and Schemas — pgcrypto extension, trigger function, schema creation, and database roles.
 - [L230–L468] Part 3 — Schema `iam` — Users, credentials, sessions, refresh tokens, permissions, assignments, and MFA records.
-- [L469–L678] Part 4 — Schema `organization` — Offices, positions, employees, assignments, delegation grants, and committees.
-- [L679–L1171] Part 5 — Schema `documents` — DDL for document types, numbers ledger, versions, attachments, signatures, sponsorships, and reviews.
-- [L1172–L1509] Part 6 — Schema `workflow` — DDL for workflow definitions, steps, transitions, events, sessions, attendances, and business order.
-- [L1510–L1588] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
-- [L1589–L1708] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
-- [L1709–L1779] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
-- [L1780–L1825] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
-- [L1826–L1849] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
-- [L1850–L1964] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
-- [L1965–L1976] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
-- [L1977–L1997] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
-- [L1998–L2012] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
+- [L469–L695] Part 4 — Schema `organization` — Offices, positions, employees, assignments, delegation grants, and committees.
+- [L696–L1188] Part 5 — Schema `documents` — DDL for document types, numbers ledger, versions, attachments, signatures, sponsorships, and reviews.
+- [L1189–L1526] Part 6 — Schema `workflow` — DDL for workflow definitions, steps, transitions, events, sessions, attendances, and business order.
+- [L1527–L1605] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
+- [L1606–L1725] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
+- [L1726–L1796] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
+- [L1797–L1842] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
+- [L1843–L1866] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
+- [L1867–L1981] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
+- [L1982–L1993] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
+- [L1994–L2014] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
+- [L2015–L2029] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
 
 ---
 
@@ -500,15 +500,20 @@ CREATE TRIGGER trg_offices_set_updated_at
 
 CREATE INDEX idx_offices_parent ON organization.offices(parent_office_id);
 
--- authority_level is left unconstrained TEXT: D4 declares Position.level as
--- AuthorityLevel but gives no value list in any source. [Gap-fill]
+-- authority_level: TEXT NOT NULL CHECK — four-value enum, matches E3 §3
+-- AuthorityLevelSchema exactly. [RESOLVED — ADR-DB-002, 2026-06-26]
+-- The earlier comment here ("D4 gives no value list in any source") was
+-- incorrect: E3 defines AuthorityLevelSchema as z.enum(["executive",
+-- "managerial", "staff", "support"]) and uses it as a required, non-nullable
+-- field in both PositionSelectSchema and CreatePositionInputSchema.
+-- Uses the project's documented TEXT CHECK strategy (C2 schema notes).
 CREATE TABLE organization.positions (
     id              UUID        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     city_id         UUID        NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
     office_id       UUID        NOT NULL REFERENCES organization.offices(id),
     title           TEXT        NOT NULL,
     code            TEXT        NOT NULL,
-    authority_level TEXT        NULL,
+    authority_level TEXT        NOT NULL CHECK (authority_level IN ('executive', 'managerial', 'staff', 'support')),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at      TIMESTAMPTZ NULL,
@@ -554,6 +559,12 @@ CREATE UNIQUE INDEX uq_employees_user_id
     ON organization.employees(user_id)
     WHERE user_id IS NOT NULL AND deleted_at IS NULL;
 
+-- [RESOLVED — ADR-AUTH-011, 2026-06-26]: is_primary flag added so
+-- getPrimaryOfficeForUser has an unambiguous tie-break when an employee
+-- holds more than one simultaneous active assignment. The partial unique
+-- index is a DB-level safety net; the application layer (ORG module
+-- service) is responsible for maintaining the one-primary-per-employee
+-- invariant atomically (unset others → set new) within a transaction.
 CREATE TABLE organization.assignments (
     id          UUID        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     city_id     UUID        NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
@@ -563,6 +574,7 @@ CREATE TABLE organization.assignments (
     start_date  DATE        NOT NULL,
     end_date    DATE        NULL,
     is_active   BOOLEAN     NOT NULL DEFAULT true,
+    is_primary  BOOLEAN     NOT NULL DEFAULT false,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at  TIMESTAMPTZ NULL,
@@ -577,6 +589,11 @@ CREATE TRIGGER trg_assignments_set_updated_at
 CREATE INDEX idx_assignments_employee ON organization.assignments(employee_id);
 CREATE INDEX idx_assignments_position ON organization.assignments(position_id);
 CREATE INDEX idx_assignments_office   ON organization.assignments(office_id);
+
+-- Partial unique index: at most one primary active assignment per employee.
+CREATE UNIQUE INDEX uq_assignments_one_primary_per_employee
+    ON organization.assignments (employee_id)
+    WHERE is_primary = true AND is_active = true AND deleted_at IS NULL;
 
 -- [Decision 3.9] end_date NOT NULL: open-ended delegations are prohibited.
 -- A scheduled pgboss expiry job fires at end_date (B2 L312: "delegation.expired
@@ -1999,11 +2016,11 @@ The `search_meta`, `portal`, and `reporting` schemas were created in Part 2. No 
 
 ### Resolved
 
-| Item | Resolution | Reference |
-|---|---|---|
-| `panlalawigan_review_log` entity classification | **Formalized as an internal tracking/log entity, not a public document type.** `documents.number_series.document_type_id = NULL` for this series is confirmed permanent, not provisional. `documents.panlalawigan_reviews` remains the authoritative table in the `documents` schema. Control numbers from this series do not appear in the standard document catalog, search, or listings — only as a field on the parent document. No DDL change required. | `ADR-DB-001` (`c1-full-database-schema-ddl-v3-adrs/ADR-DB-001-panlalawigan-review-log-classification.md`) |
-| Migration-owning role name (`batac_migrate`) | **Confirmed as-is, with LOGIN correction.** Already defined and used consistently in this document (§3.16, DB roles list, `fn_get_next_sequence_value` `OWNER TO`). C5's addendum cited this document's §3.16 as defining `batac_migrate` as NOLOGIN, but `DATABASE_URL_MIGRATE` (L1) is a direct connection string, which requires a LOGIN role. **§3.16 updated (2026-06): `batac_migrate` is now `LOGIN`.** Password is not set in DDL; it is applied post-creation by `TASK-INFRA-005` via `ALTER ROLE batac_migrate PASSWORD '<from-DB_MIGRATE_PASSWORD-secret>'`. The C5 addendum's NOLOGIN reference is superseded by this correction. | `a1-tasks/infra.md` Conflict #1 (resolved); C5 addendum — "Migration-Owning Role Name" |
-| `RecordType` enum values | **Six-value enum defined**, ratifying the categories already present in Part 11.7 of the Consolidated Reference (Permanent-Legislative, Financial, Personnel, Correspondence, Internal Memo, Draft), plus a `document_type` → `RecordType` mapping. `records.records.record_type` should be updated from unconstrained `TEXT` to a `CHECK` constraint or native enum over the six values (see DDL change below). **Retention-period figures behind each category remain `[Unverified]` pending NAP/COA/DILG confirmation — this ADR resolves the enum only, not the legal retention durations.** | `ADR-WFL-005` (`c1-full-database-schema-ddl-v3-adrs/ADR-WFL-005-recordtype-enum-values.md`) |
+| Item | Resolution | Reference                                                                                              |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `panlalawigan_review_log` entity classification | **Formalized as an internal tracking/log entity, not a public document type.** `documents.number_series.document_type_id = NULL` for this series is confirmed permanent, not provisional. `documents.panlalawigan_reviews` remains the authoritative table in the `documents` schema. Control numbers from this series do not appear in the standard document catalog, search, or listings — only as a field on the parent document. No DDL change required. | `ADR-DB-001` (`c1-full-database-schema-ddl-adrs/ADR-DB-001-panlalawigan-review-log-classification.md`) |
+| Migration-owning role name (`batac_migrate`) | **Confirmed as-is, with LOGIN correction.** Already defined and used consistently in this document (§3.16, DB roles list, `fn_get_next_sequence_value` `OWNER TO`). C5's addendum cited this document's §3.16 as defining `batac_migrate` as NOLOGIN, but `DATABASE_URL_MIGRATE` (L1) is a direct connection string, which requires a LOGIN role. **§3.16 updated (2026-06): `batac_migrate` is now `LOGIN`.** Password is not set in DDL; it is applied post-creation by `TASK-INFRA-005` via `ALTER ROLE batac_migrate PASSWORD '<from-DB_MIGRATE_PASSWORD-secret>'`. The C5 addendum's NOLOGIN reference is superseded by this correction. | `a1-tasks/infra.md` Conflict #1 (resolved); C5 addendum — "Migration-Owning Role Name"                 |
+| `RecordType` enum values | **Six-value enum defined**, ratifying the categories already present in Part 11.7 of the Consolidated Reference (Permanent-Legislative, Financial, Personnel, Correspondence, Internal Memo, Draft), plus a `document_type` → `RecordType` mapping. `records.records.record_type` should be updated from unconstrained `TEXT` to a `CHECK` constraint or native enum over the six values (see DDL change below). **Retention-period figures behind each category remain `[Unverified]` pending NAP/COA/DILG confirmation — this ADR resolves the enum only, not the legal retention durations.** | `ADR-WFL-005` (`c1-full-database-schema-ddl-adrs/ADR-WFL-005-recordtype-enum-values.md`)               |
 
 ### Still Open
 

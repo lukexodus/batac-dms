@@ -94,7 +94,7 @@ its frontend form"), read the union of both rows' documents, not just one.
 
 If your task isn't in the table above:
 
-1. Check `docs/pre-development/document-list.md` directly — it has the full prerequisite table (IDs
+1. Check `docs/document-list.md` directly — it has the full prerequisite table (IDs
    A1–L5, the complete and final document set) and may cover something this routing
    table hasn't been transcribed for yet.
 2. If it's there, follow its listed prerequisites the same way as Section 2, and
@@ -110,7 +110,7 @@ If your task isn't in the table above:
 
 Some implementation questions are not answerable by any pre-development document —
 not because of an oversight, but because they can only be resolved once code exists
-and runs against real conditions. `docs/pre-development/document-list.md` names several of these
+and runs against real conditions. `docs/document-list.md` names several of these
 explicitly under "What Can Only Be Determined During Development" (e.g. PostgreSQL
 sequence rollover edge cases, Fastify plugin registration order, SSE reconnection
 behavior, pgboss retry/dead-letter behavior for the 10-day/30-day timers, OCR

@@ -11,31 +11,31 @@
 - [L44–L106] 1. Document Overview — Purpose, scope limits, 9 regulatory security objectives, intended audience, and architectural source references.
 - [L107–L203] 2. Security Architecture Overview — Trust zones, internal/external user routing, tRPC context, REST Swagger APIs, PostgreSQL roles, S3 uploads, and on-premise OCR.
 - [L204–L221] 3. Security Principles — Definitions and concrete system applications for 11 security principles including Least Privilege, Zero Trust, and Auditability.
-- [L222–L449] 4. Identity and Access Management (IAM) — Parent section for authentication architecture, authorization tiered models, and functional LGU user role assignments.
-  - [L224–L364] 4.1 Authentication Architecture — Short-lived JWTs, rotating refresh token families, PKCE login flow, session concurrency rules, and Phase 2 MFA hooks.
-  - [L365–L427] 4.2 Authorization Architecture — ABAC engine with RBAC entry point, three authorization tiers, delegation constraints, and office-based access boundaries.
-  - [L428–L449] 4.3 Role Categories — Security profiles and office-scopings for 13 system roles including Mayor, Councilors, Auditor, and IT Admin.
-- [L450–L589] 5. ABAC Security Model — Parent section detailing ABAC attributes (Subject, Resource, Environment), evaluation cascade, and global security gates.
-  - [L452–L469] 5.1 Subject Attributes — Data fields populated in SubjectContext for active sessions, including delegation-expanded offices and roles.
-  - [L470–L483] 5.2 Resource Attributes — Database attributes fetched at request time to evaluate document, version, workflow, delegation, and audit permissions.
-  - [L484–L491] 5.3 Environment Attributes — Request IP address, timestamp, and transaction-level PostgreSQL session variables used for RLS policies.
-  - [L492–L544] 5.4 Evaluation Cascade — Diagrammed 8-step deny-first authorization workflow checking city, IT Admin, Platform Admin, RBAC, and office states.
-  - [L545–L589] 5.5 Global Security Gates — Five non-configurable application gates enforcing tenant isolation, administrator restrictions, classification allowlists, and soft-delete locks.
-- [L590–L636] 6. Data Classification and Information Protection — Four classification levels, document metadata/content access matrix, public portal blurring, and Administrative Case controls.
-- [L637–L695] 7. Document Security Architecture — Lifecycle security locks, version history controls, two-stage numbering fraud prevention, and tracking QR code rules.
-- [L696–L768] 8. Database Security Design — PostgreSQL role separation, Row-Level Security policies, schema integrity constraints, and INSERT-only audit log protection.
-- [L769–L850] 9. Audit Logging and Non-Repudiation — Tamper-evident log architecture with SHA-256 hash chaining, HMAC signing, monthly TSA export, and chain validation.
-- [L851–L911] 10. File Storage Security — S3-compatible architecture, upload file restrictions, on-premise OCR isolation, server-proxied downloads, and backup encryption.
-- [L912–L988] 11. API Security Design — tRPC/REST context validation, shared Zod input schemas, rate limiting with progressive delay, and security headers.
-- [L989–L1051] 12. Infrastructure Security — Stateless container deployments, TLS 1.2+ requirements, secret environment variables, and RTO/RPO backup parameters.
-- [L1052–L1100] 13. Monitoring and Incident Response — Pino structured logging, Sentry PII scrubbing, intrusion detection signals, and threat-specific incident response procedures.
-- [L1101–L1153] 14. Privacy and Regulatory Compliance — Data Privacy Act constraints, ARTA SLA compliance during outages, Local Government Code mandated steps, and COA retention.
-- [L1154–L1236] 15. Threat Model — Asset catalog, threat actor definitions, attack surfaces, 18 threat scenarios with controls, and residual risk matrix.
-- [L1237–L1335] 16. Security Invariants — Sixteen non-negotiable architectural invariants enforced across application code, trigger rules, and database schema constraints.
-- [L1336–L1362] 17. Security Architecture Decisions — Confirmation status, technical rationales, and security impacts for 20 core security architecture decisions.
-- [L1363–L1401] 18. Security Decisions — Resolution Status — Resolution logs for 15 previous security decisions and follow-up paths for 4 open items.
-- [L1402–L1413] Appendix A: Regulatory Reference Summary — Cross-reference table mapping Data Privacy, ARTA, Local Government Code, and COA obligations to platform controls.
-- [L1414–L1456] Appendix B: Security Controls Quick Reference — Quick-reference matrix indexing all security controls, categories, and their specific architectural enforcement points.
+- [L222–L450] 4. Identity and Access Management (IAM) — Parent section for authentication architecture, authorization tiered models, and functional LGU user role assignments.
+  - [L224–L365] 4.1 Authentication Architecture — Short-lived JWTs, rotating refresh token families, PKCE login flow, session concurrency rules, and Phase 2 MFA hooks.
+  - [L366–L428] 4.2 Authorization Architecture — ABAC engine with RBAC entry point, three authorization tiers, delegation constraints, and office-based access boundaries.
+  - [L429–L450] 4.3 Role Categories — Security profiles and office-scopings for 13 system roles including Mayor, Councilors, Auditor, and IT Admin.
+- [L451–L591] 5. ABAC Security Model — Parent section detailing ABAC attributes (Subject, Resource, Environment), evaluation cascade, and global security gates.
+  - [L453–L471] 5.1 Subject Attributes — Data fields populated in SubjectContext for active sessions, including delegation-expanded offices and roles.
+  - [L472–L485] 5.2 Resource Attributes — Database attributes fetched at request time to evaluate document, version, workflow, delegation, and audit permissions.
+  - [L486–L493] 5.3 Environment Attributes — Request IP address, timestamp, and transaction-level PostgreSQL session variables used for RLS policies.
+  - [L494–L546] 5.4 Evaluation Cascade — Diagrammed 8-step deny-first authorization workflow checking city, IT Admin, Platform Admin, RBAC, and office states.
+  - [L547–L591] 5.5 Global Security Gates — Five non-configurable application gates enforcing tenant isolation, administrator restrictions, classification allowlists, and soft-delete locks.
+- [L592–L638] 6. Data Classification and Information Protection — Four classification levels, document metadata/content access matrix, public portal blurring, and Administrative Case controls.
+- [L639–L697] 7. Document Security Architecture — Lifecycle security locks, version history controls, two-stage numbering fraud prevention, and tracking QR code rules.
+- [L698–L770] 8. Database Security Design — PostgreSQL role separation, Row-Level Security policies, schema integrity constraints, and INSERT-only audit log protection.
+- [L771–L852] 9. Audit Logging and Non-Repudiation — Tamper-evident log architecture with SHA-256 hash chaining, HMAC signing, monthly TSA export, and chain validation.
+- [L853–L913] 10. File Storage Security — S3-compatible architecture, upload file restrictions, on-premise OCR isolation, server-proxied downloads, and backup encryption.
+- [L914–L990] 11. API Security Design — tRPC/REST context validation, shared Zod input schemas, rate limiting with progressive delay, and security headers.
+- [L991–L1053] 12. Infrastructure Security — Stateless container deployments, TLS 1.2+ requirements, secret environment variables, and RTO/RPO backup parameters.
+- [L1054–L1102] 13. Monitoring and Incident Response — Pino structured logging, Sentry PII scrubbing, intrusion detection signals, and threat-specific incident response procedures.
+- [L1103–L1155] 14. Privacy and Regulatory Compliance — Data Privacy Act constraints, ARTA SLA compliance during outages, Local Government Code mandated steps, and COA retention.
+- [L1156–L1238] 15. Threat Model — Asset catalog, threat actor definitions, attack surfaces, 18 threat scenarios with controls, and residual risk matrix.
+- [L1239–L1337] 16. Security Invariants — Sixteen non-negotiable architectural invariants enforced across application code, trigger rules, and database schema constraints.
+- [L1338–L1364] 17. Security Architecture Decisions — Confirmation status, technical rationales, and security impacts for 20 core security architecture decisions.
+- [L1365–L1405] 18. Security Decisions — Resolution Status — Resolution logs for 15 previous security decisions and follow-up paths for 4 open items.
+- [L1406–L1417] Appendix A: Regulatory Reference Summary — Cross-reference table mapping Data Privacy, ARTA, Local Government Code, and COA obligations to platform controls.
+- [L1418–L1460] Appendix B: Security Controls Quick Reference — Quick-reference matrix indexing all security controls, categories, and their specific architectural enforcement points.
 
 ---
 
@@ -253,9 +253,10 @@ The JWT payload carries two categories of claims. [CONFIRMED — B5 §1.1]
 | Claim | Type | Purpose |
 |---|---|---|
 | `uid` | UUID | Internal `iam.users.id` — authoritative identity reference |
-| `oid` | UUID | Primary office from `organization.assignments` — used for office scoping |
+| `oid` | UUID \| null | Primary office from `organization.assignments` — used for office scoping. **`null`able [RESOLVED — 2026-06-25]:** not every user resolves to an active office assignment (every Phase-1 login, before the ORG module exists; also any future IAM-only user with no employee record). An empty-string placeholder would throw on the RLS layer's `::uuid` cast — see `docs/pre-development/A-project-planning/a1-tasks/iam.md` Module Summary. |
 | `rid` | string[] | Active role IDs — RBAC entry point |
 | `perm` | string[] | Resolved permission codes (e.g., `documents:approve`) |
+| `cid` | string[] | Active committee membership UUIDs from `organization.committee_memberships`; `[]` if none. `[Added 2026-06-25 — this row was missing here even though I1 introduced the claim as D-ABAC-06 before this table's last edit; see B5 §1.1, same fix.]` |
 | `dg` | UUID \| null | Active delegation grant UUID; null if no active delegation |
 | `city` | UUID | Tenant isolation identifier (Batac City UUID in Phase 1) |
 | `sid` | UUID | Session UUID from `iam.sessions` — used for concurrent session enforcement |
@@ -456,15 +457,16 @@ All policies receive a `SubjectContext` object populated by the `verifyAccessTok
 | Attribute | Type | Description |
 |---|---|---|
 | `subject.user_id` | UUID | Internal `iam.users.id` |
-| `subject.office_id` | UUID | Primary office from JWT `oid` claim |
+| `subject.office_id` | UUID \| null | Primary office from JWT `oid` claim. `[RESOLVED — 2026-06-25, nullable; see §4.1.2 above]` |
 | `subject.roles` | string[] | Active role codes from JWT `rid` claim |
 | `subject.permissions` | string[] | Resolved permission codes from JWT `perm` claim |
+| `subject.committee_ids` | UUID[] | Committee memberships from JWT `cid` claim. `[Added 2026-06-25 — missing from this table; see §4.1.2 above]` |
 | `subject.city_id` | UUID | Tenant identifier — always Batac City UUID in Phase 1 |
 | `subject.session_id` | UUID | Active session identifier |
 | `subject.is_ita` | boolean | IT Administrator flag — triggers Gate 2 |
 | `subject.is_pa` | boolean | Platform Administrator flag — triggers Gate 3 |
 | `subject.delegation_grant_id` | UUID \| null | Active delegation grant; null if none |
-| `subject.effective_office_ids` | UUID[] | Primary office + delegation-extended offices |
+| `subject.effective_office_ids` | UUID[] | Primary office + delegation-extended offices. Never contains `null` — see TASK-IAM-005 Hook 2 in iam.md, which filters a `null` primary office out of this array rather than letting it flow in as a literal element. |
 | `subject.effective_roles` | string[] | Base roles + delegation-extended roles |
 
 ### 5.2 Resource Attributes
@@ -1362,7 +1364,7 @@ The following invariants are non-negotiable. They are protected by design and ar
 
 ## 18. Security Decisions — Resolution Status
 
-**Status as of this revision: 14 of 16 items resolved outright; 1 (D-AUTH-08) remains fully open; 3 otherwise-resolved items (D-AUTH-02, D-AUTH-05/D-ABAC-01, D-AUTH-07) carry a narrower follow-up that does not block the IAM module's first migration.** Resolutions are recorded in the relevant body sections above and in the corresponding ADRs in B5 and I1, cross-referenced below. The fully-open item and the three follow-ups are separated into Section 18.2 (Remaining Open Items) rather than left mixed with the resolved items.
+**Status as of this revision: 15 of 17 items resolved outright; 1 (D-AUTH-08) remains fully open; 3 otherwise-resolved items (D-AUTH-02, D-AUTH-05/D-ABAC-01, D-AUTH-07) carry a narrower follow-up that does not block the IAM module's first migration.** (17 = 10 original D-AUTH items + 6 D-ABAC items + D-AUTH-11 added and resolved 2026-06-26.) Resolutions are recorded in the relevant body sections above and in the corresponding ADRs in B5 and I1, cross-referenced below. The fully-open item and the three follow-ups are separated into Section 18.2 (Remaining Open Items) rather than left mixed with the resolved items.
 
 ### 18.1 Resolved Decisions
 
@@ -1383,12 +1385,13 @@ The following invariants are non-negotiable. They are protected by design and ar
 | 13 | D-ABAC-04 | **Denormalized `resource_office_id UUID NULL`** column on `audit.events`, populated by the audit service at write time (not a live join), nullable for resource types with no single owning office. | I1 §8.3 |
 | 14 | D-ABAC-05 | **`is_final_approval_step BOOLEAN`** declared on `workflow.steps` by the definition author, validated at publish time rather than computed at runtime. | I1 §6.3; I1 §15 (Invariant #13) |
 | 15 | D-ABAC-06 | **JWT-cached.** `subject.committee_ids` added as claim `cid`, following the same token-issue-time / refresh-gated staleness model already used for `roles` and `permissions`. | I1 §1; I1 §§3.2, 6.6, 10.6 |
+| 16 | D-AUTH-11 | **Explicit `is_primary BOOLEAN NOT NULL DEFAULT false` column** added to `organization.assignments`. Application layer maintains the one-primary-per-employee invariant atomically; partial unique index `uq_assignments_one_primary_per_employee` provides DB-level safety net. `getPrimaryOfficeForUser` queries `WHERE is_primary = true AND is_active = true AND deleted_at IS NULL`. | C1 Part 4; E3 §3 (`AssignmentSelectSchema`); B2 Module 2 (`getPrimaryOfficeForUser`); [B5 ADR-AUTH-011](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-011-organization-assignments-primary-flag.md) |
 
 ---
 
 ### 18.2 Remaining Open Items
 
-One item is entirely unresolved; three otherwise-resolved items each carry a narrower follow-up. None of the four block the IAM module's first migration — the reason is stated explicitly for each so this is not mistaken for a blanket deferral.
+One item is entirely unresolved; three otherwise-resolved items each carry a narrower follow-up. The fifth item (office-assignment uniqueness, added 2026-06-25) has been resolved and moved to Section 18.1 as D-AUTH-11 (2026-06-26; ADR-AUTH-011). None of the four remaining items block the IAM module's first migration — the reason is stated explicitly for each so this is not mistaken for a blanket deferral.
 
 | Item | What's Open | Why It Doesn't Block the IAM Migration | Required Before |
 |---|---|---|---|
@@ -1396,6 +1399,8 @@ One item is entirely unresolved; three otherwise-resolved items each carry a nar
 | D-AUTH-05 / D-ABAC-01 follow-up | "Acting Mayor" and "OIC (any)" read as role *categories*, not confirmed literal `iam.roles.name` rows. "OIC (any)" may need to be several office-specific seeded roles rather than one literal row, or a different enforcement mechanism entirely. Additionally, delegated acting-capacity via `organization.delegation_grants` is not covered by `trg_enforce_platform_admin_exclusion` (which operates on `iam.role_assignments` only) — whether this is intentionally out of scope (relying on I1 §16.2's statement that delegation cannot grant Platform Administrator operational access) or requires a delegation-aware enforcement path has not been decided. | The trigger logic operates on `type_code`, not on specific role names — the trigger and migration can be written now. This only affects literal seed `INSERT` statements and delegation enforcement design, not the schema or trigger function. | IAM seed data; before delegation grants for Mayor-equivalent authority go live in production |
 | D-AUTH-07 follow-up | The administrator alert threshold for repeated account-level login failures (Section 11.4) has no value. No production traffic data exists to calibrate a number that distinguishes normal mistyped-password volume from an attack pattern. | The counter, audit logging, and progressive-delay mechanism do not require the threshold to be set to be built — it is a comparison value addable via configuration after launch using observed data. | Should be set using real post-launch data, or provisionally set conservatively and tuned down; not a schema dependency |
 | D-AUTH-08 | **Entirely unresolved.** External RFC 3161 Time-Stamping Authority (TSA) provider for the monthly audit log export. This is a vendor/procurement decision requiring current research into provider offerings, pricing, and any government-procurement constraints applicable to Batac City; it is not an architectural design choice and was not researched as part of this revision. The audit export mechanism and schedule are defined independently of which TSA is used. | The provider is a configuration/integration detail at export time, not a schema or application-logic dependency. | Pre-production |
+| Office-assignment uniqueness `[Resolved — 2026-06-26, ADR-AUTH-011; moved to §18.1 row 16]` | **Resolved.** `is_primary BOOLEAN NOT NULL DEFAULT false` added to `organization.assignments`; partial unique index `uq_assignments_one_primary_per_employee`; `getPrimaryOfficeForUser` queries `WHERE is_primary = true AND is_active = true AND deleted_at IS NULL`. See B5 §11 D-AUTH-11 and ADR-AUTH-011 for the full decision record. | Resolved before ORG module Step 2 pass. | Completed 2026-06-26 |
+
 
 ---
 

@@ -5,49 +5,49 @@
 ## Table of Contents
 
 - [L54–L91] Document Notes — Rules for confirmed/inferred content labels and lists of covered and out-of-scope security topics.
-- [L92–L227] 1. Token Architecture
-  - [L94–L152] 1.1 Access Token (JWT) — Specifications for RS256 signing, TTL configuration, cookie storage, registered/private claims, and immediate revocation rules.
-  - [L153–L227] 1.2 Refresh Token — Requirements for opaque string format, SHA-256 server-side hashing, family-wide reuse-detection flow, and table schema.
-- [L228–L265] 2. Cookie Configuration — HttpOnly, Secure, and SameSite attributes, scoping access/refresh tokens, expiration behavior, and development environment config.
-- [L266–L310] 3. PKCE for the SPA — Client-side code verifier/challenge generation flow, token exchange protocol, and memory-only storage rules.
-- [L311–L425] 4. Session Management
-  - [L315–L326] 4.1 Session Lifecycle — Core lifecycle events and rules for inactivity, concurrent sessions, forced logout, and shared workstation locking.
-  - [L327–L354] 4.2 Session Table Schema [Inference — not confirmed] — PostgreSQL schema for iam.sessions with partial unique index to enforce single active session.
-  - [L355–L376] 4.3 Concurrent Session Enforcement — Step-by-step logic for terminating existing sessions and notifying users during concurrent login attempts.
-  - [L377–L383] 4.4 Inactivity Detection — Server-side route handler hook checks, UI-driven 25-minute warnings, and keepalive logic.
-  - [L384–L404] 4.5 Forced Logout [Inference for implementation; rule is CONFIRMED] — Step-by-step API endpoint execution sequence, role requirements, and mandatory audit log reasoning.
-  - [L405–L416] 4.6 Shared Workstation Lock [Inference for implementation] — Lock screen suspension flow, credential checks, and silent token refresh mechanics during unlock.
-  - [L417–L425] 4.7 Administration Transition Sessions [CONFIRMED] — Graceful expiration rules, soft-deletion handling, and fallback step assignment during mayoral transitions.
-- [L426–L646] 5. Authorization Model
-  - [L428–L439] 5.1 ABAC with RBAC as Entry Point — Rationale for combining ABAC and RBAC to support office-scoped rules, and binary evaluation outcome.
-  - [L440–L451] 5.2 Authorization Tiers — Definitions and examples of system-level, platform-level, and instance-level access tiers.
-  - [L452–L473] 5.3 Resource Types — Reference table mapping core resource types to their key attributes used in authorization policies.
-  - [L474–L503] 5.4 Actions — List of operational actions defining permissions for LGU workflows, document management, and administration.
-  - [L504–L568] 5.5 Policy Evaluation Order — Sequence of the deny-first cascade checking tenant isolation, IT admin limits, RBAC, and ABAC scopes.
-  - [L569–L604] 5.6 Office Scoping — Office-scoped restriction mechanisms, cross-office read permissions, and multi-referral step logic.
-  - [L605–L646] 5.7 Delegation Scope in ABAC — Evaluation-time scope expansion, required JSONB schema structure, and single-active-delegation database index.
-- [L647–L831] 6. Row-Level Security
-  - [L649–L663] 6.1 Principle — Dual-layer defense philosophy using PostgreSQL RLS as a database-level backstop behind application-level ABAC.
-  - [L664–L675] 6.2 Database Roles — Purpose and key privileges for specific database accounts including runtime, audit, and IT admin.
-  - [L676–L690] 6.3 Session Context Variables — Transaction-scoped PostgreSQL session variables set by Fastify middleware to inform RLS policies.
-  - [L691–L739] 6.4 Tables with RLS Enabled — Mapping of tables in all five schemas to their specific RLS policy intent.
-  - [L740–L831] 6.5 Example RLS Policy Patterns [Inference] — SQL patterns for city isolation, office scope, IT admin block, and has_cross_office_read_grant logic.
-- [L832–L900] 7. IT Admin Data Isolation — Invariant blocking IT Admin access to Confidential/Restricted document content via three-layer enforcement.
-- [L901–L1009] 8. Platform Administrator Role Exclusion Invariant
-  - [L905–L908] 8.1 Rule — Prohibition of combining the Platform Administrator role with any operational document-processing role on one account.
-  - [L909–L912] 8.2 Rationale — Fraud prevention reasoning based on avoiding conflicts of interest between rule definitions and operational execution.
-  - [L913–L928] 8.3 Definition of Document-Processing Roles [Resolved for seeding — ADR/D-AUTH-05; see flag below] — Incompatible role categories, compatible technical roles, and seed data decisions.
-  - [L929–L1009] 8.4 Enforcement — TypeScript application-level validations and database-level trigger code to block illegal role combinations.
-- [L1010–L1083] 9. Future SSO Migration Path — Design choices for OAuth/OIDC compatibility, external identity mapping column additions, and token exchange flow.
-- [L1084–L1239] 10. Implementation Notes
-  - [L1086–L1120] 10.1 Fastify Plugin Structure [Inference] — Verification hooks, database session variable setup, and public route configurations.
-  - [L1121–L1148] 10.2 tRPC Context [Inference] — Definition of AuthContext and Context TypeScript types used to supply information to ABAC evaluators.
-  - [L1149–L1175] 10.3 Audit Events for Authentication and Authorization Actions — Payload fields for 17 auditable events covering logins, logouts, role changes, and ABAC denials.
-  - [L1176–L1191] 10.4 Rate Limiting — IP-based and session-based request limits per minute/hour for login, logout, and password resets.
-  - [L1192–L1212] 10.4.1 Account-Level Lockout Policy [Resolved — [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md); one value still open] — Progressive delays (up to 15 minutes) for repeated login failures instead of hard lockout.
-  - [L1213–L1239] 10.5 MFA Readiness: Phase 1 Design, Phase 2 Activation — Phase 1 flow structure supporting environment-gated TOTP validation in Phase 2.
-- [L1240–L1258] 11. Deferred Decisions (Must Resolve Before IAM Module Migration) — Summary of resolutions for the 10 deferred decisions; open follow-ups are superseded by Section 12.
-- [L1259–L1272] 12. Remaining Open Items — Four unresolved or follow-up items not blocking IAM migration, detailing what is open and when resolution is required.
+- [L92–L229] 1. Token Architecture
+  - [L94–L154] 1.1 Access Token (JWT) — Specifications for RS256 signing, TTL configuration, cookie storage, registered/private claims, and immediate revocation rules. `[+2 lines, 2026-06-25 — added the cid claim row and an oid-nullable rationale note; see Module Summary cross-reference in iam.md]`
+  - [L155–L229] 1.2 Refresh Token — Requirements for opaque string format, SHA-256 server-side hashing, family-wide reuse-detection flow, and table schema.
+- [L230–L267] 2. Cookie Configuration — HttpOnly, Secure, and SameSite attributes, scoping access/refresh tokens, expiration behavior, and development environment config.
+- [L268–L312] 3. PKCE for the SPA — Client-side code verifier/challenge generation flow, token exchange protocol, and memory-only storage rules.
+- [L313–L427] 4. Session Management
+  - [L317–L328] 4.1 Session Lifecycle — Core lifecycle events and rules for inactivity, concurrent sessions, forced logout, and shared workstation locking.
+  - [L329–L356] 4.2 Session Table Schema [Inference — not confirmed] — PostgreSQL schema for iam.sessions with partial unique index to enforce single active session.
+  - [L357–L378] 4.3 Concurrent Session Enforcement — Step-by-step logic for terminating existing sessions and notifying users during concurrent login attempts.
+  - [L379–L385] 4.4 Inactivity Detection — Server-side route handler hook checks, UI-driven 25-minute warnings, and keepalive logic.
+  - [L386–L406] 4.5 Forced Logout [Inference for implementation; rule is CONFIRMED] — Step-by-step API endpoint execution sequence, role requirements, and mandatory audit log reasoning.
+  - [L407–L418] 4.6 Shared Workstation Lock [Inference for implementation] — Lock screen suspension flow, credential checks, and silent token refresh mechanics during unlock.
+  - [L419–L427] 4.7 Administration Transition Sessions [CONFIRMED] — Graceful expiration rules, soft-deletion handling, and fallback step assignment during mayoral transitions.
+- [L428–L661] 5. Authorization Model
+  - [L430–L441] 5.1 ABAC with RBAC as Entry Point — Rationale for combining ABAC and RBAC to support office-scoped rules, and binary evaluation outcome.
+  - [L442–L453] 5.2 Authorization Tiers — Definitions and examples of system-level, platform-level, and instance-level access tiers.
+  - [L454–L475] 5.3 Resource Types — Reference table mapping core resource types to their key attributes used in authorization policies.
+  - [L476–L505] 5.4 Actions — List of operational actions defining permissions for LGU workflows, document management, and administration.
+  - [L506–L570] 5.5 Policy Evaluation Order — Sequence of the deny-first cascade checking tenant isolation, IT admin limits, RBAC, and ABAC scopes.
+  - [L571–L613] 5.6 Office Scoping — Office-scoped restriction mechanisms, cross-office read permissions, and multi-referral step logic. `[+9 lines, 2026-06-25 — flagged the unenforced "one active office assignment" assumption as an open question; not resolved here, see iam.md Module Summary and ADR-UI-012]`
+  - [L614–L661] 5.7 Delegation Scope in ABAC — Evaluation-time scope expansion, required JSONB schema structure, and single-active-delegation database index. `[2026-06-25 — noted the delegation-grant lookup's access mechanism is now resolved via Organization's Published API, not direct SQL]`
+- [L662–L846] 6. Row-Level Security
+  - [L664–L678] 6.1 Principle — Dual-layer defense philosophy using PostgreSQL RLS as a database-level backstop behind application-level ABAC.
+  - [L679–L690] 6.2 Database Roles — Purpose and key privileges for specific database accounts including runtime, audit, and IT admin.
+  - [L691–L705] 6.3 Session Context Variables — Transaction-scoped PostgreSQL session variables set by Fastify middleware to inform RLS policies.
+  - [L706–L754] 6.4 Tables with RLS Enabled — Mapping of tables in all five schemas to their specific RLS policy intent.
+  - [L755–L846] 6.5 Example RLS Policy Patterns [Inference] — SQL patterns for city isolation, office scope, IT admin block, and has_cross_office_read_grant logic.
+- [L847–L915] 7. IT Admin Data Isolation — Invariant blocking IT Admin access to Confidential/Restricted document content via three-layer enforcement.
+- [L916–L1024] 8. Platform Administrator Role Exclusion Invariant
+  - [L920–L923] 8.1 Rule — Prohibition of combining the Platform Administrator role with any operational document-processing role on one account.
+  - [L924–L927] 8.2 Rationale — Fraud prevention reasoning based on avoiding conflicts of interest between rule definitions and operational execution.
+  - [L928–L943] 8.3 Definition of Document-Processing Roles [Resolved for seeding — ADR/D-AUTH-05; see flag below] — Incompatible role categories, compatible technical roles, and seed data decisions.
+  - [L944–L1024] 8.4 Enforcement — TypeScript application-level validations and database-level trigger code to block illegal role combinations.
+- [L1025–L1098] 9. Future SSO Migration Path — Design choices for OAuth/OIDC compatibility, external identity mapping column additions, and token exchange flow.
+- [L1099–L1254] 10. Implementation Notes
+  - [L1101–L1135] 10.1 Fastify Plugin Structure [Inference] — Verification hooks, database session variable setup, and public route configurations.
+  - [L1136–L1163] 10.2 tRPC Context [Inference] — Definition of AuthContext and Context TypeScript types used to supply information to ABAC evaluators.
+  - [L1164–L1190] 10.3 Audit Events for Authentication and Authorization Actions — Payload fields for 17 auditable events covering logins, logouts, role changes, and ABAC denials.
+  - [L1191–L1206] 10.4 Rate Limiting — IP-based and session-based request limits per minute/hour for login, logout, and password resets.
+  - [L1207–L1227] 10.4.1 Account-Level Lockout Policy [Resolved — [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md); one value still open] — Progressive delays (up to 15 minutes) for repeated login failures instead of hard lockout.
+  - [L1228–L1254] 10.5 MFA Readiness: Phase 1 Design, Phase 2 Activation — Phase 1 flow structure supporting environment-gated TOTP validation in Phase 2.
+- [L1255–L1275] 11. Deferred Decisions (Must Resolve Before IAM Module Migration) — Summary of resolutions for all tracked decisions including D-AUTH-11 (added and resolved 2026-06-26); open follow-ups are superseded by Section 12.
+- [L1276–L1291] 12. Remaining Open Items — Three follow-up items and one fully-open item not blocking IAM migration; the fifth item (office-assignment-uniqueness) was resolved on 2026-06-26 and moved to Section 11 as D-AUTH-11.
 
 ---
 
@@ -125,9 +125,10 @@ This document does **not** cover:
 ```json
 {
   "uid":     "<user-uuid>",
-  "oid":     "<primary-office-uuid>",
+  "oid":     "<primary-office-uuid> | null",
   "rid":     ["<role-uuid-1>", "<role-uuid-2>"],
   "perm":    ["documents:read", "documents:approve", "workflow:advance"],
+  "cid":     ["<committee-uuid-1>", "..."],
   "dg":      "<delegation-grant-uuid | null>",
   "city":    "<batac-city-uuid>",
   "sid":     "<session-uuid>",
@@ -139,9 +140,10 @@ This document does **not** cover:
 |Claim|Purpose|Notes|
 |---|---|---|
 |`uid`|User identity for downstream lookups|Redundant with `sub` but avoids casting ambiguity|
-|`oid`|Primary office assignment for office scoping in ABAC|The office this user belongs to in `organization.assignments`|
+|`oid`|Primary office assignment for office scoping in ABAC|The office this user belongs to in `organization.assignments`. **`null`able [RESOLVED — see `docs/pre-development/A-project-planning/a1-tasks/iam.md` Module Summary, "oid typed and placeholdered as a non-nullable empty string"]:** not every `iam.users` row resolves to an `organization.employees` row with an active `organization.assignments` row — `organization.employees.user_id` is nullable by design (C1 Part 4) — and an empty string is not a valid UUID for any RLS policy that casts this claim `::uuid` (§6.3 below). Consistent with frontend ADR-UI-012's `officeScopeId: z.string().uuid().nullable()`.|
 |`rid`|Role IDs for RBAC entry-point check|Array; populated at token issue from active role assignments|
 |`perm`|Resolved permission codes|Derived from `rid` at token issue; format: `<resource>:<action>`|
+|`cid`|Committee membership IDs for SP Member committee-scoped policies|`[RESOLVED — D-ABAC-06, I1 §1]` Added after this table was first written; active `organization.committee_memberships` rows for the subject at token issue, same staleness model as `rid`/`perm`. Empty array if none.|
 |`dg`|Active delegation grant UUID|Null if user is not currently acting under a delegation; populated if active `delegation_grant` exists with `delegated_to_user_id = uid`|
 |`city`|`city_id` for tenant isolation|Always `batac-city-uuid` in Phase 1; multi-tenancy path for future|
 |`sid`|Session UUID from `iam.sessions`|Used for concurrent session enforcement at every authenticated request|
@@ -577,6 +579,13 @@ Step 8 — ALLOW
 1. `organization.offices` defines the hierarchy: SP Secretariat, Mayor's Office, City Hall departments, Barangays.
 2. Every document in `documents.documents` carries `office_id` pointing to the owning office.
 3. Every user has a primary record in `organization.assignments` linking them to one office.
+   **[Open question — not resolved here]** `organization.assignments` (C1 Part 4) has no
+   constraint that blocks two simultaneous `is_active = true` rows for the same employee,
+   unlike `organization.delegation_grants`, which explicitly enforces one active row per
+   delegate. This statement's "one office" is therefore a design assumption, not a DB-enforced
+   invariant. See `docs/pre-development/A-project-planning/a1-tasks/iam.md` Module Summary,
+   "Open questions for the developer" item 1, and frontend ADR-UI-012's matching "Open
+   Follow-Up" (accepted 2026-06-19) — both flag the same gap independently.
 4. The user's `office_id` is embedded in their JWT access token (`oid` claim) and loaded into tRPC context on each request.
 5. At Step 7a of the policy evaluation cascade, `resource.office_id` is compared against `subject.office_id`.
 
@@ -613,6 +622,12 @@ When a user holds an active delegation grant, the ABAC evaluator expands their e
 1. The JWT `dg` claim carries the active delegation grant UUID (null if none active).
     
 2. If `dg` is not null: the evaluator loads the `organization.delegation_grants` row for that UUID.
+   **[RESOLVED — access mechanism]** via `Organization.getDelegationGrantById()` on the
+   Organization Published API (B2), called through an injected resolver on `IamServiceDeps`
+   defaulting to a Phase-1 no-op — see `iam.md` TASK-IAM-006 "Org-context resolver design."
+   Earlier drafts of the IAM preHandler chain (TASK-IAM-005) read this row via direct
+   cross-schema SQL, which is a Law #2 violation per B2's Enforcement Mechanisms; that has
+   been corrected.
     
 3. **[Resolved — [ADR-AUTH-006](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-006-delegation_grant.scope-field-schema.md)]** The row's `scope` field is a `JSONB` column with the following required shape, mirroring the three dimensions this section already requires the evaluator to check:
     
@@ -1253,6 +1268,7 @@ POST /api/auth/login
 |D-AUTH-08|External TSA provider for audit log timestamps|**Not resolved.** Vendor/procurement selection, out of architectural scope — see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).|Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md)|
 |D-AUTH-09|RLS policy expression for cross-office read grants|**Resolved:** `organization.cross_office_grants` table and `has_cross_office_read_grant()` function defined. Two specific limitations (non-"all" office scoping; `access_level` not yet enforced) remain implementation work, not blocking.|Section 6.5; [ADR-AUTH-009](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-009-rls-policy-expression-for-cross-office-read-grants.md)|
 |D-AUTH-10|Session `locked_at` behavior when access token expires while locked|**Resolved: silent refresh on unlock** using the existing rotating refresh token, gated on existing validity checks only. Step-up authentication for high-risk actions and a separate "max session age" concept were both explicitly considered and **not adopted** in Phase 1.|Section 4.6; [ADR-AUTH-010](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-010-session-locked_at-behavior-when-access-token-expires-while-locked.md)|
+|D-AUTH-11|`organization.assignments` primary-office tie-break: which row counts as "primary" when an employee holds more than one active assignment|**Resolved: explicit `is_primary BOOLEAN NOT NULL DEFAULT false` column** added to `organization.assignments`. Application layer maintains the one-primary-per-employee invariant; a partial unique index (`uq_assignments_one_primary_per_employee`) provides DB-level safety net. `getPrimaryOfficeForUser` queries `WHERE is_primary = true AND is_active = true AND deleted_at IS NULL`.|C1 Part 4; E3 §3 (`AssignmentSelectSchema`); B2 Module 2 (`getPrimaryOfficeForUser`); [ADR-AUTH-011](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-011-organization-assignments-primary-flag.md)|
 
 ---
 
@@ -1266,7 +1282,8 @@ One item is entirely unresolved, and three otherwise-resolved items each carry a
 | D-AUTH-05 follow-up | "Acting Mayor" and "OIC (any)" in Section 8.3's role list read as role _categories_, not confirmed literal `iam.roles.name` rows — "OIC (any)" in particular may need to be several office-specific seeded roles rather than one literal row, or a different enforcement mechanism entirely. This was not resolved, only flagged; the list was used verbatim per explicit instruction. | The trigger logic (Section 8.4) operates on `type_code`, not on the specific role name — so the migration and trigger can be written now. This only affects the literal seed `INSERT` statements for `iam.roles`, not the schema or trigger function. | IAM seed data (i.e., before the seed `INSERT`s are written, not before the migration creating the tables/trigger)                        |
 | D-AUTH-07 follow-up | The administrator alert threshold for repeated account-level login failures (Section 10.4.1) has no value. No production traffic data exists yet to calibrate a number that distinguishes normal mistyped-password volume from an actual attack pattern, and no value should be guessed without that data.                                                                             | The counter, audit logging, and progressive-delay mechanism don't require the threshold to be set to be built — the threshold is a comparison value that can be added or changed via configuration after launch, using observed data.                 | Should be set using real post-launch data, or provisionally set conservatively high and tuned down — either way, not a schema dependency |
 | D-AUTH-08           | External RFC 3161 Time-Stamping Authority (TSA) provider for the monthly audit log export — entirely unresolved. This is a vendor/procurement decision requiring current research into provider offerings, pricing, and any government-procurement constraints; it is not an architectural design choice and was not researched as part of this resolution.                            | The audit export mechanism and schedule are already defined independently of which TSA is used; the provider is a configuration/integration detail at export time, not a schema or application-logic dependency.                                      | Pre-production (per original deadline, unchanged)                                                                                        |
+| Office-assignment uniqueness `[Resolved — 2026-06-26, ADR-AUTH-011]` | **Resolved.** An explicit `is_primary BOOLEAN NOT NULL DEFAULT false` column has been added to `organization.assignments`, with partial unique index `uq_assignments_one_primary_per_employee` as a DB-level safety net. `getPrimaryOfficeForUser` queries `WHERE is_primary = true AND is_active = true AND deleted_at IS NULL`. Moved to Section 11 as D-AUTH-11. | N/A — resolved before the ORG module's Step 2 pass. | Completed 2026-06-26 |
 
 ---
 
-_This document is the pre-development baseline for the authentication and authorization architecture. As of this revision, 8 of the 10 items originally listed in Section 11 are resolved and reflected in the relevant body sections above; the remaining 2 fully open items (D-AUTH-08) plus 3 narrower follow-ups on otherwise-resolved items (D-AUTH-02, D-AUTH-05, D-AUTH-07) are tracked in Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md) above, each with an explicit account of why it does not block the IAM module's first migration. Remaining `[Inference]` items elsewhere in this document still require development team confirmation. This document supersedes any earlier auth/auth notes and is the reference for the IAM module schema design._
+_This document is the pre-development baseline for the authentication and authorization architecture. As of this revision, 9 of the 11 tracked items are resolved and reflected in the relevant body sections above (8 of the original 10 D-AUTH items, plus D-AUTH-11 added and resolved on 2026-06-26); 1 (D-AUTH-08) remains fully open; 3 otherwise-resolved items (D-AUTH-02, D-AUTH-05, D-AUTH-07) carry a narrower follow-up that doesn't block migration. The resolved items and their ADRs are recorded in Section 11; open follow-ups and the fully-open item remain in Section 12. Remaining `[Inference]` items elsewhere in this document still require development team confirmation. This document supersedes any earlier auth/auth notes and is the reference for the IAM module schema design._

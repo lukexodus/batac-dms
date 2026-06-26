@@ -37,25 +37,25 @@ per `A1-AGENTS.md` §8.
 - [L334–L666] TASK-INFRA-002 — Define Fastify server and Vite client environment variable validation schemas using Zod to enforce fail-fast configuration at startup.
 - [L667–L800] TASK-INFRA-003 — Create root .env.example with placeholders and load-docker-secrets.ts helper to load mounted Docker secrets into process.env.
 - [L801–L950] TASK-INFRA-004 — Define local compose.yml with PostgreSQL, MinIO (with bucket auto-init), Mailpit, and profile-gated Meilisearch services.
-- [L951–L1082] TASK-INFRA-005 — Implement database role creation script and privileges establishing least-privilege three-role model with audit schema separation.
-- [L1083–L1196] TASK-INFRA-006 — Implement drizzle-kit config and database migration runner script to apply Drizzle migrations and run post-migrate privilege grants.
-- [L1197–L1299] TASK-INFRA-007 — Create automated migration linter for CI to enforce key constraints on schemas, primary keys, and timestamp columns.
-- [L1300–L1433] TASK-INFRA-008 — Configure multi-stage Fastify server Dockerfile with dumb-init, offline Tesseract language packs, and db migrate/seed entrypoint.
-- [L1434–L1508] TASK-INFRA-009 — Configure multi-stage Vite web SPA Dockerfile to compile static assets into a dedicated volume-seeding container.
-- [L1509–L1636] TASK-INFRA-010 — Configure Nginx template and envsubst entrypoint for HTTPS serving, static asset caching, and SSE-compatible proxying.
-- [L1637–L1698] TASK-INFRA-011 — Implement lightweight, database-independent server liveness health endpoint mapped to the configured HEALTH_CHECK_PATH.
-- [L1699–L1930] TASK-INFRA-012 — Define compose.prod.yml for staging/production with replication, secrets, proxy, and profile-gated MinIO and Meilisearch.
-- [L1931–L2095] TASK-INFRA-013 — Build CI merge-gate workflow for parallel linting, typechecking, unit/integration testing, and Docker builds.
-- [L2096–L2211] TASK-INFRA-014 — Extend CI workflow with post-merge Playwright E2E tests, staging deploy, and manual-approval production deployment gate.
-- [L2212–L2284] TASK-INFRA-015 — Establish version-controlled operational backup/DR runbooks and empty verification logs under /docs/ops/.
-- [L2285–L2382] TASK-INFRA-016 — Configure WAL-G S3 settings, primary database archiving rules, and weekly full base backup cron job.
-- [L2383–L2480] TASK-INFRA-017 — Create cron script for nightly AES256-encrypted database dumps uploaded to S3 with a 30-day retention policy.
-- [L2481–L2577] TASK-INFRA-018 — Define replication lag monitoring script and manual standby-to-primary promotion and failover procedure checklist.
-- [L2578–L2672] TASK-INFRA-019 — Create script and checklist to test latest database dump restoration into a disposable scratch database monthly.
-- [L2673–L2734] TASK-INFRA-020 — Establish quarterly disaster-recovery checklist requiring two-person simulated failover and PITR restoration spot checks on staging.
-- [L2735–L2833] TASK-INFRA-021 — Detail emergency database direct-access checklist and post-incident script to rotate all application database passwords.
-- [L2834–L3182] TASK-INFRA-023 — Implement shared typed EventBus, dead-letter table migration, repository, and pgboss retry job with exponential backoff.
-- [L3183–L3277] Module Summary — INFRA — Summarize task count, list deferred capabilities, and document resolved specification gaps and cross-document inconsistencies.
+- [L951–L1081] TASK-INFRA-005 — Implement database role creation script and privileges establishing least-privilege three-role model with audit schema separation.
+- [L1082–L1195] TASK-INFRA-006 — Implement drizzle-kit config and database migration runner script to apply Drizzle migrations and run post-migrate privilege grants.
+- [L1196–L1298] TASK-INFRA-007 — Create automated migration linter for CI to enforce key constraints on schemas, primary keys, and timestamp columns.
+- [L1299–L1432] TASK-INFRA-008 — Configure multi-stage Fastify server Dockerfile with dumb-init, offline Tesseract language packs, and db migrate/seed entrypoint.
+- [L1433–L1507] TASK-INFRA-009 — Configure multi-stage Vite web SPA Dockerfile to compile static assets into a dedicated volume-seeding container.
+- [L1508–L1635] TASK-INFRA-010 — Configure Nginx template and envsubst entrypoint for HTTPS serving, static asset caching, and SSE-compatible proxying.
+- [L1636–L1697] TASK-INFRA-011 — Implement lightweight, database-independent server liveness health endpoint mapped to the configured HEALTH_CHECK_PATH.
+- [L1698–L1929] TASK-INFRA-012 — Define compose.prod.yml for staging/production with replication, secrets, proxy, and profile-gated MinIO and Meilisearch.
+- [L1930–L2094] TASK-INFRA-013 — Build CI merge-gate workflow for parallel linting, typechecking, unit/integration testing, and Docker builds.
+- [L2095–L2210] TASK-INFRA-014 — Extend CI workflow with post-merge Playwright E2E tests, staging deploy, and manual-approval production deployment gate.
+- [L2211–L2283] TASK-INFRA-015 — Establish version-controlled operational backup/DR runbooks and empty verification logs under /docs/ops/.
+- [L2284–L2381] TASK-INFRA-016 — Configure WAL-G S3 settings, primary database archiving rules, and weekly full base backup cron job.
+- [L2382–L2479] TASK-INFRA-017 — Create cron script for nightly AES256-encrypted database dumps uploaded to S3 with a 30-day retention policy.
+- [L2480–L2576] TASK-INFRA-018 — Define replication lag monitoring script and manual standby-to-primary promotion and failover procedure checklist.
+- [L2577–L2671] TASK-INFRA-019 — Create script and checklist to test latest database dump restoration into a disposable scratch database monthly.
+- [L2672–L2733] TASK-INFRA-020 — Establish quarterly disaster-recovery checklist requiring two-person simulated failover and PITR restoration spot checks on staging.
+- [L2734–L2832] TASK-INFRA-021 — Detail emergency database direct-access checklist and post-incident script to rotate all application database passwords.
+- [L2833–L3181] TASK-INFRA-023 — Implement shared typed EventBus, dead-letter table migration, repository, and pgboss retry job with exponential backoff.
+- [L3182–L3276] Module Summary — INFRA — Summarize task count, list deferred capabilities, and document resolved specification gaps and cross-document inconsistencies.
 
 ---
 
@@ -1004,17 +1004,16 @@ AI Prompt:
   >
   > echo "[01-create-roles] Roles batac_migrate, batac_app, batac_audit created."
   > ```
-  > `[CONFLICT]` C5's addendum ("Migration-Owning Role Name") states
-  > `batac_migrate` is `NOLOGIN`, citing C1 §3.16 as the source of truth. The
-  > script above creates it as a `LOGIN` role with a password (`CREATE USER`
-  > is shorthand for `CREATE ROLE ... LOGIN`), because `DATABASE_URL_MIGRATE`
-  > (a password-bearing connection string consumed by TASK-INFRA-006's
-  > `migrate.ts`) cannot authenticate against a `NOLOGIN` role. This task
-  > follows L2's behavior, since the role must be able to open a connection for
-  > the migration runner to function at all. The discrepancy with C5/C1 is
-  > flagged in the Module Summary for human resolution — do not silently change
-  > this script's `LOGIN` behavior to match C5 without first confirming what
-  > C1 §3.16 actually specifies.
+  > `[RESOLVED CONFLICT]` C5's addendum ("Migration-Owning Role Name") has been
+  > updated to match C1 §3.16. `batac_migrate` is a `LOGIN` role. The script
+  > above creates it as a `LOGIN` role with a password (`CREATE USER` is shorthand
+  > for `CREATE ROLE ... LOGIN`), because `DATABASE_URL_MIGRATE` (a password-bearing
+  > connection string consumed by TASK-INFRA-006's `migrate.ts`) must authenticate.
+  > This task follows the unified C1 §3.16 + L2 + C5 behavior, since the role must
+  > be able to open a connection for the migration runner to function.
+  > The discrepancy is resolved as `batac_migrate` is confirmed to be
+  > a `LOGIN` role across all these documents, ensuring consistent
+  > environment setup and runtime execution.
   >
   > **`/packages/database/scripts/post-migrate-grants.sql`** — applied after
   > every Drizzle migration run, from `migrate.ts` (TASK-INFRA-006), using the
