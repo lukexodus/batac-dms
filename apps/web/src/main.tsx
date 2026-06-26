@@ -10,6 +10,7 @@ import SidebarPage from "./pages/dev/SidebarPage";
 import TopbarPage from "./pages/dev/TopbarPage";
 import AppShellPage from "./pages/dev/AppShellPage";
 import DocumentNumberBadgePage from "./pages/dev/DocumentNumberBadgePage";
+import EmptyStatePage from "./pages/dev/EmptyStatePage";
 import StatCardPage from "./pages/dev/StatCardPage";
 
 const router = createBrowserRouter([
@@ -42,9 +43,13 @@ const router = createBrowserRouter([
     element: <DocumentNumberBadgePage />,
   },
   {
+    path: "/dev/components/empty-state",
+    element: <EmptyStatePage />,
+  },
+  {
     path: "/dev/components/stat-card",
     element: <StatCardPage />,
-  },
+  }
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
