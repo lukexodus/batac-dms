@@ -10,6 +10,7 @@ import SidebarPage from "./pages/dev/SidebarPage";
 import TopbarPage from "./pages/dev/TopbarPage";
 import AppShellPage from "./pages/dev/AppShellPage";
 import DocumentNumberBadgePage from "./pages/dev/DocumentNumberBadgePage";
+import EmptyStatePage from "./pages/dev/EmptyStatePage";
 import StatCardPage from "./pages/dev/StatCardPage";
 import ScanQualityIndicatorPage from "./pages/dev/ScanQualityIndicatorPage";
 
@@ -41,6 +42,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/document-number-badge",
     element: <DocumentNumberBadgePage />,
+  },
+  {
+    path: "/dev/components/empty-state",
+    element: <EmptyStatePage />,
   },
   {
     path: "/dev/components/stat-card",
