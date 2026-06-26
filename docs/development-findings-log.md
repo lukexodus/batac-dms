@@ -169,6 +169,21 @@ Without an exception, `deleted_by` (which contains `deleted`) is flagged as a vi
 
 [Inference]: Actor and user ID reference columns (specifically those ending in `_by` or `_id`) are not timestamp columns and are excluded from Invariant #7 timezone checks in `lint-migrations.ts`.
 
+### [LOG-0005] Tailwind CSS v4 workspace package component class scanning gap
 
+- date: 2026-06-26
+- task_id: TASK-UI-003
+- status: proposed
+- affects: F5, DESIGN.md
+- resolved_in: none
 
+Tailwind CSS v4's `@tailwindcss/vite` plugin in `apps/web` by default scans only files within the active project directory (`apps/web/src`) for utility classes. It does not automatically scan workspace library dependency directories (such as `packages/ui/src/components`) when resolving class names used solely within library components.
 
+As a result, utility classes like `justify-between`, `items-start`, `bg-primary-800`, `text-white`, `h-10`, `pb-4`, `gap-3`, etc., used inside components like `PageHeader.tsx` or `button.tsx`, were omitted from the compiled CSS bundle (`apps/web/dist/assets/index-*.css`), rendering these components completely unstyled.
+
+[Tested]: Resolved by adding Tailwind v4 `@source` directives targeting both the `packages/ui` components directory and the `apps/web` pages directory directly inside `packages/ui/src/styles/globals.css`:
+```css
+@source "../components/**/*.{ts,tsx}";
+@source "../../../apps/web/src/**/*.{ts,tsx}";
+```
+This forces the Tailwind compiler to scan these folders and generate the necessary CSS rules in the output stylesheet. Verified that adding this resolved the styling on both the PageHeader page and the main design components preview page.
