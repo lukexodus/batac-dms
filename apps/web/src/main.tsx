@@ -13,6 +13,7 @@ import DocumentNumberBadgePage from "./pages/dev/DocumentNumberBadgePage";
 import EmptyStatePage from "./pages/dev/EmptyStatePage";
 import StatCardPage from "./pages/dev/StatCardPage";
 import ScanQualityIndicatorPage from "./pages/dev/ScanQualityIndicatorPage";
+import SLATimerPage from "./pages/dev/SLATimerPage";
 
 const router = createBrowserRouter([
   {
@@ -54,6 +55,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/scan-quality-indicator",
     element: <ScanQualityIndicatorPage />,
+  },
+  {
+    path: "/dev/components/sla-timer",
+    element: <SLATimerPage />,
   },
 ]);
 
