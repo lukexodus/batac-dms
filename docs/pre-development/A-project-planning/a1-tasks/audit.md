@@ -387,6 +387,7 @@ Deliverables:
   - /apps/server/src/modules/audit/audit.repository.ts — AuditRepository using the auditDb Drizzle instance (DATABASE_URL_AUDIT / batac_audit role); exposes fetchPreviousChainHash() and insertEvent() for use within a single transaction
   - /apps/server/src/modules/audit/audit.write-service.ts — AuditWriteService.writeEvent(input: AuditEventInput): Promise<void>; atomically fetches previous chain hash, computes chain_hash and hmac, INSERTs in one DB transaction
   - /apps/server/src/modules/audit/index.ts — public module API: exports createAuditModule(), AuditPublicAPI interface, and shared types AuditEventInput / AuditQueryFilter / AuditQueryResult
+  - /apps/server/src/modules/audit/audit.plugin.ts — fp-wrapped Fastify plugin; initializes the auditDb pool using DATABASE_URL_AUDIT, instantiates repo and writeService, and decorates fastify.auditService with the AuditPublicAPI
 Acceptance Criteria:
   - [ ] `pnpm typecheck` passes
   - [ ] Integration test: `writeEvent({ eventType: 'login_success', actorId: '<uuid>', resourceOfficeId: null, payload: {}, cityId: '<uuid>' })` inserts one row into `audit.events` with non-null `chain_hash` and `hmac` both matching `/^[a-f0-9]{64}$/`, and `resource_office_id` IS NULL
@@ -395,6 +396,7 @@ Acceptance Criteria:
   - [ ] Integration test: if the INSERT is rolled back (forced constraint violation), no partial row persists and the sequence_number is not consumed in the chain
   - [ ] Manual: reviewer confirms `audit.repository.ts` opens its Drizzle client with `DATABASE_URL_AUDIT`, never `DATABASE_URL_APP`
   - [ ] Manual: reviewer confirms `index.ts` exports exactly the `AuditPublicAPI` interface from B2 Module 8 (writeEvent + queryEvents); no extra or missing methods
+  - [ ] Manual: reviewer confirms `audit.plugin.ts` exports a default fp-wrapped plugin with name 'audit' that decorates `fastify.auditService`
 AI Prompt:
   > Implement the audit write path: the DB repository (batac_audit role),
   > the write service (atomic chain-hash + HMAC + INSERT), and the public
@@ -573,6 +575,70 @@ AI Prompt:
   > export type { AuditEventInput, AuditQueryFilter, AuditQueryResult };
   > ```
   >
+  > ## audit.plugin.ts — Fastify plugin wiring
+  >
+  > Implement the Fastify plugin wrapper at `/apps/server/src/modules/audit/audit.plugin.ts`
+  > that exposes the Audit module API to the rest of the application:
+  >
+  > ```typescript
+  > import fp from 'fastify-plugin';
+  > import type { FastifyInstance } from 'fastify';
+  > import postgres from 'postgres';
+  > import { drizzle } from 'drizzle-orm/postgres-js';
+  > import { createAuditModule } from './index';
+  > import * as auditSchema from '@batac/database/schema/audit.schema';
+  >
+  > export function createAuditDb(databaseUrlAudit: string) {
+  >   const pg = postgres(databaseUrlAudit, {
+  >     max: 2,
+  >     idle_timeout: 30,
+  >   });
+  >   return drizzle(pg, { schema: auditSchema });
+  > }
+  >
+  > async function auditPlugin(fastify: FastifyInstance): Promise<void> {
+  >   const databaseUrlAudit = process.env.DATABASE_URL_AUDIT;
+  >   if (!databaseUrlAudit) {
+  >     throw new Error('DATABASE_URL_AUDIT env var is required');
+  >   }
+  >   const hmacSecret = process.env.AUDIT_HMAC_SECRET;
+  >   if (!hmacSecret) {
+  >     throw new Error('AUDIT_HMAC_SECRET env var is required');
+  >   }
+  >   const verifyOnRead = process.env.AUDIT_CHAIN_VERIFY_ON_READ !== 'false';
+  >
+  >   const auditDb = createAuditDb(databaseUrlAudit);
+  >   const auditModule = createAuditModule({
+  >     auditDb,
+  >     env: {
+  >       AUDIT_HMAC_SECRET: hmacSecret,
+  >       AUDIT_CHAIN_VERIFY_ON_READ: verifyOnRead,
+  >     },
+  >   });
+  >
+  >   fastify.decorate('auditService', auditModule);
+  > }
+  >
+  > export default fp(auditPlugin, {
+  >   name: 'audit',
+  >   dependencies: ['database', 'event-bus'],
+  > });
+  > ```
+  >
+  > ## TypeScript module augmentation (in audit.plugin.ts or type file)
+  >
+  > ```typescript
+  > import type { AuditPublicAPI } from './index';
+  >
+  > declare module 'fastify' {
+  >   interface FastifyInstance {
+  >     auditService: AuditPublicAPI;
+  >   }
+  > }
+  > ```
+  >
+  > ---
+  >
   > TASK-AUDIT-005 replaces the `queryEvents` stub with the real implementation.
   >
   > ---
@@ -591,6 +657,7 @@ AI Prompt:
   > - [ ] Two sequential calls produce a correctly linked chain (row2.chain_hash is derived from row1.chain_hash)
   > - [ ] `audit.repository.ts` uses `DATABASE_URL_AUDIT`, never `DATABASE_URL_APP`
   > - [ ] `index.ts` exports match `AuditPublicAPI` exactly (writeEvent + queryEvents)
+  > - [ ] `audit.plugin.ts` exports a default fp-wrapped plugin with name 'audit' that decorates `fastify.auditService`
   > - [ ] `pnpm typecheck` passes
   > A reviewer will verify each one independently.
 
@@ -720,9 +787,9 @@ AI Prompt:
   > }
   > ```
   >
-  > Call `registerAuditEventConsumer(bus, auditWriteService, logger)` from the
-  > Fastify server's plugin registration sequence, before any domain module
-  > that emits events is initialized.
+  > Update `audit.plugin.ts` (created in TASK-AUDIT-003) to call
+  > `registerAuditEventConsumer(fastify.eventBus, auditModule)` inside the
+  > plugin registration function, before the plugin finishes loading.
   >
   > ---
   >
@@ -886,9 +953,10 @@ AI Prompt:
 Phase:          1
 Module:         AUDIT
 Title:          [ABAC] Implement audit tRPC router for sys_admin and auditor roles
-Prerequisites:  [TASK-AUDIT-005, CROSS-MODULE REF: IAM — task list not yet supplied]
+Prerequisites:  [TASK-AUDIT-005, TASK-IAM-005]
 Deliverables:
   - /apps/server/src/modules/audit/audit.router.ts — tRPC router exposing audit.queryEvents procedure; restricted to sys_admin and auditor roles via session-context role check; passes validated input to AuditQueryService.queryEvents()
+  - /apps/server/src/modules/audit/audit.plugin.ts (updated) — registers the auditTrpcRouter decoration on the Fastify instance
 Acceptance Criteria:
   - [ ] `pnpm typecheck` passes
   - [ ] Integration test: `audit.queryEvents` called with a valid `sys_admin` session context returns AuditQueryResult with events and chainValidationStatus
@@ -959,17 +1027,15 @@ AI Prompt:
   > ```
   >
   > `ctx.session.roles` is an array of role code strings populated by the IAM
-  > module's Fastify session middleware upstream of all `protectedProcedure`
-  > calls. If the IAM session middleware does not yet exist when this task runs,
-  > add `[CROSS-MODULE REF: IAM session middleware]` as a PR comment and leave
-  > a TODO in the role-check line — do not bypass the role check.
+  > module's Fastify session middleware (TASK-IAM-005) upstream of all `protectedProcedure`
+  > calls.
   >
   > ---
   >
   > ## ABAC note (for future IAM module alignment)
   >
   > The role check above is a simplified guard. Once the IAM ABAC engine
-  > (TASK-IAM-*) is complete, the role check should be updated to call the
+  > (TASK-IAM-004) is complete, the role check should be updated to call the
   > ABAC policy evaluator for action `audit_event:validate_chain` (I3 §9.4)
   > rather than hard-coding role names here. The tRPC procedure signature
   > and output type do not change; only the authorization check inside the
@@ -977,15 +1043,27 @@ AI Prompt:
   >
   > ---
   >
-  > ## Mount on root router
+  > ## Mount on root router (update in audit.plugin.ts)
+  >
+  > Update `/apps/server/src/modules/audit/audit.plugin.ts` to import `createAuditRouter`
+  > and decorate the router onto the Fastify instance:
   >
   > ```typescript
-  > // /apps/server/src/router.ts (root tRPC router)
-  > import { createAuditRouter } from './modules/audit/audit.router';
-  > export const appRouter = router({
-  >   audit: createAuditRouter(auditModule),
-  >   // ... other module routers
-  > });
+  > import { createAuditRouter } from './audit.router';
+  >
+  > // Inside auditPlugin:
+  > fastify.decorate('auditTrpcRouter', createAuditRouter(auditModule));
+  > ```
+  >
+  > ## TypeScript module augmentation (update in audit.plugin.ts or type file)
+  >
+  > ```typescript
+  > declare module 'fastify' {
+  >   interface FastifyInstance {
+  >     auditService:    AuditPublicAPI;
+  >     auditTrpcRouter: ReturnType<typeof createAuditRouter>;
+  >   }
+  > }
   > ```
   >
   > ---
