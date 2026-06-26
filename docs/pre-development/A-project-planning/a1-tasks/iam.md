@@ -136,8 +136,8 @@
   - [L2046–L2122] Spec Gaps Identified — RESOLVED 2026-06-25
   - [L2123–L2154] Cross-document changes made as part of this resolution
   - [L2155–L2173] Forward note for the ORG module's Step 2 pass
-  - [L2174–L2204] Open questions for the developer (not resolved in this pass — need your input)
-  - [L2205–L2226] Deferred Capabilities (not in Phase 1 scope)
+  - [L2174–L2224] Resolved developer decisions (2026-06-26) — primary-office is_primary flag (ADR-AUTH-011); refresh silent/cookie-only
+  - [L2225–L2247] Deferred Capabilities (not in Phase 1 scope)
 
 ---
 
@@ -1324,17 +1324,10 @@ AI Prompt: |
   11. Return 200 {}.
   ```
 
-  **Open question, not resolved by this pass — see iam.md Module Summary "Open questions for the
-  developer":** login's response body now carries `AuthResponseSchema` (TASK-IAM-006) so the SPA
-  can hydrate `useSessionStore` on login. This task's response body is unchanged (`200 {}`,
-  cookie-only) because refresh is normally a silent background call with no UI moment to re-render
-  identity from. But B5 §1.1's timing model says role (and now office/committee) changes take
-  effect "at next refresh" — if that is meant to be visible to the user without a full re-login
-  (e.g. a role grant during an active session should update what the SPA shows, not just what the
-  server enforces), refresh would need to return the same `AuthResponseSchema`-shaped body too, and
-  `useSessionStore` would need a refresh-triggered re-hydration path that F2 does not currently
-  describe. This is a frontend product decision, not a backend correctness question, so it is not
-  decided here.
+  **[RESOLVED — 2026-06-26]** The refresh response body (`200 {}`, cookie-only) is final.
+  `useSessionStore` does not re-hydrate from background token renewal. Role, office, and
+  committee changes take effect at next full login. See iam.md Module Summary
+  "Resolved developer decisions (2026-06-26)" item 2 for the full rationale.
 
   Rate limit: 20 req / min per session. Key the rate limiter on the session_id parsed from
   the refresh token (available after step 3 succeeds).
@@ -2165,42 +2158,69 @@ call site in TASK-IAM-014's `iam.plugin.ts`, adding three adapter functions that
 `fastify.organizationService`. No other IAM file changes. This is not generated as a full task
 here — A1-AGENTS.md §2's Pass Types table requires the ORG pass to load the IAM and AUDIT task
 lists in order, which this file doesn't have authority to do on ORG's behalf — but the shape of
-that one task is determined by this resolution, not open for the ORG pass to redesign. **One thing
-the ORG pass cannot resolve from this note alone: it must decide what "primary office" means
-if `organization.assignments` ever has more than one active row for the same employee** — see
-the first open question below; no tie-break rule is decided anywhere in this resolution, by
-design, since picking one would have been a business-rule guess rather than an engineering call.
+that one task is determined by this resolution, not open for the ORG pass to redesign.
+**[RESOLVED — ADR-AUTH-011, 2026-06-26]** The `getPrimaryOfficeForUser` tie-break rule is now
+defined: return the `organization.assignments` row where `is_primary = true AND is_active = true
+AND deleted_at IS NULL`. At most one such row per employee is guaranteed by the partial unique
+index `uq_assignments_one_primary_per_employee`. If no `is_primary` row exists, returns `null`.
 
-### Open questions for the developer (not resolved in this pass — need your input)
+### Resolved developer decisions (2026-06-26)
 
-**1. "Primary office" is not actually enforced as singular in the DDL.** B5 §5.6 states "every
-user has a primary record in `organization.assignments` linking them to one office," and this
-resolution's `getPrimaryOffice()` design assumes that. But `organization.assignments` (C1 Part
-4) has no unique constraint that blocks two simultaneous `is_active = true` rows for the same
-`employee_id` — unlike `organization.delegation_grants`, which explicitly has
-`uq_delegation_one_active_per_delegatee`. ADR-UI-012's "Open Follow-Up" (frontend, accepted
-2026-06-19) already flagged this exact ambiguity and left it open: "If a user can hold active
-role assignments scoped to more than one office simultaneously... the backend resolver needs a
-defined rule for which officeScopeId/officeCode is 'primary'... this should be raised against
-E3/I2 separately." [Inference] I did not invent a tie-break rule for this resolution to stay
-unblocked — `getPrimaryOfficeForUser`'s eventual ORG-side implementation will need one. Three
-options, not a recommendation: **(a)** add a DB constraint mirroring `delegation_grants`'
-pattern (`UNIQUE ... WHERE is_active = true`) if one-office-at-a-time is actually a business
-rule for Batac City LGU staff, closing the ambiguity at the schema level; **(b)** allow multiple
-active assignments and pick one by a stated rule (e.g. most recent `start_date`, or lowest
-`positions.authority_level` if that column is ever populated — it's currently unconstrained
-free-text, C1 Part 4 "[Gap-fill]"); **(c)** add an explicit `is_primary BOOLEAN` column to
-`organization.assignments` and require the application layer to maintain the one-true invariant
-itself. I don't have the organizational fact needed to pick among these — whether any Batac
-City employee genuinely holds two positions concurrently in practice.
+**[RESOLVED — 2026-06-26, ADR-AUTH-011] 1. "Primary office" tie-break in `organization.assignments`.**
 
-**2. Should `POST /api/auth/refresh` also return identity data, so the SPA can reflect a role/
-office/committee change that just took effect?** B5 §1.1's timing model is "changes take effect
-at next refresh," but F2 doesn't describe `useSessionStore` re-hydrating after a (normally
-silent, background) refresh call — only after login. Flagged in detail at TASK-IAM-007. This is
-a frontend product decision (is silent-but-stale display acceptable between logins, or must the
-UI reflect a just-refreshed permission set immediately) more than a backend question, so I left
-TASK-IAM-007's response body unchanged rather than deciding it.
+Decision: **Option (c)** — add an explicit `is_primary BOOLEAN NOT NULL DEFAULT false` column to
+`organization.assignments`. The application layer (ORG module service) is responsible for
+maintaining the one-primary-per-employee invariant atomically: a "set primary" operation must
+unset any other `is_primary = true` row for the same `employee_id` within the same transaction.
+A partial unique index serves as a DB-level safety net:
+
+```sql
+CREATE UNIQUE INDEX uq_assignments_one_primary_per_employee
+    ON organization.assignments (employee_id)
+    WHERE is_primary = true AND is_active = true AND deleted_at IS NULL;
+```
+
+`getPrimaryOfficeForUser`'s concrete query is now: `SELECT office_id, office_code FROM
+organization.assignments WHERE employee_id = :id AND is_primary = true AND is_active = true
+AND deleted_at IS NULL LIMIT 1` — returning `null` if no row matches.
+
+Rationale: concurrent active assignments are confirmed possible for Batac City LGU staff (ruling
+out option a — hard DB constraint). An explicit flag is more transparent and auditable than an
+implicit start-date or authority-level ordering (option b), which produces non-deterministic
+results on ties. The partial unique index provides corruption protection while allowing
+multi-assignment data.
+
+Cross-document effects (all applied 2026-06-26):
+- C1 DDL: `is_primary BOOLEAN NOT NULL DEFAULT false` + `uq_assignments_one_primary_per_employee` added to `organization.assignments`.
+- C2 ERD: `bool is_primary` added to ASSIGNMENTS entity.
+- E3: `isPrimary: z.boolean()` added to `AssignmentSelectSchema`.
+- B2 Module 2: `getPrimaryOfficeForUser` doc-comment updated — open-question `[Inference]` note replaced with `[RESOLVED — ADR-AUTH-011]`.
+- B5 §11: D-AUTH-11 row added; §12 Office-assignment-uniqueness row updated to resolved.
+- I3 §18.1: row 16 (D-AUTH-11) added; §18.2 item updated to resolved.
+- ADR-UI-012: "Open Follow-Up" section closed.
+
+---
+
+**[RESOLVED — 2026-06-26] 2. `POST /api/auth/refresh` response body and UI re-hydration.**
+
+Decision: **Silent/cookie-only** — the refresh endpoint returns `200 {}` (empty body) as currently
+designed in TASK-IAM-007. `useSessionStore` does not re-hydrate from a background refresh call.
+Role, office, and committee changes take effect at the user's next full login. Displaying a
+potentially-stale permission set between logins is an accepted product trade-off for this system.
+No changes are needed to TASK-IAM-007's response body design.
+
+Rationale: silent background token renewal is a UX-smoothness mechanism, not a re-authentication
+event. Re-hydrating the store on every background refresh would require returning identity data
+(role codes, office scope, committee ids) on every access-token renewal, adding non-trivial
+payload overhead and an SPA code path that F2 does not currently describe. Given the low rate
+of role/office/committee reassignments in the Batac City LGU context (administrative staff roles
+are typically stable), staleness until next login is an acceptable trade-off. If real-time
+propagation is later required (e.g., for sensitive permission escalations during an active
+session), a server-sent event or a separate `/api/auth/identity` endpoint can be introduced
+without changing the refresh contract.
+
+Cross-document effects: none — TASK-IAM-007's existing `200 {}` design is already correct;
+this entry formally closes the open-question framing that was left in that task's AI Prompt.
 
 ### Deferred Capabilities (not in Phase 1 scope)
 

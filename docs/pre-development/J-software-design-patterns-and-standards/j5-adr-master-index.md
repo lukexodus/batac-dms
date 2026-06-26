@@ -4,7 +4,7 @@
 
 ## Table of Contents
 
-- [L11–L109] ADR Index — Central master index linking to all architectural decisions across the platform.
+- [L11–L111] ADR Index — Central master index linking to all architectural decisions across the platform.
 
 ---
 
@@ -28,7 +28,9 @@
 | ADR-AUTH-008 | External TSA Provider for Audit Log Timestamps | Authentication / Authorization (B5) | [View](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md) |
 | ADR-AUTH-009 | RLS Policy Expression for Cross-Office Read Grants | Authentication / Authorization (B5) | [View](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-009-rls-policy-expression-for-cross-office-read-grants.md) |
 | ADR-AUTH-010 | Session `locked_at` Behavior When Access Token Expires While Locked | Authentication / Authorization (B5) | [View](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-010-session-locked_at-behavior-when-access-token-expires-while-locked.md) |
+| ADR-AUTH-011 | Organization Assignments: Primary Office Flag (`is_primary`) | Authentication / Authorization (B5) | [View](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-011-organization-assignments-primary-flag.md) |
 | ADR-DB-001 | panlalawigan_review_log` Entity Classification | Database (C1) | [View](../C-database/c1-full-database-schema-ddl-adrs/ADR-DB-001-panlalawigan-review-log-entity-classification.md) |
+| ADR-DB-002 | Authority Level Enum Constraint on `organization.positions` | Database (C1) | [View](../C-database/c1-full-database-schema-ddl-adrs/ADR-DB-002-authority-level-enum-constraint.md) |
 | ADR-EVT-001 | Document Request Form Approval Modeling | Domain Events (B3) | [View](../B-architecture-documents/b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md) |
 | ADR-GEN-001 | Modular Monolith over Microservices | General Architecture (J5) | [View](j5-initial-adrs/ADR-GEN-001-modular-monolith-over-microservices.md) |
 | ADR-GEN-002 | Custom Workflow Engine over Off-the-Shelf BPM Solutions | General Architecture (J5) | [View](j5-initial-adrs/ADR-GEN-002-custom-workflow-engine-over-off-the-shelf-bpm-solutions.md) |

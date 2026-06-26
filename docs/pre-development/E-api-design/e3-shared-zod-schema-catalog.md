@@ -1026,6 +1026,7 @@ export const AssignmentSelectSchema = z.object({
   startDate:  DateSchema,
   endDate:    DateSchema.nullable(),
   isActive:   z.boolean(),
+  isPrimary:  z.boolean(), // [RESOLVED — ADR-AUTH-011, 2026-06-26] maps to organization.assignments.is_primary
   createdAt:  TimestampSchema,
 });
 export type AssignmentSelect = z.infer<typeof AssignmentSelectSchema>;

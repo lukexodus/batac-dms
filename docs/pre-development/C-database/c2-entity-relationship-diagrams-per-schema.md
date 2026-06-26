@@ -238,7 +238,7 @@ erDiagram
 
 **Module responsibility:** Office hierarchy, employee identity records, position assignments, standing committee structure, and delegation management (Designation documents). First-class module — `delegation_grants` is written 10+ times per year (routine Acting Mayor designations).
 
-**Enums defined in this schema (TEXT CHECK strategy):** `office_type` — five values: `executive`, `legislative`, `department`, `barangay`, `external` (`barangay` is reserved and not seeded in Phase 1), `authority_level` (`executive`, `managerial`, `staff`, `support`) [Unverified values], `committee_role` (`chairman`, `vice_chairman`, `member`) [Confirmed — D4].
+**Enums defined in this schema (TEXT CHECK strategy):** `office_type` — five values: `executive`, `legislative`, `department`, `barangay`, `external` (`barangay` is reserved and not seeded in Phase 1), `authority_level` (`executive`, `managerial`, `staff`, `support`) [Confirmed — E3 §3, `AuthorityLevelSchema`; ADR-DB-002], `committee_role` (`chairman`, `vice_chairman`, `member`) [Confirmed — D4].
 
 **Inbound logical FKs from other schemas:** `iam.role_assignments.office_scope_id`, `documents.documents.originating_office_id`, `documents.documents.owned_by_office_id`, `documents.number_series.authority_office_id`, `workflow.instances.owning_office_id` [Inference], `tracking.routing_entries.from_office_id` [Inference], `tracking.routing_entries.to_office_id` [Inference].
 
@@ -278,6 +278,7 @@ erDiagram
         date start_date
         date end_date
         bool is_active
+        bool is_primary
     }
 
     DELEGATION_GRANTS {

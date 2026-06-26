@@ -296,15 +296,17 @@ interface OrganizationPublicAPI {
    * docs/pre-development/A-project-planning/a1-tasks/iam.md Module Summary,
    * "Spec Gaps Identified — RESOLVED 2026-06-25."]
    * Resolve a user's primary office (id + display code), via
-   * organization.employees.user_id → organization.assignments (active row).
-   * Returns null if the user has no employee record, or that employee has
-   * no active assignment. This is the real-implementation counterpart to
-   * the `getPrimaryOffice` resolver IAM's login/refresh flows call through
-   * an injected, Phase-1-defaulted function — see iam.md TASK-IAM-006.
-   * [Inference] Which row counts as "primary" when more than one active
-   * assignment exists for the same employee is an open question — see this
-   * file's Module Dependency Map note on IAM, and iam.md's "Open questions
-   * for the developer" item 1. Not resolved by this addition.
+   * organization.employees.user_id → organization.assignments (active row
+   * where is_primary = true). Returns null if the user has no employee record,
+   * or that employee has no active primary assignment.
+   * This is the real-implementation counterpart to the `getPrimaryOffice`
+   * resolver IAM's login/refresh flows call through an injected,
+   * Phase-1-defaulted function — see iam.md TASK-IAM-006.
+   * [RESOLVED — ADR-AUTH-011, 2026-06-26] The "which row is primary"
+   * tie-break is now defined: the row where is_primary = true AND
+   * is_active = true AND deleted_at IS NULL. At most one such row can exist
+   * per employee (enforced by uq_assignments_one_primary_per_employee partial
+   * unique index). If no is_primary row exists, returns null.
    */
   getPrimaryOfficeForUser(userId: string): Promise<{ officeId: string; officeCode: string } | null>;
 
