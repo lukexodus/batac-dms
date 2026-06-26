@@ -33,7 +33,7 @@ export { phLocale, PH_TIMEZONE, DATE_FORMATS } from "./lib/date-locale";
 // export * from './components/domain/AppShell';
 // export * from './components/domain/Sidebar';
 // export * from './components/domain/Topbar';
-// export * from './components/domain/PageHeader';
+export * from './components/domain/PageHeader';
 // export * from './components/domain/DocumentNumberBadge';
 // export * from './components/domain/StatusBadge';
 // export * from './components/domain/Timeline';

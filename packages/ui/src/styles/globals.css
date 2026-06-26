@@ -13,14 +13,18 @@
    - Dark mode: deferred to Phase 2 (class strategy when implemented)
    ============================================================= */
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @import "tailwindcss";
+
+@source "../components/**/*.{ts,tsx}";
+@source "../../../apps/web/src/**/*.{ts,tsx}";
 
 /* ── Google Fonts ─────────────────────────────────────────────
    Inter + JetBrains Mono loaded globally.
    Lora is deferred — loaded on-demand by document-render
    components only, not globally. [Proposed default: confirmed]
    ─────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* ── Design token layer ──────────────────────────────────────
    All tokens in :root. shadcn/ui HSL variables follow.

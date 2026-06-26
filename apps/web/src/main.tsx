@@ -5,6 +5,7 @@ import { TooltipProvider, Toaster } from "@batac/ui";
 import "@batac/ui/styles/globals.css";
 
 import ComponentsPage from "./pages/dev/ComponentsPage";
+import PageHeaderPage from "./pages/dev/PageHeaderPage";
 
 const router = createBrowserRouter([
   {
@@ -14,6 +15,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components",
     element: <ComponentsPage />,
+  },
+  {
+    path: "/dev/components/page-header",
+    element: <PageHeaderPage />,
   },
 ]);
 
