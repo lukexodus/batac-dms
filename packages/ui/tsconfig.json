@@ -6,7 +6,8 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "paths": {
       "@batac/ui/*": ["./src/*"]
-    }
+    },
+    "skipLibCheck": true
   },
   "include": ["src/**/*"]
 }

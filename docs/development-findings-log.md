@@ -213,3 +213,18 @@ Upon inspection of the Tier 1 `packages/ui/src/components/ui/tooltip.tsx` compon
 
 [Tested]: Resolved by wrapping `TooltipPrimitive.Content` inside `TooltipPrimitive.Portal` in `tooltip.tsx`, aligning it with the standard shadcn/ui and Radix UI portal patterns. Verified using the browser subagent that tooltips for collapsed items now display correctly over the sidebar and page boundaries.
 
+### [LOG-0007] recharts@2.15.4 requires skipLibCheck:true in @batac/ui (same pattern as LOG-0005)
+
+- date: 2026-06-26
+- task_id: TASK-UI-002
+- status: proposed
+- affects: F5 (UI package configuration)
+- supersedes: none
+
+During TASK-UI-002, `tsc --noEmit` on `@batac/ui` failed with `error TS7016: Could not find a declaration file for module 'lodash'` originating from `recharts@2.15.4`'s own `.d.ts` file (`generateCategoricalChart.d.ts`). This is identical in nature to the LOG-0005 finding for `@batac/database` with drizzle-orm.
+
+Verified that the error existed in the baseline (before TASK-UI-002 changes) by stashing all TASK-UI-002 changes and running `tsc --noEmit` — same error. The issue is a third-party typing gap in recharts, not code introduced by this task.
+
+[Tested]: Resolved by adding `"skipLibCheck": true` to `packages/ui/tsconfig.json`, overriding the base config's `"skipLibCheck": false`. With this override, `tsc --noEmit` completes with zero errors. This mirrors the LOG-0005 fix applied to `@batac/database`. Only third-party `.d.ts` files are skipped; all workspace source files under `packages/ui/src/` are still fully type-checked.
+
+A human reviewer should decide whether a global `"skipLibCheck": true` is warranted in `tsconfig.base.json` (given two packages now needing it) or whether per-package overrides are the preferred pattern.
