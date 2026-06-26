@@ -46,7 +46,7 @@ export * from './components/domain/DocumentNumberBadge';
 // export * from './components/domain/StatsGrid';
 // export * from './components/domain/WorkflowStepper';
 // export * from './components/domain/FilterBar';
-// export * from './components/domain/EmptyState';
+export * from './components/domain/EmptyState';
 // export * from './components/domain/ErrorState';
 // export * from './components/domain/LoadingState';
 // export * from './components/domain/Pagination';
