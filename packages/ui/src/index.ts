@@ -31,7 +31,7 @@ export { phLocale, PH_TIMEZONE, DATE_FORMATS } from "./lib/date-locale";
 
 // Tier 3 Domain Components (Stubs)
 // export * from './components/domain/AppShell';
-// export * from './components/domain/Sidebar';
+export * from './components/domain/Sidebar';
 // export * from './components/domain/Topbar';
 export * from './components/domain/PageHeader';
 // export * from './components/domain/DocumentNumberBadge';
