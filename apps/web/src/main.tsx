@@ -9,6 +9,7 @@ import PageHeaderPage from "./pages/dev/PageHeaderPage";
 import SidebarPage from "./pages/dev/SidebarPage";
 import TopbarPage from "./pages/dev/TopbarPage";
 import AppShellPage from "./pages/dev/AppShellPage";
+import DocumentNumberBadgePage from "./pages/dev/DocumentNumberBadgePage";
 
 const router = createBrowserRouter([
   {
@@ -34,6 +35,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/app-shell",
     element: <AppShellPage />,
+  },
+  {
+    path: "/dev/components/document-number-badge",
+    element: <DocumentNumberBadgePage />,
   },
 ]);
 
