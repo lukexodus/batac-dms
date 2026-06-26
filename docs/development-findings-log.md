@@ -156,5 +156,19 @@ To resolve this discrepancy, `01-create-roles.sh` has been updated to create and
 
 [Inference]: The literal DDL text of C1 Part 2 uses `NOLOGIN` for `batac_app` and `batac_audit`, but this contradicts the intent and practical connection requirements of these roles. This correction aligns the created roles with their connection needs.
 
+### [LOG-0004] Exclude actor reference columns from Invariant #7 timestamp checks
+
+- date: 2026-06-26
+- task_id: TASK-INFRA-007
+- status: proposed
+- affects: C5 (Section 7.4), infra.md (TASK-INFRA-007 AI Prompt)
+
+Invariant #7 dictates that any column whose name contains `deleted` or starts with/contains `created`, `updated`, etc. must be typed as `TIMESTAMPTZ` or `TIMESTAMP WITH TIME ZONE`. However, the soft-delete convention in the project requires every table to have both `deleted_at TIMESTAMPTZ` and `deleted_by UUID` (a UUID reference to the user who deleted the row).
+
+Without an exception, `deleted_by` (which contains `deleted`) is flagged as a violation because its type is `UUID`. This would cause every table to fail the linter. Similarly, columns like `created_by` or `updated_by` are user references.
+
+[Inference]: Actor and user ID reference columns (specifically those ending in `_by` or `_id`) are not timestamp columns and are excluded from Invariant #7 timezone checks in `lint-migrations.ts`.
+
+
 
 
