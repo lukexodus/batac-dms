@@ -8,39 +8,39 @@
 
 ## Table of Contents
 
-- [L3–L62] B2 — Module Boundary and Internal API Contracts — Authoritative module communication boundaries and architectural contracts specification.
-- [L63–L80] Purpose — Scope of Architectural Law #2, cross-module communication rules, and the single allowed Phase 1 FTS read exception.
-- [L81–L90] Notation — Definitions of source fidelity labels, including inferred behaviors and phase boundaries used throughout the contracts.
-- [L91–L143] Enforcement Model — Implementation of Law #2, static analysis enforcement, sync vs. async decision rules, event envelope structure, and API versioning policy.
-- [L144–L218] Module 1 — IAM — ABAC engine authorization policy evaluation, display user summary retrieval, and authentication/role assignment audit events.
-- [L219–L334] Module 2 — Organization — Office hierarchy tree, designation logging, and active delegation resolution for step routing and ABAC policy evaluation.
-  - [L223–L318] Published API — Synchronous interface exposed for cross-module calls.
-  - [L319–L328] Events Emitted — Domain events published to the event bus.
-  - [L329–L334] Events Consumed — Subscriptions to domain events emitted by other modules.
-- [L335–L511] Module 3 — Documents — Document state machine, draft and final numbering sequences, attachment upload presigning, and Secretariat decision integration.
-  - [L343–L488] Published API — Synchronous interface exposed for cross-module calls.
-  - [L489–L504] Events Emitted — Domain events published to the event bus.
-  - [L505–L511] Events Consumed — Subscriptions to domain events emitted by other modules.
-- [L512–L655] Module 4 — Workflow — Engine step types, multi-committee referral cutoffs, certified urgent bypass, version pinning, and SLA escalation monitors.
-  - [L526–L620] Published API — Synchronous interface exposed for cross-module calls.
-  - [L621–L642] Events Emitted — Domain events published to the event bus.
-  - [L643–L655] Events Consumed — Subscriptions to domain events emitted by other modules.
-- [L656–L726] Module 5 — Tracking — Immutable QR tracking number assignment, physical custody logging, append-only routing history, and public document blurring rules.
-- [L727–L797] Module 6 — Records — Permanent retention schedules, four-tier classification rules, legal holds, and audited Records Officer bulk operations.
-- [L798–L857] Module 7 — Notifications — SSE in-app, SMTP email, and Phase 3 SMS delivery channels, template engines, and respondent notice routing rules.
-- [L858–L967] Module 8 — Audit — Append-only hash chain and HMAC cryptographics, monthly TSA export, and the global domain event auditing consumer.
-  - [L864–L934] Published API — Synchronous interface exposed for cross-module calls.
-  - [L935–L938] Events Emitted — Domain events published to the event bus.
-  - [L939–L967] Events Consumed — Subscriptions to domain events emitted by other modules.
-- [L968–L1037] Module 9 — Search Meta — Search provider abstraction, Phase 1 PostgreSQL FTS trigger, Phase 2 Meilisearch sync, and the temporary FTS query exception.
-- [L1038–L1072] Module 10 — Portal — OTP citizen authentication, public document lookup, citizen complaint channels, and three access modes for document requests.
-- [L1073–L1100] Module 11 — Reporting — On-demand and scheduled PDF/spreadsheet generation, and ARTA compliance reporting via the Workflow Published API.
-- [L1101–L1244] Cross-Module Reference — Master matrices for the internal event registry, synchronous call pathways, and direct module dependencies.
-  - [L1103–L1131] Master Event Bus Registry — Comprehensive catalog of all in-process event names, emitting modules, registered subscribers, and source references.
-  - [L1132–L1161] Published API Call Matrix — Traceability matrix of all authorized synchronous cross-module calls, method names, and trigger contexts.
-  - [L1162–L1244] Module Dependency Map — ASCII reference map showing dependency directions for synchronous calls, event emissions, and event consumption.
-- [L1245–L1266] Prohibited Patterns — Seven prohibited development patterns that violate modular boundaries, caught by compiler rules or static analysis.
-- [L1267–L1285] Resolved ADRs `[All seven resolved — see Version 1.1 Change Log at top of document]` — Historical log preserving the original requirements and final resolutions for ADR-B2-1 through ADR-B2-7.
+- [L3–L73] B2 — Module Boundary and Internal API Contracts — Authoritative module communication boundaries and architectural contracts specification.
+- [L74–L91] Purpose — Scope of Architectural Law #2, cross-module communication rules, and the single allowed Phase 1 FTS read exception.
+- [L92–L101] Notation — Definitions of source fidelity labels, including inferred behaviors and phase boundaries used throughout the contracts.
+- [L102–L154] Enforcement Model — Implementation of Law #2, static analysis enforcement, sync vs. async decision rules, event envelope structure, and API versioning policy.
+- [L155–L229] Module 1 — IAM — ABAC engine authorization policy evaluation, display user summary retrieval, and authentication/role assignment audit events.
+- [L230–L386] Module 2 — Organization — Office hierarchy tree, designation logging, active delegation resolution for step routing and ABAC policy evaluation, and (added 2026-06-25) primary office, committee membership, and delegation-by-id resolution for IAM.
+  - [L234–L370] Published API — Synchronous interface exposed for cross-module calls.
+  - [L371–L380] Events Emitted — Domain events published to the event bus.
+  - [L381–L386] Events Consumed — Subscriptions to domain events emitted by other modules.
+- [L387–L563] Module 3 — Documents — Document state machine, draft and final numbering sequences, attachment upload presigning, and Secretariat decision integration.
+  - [L395–L540] Published API — Synchronous interface exposed for cross-module calls.
+  - [L541–L556] Events Emitted — Domain events published to the event bus.
+  - [L557–L563] Events Consumed — Subscriptions to domain events emitted by other modules.
+- [L564–L707] Module 4 — Workflow — Engine step types, multi-committee referral cutoffs, certified urgent bypass, version pinning, and SLA escalation monitors.
+  - [L578–L672] Published API — Synchronous interface exposed for cross-module calls.
+  - [L673–L694] Events Emitted — Domain events published to the event bus.
+  - [L695–L707] Events Consumed — Subscriptions to domain events emitted by other modules.
+- [L708–L778] Module 5 — Tracking — Immutable QR tracking number assignment, physical custody logging, append-only routing history, and public document blurring rules.
+- [L779–L849] Module 6 — Records — Permanent retention schedules, four-tier classification rules, legal holds, and audited Records Officer bulk operations.
+- [L850–L909] Module 7 — Notifications — SSE in-app, SMTP email, and Phase 3 SMS delivery channels, template engines, and respondent notice routing rules.
+- [L910–L1019] Module 8 — Audit — Append-only hash chain and HMAC cryptographics, monthly TSA export, and the global domain event auditing consumer.
+  - [L916–L986] Published API — Synchronous interface exposed for cross-module calls.
+  - [L987–L990] Events Emitted — Domain events published to the event bus.
+  - [L991–L1019] Events Consumed — Subscriptions to domain events emitted by other modules.
+- [L1020–L1089] Module 9 — Search Meta — Search provider abstraction, Phase 1 PostgreSQL FTS trigger, Phase 2 Meilisearch sync, and the temporary FTS query exception.
+- [L1090–L1124] Module 10 — Portal — OTP citizen authentication, public document lookup, citizen complaint channels, and three access modes for document requests.
+- [L1125–L1152] Module 11 — Reporting — On-demand and scheduled PDF/spreadsheet generation, and ARTA compliance reporting via the Workflow Published API.
+- [L1153–L1307] Cross-Module Reference — Master matrices for the internal event registry, synchronous call pathways, and direct module dependencies.
+  - [L1155–L1183] Master Event Bus Registry — Comprehensive catalog of all in-process event names, emitting modules, registered subscribers, and source references.
+  - [L1184–L1216] Published API Call Matrix — Traceability matrix of all authorized synchronous cross-module calls, method names, and trigger contexts.
+  - [L1217–L1307] Module Dependency Map — ASCII reference map showing dependency directions for synchronous calls, event emissions, and event consumption.
+- [L1308–L1329] Prohibited Patterns — Seven prohibited development patterns that violate modular boundaries, caught by compiler rules or static analysis.
+- [L1330–L1348] Resolved ADRs `[All seven resolved — see Version 1.1 Change Log at top of document]` — Historical log preserving the original requirements and final resolutions for ADR-B2-1 through ADR-B2-7.
 
 ---
 
@@ -57,6 +57,17 @@ All seven Required ADRs identified in Version 1.0 of this document have been res
 |ADR-B2-5 (Phase 1 FTS Column Ownership)|**Content change.** Search Meta now ships a thin Phase 1 pass-through implementation rather than zero Phase 1 footprint. Module 9 is updated to Phase 1 + Phase 2, with an explicitly scoped Law #2 exception for its Phase 1 cross-schema read of `documents.tsvector`.|
 |ADR-B2-6 (Published API Versioning)|**Content addition.** A new "Published API Versioning Policy" subsection is added to the Enforcement Model. No existing Published API method signature changes as a result — this ADR governs *future* breaking changes, not a present one.|
 |ADR-B2-7 (Phase 1 Classification Source)|No content change. Formalizes the Phase 1→2 classification migration plan; the Phase 1 behavior already stated in Module 6 is unchanged.|
+
+**Not an ADR — supplementary addition, 2026-06-25:** three Organization Published API methods
+(`getPrimaryOfficeForUser`, `getCommitteeIdsForUser`, `getDelegationGrantById`) added, and IAM
+added as a caller of all three in the Published API Call Matrix and Module Dependency Map. This
+closes a gap the original seven ADRs did not cover: IAM's JWT `oid`/`cid` claims and its
+delegation-context preHandler hook all depend on `organization` schema data with no published,
+non-violating access path specified anywhere in B5, I1, or this document. Made at the project
+owner's direction, with explicit authority to edit this document for that purpose; full
+rationale is in `docs/pre-development/A-project-planning/a1-tasks/iam.md`'s Module Summary.
+This addition does not resolve everything it touches — see that Module Summary's "Open
+questions for the developer" for what is intentionally left open.
 
 ---
 
@@ -279,6 +290,47 @@ interface OrganizationPublicAPI {
    * [Inference]
    */
   getEmployeeByUserId(userId: string): Promise<EmployeeSummary | null>;
+
+  /**
+   * [Added — IAM/ORG cross-module wiring resolution, 2026-06-25. See
+   * docs/pre-development/A-project-planning/a1-tasks/iam.md Module Summary,
+   * "Spec Gaps Identified — RESOLVED 2026-06-25."]
+   * Resolve a user's primary office (id + display code), via
+   * organization.employees.user_id → organization.assignments (active row).
+   * Returns null if the user has no employee record, or that employee has
+   * no active assignment. This is the real-implementation counterpart to
+   * the `getPrimaryOffice` resolver IAM's login/refresh flows call through
+   * an injected, Phase-1-defaulted function — see iam.md TASK-IAM-006.
+   * [Inference] Which row counts as "primary" when more than one active
+   * assignment exists for the same employee is an open question — see this
+   * file's Module Dependency Map note on IAM, and iam.md's "Open questions
+   * for the developer" item 1. Not resolved by this addition.
+   */
+  getPrimaryOfficeForUser(userId: string): Promise<{ officeId: string; officeCode: string } | null>;
+
+  /**
+   * [Added — IAM/ORG cross-module wiring resolution, 2026-06-25.]
+   * Active organization.committee_memberships rows for this user, as
+   * committee UUIDs. Empty array if none. Real-implementation counterpart
+   * to IAM's `getCommitteeIds` resolver — see iam.md TASK-IAM-006.
+   */
+  getCommitteeIdsForUser(userId: string): Promise<string[]>;
+
+  /**
+   * [Added — IAM/ORG cross-module wiring resolution, 2026-06-25.]
+   * Load a single organization.delegation_grants row by id, applying the
+   * same active/not-expired/not-revoked filter the row's consumers already
+   * require. Returns null if not found, expired, or revoked. Distinct from
+   * getActiveDelegationForUser() (declared earlier in this interface; looks up by user, for
+   * Workflow's routing use case) — this looks up by grant id, for IAM's
+   * preHandler chain, which already has the JWT-cached `dg` claim and only
+   * needs to re-validate and read that specific grant's `scope`. Real-
+   * implementation counterpart to IAM's `resolveActiveDelegationGrant`
+   * resolver — see iam.md TASK-IAM-005 Hook 2 and TASK-IAM-006.
+   */
+  getDelegationGrantById(delegationGrantId: string): Promise<{
+    scope: { roles: string[]; officeIds: string[]; actions: string[] };
+  } | null>;
 }
 
 interface DelegationSummary {
@@ -1140,6 +1192,9 @@ All legal synchronous cross-module calls. Any call not in this table is a violat
 |IAM (ABAC engine)|Organization|`getOfficeHierarchy()`|Office-scoped permission policy evaluation|B1: "Hierarchy consumed by ABAC engine"|
 |IAM (ABAC engine)|Organization|`getOfficeById()`|Office context for a specific ABAC check|`[Inference]`|
 |IAM (ABAC engine)|Records|`getClassificationForDocument()`|Classification-gated access control [Phase 2]|`[Inference]`|
+|IAM (login/refresh service)|Organization|`getPrimaryOfficeForUser()`|Resolving the `oid` JWT claim and the login response's `officeScopeId`/`officeCode`|`[RESOLVED — IAM/ORG cross-module wiring resolution, 2026-06-25; see iam.md Module Summary]`|
+|IAM (login/refresh service)|Organization|`getCommitteeIdsForUser()`|Resolving the `cid` JWT claim|`[RESOLVED — IAM/ORG cross-module wiring resolution, 2026-06-25]`|
+|IAM (auth preHandler chain)|Organization|`getDelegationGrantById()`|Loading the active delegation grant referenced by the JWT's cached `dg` claim, at request time|`[RESOLVED — IAM/ORG cross-module wiring resolution, 2026-06-25; previously direct cross-schema SQL, a Law #2 violation]`|
 |Workflow (engine)|Organization|`resolveCurrentHolder()`|Routing a step to the current holder of a position|B1: "Resolves current assignee accounting for active delegations"|
 |Workflow (engine)|Organization|`getActiveDelegationForUser()`|Checking whether a user's authority is delegated|`[Inference]`|
 |Workflow (engine)|Documents|`getDocumentById()`|Retrieving document context for routing decisions|`[Inference]`|
@@ -1165,7 +1220,15 @@ A module listed in the **Calls** column makes synchronous API calls to the liste
 
 ```
 IAM
-  Calls:          Organization (getOfficeHierarchy, getOfficeById)
+  Calls:          Organization (getOfficeHierarchy, getOfficeById,
+                                getPrimaryOfficeForUser, getCommitteeIdsForUser,
+                                getDelegationGrantById)
+                                [RESOLVED — last three added 2026-06-25, IAM/ORG
+                                cross-module wiring resolution; see iam.md Module
+                                Summary. Implemented via an injected, Phase-1-
+                                defaulted resolver — these calls do not exist as
+                                literal imports until the ORG module's Step 2
+                                pass wires them in TASK-IAM-014's plugin.]
                   Records      (getClassificationForDocument) [Ph2]
   Emits to:       Audit
 
