@@ -8,6 +8,7 @@ import ComponentsPage from "./pages/dev/ComponentsPage";
 import PageHeaderPage from "./pages/dev/PageHeaderPage";
 import SidebarPage from "./pages/dev/SidebarPage";
 import TopbarPage from "./pages/dev/TopbarPage";
+import AppShellPage from "./pages/dev/AppShellPage";
 
 const router = createBrowserRouter([
   {
@@ -29,6 +30,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/topbar",
     element: <TopbarPage />,
+  },
+  {
+    path: "/dev/components/app-shell",
+    element: <AppShellPage />,
   },
 ]);
 

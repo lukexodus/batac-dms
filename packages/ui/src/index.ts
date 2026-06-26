@@ -34,7 +34,7 @@ export * from './types/domain';
 export { STATUS_META } from './lib/status-meta';
 
 // Tier 3 Domain Components (Stubs)
-// export * from './components/domain/AppShell';
+export * from './components/domain/AppShell';
 export * from './components/domain/Sidebar';
 export * from './components/domain/Topbar';
 export * from './components/domain/PageHeader';
