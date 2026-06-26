@@ -7,6 +7,7 @@ import "@batac/ui/styles/globals.css";
 import ComponentsPage from "./pages/dev/ComponentsPage";
 import PageHeaderPage from "./pages/dev/PageHeaderPage";
 import SidebarPage from "./pages/dev/SidebarPage";
+import TopbarPage from "./pages/dev/TopbarPage";
 
 const router = createBrowserRouter([
   {
@@ -24,6 +25,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/sidebar",
     element: <SidebarPage />,
+  },
+  {
+    path: "/dev/components/topbar",
+    element: <TopbarPage />,
   },
 ]);
 
