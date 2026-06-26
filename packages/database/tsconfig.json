@@ -1,0 +1,18 @@
+{
+  "extends": "../config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "verbatimModuleSyntax": false,
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": ".",
+    "types": ["node"],
+    "skipLibCheck": true
+  },
+  "include": [
+    "drizzle.config.ts",
+    "schema/**/*.ts",
+    "scripts/**/*.ts"
+  ]
+}

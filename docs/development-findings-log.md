@@ -169,7 +169,19 @@ Without an exception, `deleted_by` (which contains `deleted`) is flagged as a vi
 
 [Inference]: Actor and user ID reference columns (specifically those ending in `_by` or `_id`) are not timestamp columns and are excluded from Invariant #7 timezone checks in `lint-migrations.ts`.
 
-### [LOG-0005] Tailwind CSS v4 workspace package component class scanning gap
+### [LOG-0005] skipLibCheck: true required for @batac/database package to compile
+
+- date: 2026-06-26
+- task_id: TASK-INFRA-006
+- status: proposed
+- affects: C5 (Section 2.2), J3 (TypeScript config standards)
+
+The project standard tsconfig configures `"skipLibCheck": false`. However, building `@batac/database` with `drizzle-orm` and `drizzle-kit` installed results in multiple type compilation errors within their own `.d.ts` declaration files (primarily mysql-core, sqlite-core, and singlestore-core select and delete query definitions). These errors are internal package typing issues in Drizzle ORM when using strict type checking.
+
+[Inference]: To allow compilation to succeed and to enable Turborepo tasks to run, the `@batac/database` package's `tsconfig.json` overrides the base configuration to set `"skipLibCheck": true`. This has no impact on application safety because only third-party package definitions are skipped; the workspace schema code and migration runner themselves are still type-checked.
+
+
+### [LOG-0006] Tailwind CSS v4 workspace package component class scanning gap
 
 - date: 2026-06-26
 - task_id: TASK-UI-003
