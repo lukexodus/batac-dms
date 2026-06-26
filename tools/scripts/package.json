@@ -1,5 +1,15 @@
 {
   "name": "@batac/scripts",
   "private": true,
-  "version": "0.0.0"
+  "version": "0.0.0",
+  "scripts": {
+    "lint:migrations": "tsx lint-migrations.ts",
+    "db:lint": "pnpm run lint:migrations"
+  },
+  "devDependencies": {
+    "pgsql-ast-parser": "^12.0.2",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0",
+    "@types/node": "^20.11.0"
+  }
 }
