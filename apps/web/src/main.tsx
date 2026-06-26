@@ -12,6 +12,7 @@ import AppShellPage from "./pages/dev/AppShellPage";
 import DocumentNumberBadgePage from "./pages/dev/DocumentNumberBadgePage";
 import EmptyStatePage from "./pages/dev/EmptyStatePage";
 import StatCardPage from "./pages/dev/StatCardPage";
+import ScanQualityIndicatorPage from "./pages/dev/ScanQualityIndicatorPage";
 
 const router = createBrowserRouter([
   {
@@ -49,7 +50,11 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/stat-card",
     element: <StatCardPage />,
-  }
+  },
+  {
+    path: "/dev/components/scan-quality-indicator",
+    element: <ScanQualityIndicatorPage />,
+  },
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

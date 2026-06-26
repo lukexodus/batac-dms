@@ -51,3 +51,4 @@ export * from './components/domain/EmptyState';
 // export * from './components/domain/ErrorState';
 // export * from './components/domain/LoadingState';
 // export * from './components/domain/Pagination';
+export * from './components/domain/ScanQualityIndicator';
