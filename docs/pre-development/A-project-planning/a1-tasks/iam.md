@@ -42,7 +42,7 @@
 | TASK-INFRA-006 | Implement Drizzle migration runner and package scripts |
 | TASK-INFRA-008 | Write Fastify server production Dockerfile and entrypoint |
 
-**AUDIT module note:** AUDIT is also Wave B and its task list has not yet been generated. IAM tasks that call the audit service use `[CROSS-MODULE REF: AUDIT — task list not yet supplied]` in their Prerequisites, per A1-AGENTS.md §5.
+**AUDIT module note:** AUDIT is also Wave B and its task list has been generated. IAM tasks that call the audit service reference `TASK-AUDIT-003` in their Prerequisites.
 
 ---
 
@@ -93,7 +93,7 @@
 - [L1036–L1122] Org-context resolver design [RESOLVED — formerly two SPEC GAPs in the Module Summary]
 - [L1123–L1224] Login flow (execute in order; abort on first failure)
 - [L1225–L1235] Progressive account lockout delays
-- [L1236–L1242] Audit events (via fastify.auditService.log — decorated by AUDIT module prerequisite)
+- [L1236–L1242] Audit events (via fastify.auditService.writeEvent — decorated by AUDIT module prerequisite)
 - [L1243–L1263] is_ita and is_pa computation
 - [L1264–L1283] TASK-IAM-007
 - [L1284–L1289] Cookie value format (established in TASK-IAM-006)
@@ -996,7 +996,7 @@ AI Prompt: |
 Phase:          1
 Module:         IAM
 Title:          [AUDIT] Implement POST /api/auth/login (PKCE, JWT issuance, HTTP-only cookies)
-Prerequisites:  [TASK-IAM-005, CROSS-MODULE REF: AUDIT — task list not yet supplied]
+Prerequisites:  [TASK-IAM-005, TASK-AUDIT-003]
 Deliverables:
   - /apps/server/src/modules/iam/iam.service.ts — Adds login(input: LoginInput): Promise<void> method to createIamService(); handles PKCE verification, Argon2id credential check, concurrent-session enforcement, progressive account lockout, JWT (RS256) issuance, refresh-token issuance, cookie delivery, MFA no-op hook, audit events. Also adds the `IamServiceDeps` org-context resolver fields (`getPrimaryOffice`, `getCommitteeIds`, `resolveActiveDelegationGrant`) and a private `buildAccessTokenClaims()` helper — see "Org-context resolver design" below. [RESOLVED — see Module Summary, formerly two SPEC GAPs]
   - /apps/server/src/modules/iam/iam.routes.ts — Registers POST /api/auth/login as a public route (no auth preHandlers); rate limited 5 req / 15 min per IP via @fastify/rate-limit
@@ -1233,7 +1233,7 @@ AI Prompt: |
   | 9    | 5 minutes  |
   | 10+  | 15 minutes |
 
-  ## Audit events (via fastify.auditService.log — decorated by AUDIT module prerequisite)
+  ## Audit events (via fastify.auditService.writeEvent — decorated by AUDIT module prerequisite)
   - login_success:    `{ user_id, session_id, ip_address, user_agent }`
   - login_failed:     `{ attempted_identifier_hash: sha256hex(username), ip_address, user_agent, failure_reason }`
   - session_replaced: `{ user_id, old_session_id, new_session_id, new_ip_address }`
@@ -1398,7 +1398,7 @@ AI Prompt: |
 Phase:          1
 Module:         IAM
 Title:          [ABAC][AUDIT] Implement role assignment and revocation service (Platform Admin exclusion)
-Prerequisites:  [TASK-IAM-003, TASK-IAM-004, CROSS-MODULE REF: AUDIT — task list not yet supplied]
+Prerequisites:  [TASK-IAM-003, TASK-IAM-004, TASK-AUDIT-003]
 Deliverables:
   - /apps/server/src/modules/iam/iam.service.ts — Adds assignRole(input) and revokeRole(input) methods; application-layer Platform Admin exclusion check; audit events role_assigned and role_revoked
   - /apps/server/src/modules/iam/__tests__/iam.role-assignment.test.ts — Unit tests: normal assignment success, platform_admin + document_processor block, document_processor + platform_admin block, revocation
@@ -1499,7 +1499,7 @@ AI Prompt: |
 Phase:          1
 Module:         IAM
 Title:          [AUDIT] Implement POST /api/admin/sessions/:id/terminate (IT Admin force logout)
-Prerequisites:  [TASK-IAM-005, TASK-IAM-004, CROSS-MODULE REF: AUDIT — task list not yet supplied]
+Prerequisites:  [TASK-IAM-005, TASK-IAM-004, TASK-AUDIT-003]
 Deliverables:
   - /apps/server/src/modules/iam/iam.service.ts — Adds forceTerminateSession(input) method; mandatory reason field; enforces IT Admin only via PolicyEvaluator; audit event forced_logout
   - /apps/server/src/modules/iam/iam.routes.ts — Registers POST /api/admin/sessions/:id/terminate as a protected route
@@ -1523,10 +1523,13 @@ AI Prompt: |
     { reason: request.body.reason }
   );
   if (!result.allowed) {
-    await fastify.auditService.log('abac_denial', {
-      user_id: request.auth.userId,
-      resource_type: 'session', resource_id: request.params.id,
-      action: 'force_terminate', denial_reason: result.reason,
+    await fastify.auditService.writeEvent({
+      eventType: 'abac_denial',
+      actorId: request.auth.userId,
+      targetId: request.params.id,
+      targetType: 'session',
+      payload: { action: 'force_terminate', denial_reason: result.reason },
+      cityId: request.auth.cityId,
     });
     return reply.status(403).send({ code: 'FORBIDDEN', message: 'Access denied.' });
   }
@@ -1903,7 +1906,7 @@ AI Prompt: |
 Phase:          1
 Module:         IAM
 Title:          Wire IAM Fastify module plugin and register in app.ts
-Prerequisites:  [TASK-IAM-006, TASK-IAM-007, TASK-IAM-008, TASK-IAM-009, TASK-IAM-010, TASK-IAM-011, TASK-IAM-012, TASK-IAM-013, CROSS-MODULE REF: AUDIT — task list not yet supplied]
+Prerequisites:  [TASK-IAM-006, TASK-IAM-007, TASK-IAM-008, TASK-IAM-009, TASK-IAM-010, TASK-IAM-011, TASK-IAM-012, TASK-IAM-013, TASK-AUDIT-003]
 Deliverables:
   - /apps/server/src/modules/iam/iam.plugin.ts — Complete fp-wrapped plugin: instantiates PolicyGuard + PolicyEvaluator (with session handler registered), instantiates IamService, decorates both onto fastify, attaches tRPC router, registers REST routes in a nested scope with correct public/protected route partitioning
   - /apps/server/src/app.ts — Registers iam plugin after database, event-bus, and audit plugins; before organization and all downstream modules

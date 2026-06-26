@@ -100,17 +100,28 @@ const AVATAR_COLORS = [
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
+
   if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+
+  const first = parts[0];
+  if (!first) return "?";
+
+  if (parts.length === 1) {
+    return first.charAt(0).toUpperCase();
+  }
+
+  const last = parts[parts.length - 1];
+  if (!last) return first.charAt(0).toUpperCase();
+
+  return (first.charAt(0) + last.charAt(0)).toUpperCase();
 }
 
-function getColorClass(name: string): string {
+function getColorClass(name: string): (typeof AVATAR_COLORS) [number] {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
   }
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length] !;
 }
 
 export interface AvatarNameProps extends AvatarProps {
