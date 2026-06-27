@@ -1,5 +1,6 @@
 import React from "react";
-import { AppShell, RoutingHistoryTimeline } from "@batac/ui";
+import { Navigate } from "react-router-dom";
+import { RoutingHistoryTimeline } from "@batac/ui";
 import type { RoutingEntry } from "@batac/ui";
 
 const MOCK_ENTRIES: RoutingEntry[] = [
@@ -43,22 +44,22 @@ const MOCK_ENTRIES: RoutingEntry[] = [
 ];
 
 export default function RoutingHistoryTimelinePage() {
-  return (
-    <AppShell>
-      <div className="p-8 max-w-3xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-text mb-2">
-            Routing History Timeline
-          </h1>
-          <p className="text-text-muted">
-            Tier 3 domain component displaying document lifecycle events.
-          </p>
-        </div>
+  if (!import.meta.env.DEV) return <Navigate to="/" replace />;
 
-        <div className="bg-surface rounded-xl border border-border shadow-sm p-6">
-          <RoutingHistoryTimeline entries={MOCK_ENTRIES.slice().reverse()} />
-        </div>
+  return (
+    <div className="p-8 max-w-3xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-text mb-2">
+          Routing History Timeline
+        </h1>
+        <p className="text-text-muted">
+          Tier 3 domain component displaying document lifecycle events.
+        </p>
       </div>
-    </AppShell>
+
+      <div className="bg-surface rounded-xl border border-border shadow-sm p-6">
+        <RoutingHistoryTimeline entries={MOCK_ENTRIES.slice().reverse()} />
+      </div>
+    </div>
   );
 }
