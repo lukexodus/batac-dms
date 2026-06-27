@@ -20,6 +20,7 @@ import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
 import StatusBadgePage from "./pages/dev/StatusBadgePage";
 import WorkflowStepIndicatorPage from "./pages/dev/WorkflowStepIndicatorPage";
 import DocumentPreviewCardPage from "./pages/dev/DocumentPreviewCardPage";
+import OrderOfBusinessRowPage from "./pages/dev/OrderOfBusinessRowPage";
 
 const router = createBrowserRouter([
   {
@@ -89,6 +90,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/document-preview-card",
     element: <DocumentPreviewCardPage />,
+  },
+  {
+    path: "/dev/components/order-of-business-row",
+    element: <OrderOfBusinessRowPage />,
   },
 ]);
 
