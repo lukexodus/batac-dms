@@ -57,3 +57,4 @@ export * from './components/domain/RoutingHistoryTimeline';
 export * from './components/domain/QRCodeDisplay';
 export * from './components/domain/CommitteeReferralBlock';
 export * from './components/domain/DocumentPreviewCard';
+export * from './components/domain/OrderOfBusinessRow';
