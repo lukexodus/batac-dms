@@ -17,6 +17,7 @@
     "pino": "^9.0.0"
   },
   "devDependencies": {
+    "@batac/config": "workspace:^",
     "@types/node": "^20.11.0",
     "typescript": "^5.5.0"
   },

@@ -14,6 +14,7 @@
     "postgres": "^3.4.4"
   },
   "devDependencies": {
+    "@batac/config": "workspace:^",
     "@types/node": "^20.11.0",
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.19.0",
