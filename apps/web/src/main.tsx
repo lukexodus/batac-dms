@@ -17,6 +17,7 @@ import ScanQualityIndicatorPage from "./pages/dev/ScanQualityIndicatorPage";
 import SLATimerPage from "./pages/dev/SLATimerPage";
 import QRCodeDisplayPage from "./pages/dev/QRCodeDisplayPage";
 import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
+import StatusBadgePage from "./pages/dev/StatusBadgePage";
 
 const router = createBrowserRouter([
   {
@@ -74,6 +75,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/committee-referral-block",
     element: <CommitteeReferralBlockPage />,
+  },
+  {
+    path: "/dev/components/status-badge",
+    element: <StatusBadgePage />,
   },
 ]);
 
