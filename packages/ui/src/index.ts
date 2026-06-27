@@ -45,7 +45,7 @@ export * from './components/domain/StatusBadge';
 // export * from './components/domain/ActivityFeed';
 // export * from './components/domain/DataCard';
 // export * from './components/domain/StatsGrid';
-// export * from './components/domain/WorkflowStepper';
+export * from './components/domain/WorkflowStepIndicator';
 // export * from './components/domain/FilterBar';
 export * from './components/domain/EmptyState';
 // export * from './components/domain/ErrorState';

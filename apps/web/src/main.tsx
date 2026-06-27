@@ -18,6 +18,7 @@ import SLATimerPage from "./pages/dev/SLATimerPage";
 import QRCodeDisplayPage from "./pages/dev/QRCodeDisplayPage";
 import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
 import StatusBadgePage from "./pages/dev/StatusBadgePage";
+import WorkflowStepIndicatorPage from "./pages/dev/WorkflowStepIndicatorPage";
 
 const router = createBrowserRouter([
   {
@@ -79,6 +80,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/status-badge",
     element: <StatusBadgePage />,
+  },
+  {
+    path: "/dev/components/workflow-step-indicator",
+    element: <WorkflowStepIndicatorPage />,
   },
 ]);
 
