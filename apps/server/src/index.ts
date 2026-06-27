@@ -5,8 +5,8 @@
  */
 
 import fastify from 'fastify';
-import { env } from './config/env';
-import { registerHealthRoute } from './routes/health.route';
+import { env } from './config/env.js';
+import { registerHealthRoute } from './routes/health.route.js';
 
 const app = fastify({
   logger: env.LOG_LEVEL !== 'silent' ? {

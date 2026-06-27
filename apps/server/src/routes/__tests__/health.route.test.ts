@@ -8,14 +8,14 @@ import { vi, describe, it, expect } from 'vitest';
 import fastify from 'fastify';
 
 // Mock the environment config module to prevent unsafeParse process.exit calls
-vi.mock('../../config/env', () => ({
+vi.mock('../../config/env.js', () => ({
   env: {
     HEALTH_CHECK_PATH: '/health-check-test',
     APP_VERSION: '1.0.0-test',
   },
 }));
 
-import { registerHealthRoute } from '../health.route';
+import { registerHealthRoute } from '../health.route.js';
 
 describe('health route liveness probe', () => {
   it('registers route at the configured path and returns HTTP 200 with required keys', async () => {

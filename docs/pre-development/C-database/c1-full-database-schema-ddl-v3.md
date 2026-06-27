@@ -25,8 +25,9 @@
 - [L1843–L1866] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
 - [L1867–L1981] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
 - [L1982–L1993] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
-- [L1994–L2014] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
-- [L2015–L2029] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
+- [L1994–L2001] Part 13.5 — Schema `shared` — Infrastructure/operational schema for cross-cutting tables not owned by any domain module; Phase 1: event_bus_dead_letters.
+- [L2002–L2022] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
+- [L2023–L2037] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
 
 ---
 
@@ -193,6 +194,7 @@ CREATE SCHEMA IF NOT EXISTS tracking;
 CREATE SCHEMA IF NOT EXISTS records;
 CREATE SCHEMA IF NOT EXISTS notifications;
 CREATE SCHEMA IF NOT EXISTS audit;
+CREATE SCHEMA IF NOT EXISTS shared;        -- INFRA-owned infrastructure schema; Phase 1: event_bus_dead_letters [TASK-INFRA-023]
 
 -- ── Reserved Phase 2/3 namespaces ────────────────────────────────────────────
 -- No tables created in these schemas in Phase 1.
@@ -1991,6 +1993,41 @@ The `search_meta`, `portal`, and `reporting` schemas were created in Part 2. No 
 
 ---
 
+## Part 13.5 — Schema `shared`
+
+**Owner:** INFRA (not a domain module). **Phase:** 1. **Purpose:** Cross-cutting infrastructure tables that are not owned by any single domain module.
+
+The `shared` schema was not in the original Phase 1 schema list. It was added during TASK-INFRA-023 (2026-06-26) to house the dead-letter table for the in-process domain event bus. See `docs/development-findings-log.md` [LOG-0007] for the findings entry.
+
+```sql
+-- ── Schema `shared` — infrastructure/operational tables ─────────────────────
+-- Grants: batac_app has SELECT, INSERT, UPDATE via post-migrate-grants.sql
+-- (the 'shared' entry was already present in the app_schemas array).
+
+CREATE TABLE shared.event_bus_dead_letters (
+    id             uuid             PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    event_id       uuid             NOT NULL,           -- eventId from DomainEvent envelope
+    event_type     text             NOT NULL,           -- e.g. 'document.created'
+    payload        jsonb            NOT NULL,           -- full DomainEvent payload
+    failed_module  text             NOT NULL,           -- e.g. 'audit', 'notifications'
+    error_message  text             NOT NULL,           -- err.message from the failed handler
+    failed_at      timestamptz      NOT NULL DEFAULT now(),
+    retry_count    integer          NOT NULL DEFAULT 0,
+    exhausted_at   timestamptz      NULL                -- set after MAX_RETRIES (5) attempts
+);
+
+-- Intentional invariant exceptions (per C5 §4.2 — system-global table):
+--   • No city_id: operational dead-letter entries span all tenants; partitioning
+--     by tenant provides no benefit and complicates the retry job query.
+--   • No soft-delete columns (deleted_at, deleted_by): successful retries hard-
+--     delete the row (markRetried); exhausted rows are kept permanently via
+--     exhausted_at; soft-delete semantics do not apply to operational queue entries.
+```
+
+**Source:** TASK-INFRA-023; ADR-API-001 §4; B2 §"Master Event Bus Registry".
+
+---
+
 ## Part 14 — Invariant and Non-Negotiable Compliance Checklist
 
 | # | Invariant / Non-Negotiable | Mechanism in this DDL |
@@ -2007,7 +2044,7 @@ The `search_meta`, `portal`, and `reporting` schemas were created in Part 2. No 
 | 10 | IT admin has no document file content access | `REVOKE ALL ON documents.versions, documents.attachments FROM batac_it_admin`; RLS policy blocks metadata for confidential/restricted |
 | 11 | Gapless document numbering | PostgreSQL sequences per series per year; `fn_get_next_sequence_value()` for safe consumption |
 | 12 | Append-only logs | `workflow.workflow_events`: no `deleted_at`, `REVOKE UPDATE, DELETE`; `audit.events`: no `deleted_at`/`updated_at`, INSERT-only grant |
-| 13 | `city_id` on every table | All 52 tables include `city_id UUID NOT NULL DEFAULT '...'::uuid` |
+| 13 | `city_id` on every table | All 52 core entity tables include `city_id UUID NOT NULL DEFAULT '...'::uuid`. Exception: `shared.event_bus_dead_letters` is a system-global operational table (not a tenant entity); `city_id` is intentionally absent — documented in Part 13.5 and C5 §4.2 "system-global table" note. |
 | 14 | Required workflow step types stored | `documents.document_types.required_step_types TEXT[]` |
 
 ---

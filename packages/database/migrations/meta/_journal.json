@@ -1,1 +1,13 @@
-{"version":"7","dialect":"postgresql","entries":[]}
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1782455537328,
+      "tag": "0000_shared_create_event_bus_dead_letters",
+      "breakpoints": true
+    }
+  ]
+}

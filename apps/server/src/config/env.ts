@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { loadDockerSecrets } from './load-docker-secrets';
-import { serverEnvSchema } from './env.server';
+import { loadDockerSecrets } from './load-docker-secrets.js';
+import { serverEnvSchema } from './env.server.js';
 
 // Load container secrets into process.env before validation runs
 loadDockerSecrets();
