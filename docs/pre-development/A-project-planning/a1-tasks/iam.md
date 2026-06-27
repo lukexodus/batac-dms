@@ -48,96 +48,21 @@
 
 ## Table of Contents
 
-- [L144–L164] TASK-IAM-001
-- [L165–L175] Project-wide DDL conventions
-- [L176–L376] Table definitions
-  - [L178–L199] iam.users
-  - [L200–L216] iam.credentials
-  - [L217–L251] iam.sessions
-  - [L252–L278] iam.refresh_tokens
-  - [L279–L299] iam.roles
-  - [L300–L316] iam.permissions
-  - [L317–L329] iam.role_permissions
-  - [L330–L356] iam.role_assignments
-  - [L357–L376] iam.mfa_records
-- [L377–L413] Platform Administrator exclusion trigger (append manually to migration file)
-- [L414–L422] Runtime grants (append manually to migration file after the trigger)
-- [L423–L443] Steps
-- [L444–L471] TASK-IAM-002
-- [L472–L474] Module folder
-- [L475–L478] File naming rule
-- [L479–L487] Pattern rules
-- [L488–L526] iam.types.ts — define these types
-- [L527–L547] iam.errors.ts
-- [L548–L562] iam.plugin.ts stub
-- [L563–L603] iam.policy.ts stub
-- [L604–L621] TASK-IAM-003
-- [L622–L624] File
-- [L625–L632] Pattern
-- [L633–L638] Rules
-- [L639–L709] Required interface methods
-- [L710–L728] TASK-IAM-004
-- [L729–L824] Two classes in iam.policy.ts
-- [L825–L848] ResourceDescriptor shape
-- [L849–L868] TASK-IAM-005
-- [L869–L871] File
-- [L872–L878] Cookie names and JWT algorithm
-- [L879–L894] JWT private claims (beyond iss/sub/iat/exp/jti)
-- [L895–L910] Hook 1: verifyAccessToken
-- [L911–L941] Hook 2: loadDelegationContext
-- [L942–L964] Hook 3: setDatabaseSessionVars
-- [L965–L970] Hook 4: updateLastActivity
-- [L971–L993] Export
-- [L994–L1018] TASK-IAM-006
-- [L1019–L1035] PKCE (RFC 7636 — S256 method only)
-- [L1036–L1122] Org-context resolver design [RESOLVED — formerly two SPEC GAPs in the Module Summary]
-- [L1123–L1224] Login flow (execute in order; abort on first failure)
-- [L1225–L1235] Progressive account lockout delays
-- [L1236–L1242] Audit events (via fastify.auditService.writeEvent — decorated by AUDIT module prerequisite)
-- [L1243–L1263] is_ita and is_pa computation
-- [L1264–L1283] TASK-IAM-007
-- [L1284–L1289] Cookie value format (established in TASK-IAM-006)
-- [L1290–L1350] Token rotation flow
-- [L1351–L1369] TASK-IAM-008
-- [L1370–L1402] Logout flow
-- [L1403–L1422] TASK-IAM-009
-- [L1423–L1429] Platform Administrator exclusion invariant
-- [L1430–L1437] type_code classification (authoritative)
-- [L1438–L1468] assignRole()
-- [L1469–L1488] revokeRole()
-- [L1489–L1503] Important: token staleness
-- [L1504–L1523] TASK-IAM-010
-- [L1524–L1541] ABAC enforcement (before any service call)
-- [L1542–L1572] Force termination flow
-- [L1573–L1593] TASK-IAM-011
-- [L1594–L1599] Behavior overview
-- [L1600–L1607] POST /api/auth/lock (PROTECTED route)
-- [L1608–L1651] POST /api/auth/unlock (SPECIAL route)
-- [L1652–L1670] TASK-IAM-012
-- [L1671–L1673] File
-- [L1674–L1678] Export
-- [L1679–L1682] All procedures use protectedProcedure
-- [L1683–L1751] Procedures
-- [L1752–L1772] Error mapping
-- [L1773–L1791] TASK-IAM-013
-- [L1792–L1797] File
-- [L1798–L1803] Constants
-- [L1804–L1811] Step 1: System user sentinel
-- [L1812–L1831] Step 2: 13 roles
-- [L1832–L1872] Step 3: Permission catalog
-- [L1873–L1907] Step 4: role_permissions matrix
-- [L1908–L1927] TASK-IAM-014
-- [L1928–L1982] iam.plugin.ts — complete implementation
-- [L1983–L1988] registerIamRoutes() — route partitioning
-- [L1989–L2009] app.ts registration order
-- [L2010–L2020] TypeScript module augmentation (ensure in iam.types.ts)
-- [L2021–L2036] fp() call semantics
-- [L2037–L2226] Module Summary — IAM
-  - [L2046–L2122] Spec Gaps Identified — RESOLVED 2026-06-25
-  - [L2123–L2154] Cross-document changes made as part of this resolution
-  - [L2155–L2173] Forward note for the ORG module's Step 2 pass
-  - [L2174–L2224] Resolved developer decisions (2026-06-26) — primary-office is_primary flag (ADR-AUTH-011); refresh silent/cookie-only
-  - [L2225–L2247] Deferred Capabilities (not in Phase 1 scope)
+- [L69–L368] TASK-IAM-001 — [MIGRATION] Create Drizzle iam schema definitions and generate DDL migration
+- [L369–L528] TASK-IAM-002 — Scaffold IAM module file structure with typed stubs
+- [L529–L634] TASK-IAM-003 — Implement IAM repository layer with all CRUD operations
+- [L635–L773] TASK-IAM-004 — [ABAC] Implement PolicyGuard (hardcoded gates) and PolicyEvaluator (RBAC/ABAC steps)
+- [L774–L918] TASK-IAM-005 — Implement Fastify auth preHandler middleware chain
+- [L919–L1188] TASK-IAM-006 — [AUDIT] Implement POST /api/auth/login (PKCE, JWT issuance, HTTP-only cookies)
+- [L1189–L1268] TASK-IAM-007 — [AUDIT] Implement POST /api/auth/refresh (token rotation with reuse detection)
+- [L1269–L1320] TASK-IAM-008 — [AUDIT] Implement POST /api/auth/logout (session termination and cookie clearing)
+- [L1321–L1421] TASK-IAM-009 — [ABAC][AUDIT] Implement role assignment and revocation service (Platform Admin exclusion)
+- [L1422–L1493] TASK-IAM-010 — [AUDIT] Implement POST /api/admin/sessions/:id/terminate (IT Admin force logout)
+- [L1494–L1572] TASK-IAM-011 — [AUDIT] Implement workstation lock and unlock endpoints (locked_at behavior)
+- [L1573–L1693] TASK-IAM-012 — Implement IAM tRPC router for internal SPA (user management, profile, sessions, password)
+- [L1694–L1889] TASK-IAM-013 — Seed IAM roles, permissions, and role-permission matrix
+- [L1890–L2018] TASK-IAM-014 — Wire IAM Fastify module plugin and register in app.ts
+- [L2019–L2235] Module Summary — IAM
 
 ---
 

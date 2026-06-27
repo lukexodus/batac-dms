@@ -25,16 +25,17 @@ Wave C — runs after IAM (Wave B) and AUDIT (Wave B) task lists are complete.
 
 ## Table of Contents
 
-- [TASK-ORG-001] `[MIGRATION]` Create organization schema Drizzle definitions and DDL migration
-- [TASK-ORG-002] Scaffold ORG module file structure with typed stubs
-- [TASK-ORG-003] Implement ORG repository layer — all seven tables
-- [TASK-ORG-004] Implement ORG Published API — eight exported methods
-- [TASK-ORG-005] `[ABAC][AUDIT]` Implement delegation grant create service and delegation.granted event
-- [TASK-ORG-006] `[ABAC][AUDIT]` Implement delegation grant revoke_early service and delegation.revoked event
-- [TASK-ORG-007] `[AUDIT]` Implement delegation auto-expiry pgboss job and delegation.expired event
-- [TASK-ORG-008] `[ABAC]` Implement ORG tRPC router — admin CRUD, committee management, delegation read
-- [TASK-ORG-009] Seed initial ORG data — office hierarchy and standing committees
-- [TASK-ORG-010] Wire ORG Fastify plugin and inject real Published API into IAM service resolvers
+- [L42–L363] TASK-ORG-001 — [MIGRATION] Create organization schema Drizzle definitions and DDL migration
+- [L364–L529] TASK-ORG-002 — Scaffold ORG module file structure with typed stubs
+- [L530–L643] TASK-ORG-003 — Implement ORG repository layer — all seven tables
+- [L644–L771] TASK-ORG-004 — Implement ORG Published API — eight exported methods
+- [L772–L894] TASK-ORG-005 — [ABAC][AUDIT] Implement delegation grant create service and delegation.granted event
+- [L895–L983] TASK-ORG-006 — [ABAC][AUDIT] Implement delegation grant revoke_early service and delegation.revoked event
+- [L984–L1090] TASK-ORG-007 — [AUDIT] Implement delegation auto-expiry pgboss job and delegation.expired event
+- [L1091–L1233] TASK-ORG-008 — [ABAC] Implement ORG tRPC router — admin CRUD, committee management, delegation read
+- [L1234–L1416] TASK-ORG-009 — Seed initial ORG data — Batac City office hierarchy and standing committees
+- [L1417–L1564] TASK-ORG-010 — Wire ORG Fastify plugin and inject real Published API into IAM service resolvers
+- [L1565–L1661] Module Summary — ORG
 
 ---
 
