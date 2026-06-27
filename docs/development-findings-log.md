@@ -342,8 +342,17 @@ that aligns the server's module resolution with `@batac/database`'s module syste
 The alternative (splitting drizzle imports into a shared ESM-mode helper) would be
 more complex and fragile. The `.js` extension requirement is a standard Node16 ESM
 constraint, not a project-specific quirk.
-### Entry 7 (proposed)
-- **Date**: 2026-06-27
-- **Module**: audit
-- **Documents Affected**: B4, C1
-- **Finding**: [Inference] The `batac_audit` database role does not have `UPDATE` permissions on the `audit.events` table (enforced by Security Invariant #3 / I3 §16). This prevents the use of `SELECT ... FOR UPDATE` in Drizzle to serialize concurrent chain hash computation. We implemented transaction-level advisory locking (`pg_advisory_xact_lock`) instead to safely serialize inserts without requiring `UPDATE` privileges.
+
+### [LOG-0011] `batac_audit` role lacks UPDATE permissions, blocking Drizzle `SELECT ... FOR UPDATE`
+
+- date: 2026-06-27
+- task_id: TASK-AUDIT-004
+- status: proposed
+- affects: C1
+
+During integration testing of the audit event consumer, queries to select the previous chain hash failed. The Drizzle repository was executing `SELECT ... FOR UPDATE` on `audit.events` to serialize concurrent chain hash computation. However, PostgreSQL rejected this with a permission error. The `batac_audit` database role explicitly revokes `UPDATE` and `DELETE` privileges on the `audit.events` table (enforced by Security Invariant #3 / I3 §16). In PostgreSQL, a `SELECT ... FOR UPDATE` query requires the `UPDATE` privilege on the target table.
+
+To serialize concurrent writes and compute chain hashes safely, we replaced the row-level lock (`.for('update')`) in `audit.repository.ts` with a transaction-level advisory lock (`pg_advisory_xact_lock`). This sequences concurrent inserts safely without requiring `UPDATE` privileges.
+
+[Inference]: The transaction-level advisory lock is the standard way in PostgreSQL to serialize operations when row-level locks are unavailable or table permissions are restricted to append-only (SELECT/INSERT).
+
