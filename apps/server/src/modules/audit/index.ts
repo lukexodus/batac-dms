@@ -1,5 +1,6 @@
 import { AuditRepository } from './audit.repository.js';
 import { AuditWriteService } from './audit.write-service.js';
+import { AuditQueryService } from './audit.query-service.js';
 import type { createAuditDb } from './audit.db.js';
 
 
@@ -27,41 +28,41 @@ export interface AuditEventInput {
 }
 
 /**
- * Filter parameters for querying audit events.
- * Full implementation is in TASK-AUDIT-005.
+ * Filter parameters for querying audit events (B2 Module 8).
  */
 export interface AuditQueryFilter {
-  cityId?: string;
-  actorId?: string;
-  eventType?: string;
-  resourceOfficeId?: string;
-  fromDate?: Date;
-  toDate?: Date;
-  limit?: number;
-  offset?: number;
+  actorId?:    string;
+  targetId?:   string;
+  eventTypes?: string[];
+  from?:       Date;
+  to?:         Date;
+  pageSize?:   number;   // default 50; max 200
+  cursor?:     string;   // opaque cursor = base64(String(sequence_number))
 }
 
 /**
- * A single audit event record with chain validation status.
- * Full implementation is in TASK-AUDIT-005.
+ * A single audit event record returned by queryEvents.
+ */
+export interface AuditEvent {
+  auditEventId: string;
+  eventType:    string;
+  actorId:      string | null;
+  targetId:     string | null;
+  targetType:   string | null;
+  payload:      Record<string, unknown>;
+  cityId:       string;
+  occurredAt:   Date;
+  chainHash:    string;
+  hmac:         string;
+}
+
+/**
+ * Result of a queryEvents call with chain validation status.
  */
 export interface AuditQueryResult {
-  events: Array<{
-    id: string;
-    sequenceNumber: bigint;
-    eventType: string;
-    actorId: string | null;
-    targetId: string | null;
-    targetType: string | null;
-    resourceOfficeId: string | null;
-    payload: Record<string, unknown>;
-    chainHash: string;
-    hmac: string;
-    hmacKeyVersion: number;
-    occurredAt: Date;
-    chainValidationStatus: 'intact' | 'broken';
-  }>;
-  total: number;
+  events:                AuditEvent[];
+  chainValidationStatus: 'intact' | 'broken';
+  nextCursor?:           string;
 }
 
 // ─── Public API Interface ─────────────────────────────────────────────────────
@@ -100,11 +101,10 @@ export function createAuditModule(deps: {
 }): AuditPublicAPI {
   const repo = new AuditRepository(deps.auditDb);
   const writeService = new AuditWriteService(repo, deps.env);
+  const queryService = new AuditQueryService(repo, deps.env);
 
   return {
-    writeEvent: (e) => writeService.writeEvent(e),
-    queryEvents: async () => {
-      throw new Error('Not implemented — see TASK-AUDIT-005');
-    },
+    writeEvent:  (e) => writeService.writeEvent(e),
+    queryEvents: (f) => queryService.queryEvents(f),
   };
 }
