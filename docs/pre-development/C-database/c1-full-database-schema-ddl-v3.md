@@ -11,23 +11,23 @@
 
 ## Table of Contents
 
-- [L33–L90] Part 0 — Source Preamble and Notation — Source documents cited, notation tags, and conflict-resolution summary.
-- [L91–L166] Part 1 — Conventions — Cross-schema FK rules, PK/city_id/timestamp/soft-delete standards, and lifecycle enforcement.
-- [L167–L229] Part 2 — Extensions, Roles, and Schemas — pgcrypto extension, trigger function, schema creation, and database roles.
-- [L230–L468] Part 3 — Schema `iam` — Users, credentials, sessions, refresh tokens, permissions, assignments, and MFA records.
-- [L469–L695] Part 4 — Schema `organization` — Offices, positions, employees, assignments, delegation grants, and committees.
-- [L696–L1188] Part 5 — Schema `documents` — DDL for document types, numbers ledger, versions, attachments, signatures, sponsorships, and reviews.
-- [L1189–L1526] Part 6 — Schema `workflow` — DDL for workflow definitions, steps, transitions, events, sessions, attendances, and business order.
-- [L1527–L1605] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
-- [L1606–L1725] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
-- [L1726–L1796] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
-- [L1797–L1842] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
-- [L1843–L1866] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
-- [L1867–L1981] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
-- [L1982–L1993] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
-- [L1994–L2001] Part 13.5 — Schema `shared` — Infrastructure/operational schema for cross-cutting tables not owned by any domain module; Phase 1: event_bus_dead_letters.
-- [L2002–L2022] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
-- [L2023–L2037] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
+- [L34–L91] Part 0 — Source Preamble and Notation — Source documents cited, notation tags, and conflict-resolution summary.
+- [L92–L167] Part 1 — Conventions — Cross-schema FK rules, PK/city_id/timestamp/soft-delete standards, and lifecycle enforcement.
+- [L168–L231] Part 2 — Extensions, Roles, and Schemas — pgcrypto extension, trigger function, schema creation, and database roles.
+- [L232–L470] Part 3 — Schema `iam` — Users, credentials, sessions, refresh tokens, permissions, assignments, and MFA records.
+- [L471–L740] Part 4 — Schema `organization` — Offices, positions, employees, assignments, delegation grants, committees, committee memberships, and cross-office grants (security config).
+- [L741–L1233] Part 5 — Schema `documents` — DDL for document types, numbers ledger, versions, attachments, signatures, sponsorships, and reviews.
+- [L1234–L1571] Part 6 — Schema `workflow` — DDL for workflow definitions, steps, transitions, events, sessions, attendances, and business order.
+- [L1572–L1650] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
+- [L1651–L1770] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
+- [L1771–L1841] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
+- [L1842–L1887] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
+- [L1888–L1911] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
+- [L1912–L2026] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
+- [L2027–L2038] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
+- [L2039–L2073] Part 13.5 — Schema `shared` — Infrastructure/operational schema for cross-cutting tables not owned by any domain module; Phase 1: event_bus_dead_letters.
+- [L2074–L2094] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
+- [L2095–L2109] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
 
 ---
 
@@ -691,6 +691,49 @@ CREATE UNIQUE INDEX uq_committee_membership_active
     WHERE is_active = true AND deleted_at IS NULL;
 
 CREATE INDEX idx_committee_memberships_employee ON organization.committee_memberships(employee_id);
+
+-- ============================================================
+-- organization.cross_office_grants
+-- Security configuration table. Authoritative source: B5 §6.5 / ADR-AUTH-009.
+-- Convention deviations (intentional):
+--   • No city_id     — grants are system-wide, not city-scoped
+--   • No updated_at  — rows are replaced (DELETE + INSERT), not updated
+--   • No deleted_at / deleted_by — no soft-delete; rows are physical-deleted and re-seeded
+--   • No updated_at trigger
+-- Cross-schema FK to iam.roles(id) is the sole authorized exception to the project-wide
+-- "no FK constraints across schema boundaries" rule. Authorized by ADR-AUTH-009 §Consequences.
+-- Seed data (4 rows, one per role from B5 §5.6) is inserted by TASK-IAM-013 Step 5.
+-- ============================================================
+CREATE TABLE organization.cross_office_grants (
+    id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    role_id        UUID        NOT NULL REFERENCES iam.roles(id),
+    office_scope   TEXT        NOT NULL CHECK (office_scope IN ('all')),
+    access_level   TEXT        NOT NULL CHECK (access_level IN ('metadata_only', 'full')),
+    resource_types TEXT[]      NOT NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- has_cross_office_read_grant()
+-- Called by RLS policies on the documents and workflow schemas.
+-- Returns TRUE when the given user holds any role that has a cross-office grant row.
+-- access_level enforcement (metadata_only vs full) is NOT done here; the calling
+-- RLS policy must add a second condition (ADR-AUTH-009 §Consequences / Documents module work).
+CREATE OR REPLACE FUNCTION has_cross_office_read_grant(
+    p_user_id   UUID,
+    p_office_id UUID          -- reserved for future specific-office-scope branch; unused now
+) RETURNS BOOLEAN AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM organization.cross_office_grants g
+        JOIN iam.role_assignments ra ON ra.role_id = g.role_id
+        WHERE ra.user_id  = p_user_id
+          AND ra.revoked_at IS NULL
+          AND g.office_scope = 'all'
+        -- specific-office-scope branch intentionally omitted:
+        -- all four B5 §5.6 roles use office_scope = 'all'.
+        -- A future per-office grant requires a schema change + function update.
+    );
+$$ LANGUAGE sql STABLE;
 ```
 
 ---

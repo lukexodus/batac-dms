@@ -1890,6 +1890,67 @@ AI Prompt: |
 
   Implement the full matrix for all 13 roles × all relevant permissions.
 
+  ## Step 5: cross_office_grants seed [Added — ADR-AUTH-009 §Consequences]
+
+  The `organization.cross_office_grants` table lives in the `organization` schema (created by
+  TASK-ORG-001 migration), but ADR-AUTH-009 specifies its seed data belongs alongside IAM seed
+  data because it references `iam.roles`. The organization migration (TASK-ORG-001) must have
+  already run before this step executes. The `pnpm db:seed` entry point runs all migrations
+  first, so this ordering is automatic.
+
+  Seed one row per role from B5 §5.6 "Cross-Office Permissions" table:
+
+  ```typescript
+  // Uses roleMap built in Step 2 (keyed by role code → role_id UUID)
+  const CROSS_OFFICE_GRANTS = [
+    {
+      // Records Officer: read metadata (not content) across all offices for archival purposes
+      roleCode: 'records_officer',
+      officeScope: 'all',
+      accessLevel: 'metadata_only',
+      resourceTypes: ['document'],
+    },
+    {
+      // SP Secretary: read and act on all workflow steps across SP Secretariat scope
+      roleCode: 'sp_secretary',
+      officeScope: 'all',
+      accessLevel: 'full',
+      resourceTypes: ['document', 'workflow_step_instance'],
+    },
+    {
+      // Platform Administrator: org structure and workflow definitions only; no document content
+      roleCode: 'plat_admin',
+      officeScope: 'all',
+      accessLevel: 'metadata_only',
+      resourceTypes: ['organization', 'workflow_definition'],
+    },
+    {
+      // System Administrator (IT Admin): audit/session data only; no document content
+      roleCode: 'sys_admin',
+      officeScope: 'all',
+      accessLevel: 'metadata_only',
+      resourceTypes: ['audit_event', 'session'],
+    },
+  ] as const;
+
+  for (const grant of CROSS_OFFICE_GRANTS) {
+    await db.insert(crossOfficeGrants)
+      .values({
+        roleId: roleMap[grant.roleCode],
+        officeScope: grant.officeScope,
+        accessLevel: grant.accessLevel,
+        resourceTypes: grant.resourceTypes,
+      })
+      .onConflictDoNothing();  // idempotent: re-seeding does not duplicate rows
+  }
+  ```
+
+  Note: `access_level = 'metadata_only'` vs `'full'` is stored but NOT yet enforced by
+  `has_cross_office_read_grant()` — the function only answers "can read across offices."
+  Enforcement of the metadata/full distinction is Documents module migration work (ADR-AUTH-009
+  §Consequences). These seed rows are correct as data; they will be enforced once the Documents
+  migration adds the RLS condition.
+
   Confirm before submitting:
   - [ ] `pnpm db:seed` completes without error on a freshly migrated database
   - [ ] `SELECT count(*) FROM iam.roles WHERE deleted_at IS NULL` = 13
