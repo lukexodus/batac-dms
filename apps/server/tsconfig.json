@@ -6,12 +6,16 @@
     "verbatimModuleSyntax": false,
     "lib": ["ES2022"],
     "outDir": "./dist",
-    "rootDir": "./src",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@batac/shared": ["../../packages/shared/src/index.ts"],
+      "@batac/shared/*": ["../../packages/shared/src/*"],
+      "@batac/database/*": ["../../packages/database/*"]
     },
-    "types": ["node"]
+    "types": ["node"],
+    "skipLibCheck": true,
+    "exactOptionalPropertyTypes": false
   },
   "include": ["src/**/*"],
   "exclude": ["src/**/__tests__/**/*"]

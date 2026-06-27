@@ -133,7 +133,7 @@ Drizzle Kit assigns a sequential numeric prefix automatically. The project adds 
 |Component|Rule|
 |---|---|
 |`{NNNN}`|Four-digit zero-padded sequence number assigned by Drizzle Kit. Never manually assigned, reassigned, or reordered.|
-|`{scope}`|Lowercase name of the PostgreSQL schema primarily affected. Valid values: `core`, `iam`, `organization`, `documents`, `workflow`, `tracking`, `records`, `notifications`, `audit`, `search_meta`, `portal`, `reporting`. Use `core` for migrations that create shared infrastructure: PostgreSQL extensions, DB roles, schema namespaces, or shared types.|
+|`{scope}`|Lowercase name of the PostgreSQL schema primarily affected. Valid values: `core`, `iam`, `organization`, `documents`, `workflow`, `tracking`, `records`, `notifications`, `audit`, `shared`, `search_meta`, `portal`, `reporting`. Use `core` for migrations that create shared infrastructure: PostgreSQL extensions, DB roles, schema namespaces, or shared types. Use `shared` for migrations that create or modify tables in the INFRA-owned `shared` PostgreSQL schema (e.g. `shared.event_bus_dead_letters`). [Updated 2026-06-26 — TASK-INFRA-023]|
 |`{description}`|Snake-case, imperative mood, 40 characters or fewer. Describes what the migration does, not why it was needed.|
 
 ### 3.2 Examples

@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { existsSync, readFileSync } from 'fs';
-import { loadDockerSecrets } from '../load-docker-secrets';
+import { loadDockerSecrets } from '../load-docker-secrets.js';
 
 vi.mock('fs', () => ({
   existsSync: vi.fn(),

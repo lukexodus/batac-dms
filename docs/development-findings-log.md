@@ -228,3 +228,117 @@ Verified that the error existed in the baseline (before TASK-UI-002 changes) by 
 [Tested]: Resolved by adding `"skipLibCheck": true` to `packages/ui/tsconfig.json`, overriding the base config's `"skipLibCheck": false`. With this override, `tsc --noEmit` completes with zero errors. This mirrors the LOG-0005 fix applied to `@batac/database`. Only third-party `.d.ts` files are skipped; all workspace source files under `packages/ui/src/` are still fully type-checked.
 
 A human reviewer should decide whether a global `"skipLibCheck": true` is warranted in `tsconfig.base.json` (given two packages now needing it) or whether per-package overrides are the preferred pattern.
+
+### [LOG-0008] `shared` PostgreSQL schema absent from C1 Phase 1 schema list
+
+- date: 2026-06-26
+- task_id: TASK-INFRA-023
+- status: proposed
+- affects: C1 (Part 2, Part 13), C5 (§3.1, §8)
+- resolved_in: c1-full-database-schema-ddl-v3.md (Part 2 + Part 13.5 added); c5-migration-strategy-and-conventions.md (§3.1 updated)
+
+C1 Part 2's Phase 1 schema list included only: `iam`, `organization`, `documents`,
+`workflow`, `tracking`, `records`, `notifications`, `audit`. The `shared` schema
+was not listed, even though `post-migrate-grants.sql` (created in TASK-INFRA-006)
+already included `'shared'` in the `app_schemas` array with a comment noting
+TASK-INFRA-023 would create it.
+
+TASK-INFRA-023 requires the `shared` schema for `shared.event_bus_dead_letters`
+(the dead-letter table for the in-process event bus, per ADR-API-001 §4).
+
+Per the Section 1 hierarchy, the task spec (TASK-INFRA-023) and ADR-API-001 together
+confirm the schema is required. C1 was updated (Part 2: added `CREATE SCHEMA IF NOT
+EXISTS shared`; Part 13.5: added DDL reference; Part 14 Invariant #13: documented
+the city_id exception for the dead-letter table). C5 §3.1 was updated to add
+`shared` as a valid migration scope name.
+
+[Inference]: The omission from C1 was an oversight in the original DDL document —
+the schema was always needed by the event bus infrastructure but was referenced
+only in post-migrate-grants.sql. The correction above aligns C1 with the rest of
+the project's architecture documents and the actual implementation.
+
+### [LOG-0009] `shared` scope not in C5 §3.1 valid scope list
+
+- date: 2026-06-26
+- task_id: TASK-INFRA-023
+- status: proposed
+- affects: C5 (§3.1)
+- supersedes: none
+- resolved_in: c5-migration-strategy-and-conventions.md §3.1 (updated inline)
+
+C5 §3.1's valid scope values for migration filenames did not include `shared`.
+The `shared` PostgreSQL schema is an INFRA-owned operational schema, not a domain
+schema. Per C5 §3.4 [Inference], `core` is the fallback for shared infrastructure,
+but naming the migration `0000_core_create_event_bus_dead_letters.sql` would be
+misleading since `shared` is the actual schema name.
+
+Resolution: C5 §3.1 was updated to add `shared` as a valid scope value with an
+explanation that it applies to migrations touching the INFRA-owned `shared`
+PostgreSQL schema. The migration is named
+`0000_shared_create_event_bus_dead_letters.sql`.
+
+[Inference]: Using the schema name as scope is more consistent than using `core`
+here — the `core` fallback was designed for DDL that creates multiple schemas or
+database-global infrastructure (extensions, roles), not for schema-specific table DDL.
+
+### [LOG-0010] EventBus imports IDeadLetterRepository interface, not concrete class
+
+- date: 2026-06-26
+- task_id: TASK-INFRA-023
+- status: proposed
+- affects: none (implementation pattern; no architecture document required change)
+- resolved_in: ADR-INFRA-023-01 (new ADR created)
+
+The TASK-INFRA-023 spec shows `EventBus` (in `packages/shared`) importing
+`DeadLetterRepository` directly from `../../apps/server/src/infra/dead-letter.repository`.
+This creates a `packages → apps` dependency direction, which is architecturally
+backwards: packages may not depend on app code.
+
+Resolution: `IDeadLetterRepository` interface is defined in
+`packages/shared/src/dead-letter-repository.interface.ts`. `EventBus` accepts an
+`IDeadLetterRepository` (the interface) in its constructor. The concrete
+`DeadLetterRepository` (in `apps/server/src/infra/dead-letter.repository.ts`)
+implements the interface and is injected at Fastify startup.
+
+ADR-INFRA-023-01 was created to document this decision. The spec's pseudocode was
+treated as illustrative, not prescriptive (it was labelled "omitted for brevity"
+in the original task prompt).
+
+[Inference]: The dependency-inversion pattern used here is standard for monorepos
+where a shared library needs to call back into app-layer implementations.
+
+### [LOG-0010] `apps/server` required `"type": "module"` to consume `@batac/database` schemas without Drizzle type identity conflicts
+
+- date: 2026-06-26
+- task_id: TASK-INFRA-023
+- status: proposed
+- affects: none (infra implementation detail; no architecture document change required)
+- resolved_in: none (code change only)
+
+When `DeadLetterRepository` (in `apps/server`) imported `eventBusDeadLetters` from
+`@batac/database/schema/shared.schema` (which is in an ESM package with
+`"type": "module"`), TypeScript resolved drizzle-orm types via two distinct
+resolution modes: the database schema file resolved drizzle-orm with
+`{ "resolution-mode": "import" }` while the server files resolved it with the
+default CJS mode. This caused TypeScript to treat `PgColumn`, `SQL<T>`, and other
+drizzle-orm types as structurally incompatible even though they were from the same
+package version — because they had "separate declarations of a private property
+`shouldInlineParams`".
+
+Resolution: `apps/server/package.json` was updated to add `"type": "module"`, and
+all relative imports in existing server source files were updated to use `.js`
+extensions (required by Node16 ESM module resolution). The test files
+(`load-docker-secrets.test.ts`, `health.route.test.ts`) were also updated to use
+`.js` extensions in relative imports.
+
+Additionally, `apps/server/tsconfig.json` was updated with:
+- `"skipLibCheck": true` — same drizzle-orm internal type errors as LOG-0005
+- `"exactOptionalPropertyTypes": false` — override required because drizzle-orm
+  query builder types do not satisfy `exactOptionalPropertyTypes: true` when
+  inherited from the base tsconfig
+
+[Inference]: The `"type": "module"` addition to `apps/server` is the simplest fix
+that aligns the server's module resolution with `@batac/database`'s module system.
+The alternative (splitting drizzle imports into a shared ESM-mode helper) would be
+more complex and fragile. The `.js` extension requirement is a standard Node16 ESM
+constraint, not a project-specific quirk.

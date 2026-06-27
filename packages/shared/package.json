@@ -1,0 +1,26 @@
+{
+  "name": "@batac/shared",
+  "private": true,
+  "version": "0.0.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./event-bus": "./src/event-bus.ts",
+    "./events/domain-event": "./src/events/domain-event.ts",
+    "./events/event-payload-map": "./src/events/event-payload-map.ts",
+    "./dead-letter-repository.interface": "./src/dead-letter-repository.interface.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pino": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.5.0"
+  },
+  "peerDependencies": {
+    "pino": "^9.0.0"
+  }
+}
