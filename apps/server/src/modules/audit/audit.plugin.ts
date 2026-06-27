@@ -3,12 +3,15 @@ import type { FastifyInstance } from 'fastify';
 import { createAuditDb } from './audit.db.js';
 import { createAuditModule } from './index.js';
 import type { AuditPublicAPI } from './index.js';
+import { registerAuditEventConsumer } from './audit.event-consumer.js';
+import type { EventBus } from '@batac/shared/event-bus';
 
 // ─── TypeScript Fastify augmentation ─────────────────────────────────────────
 
 declare module 'fastify' {
   interface FastifyInstance {
     auditService: AuditPublicAPI;
+    eventBus: EventBus;
   }
 }
 
@@ -38,6 +41,9 @@ async function auditPlugin(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.decorate('auditService', auditModule);
+
+  // Register the domain event consumer for all audit events
+  registerAuditEventConsumer(fastify.eventBus, auditModule, fastify.log);
 }
 
 export default fp(auditPlugin, {

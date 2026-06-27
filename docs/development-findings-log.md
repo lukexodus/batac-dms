@@ -342,3 +342,8 @@ that aligns the server's module resolution with `@batac/database`'s module syste
 The alternative (splitting drizzle imports into a shared ESM-mode helper) would be
 more complex and fragile. The `.js` extension requirement is a standard Node16 ESM
 constraint, not a project-specific quirk.
+### Entry 7 (proposed)
+- **Date**: 2026-06-27
+- **Module**: audit
+- **Documents Affected**: B4, C1
+- **Finding**: [Inference] The `batac_audit` database role does not have `UPDATE` permissions on the `audit.events` table (enforced by Security Invariant #3 / I3 §16). This prevents the use of `SELECT ... FOR UPDATE` in Drizzle to serialize concurrent chain hash computation. We implemented transaction-level advisory locking (`pg_advisory_xact_lock`) instead to safely serialize inserts without requiring `UPDATE` privileges.
