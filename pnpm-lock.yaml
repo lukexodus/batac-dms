@@ -57,6 +57,9 @@ importers:
         specifier: ^3.23.0
         version: 3.25.76
     devDependencies:
+      '@batac/config':
+        specifier: workspace:^
+        version: link:../../packages/config
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.43
@@ -167,6 +170,9 @@ importers:
         specifier: ^3.4.4
         version: 3.4.9
     devDependencies:
+      '@batac/config':
+        specifier: workspace:^
+        version: link:../config
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.43
@@ -186,6 +192,9 @@ importers:
         specifier: ^9.0.0
         version: 9.14.0
     devDependencies:
+      '@batac/config':
+        specifier: workspace:^
+        version: link:../config
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.43
