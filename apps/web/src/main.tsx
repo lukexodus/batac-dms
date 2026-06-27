@@ -19,6 +19,7 @@ import QRCodeDisplayPage from "./pages/dev/QRCodeDisplayPage";
 import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
 import StatusBadgePage from "./pages/dev/StatusBadgePage";
 import WorkflowStepIndicatorPage from "./pages/dev/WorkflowStepIndicatorPage";
+import DocumentPreviewCardPage from "./pages/dev/DocumentPreviewCardPage";
 
 const router = createBrowserRouter([
   {
@@ -84,6 +85,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/workflow-step-indicator",
     element: <WorkflowStepIndicatorPage />,
+  },
+  {
+    path: "/dev/components/document-preview-card",
+    element: <DocumentPreviewCardPage />,
   },
 ]);
 
