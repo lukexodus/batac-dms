@@ -8,6 +8,13 @@
       "when": 1782455537328,
       "tag": "0000_shared_create_event_bus_dead_letters",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782539324683,
+      "tag": "0001_audit_create_audit_schema",
+      "breakpoints": true
     }
   ]
 }
