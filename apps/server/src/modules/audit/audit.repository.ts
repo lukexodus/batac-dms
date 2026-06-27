@@ -1,4 +1,4 @@
-import { desc } from 'drizzle-orm';
+import { desc, sql } from 'drizzle-orm';
 import { auditEvents } from '@batac/database/schema/audit.schema.js';
 import { GENESIS_HASH } from './audit.crypto.js';
 import type { AuditDb } from './audit.db.js';
@@ -44,12 +44,16 @@ export class AuditRepository {
    * chain hashes against the same previous row.
    */
   async fetchPreviousChainHash(tx: AuditTx): Promise<string> {
+    // Acquire transaction-level advisory lock to serialize writes.
+    // We cannot use .for('update') because the batac_audit role does not
+    // have UPDATE privileges on audit.events (Security Invariant #3).
+    await tx.execute(sql`SELECT pg_advisory_xact_lock('audit.events'::regclass::integer)`);
+
     const result = await tx
       .select({ chainHash: auditEvents.chainHash })
       .from(auditEvents)
       .orderBy(desc(auditEvents.sequenceNumber))
-      .limit(1)
-      .for('update');
+      .limit(1);
     return result[0]?.chainHash ?? GENESIS_HASH;
   }
 
