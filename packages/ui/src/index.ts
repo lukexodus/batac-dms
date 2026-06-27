@@ -53,4 +53,5 @@ export * from './components/domain/EmptyState';
 // export * from './components/domain/Pagination';
 export * from './components/domain/ScanQualityIndicator';
 export * from './components/domain/SLATimer';
+export * from './components/domain/RoutingHistoryTimeline';
 
