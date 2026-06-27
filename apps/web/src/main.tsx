@@ -21,6 +21,7 @@ import StatusBadgePage from "./pages/dev/StatusBadgePage";
 import WorkflowStepIndicatorPage from "./pages/dev/WorkflowStepIndicatorPage";
 import DocumentPreviewCardPage from "./pages/dev/DocumentPreviewCardPage";
 import OrderOfBusinessRowPage from "./pages/dev/OrderOfBusinessRowPage";
+import AllComponentsPage from "./pages/dev/AllComponentsPage";
 
 const router = createBrowserRouter([
   {
@@ -94,6 +95,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/components/order-of-business-row",
     element: <OrderOfBusinessRowPage />,
+  },
+  {
+    path: "/dev/all-components",
+    element: <AllComponentsPage />,
   },
 ]);
 
