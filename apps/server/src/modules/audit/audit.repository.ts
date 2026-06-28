@@ -1,4 +1,4 @@
-import { desc, sql } from 'drizzle-orm';
+import { desc, sql, eq, asc, between, lte } from 'drizzle-orm';
 import { auditEvents } from '@batac/database/schema/audit.schema.js';
 import { GENESIS_HASH } from './audit.crypto.js';
 import type { AuditDb } from './audit.db.js';
@@ -65,5 +65,48 @@ export class AuditRepository {
    */
   async insertEvent(tx: AuditTx, row: AuditEventRow): Promise<void> {
     await tx.insert(auditEvents).values(row);
+  }
+
+  /**
+   * Fetch all audit events from the previous calendar month, or from the
+   * beginning of time if no prior export exists. Output is newline-delimited JSON.
+   */
+  async compileMonthlySnapshot(): Promise<Buffer> {
+    // 1. Find the last audit_log_exported event
+    const lastExportResult = await this.db
+      .select({ occurredAt: auditEvents.occurredAt })
+      .from(auditEvents)
+      .where(eq(auditEvents.eventType, 'audit_log_exported'))
+      .orderBy(desc(auditEvents.occurredAt))
+      .limit(1);
+
+    const hasPriorExport = lastExportResult.length > 0;
+
+    const now = new Date();
+    // Previous calendar month in UTC
+    const firstOfPrevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const lastOfPrevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59, 999));
+
+    let conditions;
+    if (hasPriorExport) {
+      conditions = between(auditEvents.occurredAt, firstOfPrevMonth, lastOfPrevMonth);
+    } else {
+      conditions = lte(auditEvents.occurredAt, lastOfPrevMonth);
+    }
+
+    const rows = await this.db
+      .select()
+      .from(auditEvents)
+      .where(conditions)
+      .orderBy(asc(auditEvents.sequenceNumber));
+
+    // Serialize as newline-delimited JSON
+    // We convert bigint to string if present, though JSON.stringify handles basic types,
+    // we need a replacer for BigInt because sequenceNumber is bigint
+    const ndjson = rows.map(row => JSON.stringify(row, (key, value) =>
+      typeof value === 'bigint' ? value.toString() : value
+    )).join('\n');
+
+    return Buffer.from(ndjson, 'utf-8');
   }
 }
