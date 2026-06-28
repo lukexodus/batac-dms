@@ -91,6 +91,14 @@ export interface AuditPublicAPI {
    * Implemented by TASK-AUDIT-005.
    */
   queryEvents(filter: AuditQueryFilter): Promise<AuditQueryResult>;
+  /**
+   * Internal dependencies exposed for background jobs (e.g. TSA export).
+   * Not to be used by other domain modules.
+   */
+  _internal: {
+    repo: AuditRepository;
+    writeService: AuditWriteService;
+  };
 }
 
 // ─── Factory ───────────────────────────────────────────────────────────────────
@@ -106,5 +114,9 @@ export function createAuditModule(deps: {
   return {
     writeEvent:  (e) => writeService.writeEvent(e),
     queryEvents: (f) => queryService.queryEvents(f),
+    _internal: {
+      repo,
+      writeService,
+    },
   };
 }
