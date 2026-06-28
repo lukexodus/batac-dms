@@ -25,25 +25,163 @@ Wave D — runs after ORG (Wave C) task list is complete.
 
 ## Table of Contents
 
-- [TASK-DOCS-001] `[MIGRATION]` Create documents schema Drizzle definitions and DDL migration
-- [TASK-DOCS-002] Scaffold DOCS module file structure with typed stubs
-- [TASK-DOCS-003] Implement shared Zod schemas — documents and document-metadata domains (E3 Parts 4-5)
-- [TASK-DOCS-004] Implement DOCS repository layer — all nine documents.* tables
-- [TASK-DOCS-005] Implement numbering service (fn_get_next_sequence_value wrapper, preliminary/final assignment, gap logging)
-- [TASK-DOCS-006] Implement DOCS Published API (getDocumentById, getDocumentType, transitionState, assignFinalNumber, getAttachmentRefs)
-- [TASK-DOCS-007] Seed document_types — seven Phase 1 types + DESIGNATION record (inactive, Phase 1B)
-- [TASK-DOCS-008] Seed number_series — all 11 series records + 2026 year sequences for Phase 1 active series
-- [TASK-DOCS-009] `[ABAC]` Implement DOCS ABAC policy guard rules (document, document_version, document_attachment, number_series resource types)
-- [TASK-DOCS-010] Implement OCR service job wrapper (auto-enqueue on upload, quality score callback, manual re-OCR trigger)
-- [TASK-DOCS-011] `[ABAC][AUDIT]` Implement documents tRPC router — general CRUD (eight procedures)
-- [TASK-DOCS-012] `[ABAC][AUDIT]` Implement documents tRPC router — SP workflow specifics and Secretariat decision delegation (eight procedures)
-- [TASK-DOCS-013] `[ABAC]` Implement documents tRPC router — file, version, and attachment handling (nine procedures)
-- [TASK-DOCS-014] `[AUDIT]` Implement Panlalawigan review tRPC procedures (initiate transmittal, log outcome, deemed-approved timer)
-- [TASK-DOCS-015] Implement signature recording tRPC procedures (log signature, upload scan, scanned-back verification flow)
-- [TASK-DOCS-016] `[ABAC][AUDIT]` Implement complaints tRPC router — internal SP Secretariat side (five procedures)
-- [TASK-DOCS-017] `[ABAC][AUDIT]` Implement document requests tRPC router — internal SP Secretariat side (six procedures)
-- [TASK-DOCS-018] `[ABAC][AUDIT]` Implement DESIGNATION document logging handler (atomic delegation grant creation on document log)
-- [TASK-DOCS-019] Wire DOCS Fastify plugin and inject Published API into dependent module stubs
+- [L188–L209] TASK-DOCS-001 — [MIGRATION] Create documents schema Drizzle definitions and DDL migration
+- [L210–L218] Project-wide DDL conventions (C1 Part 1)
+- [L219–L602] Table definitions (C1 Part 5, L741-L1233)
+  - [L221–L250] documents.document_types
+  - [L251–L285] documents.number_series
+  - [L286–L336] documents.documents
+  - [L337–L366] Lifecycle transition trigger (add manually to migration after db:generate)
+  - [L367–L403] documents.numbers
+  - [L404–L436] documents.versions
+  - [L437–L458] documents.attachments
+  - [L459–L477] documents.signatures
+  - [L478–L495] documents.document_sponsorships
+  - [L496–L522] documents.panlalawigan_reviews
+  - [L523–L540] documents.classification_allowlists (resolved I1 D-ABAC-02)
+  - [L541–L569] fn_get_next_sequence_value (add manually to migration)
+  - [L570–L602] Grants and RLS (C1 Part 12 -- add to end of migration manually)
+- [L603–L623] TASK-DOCS-002 — Scaffold DOCS module file structure with typed stubs
+- [L624–L626] Module location
+- [L627–L648] Published API interface (B2 Module 3 -- paste verbatim into documents.types.ts)
+- [L649–L667] Pattern to follow
+- [L668–L686] TASK-DOCS-003 — Implement shared Zod schemas -- documents and document-metadata domains (E3 Parts 4-5)
+- [L687–L690] Files
+- [L691–L703] Key enum schemas (documents.ts)
+- [L704–L717] LogPanlalawiganOutcomeInputSchema (with refine -- implement exactly)
+- [L718–L734] SpResolutionMetadataSchema (with refine)
+- [L735–L751] DesignationMetadataSchema (with refines)
+- [L752–L759] CitizenComplaintMetadataSchema (implement from H2 §5 spec)
+- [L760–L766] DocumentRequestFormMetadataSchema (implement from H2 §6 spec)
+- [L767–L798] DocumentMetadataSchema discriminated union
+- [L799–L815] TASK-DOCS-004 — Implement DOCS repository layer -- all nine documents.* tables
+- [L816–L821] Cross-module boundary rules (B2 Module 3, Law #2)
+- [L822–L827] Key type conventions
+- [L828–L832] updateDocumentNumbering -- atomic operation
+- [L833–L858] hasClassificationAllowlistEntry
+- [L859–L877] TASK-DOCS-005 — Implement numbering service (fn_get_next_sequence_value wrapper, preliminary/final assignment, gap logging)
+- [L878–L901] Number assignment rules (H3 + C1 Part 5)
+- [L902–L912] DB function call pattern
+- [L913–L917] Gap policy (H3 §9)
+- [L918–L931] Atomic transaction pattern
+- [L932–L950] TASK-DOCS-006 — Implement DOCS Published API (getDocumentById, getDocumentType, transitionState, assignFinalNumber, getAttachmentRefs)
+- [L951–L961] Published API interface (B2 Module 3 -- implement exactly)
+- [L962–L981] State machine (I1 §17 -- enforce in transitionState before any DB write)
+- [L982–L996] Domain events (B2 Module 3 -- emit on success)
+- [L997–L1003] Event consumers (B2 Module 3)
+- [L1004–L1018] S3 presigned URLs (getAttachmentRefs)
+- [L1019–L1035] TASK-DOCS-007 — Seed document_types -- seven Phase 1 types + DESIGNATION record (inactive, Phase 1B)
+- [L1036–L1072] Document type catalog (H2 Catalog Summary Table)
+- [L1073–L1081] Retention schedule resolution
+- [L1082–L1095] metadata_schema values
+- [L1096–L1111] Idempotency pattern
+- [L1112–L1129] TASK-DOCS-008 — Seed number_series -- all 11 series records + 2026 year sequences for Phase 1 active series
+- [L1130–L1136] Global field values (H3 -- identical across all 11 rows)
+- [L1137–L1160] All 11 series (H3 Tables 1-3)
+- [L1161–L1177] Phase 1 active series 2026 sequences (pre-create to avoid on-demand creation warning)
+- [L1178–L1198] TASK-DOCS-009 — [ABAC] Implement DOCS ABAC policy guard rules (document, document_version, document_attachment, number_series resource types)
+- [L1199–L1208] SubjectContext type (from IAM module)
+- [L1209–L1218] Global cascade gates (I1 §2 -- run in every read/download method)
+- [L1219–L1224] document:create (I1 §3.1)
+- [L1225–L1234] document:read metadata (I1 §3.2)
+- [L1235–L1239] document:update (I1 §3.3)
+- [L1240–L1244] document:soft_delete (I1 §3.4)
+- [L1245–L1250] document:submit (I1 §3.5)
+- [L1251–L1257] document:cancel (I1 §3.6)
+- [L1258–L1262] document:number_assign (I1 §3.7)
+- [L1263–L1267] document:number_promote (I1 §3.8)
+- [L1268–L1271] document:certify_urgent (I1 §3.9)
+- [L1272–L1276] document:archive (I1 §3.10)
+- [L1277–L1282] document:publish_portal (I1 §3.11)
+- [L1283–L1287] document_version:read / document_attachment:read (I1 §4.1)
+- [L1288–L1292] document_version:create (I1 §4.2)
+- [L1293–L1295] number_series:read (I1 §14.1)
+- [L1296–L1325] State-Action Compatibility Matrix (I1 §17)
+- [L1326–L1343] TASK-DOCS-010 — Implement OCR service job wrapper (auto-enqueue on upload, quality score callback, manual re-OCR trigger)
+- [L1344–L1353] OCR flow (confirmed Q-C01)
+- [L1354–L1371] OcrProvider interface (library-agnostic stub)
+- [L1372–L1385] Scan quality category thresholds (env-configurable)
+- [L1386–L1402] pgboss job enqueueing
+- [L1403–L1422] TASK-DOCS-011 — [ABAC][AUDIT] Implement documents tRPC router -- general CRUD (eight procedures)
+- [L1423–L1428] tRPC context
+- [L1429–L1444] ABAC enforcement pattern (apply in every procedure)
+- [L1445–L1457] documents.create (mutation)
+- [L1458–L1463] documents.get (query)
+- [L1464–L1468] documents.getMetadataForAdmin (query -- sys_admin ONLY)
+- [L1469–L1473] documents.list (query)
+- [L1474–L1479] documents.search (query)
+- [L1480–L1484] documents.update (mutation)
+- [L1485–L1489] documents.delete (mutation -- soft delete ONLY)
+- [L1490–L1506] documents.cancel (mutation)
+- [L1507–L1526] TASK-DOCS-012 — [ABAC][AUDIT] Implement documents tRPC router -- SP workflow specifics and Secretariat decision delegation (eight procedures)
+- [L1527–L1544] documents.submit (mutation)
+- [L1545–L1551] documents.assignPreliminaryNumber (mutation)
+- [L1552–L1559] documents.assignFinalNumber (mutation)
+- [L1560–L1571] documents.logCertificationOfUrgency (mutation)
+- [L1572–L1578] documents.publishToPortal / documents.unpublishFromPortal (mutations)
+- [L1579–L1583] documents.archive (mutation)
+- [L1584–L1603] documents.logSecretariatDecision (mutation) [ADR-B2-3 delegation]
+- [L1604–L1622] TASK-DOCS-013 — [ABAC] Implement documents tRPC router -- file, version, and attachment handling (nine procedures)
+- [L1623–L1627] Architectural invariant -- files never touch app server disk (tech-stack.md)
+- [L1628–L1636] documents.requestUploadUrl (mutation)
+- [L1637–L1647] documents.confirmUpload (mutation)
+- [L1648–L1652] documents.getVersionHistory (query)
+- [L1653–L1659] documents.downloadVersion (mutation)
+- [L1660–L1664] documents.getOcrText (query)
+- [L1665–L1670] documents.getScanQualityIndicator (query)
+- [L1671–L1676] documents.triggerManualReOcr (mutation)
+- [L1677–L1681] documents.flagScannedBackForVerification (mutation)
+- [L1682–L1696] documents.acceptScannedBackAsOfficial (mutation)
+- [L1697–L1715] TASK-DOCS-014 — [AUDIT] Implement Panlalawigan review tRPC procedures (initiate transmittal, log outcome, deemed-approved timer)
+- [L1716–L1723] Business context (consolidated reference Part 4.3 + H3)
+- [L1724–L1737] documents.initiatePanlalawiganTransmittal (mutation)
+- [L1738–L1750] documents.logPanlalawiganOutcome (mutation)
+- [L1751–L1755] documents.getPanlalawiganReview (query)
+- [L1756–L1789] panlalawigan.checkDeemedApproved (pgboss scheduled job)
+- [L1790–L1806] TASK-DOCS-015 — Implement signature recording tRPC procedures (log signature, upload scan image, get signature records)
+- [L1807–L1816] Business rules
+- [L1817–L1822] Callable-by roles (I2 Section 9)
+- [L1823–L1835] LogSignatureInputSchema (E3)
+- [L1836–L1846] SignatureSelectSchema (E3)
+- [L1847–L1861] documents.uploadSignatureImage (mutation)
+- [L1862–L1880] TASK-DOCS-016 — [ABAC][AUDIT] Implement complaints tRPC router -- internal SP Secretariat side (five procedures)
+- [L1881–L1886] [CONFLICT] Phase 1 storage (C1 followed over E1 per A1-AGENTS.md §1)
+- [L1887–L1897] CITIZEN_COMPLAINT metadata JSONB schema (H2 §5 -- enforce at procedure level)
+- [L1898–L1909] complaints.createClerkAssisted (mutation)
+- [L1910–L1915] complaints.logAndAssign (mutation)
+- [L1916–L1921] complaints.enterCommitteeReport (mutation)
+- [L1922–L1931] complaints.setOutcome (mutation)
+- [L1932–L1947] complaints.listAll (query)
+- [L1948–L1966] TASK-DOCS-017 — [ABAC][AUDIT] Implement document requests tRPC router -- internal SP Secretariat side (six procedures)
+- [L1967–L1972] [CONFLICT] Phase 1 storage (C1 followed over E1 per A1-AGENTS.md §1)
+- [L1973–L1980] ADR-EVT-001 (June 2026) -- dual approval via Workflow steps (NOT JSONB flags)
+- [L1981–L1989] DOCUMENT_REQUEST_FORM metadata JSONB schema (H2 §6)
+- [L1990–L1999] documentRequests.createClerkAssisted (mutation)
+- [L2000–L2005] documentRequests.generatePrintableForm (query)
+- [L2006–L2014] documentRequests.approveAsPresidingOfficer (mutation) [Vice Mayor]
+- [L2015–L2024] documentRequests.approveAsSecretary (mutation)
+- [L2025–L2034] documentRequests.releaseCopy (mutation)
+- [L2035–L2049] documentRequests.listAll (query)
+- [L2050–L2069] TASK-DOCS-018 — [ABAC][AUDIT] Implement DESIGNATION document logging handler (atomic delegation grant creation on document log)
+- [L2070–L2076] Business context (H2 §8 + ORG module Published API)
+- [L2077–L2089] DESIGNATION metadata schema (DesignationMetadataSchema from TASK-DOCS-003)
+- [L2090–L2103] Atomicity requirement (B2 Module 3 -- cross-module transaction boundary)
+- [L2104–L2111] Integration point with documents.submit
+- [L2112–L2123] Cancellation handling
+- [L2124–L2152] ORG Published API method signatures (TASK-ORG-004 deliverable)
+- [L2153–L2172] TASK-DOCS-019 — Wire DOCS Fastify plugin and inject Published API into dependent module stubs
+- [L2173–L2219] Plugin structure
+- [L2220–L2232] Registration order in app.ts
+- [L2233–L2239] Event consumers registered in the plugin
+- [L2240–L2254] tRPC router merging
+- [L2255–L2367] Module Summary -- DOCS
+  - [L2261–L2286] Coverage map
+  - [L2287–L2299] Cross-module dependency map
+  - [L2300–L2305] Unresolved INFRA dependencies
+  - [L2306–L2316] Conflicts flagged (per A1-AGENTS.md §1)
+  - [L2317–L2350] Spec gaps flagged (per A1-AGENTS.md §8)
+  - [L2351–L2356] Known cross-document correction
+  - [L2357–L2367] Downstream consumers of DOCS Published API
 
 ---
 
