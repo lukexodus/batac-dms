@@ -133,6 +133,36 @@ export interface IamService extends IamPublicAPI {
   refresh(refreshToken: string, ipAddress: string, userAgent: string): Promise<any>;
   verifyAccessToken(token: string): Promise<AuthContext>;
   resolveActiveDelegationGrant(delegationGrantId: string | null): Promise<any>;
+
+  /**
+   * Assign a role to a user.
+   *
+   * @remarks
+   * Role changes take effect on the **next token refresh** (next POST /api/auth/refresh),
+   * not immediately. If instant permission enforcement is required, use the
+   * force-terminate session functionality implemented in TASK-IAM-010.
+   */
+  assignRole(input: {
+    actorId: string;
+    targetUserId: string;
+    roleId: string;
+    officeScopeId: string | null;
+  }): Promise<RoleAssignmentRow>;
+
+  /**
+   * Revoke an active role assignment from a user.
+   *
+   * @remarks
+   * Role changes take effect on the **next token refresh** (next POST /api/auth/refresh),
+   * not immediately. If instant permission enforcement is required, use the
+   * force-terminate session functionality implemented in TASK-IAM-010.
+   */
+  revokeRole(input: {
+    actorId: string;
+    targetUserId: string;
+    roleAssignmentId: string;
+    reason: string;
+  }): Promise<void>;
 }
 
 export interface IamRepository {
