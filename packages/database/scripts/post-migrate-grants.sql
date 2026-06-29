@@ -101,6 +101,19 @@ BEGIN
 END
 $$;
 
+-- iam.credentials: no direct reads by batac_app role (TASK-IAM-001)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'iam' AND table_name = 'credentials'
+  ) THEN
+    EXECUTE 'REVOKE SELECT ON iam.credentials FROM batac_app';
+  END IF;
+END
+$$;
+
+
 
 -- ── audit schema: batac_audit ONLY — batac_app has ZERO access (B2 P3) ───────
 --
