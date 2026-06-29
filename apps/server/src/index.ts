@@ -34,7 +34,6 @@ async function main(): Promise<void> {
     const repo = new AuditRepository(auditDb);
     const writeService = new AuditWriteService(repo, {
       AUDIT_HMAC_SECRET: env.AUDIT_HMAC_SECRET,
-      AUDIT_CHAIN_VERIFY_ON_READ: env.AUDIT_CHAIN_VERIFY_ON_READ,
     });
 
     await registerTsaExportJob({

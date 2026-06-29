@@ -15,6 +15,13 @@
       "when": 1782539324683,
       "tag": "0001_audit_create_audit_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782695602760,
+      "tag": "0002_iam_create_iam_schema",
+      "breakpoints": true
     }
   ]
 }
