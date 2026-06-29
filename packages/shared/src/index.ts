@@ -5,10 +5,13 @@
  * from individual files to preserve the ability to reorganise internals.
  */
 
-export type { DomainEvent } from './events/domain-event';
-export type { EventPayloadMap } from './events/event-payload-map';
+export type { DomainEvent } from './events/domain-event.js';
+export type { EventPayloadMap } from './events/event-payload-map.js';
 export type {
   IDeadLetterRepository,
   PendingDeadLetter,
-} from './dead-letter-repository.interface';
-export { EventBus } from './event-bus';
+} from './dead-letter-repository.interface.js';
+export { EventBus } from './event-bus.js';
+export { DOMAIN_ERROR_CODES } from './errors.js';
+export type { DomainErrorCode } from './errors.js';
+

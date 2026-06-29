@@ -7,7 +7,8 @@
     "./event-bus": "./src/event-bus.ts",
     "./events/domain-event": "./src/events/domain-event.ts",
     "./events/event-payload-map": "./src/events/event-payload-map.ts",
-    "./dead-letter-repository.interface": "./src/dead-letter-repository.interface.ts"
+    "./dead-letter-repository.interface": "./src/dead-letter-repository.interface.ts",
+    "./errors": "./src/errors.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
