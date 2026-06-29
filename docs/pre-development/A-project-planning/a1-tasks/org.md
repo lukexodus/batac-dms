@@ -375,10 +375,12 @@ Deliverables:
   - /apps/server/src/modules/organization/organization.router.ts — Typed stub for createOrgRouter(); returns empty tRPC router
   - /apps/server/src/modules/organization/index.ts — Re-exports the ORG Published API surface; all eight method stubs return Promise.resolve(null) or Promise.resolve([]) as appropriate; typed to match B2 OrganizationPublicAPI interface
   - /apps/server/src/modules/organization/organization.plugin.ts — Empty Fastify fp-plugin stub; logs "organization plugin registered" on init; not yet decorated onto fastify
+  - /packages/shared/src/schemas/organization.ts — OfficeSummarySchema Zod schema mirroring OfficeSummary TypeScript interface (officeId uuid, name string, parentOfficeId uuid nullable, type enum of executive/legislative/department/barangay/external); re-exported via packages/shared/src/index.ts; required by TASK-DOCS-003 (DocumentSelectSchema)
 Acceptance Criteria:
-  - [ ] `pnpm typecheck` passes with all seven files present
+  - [ ] `pnpm typecheck` passes with all eight files present
   - [ ] Importing `/apps/server/src/modules/organization/index.ts` exposes the eight B2 Published API methods with the correct TypeScript signatures
   - [ ] `createOrgService()` and `createDelegationService()` are importable and return typed objects without throwing
+  - [ ] `import { OfficeSummarySchema } from '@batac-dms/shared'` resolves and `OfficeSummarySchema.parse({ officeId: crypto.randomUUID(), name: 'Test', parentOfficeId: null, type: 'department' })` passes
 AI Prompt: |
   You are scaffolding the Organization module for the Batac City LGU document-management
   platform. This task creates typed stubs; no real logic is implemented here.
@@ -520,10 +522,40 @@ AI Prompt: |
   }
   ```
 
+  ## packages/shared/src/schemas/organization.ts — OfficeSummarySchema (Zod)
+
+  Create this file in the shared package. It is consumed by TASK-DOCS-003 when building
+  DocumentSelectSchema.
+
+  ```typescript
+  import { z } from 'zod';
+
+  export const OfficeSummarySchema = z.object({
+    officeId:       z.string().uuid(),
+    name:           z.string(),
+    parentOfficeId: z.string().uuid().nullable(),
+    type:           z.enum(['executive', 'legislative', 'department', 'barangay', 'external']),
+  });
+
+  export type OfficeSummary = z.infer<typeof OfficeSummarySchema>;
+  ```
+
+  Then add a re-export to `packages/shared/src/index.ts`:
+  ```typescript
+  export * from './schemas/organization';
+  ```
+
+  Note: the `OfficeSummary` type exported here duplicates the interface in
+  `apps/server/src/modules/organization/organization.types.ts`. That duplication is
+  intentional — the shared package version is the Zod-inferred type used for validation;
+  the server-module version is the plain TypeScript interface used internally. Keep them
+  in sync manually; a schema-sync lint rule may be added in a later wave.
+
   Before submitting this PR, confirm each item:
   - [ ] `pnpm typecheck` passes
   - [ ] The eight Published API stubs are importable and TypeScript-typed correctly
   - [ ] `createOrgService()` and `createDelegationService()` are importable without throwing
+  - [ ] `OfficeSummarySchema` is importable from `@batac-dms/shared` and validates a correct object without throwing
 
 ---
 

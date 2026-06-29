@@ -1042,7 +1042,7 @@ AI Prompt: |
 Phase:          1
 Module:         DOCS
 Title:          [ABAC] Implement DOCS ABAC policy guard rules (document, document_version, document_attachment, number_series resource types)
-Prerequisites:  [TASK-DOCS-002, TASK-IAM-007]
+Prerequisites:  [TASK-DOCS-002, TASK-IAM-004]
 Deliverables:
   - /apps/server/src/modules/documents/documents.policy.ts — DocumentPolicyGuard class with methods for every document action: canCreate, canReadMetadata, canReadContent, canUpdate, canSoftDelete, canSubmit, canCancel, canAssignPreliminaryNumber, canAssignFinalNumber, canCertifyUrgent, canArchive, canPublishPortal, canReadVersionContent, canCreateVersion, canReadOcrText, canReadScanQuality, canReadNumberSeries, canManageNumberSeries; plus checkStateActionCompatibility(action, lifecycleState) helper; each method takes SubjectContext plus resource attributes and returns boolean; no DB queries inside the guard (attributes pre-fetched by callers)
 Acceptance Criteria:
@@ -2017,7 +2017,7 @@ AI Prompt: |
 Phase:          1
 Module:         DOCS
 Title:          Wire DOCS Fastify plugin and inject Published API into dependent module stubs
-Prerequisites:  [TASK-DOCS-006, TASK-DOCS-009, TASK-DOCS-010, TASK-DOCS-014, TASK-DOCS-015, TASK-DOCS-016, TASK-DOCS-017, TASK-DOCS-018]
+Prerequisites:  [TASK-DOCS-006, TASK-DOCS-009, TASK-DOCS-010, TASK-DOCS-014, TASK-DOCS-015, TASK-DOCS-016, TASK-DOCS-017, TASK-DOCS-018, TASK-ORG-010]
 Deliverables:
   - /apps/server/src/modules/documents/documents.plugin.ts — production Fastify plugin that: (1) instantiates DocumentsRepository, NumberingService, OcrService, DocumentPolicyGuard, DesignationHandler and all sub-routers; (2) calls pgBoss.schedule for the panlalawigan.checkDeemedApproved nightly job; (3) merges all sub-routers (main documentsRouter, panlalawigan, signatures, complaints, documentRequests) under a single root documentsAppRouter using tRPC's createCallerFactory; (4) registers fastify.documentsService (PublicAPI) and fastify.documentsTrpcRouter on the Fastify instance; (5) wires the OcrProvider stub (with a TODO for the production provider); (6) emits a 'documents.module.ready' log line at plugin ready
   - /apps/server/src/app.ts (edit) — registers documents plugin AFTER organization plugin and BEFORE workflow/tracking/notifications plugins; passes the ORG Published API to the documents plugin for DesignationHandler and cross-module event consumers
@@ -2154,7 +2154,8 @@ AI Prompt: |
 | TASK-ORG-002 (ORG scaffold + OfficeSummarySchema) | OfficeSummarySchema in DocumentSelectSchema | TASK-DOCS-003 |
 | TASK-ORG-004 (ORG Published API) | DesignationHandler calls createDelegationGrant | TASK-DOCS-018 |
 | TASK-ORG-009 (office seed) | authority_office_id in number_series seed | TASK-DOCS-008 |
-| TASK-IAM-007 (IAM policy guard base) | DocumentPolicyGuard extends base guard | TASK-DOCS-009 |
+| TASK-ORG-010 (ORG wire plugin) | fastify.orgService at documents plugin init | TASK-DOCS-019 |
+| TASK-IAM-004 (IAM PolicyGuard + PolicyEvaluator) | SubjectContext type + ABAC base pattern | TASK-DOCS-009 |
 | TASK-INFRA-005 (env validation) | S3 + OCR env vars | TASK-DOCS-001, TASK-DOCS-010 |
 | TASK-INFRA-006 (fn_set_updated_at) | all DOCS tables use updated_at trigger | TASK-DOCS-001 |
 | INFRA pgboss task (ID unknown) | OcrService, PanlalawiganTimer | TASK-DOCS-010, TASK-DOCS-014 |

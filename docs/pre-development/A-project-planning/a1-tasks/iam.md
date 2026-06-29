@@ -1983,7 +1983,7 @@ AI Prompt: |
     await fastify.register(eventBusPlugin);
     await fastify.register(auditPlugin);
     await fastify.register(iamPlugin);
-    // await fastify.register(organizationPlugin);  // add when TASK-ORG-014 completes
+    // await fastify.register(organizationPlugin);  // add when TASK-ORG-010 completes
     await fastify.register(trpcPlugin);             // merged tRPC router — must come last
     return fastify;
   }
