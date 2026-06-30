@@ -23,6 +23,21 @@ async function main(): Promise<void> {
   // Register health route
   await registerHealthRoute(app);
 
+  // Register tRPC
+  const { fastifyTRPCPlugin } = await import('@trpc/server/adapters/fastify');
+  const { appRouter } = await import('./trpc/root.js');
+  const { createContext } = await import('./trpc/trpc.js');
+  
+  await app.register(fastifyTRPCPlugin, {
+    prefix: '/api/trpc',
+    trpcOptions: {
+      router: appRouter,
+      createContext,
+      onError: ({ error, path }: any) => {
+        app.log.error(`tRPC Error on '${path}':`, error);
+      },
+    },
+  });
   try {
     // Start PgBoss and register background jobs
     app.log.info('Starting PgBoss...');
