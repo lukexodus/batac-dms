@@ -128,11 +128,38 @@ export interface IamServiceDeps {
 }
 
 export interface IamService extends IamPublicAPI {
-  login(input: any): Promise<any>;
+  /**
+   * Authenticate a user via username/password + PKCE S256, issue JWT and
+   * refresh token as HTTP-only cookies. Returns the AuthResponse body for
+   * the frontend to hydrate identity state (ADR-UI-012 / F2 §5).
+   * Source: TASK-IAM-006.
+   */
+  login(input: {
+    username:              string;
+    password:              string;
+    code_verifier:         string;
+    code_challenge:        string;
+    code_challenge_method: 'S256';
+    ipAddress:             string | null;
+    userAgent:             string | null;
+  }): Promise<{
+    user:          UserRow;
+    sessionId:     string;
+    expiresAt:     Date;
+    roleCodes:     string[];
+    officeScopeId: string | null;
+    officeCode:    string | null;
+  }>;
   logout(sessionId: string, userId: string): Promise<void>;
-  refresh(refreshToken: string, ipAddress: string, userAgent: string): Promise<any>;
+  refresh(refreshToken: string, ipAddress: string, userAgent: string): Promise<{
+    accessToken:  string;
+    refreshToken: string;
+    expiresAt:    Date;
+  }>;
   verifyAccessToken(token: string): Promise<AuthContext>;
-  resolveActiveDelegationGrant(delegationGrantId: string | null): Promise<any>;
+  resolveActiveDelegationGrant(delegationGrantId: string | null): Promise<{
+    scope: { roles: string[]; officeIds: string[]; actions: string[] };
+  } | null>;
 
   /**
    * Assign a role to a user.
@@ -164,6 +191,7 @@ export interface IamService extends IamPublicAPI {
     reason: string;
   }): Promise<void>;
 }
+
 
 export interface IamRepository {
   // Users
