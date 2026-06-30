@@ -128,11 +128,38 @@ export interface IamServiceDeps {
 }
 
 export interface IamService extends IamPublicAPI {
-  login(input: any): Promise<any>;
+  /**
+   * Authenticate a user via username/password + PKCE S256, issue JWT and
+   * refresh token as HTTP-only cookies. Returns the AuthResponse body for
+   * the frontend to hydrate identity state (ADR-UI-012 / F2 §5).
+   * Source: TASK-IAM-006.
+   */
+  login(input: {
+    username:              string;
+    password:              string;
+    code_verifier:         string;
+    code_challenge:        string;
+    code_challenge_method: 'S256';
+    ipAddress:             string | null;
+    userAgent:             string | null;
+  }): Promise<{
+    user:          UserRow;
+    sessionId:     string;
+    expiresAt:     Date;
+    roleCodes:     string[];
+    officeScopeId: string | null;
+    officeCode:    string | null;
+  }>;
   logout(sessionId: string, userId: string): Promise<void>;
-  refresh(refreshToken: string, ipAddress: string, userAgent: string): Promise<any>;
+  refresh(refreshToken: string, ipAddress: string, userAgent: string): Promise<{
+    accessToken:  string;
+    refreshToken: string;
+    expiresAt:    Date;
+  }>;
   verifyAccessToken(token: string): Promise<AuthContext>;
-  resolveActiveDelegationGrant(delegationGrantId: string | null): Promise<any>;
+  resolveActiveDelegationGrant(delegationGrantId: string | null): Promise<{
+    scope: { roles: string[]; officeIds: string[]; actions: string[] };
+  } | null>;
 
   /**
    * Assign a role to a user.
@@ -164,6 +191,7 @@ export interface IamService extends IamPublicAPI {
     reason: string;
   }): Promise<void>;
 }
+
 
 export interface IamRepository {
   // Users
@@ -222,7 +250,32 @@ export interface IamRepository {
 
 declare module 'fastify' {
   interface FastifyInstance {
-    iamService:      IamService;
-    policyEvaluator: PolicyEvaluator;
+    iamService:        IamService;
+    policyEvaluator:   PolicyEvaluator;
+    /**
+     * IAM repository — made available on the Fastify instance by the IAM
+     * plugin so that preHandler hooks (which only receive `FastifyInstance`
+     * via `this`) can reach the repository without importing it directly.
+     * Populated by TASK-IAM-006's plugin registration.
+     */
+    iamRepository:     IamRepository;
+    /**
+     * Drizzle ORM database client for the `batac_app` PostgreSQL role.
+     * Registered on the Fastify instance by the database plugin so all
+     * hooks and plugins can reach it via `fastify.db`.
+     * Populated before IAM middleware registration.
+     */
+    db:                DbClient;
+  }
+
+  interface FastifyRequest {
+    /**
+     * Populated by the `verifyAccessToken` preHandler hook (TASK-IAM-005 Hook 1)
+     * for every authenticated request. Null on public/unauthenticated routes.
+     * Hook 2 (`loadDelegationContext`) expands `effectiveOfficeIds` and
+     * `effectiveRoles` in-place after Hook 1 populates the base context.
+     */
+    auth: AuthContext | null;
   }
 }
+
