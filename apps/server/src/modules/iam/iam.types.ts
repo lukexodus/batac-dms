@@ -244,6 +244,28 @@ export interface IamService extends IamPublicAPI {
     actorId: string;
   }): Promise<void>;
 
+  lockSession(input: {
+    sessionId: string;
+    userId: string;
+  }): Promise<{ locked: boolean }>;
+
+  unlockSession(input: {
+    sessionId: string;
+    userId: string;
+    passwordPlain: string;
+    isAccessTokenExpired: boolean;
+    ipAddress: string | null;
+    userAgent: string | null;
+  }): Promise<{
+    unlocked: boolean;
+    _cookies?: {
+      accessToken: string;
+      refreshTokenCookieValue: string;
+      accessMaxAge: number;
+      refreshMaxAge: number;
+    };
+  }>;
+
   listUserDirectory(
     cityId: string,
     opts: { limit: number; offset: number; officeId?: string; search?: string }

@@ -15,6 +15,10 @@ export const LoginInputSchema = z.object({
 
 export type LoginInput = z.infer<typeof LoginInputSchema>;
 
+export const UnlockInputSchema = z.object({
+  password: z.string().min(1),
+});
+
 /**
  * Response body schema for a successful POST /api/auth/login.
  * Tokens are never in this body — they are in the two Set-Cookie headers.
