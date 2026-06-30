@@ -356,3 +356,40 @@ To serialize concurrent writes and compute chain hashes safely, we replaced the 
 
 [Inference]: The transaction-level advisory lock is the standard way in PostgreSQL to serialize operations when row-level locks are unavailable or table permissions are restricted to append-only (SELECT/INSERT).
 
+### [LOG-0012] `batac_migrate` lacks CREATE on public schema — blocks migration 0002 (IAM) on fresh databases
+
+- date: 2026-06-30
+- task_id: TASK-ORG-001
+- status: proposed
+- affects: C1 (Part 2 / TASK-INFRA-005/006 init scripts), infra.md
+
+When running `pnpm db:migrate` on a database where migrations 0000 and 0001 were
+applied but 0002 (IAM schema) had not yet been applied, migration 0002 failed with:
+`ERROR 42501: permission denied for schema public`. The failing statement was the
+`CREATE OR REPLACE FUNCTION public.fn_set_updated_at()` created at the end of
+migration 0002's manual additions section. The `batac_migrate` role has no `CREATE`
+privilege on the `public` schema by default.
+
+This is a gap in the database initialisation scripts (TASK-INFRA-005/006): those
+scripts should have granted `CREATE ON SCHEMA public TO batac_migrate` as part of
+the init DDL, since `batac_migrate` is the migration owner and the shared trigger
+function `public.fn_set_updated_at()` lives in the public schema. The IAM task
+(TASK-IAM-001) apparently succeeded in its own environment because that environment
+had already granted this privilege via a different path (superuser init script or
+`init.sql` run under postgres role).
+
+Workaround applied in local dev: `GRANT CREATE ON SCHEMA public TO batac_migrate`
+executed once as postgres superuser. Verified that migrations 0002 and 0003 then
+applied cleanly and `pnpm db:migrate` is idempotent.
+
+A human should decide whether the fix belongs in:
+  (a) the Docker init scripts (`init.sql` or `01-create-roles.sh`) in TASK-INFRA-005/006
+  (b) the Compose file's `POSTGRES_*` env for the postgres user
+  (c) a migration 0000 preamble that runs as superuser before Drizzle takes over
+
+[Inference]: The missing grant is an init-script omission. The public schema,
+introduced in PostgreSQL 15, revoked CREATE from PUBLIC by default; prior Postgres
+versions allowed it automatically. The project spec does not enumerate this grant
+explicitly, which is why it was missed.
+
+
