@@ -952,7 +952,157 @@ export function createIamService(deps: IamServiceDeps): IamService {
       return iamRepo.listAllActiveSessions(cityId, opts);
     },
 
+    async lockSession(input: { sessionId: string; userId: string }): Promise<{ locked: boolean }> {
+      const { sessionId, userId } = input;
+      await iamRepo.setSessionLocked(sessionId, new Date());
+      
+      void auditService.writeEvent({
+        eventType: 'session_locked',
+        actorId: userId,
+        targetId: sessionId,
+        targetType: 'session',
+        cityId: BATAC_CITY_ID,
+        payload: {
+          user_id: userId,
+          session_id: sessionId,
+        },
+      });
+      return { locked: true };
+    },
 
+    async unlockSession(input: {
+      sessionId: string;
+      userId: string;
+      passwordPlain: string;
+      isAccessTokenExpired: boolean;
+      ipAddress: string | null;
+      userAgent: string | null;
+    }) {
+      const { sessionId, userId, passwordPlain, isAccessTokenExpired, ipAddress, userAgent } = input;
+      
+      const session = await iamRepo.findSessionById(sessionId);
+      if (!session || !session.active) {
+        throw Object.assign(new Error('Session is inactive or terminated'), {
+          code: 'UNAUTHORIZED',
+          statusCode: 401,
+        });
+      }
+
+      if (session.lockedAt === null) {
+        return { unlocked: true };
+      }
+
+      const credential = await iamRepo.findCredentialByUserId(userId);
+      if (!credential) {
+        throw Object.assign(new Error('Invalid password'), {
+          code: 'INVALID_PASSWORD',
+          statusCode: 401,
+        });
+      }
+
+      let passwordValid = false;
+      try {
+        passwordValid = await argon2.verify(credential.passwordHash, passwordPlain);
+      } catch {
+        passwordValid = false;
+      }
+
+      if (!passwordValid) {
+        throw Object.assign(new Error('Invalid password'), {
+          code: 'INVALID_PASSWORD',
+          statusCode: 401,
+        });
+      }
+
+      await iamRepo.setSessionLocked(sessionId, null);
+
+      let cookies;
+      if (isAccessTokenExpired) {
+        const latestRt = await iamRepo.findLatestActiveRefreshTokenForSession(sessionId);
+        if (!latestRt || latestRt.expiresAt < new Date() || latestRt.revokedAt !== null) {
+          throw Object.assign(new Error('Your session has expired. Please log in again.'), {
+            code: 'REFRESH_REQUIRED',
+            statusCode: 401,
+          });
+        }
+
+        let newRawBase64url = '';
+        let newTokenId = '';
+
+        await db.transaction(async (tx) => {
+          const { createIamRepository } = await import('./iam.repository.js');
+          const txRepo = createIamRepository(tx);
+
+          const rawBytes  = randomBytes(32);
+          const saltBytes = randomBytes(16);
+          newRawBase64url = rawBytes.toString('base64url');
+          const saltBase64url = saltBytes.toString('base64url');
+          const tokenHash = sha256Hex(newRawBase64url + saltBase64url);
+          newTokenId = randomUUID();
+          const expiresAt = new Date(Date.now() + JWT_REFRESH_TTL_SECONDS * 1000);
+
+          await txRepo.markRefreshTokenUsed(latestRt.id, newTokenId);
+
+          await txRepo.createRefreshToken({
+            id:        newTokenId,
+            userId:    userId,
+            sessionId: sessionId,
+            tokenHash,
+            salt:      saltBase64url,
+            familyId:  latestRt.familyId,
+            expiresAt,
+            cityId:    BATAC_CITY_ID,
+          } as any);
+
+          await txRepo.updateLastActivity(sessionId);
+        });
+
+        const newClaims = await buildAccessTokenClaims(userId, sessionId);
+        const jwtPayload = { ...newClaims.registered, ...newClaims.private };
+        const newAccessToken = jwt.sign(
+          jwtPayload,
+          env.AUTH_JWT_ACCESS_SECRET,
+          {
+            algorithm: env.AUTH_JWT_ALGORITHM as jwt.Algorithm,
+            expiresIn: JWT_ACCESS_TTL_SECONDS,
+          },
+        );
+
+        const jti = newClaims.registered.jti;
+        const sessionTokenHash = sha256Hex(jti);
+        const { sessions } = await import('@batac/database/schema/iam.schema.js');
+        const { eq } = await import('drizzle-orm');
+        await db.update(sessions)
+          .set({ sessionTokenHash })
+          .where(eq(sessions.id, sessionId));
+
+        cookies = {
+          accessToken: newAccessToken,
+          refreshTokenCookieValue: `${newTokenId}.${newRawBase64url}`,
+          accessMaxAge: JWT_ACCESS_TTL_SECONDS,
+          refreshMaxAge: JWT_REFRESH_TTL_SECONDS,
+        };
+      } else {
+        await iamRepo.updateLastActivity(sessionId);
+      }
+
+      void auditService.writeEvent({
+        eventType: 'session_unlocked',
+        actorId: userId,
+        targetId: sessionId,
+        targetType: 'session',
+        cityId: BATAC_CITY_ID,
+        payload: {
+          user_id: userId,
+          session_id: sessionId,
+        },
+      });
+
+      return {
+        unlocked: true,
+        ...(cookies ? { _cookies: cookies } : {}),
+      };
+    },
 
     async listUserDirectory(cityId: string, opts: { limit: number; offset: number; officeId?: string; search?: string }): Promise<UserRow[]> {
       return iamRepo.listUsers(cityId, opts);

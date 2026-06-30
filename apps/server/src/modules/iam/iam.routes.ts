@@ -14,8 +14,9 @@
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import jwt from 'jsonwebtoken';
 import { env } from '../../config/env.js';
-import { LoginInputSchema, TerminateSessionInputSchema } from './iam.schemas.js';
+import { LoginInputSchema, TerminateSessionInputSchema, UnlockInputSchema } from './iam.schemas.js';
 import { authMiddlewarePlugin, clearAuthCookies } from './iam.middleware.js';
 import { NotFoundError } from '../../errors/domain/not-found.js';
 
@@ -266,8 +267,123 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
     },
   );
 
+  /**
+   * POST /api/auth/unlock
+   *
+   * Special public route — manually reads batac_at cookie, parses JWT ignoring expiry,
+   * and delegates to unlockSession to perform auth and potential silent refresh.
+   */
+  fastify.post(
+    '/api/auth/unlock',
+    {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: 15 * 60 * 1000,
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parseResult = UnlockInputSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          code: 'VALIDATION_ERROR',
+          errors: parseResult.error.flatten().fieldErrors,
+        });
+      }
+
+      const cookieName = env.AUTH_ACCESS_TOKEN_COOKIE_NAME;
+      const rawCookie = request.headers.cookie ?? '';
+      const tokenMatch = rawCookie
+        .split(';')
+        .map((c) => c.trim())
+        .find((c) => c.startsWith(`${cookieName}=`));
+
+      if (!tokenMatch) {
+        return reply.status(401).send({ code: 'UNAUTHORIZED' });
+      }
+      const accessTokenValue = tokenMatch.split('=')[1];
+
+      let decoded: any;
+      try {
+        decoded = jwt.decode(accessTokenValue);
+      } catch (err) {
+        return reply.status(401).send({ code: 'UNAUTHORIZED' });
+      }
+
+      if (!decoded || !decoded.uid || !decoded.sid || typeof decoded.exp !== 'number') {
+        return reply.status(401).send({ code: 'UNAUTHORIZED' });
+      }
+
+      const isExpired = decoded.exp * 1000 < Date.now();
+      const ipAddress = (request.headers['x-forwarded-for'] as string | undefined) ?? request.ip ?? null;
+      const userAgent = request.headers['user-agent'] ?? null;
+
+      let result;
+      try {
+        result = await fastify.iamService.unlockSession({
+          sessionId: decoded.sid,
+          userId: decoded.uid,
+          passwordPlain: parseResult.data.password,
+          isAccessTokenExpired: isExpired,
+          ipAddress,
+          userAgent,
+        });
+      } catch (err: unknown) {
+        const e = err as { code?: string; statusCode?: number; message?: string };
+        if (e.statusCode === 401) {
+          if (e.code === 'REFRESH_REQUIRED') {
+            clearAuthCookies(reply);
+            return reply.status(401).send({ code: 'REFRESH_REQUIRED', message: e.message || 'Your session has expired. Please log in again.' });
+          }
+          return reply.status(401).send({ code: e.code ?? 'UNAUTHORIZED' });
+        }
+        throw err;
+      }
+
+      if (result._cookies) {
+        const secure   = env.AUTH_COOKIE_SECURE;
+        const sameSite = env.AUTH_COOKIE_SAMESITE;
+
+        const atCookie = buildCookieHeader(
+          env.AUTH_ACCESS_TOKEN_COOKIE_NAME,
+          result._cookies.accessToken,
+          { maxAge: JWT_ACCESS_TTL_SECONDS, path: '/', secure, sameSite },
+        );
+
+        const rtCookie = buildCookieHeader(
+          env.AUTH_REFRESH_TOKEN_COOKIE_NAME,
+          result._cookies.refreshTokenCookieValue,
+          { maxAge: REFRESH_TTL_SECONDS, path: '/api/auth/refresh', secure, sameSite },
+        );
+
+        reply.header('Set-Cookie', [atCookie, rtCookie]);
+      }
+
+      return reply.status(200).send({ unlocked: true });
+    }
+  );
+
   fastify.register(async (protectedApp) => {
     await protectedApp.register(authMiddlewarePlugin);
+
+    /**
+     * POST /api/auth/lock
+     *
+     * Protected route — requires valid access token.
+     * Sets locked_at = NOW() on the active session.
+     */
+    protectedApp.post(
+      '/api/auth/lock',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        const auth = request.auth!;
+        await protectedApp.iamService.lockSession({
+          sessionId: auth.sessionId,
+          userId: auth.userId,
+        });
+        return reply.status(200).send({ locked: true });
+      }
+    );
 
     /**
      * POST /api/auth/logout
