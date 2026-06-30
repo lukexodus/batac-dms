@@ -1,6 +1,8 @@
 import type { AppDb } from '../../db.js';
 import type { EventBus } from '@batac/shared';
 import type { InferSelectModel } from 'drizzle-orm';
+import type { AuditPublicAPI } from '../audit/index.js';
+import type { PolicyEvaluator } from '../iam/iam.policy.js';
 import {
   offices,
   positions,
@@ -63,6 +65,41 @@ export interface DelegationSummary {
   validUntil: Date;
 }
 
+/**
+ * Input shape for creating a delegation grant.
+ * Source: TASK-ORG-005 AI Prompt; org schema DDL (TASK-ORG-001).
+ */
+export interface CreateDelegationGrantInput {
+  /** employee_id of the delegating authority (Mayor or Vice Mayor) */
+  delegatingEmployeeId: string;
+  /** employee_id of the person receiving the delegation */
+  delegatedToEmployeeId: string;
+  /** office the delegation covers */
+  officeId: string;
+  /** position being delegated */
+  positionId: string;
+  /**
+   * Designation document that triggered the grant.
+   * Required (non-empty UUID) as the proxy for "received and logged" (I1 §11.1).
+   * Full document existence is NOT validated here — documents schema is added in a later wave.
+   */
+  designationDocumentId: string;
+  /** Human-readable scope description */
+  scopeDescription: string;
+  /** JSONB scope: roles, office_ids, actions the delegatee may exercise */
+  scope?: {
+    roles: string[];
+    officeIds: string[];
+    actions: string[];
+  };
+  legalBasis?: string;
+  /** ISO date string YYYY-MM-DD */
+  startDate: string;
+  /** ISO date string YYYY-MM-DD. Open-ended delegations are prohibited. */
+  endDate: string;
+  cityId: string;
+}
+
 export interface AssignmentSummary {
   assignmentId: string;
   employeeId: string;
@@ -92,6 +129,15 @@ export interface DelegationServiceDeps {
   db: DbClient;
   orgRepository: OrgRepository;
   eventBus: EventBus;
+  auditService: AuditPublicAPI;
+  policyEvaluator: PolicyEvaluator;
+}
+
+/** Subject context passed to service write methods (subset of AuthContext). */
+export interface DelegationSubject {
+  userId: string;
+  roles: string[];
+  cityId: string;
 }
 
 export interface OrgService {
@@ -106,6 +152,24 @@ export interface OrgService {
 export interface DelegationService {
   getActiveDelegationForUser(userId: string): Promise<DelegationSummary | null>;
   getDelegationGrantById(delegationGrantId: string): Promise<{ scope: { roles: string[]; officeIds: string[]; actions: string[] } } | null>;
+
+  /**
+   * Create a delegation grant.
+   *
+   * Enforces:
+   *   - I1 §11.1 ABAC policy: subject must hold the `sp_secretary` role
+   *   - Invariant #16: at most one active delegation per delegatee
+   *
+   * After a successful insert:
+   *   - Emits `delegation.granted` on the event bus
+   *   - Writes a `delegation_grant.created` audit event via auditService
+   *
+   * Source: TASK-ORG-005.
+   */
+  createDelegationGrant(
+    input: CreateDelegationGrantInput,
+    subject: DelegationSubject,
+  ): Promise<DelegationGrantRow>;
 }
 
 declare module 'fastify' {

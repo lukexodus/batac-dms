@@ -217,6 +217,10 @@ export class PolicyEvaluator {
     // Register the session resource handler at construction time
     // Source: TASK-IAM-004 spec; I1 §12
     this.registerResourceHandler('session', sessionResourceHandler);
+
+    // Register the delegation_grant resource handler at construction time
+    // Source: TASK-ORG-005 spec; I1 §11.1
+    this.registerResourceHandler('delegation_grant', delegationGrantResourceHandler);
   }
 
   /**
@@ -314,5 +318,35 @@ function sessionResourceHandler(
 
     default:
       return { allowed: false, reason: 'session_action_not_permitted' };
+  }
+}
+
+// ─── Delegation Grant Resource Handler ──────────────────────────────────────
+
+/**
+ * ABAC handler for `delegation_grant` resource type.
+ * Source: TASK-ORG-005 spec; I1 §11.1.
+ *
+ * delegation_grant:create
+ *   ALLOW IF subject.roles CONTAINS 'sp_secretary'
+ *   All other actions → DENY (not modelled in Phase 1 beyond create)
+ */
+function delegationGrantResourceHandler(
+  subject: SubjectContext,
+  _resource: ResourceDescriptor,
+  action: string,
+): EvaluationResult {
+  switch (action) {
+    case 'create':
+      if (subject.roles.includes('sp_secretary')) {
+        return { allowed: true };
+      }
+      return {
+        allowed: false,
+        reason: 'delegation_grant_create_requires_sp_secretary',
+      };
+
+    default:
+      return { allowed: false, reason: 'delegation_grant_action_not_permitted' };
   }
 }

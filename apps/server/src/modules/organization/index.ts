@@ -4,8 +4,13 @@ import type {
   OfficeTree,
   EmployeeSummary,
   DelegationSummary,
+  DelegationGrantRow,
+  CreateDelegationGrantInput,
+  DelegationSubject,
   DbClient,
 } from './organization.types.js';
+import type { AuditPublicAPI } from '../audit/index.js';
+import type { PolicyEvaluator } from '../iam/iam.policy.js';
 import { createOrgRepository } from './organization.repository.js';
 import { createOrgService } from './organization.service.js';
 import { createDelegationService } from './delegation.service.js';
@@ -23,10 +28,20 @@ let delegationService: ReturnType<typeof createDelegationService> | null = null;
  * This is called by the Fastify plugin registration during startup, or directly
  * inside the test suites.
  */
-export function initializePublishedAPI(db: DbClient) {
+export function initializePublishedAPI(
+  db: DbClient,
+  auditService?: AuditPublicAPI,
+  policyEvaluator?: PolicyEvaluator,
+) {
   const repo = createOrgRepository(db);
   orgService = createOrgService({ db, orgRepository: repo } as any);
-  delegationService = createDelegationService({ db, orgRepository: repo } as any);
+  delegationService = createDelegationService({
+    db,
+    orgRepository: repo,
+    eventBus: undefined as any,   // overridden by plugin at startup; stubs in tests inject directly
+    auditService: auditService as AuditPublicAPI,
+    policyEvaluator: policyEvaluator as PolicyEvaluator,
+  });
 }
 
 function getOrgService() {
@@ -88,4 +103,11 @@ export async function getDelegationGrantById(
   delegationGrantId: string
 ): Promise<{ scope: { roles: string[]; officeIds: string[]; actions: string[] } } | null> {
   return getDelegationService().getDelegationGrantById(delegationGrantId);
+}
+
+export async function createDelegationGrant(
+  input: CreateDelegationGrantInput,
+  subject: DelegationSubject,
+): Promise<DelegationGrantRow> {
+  return getDelegationService().createDelegationGrant(input, subject);
 }
