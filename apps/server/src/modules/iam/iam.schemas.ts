@@ -41,3 +41,15 @@ export const AuthResponseSchema = z.object({
 });
 
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
+
+/**
+ * Request body schema for POST /api/admin/sessions/:id/terminate.
+ * `reason` is a mandatory, non-empty string — validated BEFORE the ABAC
+ * call so that a missing or empty reason produces 400, not 403.
+ * Source: TASK-IAM-010 AI Prompt.
+ */
+export const TerminateSessionInputSchema = z.object({
+  reason: z.string().min(1, 'reason is required and must not be empty'),
+});
+
+export type TerminateSessionInput = z.infer<typeof TerminateSessionInputSchema>;

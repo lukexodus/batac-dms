@@ -190,6 +190,26 @@ export interface IamService extends IamPublicAPI {
     roleAssignmentId: string;
     reason: string;
   }): Promise<void>;
+
+  /**
+   * Forcibly terminate another user's session as an IT Administrator.
+   *
+   * Terminates the session (active → false), revokes all associated refresh
+   * tokens, and emits a `forced_logout` audit event. The operation is
+   * idempotent — calling it on an already-terminated session returns
+   * `{ terminated: true }` without re-emitting the audit event.
+   *
+   * ABAC enforcement (IT Admin only) is performed by the route handler
+   * BEFORE this method is called. This method does not re-check ABAC.
+   *
+   * Source: TASK-IAM-010.
+   */
+  forceTerminateSession(input: {
+    actorId:         string;
+    targetSessionId: string;
+    reason:          string;
+    cityId:          string;
+  }): Promise<{ terminated: boolean }>;
 }
 
 

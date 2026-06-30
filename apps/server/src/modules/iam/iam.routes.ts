@@ -15,8 +15,9 @@
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { env } from '../../config/env.js';
-import { LoginInputSchema } from './iam.schemas.js';
+import { LoginInputSchema, TerminateSessionInputSchema } from './iam.schemas.js';
 import { authMiddlewarePlugin, clearAuthCookies } from './iam.middleware.js';
+import { NotFoundError } from '../../errors/domain/not-found.js';
 
 /** Access-token TTL in seconds — parsed from AUTH_JWT_ACCESS_EXPIRES_IN. */
 function parseExpiresInSeconds(expiresIn: string): number {
@@ -189,6 +190,68 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         clearAuthCookies(reply);
 
         return reply.status(204).send();
+      }
+    );
+
+    /**
+     * POST /api/admin/sessions/:id/terminate
+     *
+     * Protected route — requires valid IT Administrator access token.
+     * Forcibly terminates a target session.
+     * Source: TASK-IAM-010
+     */
+    protectedApp.post(
+      '/api/admin/sessions/:id/terminate',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        // 1. Validate: typeof reason === 'string' && reason.trim().length > 0. Fail → 400.
+        const parseResult = TerminateSessionInputSchema.safeParse(request.body);
+        if (!parseResult.success) {
+          return reply.status(400).send({
+            code: 'VALIDATION_ERROR',
+            errors: parseResult.error.flatten().fieldErrors,
+          });
+        }
+
+        const params = request.params as { id: string };
+        const body = parseResult.data;
+        const auth = request.auth!;
+
+        // 2. ABAC enforcement
+        const result = await protectedApp.policyEvaluator.evaluate(
+          auth,
+          { type: 'session', id: params.id, cityId: auth.cityId },
+          'force_terminate',
+          { reason: body.reason }
+        );
+        if (!result.allowed) {
+          await protectedApp.auditService.writeEvent({
+            eventType: 'abac_denial',
+            actorId: auth.userId,
+            targetId: params.id,
+            targetType: 'session',
+            payload: { action: 'force_terminate', denial_reason: result.reason },
+            cityId: auth.cityId,
+          });
+          return reply.status(403).send({ code: 'FORBIDDEN', message: 'Access denied.' });
+        }
+
+        try {
+          const res = await protectedApp.iamService.forceTerminateSession({
+            actorId: auth.userId,
+            targetSessionId: params.id,
+            reason: body.reason,
+            cityId: auth.cityId,
+          });
+          return reply.status(200).send(res);
+        } catch (err: unknown) {
+          if (err instanceof NotFoundError) {
+            return reply.status(404).send({
+              code: 'NOT_FOUND',
+              message: err.message,
+            });
+          }
+          throw err;
+        }
       }
     );
   });
