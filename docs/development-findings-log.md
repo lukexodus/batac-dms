@@ -391,5 +391,90 @@ A human should decide whether the fix belongs in:
 introduced in PostgreSQL 15, revoked CREATE from PUBLIC by default; prior Postgres
 versions allowed it automatically. The project spec does not enumerate this grant
 explicitly, which is why it was missed.
+### [LOG-0013] `argon2` package was not in apps/server/package.json — added for TASK-IAM-006
 
+- date: 2026-06-30
+- task_id: TASK-IAM-006
+- status: proposed
+- affects: none (implementation dependency gap; no architecture document enumerates per-app package dependencies)
+
+TASK-IAM-006 requires `argon2.verify()` for Argon2id password verification.
+The `argon2` npm package (`@node-rs/argon2` compatible API) was not listed in
+`apps/server/package.json` at the time this task was implemented. It was added
+as a dependency. The version pinned is `^0.43.0`.
+
+`@fastify/rate-limit` was also missing and was added at `^10.2.2` for the
+per-route 5 req / 15 min IP-based rate limit on POST /api/auth/login.
+
+[Inference]: These packages are implied by the task spec (argon2 for password
+verification, @fastify/rate-limit for login route throttling) and likely were
+overlooked when the initial package.json was authored. Both are standard choices
+with no architectural decision implications.
+
+### [LOG-0014] session_token_hash requires two-phase update: 'pending' placeholder → SHA-256(jti) after JWT sign
+
+- date: 2026-06-30
+- task_id: TASK-IAM-006
+- status: proposed
+- affects: none (implementation sequencing detail; no architecture document specifies how to handle the jti-before-session chicken-and-egg)
+
+The login flow (TASK-IAM-006) must: (a) INSERT the session row atomically with
+the concurrent-session replacement, and (b) store `session_token_hash = SHA-256(jti)`
+where `jti` is only known after the JWT is signed (step 9), which happens after
+the transaction commits (step 8).
+
+This creates a sequencing dependency: the session row must exist before the JWT
+is signed (because the session ID is a JWT claim), but the JWT `jti` is only
+known after signing.
+
+Implemented as a two-phase approach:
+  1. INSERT session row with `session_token_hash = 'pending'` inside the transaction.
+  2. After the transaction commits and the JWT is signed, UPDATE the session row
+     with `session_token_hash = SHA-256(jti)` outside the transaction.
+
+The UPDATE is best-effort (outside the atomic transaction). If the server crashes
+between step 1 and step 2, the session row has hash='pending'. Hook 1's
+verifyAccessToken would still find the session active and proceed; however,
+because 'pending' ≠ SHA-256(actual_jti), any future call that looks up the
+session by token hash (findSessionByTokenHash) would fail to match. This is
+considered an acceptable low-probability gap for Phase 1.
+
+A cleaner implementation would add `updateSessionTokenHash` to IamRepository so
+that the session hash can be managed without an ad-hoc inline update. See also:
+the IamRepository interface in iam.types.ts does not currently expose this method.
+
+[Inference]: The two-phase approach matches what other implementations of this
+pattern do in a single-server context. It was not pre-specified because the
+chicken-and-egg between jti and session_id is an implementation detail, not an
+architecture question.
+
+### [LOG-0015] login() returns a private `_cookies` property for route-handler cookie assembly
+
+- date: 2026-06-30
+- task_id: TASK-IAM-006
+- status: proposed
+- affects: none (internal contract between iam.service.ts and iam.routes.ts; not part of IamPublicAPI)
+
+The `IamService.login()` return type in iam.types.ts declares the fields that
+belong to `AuthResponseSchema` (user, sessionId, expiresAt, roleCodes,
+officeScopeId, officeCode). However, the route handler also needs the raw token
+strings to assemble the Set-Cookie headers (batac_at = accessToken;
+batac_rt = `${tokenId}.${rawBase64url}`).
+
+Rather than write a separate method or add token strings to the declared return
+type (which would expose them to any caller of login()), the implementation uses
+a `_cookies` property that is returned by the concrete implementation but is NOT
+declared in the IamService interface. The route handler casts the result to
+`& { _cookies?: {...} }` to access it.
+
+This is an internal coupling between iam.service.ts and iam.routes.ts that is
+acceptable for Phase 1 but fragile. A cleaner approach for a future task would
+be to separate the cookie-assembly concern into a dedicated method or to return
+the token strings via a different channel (e.g., Fastify reply decorations set
+within the service — though that would break the service/route separation).
+
+[Inference]: The `_cookies` pattern is a pragmatic workaround to avoid leaking
+token strings into the declared public return type while still being usable by
+the route handler in the same module. It is not a pattern recommended for
+cross-module use.
 
