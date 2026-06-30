@@ -666,6 +666,69 @@ export function createIamService(deps: IamServiceDeps): IamService {
       });
     },
 
+    // ─── forceTerminateSession ────────────────────────────────────────────────
+
+    /**
+     * Forcibly terminate another user's session (IT Admin only).
+     *
+     * Steps:
+     *  1. Load target session. Not found → NotFoundError (404 at route).
+     *  2. Already inactive → return { terminated: true } (idempotent).
+     *  3. In a transaction: terminateSession('forced', actorId) +
+     *     revokeRefreshTokensBySessionId('forced').
+     *  4. Emit forced_logout audit event (fire-and-forget, outside transaction).
+     *  5. Return { terminated: true }.
+     *
+     * ABAC (IT Admin gate) is enforced by the route handler BEFORE this call.
+     * This method performs no ABAC check of its own.
+     *
+     * Source: TASK-IAM-010 AI Prompt.
+     */
+    async forceTerminateSession(input: {
+      actorId:         string;
+      targetSessionId: string;
+      reason:          string;
+      cityId:          string;
+    }): Promise<{ terminated: boolean }> {
+      const { actorId, targetSessionId, reason, cityId } = input;
+
+      // Step 1: Load target session (outside transaction — early exit on 404/idempotent)
+      const session = await iamRepo.findSessionById(targetSessionId);
+      if (!session) {
+        throw new NotFoundError('Session', targetSessionId);
+      }
+
+      // Step 2: Idempotent — session already terminated, no side effects
+      if (!session.active) {
+        return { terminated: true };
+      }
+
+      // Step 3: Atomically terminate session and revoke all associated refresh tokens
+      await db.transaction(async (tx) => {
+        const { createIamRepository } = await import('./iam.repository.js');
+        const txRepo = createIamRepository(tx);
+
+        await txRepo.terminateSession(targetSessionId, 'forced', actorId);
+        await txRepo.revokeRefreshTokensBySessionId(targetSessionId, 'forced');
+      });
+
+      // Step 4: Emit forced_logout audit event — fire-and-forget, outside transaction.
+      // Pattern matches logout() — best-effort; failure here does not roll back session.
+      void auditService.writeEvent({
+        eventType:  'forced_logout',
+        actorId,
+        targetId:   targetSessionId,
+        targetType: 'session',
+        cityId,
+        payload: {
+          actor_id:          actorId,
+          target_user_id:    session.userId,
+          target_session_id: targetSessionId,
+          reason,
+        },
+      });
+
+      return { terminated: true };
     async updateOwnProfile(input: { userId: string; displayName?: string; phoneNumber?: string }): Promise<UserRow> {
       const user = await iamRepo.findUserById(input.userId);
       if (!user) throw new NotFoundError('User', input.userId);
