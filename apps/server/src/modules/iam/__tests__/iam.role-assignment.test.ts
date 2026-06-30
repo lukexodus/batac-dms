@@ -1,4 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../../../config/env.js', () => ({
+  env: {
+    CITY_ID: '00000000-0000-4000-8000-000000000001',
+    AUTH_JWT_ACCESS_SECRET: 'test-secret',
+    AUTH_JWT_REFRESH_SECRET: 'test-secret',
+    AUTH_JWT_ALGORITHM: 'HS256',
+    AUTH_JWT_ACCESS_EXPIRES_IN: '15m',
+    AUTH_JWT_REFRESH_EXPIRES_IN: '30d',
+    AUTH_COOKIE_SECURE: false,
+    AUTH_COOKIE_SAMESITE: 'Strict',
+    AUTH_ACCESS_TOKEN_COOKIE_NAME: 'batac_at',
+    AUTH_REFRESH_TOKEN_COOKIE_NAME: 'batac_rt',
+    AUTH_SESSION_INACTIVITY_TIMEOUT_MS: 1800000,
+  }
+}));
+
 import { randomUUID } from 'node:crypto';
 import { createIamService } from '../iam.service.js';
 import { RoleCombinationForbiddenError } from '../iam.errors.js';
