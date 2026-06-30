@@ -44,6 +44,9 @@ importers:
       argon2:
         specifier: ^0.43.0
         version: 0.43.1
+      '@types/jsonwebtoken':
+        specifier: ^9.0.10
+        version: 9.0.10
       dotenv:
         specifier: ^16.4.0
         version: 16.6.1
@@ -209,6 +212,9 @@ importers:
       pino:
         specifier: ^9.0.0
         version: 9.14.0
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
     devDependencies:
       '@batac/config':
         specifier: workspace:^
