@@ -160,6 +160,7 @@ describe('IamService - refresh', () => {
       createRefreshToken: vi.fn().mockResolvedValue(undefined),
       updateLastActivity: vi.fn().mockResolvedValue(undefined),
       findSessionById: vi.fn().mockResolvedValue(makeSession()),
+      terminateSession: vi.fn().mockResolvedValue(undefined),
     };
 
     dbStub = {
