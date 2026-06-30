@@ -1,7 +1,7 @@
 import { randomUUID, createHash, randomBytes } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import argon2 from 'argon2';
-import type { IamService, IamServiceDeps, RoleAssignmentRow, UserRow } from './iam.types.js';
+import type { IamService, IamServiceDeps, RoleAssignmentRow, UserRow, SessionRow } from './iam.types.js';
 import { RoleCombinationForbiddenError } from './iam.errors.js';
 import { NotFoundError } from '../../errors/domain/not-found.js';
 import { IAM_EVENTS } from './iam.events.js';
@@ -571,7 +571,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
           await txRepo.revokeRefreshTokenFamily(tokenRow.familyId, 'reuse_detected');
           const session = await txRepo.findSessionById(tokenRow.sessionId);
           if (session && session.active) {
-            await txRepo.updateSessionActiveState(session.id, false);
+            await txRepo.terminateSession(session.id, 'reuse_detected', null);
           }
         });
 
@@ -922,10 +922,10 @@ export function createIamService(deps: IamServiceDeps): IamService {
       if (!isValid) throw new Error('UNAUTHORIZED');
 
       const newHash = await argon2.hash(input.newPassword, {
-        memoryCost: parseInt(env.ARGON2_MEMORY_COST || '65536', 10),
-        timeCost: parseInt(env.ARGON2_TIME_COST || '3', 10),
-        parallelism: parseInt(env.ARGON2_PARALLELISM || '4', 10),
-        hashLength: parseInt(env.ARGON2_HASH_LENGTH || '32', 10),
+        memoryCost: env.ARGON2_MEMORY_COST ?? 65536,
+        timeCost: env.ARGON2_TIME_COST ?? 3,
+        parallelism: env.ARGON2_PARALLELISM ?? 4,
+        hashLength: env.ARGON2_HASH_LENGTH ?? 32,
       });
 
       await iamRepo.updateCredentialHash(input.userId, newHash);
@@ -988,7 +988,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
         });
       }
 
-      if (session.lockedAt === null) {
+      if (session.locked_at === null) {
         return { unlocked: true };
       }
 

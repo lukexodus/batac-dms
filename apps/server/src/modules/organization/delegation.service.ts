@@ -10,7 +10,7 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
   return {
     async getActiveDelegationForUser(userId: string): Promise<DelegationSummary | null> {
       const db = deps.db;
-      const nowStr = new Date().toISOString().split('T')[0];
+      const nowStr = new Date().toISOString().split('T')[0]!;
 
       const delegatorEmp = alias(employees, 'delegator_emp');
       const delegateeEmp = alias(employees, 'delegatee_emp');
@@ -40,7 +40,7 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       .limit(1);
 
       if (rows.length === 0) return null;
-      const row = rows[0];
+      const row = rows[0]!;
       return {
         delegationId: row.id,
         designationDocumentId: row.designationDocumentId || '',
@@ -57,7 +57,7 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
 
     async getDelegationGrantById(delegationGrantId: string): Promise<{ scope: { roles: string[]; officeIds: string[]; actions: string[] } } | null> {
       const db = deps.db;
-      const nowStr = new Date().toISOString().split('T')[0];
+      const nowStr = new Date().toISOString().split('T')[0]!;
 
       const [row] = await db.select({
         scope: delegationGrants.scope,

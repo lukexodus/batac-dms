@@ -238,11 +238,6 @@ export interface IamService extends IamPublicAPI {
     opts: { limit: number; offset: number }
   ): Promise<SessionRow[]>;
 
-  forceTerminateSession(input: {
-    sessionId: string;
-    reason: string;
-    actorId: string;
-  }): Promise<void>;
 
   lockSession(input: {
     sessionId: string;

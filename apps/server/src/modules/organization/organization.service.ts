@@ -13,7 +13,7 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
     async resolveCurrentHolder(positionId: string, asOf?: Date): Promise<UserSummary | null> {
       const db = deps.db;
       const asOfDate = asOf || new Date();
-      const asOfStr = asOfDate.toISOString().split('T')[0];
+      const asOfStr = asOfDate.toISOString().split('T')[0]!;
 
       // 1. Find active delegation covering positionId (delegated-to wins)
       const delegations = await db.select({
@@ -35,7 +35,7 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
       ))
       .limit(1);
 
-      if (delegations.length > 0 && delegations[0].userId) {
+      if (delegations.length > 0 && delegations[0]?.userId) {
         return {
           userId: delegations[0].userId,
           displayName: `${delegations[0].firstName} ${delegations[0].lastName}`,
@@ -64,7 +64,7 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
       ))
       .limit(1);
 
-      if (activeAssignments.length > 0 && activeAssignments[0].userId) {
+      if (activeAssignments.length > 0 && activeAssignments[0]?.userId) {
         return {
           userId: activeAssignments[0].userId,
           displayName: `${activeAssignments[0].firstName} ${activeAssignments[0].lastName}`,
@@ -136,11 +136,11 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
 
       if (rows.length === 0) return null;
 
-      let bestRow = rows[0];
+      let bestRow = rows[0]!;
       const activeAssignments = rows.filter(r => r.assignmentId && r.isActive && !r.assignmentDeletedAt);
       if (activeAssignments.length > 0) {
         const primary = activeAssignments.find(r => r.isPrimary);
-        bestRow = primary || activeAssignments[0];
+        bestRow = primary || activeAssignments[0]!;
       }
 
       return {
@@ -173,12 +173,12 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
       .limit(1);
 
       if (rows.length === 0) return null;
-      return rows[0];
+      return rows[0] || null;
     },
 
     async getCommitteeIdsForUser(userId: string): Promise<string[]> {
       const db = deps.db;
-      const nowStr = new Date().toISOString().split('T')[0];
+      const nowStr = new Date().toISOString().split('T')[0]!;
       const { committeeMemberships } = await import('@batac/database/schema/organization.schema.js');
 
       const rows = await db.select({

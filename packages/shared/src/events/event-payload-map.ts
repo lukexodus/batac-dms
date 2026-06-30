@@ -26,6 +26,10 @@ export interface EventPayloadMap {
   'session.terminated': Stub;
   'role.assigned': Stub;
   'role.revoked': Stub;
+  'user.created': Stub;
+  'password.changed': Stub;
+  'session.locked': Stub;
+  'session.unlocked': Stub;
 
   // ── Organization module ────────────────────────────────────────────────────
   'delegation.granted': Stub;
