@@ -54,7 +54,7 @@ const INACTIVITY_TIMEOUT_MS = env.AUTH_SESSION_INACTIVITY_TIMEOUT_MS;
  * Called when a session is terminated due to inactivity.
  * Source: TASK-IAM-005 Hook 1 step 5.
  */
-function clearAuthCookies(reply: FastifyReply): void {
+export function clearAuthCookies(reply: FastifyReply): void {
   const base = 'Path=/; HttpOnly; SameSite=Strict; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
   const secure = env.AUTH_COOKIE_SECURE ? '; Secure' : '';
   reply.header('Set-Cookie', [

@@ -194,7 +194,34 @@ export function createIamService(deps: IamServiceDeps): IamService {
   return {
     evaluatePolicy: () => { throw new Error('not implemented'); },
     getUserById:    () => { throw new Error('not implemented'); },
-    logout:         () => { throw new Error('not implemented'); },
+    // ─── logout ──────────────────────────────────────────────────────────────
+    async logout(sessionId: string, userId: string): Promise<void> {
+      await db.transaction(async (tx) => {
+        const { createIamRepository } = await import('./iam.repository.js');
+        const txRepo = createIamRepository(tx);
+
+        const session = await txRepo.findSessionById(sessionId);
+        if (!session || !session.active) {
+          return; // Idempotent: already inactive or not found
+        }
+
+        await txRepo.terminateSession(sessionId, 'logout', userId);
+        await txRepo.revokeRefreshTokensBySessionId(sessionId, 'logout');
+
+        // Note: out-of-transaction best-effort write, just like login.
+        void auditService.writeEvent({
+          eventType: 'logout_success',
+          actorId: userId,
+          targetId: userId,
+          targetType: 'session',
+          cityId: BATAC_CITY_ID,
+          payload: {
+            user_id: userId,
+            session_id: sessionId,
+          },
+        });
+      });
+    },
     refresh:        () => { throw new Error('not implemented'); },
     verifyAccessToken: () => { throw new Error('not implemented'); },
     resolveActiveDelegationGrant: (id) => resolveActiveDelegationGrantDep(id ?? ''),
