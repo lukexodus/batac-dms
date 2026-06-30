@@ -222,7 +222,32 @@ export interface IamRepository {
 
 declare module 'fastify' {
   interface FastifyInstance {
-    iamService:      IamService;
-    policyEvaluator: PolicyEvaluator;
+    iamService:        IamService;
+    policyEvaluator:   PolicyEvaluator;
+    /**
+     * IAM repository — made available on the Fastify instance by the IAM
+     * plugin so that preHandler hooks (which only receive `FastifyInstance`
+     * via `this`) can reach the repository without importing it directly.
+     * Populated by TASK-IAM-006's plugin registration.
+     */
+    iamRepository:     IamRepository;
+    /**
+     * Drizzle ORM database client for the `batac_app` PostgreSQL role.
+     * Registered on the Fastify instance by the database plugin so all
+     * hooks and plugins can reach it via `fastify.db`.
+     * Populated before IAM middleware registration.
+     */
+    db:                DbClient;
+  }
+
+  interface FastifyRequest {
+    /**
+     * Populated by the `verifyAccessToken` preHandler hook (TASK-IAM-005 Hook 1)
+     * for every authenticated request. Null on public/unauthenticated routes.
+     * Hook 2 (`loadDelegationContext`) expands `effectiveOfficeIds` and
+     * `effectiveRoles` in-place after Hook 1 populates the base context.
+     */
+    auth: AuthContext | null;
   }
 }
+
