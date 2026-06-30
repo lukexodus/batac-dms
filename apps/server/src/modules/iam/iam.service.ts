@@ -222,7 +222,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
         });
       });
     },
-    refresh:        () => { throw new Error('not implemented'); },
+
     verifyAccessToken: () => { throw new Error('not implemented'); },
     resolveActiveDelegationGrant: (id) => resolveActiveDelegationGrantDep(id ?? ''),
 
@@ -519,6 +519,183 @@ export function createIamService(deps: IamServiceDeps): IamService {
       return loginResult;
     },
 
+    // ─── refresh ──────────────────────────────────────────────────────────────
+
+    /**
+     * POST /api/auth/refresh
+     * Rotate the refresh token and issue a new access token JWT.
+     * Prevents reuse by revoking the entire token family if a used token is presented.
+     *
+     * Source: TASK-IAM-007.
+     */
+    async refresh(refreshTokenValue: string, ipAddress: string | null, userAgent: string | null) {
+      // 1. Parse token
+      const parts = refreshTokenValue.split('.');
+      if (parts.length !== 2) {
+        throw Object.assign(new Error('Invalid refresh token format'), {
+          code:       'UNAUTHORIZED',
+          statusCode: 401,
+        });
+      }
+      const [tokenId, rawBase64url] = parts;
+      if (!tokenId || !rawBase64url) {
+        throw Object.assign(new Error('Invalid refresh token format'), {
+          code:       'UNAUTHORIZED',
+          statusCode: 401,
+        });
+      }
+
+      // 2. Lookup by ID
+      const tokenRow = await iamRepo.findRefreshTokenById(tokenId);
+      if (!tokenRow) {
+        throw Object.assign(new Error('Invalid refresh token'), {
+          code:       'UNAUTHORIZED',
+          statusCode: 401,
+        });
+      }
+
+      // 3. Verify Hash
+      const computedHash = sha256Hex(rawBase64url + tokenRow.salt);
+      if (computedHash !== tokenRow.tokenHash) {
+        throw Object.assign(new Error('Invalid refresh token signature'), {
+          code:       'UNAUTHORIZED',
+          statusCode: 401,
+        });
+      }
+
+      // 4. Reuse Detection
+      if (tokenRow.usedAt !== null) {
+        await db.transaction(async (tx) => {
+          const { createIamRepository } = await import('./iam.repository.js');
+        const txRepo = createIamRepository(tx);
+          await txRepo.revokeRefreshTokenFamily(tokenRow.familyId, 'reuse_detected');
+          const session = await txRepo.findSessionById(tokenRow.sessionId);
+          if (session && session.active) {
+            await txRepo.updateSessionActiveState(session.id, false);
+          }
+        });
+
+        void auditService.writeEvent({
+          eventType: 'token_reuse_detected',
+          actorId:   tokenRow.userId,
+          targetId:  tokenRow.familyId,
+          targetType: 'refresh_token_family',
+          cityId:    BATAC_CITY_ID,
+          payload: {
+            user_id:      tokenRow.userId,
+            family_id:    tokenRow.familyId,
+            ip_address:   ipAddress,
+            action_taken: 'session_terminated_and_family_revoked',
+          },
+        });
+
+        throw Object.assign(new Error('Session security event detected'), {
+          code:       'UNAUTHORIZED',
+          statusCode: 401,
+        });
+      }
+
+      // 5. Validity Checks
+      if (tokenRow.revokedAt !== null) {
+        throw Object.assign(new Error('Refresh token has been revoked'), {
+          code:       'UNAUTHORIZED',
+          statusCode: 401,
+        });
+      }
+      if (tokenRow.expiresAt < new Date()) {
+        throw Object.assign(new Error('Refresh token has expired'), {
+          code:       'UNAUTHORIZED',
+          statusCode: 401,
+        });
+      }
+
+      // 6. Check User/Session
+      const session = await iamRepo.findSessionById(tokenRow.sessionId);
+      if (!session || !session.active) {
+        throw Object.assign(new Error('Session is inactive or terminated'), {
+          code:       'UNAUTHORIZED',
+          statusCode: 401,
+        });
+      }
+      const user = await iamRepo.findUserById(tokenRow.userId);
+      if (!user || user.status === 'inactive' || user.status === 'deactivated') {
+        throw Object.assign(new Error('User account is inactive'), {
+          code:       'UNAUTHORIZED',
+          statusCode: 401,
+        });
+      }
+
+      // 7. Token Rotation Transaction
+      let newRawBase64url = '';
+      let newTokenId = '';
+
+      await db.transaction(async (tx) => {
+        const { createIamRepository } = await import('./iam.repository.js');
+        const txRepo = createIamRepository(tx);
+
+        const rawBytes  = randomBytes(32);
+        const saltBytes = randomBytes(16);
+        newRawBase64url = rawBytes.toString('base64url');
+        const saltBase64url = saltBytes.toString('base64url');
+        const tokenHash = sha256Hex(newRawBase64url + saltBase64url);
+        newTokenId = randomUUID();
+        const expiresAt = new Date(Date.now() + JWT_REFRESH_TTL_SECONDS * 1000);
+
+        await txRepo.markRefreshTokenUsed(tokenId, newTokenId);
+
+        await txRepo.createRefreshToken({
+          id:        newTokenId,
+          userId:    user.id,
+          sessionId: session.id,
+          tokenHash,
+          salt:      saltBase64url,
+          familyId:  tokenRow.familyId,
+          expiresAt,
+          cityId:    BATAC_CITY_ID,
+        } as any);
+
+        await txRepo.updateLastActivity(session.id);
+      });
+
+      // 8. Build claims and issue JWT
+      const newClaims = await buildAccessTokenClaims(user.id, session.id);
+      const jwtPayload = { ...newClaims.registered, ...newClaims.private };
+      const newAccessToken = jwt.sign(
+        jwtPayload,
+        env.AUTH_JWT_ACCESS_SECRET,
+        {
+          algorithm: env.AUTH_JWT_ALGORITHM as jwt.Algorithm,
+          expiresIn: JWT_ACCESS_TTL_SECONDS,
+        },
+      );
+
+      // Update session_token_hash best-effort
+      const jti = newClaims.registered.jti;
+      const sessionTokenHash = sha256Hex(jti);
+      const { sessions } = await import('@batac/database/schema/iam.schema.js');
+      const { eq } = await import('drizzle-orm');
+      await db.update(sessions)
+        .set({ sessionTokenHash })
+        .where(eq(sessions.id, session.id));
+
+      const refreshResult = {
+        user:                toUserSelectSchema(user) as unknown as UserRow,
+        sessionId:           session.id,
+        expiresAt:           new Date(Date.now() + JWT_ACCESS_TTL_SECONDS * 1000),
+        roleCodes:           newClaims.display.roleCodes,
+        officeScopeId:       newClaims.display.officeScopeId,
+        officeCode:          newClaims.display.officeCode,
+        _cookies: {
+          accessToken:              newAccessToken,
+          refreshTokenCookieValue:  `${newTokenId}.${newRawBase64url}`,
+          accessMaxAge:             JWT_ACCESS_TTL_SECONDS,
+          refreshMaxAge:            JWT_REFRESH_TTL_SECONDS,
+        },
+      };
+
+      return refreshResult;
+    },
+
     // ─── assignRole ───────────────────────────────────────────────────────────
 
     /**
@@ -729,6 +906,8 @@ export function createIamService(deps: IamServiceDeps): IamService {
       });
 
       return { terminated: true };
+    },
+    
     async updateOwnProfile(input: { userId: string; displayName?: string; phoneNumber?: string }): Promise<UserRow> {
       const user = await iamRepo.findUserById(input.userId);
       if (!user) throw new NotFoundError('User', input.userId);
@@ -773,26 +952,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
       return iamRepo.listAllActiveSessions(cityId, opts);
     },
 
-    async forceTerminateSession(input: { sessionId: string; reason: string; actorId: string }): Promise<void> {
-      const session = await iamRepo.findSessionById(input.sessionId);
-      if (!session) return; 
 
-      await iamRepo.terminateSession(input.sessionId, input.reason, input.actorId);
-
-      eventBus.emit(IAM_EVENTS.SESSION_TERMINATED, {
-        eventId: randomUUID(),
-        eventType: IAM_EVENTS.SESSION_TERMINATED,
-        occurredAt: new Date().toISOString(),
-        cityId: session.cityId,
-        schemaVersion: 1,
-        payload: {
-          actorId: input.actorId,
-          userId: session.userId,
-          sessionId: input.sessionId,
-          reason: input.reason,
-        },
-      });
-    },
 
     async listUserDirectory(cityId: string, opts: { limit: number; offset: number; officeId?: string; search?: string }): Promise<UserRow[]> {
       return iamRepo.listUsers(cityId, opts);

@@ -151,10 +151,19 @@ export interface IamService extends IamPublicAPI {
     officeCode:    string | null;
   }>;
   logout(sessionId: string, userId: string): Promise<void>;
-  refresh(refreshToken: string, ipAddress: string, userAgent: string): Promise<{
-    accessToken:  string;
-    refreshToken: string;
-    expiresAt:    Date;
+  refresh(refreshToken: string, ipAddress: string | null, userAgent: string | null): Promise<{
+    user:          UserRow;
+    sessionId:     string;
+    expiresAt:     Date;
+    roleCodes:     string[];
+    officeScopeId: string | null;
+    officeCode:    string | null;
+    _cookies?: {
+      accessToken:              string;
+      refreshTokenCookieValue:  string;
+      accessMaxAge:             number;
+      refreshMaxAge:            number;
+    };
   }>;
   verifyAccessToken(token: string): Promise<AuthContext>;
   resolveActiveDelegationGrant(delegationGrantId: string | null): Promise<{

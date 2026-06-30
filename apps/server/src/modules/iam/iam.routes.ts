@@ -171,6 +171,101 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
   );
 
   // ── Protected Routes ────────────────────────────────────────────────────────
+
+  /**
+   * POST /api/auth/refresh
+   *
+   * Public route — read batac_rt cookie, no auth preHandlers.
+   * Rate limit: 5 requests per 15 minutes per IP.
+   */
+  fastify.post(
+    '/api/auth/refresh',
+    {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: 15 * 60 * 1000,
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      // 1. Extract refresh token from cookie
+      const cookieName = env.AUTH_REFRESH_TOKEN_COOKIE_NAME;
+      const rawCookie = request.headers.cookie ?? '';
+      const tokenMatch = rawCookie
+        .split(';')
+        .map((c) => c.trim())
+        .find((c) => c.startsWith(`${cookieName}=`));
+
+      if (!tokenMatch) {
+        return reply.status(401).send({ code: 'UNAUTHORIZED' });
+      }
+      const refreshTokenValue = tokenMatch.split('=')[1];
+
+      // 2. Call refresh service
+      const ipAddress = (request.headers['x-forwarded-for'] as string | undefined)
+        ?? request.ip
+        ?? null;
+      const userAgent = request.headers['user-agent'] ?? null;
+
+      let result: Awaited<ReturnType<typeof fastify.iamService.refresh>> & {
+        _cookies?: {
+          accessToken:              string;
+          refreshTokenCookieValue:  string;
+          accessMaxAge:             number;
+          refreshMaxAge:            number;
+        };
+      };
+
+      try {
+        result = await fastify.iamService.refresh(refreshTokenValue, ipAddress, userAgent);
+      } catch (err: unknown) {
+        const e = err as { code?: string; statusCode?: number };
+
+        if (e.statusCode === 401) {
+          clearAuthCookies(reply);
+          return reply.status(401).send({ code: 'UNAUTHORIZED' });
+        }
+        // Unexpected error — rethrow
+        throw err;
+      }
+
+      // 3. Set HTTP-only cookies
+      const cookies = result._cookies;
+      if (!cookies) {
+        fastify.log.error('iam.routes: refresh result missing _cookies property');
+        return reply.status(500).send({ code: 'INTERNAL_ERROR' });
+      }
+
+      const secure   = env.AUTH_COOKIE_SECURE;
+      const sameSite = env.AUTH_COOKIE_SAMESITE;
+
+      const atCookie = buildCookieHeader(
+        env.AUTH_ACCESS_TOKEN_COOKIE_NAME,
+        cookies.accessToken,
+        { maxAge: JWT_ACCESS_TTL_SECONDS, path: '/', secure, sameSite },
+      );
+
+      const rtCookie = buildCookieHeader(
+        env.AUTH_REFRESH_TOKEN_COOKIE_NAME,
+        cookies.refreshTokenCookieValue,
+        { maxAge: REFRESH_TTL_SECONDS, path: '/api/auth/refresh', secure, sameSite },
+      );
+
+      reply.header('Set-Cookie', [atCookie, rtCookie]);
+
+      // 4. Return AuthResponseSchema body
+      return reply.status(200).send({
+        user:          result.user,
+        sessionId:     result.sessionId,
+        expiresAt:     result.expiresAt,
+        roleCodes:     result.roleCodes,
+        officeScopeId: result.officeScopeId,
+        officeCode:    result.officeCode,
+      });
+    },
+  );
+
   fastify.register(async (protectedApp) => {
     await protectedApp.register(authMiddlewarePlugin);
 
