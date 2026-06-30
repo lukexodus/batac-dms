@@ -84,9 +84,10 @@ export const iamRouter = router({
       }
       const service = getService(ctx);
       await service.forceTerminateSession({
-        sessionId: input.sessionId,
+        targetSessionId: input.sessionId,
         reason: input.reason,
         actorId: ctx.auth.userId,
+        cityId: ctx.auth.cityId,
       });
       return { success: true };
     }),

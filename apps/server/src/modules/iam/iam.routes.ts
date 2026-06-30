@@ -201,7 +201,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       if (!tokenMatch) {
         return reply.status(401).send({ code: 'UNAUTHORIZED' });
       }
-      const refreshTokenValue = tokenMatch.split('=')[1];
+      const refreshTokenValue = tokenMatch.split('=')[1] || '';
 
       // 2. Call refresh service
       const ipAddress = (request.headers['x-forwarded-for'] as string | undefined)
@@ -219,7 +219,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       };
 
       try {
-        result = await fastify.iamService.refresh(refreshTokenValue, ipAddress, userAgent);
+        result = await fastify.iamService.refresh(refreshTokenValue, ipAddress || '', userAgent || '');
       } catch (err: unknown) {
         const e = err as { code?: string; statusCode?: number };
 
@@ -302,7 +302,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       if (!tokenMatch) {
         return reply.status(401).send({ code: 'UNAUTHORIZED' });
       }
-      const accessTokenValue = tokenMatch.split('=')[1];
+      const accessTokenValue = tokenMatch.split('=')[1] || '';
 
       let decoded: any;
       try {
@@ -326,8 +326,8 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
           userId: decoded.uid,
           passwordPlain: parseResult.data.password,
           isAccessTokenExpired: isExpired,
-          ipAddress,
-          userAgent,
+          ipAddress: ipAddress || '',
+          userAgent: userAgent || '',
         });
       } catch (err: unknown) {
         const e = err as { code?: string; statusCode?: number; message?: string };
