@@ -44,9 +44,6 @@ importers:
       argon2:
         specifier: ^0.43.0
         version: 0.43.1
-      '@types/jsonwebtoken':
-        specifier: ^9.0.10
-        version: 9.0.10
       dotenv:
         specifier: ^16.4.0
         version: 16.6.1

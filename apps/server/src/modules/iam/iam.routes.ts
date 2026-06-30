@@ -16,6 +16,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { env } from '../../config/env.js';
 import { LoginInputSchema } from './iam.schemas.js';
+import { authMiddlewarePlugin, clearAuthCookies } from './iam.middleware.js';
 
 /** Access-token TTL in seconds — parsed from AUTH_JWT_ACCESS_EXPIRES_IN. */
 function parseExpiresInSeconds(expiresIn: string): number {
@@ -167,4 +168,28 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       });
     },
   );
+
+  // ── Protected Routes ────────────────────────────────────────────────────────
+  fastify.register(async (protectedApp) => {
+    await protectedApp.register(authMiddlewarePlugin);
+
+    /**
+     * POST /api/auth/logout
+     *
+     * Protected route — requires valid access token.
+     * Terminates the session, revokes refresh tokens, clears cookies, and writes audit event.
+     * Source: TASK-IAM-008
+     */
+    protectedApp.post(
+      '/api/auth/logout',
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        const auth = request.auth!;
+        await protectedApp.iamService.logout(auth.sessionId, auth.userId);
+
+        clearAuthCookies(reply);
+
+        return reply.status(204).send();
+      }
+    );
+  });
 }
