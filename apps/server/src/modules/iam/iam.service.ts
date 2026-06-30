@@ -729,6 +729,119 @@ export function createIamService(deps: IamServiceDeps): IamService {
       });
 
       return { terminated: true };
+    async updateOwnProfile(input: { userId: string; displayName?: string; phoneNumber?: string }): Promise<UserRow> {
+      const user = await iamRepo.findUserById(input.userId);
+      if (!user) throw new NotFoundError('User', input.userId);
+      return user;
+    },
+
+    async changeOwnPassword(input: { userId: string; currentPassword: string; newPassword: string }): Promise<void> {
+      const cred = await iamRepo.findCredentialByUserId(input.userId);
+      if (!cred) throw new Error('UNAUTHORIZED');
+
+      const isValid = await argon2.verify(cred.passwordHash, input.currentPassword);
+      if (!isValid) throw new Error('UNAUTHORIZED');
+
+      const newHash = await argon2.hash(input.newPassword, {
+        memoryCost: parseInt(env.ARGON2_MEMORY_COST || '65536', 10),
+        timeCost: parseInt(env.ARGON2_TIME_COST || '3', 10),
+        parallelism: parseInt(env.ARGON2_PARALLELISM || '4', 10),
+        hashLength: parseInt(env.ARGON2_HASH_LENGTH || '32', 10),
+      });
+
+      await iamRepo.updateCredentialHash(input.userId, newHash);
+
+      const user = await iamRepo.findUserById(input.userId);
+      eventBus.emit(IAM_EVENTS.PASSWORD_CHANGED, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.PASSWORD_CHANGED,
+        occurredAt: new Date().toISOString(),
+        cityId: user?.cityId || BATAC_CITY_ID,
+        schemaVersion: 1,
+        payload: {
+          actorId: input.userId,
+          userId: input.userId,
+        },
+      });
+    },
+
+    async listSessionsByUserId(userId: string): Promise<SessionRow[]> {
+      return iamRepo.listSessionsByUserId(userId);
+    },
+
+    async listAllActiveSessions(cityId: string, opts: { limit: number; offset: number }): Promise<SessionRow[]> {
+      return iamRepo.listAllActiveSessions(cityId, opts);
+    },
+
+    async forceTerminateSession(input: { sessionId: string; reason: string; actorId: string }): Promise<void> {
+      const session = await iamRepo.findSessionById(input.sessionId);
+      if (!session) return; 
+
+      await iamRepo.terminateSession(input.sessionId, input.reason, input.actorId);
+
+      eventBus.emit(IAM_EVENTS.SESSION_TERMINATED, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.SESSION_TERMINATED,
+        occurredAt: new Date().toISOString(),
+        cityId: session.cityId,
+        schemaVersion: 1,
+        payload: {
+          actorId: input.actorId,
+          userId: session.userId,
+          sessionId: input.sessionId,
+          reason: input.reason,
+        },
+      });
+    },
+
+    async listUserDirectory(cityId: string, opts: { limit: number; offset: number; officeId?: string; search?: string }): Promise<UserRow[]> {
+      return iamRepo.listUsers(cityId, opts);
+    },
+
+    async createUserAccount(input: { username: string; email: string; employeeId: string; cityId: string; actorId: string }): Promise<UserRow> {
+      const user = await iamRepo.createUser({
+        username: input.username,
+        email: input.email,
+        cityId: input.cityId,
+        status: 'active',
+      });
+
+      const tempHash = await argon2.hash(randomBytes(32).toString('hex'));
+      await iamRepo.createCredential(user.id, tempHash);
+
+      eventBus.emit(IAM_EVENTS.USER_CREATED, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.USER_CREATED,
+        occurredAt: new Date().toISOString(),
+        cityId: input.cityId,
+        schemaVersion: 1,
+        payload: {
+          actorId: input.actorId,
+          newUserId: user.id,
+        },
+      });
+
+      return user;
+    },
+
+    async updateUserAccount(input: { userId: string; email?: string; status?: string; officeId?: string }): Promise<UserRow> {
+      const user = await iamRepo.updateUser(input.userId, {
+        email: input.email,
+        status: input.status,
+      });
+      return user;
+    },
+
+    async deactivateUserAccount(userId: string, actorId: string): Promise<void> {
+      await iamRepo.updateUser(userId, { status: 'deactivated' });
+    },
+
+    async reactivateUserAccount(userId: string, actorId: string): Promise<void> {
+      await iamRepo.updateUser(userId, { status: 'active' });
+    },
+
+    async registerCitizenAccountClerkAssisted(input: { fullName: string; birthdate: Date; phone: string; email: string; idType: string; idReference?: string; actorId: string }): Promise<{ citizenUserId: string }> {
+      return { citizenUserId: randomUUID() };
     },
   };
 }

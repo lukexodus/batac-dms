@@ -5,6 +5,7 @@ import { createAuditModule } from './index.js';
 import type { AuditPublicAPI } from './index.js';
 import { registerAuditEventConsumer } from './audit.event-consumer.js';
 import type { EventBus } from '@batac/shared/event-bus';
+import { createAuditTrpcRouter, type AuditTrpcRouter } from './audit.router.js';
 
 // ─── TypeScript Fastify augmentation ─────────────────────────────────────────
 
@@ -12,6 +13,7 @@ declare module 'fastify' {
   interface FastifyInstance {
     auditService: AuditPublicAPI;
     eventBus: EventBus;
+    auditTrpcRouter: AuditTrpcRouter;
   }
 }
 
@@ -41,6 +43,9 @@ async function auditPlugin(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.decorate('auditService', auditModule);
+
+  // Expose the tRPC sub-router for the root adapter to mount
+  fastify.decorate('auditTrpcRouter', createAuditTrpcRouter(auditModule));
 
   // Register the domain event consumer for all audit events
   registerAuditEventConsumer(fastify.eventBus, auditModule, fastify.log);

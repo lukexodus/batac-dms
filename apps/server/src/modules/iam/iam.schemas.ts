@@ -53,3 +53,86 @@ export const TerminateSessionInputSchema = z.object({
 });
 
 export type TerminateSessionInput = z.infer<typeof TerminateSessionInputSchema>;
+export const paginationInput = z.object({
+  cursor: z.string().nullish(),
+  pageSize: z.number().int().min(1).max(100).default(20),
+});
+
+export const dateRangeInput = z.object({
+  from: z.coerce.date().nullish(),
+  to: z.coerce.date().nullish(),
+});
+
+export const userSummaryOutput = z.object({
+  userId: z.string().uuid(),
+  displayName: z.string(),
+  email: z.string().email(),
+  officeId: z.string().uuid().nullable(),
+  positionTitle: z.string().nullable(),
+});
+
+export const roleCodeEnum = z.enum([
+  'sys_admin', 'plat_admin', 'records_officer', 'dept_encoder', 'dept_approver',
+  'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder',
+  'brgy_captain', 'auditor', 'citizen'
+]);
+
+export const GetProfileInput = z.object({
+  userId: z.string().uuid().optional(),
+});
+
+export const UpdateProfileInput = z.object({
+  displayName: z.string().min(1).max(200).optional(),
+  phoneNumber: z.string().max(32).optional(),
+});
+
+export const ChangePasswordInput = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(12),
+});
+
+export const ForceTerminateSessionInput = z.object({
+  sessionId: z.string().uuid(),
+  reason: z.string().min(1),
+});
+
+export const ListUserDirectoryInput = paginationInput.extend({
+  officeId: z.string().uuid().optional(),
+  search: z.string().max(200).optional(),
+});
+
+export const CreateUserAccountInput = z.object({
+  username: z.string().min(3).max(64),
+  email: z.string().email(),
+  employeeId: z.string().uuid(),
+});
+
+export const EditUserAccountInput = z.object({
+  userId: z.string().uuid(),
+  email: z.string().email().optional(),
+  officeId: z.string().uuid().optional(),
+  status: z.enum(['active', 'deactivated']).optional(),
+});
+
+export const DeactivateUserAccountInput = z.object({
+  userId: z.string().uuid(),
+});
+
+export const AssignRoleInput = z.object({
+  userId: z.string().uuid(),
+  roleCode: roleCodeEnum,
+  officeScopeId: z.string().uuid().nullish(),
+});
+
+export const RevokeRoleInput = z.object({
+  roleAssignmentId: z.string().uuid(),
+});
+
+export const RegisterCitizenClerkAssistedInput = z.object({
+  fullName: z.string().min(1),
+  birthdate: z.coerce.date(),
+  phone: z.string().min(7),
+  email: z.string().email(),
+  idType: z.string(),
+  idReference: z.string().optional(),
+});

@@ -210,6 +210,63 @@ export interface IamService extends IamPublicAPI {
     reason:          string;
     cityId:          string;
   }): Promise<{ terminated: boolean }>;
+  updateOwnProfile(input: {
+    userId: string;
+    displayName?: string;
+    phoneNumber?: string;
+  }): Promise<UserRow>;
+
+  changeOwnPassword(input: {
+    userId: string;
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<void>;
+
+  listSessionsByUserId(userId: string): Promise<SessionRow[]>;
+  
+  listAllActiveSessions(
+    cityId: string,
+    opts: { limit: number; offset: number }
+  ): Promise<SessionRow[]>;
+
+  forceTerminateSession(input: {
+    sessionId: string;
+    reason: string;
+    actorId: string;
+  }): Promise<void>;
+
+  listUserDirectory(
+    cityId: string,
+    opts: { limit: number; offset: number; officeId?: string; search?: string }
+  ): Promise<UserRow[]>;
+
+  createUserAccount(input: {
+    username: string;
+    email: string;
+    employeeId: string;
+    cityId: string;
+    actorId: string;
+  }): Promise<UserRow>;
+
+  updateUserAccount(input: {
+    userId: string;
+    email?: string;
+    status?: string;
+    officeId?: string;
+  }): Promise<UserRow>;
+
+  deactivateUserAccount(userId: string, actorId: string): Promise<void>;
+  reactivateUserAccount(userId: string, actorId: string): Promise<void>;
+
+  registerCitizenAccountClerkAssisted(input: {
+    fullName: string;
+    birthdate: Date;
+    phone: string;
+    email: string;
+    idType: string;
+    idReference?: string;
+    actorId: string;
+  }): Promise<{ citizenUserId: string }>;
 }
 
 
