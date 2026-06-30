@@ -15,4 +15,7 @@ export { EventBus } from './event-bus.js';
 export { DOMAIN_ERROR_CODES } from './errors.js';
 export type { DomainErrorCode } from './errors.js';
 export * from './schemas/organization.js';
+export * from './schemas/common.js';
+export * from './schemas/documents.js';
+export * from './schemas/document-metadata.js';
 

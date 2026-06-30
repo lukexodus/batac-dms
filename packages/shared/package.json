@@ -9,7 +9,10 @@
     "./events/event-payload-map": "./src/events/event-payload-map.ts",
     "./dead-letter-repository.interface": "./src/dead-letter-repository.interface.ts",
     "./errors": "./src/errors.ts",
-    "./schemas/organization": "./src/schemas/organization.ts"
+    "./schemas/organization": "./src/schemas/organization.ts",
+    "./schemas/common": "./src/schemas/common.ts",
+    "./schemas/documents": "./src/schemas/documents.ts",
+    "./schemas/document-metadata": "./src/schemas/document-metadata.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
