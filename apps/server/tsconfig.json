@@ -11,7 +11,8 @@
       "@/*": ["./src/*"],
       "@batac/shared": ["../../packages/shared/src/index.ts"],
       "@batac/shared/*": ["../../packages/shared/src/*"],
-      "@batac/database/*": ["../../packages/database/*"]
+      "@batac/database/*": ["../../packages/database/*"],
+      "@batac/trpc": ["./src/trpc.ts"]
     },
     "types": ["node"],
     "skipLibCheck": true,
