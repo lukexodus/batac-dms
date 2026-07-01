@@ -810,6 +810,7 @@ async function main() {
           })
           .returning({ id: documentTypes.id });
 
+        if (!upserted) throw new Error(`Failed to upsert ${def.code}`);
         const docTypeId = upserted.id;
 
         // Dynamic cross-referencing: Update the number_series table to point back to the new documentType ID.

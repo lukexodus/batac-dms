@@ -10,6 +10,7 @@ import {
   documentSponsorships,
   panlalawiganReviews,
   classificationAllowlists,
+  documentTypes,
 } from '@batac/database/schema/documents.schema.js';
 import type { DbClient, DbTransaction } from './documents.types.js';
 
@@ -18,6 +19,7 @@ import type { DbClient, DbTransaction } from './documents.types.js';
 // returned by all repository reads.
 // ---------------------------------------------------------------------------
 export type DocumentRow = InferSelectModel<typeof documents>;
+export type DocumentTypeRow = InferSelectModel<typeof documentTypes>;
 export type NumberRow = InferSelectModel<typeof numbers>;
 export type NumberSeriesRow = InferSelectModel<typeof numberSeries>;
 export type VersionRow = InferSelectModel<typeof versions>;
@@ -254,6 +256,19 @@ export class DocumentsRepository {
       .select()
       .from(numberSeries)
       .where(and(eq(numberSeries.id, id), isNull(numberSeries.deletedAt)));
+    return row ?? null;
+  }
+
+  // -------------------------------------------------------------------------
+  // documents.document_types
+  // -------------------------------------------------------------------------
+
+  /** Find a single non-deleted document type by its PK. */
+  async findDocumentTypeById(id: string): Promise<DocumentTypeRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(documentTypes)
+      .where(and(eq(documentTypes.id, id), isNull(documentTypes.deletedAt)));
     return row ?? null;
   }
   

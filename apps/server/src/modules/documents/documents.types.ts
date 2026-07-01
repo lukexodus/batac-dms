@@ -53,6 +53,27 @@ export interface AttachmentRef {
   pageCount: number;
 }
 
+
+export interface DocumentStateChangedEvent {
+  documentId: string;
+  fromState: DocumentLifecycleState;
+  toState: DocumentLifecycleState;
+  actorId: string;
+  reason?: string;
+  cityId: string;
+  timestamp: Date;
+}
+
+export interface DocumentNumberAssignedEvent {
+  documentId: string;
+  numberType: 'final' | 'preliminary' | 'control';
+  numberValue: string;
+  series: string;
+  assignedBy: string;
+  cityId: string;
+  timestamp: Date;
+}
+
 export interface DocumentsPublicAPI {
   /**
    * B2 Module 3 -- called by Workflow, Records, Tracking.
