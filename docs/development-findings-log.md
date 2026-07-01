@@ -478,3 +478,19 @@ token strings into the declared public return type while still being usable by
 the route handler in the same module. It is not a pattern recommended for
 cross-module use.
 
+### [LOG-0016] `pgsql-ast-parser` cannot parse CREATE TRIGGER / CREATE POLICY / RLS / function-grant statements — `db:lint` already fails on `main` before this task
+
+- date: 2026-06-30
+- task_id: TASK-DOCS-001
+- status: proposed
+- affects: C5 (§7.1, Appendix A)
+
+Running `pnpm --filter @batac/scripts lint:migrations` against `/packages/database/migrations/` produced `[FAIL] Syntax error parsing migration file` for `0002_iam_create_iam_schema.sql`, `0003_glamorous_scream.sql`, and the new `0004_documents_create_documents_schema.sql` — every file that has a "Manual additions" section.
+
+[Tested]: Isolated the cause by calling `pgsql-ast-parser`'s (`^12.0.2`, the version pinned in `tools/scripts/package.json`) `parse()` function directly against minimal single-statement reproductions of each distinct construct used in these manual-additions sections. Confirmed `parse()` throws on: `CREATE TRIGGER` (any form, including the plain `BEFORE UPDATE ... EXECUTE FUNCTION public.fn_set_updated_at()` form already used in 0002/0003), `CREATE POLICY` (any form), `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, `CREATE FUNCTION ... RETURNS TABLE (...) SECURITY DEFINER`, `ALTER FUNCTION ... OWNER TO`, `REVOKE ALL ON FUNCTION ...`, `GRANT EXECUTE ON FUNCTION ...`, `GRANT ... ON ALL SEQUENCES IN SCHEMA ...`, and multi-role `GRANT ... TO role_a, role_b` statements (e.g. `GRANT USAGE ON SCHEMA iam TO batac_app, batac_readonly;`, already present in 0002). A plain `CREATE OR REPLACE FUNCTION ... RETURNS TRIGGER LANGUAGE plpgsql AS $$ ... $$;` with no `SECURITY DEFINER` and no `RETURNS TABLE` parsed successfully in isolation; everything else tested above did not.
+
+This means `db:lint` already fails on `main` as it stood before this task: `0002_iam_create_iam_schema.sql` and `0003_glamorous_scream.sql` both contain `CREATE TRIGGER` statements (0002 also has `CREATE POLICY`, `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, and a multi-role `GRANT`) in their already-merged manual-additions sections. `0004_documents_create_documents_schema.sql` fails for the identical pre-existing reason, using the same statement forms as that established precedent — this is not a regression introduced by TASK-DOCS-001.
+
+Per C5 §7 ("[the linter] must pass before the build task runs. A failed linter blocks merge."), a human should confirm whether the `db:lint` Turborepo task is actually wired into CI as described — if it is, CI should already be red on `main`; if `db:lint` is not yet actually invoked by CI despite C5's description, that gap is separate from the parser gap documented here.
+
+[Inference]: C5 §7.1 itself labels the parser choice "a candidate," not a final commitment ("[Inference — the source documents designate these rules for automated linting but do not specify the implementation]"). This finding indicates `pgsql-ast-parser`'s grammar coverage is materially narrower than the DDL/DCL this project actually produces — only `CREATE TABLE`, `CREATE INDEX` (including expression/partial/GIN forms), `ALTER TABLE ... ADD CONSTRAINT`, and single-role `GRANT`/`REVOKE` on tables were confirmed to parse. Whether the fix is to catch-and-skip unparseable statements per-file instead of hard-failing the whole file, swap to a different PostgreSQL parser library, or restructure how manual-SQL sections are linted is a scope decision left to a human; `lint-migrations.ts` was not modified as a side effect of this unrelated task.1
