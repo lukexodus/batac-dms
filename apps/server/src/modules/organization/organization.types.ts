@@ -157,6 +157,36 @@ export interface OrgService {
   getCommitteeIdsForUser(userId: string): Promise<string[]>;
 }
 
+export interface DesignationView {
+  delegationId: string;
+  designationDocumentId: string;
+  delegatingUserId: string;
+  delegatingDisplayName: string;
+  delegatedToUserId: string;
+  delegatedToDisplayName: string;
+  officeId: string;
+  positionTitle: string;
+  validFrom: Date;
+  validUntil: Date;
+}
+
+export interface DesignationHistoryItem {
+  delegationId: string;
+  designationDocumentId: string;
+  delegatingDisplayName: string;
+  delegatedToDisplayName: string;
+  positionTitle: string;
+  validFrom: Date;
+  validUntil: Date;
+  isActive: boolean;
+  revokedAt: Date | null;
+}
+
+export interface DesignationParty {
+  delegatingUserId: string;
+  delegatedToUserId: string;
+}
+
 export interface DelegationService {
   getActiveDelegationForUser(userId: string): Promise<DelegationSummary | null>;
   getDelegationGrantById(delegationGrantId: string): Promise<{ scope: { roles: string[]; officeIds: string[]; actions: string[] } } | null>;
@@ -197,6 +227,25 @@ export interface DelegationService {
     input: RevokeEarlyDelegationGrantInput,
     subject: DelegationSubject,
   ): Promise<DelegationGrantRow>;
+  listActiveDesignations(): Promise<DesignationView[]>;
+  listDesignationHistory(opts: {
+    limit: number;
+    employeeId?: string;
+  }): Promise<DesignationHistoryItem[]>;
+  listActiveDesignationParties(): Promise<DesignationParty[]>;
+}
+
+/**
+ * Dependencies for organization.router.ts's createOrgRouter(ctx) factory.
+ * policyEvaluator is accepted here and threaded through so the signature
+ * matches the AI Prompt instruction; see organization.router.ts header for
+ * why the router uses direct ctx.auth checks instead of evaluate() calls.
+ */
+export interface OrgRouterDeps {
+  orgRepository: OrgRepository;
+  orgService: OrgService;
+  delegationService: DelegationService;
+  policyEvaluator: import('../iam/index.js').PolicyEvaluator;
 }
 
 declare module 'fastify' {

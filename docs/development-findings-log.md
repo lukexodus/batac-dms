@@ -645,4 +645,37 @@ instead of pino's `Logger` — not available here since `EventBus`'s
 constructor signature lives in `packages/shared` and is not a IAM-module
 file this task is scoped to edit.
 
+### [LOG-0020] officeType enum mismatch between task prompt and DB schema/codebase
+
+- date: 2026-07-01
+- task_id: TASK-ORG-008
+- status: proposed
+- affects: E1, organization.schemas.ts
+
+The TASK-ORG-008 AI Prompt specified `officeType` enum as `['sp_office','mayors_office','city_department','barangay','other']`. However, the DB CHECK constraint `ck_offices_office_type` in the schema, the seeded offices in the DB, and the shared `OfficeSummarySchema` type in `@batac/shared` all independently check and validate using the set `['executive', 'legislative', 'department', 'barangay', 'external']`. Using the prompt's proposed values would cause valid Zod inputs to fail the database CHECK constraint.
+
+[Inference]: The schema-verified set `['executive', 'legislative', 'department', 'barangay', 'external']` was implemented in the router schemas instead to match the database and shared definitions.
+
+### [LOG-0021] Designation create/revoke mutation procedures scope discrepancy
+
+- date: 2026-07-01
+- task_id: TASK-ORG-008
+- status: proposed
+- affects: E1, organization.router.ts
+
+The TASK-ORG-008 prompt access-control matrix and deliverables lines had conflicting signals. The matrix listed `Create designation grant | [Not in this router — handled by delegation.service.ts TASK-ORG-005]`, and the deliverables listed read-only delegation procedures. However, the procedure list specified `createDesignationGrant` and `revokeDesignationGrantEarly` mutations.
+
+[Unverified]: These mutations were eventually implemented since the backing methods in `delegation.service.ts` had already been developed in other code branches.
+
+### [LOG-0022] PolicyEvaluator evaluate() vs direct ctx.auth check mismatch in organization router
+
+- date: 2026-07-01
+- task_id: TASK-ORG-008
+- status: proposed
+- affects: I2, organization.router.ts
+
+The prompt instructions requested using `policyEvaluator.evaluate()` for all mutation gating. However, Gate 3's `PLATFORM_ADMIN_ALLOWED_ACTIONS` allowlist in `iam.policy.ts` and the IAM seed action strings are completely disjoint. Calling `policyEvaluator.evaluate()` for a `plat_admin` role on any ORG resource would result in a denial, preventing functional admin access.
+
+[Unverified]: Direct checks on `ctx.auth.isPlatformAdmin` (matching the pattern used throughout `iam.router.ts`) were implemented instead, while keeping `policyEvaluator` in `createOrgRouter` deps for type compliance.
+
 
