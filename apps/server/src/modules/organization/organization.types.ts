@@ -253,5 +253,7 @@ export interface OrgRouterDeps {
 declare module 'fastify' {
   interface FastifyInstance {
     organizationService: ReturnType<typeof import('./organization.service.js').createOrgService>;
+    delegationService: ReturnType<typeof import('./delegation.service.js').createDelegationService>;
+    orgTrpcRouter: ReturnType<typeof import('./organization.router.js').createOrgRouter>;
   }
 }

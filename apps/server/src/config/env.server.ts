@@ -184,7 +184,7 @@ export const serverEnvSchema = z.object({
   QR_ERROR_CORRECTION_LEVEL: z.enum(['L', 'M', 'Q', 'H']).default('M'),
   QR_MODULE_SIZE: positiveInt.default(4),
   QR_COVER_SHEETS_PER_PAGE: positiveInt.default(4),
-  DOC_SP_ORDINAL: z.coerce.number().int().min(1).max(99),
+  DOC_SP_ORDINAL: z.coerce.number().int().min(1).max(99).default(7),
   DOC_NUMBER_CITY_ID: z.string().uuid().optional(),
   DOC_TRACKING_NUMBER_PREFIX: z.string().default('DTS'),
 
