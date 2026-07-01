@@ -68,15 +68,12 @@ async function iamPlugin(fastify: FastifyInstance): Promise<void> {
     auditService: fastify.auditService, // decorated by the audit plugin (dependency)
     eventBus: fastify.eventBus,         // decorated by the event-bus plugin (dependency)
     policyEvaluator,
-    // TASK-ORG-010: wire real org-context resolvers
-    getPrimaryOffice: (userId) =>
-      fastify.organizationService.getPrimaryOfficeForUser(userId),
-
-    getCommitteeIds: (userId) =>
-      fastify.organizationService.getCommitteeIdsForUser(userId),
-
-    resolveActiveDelegationGrant: (delegationGrantId) =>
-      fastify.delegationService.getDelegationGrantById(delegationGrantId),
+    // getPrimaryOffice, getCommitteeIds, resolveActiveDelegationGrant: intentionally
+    // omitted — createIamService defaults all three to safe no-ops (see
+    // file header comment). The ORG module's Step 2 pass adds a task that
+    // edits ONLY this object literal — passing three adapter functions
+    // backed by fastify.organizationService — and does not otherwise touch
+    // iam.service.ts, iam.middleware.ts, or this plugin file.
   });
   fastify.decorate('iamService', iamService);
 
