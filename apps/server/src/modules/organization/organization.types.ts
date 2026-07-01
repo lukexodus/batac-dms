@@ -3,6 +3,7 @@ import type { EventBus } from '@batac/shared';
 import type { InferSelectModel } from 'drizzle-orm';
 import type { AuditPublicAPI } from '../audit/index.js';
 import type { PolicyEvaluator } from '../iam/iam.policy.js';
+import type PgBoss from 'pg-boss';
 import {
   offices,
   positions,
@@ -139,6 +140,7 @@ export interface DelegationServiceDeps {
   eventBus: EventBus;
   auditService: AuditPublicAPI;
   policyEvaluator: PolicyEvaluator;
+  boss: PgBoss;
 }
 
 /** Subject context passed to service write methods (subset of AuthContext). */

@@ -262,6 +262,13 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
         cityId: input.cityId,
       });
 
+      // ── Step 8: Schedule expiry job ─────────────────────────────────────────
+      await deps.boss.send(
+        'delegation.expire',
+        { delegationGrantId: grant.id },
+        { startAfter: grant.endDate }
+      );
+
       return grant;
     },
 

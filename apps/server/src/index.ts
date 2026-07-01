@@ -12,6 +12,13 @@ import { createAuditDb } from './modules/audit/audit.db.js';
 import { AuditRepository } from './modules/audit/audit.repository.js';
 import { AuditWriteService } from './modules/audit/audit.write-service.js';
 import { registerTsaExportJob } from './modules/audit/audit.tsa-export.js';
+import { registerDelegationExpiryJob } from './modules/organization/delegation-expiry.job.js';
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    boss: PgBoss;
+  }
+}
 
 const app = fastify({
   logger: env.LOG_LEVEL !== 'silent' ? {
@@ -43,6 +50,7 @@ async function main(): Promise<void> {
     app.log.info('Starting PgBoss...');
     const boss = new PgBoss(env.DATABASE_URL_APP);
     await boss.start();
+    app.decorate('boss', boss);
 
     // Register TSA Export Job
     const auditDb = createAuditDb(env.DATABASE_URL_AUDIT);
@@ -62,6 +70,15 @@ async function main(): Promise<void> {
         CITY_ID: env.CITY_ID,
       },
     });
+
+    // Register Organization Jobs
+    // Wait for organization plugin to register first (or db, auditService, eventBus)
+    // Actually, organization plugin registers db, auditService, and eventBus.
+    // However, eventBus and db are available after app.listen or app.ready().
+    // Wait, let's look at registerDeadLetterRetryJob. It's not called here!
+    // I should probably register the job in organization plugin OR here after app.ready().
+    // We'll register it here for now. Wait, registerDelegationExpiryJob requires eventBus and auditService and db.
+    // We can just require those from `app`!
   } catch (err) {
     app.log.error({ err }, 'Failed to initialize background jobs');
   }

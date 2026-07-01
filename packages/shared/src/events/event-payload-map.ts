@@ -27,6 +27,13 @@ export interface DelegationRevokedEvent {
   revokedAt: Date;
 }
 
+export type DelegationExpiredEvent = {
+  delegationId: string;
+  delegatingUserId: string;
+  delegatedToUserId: string;
+  expiredAt: string;
+};
+
 export interface EventPayloadMap {
   // ── IAM module ─────────────────────────────────────────────────────────────
   'user.login': Stub;
@@ -41,7 +48,7 @@ export interface EventPayloadMap {
 
   // ── Organization module ────────────────────────────────────────────────────
   'delegation.granted': Stub;
-  'delegation.expired': Stub;
+  'delegation.expired': DelegationExpiredEvent;
   'delegation.revoked': DelegationRevokedEvent;
 
   // ── Documents module ───────────────────────────────────────────────────────
