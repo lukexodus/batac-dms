@@ -4,6 +4,7 @@ import type {
   DelegationServiceDeps,
   DelegationSummary,
   CreateDelegationGrantInput,
+  RevokeEarlyDelegationGrantInput,
   DelegationSubject,
   DelegationGrantRow,
 } from './organization.types.js';
@@ -16,6 +17,7 @@ import {
 import {
   PolicyDeniedError,
   ActiveDesignationExistsError,
+  DelegationGrantNotFoundError,
 } from '../../errors/domain/organization.js';
 
 export function createDelegationService(deps: DelegationServiceDeps): DelegationService {
@@ -261,6 +263,131 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       });
 
       return grant;
+    },
+
+    async revokeEarlyDelegationGrant(
+      grantId: string,
+      input: RevokeEarlyDelegationGrantInput,
+      subject: DelegationSubject,
+    ): Promise<DelegationGrantRow> {
+      const db = deps.db;
+      const delegatorEmp = alias(employees, 'delegator_emp');
+      const delegateeEmp = alias(employees, 'delegatee_emp');
+
+      const rows = await db.select({
+        grant: delegationGrants,
+        delegatingUserId: delegatorEmp.userId,
+        delegatedToUserId: delegateeEmp.userId,
+      })
+      .from(delegationGrants)
+      .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
+      .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
+      .where(eq(delegationGrants.id, grantId))
+      .limit(1);
+
+      if (rows.length === 0) {
+        throw new DelegationGrantNotFoundError({ grantId });
+      }
+
+      const row = rows[0]!;
+      const grant = row.grant;
+
+      if (!grant.isActive || grant.deletedAt || grant.revokedAt) {
+        // Idempotent or already revoked/inactive
+        throw new PolicyDeniedError({
+          reason: 'delegation_grant_not_active',
+          action: 'delegation_grant:revoke_early',
+        });
+      }
+
+      // Step 1: ABAC evaluation
+      const policySubject = {
+        userId: subject.userId,
+        sessionId: '',
+        officeId: null,
+        cityId: subject.cityId,
+        roles: subject.roles,
+        permissions: ['delegation_grant:revoke_early'], // RBAC pre-checked
+        committeeIds: [],
+        delegationGrantId: null,
+        effectiveOfficeIds: [],
+        effectiveRoles: subject.roles,
+        isItAdmin: false,
+        isPlatformAdmin: false,
+      };
+
+      const policyResource = {
+        type: 'delegation_grant',
+        id: grant.id,
+        cityId: grant.cityId,
+        delegatingUserId: row.delegatingUserId, // For the handler to check
+      };
+
+      const evaluation = await deps.policyEvaluator.evaluate(
+        policySubject,
+        policyResource,
+        'revoke_early',
+        { writtenInstructionReference: input.writtenInstructionReference }
+      );
+
+      if (!evaluation.allowed) {
+        throw new PolicyDeniedError({
+          reason: evaluation.reason,
+          action: 'delegation_grant:revoke_early',
+        });
+      }
+
+      const now = new Date();
+
+      // Step 2: UPDATE
+      const [updatedGrant] = await db.update(delegationGrants)
+        .set({
+          isActive: false,
+          revokedAt: now,
+          revokedBy: subject.userId,
+          updatedAt: now,
+        })
+        .where(eq(delegationGrants.id, grantId))
+        .returning();
+
+      // Step 3: Emit delegation.revoked domain event
+      deps.eventBus.emit('delegation.revoked', {
+        eventId: randomUUID(),
+        eventType: 'delegation.revoked',
+        occurredAt: now.toISOString(),
+        cityId: grant.cityId,
+        schemaVersion: 1,
+        payload: {
+          delegationId: grant.id,
+          delegatingUserId: row.delegatingUserId || '',
+          delegatedToUserId: row.delegatedToUserId || '',
+          revokedBy: subject.userId,
+          revokedAt: now,
+        },
+      });
+
+      // Step 4: Write audit event directly
+      await deps.auditService.writeEvent({
+        eventType: 'delegation_grant.revoked_early',
+        actorId: subject.userId,
+        targetId: grant.id,
+        targetType: 'delegation_grant',
+        resourceOfficeId: grant.officeId, // cross-office grants have no single owning office
+        payload: {
+          delegationId: grant.id,
+          designationDocumentId: grant.designationDocumentId,
+          writtenInstructionReference: input.writtenInstructionReference,
+          delegatingEmployeeId: grant.delegatingEmployeeId,
+          delegatedToEmployeeId: grant.delegatedToEmployeeId,
+          officeId: grant.officeId,
+          positionId: grant.positionId,
+          revokedAt: now.toISOString(),
+          revokedBy: subject.userId,
+        },
+        cityId: grant.cityId,
+      });
+
+      return updatedGrant as DelegationGrantRow;
     },
   };
 }

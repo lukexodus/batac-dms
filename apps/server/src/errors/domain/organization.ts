@@ -33,3 +33,13 @@ export class ActiveDesignationExistsError extends AppError {
     );
   }
 }
+
+export class DelegationGrantNotFoundError extends AppError {
+  readonly code = 'DELEGATION_GRANT_NOT_FOUND' as const;
+  readonly httpStatus = 404;
+  readonly trpcCode = 'NOT_FOUND' as const;
+
+  constructor(details: { grantId: string }) {
+    super(`Delegation grant not found: ${details.grantId}`, details);
+  }
+}

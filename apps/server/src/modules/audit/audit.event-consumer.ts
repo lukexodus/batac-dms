@@ -116,11 +116,11 @@ export function registerAuditEventConsumer(
 
   makeHandler('delegation.revoked', (e) => ({
     eventType: 'delegation.revoked',
-    actorId: getString(e.payload, 'revokerId', 'actorId'),
-    targetId: getString(e.payload, 'delegationId'),
+    actorId: getString(e.payload as any, 'revokedBy', 'actorId'),
+    targetId: getString(e.payload as any, 'delegationId'),
     targetType: 'delegation',
     resourceOfficeId: null,
-    payload: e.payload as Record<string, unknown>,
+    payload: e.payload as unknown as Record<string, unknown>,
     cityId: e.cityId,
   }));
 
