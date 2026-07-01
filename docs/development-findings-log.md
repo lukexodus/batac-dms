@@ -494,3 +494,155 @@ This means `db:lint` already fails on `main` as it stood before this task: `0002
 Per C5 §7 ("[the linter] must pass before the build task runs. A failed linter blocks merge."), a human should confirm whether the `db:lint` Turborepo task is actually wired into CI as described — if it is, CI should already be red on `main`; if `db:lint` is not yet actually invoked by CI despite C5's description, that gap is separate from the parser gap documented here.
 
 [Inference]: C5 §7.1 itself labels the parser choice "a candidate," not a final commitment ("[Inference — the source documents designate these rules for automated linting but do not specify the implementation]"). This finding indicates `pgsql-ast-parser`'s grammar coverage is materially narrower than the DDL/DCL this project actually produces — only `CREATE TABLE`, `CREATE INDEX` (including expression/partial/GIN forms), `ALTER TABLE ... ADD CONSTRAINT`, and single-role `GRANT`/`REVOKE` on tables were confirmed to parse. Whether the fix is to catch-and-skip unparseable statements per-file instead of hard-failing the whole file, swap to a different PostgreSQL parser library, or restructure how manual-SQL sections are linted is a scope decision left to a human; `lint-migrations.ts` was not modified as a side effect of this unrelated task.1
+
+### [LOG-0017] `database.plugin.ts` / `event-bus.plugin.ts` did not exist; created as gap-fill infrastructure
+
+- date: 2026-06-30
+- task_id: TASK-IAM-014
+- status: proposed
+- affects: J1
+
+TASK-IAM-014's own AI Prompt example `app.ts` imports `databasePlugin` from
+`./infrastructure/database.plugin` and `eventBusPlugin` from
+`./infrastructure/event-bus.plugin`. Neither file existed anywhere in the
+repository at the start of this task — there was no `infrastructure/`
+directory at all (only an unrelated `infra/` directory containing
+`dead-letter.repository.ts`). No task in TASK-IAM-014's prerequisite list
+(TASK-IAM-006…013, TASK-AUDIT-003) creates them, and a search of
+`docs/pre-development/A-project-planning/a1-tasks/infra.md` found no task
+that does either. Yet `iam.plugin.ts`'s pre-existing stub,
+`audit.plugin.ts`, and `organization.plugin.ts` all already declared
+`dependencies: ['database', 'event-bus', ...]` — so without these two files,
+every `fp()`-wrapped module plugin in the app would throw `FST_ERR_PLUGIN_NOT_PRESENT_IN_INSTANCE`-style
+dependency errors at startup, and TASK-IAM-014's own acceptance criteria
+("pnpm dev starts with no plugin registration errors") could not pass.
+
+This matches AGENTS.md Section 4's named example almost exactly ("Fastify
+plugin registration order" is listed as something no pre-dev document
+answers in advance). Per that section's instruction, the most conservative
+reasonable default was implemented rather than blocking the task:
+`apps/server/src/infrastructure/database.plugin.ts` and
+`.../event-bus.plugin.ts` were created.
+
+`database.plugin.ts`'s instantiation is not a guess — it's copied verbatim
+from the worked example already present in `src/db.ts`'s `AppDb` doc
+comment (`postgres(env.DATABASE_URL_APP)` → `drizzle(client)`, no schema
+argument, matching how every existing repository in this codebase uses the
+Drizzle core query builder rather than the schema-aware relational query
+API).
+
+`event-bus.plugin.ts`'s instantiation is similarly copied verbatim from
+`packages/shared/src/event-bus.ts`'s class doc comment (`new
+EventBus(logger, deadLetterRepo)`), using the *real* `EventBus` class in
+`packages/shared` (confirmed against this file directly, and against
+LOG-0010's "EventBus imports IDeadLetterRepository interface" entry) rather
+than the `TypedEventBus` / `apps/server/src/infrastructure/event-bus.ts` /
+`getEventBus()` singleton-factory shape shown in
+`docs/pre-development/J-software-design-patterns-and-standards/j1-software-design-patterns.md`
+§4 ("Domain Event Pattern" / "Module Plugin Pattern" → "Infrastructure
+Plugin Example", roughly L478–L902). J1's example also assumes a
+`fastify.config.DATABASE_URL` decoration (implying a `config` plugin) that
+does not exist anywhere in this codebase; the actual, working convention
+(confirmed in `index.ts`, `audit.plugin.ts`, and the `db.ts` doc comment) is
+a plain imported `env` singleton from `./config/env.js`, used directly. J1
+appears to predate TASK-INFRA-023, which is where the real EventBus/
+DeadLetterRepository/`"type": "module"` architecture was actually decided
+(see this log's two pre-existing LOG-0010 entries). Flagging `affects: J1`
+so a human reviewer can decide whether to update J1 §4's infrastructure
+examples to match what was actually built, since a future agent reading J1
+in isolation (without also reading this log and the actual `packages/shared`
+source) would be misled the same way this task initially was.
+
+Tested: see LOG-0017 below — both plugins were exercised together with the
+full IAM plugin chain via `fastify.inject()` and confirmed working with no
+plugin-registration errors.
+
+### [LOG-0018] `iam.routes.ts` / `iam.router.ts`'s actual signatures diverge from TASK-IAM-014's AI Prompt sample code
+
+- date: 2026-06-30
+- task_id: TASK-IAM-014
+- status: proposed
+- affects: none (implementation detail; the AI Prompt sample code is not an architecture document)
+
+TASK-IAM-014's AI Prompt sample `iam.plugin.ts` assumes:
+  1. `createIamRouter(fastify)` is a factory function returning a router.
+  2. `registerIamRoutes(scope, iamService, policyEvaluator, { public: boolean })`
+     takes the service/evaluator as explicit parameters and a `public` flag,
+     called twice — once per scope — under an external
+     `fastify.register(..., { prefix: '/api' })` wrapper.
+
+Neither matches what TASK-IAM-006 through TASK-IAM-013 actually built:
+  1. `iam.router.ts` exports a single pre-built `iamRouter` constant (built
+     via `router({...})` from `trpc/trpc.ts`'s `t`). Each procedure calls a
+     local `getService(ctx)` helper that reads `ctx.req.server.iamService`
+     at request time. There is no `createIamRouter` export of any kind.
+  2. `registerIamRoutes(fastify: FastifyInstance): Promise<void>` takes only
+     the Fastify instance. It hardcodes the full `/api/auth/login`,
+     `/api/auth/refresh`, `/api/auth/unlock`, `/api/auth/logout`,
+     `/api/auth/lock`, and `/api/admin/sessions/:id/terminate` paths
+     directly (no external prefix expected), and already performs its own
+     internal public/protected split: public routes are registered directly
+     on the passed-in instance, while protected routes are registered
+     inside `registerIamRoutes`'s own nested
+     `fastify.register(async (protectedApp) => { await
+     protectedApp.register(authMiddlewarePlugin); ... })` block. There is no
+     `public` option parameter of any kind.
+
+Following the AI Prompt's sample structure literally would have produced
+either a compile error (passing 4 arguments to a 1-argument function) or, if
+adapted naively by re-wrapping in an external `{ prefix: '/api' }` scope, a
+silently-double-prefixed path (`/api/api/auth/login`) that would make
+acceptance criterion 4 ("POST /api/auth/login is reachable") fail with a
+404.
+
+`iam.plugin.ts` was written against the actual exported signatures instead:
+`fastify.decorate('iamTrpcRouter', iamRouter)` (direct decoration, no
+factory call) and a single `await fastify.register(registerIamRoutes)` (no
+prefix, nested for hook-isolation per the module-plugin pattern, not fp()
+since route registration shouldn't leak hooks to siblings).
+
+Tested: a `buildApp()` smoke test (registering database → event-bus → audit
+→ iam → trpc, then `fastify.inject()`) confirmed `POST /api/auth/login`
+with an empty body returns `400` with a `VALIDATION_ERROR` body (not `404`),
+and that a route registered specifically to not exist still correctly
+returns `404` (ruling out an accidental catch-all). The same test confirmed
+`GET /api/trpc/iam.getCurrentUser` returns `401 UNAUTHORIZED` (reachable and
+executing tRPC middleware, not `404`), and that a dummy plugin registered
+*after* `iamPlugin` could read `fastify.iamService`, `fastify.policyEvaluator`,
+and `fastify.iamRepository` successfully. This could not include an actual
+successful login (no live Postgres instance was available in the
+environment this was tested in), so acceptance criterion 6 (full login
+succeeds end-to-end) was not exercised end-to-end — only that the route
+reaches `fastify.iamService.login(...)` without a plugin-wiring or
+routing failure first.
+
+### [LOG-0019] `fastify.log` (FastifyBaseLogger) is not directly assignable to pino's `Logger` type expected by `EventBus`'s constructor
+
+- date: 2026-06-30
+- task_id: TASK-IAM-014
+- status: proposed
+- affects: none (TypeScript structural-typing detail)
+
+`packages/shared/src/event-bus.ts`'s `EventBus` constructor takes
+`(logger: Logger, deadLetterRepo: IDeadLetterRepository)` where `Logger` is
+imported from `'pino'`. `fastify.log` is typed as Fastify's own
+`FastifyBaseLogger` interface, which `tsc` rejects as not assignable to
+pino's `Logger` (`error TS2345: ... Property 'msgPrefix' is missing in type
+'FastifyBaseLogger' but required in type 'BaseLogger'`), even though at
+runtime Fastify's default logger (used by this project — see `app.ts`'s
+`Fastify({ logger: { level: env.LOG_LEVEL } })`) is backed by a real Pino
+instance.
+
+`event-bus.plugin.ts` bridges this with `fastify.log as unknown as Logger`
+when constructing the `EventBus`. [Inference] This is a type-only bridge,
+not a runtime behavior change — `EventBus` only calls the subset of methods
+(`.error()`, etc.) that both interfaces share. Confirmed via `tsc --noEmit`
+(clean, 0 errors) and via the same runtime smoke test referenced in
+LOG-0017, where `fastify.eventBus` constructed successfully and was usable.
+An existing file in this codebase (`audit.event-consumer.ts`) sidesteps the
+same friction by typing its own logger parameter as `FastifyBaseLogger`
+instead of pino's `Logger` — not available here since `EventBus`'s
+constructor signature lives in `packages/shared` and is not a IAM-module
+file this task is scoped to edit.
+
+

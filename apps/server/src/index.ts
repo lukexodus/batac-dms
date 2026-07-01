@@ -1,43 +1,33 @@
 /**
  * Fastify Server Bootstrap Entrypoint
- * Created as a minimal server bootstrap for TASK-INFRA-011.
- * Can be updated by succeeding tasks.
+ * Originally created as a minimal server bootstrap for TASK-INFRA-011.
+ *
+ * [Inference] Refactored by TASK-IAM-014 to delegate Fastify app
+ * construction (health route, plugin tree, tRPC adapter) to the new
+ * buildApp() factory in ./app.ts, so that app.ts can be imported and
+ * exercised on its own (e.g. for in-process testing via fastify.inject())
+ * without going through PgBoss/listen(). This file now owns only
+ * process-level bootstrap concerns: starting PgBoss, registering
+ * background jobs, and listening on the configured host/port. This is not
+ * an explicit TASK-IAM-014 deliverable, but is necessary for the task's own
+ * acceptance criteria ("pnpm dev starts with no plugin registration
+ * errors", "a full login succeeds end-to-end") to be checkable at all —
+ * without this change, `pnpm dev` would keep running the old inline setup
+ * and never invoke the new IAM plugin wiring. Flagged here per project
+ * preference for labeling judgment calls outside the literal deliverables
+ * list.
  */
-
-import fastify from 'fastify';
 import PgBoss from 'pg-boss';
 import { env } from './config/env.js';
-import { registerHealthRoute } from './routes/health.route.js';
+import { buildApp } from './app.js';
 import { createAuditDb } from './modules/audit/audit.db.js';
 import { AuditRepository } from './modules/audit/audit.repository.js';
 import { AuditWriteService } from './modules/audit/audit.write-service.js';
 import { registerTsaExportJob } from './modules/audit/audit.tsa-export.js';
 
-const app = fastify({
-  logger: env.LOG_LEVEL !== 'silent' ? {
-    level: env.LOG_LEVEL,
-  } : false,
-});
-
 async function main(): Promise<void> {
-  // Register health route
-  await registerHealthRoute(app);
+  const app = await buildApp();
 
-  // Register tRPC
-  const { fastifyTRPCPlugin } = await import('@trpc/server/adapters/fastify');
-  const { appRouter } = await import('./trpc/root.js');
-  const { createContext } = await import('./trpc/trpc.js');
-  
-  await app.register(fastifyTRPCPlugin, {
-    prefix: '/api/trpc',
-    trpcOptions: {
-      router: appRouter,
-      createContext,
-      onError: ({ error, path }: any) => {
-        app.log.error(`tRPC Error on '${path}':`, error);
-      },
-    },
-  });
   try {
     // Start PgBoss and register background jobs
     app.log.info('Starting PgBoss...');
