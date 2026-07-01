@@ -92,6 +92,7 @@ its frontend form"), read the union of both rows' documents, not just one.
 
 ## Section 3: Unlisted tasks
 
+
 If your task isn't in the table above:
 
 1. Check `docs/pre-development/document-list.md` directly — it has the full prerequisite table (IDs

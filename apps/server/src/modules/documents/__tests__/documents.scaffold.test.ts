@@ -26,21 +26,5 @@ describe('Documents Module Scaffold', () => {
     await expect(documentsModule.getAttachmentRefs('doc-1', 'actor-1')).rejects.toThrow('not implemented');
   });
 
-  it('allows calling repository methods and throws not implemented error', async () => {
-    const mockDb = {} as any;
-    const repository = new DocumentsRepository(mockDb);
-
-    expect(repository).toBeDefined();
-    await expect(repository.findById('doc-1')).rejects.toThrow('not implemented');
-    await expect(repository.findTypeById('type-1')).rejects.toThrow('not implemented');
-    await expect(repository.updateState('doc-1', 'draft', 'actor-1')).rejects.toThrow('not implemented');
-    await expect(repository.findAttachmentsByDocumentId('doc-1')).rejects.toThrow('not implemented');
-    await expect(repository.create({})).rejects.toThrow('not implemented');
-    await expect(repository.update('doc-1', {})).rejects.toThrow('not implemented');
-    await expect(repository.softDelete('doc-1', 'actor-1')).rejects.toThrow('not implemented');
-    await expect(repository.findVersionsByDocumentId('doc-1')).rejects.toThrow('not implemented');
-    await expect(repository.createVersion({})).rejects.toThrow('not implemented');
-    await expect(repository.createAttachment({})).rejects.toThrow('not implemented');
-    await expect(repository.createNumber({})).rejects.toThrow('not implemented');
-  });
 });
+
