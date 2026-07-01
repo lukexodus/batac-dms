@@ -22,61 +22,61 @@ Wave E — runs after DOCS (Wave D) task list is complete. Runs in parallel with
 
 ## Table of Contents
 
-- [L83–L107] TASK-TRACK-001 — `[MIGRATION]` Create tracking schema Drizzle definitions and DDL migration
-- [L108–L123] Project-wide DDL conventions
-- [L124–L203] Table definitions — implement exactly as shown (C1 Part 7)
-- [L204–L246] Sequence helper function and 2026 sequence (C1 Part 7 footer — append after table DDL)
-- [L247–L261] Grant script (C1 Part 12 — append to migration after generated DDL)
-- [L262–L265] No RLS policies
-- [L266–L310] Drizzle schema file skeleton
+- [L83–L107] TASK-TRACK-001 — [MIGRATION] Create tracking schema Drizzle definitions and DDL migration
+- [L108–L123] Project-wide DDL conventions — Project-wide DDL conventions
+- [L124–L203] Table definitions — implement exactly as shown (C1 Part 7) — Table definitions — implement exactly as shown (C1 Part 7)
+- [L204–L246] Sequence helper function and 2026 sequence (C1 Part 7 footer — append after table DDL) — Sequence helper function and 2026 sequence (C1 Part 7 footer — append after table DDL)
+- [L247–L261] Grant script (C1 Part 12 — append to migration after generated DDL) — Grant script (C1 Part 12 — append to migration after generated DDL)
+- [L262–L265] No RLS policies — No RLS policies
+- [L266–L310] Drizzle schema file skeleton — Drizzle schema file skeleton
 - [L311–L339] TASK-TRACK-002 — Scaffold TRACK module file structure with typed stubs
-- [L340–L342] Module location
-- [L343–L385] Published API interface (B2 Module 5 — define in index.ts, implement in tracking.service.ts)
-- [L386–L399] tRPC router stub — five procedure names (exact names from E1 Module 5)
-- [L400–L416] Fastify plugin stub
-- [L417–L430] Cross-module import rule (B2 Prohibited Pattern P2)
+- [L340–L342] Module location — Module location
+- [L343–L385] Published API interface (B2 Module 5 — define in index.ts, implement in tracking.service.ts) — Published API interface (B2 Module 5 — define in index.ts, implement in tracking.service.ts)
+- [L386–L399] tRPC router stub — five procedure names (exact names from E1 Module 5) — tRPC router stub — five procedure names (exact names from E1 Module 5)
+- [L400–L416] Fastify plugin stub — Fastify plugin stub
+- [L417–L430] Cross-module import rule (B2 Prohibited Pattern P2) — Cross-module import rule (B2 Prohibited Pattern P2)
 - [L431–L452] TASK-TRACK-003 — Implement TRACK repository layer — all three tracking.* tables
-- [L453–L483] Table column reference (from tracking schema migration — TASK-TRACK-001)
-- [L484–L540] Method signatures and key implementations
-- [L541–L561] getRoutingHistory join — must match RoutingEntry interface from B2
-- [L562–L594] getNextTrackingNumber — DTS-{YEAR}-{SEQUENCE} formatting [RESOLVED -- SPEC-GAP-TRACK-01]
+- [L453–L483] Table column reference (from tracking schema migration — TASK-TRACK-001) — Table column reference (from tracking schema migration — TASK-TRACK-001)
+- [L484–L540] Method signatures and key implementations — Method signatures and key implementations
+- [L541–L561] getRoutingHistory join — must match RoutingEntry interface from B2 — getRoutingHistory join — must match RoutingEntry interface from B2
+- [L562–L594] getNextTrackingNumber — DTS-{YEAR}-{SEQUENCE} formatting [RESOLVED -- SPEC-GAP-TRACK-01] — getNextTrackingNumber — DTS-{YEAR}-{SEQUENCE} formatting [RESOLVED -- SPEC-GAP-TRACK-01]
 - [L595–L616] TASK-TRACK-004 — Implement QR code generation service (UUID assignment, DTS tracking number, QR image, S3 upload)
-- [L617–L627] Two distinct identifiers — do not confuse them
-- [L628–L643] Business rules (consolidated ref §11.6 — enforce exactly)
-- [L644–L650] S3 key convention
-- [L651–L655] S3 client
-- [L656–L668] QR image generation
-- [L669–L702] generateAndStore full flow
+- [L617–L627] Two distinct identifiers — do not confuse them — Two distinct identifiers — do not confuse them
+- [L628–L643] Business rules (consolidated ref §11.6 — enforce exactly) — Business rules (consolidated ref §11.6 — enforce exactly)
+- [L644–L650] S3 key convention — S3 key convention
+- [L651–L655] S3 client — S3 client
+- [L656–L668] QR image generation — QR image generation
+- [L669–L702] generateAndStore full flow — generateAndStore full flow
 - [L703–L725] TASK-TRACK-005 — Implement TRACK event consumers (document.created → QR record; workflow.step_completed → routing entry)
-- [L726–L737] Event envelope (packages/shared/src/events/domain-event.ts)
-- [L738–L788] Handler 1: handleDocumentCreated
-- [L789–L840] Handler 2: handleWorkflowStepCompleted
-- [L841–L854] Error propagation
+- [L726–L737] Event envelope (packages/shared/src/events/domain-event.ts) — Event envelope (packages/shared/src/events/domain-event.ts)
+- [L738–L788] Handler 1: handleDocumentCreated — Handler 1: handleDocumentCreated
+- [L789–L840] Handler 2: handleWorkflowStepCompleted — Handler 2: handleWorkflowStepCompleted
+- [L841–L854] Error propagation — Error propagation
 - [L855–L876] TASK-TRACK-006 — Implement TRACK Published API (getTrackingRecordForDocument, getRoutingHistory)
-- [L877–L885] Published API interface (B2 Module 5 — implement exactly)
-- [L886–L896] Authorization boundary
-- [L897–L914] Implementation
-- [L915–L928] Callers registered in B2 API Call Matrix
-- [L929–L949] TASK-TRACK-007 — `[ABAC]` Implement tracking tRPC router — five procedures + QR cover sheet PDF generator
-- [L950–L973] Procedure 1: tracking.getTrackingRecord
-- [L974–L1004] Procedure 2: tracking.printQrCoverSheet
-- [L1005–L1030] Procedure 3: tracking.getRoutingHistory
-- [L1031–L1050] Procedure 4: tracking.logRoutingEntry
-- [L1051–L1083] Procedure 5: tracking.scanQrCodeAuthenticated
-- [L1084–L1117] @react-pdf/renderer cover sheet (printQrCoverSheet)
+- [L877–L885] Published API interface (B2 Module 5 — implement exactly) — Published API interface (B2 Module 5 — implement exactly)
+- [L886–L896] Authorization boundary — Authorization boundary
+- [L897–L914] Implementation — Implementation
+- [L915–L928] Callers registered in B2 API Call Matrix — Callers registered in B2 API Call Matrix
+- [L929–L949] TASK-TRACK-007 — [ABAC] Implement tracking tRPC router — five procedures + QR cover sheet PDF generator
+- [L950–L973] Procedure 1: tracking.getTrackingRecord — Procedure 1: tracking.getTrackingRecord
+- [L974–L1004] Procedure 2: tracking.printQrCoverSheet — Procedure 2: tracking.printQrCoverSheet
+- [L1005–L1030] Procedure 3: tracking.getRoutingHistory — Procedure 3: tracking.getRoutingHistory
+- [L1031–L1050] Procedure 4: tracking.logRoutingEntry — Procedure 4: tracking.logRoutingEntry
+- [L1051–L1083] Procedure 5: tracking.scanQrCodeAuthenticated — Procedure 5: tracking.scanQrCodeAuthenticated
+- [L1084–L1117] @react-pdf/renderer cover sheet (printQrCoverSheet) — @react-pdf/renderer cover sheet (printQrCoverSheet)
 - [L1118–L1138] TASK-TRACK-008 — Implement public QR scan REST endpoint (publicLookupHandler — unauthenticated)
-- [L1139–L1143] Route
-- [L1144–L1153] Business rules (consolidated ref §11.6 + B2 Module 5)
-- [L1154–L1168] Response shape
-- [L1169–L1185] firstPageImageUrl — S3 key convention [RESOLVED — SPEC-GAP-TRACK-02, 2026-06-30]
-- [L1186–L1244] Handler factory
-- [L1245–L1261] Cross-module dependency note (B2 Law #2 compliance)
+- [L1139–L1143] Route — Route
+- [L1144–L1153] Business rules (consolidated ref §11.6 + B2 Module 5) — Business rules (consolidated ref §11.6 + B2 Module 5)
+- [L1154–L1168] Response shape — Response shape
+- [L1169–L1185] firstPageImageUrl — S3 key convention [RESOLVED — SPEC-GAP-TRACK-02, 2026-06-30] — firstPageImageUrl — S3 key convention [RESOLVED — SPEC-GAP-TRACK-02, 2026-06-30]
+- [L1186–L1244] Handler factory — Handler factory
+- [L1245–L1261] Cross-module dependency note (B2 Law #2 compliance) — Cross-module dependency note (B2 Law #2 compliance)
 - [L1262–L1284] TASK-TRACK-009 — Wire TRACK Fastify plugin, register event consumers, inject Published API
-- [L1285–L1353] Plugin structure
-- [L1354–L1365] Registration order in app.ts
-- [L1366–L1376] B2 API Call Matrix update (required in same PR — Prohibited Pattern P5 violation if omitted)
-- [L1377–L1391] Fastify type declarations
-- [L1392–L1471] Module Summary — TRACK
+- [L1285–L1353] Plugin structure — Plugin structure
+- [L1354–L1365] Registration order in app.ts — Registration order in app.ts
+- [L1366–L1376] B2 API Call Matrix update (required in same PR — Prohibited Pattern P5 violation if omitted) — B2 API Call Matrix update (required in same PR — Prohibited Pattern P5 violation if omitted)
+- [L1377–L1391] Fastify type declarations — Fastify type declarations
+- [L1392–L1471] Module Summary — TRACK — Module Summary — TRACK
 
 ---
 
