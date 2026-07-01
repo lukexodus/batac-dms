@@ -958,7 +958,7 @@ Deliverables:
   - /tools/db/init/01-create-roles.sh — creates the three application database roles on first container start
   - /packages/database/scripts/post-migrate-grants.sql — idempotent grants applied after every Drizzle migration run
 Acceptance Criteria:
-  - [ ] `docker compose down -v && docker compose up -d`, then `docker compose exec postgres psql -U postgres -d batac_lgu -c "\du"` lists `batac_migrate`, `batac_app`, and `batac_audit`
+  - [ ] `docker compose down -v && docker compose up -d`, then `docker compose exec postgres psql -U postgres -d batac_lgu -c "\du"` lists `batac_migrate`, `batac_app`, `batac_audit`, `batac_it_admin`, and `batac_readonly`
   - [ ] Running `post-migrate-grants.sql` twice in a row against the same database produces no errors on the second run (idempotency)
   - [ ] As `batac_audit`: `SELECT` on `audit.events` succeeds; `INSERT` on `audit.events` succeeds; `UPDATE` or `DELETE` against `audit.events` fails with a permission-denied error
   - [ ] As `batac_app`: any `SELECT`, `INSERT`, `UPDATE`, or `DELETE` against any table in the `audit` schema fails with a permission-denied error (B2 Prohibited Pattern P3; [CONFLICT 2 → RESOLVED])

@@ -286,7 +286,7 @@ async function loadDelegationContext(
  * against a document's `office_id` column evaluates to NULL (excluded row)
  * rather than throwing `invalid input syntax for type uuid`. This is the
  * correct fail-closed behavior for a user with no resolved office.
- * Source: TASK-IAM-005 Hook 3 note; LOG-0010.
+ * Source: TASK-IAM-005 Hook 3 note; LOG-0025.
  *
  * `app.current_role_tier` derivation:
  *   'IT_ADMIN'       if isItAdmin

@@ -205,16 +205,22 @@ CREATE SCHEMA IF NOT EXISTS reporting;     -- Phase 2: report_definitions, sched
 -- ── Database Roles ───────────────────────────────────────────────────────────
 -- Confirmed role set per I3 §8.1 [CONFIRMED — Stack Context; B5 §6.2] and L2.
 -- Credentials and login provisioning via Pulumi (L5) and Docker secrets (L2; TASK-INFRA-005).
--- batac_migrate is LOGIN (can connect directly via DATABASE_URL_MIGRATE).
--- All other application roles are NOLOGIN; they are activated via SET ROLE or GRANT
--- after connecting as the appropriate LOGIN user.
+-- batac_migrate, batac_app, and batac_audit are LOGIN (each connects directly
+-- via its own DATABASE_URL_* connection string: DATABASE_URL_MIGRATE,
+-- DATABASE_URL_APP, DATABASE_URL_AUDIT). batac_it_admin and batac_readonly
+-- are NOLOGIN; they are activated via SET ROLE or GRANT after connecting as
+-- the appropriate LOGIN user.
 
-CREATE ROLE batac_app     NOLOGIN;   -- Runtime application service account (SELECT, INSERT, UPDATE; RLS applies)
-                                     -- Created as LOGIN by Docker/Bitnami via POSTGRESQL_USERNAME env var (L2).
-                                     -- This CREATE ROLE statement sets up the role object; the LOGIN attribute
-                                     -- is conferred by Bitnami init before this script runs.
-                                     -- Init scripts must use CREATE ROLE IF NOT EXISTS to avoid collision.
-CREATE ROLE batac_audit   NOLOGIN;   -- Audit log: SELECT + INSERT on audit.events; UPDATE/DELETE revoked (Invariant #3; D-ABAC-04)
+CREATE ROLE batac_app     LOGIN;    -- Runtime application service account (SELECT, INSERT, UPDATE; RLS applies)
+                                     -- [Decision — resolved 2026-06] LOGIN is required: DATABASE_URL_APP
+                                     -- is a direct connection string; NOLOGIN roles cannot authenticate.
+                                     -- Password is applied via ALTER ROLE using the DB_APP_PASSWORD secret
+                                     -- (tools/db/init/01-create-roles.sh).
+CREATE ROLE batac_audit   LOGIN;    -- Audit log: SELECT + INSERT on audit.events; UPDATE/DELETE revoked (Invariant #3; D-ABAC-04)
+                                     -- [Decision — resolved 2026-06] LOGIN is required: DATABASE_URL_AUDIT
+                                     -- is a direct connection string; NOLOGIN roles cannot authenticate.
+                                     -- Password is applied via ALTER ROLE using the DB_AUDIT_PASSWORD secret
+                                     -- (tools/db/init/01-create-roles.sh).
 CREATE ROLE batac_it_admin NOLOGIN;  -- IT Admin ops; DDL via migrations; REVOKE on document content tables
 CREATE ROLE batac_readonly NOLOGIN;  -- Read-only monitoring/reporting; RLS applies
 CREATE ROLE batac_migrate  LOGIN;    -- DDL owner; SECURITY DEFINER function owner; runs migration scripts
@@ -2103,7 +2109,7 @@ The `search_meta`, `portal`, and `reporting` schemas were created in Part 2. No 
 
 **Owner:** INFRA (not a domain module). **Phase:** 1. **Purpose:** Cross-cutting infrastructure tables that are not owned by any single domain module.
 
-The `shared` schema was not in the original Phase 1 schema list. It was added during TASK-INFRA-023 (2026-06-26) to house the dead-letter table for the in-process domain event bus. See `docs/development-findings-log.md` [LOG-0007] for the findings entry.
+The `shared` schema was not in the original Phase 1 schema list. It was added during TASK-INFRA-023 (2026-06-26) to house the dead-letter table for the in-process domain event bus. See `docs/development-findings-log.md` [LOG-0008] for the findings entry.
 
 ```sql
 -- ── Schema `shared` — infrastructure/operational tables ─────────────────────

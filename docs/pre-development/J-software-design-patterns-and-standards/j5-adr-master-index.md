@@ -44,6 +44,7 @@
 | ADR-GEN-010 | sp.batac.gov.ph Coexistence Without Mandatory Migration | General Architecture (J5) | [View](j5-initial-adrs/ADR-GEN-010-sp.batac.gov.ph-coexistence-without-mandatory-migration.md) |
 | ADR-GEN-011 | No Existing Digital QR System Assumed for Letters and Memos | General Architecture (J5) | [View](j5-initial-adrs/ADR-GEN-011-no-existing-digital-qr-system-assumed-for-letters-and-memos.md) |
 | ADR-GEN-012 | Environment Variable Access Pattern | General Architecture (J5) | [View](j5-initial-adrs/ADR-GEN-012-environment-variable-access-pattern.md) |
+| ADR-GEN-013 | Advisory Lock for Audit Chain-Hash Serialization | General Architecture (J5) | [View](j5-initial-adrs/ADR-GEN-013-advisory-lock-for-audit-chain-hash-serialization.md) |
 | ADR-IAC-001 | IaC Tool Choice: Pulumi (TypeScript) over Terraform | Infrastructure as Code (L5) | [View](../L-infrastructure-and-devops/l5-infrastructure-as-code-specification-adrs/ADR-IAC-001-tool-choice-pulumi-typescript.md) |
 | ADR-IAC-002 | Cloud Provider: DigitalOcean (`sgp1`) | Infrastructure as Code (L5) | [View](../L-infrastructure-and-devops/l5-infrastructure-as-code-specification-adrs/ADR-IAC-002-cloud-provider-digitalocean.md) |
 | ADR-IAC-003 | Immutable Cold Backup Copy: Backblaze B2 with Object Lock | Infrastructure as Code (L5) | [View](../L-infrastructure-and-devops/l5-infrastructure-as-code-specification-adrs/ADR-IAC-003-immutable-cold-backup-copy-backblaze-b2.md) |

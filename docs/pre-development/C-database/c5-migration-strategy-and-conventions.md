@@ -467,6 +467,8 @@ publication_date DATE,
 
 Every `allow-date` suppression requires a reason in the comment and a second developer's approval in code review.
 
+**Actor and ID reference columns:** Columns whose name ends in `_by` or `_id` are excluded from the Invariant #7 trigger entirely, even when the name also contains a matching substring such as `deleted` (for example `deleted_by`, `city_id`). These are UUID or integer foreign-key references to an actor or to another row, not timestamps, and the linter does not require them to be `TIMESTAMPTZ`. The exclusion check (column name ends in `_by` or `_id`) runs before the timestamp-pattern match, so it takes priority over any substring match.
+
 ### 7.5 Additional Convention Checks
 
 [Inference — derived from confirmed conventions in Part 11.9 of the Consolidated Architecture Reference]

@@ -21,15 +21,11 @@
 # is achieved via DO $$ ... IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = ...) $$
 # which is the standard PostgreSQL pattern for conditional role creation.
 #
-# ── LOGIN vs NOLOGIN for batac_migrate ────────────────────────────────────────
-# C5's addendum ("Migration-Owning Role Name") states batac_migrate is NOLOGIN,
-# citing C1 §3.16 as the source of truth.  C1 §3.16 has since been updated with
-# a resolved decision comment: batac_migrate MUST be LOGIN because
-# DATABASE_URL_MIGRATE is a direct connection string and NOLOGIN roles cannot
-# authenticate (resolved 2026-06, documented inline in C1 §3.16).
-# This script follows C1 §3.16 (LOGIN) and L2 practical behaviour.
-# The residual NOLOGIN text in C5's addendum is a documentation lag; a human
-# reviewer should update C5 to match C1 §3.16 and close the conflict.
+# batac_migrate is LOGIN because DATABASE_URL_MIGRATE is a direct connection
+# string and NOLOGIN roles cannot authenticate. This is consistent across
+# C1 Part 15 (resolved decision, 2026-06) and C5's "Migration-Owning Role
+# Name" addendum, both of which specify LOGIN as of this writing.
+# This script follows that resolution.
 # ──────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -53,6 +49,10 @@ BEGIN
   END IF;
   ALTER ROLE batac_migrate PASSWORD '${DB_MIGRATE_PASSWORD:-migrate_devpassword}';
   GRANT ALL PRIVILEGES ON DATABASE "${POSTGRES_DB:-batac_lgu}" TO batac_migrate;
+  -- PostgreSQL 15+ revokes CREATE on the public schema from PUBLIC by default;
+  -- GRANT ALL PRIVILEGES ON DATABASE does not include this. batac_migrate owns
+  -- public.fn_set_updated_at() (created in migration 0002), so it needs CREATE
+  -- on public explicitly, or migration 0002 fails on a fresh database. (LOG-0012)
   GRANT CREATE ON SCHEMA public TO batac_migrate;
 
   -- ── batac_app: runtime application service account (LOGIN) ───────────────────

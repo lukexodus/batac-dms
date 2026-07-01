@@ -227,6 +227,16 @@ async function logDocumentAndAssignTracking(input: LogDocumentInput) {
 }
 ```
 
+### Concurrency Control: Advisory Locks vs. Row Locks
+
+The default approach to serializing concurrent writes within a repository method is a row-level lock — Drizzle's `.for('update')`, which generates `SELECT ... FOR UPDATE`. This requires the `UPDATE` privilege on the locked table for the connecting role.
+
+Some database roles intentionally do not have `UPDATE` on the tables they write to. `batac_audit`, for example, has `UPDATE` and `DELETE` revoked on `audit.events` by design (Security Invariant #3; I3 §16), since audit rows must be append-only at the database role level. A repository method running as that role cannot use `.for('update')` on that table — PostgreSQL rejects it with a permission error.
+
+In that situation, use a PostgreSQL advisory lock instead: `pg_advisory_xact_lock(<key>)`, scoped to the current transaction. Advisory locks are not tied to a specific row and do not require any table privilege — only the ability to call the lock function, which any role has by default. `AuditRepository` uses this pattern to serialize chain-hash computation on `audit.events` without granting `UPDATE` to `batac_audit` (ADR-GEN-013).
+
+Advisory locks are a cooperative convention, not an enforced constraint — any other code path that writes to the same table without taking the same lock is not serialized against it. Use a row lock by default; reach for an advisory lock only when a row lock is unavailable for a documented reason (such as a revoked grant), and reference the deciding ADR in a comment at the call site.
+
 ### Rules
 
 - One repository per module. One module per schema.

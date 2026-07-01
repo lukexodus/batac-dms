@@ -95,8 +95,9 @@ _(none yet — first entry goes below this line)_
 
 - date: 2026-06-25
 - task_id: TASK-INFRA-005
-- status: proposed
+- status: confirmed
 - affects: C1 (Part 2), infra.md (TASK-INFRA-005 AI Prompt)
+- resolved_in: infra.md (TASK-INFRA-005 acceptance criterion updated to list all five roles)
 
 The TASK-INFRA-005 AI Prompt and its three acceptance criteria name exactly
 three roles: `batac_migrate`, `batac_app`, `batac_audit`. However, C1 Part 2
@@ -124,7 +125,7 @@ five roles from C1 Part 2.
 
 - date: 2026-06-25
 - task_id: TASK-INFRA-005
-- status: proposed
+- status: confirmed
 - affects: none (implementation detail; no architecture document references this syntax)
 
 The TASK-INFRA-005 AI Prompt shows `CREATE ROLE IF NOT EXISTS batac_migrate WITH LOGIN;`
@@ -147,8 +148,9 @@ pseudocode, not executable SQL.
 
 - date: 2026-06-25
 - task_id: TASK-INFRA-005
-- status: proposed
+- status: confirmed
 - affects: C1 (Part 2), C5 (Addendum)
+- resolved_in: c1-full-database-schema-ddl-v3.md (Part 2 — batac_app and batac_audit corrected to LOGIN)
 
 C1 Part 2 explicitly specifies `CREATE ROLE batac_app NOLOGIN;` and `CREATE ROLE batac_audit NOLOGIN;` while noting that `batac_app` is expected to be created as `LOGIN` by Docker/Bitnami via environment variables. However, because both `batac_app` and `batac_audit` have connection strings (`DATABASE_URL_APP` and `DATABASE_URL_AUDIT`) and must authenticate directly, setting them to `NOLOGIN` in `01-create-roles.sh` prevents connection.
 
@@ -160,8 +162,9 @@ To resolve this discrepancy, `01-create-roles.sh` has been updated to create and
 
 - date: 2026-06-26
 - task_id: TASK-INFRA-007
-- status: proposed
+- status: confirmed
 - affects: C5 (Section 7.4), infra.md (TASK-INFRA-007 AI Prompt)
+- resolved_in: c5-migration-strategy-and-conventions.md §7.4 (actor/ID-column exception added)
 
 Invariant #7 dictates that any column whose name contains `deleted` or starts with/contains `created`, `updated`, etc. must be typed as `TIMESTAMPTZ` or `TIMESTAMP WITH TIME ZONE`. However, the soft-delete convention in the project requires every table to have both `deleted_at TIMESTAMPTZ` and `deleted_by UUID` (a UUID reference to the user who deleted the row).
 
@@ -173,7 +176,7 @@ Without an exception, `deleted_by` (which contains `deleted`) is flagged as a vi
 
 - date: 2026-06-26
 - task_id: TASK-INFRA-006
-- status: proposed
+- status: confirmed
 - affects: C5 (Section 2.2), J3 (TypeScript config standards)
 
 The project standard tsconfig configures `"skipLibCheck": false`. However, building `@batac/database` with `drizzle-orm` and `drizzle-kit` installed results in multiple type compilation errors within their own `.d.ts` declaration files (primarily mysql-core, sqlite-core, and singlestore-core select and delete query definitions). These errors are internal package typing issues in Drizzle ORM when using strict type checking.
@@ -185,9 +188,9 @@ The project standard tsconfig configures `"skipLibCheck": false`. However, build
 
 - date: 2026-06-26
 - task_id: TASK-UI-003
-- status: proposed
+- status: confirmed
 - affects: F5, DESIGN.md
-- resolved_in: none
+- resolved_in: f5-ui-component-library-setup-and-package-architecture.md §5; DESIGN.md §4 (both document the @source scanning requirement)
 
 Tailwind CSS v4's `@tailwindcss/vite` plugin in `apps/web` by default scans only files within the active project directory (`apps/web/src`) for utility classes. It does not automatically scan workspace library dependency directories (such as `packages/ui/src/components`) when resolving class names used solely within library components.
 
@@ -200,11 +203,11 @@ As a result, utility classes like `justify-between`, `items-start`, `bg-primary-
 ```
 This forces the Tailwind compiler to scan these folders and generate the necessary CSS rules in the output stylesheet. Verified that adding this resolved the styling on both the PageHeader page and the main design components preview page.
 
-### [LOG-0006] Tooltip popovers clipped by overflow-hidden containers; wrapped content in Radix Portal
+### [LOG-0023] Tooltip popovers clipped by overflow-hidden containers; wrapped content in Radix Portal
 
 - date: 2026-06-26
 - task_id: TASK-UI-004
-- status: proposed
+- status: confirmed
 - affects: tooltip.tsx (Tier 1), Sidebar.tsx (Tier 3)
 
 During visual verification of the collapsed `Sidebar` component (which is styled with `overflow-hidden` per DESIGN.md §6.1 to prevent layout layout shifts during transitions), the tooltips associated with the icon-only navigation links were completely invisible on hover. 
@@ -217,7 +220,7 @@ Upon inspection of the Tier 1 `packages/ui/src/components/ui/tooltip.tsx` compon
 
 - date: 2026-06-26
 - task_id: TASK-UI-002
-- status: proposed
+- status: confirmed
 - affects: F5 (UI package configuration)
 - supersedes: none
 
@@ -233,7 +236,7 @@ A human reviewer should decide whether a global `"skipLibCheck": true` is warran
 
 - date: 2026-06-26
 - task_id: TASK-INFRA-023
-- status: proposed
+- status: confirmed
 - affects: C1 (Part 2, Part 13), C5 (§3.1, §8)
 - resolved_in: c1-full-database-schema-ddl-v3.md (Part 2 + Part 13.5 added); c5-migration-strategy-and-conventions.md (§3.1 updated)
 
@@ -261,7 +264,7 @@ the project's architecture documents and the actual implementation.
 
 - date: 2026-06-26
 - task_id: TASK-INFRA-023
-- status: proposed
+- status: confirmed
 - affects: C5 (§3.1)
 - supersedes: none
 - resolved_in: c5-migration-strategy-and-conventions.md §3.1 (updated inline)
@@ -285,7 +288,7 @@ database-global infrastructure (extensions, roles), not for schema-specific tabl
 
 - date: 2026-06-26
 - task_id: TASK-INFRA-023
-- status: proposed
+- status: confirmed
 - affects: none (implementation pattern; no architecture document required change)
 - resolved_in: ADR-INFRA-023-01 (new ADR created)
 
@@ -307,11 +310,11 @@ in the original task prompt).
 [Inference]: The dependency-inversion pattern used here is standard for monorepos
 where a shared library needs to call back into app-layer implementations.
 
-### [LOG-0010] `apps/server` required `"type": "module"` to consume `@batac/database` schemas without Drizzle type identity conflicts
+### [LOG-0024] `apps/server` required `"type": "module"` to consume `@batac/database` schemas without Drizzle type identity conflicts
 
 - date: 2026-06-26
 - task_id: TASK-INFRA-023
-- status: proposed
+- status: confirmed
 - affects: none (infra implementation detail; no architecture document change required)
 - resolved_in: none (code change only)
 
@@ -347,8 +350,9 @@ constraint, not a project-specific quirk.
 
 - date: 2026-06-27
 - task_id: TASK-AUDIT-004
-- status: proposed
+- status: confirmed
 - affects: C1
+- resolved_in: j1-software-design-patterns.md (Repository Pattern — Concurrency Control: Advisory Locks vs. Row Locks); ADR-GEN-013-advisory-lock-for-audit-chain-hash-serialization.md; j5-adr-master-index.md (registered)
 
 During integration testing of the audit event consumer, queries to select the previous chain hash failed. The Drizzle repository was executing `SELECT ... FOR UPDATE` on `audit.events` to serialize concurrent chain hash computation. However, PostgreSQL rejected this with a permission error. The `batac_audit` database role explicitly revokes `UPDATE` and `DELETE` privileges on the `audit.events` table (enforced by Security Invariant #3 / I3 §16). In PostgreSQL, a `SELECT ... FOR UPDATE` query requires the `UPDATE` privilege on the target table.
 
@@ -360,8 +364,9 @@ To serialize concurrent writes and compute chain hashes safely, we replaced the 
 
 - date: 2026-06-30
 - task_id: TASK-ORG-001
-- status: proposed
+- status: confirmed
 - affects: C1 (Part 2 / TASK-INFRA-005/006 init scripts), infra.md
+- resolved_in: tools/db/init/01-create-roles.sh (GRANT CREATE ON SCHEMA public TO batac_migrate added — option (a))
 
 When running `pnpm db:migrate` on a database where migrations 0000 and 0001 were
 applied but 0002 (IAM schema) had not yet been applied, migration 0002 failed with:
@@ -677,5 +682,44 @@ The TASK-ORG-008 prompt access-control matrix and deliverables lines had conflic
 The prompt instructions requested using `policyEvaluator.evaluate()` for all mutation gating. However, Gate 3's `PLATFORM_ADMIN_ALLOWED_ACTIONS` allowlist in `iam.policy.ts` and the IAM seed action strings are completely disjoint. Calling `policyEvaluator.evaluate()` for a `plat_admin` role on any ORG resource would result in a denial, preventing functional admin access.
 
 [Unverified]: Direct checks on `ctx.auth.isPlatformAdmin` (matching the pattern used throughout `iam.router.ts`) were implemented instead, while keeping `policyEvaluator` in `createOrgRouter` deps for type compliance.
+
+
+### [LOG-0025] Null `officeId` produces fail-closed RLS exclusion via SQL NULL GUC, not an error
+
+- date: 2026-06-30
+- task_id: TASK-IAM-005
+- status: proposed
+- affects: I3 (§8.2)
+- resolved_in: none (documents existing behavior; no code change)
+
+`iam.middleware.ts`'s Hook 3 (`setDatabaseSessionVars`) comment previously cited
+`LOG-0010` for this behavior. Neither LOG-0010 entry — the `IDeadLetterRepository`
+interface finding, nor LOG-0024 (formerly the second LOG-0010 entry, about
+`apps/server`'s ESM module switch) — actually discusses this. This entry supplies
+the documentation that citation was missing, and the citation in
+`iam.middleware.ts` has been corrected to point here.
+
+When `request.auth.officeId` is `null` (a user with no resolved office), Hook 3
+calls `set_config('app.current_office_id', auth.officeId, true)` with a JS `null`
+value. Passed through the `sql` tag, this binds as SQL `NULL`, not the
+three-character string `'null'`.
+
+RLS policies compare `current_setting('app.current_office_id', true)::uuid`
+against a row's office-scope column — for example, C1's `documents_office_isolation`
+policy on `documents.documents`. When the left-hand side is SQL `NULL`, the
+comparison evaluates to `NULL` under PostgreSQL three-valued logic, not `TRUE` or
+`FALSE`, and a `WHERE` clause excludes rows where the condition evaluates to
+`NULL`. The net effect: a user with no office is shown zero office-scoped rows,
+rather than the query raising `invalid input syntax for type uuid` (which is what
+would happen if the GUC held the literal string `'null'` instead of SQL `NULL`),
+and rather than matching rows with a `NULL` office-scope column.
+
+[Inference]: this is the intended fail-closed behavior — a user with no office
+should see nothing office-scoped, not error out and not see everything — but I3
+§8.2 does not currently state this null-value edge case explicitly; it documents
+the session-variable-setting mechanism in general terms only. [Unverified]: whether
+this path (a null-`officeId` user querying an office-scoped table) is covered by
+an automated test — I did not locate one, but did not exhaustively search the full
+test suite for it either.
 
 

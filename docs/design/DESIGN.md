@@ -524,6 +524,8 @@ The `DATE_FORMATS` constants below are defined in `date-locale.ts` and are the s
 }
 ```
 
+**`@source` scanning is required for any new consuming app.** Tailwind v4 only scans the files declared via `@source` in `globals.css` (currently `packages/ui/src/components/**/*.{ts,tsx}` and `apps/web/src/**/*.{ts,tsx}`); it does not automatically discover files outside those globs. A new consuming app — for example `apps/portal` in Phase 3 — needs its own `@source` line added to `globals.css`, or its class usage will not generate any CSS. See F5 §5 for the full mechanism.
+
 ---
 
 ## 5. shadcn/ui Theme Override
