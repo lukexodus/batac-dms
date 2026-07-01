@@ -34,6 +34,26 @@ export type DelegationExpiredEvent = {
   expiredAt: string;
 };
 
+export interface DocumentStateChangedEvent {
+  documentId: string;
+  fromState: string;
+  toState: string;
+  actorId: string;
+  reason?: string;
+  cityId: string;
+  timestamp: Date;
+}
+
+export interface DocumentNumberAssignedEvent {
+  documentId: string;
+  numberType: 'final' | 'preliminary' | 'control';
+  numberValue: string;
+  series: string;
+  assignedBy: string;
+  cityId: string;
+  timestamp: Date;
+}
+
 export interface EventPayloadMap {
   // ── IAM module ─────────────────────────────────────────────────────────────
   'user.login': Stub;
@@ -53,8 +73,8 @@ export interface EventPayloadMap {
 
   // ── Documents module ───────────────────────────────────────────────────────
   'document.created': Stub;
-  'document.state_changed': Stub;
-  'document.number_assigned': Stub;
+  'document.state_changed': DocumentStateChangedEvent;
+  'document.number_assigned': DocumentNumberAssignedEvent;
 
   // ── Workflow module ────────────────────────────────────────────────────────
   'workflow.step_assigned': Stub;

@@ -142,7 +142,7 @@ export function registerAuditEventConsumer(
     targetId: getString(e.payload, 'documentId'),
     targetType: 'document',
     resourceOfficeId: getString(e.payload, 'officeId'),
-    payload: e.payload as Record<string, unknown>,
+    payload: e.payload as unknown as Record<string, unknown>,
     cityId: e.cityId,
   }));
 
@@ -152,7 +152,7 @@ export function registerAuditEventConsumer(
     targetId: getString(e.payload, 'documentId'),
     targetType: 'document',
     resourceOfficeId: getString(e.payload, 'officeId'),
-    payload: e.payload as Record<string, unknown>,
+    payload: e.payload as unknown as Record<string, unknown>,
     cityId: e.cityId,
   }));
 

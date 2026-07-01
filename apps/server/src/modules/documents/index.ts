@@ -1,6 +1,9 @@
 import { DocumentsRepository } from './documents.repository.js';
 import { createDocumentsService } from './documents.service.js';
 import type { DocumentsPublicAPI, DbClient } from './documents.types.js';
+import type { NumberingService } from './numbering.service.js';
+import type { S3Client } from '@aws-sdk/client-s3';
+import type { ServerEnv } from '../../config/env.server.js';
 
 export * from './documents.types.js';
 export { default as documentsPlugin } from './documents.plugin.js';
@@ -16,6 +19,9 @@ export function createDocumentsModule(deps: {
   db: DbClient;
   eventBus?: any;
   auditService?: any;
+  numberingService: NumberingService;
+  s3Client: S3Client;
+  env: ServerEnv;
 }): DocumentsPublicAPI {
   const repo = new DocumentsRepository(deps.db);
   return createDocumentsService({
@@ -23,5 +29,8 @@ export function createDocumentsModule(deps: {
     documentsRepository: repo,
     eventBus: deps.eventBus,
     auditService: deps.auditService,
+    numberingService: deps.numberingService,
+    s3Client: deps.s3Client,
+    env: deps.env,
   });
 }

@@ -365,14 +365,14 @@ export class NumberingService {
    * Works with both DbClient and the transaction sub-client (both have `.execute()`).
    */
   private async callSequenceFunction(
-    db: { execute: (query: any) => Promise<{ rows: Record<string, unknown>[] }> },
+    db: { execute: (query: any) => Promise<any> },
     seriesKey: string,
     year: number,
   ): Promise<{ sequenceValue: bigint | number; wasCreated: boolean }> {
     const result = await db.execute(
       sql`SELECT sequence_value, was_created FROM documents.fn_get_next_sequence_value(${seriesKey}, ${year})`,
     );
-    const row = result.rows[0];
+    const row = result.rows ? result.rows[0] : result[0];
     if (!row) {
       throw new Error(`fn_get_next_sequence_value returned no rows for series ${seriesKey}`);
     }
