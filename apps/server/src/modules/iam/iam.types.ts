@@ -15,6 +15,7 @@ import {
 import type { AuditPublicAPI } from '../audit/index.js';
 import type { EventBus } from '@batac/shared';
 import type { PolicyEvaluator } from './iam.policy.js';
+import type { iamRouter } from './iam.router.js';
 
 export type DbClient = AppDb;
 export type DbTransaction = Parameters<Parameters<AppDb['transaction']>[0]>[0];
@@ -369,6 +370,18 @@ declare module 'fastify' {
      * Populated before IAM middleware registration.
      */
     db:                DbClient;
+    /**
+     * Static IAM tRPC sub-router, decorated for consistency with other
+     * modules' `<module>TrpcRouter` decorations (see audit.plugin.ts's
+     * `auditTrpcRouter`). [Unverified] `iamRouter` itself reads
+     * `ctx.req.server.iamService` / `.policyEvaluator` at request time
+     * rather than taking them as constructor arguments, and `trpc/root.ts`
+     * already imports `iamRouter` directly — so nothing currently consumes
+     * this decoration. It is provided so a future router-merging plugin can
+     * use it without an iam.plugin.ts change.
+     * Populated by TASK-IAM-014's plugin registration.
+     */
+    iamTrpcRouter:     typeof iamRouter;
   }
 
   interface FastifyRequest {
@@ -381,4 +394,3 @@ declare module 'fastify' {
     auth: AuthContext | null;
   }
 }
-
