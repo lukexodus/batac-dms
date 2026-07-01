@@ -22,15 +22,61 @@ Wave E — runs after DOCS (Wave D) task list is complete. Runs in parallel with
 
 ## Table of Contents
 
-- [TASK-TRACK-001] `[MIGRATION]` Create tracking schema Drizzle definitions and DDL migration
-- [TASK-TRACK-002] Scaffold TRACK module file structure with typed stubs
-- [TASK-TRACK-003] Implement TRACK repository layer — all three tracking.* tables
-- [TASK-TRACK-004] Implement QR code generation service (UUID assignment, QR image, S3 upload)
-- [TASK-TRACK-005] Implement TRACK event consumers (document.created → QR record; workflow.step_completed → routing entry)
-- [TASK-TRACK-006] Implement TRACK Published API (getTrackingRecordForDocument, getRoutingHistory)
-- [TASK-TRACK-007] `[ABAC]` Implement tracking tRPC router — five procedures + QR cover sheet PDF generator
-- [TASK-TRACK-008] Implement public QR scan REST endpoint (publicLookupHandler — unauthenticated)
-- [TASK-TRACK-009] Wire TRACK Fastify plugin, register event consumers, inject Published API
+- [L83–L107] TASK-TRACK-001 — `[MIGRATION]` Create tracking schema Drizzle definitions and DDL migration
+- [L108–L123] Project-wide DDL conventions
+- [L124–L203] Table definitions — implement exactly as shown (C1 Part 7)
+- [L204–L246] Sequence helper function and 2026 sequence (C1 Part 7 footer — append after table DDL)
+- [L247–L261] Grant script (C1 Part 12 — append to migration after generated DDL)
+- [L262–L265] No RLS policies
+- [L266–L310] Drizzle schema file skeleton
+- [L311–L339] TASK-TRACK-002 — Scaffold TRACK module file structure with typed stubs
+- [L340–L342] Module location
+- [L343–L385] Published API interface (B2 Module 5 — define in index.ts, implement in tracking.service.ts)
+- [L386–L399] tRPC router stub — five procedure names (exact names from E1 Module 5)
+- [L400–L416] Fastify plugin stub
+- [L417–L430] Cross-module import rule (B2 Prohibited Pattern P2)
+- [L431–L452] TASK-TRACK-003 — Implement TRACK repository layer — all three tracking.* tables
+- [L453–L483] Table column reference (from tracking schema migration — TASK-TRACK-001)
+- [L484–L540] Method signatures and key implementations
+- [L541–L561] getRoutingHistory join — must match RoutingEntry interface from B2
+- [L562–L594] getNextTrackingNumber — DTS-{YEAR}-{SEQUENCE} formatting [RESOLVED -- SPEC-GAP-TRACK-01]
+- [L595–L616] TASK-TRACK-004 — Implement QR code generation service (UUID assignment, DTS tracking number, QR image, S3 upload)
+- [L617–L627] Two distinct identifiers — do not confuse them
+- [L628–L643] Business rules (consolidated ref §11.6 — enforce exactly)
+- [L644–L650] S3 key convention
+- [L651–L655] S3 client
+- [L656–L668] QR image generation
+- [L669–L702] generateAndStore full flow
+- [L703–L725] TASK-TRACK-005 — Implement TRACK event consumers (document.created → QR record; workflow.step_completed → routing entry)
+- [L726–L737] Event envelope (packages/shared/src/events/domain-event.ts)
+- [L738–L788] Handler 1: handleDocumentCreated
+- [L789–L840] Handler 2: handleWorkflowStepCompleted
+- [L841–L854] Error propagation
+- [L855–L876] TASK-TRACK-006 — Implement TRACK Published API (getTrackingRecordForDocument, getRoutingHistory)
+- [L877–L885] Published API interface (B2 Module 5 — implement exactly)
+- [L886–L896] Authorization boundary
+- [L897–L914] Implementation
+- [L915–L928] Callers registered in B2 API Call Matrix
+- [L929–L949] TASK-TRACK-007 — `[ABAC]` Implement tracking tRPC router — five procedures + QR cover sheet PDF generator
+- [L950–L973] Procedure 1: tracking.getTrackingRecord
+- [L974–L1004] Procedure 2: tracking.printQrCoverSheet
+- [L1005–L1030] Procedure 3: tracking.getRoutingHistory
+- [L1031–L1050] Procedure 4: tracking.logRoutingEntry
+- [L1051–L1083] Procedure 5: tracking.scanQrCodeAuthenticated
+- [L1084–L1117] @react-pdf/renderer cover sheet (printQrCoverSheet)
+- [L1118–L1138] TASK-TRACK-008 — Implement public QR scan REST endpoint (publicLookupHandler — unauthenticated)
+- [L1139–L1143] Route
+- [L1144–L1153] Business rules (consolidated ref §11.6 + B2 Module 5)
+- [L1154–L1168] Response shape
+- [L1169–L1185] firstPageImageUrl — S3 key convention [RESOLVED — SPEC-GAP-TRACK-02, 2026-06-30]
+- [L1186–L1244] Handler factory
+- [L1245–L1261] Cross-module dependency note (B2 Law #2 compliance)
+- [L1262–L1284] TASK-TRACK-009 — Wire TRACK Fastify plugin, register event consumers, inject Published API
+- [L1285–L1353] Plugin structure
+- [L1354–L1365] Registration order in app.ts
+- [L1366–L1376] B2 API Call Matrix update (required in same PR — Prohibited Pattern P5 violation if omitted)
+- [L1377–L1391] Fastify type declarations
+- [L1392–L1471] Module Summary — TRACK
 
 ---
 
@@ -42,12 +88,15 @@ Title:          [MIGRATION] Create tracking schema Drizzle definitions and DDL m
 Prerequisites:  [TASK-DOCS-001, CROSS-MODULE REF: INFRA — DB initialization and schema creation task; exact TASK-INFRA-NNN not identifiable from TASK-DOCS list alone; resolve at integration pass]
 Deliverables:
   - /packages/database/src/schema/tracking.ts — Drizzle ORM table definitions for all three tracking.* tables (qr_codes, tracking_records, routing_entries) using pgSchema('tracking') and pgTable; all constraints, unique indexes, and regular indexes represented; named exports re-exported from /packages/database/src/schema/index.ts. No updated_at column on any tracking table — explicitly omitted per C1 Part 1.4 (tracking.routing_entries is append-only; tracking.qr_codes and tracking.tracking_records carry no updated_at per the C1 DDL). No fn_set_updated_at trigger on any tracking table.
-  - /apps/server/src/database/migrations/{timestamp}_create_tracking_schema.sql — SQL migration generated by `pnpm db:generate`, then manually extended with: (a) GRANT statements from C1 Part 12 for tracking schema (batac_app: SELECT/INSERT/UPDATE on all tables; routing_entries additionally has UPDATE/DELETE revoked; batac_readonly: SELECT; batac_it_admin: no USAGE grant on tracking schema); (b) explicit REVOKE UPDATE, DELETE ON tracking.routing_entries FROM batac_app (append-only enforcement at grant level). No RLS policies on any tracking table — C1 Part 12 defines no RLS for the tracking schema.
+  - /apps/server/src/database/migrations/{timestamp}_create_tracking_schema.sql — SQL migration generated by `pnpm db:generate`, then manually extended with: (a) the `tracking.fn_get_next_tracking_number(year)` SECURITY DEFINER function and pre-created `tracking.dts_2026_seq` sequence for the DTS-{YEAR}-{SEQUENCE} tracking number (C1 Part 7 footer + Part 11 — [RESOLVED — SPEC-GAP-TRACK-01, 2026-06-30]); (b) GRANT statements from C1 Part 12 for tracking schema (batac_app: SELECT/INSERT/UPDATE on all tables; routing_entries additionally has UPDATE/DELETE revoked; batac_readonly: SELECT; batac_it_admin: no USAGE grant on tracking schema); (c) explicit REVOKE UPDATE, DELETE ON tracking.routing_entries FROM batac_app (append-only enforcement at grant level). No RLS policies on any tracking table — C1 Part 12 defines no RLS for the tracking schema.
 Acceptance Criteria:
   - [ ] `pnpm db:generate` produces a migration file that, when applied via `pnpm db:migrate`, creates all three tracking.* tables with zero errors on a database that already has iam, organization, and documents schemas applied
   - [ ] `SELECT table_name FROM information_schema.tables WHERE table_schema = 'tracking' ORDER BY table_name` returns exactly: qr_codes, routing_entries, tracking_records
-  - [ ] `SELECT indexname FROM pg_indexes WHERE schemaname = 'tracking' ORDER BY indexname` returns idx_routing_entries_occurred_at, idx_routing_entries_tracking_record, idx_tracking_records_qr_code, plus the two unique index names (uq_qr_codes_tracking_id, uq_qr_codes_document) and the tracking_records unique index (uq_tracking_records_document)
+  - [ ] `SELECT indexname FROM pg_indexes WHERE schemaname = 'tracking' ORDER BY indexname` returns idx_routing_entries_occurred_at, idx_routing_entries_tracking_record, idx_tracking_records_qr_code, plus unique index names uq_qr_codes_tracking_id, uq_qr_codes_document, uq_qr_codes_tracking_number, and uq_tracking_records_document
+  - [ ] `SELECT relname FROM pg_class WHERE relkind='S' AND relnamespace=(SELECT oid FROM pg_namespace WHERE nspname='tracking')` returns dts_2026_seq
+  - [ ] `SELECT proname FROM pg_proc WHERE pronamespace=(SELECT oid FROM pg_namespace WHERE nspname='tracking')` returns fn_get_next_tracking_number
   - [ ] A second INSERT into tracking.qr_codes with a duplicate tracking_id raises a unique constraint violation
+  - [ ] A second INSERT into tracking.qr_codes with a duplicate tracking_number raises a unique constraint violation
   - [ ] `UPDATE tracking.routing_entries SET action_description = 'x' WHERE id = '...'` fails with a permissions error (UPDATE revoked on routing_entries for batac_app)
   - [ ] `pnpm typecheck` passes at the workspace root
   - [ ] `pnpm db:migrate` is idempotent — running twice on the same database does not fail
@@ -84,6 +133,12 @@ AI Prompt: |
       -- document_id: logical FK -> documents.documents.id (cross-schema) NOT NULL
       document_id       UUID        NOT NULL,
       tracking_id       UUID        NOT NULL,  -- UUID encoded in the physical QR image
+      -- tracking_number: human-readable display label e.g. 'DTS-2026-0001'.
+      -- Populated via tracking.fn_get_next_tracking_number(year) at QR
+      -- assignment time (per-year auto-creating sequence; see function below).
+      -- §11.6: "Tracking number format: Configurable; default: DTS-{YEAR}-{SEQUENCE}"
+      -- [RESOLVED -- SPEC-GAP-TRACK-01, 2026-06-30]
+      tracking_number   TEXT        NOT NULL,
       qr_image_file_key UUID        NULL,
       assigned_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
       -- generated_by: logical FK -> iam.users.id (cross-schema)
@@ -91,8 +146,9 @@ AI Prompt: |
       created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
       deleted_at        TIMESTAMPTZ NULL,
       deleted_by        UUID        NULL,
-      CONSTRAINT uq_qr_codes_tracking_id UNIQUE (tracking_id),
-      CONSTRAINT uq_qr_codes_document    UNIQUE (document_id)
+      CONSTRAINT uq_qr_codes_tracking_id     UNIQUE (tracking_id),
+      CONSTRAINT uq_qr_codes_document        UNIQUE (document_id),
+      CONSTRAINT uq_qr_codes_tracking_number UNIQUE (tracking_number)
   );
   ```
 
@@ -145,6 +201,49 @@ AI Prompt: |
   CREATE INDEX idx_routing_entries_occurred_at     ON tracking.routing_entries(occurred_at);
   ```
 
+  ## Sequence helper function and 2026 sequence (C1 Part 7 footer — append after table DDL)
+  ```sql
+  -- Per-year auto-creating sequence for the DTS-{YEAR}-{SEQUENCE} tracking number.
+  -- Mirrors documents.fn_get_next_sequence_value()'s on-demand-creation pattern so
+  -- {SEQUENCE} resets to 1 each calendar year, consistent with document final numbers.
+  -- SECURITY DEFINER owned by batac_migrate so batac_app can CREATE SEQUENCE without
+  -- DDL privileges. [RESOLVED -- SPEC-GAP-TRACK-01, 2026-06-30]
+  CREATE OR REPLACE FUNCTION tracking.fn_get_next_tracking_number(
+      p_year INTEGER
+  )
+  RETURNS TABLE (sequence_value BIGINT, was_created BOOLEAN)
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+  AS $fn$
+  DECLARE
+      v_seq_name TEXT;
+      v_next     BIGINT;
+      v_created  BOOLEAN := false;
+  BEGIN
+      v_seq_name := 'tracking.dts_' || p_year::text || '_seq';
+      BEGIN
+          EXECUTE format('SELECT nextval(%L)', v_seq_name) INTO v_next;
+      EXCEPTION WHEN undefined_table THEN
+          EXECUTE format(
+              'CREATE SEQUENCE IF NOT EXISTS %s AS INTEGER INCREMENT 1 START 1',
+              v_seq_name
+          );
+          EXECUTE format('SELECT nextval(%L)', v_seq_name) INTO v_next;
+          v_created := true;
+      END;
+      RETURN QUERY SELECT v_next, v_created;
+  END;
+  $fn$;
+
+  REVOKE ALL ON FUNCTION tracking.fn_get_next_tracking_number(INTEGER) FROM PUBLIC;
+  GRANT EXECUTE ON FUNCTION tracking.fn_get_next_tracking_number(INTEGER) TO batac_app;
+  ALTER FUNCTION tracking.fn_get_next_tracking_number(INTEGER) OWNER TO batac_migrate;
+
+  -- Pre-create the current year's sequence (C1 Part 11 pattern) — the function
+  -- above is the on-demand safety net, not the expected creation path.
+  CREATE SEQUENCE IF NOT EXISTS tracking.dts_2026_seq AS INTEGER INCREMENT 1 START 1;
+  ```
+
   ## Grant script (C1 Part 12 — append to migration after generated DDL)
   ```sql
   -- batac_app: runtime application service account
@@ -176,6 +275,9 @@ AI Prompt: |
     cityId:          uuid('city_id').notNull().default('00000000-0000-4000-8000-000000000001'),
     documentId:      uuid('document_id').notNull(), // logical FK -> documents.documents.id
     trackingId:      uuid('tracking_id').notNull(), // UUID encoded in physical QR image
+    // trackingNumber: human-readable DTS-YYYY-NNNN label, populated via
+    // tracking.fn_get_next_tracking_number(year) at insert time [RESOLVED -- SPEC-GAP-TRACK-01]
+    trackingNumber:  text('tracking_number').notNull(),
     qrImageFileKey:  uuid('qr_image_file_key'),
     assignedAt:      timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
     generatedBy:     uuid('generated_by'),           // logical FK -> iam.users.id
@@ -183,8 +285,9 @@ AI Prompt: |
     deletedAt:       timestamp('deleted_at', { withTimezone: true }),
     deletedBy:       uuid('deleted_by'),
   }, (t) => ({
-    uqTrackingId: uniqueIndex('uq_qr_codes_tracking_id').on(t.trackingId),
-    uqDocument:   uniqueIndex('uq_qr_codes_document').on(t.documentId),
+    uqTrackingId:     uniqueIndex('uq_qr_codes_tracking_id').on(t.trackingId),
+    uqDocument:       uniqueIndex('uq_qr_codes_document').on(t.documentId),
+    uqTrackingNumber: uniqueIndex('uq_qr_codes_tracking_number').on(t.trackingNumber),
   }));
 
   // trackingRecords and routingEntries — follow same pattern from DDL above
@@ -194,8 +297,11 @@ AI Prompt: |
   Before submitting this PR, confirm each item:
   - [ ] `pnpm db:generate` produces a migration file that, when applied via `pnpm db:migrate`, creates all three tracking.* tables with zero errors on a database that already has iam, organization, and documents schemas applied
   - [ ] `SELECT table_name FROM information_schema.tables WHERE table_schema = 'tracking' ORDER BY table_name` returns exactly: qr_codes, routing_entries, tracking_records
-  - [ ] `SELECT indexname FROM pg_indexes WHERE schemaname = 'tracking' ORDER BY indexname` returns idx_routing_entries_occurred_at, idx_routing_entries_tracking_record, idx_tracking_records_qr_code, plus the two unique index names (uq_qr_codes_tracking_id, uq_qr_codes_document) and the tracking_records unique index (uq_tracking_records_document)
+  - [ ] `SELECT indexname FROM pg_indexes WHERE schemaname = 'tracking' ORDER BY indexname` returns idx_routing_entries_occurred_at, idx_routing_entries_tracking_record, idx_tracking_records_qr_code, plus unique index names uq_qr_codes_tracking_id, uq_qr_codes_document, uq_qr_codes_tracking_number, and uq_tracking_records_document
+  - [ ] `SELECT relname FROM pg_class WHERE relkind='S' AND relnamespace=(SELECT oid FROM pg_namespace WHERE nspname='tracking')` returns dts_2026_seq
+  - [ ] `SELECT proname FROM pg_proc WHERE pronamespace=(SELECT oid FROM pg_namespace WHERE nspname='tracking')` returns fn_get_next_tracking_number
   - [ ] A second INSERT into tracking.qr_codes with a duplicate tracking_id raises a unique constraint violation
+  - [ ] A second INSERT into tracking.qr_codes with a duplicate tracking_number raises a unique constraint violation
   - [ ] `UPDATE tracking.routing_entries SET action_description = 'x' WHERE id = '...'` fails with a permissions error (UPDATE revoked on routing_entries for batac_app)
   - [ ] `pnpm typecheck` passes at the workspace root
   - [ ] `pnpm db:migrate` is idempotent — running twice on the same database does not fail
@@ -222,6 +328,7 @@ Deliverables:
 Acceptance Criteria:
   - [ ] `pnpm typecheck` passes with all stubs in place
   - [ ] The TrackingPublicAPI interface in index.ts has exactly two methods: `getTrackingRecordForDocument(documentId: string): Promise<TrackingRecordSummary | null>` and `getRoutingHistory(documentId: string, actorId: string): Promise<RoutingEntry[]>`
+  - [ ] The TrackingRecordSummary type in index.ts has exactly these fields: `{ trackingId: string; documentId: string; trackingNumber: string; qrCodeS3Key: string; assignedAt: Date; physicalLocation: string | null; }`
   - [ ] The RoutingEntry type in index.ts has exactly these fields: `{ entryId: string; trackingId: string; fromOfficeId: string | null; toOfficeId: string | null; actorId: string; actionDescription: string; timestamp: Date; }`
   - [ ] `import trackingPlugin from './tracking.plugin'` compiles without error
 AI Prompt: |
@@ -259,6 +366,7 @@ AI Prompt: |
   export interface TrackingRecordSummary {
     trackingId: string;      // qr_codes.tracking_id UUID — immutable for document lifetime
     documentId: string;
+    trackingNumber: string;  // human-readable label e.g. 'DTS-2026-0001' [RESOLVED — SPEC-GAP-TRACK-01]
     qrCodeS3Key: string;     // qr_codes.qr_image_file_key (UUID key, not a full URL)
     assignedAt: Date;
     physicalLocation: string | null;
@@ -314,6 +422,7 @@ AI Prompt: |
   Before submitting this PR, confirm each item:
   - [ ] `pnpm typecheck` passes with all stubs in place
   - [ ] The TrackingPublicAPI interface in index.ts has exactly two methods: `getTrackingRecordForDocument(documentId: string): Promise<TrackingRecordSummary | null>` and `getRoutingHistory(documentId: string, actorId: string): Promise<RoutingEntry[]>`
+  - [ ] The TrackingRecordSummary type in index.ts has exactly these fields: `{ trackingId: string; documentId: string; trackingNumber: string; qrCodeS3Key: string; assignedAt: Date; physicalLocation: string | null; }`
   - [ ] The RoutingEntry type in index.ts has exactly these fields: `{ entryId: string; trackingId: string; fromOfficeId: string | null; toOfficeId: string | null; actorId: string; actionDescription: string; timestamp: Date; }`
   - [ ] `import trackingPlugin from './tracking.plugin'` compiles without error
 
@@ -326,12 +435,13 @@ Module:         TRACK
 Title:          Implement TRACK repository layer — all three tracking.* tables
 Prerequisites:  [TASK-TRACK-002]
 Deliverables:
-  - /apps/server/src/modules/tracking/tracking.repository.ts — TrackingRepository class replacing the stub with full implementations for: createQrCode, updateQrImageKey, createTrackingRecord, updateTrackingRecordCustodian, appendRoutingEntry, findTrackingRecordByDocumentId (returns TrackingRecordSummary | null), findQrCodeByTrackingId (returns qrCodes row | null — lookup by the UUID encoded in the physical QR code), getRoutingHistory (returns RoutingEntry[] joined tracking_records + qr_codes, ordered occurred_at ASC). All methods accept a Drizzle db client to support transactions.
-  - /apps/server/src/modules/tracking/__tests__/tracking.repository.test.ts — Vitest integration tests: createQrCode inserts and returns the correct row; duplicate tracking_id raises unique constraint; appendRoutingEntry inserts and cannot be updated (UPDATE rejected by DB); findQrCodeByTrackingId returns null on miss; getRoutingHistory returns entries ordered ASC
+  - /apps/server/src/modules/tracking/tracking.repository.ts — TrackingRepository class replacing the stub with full implementations for: createQrCode, updateQrImageKey, createTrackingRecord, updateTrackingRecordCustodian, appendRoutingEntry, findTrackingRecordByDocumentId (returns TrackingRecordSummary | null, including trackingNumber), findQrCodeByTrackingId (returns qrCodes row | null — lookup by the UUID encoded in the physical QR code), getNextTrackingNumber (returns a formatted 'DTS-{YEAR}-{NNNN}' string via tracking.fn_get_next_tracking_number — [RESOLVED — SPEC-GAP-TRACK-01]), getRoutingHistory (returns RoutingEntry[] joined tracking_records + qr_codes, ordered occurred_at ASC). All methods accept a Drizzle db client to support transactions.
+  - /apps/server/src/modules/tracking/__tests__/tracking.repository.test.ts — Vitest integration tests: createQrCode inserts and returns the correct row; duplicate tracking_id raises unique constraint; duplicate tracking_number raises unique constraint; appendRoutingEntry inserts and cannot be updated (UPDATE rejected by DB); findQrCodeByTrackingId returns null on miss; getNextTrackingNumber returns sequential DTS-{YEAR}-{NNNN} values across repeated calls; getRoutingHistory returns entries ordered ASC
 Acceptance Criteria:
   - [ ] `pnpm test apps/server/src/modules/tracking/__tests__/tracking.repository.test.ts` passes
   - [ ] `appendRoutingEntry` has no sibling method `updateRoutingEntry` or `deleteRoutingEntry` — the class exposes no mutation on already-inserted routing entries
   - [ ] `findQrCodeByTrackingId` returns null (never throws) when the UUID is not present
+  - [ ] `getNextTrackingNumber(2026)` called twice in sequence returns two distinct values matching `/^DTS-2026-\d{4}$/`, the second one numerically greater than the first
   - [ ] `getRoutingHistory` results are ordered ascending by `occurred_at`
   - [ ] `pnpm typecheck` passes
 AI Prompt: |
@@ -344,10 +454,12 @@ AI Prompt: |
 
   ### tracking.qr_codes
   id UUID PK | city_id UUID | document_id UUID (logical FK -> documents.documents.id) |
-  tracking_id UUID UNIQUE (UUID encoded in physical QR image) | qr_image_file_key UUID NULL |
+  tracking_id UUID UNIQUE (UUID encoded in physical QR image) |
+  tracking_number TEXT NOT NULL UNIQUE (human-readable DTS-YYYY-NNNN [RESOLVED — SPEC-GAP-TRACK-01]) |
+  qr_image_file_key UUID NULL |
   assigned_at TIMESTAMPTZ NOT NULL DEFAULT now() | generated_by UUID NULL (logical FK -> iam.users.id) |
   created_at TIMESTAMPTZ | deleted_at TIMESTAMPTZ NULL | deleted_by UUID NULL
-  Unique constraints: uq_qr_codes_tracking_id, uq_qr_codes_document
+  Unique constraints: uq_qr_codes_tracking_id, uq_qr_codes_document, uq_qr_codes_tracking_number
 
   ### tracking.tracking_records
   id UUID PK | city_id UUID | document_id UUID (logical FK -> documents.documents.id) |
@@ -378,6 +490,7 @@ AI Prompt: |
     async createQrCode(input: {
       documentId: string;
       trackingId: string;        // UUID to encode in QR image; must be unique
+      trackingNumber: string;    // human-readable DTS-YYYY-NNNN; computed by caller [RESOLVED — SPEC-GAP-TRACK-01]
       generatedBy: string | null;
       cityId?: string;
     }): Promise<typeof qrCodes.$inferSelect>
@@ -411,11 +524,15 @@ AI Prompt: |
 
     async findTrackingRecordByDocumentId(
       documentId: string
-    ): Promise<TrackingRecordSummary | null>   // returns null on miss, never throws
+    ): Promise<TrackingRecordSummary | null>   // returns null on miss; TrackingRecordSummary includes trackingNumber [SPEC-GAP-TRACK-01 resolved]
 
     async findQrCodeByTrackingId(
       trackingId: string                        // UUID encoded in physical QR image
     ): Promise<typeof qrCodes.$inferSelect | null>  // null on miss
+
+    // getNextTrackingNumber: calls tracking.fn_get_next_tracking_number(year) and
+    // formats the result as 'DTS-{YEAR}-{NNNN}'. [RESOLVED -- SPEC-GAP-TRACK-01]
+    async getNextTrackingNumber(year: number): Promise<string>
 
     async getRoutingHistory(documentId: string): Promise<RoutingEntry[]>
   }
@@ -442,10 +559,34 @@ AI Prompt: |
     .orderBy(asc(routingEntries.occurredAt));
   ```
 
+  ## getNextTrackingNumber — DTS-{YEAR}-{SEQUENCE} formatting [RESOLVED -- SPEC-GAP-TRACK-01]
+  Calls the `tracking.fn_get_next_tracking_number(year)` SECURITY DEFINER function
+  (created in TASK-TRACK-001's migration) and formats the result. Use Drizzle's
+  `sql` tagged template for the raw function call — this is a stored procedure
+  call, not a table query, so the query builder does not apply here.
+  ```typescript
+  import { sql } from 'drizzle-orm';
+
+  async getNextTrackingNumber(year: number): Promise<string> {
+    const result = await this.db.execute<{ sequence_value: number; was_created: boolean }>(
+      sql`SELECT * FROM tracking.fn_get_next_tracking_number(${year})`
+    );
+    const { sequence_value, was_created } = result.rows[0];
+    if (was_created) {
+      // Structured log warning only (not an audit/domain event) -- same pattern
+      // as documents.fn_get_next_sequence_value's was_created signal.
+      this.logger?.warn({ year }, 'tracking: dts_{year}_seq auto-created on demand');
+    }
+    const padded = String(sequence_value).padStart(4, '0'); // [Inference] 4-digit padding -- see C1 Part 7 comment
+    return `DTS-${year}-${padded}`;
+  }
+  ```
+
   Before submitting this PR, confirm each item:
   - [ ] `pnpm test apps/server/src/modules/tracking/__tests__/tracking.repository.test.ts` passes
   - [ ] `appendRoutingEntry` has no sibling method `updateRoutingEntry` or `deleteRoutingEntry` — the class exposes no mutation on already-inserted routing entries
   - [ ] `findQrCodeByTrackingId` returns null (never throws) when the UUID is not present
+  - [ ] `getNextTrackingNumber(2026)` returns a string matching `/^DTS-2026-\d{4}$/`; calling it twice returns two different, sequential values
   - [ ] `getRoutingHistory` results are ordered ascending by `occurred_at`
   - [ ] `pnpm typecheck` passes
 
@@ -455,30 +596,48 @@ AI Prompt: |
 
 Phase:          1
 Module:         TRACK
-Title:          Implement QR code generation service (UUID assignment, QR image, S3 upload)
+Title:          Implement QR code generation service (UUID assignment, DTS tracking number, QR image, S3 upload)
 Prerequisites:  [TASK-TRACK-003, TASK-INFRA-005, CROSS-MODULE REF: INFRA — MinIO/S3 bucket initialization task; exact TASK-INFRA-NNN not identifiable from TASK-DOCS list alone; resolve at integration pass]
 Deliverables:
-  - /apps/server/src/modules/tracking/tracking.qr-service.ts — QrCodeService class with: (1) generateAndStore(documentId, actorId, db): generates a new UUID tracking_id via crypto.randomUUID(), encodes it into a QR image using the `qrcode` npm package (content: the raw UUID string only — no URL prefix per consolidated ref §11.6), uploads the PNG to S3 at key `tracking/qr/{trackingId}.png`, calls TrackingRepository.createQrCode, calls TrackingRepository.updateQrImageKey with the S3 key; returns the persisted qr_codes row. (2) generateCoverSheetPdf(documents): stub returning an empty PDF buffer with a warning log — [SPEC-GAP-TRACK-01] tracking number format not yet defined in schema; real implementation deferred to resolution of that spec gap. The cover sheet PDF is rendered in TASK-TRACK-007 once the spec gap is resolved.
-  - /apps/server/src/modules/tracking/__tests__/tracking.qr-service.test.ts — Vitest unit tests (mock S3 and repository): generateAndStore produces a UUID tracking_id, calls S3 putObject with key format `tracking/qr/{uuid}.png`, calls repository.createQrCode with the generated trackingId
+  - /apps/server/src/modules/tracking/tracking.qr-service.ts — QrCodeService class with generateAndStore(documentId, actorId, db): generates a new UUID tracking_id via crypto.randomUUID(); calls TrackingRepository.getNextTrackingNumber(currentYear) to obtain a DTS-{YEAR}-{NNNN} human-readable label (— [RESOLVED — SPEC-GAP-TRACK-01]); encodes the UUID into a QR image using the `qrcode` npm package (content: the raw UUID string only — no URL prefix, no tracking number, per consolidated ref §11.6); uploads the PNG to S3 at key `tracking/qr/{trackingId}.png`; calls TrackingRepository.createQrCode with both trackingId and trackingNumber; calls TrackingRepository.updateQrImageKey with the S3 key; returns the persisted qr_codes row. NOTE: this task no longer produces a `generateCoverSheetPdf` method — the cover sheet PDF is generated directly in TASK-TRACK-007's `printQrCoverSheet` tRPC procedure using `@react-pdf/renderer`, now that SPEC-GAP-TRACK-01 is resolved and the real trackingNumber field exists; an unused stub method here would be dead code.
+  - /apps/server/src/modules/tracking/__tests__/tracking.qr-service.test.ts — Vitest unit tests (mock S3 and repository): generateAndStore produces a UUID tracking_id, calls repository.getNextTrackingNumber with the current year, calls S3 putObject with key format `tracking/qr/{uuid}.png` (QR image content is the UUID only, never the tracking number), calls repository.createQrCode with both the generated trackingId and the trackingNumber returned by getNextTrackingNumber
 Acceptance Criteria:
   - [ ] `pnpm test apps/server/src/modules/tracking/__tests__/tracking.qr-service.test.ts` passes
-  - [ ] The QR code image encodes only the raw UUID string — no URL prefix, no document content (per §11.6 "QR content: Unique tracking ID only, not a URL, not document content")
+  - [ ] The QR code image encodes only the raw UUID string — no URL prefix, no document content, no tracking number (per §11.6 "QR content: Unique tracking ID only, not a URL, not document content")
   - [ ] S3 object key follows format `tracking/qr/{trackingId}.png`
-  - [ ] `generateAndStore` returns the persisted qr_codes row (including qr_image_file_key set to the trackingId UUID)
+  - [ ] `generateAndStore` calls `repository.getNextTrackingNumber()` exactly once and passes its return value as `trackingNumber` to `repository.createQrCode()`
+  - [ ] `generateAndStore` returns the persisted qr_codes row (including qr_image_file_key set to the trackingId UUID, and trackingNumber matching the DTS-{YEAR}-{NNNN} pattern)
   - [ ] `pnpm typecheck` passes
 AI Prompt: |
   You are implementing the QR code generation service for the TRACK module of the Batac
-  City LGU document-management platform. This service generates QR tracking numbers,
-  creates QR code images encoding only the raw UUID, and stores them in S3 (MinIO in dev).
+  City LGU document-management platform. This service generates QR tracking identifiers
+  (an immutable UUID) and human-readable DTS-{YEAR}-{SEQUENCE} tracking numbers, creates
+  QR code images encoding only the raw UUID, and stores them in S3 (MinIO in dev).
+
+  ## Two distinct identifiers — do not confuse them
+  - `trackingId` (UUID): the value encoded INSIDE the QR image. Immutable, opaque,
+    system-generated via crypto.randomUUID(). This is what a scanner reads.
+  - `trackingNumber` (TEXT, e.g. 'DTS-2026-0001'): the human-readable label shown on the
+    cover sheet and scan-result pages next to the QR code. Generated via
+    TrackingRepository.getNextTrackingNumber(year), which calls the
+    `tracking.fn_get_next_tracking_number(year)` DB function (TASK-TRACK-001).
+    [RESOLVED — SPEC-GAP-TRACK-01, 2026-06-30] Both are assigned together, at the same
+    secretariat-logging moment, and both are immutable thereafter — neither is ever
+    regenerated for a given document.
 
   ## Business rules (consolidated ref §11.6 — enforce exactly)
   - "QR content: Unique tracking ID only — not a URL, not document content."
     Encode the raw UUID string bare (e.g. `550e8400-e29b-41d4-a716-446655440000`).
-    Do NOT wrap it in a URL. Do NOT include document content.
+    Do NOT wrap it in a URL. Do NOT include document content. Do NOT encode the
+    trackingNumber — the QR image content is the UUID only.
+  - "Tracking number format: Configurable; default: DTS-{YEAR}-{SEQUENCE}" — this is
+    the trackingNumber, a separate display label from the QR-encoded UUID.
   - "Assignment sequence: Secretariat logs document → QR tracking number assigned (first)
     → Preliminary Draft number assigned → Workflow instance created."
-    The QR is the first thing assigned — before any document number.
-  - "QR tracking number never changes after assignment" — tracking_id is immutable once created.
+    The QR (and its accompanying trackingNumber) are the first thing assigned — before
+    any document number.
+  - "QR tracking number never changes after assignment" — both trackingId and
+    trackingNumber are immutable once created.
   - "QR code survives throughout entire document lifecycle."
   - "Physical custody tracked separately from digital workflow status."
 
@@ -486,6 +645,8 @@ AI Prompt: |
   Object key format: `tracking/qr/{trackingId}.png`
   The trackingId IS the qr_image_file_key stored in tracking.qr_codes.qr_image_file_key.
   (The column is UUID type in the schema — store the UUID value of trackingId as the key.)
+  This key is keyed by trackingId (UUID), NOT by trackingNumber — trackingNumber is
+  purely a display label and is never used in storage paths.
 
   ## S3 client
   Injected as constructor parameter. The Fastify instance exposes `fastify.s3Client` once
@@ -501,7 +662,7 @@ AI Prompt: |
     errorCorrectionLevel: 'M',
     width: 200,
   });
-  // trackingId is the raw UUID string — no URL prefix
+  // trackingId is the raw UUID string — no URL prefix, no trackingNumber embedded
   ```
   Then upload: `await s3Client.putObject({ Bucket, Key: `tracking/qr/${trackingId}.png`, Body: pngBuffer, ContentType: 'image/png' })`
 
@@ -509,30 +670,32 @@ AI Prompt: |
   ```typescript
   async generateAndStore(documentId: string, actorId: string | null, db: PostgresJsDatabase) {
     const trackingId = crypto.randomUUID();
+    const currentYear = new Date().getFullYear();
+    // [RESOLVED -- SPEC-GAP-TRACK-01] human-readable label, independent generation
+    // from the UUID -- both happen in the same logging transaction but are not
+    // derived from one another.
+    const trackingNumber = await this.repository.getNextTrackingNumber(currentYear);
+
     const pngBuffer = await QRCode.toBuffer(trackingId, { type: 'png', errorCorrectionLevel: 'M', width: 200 });
     await this.s3.putObject({ Bucket: this.bucket, Key: `tracking/qr/${trackingId}.png`, Body: pngBuffer, ContentType: 'image/png' });
-    const qrRow = await this.repository.createQrCode({ documentId, trackingId, generatedBy: actorId });
+
+    const qrRow = await this.repository.createQrCode({
+      documentId,
+      trackingId,
+      trackingNumber,
+      generatedBy: actorId,
+    });
     await this.repository.updateQrImageKey(qrRow.id, trackingId); // store the UUID as the file key
     return qrRow;
   }
   ```
 
-  ## generateCoverSheetPdf — SPEC-GAP-TRACK-01 stub
-  The cover sheet (three fields: QR code image, Tracking Number, Series Number per Q-B02)
-  depends on a DTS-{YEAR}-{SEQUENCE} formatted tracking number. C1 Part 7's qr_codes schema
-  has no column or sequence for this formatted number. Until the spec gap is resolved:
-  ```typescript
-  async generateCoverSheetPdf(documents: CoverSheetDocument[]): Promise<Buffer> {
-    this.logger.warn('[SPEC-GAP-TRACK-01] generateCoverSheetPdf stub — DTS tracking number format not in schema; returning empty PDF');
-    return Buffer.from('%PDF-1.4\n%%EOF\n'); // minimal valid-header PDF stub
-  }
-  ```
-
   Before submitting this PR, confirm each item:
   - [ ] `pnpm test apps/server/src/modules/tracking/__tests__/tracking.qr-service.test.ts` passes
-  - [ ] The QR code image encodes only the raw UUID string — no URL prefix, no document content (per §11.6 "QR content: Unique tracking ID only, not a URL, not document content")
+  - [ ] The QR code image encodes only the raw UUID string — no URL prefix, no document content, no tracking number (per §11.6 "QR content: Unique tracking ID only, not a URL, not document content")
   - [ ] S3 object key follows format `tracking/qr/{trackingId}.png`
-  - [ ] `generateAndStore` returns the persisted qr_codes row (including qr_image_file_key set to the trackingId UUID)
+  - [ ] `generateAndStore` calls `repository.getNextTrackingNumber()` exactly once and passes its return value as `trackingNumber` to `repository.createQrCode()`
+  - [ ] `generateAndStore` returns the persisted qr_codes row (including qr_image_file_key set to the trackingId UUID, and trackingNumber matching the DTS-{YEAR}-{NNNN} pattern)
   - [ ] `pnpm typecheck` passes
 
 ---
@@ -770,7 +933,7 @@ Module:         TRACK
 Title:          [ABAC] Implement tracking tRPC router — five procedures + QR cover sheet PDF generator
 Prerequisites:  [TASK-TRACK-006, TASK-IAM-004]
 Deliverables:
-  - /apps/server/src/modules/tracking/tracking.router.ts — trackingRouter with full implementations of all five E1 Module 5 procedures using real Zod input/output schemas and ABAC enforcement. Each access-controlled procedure calls the IAM PolicyGuard (established by TASK-IAM-004) with the correct SubjectContext before executing. printQrCoverSheet uses @react-pdf/renderer to generate the QR cover sheet PDF with exactly three fields per consolidated ref Q-B02 and uploads it to S3, returning a presigned URL. See SPEC-GAP-TRACK-01 note for tracking number field stub.
+  - /apps/server/src/modules/tracking/tracking.router.ts — trackingRouter with full implementations of all five E1 Module 5 procedures using real Zod input/output schemas and ABAC enforcement. Each access-controlled procedure calls the IAM PolicyGuard (established by TASK-IAM-004) with the correct SubjectContext before executing. printQrCoverSheet uses @react-pdf/renderer to generate the QR cover sheet PDF with exactly three fields per consolidated ref Q-B02: (1) QR code image, (2) Tracking Number from tracking.trackingNumber [RESOLVED — SPEC-GAP-TRACK-01], (3) Series Number from documentsService.getDocumentById. Uploads to S3, returns presigned URL.
   - /apps/server/src/modules/tracking/__tests__/tracking.router.test.ts — Vitest tests: ABAC enforcement on each gated procedure (unauthorized role → UNAUTHORIZED error), logRoutingEntry rejects non-sp_secretary callers, scanQrCodeAuthenticated succeeds for any authenticated non-citizen role, printQrCoverSheet returns a pdfPresignedUrl
 Acceptance Criteria:
   - [ ] `pnpm test apps/server/src/modules/tracking/__tests__/tracking.router.test.ts` passes
@@ -791,6 +954,7 @@ AI Prompt: |
   Output:  z.object({
              trackingId: z.string().uuid(),
              documentId: z.string().uuid(),
+             trackingNumber: z.string(),
              qrCodeS3Key: z.string(),
              assignedAt: z.coerce.date(),
              physicalLocation: z.string().nullable()
@@ -803,6 +967,8 @@ AI Prompt: |
         subject.officeId matches the document's ownedByOfficeId, OR that a cross-office
         grant exists. Use IAM.evaluatePolicy with resourceType='document', action='read'.
   Business: Calls trackingService.getTrackingRecordForDocument(). Throws NOT_FOUND if null.
+    trackingNumber (e.g. 'DTS-2026-0001') passes through directly from the
+    TrackingRecordSummary returned by the Published API. [RESOLVED — SPEC-GAP-TRACK-01]
   ```
 
   ## Procedure 2: tracking.printQrCoverSheet
@@ -818,14 +984,18 @@ AI Prompt: |
   Business:
     For each documentId:
       - Get tracking record: trackingService.getTrackingRecordForDocument(documentId)
+        — Tracking → IAM call only; no second Tracking → Documents call needed for this step.
       - Get document info: documentsService.getDocumentById(documentId)
         (preliminary_number for the Series Number field)
+        [RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30] This caller is now listed in B2's
+        Published API Call Matrix and Module Dependency Map (Tracking → Documents).
       - Get QR image presigned URL from S3 using qrCodeS3Key
     Generate PDF using @react-pdf/renderer with EXACTLY THREE FIELDS per cover sheet
     (consolidated ref Q-B02 decision — enforced):
       1. QR Code (rendered as image from presigned S3 URL)
-      2. Tracking Number ([SPEC-GAP-TRACK-01]: use raw trackingId UUID as display
-         placeholder until DTS-{YEAR}-{SEQUENCE} format is defined in schema)
+      2. Tracking Number — tracking.trackingNumber from the TrackingRecordSummary
+         (e.g. 'DTS-2026-0001'). [RESOLVED — SPEC-GAP-TRACK-01, 2026-06-30] No longer
+         a raw UUID placeholder; the real human-readable field now exists in the schema.
       3. Series Number (document.preliminary_number from documentsService.getDocumentById)
     multi_per_page layout: arrange multiple horizontal-rectangle cover sheets per A4 page.
     Upload the PDF to S3 at `tracking/cover-sheets/{uuid}.pdf`.
@@ -901,8 +1071,13 @@ AI Prompt: |
     Call documentsService.getDocumentById() for documentType and remarks.
     Call trackingService.getRoutingHistory() for the full routing history.
     Resolve actorDisplayName via IAM.getUserById() for each entry.
-    firstPageImageUrl: [SPEC-GAP-TRACK-02 stub] — return a placeholder URL until the
-      first-page preview image key convention is defined (see Module Summary).
+    firstPageImageUrl: [RESOLVED — SPEC-GAP-TRACK-02, 2026-06-30]
+      Construct S3 key `documents/previews/{qrCode.documentId}/page-1.webp`
+      (canonical convention set by TASK-DOCS-010's generateFirstPagePreview; changing
+      this key requires updating TASK-DOCS-010 in lockstep). Generate a presigned
+      S3 GET URL using this key with expiry from env var PREVIEW_URL_EXPIRY_SECONDS
+      (default 3600). No classification gate on URL generation — this is authenticated
+      staff; I1 §7.3 confirms no additional ABAC beyond Global Gates.
     getCopyAvailable: always literal true (points user toward Document Request Form).
   ```
 
@@ -917,7 +1092,7 @@ AI Prompt: |
         <View style={{ flexDirection: 'row', margin: 10, border: '1px solid black', padding: 8 }}>
           <Image src={qrImageUrl} style={{ width: 80, height: 80 }} />
           <View style={{ marginLeft: 10 }}>
-            {/* Field 1: Tracking Number (DTS-YEAR-SEQUENCE — stub UUID) */}
+            {/* Field 2: Tracking Number — tracking.trackingNumber e.g. 'DTS-2026-0001' [RESOLVED — SPEC-GAP-TRACK-01] */}
             <Text style={{ fontSize: 10 }}>Tracking No: {tracking.trackingId}</Text>
             {/* Field 2: Series Number (preliminary_number) */}
             <Text style={{ fontSize: 10 }}>Series No: {docInfo.preliminaryNumber ?? 'N/A'}</Text>
@@ -947,12 +1122,13 @@ Module:         TRACK
 Title:          Implement public QR scan REST endpoint (publicLookupHandler — unauthenticated)
 Prerequisites:  [TASK-TRACK-006, TASK-DOCS-006]
 Deliverables:
-  - /apps/server/src/modules/tracking/tracking.public-handler.ts — createPublicLookupHandler factory producing a Fastify route handler for `GET /track/:trackingId`. Unauthenticated — no JWT required, no Global Gates, no IAM.evaluatePolicy call. Accepts a UUID in the path, resolves via repository.findQrCodeByTrackingId, calls documentsService.getDocumentById() for document type and remarks ([SPEC-GAP-TRACK-03] new API Call Matrix entry — see Module Summary), calls trackingService.getRoutingHistory() for the routing history. Returns scan result JSON with firstPageImageUrl stubbed per SPEC-GAP-TRACK-02. Returns 404 for unknown tracking UUID. Never returns a full document file URL in any field of the response.
-  - /apps/server/src/modules/tracking/__tests__/tracking.public-handler.test.ts — Vitest integration tests: valid UUID → 200 with correct shape; unknown UUID → 404; response body contains no field whose value is a documents.versions file URL; endpoint accessible without Authorization header
+  - /apps/server/src/modules/tracking/tracking.public-handler.ts — createPublicLookupHandler factory producing a Fastify route handler for `GET /track/:trackingId`. Unauthenticated — no JWT required, no Global Gates, no IAM.evaluatePolicy call. Accepts a UUID in the path, resolves via repository.findQrCodeByTrackingId, calls documentsService.getDocumentById() for document type and remarks ([RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30]: this caller is now in B2's Published API Call Matrix), calls trackingService.getRoutingHistory() for the routing history. Constructs firstPageImageUrl from the canonical S3 key `documents/previews/{documentId}/page-1.webp` and generates a presigned GET URL ([RESOLVED — SPEC-GAP-TRACK-02, 2026-06-30]: key convention set by TASK-DOCS-010's generateFirstPagePreview). Returns 404 for unknown tracking UUID. Never returns a full document file URL in any field of the response.
+  - /apps/server/src/modules/tracking/__tests__/tracking.public-handler.test.ts — Vitest integration tests: valid UUID → 200 with correct shape; unknown UUID → 404; firstPageImageUrl is a presigned S3 URL (not a stub URL); response body contains no field whose value is a documents.versions file URL; endpoint accessible without Authorization header
 Acceptance Criteria:
   - [ ] `GET /track/{valid-uuid}` returns HTTP 200 with `{ documentType, remarks, routingHistory, firstPageImageUrl, getCopyUrl }` shape
   - [ ] `GET /track/{unknown-uuid}` returns HTTP 404
-  - [ ] The response contains no direct document file URL (only the first-page pre-rendered image URL per §11.6 — stubbed as noted until SPEC-GAP-TRACK-02 is resolved)
+  - [ ] `firstPageImageUrl` is a presigned S3 GET URL for key `documents/previews/{documentId}/page-1.webp` — not a stub URL
+  - [ ] The response contains no direct document file URL (only the first-page pre-rendered image URL per §11.6)
   - [ ] The endpoint is accessible with NO Authorization header and NO session cookie — purely public
   - [ ] `pnpm typecheck` passes
 AI Prompt: |
@@ -985,10 +1161,27 @@ AI Prompt: |
       timestamp: string;         // ISO 8601
       // actorDisplayName omitted for public endpoint — privacy
     }>;
-    firstPageImageUrl: string;   // presigned S3 URL for first-page image ONLY
+    firstPageImageUrl: string;   // presigned S3 URL for first-page WebP image
     getCopyUrl: string;          // link to Document Request Form
   }
   ```
+
+  ## firstPageImageUrl — S3 key convention [RESOLVED — SPEC-GAP-TRACK-02, 2026-06-30]
+  The first-page preview WebP is generated by TASK-DOCS-010's OcrService.generateFirstPagePreview()
+  at document upload time and stored at a canonical key. Construct the key and generate a
+  presigned GET URL — do NOT make an API call to the Documents module for this:
+  ```typescript
+  const previewKey = `documents/previews/${qrCode.documentId}/page-1.webp`;
+  const firstPageImageUrl = await deps.s3Client.getSignedUrlPromise('getObject', {
+    Bucket: deps.s3Bucket,
+    Key: previewKey,
+    Expires: parseInt(process.env.PREVIEW_URL_EXPIRY_SECONDS ?? '3600', 10),
+  });
+  ```
+  IMPORTANT: This key convention is the inter-module contract between DOCS and TRACK.
+  If TASK-DOCS-010 ever changes its storage path, this file MUST be updated in lockstep.
+  There is no runtime API call between modules for this — the convention is documented
+  here and in TASK-DOCS-010.
 
   ## Handler factory
   ```typescript
@@ -998,7 +1191,7 @@ AI Prompt: |
     documentsService: DocumentsPublicAPI; // injected — Documents Published API (TASK-DOCS-006)
     s3Client: S3Client;
     s3Bucket: string;
-    config: { APP_BASE_URL: string };
+    config: { APP_BASE_URL: string; PREVIEW_URL_EXPIRY_SECONDS?: string };
   }) {
     return async function publicLookupHandler(
       request: FastifyRequest<{ Params: { trackingId: string } }>,
@@ -1015,20 +1208,28 @@ AI Prompt: |
       const qrCode = await deps.repository.findQrCodeByTrackingId(trackingId);
       if (!qrCode) return reply.status(404).send({ error: 'Tracking ID not found' });
 
-      // Cross-module call: Documents Published API (new API Call Matrix entry — added to B2 in TASK-TRACK-009)
+      // Cross-module call: Documents Published API
+      // [RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30] This caller is now in B2's
+      // Published API Call Matrix and Module Dependency Map (Tracking → Documents).
       const document = await deps.documentsService.getDocumentById(qrCode.documentId);
       if (!document) return reply.status(404).send({ error: 'Document not found' });
 
       const history = await deps.trackingService.getRoutingHistory(qrCode.documentId, 'public-scan');
 
-      // SPEC-GAP-TRACK-02: first-page image URL requires resolution of preview key convention
-      const firstPageImageUrl = `${deps.config.APP_BASE_URL}/stub/first-page/${qrCode.documentId}`;
-      // TODO(SPEC-GAP-TRACK-02): replace with actual presigned URL once preview image
-      // key convention is defined between DOCS OCR pipeline and TRACK
+      // [RESOLVED — SPEC-GAP-TRACK-02, 2026-06-30]
+      // Canonical S3 key set by TASK-DOCS-010's generateFirstPagePreview.
+      // No API call — TRACK constructs the key directly from documentId.
+      const previewKey = `documents/previews/${qrCode.documentId}/page-1.webp`;
+      const expirySeconds = parseInt(deps.config.PREVIEW_URL_EXPIRY_SECONDS ?? '3600', 10);
+      const firstPageImageUrl = await deps.s3Client.getSignedUrlPromise('getObject', {
+        Bucket: deps.s3Bucket,
+        Key: previewKey,
+        Expires: expirySeconds,
+      });
 
       return reply.send({
         documentType: document.documentTypeName ?? 'Document',
-        remarks: null,   // TODO: expose remarks field on DocumentSummary if needed
+        remarks: document.remarks ?? null,
         routingHistory: history.map(e => ({
           actionDescription: e.actionDescription,
           timestamp: e.timestamp.toISOString(),
@@ -1045,13 +1246,14 @@ AI Prompt: |
   The call to `documentsService.getDocumentById()` is a Published API call (Law #2 compliant —
   goes through the barrel, not directly into the documents schema). The Fastify-injected
   `documentsService` is available at `fastify.documentsService` once the documents plugin is
-  registered (TASK-DOCS-019). This is a new entry in B2's API Call Matrix — it is added to
-  B2 in TASK-TRACK-009's PR. See SPEC-GAP-TRACK-03 in the Module Summary.
+  registered (TASK-DOCS-019). This caller is now in B2's Published API Call Matrix
+  [RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30].
 
   Before submitting this PR, confirm each item:
   - [ ] `GET /track/{valid-uuid}` returns HTTP 200 with `{ documentType, remarks, routingHistory, firstPageImageUrl, getCopyUrl }` shape
   - [ ] `GET /track/{unknown-uuid}` returns HTTP 404
-  - [ ] The response contains no direct document file URL (only the first-page pre-rendered image URL per §11.6 — stubbed as noted until SPEC-GAP-TRACK-02 is resolved)
+  - [ ] `firstPageImageUrl` is a presigned S3 GET URL for key `documents/previews/{documentId}/page-1.webp` — not a stub URL
+  - [ ] The response contains no direct document file URL (only the first-page pre-rendered image URL per §11.6)
   - [ ] The endpoint is accessible with NO Authorization header and NO session cookie — purely public
   - [ ] `pnpm typecheck` passes
 
@@ -1067,7 +1269,7 @@ Deliverables:
   - /apps/server/src/modules/tracking/tracking.plugin.ts — production Fastify plugin that: (1) instantiates TrackingRepository, QrCodeService, TrackingEventConsumer, and creates the trackingService Published API via createTrackingService; (2) subscribes to 'document.created' and 'workflow.step_completed' on the shared event bus, routing each to the TrackingEventConsumer handlers with error logging on failure; (3) registers the trackingRouter as a named member of the app's merged tRPC router; (4) registers the publicLookupHandler at `GET /track/:trackingId` on the Fastify instance (outside the tRPC prefix); (5) decorates the Fastify instance with `fastify.trackingService` (the Published API, needed by Documents cover sheet generator and Phase 3 Portal); (6) emits 'tracking.module.ready' log at plugin ready.
   - /apps/server/src/app.ts (edit) — registers trackingPlugin AFTER documentsPlugin and BEFORE workflowPlugin and notificationsPlugin; ordering: iamPlugin → organizationPlugin → documentsPlugin → trackingPlugin → [workflowPlugin stub] → [notificationsPlugin stub].
   - /apps/server/src/modules/tracking/__tests__/tracking.plugin.test.ts — Vitest smoke test: plugin registers without error on a test Fastify instance; fastify.trackingService is defined; GET /track/:trackingId route exists; 'tracking.module.ready' is logged.
-  - /docs/pre-development/B-architecture-documents/b2-module-boundary-and-internal-api-contracts-v1.1.md (edit) — add two rows to the Published API Call Matrix: "Tracking (public scan handler) | Documents | getDocumentById() | Get document type and remarks for QR scan result display | [TASK-TRACK-008]" and "Tracking (tRPC printQrCoverSheet) | Documents | getDocumentById() | Get preliminary_number for cover sheet Series Number field | [TASK-TRACK-007]". Also update the Module Dependency Map Tracking entry to add "Documents (getDocumentById)" to the Calls list.
+  - [PRE-APPLIED — SPEC-GAP-TRACK-03 resolved 2026-06-30] /docs/pre-development/B-architecture-documents/b2-module-boundary-and-internal-api-contracts-v1.1.md — the two rows (Tracking → Documents for public scan handler and for printQrCoverSheet) were added to the Published API Call Matrix, and the Module Dependency Map Tracking entry was updated to list Documents (getDocumentById), during the spec-gap resolution pass before TASK-TRACK-009 was scheduled. No B2 edits are required at TASK-TRACK-009 execution time.
 Acceptance Criteria:
   - [ ] `pnpm dev` starts without error; 'tracking.module.ready' log line appears after 'documents.module.ready'
   - [ ] `fastify.trackingService` is defined (not undefined) on the Fastify instance after plugin registration
@@ -1164,17 +1366,13 @@ AI Prompt: |
   ## B2 API Call Matrix update (required in same PR — Prohibited Pattern P5 violation if omitted)
   Add to the Published API Call Matrix table in b2-module-boundary-and-internal-api-contracts-v1.1.md:
   ```
-  | Tracking (public scan handler) | Documents | getDocumentById() | Get document type and remarks for public QR scan result display | [TASK-TRACK-008] |
-  | Tracking (tRPC printQrCoverSheet) | Documents | getDocumentById() | Get preliminary_number for cover sheet Series Number field | [TASK-TRACK-007] |
+  PRE-APPLIED — these rows were added during spec-gap resolution (2026-06-30) before
+  TASK-TRACK-009 was scheduled. Verify they exist; do NOT add them a second time.
+  | Tracking (public scan handler) | Documents | getDocumentById() | Get document type and remarks for public QR scan result display | [RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30; TASK-TRACK-008] |
+  | Tracking (tRPC printQrCoverSheet) | Documents | getDocumentById() | Get preliminary_number for cover sheet Series Number field | [RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30; TASK-TRACK-007] |
   ```
-  Update the Module Dependency Map Tracking block:
-  ```
-  Tracking
-    Calls:     IAM       (evaluatePolicy — for authenticated routing history queries)
-               Documents (getDocumentById — public scan handler + cover sheet generator) [NEW]
-    Emits to:  (none)
-    Consumes from: Documents (created), Workflow (step_completed)
-  ```
+  The Module Dependency Map Tracking block was also pre-updated. Verify the Tracking
+  entry already lists Documents (getDocumentById) in its Calls list.
 
   ## Fastify type declarations
   If `fastify.trackingService` and `fastify.trackingTrpcRouter` are not already in the
@@ -1201,45 +1399,45 @@ First executable task: TASK-TRACK-001 (prerequisite on TASK-DOCS-001 is resolvab
   the Step 4 integration pass when the INFRA task list is loaded)
 ```
 
-### Spec gaps flagged (per A1-AGENTS.md §8)
+### Spec gaps — resolved 2026-06-30
 
-**[SPEC-GAP-TRACK-01] DTS-{YEAR}-{SEQUENCE} tracking number format has no column or sequence in C1 Part 7**
-- Consolidated ref §11.6: "Tracking number format: Configurable; default: `DTS-{YEAR}-{SEQUENCE}`"
-- E1 Module 5 `tracking.printQrCoverSheet` names "Tracking Number" as a cover sheet field.
-- C1 Part 7's tracking.qr_codes table defines `tracking_id UUID NOT NULL` (the UUID encoded
-  in the physical QR image) and `qr_image_file_key UUID NULL`. There is no column, PostgreSQL
-  sequence, or numbering series entry for a DTS-YEAR-NNN human-readable tracking number.
-- TASK-TRACK-004 and TASK-TRACK-007 stub the Tracking Number display as the raw UUID.
-- **Action required:** Decide between (a) adding a `tracking_number TEXT NOT NULL` column to
-  tracking.qr_codes with a `CREATE SEQUENCE tracking.tracking_number_seq` that generates
-  DTS-{YEAR}-{NNN} values at QR assignment time — this requires a new [MIGRATION] sub-task
-  (e.g. TASK-TRACK-001b) and a C1 DDL update; or (b) deriving the display number from the
-  UUID (e.g. first 8 hex characters). Resolve before TASK-TRACK-004 executes.
+**[RESOLVED — SPEC-GAP-TRACK-01] DTS-{YEAR}-{SEQUENCE} tracking number format**
+- Decision: Option (a) — `tracking_number TEXT NOT NULL` column added to `tracking.qr_codes`;
+  per-year auto-creating sequence `tracking.dts_{YEAR}_seq` (pattern matches Part 5's
+  `fn_get_next_sequence_value` convention; sequence resets at year boundary, consistent
+  with document final numbers). Helper function `tracking.fn_get_next_tracking_number(year)`
+  is a SECURITY DEFINER function owned by `batac_migrate`, auto-creating the year sequence
+  on demand as a safety net. [Inference] 4-digit padding (DTS-2026-0001) chosen as safer
+  ceiling than 2–3 digits used for individual document series, since tracking numbers span
+  ALL document types combined — confirm digit width with SP Secretariat before finalizing
+  (H3's own precedent: H3 footnotes 1–3 for series-specific padding decisions).
+- Files updated: C1 DDL (Part 7 table + function + Part 11 sequence), B2 TrackingRecordSummary
+  interface (added `trackingNumber: string`), E1 getTrackingRecord output schema, TASK-TRACK-001
+  (Drizzle schema, migration, grant script, AC), TASK-TRACK-002 (TrackingRecordSummary stub
+  type), TASK-TRACK-003 (createQrCode signature, repository method getNextTrackingNumber,
+  new AC), TASK-TRACK-004 (full rewrite — generateAndStore now calls getNextTrackingNumber
+  and passes trackingNumber to createQrCode; dead generateCoverSheetPdf stub removed),
+  TASK-TRACK-007 Procedure 2 (printQrCoverSheet now uses tracking.trackingNumber, not UUID).
 
-**[SPEC-GAP-TRACK-02] First-page image URL derivation is not specified across DOCS and TRACK**
-- `tracking.scanQrCodeAuthenticated` (E1) and `publicLookupHandler` (TASK-TRACK-008) both
-  return a `firstPageImageUrl`. Consolidated ref §11.6: "first page visible; other pages blurred."
-- The TRACK schema stores no first-page image key. TASK-DOCS-010 (OCR service job wrapper)
-  handles OCR on document upload but does not define a first-page preview image key convention.
-- TASK-TRACK-007 and TASK-TRACK-008 stub the field.
-- **Action required:** Define whether (a) DOCS OCR pipeline (TASK-DOCS-010) generates a
-  first-page preview image stored at a known S3 key (e.g. `documents/previews/{documentId}/page-1.webp`),
-  with TRACK constructing the key from documentId without an API call; or (b) TRACK calls
-  a new Documents Published API method (e.g. `getFirstPagePreviewUrl(documentId)`) — requiring a
-  new method on DocumentsPublicAPI, a B2 API Call Matrix entry, and updates to TASK-DOCS-006.
-  Either resolution requires agreement between the DOCS and TRACK module specs.
+**[RESOLVED — SPEC-GAP-TRACK-02] First-page image URL derivation**
+- Decision: Option (a) — known S3 key convention `documents/previews/{documentId}/page-1.webp`.
+  TASK-DOCS-010's `OcrService.generateFirstPagePreview()` generates the WebP unconditionally
+  for every document version (NOT gated by public_visibility_rule — generation is a technical
+  capability; access control is TRACK's responsibility at URL delivery time). TRACK constructs
+  the key directly from `documentId` and generates a presigned GET URL; no new Documents
+  Published API method needed.
+- Files updated: TASK-DOCS-010 (new PreviewProvider interface + StubPreviewProvider, updated
+  OCR flow, unconditional generation, AC), TASK-TRACK-007 Procedure 5 (scanQrCodeAuthenticated
+  now constructs key and presigns URL), TASK-TRACK-008 (full deliverable/AC/AI Prompt rewrite
+  — stub URL removed, presigned URL from S3 key convention).
 
-**[SPEC-GAP-TRACK-03] Two Tracking → Documents API calls are not in B2 v1.1's Published API Call Matrix**
-- B2 v1.1 Module Dependency Map shows `Tracking: Calls: IAM (evaluatePolicy)` only.
-- TASK-TRACK-007 (`printQrCoverSheet`) calls `documentsService.getDocumentById()` to retrieve
-  `preliminary_number` for the cover sheet's Series Number field.
-- TASK-TRACK-008 (`publicLookupHandler`) calls `documentsService.getDocumentById()` to retrieve
-  document type and remarks for the public scan result.
-- Both are Law #2-compliant (Published API, not direct schema access), but both are missing
-  from B2's API Call Matrix and from the Module Dependency Map's Tracking entry.
-- TASK-TRACK-009 adds them to B2 as part of its deliverables. A human must confirm these
-  two callers are acceptable before TASK-TRACK-009 executes (Prohibited Pattern P6: a caller
-  not in the API Call Matrix is a violation, so the matrix must be updated before the code ships).
+**[RESOLVED — SPEC-GAP-TRACK-03] Two Tracking → Documents API calls missing from B2**
+- Both `printQrCoverSheet → getDocumentById` and `publicLookupHandler → getDocumentById`
+  are Law #2-compliant. Confirmed acceptable; added to B2 pre-execution rather than gating
+  on TASK-TRACK-009 (a caller not in the matrix before code ships would be a P6 violation).
+- Files updated: B2 v1.1 Published API Call Matrix (two new rows), B2 Module Dependency Map
+  Tracking entry (added Documents to Calls list). TASK-TRACK-009 deliverable for B2 edit
+  marked PRE-APPLIED.
 
 ### Deferred capabilities
 

@@ -25,25 +25,165 @@ Wave D — runs after ORG (Wave C) task list is complete.
 
 ## Table of Contents
 
-- [TASK-DOCS-001] `[MIGRATION]` Create documents schema Drizzle definitions and DDL migration
-- [TASK-DOCS-002] Scaffold DOCS module file structure with typed stubs
-- [TASK-DOCS-003] Implement shared Zod schemas — documents and document-metadata domains (E3 Parts 4-5)
-- [TASK-DOCS-004] Implement DOCS repository layer — all nine documents.* tables
-- [TASK-DOCS-005] Implement numbering service (fn_get_next_sequence_value wrapper, preliminary/final assignment, gap logging)
-- [TASK-DOCS-006] Implement DOCS Published API (getDocumentById, getDocumentType, transitionState, assignFinalNumber, getAttachmentRefs)
-- [TASK-DOCS-007] Seed document_types — seven Phase 1 types + DESIGNATION record (inactive, Phase 1B)
-- [TASK-DOCS-008] Seed number_series — all 11 series records + 2026 year sequences for Phase 1 active series
-- [TASK-DOCS-009] `[ABAC]` Implement DOCS ABAC policy guard rules (document, document_version, document_attachment, number_series resource types)
-- [TASK-DOCS-010] Implement OCR service job wrapper (auto-enqueue on upload, quality score callback, manual re-OCR trigger)
-- [TASK-DOCS-011] `[ABAC][AUDIT]` Implement documents tRPC router — general CRUD (eight procedures)
-- [TASK-DOCS-012] `[ABAC][AUDIT]` Implement documents tRPC router — SP workflow specifics and Secretariat decision delegation (eight procedures)
-- [TASK-DOCS-013] `[ABAC]` Implement documents tRPC router — file, version, and attachment handling (nine procedures)
-- [TASK-DOCS-014] `[AUDIT]` Implement Panlalawigan review tRPC procedures (initiate transmittal, log outcome, deemed-approved timer)
-- [TASK-DOCS-015] Implement signature recording tRPC procedures (log signature, upload scan, scanned-back verification flow)
-- [TASK-DOCS-016] `[ABAC][AUDIT]` Implement complaints tRPC router — internal SP Secretariat side (five procedures)
-- [TASK-DOCS-017] `[ABAC][AUDIT]` Implement document requests tRPC router — internal SP Secretariat side (six procedures)
-- [TASK-DOCS-018] `[ABAC][AUDIT]` Implement DESIGNATION document logging handler (atomic delegation grant creation on document log)
-- [TASK-DOCS-019] Wire DOCS Fastify plugin and inject Published API into dependent module stubs
+- [L190–L211] TASK-DOCS-001 — `[MIGRATION]` Create documents schema Drizzle definitions and DDL migration
+- [L212–L220] Project-wide DDL conventions (C1 Part 1)
+- [L221–L604] Table definitions (C1 Part 5, L741-L1233)
+  - [L223–L252] documents.document_types
+  - [L253–L287] documents.number_series
+  - [L288–L338] documents.documents
+  - [L339–L368] Lifecycle transition trigger (add manually to migration after db:generate)
+  - [L369–L405] documents.numbers
+  - [L406–L438] documents.versions
+  - [L439–L460] documents.attachments
+  - [L461–L479] documents.signatures
+  - [L480–L497] documents.document_sponsorships
+  - [L498–L524] documents.panlalawigan_reviews
+  - [L525–L542] documents.classification_allowlists (resolved I1 D-ABAC-02)
+  - [L543–L571] fn_get_next_sequence_value (add manually to migration)
+  - [L572–L604] Grants and RLS (C1 Part 12 -- add to end of migration manually)
+- [L605–L625] TASK-DOCS-002 — Scaffold DOCS module file structure with typed stubs
+- [L626–L628] Module location
+- [L629–L650] Published API interface (B2 Module 3 -- paste verbatim into documents.types.ts)
+- [L651–L669] Pattern to follow
+- [L670–L688] TASK-DOCS-003 — Implement shared Zod schemas — documents and document-metadata domains (E3 Parts 4-5)
+- [L689–L692] Files
+- [L693–L705] Key enum schemas (documents.ts)
+- [L706–L719] LogPanlalawiganOutcomeInputSchema (with refine -- implement exactly)
+- [L720–L736] SpResolutionMetadataSchema (with refine)
+- [L737–L753] DesignationMetadataSchema (with refines)
+- [L754–L761] CitizenComplaintMetadataSchema (implement from H2 §5 spec)
+- [L762–L768] DocumentRequestFormMetadataSchema (implement from H2 §6 spec)
+- [L769–L800] DocumentMetadataSchema discriminated union
+- [L801–L817] TASK-DOCS-004 — Implement DOCS repository layer — all nine documents.* tables
+- [L818–L823] Cross-module boundary rules (B2 Module 3, Law #2)
+- [L824–L829] Key type conventions
+- [L830–L834] updateDocumentNumbering -- atomic operation
+- [L835–L860] hasClassificationAllowlistEntry
+- [L861–L879] TASK-DOCS-005 — Implement numbering service (fn_get_next_sequence_value wrapper, preliminary/final assignment, gap logging)
+- [L880–L903] Number assignment rules (H3 + C1 Part 5)
+- [L904–L914] DB function call pattern
+- [L915–L919] Gap policy (H3 §9)
+- [L920–L933] Atomic transaction pattern
+- [L934–L952] TASK-DOCS-006 — Implement DOCS Published API (getDocumentById, getDocumentType, transitionState, assignFinalNumber, getAttachmentRefs)
+- [L953–L963] Published API interface (B2 Module 3 -- implement exactly)
+- [L964–L983] State machine (I1 §17 -- enforce in transitionState before any DB write)
+- [L984–L998] Domain events (B2 Module 3 -- emit on success)
+- [L999–L1005] Event consumers (B2 Module 3)
+- [L1006–L1020] S3 presigned URLs (getAttachmentRefs)
+- [L1021–L1037] TASK-DOCS-007 — Seed document_types — seven Phase 1 types + DESIGNATION record (inactive, Phase 1B)
+- [L1038–L1074] Document type catalog (H2 Catalog Summary Table)
+- [L1075–L1083] Retention schedule resolution
+- [L1084–L1097] metadata_schema values
+- [L1098–L1113] Idempotency pattern
+- [L1114–L1131] TASK-DOCS-008 — Seed number_series — all 11 series records + 2026 year sequences for Phase 1 active series
+- [L1132–L1138] Global field values (H3 -- identical across all 11 rows)
+- [L1139–L1162] All 11 series (H3 Tables 1-3)
+- [L1163–L1179] Phase 1 active series 2026 sequences (pre-create to avoid on-demand creation warning)
+- [L1180–L1200] TASK-DOCS-009 — `[ABAC]` Implement DOCS ABAC policy guard rules (document, document_version, document_attachment, number_series resource types)
+- [L1201–L1210] SubjectContext type (from IAM module)
+- [L1211–L1220] Global cascade gates (I1 §2 -- run in every read/download method)
+- [L1221–L1226] document:create (I1 §3.1)
+- [L1227–L1236] document:read metadata (I1 §3.2)
+- [L1237–L1241] document:update (I1 §3.3)
+- [L1242–L1246] document:soft_delete (I1 §3.4)
+- [L1247–L1252] document:submit (I1 §3.5)
+- [L1253–L1259] document:cancel (I1 §3.6)
+- [L1260–L1264] document:number_assign (I1 §3.7)
+- [L1265–L1269] document:number_promote (I1 §3.8)
+- [L1270–L1273] document:certify_urgent (I1 §3.9)
+- [L1274–L1278] document:archive (I1 §3.10)
+- [L1279–L1284] document:publish_portal (I1 §3.11)
+- [L1285–L1289] document_version:read / document_attachment:read (I1 §4.1)
+- [L1290–L1294] document_version:create (I1 §4.2)
+- [L1295–L1297] number_series:read (I1 §14.1)
+- [L1298–L1327] State-Action Compatibility Matrix (I1 §17)
+- [L1328–L1350] TASK-DOCS-010 — Implement OCR service job wrapper (auto-enqueue on upload, quality score callback, manual re-OCR trigger)
+- [L1351–L1369] OCR flow (confirmed Q-C01)
+- [L1370–L1387] OcrProvider interface (library-agnostic stub)
+- [L1388–L1401] Scan quality category thresholds (env-configurable)
+- [L1402–L1410] pgboss job enqueueing
+- [L1411–L1437] PreviewProvider interface (library-agnostic — same pattern as OcrProvider)
+- [L1438–L1468] First-page preview generation (SPEC-GAP-TRACK-02 resolution — unconditional)
+- [L1469–L1488] TASK-DOCS-011 — `[ABAC][AUDIT]` Implement documents tRPC router — general CRUD (eight procedures)
+- [L1489–L1494] tRPC context
+- [L1495–L1510] ABAC enforcement pattern (apply in every procedure)
+- [L1511–L1523] documents.create (mutation)
+- [L1524–L1529] documents.get (query)
+- [L1530–L1534] documents.getMetadataForAdmin (query -- sys_admin ONLY)
+- [L1535–L1539] documents.list (query)
+- [L1540–L1545] documents.search (query)
+- [L1546–L1550] documents.update (mutation)
+- [L1551–L1555] documents.delete (mutation -- soft delete ONLY)
+- [L1556–L1572] documents.cancel (mutation)
+- [L1573–L1592] TASK-DOCS-012 — `[ABAC][AUDIT]` Implement documents tRPC router — SP workflow specifics and Secretariat decision delegation (eight procedures)
+- [L1593–L1610] documents.submit (mutation)
+- [L1611–L1617] documents.assignPreliminaryNumber (mutation)
+- [L1618–L1625] documents.assignFinalNumber (mutation)
+- [L1626–L1637] documents.logCertificationOfUrgency (mutation)
+- [L1638–L1644] documents.publishToPortal / documents.unpublishFromPortal (mutations)
+- [L1645–L1649] documents.archive (mutation)
+- [L1650–L1669] documents.logSecretariatDecision (mutation) [ADR-B2-3 delegation]
+- [L1670–L1688] TASK-DOCS-013 — `[ABAC]` Implement documents tRPC router — file, version, and attachment handling (nine procedures)
+- [L1689–L1693] Architectural invariant -- files never touch app server disk (tech-stack.md)
+- [L1694–L1702] documents.requestUploadUrl (mutation)
+- [L1703–L1713] documents.confirmUpload (mutation)
+- [L1714–L1718] documents.getVersionHistory (query)
+- [L1719–L1725] documents.downloadVersion (mutation)
+- [L1726–L1730] documents.getOcrText (query)
+- [L1731–L1736] documents.getScanQualityIndicator (query)
+- [L1737–L1742] documents.triggerManualReOcr (mutation)
+- [L1743–L1747] documents.flagScannedBackForVerification (mutation)
+- [L1748–L1762] documents.acceptScannedBackAsOfficial (mutation)
+- [L1763–L1781] TASK-DOCS-014 — `[AUDIT]` Implement Panlalawigan review tRPC procedures (initiate transmittal, log outcome, deemed-approved timer)
+- [L1782–L1789] Business context (consolidated reference Part 4.3 + H3)
+- [L1790–L1803] documents.initiatePanlalawiganTransmittal (mutation)
+- [L1804–L1816] documents.logPanlalawiganOutcome (mutation)
+- [L1817–L1821] documents.getPanlalawiganReview (query)
+- [L1822–L1855] panlalawigan.checkDeemedApproved (pgboss scheduled job)
+- [L1856–L1872] TASK-DOCS-015 — Implement signature recording tRPC procedures (log signature, upload scan, scanned-back verification flow)
+- [L1873–L1882] Business rules
+- [L1883–L1888] Callable-by roles (I2 Section 9)
+- [L1889–L1901] LogSignatureInputSchema (E3)
+- [L1902–L1912] SignatureSelectSchema (E3)
+- [L1913–L1927] documents.uploadSignatureImage (mutation)
+- [L1928–L1946] TASK-DOCS-016 — `[ABAC][AUDIT]` Implement complaints tRPC router — internal SP Secretariat side (five procedures)
+- [L1947–L1952] [CONFLICT] Phase 1 storage (C1 followed over E1 per A1-AGENTS.md §1)
+- [L1953–L1963] CITIZEN_COMPLAINT metadata JSONB schema (H2 §5 -- enforce at procedure level)
+- [L1964–L1975] complaints.createClerkAssisted (mutation)
+- [L1976–L1981] complaints.logAndAssign (mutation)
+- [L1982–L1987] complaints.enterCommitteeReport (mutation)
+- [L1988–L1997] complaints.setOutcome (mutation)
+- [L1998–L2013] complaints.listAll (query)
+- [L2014–L2032] TASK-DOCS-017 — `[ABAC][AUDIT]` Implement document requests tRPC router — internal SP Secretariat side (six procedures)
+- [L2033–L2038] [CONFLICT] Phase 1 storage (C1 followed over E1 per A1-AGENTS.md §1)
+- [L2039–L2046] ADR-EVT-001 (June 2026) -- dual approval via Workflow steps (NOT JSONB flags)
+- [L2047–L2055] DOCUMENT_REQUEST_FORM metadata JSONB schema (H2 §6)
+- [L2056–L2065] documentRequests.createClerkAssisted (mutation)
+- [L2066–L2071] documentRequests.generatePrintableForm (query)
+- [L2072–L2080] documentRequests.approveAsPresidingOfficer (mutation) [Vice Mayor]
+- [L2081–L2090] documentRequests.approveAsSecretary (mutation)
+- [L2091–L2100] documentRequests.releaseCopy (mutation)
+- [L2101–L2115] documentRequests.listAll (query)
+- [L2116–L2135] TASK-DOCS-018 — `[ABAC][AUDIT]` Implement DESIGNATION document logging handler (atomic delegation grant creation on document log)
+- [L2136–L2142] Business context (H2 §8 + ORG module Published API)
+- [L2143–L2155] DESIGNATION metadata schema (DesignationMetadataSchema from TASK-DOCS-003)
+- [L2156–L2169] Atomicity requirement (B2 Module 3 -- cross-module transaction boundary)
+- [L2170–L2177] Integration point with documents.submit
+- [L2178–L2189] Cancellation handling
+- [L2190–L2218] ORG Published API method signatures (TASK-ORG-004 deliverable)
+- [L2219–L2238] TASK-DOCS-019 — Wire DOCS Fastify plugin and inject Published API into dependent module stubs
+- [L2239–L2285] Plugin structure
+- [L2286–L2298] Registration order in app.ts
+- [L2299–L2305] Event consumers registered in the plugin
+- [L2306–L2320] tRPC router merging
+- [L2321–L2434] Module Summary -- DOCS
+  - [L2327–L2352] Coverage map
+  - [L2353–L2366] Cross-module dependency map
+  - [L2367–L2372] Unresolved INFRA dependencies
+  - [L2373–L2383] Conflicts flagged (per A1-AGENTS.md §1)
+  - [L2384–L2417] Spec gaps flagged (per A1-AGENTS.md §8)
+  - [L2418–L2423] Known cross-document correction
+  - [L2424–L2434] Downstream consumers of DOCS Published API
 
 ---
 
@@ -1189,19 +1329,24 @@ AI Prompt: |
 
 Phase:          1
 Module:         DOCS
-Title:          Implement OCR service job wrapper (auto-enqueue on upload, quality score callback, manual re-OCR trigger)
+Title:          Implement OCR service job wrapper (auto-enqueue on upload, quality score callback, manual re-OCR trigger) + first-page preview generation
 Prerequisites:  [TASK-DOCS-004, CROSS-MODULE REF: INFRA -- pgboss job initialization task; exact TASK-INFRA-NNN not identifiable from TASK-ORG list alone; resolve at integration pass]
 Deliverables:
-  - /apps/server/src/modules/documents/ocr.service.ts — OcrService class with methods: enqueueOcrJob(versionId, s3Key, documentId), processOcrCallback(versionId, ocrText, scanQualityScore), enqueueManualReOcrJob(versionId); enqueueOcrJob sends pgboss job 'ocr.process' with retryLimit=3, retryDelay=30s, expireInHours=24; processOcrCallback writes ocr_text, scan_quality_score, scan_quality_category to documents.versions and marks ocr_processed=true; scan quality category determined by env-configurable thresholds (good>=0.85, fair>=0.50, poor<0.50); if category='poor' sets requires_manual_verification=true; OcrProvider is injected (library-agnostic interface) with a StubOcrProvider that throws 'OCR provider not configured'
+  - /apps/server/src/modules/documents/ocr.service.ts — OcrService class with methods: enqueueOcrJob(versionId, s3Key, documentId), processOcrCallback(versionId, ocrText, scanQualityScore, documentId, mimeType), enqueueManualReOcrJob(versionId); enqueueOcrJob sends pgboss job 'ocr.process' with retryLimit=3, retryDelay=30s, expireInHours=24; processOcrCallback writes ocr_text, scan_quality_score, scan_quality_category to documents.versions and marks ocr_processed=true; scan quality category determined by env-configurable thresholds (good>=0.85, fair>=0.50, poor<0.50); if category='poor' sets requires_manual_verification=true; OcrProvider is injected (library-agnostic interface) with a StubOcrProvider that throws 'OCR provider not configured'. **[SPEC-GAP-TRACK-02 resolution]** processOcrCallback also calls `generateFirstPagePreview(documentId, s3Key, mimeType)` UNCONDITIONALLY for every document version — uploads a WebP image of page 1 to S3 at canonical key `documents/previews/{documentId}/page-1.webp`. Generation is intentionally NOT gated by `public_visibility_rule`: rendering a thumbnail is a technical capability distinct from who is authorized to view it, and `tracking.scanQrCodeAuthenticated` (E1) has no classification gate (`[Confirmed — I1 §7.3 in full]`, "any authenticated non-citizen, non-system role") and a non-nullable `firstPageImageUrl` output field — gating generation by visibility would leave that field unfillable for restricted document types scanned by authorized staff. Visibility-based ACCESS to the resulting image is the consuming module's (TRACK's) responsibility at the point a URL is handed to a caller, not DOCS's responsibility at generation time. The S3 key convention is the inter-module contract between DOCS and TRACK; TRACK constructs this key directly from documentId without an API call.
+  - /apps/server/src/modules/documents/preview.provider.ts — PreviewProvider interface and StubPreviewProvider (same pattern as OcrProvider): `interface PreviewProvider { renderFirstPage(s3Key: string, mimeType: string): Promise<Buffer> }`. StubPreviewProvider returns a 1×1 transparent WebP placeholder. Production provider (pdf2pic, LibreOffice, or equivalent) injected when tech-stack decision is made for the rendering library. [RESOLVED — SPEC-GAP-TRACK-02, 2026-06-30]
 Acceptance Criteria:
   - [ ] `pnpm typecheck` passes
   - [ ] After `enqueueOcrJob` called with valid versionId, a pgboss job with type 'ocr.process' exists in pg_boss.job
   - [ ] `processOcrCallback` with score=0.9 sets scan_quality_category='good'; score=0.7 sets 'fair'; score=0.3 sets 'poor' and requires_manual_verification=true
-  - [ ] `pnpm test` passes with mocked pgboss and mocked OcrProvider
+  - [ ] `processOcrCallback` calls PreviewProvider.renderFirstPage and uploads result to S3 key matching pattern `documents/previews/{documentId}/page-1.webp` for every call, regardless of the document's public_visibility_rule
+  - [ ] `pnpm test` passes with mocked pgboss, mocked OcrProvider, and mocked PreviewProvider
 AI Prompt: |
   You are implementing the OCR service for the DOCS module of the Batac City LGU
   document-management platform. OCR runs automatically on every document upload.
   The OCR library choice is an open item in tech-stack.md; stub the provider interface.
+  This task also resolves SPEC-GAP-TRACK-02 by generating a first-page preview WebP
+  image for every document, stored at a canonical S3 key that the TRACK module can
+  construct directly from documentId without an API call.
 
   ## OCR flow (confirmed Q-C01)
   1. Client calls documents.requestUploadUrl -> receives presigned PUT URL + s3Key (UUID)
@@ -1210,8 +1355,17 @@ AI Prompt: |
      ocr_processed=false, then calls OcrService.enqueueOcrJob(versionId, s3Key, documentId)
   4. pgboss job 'ocr.process' picked up by OCR worker
   5. OCR worker calls OcrProvider (library-specific) -> text + confidence score
-  6. OCR worker calls OcrService.processOcrCallback(versionId, ocrText, score) -> writes
-     results to documents.versions, sets ocr_processed=true
+  6. OCR worker calls OcrService.processOcrCallback(versionId, ocrText, score, documentId,
+     mimeType) -> writes results to documents.versions, sets ocr_processed=true, then
+     unconditionally calls generateFirstPagePreview (step 7)
+  7. OcrService calls PreviewProvider.renderFirstPage(s3Key, mimeType) -> WebP Buffer,
+     then uploads to S3 at `documents/previews/{documentId}/page-1.webp`.
+     Generation is NOT gated by public_visibility_rule — rendering is a technical
+     capability independent of access control. Visibility-based access to the resulting
+     image URL is TRACK's responsibility at point of delivery, not DOCS's at generation.
+     (tracking.scanQrCodeAuthenticated has no classification gate per I1 §7.3 and its
+     output firstPageImageUrl is non-nullable — gating generation would leave that field
+     unfillable for restricted document types scanned by authorized staff.)
 
   ## OcrProvider interface (library-agnostic stub)
   ```typescript
@@ -1254,11 +1408,61 @@ AI Prompt: |
   });
   ```
 
+  ## PreviewProvider interface (library-agnostic — same pattern as OcrProvider)
+  ```typescript
+  // /apps/server/src/modules/documents/preview.provider.ts
+  export interface PreviewProvider {
+    /**
+     * Render the first page of a document file as a WebP image.
+     * s3Key: the object key for the source file in S3/MinIO.
+     * mimeType: MIME type of the source file (e.g. 'application/pdf', 'image/tiff').
+     * Returns the WebP image as a Buffer.
+     */
+    renderFirstPage(s3Key: string, mimeType: string): Promise<Buffer>;
+  }
+
+  export class StubPreviewProvider implements PreviewProvider {
+    async renderFirstPage(): Promise<Buffer> {
+      // 1×1 transparent WebP placeholder (valid minimal WebP header)
+      return Buffer.from(
+        'UklGRlYAAABXRUJQVlA4IEoAAADQAQCdASoBAAEAAkA4JYgCdAEO/gHOAAD++' +
+        'P3f///////z3/f1f/3//////9H/////////v/////////a//////////8A',
+        'base64'
+      );
+    }
+  }
+  ```
+  Production PreviewProvider (pdf2pic, LibreOffice, or equivalent) will be injected
+  when the rendering library decision is made. Follow the OcrProvider injection pattern.
+
+  ## First-page preview generation (SPEC-GAP-TRACK-02 resolution — unconditional)
+  Called from processOcrCallback for EVERY version, regardless of visibility rule:
+  ```typescript
+  async generateFirstPagePreview(
+    documentId: string,
+    s3Key: string,
+    mimeType: string
+  ): Promise<void> {
+    const webpBuffer = await this.previewProvider.renderFirstPage(s3Key, mimeType);
+    // Canonical S3 key convention — TRACK constructs this key directly from documentId.
+    // Changing this convention requires updating TASK-TRACK-007 and TASK-TRACK-008.
+    // [RESOLVED — SPEC-GAP-TRACK-02, 2026-06-30]
+    const previewKey = `documents/previews/${documentId}/page-1.webp`;
+    await this.s3.putObject({
+      Bucket: this.bucket,
+      Key: previewKey,
+      Body: webpBuffer,
+      ContentType: 'image/webp',
+    });
+  }
+  ```
+
   Before submitting this PR, confirm each item:
   - [ ] `pnpm typecheck` passes
   - [ ] After `enqueueOcrJob` called with valid versionId, a pgboss job with type 'ocr.process' exists in pg_boss.job
   - [ ] `processOcrCallback` with score=0.9 sets scan_quality_category='good'; score=0.7 sets 'fair'; score=0.3 sets 'poor' and requires_manual_verification=true
-  - [ ] `pnpm test` passes with mocked pgboss and mocked OcrProvider
+  - [ ] `processOcrCallback` calls PreviewProvider.renderFirstPage and uploads to S3 key `documents/previews/{documentId}/page-1.webp` for every call, regardless of public_visibility_rule
+  - [ ] `pnpm test` passes with mocked pgboss, mocked OcrProvider, and mocked PreviewProvider
 
 ---
 

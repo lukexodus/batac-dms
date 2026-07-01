@@ -13,34 +13,34 @@
 - [L92–L101] Notation — Definitions of source fidelity labels, including inferred behaviors and phase boundaries used throughout the contracts.
 - [L102–L154] Enforcement Model — Implementation of Law #2, static analysis enforcement, sync vs. async decision rules, event envelope structure, and API versioning policy.
 - [L155–L229] Module 1 — IAM — ABAC engine authorization policy evaluation, display user summary retrieval, and authentication/role assignment audit events.
-- [L230–L386] Module 2 — Organization — Office hierarchy tree, designation logging, active delegation resolution for step routing and ABAC policy evaluation, and (added 2026-06-25) primary office, committee membership, and delegation-by-id resolution for IAM.
-  - [L234–L370] Published API — Synchronous interface exposed for cross-module calls.
-  - [L371–L380] Events Emitted — Domain events published to the event bus.
-  - [L381–L386] Events Consumed — Subscriptions to domain events emitted by other modules.
-- [L387–L563] Module 3 — Documents — Document state machine, draft and final numbering sequences, attachment upload presigning, and Secretariat decision integration.
-  - [L395–L540] Published API — Synchronous interface exposed for cross-module calls.
-  - [L541–L556] Events Emitted — Domain events published to the event bus.
-  - [L557–L563] Events Consumed — Subscriptions to domain events emitted by other modules.
-- [L564–L707] Module 4 — Workflow — Engine step types, multi-committee referral cutoffs, certified urgent bypass, version pinning, and SLA escalation monitors.
-  - [L578–L672] Published API — Synchronous interface exposed for cross-module calls.
-  - [L673–L694] Events Emitted — Domain events published to the event bus.
-  - [L695–L707] Events Consumed — Subscriptions to domain events emitted by other modules.
-- [L708–L778] Module 5 — Tracking — Immutable QR tracking number assignment, physical custody logging, append-only routing history, and public document blurring rules.
-- [L779–L849] Module 6 — Records — Permanent retention schedules, four-tier classification rules, legal holds, and audited Records Officer bulk operations.
-- [L850–L909] Module 7 — Notifications — SSE in-app, SMTP email, and Phase 3 SMS delivery channels, template engines, and respondent notice routing rules.
-- [L910–L1019] Module 8 — Audit — Append-only hash chain and HMAC cryptographics, monthly TSA export, and the global domain event auditing consumer.
-  - [L916–L986] Published API — Synchronous interface exposed for cross-module calls.
-  - [L987–L990] Events Emitted — Domain events published to the event bus.
-  - [L991–L1019] Events Consumed — Subscriptions to domain events emitted by other modules.
-- [L1020–L1089] Module 9 — Search Meta — Search provider abstraction, Phase 1 PostgreSQL FTS trigger, Phase 2 Meilisearch sync, and the temporary FTS query exception.
-- [L1090–L1124] Module 10 — Portal — OTP citizen authentication, public document lookup, citizen complaint channels, and three access modes for document requests.
-- [L1125–L1152] Module 11 — Reporting — On-demand and scheduled PDF/spreadsheet generation, and ARTA compliance reporting via the Workflow Published API.
-- [L1153–L1307] Cross-Module Reference — Master matrices for the internal event registry, synchronous call pathways, and direct module dependencies.
-  - [L1155–L1183] Master Event Bus Registry — Comprehensive catalog of all in-process event names, emitting modules, registered subscribers, and source references.
-  - [L1184–L1216] Published API Call Matrix — Traceability matrix of all authorized synchronous cross-module calls, method names, and trigger contexts.
-  - [L1217–L1307] Module Dependency Map — ASCII reference map showing dependency directions for synchronous calls, event emissions, and event consumption.
-- [L1308–L1329] Prohibited Patterns — Seven prohibited development patterns that violate modular boundaries, caught by compiler rules or static analysis.
-- [L1330–L1348] Resolved ADRs `[All seven resolved — see Version 1.1 Change Log at top of document]` — Historical log preserving the original requirements and final resolutions for ADR-B2-1 through ADR-B2-7.
+- [L230–L388] Module 2 — Organization — Office hierarchy tree, designation logging, active delegation resolution for step routing and ABAC policy evaluation, and (added 2026-06-25) primary office, committee membership, and delegation-by-id resolution for IAM.
+  - [L234–L372] Published API
+  - [L373–L382] Events Emitted
+  - [L383–L388] Events Consumed
+- [L389–L565] Module 3 — Documents — Document state machine, draft and final numbering sequences, attachment upload presigning, and Secretariat decision integration.
+  - [L397–L542] Published API
+  - [L543–L558] Events Emitted
+  - [L559–L565] Events Consumed
+- [L566–L709] Module 4 — Workflow — Engine step types, multi-committee referral cutoffs, certified urgent bypass, version pinning, and SLA escalation monitors.
+  - [L580–L674] Published API
+  - [L675–L696] Events Emitted
+  - [L697–L709] Events Consumed
+- [L710–L781] Module 5 — Tracking — Immutable QR tracking number assignment, physical custody logging, append-only routing history, and public document blurring rules.
+- [L782–L852] Module 6 — Records — Permanent retention schedules, four-tier classification rules, legal holds, and audited Records Officer bulk operations.
+- [L853–L912] Module 7 — Notifications — SSE in-app, SMTP email, and Phase 3 SMS delivery channels, template engines, and respondent notice routing rules.
+- [L913–L1022] Module 8 — Audit — Append-only hash chain and HMAC cryptographics, monthly TSA export, and the global domain event auditing consumer.
+  - [L919–L989] Published API
+  - [L990–L993] Events Emitted
+  - [L994–L1022] Events Consumed
+- [L1023–L1092] Module 9 — Search Meta — Search provider abstraction, Phase 1 PostgreSQL FTS trigger, Phase 2 Meilisearch sync, and the temporary FTS query exception.
+- [L1093–L1127] Module 10 — Portal — OTP citizen authentication, public document lookup, citizen complaint channels, and three access modes for document requests.
+- [L1128–L1155] Module 11 — Reporting — On-demand and scheduled PDF/spreadsheet generation, and ARTA compliance reporting via the Workflow Published API.
+- [L1156–L1314] Cross-Module Reference — Master matrices for the internal event registry, synchronous call pathways, and direct module dependencies.
+  - [L1158–L1186] Master Event Bus Registry
+  - [L1187–L1221] Published API Call Matrix
+  - [L1222–L1314] Module Dependency Map
+- [L1315–L1336] Prohibited Patterns — Seven prohibited development patterns that violate modular boundaries, caught by compiler rules or static analysis.
+- [L1337–L1355] Resolved ADRs `[All seven resolved — see Version 1.1 Change Log at top of document]` — Historical log preserving the original requirements and final resolutions for ADR-B2-1 through ADR-B2-7.
 
 ---
 
@@ -749,6 +749,7 @@ interface TrackingPublicAPI {
 interface TrackingRecordSummary {
   trackingId: string;           // System UUID — immutable for document lifetime
   documentId: string;
+  trackingNumber: string;       // Human-readable label e.g. 'DTS-2026-0001' [RESOLVED — SPEC-GAP-TRACK-01, 2026-06-30]
   qrCodeS3Key: string;          // UUID key for QR code image in object storage
   assignedAt: Date;
   physicalLocation: string | null;
@@ -1211,6 +1212,8 @@ All legal synchronous cross-module calls. Any call not in this table is a violat
 |Documents (state service)|Records|`isUnderLegalHold()`|Validating no legal hold before state transition to 'Disposed'|`[Inference]`|
 |Documents (cover sheet generator)|Tracking|`getTrackingRecordForDocument()`|Including QR code and tracking number on the printed cover sheet|`[Inference]`|
 |Documents Router|Tracking|`getRoutingHistory()`|Authenticated internal routing history view|`[Inference]`|
+|Tracking (public scan handler)|Documents|`getDocumentById()`|Get document type and remarks for public QR scan result display|`[RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30; TASK-TRACK-008]`|
+|Tracking (tRPC printQrCoverSheet)|Documents|`getDocumentById()`|Get preliminary_number for cover sheet Series Number field|`[RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30; TASK-TRACK-007]`|
 |Reporting (ARTA reporter)|Workflow|`getWorkflowSLAData()`|ARTA compliance report generation|B1: "artaReporter → wfMod: Reads SLA tracking and escalation data"|
 |Portal (respondent notice service)|Notifications|`sendNotification()`|Formal written notice to complaint respondent|`[RESOLVED — ADR-B2-4]`; supersedes B1's direct-SMTP component diagram|
 
@@ -1259,7 +1262,9 @@ Workflow
                   not via a consumed event. See ADR-B2-3.
 
 Tracking
-  Calls:          IAM (evaluatePolicy — for authenticated routing history queries)
+  Calls:          IAM       (evaluatePolicy — for authenticated routing history queries)
+                  Documents (getDocumentById — public scan handler + cover sheet PDF generator)
+                            [RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30]
   Emits to:       (none)
   Consumes from:  Documents (created), Workflow (step_completed)
 

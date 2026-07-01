@@ -14,7 +14,7 @@
 
 ## Table of Contents
 
-- [L3–L120] E1 — tRPC Router and Procedure Catalog
+- [L3–L120] E1 — tRPC Router and Procedure Catalog — E1 — tRPC Router and Procedure Catalog
 - [L121–L141] Purpose — Purpose, team workflow rules, parallel-work contracts, and the 7 required metadata fields defined per procedure.
 - [L142–L156] Note on Scope — Phase 1 in-scope tRPC routers and excluded citizen self-service REST endpoints, reporting modules, and search meta.
 - [L157–L166] Notation — Definitions of traceability and status tags mapping requirements to confirmed, inferred, or deferred procedures.
@@ -1090,7 +1090,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 |---|---|
 | Type | `query` |
 | Input | `z.object({ documentId: z.string().uuid() })` |
-| Output | `z.object({ trackingId: z.string().uuid(), documentId: z.string().uuid(), qrCodeS3Key: z.string(), assignedAt: z.coerce.date(), physicalLocation: z.string().nullable() })` |
+| Output | `z.object({ trackingId: z.string().uuid(), documentId: z.string().uuid(), trackingNumber: z.string(), qrCodeS3Key: z.string(), assignedAt: z.coerce.date(), physicalLocation: z.string().nullable() })` — `trackingNumber` (e.g. `'DTS-2026-0001'`) added `[RESOLVED — SPEC-GAP-TRACK-01, 2026-06-30]`; mirrors the `trackingNumber` field added to B2's `TrackingRecordSummary` interface, so this procedure's return shape stays consistent with the Published API type it wraps.
 | Callable by | `records_officer`, `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain`, `auditor` |
 | ABAC conditions | Own-office or cross-office-with-grant, per the same pattern as `documents.get` (the tracking record is governed by its parent document's office/classification, not an independent classification of its own). |
 | Business operation | Calls `Tracking.getTrackingRecordForDocument()` (B2 Published API). `[Confirmed — B2 Module 5 Published API; I1 §7.1 pattern applied to the record itself rather than only routing entries]` |

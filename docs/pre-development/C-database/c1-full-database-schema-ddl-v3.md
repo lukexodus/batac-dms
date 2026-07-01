@@ -18,16 +18,16 @@
 - [L471–L740] Part 4 — Schema `organization` — Offices, positions, employees, assignments, delegation grants, committees, committee memberships, and cross-office grants (security config).
 - [L741–L1233] Part 5 — Schema `documents` — DDL for document types, numbers ledger, versions, attachments, signatures, sponsorships, and reviews.
 - [L1234–L1571] Part 6 — Schema `workflow` — DDL for workflow definitions, steps, transitions, events, sessions, attendances, and business order.
-- [L1572–L1650] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
-- [L1651–L1770] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
-- [L1771–L1841] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
-- [L1842–L1887] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
-- [L1888–L1911] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
-- [L1912–L2026] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
-- [L2027–L2038] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
-- [L2039–L2073] Part 13.5 — Schema `shared` — Infrastructure/operational schema for cross-cutting tables not owned by any domain module; Phase 1: event_bus_dead_letters.
-- [L2074–L2094] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
-- [L2095–L2109] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
+- [L1572–L1708] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
+- [L1709–L1828] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
+- [L1829–L1899] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
+- [L1900–L1945] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
+- [L1946–L1974] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
+- [L1975–L2089] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
+- [L2090–L2101] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
+- [L2102–L2136] Part 13.5 — Schema `shared` — Infrastructure/operational schema for cross-cutting tables not owned by any domain module; Phase 1: event_bus_dead_letters.
+- [L2137–L2157] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
+- [L2158–L2172] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
 
 ---
 
@@ -1573,6 +1573,8 @@ CREATE TABLE workflow.order_of_business_items (
 
 QR code identity, the physical/custody tracking record per document, and the append-style routing history. Deliberately kept separate from `documents.documents.lifecycle_state`: "Physical custody tracked separately from digital workflow status."
 
+**[RESOLVED — SPEC-GAP-TRACK-01, 2026-06-30]** The DTS-{YEAR}-{SEQUENCE} human-readable tracking number (consolidated ref §11.6) is implemented as a `tracking_number` column on `qr_codes`, populated at assignment time from a per-year auto-creating PostgreSQL sequence — the same pattern Part 5's `documents.fn_get_next_sequence_value()` uses for document series numbers (Decision 3.13), so that the `{SEQUENCE}` component resets to 1 each calendar year exactly as it does for document final numbers. This is a distinct identifier from `tracking_id` (the immutable UUID encoded in the physical QR image, per H3 Note 7 — H3 Note 7 governs only the UUID's exclusion from `number_series`, not this separate human-readable display label).
+
 ```sql
 -- ============================================================================
 -- PART 7 — SCHEMA: tracking
@@ -1587,6 +1589,20 @@ CREATE TABLE tracking.qr_codes (
     -- document_id: logical FK → documents.documents.id (cross-schema) NOT NULL
     document_id      UUID        NOT NULL,
     tracking_id      UUID        NOT NULL,  -- UUID encoded in the physical QR image
+    -- tracking_number: human-readable display label, distinct from tracking_id UUID.
+    -- Format: 'DTS-' || YEAR || '-' || LPAD(seq, 4, '0')  e.g. 'DTS-2026-0001'.
+    -- [Inference] 4-digit padding: §11.6 specifies "DTS-{YEAR}-{SEQUENCE}" without
+    -- a digit width, same as H3 Table 1's undefined {NN} placeholders for document
+    -- series. Tracking numbers are assigned to every logged document (a superset of
+    -- all document series combined), so 4 digits (0001-9999) is chosen as a safer
+    -- ceiling than the 2-3 digit padding used for individual document series.
+    -- Confirm with SP Secretariat before finalizing, per H3's own precedent for
+    -- padding-width decisions (H3 footnotes 1-3).
+    -- Populated at application layer via tracking.fn_get_next_tracking_number(year)
+    -- (defined below, Part 7 footer). Stored as immutable TEXT; never regenerated.
+    -- §11.6: "Tracking number format: Configurable; default: DTS-{YEAR}-{SEQUENCE}"
+    -- [RESOLVED — SPEC-GAP-TRACK-01, 2026-06-30]
+    tracking_number  TEXT        NOT NULL,
     qr_image_file_key UUID       NULL,
     assigned_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- generated_by: logical FK → iam.users.id (cross-schema)
@@ -1594,8 +1610,9 @@ CREATE TABLE tracking.qr_codes (
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at       TIMESTAMPTZ NULL,
     deleted_by       UUID        NULL,
-    CONSTRAINT uq_qr_codes_tracking_id UNIQUE (tracking_id),
-    CONSTRAINT uq_qr_codes_document    UNIQUE (document_id)
+    CONSTRAINT uq_qr_codes_tracking_id     UNIQUE (tracking_id),
+    CONSTRAINT uq_qr_codes_document        UNIQUE (document_id),
+    CONSTRAINT uq_qr_codes_tracking_number UNIQUE (tracking_number)
 );
 
 -- current_status is intentionally free TEXT, not CHECK-constrained against
@@ -1644,6 +1661,47 @@ CREATE TABLE tracking.routing_entries (
 
 CREATE INDEX idx_routing_entries_tracking_record ON tracking.routing_entries(tracking_record_id);
 CREATE INDEX idx_routing_entries_occurred_at     ON tracking.routing_entries(occurred_at);
+
+-- Per-year auto-creating sequence for the DTS-{YEAR}-{SEQUENCE} tracking number.
+-- Mirrors documents.fn_get_next_sequence_value()'s on-demand-creation pattern
+-- (Part 5, Decision 3.13) so the {SEQUENCE} component resets to 1 each calendar
+-- year, consistent with how document final numbers reset annually. Tracking has
+-- only one numbering stream (unlike documents.number_series, which dispatches by
+-- series_key across eleven series), so no series_key parameter is needed here.
+-- SECURITY DEFINER owned by batac_migrate so batac_app (runtime) can
+-- CREATE SEQUENCE without DDL privileges. [RESOLVED — SPEC-GAP-TRACK-01, 2026-06-30]
+CREATE OR REPLACE FUNCTION tracking.fn_get_next_tracking_number(
+    p_year INTEGER
+)
+RETURNS TABLE (sequence_value BIGINT, was_created BOOLEAN)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $fn$
+DECLARE
+    v_seq_name TEXT;
+    v_next     BIGINT;
+    v_created  BOOLEAN := false;
+BEGIN
+    v_seq_name := 'tracking.dts_' || p_year::text || '_seq';
+
+    BEGIN
+        EXECUTE format('SELECT nextval(%L)', v_seq_name) INTO v_next;
+    EXCEPTION WHEN undefined_table THEN
+        EXECUTE format(
+            'CREATE SEQUENCE IF NOT EXISTS %s AS INTEGER INCREMENT 1 START 1',
+            v_seq_name
+        );
+        EXECUTE format('SELECT nextval(%L)', v_seq_name) INTO v_next;
+        v_created := true;
+    END;
+
+    RETURN QUERY SELECT v_next, v_created;
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION tracking.fn_get_next_tracking_number(INTEGER) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION tracking.fn_get_next_tracking_number(INTEGER) TO batac_app;
+ALTER FUNCTION tracking.fn_get_next_tracking_number(INTEGER) OWNER TO batac_migrate;
 ```
 
 ---
@@ -1887,7 +1945,7 @@ CREATE INDEX idx_audit_events_resource_office   ON audit.events(resource_office_
 
 ## Part 11 — 2026 Numbering Sequences
 
-One PostgreSQL sequence per series per year (PostgreSQL Non-Negotiables: "Sequences for gapless document numbering"; H3 Table 2). Only the current year's eleven sequences are created here. Subsequent years are created by an annual migration following the `ns_{prefix}_{YEAR}_seq` naming pattern — an operations/migration-scheduling concern that H3 explicitly excludes from DDL scope. `documents.fn_get_next_sequence_value()` auto-creates missing year sequences on demand as a safety net, but pre-creation via migration is the expected path.
+One PostgreSQL sequence per series per year (PostgreSQL Non-Negotiables: "Sequences for gapless document numbering"; H3 Table 2). Only the current year's eleven document-numbering sequences plus the DTS tracking-number sequence are created here. Subsequent years are created by an annual migration following the `ns_{prefix}_{YEAR}_seq` / `dts_{YEAR}_seq` naming pattern — an operations/migration-scheduling concern that H3 explicitly excludes from DDL scope. `documents.fn_get_next_sequence_value()` and `tracking.fn_get_next_tracking_number()` auto-create missing year sequences on demand as a safety net, but pre-creation via migration is the expected path.
 
 ```sql
 -- ============================================================================
@@ -1905,6 +1963,11 @@ CREATE SEQUENCE documents.ns_letters_sent_2026_seq                  AS INTEGER I
 CREATE SEQUENCE documents.ns_memo_outgoing_2026_seq                 AS INTEGER INCREMENT 1 START 1;
 CREATE SEQUENCE documents.ns_memo_incoming_2026_seq                 AS INTEGER INCREMENT 1 START 1;
 CREATE SEQUENCE documents.ns_panlalawigan_review_log_2026_seq       AS INTEGER INCREMENT 1 START 1;
+
+-- [RESOLVED — SPEC-GAP-TRACK-01, 2026-06-30] DTS-{YEAR}-{SEQUENCE} tracking number.
+-- Single stream (unlike documents.number_series' eleven series); naming follows
+-- tracking.fn_get_next_tracking_number()'s 'tracking.dts_{YEAR}_seq' convention.
+CREATE SEQUENCE tracking.dts_2026_seq                               AS INTEGER INCREMENT 1 START 1;
 ```
 
 ---
