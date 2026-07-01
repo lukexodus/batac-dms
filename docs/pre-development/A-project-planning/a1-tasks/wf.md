@@ -18,33 +18,40 @@
 
 ---
 
-## Task Index
+## Table of Contents
 
-- [TASK-WF-001] `[MIGRATION]` Create workflow schema Drizzle definitions and DDL migration
-- [TASK-WF-002] Scaffold WF module file structure with typed stubs
-- [TASK-WF-003] Implement WorkflowContextSchema and step-config Zod types in `/packages/shared`
-- [TASK-WF-004] Implement WF repository layer — all `workflow.*` tables
-- [TASK-WF-005] Implement engine core — createInstance, step resolution, transition evaluation, assignee resolution, domain event emission
-- [TASK-WF-006] Implement `action`, `decision`, `notification`, and `termination` step handlers (including REPASSED)
-- [TASK-WF-007] `[AUDIT]` Implement `approval` step handler — outcome validation, scheduler-only guard, encoder ≠ final-approver invariant
-- [TASK-WF-008] `[AUDIT]` Implement `multi_referral` step handler — committee metadata, completion sequence, manual advance guard
-- [TASK-WF-009] `[AUDIT]` Implement Certified Urgent bypass event consumer (`document.certified_urgent`)
-- [TASK-WF-010] Implement definition publish-time validator — `MISSING_LAPSE_TRANSITION`, `MISSING_OUTCOME_TRANSITION`, Phase 1 parallel-step guard, legally mandated step guard
-- [TASK-WF-011] Implement Thursday cutoff scheduler job (`evaluateThursdayCutoffs` — pgboss, PHT-timezone-aware, idempotent)
-- [TASK-WF-012] Implement Mayor lapse timer scheduler job (`evaluateMayorLapseTimers` — hourly node-cron, pessimistic lock, race-condition prevention)
-- [TASK-WF-013] Implement Panlalawigan 30-day timer scheduler job (`evaluatePanlalawiganTimers` — daily 06:00 PHT, 30-calendar-day, VALID_IN_PART paths)
-- [TASK-WF-014] Implement SLA escalation monitor (`evaluateSlaBreaches` — 15-min node-cron, startup run, 80%/100%/150% thresholds, working-day computation)
-- [TASK-WF-015] `[AUDIT]` Implement Version Management Option B — `migrateInstance`, `bypassStep`, `cancelInstance` (step key mapping, City Admin approval check, 24-hour reversal window)
-- [TASK-WF-016] Seed Phase 1 workflow definitions — SP Resolution, SP Ordinance, Appropriation Ordinance (deterministic uuidv5, idempotent)
-- [TASK-WF-017] `[ABAC]` Implement WF ABAC policy guard — step-assignment checks, encoder ≠ final-approver enforcement, role gates
-- [TASK-WF-018] `[ABAC]` Implement workflow tRPC router — read procedures (`getInstance`, `getActiveInstanceForDocument`, `listMyAssignedSteps`, `getSlaComplianceData`)
-- [TASK-WF-019] `[ABAC][AUDIT]` Implement workflow tRPC router — action and approval step procedures
-- [TASK-WF-020] `[ABAC][AUDIT]` Implement workflow tRPC router — multi-referral procedures
-- [TASK-WF-021] `[AUDIT]` Implement workflow tRPC router — Mayor/Panlalawigan/publication lapse procedures
-- [TASK-WF-022] `[AUDIT]` Implement workflow tRPC router — admin procedures
-- [TASK-WF-023] Implement Session and Order of Business tRPC router (`sessionRouter`)
-- [TASK-WF-024] Wire WF Fastify plugin, event bus consumers (`document.created`, delegation events), and WF Published API implementation
-- [TASK-WF-025] Implement WF Vitest test suite per K2
+- [L58–L326] TASK-WF-001 — `[MIGRATION]` Create workflow schema Drizzle definitions and DDL migration
+- [L327–L391] TASK-WF-002 — Scaffold WF module file structure with typed stubs
+- [L392–L521] TASK-WF-003 — Implement WorkflowContextSchema and step-config Zod types in `/packages/shared`
+- [L522–L607] TASK-WF-004 — Implement WF repository layer — all `workflow.*` tables
+- [L608–L718] TASK-WF-005 — Implement engine core — createInstance, step resolution, transition evaluation, assignee resolution, domain event emission
+- [L719–L817] TASK-WF-006 — Implement `action`, `decision`, `notification`, and `termination` step handlers (including REPASSED)
+- [L818–L890] TASK-WF-007 — `[AUDIT]` Implement `approval` step handler — outcome validation, scheduler-only guard, encoder ≠ final-approver invariant
+- [L891–L984] TASK-WF-008 — `[AUDIT]` Implement `multi_referral` step handler — committee metadata, completion sequence, manual advance guard
+- [L985–L1062] TASK-WF-009 — `[AUDIT]` Implement Certified Urgent bypass event consumer (`document.certified_urgent`)
+- [L1063–L1144] TASK-WF-010 — Implement definition publish-time validator — `MISSING_LAPSE_TRANSITION`, `MISSING_OUTCOME_TRANSITION`, Phase 1 parallel-step guard, legally mandated step guard
+- [L1145–L1219] TASK-WF-011 — Implement Thursday cutoff scheduler job (`evaluateThursdayCutoffs` — pgboss, PHT-timezone-aware, idempotent)
+- [L1220–L1297] TASK-WF-012 — Implement Mayor lapse timer scheduler job (`evaluateMayorLapseTimers` — hourly node-cron, pessimistic lock, race-condition prevention)
+- [L1298–L1373] TASK-WF-013 — Implement Panlalawigan 30-day timer scheduler job (`evaluatePanlalawiganTimers` — daily 06:00 PHT, 30-calendar-day, VALID_IN_PART paths)
+- [L1374–L1445] TASK-WF-014 — Implement SLA escalation monitor (`evaluateSlaBreaches` — 15-min node-cron, startup run, 80%/100%/150% thresholds, working-day computation)
+- [L1446–L1542] TASK-WF-015 — `[AUDIT]` Implement Version Management Option B — `migrateInstance`, `bypassStep`, `cancelInstance` (step key mapping, City Admin approval check, 24-hour reversal window)
+- [L1543–L1622] TASK-WF-016 — Seed Phase 1 workflow definitions — SP Resolution, SP Ordinance, Appropriation Ordinance (deterministic uuidv5, idempotent)
+- [L1623–L1704] TASK-WF-017 — `[ABAC]` Implement WF ABAC policy guard — step-assignment checks, encoder ≠ final-approver enforcement, role gates
+- [L1705–L1793] TASK-WF-018 — `[ABAC]` Implement workflow tRPC router — read procedures (`getInstance`, `getActiveInstanceForDocument`, `listMyAssignedSteps`, `getSlaComplianceData`)
+- [L1794–L1899] TASK-WF-019 — `[ABAC][AUDIT]` Implement workflow tRPC router — action and approval step procedures
+- [L1900–L1957] TASK-WF-020 — `[ABAC][AUDIT]` Implement workflow tRPC router — multi-referral procedures
+- [L1958–L2061] TASK-WF-021 — `[AUDIT]` Implement workflow tRPC router — Mayor/Panlalawigan/publication lapse procedures
+- [L2062–L2129] TASK-WF-022 — `[AUDIT]` Implement workflow tRPC router — admin procedures
+- [L2130–L2223] TASK-WF-023 — Implement Session and Order of Business tRPC router (`sessionRouter`)
+- [L2224–L2309] TASK-WF-024 — Wire WF Fastify plugin, event bus consumers (`document.created`, delegation events), and WF Published API implementation
+- [L2310–L2411] TASK-WF-025 — Implement WF Vitest test suite per K2
+- [L2412–L2527] Module Summary
+  - [L2420–L2432] Document Conflicts Resolved at Generation Time
+  - [L2433–L2455] Systematic Event Name Convention
+  - [L2456–L2465] Confirmed Spec Gaps Carried Forward
+  - [L2466–L2479] Deferred Capabilities (Phase 2 / Phase 1B)
+  - [L2480–L2514] Task Dependency Graph (abbreviated — full prerequisites in each task header)
+  - [L2515–L2527] Cross-Validation Log
 
 ---
 
