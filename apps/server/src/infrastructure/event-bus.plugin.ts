@@ -30,19 +30,13 @@
  */
 import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
-import type { Logger } from 'pino';
 import { EventBus } from '@batac/shared';
 import { DeadLetterRepository } from '../infra/dead-letter.repository.js';
 
 async function eventBusPlugin(fastify: FastifyInstance): Promise<void> {
   const deadLetterRepo = new DeadLetterRepository(fastify.db);
-  // fastify.log is typed as FastifyBaseLogger, a narrower structural
-  // interface than pino's own Logger type that EventBus's constructor
-  // requires (it's missing e.g. `msgPrefix`). At runtime, Fastify's default
-  // logger IS a real Pino instance (per this project's `Fastify({ logger:
-  // {...} })` config in app.ts), so this bridges a type-only gap, not a
-  // runtime one. [Inference]
-  const eventBus = new EventBus(fastify.log as unknown as Logger, deadLetterRepo);
+  // fastify.log is typed as FastifyBaseLogger, which matches IEventBusLogger structurally.
+  const eventBus = new EventBus(fastify.log, deadLetterRepo);
 
   fastify.decorate('eventBus', eventBus);
 }

@@ -14,7 +14,10 @@
  *          ADR-INFRA-023-01 (IDeadLetterRepository dependency inversion).
  */
 import EventEmitter from 'node:events';
-import type { Logger } from 'pino';
+export interface IEventBusLogger {
+  error(obj: object, msg?: string, ...args: any[]): void;
+  error(msg: string, ...args: any[]): void;
+}
 import type { EventPayloadMap } from './events/event-payload-map';
 import type { DomainEvent } from './events/domain-event';
 import type { IDeadLetterRepository } from './dead-letter-repository.interface';
@@ -33,7 +36,7 @@ export class EventBus {
   private readonly moduleNames = new Map<AnyHandler, string>();
 
   constructor(
-    private readonly logger: Logger,
+    private readonly logger: IEventBusLogger,
     private readonly deadLetterRepo: IDeadLetterRepository,
   ) {
     // 50 listeners covers the 18 Phase 1 events × multiple consumers per event.

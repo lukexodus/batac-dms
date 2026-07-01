@@ -53,6 +53,7 @@ BEGIN
   END IF;
   ALTER ROLE batac_migrate PASSWORD '${DB_MIGRATE_PASSWORD:-migrate_devpassword}';
   GRANT ALL PRIVILEGES ON DATABASE "${POSTGRES_DB:-batac_lgu}" TO batac_migrate;
+  GRANT CREATE ON SCHEMA public TO batac_migrate;
 
   -- ── batac_app: runtime application service account (LOGIN) ───────────────────
   -- Applications connect as this role; schema-level grants applied in

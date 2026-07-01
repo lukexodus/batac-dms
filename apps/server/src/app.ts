@@ -39,6 +39,7 @@ import databasePlugin from './infrastructure/database.plugin.js';
 import eventBusPlugin from './infrastructure/event-bus.plugin.js';
 import auditPlugin from './modules/audit/audit.plugin.js';
 import iamPlugin from './modules/iam/iam.plugin.js';
+import rateLimit from '@fastify/rate-limit';
 // organization, documents, workflow, tracking, notifications: add
 // `await fastify.register(...)` below, after iamPlugin and before the tRPC
 // registration, when each module's own plugin-wiring task completes.
@@ -55,6 +56,11 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
   await fastify.register(databasePlugin);
   await fastify.register(eventBusPlugin);
   await fastify.register(auditPlugin);
+  await fastify.register(rateLimit, {
+    max: env.RATE_API_MAX,
+    timeWindow: env.RATE_API_WINDOW_MS,
+    allowList: [env.HEALTH_CHECK_PATH],
+  });
   await fastify.register(iamPlugin);
   // await fastify.register(organizationPlugin); // add when TASK-ORG-010 completes
 
