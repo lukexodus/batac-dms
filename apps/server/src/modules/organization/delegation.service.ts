@@ -7,12 +7,16 @@ import type {
   RevokeEarlyDelegationGrantInput,
   DelegationSubject,
   DelegationGrantRow,
+  DesignationView,
+  DesignationHistoryItem,
+  DesignationParty,
 } from './organization.types.js';
-import { eq, and, isNull, lte, gte } from 'drizzle-orm';
+import { eq, and, or, isNull, lte, gte, desc } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import {
   employees,
   delegationGrants,
+  positions,
 } from '@batac/database/schema/organization.schema.js';
 import {
   PolicyDeniedError,
@@ -395,6 +399,121 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       });
 
       return updatedGrant as DelegationGrantRow;
+    },
+
+    async listActiveDesignations(): Promise<DesignationView[]> {
+      const db = deps.db;
+      const delegatorEmp = alias(employees, 'delegator_emp');
+      const delegateeEmp = alias(employees, 'delegatee_emp');
+
+      const rows = await db.select({
+        id: delegationGrants.id,
+        designationDocumentId: delegationGrants.designationDocumentId,
+        officeId: delegationGrants.officeId,
+        startDate: delegationGrants.startDate,
+        endDate: delegationGrants.endDate,
+        delegatingUserId: delegatorEmp.userId,
+        delegatingFirstName: delegatorEmp.firstName,
+        delegatingLastName: delegatorEmp.lastName,
+        delegatedToUserId: delegateeEmp.userId,
+        delegatedToFirstName: delegateeEmp.firstName,
+        delegatedToLastName: delegateeEmp.lastName,
+        positionTitle: positions.title,
+      })
+      .from(delegationGrants)
+      .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
+      .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
+      .leftJoin(positions, eq(delegationGrants.positionId, positions.id))
+      .where(and(
+        eq(delegationGrants.isActive, true),
+        isNull(delegationGrants.revokedAt),
+        isNull(delegationGrants.deletedAt),
+      ))
+      .orderBy(desc(delegationGrants.startDate));
+
+      return rows.map(row => ({
+        delegationId: row.id,
+        designationDocumentId: row.designationDocumentId || '',
+        delegatingUserId: row.delegatingUserId || '',
+        delegatingDisplayName: `${row.delegatingFirstName} ${row.delegatingLastName}`,
+        delegatedToUserId: row.delegatedToUserId || '',
+        delegatedToDisplayName: `${row.delegatedToFirstName} ${row.delegatedToLastName}`,
+        officeId: row.officeId,
+        positionTitle: row.positionTitle || '',
+        validFrom: new Date(row.startDate),
+        validUntil: new Date(row.endDate),
+      }));
+    },
+
+    async listDesignationHistory(opts: { limit: number; employeeId?: string }): Promise<DesignationHistoryItem[]> {
+      const db = deps.db;
+      const delegatorEmp = alias(employees, 'delegator_emp');
+      const delegateeEmp = alias(employees, 'delegatee_emp');
+
+      const conditions = [isNull(delegationGrants.deletedAt)];
+      if (opts.employeeId) {
+        conditions.push(or(
+          eq(delegationGrants.delegatingEmployeeId, opts.employeeId),
+          eq(delegationGrants.delegatedToEmployeeId, opts.employeeId),
+        )!);
+      }
+
+      const rows = await db.select({
+        id: delegationGrants.id,
+        designationDocumentId: delegationGrants.designationDocumentId,
+        startDate: delegationGrants.startDate,
+        endDate: delegationGrants.endDate,
+        isActive: delegationGrants.isActive,
+        revokedAt: delegationGrants.revokedAt,
+        delegatingFirstName: delegatorEmp.firstName,
+        delegatingLastName: delegatorEmp.lastName,
+        delegatedToFirstName: delegateeEmp.firstName,
+        delegatedToLastName: delegateeEmp.lastName,
+        positionTitle: positions.title,
+      })
+      .from(delegationGrants)
+      .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
+      .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
+      .leftJoin(positions, eq(delegationGrants.positionId, positions.id))
+      .where(and(...conditions))
+      .orderBy(desc(delegationGrants.startDate))
+      .limit(opts.limit);
+
+      return rows.map(row => ({
+        delegationId: row.id,
+        designationDocumentId: row.designationDocumentId || '',
+        delegatingDisplayName: `${row.delegatingFirstName} ${row.delegatingLastName}`,
+        delegatedToDisplayName: `${row.delegatedToFirstName} ${row.delegatedToLastName}`,
+        positionTitle: row.positionTitle || '',
+        validFrom: new Date(row.startDate),
+        validUntil: new Date(row.endDate),
+        isActive: row.isActive,
+        revokedAt: row.revokedAt ? new Date(row.revokedAt) : null,
+      }));
+    },
+
+    async listActiveDesignationParties(): Promise<DesignationParty[]> {
+      const db = deps.db;
+      const delegatorEmp = alias(employees, 'delegator_emp');
+      const delegateeEmp = alias(employees, 'delegatee_emp');
+
+      const rows = await db.select({
+        delegatingUserId: delegatorEmp.userId,
+        delegatedToUserId: delegateeEmp.userId,
+      })
+      .from(delegationGrants)
+      .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
+      .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
+      .where(and(
+        eq(delegationGrants.isActive, true),
+        isNull(delegationGrants.revokedAt),
+        isNull(delegationGrants.deletedAt),
+      ));
+
+      return rows.map(row => ({
+        delegatingUserId: row.delegatingUserId || '',
+        delegatedToUserId: row.delegatedToUserId || '',
+      }));
     },
   };
 }
