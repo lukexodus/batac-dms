@@ -14,6 +14,7 @@ import type { PolicyEvaluator } from '../iam/iam.policy.js';
 import { createOrgRepository } from './organization.repository.js';
 import { createOrgService } from './organization.service.js';
 import { createDelegationService } from './delegation.service.js';
+import type PgBoss from 'pg-boss';
 
 // Re-export types
 export * from './organization.types.js';
@@ -32,6 +33,7 @@ export function initializePublishedAPI(
   db: DbClient,
   auditService?: AuditPublicAPI,
   policyEvaluator?: PolicyEvaluator,
+  boss?: PgBoss,
 ) {
   const repo = createOrgRepository(db);
   orgService = createOrgService({ db, orgRepository: repo } as any);
@@ -41,6 +43,7 @@ export function initializePublishedAPI(
     eventBus: undefined as any,   // overridden by plugin at startup; stubs in tests inject directly
     auditService: auditService as AuditPublicAPI,
     policyEvaluator: policyEvaluator as PolicyEvaluator,
+    boss: boss as PgBoss,
   });
 }
 
