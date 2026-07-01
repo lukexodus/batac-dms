@@ -1,3 +1,3 @@
-export function createOrgRouter(deps?: any): any {
+export function createOrgRouter(): any {
   return {};
 }

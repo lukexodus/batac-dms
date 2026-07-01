@@ -39,9 +39,8 @@ import databasePlugin from './infrastructure/database.plugin.js';
 import eventBusPlugin from './infrastructure/event-bus.plugin.js';
 import auditPlugin from './modules/audit/audit.plugin.js';
 import iamPlugin from './modules/iam/iam.plugin.js';
-import organizationPlugin from './modules/organization/organization.plugin.js';
 import rateLimit from '@fastify/rate-limit';
-// documents, workflow, tracking, notifications: add
+// organization, documents, workflow, tracking, notifications: add
 // `await fastify.register(...)` below, after iamPlugin and before the tRPC
 // registration, when each module's own plugin-wiring task completes.
 
@@ -63,7 +62,7 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
     allowList: [env.HEALTH_CHECK_PATH],
   });
   await fastify.register(iamPlugin);
-  await fastify.register(organizationPlugin); // add when TASK-ORG-010 completes
+  // await fastify.register(organizationPlugin); // add when TASK-ORG-010 completes
 
   // Merged tRPC router — must come last so every module's decorations are
   // already present when createContext/procedures run.
