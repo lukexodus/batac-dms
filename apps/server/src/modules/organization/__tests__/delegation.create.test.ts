@@ -132,6 +132,7 @@ describe('createDelegationGrant', () => {
       eventBus:         makeMockEventBus() as any,
       auditService:     makeMockAuditService() as any,
       policyEvaluator:  makeMockPolicyEvaluator(false, 'delegation_grant_create_requires_sp_secretary') as any,
+      boss:             { send: vi.fn() } as any,
     };
 
     const service = createDelegationService(deps);
@@ -150,6 +151,7 @@ describe('createDelegationGrant', () => {
       eventBus:        makeMockEventBus() as any,
       auditService:    makeMockAuditService() as any,
       policyEvaluator: makeMockPolicyEvaluator(true) as any,
+      boss:            { send: vi.fn() } as any,
     };
 
     const service = createDelegationService(deps);
@@ -169,6 +171,7 @@ describe('createDelegationGrant', () => {
       eventBus:        makeMockEventBus() as any,
       auditService:    makeMockAuditService() as any,
       policyEvaluator: makeMockPolicyEvaluator(true) as any,
+      boss:            { send: vi.fn() } as any,
     };
 
     const service = createDelegationService(deps);
@@ -217,6 +220,7 @@ describe('createDelegationGrant', () => {
         eventBus:        mockEventBus as any,
         auditService:    mockAuditService as any,
         policyEvaluator: makeMockPolicyEvaluator(true) as any,
+        boss:            { send: vi.fn() } as any,
       };
 
       const service = createDelegationService(deps);
