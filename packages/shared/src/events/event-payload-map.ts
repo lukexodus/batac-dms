@@ -19,6 +19,14 @@
 // owning module defines its payload type.
 type Stub = Record<string, unknown>;
 
+export interface DelegationRevokedEvent {
+  delegationId: string;
+  delegatingUserId: string;
+  delegatedToUserId: string;
+  revokedBy: string;
+  revokedAt: Date;
+}
+
 export interface EventPayloadMap {
   // ── IAM module ─────────────────────────────────────────────────────────────
   'user.login': Stub;
@@ -34,7 +42,7 @@ export interface EventPayloadMap {
   // ── Organization module ────────────────────────────────────────────────────
   'delegation.granted': Stub;
   'delegation.expired': Stub;
-  'delegation.revoked': Stub;
+  'delegation.revoked': DelegationRevokedEvent;
 
   // ── Documents module ───────────────────────────────────────────────────────
   'document.created': Stub;

@@ -100,6 +100,14 @@ export interface CreateDelegationGrantInput {
   cityId: string;
 }
 
+export interface RevokeEarlyDelegationGrantInput {
+  /** 
+   * Reference to the formal written instruction from the delegating authority.
+   * Required if the subject is sp_secretary and not the delegating authority.
+   */
+  writtenInstructionReference?: string;
+}
+
 export interface AssignmentSummary {
   assignmentId: string;
   employeeId: string;
@@ -168,6 +176,25 @@ export interface DelegationService {
    */
   createDelegationGrant(
     input: CreateDelegationGrantInput,
+    subject: DelegationSubject,
+  ): Promise<DelegationGrantRow>;
+
+  /**
+   * Revoke a delegation grant early.
+   *
+   * Enforces:
+   *   - I1 §11.2 ABAC policy: subject must be the delegating authority OR
+   *     have the `sp_secretary` role AND a `writtenInstructionReference`.
+   *
+   * After a successful update:
+   *   - Emits `delegation.revoked` on the event bus
+   *   - Writes a `delegation_grant.revoked_early` audit event via auditService
+   *
+   * Source: TASK-ORG-006.
+   */
+  revokeEarlyDelegationGrant(
+    grantId: string,
+    input: RevokeEarlyDelegationGrantInput,
     subject: DelegationSubject,
   ): Promise<DelegationGrantRow>;
 }

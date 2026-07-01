@@ -333,8 +333,9 @@ function sessionResourceHandler(
  */
 function delegationGrantResourceHandler(
   subject: SubjectContext,
-  _resource: ResourceDescriptor,
+  resource: ResourceDescriptor,
   action: string,
+  context?: Record<string, unknown>,
 ): EvaluationResult {
   switch (action) {
     case 'create':
@@ -345,6 +346,22 @@ function delegationGrantResourceHandler(
         allowed: false,
         reason: 'delegation_grant_create_requires_sp_secretary',
       };
+
+    case 'revoke_early': {
+      if (subject.userId === resource['delegatingUserId']) {
+        return { allowed: true };
+      }
+
+      if (subject.roles.includes('sp_secretary')) {
+        const instruction = context?.['writtenInstructionReference'];
+        if (typeof instruction === 'string' && instruction.trim().length > 0) {
+          return { allowed: true };
+        }
+        return { allowed: false, reason: 'missing_written_instruction' };
+      }
+
+      return { allowed: false, reason: 'delegation_grant_revoke_not_permitted' };
+    }
 
     default:
       return { allowed: false, reason: 'delegation_grant_action_not_permitted' };
