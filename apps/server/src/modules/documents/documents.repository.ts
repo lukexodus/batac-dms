@@ -44,6 +44,7 @@ export type InsertClassificationAllowlist = InferInsertModel<typeof classificati
 export interface NumberingUpdate {
   preliminaryNumber?: string | null;
   finalNumber?: string | null;
+  controlNumber?: string | null;
   qrTrackingNumber?: string;
 }
 
