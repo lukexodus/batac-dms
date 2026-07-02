@@ -91,6 +91,24 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
       };
     },
 
+    async getOfficeByCode(code: string, cityId: string): Promise<OfficeSummary | null> {
+      const db = deps.db;
+      const [row] = await db.select()
+        .from(offices)
+        .where(and(
+          eq(offices.code, code),
+          eq(offices.cityId, cityId),
+          isNull(offices.deletedAt)
+        ));
+      if (!row) return null;
+      return {
+        officeId: row.id,
+        name: row.name,
+        parentOfficeId: row.parentOfficeId,
+        type: row.officeType,
+      };
+    },
+
     async getOfficeHierarchy(): Promise<OfficeTree> {
       const db = deps.db;
       const rows = await db.select()

@@ -153,6 +153,18 @@ export interface DelegationSubject {
 export interface OrgService {
   resolveCurrentHolder(positionId: string, asOf?: Date): Promise<UserSummary | null>;
   getOfficeById(officeId: string): Promise<OfficeSummary | null>;
+  /**
+   * [Inference — TASK-DOCS-011] Added because documents.router.ts (general
+   * CRUD) needs to resolve the SP Secretariat office by its office code
+   * ('SPS') rather than a hardcoded UUID, matching the lookup-by-code
+   * pattern already used in apps/server/src/database/seeds/number-series.seed.ts.
+   * No prior public API method covered this (getOfficeById needs an id you
+   * don't have yet; getOfficeHierarchy doesn't expose `code`). The documents
+   * module must not query organization.offices directly (see the "no
+   * cross-schema joins" contract in documents.repository.ts), so this is
+   * exposed here instead.
+   */
+  getOfficeByCode(code: string, cityId: string): Promise<OfficeSummary | null>;
   getOfficeHierarchy(): Promise<OfficeTree>;
   getEmployeeByUserId(userId: string): Promise<EmployeeSummary | null>;
   getPrimaryOfficeForUser(userId: string): Promise<{ officeId: string; officeCode: string } | null>;

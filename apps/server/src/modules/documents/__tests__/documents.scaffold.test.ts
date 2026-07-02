@@ -14,16 +14,21 @@ describe('Documents Module Scaffold', () => {
     expect(DocumentsRepository).toBeDefined();
   });
 
-  it('allows calling public API methods and throws not implemented error', async () => {
+  it('allows creating the module and exposes the public API methods', () => {
     const mockDb = {} as any;
-    const documentsModule = createDocumentsModule({ db: mockDb });
+    const documentsModule = createDocumentsModule({
+      db: mockDb,
+      numberingService: {} as any,
+      s3Client: {} as any,
+      env: {} as any,
+    });
 
     expect(documentsModule).toBeDefined();
-    await expect(documentsModule.getDocumentById('doc-1')).rejects.toThrow('not implemented');
-    await expect(documentsModule.getDocumentType('type-1')).rejects.toThrow('not implemented');
-    await expect(documentsModule.transitionState('doc-1', 'draft', 'actor-1')).rejects.toThrow('not implemented');
-    await expect(documentsModule.assignFinalNumber('doc-1', 'actor-1')).rejects.toThrow('not implemented');
-    await expect(documentsModule.getAttachmentRefs('doc-1', 'actor-1')).rejects.toThrow('not implemented');
+    expect(typeof documentsModule.getDocumentById).toBe('function');
+    expect(typeof documentsModule.getDocumentType).toBe('function');
+    expect(typeof documentsModule.transitionState).toBe('function');
+    expect(typeof documentsModule.assignFinalNumber).toBe('function');
+    expect(typeof documentsModule.getAttachmentRefs).toBe('function');
   });
 
 });

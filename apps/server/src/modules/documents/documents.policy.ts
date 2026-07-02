@@ -182,7 +182,8 @@ function hasCommitteeOrSessionAccess(
 
 export interface CreateDocumentAttrs {
   /** Office the new document will be owned by. */
-  ownedByOfficeId: string;
+  ownedByOfficeId?: string;
+  documentTypeCode?: string;
 }
 
 export interface ReadMetadataAttrs {
@@ -195,6 +196,15 @@ export interface ReadMetadataAttrs {
   documentCommitteeId?: string | null;
   isInSpSession?: boolean;
 }
+
+export interface DocumentAdminReadResourceContext {
+  classificationLevel: ClassificationLevel;
+}
+
+export type OfficeReadScope =
+  | { kind: 'all' }
+  | { kind: 'own'; officeIds: string[] }
+  | { kind: 'none' };
 
 export interface UpdateDocumentAttrs {
   lifecycleState: DocumentLifecycleState;
@@ -344,7 +354,10 @@ export class DocumentPolicyGuard {
     if (!rolesIntersect(subject.roles, CREATE_ROLES)) {
       return false;
     }
-    return subject.effectiveOfficeIds.includes(attrs.ownedByOfficeId);
+    if (attrs.ownedByOfficeId !== undefined) {
+      return subject.effectiveOfficeIds.includes(attrs.ownedByOfficeId);
+    }
+    return true;
   }
 
   /** I1 §3.2 `document:read` (metadata). Gate 4 applies; Gate 2 does not (metadata is not content). */
@@ -368,6 +381,60 @@ export class DocumentPolicyGuard {
     const isPublic = attrs.classificationLevel === 'public';
 
     return ownOffice || crossOffice || spMemberScoped || isPublic;
+  }
+
+  /**
+   * documents.getMetadataForAdmin -- sys_admin only (the router enforces
+   * role membership independently). The task's own spec deliberately
+   * narrows Gate 2 to also cover this admin metadata view (deny
+   * confidential/restricted even for sys_admin), which is *stricter* than
+   * I1 §3.2's footnote ("IT Admin may read metadata... of
+   * Confidential/Restricted documents"). Additional restriction can only
+   * ever remove access the base policy would have granted, never add any,
+   * so this narrowing is safe even though it goes beyond I1's literal text.
+   * Logged in docs/development-findings-log.md.
+   */
+  canReadMetadataAdmin(_subject: SubjectContext, resource: DocumentAdminReadResourceContext): boolean {
+    return resource.classificationLevel !== 'confidential' && resource.classificationLevel !== 'restricted';
+  }
+
+  /**
+   * documents.list row-scope. Same role gate as canReadMetadata's base
+   * check; the five CROSS_OFFICE_READ_ROLES get 'all' (their standing,
+   * Internal-classification, all-offices visibility per I2 §5). Gate 4
+   * (classification allowlist) is applied separately, uniformly, by the
+   * repository query regardless of office scope -- it is not encoded here.
+   */
+  getListScope(subject: SubjectContext): OfficeReadScope {
+    const hasReadRole = subject.roles.some((role) => OWN_OFFICE_READ_ROLES.has(role));
+    if (!hasReadRole) return { kind: 'none' };
+    const hasCrossOfficeRole = subject.roles.some((role) => CROSS_OFFICE_READ_ROLES.has(role));
+    if (hasCrossOfficeRole) return { kind: 'all' };
+    return { kind: 'own', officeIds: subject.effectiveOfficeIds };
+  }
+
+  /**
+   * documents.search row-scope. I2 §5 "Full-text search across documents":
+   * records_officer/sp_secretary/sp_presiding_officer/mayor/auditor bypass
+   * office scoping entirely; dept_encoder/dept_approver/sp_member are
+   * scoped to their own office (committee-level scoping for sp_member is a
+   * further refinement documents.documents doesn't carry a committee_id to
+   * support yet -- see findings log); brgy_encoder/brgy_captain are denied
+   * full-text search entirely in Phase 1 per I2's table (they still have
+   * documents.list).
+   */
+  getSearchScope(subject: SubjectContext): OfficeReadScope {
+    const hasBypassRole = subject.roles.some((role) =>
+      ['records_officer', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'auditor'].includes(role)
+    );
+    if (hasBypassRole) return { kind: 'all' };
+
+    const hasScopedRole = subject.roles.some((role) =>
+      ['dept_encoder', 'dept_approver', 'sp_member'].includes(role)
+    );
+    if (hasScopedRole) return { kind: 'own', officeIds: subject.effectiveOfficeIds };
+
+    return { kind: 'none' };
   }
 
   /** I1 §3.3 `document:update` (non-state-change edits). Only Draft-state documents are directly editable. */

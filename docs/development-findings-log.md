@@ -723,210 +723,340 @@ an automated test — I did not locate one, but did not exhaustively search the 
 test suite for it either.
 
 
-### [LOG-0026] Missing `migrations/meta/0004_snapshot.json` broke Drizzle Kit's diff chain; reconstructed
 
-- date: 2026-07-01
-- task_id: TASK-TRACK-001
-- status: proposed
-- affects: none (repository/tooling-state gap, not a pre-development document gap)
-
-While generating the migration for this task, `packages/database/migrations/meta/0004_snapshot.json` was found to be absent, even though `0000_snapshot.json` through `0003_snapshot.json`, the `0004_documents_create_documents_schema.sql` migration file itself, and its `_journal.json` entry (`idx: 4`, tag `0004_documents_create_documents_schema`) were all present. Drizzle Kit's diff engine determines the "current" schema state from the highest-numbered snapshot file actually present in `meta/`, not from `_journal.json` alone, so with `0004_snapshot.json` missing, `drizzle-kit generate` silently diffed the new `tracking.schema.ts` against `0003_snapshot.json` (the pre-`documents`-schema state) instead of against the true post-0004 state.
-
-Concretely, this meant the first `drizzle-kit generate` run for this task produced a migration that re-emitted `CREATE SCHEMA "documents"` and all eleven `documents.*` tables a second time, in addition to the three new `tracking.*` tables — which would fail with "already exists" errors against exactly the database state this task's own acceptance criteria require testing against ("a database that already has iam, organization, and documents schemas applied").
-
-What was implemented: reconstructed the missing snapshot rather than hand-editing it. Temporarily removed `tracking.schema.ts` from `packages/database/schema/` (and its `index.ts` export) so the working tree matched the true post-0004 state exactly, ran `drizzle-kit generate`, and confirmed the resulting `CREATE TABLE`/`CREATE SCHEMA`/`CREATE INDEX` statement set was structurally identical (diffed as sorted statement lists, ignoring `statement-breakpoint` markers) to the already-existing `0004_documents_create_documents_schema.sql`'s auto-generated portion. Discarded the throwaway `.sql` file this produced (0004's real migration file already exists and is presumably already applied in any real environment) and kept only the generated snapshot JSON, renamed to `0004_snapshot.json` — its `prevId` already correctly chained to `0003_snapshot.json`'s `id`. Restored `tracking.schema.ts`, re-ran `drizzle-kit generate`, and this time got a clean, tracking-only migration. Confirmed the full chain is now internally consistent: a subsequent `drizzle-kit generate` with no schema changes reports "No schema changes, nothing to migrate."
-
-[Unverified]: why the file was missing from the archive this task was executed against — whether it was never committed after `0004` was originally authored, or dropped by whatever process produced the archive for this task. I have no visibility into that from inside this sandbox. Any agent who sees `drizzle-kit generate` unexpectedly regenerate schema that should already exist (or, conversely, fail to detect real changes) should check for this specific failure mode: a `meta/NNNN_snapshot.json` missing despite the corresponding `.sql` file and `_journal.json` entry both being present.
-
-### [LOG-0027] C1 Part 12 has no grant-level REVOKE for `tracking.routing_entries` despite §1.4 classifying it as append-only; added to migration and `post-migrate-grants.sql`
-
-- date: 2026-07-01
-- task_id: TASK-TRACK-001
-- status: proposed
-- affects: C1 (Part 12, Part 14)
-
-C1 §1.4 lists `tracking.routing_entries` alongside `workflow.workflow_events`, `notifications.delivery_log`, `audit.events`, and `documents.numbers` as tables that omit `updated_at` because they are "append-only / write-once." C1 Part 7's own DDL comment on `routing_entries` repeats "Append-only: no updated_at." However, C1 Part 12's grant script and Part 14's compliance-checklist item #12 ("Append-only logs") name only `workflow.workflow_events` and `audit.events` as having `UPDATE`/`DELETE` explicitly revoked at the grant level — `tracking.routing_entries` (and `notifications.delivery_log`) are absent from that enforcement list despite sharing the same §1.4 classification.
-
-TASK-TRACK-001's own AI Prompt and acceptance criteria explicitly require `REVOKE UPDATE, DELETE ON tracking.routing_entries FROM batac_app` and test for it, so the task ticket treats this as required, consistent with §1.4's classification, even where C1 Part 12 doesn't literally spell it out. Implemented per the ticket.
-
-What was implemented: (a) added the `REVOKE UPDATE, DELETE ON tracking.routing_entries FROM batac_app` statement to migration `0005_tracking_create_tracking_schema.sql`'s manual-additions section, matching the C1 Part 12 / `workflow.workflow_events` pattern; (b) also added an equivalent `DO $$ ... $$` block to `packages/database/scripts/post-migrate-grants.sql`, mirroring its existing `workflow.workflow_events` block. Step (b) is not redundant belt-and-suspenders — it's required. `post-migrate-grants.sql` runs immediately after Drizzle migrations on every `db:migrate` invocation, and its generic per-schema loop already grants `SELECT, INSERT, UPDATE` on every table in every schema listed in its `app_schemas` array, which already included `'tracking'` before this task (added by whichever infra task first populated that array). Without step (b), that generic grant would silently re-grant `UPDATE` back to `batac_app` on `routing_entries` immediately after migration 0005's own `REVOKE`, within the same `db:migrate` invocation.
-
-Verified by installing PostgreSQL 16 locally, creating the five application roles via the project's own `tools/db/init/01-create-roles.sh`, and running the real `packages/database/scripts/migrate.ts` end to end (all six migrations, then `post-migrate-grants.sql`). Confirmed directly against the live database: `UPDATE tracking.routing_entries ... ` as `batac_app` fails with `permission denied for table routing_entries`, both immediately after the first `db:migrate` run and after a second, idempotent run (ruling out the exact "immediately re-granted" failure mode described above). `information_schema.role_table_grants` confirms `batac_app` retains `INSERT` and `SELECT` on `routing_entries` (append-only means no `UPDATE`/`DELETE`, not no access at all), and `has_schema_privilege('batac_it_admin', 'tracking', 'USAGE')` returns `false`, matching the ticket's requirement that IT admin gets no access to this schema.
-
-[Inference]: this is an oversight in C1 Part 12 / Part 14 rather than an intentional decision to enforce `routing_entries` less strictly than `workflow_events` — no note in C1 explains the asymmetry given both share the §1.4 "append-only" classification. A human should confirm, and should also confirm whether `notifications.delivery_log` needs the identical grant-level treatment when its owning task is implemented — it shares the same §1.4 classification and is equally absent from Part 12/14's enforcement list, but that table is out of scope for TASK-TRACK-001 and was not touched here.
-
-### [LOG-0026] TASK-DOCS-009 prompt's SubjectContext shorthand (isIta/isPa) diverges from the shipped IAM AuthContext (isItAdmin/isPlatformAdmin)
+### [LOG-0026] TASK-DOCS-009's deliverable (DocumentPolicyGuard) was an unimplemented stub at TASK-DOCS-011 time
 
 - date: 2026-07-02
-- task_id: TASK-DOCS-009
+- task_id: TASK-DOCS-011
 - status: proposed
-- affects: I1 (§1 Subject Attributes Reference)
+- affects: I1, I2, TASK-DOCS-009 (a1-tasks/docs.md)
 
-The TASK-DOCS-009 AI Prompt's `SubjectContext` interface uses `isIta: boolean;
-isPa: boolean;`, mirroring I1 §1's raw JWT-claim names (`subject.is_ita`,
-`subject.is_pa`). The `AuthContext` type TASK-IAM-004 actually shipped
-(`apps/server/src/modules/iam/iam.types.ts`) instead names these fields
-`isItAdmin`/`isPlatformAdmin`, and additionally carries `sessionId`,
-`permissions`, `delegationGrantId`, and `effectiveRoles`, none of which the
-prompt's shorthand mentions.
+TASK-DOCS-011 lists TASK-DOCS-009 as a prerequisite, implying
+`apps/server/src/modules/documents/documents.policy.ts` (`DocumentPolicyGuard`)
+was already implemented. At the time TASK-DOCS-011 was picked up, the file
+contained only a placeholder: a single `canReadMetadata` method that always
+returned `true`, with no `canCreate`, `canUpdate`, `canSoftDelete`,
+`canCancel`, `canReadMetadataAdmin`, or list/search scope methods.
 
-Implemented `documents.policy.ts`'s `SubjectContext` as a direct alias of the
-real `AuthContext` (`export type SubjectContext = AuthContext;`), matching the
-same alias `iam.policy.ts` itself already exports, and used the real field
-names (`isItAdmin`/`isPlatformAdmin`) throughout. This is what let
-`pnpm typecheck` pass and what will let real tRPC procedures pass `ctx.auth`
-into the guard without a mapping layer. [Unverified] whether the prompt's
-`isIta`/`isPa` naming was a deliberate, considered spec choice made
-independently of TASK-IAM-004, or simply written before TASK-IAM-004 shipped
-and never reconciled — I did not find anything to confirm either way, and the
-acceptance-criteria code snippet in the prompt uses the short names too, so
-the mismatch is baked into the ticket text itself, not just its prose.
+Since TASK-DOCS-011's acceptance criteria cannot pass against a
+placeholder that always allows everything, `documents.policy.ts` was fully
+implemented as part of this task rather than treated as pre-existing, sourced
+from I1 §3.1-§3.6 and Gates 1-5, and I2 Sections 4-5. `documents.plugin.ts`
+was also updated to decorate `documentsRepository` and `documentsPolicyGuard`
+on fastify (previously only `documentsService` was decorated), since
+documents.router.ts needs both per this task's ABAC enforcement pattern.
 
-### [LOG-0027] I1 §17's state-action matrix (and the TASK-DOCS-009 prompt's copy of it) omits `pending_panlalawigan_review`
+[Unverified]: whether TASK-DOCS-009 was genuinely never run, or was run
+against a different repository state than the one this task received, is not
+something this task can determine from the repository alone.
+
+A human should confirm TASK-DOCS-009's actual completion status and reconcile
+its deliverable list against what's now in documents.policy.ts.
+
+### [LOG-0027] `LifecycleStateSchema` in packages/shared/src/schemas/documents.ts used a 9-value enum that does not match the actual 11-value lifecycle_state domain
 
 - date: 2026-07-02
-- task_id: TASK-DOCS-009
+- task_id: TASK-DOCS-011
 - status: proposed
-- affects: I1 (§17)
+- affects: E3 (shared Zod schema catalog), documents.ts (packages/shared/src/schemas), C1
 
-`documents.documents_lifecycle_state_check` (schema), and this module's own
-`DocumentLifecycleState` union (`documents.types.ts`, shipped by
-TASK-DOCS-002), both list eleven lifecycle states, including
-`pending_panlalawigan_review`. I1 §17's State-Action Compatibility Matrix, and
-the TASK-DOCS-009 prompt's verbatim copy of it, both have only ten rows and
-never mention this state. I1 itself never mentions
-`pending_panlalawigan_review` anywhere in the document (confirmed by a
-full-text search), which is consistent with D3's note that ADR-013 split a
-single earlier "Pending Approval" state into `pending_mayor_action` and
-`pending_panlalawigan_review` — I1 appears to predate or not have been
-reconciled with that split for this specific matrix.
+`LifecycleStateSchema` (presumed a TASK-DOCS-003 deliverable) was defined as
+`["draft","under_review","pending_mayor_action","pending_panlalawigan_review","approved","released","superseded","cancelled","rejected"]`.
+The actual DB check constraint (`documents_lifecycle_state_check` in
+packages/database/schema/documents.schema.ts, whose column comment cites
+"D3 post-ADR-013/ADR-014 [Discovered Issue #1]/[Discovered Issue #2]"),
+`DocumentLifecycleState` in apps/server/.../documents.types.ts, and the
+`VALID_TRANSITIONS` map in documents.service.ts all agree on a different,
+11-value set: `draft, submitted, in_workflow, pending_mayor_action,
+pending_panlalawigan_review, completed, released, archived, disposed,
+cancelled, superseded`. Six of the nine old values are not in the real set
+(`under_review`, `approved`, `rejected` don't exist at all; `submitted`,
+`in_workflow`, `completed`, `archived`, `disposed` were missing).
 
-Implemented `checkStateActionCompatibility` with `STATE_ACTION_MATRIX` typed
-as `Record<DocumentLifecycleState, readonly string[]>` (rather than the
-prompt's looser `Record<string, string[]>`), so TypeScript itself requires
-every state to have an entry — the gap cannot be silently reintroduced by
-omitting a key. [Inference] Filled `pending_panlalawigan_review` with
-`['read', 'cancel']` only:
-  - `read` follows I1 §17's own pattern of allowing it in literally every
-    other row, including terminal states.
-  - `cancel` is corroborated by the DB trigger
-    `documents.check_lifecycle_transition()`, which explicitly permits
-    `pending_panlalawigan_review -> cancelled`.
-D3 also documents transitions from this state to `completed`
-(`FINAL_APPROVAL_GRANTED`) and to `superseded` (`DOCUMENT_SUPERSEDED`), but I
-did not find a clear mapping from either event to one of this matrix's
-existing action names (`approve`/`reject`/`number_promote`), so I left them
-out rather than guess. A human should confirm the complete action set for
-this state.
+A repo-wide grep confirmed no code outside packages/shared/src/schemas/documents.ts
+imported `LifecycleStateSchema` before this change, so it was corrected in
+place to the 11-value set (widening/correcting, not narrowing — non-breaking
+for any existing caller since there were none).
 
-### [LOG-0028] I1 §3.4's ALLOW-clause role list omits brgy_encoder from document soft-delete
+E1 (docs/pre-development/E-api-design/e1-trpc-router-and-procedure-catalog.md)
+§3.1's own `documentLifecycleStateEnum` and its documents.cancel/documents.delete
+ABAC condition text use the same stale 9-value vocabulary (see LOG-0029) — it
+appears E1 and the original TASK-DOCS-003 schema were drafted from the same
+earlier state-machine draft that predates the ADR-013/ADR-014 revision.
+
+[Inference]: the DB check constraint plus its own inline "[Discovered Issue]"
+comments were treated as the ground truth here, per the Section 1 hierarchy
+(implemented schema outranks an unreferenced, unconsumed Zod schema).
+
+A human should confirm no other Group E document still describes the 9-value
+set as current, and update E1 if so.
+
+### [LOG-0028] ABAC-enforcement-pattern sample code in TASK-DOCS-011's AI Prompt names things that don't exist under those names in the actual codebase
 
 - date: 2026-07-02
-- task_id: TASK-DOCS-009
+- task_id: TASK-DOCS-011
 - status: proposed
-- affects: I1 (§3.4)
+- affects: I1, TASK-DOCS-011 (a1-tasks/docs.md); related precedent: LOG-0018, LOG-0020
 
-I1 §3.4 (`document:delete`, soft-delete)'s ALLOW clause role set is `{
-dept_encoder, dept_approver, sp_secretary, sp_presiding_officer, mayor,
-brgy_captain }` — `brgy_encoder` is absent. The "RESTRICTED ENCODER RULE" note
-immediately following that same clause, in the same section, states
-"dept_encoder and brgy_encoder may soft-delete only while lifecycle_state IN
-('draft', 'submitted')...", treating `brgy_encoder` as included. I2's "Delete
-document in Draft state (soft delete) — own office" row independently shows
-Barangay Encoder = ✅. Both of I1's own text and I2 agree `brgy_encoder` should
-be included; only I1 §3.4's ALLOW-clause role list itself omits it.
+Similar in kind to LOG-0018 (iam.router.ts) and LOG-0020 (organization
+router), TASK-DOCS-011's own "ABAC enforcement pattern" sample code does not
+match already-implemented types:
 
-Implemented `SOFT_DELETE_ROLES` including `brgy_encoder`, tested explicitly in
-`documents.policy.test.ts`.
+- Sample uses `ctx.subject: SubjectContext` with fields `isIta`/`isPa`. The
+  actual, already-implemented type is `ctx.auth: AuthContext`
+  (apps/server/src/modules/iam/iam.types.ts) with fields `isItAdmin`/
+  `isPlatformAdmin`. `isIta`/`isPa` trace back to I1 §1's own SubjectContext
+  naming, so the drift happened during IAM implementation, not in this
+  task's prompt specifically.
+- Sample calls `ctx.documentsRepository.findDocumentById(input.documentId,
+  ctx.subject.cityId)` (two args). The actual method is
+  `findDocumentById(id: string): Promise<DocumentRow | null>` (one arg, no
+  cityId filter — city scoping for this table is expected to come from RLS
+  plus an explicit `document.cityId !== subject.cityId` check at the call
+  site instead).
+- Sample calls `ctx.documentsRepository.hasClassificationAllowlistEntry(...,
+  ctx.subject.roles[0], ...)` — using only the first role. Gate 4's own text
+  (I1) is `role_code = ANY(subject.roles)`, i.e. any of the subject's roles,
+  not just the first. Implemented as a check across all of `subject.roles`
+  (`hasAnyAllowlistEntry` in documents.router.ts), which is strictly more
+  correct against I1's stated Gate 4 semantics, not merely a stylistic
+  change.
 
-### [LOG-0029] I1 §4.1 content cross-office read does not require has_cross_office_read_grant, unlike I1 §3.2 metadata read
+documents.router.ts and documents.policy.ts were written against the actual
+`AuthContext`/`DocumentsRepository` shapes rather than the sample code's
+names, per the established resolution pattern in LOG-0018/LOG-0020.
+
+### [LOG-0029] E1 §3.1's documents.cancel / documents.delete ABAC condition text uses the same stale lifecycle-state vocabulary as the old LifecycleStateSchema
 
 - date: 2026-07-02
-- task_id: TASK-DOCS-009
+- task_id: TASK-DOCS-011
 - status: proposed
-- affects: I1 (§4.1, §3.2)
+- affects: E1 (e1-trpc-router-and-procedure-catalog.md §3.1)
+- supersedes: none (companion finding to LOG-0027)
 
-The TASK-DOCS-009 prompt describes `document_version:read` /
-`document_attachment:read` (I1 §4.1) as using "the same
-own-office/cross-office/committee rules as document:read metadata" (I1 §3.2).
-Read literally, the two sections differ: I1 §3.2's cross-office branch
-requires `has_cross_office_read_grant(subject, document.office_id) = true` in
-addition to the role and classification checks; I1 §4.1's cross-office branch
-has no such grant condition — only the role set intersection and
-`classification_level IN ('public','internal')`. This makes §4.1's
-cross-office branch broader than §3.2's, i.e. a subject can read the *content*
-of another office's internal document via the cross-office role list without
-an explicit grant, while reading that same document's *metadata* cross-office
-would require one.
+E1's documents.cancel entry gives its ABAC condition as `lifecycle_state NOT
+IN ('superseded','rejected','cancelled')`; its documents.delete entry gives
+`lifecycle_state IN ('draft','under_review')`. Both use state names from the
+same stale 9-value set as LOG-0027 (`rejected` doesn't exist in the real
+schema at all; `under_review` should be `submitted`; the cancel-blocking set
+should be `archived, disposed, cancelled`, not `superseded, rejected,
+cancelled`).
 
-Implemented per I1 §4.1's literal text (no grant check in `canReadContent`'s
-cross-office branch), not per the prompt's "same rules" paraphrase. [Unverified]
-whether this asymmetry (content readable cross-office more easily than
-metadata) is intentional or itself a gap in I1 — it reads as unusual given
-metadata is normally the less sensitive of the two, but I found nothing in I1,
-I2, or B5 that discusses the two sections' cross-office branches together or
-explains a reason for the difference.
+I1 §3.4 (`lifecycle_state IN ('draft','submitted')`) and I1 §3.6 /
+I1 §17's state-action compatibility matrix (`cancel` blocked only for
+Archived/Disposed/Cancelled) agree with each other and with the real DB
+enum, and were followed instead. [Inference]: same root cause as LOG-0027 —
+E1 §3.1 appears to have been drafted against the pre-ADR-013/ADR-014 state
+machine and never updated.
 
-### [LOG-0030] I1 §3.4's closing "deletion requires dept_approver or sp_secretary" sentence misattributes I2 Conditional Note 7, which is about the cancel action
+A human should sweep the rest of E1 §3.1 (and any other E1 section
+referencing lifecycle states) for the same staleness.
+
+### [LOG-0030] I1 §3.4's documents.delete role set omits brgy_encoder from its own ALLOW-block set notation
 
 - date: 2026-07-02
-- task_id: TASK-DOCS-009
+- task_id: TASK-DOCS-011
 - status: proposed
-- affects: I1 (§3.4), supersedes nothing (refines LOG-0028, same section, different sub-finding)
+- affects: I1 §3.4
 
-I1 §3.4's base ALLOW clause has an unconditional, top-level
-`AND document.workflow_instance_id IS NULL` that applies to the whole rule —
-not scoped to any particular role subset. The "RESTRICTED ENCODER RULE" note
-directly below it closes with "Once a workflow instance exists, deletion
-requires dept_approver or sp_secretary," citing "[Confirmed — I2 Conditional
-Note 7]." I checked I2 Conditional Note 7 directly
-(`i2-role-permission-matrix.md`, footnote 7): it is attached to I2's "Cancel
-document (from any active state) — own office" row and its text is
-specifically about the *cancel* action's Department/Barangay Encoder
-restriction ("A Department Encoder may cancel a document only while it is in
-Draft or Submitted state and has not yet entered an active workflow
-instance... Once a workflow instance is live, cancellation requires the
-Approver or SP Secretary"), not about soft-delete. I1 §3.6 (`document:cancel`)
-already correctly implements this same rule independently, with
-`dept_approver`/`sp_secretary` unconditionally able to cancel regardless of
-workflow-instance state.
+I1 §3.4's ALLOW block lists the delete-permitted role set as `{'dept_encoder',
+'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor',
+'brgy_captain'}` — six roles, omitting `brgy_encoder`. Immediately below it,
+the same section's "RESTRICTED ENCODER RULE" reads "dept_encoder and
+brgy_encoder may soft-delete only while lifecycle_state IN ('draft',
+'submitted')...", naming brgy_encoder as if it were already a member of the
+base set.
 
-Read this way, §3.4's closing sentence appears to be a misattributed/copied
-reference to §3.6's rule rather than a real exception to §3.4's own
-`workflow_instance_id IS NULL` condition — "deletion" there most likely should
-have read "cancellation." Implemented `canSoftDelete` per the base ALLOW
-clause literally: `workflow_instance_id IS NULL` is required for every role in
-the set, `dept_approver`/`sp_secretary` included; those two roles' unconditional
-access to remove a document from an active workflow is available through
-`canCancel`, not `canSoftDelete`. This was caught by a test that initially
-assumed the exception existed and failed against the implementation as first
-written; the implementation (not the test) reflects this entry's conclusion.
+Two independent sources corroborate that brgy_encoder should be included:
+I2 §4's "Delete document in Draft state (soft delete) — own office" row shows
+Brgy Encoder = allow, unconditional, identical treatment to Dept Encoder (no
+footnote distinguishing them); E1's documents.delete "Callable by" list also
+names brgy_encoder alongside dept_encoder.
 
-### [LOG-0031] I1 §3.1's own-office condition for document:create is definitionally always-true as literally written
+[Inference]: treated as a drafting omission in I1 §3.4's set notation (the
+rule immediately below it only makes sense if brgy_encoder already has the
+base permission) and implemented with brgy_encoder included in
+`DELETE_ROLES` in documents.policy.ts, consistent with I2 and E1.
+
+A human should correct I1 §3.4's ALLOW-block set to include brgy_encoder
+explicitly.
+
+### [LOG-0031] Gate 2 / sys_admin document-metadata visibility: I1's footnote, I2's table, and this task's acceptance criteria don't all agree
 
 - date: 2026-07-02
-- task_id: TASK-DOCS-009
+- task_id: TASK-DOCS-011
 - status: proposed
-- affects: I1 (§3.1, §1)
+- affects: I1 §3.2, I2 §5, TASK-DOCS-011 (a1-tasks/docs.md)
 
-I1 §3.1's ALLOW clause for `document:create` includes
-`subject.office_id ∈ subject.effective_office_ids`. I1 §1's own Subject
-Attributes Reference states `effective_office_ids` "always includes
-`office_id`" — so for any authenticated subject with a non-null office, this
-condition evaluates to true unconditionally, regardless of which document is
-being created. As literally written it cannot function as an access-scoping
-condition. The same line's parenthetical clarification — "i.e. the user is
-creating a document for their own office or a delegation-extended office" —
-describes something else: a check that the *document's* intended
-`owned_by_office_id` falls within the subject's effective offices, not a
-comparison of the subject's own two attributes to each other.
+Three sources give different answers for whether sys_admin can read document
+metadata:
 
-Implemented `canCreate` checking `attrs.ownedByOfficeId` (the office the new
-document will be owned by, supplied by the caller) against
-`subject.effectiveOfficeIds`, matching the parenthetical's evident intent and
-the TASK-DOCS-009 acceptance criterion
-(`canCreate({ officeId: 'A', effectiveOfficeIds: ['A'] }, { ownedByOfficeId: 'A' })`
-→ `true`), rather than the literal (vacuous) subject-only comparison.
+1. I1 §3.2's ALLOW block never lists sys_admin in any of its role sets, but a
+   footnote directly under Gate 2 reads "IT Admin may read metadata (title,
+   status, number) of Confidential/Restricted documents but not content
+   (Gate 2 covers content)" — implying sys_admin *can* read metadata,
+   including for Confidential/Restricted docs, just not file content.
+2. I2 §5's table shows Sys Admin = deny on every "View document metadata"
+   row (own office, all offices/Internal) with no footnote exception.
+3. TASK-DOCS-011's own acceptance criteria require `documents.get` with a
+   sys_admin caller and classification='confidential' to throw FORBIDDEN,
+   and its AI Prompt for `documents.getMetadataForAdmin` says Gate 2
+   "extends to metadata admin view -- DENY if classificationLevel IN
+   (confidential,restricted) even for sys_admin" — stricter than I1's
+   footnote for the classified case, though it does imply a *general*
+   sys_admin metadata channel should exist (documents.getMetadataForAdmin
+   itself) for public/internal docs.
 
+Implemented as: `documents.get` denies sys_admin unconditionally (any
+classification) and redirects to `documents.getMetadataForAdmin`, matching
+I2's table and this task's "sys_admin must use getMetadataForAdmin instead"
+instruction; `documents.getMetadataForAdmin` is sys_admin-only and itself
+denies Confidential/Restricted, matching this task's explicit Gate-2-extension
+instruction and going further than I1's footnote (additional restriction
+can only remove access the base policy implied, never grant more, so this is
+a safe narrowing even though it's stricter than I1's literal text).
 
+[Inference]: I1's footnote is read here as describing the *intent* behind
+what became the separate, narrow `getMetadataForAdmin` procedure rather than
+the general `document:read` permission I2 §5 governs — this reconciles I1 and
+I2 without contradiction, but is an interpretation, not a confirmed reading.
 
+A human should confirm this reconciliation and, if correct, update I1 §3.2's
+footnote to reference the getMetadataForAdmin-style narrow channel explicitly
+rather than reading as a blanket document:read exception.
+
+### [LOG-0032] No OrgService method computes I1's has_cross_office_read_grant(); no OrgService method resolves an office by code
+
+- date: 2026-07-02
+- task_id: TASK-DOCS-011
+- status: proposed
+- affects: I1 §3.2, B5 §6.5/ADR-AUTH-009, organization module
+
+Two gaps in the organization module's public API surfaced while implementing
+documents.router.ts:
+
+1. I1 §3.2's second OR-branch for document:read requires
+   `has_cross_office_read_grant(subject, document.office_id)`. The
+   `organization.cross_office_grants` table exists (organization.schema.ts,
+   citing B5 §6.5/ADR-AUTH-009), but no `OrgService` method evaluates it —
+   `OrgService` only exposes `getOfficeById`, `getOfficeHierarchy`, and a few
+   delegation-related methods (see organization.types.ts). This was **not**
+   added in this task (it's an organization-module capability, out of
+   TASK-DOCS-011's file scope); `DocumentReadResourceContext.hasCrossOfficeGrant`
+   is threaded through documents.policy.ts's `canReadMetadata` as an explicit
+   parameter and is always passed `false` by documents.router.ts until such a
+   method exists. This only affects the ad-hoc-grant OR-branch — the five
+   "oversight" roles (records_officer, sp_secretary, sp_presiding_officer,
+   mayor, auditor) still get their I2 §5 standing cross-office visibility
+   through a separate, structural rule in the guard, not through this gap.
+2. documents.create needs to resolve "the SP Secretariat office" by its
+   office code ('SPS'), matching the lookup-by-code pattern already used in
+   apps/server/src/database/seeds/number-series.seed.ts, without the
+   documents module querying organization.offices directly (documents.repository.ts's
+   own "no cross-schema joins" contract). No such method existed
+   (`getOfficeById` needs an id you don't have yet; `getOfficeHierarchy`'s
+   `OfficeSummary` doesn't expose `code`). `OrgService.getOfficeByCode(code,
+   cityId)` was added (organization.types.ts + organization.service.ts) to
+   fill this gap, since it was required for documents.create to function at
+   all and is a small, additive, same-pattern-as-getOfficeById method.
+
+A human should decide whether (1) is worth building (likely a future
+ORG-module task) — until then, the ad-hoc cross-office grant OR-branch in
+canReadMetadata is dead code in practice (never true).
+
+### [LOG-0033] "write-classification permission" (TASK-DOCS-011's own business rule) has no defined implementation anywhere in the codebase
+
+- date: 2026-07-02
+- task_id: TASK-DOCS-011
+- status: proposed
+- affects: TASK-DOCS-011 (a1-tasks/docs.md); related: C2 (records.classification_rules)
+
+TASK-DOCS-011's AI Prompt for documents.create says: "Fetch document_type to
+get classification_default (override only if subject has write-classification
+permission)". No permission-string registry, role-to-permission mapping, or
+any code path populating `AuthContext.permissions` with a concrete value
+exists anywhere in this repository snapshot (`permissions: string[]` is
+declared on the type but never assigned a non-empty value in any reviewed
+code path). C2's `records.classification_rules` table
+(`override_conditions` JSONB) is a related but distinct Tier-2,
+administrator-configured auto-escalation mechanism, not a per-user override
+permission, and is a records-module concern in any case.
+
+Implemented conservatively: `documents.create` always uses
+`document_type.classification_default` and ignores `input.classificationLevel`
+for anything other than Zod validation (accepting the field keeps the
+contract matching the task spec's input shape without silently widening who
+can set an arbitrary classification). [Inference]: this is the safer of the
+two readings when the enforcement mechanism is undefined — no caller can
+escalate or de-escalate classification through this procedure in this PR.
+
+A human needs to define what "write-classification permission" actually is
+(a permission string? a role list? something else) before this can be
+implemented for real.
+
+### [LOG-0034] No JSON-Schema validation library available for document_type.metadata_schema validation
+
+- date: 2026-07-02
+- task_id: TASK-DOCS-011
+- status: proposed
+- affects: H2 (document-type-catalog-with-jsonb-metadata-schemas), TASK-DOCS-011
+
+TASK-DOCS-011 requires "second-pass JSONB validation" of `input.metadata`
+against `document_type.metadata_schema`. H2 confirms `metadata_schema` values
+are real draft-07-style JSON Schema documents (nested objects, arrays,
+`enum`, `additionalProperties: false`, union `type` for nullable fields).
+apps/server's installed dependencies do not include a JSON-Schema validator
+(e.g. ajv), and none could be added in the environment this task was
+completed in (no network access to fetch a new package — a sandboxing detail
+of this particular work session, not a statement about the target deployment
+environment).
+
+Implemented a small, explicitly-scoped hand-written validator
+(`validateMetadataAgainstSchema` in documents.router.ts) supporting: `type`
+(incl. array-of-types for nullable), `enum`, `required`, `properties`
+(recursive), `additionalProperties: false`, and array `items`. It does not
+support `$ref`, `oneOf`/`anyOf`/`allOf`, `pattern`, `format`, or numeric/string
+bounds (`minLength`/`maximum`/etc.). This is a deliberate scope limit given
+the constraint above, not a claim of JSON-Schema compliance.
+
+A human should evaluate adding `ajv` (or similar) as a real dependency and
+replacing this validator — the current one will silently under-validate any
+metadata_schema in H2 that uses the unsupported keywords.
+
+### [LOG-0035] No "DOCUMENT_CANCELLED" audit event type is registered anywhere; documents.cancel relies on the existing document.state_changed pipeline
+
+- date: 2026-07-02
+- task_id: TASK-DOCS-011
+- status: proposed
+- affects: B3 (b3-internal-domain-event-catalog-v1.3.md), TASK-DOCS-011
+
+TASK-DOCS-011's AI Prompt says documents.cancel should "emit DOCUMENT_CANCELLED
+with reason (I1 Part 11.11 -- every cancellation audit-logged)". Neither
+packages/shared/src/events/event-payload-map.ts nor
+b3-internal-domain-event-catalog-v1.3.md register any event type named
+`DOCUMENT_CANCELLED` or `document.cancelled` — the only document-lifecycle
+event is the generic `document.state_changed` (which documents.service.ts's
+`transitionState` already emits on every transition, `toState: 'cancelled'`
+included, with `reason` in the payload). audit.event-consumer.ts already
+subscribes to `document.state_changed` and persists it as an audit entry
+(`eventType: 'document.state_changed'`), including whatever `reason` was
+provided.
+
+documents.router.ts's cancel procedure does not call
+`auditService.writeEvent` directly — apps/server/src/modules/audit/index.ts
+documents that direct `writeEvent` callers are limited to two confirmed call
+sites (Records bulk-op handler and disposition service, per B2 Module 8);
+Documents is not one of them. [Inference]: "DOCUMENT_CANCELLED" in the task
+brief is read as describing the *product requirement* (every cancellation
+must be audit-logged with its reason) rather than naming a literal, separate
+event-type string, since no such string exists anywhere else in the
+codebase, and the existing `document.state_changed` pipeline already
+satisfies the requirement as stated. The persisted audit entry's `eventType`
+will read `document.state_changed`, not `DOCUMENT_CANCELLED`, if a human
+reviewer greps the audit log expecting the latter literal string.
+
+A human should confirm whether a literal `DOCUMENT_CANCELLED` audit
+`eventType` string is actually required (e.g. for a downstream report or
+dashboard filter) — if so, that's a B3/audit-consumer change, not something
+documents.router.ts should special-case on its own given the writeEvent
+restriction above.
