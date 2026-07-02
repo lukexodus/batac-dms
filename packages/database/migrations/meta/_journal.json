@@ -36,6 +36,13 @@
       "when": 1782805285887,
       "tag": "0004_documents_create_documents_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782888888888,
+      "tag": "0005_tracking_create_tracking_schema",
+      "breakpoints": true
     }
   ]
 }

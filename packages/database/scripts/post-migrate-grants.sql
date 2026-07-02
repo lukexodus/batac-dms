@@ -101,7 +101,28 @@ BEGIN
 END
 $$;
 
+-- tracking.routing_entries is append-only (C1 §1.4 / C1 Part 7 DDL comment):
+-- explicitly revoke UPDATE/DELETE, same pattern as workflow.workflow_events
+-- above. Required here (not just in the 0005 migration's inline grants)
+-- because the generic app_schemas loop above already re-grants
+-- SELECT, INSERT, UPDATE on every table in the 'tracking' schema — including
+-- routing_entries — on every db:migrate run. Without this block, that
+-- generic grant would silently re-grant UPDATE back to batac_app immediately
+-- after the migration's own REVOKE, in the same db:migrate invocation.
+-- TASK-TRACK-001 / LOG-0026.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'tracking' AND table_name = 'routing_entries'
+  ) THEN
+    EXECUTE 'REVOKE UPDATE, DELETE ON tracking.routing_entries FROM batac_app';
+  END IF;
+END
+$$;
+
 -- iam.credentials: no direct reads by batac_app role (TASK-IAM-001)
+
 DO $$
 BEGIN
   IF EXISTS (

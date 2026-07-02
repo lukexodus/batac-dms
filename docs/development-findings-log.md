@@ -723,3 +723,37 @@ an automated test — I did not locate one, but did not exhaustively search the 
 test suite for it either.
 
 
+### [LOG-0026] Missing `migrations/meta/0004_snapshot.json` broke Drizzle Kit's diff chain; reconstructed
+
+- date: 2026-07-01
+- task_id: TASK-TRACK-001
+- status: proposed
+- affects: none (repository/tooling-state gap, not a pre-development document gap)
+
+While generating the migration for this task, `packages/database/migrations/meta/0004_snapshot.json` was found to be absent, even though `0000_snapshot.json` through `0003_snapshot.json`, the `0004_documents_create_documents_schema.sql` migration file itself, and its `_journal.json` entry (`idx: 4`, tag `0004_documents_create_documents_schema`) were all present. Drizzle Kit's diff engine determines the "current" schema state from the highest-numbered snapshot file actually present in `meta/`, not from `_journal.json` alone, so with `0004_snapshot.json` missing, `drizzle-kit generate` silently diffed the new `tracking.schema.ts` against `0003_snapshot.json` (the pre-`documents`-schema state) instead of against the true post-0004 state.
+
+Concretely, this meant the first `drizzle-kit generate` run for this task produced a migration that re-emitted `CREATE SCHEMA "documents"` and all eleven `documents.*` tables a second time, in addition to the three new `tracking.*` tables — which would fail with "already exists" errors against exactly the database state this task's own acceptance criteria require testing against ("a database that already has iam, organization, and documents schemas applied").
+
+What was implemented: reconstructed the missing snapshot rather than hand-editing it. Temporarily removed `tracking.schema.ts` from `packages/database/schema/` (and its `index.ts` export) so the working tree matched the true post-0004 state exactly, ran `drizzle-kit generate`, and confirmed the resulting `CREATE TABLE`/`CREATE SCHEMA`/`CREATE INDEX` statement set was structurally identical (diffed as sorted statement lists, ignoring `statement-breakpoint` markers) to the already-existing `0004_documents_create_documents_schema.sql`'s auto-generated portion. Discarded the throwaway `.sql` file this produced (0004's real migration file already exists and is presumably already applied in any real environment) and kept only the generated snapshot JSON, renamed to `0004_snapshot.json` — its `prevId` already correctly chained to `0003_snapshot.json`'s `id`. Restored `tracking.schema.ts`, re-ran `drizzle-kit generate`, and this time got a clean, tracking-only migration. Confirmed the full chain is now internally consistent: a subsequent `drizzle-kit generate` with no schema changes reports "No schema changes, nothing to migrate."
+
+[Unverified]: why the file was missing from the archive this task was executed against — whether it was never committed after `0004` was originally authored, or dropped by whatever process produced the archive for this task. I have no visibility into that from inside this sandbox. Any agent who sees `drizzle-kit generate` unexpectedly regenerate schema that should already exist (or, conversely, fail to detect real changes) should check for this specific failure mode: a `meta/NNNN_snapshot.json` missing despite the corresponding `.sql` file and `_journal.json` entry both being present.
+
+### [LOG-0027] C1 Part 12 has no grant-level REVOKE for `tracking.routing_entries` despite §1.4 classifying it as append-only; added to migration and `post-migrate-grants.sql`
+
+- date: 2026-07-01
+- task_id: TASK-TRACK-001
+- status: proposed
+- affects: C1 (Part 12, Part 14)
+
+C1 §1.4 lists `tracking.routing_entries` alongside `workflow.workflow_events`, `notifications.delivery_log`, `audit.events`, and `documents.numbers` as tables that omit `updated_at` because they are "append-only / write-once." C1 Part 7's own DDL comment on `routing_entries` repeats "Append-only: no updated_at." However, C1 Part 12's grant script and Part 14's compliance-checklist item #12 ("Append-only logs") name only `workflow.workflow_events` and `audit.events` as having `UPDATE`/`DELETE` explicitly revoked at the grant level — `tracking.routing_entries` (and `notifications.delivery_log`) are absent from that enforcement list despite sharing the same §1.4 classification.
+
+TASK-TRACK-001's own AI Prompt and acceptance criteria explicitly require `REVOKE UPDATE, DELETE ON tracking.routing_entries FROM batac_app` and test for it, so the task ticket treats this as required, consistent with §1.4's classification, even where C1 Part 12 doesn't literally spell it out. Implemented per the ticket.
+
+What was implemented: (a) added the `REVOKE UPDATE, DELETE ON tracking.routing_entries FROM batac_app` statement to migration `0005_tracking_create_tracking_schema.sql`'s manual-additions section, matching the C1 Part 12 / `workflow.workflow_events` pattern; (b) also added an equivalent `DO $$ ... $$` block to `packages/database/scripts/post-migrate-grants.sql`, mirroring its existing `workflow.workflow_events` block. Step (b) is not redundant belt-and-suspenders — it's required. `post-migrate-grants.sql` runs immediately after Drizzle migrations on every `db:migrate` invocation, and its generic per-schema loop already grants `SELECT, INSERT, UPDATE` on every table in every schema listed in its `app_schemas` array, which already included `'tracking'` before this task (added by whichever infra task first populated that array). Without step (b), that generic grant would silently re-grant `UPDATE` back to `batac_app` on `routing_entries` immediately after migration 0005's own `REVOKE`, within the same `db:migrate` invocation.
+
+Verified by installing PostgreSQL 16 locally, creating the five application roles via the project's own `tools/db/init/01-create-roles.sh`, and running the real `packages/database/scripts/migrate.ts` end to end (all six migrations, then `post-migrate-grants.sql`). Confirmed directly against the live database: `UPDATE tracking.routing_entries ... ` as `batac_app` fails with `permission denied for table routing_entries`, both immediately after the first `db:migrate` run and after a second, idempotent run (ruling out the exact "immediately re-granted" failure mode described above). `information_schema.role_table_grants` confirms `batac_app` retains `INSERT` and `SELECT` on `routing_entries` (append-only means no `UPDATE`/`DELETE`, not no access at all), and `has_schema_privilege('batac_it_admin', 'tracking', 'USAGE')` returns `false`, matching the ticket's requirement that IT admin gets no access to this schema.
+
+[Inference]: this is an oversight in C1 Part 12 / Part 14 rather than an intentional decision to enforce `routing_entries` less strictly than `workflow_events` — no note in C1 explains the asymmetry given both share the §1.4 "append-only" classification. A human should confirm, and should also confirm whether `notifications.delivery_log` needs the identical grant-level treatment when its owning task is implemented — it shares the same §1.4 classification and is equally absent from Part 12/14's enforcement list, but that table is out of scope for TASK-TRACK-001 and was not touched here.
+
+
+
