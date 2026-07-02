@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   UuidSchema,
   TimestampSchema,
+  DateSchema,
   PaginationInputSchema,
   SortOrderSchema,
   DateRangeSchema,
@@ -10,16 +11,31 @@ import {
 import { OfficeSummarySchema } from "./organization.js";
 
 // Enums
+/**
+ * [Inference — TASK-DOCS-011] Corrected against the authoritative 11-value
+ * set: packages/database/schema/documents.schema.ts `documents_lifecycle_state_check`
+ * (identical to `DocumentLifecycleState` in apps/server/.../documents.types.ts
+ * and the VALID_TRANSITIONS map in documents.service.ts). The previous 9-value
+ * list here ("under_review", "approved", "rejected") predates the D3
+ * post-ADR-013/ADR-014 state-machine revision documented at the top of
+ * documents.schema.ts ("[Discovered Issue #1]" / "[Discovered Issue #2]") and
+ * does not parse real rows (e.g. 'submitted', 'in_workflow'). Nothing outside
+ * this file imported `LifecycleStateSchema` prior to this change (verified by
+ * repo-wide grep), so widening it here is additive and non-breaking. See
+ * docs/development-findings-log.md for the full note.
+ */
 export const LifecycleStateSchema = z.enum([
   "draft",
-  "under_review",
+  "submitted",
+  "in_workflow",
   "pending_mayor_action",
   "pending_panlalawigan_review",
-  "approved",
+  "completed",
   "released",
-  "superseded",
+  "archived",
+  "disposed",
   "cancelled",
-  "rejected",
+  "superseded",
 ]);
 export type LifecycleState = z.infer<typeof LifecycleStateSchema>;
 
@@ -168,6 +184,86 @@ export const CancelDocumentInputSchema = z.object({
   reason: z.string().min(10).max(1024).trim(),
 });
 export type CancelDocumentInput = z.infer<typeof CancelDocumentInputSchema>;
+
+// --- General CRUD (TASK-DOCS-011) ---------------------------------------
+
+export const CreateDocumentInputSchema = z.object({
+  documentTypeId: UuidSchema,
+  title: z.string().min(1).max(500).trim(),
+  classificationLevel: ClassificationLevelSchema.default("internal"),
+  metadata: z.record(z.unknown()).default({}),
+});
+export type CreateDocumentInput = z.infer<typeof CreateDocumentInputSchema>;
+
+export const CreateDocumentOutputSchema = z.object({
+  documentId: UuidSchema,
+  lifecycleState: z.literal("draft"),
+});
+export type CreateDocumentOutput = z.infer<typeof CreateDocumentOutputSchema>;
+
+/** Shared by documents.get, documents.getMetadataForAdmin, and documents.delete. */
+export const DocumentIdInputSchema = z.object({
+  documentId: UuidSchema,
+});
+export type DocumentIdInput = z.infer<typeof DocumentIdInputSchema>;
+
+export const UpdateDocumentInputSchema = z.object({
+  documentId: UuidSchema,
+  title: z.string().min(1).max(500).trim().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+export type UpdateDocumentInput = z.infer<typeof UpdateDocumentInputSchema>;
+
+/** Narrow projection for documents.getMetadataForAdmin (sys_admin only, Gate 2). */
+export const AdminDocumentMetadataSchema = z.object({
+  documentId: UuidSchema,
+  title: z.string(),
+  lifecycleState: LifecycleStateSchema,
+  finalNumber: z.string().nullable(),
+  classificationLevel: ClassificationLevelSchema,
+});
+export type AdminDocumentMetadata = z.infer<typeof AdminDocumentMetadataSchema>;
+
+export const ListDocumentsInputSchema = z.object({
+  documentTypeId: UuidSchema.optional(),
+  lifecycleState: LifecycleStateSchema.optional(),
+  officeId: UuidSchema.optional(),
+  dateFrom: DateSchema.optional(),
+  dateTo: DateSchema.optional(),
+  ...PaginationInputSchema.shape,
+});
+export type ListDocumentsInput = z.infer<typeof ListDocumentsInputSchema>;
+
+export const ListDocumentsOutputSchema = z.object({
+  items: z.array(DocumentSummarySchema),
+  nextCursor: UuidSchema.nullable(),
+});
+export type ListDocumentsOutput = z.infer<typeof ListDocumentsOutputSchema>;
+
+export const SearchDocumentsInputSchema = z.object({
+  queryText: z.string().min(1).max(256),
+  documentTypeIds: z.array(UuidSchema).max(20).optional(),
+  classificationLevels: z.array(ClassificationLevelSchema).max(4).optional(),
+  dateFrom: DateSchema.optional(),
+  dateTo: DateSchema.optional(),
+  ...PaginationInputSchema.shape,
+});
+export type SearchDocumentsInput = z.infer<typeof SearchDocumentsInputSchema>;
+
+export const SearchResultItemSchema = z.object({
+  documentId: UuidSchema,
+  title: z.string(),
+  documentTypeName: z.string(),
+  finalNumber: z.string().nullable(),
+  currentState: LifecycleStateSchema,
+});
+export type SearchResultItem = z.infer<typeof SearchResultItemSchema>;
+
+export const SearchDocumentsOutputSchema = z.object({
+  items: z.array(SearchResultItemSchema),
+  nextCursor: UuidSchema.nullable(),
+});
+export type SearchDocumentsOutput = z.infer<typeof SearchDocumentsOutputSchema>;
 
 // Versions
 export const VersionSelectSchema = z.object({

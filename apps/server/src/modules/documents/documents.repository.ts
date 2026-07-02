@@ -1,5 +1,5 @@
-import { eq, and, isNull } from 'drizzle-orm';
-import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
+import { eq, and, isNull, desc, lt, or, inArray, sql, gte, lte } from 'drizzle-orm';
+import type { InferSelectModel, InferInsertModel, SQL } from 'drizzle-orm';
 import {
   documents,
   numbers,
@@ -568,6 +568,218 @@ export class DocumentsRepository {
       )
       .limit(1);
     return result.length > 0;
+  }
+
+  // -------------------------------------------------------------------------
+  // TASK-DOCS-011 additions — general CRUD support for documents.router.ts.
+  // Added here (rather than only in the router) because DocumentsRepository
+  // is documented as the only layer that reads/writes documents.* tables
+  // directly.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Single atomic UPDATE for documents.update — sets whichever of
+   * title/metadata are provided, together with updated_at, in one
+   * statement (mirrors the pattern already used by updateDocumentNumbering
+   * rather than issuing two separate UPDATEs for title vs metadata).
+   */
+  async updateDocumentFields(
+    id: string,
+    fields: { title?: string; metadata?: Record<string, unknown> },
+  ): Promise<DocumentRow | null> {
+    const patch: Record<string, unknown> = { updatedAt: new Date() };
+    if (fields.title !== undefined) patch['title'] = fields.title;
+    if (fields.metadata !== undefined) patch['metadata'] = fields.metadata;
+    const [row] = await this.db
+      .update(documents)
+      .set(patch)
+      .where(and(eq(documents.id, id), isNull(documents.deletedAt)))
+      .returning();
+    return row ?? null;
+  }
+
+  /**
+   * Gate 4 (Confidential/Restricted classification allowlist) as a
+   * correlated-EXISTS SQL fragment, reused by both listDocuments and
+   * searchDocuments so a caller who lacks an allowlist entry for a
+   * document's type never sees that row in bulk results, regardless of
+   * office scope. `callerRoles` should be `subject.roles` (Gate 4 is
+   * `role_code = ANY(subject.roles)`, not just the primary role).
+   */
+  private classificationAllowlistCondition(callerRoles: string[], cityId: string) {
+    return sql`(
+      ${documents.classificationLevel} NOT IN ('confidential', 'restricted')
+      OR EXISTS (
+        SELECT 1 FROM documents.classification_allowlists ca
+        WHERE ca.document_type_id = ${documents.documentTypeId}
+          AND ca.role_code = ANY(${callerRoles})
+          AND ca.city_id = ${cityId}
+          AND ca.deleted_at IS NULL
+      )
+    )`;
+  }
+
+  /**
+   * Paginated, office-scoped, Gate-4-filtered document list for
+   * documents.list. Fetches up to `limit + 1` rows (caller trims to
+   * `limit` and derives `nextCursor` from whether the extra row came
+   * back — same convention as audit.query-service.ts).
+   *
+   * Cursor is the previous page's last document id; ordering is
+   * created_at DESC, id DESC (id is the tiebreaker for rows sharing a
+   * created_at timestamp, since UUIDs carry no chronological meaning of
+   * their own). [Inference — TASK-DOCS-011] PaginationInputSchema (from
+   * TASK-DOCS-003 / packages/shared/src/schemas/common.ts) types `cursor`
+   * as a bare UUID, not an encoded composite token, so the tuple
+   * comparison below re-derives the cursor row's created_at with one
+   * extra lookup rather than encoding it into the cursor string.
+   */
+  async listDocuments(filter: {
+    cityId: string;
+    scope: { kind: 'all' } | { kind: 'own'; officeIds: string[] } | { kind: 'none' };
+    callerRoles: string[];
+    documentTypeId?: string;
+    lifecycleState?: string;
+    officeId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    cursor?: string;
+    limit: number;
+  }): Promise<DocumentRow[]> {
+    if (filter.scope.kind === 'none') return [];
+    if (filter.scope.kind === 'own' && filter.scope.officeIds.length === 0) return [];
+
+    const conditions: SQL[] = [eq(documents.cityId, filter.cityId), isNull(documents.deletedAt)];
+    if (filter.scope.kind === 'own') {
+      conditions.push(inArray(documents.ownedByOfficeId, filter.scope.officeIds));
+    }
+    if (filter.officeId) conditions.push(eq(documents.ownedByOfficeId, filter.officeId));
+    if (filter.documentTypeId) conditions.push(eq(documents.documentTypeId, filter.documentTypeId));
+    if (filter.lifecycleState) conditions.push(eq(documents.lifecycleState, filter.lifecycleState));
+    if (filter.dateFrom) conditions.push(gte(documents.createdAt, new Date(`${filter.dateFrom}T00:00:00.000Z`)));
+    if (filter.dateTo) conditions.push(lte(documents.createdAt, new Date(`${filter.dateTo}T23:59:59.999Z`)));
+    conditions.push(this.classificationAllowlistCondition(filter.callerRoles, filter.cityId));
+
+    if (filter.cursor) {
+      const [cursorRow] = await this.db
+        .select({ createdAt: documents.createdAt })
+        .from(documents)
+        .where(eq(documents.id, filter.cursor));
+      if (cursorRow) {
+        conditions.push(
+          or(
+            lt(documents.createdAt, cursorRow.createdAt),
+            and(eq(documents.createdAt, cursorRow.createdAt), lt(documents.id, filter.cursor)),
+          )!,
+        );
+      }
+    }
+
+    return this.db
+      .select()
+      .from(documents)
+      .where(and(...conditions))
+      .orderBy(desc(documents.createdAt), desc(documents.id))
+      .limit(filter.limit + 1);
+  }
+
+  /**
+   * Phase-1 full-text search for documents.search: PostgreSQL tsvector
+   * against documents.documents.tsv (title), OR-ed with a correlated
+   * EXISTS against documents.versions.tsv (ocr_text) so a document with
+   * several versions can't produce duplicate rows the way a literal LEFT
+   * JOIN + DISTINCT would need extra handling for — semantically
+   * equivalent to "LEFT JOIN versions for ocr_text match" but without the
+   * row-multiplication a real LEFT JOIN introduces when more than one
+   * version matches. No Meilisearch in Phase 1 per this task's brief.
+   */
+  async searchDocuments(filter: {
+    cityId: string;
+    scope: { kind: 'all' } | { kind: 'own'; officeIds: string[] } | { kind: 'none' };
+    callerRoles: string[];
+    queryText: string;
+    documentTypeIds?: string[];
+    classificationLevels?: string[];
+    dateFrom?: string;
+    dateTo?: string;
+    cursor?: string;
+    limit: number;
+  }): Promise<Array<DocumentRow & { documentTypeName: string }>> {
+    if (filter.scope.kind === 'none') return [];
+    if (filter.scope.kind === 'own' && filter.scope.officeIds.length === 0) return [];
+
+    const tsQuery = sql`plainto_tsquery('english', ${filter.queryText})`;
+    const conditions: SQL[] = [
+      eq(documents.cityId, filter.cityId),
+      isNull(documents.deletedAt),
+      sql`(
+        ${documents.tsv} @@ ${tsQuery}
+        OR EXISTS (
+          SELECT 1 FROM documents.versions v
+          WHERE v.document_id = ${documents.id} AND v.tsv @@ ${tsQuery} AND v.deleted_at IS NULL
+        )
+      )`,
+    ];
+    if (filter.scope.kind === 'own') {
+      conditions.push(inArray(documents.ownedByOfficeId, filter.scope.officeIds));
+    }
+    if (filter.documentTypeIds?.length) conditions.push(inArray(documents.documentTypeId, filter.documentTypeIds));
+    if (filter.classificationLevels?.length) {
+      conditions.push(inArray(documents.classificationLevel, filter.classificationLevels));
+    }
+    if (filter.dateFrom) conditions.push(gte(documents.createdAt, new Date(`${filter.dateFrom}T00:00:00.000Z`)));
+    if (filter.dateTo) conditions.push(lte(documents.createdAt, new Date(`${filter.dateTo}T23:59:59.999Z`)));
+    conditions.push(this.classificationAllowlistCondition(filter.callerRoles, filter.cityId));
+
+    if (filter.cursor) {
+      const [cursorRow] = await this.db
+        .select({ createdAt: documents.createdAt })
+        .from(documents)
+        .where(eq(documents.id, filter.cursor));
+      if (cursorRow) {
+        conditions.push(
+          or(
+            lt(documents.createdAt, cursorRow.createdAt),
+            and(eq(documents.createdAt, cursorRow.createdAt), lt(documents.id, filter.cursor)),
+          )!,
+        );
+      }
+    }
+
+    const rows = await this.db
+      .select({
+        id: documents.id,
+        cityId: documents.cityId,
+        documentTypeId: documents.documentTypeId,
+        title: documents.title,
+        lifecycleState: documents.lifecycleState,
+        classificationLevel: documents.classificationLevel,
+        qrTrackingNumber: documents.qrTrackingNumber,
+        preliminaryNumber: documents.preliminaryNumber,
+        finalNumber: documents.finalNumber,
+        controlNumber: documents.controlNumber,
+        originatingOfficeId: documents.originatingOfficeId,
+        ownedByOfficeId: documents.ownedByOfficeId,
+        createdBy: documents.createdBy,
+        workflowInstanceId: documents.workflowInstanceId,
+        versionNumber: documents.versionNumber,
+        metadata: documents.metadata,
+        supersededBy: documents.supersededBy,
+        supersededAt: documents.supersededAt,
+        closureReason: documents.closureReason,
+        retentionScheduleId: documents.retentionScheduleId,
+        createdAt: documents.createdAt,
+        updatedAt: documents.updatedAt,
+        deletedAt: documents.deletedAt,
+        deletedBy: documents.deletedBy,
+        documentTypeName: documentTypes.name,
+      })
+      .from(documents)
+      .innerJoin(documentTypes, eq(documents.documentTypeId, documentTypes.id))
+      .where(and(...conditions))
+      .orderBy(desc(documents.createdAt), desc(documents.id))
+      .limit(filter.limit + 1);
+    return rows as unknown as Array<DocumentRow & { documentTypeName: string }>;
   }
 
   // -------------------------------------------------------------------------
