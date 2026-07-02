@@ -1,4 +1,5 @@
 import fp from 'fastify-plugin';
+import crypto from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { createDocumentsService } from './documents.service.js';
 import { createDocumentsRouter } from './documents.router.js';
@@ -24,6 +25,7 @@ declare module 'fastify' {
   interface FastifyInstance {
     documentsRepository: DocumentsRepository;
     documentsPolicyGuard: DocumentPolicyGuard;
+    numberingService: NumberingService;
   }
 }
 
@@ -62,6 +64,46 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
   fastify.decorate('documentsService', service);
   fastify.decorate('documentsPolicyGuard', policyGuard);
   fastify.decorate('documentsTrpcRouter', trpcRouter);
+  fastify.decorate('numberingService', numberingService);
+
+  if (fastify.boss) {
+    const SYSTEM_ACTOR_ID = '00000000-0000-4000-8000-000000000000';
+    const boss = fastify.boss as any; // pg-boss instance
+    
+    await boss.schedule('panlalawigan.checkDeemedApproved', '0 6 * * *', {}, { timezone: 'Asia/Manila' });
+    await boss.work('panlalawigan.checkDeemedApproved', async () => {
+      const overdueReviews = await repository.findOverduePanlalawiganReviews();
+      for (const review of overdueReviews) {
+        await repository.updatePanlalawiganReview(review.id, {
+          outcome: 'deemed_approved',
+          responseDate: new Date(),
+        });
+        
+        await service.transitionState(
+          review.documentId, 
+          'completed', 
+          SYSTEM_ACTOR_ID,
+          'Deemed approved by operation of law -- 30-day review period elapsed without Panlalawigan response'
+        );
+        
+        if (fastify.eventBus) {
+          const now = new Date();
+          fastify.eventBus.emit('document.panlalawigan.deemed_approved', { 
+            eventId: crypto.randomUUID(),
+            eventType: 'document.panlalawigan.deemed_approved',
+            occurredAt: now.toISOString(),
+            cityId: review.cityId,
+            schemaVersion: 1,
+            payload: {
+              documentId: review.documentId, 
+              transmittedAt: review.transmittedAt!, 
+              cityId: review.cityId 
+            }
+          });
+        }
+      }
+    });
+  }
 
   fastify.log.info('documents plugin registered');
 }

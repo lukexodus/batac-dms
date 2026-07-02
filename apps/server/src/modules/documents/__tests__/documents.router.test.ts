@@ -6,6 +6,10 @@ import type { Context } from '../../iam/iam.types.js';
 import type { AuthContext } from '../../iam/iam.types.js';
 import type { DocumentRow, DocumentTypeRow } from '../documents.repository.js';
 
+vi.mock('../../../config/env.js', () => ({
+  env: {}
+}));
+
 /**
  * [Unverified] Written against the real DocumentPolicyGuard and
  * documents.router.ts implementations, but never actually executed with

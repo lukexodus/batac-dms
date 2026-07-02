@@ -95,6 +95,9 @@ export interface EventPayloadMap {
   'document.created': DocumentCreatedPayload;
   'document.state_changed': DocumentStateChangedEvent;
   'document.number_assigned': DocumentNumberAssignedEvent;
+  'document.panlalawigan.deemed_approved': { documentId: string; transmittedAt: Date; cityId: string; };
+  'audit.document.panlalawigan_transmitted': { documentId: string; actorId: string; cityId: string; timestamp: Date; };
+  'audit.document.panlalawigan_outcome_logged': { documentId: string; outcome: string; actorId: string; cityId: string; timestamp: Date; };
 
   // ── Workflow module ────────────────────────────────────────────────────────
   'workflow.step_assigned': Stub;
