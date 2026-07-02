@@ -47,6 +47,7 @@ import { StubPreviewProvider } from './preview.provider.js';
 import type { DocumentsRepository, DocumentRow, DocumentTypeRow } from './documents.repository.js';
 import type { DocumentPolicyGuard } from './documents.policy.js';
 import type { DocumentsPublicAPI } from './documents.types.js';
+import { createPanlalawiganProcedures } from './panlalawigan.router.js';
 
 /**
  * documents.router.ts -- general CRUD (TASK-DOCS-011)
@@ -290,6 +291,8 @@ async function hasAnyAllowlistEntry(
 
 export function createDocumentsRouter() {
   return router({
+    ...createPanlalawiganProcedures(),
+    
     // -----------------------------------------------------------------
     // documents.create
     // -----------------------------------------------------------------

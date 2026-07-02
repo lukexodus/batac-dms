@@ -1,10 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   createDocumentsModule,
   createDocumentsService,
   createDocumentsRouter,
   DocumentsRepository,
 } from '../index.js';
+
+vi.mock('../../../config/env.js', () => ({
+  env: {}
+}));
 
 describe('Documents Module Scaffold', () => {
   it('exposes the factory functions and repository class', () => {

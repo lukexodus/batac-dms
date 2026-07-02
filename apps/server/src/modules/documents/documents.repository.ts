@@ -801,6 +801,28 @@ export class DocumentsRepository {
   }
 
   // -------------------------------------------------------------------------
+  // documents.panlalawigan_reviews
+  // -------------------------------------------------------------------------
+
+  /** Find overdue Panlalawigan reviews (transmitted >= 30 days ago, no outcome). */
+  async findOverduePanlalawiganReviews(): Promise<PanlalawiganReviewRow[]> {
+    // 30 days ago from now
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    return this.db
+      .select()
+      .from(panlalawiganReviews)
+      .where(
+        and(
+          isNull(panlalawiganReviews.outcome),
+          lte(panlalawiganReviews.transmittedAt, thirtyDaysAgo),
+          isNull(panlalawiganReviews.deletedAt)
+        )
+      );
+  }
+
+  // -------------------------------------------------------------------------
   // Legacy stub aliases — kept for backwards-compatibility with the scaffold
   // test and documents.service.ts until those callers are updated.
   // -------------------------------------------------------------------------
