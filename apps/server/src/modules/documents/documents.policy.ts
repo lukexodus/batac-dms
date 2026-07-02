@@ -711,6 +711,60 @@ export class DocumentPolicyGuard {
     return subject.roles.includes('plat_admin') && subject.isPlatformAdmin;
   }
 
+  // ─── Signatures (TASK-DOCS-015) ──────────────────────────────────────────
+
+  /**
+   * Log signature is allowed for: dept_approver, sp_secretary, sp_presiding_officer, mayor, brgy_captain.
+   */
+  canLogSignature(subject: SubjectContext): boolean {
+    const allowedRoles = new Set([
+      'dept_approver',
+      'sp_secretary',
+      'sp_presiding_officer',
+      'mayor',
+      'brgy_captain',
+    ]);
+    return rolesIntersect(subject.roles, allowedRoles);
+  }
+
+  /**
+   * Upload signature image requires the same roles as log signature.
+   * Additionally, the caller must have access to the parent document (ownedByOfficeId in effectiveOfficeIds).
+   */
+  canUploadSignatureImage(subject: SubjectContext, attrs: { ownedByOfficeId: string }): boolean {
+    const allowedRoles = new Set([
+      'dept_approver',
+      'sp_secretary',
+      'sp_presiding_officer',
+      'mayor',
+      'brgy_captain',
+    ]);
+    if (!rolesIntersect(subject.roles, allowedRoles)) {
+      return false;
+    }
+    return subject.effectiveOfficeIds.includes(attrs.ownedByOfficeId);
+  }
+
+  /**
+   * View signature records is allowed for: records_officer, dept_encoder, dept_approver, sp_secretary,
+   * sp_member, sp_presiding_officer, mayor, brgy_encoder, brgy_captain, auditor.
+   */
+  canGetSignatureRecords(subject: SubjectContext): boolean {
+    const allowedRoles = new Set([
+      'records_officer',
+      'dept_encoder',
+      'dept_approver',
+      'sp_secretary',
+      'sp_member',
+      'sp_presiding_officer',
+      'mayor',
+      'brgy_encoder',
+      'brgy_captain',
+      'auditor',
+    ]);
+    return rolesIntersect(subject.roles, allowedRoles);
+  }
+
   // ─── State-Action Compatibility (I1 §17) ───────────────────────────────
 
   /**
