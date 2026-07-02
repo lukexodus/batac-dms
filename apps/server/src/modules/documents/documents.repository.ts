@@ -585,15 +585,33 @@ export class DocumentsRepository {
    */
   async updateDocumentFields(
     id: string,
-    fields: { title?: string; metadata?: Record<string, unknown> },
+    fields: { title?: string; metadata?: Record<string, unknown>; versionNumber?: number },
   ): Promise<DocumentRow | null> {
     const patch: Record<string, unknown> = { updatedAt: new Date() };
     if (fields.title !== undefined) patch['title'] = fields.title;
     if (fields.metadata !== undefined) patch['metadata'] = fields.metadata;
+    if (fields.versionNumber !== undefined) patch['versionNumber'] = fields.versionNumber;
     const [row] = await this.db
       .update(documents)
       .set(patch)
       .where(and(eq(documents.id, id), isNull(documents.deletedAt)))
+      .returning();
+    return row ?? null;
+  }
+
+  /**
+   * Update version fields.
+   */
+  async updateVersionFields(
+    id: string,
+    fields: { requiresManualVerification?: boolean },
+  ): Promise<VersionRow | null> {
+    const patch: Record<string, unknown> = {};
+    if (fields.requiresManualVerification !== undefined) patch['requiresManualVerification'] = fields.requiresManualVerification;
+    const [row] = await this.db
+      .update(versions)
+      .set(patch)
+      .where(and(eq(versions.id, id), isNull(versions.deletedAt)))
       .returning();
     return row ?? null;
   }

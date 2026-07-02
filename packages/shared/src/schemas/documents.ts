@@ -293,6 +293,67 @@ export const UploadNewVersionInputSchema = z.object({
 });
 export type UploadNewVersionInput = z.infer<typeof UploadNewVersionInputSchema>;
 
+export const RequestUploadUrlInputSchema = z.object({
+  documentId: UuidSchema,
+  mimeType: AllowedMimeTypeSchema,
+});
+export type RequestUploadUrlInput = z.infer<typeof RequestUploadUrlInputSchema>;
+
+export const RequestUploadUrlOutputSchema = z.object({
+  s3Key: z.string(),
+  uploadUrl: z.string(),
+});
+export type RequestUploadUrlOutput = z.infer<typeof RequestUploadUrlOutputSchema>;
+
+export const ConfirmUploadInputSchema = z.object({
+  documentId: UuidSchema,
+  s3Key: z.string(),
+  originalFilename: z.string().max(512),
+  mimeType: AllowedMimeTypeSchema,
+  fileSizeBytes: z.number().int().positive().max(26_214_400),
+  reason: z.string().max(512).optional(),
+});
+export type ConfirmUploadInput = z.infer<typeof ConfirmUploadInputSchema>;
+
+export const ConfirmUploadOutputSchema = z.object({
+  versionId: UuidSchema,
+});
+export type ConfirmUploadOutput = z.infer<typeof ConfirmUploadOutputSchema>;
+
+export const VersionIdInputSchema = z.object({
+  versionId: UuidSchema,
+});
+export type VersionIdInput = z.infer<typeof VersionIdInputSchema>;
+
+export const DownloadVersionInputSchema = z.object({
+  versionId: UuidSchema,
+});
+export type DownloadVersionInput = z.infer<typeof DownloadVersionInputSchema>;
+
+export const DownloadVersionOutputSchema = z.object({
+  downloadUrl: z.string(),
+  expiresAt: TimestampSchema,
+});
+export type DownloadVersionOutput = z.infer<typeof DownloadVersionOutputSchema>;
+
+export const OcrTextOutputSchema = z.object({
+  ocrText: z.string().nullable(),
+});
+export type OcrTextOutput = z.infer<typeof OcrTextOutputSchema>;
+
+export const ScanQualityIndicatorOutputSchema = z.object({
+  scanQualityCategory: ScanQualityCategorySchema.nullable(),
+  scanQualityScore: z.number().nullable(),
+  requiresManualVerification: z.boolean(),
+});
+export type ScanQualityIndicatorOutput = z.infer<typeof ScanQualityIndicatorOutputSchema>;
+
+export const FlagScannedBackInputSchema = z.object({
+  versionId: UuidSchema,
+  reason: z.string().min(1).max(512),
+});
+export type FlagScannedBackInput = z.infer<typeof FlagScannedBackInputSchema>;
+
 // Attachments
 export const AttachmentSelectSchema = z.object({
   id: UuidSchema,

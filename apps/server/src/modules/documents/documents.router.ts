@@ -17,7 +17,23 @@ import {
   SearchDocumentsOutputSchema,
   UpdateDocumentInputSchema,
   CancelDocumentInputSchema,
+  RequestUploadUrlInputSchema,
+  RequestUploadUrlOutputSchema,
+  ConfirmUploadInputSchema,
+  ConfirmUploadOutputSchema,
+  VersionIdInputSchema,
+  VersionSelectSchema,
+  DownloadVersionInputSchema,
+  DownloadVersionOutputSchema,
+  OcrTextOutputSchema,
+  ScanQualityIndicatorOutputSchema,
+  FlagScannedBackInputSchema,
 } from '@batac/shared';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { env } from '../../config/env.js';
+import { OcrService, StubOcrProvider } from './ocr.service.js';
+import { StubPreviewProvider } from './preview.provider.js';
 import type { DocumentsRepository, DocumentRow, DocumentTypeRow } from './documents.repository.js';
 import type { DocumentPolicyGuard } from './documents.policy.js';
 import type { DocumentsPublicAPI } from './documents.types.js';
@@ -70,6 +86,33 @@ const SP_DOCUMENT_TYPE_CODES = new Set(['SP_RESOLUTION', 'SP_ORDINANCE', 'SP_APP
 /** Office code looked up via OrgService.getOfficeByCode, matching the
  * pattern already used in apps/server/src/database/seeds/number-series.seed.ts. */
 const SP_SECRETARIAT_OFFICE_CODE = 'SPS';
+
+let _s3Client: S3Client | null = null;
+function getS3Client(): S3Client {
+  if (!_s3Client) {
+    _s3Client = new S3Client({
+      region: env.S3_REGION || 'ap-southeast-1',
+      endpoint: env.S3_ENDPOINT,
+      credentials: {
+        accessKeyId: env.S3_ACCESS_KEY || '',
+        secretAccessKey: env.S3_SECRET_KEY || '',
+      },
+      forcePathStyle: true,
+    });
+  }
+  return _s3Client;
+}
+
+function getOcrService(ctx: Context): OcrService {
+  return new OcrService(
+    ctx.req.server.boss,
+    new StubOcrProvider(),
+    new StubPreviewProvider(),
+    getS3Client() as any, // satisfies S3Client interface needed by OcrService
+    env.S3_BUCKET || 'batac-dms',
+    ctx.req.server.db as any
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Minimal JSON-Schema-subset validator for "second-pass JSONB validation"
@@ -665,6 +708,372 @@ export function createDocumentsRouter() {
           }
           throw err;
         }
+
+        return { success: true as const };
+      }),
+
+    // -----------------------------------------------------------------
+    // documents.requestUploadUrl
+    // -----------------------------------------------------------------
+    requestUploadUrl: protectedProcedure
+      .input(RequestUploadUrlInputSchema)
+      .output(RequestUploadUrlOutputSchema)
+      .mutation(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+
+        const document = await repo.findDocumentById(input.documentId);
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const allowed = guard.canCreateVersion(subject, {
+          ownedByOfficeId: document.ownedByOfficeId,
+          createdBy: document.createdBy,
+        });
+        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+
+        const s3Key = crypto.randomUUID();
+        const command = new PutObjectCommand({
+          Bucket: env.S3_BUCKET || 'batac-dms',
+          Key: s3Key,
+          ContentType: input.mimeType,
+        });
+
+        const uploadUrl = await getSignedUrl(getS3Client(), command, { expiresIn: env.S3_SIGNED_URL_EXPIRES_S || 900 });
+
+        return {
+          s3Key,
+          uploadUrl,
+        };
+      }),
+
+    // -----------------------------------------------------------------
+    // documents.confirmUpload
+    // -----------------------------------------------------------------
+    confirmUpload: protectedProcedure
+      .input(ConfirmUploadInputSchema)
+      .output(ConfirmUploadOutputSchema)
+      .mutation(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+
+        const document = await repo.findDocumentById(input.documentId);
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const allowed = guard.canCreateVersion(subject, {
+          ownedByOfficeId: document.ownedByOfficeId,
+          createdBy: document.createdBy,
+        });
+        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+
+        const newVersionNumber = document.versionNumber + 1;
+
+        const version = await repo.insertVersion({
+          cityId: subject.cityId,
+          documentId: input.documentId,
+          versionNumber: newVersionNumber,
+          fileKey: input.s3Key,
+          originalFilename: input.originalFilename,
+          mimeType: input.mimeType,
+          fileSizeBytes: input.fileSizeBytes,
+          createdBy: subject.userId,
+          pageCount: null, // extracted later by OCR
+          scanQualityScore: null,
+          scanQualityCategory: null,
+          ocrProcessed: false,
+          requiresManualVerification: false,
+        });
+
+        await repo.updateDocumentFields(input.documentId, {
+          versionNumber: newVersionNumber,
+        });
+
+        // Enqueue OCR extraction
+        const ocrService = getOcrService(ctx);
+        await ocrService.enqueueOcrJob(version.id, input.s3Key, input.documentId);
+
+        return { versionId: version.id };
+      }),
+
+    // -----------------------------------------------------------------
+    // documents.getVersionHistory
+    // -----------------------------------------------------------------
+    getVersionHistory: protectedProcedure
+      .input(DocumentIdInputSchema)
+      .output(z.array(VersionSelectSchema))
+      .query(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+
+        const document = await repo.findDocumentById(input.documentId);
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const hasAllowlistEntry = await hasAnyAllowlistEntry(
+          repo,
+          document.documentTypeId,
+          subject.roles,
+          subject.cityId,
+        );
+
+        const allowed = guard.canReadMetadata(subject, {
+          ownedByOfficeId: document.ownedByOfficeId,
+          classificationLevel: document.classificationLevel as ClassificationLevel,
+          hasCrossOfficeGrant: false,
+          hasAllowlistEntry,
+        });
+        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+
+        const versions = await repo.findVersionsByDocument(input.documentId);
+        return versions.map((v) => ({
+          id: v.id,
+          documentId: v.documentId,
+          versionNumber: v.versionNumber,
+          s3Key: v.fileKey,
+          originalFilename: v.originalFilename,
+          mimeType: v.mimeType,
+          fileSizeBytes: v.fileSizeBytes ?? 0,
+          pageCount: v.pageCount,
+          scanQualityScore: v.scanQualityScore ? Number(v.scanQualityScore) : null,
+          scanQualityCategory: v.scanQualityCategory as any,
+          ocrProcessed: v.ocrProcessed,
+          uploadedBy: v.createdBy,
+          createdAt: v.createdAt.toISOString(),
+        }));
+      }),
+
+    // -----------------------------------------------------------------
+    // documents.downloadVersion
+    // -----------------------------------------------------------------
+    downloadVersion: protectedProcedure
+      .input(DownloadVersionInputSchema)
+      .output(DownloadVersionOutputSchema)
+      .mutation(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+
+        const version = await repo.findVersionById(input.versionId);
+        if (!version) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const document = await repo.findDocumentById(version.documentId);
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const hasAllowlistEntry = await hasAnyAllowlistEntry(
+          repo,
+          document.documentTypeId,
+          subject.roles,
+          subject.cityId,
+        );
+
+        const allowed = guard.canReadVersionContent(subject, {
+          ownedByOfficeId: document.ownedByOfficeId,
+          classificationLevel: document.classificationLevel as ClassificationLevel,
+          hasAllowlistEntry,
+        });
+        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+
+        const expiresIn = env.S3_SIGNED_URL_EXPIRES_S || 900;
+        const command = new GetObjectCommand({
+          Bucket: env.S3_BUCKET || 'batac-dms',
+          Key: version.fileKey,
+        });
+
+        const downloadUrl = await getSignedUrl(getS3Client(), command, { expiresIn });
+
+        const expiresAt = new Date(Date.now() + expiresIn * 1000);
+
+        return {
+          downloadUrl,
+          expiresAt: expiresAt.toISOString(),
+        };
+      }),
+
+    // -----------------------------------------------------------------
+    // documents.getOcrText
+    // -----------------------------------------------------------------
+    getOcrText: protectedProcedure
+      .input(VersionIdInputSchema)
+      .output(OcrTextOutputSchema)
+      .query(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+
+        const version = await repo.findVersionById(input.versionId);
+        if (!version) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const document = await repo.findDocumentById(version.documentId);
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const hasAllowlistEntry = await hasAnyAllowlistEntry(
+          repo,
+          document.documentTypeId,
+          subject.roles,
+          subject.cityId,
+        );
+
+        const allowed = guard.canReadOcrText(subject, {
+          ownedByOfficeId: document.ownedByOfficeId,
+          classificationLevel: document.classificationLevel as ClassificationLevel,
+          hasAllowlistEntry,
+        });
+        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+
+        return { ocrText: version.ocrText };
+      }),
+
+    // -----------------------------------------------------------------
+    // documents.getScanQualityIndicator
+    // -----------------------------------------------------------------
+    getScanQualityIndicator: protectedProcedure
+      .input(VersionIdInputSchema)
+      .output(ScanQualityIndicatorOutputSchema)
+      .query(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+
+        const version = await repo.findVersionById(input.versionId);
+        if (!version) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const document = await repo.findDocumentById(version.documentId);
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const allowed = guard.canReadScanQuality(subject, {
+          ownedByOfficeId: document.ownedByOfficeId,
+          createdBy: document.createdBy,
+        });
+        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+
+        return {
+          scanQualityCategory: (version.scanQualityCategory as any) || null,
+          scanQualityScore: version.scanQualityScore ? Number(version.scanQualityScore) : null,
+          requiresManualVerification: version.requiresManualVerification,
+        };
+      }),
+
+    // -----------------------------------------------------------------
+    // documents.triggerManualReOcr
+    // -----------------------------------------------------------------
+    triggerManualReOcr: protectedProcedure
+      .input(VersionIdInputSchema)
+      .output(SuccessOutputSchema)
+      .mutation(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+
+        const version = await repo.findVersionById(input.versionId);
+        if (!version) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const document = await repo.findDocumentById(version.documentId);
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const allowed = guard.canUpdate(subject, {
+          lifecycleState: document.lifecycleState as LifecycleState,
+          ownedByOfficeId: document.ownedByOfficeId,
+          createdBy: document.createdBy,
+        });
+        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN', message: 'You must have update rights to trigger Re-OCR.' });
+
+        const ocrService = getOcrService(ctx);
+        await ocrService.enqueueManualReOcrJob(input.versionId);
+
+        return { success: true as const };
+      }),
+
+    // -----------------------------------------------------------------
+    // documents.flagScannedBackForVerification
+    // -----------------------------------------------------------------
+    flagScannedBackForVerification: protectedProcedure
+      .input(FlagScannedBackInputSchema)
+      .output(SuccessOutputSchema)
+      .mutation(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+
+        const version = await repo.findVersionById(input.versionId);
+        if (!version) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const document = await repo.findDocumentById(version.documentId);
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        // Same access requirement as Re-OCR (must be able to update)
+        const allowed = guard.canUpdate(subject, {
+          lifecycleState: document.lifecycleState as LifecycleState,
+          ownedByOfficeId: document.ownedByOfficeId,
+          createdBy: document.createdBy,
+        });
+        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+
+        await repo.updateVersionFields(input.versionId, {
+          requiresManualVerification: true,
+          // We don't store the reason column on the version yet, but we could log an audit event
+        });
+
+        return { success: true as const };
+      }),
+
+    // -----------------------------------------------------------------
+    // documents.acceptScannedBackAsOfficial
+    // -----------------------------------------------------------------
+    acceptScannedBackAsOfficial: protectedProcedure
+      .input(VersionIdInputSchema)
+      .output(SuccessOutputSchema)
+      .mutation(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+
+        const version = await repo.findVersionById(input.versionId);
+        if (!version) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const document = await repo.findDocumentById(version.documentId);
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const allowed = guard.canUpdate(subject, {
+          lifecycleState: document.lifecycleState as LifecycleState,
+          ownedByOfficeId: document.ownedByOfficeId,
+          createdBy: document.createdBy,
+        });
+        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+
+        await repo.updateVersionFields(input.versionId, {
+          requiresManualVerification: false,
+        });
 
         return { success: true as const };
       }),
