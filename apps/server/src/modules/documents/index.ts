@@ -10,6 +10,24 @@ export { default as documentsPlugin } from './documents.plugin.js';
 export { createDocumentsRouter } from './documents.router.js';
 export { DocumentsRepository } from './documents.repository.js';
 export { createDocumentsService } from './documents.service.js';
+export type {
+  SubjectContext as DocumentsSubjectContext,
+  CreateDocumentAttrs,
+  ReadMetadataAttrs,
+  UpdateDocumentAttrs,
+  SoftDeleteDocumentAttrs,
+  SubmitDocumentAttrs,
+  CancelDocumentAttrs,
+  AssignPreliminaryNumberAttrs,
+  AssignFinalNumberAttrs,
+  CertifyUrgentAttrs,
+  ArchiveDocumentAttrs,
+  PublishPortalAttrs,
+  ContentReadAttrs,
+  CreateVersionAttrs,
+  ScanQualityAttrs,
+} from './documents.policy.js';
+export { DocumentPolicyGuard } from './documents.policy.js';
 
 /**
  * Factory to create the Documents Module instance.
