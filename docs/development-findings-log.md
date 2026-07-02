@@ -755,5 +755,178 @@ Verified by installing PostgreSQL 16 locally, creating the five application role
 
 [Inference]: this is an oversight in C1 Part 12 / Part 14 rather than an intentional decision to enforce `routing_entries` less strictly than `workflow_events` — no note in C1 explains the asymmetry given both share the §1.4 "append-only" classification. A human should confirm, and should also confirm whether `notifications.delivery_log` needs the identical grant-level treatment when its owning task is implemented — it shares the same §1.4 classification and is equally absent from Part 12/14's enforcement list, but that table is out of scope for TASK-TRACK-001 and was not touched here.
 
+### [LOG-0026] TASK-DOCS-009 prompt's SubjectContext shorthand (isIta/isPa) diverges from the shipped IAM AuthContext (isItAdmin/isPlatformAdmin)
+
+- date: 2026-07-02
+- task_id: TASK-DOCS-009
+- status: proposed
+- affects: I1 (§1 Subject Attributes Reference)
+
+The TASK-DOCS-009 AI Prompt's `SubjectContext` interface uses `isIta: boolean;
+isPa: boolean;`, mirroring I1 §1's raw JWT-claim names (`subject.is_ita`,
+`subject.is_pa`). The `AuthContext` type TASK-IAM-004 actually shipped
+(`apps/server/src/modules/iam/iam.types.ts`) instead names these fields
+`isItAdmin`/`isPlatformAdmin`, and additionally carries `sessionId`,
+`permissions`, `delegationGrantId`, and `effectiveRoles`, none of which the
+prompt's shorthand mentions.
+
+Implemented `documents.policy.ts`'s `SubjectContext` as a direct alias of the
+real `AuthContext` (`export type SubjectContext = AuthContext;`), matching the
+same alias `iam.policy.ts` itself already exports, and used the real field
+names (`isItAdmin`/`isPlatformAdmin`) throughout. This is what let
+`pnpm typecheck` pass and what will let real tRPC procedures pass `ctx.auth`
+into the guard without a mapping layer. [Unverified] whether the prompt's
+`isIta`/`isPa` naming was a deliberate, considered spec choice made
+independently of TASK-IAM-004, or simply written before TASK-IAM-004 shipped
+and never reconciled — I did not find anything to confirm either way, and the
+acceptance-criteria code snippet in the prompt uses the short names too, so
+the mismatch is baked into the ticket text itself, not just its prose.
+
+### [LOG-0027] I1 §17's state-action matrix (and the TASK-DOCS-009 prompt's copy of it) omits `pending_panlalawigan_review`
+
+- date: 2026-07-02
+- task_id: TASK-DOCS-009
+- status: proposed
+- affects: I1 (§17)
+
+`documents.documents_lifecycle_state_check` (schema), and this module's own
+`DocumentLifecycleState` union (`documents.types.ts`, shipped by
+TASK-DOCS-002), both list eleven lifecycle states, including
+`pending_panlalawigan_review`. I1 §17's State-Action Compatibility Matrix, and
+the TASK-DOCS-009 prompt's verbatim copy of it, both have only ten rows and
+never mention this state. I1 itself never mentions
+`pending_panlalawigan_review` anywhere in the document (confirmed by a
+full-text search), which is consistent with D3's note that ADR-013 split a
+single earlier "Pending Approval" state into `pending_mayor_action` and
+`pending_panlalawigan_review` — I1 appears to predate or not have been
+reconciled with that split for this specific matrix.
+
+Implemented `checkStateActionCompatibility` with `STATE_ACTION_MATRIX` typed
+as `Record<DocumentLifecycleState, readonly string[]>` (rather than the
+prompt's looser `Record<string, string[]>`), so TypeScript itself requires
+every state to have an entry — the gap cannot be silently reintroduced by
+omitting a key. [Inference] Filled `pending_panlalawigan_review` with
+`['read', 'cancel']` only:
+  - `read` follows I1 §17's own pattern of allowing it in literally every
+    other row, including terminal states.
+  - `cancel` is corroborated by the DB trigger
+    `documents.check_lifecycle_transition()`, which explicitly permits
+    `pending_panlalawigan_review -> cancelled`.
+D3 also documents transitions from this state to `completed`
+(`FINAL_APPROVAL_GRANTED`) and to `superseded` (`DOCUMENT_SUPERSEDED`), but I
+did not find a clear mapping from either event to one of this matrix's
+existing action names (`approve`/`reject`/`number_promote`), so I left them
+out rather than guess. A human should confirm the complete action set for
+this state.
+
+### [LOG-0028] I1 §3.4's ALLOW-clause role list omits brgy_encoder from document soft-delete
+
+- date: 2026-07-02
+- task_id: TASK-DOCS-009
+- status: proposed
+- affects: I1 (§3.4)
+
+I1 §3.4 (`document:delete`, soft-delete)'s ALLOW clause role set is `{
+dept_encoder, dept_approver, sp_secretary, sp_presiding_officer, mayor,
+brgy_captain }` — `brgy_encoder` is absent. The "RESTRICTED ENCODER RULE" note
+immediately following that same clause, in the same section, states
+"dept_encoder and brgy_encoder may soft-delete only while lifecycle_state IN
+('draft', 'submitted')...", treating `brgy_encoder` as included. I2's "Delete
+document in Draft state (soft delete) — own office" row independently shows
+Barangay Encoder = ✅. Both of I1's own text and I2 agree `brgy_encoder` should
+be included; only I1 §3.4's ALLOW-clause role list itself omits it.
+
+Implemented `SOFT_DELETE_ROLES` including `brgy_encoder`, tested explicitly in
+`documents.policy.test.ts`.
+
+### [LOG-0029] I1 §4.1 content cross-office read does not require has_cross_office_read_grant, unlike I1 §3.2 metadata read
+
+- date: 2026-07-02
+- task_id: TASK-DOCS-009
+- status: proposed
+- affects: I1 (§4.1, §3.2)
+
+The TASK-DOCS-009 prompt describes `document_version:read` /
+`document_attachment:read` (I1 §4.1) as using "the same
+own-office/cross-office/committee rules as document:read metadata" (I1 §3.2).
+Read literally, the two sections differ: I1 §3.2's cross-office branch
+requires `has_cross_office_read_grant(subject, document.office_id) = true` in
+addition to the role and classification checks; I1 §4.1's cross-office branch
+has no such grant condition — only the role set intersection and
+`classification_level IN ('public','internal')`. This makes §4.1's
+cross-office branch broader than §3.2's, i.e. a subject can read the *content*
+of another office's internal document via the cross-office role list without
+an explicit grant, while reading that same document's *metadata* cross-office
+would require one.
+
+Implemented per I1 §4.1's literal text (no grant check in `canReadContent`'s
+cross-office branch), not per the prompt's "same rules" paraphrase. [Unverified]
+whether this asymmetry (content readable cross-office more easily than
+metadata) is intentional or itself a gap in I1 — it reads as unusual given
+metadata is normally the less sensitive of the two, but I found nothing in I1,
+I2, or B5 that discusses the two sections' cross-office branches together or
+explains a reason for the difference.
+
+### [LOG-0030] I1 §3.4's closing "deletion requires dept_approver or sp_secretary" sentence misattributes I2 Conditional Note 7, which is about the cancel action
+
+- date: 2026-07-02
+- task_id: TASK-DOCS-009
+- status: proposed
+- affects: I1 (§3.4), supersedes nothing (refines LOG-0028, same section, different sub-finding)
+
+I1 §3.4's base ALLOW clause has an unconditional, top-level
+`AND document.workflow_instance_id IS NULL` that applies to the whole rule —
+not scoped to any particular role subset. The "RESTRICTED ENCODER RULE" note
+directly below it closes with "Once a workflow instance exists, deletion
+requires dept_approver or sp_secretary," citing "[Confirmed — I2 Conditional
+Note 7]." I checked I2 Conditional Note 7 directly
+(`i2-role-permission-matrix.md`, footnote 7): it is attached to I2's "Cancel
+document (from any active state) — own office" row and its text is
+specifically about the *cancel* action's Department/Barangay Encoder
+restriction ("A Department Encoder may cancel a document only while it is in
+Draft or Submitted state and has not yet entered an active workflow
+instance... Once a workflow instance is live, cancellation requires the
+Approver or SP Secretary"), not about soft-delete. I1 §3.6 (`document:cancel`)
+already correctly implements this same rule independently, with
+`dept_approver`/`sp_secretary` unconditionally able to cancel regardless of
+workflow-instance state.
+
+Read this way, §3.4's closing sentence appears to be a misattributed/copied
+reference to §3.6's rule rather than a real exception to §3.4's own
+`workflow_instance_id IS NULL` condition — "deletion" there most likely should
+have read "cancellation." Implemented `canSoftDelete` per the base ALLOW
+clause literally: `workflow_instance_id IS NULL` is required for every role in
+the set, `dept_approver`/`sp_secretary` included; those two roles' unconditional
+access to remove a document from an active workflow is available through
+`canCancel`, not `canSoftDelete`. This was caught by a test that initially
+assumed the exception existed and failed against the implementation as first
+written; the implementation (not the test) reflects this entry's conclusion.
+
+### [LOG-0031] I1 §3.1's own-office condition for document:create is definitionally always-true as literally written
+
+- date: 2026-07-02
+- task_id: TASK-DOCS-009
+- status: proposed
+- affects: I1 (§3.1, §1)
+
+I1 §3.1's ALLOW clause for `document:create` includes
+`subject.office_id ∈ subject.effective_office_ids`. I1 §1's own Subject
+Attributes Reference states `effective_office_ids` "always includes
+`office_id`" — so for any authenticated subject with a non-null office, this
+condition evaluates to true unconditionally, regardless of which document is
+being created. As literally written it cannot function as an access-scoping
+condition. The same line's parenthetical clarification — "i.e. the user is
+creating a document for their own office or a delegation-extended office" —
+describes something else: a check that the *document's* intended
+`owned_by_office_id` falls within the subject's effective offices, not a
+comparison of the subject's own two attributes to each other.
+
+Implemented `canCreate` checking `attrs.ownedByOfficeId` (the office the new
+document will be owned by, supplied by the caller) against
+`subject.effectiveOfficeIds`, matching the parenthetical's evident intent and
+the TASK-DOCS-009 acceptance criterion
+(`canCreate({ officeId: 'A', effectiveOfficeIds: ['A'] }, { ownedByOfficeId: 'A' })`
+→ `true`), rather than the literal (vacuous) subject-only comparison.
+
 
 
