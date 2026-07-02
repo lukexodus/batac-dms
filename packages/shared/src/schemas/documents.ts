@@ -469,3 +469,69 @@ export const LogPanlalawiganOutcomeInputSchema = z
     path: ["remarks"],
   });
 export type LogPanlalawiganOutcomeInput = z.infer<typeof LogPanlalawiganOutcomeInputSchema>;
+
+// --- SP Workflow & Secretariat Specifics (TASK-DOCS-012) ---
+
+export const SubmitDocumentInputSchema = z.object({
+  documentId: UuidSchema,
+});
+export type SubmitDocumentInput = z.infer<typeof SubmitDocumentInputSchema>;
+
+export const SubmitDocumentOutputSchema = z.object({
+  lifecycleState: z.literal("submitted"),
+  qrTrackingNumber: UuidSchema,
+  preliminaryNumber: z.string().nullable(),
+});
+export type SubmitDocumentOutput = z.infer<typeof SubmitDocumentOutputSchema>;
+
+export const AssignPreliminaryNumberInputSchema = z.object({
+  documentId: UuidSchema,
+});
+export type AssignPreliminaryNumberInput = z.infer<typeof AssignPreliminaryNumberInputSchema>;
+
+export const AssignPreliminaryNumberOutputSchema = z.object({
+  preliminaryNumber: z.string(),
+});
+export type AssignPreliminaryNumberOutput = z.infer<typeof AssignPreliminaryNumberOutputSchema>;
+
+// Note: AssignFinalNumberInputSchema is already defined above at line 398, but the prompt
+// requested it to just be { documentId: z.string().uuid() }. The existing one includes `reason`.
+// I will create a specific schema for this procedure to match the acceptance criteria,
+// or I could just re-use DocumentIdInputSchema. I'll use DocumentIdInputSchema for input,
+// and create the output schema.
+export const AssignFinalNumberOutputSchema = z.object({
+  finalNumber: z.string(),
+  assignedAt: TimestampSchema,
+});
+export type AssignFinalNumberOutput = z.infer<typeof AssignFinalNumberOutputSchema>;
+
+export const LogCertificationOfUrgencyInputSchema = z.object({
+  certifyingDocumentId: UuidSchema,
+  associatedMeasureIds: z.array(UuidSchema).min(1).max(10),
+});
+export type LogCertificationOfUrgencyInput = z.infer<typeof LogCertificationOfUrgencyInputSchema>;
+
+export const LogCertificationOfUrgencyOutputSchema = z.object({
+  certificationDocumentId: UuidSchema,
+  affectedDocumentIds: z.array(UuidSchema),
+});
+export type LogCertificationOfUrgencyOutput = z.infer<typeof LogCertificationOfUrgencyOutputSchema>;
+
+export const PortalPublishInputSchema = z.object({
+  documentId: UuidSchema,
+});
+export type PortalPublishInput = z.infer<typeof PortalPublishInputSchema>;
+
+export const ArchiveDocumentInputSchema = z.object({
+  documentId: UuidSchema,
+});
+export type ArchiveDocumentInput = z.infer<typeof ArchiveDocumentInputSchema>;
+
+export const LogSecretariatDecisionInputSchema = z.object({
+  documentId: UuidSchema,
+  stepInstanceId: UuidSchema,
+  decision: z.enum(["approve", "reject", "amended"]),
+  remarks: z.string().max(2048).optional(),
+});
+export type LogSecretariatDecisionInput = z.infer<typeof LogSecretariatDecisionInputSchema>;
+
