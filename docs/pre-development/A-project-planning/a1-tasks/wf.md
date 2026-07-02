@@ -18,40 +18,33 @@
 
 ---
 
-## Table of Contents
+## Task Index
 
-- [L58–L326] TASK-WF-001 — `[MIGRATION]` Create workflow schema Drizzle definitions and DDL migration
-- [L327–L391] TASK-WF-002 — Scaffold WF module file structure with typed stubs
-- [L392–L521] TASK-WF-003 — Implement WorkflowContextSchema and step-config Zod types in `/packages/shared`
-- [L522–L607] TASK-WF-004 — Implement WF repository layer — all `workflow.*` tables
-- [L608–L718] TASK-WF-005 — Implement engine core — createInstance, step resolution, transition evaluation, assignee resolution, domain event emission
-- [L719–L817] TASK-WF-006 — Implement `action`, `decision`, `notification`, and `termination` step handlers (including REPASSED)
-- [L818–L890] TASK-WF-007 — `[AUDIT]` Implement `approval` step handler — outcome validation, scheduler-only guard, encoder ≠ final-approver invariant
-- [L891–L984] TASK-WF-008 — `[AUDIT]` Implement `multi_referral` step handler — committee metadata, completion sequence, manual advance guard
-- [L985–L1062] TASK-WF-009 — `[AUDIT]` Implement Certified Urgent bypass event consumer (`document.certified_urgent`)
-- [L1063–L1144] TASK-WF-010 — Implement definition publish-time validator — `MISSING_LAPSE_TRANSITION`, `MISSING_OUTCOME_TRANSITION`, Phase 1 parallel-step guard, legally mandated step guard
-- [L1145–L1219] TASK-WF-011 — Implement Thursday cutoff scheduler job (`evaluateThursdayCutoffs` — pgboss, PHT-timezone-aware, idempotent)
-- [L1220–L1297] TASK-WF-012 — Implement Mayor lapse timer scheduler job (`evaluateMayorLapseTimers` — hourly node-cron, pessimistic lock, race-condition prevention)
-- [L1298–L1373] TASK-WF-013 — Implement Panlalawigan 30-day timer scheduler job (`evaluatePanlalawiganTimers` — daily 06:00 PHT, 30-calendar-day, VALID_IN_PART paths)
-- [L1374–L1445] TASK-WF-014 — Implement SLA escalation monitor (`evaluateSlaBreaches` — 15-min node-cron, startup run, 80%/100%/150% thresholds, working-day computation)
-- [L1446–L1542] TASK-WF-015 — `[AUDIT]` Implement Version Management Option B — `migrateInstance`, `bypassStep`, `cancelInstance` (step key mapping, City Admin approval check, 24-hour reversal window)
-- [L1543–L1622] TASK-WF-016 — Seed Phase 1 workflow definitions — SP Resolution, SP Ordinance, Appropriation Ordinance (deterministic uuidv5, idempotent)
-- [L1623–L1704] TASK-WF-017 — `[ABAC]` Implement WF ABAC policy guard — step-assignment checks, encoder ≠ final-approver enforcement, role gates
-- [L1705–L1793] TASK-WF-018 — `[ABAC]` Implement workflow tRPC router — read procedures (`getInstance`, `getActiveInstanceForDocument`, `listMyAssignedSteps`, `getSlaComplianceData`)
-- [L1794–L1899] TASK-WF-019 — `[ABAC][AUDIT]` Implement workflow tRPC router — action and approval step procedures
-- [L1900–L1957] TASK-WF-020 — `[ABAC][AUDIT]` Implement workflow tRPC router — multi-referral procedures
-- [L1958–L2061] TASK-WF-021 — `[AUDIT]` Implement workflow tRPC router — Mayor/Panlalawigan/publication lapse procedures
-- [L2062–L2129] TASK-WF-022 — `[AUDIT]` Implement workflow tRPC router — admin procedures
-- [L2130–L2223] TASK-WF-023 — Implement Session and Order of Business tRPC router (`sessionRouter`)
-- [L2224–L2309] TASK-WF-024 — Wire WF Fastify plugin, event bus consumers (`document.created`, delegation events), and WF Published API implementation
-- [L2310–L2411] TASK-WF-025 — Implement WF Vitest test suite per K2
-- [L2412–L2527] Module Summary
-  - [L2420–L2432] Document Conflicts Resolved at Generation Time
-  - [L2433–L2455] Systematic Event Name Convention
-  - [L2456–L2465] Confirmed Spec Gaps Carried Forward
-  - [L2466–L2479] Deferred Capabilities (Phase 2 / Phase 1B)
-  - [L2480–L2514] Task Dependency Graph (abbreviated — full prerequisites in each task header)
-  - [L2515–L2527] Cross-Validation Log
+- [TASK-WF-001] `[MIGRATION]` Create workflow schema Drizzle definitions and DDL migration
+- [TASK-WF-002] Scaffold WF module file structure with typed stubs
+- [TASK-WF-003] Implement WorkflowContextSchema and step-config Zod types in `/packages/shared`
+- [TASK-WF-004] Implement WF repository layer — all `workflow.*` tables
+- [TASK-WF-005] Implement engine core — createInstance, step resolution, transition evaluation, assignee resolution, domain event emission
+- [TASK-WF-006] Implement `action`, `decision`, `notification`, and `termination` step handlers (including REPASSED)
+- [TASK-WF-007] `[AUDIT]` Implement `approval` step handler — outcome validation, scheduler-only guard, encoder ≠ final-approver invariant
+- [TASK-WF-008] `[AUDIT]` Implement `multi_referral` step handler — committee metadata, completion sequence, manual advance guard
+- [TASK-WF-009] `[AUDIT]` Implement Certified Urgent bypass event consumer (`document.certification_urgency.logged`)
+- [TASK-WF-010] Implement definition publish-time validator — `MISSING_LAPSE_TRANSITION`, `MISSING_OUTCOME_TRANSITION`, Phase 1 parallel-step guard, legally mandated step guard
+- [TASK-WF-011] Implement Thursday cutoff scheduler job (`evaluateThursdayCutoffs` — pgboss, PHT-timezone-aware, idempotent)
+- [TASK-WF-012] Implement Mayor lapse timer scheduler job (`evaluateMayorLapseTimers` — hourly node-cron, pessimistic lock, race-condition prevention)
+- [TASK-WF-013] Implement Panlalawigan 30-day timer scheduler job (`evaluatePanlalawiganTimers` — daily 06:00 PHT, 30-calendar-day, VALID_IN_PART paths)
+- [TASK-WF-014] Implement SLA escalation monitor (`evaluateSlaBreaches` — 15-min node-cron, startup run, 80%/100%/150% thresholds, working-day computation)
+- [TASK-WF-015] `[AUDIT]` Implement Version Management Option B — `migrateInstance`, `bypassStep`, `cancelInstance` (step key mapping, City Admin approval check, 24-hour reversal window)
+- [TASK-WF-016] Seed Phase 1 workflow definitions — SP Resolution, SP Ordinance, Appropriation Ordinance (deterministic uuidv5, idempotent)
+- [TASK-WF-017] `[ABAC]` Implement WF ABAC policy guard — step-assignment checks, encoder ≠ final-approver enforcement, role gates
+- [TASK-WF-018] `[ABAC]` Implement workflow tRPC router — read procedures (`getInstance`, `getActiveInstanceForDocument`, `listMyAssignedSteps`, `getSlaComplianceData`)
+- [TASK-WF-019] `[ABAC][AUDIT]` Implement workflow tRPC router — action and approval step procedures
+- [TASK-WF-020] `[ABAC][AUDIT]` Implement workflow tRPC router — multi-referral procedures
+- [TASK-WF-021] `[AUDIT]` Implement workflow tRPC router — Mayor/Panlalawigan/publication lapse procedures
+- [TASK-WF-022] `[AUDIT]` Implement workflow tRPC router — admin procedures
+- [TASK-WF-023] Implement Session and Order of Business tRPC router (`sessionRouter`)
+- [TASK-WF-024] Wire WF Fastify plugin, event bus consumers (`document.created`, delegation events), and WF Published API implementation
+- [TASK-WF-025] Implement WF Vitest test suite per K2
 
 ---
 
@@ -321,6 +314,27 @@ AI Prompt:
   > - [ ] `workflow.step_instances` has GIN index on `metadata`
   > - [ ] `documents.documents` gains four repass columns
   > - [ ] `REVOKE UPDATE, DELETE ON workflow.workflow_events FROM batac_app` is at end of migration
+  >
+  > **[OPEN-Q-3] Cross-task dependency — `admin_approval_grants` table:**
+  > TASK-WF-015 (`migrateInstance`) requires an unexpired City Administrator approval record. The table for these records has not yet been assigned to any module. **Before closing this task**, confirm with the project lead which schema owns this table (see Module Summary §Open Questions [OPEN-Q-3]). If ownership is confirmed as `workflow`, add the following DDL to this migration before merging:
+  > ```sql
+  > CREATE TABLE workflow.admin_approval_grants (
+  >   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  >   city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+  >   approver_user_id    UUID NOT NULL,  -- logical FK → iam.users.id (must hold city_administrator role)
+  >   instance_id         UUID NOT NULL REFERENCES workflow.instances(id),
+  >   target_version_id   UUID NOT NULL REFERENCES workflow.definition_versions(id),
+  >   reason              TEXT NOT NULL CHECK (char_length(trim(reason)) > 0),
+  >   expiry_timestamp    TIMESTAMPTZ NOT NULL,
+  >   used                BOOLEAN NOT NULL DEFAULT false,
+  >   used_at             TIMESTAMPTZ NULL,
+  >   created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+  > );
+  > CREATE INDEX idx_admin_approval_grants_instance ON workflow.admin_approval_grants(instance_id);
+  > CREATE INDEX idx_admin_approval_grants_unexpired ON workflow.admin_approval_grants(instance_id, target_version_id)
+  >   WHERE used = false AND expiry_timestamp > now();
+  > ```
+  > If ownership is confirmed as `iam`, do not add this table here — update TASK-WF-015 to read via IAM Published API instead.
 
 ---
 
@@ -702,6 +716,14 @@ AI Prompt:
   >   Write: { panlalawigan_transmission_date: NOW().toISOString(), panlalawigan_action_deadline: (NOW() + 30 days).toISOString() }
   > Both deadlines are CALENDAR days — no adjustment for weekends or holidays.
   >
+  > **`workflow.context.updated` emission (B3 §7.15):**
+  > After every call to `updateInstanceContext()` in the repository — including the timer-flag writes above and the `certified_urgent` / `certified_urgent_document_id` writes in TASK-WF-009 — emit `workflow.context.updated` within the same transaction:
+  > ```typescript
+  > // payload shape per B3 §7.15
+  > { instanceId: string; updatedKeys: string[]; actorId: string | null; actorType: 'user' | 'system' | 'scheduler' }
+  > ```
+  > `updatedKeys` is the list of top-level context keys that were patched (e.g., `['mayor_transmittal_date','mayor_action_deadline']`). This event is consumed by the Tracking module to log context state transitions. Implementing agent: emit this from the context-writer helper function directly so every context patch automatically emits the event — do not add separate emit calls at each call site.
+  >
   > **install json-logic-js:** `pnpm add json-logic-js` in /apps/server; import with type declarations.
   >
   > Before submitting this PR, confirm each item:
@@ -989,7 +1011,7 @@ Module:         WF
 Title:          [AUDIT] Implement Certified Urgent bypass event consumer
 Prerequisites:  [TASK-WF-008, TASK-DOCS-019]
 Deliverables:
-  - /apps/server/src/modules/workflow/engine/certified-urgent-bypass.handler.ts — event consumer for `document.certified_urgent` (emitted per-measure by the Documents module per docs.md §logCertificationOfUrgency); implements 3-case bypass algorithm (Case A: active step, Case B: pending step, Case C: already past referral) plus inactive instance check; all per-instance operations in independent transactions; emits `workflow.step_completed` (outcome: BYPASSED_CERTIFIED_URGENT) and `workflow.certified_urgent_applied` (B2 Events Emitted)
+  - /apps/server/src/modules/workflow/engine/certified-urgent-bypass.handler.ts — event consumer for `document.certification_urgency.logged` (B3 §6.5 canonical name; batch event per Certification document, covering all `associatedInstanceIds`); implements 3-case bypass algorithm (Case A: active step, Case B: pending step, Case C: already past referral) plus inactive instance check; each instance in `associatedInstanceIds` processed in an independent transaction; emits `workflow.step.bypassed` and `workflow.certification_urgency.bypass_applied` (B3 §7.13 and §7.23)
 Acceptance Criteria:
   - [ ] `pnpm typecheck` passes
   - [ ] K2 CU-02 (Case A): active `committee_referral` step → bypassed immediately; `status = 'Skipped'`, `bypassed_by = null` (system), `bypass_reason = 'CERTIFIED_URGENT'`, `outcome = 'BYPASSED_CERTIFIED_URGENT'`; `workflow.step.bypassed` then `workflow.certification_urgency.bypass_applied` emitted; `second_reading_vote` activated
@@ -1004,24 +1026,39 @@ AI Prompt:
   >
   > **Background:** The Mayor issues a formal written Certification of Urgency document. This is a FREQUENT operation (confirmed Interview 2). When Secretariat logs it, each associated legislative measure bypasses the committee referral step entirely and proceeds directly to Second Reading. One certification can cover multiple measures.
   >
-  > **Event subscription:** Subscribe to `document.certified_urgent` on the in-process event bus. This event is emitted once per associated measure by the Documents module's `logCertificationOfUrgency` procedure (docs.md §logCertificationOfUrgency, step 4: "Emit event 'document.certified_urgent' for each measure"). Payload:
+  > **Event subscription:** Subscribe to `document.certification_urgency.logged` on the in-process event bus (B3 §6.5, OI-3 canonical name; singular `document.` prefix). This is a **batch event**: one event per Certification of Urgency document, carrying all associated workflow instance IDs. Payload (B3 §6.5 Zod schema — camelCase):
   > ```typescript
-  > { certification_document_id: string; associated_instance_ids: string[]; logged_by: string; logged_at: string; }
+  > {
+  >   certificationDocumentId: string;    // UUID of the Certification of Urgency document
+  >   associatedInstanceIds:   string[];  // all workflow instances to be bypassed
+  >   loggedBy:                string;    // UUID of Secretariat actor
+  >   loggedAt:                string;    // TIMESTAMPTZ ISO string
+  > }
   > ```
   >
   > **Process each instance_id INDEPENDENTLY in its own transaction:**
   >
+  > The handler receives ONE batch event. The entry point is:
+  > ```typescript
+  > handler(event: { certificationDocumentId: string; associatedInstanceIds: string[]; loggedBy: string; loggedAt: string }) {
+  >   for (const instanceId of event.associatedInstanceIds) {
+  >     await processOneInstance(instanceId, event.certificationDocumentId);
+  >   }
+  > }
+  > ```
+  > Each `processOneInstance(instanceId, certificationDocumentId)` call runs in its own transaction — one failure does not block the others.
+  >
   > **Step 0 — Inactive check:**
   > Load instance. If instance.status != 'Running' (is 'Completed', 'Cancelled', 'Stuck', 'Paused'):
-  > - Emit workflow.certification_urgency.already_inactive { instance_id, instance_status, certification_document_id }
+  > - Emit `workflow.certification_urgency.already_inactive` { instanceId, instanceStatus: instance.status, certificationDocumentId }
   > - SKIP this instance, continue to next
   >
   > **Within transaction — set context first:**
   > - Set instance.context.certified_urgent = true
-  > - Set instance.context.certified_urgent_document_id = certification_document_id
+  > - Set instance.context.certified_urgent_document_id = certificationDocumentId
   >
   > **Find the multi_referral step_instance for this instance:**
-  > Look for step_instances joined to steps where step_type = 'multi_referral' and instance_id = this instance's id.
+  > Look for step_instances joined to steps where step_type = 'multi_referral' and instance_id = instanceId.
   >
   > **CASE A — step_instance.status = 'Active':**
   > Within the SAME transaction as the context update:
@@ -1030,20 +1067,21 @@ AI Prompt:
   > - Set step_instances.bypassed_by = null (system-triggered; no human actor for this specific action)
   > - Set step_instances.bypass_reason = 'CERTIFIED_URGENT'
   > - Set step_instances.outcome = 'BYPASSED_CERTIFIED_URGENT'
-  > - Emit workflow.step.bypassed { instance_id, step_instance_id, bypass_reason: 'CERTIFIED_URGENT', certification_document_id }
+  > - Emit `workflow.step.bypassed` { instanceId, stepInstanceId, bypassReason: 'CERTIFIED_URGENT', certificationDocumentId }
   > - Run transition evaluation from the bypassed step. The definition MUST have a rule with outcome_filter = 'BYPASSED_CERTIFIED_URGENT' → second_reading_vote. (Enforced at publish time by TASK-WF-010.)
-  > - Emit workflow.certification_urgency.bypass_applied { instance_id, step_instance_id, certification_document_id }
+  > - Emit `workflow.certification_urgency.bypass_applied` { instanceId, stepInstanceId, certificationDocumentId, affectedDocumentIds: [document.id], bypassedStepType: 'multi_referral', actorId: null }
+  >   — `affectedDocumentIds` is `[documentId]` (single element; B3 §7.23 uses an array for forward-compatibility with any future batch emission path)
   >
   > **CASE B — step_instance.status = 'Pending':**
-  > - Create pending_certified_urgent_bypasses row: { instance_id, step_key: 'committee_referral', certification_document_id }
-  > - Emit workflow.certification_urgency.bypass_deferred { instance_id, certification_document_id }
+  > - Create pending_certified_urgent_bypasses row: { instanceId, stepKey: 'committee_referral', certificationDocumentId }
+  > - Emit `workflow.certification_urgency.bypass_deferred` { instanceId, certificationDocumentId }
   >
   > **Pending bypass trigger (called in step resolution when activating any multi_referral step):**
   > - Check: getPendingBypassForInstance(instanceId, 'committee_referral')
   > - If found and applied_at IS NULL: execute Case A logic (bypass immediately instead of activating); mark bypass applied
   >
   > **CASE C — step_instance.status = 'Completed' or 'Skipped':**
-  > - Emit workflow.certification_urgency.already_past_referral { instance_id, certification_document_id }
+  > - Emit `workflow.certification_urgency.already_past_referral` { instanceId, certificationDocumentId }
   > - NO workflow change. Log at warning level.
   >
   > **IMPORTANT:** Bypass is irreversible (K2 ADR-01). No revocation mechanism exists.
@@ -1941,7 +1979,7 @@ AI Prompt:
   > Business:
   > - Forces the committee_referral step to complete despite one or more committees not having submitted
   > - mandatoryComment double-enforced: Zod .min(1) at the router AND validated again in the engine handler (TASK-WF-008)
-  > - Emits workflow.manually_advanced (via the SECRETARY_ADVANCED outcome path) consumed by Audit
+  > - Emits `workflow.multi_referral.secretary_advanced` (B3 §7.20 canonical; B2 calls it `workflow.manually_advanced` — use B3/B4 name) consumed by Audit
   > - Absent committees remain red-flagged in Order of Business afterward — override does NOT retroactively clear the red-flag (confirmed Q-A02 decision, consolidated reference Part 8.3)
   > Calls: engine.submitStepAction(stepInstanceId, ctx.session.userId, 'SECRETARY_ADVANCED', mandatoryComment, {})
   > Source: confirmed Part 8.3 Q-A02; B4 §4.3; I1 §6.7
@@ -2228,7 +2266,7 @@ Module:         WF
 Title:          Wire WF Fastify plugin, event bus consumers, and WF Published API implementation
 Prerequisites:  [TASK-WF-018, TASK-WF-019, TASK-WF-020, TASK-WF-021, TASK-WF-022, TASK-WF-023, TASK-WF-009, TASK-WF-011, TASK-WF-012, TASK-WF-013, TASK-WF-014]
 Deliverables:
-  - /apps/server/src/modules/workflow/workflow.plugin.ts — finalized Fastify plugin: registers `workflowRouter` and `sessionRouter` under the tRPC app router, registers all 4 scheduler jobs (Thursday cutoff, Mayor lapse, Panlalawigan timer, SLA breach monitor) with the appropriate pgboss/node-cron mechanisms, registers `document.certified_urgent` and `document.created` event bus subscriptions (B2 Events Consumed), runs `evaluateSlaBreaches()` once synchronously during plugin startup before the plugin's `ready` resolves
+  - /apps/server/src/modules/workflow/workflow.plugin.ts — finalized Fastify plugin: registers `workflowRouter` and `sessionRouter` under the tRPC app router, registers all 4 scheduler jobs (Thursday cutoff, Mayor lapse, Panlalawigan timer, SLA breach monitor) with the appropriate pgboss/node-cron mechanisms, registers `document.certification_urgency.logged` and `document.created` event bus subscriptions (B3 §6.5 and B2 Events Consumed), runs `evaluateSlaBreaches()` once synchronously during plugin startup before the plugin's `ready` resolves
   - /apps/server/src/modules/workflow/workflow.public-api.ts — concrete implementation of `WorkflowPublicAPI` (`getInstanceById`, `getActiveInstanceForDocument`, `getWorkflowSLAData`), registered into the cross-module API registry so other modules (Documents, Notifications, Reporting) can call it without importing the `workflow` schema directly
   - /apps/server/src/index.ts (modification) — registers the WF Fastify plugin in the server bootstrap sequence, positioned AFTER the Documents and Organization plugins (since WF's Published API and event consumers depend on both being registered first)
 Acceptance Criteria:
@@ -2236,7 +2274,7 @@ Acceptance Criteria:
   - [ ] `pnpm dev` starts the server successfully with the WF plugin registered; `/trpc/workflow.*` and `/trpc/session.*` routes respond
   - [ ] Server startup logs show `evaluateSlaBreaches()` executing once before the server begins accepting HTTP requests
   - [ ] All 4 scheduler jobs are confirmed registered (visible via pgboss's job listing or node-cron's task registry, depending on mechanism) after plugin initialization
-  - [ ] `document.certified_urgent` published on the event bus by a test harness triggers the certified-urgent bypass handler (TASK-WF-009) — confirmed via an integration test in this task
+  - [ ] `document.certification_urgency.logged` published on the event bus by a test harness triggers the certified-urgent bypass handler (TASK-WF-009) — confirmed via an integration test in this task
   - [ ] `WorkflowPublicAPI` is registered such that calling it from a separate module's test (e.g., a Documents module integration test) does not require importing `workflow` schema tables directly
   - [ ] Plugin registration order: Documents and Organization plugins register before WF; verified by inspecting `/apps/server/src/index.ts`
 AI Prompt:
@@ -2252,7 +2290,7 @@ AI Prompt:
   >   // are merged into the root appRouter; do not duplicate root router construction here
   >
   >   // 2. Subscribe to cross-module events
-  >   fastify.eventBus.subscribe('document.certified_urgent', handleCertifiedUrgentBypass);  // B2 Events Consumed; emitted per-measure by Documents.logCertificationOfUrgency
+  >   fastify.eventBus.subscribe('document.certification_urgency.logged', handleCertifiedUrgentBypass);  // B3 §6.5 canonical; batch event covering all associatedInstanceIds
   >   // B2 Events Consumed for delegation: delegation.granted, delegation.expired, delegation.revoked (not 'organization.delegation.created')
   >   fastify.eventBus.subscribe('delegation.granted', handleDelegationGranted);
   >   fastify.eventBus.subscribe('delegation.expired', handleDelegationExpiredOrRevoked);
@@ -2300,7 +2338,7 @@ AI Prompt:
   > - [ ] `pnpm dev` starts successfully with WF plugin registered; tRPC routes respond
   > - [ ] `evaluateSlaBreaches()` runs once before the server accepts HTTP requests (confirmed via startup log ordering)
   > - [ ] All 4 scheduler jobs registered and confirmed active post-startup
-  > - [ ] `document.certified_urgent` correctly triggers the bypass handler (integration test included)
+  > - [ ] `document.certification_urgency.logged` correctly triggers the bypass handler (integration test included)
   > - [ ] `WorkflowPublicAPI` accessible from other modules without direct `workflow` schema imports
   > - [ ] Plugin dependency ordering (`documents`, `organization` before `workflow`) verified in index.ts
   > - [ ] Document-creation → workflow-instance-creation event wiring confirmed against docs.md's actual event name (not assumed)
@@ -2421,35 +2459,49 @@ AI Prompt:
 
 | # | Conflict | Sources | Resolution Applied |
 |---|---|---|---|
-| 1 | `workflow_instance_status_enum` values | C1 DDL uses B4 lowercase (`active`, `suspended`); D3 requires PascalCase (`Running`, `Paused`) | **D3 is authoritative** (D3 Appendix B). TASK-WF-001 uses D3 values throughout. |
-| 2 | `workflow_step_status_enum` values | C1/B4 uses `bypassed`; D3 requires `Skipped`. B4 lacks `Returned`; D3 adds it as a new terminal state. | **D3 is authoritative**. TASK-WF-001 uses `Skipped` and `Returned`. All step handler tasks use D3 values. |
-| 3 | `committee_revisions_review` step assignee | H1 §4 contains invalid placeholder `"instance_aware:committee_chair_of_referred_committee"` (not a valid B4 expression prefix) | **K2 ADR-03 is authoritative**: corrected to `"actor_from_context:referred_committee_chair_id"` in TASK-WF-016. Write path confirmed in TASK-WF-021 (`resolveValidInPart` route_to_committee). |
-| 4 | Certified Urgency bypass event name | Earlier draft used `documents.certification_urgency.logged` (batch); docs.md §logCertificationOfUrgency step 4 explicitly states `'document.certified_urgent'` emitted per-measure | **docs.md is authoritative**. Corrected in TASK-WF-009 and TASK-WF-024. |
-| 5 | Delegation event names consumed by WF | Early draft used `organization.delegation.created`; B2 Events Consumed lists `delegation.granted`, `delegation.expired`, `delegation.revoked` | **B2 is authoritative**. TASK-WF-024 corrected to all three B2 names. |
-| 6 | `WorkflowInstanceSummary.status` on Published API surface | Internal DB enum (D3): `Running/Paused/Stuck/Completed/Cancelled`; B2 Published API: `Active/Completed/Cancelled` (simplified external view) | **B2 is authoritative for the Published API surface**. Mapping: `Running/Paused/Stuck → 'Active'`. TASK-WF-002 and TASK-WF-018 corrected. Internal engine code continues to use D3 enum values. |
+| 1 | `workflow_instance_status_enum` values | C1 DDL has B4 lowercase (`active`, `suspended`); D3 requires PascalCase (`Running`, `Paused`) | **D3 is authoritative** (D3 Appendix B). TASK-WF-001 AI Prompt uses D3 values. C1 DDL corrected below (see §Pre-dev Document Edits). |
+| 2 | `workflow_step_status_enum` values | C1/B4 has `bypassed`; D3 requires `Skipped`. B4 lacks `Returned`; D3 adds it as a new terminal state. | **D3 is authoritative**. TASK-WF-001 AI Prompt uses `Skipped` and `Returned`. C1 DDL corrected below. |
+| 3 | `committee_revisions_review` step assignee | H1 §4 contains invalid placeholder `"instance_aware:committee_chair_of_referred_committee"` (not a valid B4 expression prefix) | **K2 ADR-03 is authoritative**: corrected to `"actor_from_context:referred_committee_chair_id"` in TASK-WF-016. H1 source doc corrected below. Write path confirmed in TASK-WF-021. |
+| 4 | Certified Urgency bypass event name | Original wf.md draft used `documents.certification_urgency.logged` (plural prefix, B4 authoring inconsistency). Intermediate incorrect "correction" to `document.certified_urgent` was based on an unverified docs.md prose reference. | **B3 OI-3 is authoritative**: canonical name is `document.certification_urgency.logged` (singular prefix). Corrected in TASK-WF-009 and TASK-WF-024. B2 must also be updated (B3 OI-12 action item — done below). |
+| 5 | Delegation event names consumed by WF | Original draft used `organization.delegation.created`; B2 Events Consumed lists three separate events | **B2 and B3 §5.1–5.3 are authoritative**: `delegation.granted`, `delegation.expired`, `delegation.revoked`. Corrected in TASK-WF-024. **[OPEN-Q-1]** Whether WF should subscribe to these at all depends on the B4 vs B2 delegation snapshot conflict — see Open Questions below. |
+| 6 | `WorkflowInstanceSummary.status` on Published API surface | Internal DB enum (D3): `Running/Paused/Stuck/Completed/Cancelled`; B2 Published API line 634: `'Active' \| 'Completed' \| 'Cancelled'` | **B2 line 634 is authoritative for the Published API surface** (confirmed, not [Inference]). Mapping: `Running/Paused/Stuck → 'Active'` in the Published API implementation. TASK-WF-002 and TASK-WF-018 use `'Active'`. |
 
 ---
 
-### Systematic Event Name Convention
+### Authoritative Event Name Convention
 
-Throughout AI Prompts in this document, engine-internal event emission examples use illustrative formats (e.g., `workflow.step.completed`). **B2 Events Emitted table is authoritative** and uses `{module}.{noun}_{verb}` with underscores within segments. Implementing agents must normalise all event names to B2's convention when writing code.
+**Authority chain:** B3 (internal domain event catalog) is the tie-breaker. B3 §0.2 explicitly ratifies **B4's dot-separated event names** as canonical for Workflow module events. B2's underscore-separated names (`workflow.step_assigned`, `workflow.step_completed`, etc.) are historical cross-references only — no consumer registration should use them (B3 OI-4).
 
-| Used Illustratively in AI Prompts | B2-Authoritative Name | Notes |
-|---|---|---|
-| `workflow.step.completed` | `workflow.step_completed` | Exact B2 match |
-| `workflow.step.assigned` | `workflow.step_assigned` | Exact B2 match |
-| `workflow.manually_advanced` | `workflow.manually_advanced` | Exact B2 match |
-| `workflow.certified_urgent_applied` | `workflow.certified_urgent_applied` | Exact B2 match |
-| `workflow.completed` | `workflow.completed` | Exact B2 match |
-| `workflow.approval.lapsed` / `workflow.panlalawigan.deemed_approved` | `workflow.lapsed` with `lapseType: 'mayor_10_day' \| 'panlalawigan_30_day'` | B2 consolidates both lapse types into one event |
-| `workflow.sla.warning` / `workflow.sla.breached` / `workflow.sla.critical` | `workflow.escalated` with `slaType` field | B2 consolidates SLA escalations |
-| `workflow.step.bypassed` | `workflow.step_completed` with `outcome: 'BYPASSED_CERTIFIED_URGENT'` | B2 has no separate bypass event; a bypass IS a step completion with a specific outcome |
-| `workflow.instance.stuck` | Not in B2 — internal engine event | Confirm name with Audit module consuming agent before finalising; suggest `workflow.instance_stuck` |
-| `workflow.instance.repassed` | Not in B2 — internal engine event | Confirm with Documents module consuming agent before finalising; suggest `workflow.instance_repassed` |
-| `workflow.multi_referral.*` scheduler events | Not in B2 — internal scheduler events | Retain as-specified in TASK-WF-008/011; add to B2 Events Emitted in same PR per B2 §3.3 P5 rule |
-| `workflow.instance.migration.*` | Not in B2 — admin audit events | Retain as-specified in TASK-WF-015; add to B2 Events Emitted in same PR |
+**Rule for implementing agents:** Use the B3/B4 canonical names listed below. If you see a B2 name (underscore variant) in any document, use the B3 canonical name instead. If an event is not yet listed in B2's Master Event Registry, add it in the same PR (B2 must stay consistent with B3 per B2 §3.3 P5).
 
-**Rule for implementing agents:** When naming domain events in code, consult B2 Events Emitted first. For events not listed in B2, choose a name using `{module}.{noun}_{verb}` convention and add the new event to the B2 Events Emitted table in the same PR, per the P5/P6 prohibited patterns in B2 §3.3.
+| B3/B4 Canonical Name (use this) | B2 Equivalent (historical cross-reference only) | B3 Section | Notes |
+|---|---|---|---|
+| `document.certification_urgency.logged` | not in B2 yet (B3 OI-12 action) | B3 §6.5 | Singular `document.` prefix; B4 had wrong plural |
+| `workflow.instance.created` | not in B2 | B3 §7.1 | 4 document types trigger this in Phase 1 (see §7.1 note OI-13) |
+| `workflow.instance.completed` | `workflow.completed` | B3 §7.2 | |
+| `workflow.instance.cancelled` | not in B2 | B3 §7.3 | |
+| `workflow.instance.stuck` | not in B2 | B3 §7.4 | |
+| `workflow.instance.repassed` | not in B2 | B3 §7.5 | |
+| `workflow.instance.migration.started` | not in B2 | B3 §7.8 | |
+| `workflow.instance.migration.completed` | not in B2 | B3 §7.9 | |
+| `workflow.instance.migration.reversed` | not in B2 | B3 §7.10 | |
+| `workflow.step.started` | `workflow.step_assigned` | B3 §7.11 OI-4 | B3 ratifies B4 name; merged payload per OI-5 |
+| `workflow.step.completed` | `workflow.step_completed` | B3 §7.12 | Full audit scope; all step types (OI-10) |
+| `workflow.step.bypassed` | not in B2 as separate event | B3 §7.13 | IS a separate event; also emitted alongside `workflow.certification_urgency.bypass_applied` for CU path |
+| `workflow.step.failed` | not in B2 | B3 §7.14 | Engine errors; distinct from `workflow.instance.stuck` |
+| `workflow.context.updated` | not in B2 | B3 §7.15 | Emitted whenever `instance.context` is patched |
+| `workflow.multi_referral.committee_submitted` | not in B2 | B3 §7.16 | |
+| `workflow.multi_referral.all_submitted` | not in B2 | B3 §7.17 | |
+| `workflow.multi_referral.cutoff_missed` | not in B2 | B3 §7.18 | |
+| `workflow.multi_referral.second_reading_eligible` | not in B2 | B3 §7.19 | |
+| `workflow.multi_referral.secretary_advanced` | `workflow.manually_advanced` | B3 §7.20 | Use B4/B3 name in all code |
+| `workflow.approval.lapsed` | `workflow.lapsed` (lapseType: mayor) | B3 §7.21 | B4 splits B2's unified event into two |
+| `workflow.panlalawigan.deemed_approved` | `workflow.lapsed` (lapseType: panlalawigan) | B3 §7.22 | |
+| `workflow.certification_urgency.bypass_applied` | `workflow.certified_urgent_applied` | B3 §7.23 | Per-instance, within same transaction as `workflow.step.bypassed` |
+| `workflow.certification_urgency.bypass_deferred` | not in B2 | B3 §7.24 | |
+| `workflow.sla.warning` | `workflow.escalated` (slaType) | B3 §7.27 | B4 keeps three separate SLA events |
+| `workflow.sla.breached` | `workflow.escalated` (slaType) | B3 §7.28 | escalation targets resolved at notification time, not in payload (OI-7) |
+| `workflow.sla.critical` | `workflow.escalated` (slaType) | B3 §7.29 | [Unverified] 150% threshold is from B4 only; B3 notes it has no corroboration in primary architecture reference |
 
 ---
 
@@ -2457,9 +2509,35 @@ Throughout AI Prompts in this document, engine-internal event emission examples 
 
 | ID | Description | Affected Tasks | Status |
 |---|---|---|---|
-| H1-X-2 | `requires_publication` context key: no write path exists at `createInstance` — the engine cannot determine at instance creation whether an SP Ordinance has a penalty clause, because no mechanism reads this from document metadata | TASK-WF-005 (TODO comment required), TASK-WF-016 (`publication_check` reads null, treats as false — safe default) | **Open**. Resolution requires `has_penalty_clause` in document type metadata schema (likely a TASK-DOCS-003 concern). Does not block Phase 1 delivery. |
-| B4-§7.3-GAP | City Administrator approval record DDL: `migrateInstance` requires an unexpired approval record but no module in the current task lists owns the DDL for this table | TASK-WF-015, TASK-WF-022 | **Open**. Implementing agent for TASK-WF-015 must flag this gap explicitly rather than inventing a new workflow-schema table. Likely resolution: IAM module or a dedicated approvals table owned by the platform-infra task track. |
-| K2-ADR-08 | ARTA SLA detailed test coverage deliberately excluded from K2 scope | TASK-WF-025 | **Deferred to Phase 1B**. TASK-WF-025 covers the SLA monitor itself; detailed ARTA SLA escalation test scenarios deferred per K2 ADR-08. |
+| H1-X-2 | `requires_publication` context key: no write path exists at `createInstance` — engine cannot determine at instance creation whether an SP Ordinance has a penalty clause | TASK-WF-005 (TODO comment required), TASK-WF-016 (`publication_check` reads null, routes as false — safe default) | **Open — [OPEN-Q-2] see below** |
+| B4-§7.3-GAP | `admin_approval_grants` table: `migrateInstance` requires an unexpired approval record but no module in current task lists owns the DDL | TASK-WF-015, TASK-WF-022 | **Open — [OPEN-Q-3] see below** |
+| K2-ADR-08 | ARTA SLA detailed test coverage deliberately excluded from K2 scope | TASK-WF-025 | **Properly tracked as deferred to Phase 1B. No further action needed in Phase 1.** |
+| B3-OI-13 | `DOCUMENT_REQUEST_FORM` confirmed as 4th workflow-capable document type (ADR-EVT-001). TASK-WF-016 seeds only 3 legislative types. | TASK-WF-016 | **Open — [OPEN-Q-4] see below** |
+| B3-§7.12 | `actorType` in `workflow.step.completed` payload: B3 schema shows `z.enum(['user','system'])` [Inference]; TASK-WF-001 DB schema adds `'scheduler'` as a third value. | TASK-WF-001, TASK-WF-012, TASK-WF-013 | **[Inference]** `'scheduler'` is a legitimate third actor type for timer-driven completions. Implementing agent should reconcile with B3 §7.12 in the same PR and update B3 if `'scheduler'` is confirmed. |
+
+---
+
+### Open Questions (Awaiting Developer Decision)
+
+**[OPEN-Q-1] — Delegation conflict: B4 §3.5 vs B2 Events Consumed**
+
+B4 §3.5: "This snapshot is the authoritative list for permission checks during the step's lifetime; subsequent delegation changes do not affect an already-active step."
+
+B2 Events Consumed: `delegation.granted` → "Immediately re-routes any active step instances currently assigned to the original authority to the newly designated person."
+
+These directly contradict. B3 OI-1–15 does not resolve this. Affects: TASK-WF-005 AI Prompt (assignee resolution snapshot logic), TASK-WF-024 plugin wiring (whether to subscribe to delegation events and implement re-routing), TASK-WF-025 DESIG test (snapshot-immutability test passes or fails depending on this decision).
+
+**[OPEN-Q-2] — H1-X-2: How to write `requires_publication` to context for SP Ordinances**
+
+Options: (A) `document.created` event payload includes `hasPenaltyClause` flag → passed as `initialContextOverrides` to `createInstance`; (B) `createInstance` calls `Documents.getDocumentType()` to read the flag; (C) `intake_logging` auto-complete handler writes `requires_publication` after reading document metadata; (D) Accept the Phase 1 gap — `publication_check` reads null and routes as false (no publication for penalty-clause ordinances in Phase 1).
+
+**[OPEN-Q-3] — `admin_approval_grants` DDL schema ownership**
+
+Options: (A) `workflow.admin_approval_grants` — WF owns the table and consumption logic; cleanest; no cross-schema dependency; can add to TASK-WF-001. (B) `iam.migration_approval_grants` — IAM owns, WF reads via IAM Published API. (C) Stub in TASK-WF-015 with CONFIG_ERROR if table absent; create as a separate task.
+
+**[OPEN-Q-4] — DOCUMENT_REQUEST_FORM workflow seed**
+
+B3/ADR-EVT-001 confirms DRF as a 4th workflow-capable document type with two `approval` steps. Does H1 contain the DRF workflow definition steps/transitions? Options: (A) Add to TASK-WF-016 if H1 has the definition; (B) Create TASK-WF-026 for DRF seed; (C) Confirm DRF is Phase 1B and add scope note to TASK-WF-016.
 
 ---
 
@@ -2467,21 +2545,20 @@ Throughout AI Prompts in this document, engine-internal event emission examples 
 
 | Capability | Deferred To | Reason |
 |---|---|---|
-| NCH (Notice of Committee Hearing) auto-generation from `multi_referral` step metadata | Phase 2 | Confirmed Phase 2 per a1-skeleton.md changelog; hooks exist in step metadata but NCH document type and generation logic are out of scope |
-| `parallel_split` / `parallel_join` step execution | Phase 2 | Types reserved in schema (TASK-WF-001 enum), guarded at runtime (TASK-WF-006) and publish time (TASK-WF-010); execution logic deferred per B4 §5 |
-| Barangay Budget workflow definition | Phase 2 | Requires `parallel_split` for multi-committee concurrent review |
-| VALID_IN_PART parallel re-review path | Phase 2 | Same `parallel_split` dependency |
-| Email / SMS notification channels | Phase 2 | Phase 1 Notifications module delivers in-app only; `channels: ['in_app']` is the correct Phase 1 default |
-| Records module retention trigger on `workflow.completed` | Phase 2 | Records module is Phase 2; B2 Events Emitted marks this consumer as Phase 2 |
-| Portal public document visibility update on `workflow.completed` | Phase 3 | Portal is Phase 3 |
+| NCH (Notice of Committee Hearing) auto-generation | Phase 2 | Confirmed Phase 2 per a1-skeleton.md |
+| `parallel_split` / `parallel_join` step execution | Phase 2 | Types reserved in schema; guarded at runtime (TASK-WF-006) and publish time (TASK-WF-010) |
+| Barangay Budget workflow definition | Phase 2 | Requires `parallel_split` |
+| VALID_IN_PART parallel re-review path | Phase 2 | Same dependency |
+| Email / SMS notification channels | Phase 2 | Phase 1 in-app only |
+| Records module retention trigger on `workflow.instance.completed` | Phase 2 | Records module is Phase 2 |
+| Portal public document visibility update on `workflow.instance.completed` | Phase 3 | Portal is Phase 3 |
 
 ---
 
-### Task Dependency Graph (abbreviated — full prerequisites in each task header)
+### Task Dependency Graph (abbreviated)
 
 ```
 TASK-DOCS-001 ──► TASK-WF-001
-                       │
 TASK-WF-001 ──► TASK-WF-002 ──► TASK-WF-003 ──► TASK-WF-004
                                                        │
                               TASK-DOCS-006 ───────────┤
@@ -2499,29 +2576,23 @@ TASK-WF-001 ──► TASK-WF-002 ──► TASK-WF-003 ──► TASK-WF-004
               ┌───────────┼──────────────────┐
               ▼           ▼                  ▼
          TASK-WF-009  TASK-WF-011       TASK-WF-012/013
-
-TASK-WF-001 + TASK-WF-003 + TASK-WF-010 + TASK-DOCS-007 ──► TASK-WF-016
-
-TASK-DOCS-009 + TASK-WF-002 ──► TASK-WF-017
-TASK-WF-017 ──► TASK-WF-018 through TASK-WF-022
-
-TASK-WF-004 + TASK-WF-011 ──► TASK-WF-023
-
-TASK-WF-018..023 + TASK-WF-009 + TASK-WF-011..014 ──► TASK-WF-024 ──► TASK-WF-025
+TASK-WF-001+TASK-WF-003+TASK-WF-010+TASK-DOCS-007 ──► TASK-WF-016
+TASK-DOCS-009+TASK-WF-002 ──► TASK-WF-017 ──► TASK-WF-018..022
+TASK-WF-004+TASK-WF-011 ──► TASK-WF-023
+TASK-WF-018..023+TASK-WF-009+TASK-WF-011..014 ──► TASK-WF-024 ──► TASK-WF-025
 ```
 
 ---
 
 ### Cross-Validation Log
 
-The following checks were performed after task generation and before writing this file to disk:
-
-1. **All TASK-DOCS prerequisite IDs resolved:** TASK-DOCS-001, -006, -007, -009, -019 confirmed present in `docs.md`. Reference to non-existent TASK-DOCS-024 in AI Prompt prose corrected to TASK-DOCS-019. No `Prerequisites:` fields reference non-existent IDs.
-2. **B2 Module 4 Published API cross-checked:** `WorkflowPublicAPI` interface matches B2 exactly (3 methods, correct signatures). `WorkflowInstanceSummary.status` corrected from `'Running'` to `'Active'` per B2 §Published API.
-3. **Certified Urgency event name cross-checked:** docs.md §logCertificationOfUrgency step 4 confirms `'document.certified_urgent'` per-measure. All 5 occurrences of the incorrect name corrected.
-4. **Delegation event names cross-checked:** B2 Events Consumed confirms `delegation.granted / delegation.expired / delegation.revoked`. Corrected from `organization.delegation.created`.
-5. **D3 vs C1/B4 enum conflict documented:** Both task-level Acceptance Criteria (TASK-WF-001) and this Module Summary explicitly flag D3 as authoritative. No C1/B4 enum value appears in any AI Prompt enum definition.
-6. **K2 ADR-03 correction propagated:** The invalid H1 placeholder `"instance_aware:committee_chair_of_referred_committee"` does not appear in any AI Prompt. The corrected `"actor_from_context:referred_committee_chair_id"` appears in TASK-WF-016 seed data and is noted in TASK-WF-021 as the prerequisite write path.
-7. **Scheduler deadline semantics verified:** `completed_at = deadline` (not `NOW()`) appears in TASK-WF-012 and TASK-WF-013 Acceptance Criteria. `outcome_comment` exact required text for both lapse outcomes is specified verbatim in those tasks.
-8. **Structural integrity confirmed:** All 25 task headers are each preceded exactly 2 lines above by a `---` separator. 25/25 matches across all structural fields (Phase, Module, Title, Prerequisites, Deliverables, Acceptance Criteria, AI Prompt).
-9. **TASK-WF-025 K2 coverage obligation stated:** The test suite task explicitly requires implementing agents to enumerate all K2 test IDs and confirm coverage — the per-task acceptance criteria cite a representative subset only; the test task closes the gap.
+1. **All TASK-DOCS prerequisite IDs resolved:** TASK-DOCS-001, -006, -007, -009, -019 confirmed present in `docs.md`. Prose reference to non-existent TASK-DOCS-024 corrected to TASK-DOCS-019.
+2. **B2 Published API WorkflowInstanceSummary confirmed:** `status: 'Active' | 'Completed' | 'Cancelled'` confirmed at B2 line 634 (not [Inference]). TASK-WF-002 and TASK-WF-018 correctly use `'Active'`.
+3. **Certified Urgency event name:** B3 OI-3 confirms `document.certification_urgency.logged` (singular prefix). Corrected from original draft's plural `documents.` and from intermediate wrong correction to `document.certified_urgent`. All 7 occurrences in wf.md now use B3 canonical name.
+4. **`workflow.certification_urgency.bypass_applied` confirmed:** B3 §7.23 confirms this is the correct name. Corrected from intermediate wrong replacement with `workflow.certified_urgent_applied`.
+5. **B3 ratifies B4 event names:** B3 §0.2 and OI-4 explicitly ratify B4's dot-separated names. Module Summary "Systematic Event Name Convention" table rewritten to reflect correct authority chain (B3 > B4 > B2).
+6. **D3 enum values vs C1 DDL:** C1 still has wrong values at lines 1252–1256. Corrected in C1 below (§Pre-dev Document Edits).
+7. **K2 ADR-03 correction:** `"actor_from_context:referred_committee_chair_id"` confirmed as the replacement for H1's invalid placeholder. Corrected in H1 source doc below.
+8. **Delegation event names:** B3 §5.1–5.3 confirms `delegation.granted`, `delegation.expired`, `delegation.revoked`. TASK-WF-024 subscriptions use these names but are marked conditional on [OPEN-Q-1] resolution.
+9. **`workflow.multi_referral.secretary_advanced`:** B3 §7.20 confirms this as the B4/B3 canonical name. Reference in TASK-WF-020 AI Prompt updated.
+10. **Structural integrity confirmed:** All 25 task headers preceded by `---` separator. 25/25 match on all structural fields.
