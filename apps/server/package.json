@@ -27,11 +27,13 @@
     "pg-boss": "^10.0.0",
     "pino": "^9.0.0",
     "postgres": "^3.4.4",
+    "qrcode": "^1.5.4",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@batac/config": "workspace:^",
     "@types/node": "^20.11.0",
+    "@types/qrcode": "^1.5.6",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
