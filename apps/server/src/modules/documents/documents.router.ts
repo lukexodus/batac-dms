@@ -48,6 +48,7 @@ import type { DocumentsRepository, DocumentRow, DocumentTypeRow } from './docume
 import type { DocumentPolicyGuard } from './documents.policy.js';
 import type { DocumentsPublicAPI } from './documents.types.js';
 import { createPanlalawiganProcedures } from './panlalawigan.router.js';
+import { createSignatureProcedures } from './signatures.router.js';
 
 /**
  * documents.router.ts -- general CRUD (TASK-DOCS-011)
@@ -292,6 +293,7 @@ async function hasAnyAllowlistEntry(
 export function createDocumentsRouter() {
   return router({
     ...createPanlalawiganProcedures(),
+    ...createSignatureProcedures(),
     
     // -----------------------------------------------------------------
     // documents.create

@@ -421,7 +421,8 @@ export const LogSignatureInputSchema = z.object({
   signedByDisplayName: z.string().min(1).max(256).trim(),
   signatureType: SignatureTypeSchema,
   signedAt: TimestampSchema,
-  signatureImageS3Key: z.string().optional(),
+  isWetInk: z.boolean().default(true),
+  signatureImageS3Key: z.string().uuid().optional(),
 });
 export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;
 

@@ -1,4 +1,4 @@
-import { eq, and, isNull, desc, lt, or, inArray, sql, gte, lte } from 'drizzle-orm';
+import { eq, and, isNull, desc, lt, or, inArray, sql, gte, lte, asc } from 'drizzle-orm';
 import type { InferSelectModel, InferInsertModel, SQL } from 'drizzle-orm';
 import {
   documents,
@@ -423,7 +423,7 @@ export class DocumentsRepository {
     return row!;
   }
 
-  /** Return all non-deleted signatures for a document. */
+  /** Return all non-deleted signatures for a document ordered by signed_at ascending. */
   async findSignaturesByDocument(documentId: string): Promise<SignatureRow[]> {
     return this.db
       .select()
@@ -433,7 +433,30 @@ export class DocumentsRepository {
           eq(signatures.documentId, documentId),
           isNull(signatures.deletedAt),
         ),
+      )
+      .orderBy(asc(signatures.signedAt));
+  }
+
+  /** Find a single non-deleted signature by ID. */
+  async findSignatureById(id: string): Promise<SignatureRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(signatures)
+      .where(
+        and(
+          eq(signatures.id, id),
+          isNull(signatures.deletedAt),
+        ),
       );
+    return row || null;
+  }
+
+  /** Update the signature image S3 key. */
+  async updateSignatureImageKey(id: string, s3Key: string): Promise<void> {
+    await this.db
+      .update(signatures)
+      .set({ signatureImageS3Key: s3Key })
+      .where(eq(signatures.id, id));
   }
 
   // -------------------------------------------------------------------------
