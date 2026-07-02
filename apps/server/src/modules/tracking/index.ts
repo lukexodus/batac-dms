@@ -20,6 +20,7 @@ export interface TrackingPublicAPI {
 }
 
 export interface TrackingRecordSummary {
+  id: string;              // tracking_records.id UUID
   trackingId: string;      // qr_codes.tracking_id UUID — immutable for document lifetime
   documentId: string;
   trackingNumber: string;  // human-readable label e.g. 'DTS-2026-0001'

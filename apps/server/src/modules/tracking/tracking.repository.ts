@@ -114,6 +114,7 @@ export class TrackingRepository {
   ): Promise<TrackingRecordSummary | null> {
     const result = await db
       .select({
+        id: trackingRecords.id,
         trackingId: qrCodes.trackingId,
         documentId: trackingRecords.documentId,
         trackingNumber: qrCodes.trackingNumber,
@@ -137,6 +138,7 @@ export class TrackingRepository {
     }
 
     return {
+      id: row.id,
       trackingId: row.trackingId,
       documentId: row.documentId,
       trackingNumber: row.trackingNumber,

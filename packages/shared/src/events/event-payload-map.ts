@@ -54,6 +54,26 @@ export interface DocumentNumberAssignedEvent {
   timestamp: Date;
 }
 
+export interface DocumentCreatedPayload {
+  documentId: string;         // documents.documents.id
+  documentTypeId: string;     // documents.document_types.id
+  ownedByOfficeId: string;    // the SP Secretariat office — initial custodian
+  actorId: string;            // the SP Secretary who logged the document
+  cityId: string;
+}
+
+export interface WorkflowStepCompletedPayload {
+  documentId: string;
+  instanceId: string;
+  stepId: string;
+  stepType: string;
+  fromOfficeId: string | null;
+  toOfficeId: string | null;
+  actorId: string;
+  actionDescription: string;
+  cityId: string;
+}
+
 export interface EventPayloadMap {
   // ── IAM module ─────────────────────────────────────────────────────────────
   'user.login': Stub;
@@ -72,13 +92,13 @@ export interface EventPayloadMap {
   'delegation.revoked': DelegationRevokedEvent;
 
   // ── Documents module ───────────────────────────────────────────────────────
-  'document.created': Stub;
+  'document.created': DocumentCreatedPayload;
   'document.state_changed': DocumentStateChangedEvent;
   'document.number_assigned': DocumentNumberAssignedEvent;
 
   // ── Workflow module ────────────────────────────────────────────────────────
   'workflow.step_assigned': Stub;
-  'workflow.step_completed': Stub;
+  'workflow.step_completed': WorkflowStepCompletedPayload;
   'workflow.lapsed': Stub;
   'workflow.escalated': Stub;
   'workflow.certified_urgent_applied': Stub;
