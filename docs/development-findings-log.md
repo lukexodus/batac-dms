@@ -1182,3 +1182,38 @@ Neither library was installed in `apps/server` at the start of TASK-TRACK-007.
 
 [Inference]: If `@react-pdf/renderer` is later preferred for richer templating (e.g. fonts, brand styling), the `generateCoverSheetPdf` implementation can be swapped independently — the public API (takes `documentIds`, returns `Buffer`) is stable. A human should confirm if `pdf-lib` is acceptable or if `@react-pdf/renderer` server-side rendering should be investigated.
 
+### [LOG-0041] workflow.definitions / instances / step_instances: updated_at intentionally omitted per C1 Part 6 DDL
+
+- date: 2026-07-07
+- task_id: TASK-WF-001
+- status: proposed
+- affects: C1 (Part 6)
+
+**What was found:**
+
+C1 Part 6 DDL (`workflow.definitions`, `workflow.instances`, `workflow.step_instances`) does not include an `updated_at` column or `fn_set_updated_at()` trigger, unlike most mutable tables in the project. This is inconsistent with C1 §1.4, which mandates `updated_at` on "all mutable tables."
+
+**What was implemented:**
+
+The C1 Part 6 DDL was followed literally — no `updated_at` on these three tables. The rationale that can be inferred from the spec:
+- `workflow.definitions`: mutations are limited to `is_active`, `name`, `description`, and soft-delete; versioned content lives in `definition_versions`, making timestamp tracking on the root definition row minimally useful.
+- `workflow.instances` and `workflow.step_instances`: state mutations are captured via the append-only `workflow_events` table (B4), which provides a full timestamped audit trail. Adding `updated_at` would be redundant and potentially misleading.
+
+[Inference]: The C1 §1.4 blanket rule has an unwritten exception for tables whose mutation history is captured by an adjacent append-only event log. This is consistent with the spirit of the rule (no silent state loss) even if not stated explicitly. A human should confirm whether `updated_at` should be added retroactively to any of these three tables for operational convenience (e.g., dead simple "last touched" queries without joining workflow_events).
+
+### [LOG-0042] generatedAlwaysAs() in drizzle-orm 0.45.2 takes one argument only
+
+- date: 2026-07-07
+- task_id: TASK-WF-001
+- status: proposed
+- affects: none (implementation detail; no architecture document references Drizzle API signatures)
+
+**What was found:**
+
+The Drizzle ORM documentation and some community examples show `generatedAlwaysAs(sql`...`, { mode: 'stored' })` with a second options argument. In drizzle-orm 0.45.2 (the version pinned in `packages/database/package.json`), `generatedAlwaysAs()` on `PgColumnBuilder` accepts only one argument — the SQL expression. The `{ mode: 'stored' }` second argument causes `TS2554: Expected 1 arguments, but got 2`.
+
+**What was implemented:**
+
+The call was corrected to `text('status').generatedAlwaysAs(sql`...`)` with no second argument. The generated SQL output (`GENERATED ALWAYS AS (...) STORED`) is identical either way — STORED is the only mode emitted by Drizzle Kit for this column type in this version. The TypeScript error was the only consequence of the incorrect call.
+
+[Inference]: This may have changed between Drizzle minor versions. If drizzle-orm is upgraded, verify the `generatedAlwaysAs` signature and re-check `workflow.definition_versions.status`.
