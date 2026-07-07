@@ -23,7 +23,7 @@ import { TRPCError } from '@trpc/server';
 import crypto from 'node:crypto';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import { eq, and, isNull, sql, or } from 'drizzle-orm';
-import { PaginationInputSchema } from '@batac/shared';
+import { PaginationInputSchema } from '@batac/shared/schemas/common';
 import {
   documents,
   documentTypes,
@@ -74,7 +74,7 @@ export function createDocumentRequestsRouter() {
     //   = in_person_clerk). Inserts a documents.documents row with
     //   lifecycle_state='draft' and the request metadata.
     // -----------------------------------------------------------------------
-    createClerkAssisted: protectedProcedure
+    createDocumentRequestClerkAssisted: protectedProcedure
       .input(
         z.object({
           requesterName: z.string().min(1),
@@ -536,7 +536,7 @@ export function createDocumentRequestsRouter() {
     // Business: paginated list of all document requests (cityId-scoped).
     //   Optional filter by requester name or document number via JSONB text.
     // -----------------------------------------------------------------------
-    listAll: protectedProcedure
+    listAllDocumentRequests: protectedProcedure
       .input(
         PaginationInputSchema.extend({
           requesterName: z.string().optional(),

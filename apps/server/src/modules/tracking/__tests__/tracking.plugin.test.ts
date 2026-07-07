@@ -88,7 +88,7 @@ describe('tracking.plugin', () => {
   });
   
   it('subscribes to required event bus events', () => {
-    expect(fastify.eventBus.on).toHaveBeenCalledWith('document.created', expect.any(Function));
-    expect(fastify.eventBus.on).toHaveBeenCalledWith('workflow.step_completed', expect.any(Function));
+    expect(fastify.eventBus.on).toHaveBeenCalledWith('document.created', expect.any(Function), 'tracking');
+    expect(fastify.eventBus.on).toHaveBeenCalledWith('workflow.step_completed', expect.any(Function), 'tracking');
   });
 });

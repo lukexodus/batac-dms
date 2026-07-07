@@ -6,6 +6,8 @@ import type { Context } from '../iam/iam.types.js';
 import {
   type LifecycleState,
   type ClassificationLevel,
+} from '@batac/shared';
+import {
   CreateDocumentInputSchema,
   CreateDocumentOutputSchema,
   DocumentIdInputSchema,
@@ -38,7 +40,7 @@ import {
   PortalPublishInputSchema,
   ArchiveDocumentInputSchema,
   LogSecretariatDecisionInputSchema,
-} from '@batac/shared';
+} from '@batac/shared/schemas/documents';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../../config/env.js';

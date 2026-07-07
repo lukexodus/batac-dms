@@ -4,12 +4,14 @@ import crypto from 'node:crypto';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import type { Context } from '../iam/iam.types.js';
 import {
+  type LifecycleState,
+} from '@batac/shared';
+import {
   DocumentIdInputSchema,
   InitiatePanlalawiganTransmittalInputSchema,
   LogPanlalawiganOutcomeInputSchema,
   PanlalawiganReviewSelectSchema,
-  type LifecycleState,
-} from '@batac/shared';
+} from '@batac/shared/schemas/documents';
 import type { DocumentsRepository } from './documents.repository.js';
 import type { DocumentsPublicAPI } from './documents.types.js';
 import type { NumberingService } from './numbering.service.js';

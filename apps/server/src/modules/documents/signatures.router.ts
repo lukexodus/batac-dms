@@ -3,11 +3,13 @@ import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import type { Context } from '../iam/iam.types.js';
 import {
-  LogSignatureInputSchema,
-  SignatureSelectSchema,
   type LifecycleState,
   type ClassificationLevel,
 } from '@batac/shared';
+import {
+  LogSignatureInputSchema,
+  SignatureSelectSchema,
+} from '@batac/shared/schemas/documents';
 import type { DocumentsRepository } from './documents.repository.js';
 import type { DocumentsPublicAPI } from './documents.types.js';
 import { DocumentPolicyGuard } from './documents.policy.js';
