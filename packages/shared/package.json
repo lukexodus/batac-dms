@@ -2,6 +2,7 @@
   "name": "@batac/shared",
   "private": true,
   "version": "0.0.0",
+  "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./event-bus": "./src/event-bus.ts",

@@ -31,13 +31,17 @@ async function organizationPlugin(fastify: FastifyInstance): Promise<void> {
     boss: fastify.boss,
   } as any);
 
-  await registerDelegationExpiryJob({
-    boss: fastify.boss,
-    db: fastify.db,
-    repository: orgRepository,
-    auditService: fastify.auditService,
-    eventBus: fastify.eventBus,
-  } as any);
+  fastify.addHook('onReady', async () => {
+    if (fastify.boss) {
+      await registerDelegationExpiryJob({
+        boss: fastify.boss,
+        db: fastify.db,
+        repository: orgRepository,
+        auditService: fastify.auditService,
+        eventBus: fastify.eventBus,
+      } as any);
+    }
+  });
 
   fastify.decorate('organizationService', organizationService);
   fastify.decorate('delegationService', delegationService);
