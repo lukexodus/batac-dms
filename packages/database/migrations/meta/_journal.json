@@ -43,6 +43,13 @@
       "when": 1782888888888,
       "tag": "0005_tracking_create_tracking_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783434061845,
+      "tag": "0006_workflow_create_workflow_schema",
+      "breakpoints": true
     }
   ]
 }

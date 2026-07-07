@@ -41,6 +41,8 @@ import eventBusPlugin from './infrastructure/event-bus.plugin.js';
 import auditPlugin from './modules/audit/audit.plugin.js';
 import iamPlugin from './modules/iam/iam.plugin.js';
 import organizationPlugin from './modules/organization/organization.plugin.js';
+import documentsPlugin from './modules/documents/documents.plugin.js';
+import trackingPlugin from './modules/tracking/tracking.plugin.js';
 import rateLimit from '@fastify/rate-limit';
 // organization, documents, workflow, tracking, notifications: add
 // `await fastify.register(...)` below, after iamPlugin and before the tRPC
@@ -103,6 +105,8 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     fastify.decorate('boss', boss);
   }
   await fastify.register(organizationPlugin);
+  await fastify.register(documentsPlugin);
+  await fastify.register(trackingPlugin);
 
   // Merged tRPC router — must come last so every module's decorations are
   // already present when createContext/procedures run.

@@ -1162,3 +1162,106 @@ During TASK-DOCS-018, it was discovered that `organization.plugin.ts` was passin
 To achieve atomic delegation grant creation during `documents.submit`, `createDelegationGrant` and `transitionState` were updated to accept an optional `DbTransaction` parameter. However, `createDelegationGrant` and `revokeEarlyDelegationGrant` emit domain events and write audit logs *before* the SQL transaction concludes.
 
 [Inference]: This means that if the SQL transaction rolls back (e.g., due to a failure in `transitionState` inside the shared transaction), the domain events and audit logs will have already been fired and will not roll back. This is a pre-existing design property of the service methods.
+### [LOG-0041] tracking_record ABAC enforced inline rather than via PolicyEvaluator
+
+- date: 2026-07-07
+- task_id: TASK-TRACK-007
+- status: proposed
+- affects: I1 (§7), E1 (§Module 5)
+
+**What was found:**
+
+`PolicyEvaluator` only has registered handlers for `session` and `delegation_grant` resource types. No handler is registered for `tracking_record` or `routing_entry`. The B5 pattern (§5.5 Steps 7–8) says a missing handler causes RBAC-only evaluation — but the tracking procedures need the own-office / cross-office two-branch logic (I1 §7.1) which is not expressible through RBAC claims alone.
+
+**What was implemented:**
+
+The I1 §7.1–7.5 conditions are checked inline in `tracking.router.ts` rather than through `PolicyEvaluator.evaluate`. Role sets and the own-office branch (`auth.effectiveOfficeIds.includes(documentOfficeId)`) are checked directly against the `AuthContext`. This matches the intent of I1 §7.1 and avoids the need to register a new PolicyEvaluator handler in a module that TASK-TRACK-007 was not asked to touch.
+
+[Inference]: A `tracking_record` PolicyEvaluator handler could be added in a future task for consistency with the `session` and `delegation_grant` patterns, but is not required for Phase 1 correctness since the inline logic implements the same conditions. A human should confirm whether the inline approach is acceptable long-term.
+
+### [LOG-0042] Series number on QR cover sheet derived from preliminaryNumber/finalNumber
+
+- date: 2026-07-07
+- task_id: TASK-TRACK-007
+- status: proposed
+- affects: E1 (§Module 5 tracking.printQrCoverSheet), consolidated ref Q-B02
+
+**What was found:**
+
+E1 §Module 5 confirms the cover sheet contains: QR Code, Tracking Number, and Series Number. "Series Number" is not a column in `tracking.qr_codes` or `tracking.tracking_records`. The nearest equivalent on a document at secretariat logging time is `documents.documents.preliminary_number` (assigned at the same step), falling back to `final_number`.
+
+**What was implemented:**
+
+`QrCodeService.generateCoverSheetPdf` accepts an optional `documentsRepo` argument. When provided, it fetches `preliminaryNumber ?? finalNumber ?? ''` and uses that as the series number label. The `printQrCoverSheet` router procedure passes `ctx.req.server.documentsRepository` as this argument.
+
+[Inference]: A human should confirm that `preliminary_number` is the intended "Series Number" field. If the consolidated reference Q-B02 means something else (e.g. a standalone series counter), a different lookup is needed.
+
+### [LOG-0043] `remarks` field in scanQrCodeAuthenticated returns null in Phase 1
+
+- date: 2026-07-07
+- task_id: TASK-TRACK-007
+- status: proposed
+- affects: E1 (§Module 5 tracking.scanQrCodeAuthenticated)
+
+**What was found:**
+
+E1 §Module 5 specifies `remarks: z.string().nullable()` in the output of `tracking.scanQrCodeAuthenticated`. The `DocumentsPublicAPI.getDocumentById()` returns a `DocumentSummary` which does not include a `remarks` field. No "remarks" column is defined on `documents.documents` in C1 either (as a top-level column — it may appear in the JSONB `metadata` field for some document types).
+
+**What was implemented:**
+
+`remarks` is returned as `null` in Phase 1. A comment in the router marks this with `[Inference]`. A human should confirm: (a) whether remarks should be pulled from `metadata.remarks` (requires a known key convention per document type); (b) whether this field is a UI nicety that can remain null for now.
+
+### [LOG-0044] pdf-lib chosen over @react-pdf/renderer for QR cover sheet PDF generation
+
+- date: 2026-07-07
+- task_id: TASK-TRACK-007
+- status: proposed
+- affects: E1 (§Module 5 tracking.printQrCoverSheet), tech-stack.md
+
+**What was found:**
+
+The tech-stack lists `@react-pdf/renderer` for "PDF templates" and `pdf-lib` for "stamping". `@react-pdf/renderer` requires a React rendering environment and has a complex server-side usage path (requires `@react-pdf/renderer`'s `renderToBuffer` + React component tree). `pdf-lib` is a pure Node.js library with no React dependency.
+
+Neither library was installed in `apps/server` at the start of TASK-TRACK-007.
+
+**What was implemented:**
+
+`pdf-lib` was added to `apps/server` via `pnpm add pdf-lib --filter server`. The cover sheet renders QR image, tracking number, and series number using `pdf-lib`'s low-level drawing primitives. `pdf-lib` is imported dynamically (`await import('pdf-lib')`) inside `generateCoverSheetPdf` so that the server can still start if the package is not yet installed (returns a clear error message instead of crashing on import).
+
+[Inference]: If `@react-pdf/renderer` is later preferred for richer templating (e.g. fonts, brand styling), the `generateCoverSheetPdf` implementation can be swapped independently — the public API (takes `documentIds`, returns `Buffer`) is stable. A human should confirm if `pdf-lib` is acceptable or if `@react-pdf/renderer` server-side rendering should be investigated.
+
+### [LOG-0045] workflow.definitions / instances / step_instances: updated_at intentionally omitted per C1 Part 6 DDL
+
+- date: 2026-07-07
+- task_id: TASK-WF-001
+- status: proposed
+- affects: C1 (Part 6)
+
+**What was found:**
+
+C1 Part 6 DDL (`workflow.definitions`, `workflow.instances`, `workflow.step_instances`) does not include an `updated_at` column or `fn_set_updated_at()` trigger, unlike most mutable tables in the project. This is inconsistent with C1 §1.4, which mandates `updated_at` on "all mutable tables."
+
+**What was implemented:**
+
+The C1 Part 6 DDL was followed literally — no `updated_at` on these three tables. The rationale that can be inferred from the spec:
+- `workflow.definitions`: mutations are limited to `is_active`, `name`, `description`, and soft-delete; versioned content lives in `definition_versions`, making timestamp tracking on the root definition row minimally useful.
+- `workflow.instances` and `workflow.step_instances`: state mutations are captured via the append-only `workflow_events` table (B4), which provides a full timestamped audit trail. Adding `updated_at` would be redundant and potentially misleading.
+
+[Inference]: The C1 §1.4 blanket rule has an unwritten exception for tables whose mutation history is captured by an adjacent append-only event log. This is consistent with the spirit of the rule (no silent state loss) even if not stated explicitly. A human should confirm whether `updated_at` should be added retroactively to any of these three tables for operational convenience (e.g., dead simple "last touched" queries without joining workflow_events).
+
+### [LOG-0046] generatedAlwaysAs() in drizzle-orm 0.45.2 takes one argument only
+
+- date: 2026-07-07
+- task_id: TASK-WF-001
+- status: proposed
+- affects: none (implementation detail; no architecture document references Drizzle API signatures)
+
+**What was found:**
+
+The Drizzle ORM documentation and some community examples show `generatedAlwaysAs(sql`...`, { mode: 'stored' })` with a second options argument. In drizzle-orm 0.45.2 (the version pinned in `packages/database/package.json`), `generatedAlwaysAs()` on `PgColumnBuilder` accepts only one argument — the SQL expression. The `{ mode: 'stored' }` second argument causes `TS2554: Expected 1 arguments, but got 2`.
+
+**What was implemented:**
+
+The call was corrected to `text('status').generatedAlwaysAs(sql`...`)` with no second argument. The generated SQL output (`GENERATED ALWAYS AS (...) STORED`) is identical either way — STORED is the only mode emitted by Drizzle Kit for this column type in this version. The TypeScript error was the only consequence of the incorrect call.
+
+[Inference]: This may have changed between Drizzle minor versions. If drizzle-orm is upgraded, verify the `generatedAlwaysAs` signature and re-check `workflow.definition_versions.status`.
