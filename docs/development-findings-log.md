@@ -1114,3 +1114,51 @@ closely); (b) whether the TODO comments are sufficient as the migration marker,
 or whether a separate tracking ticket for TASK-WF-NNN integration should be
 created.
 
+
+### [LOG-0037] DESIGNATION doc logging trigger wired to `documents.submit` rather than document registration
+
+- date: 2026-07-07
+- task_id: TASK-DOCS-018
+- status: proposed
+- affects: H2 (§8), consolidated reference Part 4.12
+- resolved_in: none
+
+H2 §8 and consolidated reference Part 4.12 specify that the delegation grant lifecycle is triggered when a DESIGNATION document is *logged* (registered). However, DESIGNATION document contents (metadata) are draft-editable and not guaranteed to be finalized until the document passes through the `submit` step. Wiring grant creation to document creation would create grants for draft, incomplete, or later-discarded designations.
+
+[Inference]: Per human instruction, the trigger was wired into `documents.submit` (and correspondingly, revocation into `documents.cancel`), explicitly prioritizing the semantic state-machine boundary over the literal text of H2 §8.
+
+### [LOG-0038] `organizationPlugin` instantiation passed `repository` instead of `orgRepository`
+
+- date: 2026-07-07
+- task_id: TASK-DOCS-018
+- status: proposed
+- affects: none
+- resolved_in: none
+
+During TASK-DOCS-018, it was discovered that `organization.plugin.ts` was passing its repository instance under the key `repository` to `createDelegationService`, whereas the `DelegationServiceDeps` interface explicitly requires `orgRepository: OrganizationRepository`.
+
+[Tested]: Fixed in `organization.plugin.ts` by explicitly using `orgRepository: repository`.
+
+### [LOG-0039] `fastify.boss` undefined during synchronous plugin registration
+
+- date: 2026-07-07
+- task_id: TASK-DOCS-018
+- status: proposed
+- affects: none
+- resolved_in: none
+
+`organization.plugin.ts` attempted to construct `createDelegationService` synchronously during the plugin body execution, expecting `fastify.boss` to be available. However, in `index.ts`, `pgboss` is decorated onto `fastify` *after* `organizationPlugin` is registered, resulting in `boss` being undefined.
+
+[Tested]: Fixed by deferring the service instantiation inside `fastify.after(...)` in `organization.plugin.ts` to guarantee all prior registrations (including `pgboss`) are complete.
+
+### [LOG-0040] Transactional asymmetry in `delegation.service.ts` cross-module calls
+
+- date: 2026-07-07
+- task_id: TASK-DOCS-018
+- status: proposed
+- affects: none
+- resolved_in: none
+
+To achieve atomic delegation grant creation during `documents.submit`, `createDelegationGrant` and `transitionState` were updated to accept an optional `DbTransaction` parameter. However, `createDelegationGrant` and `revokeEarlyDelegationGrant` emit domain events and write audit logs *before* the SQL transaction concludes.
+
+[Inference]: This means that if the SQL transaction rolls back (e.g., due to a failure in `transitionState` inside the shared transaction), the domain events and audit logs will have already been fired and will not roll back. This is a pre-existing design property of the service methods.

@@ -33,6 +33,7 @@
  * Source: TASK-IAM-014.
  */
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import type PgBoss from 'pg-boss';
 import { env } from './config/env.js';
 import { registerHealthRoute } from './routes/health.route.js';
 import databasePlugin from './infrastructure/database.plugin.js';
@@ -45,10 +46,39 @@ import rateLimit from '@fastify/rate-limit';
 // `await fastify.register(...)` below, after iamPlugin and before the tRPC
 // registration, when each module's own plugin-wiring task completes.
 
-export async function buildApp(opts: FastifyServerOptions = {}): Promise<FastifyInstance> {
+/**
+ * [Confirmed — see docs/development-findings-log.md, Bug B] `organizationPlugin`
+ * reads `fastify.boss` synchronously during its own registration (to build
+ * `delegationService`'s deps). Previously, `index.ts`'s `main()` called
+ * `buildApp()` (which registers `organizationPlugin`) BEFORE constructing
+ * PgBoss and decorating `fastify.boss` — so `fastify.boss` was `undefined`
+ * the entire time `organizationPlugin` ran, on every real boot.
+ * `createDelegationGrant`'s Step 7 (`deps.boss.send(...)`) would throw at
+ * runtime the first time it was actually invoked.
+ *
+ * Fix: `buildApp()` now accepts an optional pre-constructed `boss` instance.
+ * When supplied, it is decorated onto the Fastify instance BEFORE
+ * `organizationPlugin` registers, so `fastify.boss` exists by the time
+ * `organizationPlugin` reads it. `index.ts` is updated to construct and
+ * start PgBoss first, then pass it into `buildApp({ boss })`.
+ *
+ * This param is optional and defaults to not decorating `boss` at all,
+ * preserving this file's own stated testability contract (buildApp() can
+ * still be called with zero required setup, e.g. for fastify.inject()-based
+ * tests that don't need PgBoss). [Unverified] — I have not executed this
+ * against a real database/PgBoss instance; this is a claim about what the
+ * code below does, not a tested guarantee.
+ */
+export interface BuildAppOptions extends FastifyServerOptions {
+  boss?: PgBoss;
+}
+
+export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInstance> {
+  const { boss, ...fastifyOpts } = opts;
+
   const fastify = Fastify({
     logger: env.LOG_LEVEL !== 'silent' ? { level: env.LOG_LEVEL } : false,
-    ...opts,
+    ...fastifyOpts,
   });
 
   await registerHealthRoute(fastify);
@@ -63,6 +93,15 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
     allowList: [env.HEALTH_CHECK_PATH],
   });
   await fastify.register(iamPlugin);
+
+  // Must be decorated before organizationPlugin registers — see the Bug B
+  // note above. If `boss` is not supplied, organizationPlugin still
+  // registers, but `fastify.boss` will be undefined within it, exactly as
+  // before this fix (callers that don't need delegation-grant creation are
+  // unaffected either way).
+  if (boss) {
+    fastify.decorate('boss', boss);
+  }
   await fastify.register(organizationPlugin);
 
   // Merged tRPC router — must come last so every module's decorations are

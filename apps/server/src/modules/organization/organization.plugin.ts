@@ -8,10 +8,23 @@ import { createOrgRouter }        from './organization.router.js';
 
 async function organizationPlugin(fastify: FastifyInstance): Promise<void> {
   const orgRepository      = createOrgRepository(fastify.db);
-  const organizationService = createOrgService({ db: fastify.db, repository: orgRepository } as any);
+  // [Confirmed — see docs/development-findings-log.md, Bug A] The object
+  // literals below previously used the key `repository` where
+  // OrgServiceDeps/DelegationServiceDeps declare `orgRepository`. Because
+  // both calls were cast `as any`, TypeScript's structural check was
+  // suppressed and this went uncaught by `pnpm typecheck`. For
+  // createOrgService, this was a latent/dormant bug (organization.service.ts
+  // never reads `deps.orgRepository`, only `deps.db`), so it had no runtime
+  // symptom. For createDelegationService, this was a live bug:
+  // delegation.service.ts's createDelegationGrant calls
+  // `deps.orgRepository.delegationGrants.create(...)` directly, so
+  // `deps.orgRepository` being `undefined` would throw `TypeError: Cannot
+  // read properties of undefined` the first time a grant was actually
+  // created. Fixed by using the correct key name in both calls.
+  const organizationService = createOrgService({ db: fastify.db, orgRepository } as any);
   const delegationService  = createDelegationService({
     db: fastify.db,
-    repository: orgRepository,
+    orgRepository,
     auditService: fastify.auditService,
     eventBus: fastify.eventBus,
     policyEvaluator: fastify.policyEvaluator,

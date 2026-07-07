@@ -6,6 +6,7 @@ import { createDocumentsRouter } from './documents.router.js';
 import { DocumentsRepository } from './documents.repository.js';
 import { DocumentPolicyGuard } from './documents.policy.js';
 import { NumberingService } from './numbering.service.js';
+import { DesignationHandler } from './designation.handler.js';
 import { S3Client } from '@aws-sdk/client-s3';
 import { env } from '../../config/env.js';
 
@@ -20,12 +21,18 @@ import { env } from '../../config/env.js';
  * documents.policy.ts) to avoid a circular import; TypeScript merges
  * `declare module` augmentations across files regardless of which file
  * declares them.
+ *
+ * [Confirmed — TASK-DOCS-018] `designationHandler` added below, same
+ * reasoning: needed by documents.router.ts's submit/cancel procedures for
+ * the DESIGNATION document type's delegation-grant lifecycle wiring. See
+ * docs/development-findings-log.md for the full finding this responds to.
  */
 declare module 'fastify' {
   interface FastifyInstance {
     documentsRepository: DocumentsRepository;
     documentsPolicyGuard: DocumentPolicyGuard;
     numberingService: NumberingService;
+    designationHandler: DesignationHandler;
   }
 }
 
@@ -60,11 +67,35 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
   const trpcRouter = createDocumentsRouter();
   const policyGuard = new DocumentPolicyGuard();
 
+  /**
+   * [Confirmed — TASK-DOCS-018] `designationHandler` composes the
+   * delegation-grant INSERT and the DESIGNATION document's metadata
+   * write-back into one transaction, via this `runInTransaction` closure.
+   * Requires `documentsPlugin` to register AFTER `organizationPlugin`, so
+   * `fastify.delegationService` exists here — enforced via the
+   * `dependencies: [..., 'organization']` array on this plugin's fp(...)
+   * registration below, not by manual ordering in app.ts.
+   *
+   * [Unverified] This has not been executed against a real database. The
+   * `db.transaction(...)` call below is written against the same pattern
+   * already used in documents.service.ts's transitionState (both before and
+   * after this change's edit to that method) and delegation.service.ts's
+   * createDelegationGrant/revokeEarlyDelegationGrant, but that pattern
+   * match is a structural/textual observation, not a tested guarantee that
+   * this specific composition behaves correctly at runtime.
+   */
+  const designationHandler = new DesignationHandler({
+    documentsRepository: repository,
+    delegationService: fastify.delegationService,
+    runInTransaction: (fn) => db.transaction(fn),
+  });
+
   fastify.decorate('documentsRepository', repository);
   fastify.decorate('documentsService', service);
   fastify.decorate('documentsPolicyGuard', policyGuard);
   fastify.decorate('documentsTrpcRouter', trpcRouter);
   fastify.decorate('numberingService', numberingService);
+  fastify.decorate('designationHandler', designationHandler);
 
   if (fastify.boss) {
     const SYSTEM_ACTOR_ID = '00000000-0000-4000-8000-000000000000';
@@ -110,5 +141,5 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
 
 export default fp(documentsPlugin, {
   name: 'documents',
-  dependencies: ['database', 'event-bus', 'audit'],
+  dependencies: ['database', 'event-bus', 'audit', 'organization'],
 });

@@ -535,4 +535,3 @@ export const LogSecretariatDecisionInputSchema = z.object({
   remarks: z.string().max(2048).optional(),
 });
 export type LogSecretariatDecisionInput = z.infer<typeof LogSecretariatDecisionInputSchema>;
-
