@@ -25,6 +25,7 @@ export async function registerTsaExportJob(deps: {
   // Replace StubTsaClient with real client when provider is confirmed.
   const tsaClient: RfcTsaClient = new StubTsaClient();
 
+  await boss.createQueue(TSA_JOB_NAME);
   await boss.schedule(TSA_JOB_NAME, TSA_CRON, {}, { tz: 'UTC' });
 
   await boss.work<void>(TSA_JOB_NAME, async () => {

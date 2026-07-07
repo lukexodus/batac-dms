@@ -5,7 +5,7 @@
  * Uses the same t.createCallerFactory pattern as documents.router.test.ts.
  *
  * Coverage targets (acceptance criteria from TASK-DOCS-017):
- *  AC1  createClerkAssisted inserts lifecycle_state='draft',
+ *  AC1  createDocumentRequestClerkAssisted inserts lifecycle_state='draft',
  *       metadata.accessMode='in_person_clerk'
  *  AC2  approveAsPresidingOfficer — sp_presiding_officer succeeds; all
  *       other roles throw FORBIDDEN
@@ -199,7 +199,7 @@ function callerFor(ctx: Context) {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('documentRequests.createClerkAssisted', () => {
+describe('documentRequests.createDocumentRequestClerkAssisted', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('AC1: inserts document with lifecycleState=draft and accessMode=in_person_clerk', async () => {
@@ -208,7 +208,7 @@ describe('documentRequests.createClerkAssisted', () => {
     const db = makeMockDb();
     const caller = callerFor(makeCtx(subject, { repository, db }));
 
-    const result = await caller.createClerkAssisted({
+    const result = await caller.createDocumentRequestClerkAssisted({
       requesterName: 'Juan dela Cruz',
       requesterContact: '09171234567',
       documentsRequested: [{ documentTitle: 'SP Resolution No. 001-2026', documentNumber: 'SP-2026-001' }],
@@ -232,7 +232,7 @@ describe('documentRequests.createClerkAssisted', () => {
       const subject = makeSubject({ roles: [role] });
       const caller = callerFor(makeCtx(subject));
       await expect(
-        caller.createClerkAssisted({
+        caller.createDocumentRequestClerkAssisted({
           requesterName: 'Test',
           documentsRequested: [{ documentTitle: 'Test Doc' }],
         })
@@ -246,7 +246,7 @@ describe('documentRequests.createClerkAssisted', () => {
     const db = makeMockDb();
     const caller = callerFor(makeCtx(subject, { repository, db }));
 
-    await caller.createClerkAssisted({
+    await caller.createDocumentRequestClerkAssisted({
       requesterName: 'Maria Santos',
       documentsRequested: [{ documentTitle: 'SP Ordinance No. 002-2026' }],
     });
@@ -502,7 +502,7 @@ describe('documentRequests.listAll', () => {
     })();
 
     const caller = callerFor(makeCtx(subject, { db }));
-    const result = await caller.listAll({ limit: 25 });
+    const result = await caller.listAllDocumentRequests({ limit: 25 });
     expect(result).toHaveProperty('items');
     expect(result).toHaveProperty('nextCursor');
     expect(Array.isArray(result.items)).toBe(true);
@@ -524,7 +524,7 @@ describe('documentRequests.listAll', () => {
       return { select: () => chain };
     })();
     const caller = callerFor(makeCtx(subject, { db }));
-    const result = await caller.listAll({ limit: 25 });
+    const result = await caller.listAllDocumentRequests({ limit: 25 });
     expect(result).toHaveProperty('items');
   });
 
@@ -544,7 +544,7 @@ describe('documentRequests.listAll', () => {
       return { select: () => chain };
     })();
     const caller = callerFor(makeCtx(subject, { db }));
-    const result = await caller.listAll({ limit: 25 });
+    const result = await caller.listAllDocumentRequests({ limit: 25 });
     expect(result).toHaveProperty('items');
   });
 
@@ -564,20 +564,20 @@ describe('documentRequests.listAll', () => {
       return { select: () => chain };
     })();
     const caller = callerFor(makeCtx(subject, { db }));
-    const result = await caller.listAll({ limit: 25 });
+    const result = await caller.listAllDocumentRequests({ limit: 25 });
     expect(result).toHaveProperty('items');
   });
 
   it('AC5: dept_encoder is FORBIDDEN', async () => {
     const subject = makeSubject({ roles: ['dept_encoder'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(caller.listAll({ limit: 25 })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.listAllDocumentRequests({ limit: 25 })).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
   it('AC5: sp_member is FORBIDDEN', async () => {
     const subject = makeSubject({ roles: ['sp_member'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(caller.listAll({ limit: 25 })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.listAllDocumentRequests({ limit: 25 })).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });
 

@@ -5,7 +5,7 @@ import { router, protectedProcedure } from '../../trpc/trpc.js';
 import { eq, and, isNull, inArray, sql } from 'drizzle-orm';
 import {
   PaginationInputSchema,
-} from '@batac/shared';
+} from '@batac/shared/schemas/common';
 import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
 import type { Context } from '../iam/iam.types.js';
 
@@ -23,7 +23,7 @@ function getEventBus(ctx: Context) {
 
 export function createComplaintsRouter() {
   return router({
-    createClerkAssisted: protectedProcedure
+    createComplaintClerkAssisted: protectedProcedure
       .input(
         z.object({
           complainantName: z.string().min(1),
@@ -237,7 +237,7 @@ export function createComplaintsRouter() {
         return { success: true };
       }),
 
-    listAll: protectedProcedure
+    listAllComplaints: protectedProcedure
       .input(
         PaginationInputSchema.extend({
           outcomeState: z.enum(['pending_hearing', 'received_seen', 'dismissed', 'resolved']).optional(),
