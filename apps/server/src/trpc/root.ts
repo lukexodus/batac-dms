@@ -4,11 +4,13 @@ import {
   createComplaintsRouter,
   createDocumentRequestsRouter,
 } from '../modules/documents/index.js';
+import { createTrackingRouter } from '../modules/tracking/tracking.router.js';
 
 export const appRouter = router({
   iam: iamRouter,
   complaints: createComplaintsRouter(),
   documentRequests: createDocumentRequestsRouter(),
+  tracking: createTrackingRouter(),
 });
 
 export type AppRouter = typeof appRouter;

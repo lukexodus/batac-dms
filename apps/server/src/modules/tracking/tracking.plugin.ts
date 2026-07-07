@@ -4,8 +4,25 @@ import { TrackingRepository } from './tracking.repository.js';
 import { QrCodeService } from './tracking.qr-service.js';
 import { createTrackingService } from './tracking.service.js';
 import { createPublicLookupHandler } from './tracking.public-handler.js';
+import { createTrackingRouter } from './tracking.router.js';
 import { S3Client } from '@aws-sdk/client-s3';
 import { env } from '../../config/env.js';
+
+/**
+ * Decorate the Fastify instance with the tracking module's services and the
+ * tRPC sub-router.  The `trackingRepository` decoration is needed by
+ * `tracking.router.ts`, which reads it from `ctx.req.server` at request time.
+ *
+ * Source: TASK-TRACK-007 (wiring).
+ */
+declare module 'fastify' {
+  interface FastifyInstance {
+    trackingRepository: TrackingRepository;
+    trackingService: ReturnType<typeof createTrackingService>;
+    qrCodeService: QrCodeService;
+    trackingTrpcRouter: ReturnType<typeof createTrackingRouter>;
+  }
+}
 
 const trackingPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.log.info('tracking.module.stub');
@@ -25,8 +42,13 @@ const trackingPlugin: FastifyPluginAsync = async (fastify) => {
   
   const trackingService = createTrackingService(repository);
   
+  // Decorate for router access via ctx.req.server.*
+  fastify.decorate('trackingRepository', repository);
   fastify.decorate('trackingService', trackingService);
   fastify.decorate('qrCodeService', qrCodeService);
+
+  const trackingTrpcRouter = createTrackingRouter();
+  fastify.decorate('trackingTrpcRouter', trackingTrpcRouter);
 
   const publicLookupHandler = createPublicLookupHandler({
     repository,

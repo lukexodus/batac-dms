@@ -1114,3 +1114,71 @@ closely); (b) whether the TODO comments are sufficient as the migration marker,
 or whether a separate tracking ticket for TASK-WF-NNN integration should be
 created.
 
+### [LOG-0037] tracking_record ABAC enforced inline rather than via PolicyEvaluator
+
+- date: 2026-07-07
+- task_id: TASK-TRACK-007
+- status: proposed
+- affects: I1 (§7), E1 (§Module 5)
+
+**What was found:**
+
+`PolicyEvaluator` only has registered handlers for `session` and `delegation_grant` resource types. No handler is registered for `tracking_record` or `routing_entry`. The B5 pattern (§5.5 Steps 7–8) says a missing handler causes RBAC-only evaluation — but the tracking procedures need the own-office / cross-office two-branch logic (I1 §7.1) which is not expressible through RBAC claims alone.
+
+**What was implemented:**
+
+The I1 §7.1–7.5 conditions are checked inline in `tracking.router.ts` rather than through `PolicyEvaluator.evaluate`. Role sets and the own-office branch (`auth.effectiveOfficeIds.includes(documentOfficeId)`) are checked directly against the `AuthContext`. This matches the intent of I1 §7.1 and avoids the need to register a new PolicyEvaluator handler in a module that TASK-TRACK-007 was not asked to touch.
+
+[Inference]: A `tracking_record` PolicyEvaluator handler could be added in a future task for consistency with the `session` and `delegation_grant` patterns, but is not required for Phase 1 correctness since the inline logic implements the same conditions. A human should confirm whether the inline approach is acceptable long-term.
+
+### [LOG-0038] Series number on QR cover sheet derived from preliminaryNumber/finalNumber
+
+- date: 2026-07-07
+- task_id: TASK-TRACK-007
+- status: proposed
+- affects: E1 (§Module 5 tracking.printQrCoverSheet), consolidated ref Q-B02
+
+**What was found:**
+
+E1 §Module 5 confirms the cover sheet contains: QR Code, Tracking Number, and Series Number. "Series Number" is not a column in `tracking.qr_codes` or `tracking.tracking_records`. The nearest equivalent on a document at secretariat logging time is `documents.documents.preliminary_number` (assigned at the same step), falling back to `final_number`.
+
+**What was implemented:**
+
+`QrCodeService.generateCoverSheetPdf` accepts an optional `documentsRepo` argument. When provided, it fetches `preliminaryNumber ?? finalNumber ?? ''` and uses that as the series number label. The `printQrCoverSheet` router procedure passes `ctx.req.server.documentsRepository` as this argument.
+
+[Inference]: A human should confirm that `preliminary_number` is the intended "Series Number" field. If the consolidated reference Q-B02 means something else (e.g. a standalone series counter), a different lookup is needed.
+
+### [LOG-0039] `remarks` field in scanQrCodeAuthenticated returns null in Phase 1
+
+- date: 2026-07-07
+- task_id: TASK-TRACK-007
+- status: proposed
+- affects: E1 (§Module 5 tracking.scanQrCodeAuthenticated)
+
+**What was found:**
+
+E1 §Module 5 specifies `remarks: z.string().nullable()` in the output of `tracking.scanQrCodeAuthenticated`. The `DocumentsPublicAPI.getDocumentById()` returns a `DocumentSummary` which does not include a `remarks` field. No "remarks" column is defined on `documents.documents` in C1 either (as a top-level column — it may appear in the JSONB `metadata` field for some document types).
+
+**What was implemented:**
+
+`remarks` is returned as `null` in Phase 1. A comment in the router marks this with `[Inference]`. A human should confirm: (a) whether remarks should be pulled from `metadata.remarks` (requires a known key convention per document type); (b) whether this field is a UI nicety that can remain null for now.
+
+### [LOG-0040] pdf-lib chosen over @react-pdf/renderer for QR cover sheet PDF generation
+
+- date: 2026-07-07
+- task_id: TASK-TRACK-007
+- status: proposed
+- affects: E1 (§Module 5 tracking.printQrCoverSheet), tech-stack.md
+
+**What was found:**
+
+The tech-stack lists `@react-pdf/renderer` for "PDF templates" and `pdf-lib` for "stamping". `@react-pdf/renderer` requires a React rendering environment and has a complex server-side usage path (requires `@react-pdf/renderer`'s `renderToBuffer` + React component tree). `pdf-lib` is a pure Node.js library with no React dependency.
+
+Neither library was installed in `apps/server` at the start of TASK-TRACK-007.
+
+**What was implemented:**
+
+`pdf-lib` was added to `apps/server` via `pnpm add pdf-lib --filter server`. The cover sheet renders QR image, tracking number, and series number using `pdf-lib`'s low-level drawing primitives. `pdf-lib` is imported dynamically (`await import('pdf-lib')`) inside `generateCoverSheetPdf` so that the server can still start if the package is not yet installed (returns a clear error message instead of crashing on import).
+
+[Inference]: If `@react-pdf/renderer` is later preferred for richer templating (e.g. fonts, brand styling), the `generateCoverSheetPdf` implementation can be swapped independently — the public API (takes `documentIds`, returns `Buffer`) is stable. A human should confirm if `pdf-lib` is acceptable or if `@react-pdf/renderer` server-side rendering should be investigated.
+

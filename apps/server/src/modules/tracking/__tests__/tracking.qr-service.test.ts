@@ -92,8 +92,70 @@ describe('QrCodeService', () => {
   });
 
   describe('generateCoverSheetPdf', () => {
-    it('throws not implemented error', async () => {
-      await expect(service.generateCoverSheetPdf('doc-1')).rejects.toThrow('not implemented');
+    it('calls findQrCodeByDocumentId and QRCode.toBuffer for fallback QR when no S3 key', async () => {
+      // Arrange: repo returns a QR code row with no image key stored
+      mockRepo.findQrCodeByDocumentId = vi.fn().mockResolvedValue({
+        id: 'qr-1',
+        documentId: 'doc-1',
+        trackingId: 'mock-tracking-uuid',
+        trackingNumber: 'DTS-2026-0001',
+        qrImageFileKey: null,
+        assignedAt: new Date(),
+        deletedAt: null,
+      });
+
+      // Mock pdf-lib dynamic import
+      vi.doMock('pdf-lib', () => ({
+        PDFDocument: {
+          create: vi.fn().mockResolvedValue({
+            addPage: vi.fn().mockReturnValue({
+              drawRectangle: vi.fn(),
+              drawImage: vi.fn(),
+              drawText: vi.fn(),
+            }),
+            embedPng: vi.fn().mockResolvedValue({}),
+            save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+          }),
+        },
+        rgb: vi.fn().mockReturnValue({}),
+      }));
+
+      const result = await service.generateCoverSheetPdf(['doc-1'], 'single');
+
+      expect(mockRepo.findQrCodeByDocumentId).toHaveBeenCalledWith('doc-1');
+      // Fallback QR generation via QRCode.toBuffer
+      expect(QRCode.toBuffer).toHaveBeenCalled();
+      expect(result).toBeInstanceOf(Buffer);
+    });
+
+    it('returns a buffer when pdf-lib is available and multi_per_page layout is used', async () => {
+      mockRepo.findQrCodeByDocumentId = vi.fn().mockResolvedValue({
+        id: 'qr-2',
+        documentId: 'doc-2',
+        trackingId: 'uuid-2',
+        trackingNumber: 'DTS-2026-0002',
+        qrImageFileKey: null,
+        assignedAt: new Date(),
+        deletedAt: null,
+      });
+
+      vi.doMock('pdf-lib', () => ({
+        PDFDocument: {
+          create: vi.fn().mockResolvedValue({
+            addPage: vi.fn().mockReturnValue({
+              drawRectangle: vi.fn(),
+              drawImage: vi.fn(),
+              drawText: vi.fn(),
+            }),
+            embedPng: vi.fn().mockResolvedValue({}),
+            save: vi.fn().mockResolvedValue(new Uint8Array([4, 5, 6])),
+          }),
+        },
+        rgb: vi.fn().mockReturnValue({}),
+      }));
+
+      const result = await service.generateCoverSheetPdf(['doc-2'], 'multi_per_page');
+      expect(result).toBeInstanceOf(Buffer);
     });
   });
 });
