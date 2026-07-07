@@ -18,9 +18,10 @@ export interface IEventBusLogger {
   error(obj: object, msg?: string, ...args: any[]): void;
   error(msg: string, ...args: any[]): void;
 }
-import type { EventPayloadMap } from './events/event-payload-map';
-import type { DomainEvent } from './events/domain-event';
-import type { IDeadLetterRepository } from './dead-letter-repository.interface';
+import type { EventPayloadMap } from './events/event-payload-map.js';
+import type { DomainEvent } from './events/domain-event.js';
+import type { IDeadLetterRepository } from './dead-letter-repository.interface.js';
+
 
 // Internal handler type — erased to allow the Map to hold mixed-typed handlers.
 type AnyHandler = (envelope: DomainEvent<unknown>) => void | Promise<void>;

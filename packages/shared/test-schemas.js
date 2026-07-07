@@ -1,7 +1,15 @@
 import { z } from "zod";
-import { SpResolutionMetadataSchema, LogPanlalawiganOutcomeInputSchema, DesignationMetadataSchema, DocumentMetadataSchema } from "./packages/shared/src/schemas/document-metadata.js";
-import { LogPanlalawiganOutcomeInputSchema as DocsLogPanlalawiganOutcomeInputSchema } from "./packages/shared/src/schemas/documents.js";
+import { SpResolutionMetadataSchema, DesignationMetadataSchema, DocumentMetadataSchema } from "./src/schemas/document-metadata.js";
+import { LogPanlalawiganOutcomeInputSchema as DocsLogPanlalawiganOutcomeInputSchema } from "./src/schemas/documents.js";
+import {
+  WorkflowContextSchema,
+  TerminationStepConfigSchema,
+  MultiReferralStepConfigSchema,
+  ApprovalStepConfigSchema,
+  WorkflowStepDefSchema
+} from "./src/workflow/index.js";
 import crypto from "crypto";
+
 
 const uuid1 = crypto.randomUUID();
 const uuid2 = crypto.randomUUID();
@@ -99,6 +107,74 @@ function runTests() {
     passed = false;
   }
   
+  // Test 5: WorkflowContextSchema (optional keys)
+  try {
+    WorkflowContextSchema.parse({});
+    console.log("Test 5a passed");
+  } catch(e) {
+    console.error("Test 5a failed", e);
+    passed = false;
+  }
+
+  try {
+    WorkflowContextSchema.parse({ document_id: "not-a-uuid" });
+    console.error("Test 5b failed - should have thrown");
+    passed = false;
+  } catch(e) {
+    console.log("Test 5b passed");
+  }
+
+  // Test 6: TerminationStepConfigSchema
+  try {
+    TerminationStepConfigSchema.parse({
+      outcome_code: 'REPASSED',
+      final_document_status: null
+    });
+    console.log("Test 6 passed");
+  } catch(e) {
+    console.error("Test 6 failed", e);
+    passed = false;
+  }
+
+  // Test 7: MultiReferralStepConfigSchema (non-optional fields)
+  try {
+    MultiReferralStepConfigSchema.parse({
+      default_committee_roles: [],
+      report_acceptor_role: 'role'
+    });
+    console.error("Test 7a failed - should have thrown");
+    passed = false;
+  } catch(e) {
+    console.log("Test 7a passed");
+  }
+
+  try {
+    MultiReferralStepConfigSchema.parse({
+      default_committee_roles: [],
+      report_acceptor_role: 'role',
+      thursday_cutoff_enabled: true,
+      require_all_committee_signatures: true,
+      allow_secretary_advance: false
+    });
+    console.log("Test 7b passed");
+  } catch(e) {
+    console.error("Test 7b failed", e);
+    passed = false;
+  }
+
+  // Test 8: ApprovalStepConfigSchema (optional is_final_approval)
+  try {
+    ApprovalStepConfigSchema.parse({
+      assignee: 'role',
+      allowed_outcomes: ['approved'],
+      is_final_approval: true
+    });
+    console.log("Test 8 passed");
+  } catch(e) {
+    console.error("Test 8 failed", e);
+    passed = false;
+  }
+
   if (passed) {
     console.log("ALL TESTS PASSED");
   } else {
@@ -107,3 +183,4 @@ function runTests() {
 }
 
 runTests();
+
