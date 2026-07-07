@@ -69,13 +69,13 @@ const trackingPlugin: FastifyPluginAsync = async (fastify) => {
       fastify.log.error({ err, eventId: event.eventId }, 'tracking: document.created handler failed');
       // dead-letter handling is owned by the INFRA pgboss dead-letter task
     });
-  });
+  }, 'tracking');
 
   fastify.eventBus.on('workflow.step_completed', (event) => {
     eventConsumer.handleWorkflowStepCompleted(event).catch((err) => {
       fastify.log.error({ err, eventId: event.eventId }, 'tracking: workflow.step_completed handler failed');
     });
-  });
+  }, 'tracking');
 
   // TODO(PORTAL-INTEGRATION): Portal (Phase 3) will call trackingService.getTrackingRecordForDocument()
   // for the public scan display on the citizen portal.
@@ -85,5 +85,5 @@ const trackingPlugin: FastifyPluginAsync = async (fastify) => {
 
 export default fp(trackingPlugin, {
   name: 'tracking-plugin',
-  dependencies: ['documents-plugin'],
+  dependencies: ['documents'],
 });
