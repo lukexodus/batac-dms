@@ -1060,3 +1060,57 @@ A human should confirm whether a literal `DOCUMENT_CANCELLED` audit
 dashboard filter) — if so, that's a B3/audit-consumer change, not something
 documents.router.ts should special-case on its own given the writeEvent
 restriction above.
+
+### [LOG-0036] Phase 1 dual-approval stub: JSONB vm_approved / sp_approved fields in document-requests.router.ts
+
+- date: 2026-07-07
+- task_id: TASK-DOCS-017
+- status: proposed
+- affects: H2 (§6 DOCUMENT_REQUEST_FORM), E1 (Module 11 document-requests procedures), B4 (Workflow Engine — dual approval steps)
+
+**What was found:**
+
+ADR-EVT-001 (June 2026) states that the dual approval requirement (Vice Mayor +
+SP Secretary) for Document Request Forms is modelled as two sequential `approval`
+step_instances in the Workflow Engine (B4 §4.2), and that `approval_status`,
+`approved_by_vm`, and `approved_by_sp_secretary` JSONB fields were **removed**
+from the H2 §6 schema.  However, the Workflow Engine module (TASK-WF-NNN) is not
+yet live in Phase 1.
+
+**What was implemented:**
+
+`document-requests.router.ts` uses temporary JSONB fields `vm_approved`,
+`vm_approved_at`, `vm_approved_by`, `sp_approved`, `sp_approved_at`,
+`sp_approved_by` inside `documents.documents.metadata` as a Phase 1 stub.
+Every stub site carries a `TODO(WF-INTEGRATION)` comment:
+
+```
+// TODO(WF-INTEGRATION): replace metadata.vm_approved check with
+//   workflow.getStepState(...) when TASK-WF-NNN completes.
+```
+
+`approveAsSecretary` reads `metadata.vm_approved` to enforce sequential approval
+and throws `PRECONDITION_FAILED` if the field is absent or falsy.
+`releaseCopy` requires `lifecycleState === 'completed'` (set by
+`approveAsSecretary` after both approvals), not a JSONB flag check.
+
+[Inference]: The stub field names (`vm_approved` / `sp_approved`) differ from
+the removed ADR-EVT-001 originals (`approved_by_vm` / `approved_by_sp_secretary`)
+to clearly distinguish the Phase 1 temporary stub from the removed pre-ADR fields,
+and to avoid future confusion when the WF integration removes them.
+
+**C1-over-E1 conflict:**
+
+E1 Module 11's `listAll` procedure references `portal.citizen_requests` and an
+`approval_status` column.  C1 Part 13 explicitly states `portal.citizen_requests`
+does not exist in Phase 1.  `document-requests.router.ts` follows C1 — all
+requests are stored in `documents.documents` with metadata JSONB, and the
+`listAll` output is shaped from that metadata.  This was the correct resolution
+per AGENTS.md §1 (C1 ranks above E1 in the source-of-truth hierarchy).
+
+A human should confirm: (a) the stub JSONB field names are acceptable for Phase
+1 (rename if the convention should match B4 step-instance field names more
+closely); (b) whether the TODO comments are sufficient as the migration marker,
+or whether a separate tracking ticket for TASK-WF-NNN integration should be
+created.
+
