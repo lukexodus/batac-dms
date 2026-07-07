@@ -9,6 +9,7 @@ export * from './documents.types.js';
 export { default as documentsPlugin } from './documents.plugin.js';
 export { createDocumentsRouter } from './documents.router.js';
 export { createComplaintsRouter } from './complaints.router.js';
+export { createDocumentRequestsRouter } from './document-requests.router.js';
 export { DocumentsRepository } from './documents.repository.js';
 export { createDocumentsService } from './documents.service.js';
 export type {
