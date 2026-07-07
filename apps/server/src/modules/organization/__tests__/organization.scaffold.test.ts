@@ -12,7 +12,7 @@ import {
   createDelegationService,
   initializePublishedAPI,
 } from '../index.js';
-import { OfficeSummarySchema } from '@batac/shared';
+import { OfficeSummarySchema } from '@batac/shared/schemas/organization';
 
 describe('Organization Module Scaffold', () => {
   it('exposes the eight B2 Published API methods', () => {
