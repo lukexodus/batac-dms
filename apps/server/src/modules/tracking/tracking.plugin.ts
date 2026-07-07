@@ -7,6 +7,7 @@ import { createPublicLookupHandler } from './tracking.public-handler.js';
 import { createTrackingRouter } from './tracking.router.js';
 import { S3Client } from '@aws-sdk/client-s3';
 import { env } from '../../config/env.js';
+import { TrackingEventConsumer } from './tracking.event-consumer.js';
 
 /**
  * Decorate the Fastify instance with the tracking module's services and the
@@ -25,7 +26,7 @@ declare module 'fastify' {
 }
 
 const trackingPlugin: FastifyPluginAsync = async (fastify) => {
-  fastify.log.info('tracking.module.stub');
+
   
   const repository = new TrackingRepository(fastify.db);
   const s3Client = new S3Client({
@@ -61,7 +62,25 @@ const trackingPlugin: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/track/:trackingId', publicLookupHandler);
 
-  // Full wiring in TASK-TRACK-009
+  const eventConsumer = new TrackingEventConsumer(repository, qrCodeService, fastify.log, fastify.db);
+
+  fastify.eventBus.on('document.created', (event) => {
+    eventConsumer.handleDocumentCreated(event).catch((err) => {
+      fastify.log.error({ err, eventId: event.eventId }, 'tracking: document.created handler failed');
+      // dead-letter handling is owned by the INFRA pgboss dead-letter task
+    });
+  });
+
+  fastify.eventBus.on('workflow.step_completed', (event) => {
+    eventConsumer.handleWorkflowStepCompleted(event).catch((err) => {
+      fastify.log.error({ err, eventId: event.eventId }, 'tracking: workflow.step_completed handler failed');
+    });
+  });
+
+  // TODO(PORTAL-INTEGRATION): Portal (Phase 3) will call trackingService.getTrackingRecordForDocument()
+  // for the public scan display on the citizen portal.
+
+  fastify.log.info('tracking.module.ready');
 };
 
 export default fp(trackingPlugin, {
