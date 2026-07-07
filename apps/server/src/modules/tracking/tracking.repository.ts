@@ -161,6 +161,19 @@ export class TrackingRepository {
     return (result[0] as QrCodeRow) || null;
   }
 
+  async findQrCodeByDocumentId(
+    documentId: string,
+    db: AppDb = this.db
+  ): Promise<QrCodeRow | null> {
+    const result = await db
+      .select()
+      .from(qrCodes)
+      .where(and(eq(qrCodes.documentId, documentId), isNull(qrCodes.deletedAt)))
+      .limit(1);
+
+    return (result[0] as QrCodeRow) || null;
+  }
+
   async getNextTrackingNumber(
     year: number,
     db: AppDb = this.db
@@ -176,6 +189,24 @@ export class TrackingRepository {
     }
     const padded = String(sequence_value).padStart(4, '0');
     return `DTS-${year}-${padded}`;
+  }
+
+  async findTrackingRecordRowByDocumentId(
+    documentId: string,
+    db: AppDb = this.db
+  ): Promise<TrackingRecordRow | null> {
+    const result = await db
+      .select()
+      .from(trackingRecords)
+      .where(
+        and(
+          eq(trackingRecords.documentId, documentId),
+          isNull(trackingRecords.deletedAt)
+        )
+      )
+      .limit(1);
+
+    return (result[0] as TrackingRecordRow) || null;
   }
 
   async getRoutingHistory(
