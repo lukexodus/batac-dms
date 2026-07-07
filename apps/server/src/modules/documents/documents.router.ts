@@ -49,6 +49,7 @@ import type { DocumentPolicyGuard } from './documents.policy.js';
 import type { DocumentsPublicAPI } from './documents.types.js';
 import { createPanlalawiganProcedures } from './panlalawigan.router.js';
 import { createSignatureProcedures } from './signatures.router.js';
+import { DesignationMetadataInvalidError } from './designation.handler.js';
 
 /**
  * documents.router.ts -- general CRUD (TASK-DOCS-011)
@@ -93,6 +94,15 @@ function getOrgService(ctx: Context) {
 
 function getNumberingService(ctx: Context) {
   return ctx.req.server.numberingService;
+}
+
+/**
+ * [Confirmed — TASK-DOCS-018] Accessor for the DESIGNATION document type's
+ * delegation-grant lifecycle handler, following the same
+ * ctx.req.server.xxx pattern as every other accessor in this block.
+ */
+function getDesignationHandler(ctx: Context) {
+  return ctx.req.server.designationHandler;
 }
 
 const SuccessOutputSchema = z.object({ success: z.literal(true) });
@@ -728,6 +738,15 @@ export function createDocumentsRouter() {
           throw err;
         }
 
+        const docType = await repo.findDocumentTypeById(document.documentTypeId);
+        if (docType?.code === 'DESIGNATION' && document.metadata && (document.metadata as any).delegationGrantId) {
+          await getDesignationHandler(ctx).handleDesignationCancelled(
+            (document.metadata as any).delegationGrantId,
+            input.reason,
+            { userId: subject.userId, roles: subject.roles, cityId: subject.cityId }
+          );
+        }
+
         return { success: true as const };
       }),
 
@@ -1150,6 +1169,42 @@ export function createDocumentsRouter() {
 
         // 3. Transition to 'submitted'
         await service.transitionState(document.id, 'submitted', subject.userId, 'Document submitted');
+
+        /**
+         * [Confirmed] Wired into documents.submit per explicit human
+         * decision made during TASK-DOCS-018's investigation, despite a
+         * confirmed conflict with H2 §8 / consolidated reference Part 4.12
+         * (both describe the trigger as document *logging*, not
+         * `documents.submit`). See docs/development-findings-log.md,
+         * [LOG-0037], for the full finding — this conflict is NOT resolved
+         * by this code, only implemented around per instruction.
+         *
+         * [Inference] This runs AFTER transitionState has already committed
+         * (transitionState is a separate statement above, not nested inside
+         * the designationHandler's own transaction). So this delivers
+         * "grant creation + document.metadata write-back" as one atomic
+         * unit, but does NOT deliver "document became submitted + grant was
+         * created" as one atomic unit. See designation.handler.ts's own
+         * doc comment on handleDesignationLogged for the full reasoning,
+         * and docs/development-findings-log.md for the logged finding.
+         *
+         * [Unverified] Not executed against a real database.
+         */
+        if (docType.code === 'DESIGNATION') {
+          try {
+            await getDesignationHandler(ctx).handleDesignationLogged(
+              document.id,
+              (document.metadata as Record<string, unknown>) ?? {},
+              subject.userId,
+              { userId: subject.userId, roles: subject.roles, cityId: subject.cityId },
+            );
+          } catch (err) {
+            if (err instanceof DesignationMetadataInvalidError) {
+              throw new TRPCError({ code: 'BAD_REQUEST', message: err.message });
+            }
+            throw err;
+          }
+        }
 
         // Emit document.created event per acceptance criteria
         ctx.req.server.eventBus.emit('document.created', {

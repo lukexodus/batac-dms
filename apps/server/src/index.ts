@@ -33,14 +33,21 @@ declare module 'fastify' {
 }
 
 async function main(): Promise<void> {
-  const app = await buildApp();
+  // [Confirmed — see docs/development-findings-log.md, Bug B] PgBoss must be
+  // constructed and started BEFORE buildApp() runs, because buildApp()
+  // registers organizationPlugin, which reads fastify.boss synchronously
+  // during its own registration. Previously this file called buildApp()
+  // first and only decorated `boss` afterward, so organizationPlugin always
+  // saw fastify.boss as undefined. See app.ts's BuildAppOptions.boss for how
+  // this is threaded through.
+  console.log('Starting PgBoss...');
+  const boss = new PgBoss(env.DATABASE_URL_APP);
+  await boss.start();
+
+  const app = await buildApp({ boss });
 
   try {
-    // Start PgBoss and register background jobs
-    app.log.info('Starting PgBoss...');
-    const boss = new PgBoss(env.DATABASE_URL_APP);
-    await boss.start();
-    app.decorate('boss', boss);
+    app.log.info('PgBoss started and decorated onto the Fastify instance.');
 
     // Register TSA Export Job
     const auditDb = createAuditDb(env.DATABASE_URL_AUDIT);

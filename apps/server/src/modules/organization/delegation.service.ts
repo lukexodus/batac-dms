@@ -10,6 +10,7 @@ import type {
   DesignationView,
   DesignationHistoryItem,
   DesignationParty,
+  DbTransaction,
 } from './organization.types.js';
 import { eq, and, or, isNull, lte, gte, desc } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -23,6 +24,7 @@ import {
   ActiveDesignationExistsError,
   DelegationGrantNotFoundError,
 } from '../../errors/domain/organization.js';
+import { createOrgRepository } from './organization.repository.js';
 
 export function createDelegationService(deps: DelegationServiceDeps): DelegationService {
   return {
@@ -115,10 +117,29 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
      *   4. INSERT via repository
      *   5. Emit delegation.granted on event bus
      *   6. Write delegation_grant.created audit event
+     *   7. Schedule expiry job via pg-boss
+     *
+     * [Inference] `trx` is an optional caller-supplied transaction handle,
+     * added for TASK-DOCS-018 (see docs/development-findings-log.md). When
+     * supplied, Steps 3–4 (the Invariant #16 read and the INSERT) run
+     * against `trx` via a request-scoped `createOrgRepository(trx)`, instead
+     * of `deps.db`/`deps.orgRepository`. When omitted, behavior is
+     * unchanged: both steps run against `deps.db`/`deps.orgRepository` as
+     * before, exactly as every existing caller
+     * (organization.router.ts's createDesignationGrant procedure, and this
+     * file's own tests) already expects.
+     *
+     * NOT covered by `trx`: Steps 5–6 (event emit, audit write) and Step 7
+     * (boss.send) still run exactly as before, independent of any supplied
+     * `trx`. See the KNOWN LIMITATION note on this method in
+     * organization.types.ts for why, and docs/development-findings-log.md
+     * for the finding this responds to. [Unverified] — reasoning from
+     * reading the code, not from having executed and observed a rollback.
      */
     async createDelegationGrant(
       input: CreateDelegationGrantInput,
       subject: DelegationSubject,
+      trx?: DbTransaction,
     ): Promise<DelegationGrantRow> {
       // ── Step 1: ABAC evaluation (I1 §11.1) ────────────────────────────────
       //
@@ -167,9 +188,22 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
         });
       }
 
+      // ── trx-aware bindings ──────────────────────────────────────────────────
+      // [Inference] When a caller supplies `trx`, all reads/writes below that
+      // need to see the not-yet-committed state (or need to roll back
+      // together with the caller's other writes) go through it instead of
+      // deps.db/deps.orgRepository. `db` is used for both the Invariant #16
+      // read and the employee-resolution read (Step 5) — the latter reads
+      // pre-existing `employees` rows, not the row this method just inserts,
+      // so it doesn't strictly need transactional visibility, but routing it
+      // through the same handle avoids holding two separate DB connections
+      // mid-transaction.
+      const db = trx ?? deps.db;
+      const orgRepo = trx ? createOrgRepository(trx) : deps.orgRepository;
+
       // ── Step 3: Invariant #16 pre-check ────────────────────────────────────
       // Application-layer guard before the DB unique index fires.
-      const existing = await deps.db
+      const existing = await db
         .select({ id: delegationGrants.id })
         .from(delegationGrants)
         .where(and(
@@ -186,7 +220,7 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       }
 
       // ── Step 4: INSERT ─────────────────────────────────────────────────────
-      const grant = await deps.orgRepository.delegationGrants.create({
+      const grant = await orgRepo.delegationGrants.create({
         cityId:                 input.cityId,
         delegatingEmployeeId:   input.delegatingEmployeeId,
         delegatedToEmployeeId:  input.delegatedToEmployeeId,
@@ -205,7 +239,7 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       const delegatorEmp = alias(employees, 'delegator_emp');
       const delegateeEmp = alias(employees, 'delegatee_emp');
 
-      const [empRow] = await deps.db
+      const [empRow] = await db
         .select({
           delegatingUserId:  delegatorEmp.userId,
           delegatedToUserId: delegateeEmp.userId,
@@ -276,12 +310,22 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       return grant;
     },
 
+    /**
+     * [Inference] `trx` is an optional caller-supplied transaction handle,
+     * added for TASK-DOCS-018 (see docs/development-findings-log.md). When
+     * supplied, the read-and-lock-candidate select and the UPDATE both run
+     * against `trx` instead of `deps.db`. When omitted, behavior is
+     * unchanged. Same KNOWN LIMITATION as createDelegationGrant applies:
+     * the event emit and audit write (Steps 3–4 below) are not
+     * transactional even when `trx` is supplied.
+     */
     async revokeEarlyDelegationGrant(
       grantId: string,
       input: RevokeEarlyDelegationGrantInput,
       subject: DelegationSubject,
+      trx?: DbTransaction,
     ): Promise<DelegationGrantRow> {
-      const db = deps.db;
+      const db = trx ?? deps.db;
       const delegatorEmp = alias(employees, 'delegator_emp');
       const delegateeEmp = alias(employees, 'delegatee_emp');
 

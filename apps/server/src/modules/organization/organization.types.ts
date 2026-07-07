@@ -217,10 +217,30 @@ export interface DelegationService {
    *   - Writes a `delegation_grant.created` audit event via auditService
    *
    * Source: TASK-ORG-005.
+   *
+   * [Inference] `trx` is an optional caller-supplied transaction handle,
+   * added to support TASK-DOCS-018's cross-module atomicity requirement
+   * (see docs/development-findings-log.md). When supplied, the Invariant
+   * #16 pre-check and the grant INSERT run against `trx` instead of
+   * `deps.db`/`deps.orgRepository`, so this call can be composed into an
+   * outer transaction (e.g. one that also transitions a DESIGNATION
+   * document's lifecycle state).
+   *
+   * KNOWN LIMITATION, not fixed by this parameter: the `delegation.granted`
+   * event-bus emission and the `delegation_grant.created` audit write are
+   * NOT transactional even when `trx` is supplied — EventBus.emit is a
+   * synchronous in-process dispatch with no transaction participation, and
+   * AuditWriteService.writeEvent opens its own separate internal
+   * transaction. If a later step in the outer transaction fails and rolls
+   * back, an already-fired event or already-committed audit row describing
+   * the (now rolled-back) grant is not undone. This is a pre-existing
+   * property of this method's Steps 6–7, not something introduced or
+   * corrected by the `trx` parameter. See docs/development-findings-log.md.
    */
   createDelegationGrant(
     input: CreateDelegationGrantInput,
     subject: DelegationSubject,
+    trx?: DbTransaction,
   ): Promise<DelegationGrantRow>;
 
   /**
@@ -235,11 +255,16 @@ export interface DelegationService {
    *   - Writes a `delegation_grant.revoked_early` audit event via auditService
    *
    * Source: TASK-ORG-006.
+   *
+   * [Inference] `trx` is an optional caller-supplied transaction handle,
+   * same rationale and same known limitation (event/audit side effects are
+   * not transactional) as documented on createDelegationGrant above.
    */
   revokeEarlyDelegationGrant(
     grantId: string,
     input: RevokeEarlyDelegationGrantInput,
     subject: DelegationSubject,
+    trx?: DbTransaction,
   ): Promise<DelegationGrantRow>;
   listActiveDesignations(): Promise<DesignationView[]>;
   listDesignationHistory(opts: {

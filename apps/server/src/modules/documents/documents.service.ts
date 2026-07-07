@@ -11,6 +11,7 @@ import type {
   DocumentNumberResult,
   AttachmentRef,
   DbClient,
+  DbTransaction,
 } from './documents.types.js';
 import { DocumentsRepository } from './documents.repository.js';
 import type { NumberingService } from './numbering.service.js';
@@ -93,17 +94,38 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
     /**
      * B2 Module 3 -- called by Workflow at step completion; emits document.state_changed.
      * Transitions the lifecycle state of a document.
+     *
+     * [Inference — not in any TASK-DOCS-0NN AI Prompt read so far; added to
+     * unblock TASK-DOCS-018's cross-module atomicity requirement, per
+     * explicit human sign-off during that task's investigation. See
+     * docs/development-findings-log.md for the finding this responds to.]
+     *
+     * `trx` is an optional caller-supplied transaction handle. When
+     * provided, this method participates in the caller's transaction
+     * instead of opening its own — this is what makes it possible to
+     * compose a document state transition with a write in another module
+     * (e.g. organization.delegation_grants) as a single atomic unit.
+     *
+     * When `trx` is omitted, behavior is unchanged from before this
+     * parameter existed: this method opens and commits its own transaction,
+     * exactly as every existing caller (documents.router.ts,
+     * documents.plugin.ts, panlalawigan.router.ts, complaints.router.ts,
+     * document-requests.router.ts) already expects, since none of them pass
+     * a 5th argument. [Unverified] I have not executed this against a real
+     * database; this is a claim about what the code below does, not a
+     * tested guarantee.
      */
     async transitionState(
       documentId: string,
       toState: DocumentLifecycleState,
       actorId: string,
-      reason?: string
+      reason?: string,
+      trx?: DbTransaction
     ): Promise<void> {
-      await deps.db.transaction(async (trx) => {
+      const runInTransaction = async (tx: DbTransaction): Promise<void> => {
         // We instantiate a repository with the transaction client to ensure atomic operations
-        const txRepo = new DocumentsRepository(trx as unknown as DbClient);
-        
+        const txRepo = new DocumentsRepository(tx as unknown as DbClient);
+
         const doc = await txRepo.findDocumentById(documentId);
         if (!doc) {
           throw new Error(`Document not found: ${documentId}`);
@@ -134,7 +156,17 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
             timestamp: now,
           }
         });
-      });
+      };
+
+      if (trx) {
+        // Caller-supplied transaction: participate in it, do not open a new one.
+        await runInTransaction(trx);
+      } else {
+        // No caller-supplied transaction: preserve pre-existing behavior exactly.
+        await deps.db.transaction(async (ownTrx) => {
+          await runInTransaction(ownTrx);
+        });
+      }
     },
 
     /**

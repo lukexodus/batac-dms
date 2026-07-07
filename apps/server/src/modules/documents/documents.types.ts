@@ -90,12 +90,20 @@ export interface DocumentsPublicAPI {
   /**
    * B2 Module 3 -- called by Workflow at step completion; emits document.state_changed.
    * Transitions the lifecycle state of a document.
+   *
+   * [Inference] `trx` is an optional caller-supplied transaction handle,
+   * added to support TASK-DOCS-018's cross-module atomicity requirement
+   * (see docs/development-findings-log.md). When omitted, behavior is
+   * unchanged: this method opens its own transaction as before. This is
+   * additive — every pre-existing call site passes 3 or 4 arguments and is
+   * unaffected.
    */
   transitionState(
     documentId: string,
     toState: DocumentLifecycleState,
     actorId: string,
-    reason?: string
+    reason?: string,
+    trx?: DbTransaction
   ): Promise<void>;
 
   /**

@@ -1114,7 +1114,55 @@ closely); (b) whether the TODO comments are sufficient as the migration marker,
 or whether a separate tracking ticket for TASK-WF-NNN integration should be
 created.
 
-### [LOG-0037] tracking_record ABAC enforced inline rather than via PolicyEvaluator
+
+### [LOG-0037] DESIGNATION doc logging trigger wired to `documents.submit` rather than document registration
+
+- date: 2026-07-07
+- task_id: TASK-DOCS-018
+- status: proposed
+- affects: H2 (§8), consolidated reference Part 4.12
+- resolved_in: none
+
+H2 §8 and consolidated reference Part 4.12 specify that the delegation grant lifecycle is triggered when a DESIGNATION document is *logged* (registered). However, DESIGNATION document contents (metadata) are draft-editable and not guaranteed to be finalized until the document passes through the `submit` step. Wiring grant creation to document creation would create grants for draft, incomplete, or later-discarded designations.
+
+[Inference]: Per human instruction, the trigger was wired into `documents.submit` (and correspondingly, revocation into `documents.cancel`), explicitly prioritizing the semantic state-machine boundary over the literal text of H2 §8.
+
+### [LOG-0038] `organizationPlugin` instantiation passed `repository` instead of `orgRepository`
+
+- date: 2026-07-07
+- task_id: TASK-DOCS-018
+- status: proposed
+- affects: none
+- resolved_in: none
+
+During TASK-DOCS-018, it was discovered that `organization.plugin.ts` was passing its repository instance under the key `repository` to `createDelegationService`, whereas the `DelegationServiceDeps` interface explicitly requires `orgRepository: OrganizationRepository`.
+
+[Tested]: Fixed in `organization.plugin.ts` by explicitly using `orgRepository: repository`.
+
+### [LOG-0039] `fastify.boss` undefined during synchronous plugin registration
+
+- date: 2026-07-07
+- task_id: TASK-DOCS-018
+- status: proposed
+- affects: none
+- resolved_in: none
+
+`organization.plugin.ts` attempted to construct `createDelegationService` synchronously during the plugin body execution, expecting `fastify.boss` to be available. However, in `index.ts`, `pgboss` is decorated onto `fastify` *after* `organizationPlugin` is registered, resulting in `boss` being undefined.
+
+[Tested]: Fixed by deferring the service instantiation inside `fastify.after(...)` in `organization.plugin.ts` to guarantee all prior registrations (including `pgboss`) are complete.
+
+### [LOG-0040] Transactional asymmetry in `delegation.service.ts` cross-module calls
+
+- date: 2026-07-07
+- task_id: TASK-DOCS-018
+- status: proposed
+- affects: none
+- resolved_in: none
+
+To achieve atomic delegation grant creation during `documents.submit`, `createDelegationGrant` and `transitionState` were updated to accept an optional `DbTransaction` parameter. However, `createDelegationGrant` and `revokeEarlyDelegationGrant` emit domain events and write audit logs *before* the SQL transaction concludes.
+
+[Inference]: This means that if the SQL transaction rolls back (e.g., due to a failure in `transitionState` inside the shared transaction), the domain events and audit logs will have already been fired and will not roll back. This is a pre-existing design property of the service methods.
+### [LOG-0041] tracking_record ABAC enforced inline rather than via PolicyEvaluator
 
 - date: 2026-07-07
 - task_id: TASK-TRACK-007
@@ -1131,7 +1179,7 @@ The I1 §7.1–7.5 conditions are checked inline in `tracking.router.ts` rather 
 
 [Inference]: A `tracking_record` PolicyEvaluator handler could be added in a future task for consistency with the `session` and `delegation_grant` patterns, but is not required for Phase 1 correctness since the inline logic implements the same conditions. A human should confirm whether the inline approach is acceptable long-term.
 
-### [LOG-0038] Series number on QR cover sheet derived from preliminaryNumber/finalNumber
+### [LOG-0042] Series number on QR cover sheet derived from preliminaryNumber/finalNumber
 
 - date: 2026-07-07
 - task_id: TASK-TRACK-007
@@ -1148,7 +1196,7 @@ E1 §Module 5 confirms the cover sheet contains: QR Code, Tracking Number, and S
 
 [Inference]: A human should confirm that `preliminary_number` is the intended "Series Number" field. If the consolidated reference Q-B02 means something else (e.g. a standalone series counter), a different lookup is needed.
 
-### [LOG-0039] `remarks` field in scanQrCodeAuthenticated returns null in Phase 1
+### [LOG-0043] `remarks` field in scanQrCodeAuthenticated returns null in Phase 1
 
 - date: 2026-07-07
 - task_id: TASK-TRACK-007
@@ -1163,7 +1211,7 @@ E1 §Module 5 specifies `remarks: z.string().nullable()` in the output of `track
 
 `remarks` is returned as `null` in Phase 1. A comment in the router marks this with `[Inference]`. A human should confirm: (a) whether remarks should be pulled from `metadata.remarks` (requires a known key convention per document type); (b) whether this field is a UI nicety that can remain null for now.
 
-### [LOG-0040] pdf-lib chosen over @react-pdf/renderer for QR cover sheet PDF generation
+### [LOG-0044] pdf-lib chosen over @react-pdf/renderer for QR cover sheet PDF generation
 
 - date: 2026-07-07
 - task_id: TASK-TRACK-007
@@ -1182,7 +1230,7 @@ Neither library was installed in `apps/server` at the start of TASK-TRACK-007.
 
 [Inference]: If `@react-pdf/renderer` is later preferred for richer templating (e.g. fonts, brand styling), the `generateCoverSheetPdf` implementation can be swapped independently — the public API (takes `documentIds`, returns `Buffer`) is stable. A human should confirm if `pdf-lib` is acceptable or if `@react-pdf/renderer` server-side rendering should be investigated.
 
-### [LOG-0041] workflow.definitions / instances / step_instances: updated_at intentionally omitted per C1 Part 6 DDL
+### [LOG-0045] workflow.definitions / instances / step_instances: updated_at intentionally omitted per C1 Part 6 DDL
 
 - date: 2026-07-07
 - task_id: TASK-WF-001
@@ -1201,7 +1249,7 @@ The C1 Part 6 DDL was followed literally — no `updated_at` on these three tabl
 
 [Inference]: The C1 §1.4 blanket rule has an unwritten exception for tables whose mutation history is captured by an adjacent append-only event log. This is consistent with the spirit of the rule (no silent state loss) even if not stated explicitly. A human should confirm whether `updated_at` should be added retroactively to any of these three tables for operational convenience (e.g., dead simple "last touched" queries without joining workflow_events).
 
-### [LOG-0042] generatedAlwaysAs() in drizzle-orm 0.45.2 takes one argument only
+### [LOG-0046] generatedAlwaysAs() in drizzle-orm 0.45.2 takes one argument only
 
 - date: 2026-07-07
 - task_id: TASK-WF-001
