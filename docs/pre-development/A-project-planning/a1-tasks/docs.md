@@ -2670,6 +2670,188 @@ AI Prompt: |
 
 ---
 
+## TASK-DOCS-022
+
+Phase:          1 (Frontend)
+Module:         DOCS
+Title:          Document Intake form
+Prerequisites:  [TASK-DOCS-020, TASK-DOCS-021]
+Deliverables:
+  - `/apps/server/src/modules/documents/documents.repository.ts` — add `listActiveDocumentTypes(): Promise<DocumentTypeSummary[]>`, filtering `deletedAt IS NULL AND is_active = true`, ordered by `name`. This is a small, necessary prerequisite this task closes (see SPEC-GAP-DOCS-05 in the Module Summary) — no such list method exists anywhere at the repository layer today, only `findDocumentTypeById`.
+  - `/apps/server/src/modules/documents/documents.router.ts` — add `documentTypes: protectedProcedure.output(z.array(DocumentTypeSummarySchema)).query(...)` calling the new repository method. This becomes `documents.documentTypes` on the client (flat namespace, same merge pattern as every other procedure here — do not create a new top-level router for it).
+  - `/apps/web/src/pages/documents/DocumentIntakePage.tsx` — route component for `/documents/new`, a form with: document type select, title input, file picker, and a submit flow that calls `create` → `requestUploadUrl` → (client PUTs the file directly to the presigned S3 URL) → `confirmUpload` → redirect to `/documents/:id`
+  - `/apps/web/src/lib/intake-schema.ts` — a client-side Zod schema (`IntakeFormSchema`) for `react-hook-form`'s `zodResolver`, covering `documentTypeId` and `title` only (the two fields `create` actually accepts as user input — `classificationLevel` is not user-settable, see AI Prompt). File presence/type/size is validated separately at submit time, not through this resolver (see AI Prompt for why)
+  - `/apps/web/src/main.tsx` — add the `/documents/new` route pointing at `DocumentIntakePage`. `/documents/:id` (Document Detail) doesn't exist yet in this file, so there's no collision to resolve today. [Inference, not directly tested in this task]: React Router v6's documented ranking generally prefers a static segment (`new`) over a same-depth dynamic `:param` segment regardless of array order, so this likely won't need special ordering once Detail is added — but this is general library behavior, not something verified against this specific router config, so re-check once `/documents/:id` actually exists rather than assume it's settled.
+Acceptance Criteria:
+  - [ ] `pnpm typecheck` passes
+  - [ ] The document type select is populated from `trpc.documents.documentTypes.useQuery()`, not a hardcoded list
+  - [ ] Submitting with a valid document type, title, and a file under 26,214,400 bytes (25 MiB — see AI Prompt for why this isn't a round "25MB") in one of the five allowed MIME types (`application/pdf`, the two Office Open XML types for docx/xlsx, `image/png`, `image/jpeg`) succeeds end-to-end: a `create` call returns a `documentId`, `requestUploadUrl` returns a presigned URL, the browser successfully PUTs the file to that URL, `confirmUpload` returns a `versionId`, and the user is redirected to `/documents/{documentId}`
+  - [ ] Submitting a file over 26,214,400 bytes, or a file whose type is not in the five-value allowlist, is rejected client-side before any `create` call is made, with a clear inline error naming the actual limit/allowlist rather than a generic "invalid file" message
+  - [ ] If the presigned URL expires before the client PUTs to it (a 900-second default — see AI Prompt), the form surfaces a clear "upload expired, please retry" error and allows re-submission, rather than silently failing or leaving the created draft document orphaned with no attached file
+  - [ ] No classification-level picker or control is present anywhere on this form (see AI Prompt — the server-computed default always wins regardless of what the client sends)
+  - [ ] `pnpm test` passes
+
+AI Prompt: |
+  You are building the Document Intake form for the DOCS module — the second real, user-facing
+  DOCS page. Foundation (TASK-DOCS-020) built the tRPC client, auth, and status mapping; List
+  (TASK-DOCS-021) established the page/route/column conventions this task follows.
+
+  ## documentTypes.list gap — this task closes it [Confirmed by direct file read]
+  No procedure to list document types exists anywhere in the merged router today — only
+  `documents.repository.ts`'s `findDocumentTypeById(id)`, a lookup by primary key. Every other
+  reference to `documentTypes` in the codebase (`complaints.router.ts`,
+  `document-requests.router.ts`) filters `.where(eq(documentTypes.code, ...))` for one specific,
+  hardcoded type code — never a bare select-all. This is a real, small, previously-flagged gap
+  (SPEC-GAP-DOCS-05): the Intake form's document-type dropdown has nothing to query.
+
+  This task closes it, inside DOCS's own module boundary (not a cross-module edit — unlike
+  Foundation's `root.ts`/`app.ts` changes, this stays entirely within
+  `apps/server/src/modules/documents/`):
+  ```typescript
+  // documents.repository.ts
+  async listActiveDocumentTypes(): Promise<DocumentTypeSummary[]> {
+    return this.db
+      .select({
+        id: documentTypes.id,
+        name: documentTypes.name,
+        code: documentTypes.code,
+        classificationDefault: documentTypes.classificationDefault,
+        preliminaryNumbering: documentTypes.preliminaryNumbering,
+      })
+      .from(documentTypes)
+      .where(and(isNull(documentTypes.deletedAt), eq(documentTypes.isActive, true)))
+      .orderBy(documentTypes.name);
+  }
+  ```
+  ```typescript
+  // documents.router.ts
+  documentTypes: protectedProcedure
+    .output(z.array(DocumentTypeSummarySchema))
+    .query(async ({ ctx }) => getRepository(ctx).listActiveDocumentTypes()),
+  ```
+  `DocumentTypeSummarySchema` already exists in `@batac/shared` (`id`, `name`, `code`,
+  `classificationDefault`, `preliminaryNumbering`) — do not invent a new output shape. Do not
+  add any ABAC gate to this procedure beyond `protectedProcedure` (any authenticated user needs
+  to see the document type list to create anything; there is no precedent anywhere else in this
+  router for restricting a type list by role, and inventing one here would be scope creep this
+  task doesn't need).
+
+  [Inference]: No seed data for `document_types` exists in this snapshot, so this task cannot
+  verify how many rows a real deployment will have or state a realistic dropdown size.
+  `@batac/ui`'s `select.tsx` is a plain shadcn primitive with no built-in search/filter
+  (confirmed directly — no `Command`/search-related code in the file). Use it as-is for this
+  task; if the real document-type count later turns out to be large enough that an unfiltered
+  dropdown is unusable, that's a follow-up UI task, not something to speculatively build now
+  against an unknown row count.
+
+  ## What `create` actually accepts — and what it silently ignores [Confirmed by direct file read]
+  `CreateDocumentInputSchema` accepts `documentTypeId`, `title`, `classificationLevel`
+  (Zod-defaulted to `"internal"`), and `metadata`. But `documents.router.ts`'s `create`
+  procedure handler always overwrites `classificationLevel` with
+  `documentType.classificationDefault` — the comment in the handler itself states this
+  explicitly (`[Unverified — TASK-DOCS-011]`: no permission-string registry or role mapping
+  exists anywhere in this repository to support a real per-user override, so nobody can
+  override the default in this PR, even though the Zod schema still accepts the field so its
+  contract matches the original task spec). **Do not build a classification-level picker or
+  any UI implying the user's choice here matters — it doesn't, and building one would mislead
+  the person filling out the form.** Only `documentTypeId` and `title` are meaningfully
+  user-controlled inputs; `metadata` is a per-document-type dynamic schema (validated
+  server-side against `documentType.metadataSchema`) that this task does not need to build a
+  generic editor for — send `{}` unless a specific document type's metadata requirements are
+  in scope, which they are not for this task.
+
+  Also worth knowing, though it doesn't change this task's UI: `create` auto-resolves
+  `originatingOfficeId`/`ownedByOfficeId` based on whether the chosen document type is an SP
+  type (looked up via a fixed SP Secretariat office code) or a regular type (the calling user's
+  own `officeId`, which must be set — a user with no office assigned gets a `BAD_REQUEST`).
+  This task doesn't need to expose an office picker; the form doesn't ask for one, and
+  shouldn't.
+
+  ## The real flow — three sequential calls, not one [Confirmed by direct file read]
+  There is no single "create with file" call. The sequence is:
+  1. `trpc.documents.create.useMutation()` with `{ documentTypeId, title, metadata: {} }` →
+     returns `{ documentId, lifecycleState: 'draft' }`. No file involved yet.
+  2. `trpc.documents.requestUploadUrl.useMutation()` with `{ documentId, mimeType }` → returns
+     `{ s3Key, uploadUrl }`. `uploadUrl` is a presigned S3 `PutObjectCommand` URL, expiring
+     after `env.S3_SIGNED_URL_EXPIRES_S` seconds if set, otherwise a **900-second (15-minute)
+     default** — confirmed directly in the procedure's fallback (`expiresIn: env.
+     S3_SIGNED_URL_EXPIRES_S || 900`). Do not request this URL until the user has actually
+     selected a file and is ready to upload it; requesting it too early risks the URL expiring
+     before the PUT happens.
+  3. The client `fetch`es a plain `PUT` directly to `uploadUrl` with the raw file body and a
+     `Content-Type` header matching the `mimeType` sent in step 2 (the presigned command was
+     signed with that exact content type — sending a different one will likely fail the S3
+     signature check). The server never sees the file bytes; this is a direct browser-to-S3
+     upload.
+  4. `trpc.documents.confirmUpload.useMutation()` with `{ documentId, s3Key, originalFilename,
+     mimeType, fileSizeBytes }` → returns `{ versionId }`. This call creates the version row and
+     asynchronously enqueues an OCR job (`ocrService.enqueueOcrJob`) — it does not wait for OCR
+     to finish, and `confirmUpload`'s response tells you nothing about scan quality.
+  5. Redirect to `/documents/{documentId}` (Document Detail). **Do not try to show scan-quality
+     feedback synchronously on this page** — that data doesn't exist yet at the moment
+     `confirmUpload` returns, since OCR runs as a background job. Detail is the page designed
+     to poll/refresh for that once it exists; Intake's job ends at a successful redirect.
+
+  If step 3 fails (network error, or the presigned URL already expired), the form must let the
+  user retry from step 2 (request a fresh URL) rather than leaving a `draft`-state document with
+  no version attached and no way to add one from this page. A retry-visible error state is part
+  of this task's scope, not an edge case to skip.
+
+  ## File constraints — cite these exactly, do not approximate [Confirmed by direct file read]
+  `AllowedMimeTypeSchema` (`@batac/shared/schemas/common.ts`) is exactly these five string
+  values, nothing else:
+  ```typescript
+  "application/pdf"
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"  // .docx
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"        // .xlsx
+  "image/png"
+  "image/jpeg"
+  ```
+  `ConfirmUploadInputSchema`'s `fileSizeBytes` is `z.number().int().positive().max(26_214_400)`
+  — that is exactly 25 MiB (26,214,400 = 25 × 1024 × 1024), not a rounded "25MB" approximation.
+  Validate both the MIME type and the size client-side, before calling `create` at all, so a
+  user picking an invalid file gets immediate feedback rather than three successful network
+  round-trips before failing on `confirmUpload`'s Zod validation.
+
+  ## Form validation — react-hook-form + Zod is genuinely unused elsewhere in this repo
+  `react-hook-form` (`^7.80.0`) and `@hookform/resolvers` (`^5.4.0`) are installed
+  dependencies, but **no existing page in `apps/web` uses them yet** — confirmed by a
+  repo-wide search finding zero imports of `react-hook-form` anywhere in `apps/web/src`. This
+  task is the first to actually wire them up; there is no existing pattern in this codebase to
+  match, so use the standard library pattern: a Zod schema passed to
+  `useForm({ resolver: zodResolver(IntakeFormSchema) })`. Keep `IntakeFormSchema` scoped to
+  `documentTypeId`/`title` only — file validation happens separately (see above), since a file
+  input's value isn't cleanly modeled as a resolver-validated form field in the same way text
+  inputs are, and mixing the two would make the size/MIME error messages harder to surface
+  clearly at the moment they matter (immediately on file selection, not on form submit).
+
+  ## Available UI primitives [Confirmed by direct file read]
+  `@batac/ui` has shadcn `input.tsx`, `label.tsx`, `select.tsx`, `textarea.tsx`, `button.tsx`,
+  and `card.tsx` — all present, none of them previously used together in a real form page in
+  this codebase (List didn't need form inputs). No dedicated file-upload/dropzone component
+  exists in `@batac/ui`; build the file picker from a plain `<input type="file" accept="...">`
+  restricted to the five real MIME types above, styled to match the rest of the form rather
+  than left as an unstyled browser default. No progress-bar primitive exists either; a simple
+  submit-button disabled/spinner state (matching the `Loader2` pattern already used in
+  `DocumentListPage.tsx`) is sufficient — this task does not need a byte-level upload progress
+  bar.
+
+  Before submitting this PR, confirm each item:
+  - [ ] `pnpm typecheck` passes
+  - [ ] The document type select is populated from a real `documents.documentTypes` query, not
+    a hardcoded array
+  - [ ] A valid submission (real document type, non-empty title, a compliant file) completes
+    all four network calls in order and redirects to `/documents/{documentId}`
+  - [ ] An oversized or wrong-MIME-type file is rejected before any `create` call fires, with an
+    error message naming the actual 26,214,400-byte (25 MiB) / five-MIME-type limits, not a
+    generic message
+  - [ ] A simulated expired/failed upload PUT surfaces a retry-capable error rather than leaving
+    the user stuck on a silently-broken form
+  - [ ] No classification-level control exists anywhere on this form
+  - [ ] `pnpm test` passes
+
+---
+
 ## Module Summary -- DOCS
 
 **Task count:** 19 (TASK-DOCS-001 through TASK-DOCS-019)

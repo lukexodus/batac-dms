@@ -273,6 +273,23 @@ export class DocumentsRepository {
   }
   
   /**
+   * List all active document types.
+   */
+  async listActiveDocumentTypes() {
+    return this.db
+      .select({
+        id: documentTypes.id,
+        name: documentTypes.name,
+        code: documentTypes.code,
+        classificationDefault: documentTypes.classificationDefault,
+        preliminaryNumbering: documentTypes.hasPreliminaryNumbering,
+      })
+      .from(documentTypes)
+      .where(and(isNull(documentTypes.deletedAt), eq(documentTypes.isActive, true)))
+      .orderBy(asc(documentTypes.name));
+  }
+  
+  /**
    * Find a single non-deleted number series by its (city_id, series_key)
    * pair. `series_key` is unique per city (uq_number_series_city_key), so
    * this returns at most one row.
