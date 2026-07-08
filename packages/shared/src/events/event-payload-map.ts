@@ -74,6 +74,36 @@ export interface WorkflowStepCompletedPayload {
   cityId: string;
 }
 
+export interface WorkflowInstanceCreatedPayload {
+  instanceId: string;
+  documentId: string;
+  documentType: string;
+  definitionVersionId: string;
+}
+
+export interface WorkflowStepStartedPayload {
+  instanceId: string;
+  stepInstanceId: string;
+  stepId: string;
+  stepType: string;
+  dueAt: Date | null;
+}
+
+export interface WorkflowInstanceStuckPayload {
+  instanceId: string;
+  stepInstanceId: string;
+  evaluatedRules: Record<string, any>[];
+  contextSnapshot: Record<string, any>;
+}
+
+export interface WorkflowContextUpdatedPayload {
+  instanceId: string;
+  updatedKeys: string[];
+  previousValues: Record<string, unknown>;
+  newValues: Record<string, unknown>;
+  actorId: string;
+}
+
 export interface EventPayloadMap {
   // ── IAM module ─────────────────────────────────────────────────────────────
   'user.login': Stub;
@@ -100,6 +130,11 @@ export interface EventPayloadMap {
   'audit.document.panlalawigan_outcome_logged': { documentId: string; outcome: string; actorId: string; cityId: string; timestamp: Date; };
 
   // ── Workflow module ────────────────────────────────────────────────────────
+  'workflow.instance.created': WorkflowInstanceCreatedPayload;
+  'workflow.step.started': WorkflowStepStartedPayload;
+  'workflow.instance.stuck': WorkflowInstanceStuckPayload;
+  'workflow.context.updated': WorkflowContextUpdatedPayload;
+  
   'workflow.step_assigned': Stub;
   'workflow.step_completed': WorkflowStepCompletedPayload;
   'workflow.lapsed': Stub;
