@@ -7,6 +7,7 @@
 *.zip
 
 *-ignore.md
+*-ignore.html
 
 # Monorepo/Tooling ignores
 node_modules
