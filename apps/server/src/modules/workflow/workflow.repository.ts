@@ -38,6 +38,12 @@ type OrderOfBusinessItemRow = InferSelectModel<typeof orderOfBusinessItems>;
 export class WorkflowRepository {
   constructor(private readonly db: AppDb) {}
 
+  async runInTransaction<T>(cb: (tx: AppDb) => Promise<T>): Promise<T> {
+    return await this.db.transaction(async (tx) => {
+      return await cb(tx as unknown as AppDb);
+    });
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Definitions & Definition Versions
   // ─────────────────────────────────────────────────────────────────────────────
