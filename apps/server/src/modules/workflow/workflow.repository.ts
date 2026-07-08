@@ -16,7 +16,11 @@ import {
   orderOfBusiness,
   orderOfBusinessItems,
 } from '@batac/database/schema/workflow.schema.js';
-import { InvalidWorkflowTransitionError } from '../../errors/domain/workflow.js';
+import {
+  InvalidWorkflowTransitionError,
+  DefinitionPublishValidationError,
+} from '../../errors/domain/workflow.js';
+import { validateDefinitionForPublish } from './engine/definition-validator.js';
 
 type DefinitionRow = InferSelectModel<typeof definitions>;
 type DefinitionVersionRow = InferSelectModel<typeof definitionVersions>;
@@ -112,11 +116,33 @@ export class WorkflowRepository {
     return { version, steps: versionSteps, transitionRules: rules };
   }
 
+  async getStepsAndRulesForValidation(
+    versionId: string,
+    tx: AppDb = this.db
+  ): Promise<{ steps: StepRow[]; transitionRules: TransitionRuleRow[] }> {
+    const versionSteps = await tx
+      .select()
+      .from(steps)
+      .where(and(eq(steps.definitionVersionId, versionId), isNull(steps.deletedAt)));
+
+    const rules = await tx
+      .select()
+      .from(transitionRules)
+      .where(eq(transitionRules.definitionVersionId, versionId));
+
+    return { steps: versionSteps, transitionRules: rules };
+  }
+
   async publishDefinitionVersion(
     versionId: string,
     publishedBy: string,
     tx: AppDb = this.db
   ): Promise<void> {
+    const validationResult = await validateDefinitionForPublish(versionId, { workflowRepository: this });
+    if (!validationResult.valid) {
+      throw new DefinitionPublishValidationError(validationResult.errors);
+    }
+
     // Application layer is expected to handle un-publishing other versions within a tx,
     // this simply marks the target as published.
     await tx
