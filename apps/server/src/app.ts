@@ -116,6 +116,12 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   const { appRouter } = await import('./trpc/root.js');
   const { createContext } = await import('./trpc/trpc.js');
 
+  const cors = (await import('@fastify/cors')).default;
+  await fastify.register(cors, {
+    origin: env.CORS_ALLOWED_ORIGINS,
+    credentials: true,
+  });
+
   await fastify.register(fastifyTRPCPlugin, {
     prefix: '/api/trpc',
     trpcOptions: {

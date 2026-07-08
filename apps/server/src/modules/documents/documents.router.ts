@@ -133,7 +133,7 @@ function getS3Client(): S3Client {
 
 function getOcrService(ctx: Context): OcrService {
   return new OcrService(
-    ctx.req.server.boss,
+    (ctx.req.server as any).boss,
     new StubOcrProvider(),
     new StubPreviewProvider(),
     getS3Client() as any, // satisfies S3Client interface needed by OcrService
@@ -526,12 +526,12 @@ export function createDocumentsRouter() {
           cityId: subject.cityId,
           scope,
           callerRoles: subject.roles,
-          documentTypeId: input.documentTypeId,
-          lifecycleState: input.lifecycleState,
-          officeId: input.officeId,
-          dateFrom: input.dateFrom,
-          dateTo: input.dateTo,
-          cursor: input.cursor,
+          ...(input.documentTypeId !== undefined && { documentTypeId: input.documentTypeId }),
+          ...(input.lifecycleState !== undefined && { lifecycleState: input.lifecycleState }),
+          ...(input.officeId !== undefined && { officeId: input.officeId }),
+          ...(input.dateFrom !== undefined && { dateFrom: input.dateFrom }),
+          ...(input.dateTo !== undefined && { dateTo: input.dateTo }),
+          ...(input.cursor !== undefined && { cursor: input.cursor }),
           limit: input.limit,
         });
 
@@ -567,11 +567,11 @@ export function createDocumentsRouter() {
           scope,
           callerRoles: subject.roles,
           queryText: input.queryText,
-          documentTypeIds: input.documentTypeIds,
-          classificationLevels: input.classificationLevels,
-          dateFrom: input.dateFrom,
-          dateTo: input.dateTo,
-          cursor: input.cursor,
+          ...(input.documentTypeIds !== undefined && { documentTypeIds: input.documentTypeIds }),
+          ...(input.classificationLevels !== undefined && { classificationLevels: input.classificationLevels }),
+          ...(input.dateFrom !== undefined && { dateFrom: input.dateFrom }),
+          ...(input.dateTo !== undefined && { dateTo: input.dateTo }),
+          ...(input.cursor !== undefined && { cursor: input.cursor }),
           limit: input.limit,
         });
 
@@ -637,8 +637,8 @@ export function createDocumentsRouter() {
         }
 
         const updated = await repo.updateDocumentFields(input.documentId, {
-          title: input.title,
-          metadata: input.metadata,
+          ...(input.title !== undefined && { title: input.title }),
+          ...(input.metadata !== undefined && { metadata: input.metadata }),
         });
         if (!updated) throw new TRPCError({ code: 'NOT_FOUND' });
 

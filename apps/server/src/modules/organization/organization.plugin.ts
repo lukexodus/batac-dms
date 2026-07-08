@@ -43,6 +43,7 @@ async function organizationPlugin(fastify: FastifyInstance): Promise<void> {
     }
   });
 
+  fastify.decorate('orgRepository', orgRepository);
   fastify.decorate('organizationService', organizationService);
   fastify.decorate('delegationService', delegationService);
 

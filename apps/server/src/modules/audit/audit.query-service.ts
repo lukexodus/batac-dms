@@ -112,9 +112,9 @@ export class AuditQueryService {
         events: eventsSlice.map((row) => ({
           auditEventId: row.id,
           eventType: row.eventType,
-          actorId: row.actorId ?? null,
-          targetId: row.targetId ?? null,
-          targetType: row.targetType ?? null,
+          actorId: row.actorId,
+          targetId: row.targetId,
+          targetType: row.targetType,
           payload: row.payload,
           cityId: row.cityId,
           occurredAt: row.occurredAt,
@@ -122,7 +122,7 @@ export class AuditQueryService {
           hmac: row.hmac,
         })),
         chainValidationStatus: 'intact',
-        nextCursor,
+        ...(nextCursor !== undefined && { nextCursor }),
       };
     }
 
@@ -207,7 +207,7 @@ export class AuditQueryService {
     return {
       events: validatedEvents,
       chainValidationStatus,
-      nextCursor,
+      ...(nextCursor !== undefined && { nextCursor }),
     };
   }
 }

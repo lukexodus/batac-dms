@@ -159,8 +159,8 @@ function extractDesignationFields(
     scopeDescription: m.scopeDescription!,
     effectiveFrom: m.effectiveFrom!,
     effectiveUntil: m.effectiveUntil!,
-    legalBasis: m.legalBasis,
-    delegationGrantId: m.delegationGrantId,
+    ...(m.legalBasis !== undefined && { legalBasis: m.legalBasis }),
+    ...(m.delegationGrantId !== undefined && { delegationGrantId: m.delegationGrantId }),
   };
 }
 
@@ -213,7 +213,7 @@ export class DesignationHandler {
         positionId: fields.designatedPositionId,
         designationDocumentId: documentId,
         scopeDescription: fields.scopeDescription,
-        legalBasis: fields.legalBasis,
+        ...(fields.legalBasis !== undefined && { legalBasis: fields.legalBasis }),
         startDate: fields.effectiveFrom,
         endDate: fields.effectiveUntil,
         cityId: subject.cityId,

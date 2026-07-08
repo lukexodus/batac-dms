@@ -25,7 +25,15 @@ declare module 'fastify' {
   }
 }
 
-const trackingPlugin: FastifyPluginAsync = async (fastify) => {
+import { EventBus } from '@batac/shared';
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    eventBus: EventBus;
+  }
+}
+
+export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
 
   
   const repository = new TrackingRepository(fastify.db);

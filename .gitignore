@@ -1,5 +1,6 @@
 .git/
 .obsidian/
+patches/
 
 *.docx
 *.docx#

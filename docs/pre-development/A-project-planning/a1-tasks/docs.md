@@ -2318,6 +2318,358 @@ AI Prompt: |
 
 ---
 
+## TASK-DOCS-020
+
+Phase:          1 (Frontend)
+Module:         DOCS
+Title:          Frontend Foundation — tRPC client, query provider, auth session handling, and two upstream backend fixes this task depends on (root.ts router merge, CORS registration)
+Prerequisites:  [TASK-DOCS-011, TASK-IAM-014]
+
+Deliverables:
+  - `/apps/server/src/trpc/root.ts` — add `organization: createOrgRouter()` and `audit: createAuditTrpcRouter()` to the merged `appRouter` object; both routers exist fully-built and their Fastify plugins are already registered in `app.ts`, but neither is present in the tRPC merge, so any frontend code (including this task's own app-shell code, which reads `organization.getOfficeHierarchy` for a smoke test) cannot call them without this fix.
+  - `/apps/server/src/app.ts` — register `@fastify/cors` (new dependency) before the tRPC plugin registration, reading allowed origins from the existing `env.CORS_ALLOWED_ORIGINS` array (already defined in `env.server.ts`, currently unused anywhere in the codebase) and setting `credentials: true`, since the auth cookies this task's client relies on cannot cross origins without it.
+  - `/apps/server/package.json` — add `@fastify/cors` as a dependency (currently not installed at all; `CORS_ALLOWED_ORIGINS` is defined in the env schema but was never wired to an actual CORS plugin).
+  - `/apps/web/.env.example` — add:
+    ```
+    VITE_API_URL=http://localhost:3000
+    ```
+    (No client-side env var section exists yet; the server listens on port 3000 per `APP_PORT` in `.env.example`, the web dev server runs on Vite's default 5173, and `CORS_ALLOWED_ORIGINS=http://localhost:5173` already assumes this two-port cross-origin setup.)
+  - `/apps/web/src/lib/trpc.ts` — tRPC client instance using `@trpc/client`'s `createTRPCReact<AppRouter>()` (already a dependency, currently unused), `httpBatchLink` pointed at `${clientEnv.VITE_API_URL}/api/trpc`, with `fetch` configured using `credentials: 'include'` (required—auth is HttpOnly-cookie-based, not Bearer-token-based).
+  - `/apps/web/src/lib/pkce.ts` — implement:
+    ```ts
+    generatePkcePair(): Promise<{
+      verifier: string
+      challenge: string
+    }>
+    ```
+    using the Web Crypto API (`crypto.subtle.digest('SHA-256', ...)`) to generate a PKCE `code_verifier` / `code_challenge` pair satisfying `LoginInputSchema` validation:
+      - `code_verifier`: 43–128 chars
+      - `code_challenge`: 43–128 chars
+      - `code_challenge_method`: literal `'S256'`
+    Login requires these values together with username/password.
+  - `/apps/web/src/lib/auth-context.tsx` — implement `AuthProvider` and `useAuth()` using in-memory React state only (never localStorage/sessionStorage). The session shape mirrors `AuthResponseSchema`:
+    ```ts
+    {
+      user: {
+        id: string
+        username: string
+        email: string
+        cityId: string
+        status: string
+        mfaEnabled: boolean
+        createdAt: string
+        updatedAt: string
+      }
+      sessionId: string
+      expiresAt: string
+      roleCodes: string[]
+      officeScopeId: string | null
+      officeCode: string | null
+    }
+    ```
+    Populate this by calling `POST /api/auth/login` with `fetch`, sending:
+      - username
+      - password
+      - freshly generated PKCE verifier/challenge
+    Clear state on logout or failed refresh.
+  - `/apps/web/src/lib/query-client.ts` — configure `QueryClientProvider` with retry logic:
+      - on `TRPCClientError` with `UNAUTHORIZED`
+      - call `POST /api/auth/refresh`
+      - retry once
+      - if refresh fails, clear auth state and redirect to `/login`
+  - `/apps/web/src/main.tsx` — wrap the existing provider tree with:
+      - `QueryClientProvider`
+      - `trpc.Provider`
+      - `AuthProvider`
+    while preserving the existing provider order (`RouterProvider`, `TooltipProvider`, `Toaster`, etc.).
+  - `/apps/web/src/lib/status-mapping.ts` — implement:
+    ```ts
+    mapLifecycleStateToDocumentState(
+      lifecycleState: LifecycleState,
+      workflowStep?: WorkflowStepContext,
+    ): DocumentState
+    ```
+    projecting backend `LifecycleState` values into frontend `DocumentState` values.
+
+    Support all 11 backend lifecycle values. For List/Intake, only these core mappings are currently exercised:
+      - draft
+      - submitted
+      - in_workflow
+      - completed
+      - released
+      - archived
+      - disposed
+      - cancelled
+      - superseded
+
+    Since `superseded` has no corresponding `DocumentState`, map it to `ARCHIVED` with an explicit code comment indicating this is an `[Inference]` pending a future design decision.
+
+Acceptance Criteria:
+  - [ ] `pnpm typecheck` passes across the monorepo, including `apps/web`
+  - [ ] `pnpm dev` starts both applications successfully
+  - [ ] From `http://localhost:5173`, calling `http://localhost:3000/api/trpc/organization.getOfficeHierarchy` succeeds without browser CORS errors
+  - [ ] A login request built using `generatePkcePair()` together with valid credentials returns:
+      - `Set-Cookie: batac_at=...; HttpOnly`
+      - HTTP 200
+      - body matching `AuthResponseSchema`
+  - [ ] `useAuth()` contains session data after login and clears after `/api/auth/logout`
+  - [ ] `mapLifecycleStateToDocumentState` has unit tests covering all 11 `LifecycleState` values, each resolving to a valid `DocumentState`
+  - [ ] `pnpm test` passes
+
+AI Prompt:
+
+You are building the frontend foundation for the DOCS module of the Batac City LGU document-management platform (`apps/web`).
+
+This task also includes two backend fixes because they are true prerequisites discovered during implementation:
+
+### Backend Fix 1 — Missing routers in `root.ts`
+
+`apps/server/src/trpc/root.ts` currently merges only:
+
+- iam
+- documents
+- tracking
+- workflow
+- session
+
+Add:
+
+```ts
+organization: createOrgRouter(),
+audit: createAuditTrpcRouter(),
+```
+
+after confirming the actual exports and constructor signatures.
+
+---
+
+### Backend Fix 2 — CORS never registered
+
+`CORS_ALLOWED_ORIGINS` already exists but `@fastify/cors` is neither installed nor registered.
+
+Install:
+
+```
+@fastify/cors
+```
+
+and register:
+
+```ts
+await fastify.register(cors, {
+  origin: env.CORS_ALLOWED_ORIGINS,
+  credentials: true,
+})
+```
+
+before registering the tRPC plugin.
+
+---
+
+### Authentication
+
+Authentication uses HttpOnly cookies.
+
+The client:
+
+- never reads cookies directly
+- never stores tokens
+- never attaches Authorization headers
+
+Instead:
+
+- login/logout/refresh use plain `fetch()`
+- tRPC requests use `credentials: 'include'`
+
+Login requires:
+
+- username
+- password
+- code_verifier
+- code_challenge
+- code_challenge_method = `"S256"`
+
+---
+
+### Auth State
+
+Do **not** build the session around `iam.getCurrentUser()` because it currently calls an unimplemented service method.
+
+Instead, populate `AuthProvider` from the login/refresh response body (`AuthResponseSchema`).
+
+Keep the session entirely in memory and restore it after reload using a silent refresh.
+
+---
+
+### Lifecycle Mapping
+
+Implement `mapLifecycleStateToDocumentState()`.
+
+Handle every `LifecycleState`.
+
+Map:
+
+```
+superseded -> ARCHIVED
+```
+
+with a code comment noting this is an `[Inference]` because there is no dedicated `DocumentState`.
+
+---
+
+### Do NOT implement
+
+Do **not** add a `documentTypes.list` procedure.
+
+That backend gap belongs to TASK-DOCS-022 and should not be worked around by hardcoding document types.
+
+---
+
+### tRPC Client
+
+Configure:
+
+- `clientEnv.VITE_API_URL`
+- `${clientEnv.VITE_API_URL}/api/trpc`
+- `httpBatchLink`
+- `credentials: 'include'`
+
+Use the existing `@/*` path aliases.
+
+---
+
+Before submitting:
+
+- [ ] `pnpm typecheck`
+- [ ] `pnpm dev`
+- [ ] CORS smoke test passes
+- [ ] Login succeeds using PKCE
+- [ ] `useAuth()` populates and clears correctly
+- [ ] Status mapping tests pass
+- [ ] `pnpm test`
+
+---
+
+## TASK-DOCS-021
+
+Phase:          1 (Frontend)
+Module:         DOCS
+Title:          Document List page
+Prerequisites:  [TASK-DOCS-020]
+Deliverables:
+  - `/apps/web/src/pages/documents/DocumentListPage.tsx` — route component for the document list, using `trpc.documents.list.useQuery(...)` (flat namespace — confirmed the merged router has no `documents.documents.*` sub-nesting)
+  - `/apps/web/src/pages/documents/columns.tsx` — `@tanstack/react-table` `ColumnDef<DocumentSummary>[]` array (the library is already a monorepo dependency, `^8.21.3`; there is no existing `DataTable` primitive in `@batac/ui` to reuse — this task builds the table directly from the shadcn `table.tsx` primitives: `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`). Columns: Title, Type, Status (`StatusBadge`), Number (`DocumentNumberBadge`), Created — see AI Prompt for exact field mapping and why Type shows a code, not a name
+  - `/apps/web/src/hooks/useDocumentFilters.ts` — filter state hook (documentTypeId, lifecycleState, officeId, dateFrom, dateTo) synced to URL search params via `useSearchParams` from `react-router-dom` (already installed), so filters survive a page refresh or shared link
+  - `/apps/web/src/main.tsx` — add the `/documents` route pointing at `DocumentListPage`
+Acceptance Criteria:
+  - [ ] `pnpm typecheck` passes
+  - [ ] With zero documents visible to the calling user, the page renders `EmptyState` (icon + heading + body + a "New Document" action) instead of an empty table shell
+  - [ ] With one or more documents, the table renders all five columns, and `StatusBadge`/`DocumentNumberBadge` render without throwing for each of the 8 core lifecycle states reachable pre-workflow (draft, submitted, in_workflow, completed, released, archived, disposed, cancelled), plus superseded via its Foundation-task fallback mapping (9 states total)
+  - [ ] Setting a filter (e.g. `lifecycleState=draft`) updates the URL's search params and the displayed rows; reloading the page with that URL preserves the filter
+  - [ ] Scrolling/paginating past the first page of results calls `documents.list` again with the previous page's `nextCursor`, not a naive page-number offset (the backend has no page-number concept — cursor-based only)
+  - [ ] No sort-column UI control is present anywhere on this page (see AI Prompt — `documents.list` has no sort parameter; the backend always orders newest-first)
+  - [ ] `pnpm test` passes
+AI Prompt: |
+  You are building the Document List page for the DOCS module. This is the first real,
+  user-facing DOCS page — Foundation (TASK-DOCS-020) built the plumbing (tRPC client, auth,
+  status mapping) this page consumes.
+
+  ## Data source — documents.list, not documents.search [Confirmed by direct file read]
+  Use `trpc.documents.list.useQuery({ documentTypeId?, lifecycleState?, officeId?, dateFrom?,
+  dateTo?, cursor?, limit? })`. This is a browse/filter view, not a search view — `documents.
+  search` (full-text, a different procedure with a different output shape) is out of this
+  task's scope; do not conflate the two or try to reuse one query hook for both.
+
+  `documents.list`'s output (`ListDocumentsOutputSchema`) is:
+  ```typescript
+  { items: DocumentSummary[]; nextCursor: string | null }
+  ```
+  where each `DocumentSummary` (confirmed directly in `packages/shared/src/schemas/
+  documents.ts`) is:
+  ```typescript
+  {
+    id: string;
+    title: string;
+    documentTypeCode: string;   // <-- a CODE, not a joined name
+    lifecycleState: LifecycleState;  // one of the 11 snake_case backend values
+    preliminaryNumber: string | null;
+    finalNumber: string | null;
+    qrTrackingNumber: string;
+    createdAt: string;  // ISO timestamp
+    updatedAt: string;
+  }
+  ```
+  Note precisely: `documents.list` returns `documentTypeCode` (e.g. `'RESOLUTION'`), while
+  `documents.search`'s `SearchResultItemSchema` returns `documentTypeName` (e.g. `'SP
+  Resolution'`) instead — these two procedures represent the document type differently. This
+  task only touches `documents.list`, so the Type column shows the raw code as-is (e.g.
+  `RESOLUTION`) unless you choose to humanize it client-side with a small local code→label
+  map; do not call an extra `documents.get`-per-row just to fetch a display name — that is an
+  N+1 query pattern the backend does not need you to make.
+
+  ## Column mapping
+  - **Title**: `row.title`, plain text, clickable — link to `/documents/:id` once a Detail
+    page exists. Detail is not yet built and has no task number in this file yet as of this
+    task (this task assumes it will follow as the next DOCS frontend task, tentatively
+    TASK-DOCS-023, but that numbering is this task's own forward-looking assumption, not a
+    confirmed fact — do not treat it as settled). Render as a disabled-looking link or a plain
+    non-interactive cell for now rather than a route that 404s. Use your judgment on the
+    least-confusing placeholder; this is a minor, low-stakes UI choice this task doesn't need
+    to agonize over.
+  - **Type**: `row.documentTypeCode`, rendered as-is or through a small local map (see above)
+  - **Status**: `StatusBadge` (from `@batac/ui`), fed through `mapLifecycleStateToDocumentState`
+    (built in TASK-DOCS-020) — never pass `row.lifecycleState` to `StatusBadge` directly, it
+    expects `DocumentState`, not `LifecycleState`, and the prop types will not match
+  - **Number**: `DocumentNumberBadge` — this component takes a pre-formatted display string,
+    it does not compute one itself (confirmed directly: its props are `number: string` and
+    `variant: NumberVariant` — note the prop is named `variant`, not `numberVariant`).
+    Construct the string yourself: `row.finalNumber ?? row.preliminaryNumber ?? 'Draft'`, pass
+    it as `number`, and pass `variant: row.finalNumber ? 'final' : 'preliminary'`
+  - **Created**: `row.createdAt`, formatted as a locale date string
+
+  ## Pagination is cursor-based, not page-numbered [Confirmed by direct file read]
+  `documents.repository.ts`'s `listDocuments` method always orders
+  `desc(documents.createdAt), desc(documents.id)` (newest first, `id` as a tiebreaker for
+  cursor stability) and takes `filter.limit + 1` rows to compute `hasMore`/`nextCursor` — there
+  is no sort-column parameter anywhere in `ListDocumentsInputSchema`, and no page-number
+  concept anywhere in the pagination primitive (`PaginationInputSchema` is `{ cursor?, limit }`
+  only). Do not build a sortable-column-header UI or a numbered pagination control — neither
+  has a backend parameter to drive it. Use `nextCursor` with a "Load more" button or an
+  infinite-scroll pattern; either is fine, but it must pass the previous response's
+  `nextCursor` as the next request's `cursor`, not compute an offset.
+
+  ## Empty state is not necessarily "no documents exist yet" [Confirmed by direct file read]
+  `listDocuments`'s ABAC scope can independently resolve to `{ kind: 'none' }` for certain
+  callers (returning `[]` immediately, before any SQL query even runs) as well as to `{ kind:
+  'own', officeIds: [] }` (also `[]`). The `list` output carries no field indicating which
+  scope applied or why the result is empty. Do not write empty-state copy that asserts a
+  specific reason (e.g. "You haven't created any documents yet" is a plausible guess, not a
+  guaranteed truth, since a real reason could just as easily be "your role has no visibility
+  into anything the system currently holds"). Keep the `EmptyState` heading/body generically
+  worded rather than presuming a cause.
+
+  ## Filter state — encode in the URL
+  Use `react-router-dom`'s `useSearchParams` (the router is already `createBrowserRouter` —
+  no changes needed to the routing library itself, just add the new route in `main.tsx`) so
+  filters survive a refresh and are shareable as a link. Map each `ListDocumentsInputSchema`
+  optional field to a search param of the same name; omit params that are unset rather than
+  writing empty-string values.
+
+  Before submitting this PR, confirm each item:
+  - [ ] `pnpm typecheck` passes
+  - [ ] Zero documents renders `EmptyState`, not an empty table shell, with generically-worded
+    copy that does not assume a specific reason for emptiness
+  - [ ] One or more documents renders all five columns; `StatusBadge`/`DocumentNumberBadge`
+    render without throwing for every lifecycle state reachable pre-workflow
+  - [ ] A filter change updates the URL search params and the displayed rows; a page reload at
+    that URL preserves the filter
+  - [ ] Paginating calls `documents.list` again with the previous response's `nextCursor`, not
+    a page-number offset
+  - [ ] No sort-column UI control exists anywhere on this page
+  - [ ] `pnpm test` passes
+
+---
+
 ## Module Summary -- DOCS
 
 **Task count:** 19 (TASK-DOCS-001 through TASK-DOCS-019)
