@@ -137,9 +137,13 @@ export interface EventPayloadMap {
   
   'workflow.step_assigned': Stub;
   'workflow.step_completed': WorkflowStepCompletedPayload;
+  'workflow.step.completed': { instanceId: string; stepInstanceId: string; stepId: string; stepType: string; outcome: string; comment: string | null; };
+  'workflow.step.failed': { instanceId: string; stepInstanceId: string; stepId: string; errorCode: string; errorMessage: string; };
   'workflow.lapsed': Stub;
   'workflow.escalated': Stub;
   'workflow.certified_urgent_applied': Stub;
   'workflow.manually_advanced': Stub;
   'workflow.completed': Stub;
+  'workflow.instance.completed': { instanceId: string; documentId: string; outcomeCode: string; finalDocumentStatus: string | null; };
+  'workflow.instance.repassed': { instanceId: string; documentId: string; };
 }
