@@ -88,6 +88,12 @@ export interface StepInstanceAttrs {
    */
   assigneeOfficeId: string | null;
   /**
+   * `step_instances.metadata->>'assigned_committee_ids'` — for multi_referral
+   * steps; the set of committee UUIDs that must provide a report.
+   * Null/undefined when not a multi_referral step.
+   */
+  assignedCommitteeIds?: string[] | null;
+  /**
    * `workflow.instances.created_by` — the user who created the parent
    * workflow instance. Used for Invariant #13 (encoder cannot be final approver)
    * and for encoder-restriction checks (I1 §6.2).
@@ -99,12 +105,6 @@ export interface StepInstanceAttrs {
    * a step on a document they authored, even if not directly assigned.
    */
   documentCreatedBy: string;
-  /**
-   * `step_instances.metadata->>'assigned_committee_ids'` — for multi_referral
-   * steps; the set of committee UUIDs that must provide a report.
-   * Null/undefined when not a multi_referral step.
-   */
-  assignedCommitteeIds?: string[] | null;
 }
 
 // ─── Role sets (I1 §5, §6; I2 §6) ───────────────────────────────────────────

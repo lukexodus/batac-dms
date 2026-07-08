@@ -18,6 +18,10 @@ import { SlaService } from './services/sla.service.js';
 import { WorkflowRepository } from './workflow.repository.js';
 import { submitStepAction } from './engine/step-handlers/action.handler.js';
 import { submitStepApproval } from './engine/step-handlers/approval.handler.js';
+import {
+  submitCommitteeReport as engineSubmitCommitteeReport,
+  submitStepMultiReferral,
+} from './engine/step-handlers/multi-referral.handler.js';
 import { workflowPolicy } from './workflow.policy.js';
 import type { StepInstanceAttrs } from './workflow.policy.js';
 import type { Context } from '../iam/iam.types.js';
@@ -142,6 +146,11 @@ async function fetchStepContext(
   const assigneeUserId = assignedTo[0]?.user_id ?? null;
   const assigneeOfficeId = assignedTo[0]?.office_id ?? null;
 
+  // Extract assigned committees from metadata (for multi_referral step ABAC)
+  const metadata = (stepInstance.metadata as Record<string, any>) ?? {};
+  const assignedCommittees = (metadata['assigned_committees'] as Array<{ committee_id: string }>) ?? [];
+  const assignedCommitteeIds = assignedCommittees.map((c) => c.committee_id);
+
   // isFinalApprovalStep lives in steps.config['is_final_approval'] (JSONB)
   const config = (step.config as Record<string, any>) ?? {};
   const isFinalApprovalStep = config['is_final_approval'] === true;
@@ -153,6 +162,7 @@ async function fetchStepContext(
     isFinalApprovalStep,
     assigneeUserId,
     assigneeOfficeId,
+    assignedCommitteeIds,
     instanceCreatedBy: instance.createdBy,
     documentCreatedBy: doc.createdBy,
   };
@@ -949,6 +959,15 @@ export function createWorkflowRouter() {
         return { success: true as const };
       }),
 
+    /**
+     * `workflow.submitCommitteeReport`
+     *
+     * Submits a committee report contribution for a multi-referral step.
+     * ABAC: I1 §6.6 (committee-scoped `sp_member`, or `sp_secretary`).
+     * If all assigned committees have submitted, this orchestrates completion of the step.
+     *
+     * Source: E1 §938; I1 §6.6
+     */
     submitCommitteeReport: protectedProcedure
       .input(
         z.object({
@@ -958,13 +977,117 @@ export function createWorkflowRouter() {
           reportAttachmentS3Key: z.string().uuid().optional(),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'submitCommitteeReport is not implemented.',
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const { stepInstanceId, committeeId } = input;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, instance, stepAttrs } = found;
+
+        // ABAC: committee scoped check
+        workflowPolicy.canSubmitCommitteeReport(ctx.auth, stepAttrs);
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        // As per E1, we pass a generated UUID for contributionDocId since the engine
+        // only records it as a reference in the metadata array.
+        const contributionDocId = randomUUID();
+
+        let isCompleted = false;
+
+        await ctx.db.transaction(async (tx) => {
+          const txWorkflowRepo = new WorkflowRepository(tx as any);
+          
+          await engineSubmitCommitteeReport(
+            instance,
+            stepInstance,
+            committeeId,
+            ctx.auth!.userId,
+            contributionDocId,
+            { ...deps, workflowRepository: txWorkflowRepo },
+            tx as any
+          );
+
+          // After submitting, check if all committees have submitted.
+          // The engine handler updates stepInstance in DB, so we must fetch the fresh row
+          // inside this transaction to check the updated submissions array.
+          const freshStepInstance = await txWorkflowRepo.getStepInstanceById(stepInstanceId, tx as any);
+          if (!freshStepInstance) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve fresh step instance.' });
+          }
+
+          const freshMetadata = (freshStepInstance.metadata as Record<string, any>) ?? {};
+          const assigned = (freshMetadata['assigned_committees'] as Array<{ committee_id: string }>) ?? [];
+          const submissions = (freshMetadata['submissions'] as Array<any>) ?? [];
+
+          if (submissions.length >= assigned.length) {
+            // All assigned committees have submitted. Complete the step with 'REPORT_ACCEPTED'.
+            await submitStepMultiReferral(
+              instance,
+              freshStepInstance,
+              ctx.auth!.userId,
+              'user',
+              'REPORT_ACCEPTED',
+              null, // no manual comment for auto-completion
+              { ...deps, workflowRepository: txWorkflowRepo },
+              tx as any
+            );
+            isCompleted = true;
+          }
         });
+
+        if (server.eventBus) {
+          // The engine handler does NOT emit the completion event to the bus, so we must emit it manually
+          // if we completed the step. The `workflow.multi_referral.committee_submitted` event was already
+          // emitted to the internal audit log by the engine, but not the fastify eventBus.
+          // Note: The audit consumer for phase 1 only explicitly lists `workflow.step.completed`.
+          if (isCompleted) {
+            server.eventBus.emit('workflow.step.completed', {
+              eventId: randomUUID(),
+              eventType: 'workflow.step.completed',
+              occurredAt: new Date().toISOString(),
+              cityId: ctx.auth.cityId,
+              schemaVersion: 1,
+              payload: {
+                instanceId: instance.id,
+                stepInstanceId,
+                stepId: found.step.id,
+                stepType: found.step.stepType,
+                outcome: 'REPORT_ACCEPTED',
+                comment: null,
+              },
+            });
+          }
+        }
+
+        return { allCommitteesSubmitted: isCompleted };
       }),
 
+    /**
+     * `workflow.manuallyAdvanceMultiReferralStep`
+     *
+     * SP Secretary override to advance a multi-referral step before all committees have submitted.
+     * ABAC: I1 §6.7 (sp_secretary only).
+     *
+     * Source: E1 §949; I1 §6.7
+     */
     manuallyAdvanceMultiReferralStep: protectedProcedure
       .input(
         z.object({
@@ -972,11 +1095,66 @@ export function createWorkflowRouter() {
           mandatoryComment: z.string().min(1),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'manuallyAdvanceMultiReferralStep is not implemented.',
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const { stepInstanceId, mandatoryComment } = input;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, step, instance, stepAttrs } = found;
+
+        workflowPolicy.canManuallyAdvanceMultiReferral(ctx.auth);
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          await submitStepMultiReferral(
+            instance,
+            stepInstance,
+            ctx.auth!.userId,
+            'user',
+            'SECRETARY_ADVANCED',
+            mandatoryComment,
+            { ...deps, workflowRepository: new WorkflowRepository(tx as any) },
+            tx as any
+          );
         });
+
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome: 'SECRETARY_ADVANCED',
+              comment: mandatoryComment,
+            },
+          });
+        }
+
+        return { success: true as const };
       }),
 
     certifyAsPresidingOfficer: protectedProcedure

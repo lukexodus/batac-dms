@@ -20,6 +20,14 @@ vi.mock('./engine/step-handlers/approval.handler.js', () => ({
   submitStepApproval: (...args: any[]) => mockSubmitStepApproval(...args),
 }));
 
+const mockSubmitCommitteeReport = vi.fn().mockResolvedValue(undefined);
+const mockSubmitStepMultiReferral = vi.fn().mockResolvedValue(undefined);
+
+vi.mock('./engine/step-handlers/multi-referral.handler.js', () => ({
+  submitCommitteeReport: (...args: any[]) => mockSubmitCommitteeReport(...args),
+  submitStepMultiReferral: (...args: any[]) => mockSubmitStepMultiReferral(...args),
+}));
+
 // Also break the transitive dep for step-resolution used by the handlers.
 vi.mock('./engine/step-resolution.js', () => ({
   resolveNextStep: vi.fn(),
@@ -339,6 +347,7 @@ describe('Workflow Router Mutation Procedures', () => {
     stepType?: string;
     stepStatus?: string;
     assignedTo?: any[];
+    metadata?: Record<string, any>;
     isFinalApproval?: boolean;
     instanceCreatedBy?: string;
     documentCreatedBy?: string;
@@ -351,6 +360,7 @@ describe('Workflow Router Mutation Procedures', () => {
           instanceId: INSTANCE_ID,
           status: overrides.stepStatus ?? 'active',
           assignedTo: overrides.assignedTo ?? [{ user_id: USER_ID }],
+          metadata: overrides.metadata ?? {},
           deletedAt: null,
         },
         step: {
@@ -384,6 +394,8 @@ describe('Workflow Router Mutation Procedures', () => {
     mockDb = makeMockDb();
     mockSubmitStepAction.mockClear();
     mockSubmitStepApproval.mockClear();
+    mockSubmitCommitteeReport.mockClear();
+    mockSubmitStepMultiReferral.mockClear();
   });
 
   // ── completeActionStep ────────────────────────────────────────────────────
@@ -610,6 +622,138 @@ describe('Workflow Router Mutation Procedures', () => {
       expect(result.success).toBe(true);
       expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
       expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('RETURNED_FOR_REVISION');
+    });
+  });
+
+  // ── submitCommitteeReport ──────────────────────────────────────────────────
+
+  describe('submitCommitteeReport', () => {
+    it('throws FORBIDDEN if sp_member is not in assigned committees', async () => {
+      const subject = makeSubject({
+        roles: ['sp_member'],
+        effectiveRoles: ['sp_member'],
+        committeeIds: ['22222222-2222-2222-2222-222222222222'],
+      });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(
+        makeStepContextRow({
+          stepType: 'multi_referral',
+          metadata: { assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }] },
+        })
+      );
+
+      await expect(
+        caller.submitCommitteeReport({
+          stepInstanceId: STEP_INSTANCE_ID,
+          committeeId: '11111111-1111-1111-1111-111111111111',
+          reportText: 'Test report',
+        })
+      ).rejects.toThrow(/You are not a member of any committee assigned/);
+    });
+
+    it('succeeds for assigned sp_member and does not complete if not last', async () => {
+      const subject = makeSubject({
+        roles: ['sp_member'],
+        effectiveRoles: ['sp_member'],
+        committeeIds: ['11111111-1111-1111-1111-111111111111'],
+      });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      // First query: fetch context
+      mockDb.mockResponse(
+        makeStepContextRow({
+          stepType: 'multi_referral',
+          metadata: { assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }, { committee_id: '33333333-3333-3333-3333-333333333333' }] },
+        })
+      );
+
+      // Second query: fetch updated instance in transaction
+      mockDb.mockResponse([{
+        id: STEP_INSTANCE_ID,
+        metadata: {
+          assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }, { committee_id: '33333333-3333-3333-3333-333333333333' }],
+          submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // only 1 submission
+        },
+      }]);
+
+      const result = await caller.submitCommitteeReport({
+        stepInstanceId: STEP_INSTANCE_ID,
+        committeeId: '11111111-1111-1111-1111-111111111111',
+        reportText: 'Test report',
+      });
+
+      expect(result.allCommitteesSubmitted).toBe(false);
+      expect(mockSubmitCommitteeReport).toHaveBeenCalledOnce();
+      expect(mockSubmitStepMultiReferral).not.toHaveBeenCalled();
+    });
+
+    it('completes step and calls submitStepMultiReferral if last committee submits', async () => {
+      const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      // First query: fetch context
+      mockDb.mockResponse(
+        makeStepContextRow({
+          stepType: 'multi_referral',
+          metadata: { assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }] },
+        })
+      );
+
+      // Second query: fetch updated instance in transaction
+      mockDb.mockResponse([{
+        id: STEP_INSTANCE_ID,
+        metadata: {
+          assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
+          submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // all assigned submitted
+        },
+      }]);
+
+      const result = await caller.submitCommitteeReport({
+        stepInstanceId: STEP_INSTANCE_ID,
+        committeeId: '11111111-1111-1111-1111-111111111111',
+        reportText: 'Test report',
+      });
+
+      expect(result.allCommitteesSubmitted).toBe(true);
+      expect(mockSubmitCommitteeReport).toHaveBeenCalledOnce();
+      expect(mockSubmitStepMultiReferral).toHaveBeenCalledOnce();
+      expect(mockSubmitStepMultiReferral.mock.calls[0]![4]).toBe('REPORT_ACCEPTED');
+    });
+  });
+
+  // ── manuallyAdvanceMultiReferralStep ───────────────────────────────────────
+
+  describe('manuallyAdvanceMultiReferralStep', () => {
+    it('throws FORBIDDEN for non-secretary', async () => {
+      const subject = makeSubject({ roles: ['sp_presiding_officer'], effectiveRoles: ['sp_presiding_officer'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(makeStepContextRow({ stepType: 'multi_referral' }));
+
+      await expect(
+        caller.manuallyAdvanceMultiReferralStep({
+          stepInstanceId: STEP_INSTANCE_ID,
+          mandatoryComment: 'Override',
+        })
+      ).rejects.toThrow(/Only the SP Secretary/);
+    });
+
+    it('succeeds for sp_secretary', async () => {
+      const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(makeStepContextRow({ stepType: 'multi_referral' }));
+
+      const result = await caller.manuallyAdvanceMultiReferralStep({
+        stepInstanceId: STEP_INSTANCE_ID,
+        mandatoryComment: 'Force complete',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepMultiReferral).toHaveBeenCalledOnce();
+      expect(mockSubmitStepMultiReferral.mock.calls[0]![4]).toBe('SECRETARY_ADVANCED');
+      expect(mockSubmitStepMultiReferral.mock.calls[0]![5]).toBe('Force complete');
     });
   });
 });
