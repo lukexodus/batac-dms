@@ -1306,4 +1306,47 @@ During the implementation of `WorkflowPolicyGuard` (TASK-WF-017), two scope cons
 
 The `WorkflowPolicyGuard` strictly follows the core ABAC rules in I1 §5/§6. It does not re-implement Document-level restrictions like SP Member committee visibility for reads, nor does it replicate the broad operational cancellation list. 
 
+
 [Inference]: The separation of concerns assumes that `WorkflowPolicyGuard` handles workflow-engine primitives (bypassing, advancing, role gating), while document-centric business logic (like who can see a specific document or cancel a document's journey) remains in the procedure layer or the DocumentPolicyGuard.
+
+---
+
+## LOG-0049
+
+- date: 2026-07-08
+- task_id: TASK-WF-019
+- status: proposed
+- affects: workflow.router.ts (completeActionStep, approveStep, rejectStep, returnStepForRevision)
+
+**What was found:**
+
+`StepInstanceAttrs.isFinalApprovalStep` (used by `WorkflowPolicyGuard.canApproveStep` for Invariant #13 enforcement) is documented in `workflow.policy.ts` as "declared boolean on `workflow.steps`". However, the actual `workflow.steps` table does **not** have a dedicated `is_final_approval` column — it stores this flag inside the `config` JSONB column as `config['is_final_approval']`.
+
+This is confirmed by `approval.handler.ts` (checking `config['is_final_approval'] === true`) and by the DB schema in `packages/database/schema/workflow.schema.ts`, which shows only `id`, `stepKey`, `stepType`, `label`, `config`, `position`, `isStart`, `createdAt`, `deletedAt`, `deletedBy` as named columns.
+
+**What was implemented:**
+
+`fetchStepContext` (the shared helper in `workflow.router.ts`) reads `isFinalApprovalStep` from `step.config['is_final_approval'] === true`, consistent with `approval.handler.ts`. The policy guard's type comment ("declared boolean on `workflow.steps`") is imprecise but does not affect behaviour because the policy guard receives a pre-assembled `StepInstanceAttrs` object and does not query the DB directly.
+
+[Finding]: A human should decide whether to update the comment in `workflow.policy.ts` to reflect JSONB storage rather than a dedicated column.
+
+---
+
+## LOG-0050
+
+- date: 2026-07-08
+- task_id: TASK-WF-019
+- status: proposed
+- affects: workflow.router.ts mutations; audit downstream coverage
+
+**What was found:**
+
+The workflow engine handlers (`action.handler.ts`, `approval.handler.ts`) write step completion events to `workflow.workflow_events` (the internal workflow event log) via `workflowRepository.createWorkflowEvent(...)`. They do **not** publish to the external `fastify.eventBus`.
+
+The audit consumer (`registerAuditEventConsumer` in `audit.plugin.ts`) listens on the `eventBus`, not on `workflow.workflow_events`. Without an explicit `eventBus.emit(...)` call in the tRPC procedure, completed action/approval steps would not produce an audit trail.
+
+**What was implemented:**
+
+Each of the four new mutation procedures (`completeActionStep`, `approveStep`, `rejectStep`, `returnStepForRevision`) emits `workflow.step.completed` on `ctx.req.server.eventBus` (fire-and-forget, after the DB transaction commits). The emission is guarded with `if (server.eventBus)` to avoid failing in test environments where the event bus is not wired.
+
+[Inference]: A future task may want to move this emission inside the engine handlers themselves (so any caller — tRPC, scheduler, admin bypass — automatically emits to the bus). For now, each tRPC procedure is responsible for emitting after the engine call.

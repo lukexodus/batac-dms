@@ -3,6 +3,28 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { createWorkflowRouter } from './workflow.router.js';
 import type { Context, AuthContext } from '../iam/iam.types.js';
 
+// ─── Mocks ──────────────────────────────────────────────────────────────
+
+// Mock the action and approval engine handlers to break the transitive
+// json-logic-js dependency (step-resolution.ts → transition-evaluation.ts →
+// json-logic-js is not installed in the test environment).
+const mockSubmitStepAction = vi.fn().mockResolvedValue(undefined);
+const mockSubmitStepApproval = vi.fn().mockResolvedValue(undefined);
+
+vi.mock('./engine/step-handlers/action.handler.js', () => ({
+  submitStepAction: (...args: any[]) => mockSubmitStepAction(...args),
+  autoCompleteActionStep: vi.fn(),
+}));
+
+vi.mock('./engine/step-handlers/approval.handler.js', () => ({
+  submitStepApproval: (...args: any[]) => mockSubmitStepApproval(...args),
+}));
+
+// Also break the transitive dep for step-resolution used by the handlers.
+vi.mock('./engine/step-resolution.js', () => ({
+  resolveNextStep: vi.fn(),
+}));
+
 const CITY_ID = '00000000-0000-4000-8000-000000000001';
 const USER_ID = '44444444-4444-4444-4444-444444444444';
 const VALID_UUID = '11111111-1111-1111-1111-111111111111';
@@ -294,6 +316,300 @@ describe('Workflow Router Read Procedures', () => {
       expect(result[0]?.slaClassification).toBe('complex');
       expect(result[0]?.slaThresholdDays).toBe(7);
       expect(result[0]?.isBreached).toBe(false);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mutation Procedures
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Workflow Router Mutation Procedures', () => {
+  let mockDb: ReturnType<typeof makeMockDb>;
+
+  // Shared fixture UUIDs
+  const STEP_INSTANCE_ID = '55555555-5555-5555-5555-555555555555';
+  const INSTANCE_ID = '66666666-6666-6666-6666-666666666666';
+  const DOCUMENT_ID = '77777777-7777-7777-7777-777777777777';
+  const STEP_ID = '88888888-8888-8888-8888-888888888888';
+  const ENCODER_USER_ID = '99999999-9999-9999-9999-999999999999';
+
+  /** A single joined row returned by fetchStepContext's query */
+  function makeStepContextRow(overrides: {
+    stepType?: string;
+    stepStatus?: string;
+    assignedTo?: any[];
+    isFinalApproval?: boolean;
+    instanceCreatedBy?: string;
+    documentCreatedBy?: string;
+  } = {}) {
+    return [
+      {
+        stepInstance: {
+          id: STEP_INSTANCE_ID,
+          stepId: STEP_ID,
+          instanceId: INSTANCE_ID,
+          status: overrides.stepStatus ?? 'active',
+          assignedTo: overrides.assignedTo ?? [{ user_id: USER_ID }],
+          deletedAt: null,
+        },
+        step: {
+          id: STEP_ID,
+          stepType: overrides.stepType ?? 'action',
+          stepKey: 'dept_review',
+          config: overrides.isFinalApproval
+            ? { is_final_approval: true, allowed_outcomes: ['APPROVED', 'REJECTED', 'RETURNED_FOR_REVISION'] }
+            : { allowed_outcomes: ['APPROVED', 'REJECTED', 'RETURNED_FOR_REVISION'] },
+        },
+        instance: {
+          id: INSTANCE_ID,
+          documentId: DOCUMENT_ID,
+          definitionVersionId: VALID_UUID,
+          createdBy: overrides.instanceCreatedBy ?? ENCODER_USER_ID,
+          status: 'active',
+          cityId: CITY_ID,
+        },
+        doc: {
+          id: DOCUMENT_ID,
+          ownedByOfficeId: OWN_OFFICE,
+          classificationLevel: 'internal',
+          createdBy: overrides.documentCreatedBy ?? ENCODER_USER_ID,
+          cityId: CITY_ID,
+        },
+      },
+    ];
+  }
+
+  beforeEach(() => {
+    mockDb = makeMockDb();
+    mockSubmitStepAction.mockClear();
+    mockSubmitStepApproval.mockClear();
+  });
+
+  // ── completeActionStep ────────────────────────────────────────────────────
+
+  describe('completeActionStep', () => {
+    it('throws NOT_FOUND when step instance does not exist', async () => {
+      const subject = makeSubject({ roles: ['dept_encoder'], effectiveRoles: ['dept_encoder'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      // fetchStepContext query returns empty
+      mockDb.mockResponse([]);
+
+      await expect(
+        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('throws FORBIDDEN when user role is not permitted for action steps', async () => {
+      // records_officer is not in ACTION_STEP_ROLES
+      const subject = makeSubject({ roles: ['records_officer'], effectiveRoles: ['records_officer'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(makeStepContextRow());
+
+      await expect(
+        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('throws FORBIDDEN when user is not the assignee (encoder restriction)', async () => {
+      // dept_encoder can only complete steps they are directly assigned to
+      const subject = makeSubject({
+        roles: ['dept_encoder'],
+        effectiveRoles: ['dept_encoder'],
+        userId: 'some-other-user',
+      });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      // Step is assigned to USER_ID, caller is some-other-user, document created by ENCODER_USER_ID
+      mockDb.mockResponse(
+        makeStepContextRow({ assignedTo: [{ user_id: USER_ID }] })
+      );
+
+      await expect(
+        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('throws FORBIDDEN when non-encoder user is not assigned and no office match', async () => {
+      const subject = makeSubject({
+        roles: ['dept_approver'],
+        effectiveRoles: ['dept_approver'],
+        effectiveOfficeIds: ['different-office'],
+      });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(
+        makeStepContextRow({ assignedTo: [{ user_id: 'other-user', office_id: OWN_OFFICE }] })
+      );
+
+      await expect(
+        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('succeeds and calls submitStepAction for direct assignee', async () => {
+      const subject = makeSubject({ roles: ['dept_encoder'], effectiveRoles: ['dept_encoder'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      // fetchStepContext returns step assigned to USER_ID
+      mockDb.mockResponse(makeStepContextRow({ assignedTo: [{ user_id: USER_ID }] }));
+      // transaction mock is already set up in makeMockDb
+
+      const result = await caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID, comment: 'Done.' });
+
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepAction).toHaveBeenCalledOnce();
+    });
+
+    it('succeeds for dept_approver with office-queue assignment', async () => {
+      const subject = makeSubject({
+        roles: ['dept_approver'],
+        effectiveRoles: ['dept_approver'],
+        effectiveOfficeIds: [OWN_OFFICE],
+      });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(
+        makeStepContextRow({ assignedTo: [{ office_id: OWN_OFFICE }] })
+      );
+
+      const result = await caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID });
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepAction).toHaveBeenCalledOnce();
+    });
+  });
+
+  // ── approveStep ───────────────────────────────────────────────────────────
+
+  describe('approveStep', () => {
+    it('throws NOT_FOUND when step instance does not exist', async () => {
+      const subject = makeSubject({ roles: ['dept_approver'], effectiveRoles: ['dept_approver'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([]);
+
+      await expect(
+        caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('throws FORBIDDEN when dept_encoder tries to approve (not in APPROVAL_STEP_ROLES)', async () => {
+      const subject = makeSubject({ roles: ['dept_encoder'], effectiveRoles: ['dept_encoder'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(makeStepContextRow({ stepType: 'approval' }));
+
+      await expect(
+        caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('throws FORBIDDEN (Invariant #13) when approver is same as document creator on final approval step', async () => {
+      // USER_ID is both the caller and the document creator
+      const subject = makeSubject({ roles: ['dept_approver'], effectiveRoles: ['dept_approver'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(
+        makeStepContextRow({
+          stepType: 'approval',
+          assignedTo: [{ user_id: USER_ID }],
+          isFinalApproval: true,
+          documentCreatedBy: USER_ID, // same as caller
+        })
+      );
+
+      await expect(
+        caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('throws FORBIDDEN when step type is not approval', async () => {
+      const subject = makeSubject({ roles: ['dept_approver'], effectiveRoles: ['dept_approver'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      // stepType = 'action' — policy guard should reject
+      mockDb.mockResponse(makeStepContextRow({ stepType: 'action', assignedTo: [{ user_id: USER_ID }] }));
+
+      await expect(
+        caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('succeeds for authorized approver and calls submitStepApproval with APPROVED', async () => {
+      const subject = makeSubject({ roles: ['dept_approver'], effectiveRoles: ['dept_approver'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(
+        makeStepContextRow({ stepType: 'approval', assignedTo: [{ user_id: USER_ID }] })
+      );
+
+      const result = await caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID, comment: 'Looks good.' });
+
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
+      // Third positional arg (after instance, stepInstance, actorId, actorType) is outcome
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('APPROVED');
+    });
+  });
+
+  // ── rejectStep ────────────────────────────────────────────────────────────
+
+  describe('rejectStep', () => {
+    it('requires a non-empty comment (Zod-enforced)', async () => {
+      const subject = makeSubject({ roles: ['dept_approver'], effectiveRoles: ['dept_approver'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      await expect(
+        caller.rejectStep({ stepInstanceId: STEP_INSTANCE_ID, comment: '' })
+      ).rejects.toThrow();
+    });
+
+    it('succeeds and calls submitStepApproval with REJECTED', async () => {
+      const subject = makeSubject({ roles: ['dept_approver'], effectiveRoles: ['dept_approver'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(
+        makeStepContextRow({ stepType: 'approval', assignedTo: [{ user_id: USER_ID }] })
+      );
+
+      const result = await caller.rejectStep({ stepInstanceId: STEP_INSTANCE_ID, comment: 'Not compliant.' });
+
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('REJECTED');
+    });
+  });
+
+  // ── returnStepForRevision ─────────────────────────────────────────────────
+
+  describe('returnStepForRevision', () => {
+    it('requires a non-empty comment (Zod-enforced)', async () => {
+      const subject = makeSubject({ roles: ['dept_approver'], effectiveRoles: ['dept_approver'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      await expect(
+        caller.returnStepForRevision({ stepInstanceId: STEP_INSTANCE_ID, comment: '' })
+      ).rejects.toThrow();
+    });
+
+    it('succeeds and calls submitStepApproval with RETURNED_FOR_REVISION', async () => {
+      const subject = makeSubject({ roles: ['dept_approver'], effectiveRoles: ['dept_approver'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(
+        makeStepContextRow({ stepType: 'approval', assignedTo: [{ user_id: USER_ID }] })
+      );
+
+      const result = await caller.returnStepForRevision({
+        stepInstanceId: STEP_INSTANCE_ID,
+        comment: 'Missing attachments.',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('RETURNED_FOR_REVISION');
     });
   });
 });

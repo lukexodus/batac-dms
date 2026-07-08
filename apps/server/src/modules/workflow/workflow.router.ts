@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import {
@@ -14,6 +15,11 @@ import {
 import { offices } from '@batac/database/schema/organization.schema.js';
 import { eq, and, or, isNull, inArray, desc, gte, lte } from 'drizzle-orm';
 import { SlaService } from './services/sla.service.js';
+import { WorkflowRepository } from './workflow.repository.js';
+import { submitStepAction } from './engine/step-handlers/action.handler.js';
+import { submitStepApproval } from './engine/step-handlers/approval.handler.js';
+import { workflowPolicy } from './workflow.policy.js';
+import type { StepInstanceAttrs } from './workflow.policy.js';
 import type { Context } from '../iam/iam.types.js';
 
 const paginationInput = z.object({
@@ -79,6 +85,79 @@ async function checkWorkflowInstanceReadPermission(
   }
 
   return false;
+}
+
+// ─── Step context fetch helper ───────────────────────────────────────────────
+
+/**
+ * Fetches a step_instances row with all attributes required by StepInstanceAttrs
+ * (for WorkflowPolicyGuard) and the parent instance/document rows needed by the
+ * engine handlers. Returns null when the step instance does not exist.
+ *
+ * Caller is responsible for throwing NOT_FOUND on a null result.
+ *
+ * `isFinalApprovalStep` is sourced from `steps.config['is_final_approval']`
+ * (JSONB), consistent with how approval.handler.ts checks it.
+ * [Finding — LOG-0049]
+ */
+async function fetchStepContext(
+  stepInstanceId: string,
+  ctx: Context
+): Promise<{
+  stepInstance: typeof stepInstances.$inferSelect;
+  step: typeof steps.$inferSelect;
+  instance: typeof instances.$inferSelect;
+  doc: typeof documents.$inferSelect;
+  stepAttrs: StepInstanceAttrs;
+} | null> {
+  const db = ctx.db;
+
+  const rows = await db
+    .select({
+      stepInstance: stepInstances,
+      step: steps,
+      instance: instances,
+      doc: documents,
+    })
+    .from(stepInstances)
+    .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+    .innerJoin(instances, eq(stepInstances.instanceId, instances.id))
+    .innerJoin(documents, eq(instances.documentId, documents.id))
+    .where(
+      and(
+        eq(stepInstances.id, stepInstanceId),
+        isNull(stepInstances.deletedAt)
+      )
+    )
+    .limit(1);
+
+  const row = rows[0];
+  if (!row) return null;
+
+  const { stepInstance, step, instance, doc } = row;
+
+  // Extract assignee from JSONB array (first element, per policy guard contract).
+  // assigned_to is stored as [{ user_id?: string, office_id?: string }, ...]
+  const assignedTo = (stepInstance.assignedTo as Array<{ user_id?: string; office_id?: string }>) ?? [];
+  const assigneeUserId = assignedTo[0]?.user_id ?? null;
+  const assigneeOfficeId = assignedTo[0]?.office_id ?? null;
+
+  // isFinalApprovalStep lives in steps.config['is_final_approval'] (JSONB)
+  const config = (step.config as Record<string, any>) ?? {};
+  const isFinalApprovalStep = config['is_final_approval'] === true;
+
+  const stepAttrs: StepInstanceAttrs = {
+    stepStatus: stepInstance.status as StepInstanceAttrs['stepStatus'],
+    stepType: step.stepType as StepInstanceAttrs['stepType'],
+    stepKey: step.stepKey,
+    isFinalApprovalStep,
+    assigneeUserId,
+    assigneeOfficeId,
+    instanceCreatedBy: instance.createdBy,
+    documentCreatedBy: doc.createdBy,
+  };
+
+  return { stepInstance, step, instance, doc, stepAttrs };
 }
 
 function enforceRoles(ctx: Context, allowedRoles: string[]) {
@@ -558,6 +637,16 @@ export function createWorkflowRouter() {
       }),
 
     // Mutations
+
+    /**
+     * `workflow.completeActionStep`
+     *
+     * Marks an `action` step as completed and advances the workflow instance.
+     * ABAC: I1 §6.2 (role gate + encoder restriction + assignment gate).
+     * Emits `workflow.step.completed` to the event bus for downstream audit.
+     *
+     * Source: E1 §916; I1 §6.2; I2 §6 ("Complete an assigned action step").
+     */
     completeActionStep: protectedProcedure
       .input(
         z.object({
@@ -565,13 +654,77 @@ export function createWorkflowRouter() {
           comment: z.string().optional(),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'completeActionStep is not implemented.',
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const { stepInstanceId, comment = null } = input;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, step, instance, stepAttrs } = found;
+
+        // ABAC: delegates all role/assignment/encoder-restriction checks to guard.
+        workflowPolicy.canCompleteActionStep(ctx.auth, stepAttrs);
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          await submitStepAction(
+            instance,
+            stepInstance,
+            ctx.auth!.userId,
+            comment,
+            { ...deps, workflowRepository: new WorkflowRepository(tx as any) },
+            tx as any
+          );
         });
+
+        // Emit to event bus so audit consumer can create an audit log entry.
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome: 'DONE',
+              comment,
+            },
+          });
+        }
+
+        return { success: true as const, nextStepType: null };
       }),
 
+    /**
+     * `workflow.approveStep`
+     *
+     * Approves an `approval` step and advances the workflow instance.
+     * ABAC: I1 §6.3 (role gate + assignment gate + Invariant #13).
+     * Emits `workflow.step.completed` to the event bus for downstream audit.
+     *
+     * Source: E1 §927; I1 §6.3; I2 §6 ("Complete an assigned approval step (Approve)").
+     */
     approveStep: protectedProcedure
       .input(
         z.object({
@@ -579,13 +732,77 @@ export function createWorkflowRouter() {
           comment: z.string().optional(),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'approveStep is not implemented.',
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const { stepInstanceId, comment = null } = input;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, step, instance, stepAttrs } = found;
+
+        // ABAC: role gate + assignment gate + Invariant #13 (encoder ≠ final approver).
+        workflowPolicy.canApproveStep(ctx.auth, stepAttrs);
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          await submitStepApproval(
+            instance,
+            stepInstance,
+            ctx.auth!.userId,
+            'user',
+            'APPROVED',
+            comment,
+            { ...deps, workflowRepository: new WorkflowRepository(tx as any) },
+            tx as any
+          );
         });
+
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome: 'APPROVED',
+              comment,
+            },
+          });
+        }
+
+        return { success: true as const };
       }),
 
+    /**
+     * `workflow.rejectStep`
+     *
+     * Rejects an `approval` step (mandatory comment) and advances the workflow.
+     * ABAC: I1 §6.3.
+     *
+     * Source: E1 §927; I1 §6.3; I2 §6 ("Complete an assigned approval step (Reject)").
+     */
     rejectStep: protectedProcedure
       .input(
         z.object({
@@ -593,13 +810,76 @@ export function createWorkflowRouter() {
           comment: z.string().min(1),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'rejectStep is not implemented.',
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const { stepInstanceId, comment } = input;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, step, instance, stepAttrs } = found;
+
+        workflowPolicy.canApproveStep(ctx.auth, stepAttrs);
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          await submitStepApproval(
+            instance,
+            stepInstance,
+            ctx.auth!.userId,
+            'user',
+            'REJECTED',
+            comment,
+            { ...deps, workflowRepository: new WorkflowRepository(tx as any) },
+            tx as any
+          );
         });
+
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome: 'REJECTED',
+              comment,
+            },
+          });
+        }
+
+        return { success: true as const };
       }),
 
+    /**
+     * `workflow.returnStepForRevision`
+     *
+     * Returns an `approval` step for revision (mandatory comment).
+     * ABAC: I1 §6.3.
+     *
+     * Source: E1 §927; I1 §6.3; I2 §6 ("Complete an assigned approval step (Return for revision)").
+     */
     returnStepForRevision: protectedProcedure
       .input(
         z.object({
@@ -607,11 +887,66 @@ export function createWorkflowRouter() {
           comment: z.string().min(1),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'returnStepForRevision is not implemented.',
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const { stepInstanceId, comment } = input;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, step, instance, stepAttrs } = found;
+
+        workflowPolicy.canApproveStep(ctx.auth, stepAttrs);
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          await submitStepApproval(
+            instance,
+            stepInstance,
+            ctx.auth!.userId,
+            'user',
+            'RETURNED_FOR_REVISION',
+            comment,
+            { ...deps, workflowRepository: new WorkflowRepository(tx as any) },
+            tx as any
+          );
         });
+
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome: 'RETURNED_FOR_REVISION',
+              comment,
+            },
+          });
+        }
+
+        return { success: true as const };
       }),
 
     submitCommitteeReport: protectedProcedure
