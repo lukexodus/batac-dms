@@ -91,7 +91,7 @@ export const workflowInstanceStatusEnum = workflowSchema.enum(
 /** Per-step execution status within a running workflow instance. */
 export const workflowStepStatusEnum = workflowSchema.enum(
   'workflow_step_status_enum',
-  ['pending', 'active', 'completed', 'bypassed', 'cancelled', 'failed'],
+  ['pending', 'active', 'completed', 'bypassed', 'cancelled', 'failed', 'returned'],
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
