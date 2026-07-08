@@ -10,6 +10,7 @@ import { AuthProvider } from './lib/auth-context.js';
 import { queryClient } from './lib/query-client.js';
 import { trpc, trpcClient } from './lib/trpc.js';
 
+import { DocumentListPage } from "./pages/documents/DocumentListPage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
 import AppShellPage from "./pages/dev/AppShellPage";
 import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
@@ -33,6 +34,10 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <div>Batac DMS Home</div>,
+  },
+  {
+    path: "/documents",
+    element: <DocumentListPage />,
   },
   {
     path: "/dev/components",
