@@ -1288,3 +1288,22 @@ Additionally, `eslint-plugin-react` and `eslint-plugin-react-hooks` were referen
 5. Reordered state hook declarations and early returns in `SidebarPage.tsx`, `AppShellPage.tsx`, and `TopbarPage.tsx` to satisfy React Hook rules, and sorted dev page imports alphabetically in `apps/web/src/main.tsx` to satisfy the import ordering rules.
 
 [Tested]: Run `pnpm turbo run lint typecheck` successfully across all packages.
+
+### [LOG-0048] WorkflowPolicyGuard administrative procedure scope vs document scope
+
+- date: 2026-07-08
+- task_id: TASK-WF-017
+- status: proposed
+- affects: none (implementation detail/inference based on prompt wording)
+
+**What was found:**
+
+During the implementation of `WorkflowPolicyGuard` (TASK-WF-017), two scope constraints were identified relative to the broader documents module:
+1. `canCancelInstance`: The Workflow-level cancellation is restricted to `plat_admin` and `records_officer` (for own-office), as these are the roles identified as having access to administrative workflow procedures in the prompt and I1/I2. Operational cancellation (by `dept_approver`, `sp_secretary`, etc.) is governed by the `DocumentPolicyGuard` at the `documents.router` layer (TASK-DOCS-009). The WF module's `cancelInstance` acts purely as the admin-surface endpoint.
+2. `canReadInstance` (for SP Member): I1 §5.1 lists `sp_member` under own-office read, but I2 Conditional Note ¹⁰ restricts SP Members to documents in their assigned committees or SP sessions. This additional committee-scoping is omitted from the base `WorkflowPolicyGuard` to keep the context payload simple; the calling procedure must apply any SP Member–specific document/committee filters.
+
+**What was implemented:**
+
+The `WorkflowPolicyGuard` strictly follows the core ABAC rules in I1 §5/§6. It does not re-implement Document-level restrictions like SP Member committee visibility for reads, nor does it replicate the broad operational cancellation list. 
+
+[Inference]: The separation of concerns assumes that `WorkflowPolicyGuard` handles workflow-engine primitives (bypassing, advancing, role gating), while document-centric business logic (like who can see a specific document or cancel a document's journey) remains in the procedure layer or the DocumentPolicyGuard.
