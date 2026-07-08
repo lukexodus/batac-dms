@@ -1,7 +1,10 @@
 import { createTRPCReact, httpBatchLink } from '@trpc/react-query';
+import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from 'server/src/trpc/root.js';
 
 export const trpc = createTRPCReact<AppRouter>();
+export type RouterInputs = inferRouterInputs<AppRouter>;
+export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
