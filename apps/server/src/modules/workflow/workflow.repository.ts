@@ -277,6 +277,25 @@ export class WorkflowRepository {
     return row || null;
   }
 
+  async getMultiReferralStepInstanceForInstance(
+    instanceId: string,
+    tx: AppDb = this.db
+  ): Promise<StepInstanceRow | null> {
+    const [row] = await tx
+      .select({ stepInstance: stepInstances })
+      .from(stepInstances)
+      .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+      .where(
+        and(
+          eq(stepInstances.instanceId, instanceId),
+          eq(steps.stepType, 'multi_referral'),
+          isNull(stepInstances.deletedAt)
+        )
+      )
+      .limit(1);
+    return row ? row.stepInstance : null;
+  }
+
   async updateStepInstance(
     id: string,
     data: Partial<InferInsertModel<typeof stepInstances>>,
