@@ -27,6 +27,7 @@ export interface DocumentSummary {
   finalNumber: string | null;
   classificationLevel: ClassificationLevel;
   createdAt: Date;
+  hasPenaltyProvision?: boolean;
 }
 
 export interface DocumentTypeSummary {
