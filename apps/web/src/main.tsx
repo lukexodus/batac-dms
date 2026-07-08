@@ -11,6 +11,7 @@ import { queryClient } from './lib/query-client.js';
 import { trpc, trpcClient } from './lib/trpc.js';
 
 import { DocumentListPage } from "./pages/documents/DocumentListPage";
+import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
 import AppShellPage from "./pages/dev/AppShellPage";
 import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
@@ -38,6 +39,10 @@ const router = createBrowserRouter([
   {
     path: "/documents",
     element: <DocumentListPage />,
+  },
+  {
+    path: "/documents/new",
+    element: <DocumentIntakePage />,
   },
   {
     path: "/dev/components",

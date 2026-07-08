@@ -11,6 +11,7 @@ import {
   CreateDocumentInputSchema,
   CreateDocumentOutputSchema,
   DocumentIdInputSchema,
+  DocumentTypeSummarySchema,
   DocumentSelectSchema,
   AdminDocumentMetadataSchema,
   ListDocumentsInputSchema,
@@ -307,6 +308,19 @@ export function createDocumentsRouter() {
     ...createPanlalawiganProcedures(),
     ...createSignatureProcedures(),
     
+    // -----------------------------------------------------------------
+    // documents.documentTypes
+    // -----------------------------------------------------------------
+    documentTypes: protectedProcedure
+      .output(z.array(DocumentTypeSummarySchema))
+      .query(async ({ ctx }) => {
+        const rows = await getRepository(ctx).listActiveDocumentTypes();
+        return rows.map((row) => ({
+          ...row,
+          classificationDefault: row.classificationDefault as ClassificationLevel,
+        }));
+      }),
+
     // -----------------------------------------------------------------
     // documents.create
     // -----------------------------------------------------------------
