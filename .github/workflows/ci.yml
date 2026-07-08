@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master, main]
   push:
-    branches: [main]
+    branches: [master, main]
 
 concurrency:
   group: ci-${{ github.head_ref }}
@@ -94,7 +94,7 @@ jobs:
       - run: docker build -f apps/web/Dockerfile -t batac-web:ci --build-arg VITE_API_URL=https://ci.placeholder --build-arg VITE_APP_URL=https://ci.placeholder .
 
   e2e-tests:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
     needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -107,7 +107,7 @@ jobs:
       - run: docker compose -f compose.yml down -v
 
   deploy-staging:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
     needs: [e2e-tests]
     runs-on: ubuntu-latest
     environment: staging
@@ -125,7 +125,7 @@ jobs:
             docker compose -f compose.prod.yml up -d
 
   deploy-production:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
     needs: [deploy-staging]
     runs-on: ubuntu-latest
     environment: production
