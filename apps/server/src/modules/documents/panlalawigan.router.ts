@@ -135,8 +135,8 @@ export function createPanlalawiganProcedures() {
         await repo.updatePanlalawiganReview(input.documentId, {
           outcome: input.outcome,
           responseDate: new Date(input.receivedAt),
-          resolutionNumber: input.panlalawiganResolutionNumber,
-          remarks: input.remarks,
+          resolutionNumber: input.panlalawiganResolutionNumber ?? null,
+          remarks: input.remarks ?? null,
         });
 
         // Transition document state based on outcome

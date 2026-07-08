@@ -64,7 +64,7 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
     s3Client,
     env,
     eventBus: fastify.eventBus,
-    auditService: fastify.auditService,
+    auditService: (fastify as any).auditService,
   });
 
   const trpcRouter = createDocumentsAppRouter();
@@ -98,7 +98,7 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
   };
 
   const ocrService = new OcrService(
-    fastify.boss as any,
+    (fastify as any).boss,
     new StubOcrProvider(),
     new StubPreviewProvider(),
     ocrS3Client,
@@ -114,9 +114,9 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
   fastify.decorate('designationHandler', designationHandler);
   fastify.decorate('ocrService', ocrService);
 
-  if (fastify.boss) {
+  if ((fastify as any).boss) {
     const SYSTEM_ACTOR_ID = '00000000-0000-4000-8000-000000000000';
-    const boss = fastify.boss as any; // pg-boss instance
+    const boss = (fastify as any).boss; // pg-boss instance
     
     await boss.createQueue('panlalawigan.checkDeemedApproved');
     await boss.schedule('panlalawigan.checkDeemedApproved', '0 6 * * *', {}, { timezone: 'Asia/Manila' });

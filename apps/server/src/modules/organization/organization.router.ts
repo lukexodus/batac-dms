@@ -181,11 +181,17 @@ function toDateOnlyString(d: Date): string {
 
 // ───────────────────────── router factory ─────────────────────────
 
-export function createOrgRouter(deps: OrgRouterDeps) {
-  const { orgRepository, orgService, delegationService } = deps;
-  // Accepted for the factory signature the AI Prompt asks for; see header
-  // "AUTHORIZATION MECHANISM NOTE" for why it isn't used for gating below.
-  void deps.policyEvaluator;
+export function createOrgRouter(deps?: OrgRouterDeps) {
+  function getDeps(ctx: any): OrgRouterDeps {
+    if (deps) return deps;
+    const server = ctx.req.server;
+    return {
+      orgRepository: server.orgRepository,
+      orgService: server.organizationService,
+      delegationService: server.delegationService,
+      policyEvaluator: server.policyEvaluator,
+    };
+  }
 
   return router({
     // ───────────── org chart ─────────────
@@ -196,6 +202,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
     getOfficeHierarchy: protectedProcedure
       .query(async ({ ctx }) => {
         requireAnyRole(ctx, ORG_CHART_VIEW_ROLES, 'Access to the organization chart is not permitted for this role.');
+        const { orgService } = getDeps(ctx);
         return orgService.getOfficeHierarchy();
       }),
 
@@ -205,6 +212,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
       .input(s.CreateOfficeInput)
       .mutation(async ({ ctx, input }) => {
         requirePlatformAdmin(ctx);
+        const { orgRepository } = getDeps(ctx);
         const row = await runDbMutation(() =>
           orgRepository.offices.create({
             name: input.name,
@@ -220,6 +228,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
       .input(s.UpdateOfficeInput)
       .mutation(async ({ ctx, input }) => {
         requirePlatformAdmin(ctx);
+        const { orgRepository } = getDeps(ctx);
         const { officeId, ...rest } = input;
         if (rest.parentOfficeId && rest.parentOfficeId === officeId) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'An office cannot be its own parent.' });
@@ -236,6 +245,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
       .input(s.DeactivateOfficeInput)
       .mutation(async ({ ctx, input }) => {
         requirePlatformAdmin(ctx);
+        const { orgRepository } = getDeps(ctx);
         const existing = await orgRepository.offices.findById(input.officeId);
         if (!existing) {
           throw new TRPCError({ code: 'NOT_FOUND', message: `Office '${input.officeId}' was not found.` });
@@ -250,6 +260,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
       .input(s.CreatePositionInput)
       .mutation(async ({ ctx, input }) => {
         requirePlatformAdmin(ctx);
+        const { orgRepository } = getDeps(ctx);
         const row = await runDbMutation(() =>
           orgRepository.positions.create({
             officeId: input.officeId,
@@ -265,6 +276,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
       .input(s.UpdatePositionInput)
       .mutation(async ({ ctx, input }) => {
         requirePlatformAdmin(ctx);
+        const { orgRepository } = getDeps(ctx);
         const { positionId, ...rest } = input;
         const existing = await orgRepository.positions.findById(positionId);
         if (!existing) {
@@ -280,6 +292,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
       .input(s.CreateEmployeeInput)
       .mutation(async ({ ctx, input }) => {
         requirePlatformAdmin(ctx);
+        const { orgRepository } = getDeps(ctx);
         // employees.employee_number is NOT NULL in the schema even though
         // this input is `.nullish()` per the AI Prompt's literal contract —
         // see organization.schemas.ts header note 2.
@@ -303,6 +316,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
       .input(s.UpdateEmployeeInput)
       .mutation(async ({ ctx, input }) => {
         requirePlatformAdmin(ctx);
+        const { orgRepository } = getDeps(ctx);
         const { employeeId, ...rest } = input;
         if (Object.prototype.hasOwnProperty.call(rest, 'employeeNumber') && !rest.employeeNumber) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'employeeNumber cannot be cleared.' });
@@ -321,6 +335,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
       .input(s.AssignEmployeeToPositionInput)
       .mutation(async ({ ctx, input }) => {
         requirePlatformAdmin(ctx);
+        const { orgRepository } = getDeps(ctx);
 
         const position = await orgRepository.positions.findById(input.positionId);
         if (!position) {
@@ -365,6 +380,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
 
     getActiveDesignations: protectedProcedure
       .query(async ({ ctx }) => {
+        const { delegationService } = getDeps(ctx);
         if (!hasAnyRole(ctx, DESIGNATION_READ_ROLES)) {
           // I1 §11.3's party clause, applied to the list as a whole per the
           // Acceptance Criteria's literal phrasing ("who is not a party to
@@ -388,6 +404,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
     getDesignationHistory: protectedProcedure
       .input(s.GetDesignationHistoryInput)
       .query(async ({ ctx, input }) => {
+        const { delegationService } = getDeps(ctx);
         // [Inference] Role gate only, no party check — unlike
         // getActiveDesignations, this procedure's own spec gives no separate
         // "ABAC:" line and the Acceptance Criteria don't request a party
@@ -396,7 +413,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
         requireAnyRole(ctx, DESIGNATION_READ_ROLES, 'Viewing designation history requires an authorized role.');
         const items = await delegationService.listDesignationHistory({
           limit: input.pageSize,
-          employeeId: input.employeeId,
+          ...(input.employeeId !== undefined && { employeeId: input.employeeId }),
         });
         // nextCursor is always null: matches the only pagination convention
         // that exists elsewhere in this codebase today (iam.router.ts's
@@ -409,6 +426,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
     createDesignationGrant: protectedProcedure
       .input(s.CreateDesignationGrantInput)
       .mutation(async ({ ctx, input }) => {
+        const { delegationService } = getDeps(ctx);
         try {
           const result = await delegationService.createDelegationGrant(
             {
@@ -418,7 +436,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
               officeId: input.officeId,
               positionId: input.positionId,
               scopeDescription: input.scopeDescription,
-              legalBasis: input.legalBasis ?? undefined,
+              ...(input.legalBasis ? { legalBasis: input.legalBasis } : {}),
               startDate: toDateOnlyString(input.validFrom),
               endDate: toDateOnlyString(input.validUntil),
               cityId: ctx.auth.cityId,
@@ -450,11 +468,12 @@ export function createOrgRouter(deps: OrgRouterDeps) {
     revokeDesignationGrantEarly: protectedProcedure
       .input(s.RevokeDesignationGrantEarlyInput)
       .mutation(async ({ ctx, input }) => {
+        const { delegationService } = getDeps(ctx);
         try {
           await delegationService.revokeEarlyDelegationGrant(
             input.delegationId,
             {
-              writtenInstructionReference: input.writtenInstructionReference,
+              ...(input.writtenInstructionReference ? { writtenInstructionReference: input.writtenInstructionReference } : {}),
             },
             {
               userId: ctx.auth.userId,
@@ -486,6 +505,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
       .input(s.CreateCommitteeInput)
       .mutation(async ({ ctx, input }) => {
         requirePlatformAdmin(ctx);
+        const { orgRepository } = getDeps(ctx);
         // committees.chaired_by_employee_id is NOT NULL in the schema even
         // though this input is `.nullish()` per the AI Prompt's literal
         // contract — see organization.schemas.ts header note 2.
@@ -506,6 +526,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
       .input(s.UpdateCommitteeInput)
       .mutation(async ({ ctx, input }) => {
         requirePlatformAdmin(ctx);
+        const { orgRepository } = getDeps(ctx);
         const { committeeId, ...rest } = input;
         if (Object.prototype.hasOwnProperty.call(rest, 'chairedByEmployeeId') && !rest.chairedByEmployeeId) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'chairedByEmployeeId cannot be cleared.' });
@@ -522,6 +543,7 @@ export function createOrgRouter(deps: OrgRouterDeps) {
       .input(s.AssignCommitteeMembershipInput)
       .mutation(async ({ ctx, input }) => {
         requirePlatformAdmin(ctx);
+        const { orgRepository } = getDeps(ctx);
         const committee = await orgRepository.committees.findById(input.committeeId);
         if (!committee) {
           throw new TRPCError({ code: 'NOT_FOUND', message: `Committee '${input.committeeId}' was not found.` });

@@ -26,7 +26,7 @@ export abstract class AppError extends Error {
   constructor(message: string, details?: Record<string, unknown>) {
     super(message);
     this.name = this.constructor.name;
-    this.details = details;
+    this.details = details as Record<string, unknown>;
     // Maintain correct prototype chain after TypeScript transpilation
     Object.setPrototypeOf(this, new.target.prototype);
   }

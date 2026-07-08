@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import type PgBoss from 'pg-boss';
 import { versions } from '@batac/database/schema/documents.schema.js';
 import type { AppDb } from '../../db.js';
-import { PreviewProvider } from './preview.provider.js';
+import type { PreviewProvider } from './preview.provider.js';
 
 export interface OcrProvider {
   extractTextFromS3Key(s3Key: string, mimeType: string): Promise<{

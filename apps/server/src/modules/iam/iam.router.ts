@@ -32,8 +32,8 @@ export const iamRouter = router({
       const service = getService(ctx);
       return service.updateOwnProfile({
         userId: ctx.auth.userId,
-        displayName: input.displayName,
-        phoneNumber: input.phoneNumber,
+        ...(input.displayName !== undefined && { displayName: input.displayName }),
+        ...(input.phoneNumber !== undefined && { phoneNumber: input.phoneNumber }),
       });
     }),
 
@@ -99,8 +99,8 @@ export const iamRouter = router({
       const items = await service.listUserDirectory(ctx.auth.cityId, {
         limit: input.pageSize,
         offset: 0,
-        officeId: input.officeId,
-        search: input.search,
+        ...(input.officeId !== undefined && { officeId: input.officeId }),
+        ...(input.search !== undefined && { search: input.search }),
       });
       return { items, nextCursor: null };
     }),
@@ -130,9 +130,9 @@ export const iamRouter = router({
       const service = getService(ctx);
       return service.updateUserAccount({
         userId: input.userId,
-        email: input.email,
-        status: input.status,
-        officeId: input.officeId,
+        ...(input.email !== undefined && { email: input.email }),
+        ...(input.status !== undefined && { status: input.status }),
+        ...(input.officeId !== undefined && { officeId: input.officeId }),
       });
     }),
 
@@ -204,9 +204,11 @@ export const iamRouter = router({
         throw new TRPCError({ code: 'FORBIDDEN', message: 'SP Secretary access required' });
       }
       const service = getService(ctx);
+      const { idReference, ...restInput } = input;
       return service.registerCitizenAccountClerkAssisted({
-        ...input,
+        ...restInput,
         actorId: ctx.auth.userId,
+        ...(idReference !== undefined && { idReference }),
       });
     }),
 });

@@ -37,7 +37,7 @@ export type AuditQueryEventsInput = z.infer<typeof auditQueryEventsInput>;
  *
  * @param auditService - The AuditPublicAPI facade, typically from fastify.auditService.
  */
-export function createAuditTrpcRouter(auditService: AuditPublicAPI) {
+export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
   return router({
     queryEvents: protectedProcedure
       .input(auditQueryEventsInput)
@@ -57,7 +57,8 @@ export function createAuditTrpcRouter(auditService: AuditPublicAPI) {
         }
 
         // ── Delegate to AuditQueryService ────────────────────────────────────
-        return auditService.queryEvents({
+        const service = auditService ?? (ctx.req.server as any).auditService;
+        return service.queryEvents({
           actorId:    input.actorId,
           targetId:   input.targetId,
           eventTypes: input.eventTypes,

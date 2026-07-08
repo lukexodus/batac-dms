@@ -15,6 +15,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1077.0",
     "@batac/database": "workspace:*",
     "@batac/shared": "workspace:*",
+    "@fastify/cors": "^11.2.0",
     "@fastify/rate-limit": "^10.2.2",
     "@trpc/server": "^11.18.0",
     "@types/jsonwebtoken": "^9.0.10",
