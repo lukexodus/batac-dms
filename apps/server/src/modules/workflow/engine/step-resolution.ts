@@ -136,6 +136,66 @@ export async function resolveNextStep(
     trx as any
   );
 
+  if (nextStep.stepType === 'multi_referral') {
+    const pendingBypass = await deps.workflowRepository.getPendingBypassForInstance(
+      instance.id,
+      nextStep.stepKey,
+      trx as any
+    );
+    if (pendingBypass && !pendingBypass.appliedAt) {
+      await deps.workflowRepository.markBypassApplied(pendingBypass.id, newStepInstance.id, trx as any);
+      
+      await deps.workflowRepository.updateStepInstance(
+        newStepInstance.id,
+        {
+          status: 'bypassed',
+          bypassedAt: new Date(),
+          bypassedBy: null,
+          bypassReason: 'CERTIFIED_URGENT',
+          outcome: 'BYPASSED_CERTIFIED_URGENT'
+        },
+        trx as any
+      );
+
+      await deps.workflowRepository.createWorkflowEvent(
+        {
+          instanceId: instance.id,
+          eventType: 'workflow.step.bypassed',
+          actorType: 'system',
+          actorId: null,
+          payload: {
+            instanceId: instance.id,
+            stepInstanceId: newStepInstance.id,
+            bypassReason: 'CERTIFIED_URGENT',
+            bypassedBy: null,
+          },
+        },
+        trx as any
+      );
+
+      await deps.workflowRepository.createWorkflowEvent(
+        {
+          instanceId: instance.id,
+          eventType: 'workflow.certification_urgency.bypass_applied',
+          actorType: 'system',
+          actorId: null,
+          payload: {
+            instanceId: instance.id,
+            stepInstanceId: newStepInstance.id,
+            certificationDocumentId: pendingBypass.certificationDocumentId,
+          },
+        },
+        trx as any
+      );
+
+      const bypassedStepInstance = await deps.workflowRepository.getStepInstanceById(newStepInstance.id, trx as any);
+      if (!bypassedStepInstance) throw new Error('Failed to retrieve bypassed step instance');
+
+      await resolveNextStep(instance, bypassedStepInstance, 'BYPASSED_CERTIFIED_URGENT', deps, trx);
+      return;
+    }
+  }
+
   if (nextStep.stepType === 'decision' || nextStep.stepType === 'notification' || nextStep.stepType === 'termination' || config['auto_complete'] === true) {
     if (nextStep.stepType === 'decision') {
       const { executeDecisionStep } = await import('./step-handlers/decision.handler.js');
