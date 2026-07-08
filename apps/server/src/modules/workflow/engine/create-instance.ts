@@ -98,6 +98,27 @@ export async function createInstance(
     }
     const startStep = startSteps[0]!;
 
+    if (startStep.stepType === 'parallel_split' || startStep.stepType === 'parallel_join') {
+      await deps.workflowRepository.updateInstanceStatus(instance.id, 'stuck', undefined, trx);
+      await deps.workflowRepository.createWorkflowEvent(
+        {
+          instanceId: instance.id,
+          eventType: 'workflow.step.failed',
+          actorType: 'system',
+          actorId: null,
+          payload: {
+            instanceId: instance.id,
+            stepInstanceId: 'NONE',
+            stepId: startStep.id,
+            errorCode: 'STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1',
+            errorMessage: 'parallel_split and parallel_join are Phase 2 reserved step types'
+          }
+        },
+        trx
+      );
+      throw new Error('STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1');
+    }
+
     const stepInstance = await deps.workflowRepository.createStepInstance(
       {
         instanceId: instance.id,
