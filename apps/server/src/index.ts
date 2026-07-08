@@ -25,6 +25,8 @@ import { AuditRepository } from './modules/audit/audit.repository.js';
 import { AuditWriteService } from './modules/audit/audit.write-service.js';
 import { registerTsaExportJob } from './modules/audit/audit.tsa-export.js';
 import { registerDelegationExpiryJob } from './modules/organization/delegation-expiry.job.js';
+import { WorkflowRepository } from './modules/workflow/workflow.repository.js';
+import { evaluateSlaBreaches, registerSlaMonitorJob } from './modules/workflow/jobs/evaluate-sla-breaches.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -78,6 +80,16 @@ async function main(): Promise<void> {
     // We can just require those from `app`!
   } catch (err) {
     app.log.error({ err }, 'Failed to initialize background jobs');
+  }
+
+  try {
+    app.log.info('Running SLA breach monitor on startup...');
+    const workflowRepository = new WorkflowRepository(app.db as any);
+    await evaluateSlaBreaches({ workflowRepository });
+    registerSlaMonitorJob({ workflowRepository });
+    app.log.info('SLA breach monitor completed and scheduled.');
+  } catch (err) {
+    app.log.error({ err }, 'Failed to run SLA breach monitor on startup');
   }
 
   try {
