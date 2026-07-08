@@ -1,6 +1,8 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
+
 import { RoutingHistoryTimeline } from "@batac/ui";
+
 import type { RoutingEntry } from "@batac/ui";
 
 const MOCK_ENTRIES: RoutingEntry[] = [

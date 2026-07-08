@@ -1265,3 +1265,26 @@ The Drizzle ORM documentation and some community examples show `generatedAlwaysA
 The call was corrected to `text('status').generatedAlwaysAs(sql`...`)` with no second argument. The generated SQL output (`GENERATED ALWAYS AS (...) STORED`) is identical either way — STORED is the only mode emitted by Drizzle Kit for this column type in this version. The TypeScript error was the only consequence of the incorrect call.
 
 [Inference]: This may have changed between Drizzle minor versions. If drizzle-orm is upgraded, verify the `generatedAlwaysAs` signature and re-check `workflow.definition_versions.status`.
+
+### [LOG-0047] ESLint v9 Flat Config migration in monorepo
+
+- date: 2026-07-08
+- task_id: none
+- status: proposed
+- affects: J3 (Section 7)
+
+**What was found:**
+
+ESLint version 9.39.4 was installed at the root, but the repository only contained the legacy CommonJS configuration `/packages/config/eslint.base.js` and no flat config files (`eslint.config.js` or `eslint.config.cjs`). Since ESLint v9 requires the Flat Config format by default, executing `eslint` resulted in errors indicating that no configuration file could be found.
+
+Additionally, `eslint-plugin-react` and `eslint-plugin-react-hooks` were referenced in the coding standards (J3 Section 7) but were not present in the workspace package dependencies or lockfile.
+
+**What was implemented:**
+
+1. Added `eslint-plugin-react` and `eslint-plugin-react-hooks` to `packages/config`'s `devDependencies`.
+2. Migrated the legacy `eslint.base.js` config to Flat Config format (array of configuration objects) and configured the TypeScript-eslint parser to support typed rules via `project: true` and `tsconfigRootDir: process.cwd()`.
+3. Created `apps/web/eslint.config.cjs` to extend the base configuration, register the React plugins, and apply the overrides specified in J3 Section 7.5 (including disabling `@typescript-eslint/explicit-module-boundary-types` globally for the web app, as explicit boundary types are only required for packages, and disabling `no-console` for dev pages under `src/pages/dev/**/*`).
+4. Replaced all `as any` casts in `apps/web/src/pages/dev/AllComponentsPage.tsx` and `apps/web/src/pages/dev/ComponentsPage.tsx` with type-safe assertions leveraging React's `ComponentProps` type utility.
+5. Reordered state hook declarations and early returns in `SidebarPage.tsx`, `AppShellPage.tsx`, and `TopbarPage.tsx` to satisfy React Hook rules, and sorted dev page imports alphabetically in `apps/web/src/main.tsx` to satisfy the import ordering rules.
+
+[Tested]: Run `pnpm turbo run lint typecheck` successfully across all packages.

@@ -1,5 +1,6 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
+
 import { DocumentNumberBadge } from "@batac/ui";
 
 export default function DocumentNumberBadgePage() {

@@ -1,6 +1,6 @@
+import { Search } from "lucide-react";
 import React, { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { Search } from "lucide-react";
 
 import {
   AppShell,
@@ -22,16 +22,16 @@ import {
 } from "@batac/ui";
 
 export function AllComponentsPage() {
-  if (!import.meta.env.DEV) return <Navigate to="/" replace />;
-
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  if (!import.meta.env.DEV) return <Navigate to="/" replace />;
 
   // Mocks for Section 1
   const sixRows = Array.from({ length: 6 }).map((_, i) => ({
     id: `row-${i}`,
     docNum: `7SP 2026-00${i + 1}`,
     variant: (i % 2 === 0 ? "final" : "preliminary") as "final" | "preliminary",
-    status: ["PENDING_MAYOR", "PANLALAWIGAN_REVIEW", "ARCHIVED"][i % 3] as any,
+    status: ["PENDING_MAYOR", "PANLALAWIGAN_REVIEW", "ARCHIVED"][i % 3] as React.ComponentProps<typeof StatusBadge>["state"],
     slaStart: new Date(Date.now() - 1000 * 60 * 60 * 24 * i),
     slaEnd: new Date(Date.now() + 1000 * 60 * 60 * 24 * (5 - i)),
   }));
@@ -41,7 +41,7 @@ export function AllComponentsPage() {
     documentNumber: `RES 2026-${100 + i}`,
     numberVariant: "final" as const,
     title: "A Resolution Pertaining to Local Matters and Other Issues that Require Attention.",
-    documentState: "APPROVED" as any,
+    documentState: "APPROVED" as React.ComponentProps<typeof DocumentPreviewCard>["document"]["documentState"],
     lastActionAt: new Date(),
     slaStartedAt: new Date(),
     slaDeadlineAt: new Date(Date.now() + 100000000),
@@ -56,7 +56,7 @@ export function AllComponentsPage() {
 
   const timelineEntries = Array.from({ length: 5 }).map((_, i) => ({
     id: `tl-${i}`,
-    action: ["Transmitted", "SignedByMayor", "Vetoed", "Archived", "Transmitted"][i] as any,
+    action: ["Transmitted", "SignedByMayor", "Vetoed", "Archived", "Transmitted"][i] as React.ComponentProps<typeof RoutingHistoryTimeline>["entries"][number]["action"],
     actorName: "John Doe",
     actorOfficeName: "Office of the Mayor",
     timestamp: new Date(),
@@ -69,8 +69,8 @@ export function AllComponentsPage() {
     documentNumber: "7SP 2026-001",
     numberVariant: "final" as const,
     title: "An Ordinance Providing for Solid Waste Management",
-    documentState: "PANLALAWIGAN_REVIEW" as any,
-    committeeReferrals: [{ id: "c1", committeeName: "Environment", status: "PENDING" as any }],
+    documentState: "PANLALAWIGAN_REVIEW" as React.ComponentProps<typeof OrderOfBusinessRow>["item"]["documentState"],
+    committeeReferrals: [{ id: "c1", committeeName: "Environment", status: "PENDING" as React.ComponentProps<typeof CommitteeReferralBlock>["referrals"][number]["status"] }],
     isCertifiedUrgent: false,
     isMissingReport: false,
     scheduledReadingType: "FIRST" as const,

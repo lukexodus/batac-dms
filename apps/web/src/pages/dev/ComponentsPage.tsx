@@ -1,6 +1,7 @@
+import { FileText } from "lucide-react";
 import React from "react";
 import { Navigate } from "react-router-dom";
-import { FileText } from "lucide-react";
+
 import {
   Button,
   Tabs,
@@ -98,7 +99,7 @@ export default function ComponentsPage() {
                     <td className="p-2 border-t font-mono text-xs">{variant}</td>
                     {(["xs", "sm", "default", "lg", "icon", "icon-sm"] as const).map(size => (
                       <td key={size} className="p-2 border-t">
-                        <Button variant={variant as any} size={size}>
+                        <Button variant={variant as "default" | "primary" | "secondary" | "destructive" | "ghost" | "ghost-danger" | "link" | "outline"} size={size}>
                           {size.includes("icon") ? <FileText /> : "Button"}
                         </Button>
                       </td>
@@ -109,7 +110,7 @@ export default function ComponentsPage() {
                     <td className="p-2 font-mono text-xs text-text-muted">{variant} + icon</td>
                     {(["xs", "sm", "default", "lg", "icon", "icon-sm"] as const).map(size => (
                       <td key={size} className="p-2">
-                        <Button variant={variant as any} size={size}>
+                        <Button variant={variant as "default" | "primary" | "secondary" | "destructive" | "ghost" | "ghost-danger" | "link" | "outline"} size={size}>
                           <FileText />
                           {!size.includes("icon") && "Button"}
                         </Button>

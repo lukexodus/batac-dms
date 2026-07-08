@@ -1,5 +1,6 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
+
 import { StatCard } from "@batac/ui";
 
 export default function StatCardPage() {

@@ -1,27 +1,28 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+
 import { TooltipProvider, Toaster } from "@batac/ui";
 import "@batac/ui/styles/globals.css";
 
-import ComponentsPage from "./pages/dev/ComponentsPage";
-import PageHeaderPage from "./pages/dev/PageHeaderPage";
-import SidebarPage from "./pages/dev/SidebarPage";
-import TopbarPage from "./pages/dev/TopbarPage";
-import AppShellPage from "./pages/dev/AppShellPage";
-import DocumentNumberBadgePage from "./pages/dev/DocumentNumberBadgePage";
-import RoutingHistoryTimelinePage from "./pages/dev/RoutingHistoryTimelinePage";
-import EmptyStatePage from "./pages/dev/EmptyStatePage";
-import StatCardPage from "./pages/dev/StatCardPage";
-import ScanQualityIndicatorPage from "./pages/dev/ScanQualityIndicatorPage";
-import SLATimerPage from "./pages/dev/SLATimerPage";
-import QRCodeDisplayPage from "./pages/dev/QRCodeDisplayPage";
-import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
-import StatusBadgePage from "./pages/dev/StatusBadgePage";
-import WorkflowStepIndicatorPage from "./pages/dev/WorkflowStepIndicatorPage";
-import DocumentPreviewCardPage from "./pages/dev/DocumentPreviewCardPage";
-import OrderOfBusinessRowPage from "./pages/dev/OrderOfBusinessRowPage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
+import AppShellPage from "./pages/dev/AppShellPage";
+import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
+import ComponentsPage from "./pages/dev/ComponentsPage";
+import DocumentNumberBadgePage from "./pages/dev/DocumentNumberBadgePage";
+import DocumentPreviewCardPage from "./pages/dev/DocumentPreviewCardPage";
+import EmptyStatePage from "./pages/dev/EmptyStatePage";
+import OrderOfBusinessRowPage from "./pages/dev/OrderOfBusinessRowPage";
+import PageHeaderPage from "./pages/dev/PageHeaderPage";
+import QRCodeDisplayPage from "./pages/dev/QRCodeDisplayPage";
+import RoutingHistoryTimelinePage from "./pages/dev/RoutingHistoryTimelinePage";
+import ScanQualityIndicatorPage from "./pages/dev/ScanQualityIndicatorPage";
+import SidebarPage from "./pages/dev/SidebarPage";
+import SLATimerPage from "./pages/dev/SLATimerPage";
+import StatCardPage from "./pages/dev/StatCardPage";
+import StatusBadgePage from "./pages/dev/StatusBadgePage";
+import TopbarPage from "./pages/dev/TopbarPage";
+import WorkflowStepIndicatorPage from "./pages/dev/WorkflowStepIndicatorPage";
 
 const router = createBrowserRouter([
   {

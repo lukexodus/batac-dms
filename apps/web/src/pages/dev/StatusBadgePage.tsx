@@ -1,6 +1,8 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
+
 import { StatusBadge } from "@batac/ui";
+
 import type { DocumentState } from "@batac/ui";
 
 const STATES: DocumentState[] = [

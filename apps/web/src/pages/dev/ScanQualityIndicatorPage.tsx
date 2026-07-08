@@ -1,4 +1,5 @@
 import React from "react";
+
 import { ScanQualityIndicator } from "@batac/ui";
 
 export default function ScanQualityIndicatorPage() {

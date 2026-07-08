@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { DocumentPreviewCard } from '@batac/ui/components/domain/DocumentPreviewCard';
+
 import type { DocumentPreview } from '@batac/ui/types/domain';
 
 const interactiveDocWithSLA: DocumentPreview = {

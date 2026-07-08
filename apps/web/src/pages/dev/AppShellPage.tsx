@@ -1,5 +1,3 @@
-import React, { useState } from "react";
-import { Navigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -7,6 +5,9 @@ import {
   Users,
   Settings,
 } from "lucide-react";
+import React, { useState } from "react";
+import { Navigate } from "react-router-dom";
+
 import { AppShell, Sidebar, Topbar, Card } from "@batac/ui";
 
 const NAV_ITEMS = [
@@ -23,11 +24,11 @@ const USER_MOCK = {
 };
 
 export default function AppShellPage() {
-  // Enforce dev env check matching other dev pages
-  if (!import.meta.env.DEV) return <Navigate to="/" replace />;
-
   const [collapsed, setCollapsed] = useState(false);
   const [activeItem] = useState("documents");
+
+  // Enforce dev env check matching other dev pages
+  if (!import.meta.env.DEV) return <Navigate to="/" replace />;
 
   return (
     <AppShell

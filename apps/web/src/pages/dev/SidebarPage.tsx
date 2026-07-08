@@ -1,5 +1,3 @@
-import React from "react";
-import { Navigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -7,6 +5,9 @@ import {
   Users,
   Settings,
 } from "lucide-react";
+import React from "react";
+import { Navigate } from "react-router-dom";
+
 import { Sidebar } from "@batac/ui";
 
 const NAV_ITEMS = [
@@ -23,10 +24,10 @@ const USER_MOCK = {
 };
 
 export default function SidebarPage() {
-  if (!import.meta.env.DEV) return <Navigate to="/" replace />;
-
   const [interactiveCollapsed, setInteractiveCollapsed] = React.useState(false);
   const [activeItem, setActiveItem] = React.useState("documents");
+
+  if (!import.meta.env.DEV) return <Navigate to="/" replace />;
 
   return (
     <div className="p-8 space-y-12 max-w-7xl mx-auto">

@@ -9,9 +9,9 @@ export const clientEnvSchema = z.object({
 });
 
 export const clientEnv = clientEnvSchema.parse({
-  VITE_APP_NAME: import.meta.env['VITE_APP_NAME'],
-  VITE_API_URL: import.meta.env['VITE_API_URL'],
-  VITE_APP_URL: import.meta.env['VITE_APP_URL'],
-  VITE_SENTRY_DSN: import.meta.env['VITE_SENTRY_DSN'],
-  VITE_SENTRY_ENVIRONMENT: import.meta.env['VITE_SENTRY_ENVIRONMENT'],
+  VITE_APP_NAME: import.meta.env['VITE_APP_NAME'] as string,
+  VITE_API_URL: import.meta.env['VITE_API_URL'] as string,
+  VITE_APP_URL: import.meta.env['VITE_APP_URL'] as string,
+  VITE_SENTRY_DSN: import.meta.env['VITE_SENTRY_DSN'] as string | undefined,
+  VITE_SENTRY_ENVIRONMENT: import.meta.env['VITE_SENTRY_ENVIRONMENT'] as string | undefined,
 });

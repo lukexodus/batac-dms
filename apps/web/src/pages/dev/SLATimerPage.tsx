@@ -1,4 +1,5 @@
 import React from "react";
+
 import { SLATimer } from "@batac/ui";
 
 export default function SLATimerPage() {

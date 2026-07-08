@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { OrderOfBusinessRow } from '@batac/ui/components/domain/OrderOfBusinessRow';
+
 import type { OrderOfBusinessItem } from '@batac/ui/types/domain';
 
 const item: OrderOfBusinessItem = {

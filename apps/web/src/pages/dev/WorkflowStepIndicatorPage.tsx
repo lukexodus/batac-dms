@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { WorkflowStepIndicator } from '@batac/ui/components/domain/WorkflowStepIndicator';
+
 import type { WorkflowStep } from '@batac/ui/types/domain';
 
 const standardSteps: WorkflowStep[] = [

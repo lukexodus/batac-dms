@@ -1,5 +1,6 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
+
 import { Topbar } from "@batac/ui";
 
 const USER_MOCK = {
@@ -27,10 +28,10 @@ const BREADCRUMBS_LONG = [
 ];
 
 export default function TopbarPage() {
-  if (!import.meta.env.DEV) return <Navigate to="/" replace />;
-
   const [collapsed, setCollapsed] = React.useState(false);
   const [lastAction, setLastAction] = React.useState<string>("None");
+
+  if (!import.meta.env.DEV) return <Navigate to="/" replace />;
 
   const handleNotificationClick = () => {
     setLastAction("Notification bell clicked");

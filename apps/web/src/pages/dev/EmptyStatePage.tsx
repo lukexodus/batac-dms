@@ -1,5 +1,6 @@
-import { EmptyState } from "@batac/ui";
 import { FileText, Search } from "lucide-react";
+
+import { EmptyState } from "@batac/ui";
 
 export default function EmptyStatePage() {
   return (

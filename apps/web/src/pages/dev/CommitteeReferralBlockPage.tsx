@@ -1,6 +1,8 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
+
 import { CommitteeReferralBlock } from "@batac/ui";
+
 import type { CommitteeReferral } from "@batac/ui";
 
 const MOCK_REFERRALS: CommitteeReferral[] = [
