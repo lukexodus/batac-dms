@@ -1,4 +1,4 @@
-import { eq, and, sql, desc, isNull } from 'drizzle-orm';
+import { eq, and, or, sql, desc, isNull, inArray } from 'drizzle-orm';
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
 import type { AppDb } from '../../db.js';
 import {
@@ -352,6 +352,22 @@ export class WorkflowRepository {
         and(
           eq(stepInstances.instanceId, instanceId),
           eq(stepInstances.status, 'active'),
+          isNull(stepInstances.deletedAt)
+        )
+      );
+  }
+
+  async cancelActiveAndPendingStepInstancesForInstance(
+    instanceId: string,
+    tx: AppDb // required — must run in the same transaction as the instance status update
+  ): Promise<void> {
+    await tx
+      .update(stepInstances)
+      .set({ status: 'cancelled' })
+      .where(
+        and(
+          eq(stepInstances.instanceId, instanceId),
+          or(eq(stepInstances.status, 'active'), eq(stepInstances.status, 'pending')),
           isNull(stepInstances.deletedAt)
         )
       );
