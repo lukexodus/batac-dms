@@ -992,6 +992,50 @@ describe('TASK-WF-021 Procedures', () => {
     });
   });
 
+  // ── recordVetoOverrideVote ──────────────────────────────────────────────────
+
+  describe('recordVetoOverrideVote', () => {
+    it('throws NOT_FOUND when step instance does not exist', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse([]);
+      await expect(
+        caller.recordVetoOverrideVote({ stepInstanceId: STEP_INSTANCE_ID, votesFor: 8, votesAgainst: 4, absentCouncilorIds: [] })
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('records OVERRIDE_SUCCEEDED when votesFor >= 8', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse(makeWF021StepContextRow());
+      mockGetInstanceById.mockResolvedValue({ id: INSTANCE_ID, status: 'active', documentId: DOCUMENT_ID, context: {} });
+
+      const result = await caller.recordVetoOverrideVote({ stepInstanceId: STEP_INSTANCE_ID, votesFor: 8, votesAgainst: 4, absentCouncilorIds: [] });
+
+      expect(result).toEqual({ success: true });
+      expect(mockUpdateInstanceContext).toHaveBeenCalledOnce();
+      const patch = mockUpdateInstanceContext.mock.calls[0]![1] as Record<string, any>;
+      expect(patch['veto_override_votes_for']).toBe(8);
+      
+      expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('OVERRIDE_SUCCEEDED');
+    });
+
+    it('records OVERRIDE_FAILED when votesFor < 8', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse(makeWF021StepContextRow());
+      mockGetInstanceById.mockResolvedValue({ id: INSTANCE_ID, status: 'active', documentId: DOCUMENT_ID, context: {} });
+
+      const result = await caller.recordVetoOverrideVote({ stepInstanceId: STEP_INSTANCE_ID, votesFor: 7, votesAgainst: 5, absentCouncilorIds: [] });
+
+      expect(result).toEqual({ success: true });
+      expect(mockUpdateInstanceContext).toHaveBeenCalledOnce();
+      const patch = mockUpdateInstanceContext.mock.calls[0]![1] as Record<string, any>;
+      expect(patch['veto_override_votes_for']).toBe(7);
+
+      expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('OVERRIDE_FAILED');
+    });
+  });
+
   // ── logDocketingCompletion ─────────────────────────────────────────────────
 
   describe('logDocketingCompletion', () => {

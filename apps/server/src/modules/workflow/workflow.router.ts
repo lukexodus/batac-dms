@@ -1384,7 +1384,9 @@ export function createWorkflowRouter() {
 
         workflowPolicy.canLogSpSecretaryAction(ctx.auth);
 
-        const outcome = input.votesFor > input.votesAgainst
+        // 2/3 of 12 SP members = 8. Hardcoded per consolidated reference Part 4.1/4.2
+        // ("Override vote: 2/3 = 8 of 12") — not a judgment call, not configurable.
+        const outcome = input.votesFor >= 8
           ? 'OVERRIDE_SUCCEEDED'
           : 'OVERRIDE_FAILED';
 
