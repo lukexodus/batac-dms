@@ -1261,7 +1261,7 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be direct assignee or hold active delegation.' });
         }
 
-        const { submitStepApproval } = await import('./engine/step-handlers/approval.handler.js');
+
 
         await ctx.db.transaction(async (tx) => {
           await submitStepApproval(
@@ -1336,7 +1336,7 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be direct assignee or hold active delegation.' });
         }
 
-        const { submitStepApproval } = await import('./engine/step-handlers/approval.handler.js');
+
 
         await ctx.db.transaction(async (tx) => {
           await submitStepApproval(
@@ -1416,7 +1416,7 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be direct assignee or hold active delegation.' });
         }
 
-        const { submitStepApproval } = await import('./engine/step-handlers/approval.handler.js');
+
 
         await ctx.db.transaction(async (tx) => {
           await submitStepApproval(
@@ -1475,18 +1475,10 @@ export function createWorkflowRouter() {
           });
         }
 
-        // Idempotency check: if the scheduler already completed the lapse, just return success
-        // Note: the manual confirmation is an acknowledgment that the lapse *did* occur.
-        // It does not change the step outcome if it's already LAPSED.
-        // Wait, the scheduler evaluates it and sets outcome = LAPSED. 
-        // We need to write an audit log that the Secretary *confirmed* it, unless already confirmed.
-        // However, there is no "confirmed" boolean. The prompt says "second call after lapse already recorded is a no-op".
-        // Wait, the spec says: "idempotent; repeated calls create no duplicate audit entry".
-        // If the Secretary clicks "Confirm Lapse", this procedure writes the audit event.
-        // What event type? 'workflow.step.completed' with outcome = 'LAPSED_CONFIRMED' or similar?
-        // Wait, the audit says: "If already lapsed... return no-op".
-        // Actually, if it's already LAPSED and this procedure was already called, how do we distinguish between "Scheduler set it to LAPSED" and "Secretary confirmed it"?
-        // Let's use `stepInstance.metadata['lapse_confirmed_at']` to track idempotency.
+        // Idempotency check: Repeated manual confirmation calls are treated as a no-op to
+        // prevent duplicate audit trail logging. Rationale: The SP Secretary's acknowledgment
+        // that the lapse occurred is distinguished from the scheduler-set status using the
+        // presence of the lapse_confirmed_at key in the step instance's metadata.
         
         return await ctx.db.transaction(async (tx) => {
           // Re-fetch with lock to prevent race conditions
@@ -1657,7 +1649,7 @@ export function createWorkflowRouter() {
           delegationService: server.delegationService,
         };
 
-        const { submitStepAction } = await import('./engine/step-handlers/action.handler.js');
+
 
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
@@ -1733,7 +1725,7 @@ export function createWorkflowRouter() {
           delegationService: server2.delegationService,
         };
 
-        const { submitStepApproval } = await import('./engine/step-handlers/approval.handler.js');
+
 
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
@@ -1842,7 +1834,7 @@ export function createWorkflowRouter() {
           delegationService: server3.delegationService,
         };
 
-        const { submitStepApproval } = await import('./engine/step-handlers/approval.handler.js');
+
 
         // Map resolutionPath to engine outcome string
         let outcome = 'RESOLVED_IN_PLACE';
@@ -2106,7 +2098,7 @@ export function createWorkflowRouter() {
           delegationService: server.delegationService,
         };
 
-        const { submitStepAction } = await import('./engine/step-handlers/action.handler.js');
+
  
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
