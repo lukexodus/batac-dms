@@ -1,7 +1,12 @@
 import { AppError } from '../AppError.js';
 import type { TRPC_ERROR_CODE_KEY } from '../AppError.js';
 import type { DomainErrorCode } from '@batac/shared';
-import type { ValidationError } from '../../modules/workflow/engine/definition-validator.js';
+type ValidationError = {
+  code: string;
+  step_key?: string;
+  missing_outcome_code?: string;
+  message: string;
+};
 
 export class InvalidWorkflowTransitionError extends AppError {
   readonly code: DomainErrorCode = 'INVALID_WORKFLOW_TRANSITION';
@@ -31,5 +36,60 @@ export class DefinitionPublishValidationError extends AppError {
       { errors }
     );
     this.errors = errors;
+  }
+}
+
+export class ValidationFailedError extends AppError {
+  readonly code: DomainErrorCode = 'VALIDATION_FAILED';
+  readonly httpStatus = 422;
+  readonly trpcCode: TRPC_ERROR_CODE_KEY = 'UNPROCESSABLE_CONTENT';
+
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, details);
+  }
+}
+
+export class NoAdminApprovalError extends AppError {
+  readonly code: DomainErrorCode = 'NO_ADMIN_APPROVAL';
+  readonly httpStatus = 403;
+  readonly trpcCode: TRPC_ERROR_CODE_KEY = 'FORBIDDEN';
+
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, details);
+  }
+}
+
+export class ApprovalExpiredError extends AppError {
+  readonly code: DomainErrorCode = 'APPROVAL_EXPIRED';
+  readonly httpStatus = 403;
+  readonly trpcCode: TRPC_ERROR_CODE_KEY = 'FORBIDDEN';
+
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, details);
+  }
+}
+
+export class InstanceNotActiveError extends AppError {
+  readonly code: DomainErrorCode = 'INSTANCE_NOT_ACTIVE';
+  readonly httpStatus = 409;
+  readonly trpcCode: TRPC_ERROR_CODE_KEY = 'CONFLICT';
+
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, details);
+  }
+}
+
+export class StepKeyNotFoundInTargetVersionError extends AppError {
+  readonly code: DomainErrorCode = 'STEP_KEY_NOT_FOUND_IN_TARGET_VERSION';
+  readonly httpStatus = 422;
+  readonly trpcCode: TRPC_ERROR_CODE_KEY = 'UNPROCESSABLE_CONTENT';
+  readonly missingStepKeys: string[];
+
+  constructor(missingStepKeys: string[]) {
+    super(
+      `Cannot migrate instance: target version is missing step keys: ${missingStepKeys.join(', ')}`,
+      { missingStepKeys }
+    );
+    this.missingStepKeys = missingStepKeys;
   }
 }

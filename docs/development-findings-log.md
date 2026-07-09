@@ -1350,3 +1350,32 @@ The audit consumer (`registerAuditEventConsumer` in `audit.plugin.ts`) listens o
 Each of the four new mutation procedures (`completeActionStep`, `approveStep`, `rejectStep`, `returnStepForRevision`) emits `workflow.step.completed` on `ctx.req.server.eventBus` (fire-and-forget, after the DB transaction commits). The emission is guarded with `if (server.eventBus)` to avoid failing in test environments where the event bus is not wired.
 
 [Inference]: A future task may want to move this emission inside the engine handlers themselves (so any caller — tRPC, scheduler, admin bypass — automatically emits to the bus). For now, each tRPC procedure is responsible for emitting after the engine call.
+
+---
+
+## LOG-0051
+
+- date: 2026-07-09
+- task_id: TASK-WF-015
+- status: proposed
+- affects: B4 (§7.3, Appendix A), D3 (§2.2), engine/admin-operations.ts
+
+**What was found:**
+1. **Missing Notification Scope**: B4 §7.3 step 10 requires notifying the SP Secretary and users with active assignments upon migration. The ticket omitted this entirely.
+2. **Missing Schema `admin_approval_grants`**: The ticket prompts querying `workflow.admin_approval_grants`, but this table does not exist anywhere in the codebase or proposed DDL. 
+3. **Context Compatibility NO-OP**: B4 §7.3 step 4 requires verifying required context keys, but there is no mechanism in `steps.config` to declare them.
+4. **Document Status on Cancel**: D3 indicates a cancelled instance transitions the document lifecycle to `Cancelled`. The ticket omits this and omits `documentsService` from dependencies.
+5. **Bypass Outcome Code for Branching Steps**: The ticket's `bypassStep` does not provide an `outcomeCode`, leaving it ambiguous how `resolveNextStep` should route a bypassed `approval` step.
+
+**What was implemented:**
+1. **Notifications Deferred**: Deferred implementing B4 §7.3 step 10. This looks like it belongs to a notification-specific task per AGENTS.md's own routing split, and B4's scope note confirms the engine only enqueues rather than delivers. Flagging in case a task for this doesn't exist yet, since right now nothing on the board owns 'wire this specific migration-completion enqueue'.
+2. **Approval Grants Dep Injection**: Did not create DDL. Instead, injected `getApprovalGrant` and `markApprovalGrantUsed` into `AdminOperationsDeps`. This defers the schema gap cleanly, allowing the function to be tested and designed against B4's documented approval-record fields and K2's two-distinct-error-code requirement, without guessing at DDL that belongs to C1/C5.
+3. **Context Compatibility NO-OP**: [Inference] No mechanism exists in `steps.config` or elsewhere to declare required context keys per step; B4 §7.3 step 4 assumes one exists without specifying it. This check is a NO-OP passing vacuously until such a mechanism and its DDL are defined — likely requires an H1/C1 decision, not just an engine change.
+4. **Document Status on Cancel Deferred**: Did not implement document lifecycle transition on `cancelInstance`. D3 requires this side effect somewhere, but B4 says the engine doesn't own document lifecycle, and the ticket's own dependency list for `cancelInstance` never includes `documentsService`. My read is this belongs in the tRPC procedure or in `DocumentsPolicyGuard`-adjacent code that calls `cancelInstance` and then separately transitions the document, not inside the engine function itself.
+5. **Bypass Outcome Code**: Modified `bypassStep` signature to require an explicit `outcomeCode` parameter. We validate it and pass it to `resolveNextStep`. If the code doesn't match an outgoing transition rule for the step (for example, if they try to bypass an approval step without picking a defined branch), `resolveNextStep` handles that by marking the instance `stuck` (Invariant #12) with a clear cause. This trusts the caller and avoids hiding failures.
+
+**Other alignment notes:**
+- `cancelInstance` cancels both `active` and `pending` step instances per D3 §2.2, deviating from the ticket's literal SQL (`active` only) — citing D3 as the higher-authority source.
+- `cancellation_reason`/`cancelled_by` are written to the `workflow.instance.cancelled` event payload, not to new `instances` columns, consistent with LOG-0045's reasoning and B4 Appendix A's documented event schema.
+- Event emission for admin-operations follows LOG-0050's established pattern (writes only to `workflow_events` and relies on the caller to hit the `eventBus`), even though B4 Appendix A describes both as one "emit" in the engine.
+
