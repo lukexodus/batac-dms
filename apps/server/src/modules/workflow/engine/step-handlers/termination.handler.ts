@@ -4,8 +4,6 @@ import type { WorkflowRepository } from '../../workflow.repository.js';
 import type { DocumentsPublicAPI } from '../../../documents/documents.types.js';
 import type { EventBus } from '@batac/shared';
 import type { AppDb } from '../../../../db.js';
-import { stepInstances } from '@batac/database/schema/workflow.schema.js';
-import { eq, and } from 'drizzle-orm';
 
 export interface TerminationHandlerDeps {
   db: AppDb;
@@ -36,29 +34,12 @@ export async function executeTerminationStep(
   const now = new Date();
 
   if (outcomeCode === 'CANCELLED') {
-    // 1. Set all active step instances to cancelled
-    // We don't have a specific repo method for mass-cancel, so we can do it via Drizzle query.
-    // However, we should keep it within the repository if possible, or just run the query here.
-    // Given the constraints, let's use the DB directly if we must, or add it to repository later.
-    // For now, let's assume we can query them and update them one by one if mass update isn't available.
-    
-    // Actually, we can fetch active steps for the instance.
-    const activeSteps = await deps.db.select({ id: stepInstances.id })
-      .from(stepInstances)
-      .where(
-        and(
-          eq(stepInstances.instanceId, instance.id),
-          eq(stepInstances.status, 'active')
-        )
-      );
-
-    for (const step of activeSteps) {
-      await deps.workflowRepository.updateStepInstance(
-        step.id,
-        { status: 'cancelled', completedAt: now },
-        trx as any
-      );
-    }
+    // Cancel all active AND pending step instances for this instance, atomically,
+    // in the same transaction as the instance status update below.
+    await deps.workflowRepository.cancelActiveAndPendingStepInstancesForInstance(
+      instance.id,
+      trx as any
+    );
 
     // Mark instance as completed
     await deps.workflowRepository.updateInstanceStatus(instance.id, 'completed', now, trx as any);

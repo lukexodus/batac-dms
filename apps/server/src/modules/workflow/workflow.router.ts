@@ -714,7 +714,7 @@ export function createWorkflowRouter() {
             stepInstance,
             ctx.auth!.userId,
             comment,
-            { ...deps, workflowRepository: new WorkflowRepository(tx as any) },
+            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
             tx as any
           );
         });
@@ -794,7 +794,7 @@ export function createWorkflowRouter() {
             'user',
             'APPROVED',
             comment,
-            { ...deps, workflowRepository: new WorkflowRepository(tx as any) },
+            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
             tx as any
           );
         });
@@ -871,7 +871,7 @@ export function createWorkflowRouter() {
             'user',
             'REJECTED',
             comment,
-            { ...deps, workflowRepository: new WorkflowRepository(tx as any) },
+            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
             tx as any
           );
         });
@@ -948,7 +948,7 @@ export function createWorkflowRouter() {
             'user',
             'RETURNED_FOR_REVISION',
             comment,
-            { ...deps, workflowRepository: new WorkflowRepository(tx as any) },
+            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
             tx as any
           );
         });
@@ -1036,7 +1036,7 @@ export function createWorkflowRouter() {
             committeeId,
             ctx.auth!.userId,
             contributionDocId,
-            { ...deps, workflowRepository: txWorkflowRepo },
+            { ...deps, db: tx as any, workflowRepository: txWorkflowRepo },
             tx as any
           );
 
@@ -1133,7 +1133,7 @@ export function createWorkflowRouter() {
             'user',
             'REPORT_ACCEPTED',
             null,
-            { ...deps, workflowRepository: txWorkflowRepo },
+            { ...deps, db: tx as any, workflowRepository: txWorkflowRepo },
             tx as any
           );
         });
@@ -1210,7 +1210,7 @@ export function createWorkflowRouter() {
             'user',
             'SECRETARY_ADVANCED',
             mandatoryComment,
-            { ...deps, workflowRepository: new WorkflowRepository(tx as any) },
+            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
             tx as any
           );
         });
