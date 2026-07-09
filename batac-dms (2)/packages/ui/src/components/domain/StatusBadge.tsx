@@ -1,0 +1,32 @@
+import * as React from "react";
+import { cn } from "../../lib/utils";
+import type { DocumentState } from "../../types/domain";
+import { STATUS_META } from "../../lib/status-meta";
+
+export interface StatusBadgeProps {
+  state: DocumentState;
+  className?: string;
+}
+
+export function StatusBadge({ state, className }: StatusBadgeProps) {
+  const meta = STATUS_META[state];
+  if (!meta) return null;
+
+  return (
+    <span
+      aria-label={meta.label}
+      className={cn(
+        "inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium touch-exempt",
+        meta.bg,
+        meta.text,
+        meta.borderLeft,
+        meta.borderStyle === "dashed" && "border-dashed",
+        meta.textStyle === "italic" && "italic",
+        meta.textStyle === "line-through" && "line-through",
+        className
+      )}
+    >
+      {meta.label}
+    </span>
+  );
+}

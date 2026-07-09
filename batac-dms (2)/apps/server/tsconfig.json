@@ -1,0 +1,23 @@
+{
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "verbatimModuleSyntax": false,
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@batac/shared": ["../../packages/shared/src/index.ts"],
+      "@batac/shared/*": ["../../packages/shared/src/*"],
+      "@batac/database/*": ["../../packages/database/*"],
+      "@batac/trpc": ["./src/trpc.ts"]
+    },
+    "types": ["node"],
+    "skipLibCheck": true,
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/__tests__/**/*"]
+}

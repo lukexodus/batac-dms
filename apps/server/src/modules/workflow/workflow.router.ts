@@ -7,6 +7,7 @@ import {
   stepInstances,
   steps,
   definitionVersions,
+  workflowEvents,
 } from '@batac/database/schema/workflow.schema.js';
 import {
   documents,
@@ -23,8 +24,13 @@ import {
   submitStepMultiReferral,
 } from './engine/step-handlers/multi-referral.handler.js';
 import { workflowPolicy } from './workflow.policy.js';
-import type { StepInstanceAttrs } from './workflow.policy.js';
+import type { StepInstanceAttrs, WorkflowInstanceReadAttrs } from './workflow.policy.js';
 import type { Context } from '../iam/iam.types.js';
+import {
+  cancelInstance,
+  bypassStep,
+  migrateInstance,
+} from './engine/admin-operations.js';
 
 const paginationInput = z.object({
   cursor: z.string().nullish(),
@@ -183,6 +189,15 @@ function enforceRoles(ctx: Context, allowedRoles: string[]) {
     });
   }
 }
+
+// TODO: Temporary placeholder pending the real schema (see LOG-0053).
+// This stub ensures type safety for AdminOperationsDeps but fails closed by always returning null.
+async function stubGetApprovalGrant() {
+  return null;
+}
+
+// TODO: Temporary placeholder. No-op because stubGetApprovalGrant always returns null.
+async function stubMarkApprovalGrantUsed() {}
 
 export function createWorkflowRouter() {
   return router({
@@ -1295,6 +1310,135 @@ export function createWorkflowRouter() {
         });
       }),
 
+    cancelInstance: protectedProcedure
+      .input(
+        z.object({
+          instanceId: z.string().uuid(),
+          reason: z.string().min(1),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const [instance] = await ctx.db
+          .select()
+          .from(instances)
+          .where(and(eq(instances.id, input.instanceId), isNull(instances.deletedAt)))
+          .limit(1);
+
+        if (!instance) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Workflow instance not found.' });
+        }
+
+        const [doc] = await ctx.db
+          .select()
+          .from(documents)
+          .where(eq(documents.id, instance.documentId))
+          .limit(1);
+
+        if (!doc) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Parent document not found.' });
+        }
+
+        const attrs: WorkflowInstanceReadAttrs = {
+          documentOfficeId: doc.ownedByOfficeId,
+          classificationLevel: doc.classificationLevel as 'public' | 'internal' | 'confidential' | 'restricted',
+        };
+
+        workflowPolicy.canCancelInstance(ctx.auth, attrs);
+
+        const server = ctx.req.server as any;
+        await ctx.db.transaction(async (tx) => {
+          const deps = {
+            db: tx as any,
+            workflowRepository: new WorkflowRepository(tx as any),
+            documentsService: server.documentsService,
+            eventBus: server.eventBus,
+            orgService: server.organizationService,
+            delegationService: server.delegationService,
+            getApprovalGrant: stubGetApprovalGrant,
+            markApprovalGrantUsed: stubMarkApprovalGrantUsed,
+          };
+          await cancelInstance(input.instanceId, ctx.auth!.userId, input.reason, deps);
+        });
+
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.instance.cancelled', {
+            eventId: randomUUID(),
+            eventType: 'workflow.instance.cancelled',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: input.instanceId,
+              cancelledBy: ctx.auth.userId,
+              cancellationReason: input.reason,
+            },
+          });
+        }
+
+        return { success: true as const };
+      }),
+
+    bypassStep: protectedProcedure
+      .input(
+        z.object({
+          stepInstanceId: z.string().uuid(),
+          bypassReason: z.string().min(1),
+          comment: z.string().min(1),
+          outcomeCode: z.string().min(1),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        workflowPolicy.canBypassStep(ctx.auth);
+
+        const server = ctx.req.server as any;
+        await ctx.db.transaction(async (tx) => {
+          const deps = {
+            db: tx as any,
+            workflowRepository: new WorkflowRepository(tx as any),
+            documentsService: server.documentsService,
+            eventBus: server.eventBus,
+            orgService: server.organizationService,
+            delegationService: server.delegationService,
+            getApprovalGrant: stubGetApprovalGrant,
+            markApprovalGrantUsed: stubMarkApprovalGrantUsed,
+          };
+          await bypassStep(input.stepInstanceId, ctx.auth!.userId, input.bypassReason, input.comment, input.outcomeCode, deps);
+        });
+
+        const [stepInstance] = await ctx.db
+          .select({ instanceId: stepInstances.instanceId })
+          .from(stepInstances)
+          .where(eq(stepInstances.id, input.stepInstanceId))
+          .limit(1);
+
+        if (server.eventBus && stepInstance) {
+          server.eventBus.emit('workflow.step.bypassed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.bypassed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: stepInstance.instanceId,
+              stepInstanceId: input.stepInstanceId,
+              bypassReason: input.bypassReason,
+              bypassedBy: ctx.auth.userId,
+              comment: input.comment,
+            },
+          });
+        }
+
+        return { success: true as const };
+      }),
+
     migrateInstanceToNewDefinitionVersion: protectedProcedure
       .input(
         z.object({
@@ -1304,11 +1448,85 @@ export function createWorkflowRouter() {
           secondLevelApproverUserId: z.string().uuid(),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'migrateInstanceToNewDefinitionVersion is not implemented.',
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        workflowPolicy.canMigrateInstance(ctx.auth);
+
+        const server = ctx.req.server as any;
+        let result: { migrationId: string; reversibleUntil: Date };
+
+        await ctx.db.transaction(async (tx) => {
+          const deps = {
+            db: tx as any,
+            workflowRepository: new WorkflowRepository(tx as any),
+            documentsService: server.documentsService,
+            eventBus: server.eventBus,
+            orgService: server.organizationService,
+            delegationService: server.delegationService,
+            getApprovalGrant: stubGetApprovalGrant,
+            markApprovalGrantUsed: stubMarkApprovalGrantUsed,
+          };
+          result = await migrateInstance(
+            input.instanceId,
+            input.newDefinitionVersionId,
+            ctx.auth!.userId,
+            input.mandatoryReason,
+            deps
+          );
         });
+
+        if (server.eventBus) {
+          const [startedEvent] = await ctx.db
+            .select()
+            .from(workflowEvents)
+            .where(
+              and(
+                eq(workflowEvents.instanceId, input.instanceId),
+                eq(workflowEvents.eventType, 'workflow.instance.migration.started')
+              )
+            )
+            .orderBy(desc(workflowEvents.occurredAt))
+            .limit(1);
+
+          if (startedEvent) {
+            server.eventBus.emit('workflow.instance.migration.started', {
+              eventId: randomUUID(),
+              eventType: 'workflow.instance.migration.started',
+              occurredAt: new Date().toISOString(),
+              cityId: ctx.auth.cityId,
+              schemaVersion: 1,
+              payload: startedEvent.payload,
+            });
+          }
+
+          const [completedEvent] = await ctx.db
+            .select()
+            .from(workflowEvents)
+            .where(
+              and(
+                eq(workflowEvents.instanceId, input.instanceId),
+                eq(workflowEvents.eventType, 'workflow.instance.migration.completed')
+              )
+            )
+            .orderBy(desc(workflowEvents.occurredAt))
+            .limit(1);
+
+          if (completedEvent) {
+            server.eventBus.emit('workflow.instance.migration.completed', {
+              eventId: randomUUID(),
+              eventType: 'workflow.instance.migration.completed',
+              occurredAt: new Date().toISOString(),
+              cityId: ctx.auth.cityId,
+              schemaVersion: 1,
+              payload: completedEvent.payload,
+            });
+          }
+        }
+
+        return result!;
       }),
   });
 }

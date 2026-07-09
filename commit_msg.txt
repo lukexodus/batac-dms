@@ -1,0 +1,17 @@
+feat(TASK-WF-022): implement admin mutation procedures in workflow router
+
+# Walkthrough: Admin Mutation Procedures (TASK-WF-022)
+
+## Changes Made
+- Implemented `cancelInstance`, `bypassStep`, and `migrateInstanceToNewDefinitionVersion` procedures in `apps/server/src/modules/workflow/workflow.router.ts`.
+- Replaced stub implementations with calls to the actual engine methods in `admin-operations.ts`.
+- Enforced transaction wrapping around engine calls for atomic execution, confirmed safe via `postgres.js`'s SQL `SAVEPOINT` support.
+- Implemented `stubGetApprovalGrant` and `stubMarkApprovalGrantUsed` locally in the router to satisfy the `AdminOperationsDeps` type contract (pending C1 schema implementation).
+- Correctly parsed the generated `workflow_events` from the engine layer and forwarded them to `ctx.req.server.eventBus` using the correct payload shapes.
+- Updated `docs/pre-development/B-architecture-documents/b3-internal-domain-event-catalog-v1.3.md` to add the missing `comment` field to `WorkflowStepBypassedPayloadSchema` (LOG-0055).
+- Appended findings `LOG-0052` through `LOG-0056` to `docs/development-findings-log.md` detailing all architectural observations and workarounds.
+
+## Validation Results
+- `pnpm typecheck` passes cleanly.
+- `workflow.router.test.ts` and all other workflow module tests pass.
+- Verified nested transactions behavior does not violate test boundaries.
