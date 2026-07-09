@@ -345,25 +345,129 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
   },
 };
 
-export const SP_ORDINANCE_WORKFLOW: WorkflowDefinitionSeed = {
-  ...SP_RESOLUTION_WORKFLOW,
-  definition: {
-    ...SP_RESOLUTION_WORKFLOW.definition,
-    name: "SP Ordinance — 7th Sangguniang Panlungsod",
-    document_type_code: "SP_ORDINANCE",
-    description: "Same as SP Resolution, except for Ordinance document type.",
-  },
-};
+const cloneWorkflow = (wf: typeof SP_RESOLUTION_WORKFLOW) => JSON.parse(JSON.stringify(wf)) as typeof SP_RESOLUTION_WORKFLOW;
 
-export const APPROPRIATION_ORDINANCE_WORKFLOW: WorkflowDefinitionSeed = {
-  ...SP_RESOLUTION_WORKFLOW,
-  definition: {
-    ...SP_RESOLUTION_WORKFLOW.definition,
-    name: "Appropriation Ordinance — 7th Sangguniang Panlungsod",
-    document_type_code: "SP_APPROPRIATION_ORDINANCE",
-    description: "Same as SP Resolution, except for Appropriation Ordinance document type.",
-  },
-};
+export const SP_ORDINANCE_WORKFLOW: WorkflowDefinitionSeed = (() => {
+  const wf = cloneWorkflow(SP_RESOLUTION_WORKFLOW);
+  wf.definition.name = "SP Ordinance — 7th Sangguniang Panlungsod";
+  wf.definition.document_type_code = "SP_ORDINANCE";
+  wf.definition.description = "Same as SP Resolution, except for Ordinance document type.";
+
+  const ordSteps = wf.version.steps;
+  const ordRules = wf.version.transition_rules;
+
+  // 1. Replace second_reading_amended_vote with third_reading_vote
+  const stepIndex7 = ordSteps.findIndex((s: any) => s.step_key === 'second_reading_amended_vote');
+  if (stepIndex7 !== -1) {
+    ordSteps[stepIndex7] = {
+      step_key: "third_reading_vote",
+      step_type: "approval",
+      label: "Third Reading — Final Vote",
+      position: ordSteps[stepIndex7]!.position,
+      legally_mandated: true,
+      config: { assignee: ROLE.SP_SECRETARY, allowed_outcomes: ["APPROVED", "REJECTED"], require_comment_on: ["REJECTED"] }
+    } as any;
+  }
+
+  // 2. Change second_reading_vote → final_number_assignment (APPROVED) to third_reading_vote
+  const rule1 = ordRules.find((r: any) => r.from_step_key === 'second_reading_vote' && r.outcome_filter === 'APPROVED');
+  if (rule1) rule1.to_step_key = 'third_reading_vote';
+
+  // 3. Change amendments_logging → second_reading_amended_vote to third_reading_vote
+  const rule2 = ordRules.find((r: any) => r.from_step_key === 'amendments_logging' && r.to_step_key === 'second_reading_amended_vote');
+  if (rule2) rule2.to_step_key = 'third_reading_vote';
+
+  // 4. Add third_reading_vote → final_number_assignment and third_reading_vote → end_rejected_at_vote
+  ordRules.push(
+    { from_step_key: "third_reading_vote", to_step_key: "final_number_assignment", outcome_filter: "APPROVED", condition_expression: null, priority: 1, label: null },
+    { from_step_key: "third_reading_vote", to_step_key: "end_rejected_at_vote", outcome_filter: "REJECTED", condition_expression: null, priority: 2, label: null }
+  );
+
+  // 5. Insert publication_check and newspaper_publication after archive
+  const archiveIndex = ordSteps.findIndex((s: any) => s.step_key === 'archive');
+  const pubCheckStep = { step_key: "publication_check", step_type: "decision", label: "Check Publication Requirement", position: 0, legally_mandated: false, config: { condition_expression: JSON.stringify({"==":[{"var":"requires_publication"},true]}), true_outcome: "TRUE", false_outcome: "FALSE" } };
+  const newsPubStep = { step_key: "newspaper_publication", step_type: "action", label: "Newspaper Publication", position: 0, legally_mandated: false, config: { assignee: ROLE.SP_SECRETARY, form_key: "form.document.newspaper_publication", require_comment: false, allow_comment: true, auto_complete: false } };
+  
+  if (archiveIndex !== -1) {
+    ordSteps.splice(archiveIndex + 1, 0, pubCheckStep as any, newsPubStep as any);
+  }
+
+  // Renumber remaining
+  ordSteps.forEach((s: any, idx: number) => s.position = idx + 1);
+
+  // 6. Redirect rules targeting portal_publication to publication_check
+  ordRules.forEach((r: any) => {
+    if (r.to_step_key === 'portal_publication') {
+      r.to_step_key = 'publication_check';
+    }
+  });
+
+  // 7. Add publication_check rules
+  ordRules.push(
+    { from_step_key: "publication_check", to_step_key: "newspaper_publication", outcome_filter: "TRUE", condition_expression: null, priority: 1, label: null },
+    { from_step_key: "publication_check", to_step_key: "portal_publication", outcome_filter: "FALSE", condition_expression: null, priority: 2, label: null },
+    { from_step_key: "newspaper_publication", to_step_key: "portal_publication", outcome_filter: null, condition_expression: null, priority: 1, label: null }
+  );
+
+  return wf;
+})();
+
+export const APPROPRIATION_ORDINANCE_WORKFLOW: WorkflowDefinitionSeed = (() => {
+  const wf = cloneWorkflow(SP_RESOLUTION_WORKFLOW);
+  wf.definition.name = "Appropriation Ordinance — 7th Sangguniang Panlungsod";
+  wf.definition.document_type_code = "SP_APPROPRIATION_ORDINANCE";
+  wf.definition.description = "Same as SP Resolution, except for Appropriation Ordinance document type.";
+
+  const appOrdSteps = wf.version.steps;
+  const appOrdRules = wf.version.transition_rules;
+
+  const stepIndex7App = appOrdSteps.findIndex((s: any) => s.step_key === 'second_reading_amended_vote');
+  if (stepIndex7App !== -1) {
+    appOrdSteps[stepIndex7App] = {
+      step_key: "third_reading_vote",
+      step_type: "approval",
+      label: "Third Reading — Final Vote",
+      position: appOrdSteps[stepIndex7App]!.position,
+      legally_mandated: true,
+      config: { assignee: ROLE.SP_SECRETARY, allowed_outcomes: ["APPROVED", "REJECTED"], require_comment_on: ["REJECTED"] }
+    } as any;
+  }
+
+  const appRule1 = appOrdRules.find((r: any) => r.from_step_key === 'second_reading_vote' && r.outcome_filter === 'APPROVED');
+  if (appRule1) appRule1.to_step_key = 'third_reading_vote';
+
+  const appRule2 = appOrdRules.find((r: any) => r.from_step_key === 'amendments_logging' && r.to_step_key === 'second_reading_amended_vote');
+  if (appRule2) appRule2.to_step_key = 'third_reading_vote';
+
+  appOrdRules.push(
+    { from_step_key: "third_reading_vote", to_step_key: "final_number_assignment", outcome_filter: "APPROVED", condition_expression: null, priority: 1, label: null },
+    { from_step_key: "third_reading_vote", to_step_key: "end_rejected_at_vote", outcome_filter: "REJECTED", condition_expression: null, priority: 2, label: null }
+  );
+
+  // 1. Add "OPERATIVE_IN_ITS_ENTIRETY" to panlalawigan_review allowed_outcomes
+  const panRevStep = appOrdSteps.find((s: any) => s.step_key === 'panlalawigan_review');
+  if (panRevStep) {
+    (panRevStep.config as any).allowed_outcomes.push("OPERATIVE_IN_ITS_ENTIRETY");
+  }
+
+  // 2. Add transition rule panlalawigan_review → portal_publication (OPERATIVE_IN_ITS_ENTIRETY)
+  appOrdRules.push({
+    from_step_key: "panlalawigan_review",
+    to_step_key: "portal_publication",
+    outcome_filter: "OPERATIVE_IN_ITS_ENTIRETY",
+    condition_expression: null,
+    priority: 1,
+    label: "Operative in its entirety"
+  });
+
+  // 3. Change final_outcome_check condition
+  const finalOutcomeCheckStep = appOrdSteps.find((s: any) => s.step_key === 'final_outcome_check');
+  if (finalOutcomeCheckStep) {
+    (finalOutcomeCheckStep.config as any).condition_expression = JSON.stringify({"in":[{"var":"panlalawigan_outcome"},["VALID","DEEMED_APPROVED","OPERATIVE_IN_ITS_ENTIRETY"]]});
+  }
+
+  return wf;
+})();
 
 const ALL_WORKFLOWS = [SP_RESOLUTION_WORKFLOW, SP_ORDINANCE_WORKFLOW, APPROPRIATION_ORDINANCE_WORKFLOW];
 
