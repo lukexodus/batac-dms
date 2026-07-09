@@ -190,14 +190,7 @@ function enforceRoles(ctx: Context, allowedRoles: string[]) {
   }
 }
 
-// TODO: Temporary placeholder pending the real schema (see LOG-0053).
-// This stub ensures type safety for AdminOperationsDeps but fails closed by always returning null.
-async function stubGetApprovalGrant() {
-  return null;
-}
 
-// TODO: Temporary placeholder. No-op because stubGetApprovalGrant always returns null.
-async function stubMarkApprovalGrantUsed() {}
 
 export function createWorkflowRouter() {
   return router({
@@ -2133,8 +2126,8 @@ export function createWorkflowRouter() {
             eventBus: server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
-            getApprovalGrant: stubGetApprovalGrant,
-            markApprovalGrantUsed: stubMarkApprovalGrantUsed,
+            getApprovalGrant: (instanceId, versionId) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
+            markApprovalGrantUsed: (grantId) => deps.workflowRepository.markApprovalGrantUsed(grantId),
           };
           await cancelInstance(input.instanceId, ctx.auth!.userId, input.reason, deps);
         });
@@ -2182,8 +2175,8 @@ export function createWorkflowRouter() {
             eventBus: server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
-            getApprovalGrant: stubGetApprovalGrant,
-            markApprovalGrantUsed: stubMarkApprovalGrantUsed,
+            getApprovalGrant: (instanceId, versionId) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
+            markApprovalGrantUsed: (grantId) => deps.workflowRepository.markApprovalGrantUsed(grantId),
           };
           await bypassStep(input.stepInstanceId, ctx.auth!.userId, input.bypassReason, input.comment, input.outcomeCode, deps);
         });
@@ -2241,8 +2234,8 @@ export function createWorkflowRouter() {
             eventBus: server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
-            getApprovalGrant: stubGetApprovalGrant,
-            markApprovalGrantUsed: stubMarkApprovalGrantUsed,
+            getApprovalGrant: (instanceId, versionId) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
+            markApprovalGrantUsed: (grantId) => deps.workflowRepository.markApprovalGrantUsed(grantId),
           };
           result = await migrateInstance(
             input.instanceId,

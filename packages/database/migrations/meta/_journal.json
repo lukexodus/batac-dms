@@ -71,6 +71,13 @@
       "when": 1783585147664,
       "tag": "0009_skinny_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783588991222,
+      "tag": "0010_watery_lethal_legion",
+      "breakpoints": true
     }
   ]
 }

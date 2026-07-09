@@ -42,9 +42,9 @@ describe('Admin Operations', () => {
         getDefinitionVersionWithSteps: vi.fn(),
         getActiveStepInstancesForInstance: vi.fn(),
         migrateInstanceVersion: vi.fn(),
+        getApprovalGrant: vi.fn(),
+        markApprovalGrantUsed: vi.fn(),
       },
-      getApprovalGrant: vi.fn(),
-      markApprovalGrantUsed: vi.fn(),
     };
 
     vi.spyOn(StepResolution, 'resolveNextStep').mockResolvedValue(undefined);
@@ -142,7 +142,7 @@ describe('Admin Operations', () => {
     it('VER-05: throws NO_ADMIN_APPROVAL if grant not found', async () => {
       mockDeps.workflowRepository.getInstanceById.mockResolvedValue({ id: 'inst-1', status: 'active', definitionId: 'def-1' });
       mockDeps.workflowRepository.getDefinitionVersionWithSteps.mockResolvedValue({ version: { publishedAt: new Date(), definitionId: 'def-1' }, steps: [], transitionRules: [] });
-      mockDeps.getApprovalGrant.mockResolvedValue(null);
+      mockDeps.workflowRepository.getApprovalGrant.mockResolvedValue(null);
 
       await expect(migrateInstance('inst-1', 'target-v2', 'admin-1', 'reason', mockDeps)).rejects.toThrowError('No admin approval grant found');
     });
@@ -150,7 +150,7 @@ describe('Admin Operations', () => {
     it('VER-06: throws APPROVAL_EXPIRED if grant is expired', async () => {
       mockDeps.workflowRepository.getInstanceById.mockResolvedValue({ id: 'inst-1', status: 'active', definitionId: 'def-1' });
       mockDeps.workflowRepository.getDefinitionVersionWithSteps.mockResolvedValue({ version: { publishedAt: new Date(), definitionId: 'def-1' }, steps: [], transitionRules: [] });
-      mockDeps.getApprovalGrant.mockResolvedValue({ id: 'grant-1', expiryTimestamp: new Date(Date.now() - 1000) });
+      mockDeps.workflowRepository.getApprovalGrant.mockResolvedValue({ id: 'grant-1', expiresAt: new Date(Date.now() - 1000).toISOString() });
 
       await expect(migrateInstance('inst-1', 'target-v2', 'admin-1', 'reason', mockDeps)).rejects.toThrowError('Admin approval grant has expired');
     });
@@ -165,7 +165,7 @@ describe('Admin Operations', () => {
         return null;
       });
 
-      mockDeps.getApprovalGrant.mockResolvedValue({ id: 'grant-1', expiryTimestamp: new Date(Date.now() + 100000) });
+      mockDeps.workflowRepository.getApprovalGrant.mockResolvedValue({ id: 'grant-1', expiresAt: new Date(Date.now() + 100000).toISOString() });
       
       mockDeps.workflowRepository.getActiveStepInstancesForInstance.mockResolvedValue([
         { id: 'inst-step-1', stepId: 'old-step-1' },
@@ -186,7 +186,7 @@ describe('Admin Operations', () => {
         return null;
       });
 
-      mockDeps.getApprovalGrant.mockResolvedValue({ id: 'grant-1', expiryTimestamp: new Date(Date.now() + 100000) });
+      mockDeps.workflowRepository.getApprovalGrant.mockResolvedValue({ id: 'grant-1', expiresAt: new Date(Date.now() + 100000).toISOString() });
       
       mockDeps.workflowRepository.getActiveStepInstancesForInstance.mockResolvedValue([
         { id: 'inst-step-1', stepId: 'old-step-1' }
@@ -197,7 +197,7 @@ describe('Admin Operations', () => {
 
       expect(mockDeps.workflowRepository.migrateInstanceVersion).toHaveBeenCalledWith('inst-1', 'target-v2', mockTrx);
       expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith('inst-step-1', { stepId: 'new-step-1' }, mockTrx);
-      expect(mockDeps.markApprovalGrantUsed).toHaveBeenCalledWith('grant-1', mockTrx);
+      expect(mockDeps.workflowRepository.markApprovalGrantUsed).toHaveBeenCalledWith('grant-1', mockTrx);
 
       expect(mockDeps.workflowRepository.createWorkflowEvent).toHaveBeenCalledWith(expect.objectContaining({
         eventType: 'workflow.instance.migration.started',
@@ -221,7 +221,7 @@ describe('Admin Operations', () => {
         return null;
       });
 
-      mockDeps.getApprovalGrant.mockResolvedValue({ id: 'grant-1', expiryTimestamp: new Date(Date.now() + 100000) });
+      mockDeps.workflowRepository.getApprovalGrant.mockResolvedValue({ id: 'grant-1', expiresAt: new Date(Date.now() + 100000).toISOString() });
       
       mockDeps.workflowRepository.getActiveStepInstancesForInstance.mockResolvedValue([
         { id: 'inst-step-1', stepId: 'old-step-1' }
@@ -265,7 +265,7 @@ describe('Admin Operations', () => {
 
       await reverseMigration('inst-1', 'admin-1', 'reverse reason', 'orig-evt', mockDeps);
 
-      expect(mockDeps.getApprovalGrant).not.toHaveBeenCalled();
+      expect(mockDeps.workflowRepository.getApprovalGrant).not.toHaveBeenCalled();
       expect(mockDeps.workflowRepository.migrateInstanceVersion).toHaveBeenCalledWith('inst-1', 'v1', mockTrx);
       expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith('inst-step-1', { stepId: 'old-step-1' }, mockTrx);
     });
@@ -297,17 +297,17 @@ describe('Admin Operations', () => {
       ]);
 
       // Mock expired grant => APPROVAL_EXPIRED
-      mockDeps.getApprovalGrant.mockResolvedValue({ id: 'grant-2', expiryTimestamp: new Date(Date.now() - 1000) });
+      mockDeps.workflowRepository.getApprovalGrant.mockResolvedValue({ id: 'grant-2', expiresAt: new Date(Date.now() - 1000).toISOString() });
       await expect(reverseMigration('inst-1', 'admin-1', 'reverse reason', 'orig-evt', mockDeps)).rejects.toThrowError('Admin approval grant has expired');
 
       // Mock missing grant => NO_ADMIN_APPROVAL
-      mockDeps.getApprovalGrant.mockResolvedValue(null);
+      mockDeps.workflowRepository.getApprovalGrant.mockResolvedValue(null);
       await expect(reverseMigration('inst-1', 'admin-1', 'reverse reason', 'orig-evt', mockDeps)).rejects.toThrowError('No admin approval grant found');
 
       // Mock valid grant => successful reversal
-      mockDeps.getApprovalGrant.mockResolvedValue({ id: 'grant-3', expiryTimestamp: new Date(Date.now() + 100000) });
+      mockDeps.workflowRepository.getApprovalGrant.mockResolvedValue({ id: 'grant-3', expiresAt: new Date(Date.now() + 100000).toISOString() });
       await reverseMigration('inst-1', 'admin-1', 'reverse reason', 'orig-evt', mockDeps);
-      expect(mockDeps.markApprovalGrantUsed).toHaveBeenCalledWith('grant-3', mockTrx);
+      expect(mockDeps.workflowRepository.markApprovalGrantUsed).toHaveBeenCalledWith('grant-3', mockTrx);
     });
   });
 });

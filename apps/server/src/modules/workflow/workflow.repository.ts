@@ -15,6 +15,7 @@ import {
   sessionAttendances,
   orderOfBusiness,
   orderOfBusinessItems,
+  adminApprovalGrants,
 } from '@batac/database/schema/workflow.schema.js';
 import {
   InvalidWorkflowTransitionError,
@@ -34,6 +35,7 @@ type CommitteeReportRow = InferSelectModel<typeof committeeReports>;
 type SpSessionRow = InferSelectModel<typeof spSessions>;
 type OrderOfBusinessRow = InferSelectModel<typeof orderOfBusiness>;
 type OrderOfBusinessItemRow = InferSelectModel<typeof orderOfBusinessItems>;
+type AdminApprovalGrantRow = InferSelectModel<typeof adminApprovalGrants>;
 
 export class WorkflowRepository {
   constructor(private readonly db: AppDb) {}
@@ -179,6 +181,61 @@ export class WorkflowRepository {
       .from(instances)
       .where(and(eq(instances.id, id), isNull(instances.deletedAt)));
     return row || null;
+  }
+
+  async getDefinitionVersionByVersion(
+    definitionId: string,
+    versionNumber: number,
+    tx: AppDb = this.db
+  ): Promise<DefinitionVersionRow | null> {
+    const [row] = await tx
+      .select()
+      .from(definitionVersions)
+      .where(
+        and(
+          eq(definitionVersions.definitionId, definitionId),
+          eq(definitionVersions.versionNumber, versionNumber)
+        )
+      )
+      .limit(1);
+    return row || null;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Admin Approval Grants (LOG-0053)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  async getApprovalGrant(
+    instanceId: string,
+    newDefinitionVersionId: string,
+    tx: AppDb = this.db
+  ): Promise<AdminApprovalGrantRow | null> {
+    const now = new Date().toISOString();
+    const [row] = await tx
+      .select()
+      .from(adminApprovalGrants)
+      .where(
+        and(
+          eq(adminApprovalGrants.instanceId, instanceId),
+          eq(adminApprovalGrants.newDefinitionVersionId, newDefinitionVersionId),
+          isNull(adminApprovalGrants.usedAt),
+          sql`${adminApprovalGrants.expiresAt} > ${now}::timestamp with time zone`
+        )
+      )
+      .orderBy(desc(adminApprovalGrants.approvedAt)) // Get most recent if multiple
+      .limit(1);
+
+    return row || null;
+  }
+
+  async markApprovalGrantUsed(
+    grantId: string,
+    tx: AppDb = this.db
+  ): Promise<void> {
+    await tx
+      .update(adminApprovalGrants)
+      .set({ usedAt: new Date() })
+      .where(eq(adminApprovalGrants.id, grantId));
   }
 
   async getActiveInstanceForDocument(

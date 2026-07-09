@@ -15,13 +15,6 @@ import { resolveNextStep } from './step-resolution.js';
 export interface AdminOperationsDeps {
   db: AppDb;
   workflowRepository: WorkflowRepository;
-  // TODO: Replace these with real repository methods once workflow.admin_approval_grants schema is created.
-  getApprovalGrant: (
-    instanceId: string,
-    targetVersionId: string,
-    tx: AppDb
-  ) => Promise<{ id: string; expiryTimestamp: Date } | null>;
-  markApprovalGrantUsed: (grantId: string, tx: AppDb) => Promise<void>;
 }
 
 export async function cancelInstance(
@@ -159,11 +152,17 @@ export async function migrateInstance(
     }
 
     // 2. City Administrator approval record
-    const grant = await deps.getApprovalGrant(instanceId, targetVersionId, trx);
-    if (!grant) {
-      throw new NoAdminApprovalError('No admin approval grant found for this migration');
+    const approvalGrant = await deps.workflowRepository.getApprovalGrant(
+      instanceId,
+      targetVersionId,
+      trx
+    );
+
+    if (!approvalGrant) {
+      throw new NoAdminApprovalError('No admin approval grant found for this instance migration');
     }
-    if (grant.expiryTimestamp <= new Date()) {
+
+    if (new Date(approvalGrant.expiresAt).getTime() < Date.now()) {
       throw new ApprovalExpiredError('Admin approval grant has expired');
     }
 
@@ -225,7 +224,7 @@ export async function migrateInstance(
       await deps.workflowRepository.updateStepInstance(activeStepInst.id, { stepId: newStepId }, trx);
     }
 
-    await deps.markApprovalGrantUsed(grant.id, trx);
+    await deps.workflowRepository.markApprovalGrantUsed(approvalGrant.id, trx);
 
     const completedAt = new Date();
     const completedEvent = await deps.workflowRepository.createWorkflowEvent(
@@ -311,14 +310,14 @@ export async function reverseMigration(
     const targetVersionId = (originalEvent.payload as any).from_version_id;
 
     if (now > reversibleUntil) {
-      const grant = await deps.getApprovalGrant(instanceId, targetVersionId, trx);
-      if (!grant) {
+      const approvalGrant = await deps.workflowRepository.getApprovalGrant(instanceId, targetVersionId, trx);
+      if (!approvalGrant) {
         throw new NoAdminApprovalError('No admin approval grant found for this reversal past 24h');
       }
-      if (grant.expiryTimestamp <= now) {
+      if (new Date(approvalGrant.expiresAt).getTime() < Date.now()) {
         throw new ApprovalExpiredError('Admin approval grant has expired');
       }
-      await deps.markApprovalGrantUsed(grant.id, trx);
+      await deps.workflowRepository.markApprovalGrantUsed(approvalGrant.id, trx);
     }
 
     const instance = await deps.workflowRepository.getInstanceById(instanceId, trx);
