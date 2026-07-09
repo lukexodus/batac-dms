@@ -1334,16 +1334,38 @@ describe('TASK-WF-021 Procedures', () => {
     it('throws PRECONDITION_FAILED for non-Ordinance document types', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
-      mockDb.mockResponse([{ code: 'SP_RESOLUTION' }]); // document type lookup
+      mockDb.mockResponse([{ code: 'SP_RESOLUTION', metadata: {} }]); // document type lookup
       await expect(
         caller.recordNewspaperPublicationDate({ documentId: DOCUMENT_ID, publicationDate: new Date('2026-07-01') })
       ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
     });
 
-    it('writes publication_date and publication_newspaper to context for SP_ORDINANCE', async () => {
+    it('throws PRECONDITION_FAILED when has_penalty_provision is false', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
-      mockDb.mockResponse([{ code: 'SP_ORDINANCE' }]); // document type lookup
+      mockDb.mockResponse([{ code: 'SP_ORDINANCE', metadata: { has_penalty_provision: false } }]); // document type lookup
+      await expect(
+        caller.recordNewspaperPublicationDate({ documentId: DOCUMENT_ID, publicationDate: new Date('2026-07-01') })
+      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED', message: expect.stringContaining('penalty provision') });
+    });
+
+    it('throws NOT_FOUND when no active newspaper_publication step found', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
+      mockDb.mockResponse([{ code: 'SP_ORDINANCE', metadata: { has_penalty_provision: true } }]); // document type lookup
+      mockDb.mockResponse([]); // active step query returns empty
+      await expect(
+        caller.recordNewspaperPublicationDate({ documentId: DOCUMENT_ID, publicationDate: new Date('2026-07-01') })
+      ).rejects.toMatchObject({ code: 'NOT_FOUND', message: expect.stringContaining('newspaper_publication step') });
+    });
+
+    it('writes publication_date and publication_newspaper to context for SP_ORDINANCE', async () => {
+      const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
+      const caller = callerFor(ctx as any);
+      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
+      mockDb.mockResponse([{ code: 'SP_ORDINANCE', metadata: { has_penalty_provision: true } }]); // document type lookup
+      mockDb.mockResponse([{ stepInstanceId: STEP_INSTANCE_ID }]); // active step query
+      mockDb.mockResponse(makeWF021StepContextRow({ stepKey: 'newspaper_publication' })); // fetchStepContext
 
       const publicationDate = new Date('2026-07-09T00:00:00.000Z');
       const result = await caller.recordNewspaperPublicationDate({
@@ -1357,12 +1379,21 @@ describe('TASK-WF-021 Procedures', () => {
       const patch = mockUpdateInstanceContext.mock.calls[0]![1] as Record<string, any>;
       expect(patch['publication_date']).toBe('2026-07-09'); // YYYY-MM-DD only
       expect(patch['publication_newspaper']).toBe('Ilocos Times');
+
+      expect(mockSubmitStepAction).toHaveBeenCalledOnce();
+      expect(ctx.req.server.eventBus.emit).toHaveBeenCalledWith('workflow.step.completed', expect.objectContaining({
+        payload: expect.objectContaining({
+          outcome: 'DONE',
+        })
+      }));
     });
 
     it('writes correct context for SP_APPROPRIATION_ORDINANCE', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
-      mockDb.mockResponse([{ code: 'SP_APPROPRIATION_ORDINANCE' }]);
+      mockDb.mockResponse([{ code: 'SP_APPROPRIATION_ORDINANCE', metadata: { has_penalty_provision: true } }]); // document type lookup
+      mockDb.mockResponse([{ stepInstanceId: STEP_INSTANCE_ID }]); // active step query
+      mockDb.mockResponse(makeWF021StepContextRow({ stepKey: 'newspaper_publication' })); // fetchStepContext
 
       const result = await caller.recordNewspaperPublicationDate({
         documentId: DOCUMENT_ID,

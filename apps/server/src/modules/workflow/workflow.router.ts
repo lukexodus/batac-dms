@@ -2041,20 +2041,21 @@ export function createWorkflowRouter() {
         
         workflowPolicy.canLogSpSecretaryAction(ctx.auth);
 
-        // Fetch document type to verify constraint
+        // Fetch document type and metadata to verify constraint
         const docRows = await ctx.db
           .select({
             code: documentTypes.code,
+            metadata: documents.metadata,
           })
           .from(documents)
           .innerJoin(documentTypes, eq(documents.documentTypeId, documentTypes.id))
           .where(eq(documents.id, input.documentId))
           .limit(1);
-
+ 
         if (docRows.length === 0) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Document not found' });
         }
-
+ 
         const docType = docRows[0]!.code;
         if (docType !== 'SP_ORDINANCE' && docType !== 'SP_APPROPRIATION_ORDINANCE') {
           throw new TRPCError({
@@ -2063,9 +2064,57 @@ export function createWorkflowRouter() {
           });
         }
 
+        // Add penalty clause check
+        const docMetadata = (docRows[0]!.metadata as Record<string, any>) || {};
+        const hasPenalty = docMetadata['has_penalty_provision'] === true || docMetadata['has_penalty_provision'] === 'true';
+        if (!hasPenalty) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Only ordinances with a penalty provision require newspaper publication.',
+          });
+        }
+
+        // Query active step instance for 'newspaper_publication'
+        const rows = await ctx.db
+          .select({
+            stepInstanceId: stepInstances.id,
+          })
+          .from(stepInstances)
+          .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+          .where(and(
+            eq(stepInstances.instanceId, instance.id),
+            eq(steps.stepKey, 'newspaper_publication'),
+            inArray(stepInstances.status, ['pending', 'active']),
+            isNull(stepInstances.deletedAt)
+          ))
+          .limit(1);
+
+        if (rows.length === 0) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'No active newspaper_publication step found for this instance' });
+        }
+
+        const stepContext = await fetchStepContext(rows[0]!.stepInstanceId, ctx);
+        if (!stepContext) throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
+
+        const server = ctx.req.server as any;
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        const { submitStepAction } = await import('./engine/step-handlers/action.handler.js');
+ 
         await ctx.db.transaction(async (tx) => {
-          const txRepo = new WorkflowRepository(tx as any);
-          await txRepo.updateInstanceContext(
+          const txDeps = {
+            ...deps,
+            workflowRepository: new WorkflowRepository(tx as any),
+          };
+          
+          await txDeps.workflowRepository.updateInstanceContext(
             instance.id,
             {
               publication_date: input.publicationDate.toISOString().split('T')[0],
@@ -2073,8 +2122,35 @@ export function createWorkflowRouter() {
             },
             tx as any
           );
+
+          await submitStepAction(
+            instance,
+            stepContext.stepInstance,
+            ctx.auth.userId,
+            null, // comment
+            txDeps,
+            tx as any
+          );
         });
 
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId: stepContext.stepInstance.id,
+              stepId: stepContext.step.id,
+              stepType: stepContext.step.stepType,
+              outcome: 'DONE',
+              comment: null,
+            },
+          });
+        }
+ 
         return { success: true };
       }),
 
