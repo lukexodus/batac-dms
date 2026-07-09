@@ -301,6 +301,8 @@ export const instances = workflowSchema.table(
     context: jsonb('context').notNull().default(sql`'{}'::jsonb`),
     slaDeadline: timestamp('sla_deadline', { withTimezone: true }),
     slaBreachedAt: timestamp('sla_breached_at', { withTimezone: true }),
+    slaWarningSentAt: timestamp('sla_warning_sent_at', { withTimezone: true }),
+    slaCriticalSentAt: timestamp('sla_critical_sent_at', { withTimezone: true }),
     startedAt: timestamp('started_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

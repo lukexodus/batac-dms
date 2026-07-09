@@ -64,6 +64,13 @@
       "when": 1744160000000,
       "tag": "0008_add_legally_mandated_to_steps",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783585147664,
+      "tag": "0009_skinny_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }

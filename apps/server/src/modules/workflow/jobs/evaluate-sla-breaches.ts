@@ -174,13 +174,9 @@ export async function evaluateSlaBreaches(
     const percent = elapsed / duration;
 
     // Check conditions before acquiring lock
-    const context = (instance.context as Record<string, any>) || {};
-    const slaWarningSentAt = context['_sla_warning_sent_at'];
-    const slaCriticalSentAt = context['_sla_critical_sent_at'];
-
-    const needsWarning = percent >= 0.8 && !slaWarningSentAt;
+    const needsWarning = percent >= 0.8 && !instance.slaWarningSentAt;
     const needsBreach = nowTime > deadlineTime && !instance.slaBreachedAt;
-    const needsCritical = percent >= 1.5 && !slaCriticalSentAt;
+    const needsCritical = percent >= 1.5 && !instance.slaCriticalSentAt;
 
     if (!needsWarning && !needsBreach && !needsCritical) {
       continue;
@@ -193,14 +189,12 @@ export async function evaluateSlaBreaches(
       const lockedInstance = await deps.workflowRepository.lockInstanceForUpdate(instance.id, tx);
       if (!lockedInstance) return; // Deleted or not found
 
-      const lockedCtx = (lockedInstance.context as Record<string, any>) || {};
       const applyUpdates: any = {};
       let shouldUpdate = false;
 
       // Re-check conditions under lock
-      if (percent >= 0.8 && !lockedCtx['_sla_warning_sent_at']) {
-        lockedCtx['_sla_warning_sent_at'] = now.toISOString();
-        applyUpdates.context = lockedCtx;
+      if (percent >= 0.8 && !lockedInstance.slaWarningSentAt) {
+        applyUpdates.slaWarningSentAt = now;
         shouldUpdate = true;
 
         await deps.workflowRepository.createWorkflowEvent({
@@ -249,9 +243,8 @@ export async function evaluateSlaBreaches(
         });
       }
 
-      if (percent >= 1.5 && !lockedCtx['_sla_critical_sent_at']) {
-        lockedCtx['_sla_critical_sent_at'] = now.toISOString();
-        applyUpdates.context = lockedCtx;
+      if (percent >= 1.5 && !lockedInstance.slaCriticalSentAt) {
+        applyUpdates.slaCriticalSentAt = now;
         shouldUpdate = true;
 
         await deps.workflowRepository.createWorkflowEvent({

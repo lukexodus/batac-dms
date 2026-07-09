@@ -150,11 +150,11 @@ describe('SLA Escalation Monitor Job', () => {
       const now = new Date('2023-11-09T12:00:00Z'); // 8 days elapsed (80%)
 
       (mockWorkflowRepository.getActiveInstancesWithSla as any).mockResolvedValue([
-        { id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, context: {} }
+        { id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, slaWarningSentAt: null }
       ]);
 
       (mockWorkflowRepository.lockInstanceForUpdate as any).mockResolvedValue({
-        id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, context: {}
+        id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, slaWarningSentAt: null
       });
 
       await runJob(now);
@@ -171,7 +171,7 @@ describe('SLA Escalation Monitor Job', () => {
       }));
 
       expect(mockWorkflowRepository.updateInstance).toHaveBeenCalledWith('inst-1', expect.objectContaining({
-        context: { _sla_warning_sent_at: now.toISOString() }
+        slaWarningSentAt: now
       }), 'mock-tx');
     });
 
@@ -181,11 +181,11 @@ describe('SLA Escalation Monitor Job', () => {
       const now = new Date('2023-11-15T12:00:00Z'); // 14 days elapsed (>100%)
 
       (mockWorkflowRepository.getActiveInstancesWithSla as any).mockResolvedValue([
-        { id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, context: {} }
+        { id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, slaBreachedAt: null }
       ]);
 
       (mockWorkflowRepository.lockInstanceForUpdate as any).mockResolvedValue({
-        id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, context: {}
+        id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, slaBreachedAt: null
       });
 
       await runJob(now);
@@ -218,11 +218,11 @@ describe('SLA Escalation Monitor Job', () => {
       const now = new Date('2023-11-16T12:00:00Z'); // 15 days elapsed (150%)
 
       (mockWorkflowRepository.getActiveInstancesWithSla as any).mockResolvedValue([
-        { id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, context: { _sla_warning_sent_at: '2023-11-09T12:00:00Z' }, slaBreachedAt: deadline }
+        { id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, slaWarningSentAt: new Date('2023-11-09T12:00:00Z'), slaCriticalSentAt: null, slaBreachedAt: deadline }
       ]);
 
       (mockWorkflowRepository.lockInstanceForUpdate as any).mockResolvedValue({
-        id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, context: { _sla_warning_sent_at: '2023-11-09T12:00:00Z' }, slaBreachedAt: deadline
+        id: 'inst-1', cityId: 'city-1', startedAt, slaDeadline: deadline, slaWarningSentAt: new Date('2023-11-09T12:00:00Z'), slaCriticalSentAt: null, slaBreachedAt: deadline
       });
 
       await runJob(now);
@@ -240,7 +240,7 @@ describe('SLA Escalation Monitor Job', () => {
       }));
 
       expect(mockWorkflowRepository.updateInstance).toHaveBeenCalledWith('inst-1', expect.objectContaining({
-        context: expect.objectContaining({ _sla_critical_sent_at: now.toISOString() })
+        slaCriticalSentAt: now
       }), 'mock-tx');
     });
   });
