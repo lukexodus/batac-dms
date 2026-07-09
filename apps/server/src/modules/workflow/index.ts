@@ -1,5 +1,5 @@
 export { default as workflowPlugin } from './workflow.plugin.js';
-
+export { createWorkflowPublicAPI } from './workflow.public-api.js';
 export interface WorkflowPublicAPI {
   getInstanceById(instanceId: string): Promise<WorkflowInstanceSummary | null>;
   getActiveInstanceForDocument(documentId: string): Promise<WorkflowInstanceSummary | null>;
