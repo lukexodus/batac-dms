@@ -1507,3 +1507,124 @@ No changes to code structure were made as this is a broad monorepo design patter
 
 **What was implemented:**
 Updated `docs/pre-development/A-project-planning/a1-tasks/wf.md` line 1707 to remove `sp_presiding_officer` from the list of allowed roles for generic approvals, aligning the documentation with `I2` and the actual codebase. No code changes were needed as the policy and database seed rules were already correctly aligned with the `I2` security requirements.
+
+---
+
+### LOG-0061: certifyAsPresidingOfficer / mayorSign / mayorVeto implementation during correctness check
+
+- date: 2026-07-09
+- task_id: TASK-WF-019
+- status: proposed
+- affects: E1, workflow.router.ts
+
+**What was found:**
+`certifyAsPresidingOfficer`, `mayorSign`, and `mayorVeto` were found to be unimplemented `NOT_IMPLEMENTED` stubs in `workflow.router.ts`.
+
+**What was implemented:**
+Implemented all three procedures in `workflow.router.ts`, incorporating the delegation-grant verification pattern as documented in I1 §6.4/§6.5 (which was originally omitted from the task prompt).
+
+---
+
+### LOG-0062: workflow.acceptUnifiedReport procedure absent from E1 catalog
+
+- date: 2026-07-09
+- task_id: TASK-WF-020
+- status: proposed
+- affects: E1
+
+**What was found:**
+The `workflow.acceptUnifiedReport` procedure is fully implemented in the codebase as the completion gate for multi-referral steps, but it is missing from E1's Module 4 tRPC catalog.
+
+**What was implemented:**
+No code changes. Recommending E1 be updated to document this endpoint.
+
+---
+
+### LOG-0063: Stale casing of Panlalawigan outcomes in E1
+
+- date: 2026-07-09
+- task_id: TASK-WF-021
+- status: proposed
+- affects: E1
+
+**What was found:**
+The codebase uses `SCREAMING_SNAKE_CASE` for Panlalawigan outcomes and lowercase for step status (matching the database schema). The E1 documentation lists these in lowercase, which is stale compared to the implemented type definitions and database schema.
+
+**What was implemented:**
+No code changes. Recommend updating E1's documentation to use the correct case.
+
+---
+
+### LOG-0064: recordVetoOverrideVote incorrect threshold logic
+
+- date: 2026-07-09
+- task_id: TASK-WF-021
+- status: proposed
+- affects: workflow.router.ts
+
+**What was found:**
+`recordVetoOverrideVote` was using `votesFor > votesAgainst` as the success condition for veto override, which is incorrect. The legally-mandated threshold in the consolidated reference Parts 4.1/4.2 and E1 is `votesFor >= 8` (2/3 of 12 members).
+
+**What was implemented:**
+Fixed the threshold condition to `votesFor >= 8` in `workflow.router.ts`.
+
+---
+
+### LOG-0065: resolveValidInPart audit-outcome mismatch
+
+- date: 2026-07-09
+- task_id: TASK-WF-021
+- status: proposed
+- affects: workflow.router.ts
+
+**What was found:**
+`resolveValidInPart`'s audit event was emitting `input.resolutionPath.toUpperCase()` instead of the actual engine-mapped outcome value, making the audit logs inconsistent with the database.
+
+**What was implemented:**
+Hoisted the resolution outcome mapping in `workflow.router.ts` to share it for both database writes and event bus emissions.
+
+---
+
+### LOG-0066: WorkflowPolicyGuard independently replicates PolicyGuard checks
+
+- date: 2026-07-09
+- task_id: TASK-WF-022
+- status: proposed
+- affects: I1
+
+**What was found:**
+`WorkflowPolicyGuard` performs checks independently rather than calling `iam`'s shared `PolicyEvaluator.evaluate`. Consequently, I1 Gate 3's omission of `workflow_instance:migrate` has no practical impact on enforcement in the workflow router, but creating two distinct security policy structures poses drift risks.
+
+**What was implemented:**
+No code changes. Flagging for human review on whether `workflow` policy checks should be refactored to call `PolicyEvaluator`.
+
+---
+
+### LOG-0067: Lack of automatic Gate 1-5 evaluation in protectedProcedure
+
+- date: 2026-07-09
+- task_id: none
+- status: proposed
+- affects: B5, I1
+
+**What was found:**
+The `protectedProcedure` in `trpc.ts` only enforces authentication. Policies (Gates 1-5) must be manually invoked by each handler. `workflow` procedures do not call the evaluator, meaning Gate 1 (city isolation) is not automatically enforced at the routing level. This presents a potential security gap if multi-tenancy is introduced.
+
+**What was implemented:**
+No code changes. Flagged for architectural review on whether policy evaluator checks should be integrated into `protectedProcedure` globally.
+
+---
+
+### LOG-0068: Redundant dynamic imports in workflow.router.ts
+
+- date: 2026-07-09
+- task_id: TASK-WF-019/020/021
+- status: proposed
+- affects: workflow.router.ts
+
+**What was found:**
+Three instances of redundant `await import(...)` dynamic imports of `submitStepAction` and `submitStepApproval` were found in workflow handlers.
+
+**What was implemented:**
+Cleaned up these redundant dynamic imports, relying instead on the static imports at the top of `workflow.router.ts`.
+
