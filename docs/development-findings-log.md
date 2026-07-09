@@ -1451,3 +1451,42 @@ Evaluating decision conditions using `json-logic-js` on dynamic context objects 
 To prevent logic errors from halting workflow execution, `decision.handler.ts` wraps the `jsonLogic.apply()` call in a `try...catch` block. If an error is caught, the handler catches the exception, logs a warning, and defaults the result to `false` (the fallback branch).
 
 [Inference]: Treating condition evaluation errors as `false` is a conservative, fail-closed default that keeps the workflow engine running and routes execution to defined failure/rejection branches on the state machine rather than throwing an unhandled exception that could leave the workflow instance stuck.
+
+---
+
+### LOG-0058: Inconsistent scheduler event names & lack of EventBus publishing
+
+- date: 2026-07-09
+- task_id: none
+- status: proposed
+- affects: evaluate-mayor-lapse-timers.ts, evaluate-panlalawigan-timers.ts, approval.handler.ts
+
+**What was found:**
+1. Scheduler jobs (`evaluate-mayor-lapse-timers.ts` and `evaluate-panlalawigan-timers.ts`) write event records into the `workflow.workflow_events` database log with specialized event names (`workflow.approval.lapsed` and `workflow.panlalawigan.deemed_approved`).
+2. In contrast, the normal `approval.handler.ts` completion path writes the generic `workflow.step.completed` event name.
+3. Furthermore, unlike the tRPC mutations, these background scheduler jobs do not emit any events to the `EventBus`, which means they entirely bypass the audit consumer subsystem.
+
+**What was implemented:**
+No immediate code changes were implemented since the scheduler jobs are not yet active/wired in the main runtime flow. This has been logged to alert subsequent development tasks (particularly those implementing the timer/job runners) to harmonize event naming and publish to the `EventBus` so lapses and deemed approvals generate proper audit entries.
+
+[Observation]: When these jobs are wired, they must emit corresponding `workflow.step.completed` events to the EventBus, otherwise audit coverage will be missing for lapsed/deemed approved outcomes.
+
+---
+
+### LOG-0059: Duplicate/inconsistent patterns for event-to-audit-trail routing
+
+- date: 2026-07-09
+- task_id: none
+- status: proposed
+- affects: workflow.repository.ts, event-bus.ts, audit.event-consumer.ts, workflow.router.ts, delegation-expiry.job.ts
+
+**What was found:**
+There are currently three different, disjoint patterns in use to write events to the audit trail:
+1. **Pattern A (TRPC Duplicate Emit)**: TRPC mutations call the engine, then separately emit events to the `EventBus` (`workflow.router.ts`). The `audit.event-consumer.ts` listens to these events.
+2. **Pattern B (Direct Audit Write)**: Background jobs or schedulers call `auditService.writeEvent()` directly (`delegation-expiry.job.ts`), bypassing the EventBus.
+3. **Pattern C (Engine DB-Only Events)**: Engine handlers call `createWorkflowEvent` to write straight to `workflow.workflow_events` in the database, without publishing to the EventBus or calling `auditService` directly.
+
+**What was implemented:**
+No changes to code structure were made as this is a broad monorepo design pattern issue.
+
+[Observation]: The current layout is fragile. If a new entrypoint executes engine logic but forgets to implement Pattern A or B, it will execute silently without generating any audit records. Moving event bus publication inside the engine repositories or unified handlers (as suggested in LOG-0050) would resolve this risk.
