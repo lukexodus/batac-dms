@@ -1844,6 +1844,12 @@ export function createWorkflowRouter() {
 
         const { submitStepApproval } = await import('./engine/step-handlers/approval.handler.js');
 
+        // Map resolutionPath to engine outcome string
+        let outcome = 'RESOLVED_IN_PLACE';
+        if (input.resolutionPath === 'route_to_legal') outcome = 'ROUTED_TO_LEGAL';
+        else if (input.resolutionPath === 'route_to_committee') outcome = 'ROUTED_TO_COMMITTEE';
+        else if (input.resolutionPath === 'implement_directly') outcome = 'REVISED_DIRECTLY';
+
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
             ...deps,
@@ -1885,12 +1891,6 @@ export function createWorkflowRouter() {
             }
           }
 
-          // Map resolutionPath to engine outcome string
-          let outcome = 'RESOLVED_IN_PLACE';
-          if (input.resolutionPath === 'route_to_legal') outcome = 'ROUTED_TO_LEGAL';
-          else if (input.resolutionPath === 'route_to_committee') outcome = 'ROUTED_TO_COMMITTEE';
-          else if (input.resolutionPath === 'implement_directly') outcome = 'REVISED_DIRECTLY';
-
           // Refresh instance to get updated context (e.g. if we set referred_committee_chair_id)
           const updatedInstance = await txDeps.workflowRepository.getInstanceById(instance.id, tx as any);
           if (!updatedInstance) throw new Error('Instance not found');
@@ -1919,7 +1919,7 @@ export function createWorkflowRouter() {
               stepInstanceId: stepContext.stepInstance.id,
               stepId: stepContext.step.id,
               stepType: stepContext.step.stepType,
-              outcome: input.resolutionPath.toUpperCase(),
+              outcome,
               comment: input.mandatoryComment,
             },
           });
@@ -2126,8 +2126,8 @@ export function createWorkflowRouter() {
             eventBus: server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
-            getApprovalGrant: (instanceId, versionId) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
-            markApprovalGrantUsed: (grantId) => deps.workflowRepository.markApprovalGrantUsed(grantId),
+            getApprovalGrant: (instanceId: string, versionId: string) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
+            markApprovalGrantUsed: (grantId: string) => deps.workflowRepository.markApprovalGrantUsed(grantId),
           };
           await cancelInstance(input.instanceId, ctx.auth!.userId, input.reason, deps);
         });
@@ -2175,8 +2175,8 @@ export function createWorkflowRouter() {
             eventBus: server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
-            getApprovalGrant: (instanceId, versionId) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
-            markApprovalGrantUsed: (grantId) => deps.workflowRepository.markApprovalGrantUsed(grantId),
+            getApprovalGrant: (instanceId: string, versionId: string) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
+            markApprovalGrantUsed: (grantId: string) => deps.workflowRepository.markApprovalGrantUsed(grantId),
           };
           await bypassStep(input.stepInstanceId, ctx.auth!.userId, input.bypassReason, input.comment, input.outcomeCode, deps);
         });
@@ -2234,8 +2234,8 @@ export function createWorkflowRouter() {
             eventBus: server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
-            getApprovalGrant: (instanceId, versionId) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
-            markApprovalGrantUsed: (grantId) => deps.workflowRepository.markApprovalGrantUsed(grantId),
+            getApprovalGrant: (instanceId: string, versionId: string) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
+            markApprovalGrantUsed: (grantId: string) => deps.workflowRepository.markApprovalGrantUsed(grantId),
           };
           result = await migrateInstance(
             input.instanceId,

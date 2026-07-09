@@ -1168,6 +1168,13 @@ describe('TASK-WF-021 Procedures', () => {
       expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
       expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('RESOLVED_IN_PLACE');
       expect(mockSubmitStepApproval.mock.calls[0]![5]).toBe('Accept as-is per SP ruling.');
+
+      expect(ctx.req.server.eventBus.emit).toHaveBeenCalledWith('workflow.step.completed', expect.objectContaining({
+        payload: expect.objectContaining({
+          outcome: 'RESOLVED_IN_PLACE',
+          comment: 'Accept as-is per SP ruling.',
+        })
+      }));
     });
 
     it('route_to_legal → maps to ROUTED_TO_LEGAL outcome', async () => {
