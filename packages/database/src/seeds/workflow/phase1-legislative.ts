@@ -9,7 +9,7 @@ import {
   transitionRules,
 } from '../../../schema/workflow.schema.js';
 import { documentTypes } from '../../../schema/documents.schema.js';
-import { WORKFLOW_SEED_NAMESPACE, PLATFORM_ADMIN_SEED_USER_ID, CITY_ID } from './constants.js';
+import { WORKFLOW_SEED_NAMESPACE, SEED_SYSTEM_USER_ID, CITY_ID } from './constants.js';
 import { uuidv5 } from './uuidv5.js';
 
 const ROLE = {
@@ -496,7 +496,7 @@ export async function seedPhase1WorkflowDefinitions(db: any, documentTypeIds?: R
       description: wf.definition.description,
       documentTypeId,
       isActive: false, // deferred until after validation
-      createdBy: PLATFORM_ADMIN_SEED_USER_ID,
+      createdBy: SEED_SYSTEM_USER_ID,
     }).onConflictDoNothing();
 
     await transaction.insert(definitionVersions).values({
@@ -564,7 +564,7 @@ export async function seedPhase1WorkflowDefinitions(db: any, documentTypeIds?: R
     // Validation passed — mark published and activate.
     await transaction.update(definitionVersions).set({
       publishedAt: new Date(),
-      publishedBy: PLATFORM_ADMIN_SEED_USER_ID,
+      publishedBy: SEED_SYSTEM_USER_ID,
       isCurrent: true,
     }).where(eq(definitionVersions.id, versionId));
 
