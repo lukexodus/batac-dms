@@ -1,6 +1,6 @@
 // @ts-ignore
 import type { WorkflowDefinitionSeed } from '@batac/shared/workflow/step-config.schema.js';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import {
   definitions,
@@ -491,7 +491,7 @@ export async function seedPhase1WorkflowDefinitions(db: any) {
       name: wf.definition.name,
       description: wf.definition.description,
       documentTypeId,
-      isActive: wf.definition.is_active,
+      isActive: false, // deferred until after validation
       createdBy: PLATFORM_ADMIN_SEED_USER_ID,
     }).onConflictDoNothing();
 
@@ -500,8 +500,8 @@ export async function seedPhase1WorkflowDefinitions(db: any) {
       definitionId: defId,
       versionNumber: wf.version.version_number,
       snapshot: wf.version,
-      publishedAt: new Date(),
-      publishedBy: PLATFORM_ADMIN_SEED_USER_ID,
+      publishedAt: null, // deferred until after validation
+      publishedBy: null,
     }).onConflictDoNothing();
 
     const stepsToInsert = wf.version.steps.map((step: any) => ({
@@ -537,7 +537,8 @@ export async function seedPhase1WorkflowDefinitions(db: any) {
       await transaction.insert(transitionRules).values(rulesToInsert).onConflictDoNothing();
     }
 
-    // Call validateDefinitionForPublish using a dynamic import to avoid TS trying to compile it
+    // Validate before publishing — let import failures propagate so the
+    // outer db.transaction() catches them and rolls back cleanly.
     const deps = {
       workflowRepository: {
         getStepsAndRulesForValidation: async () => ({
@@ -547,18 +548,24 @@ export async function seedPhase1WorkflowDefinitions(db: any) {
       }
     };
 
-    try {
-      const validatorPath = '../../../../../apps/server/src/modules/workflow/engine/definition-validator.ts';
-      const validatorMod = await import(validatorPath);
-      const validateDefinitionForPublish = validatorMod.validateDefinitionForPublish;
+    const validatorPath = '../../../../../apps/server/src/modules/workflow/engine/definition-validator.ts';
+    const validatorMod = await import(validatorPath);
+    const validateDefinitionForPublish = validatorMod.validateDefinitionForPublish;
 
-      const result = await validateDefinitionForPublish(versionId, deps as any);
-      if (!result.valid) {
-        console.error(`[seed] Validation failed for ${wf.definition.document_type_code}:`, result.errors);
-        process.exit(1);
-      }
-    } catch (err) {
-      console.warn(`[seed] Could not validate definition using definition-validator:`, err);
+    const result = await validateDefinitionForPublish(versionId, deps as any);
+    if (!result.valid) {
+      throw new Error(`[seed] Validation failed for ${wf.definition.document_type_code}: ${JSON.stringify(result.errors)}`);
     }
+
+    // Validation passed — mark published and activate.
+    await transaction.update(definitionVersions).set({
+      publishedAt: new Date(),
+      publishedBy: PLATFORM_ADMIN_SEED_USER_ID,
+      isCurrent: true,
+    }).where(eq(definitionVersions.id, versionId));
+
+    await transaction.update(definitions).set({
+      isActive: true,
+    }).where(eq(definitions.id, defId));
   }
 }
