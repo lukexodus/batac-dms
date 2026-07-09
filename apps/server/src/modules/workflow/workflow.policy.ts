@@ -526,6 +526,23 @@ export class WorkflowPolicyGuard {
     });
   }
 
+  /**
+   * I1 §6.8 `step_instance:accept_unified_report` — SP Secretary accepts the unified report.
+   *
+   * sp_secretary ONLY. No other role may use this.
+   *
+   * Maps to: `acceptUnifiedReport` procedure.
+   */
+  canAcceptUnifiedReport(subject: SubjectContext): void {
+    if (!subject.roles.includes('sp_secretary')) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        cause: 'sp_secretary_role_required',
+        message: 'Only the SP Secretary can accept the unified committee report.',
+      });
+    }
+  }
+
   // ─── 6.7 step_instance:advance ────────────────────────────────────────────
 
   /**

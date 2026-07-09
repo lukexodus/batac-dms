@@ -1053,46 +1053,110 @@ export function createWorkflowRouter() {
           const submissions = (freshMetadata['submissions'] as Array<any>) ?? [];
 
           if (submissions.length >= assigned.length) {
-            // All assigned committees have submitted. Complete the step with 'REPORT_ACCEPTED'.
-            await submitStepMultiReferral(
-              instance,
-              freshStepInstance,
-              ctx.auth!.userId,
-              'user',
-              'REPORT_ACCEPTED',
-              null, // no manual comment for auto-completion
-              { ...deps, workflowRepository: txWorkflowRepo },
-              tx as any
-            );
-            isCompleted = true;
+            isCompleted = true; // All assigned committees have submitted
           }
         });
 
-        if (server.eventBus) {
-          // The engine handler does NOT emit the completion event to the bus, so we must emit it manually
-          // if we completed the step. The `workflow.multi_referral.committee_submitted` event was already
-          // emitted to the internal audit log by the engine, but not the fastify eventBus.
-          // Note: The audit consumer for phase 1 only explicitly lists `workflow.step.completed`.
-          if (isCompleted) {
-            server.eventBus.emit('workflow.step.completed', {
-              eventId: randomUUID(),
-              eventType: 'workflow.step.completed',
-              occurredAt: new Date().toISOString(),
-              cityId: ctx.auth.cityId,
-              schemaVersion: 1,
-              payload: {
-                instanceId: instance.id,
-                stepInstanceId,
-                stepId: found.step.id,
-                stepType: found.step.stepType,
-                outcome: 'REPORT_ACCEPTED',
-                comment: null,
-              },
-            });
-          }
+        return { allCommitteesSubmitted: isCompleted };
+      }),
+
+    /**
+     * `workflow.acceptUnifiedReport`
+     *
+     * SP Secretary accepts the unified committee report after all committees have submitted.
+     * ABAC: I1 §6.8 (sp_secretary only).
+     */
+    acceptUnifiedReport: protectedProcedure
+      .input(
+        z.object({
+          instanceId: z.string().uuid(),
+          stepInstanceId: z.string().uuid(),
+          unifiedReportDocumentId: z.string().uuid(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+        const { instanceId, stepInstanceId, unifiedReportDocumentId } = input;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+        
+        const { stepInstance, instance } = found;
+
+        if (instance.id !== instanceId) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Instance ID mismatch.' });
         }
 
-        return { allCommitteesSubmitted: isCompleted };
+        workflowPolicy.canAcceptUnifiedReport(ctx.auth);
+
+        if (found.step.stepType !== 'multi_referral') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Not a multi-referral step.' });
+        }
+
+        if (stepInstance.status !== 'active') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Step is not active.' });
+        }
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          const txWorkflowRepo = new WorkflowRepository(tx as any);
+          
+          const freshStepInstance = await txWorkflowRepo.getStepInstanceById(stepInstanceId, tx as any);
+          if (!freshStepInstance) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve fresh step instance.' });
+          }
+
+          const freshMetadata = (freshStepInstance.metadata as Record<string, any>) ?? {};
+          
+          freshMetadata['unified_report_document_id'] = unifiedReportDocumentId;
+          await txWorkflowRepo.updateStepInstance(stepInstanceId, { metadata: freshMetadata }, tx as any);
+
+          await submitStepMultiReferral(
+            instance,
+            { ...freshStepInstance, metadata: freshMetadata },
+            ctx.auth!.userId,
+            'user',
+            'REPORT_ACCEPTED',
+            null,
+            { ...deps, workflowRepository: txWorkflowRepo },
+            tx as any
+          );
+        });
+
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId,
+              stepInstanceId,
+              stepId: found.step.id,
+              stepType: found.step.stepType,
+              outcome: 'REPORT_ACCEPTED',
+              comment: null,
+            },
+          });
+        }
+
+        return { success: true };
       }),
 
     /**

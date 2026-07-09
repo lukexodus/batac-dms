@@ -689,7 +689,7 @@ describe('Workflow Router Mutation Procedures', () => {
       expect(mockSubmitStepMultiReferral).not.toHaveBeenCalled();
     });
 
-    it('completes step and calls submitStepMultiReferral if last committee submits', async () => {
+    it('returns allCommitteesSubmitted = true when last committee submits, but does NOT complete the step', async () => {
       const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
       const caller = callerFor(makeCtx(subject, mockDb));
 
@@ -718,6 +718,66 @@ describe('Workflow Router Mutation Procedures', () => {
 
       expect(result.allCommitteesSubmitted).toBe(true);
       expect(mockSubmitCommitteeReport).toHaveBeenCalledOnce();
+      expect(mockSubmitStepMultiReferral).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── acceptUnifiedReport ────────────────────────────────────────────────────
+
+  describe('acceptUnifiedReport', () => {
+    it('throws FORBIDDEN for non-secretary', async () => {
+      const subject = makeSubject({ roles: ['sp_member'], effectiveRoles: ['sp_member'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse(
+        makeStepContextRow({
+          stepType: 'multi_referral',
+          status: 'active',
+        })
+      );
+
+      await expect(
+        caller.acceptUnifiedReport({
+          instanceId: INSTANCE_ID,
+          stepInstanceId: STEP_INSTANCE_ID,
+          unifiedReportDocumentId: VALID_UUID,
+        })
+      ).rejects.toThrow(/Only the SP Secretary can accept/);
+    });
+
+    it('successfully calls submitStepMultiReferral with REPORT_ACCEPTED for secretary', async () => {
+      const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      // First query: fetch context
+      mockDb.mockResponse(
+        makeStepContextRow({
+          stepType: 'multi_referral',
+          status: 'active',
+        })
+      );
+
+      // Second query: fetch fresh instance in transaction
+      mockDb.mockResponse([{
+        id: STEP_INSTANCE_ID,
+        metadata: {
+          assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
+          submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // all submitted
+        },
+      }]);
+
+      // Third query: updateStepInstance
+      mockDb.mockResponse([{
+        id: STEP_INSTANCE_ID,
+      }]);
+
+      const result = await caller.acceptUnifiedReport({
+        instanceId: INSTANCE_ID,
+        stepInstanceId: STEP_INSTANCE_ID,
+        unifiedReportDocumentId: VALID_UUID,
+      });
+
+      expect(result.success).toBe(true);
       expect(mockSubmitStepMultiReferral).toHaveBeenCalledOnce();
       expect(mockSubmitStepMultiReferral.mock.calls[0]![4]).toBe('REPORT_ACCEPTED');
     });

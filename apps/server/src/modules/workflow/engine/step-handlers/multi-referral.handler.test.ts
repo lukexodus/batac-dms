@@ -102,6 +102,29 @@ describe('Multi-Referral Step Handler', () => {
         undefined
       );
     });
+
+    it('K2 MREF-03: all submitted, not yet accepted, step stays Active', async () => {
+      setupMockDefinition({});
+      mockStepInstance.metadata.submissions = [
+        { committee_id: 'comm-1', submitted_by: 'u', submitted_at: 'old' }
+      ];
+
+      await submitCommitteeReport(mockInstance, mockStepInstance, 'comm-2', 'user-2', 'doc-2', mockDeps);
+
+      expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith(
+        'step-inst-1',
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            all_submitted_at: '2026-07-08T00:00:00.000Z'
+          }),
+        }),
+        undefined
+      );
+      
+      const calls = vi.mocked(mockDeps.workflowRepository.updateStepInstance).mock.calls;
+      const completedCalls = calls.filter((c: any) => c[1].status === 'completed');
+      expect(completedCalls.length).toBe(0);
+    });
   });
 
   describe('submitStepMultiReferral', () => {
