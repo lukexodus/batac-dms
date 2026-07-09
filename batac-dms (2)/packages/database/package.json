@@ -1,0 +1,24 @@
+{
+  "name": "@batac/database",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:lint": "echo 'see @batac/scripts lint:migrations'"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.4"
+  },
+  "devDependencies": {
+    "@batac/config": "workspace:^",
+    "@types/node": "^20.11.0",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

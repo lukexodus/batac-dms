@@ -985,6 +985,7 @@ export const WorkflowStepBypassedPayloadSchema = z.object({
   stepInstanceId: z.string().uuid(),
   bypassReason:   z.string(),                         // Known value: 'CERTIFIED_URGENT'; others possible
   bypassedBy:     z.string().uuid().nullable(),        // [Inference] null for system-triggered bypass
+  comment:        z.string().min(1),                  // Mandatory comment explaining the administrative override
 });
 export type WorkflowStepBypassedPayload = z.infer<typeof WorkflowStepBypassedPayloadSchema>;
 ```

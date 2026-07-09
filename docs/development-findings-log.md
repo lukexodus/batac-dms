@@ -1379,3 +1379,58 @@ Each of the four new mutation procedures (`completeActionStep`, `approveStep`, `
 - `cancellation_reason`/`cancelled_by` are written to the `workflow.instance.cancelled` event payload, not to new `instances` columns, consistent with LOG-0045's reasoning and B4 Appendix A's documented event schema.
 - Event emission for admin-operations follows LOG-0050's established pattern (writes only to `workflow_events` and relies on the caller to hit the `eventBus`), even though B4 Appendix A describes both as one "emit" in the engine.
 
+
+### LOG-0052: `bypassStep` TRPC input schema requires `outcomeCode`
+
+**Module:** `workflow`
+**Date:** 2026-07-09
+**Tags:** `B4`, `workflow.router`, `engine`
+**Status:** `proposed`
+**Type:** `[Inference]`
+
+**Finding:** B4 invariant #10 defines step bypass as an administrative override, but the engine requires an outcome code to evaluate downstream transition rules. Without an explicit outcome code, a bypassed step would fail to trigger subsequent transitions, effectively rendering the instance stuck.
+**What was implemented:** Added `outcomeCode: z.string().min(1)` to the TRPC input schema for `workflow.bypassStep` to allow administrators to supply the necessary state for the workflow engine to continue routing. The engine already accepts this parameter.
+
+### LOG-0053: Missing `admin_approval_grants` implementation
+
+**Module:** `workflow`
+**Date:** 2026-07-09
+**Tags:** `B4`, `workflow.router`, `engine`, `C1`
+**Status:** `proposed`
+**Type:** `[Gap]`
+
+**Finding:** The `workflow.admin_approval_grants` table (referenced in B4 invariant #8) does not exist in the C1 database schema, and the corresponding service methods (`getApprovalGrant`, `markApprovalGrantUsed`) are unimplemented.
+**What was implemented:** Created interim stub functions `stubGetApprovalGrant` (always returns `null`) and `stubMarkApprovalGrantUsed` (no-op) inside `workflow.router.ts` to satisfy the `AdminOperationsDeps` type contract for `migrateInstance`. `migrateInstance` will currently always fail with `NoAdminApprovalError` until the schema and real implementations are added.
+
+### LOG-0054: Uncaught domain errors in tRPC procedures
+
+**Module:** `workflow`
+**Date:** 2026-07-09
+**Tags:** `E1`, `workflow.router`, `error-handling`
+**Status:** `proposed`
+**Type:** `[Observation]`
+
+**Finding:** There is no global `errorFormatter` configured in the tRPC setup (`apps/server/src/trpc/trpc.ts`) that maps custom domain errors (e.g., `ValidationFailedError`, `InstanceNotActiveError` from `packages/shared/src/errors.ts`) to standard `TRPCError` instances.
+**What was implemented:** Allowed domain errors thrown by engine operations to propagate uncaught through the TRPC procedures, accepting the resulting 500 Internal Server Error behavior as the baseline until a global error formatting strategy is adopted.
+
+### LOG-0055: Extraneous `[Inference]` removed from B3 `WorkflowStepBypassedPayloadSchema`
+
+**Module:** `workflow`
+**Date:** 2026-07-09
+**Tags:** `B3`, `workflow.router`, `engine`
+**Status:** `proposed`
+**Type:** `[Correction]`
+
+**Finding:** B4 invariant #10 mandates a mandatory comment for all administrative operations, including step bypass. The B3 event schema `WorkflowStepBypassedPayloadSchema` originally lacked a `comment` field.
+**What was implemented:** Added `comment: z.string().min(1)` to `WorkflowStepBypassedPayloadSchema` in B3 to align the audit payload with the B4 invariant and the implemented engine logic.
+
+### LOG-0056: Nested transaction safety in `workflow.router.ts`
+
+**Module:** `workflow`
+**Date:** 2026-07-09
+**Tags:** `workflow.router`, `drizzle`, `transactions`
+**Status:** `proposed`
+**Type:** `[Confirmation]`
+
+**Finding:** The `postgres.js` Drizzle driver natively supports nested transactions using SQL `SAVEPOINT`. This means router procedures can safely wrap engine operations in `await ctx.db.transaction(...)` even if those engine operations also open their own transactions internally.
+**What was implemented:** All three new procedures (`cancelInstance`, `bypassStep`, `migrateInstance`) wrap their engine call in `await ctx.db.transaction(async (tx) => {...})`, passing `tx` as `deps.db` to the engine operations, matching `completeActionStep`/`approveStep`'s existing shape exactly, rather than diverging from it.

@@ -1,0 +1,43 @@
+---
+document_type: Letters Sent Log
+date: January 1, 2025 - March 31, 2026
+document_number: 2026-01 to 2026-36
+office: Sangguniang Panlungsod (SP)
+---
+
+# LETTERS SENT
+## (2026 – 7SP)
+
+| Control No. | Date Sent | Recipient | Subject |
+| :--- | :--- | :--- | :--- |
+| 2026-01 | January 1, 2025 | Engr. Noralyn I. Manahan<br>CPDC | Forwarded Action taken by Sang. Panlalawigan on Resolution No. 6SP 2024-266 & 267 |
+| 2026-02 | September 12, 2025 | Hon. Mark Christian R.Chua<br>City Mayor | Requestfor list of Maps of registered Barangay Roads |
+| 2026-03 | January 6, 2026 | Engr. Noralyn I. Manahan<br>CPDC | Forwarded Action taken by Sang. Panlalawigan on Ordinance No. 7SP 2026-07 and Resolution No. 7SP 2026-27, 35 & 36 |
+| 2026-04 | January 6, 2026 | Wilma T. Icuspit<br>City Budget Officer | Forwarded copy of Appropriation Ordinance No. 7SP 2025-02 |
+| 2026-05 | January 8, 2026 | Hon. Giancarlo Angelo S. Crisostomo<br>Provincial Board Member<br>2^nd District of Ilocos Norte | Forwarded copy of Revenue Code of the City of Batac |
+| 2026-06 | January 8, 2026 | Atty. Aries John P. Lagmay | Forwarded joint committee report of Committees on Agriculture, Environment, Public Works and Laws, re: Letter of MMMH &MC on the cutting and removal of trees along irrigational canal |
+| 2026-07 | January 13, 2026 | Lucky John Rigonan<br>Respondent<br><br>Marivic Oriña<br>Complainant | Forwarded committee report of Committees on Transportation and Laws, re: complaint against SC#0710 |
+| 2026-08 | January 13, 2026 | Eric Dancel<br>Respondent<br><br>Federico Pungtilan<br>Complainant | Forwarded committee report of Committees on Transportation and Laws, re: complaint against SC#2340 |
+| 2026-09 | January 13, 2026 | Jaymar Arzaga<br>Respondent/driver<br><br>Lester Gambol<br>Respondent/Operator<br><br>Elenor Tagatac<br>Complainant | Forwarded committee report of Committees on Transportation and Laws, re: complaint against SC#2905 |
+| 2026-10 | January 14, 2026 | Jogie Jimenez<br>Environmental Program Officer<br>Ilocos Norte | Forwarded copy of Minutes of the Joint Committee Hearing on MMMH & MC Tree Cutting request |
+| 2026-11 | January 19, 2026 | Engr. Noralyn I. Manahan<br>CPDC<br><br>Engr. Richard A. Pungtilan<br>City Bldg. Official<br><br>Engr. Hilarion Nalupta<br>City Engineer | Forward copy of Provincial Ordinance Nos. 009-2025 and 010-2025 for their information and guidance |
+| 2026-12 | January 26, 2026 | Mr. Cipriano E. Martinez III<br>Acting Gen.<br><br>Thru: Engr. Jason Niño<br>OIC, Area Mngr., INEC<br>Batac | Forwarded list of the requested relocation of Electric posts in Batac due to Road Obstruction |
+
+---
+
+| Control No. | Date Sent         | Recipient                                                                  | Subject                                                                                                                                                                                                  |
+| :---------- | :---------------- | :------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-27     | February 26, 2026 | Marlon F. Soria<br>CHRMO                                                   | Submitted IPCR of SP-Secretariat, July-December 2025 (Actual Accomplishment)                                                                                                                             |
+| 2026-28     | February 27, 2026 | Hon. Mark Christian R.Chua<br>City Mayor                                   | Submitted Post Learning and Development on PLEASES and Legislative Staff Region 1 General Assembly, Team Bldg. and Oath Taking of Officersat Baguio City, Feb. 12-13, 2026                               |
+| 2026-29     | March 4, 2026     | Hon. Mark Christian R.Chua<br>City Mayor                                   | Request for City Bus to ferry participants to Clark Airport in attending the 1^st PCL Gen. Assembly at El Nido, Palawan                                                                                  |
+| 2026-30     | March 11, 2026    | Engr. Romillias C. Pascual<br>President, FSCAP Ilocos Norte                | Forwarded committee report embodying action taken by the SP re: letter-requestof the newly re-organized FSCAP – Batac Chapter                                                                            |
+| 2026-31     | March 11, 2026    | Ms. Mamerta F. Agustin<br>FSCAP-President                                  | Forwarded requested copy of Com. Report the action takenby the SP re: Letter-request of the newly re-organized FSCAP City of Batac Chapter                                                               |
+| 2026-32     | March 11, 2026    | Viraluz S. Raguindin<br>FedBSCA – President<br>City of Batac Chapter       | Forwarded committee report embodying action taken by the SP re: letter-request for the Sangguniang Panlungsod’s support and assistance in facilitating a meeting with former FSCAP Pres. Mamerta Agustin |
+| 2026-33     | March 11, 2026    | Ms. Mayvelyn Q. Sanguir<br>OSCA Head                                       | Invitation to the 36^th Regular Session, March 23, 2026                                                                                                                                                  |
+| 2026-34     | March 17, 2026    | Hon. Mark Christian R.Chua<br>City Mayor<br><br>Attn: Ms. Marneli P. Sabas | Invitation to the 36^th Regular Session, March 23, 2026                                                                                                                                                  |
+| 2026-35     | March 31, 2026    | Jay Christian Catudan<br>Respondent<br><br>Lorenzo Corpuz<br>Complainant   | Forwarded committee report of Committees on Transportation and Laws re: complaint against SC#0763                                                                                                        |
+| 2026-36     | February 23, 2026 | —                                                                          | Submitted updated Identification Card information sheet                                                                                                                                                  |
+| 2026-       | February 25, 2026 | —                                                                          | Submitted Office Order No. 01 s. 2026 Authorizing Administrative Aide II personnel of SP and VM Office toperform driving duties n addition to their regular duties and responsibilities                  |
+| 2026-       | February 23, 2026 | —                                                                          | Submitted updated Identification Card information sheet                                                                                                                                                  |
+| 2026-       | February 25, 2026 | —                                                                          | Furnished copy joint committee rport of committees on Appropriation and Brgy. Affairs re: Brgy Resolution No. 019 s. 2025 of Brgy. Valdez                                                                |
+| 2026-       | February 23, 2026 | —                                                                          | Submitted updated Identification Card information sheet                                                                                                                                                  |

@@ -1,0 +1,1661 @@
+# C1. Full Database Schema DDL — All Phase 1 Schemas
+
+**Status:** Blocking — foundation for all subsequent implementation work
+**Platform:** Batac City LGU Platform
+**Scope:** Complete PostgreSQL DDL for all tables in schemas `iam`, `organization`, `documents`, `workflow`, `tracking`, `records`, `notifications`, `audit` (Phase 1). `search_meta`, `portal`, `reporting` are reserved as empty namespaces only (Phase 2/3 — no tables per source instruction).
+**Engine target:** PostgreSQL 16. Every statement in this document has been executed against a live PostgreSQL 16 instance from a clean database with `ON_ERROR_STOP=1`, including trigger and constraint behavior tests — see [Validation Notes](#validation-notes).
+**Sources:** `main--schema-ddl-source-reference.md`, `h3-numbering-series-configuration-specification.md`, `d4-domain-class-diagram.md`, `h2-document-type-catalog-with-jsonb-metadata-schema.md`, `b2-module-boundary-and-internal-api-contracts.md`, `b4-workflow-engine-specification.md`.
+
+
+## Table of Contents
+
+- [L34–L82] Conventions and Design Decisions — Global database design resolutions for primary keys, tenant column, soft-delete columns, cross-schema logical keys, and PostgreSQL enum handling.
+- [L83–L110] Preamble — Schema creation statements for all Phase 1 schemas and reserved namespaces, plus pgcrypto extension setup.
+- [L111–L138] Shared Infrastructure — DDL and indexing for the shared public.event_bus_dead_letters table to track failed event handling.
+- [L139–L322] Schema: iam — DDL for authentication, users, credentials, session constraints, refresh tokens, role/permission assignments, and MFA/TOTP storage.
+- [L323–L487] Schema: organization — DDL for hierarchical offices, positions, employee records, assignment mappings, delegation grants, and legislative committee memberships.
+- [L488–L884] Schema: documents — DDL for document metadata, series numbering, versions, attachments, signatures, sponsorships, Panlalawigan reviews, publications, and sequence functions.
+- [L885–L1210] Schema: workflow — DDL for workflow definitions, steps, transitions, instances, step execution history, urgent bypasses, committee reports, SP sessions, and agendas.
+- [L1211–L1277] Schema: tracking — DDL for physical document tracking, including QR code associations, current custody locations, and append-only routing history logs.
+- [L1278–L1374] Schema: records — DDL for document retention schedules, classification rules, post-workflow record catalogs, archive entry logs, and legal disposition controls.
+- [L1375–L1435] Schema: notifications — DDL for dispatching notifications, containing channel-specific message templates, recipient details, status events, and delivery attempts logs.
+- [L1436–L1474] Schema: audit — DDL for the system audit trail, specifying an append-only table for event logs with SHA-256 chain hashes and HMACs.
+- [L1475–L1571] Roles, Grants, and Row-Level Security — PostgreSQL role declarations, database privilege grants, and Row-Level Security (RLS) policies enforcing office-level isolation and IT admin content exclusion.
+- [L1572–L1593] 2026 Numbering Sequences — Initialization of the eleven gapless document numbering sequences required specifically for the 2026 calendar year.
+- [L1594–L1599] Reserved Phase 2/3 Schemas — Documentation outlining planned tables for search metadata, public portal request forms, and reporting schemas reserved for future phases.
+- [L1600–L1627] Invariant and Non-Negotiable Compliance Checklist — A traceability checklist mapping the sixteen compliance invariants and non-negotiables to their specific database design implementations.
+- [L1628–L1648] Open Items Requiring Confirmation — A registry of twelve design gaps, enum inferences, or conflicting source specifications requiring stakeholder sign-off.
+- [L1649–L1661] Validation Notes — Validation reports confirming clean execution of DDL on PostgreSQL 16 and testing results for triggers and helper functions.
+
+---
+
+---
+
+## Conventions and Design Decisions
+
+These apply uniformly across every schema below. Where the source material left a genuine gap or contained conflicting instructions across documents, the resolution taken is stated here once rather than repeated table by table; per-table notes are kept to cases that need them.
+
+**Primary keys.** `id UUID PRIMARY KEY DEFAULT gen_random_uuid()` on every table, per Invariant #6.
+
+**Tenant column.** `city_id UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid` on every core entity table. The literal is a placeholder constant representing the single Batac City tenant for this Phase 1, single-tenant deployment; the column exists for future multi-tenancy per Invariant #8.
+
+**Timestamps.** `TIMESTAMPTZ` on every timestamp column, per Invariant #7.
+
+**Soft delete.** `deleted_at TIMESTAMPTZ NULL` + `deleted_by UUID NULL` on every table, per Invariant #2 and the explicit task requirement, with exactly two exceptions: `audit.events` and `workflow.workflow_events`. Both are append-only logs with `UPDATE`/`DELETE` revoked from their application role at the PostgreSQL grant level (Invariant #3; B4 explicit instruction for `workflow_events`). A soft-delete column that the application role can never `UPDATE` to set is dead weight, so it is omitted on these two tables only, and the omission is called out inline where it occurs. B4's own column tables also omit soft-delete from several other workflow tables (`definition_versions`, `steps`, `transition_rules`, `step_instances`, `pending_certified_urgent_bypasses`) without stating a reason; those omissions are treated as incomplete excerpting rather than an intentional rule, so this DDL adds soft-delete to those tables to satisfy the universal convention and the explicit task instruction.
+
+**Cross-schema references (Invariant #1).** No module reads another schema directly and no cross-schema foreign keys exist anywhere in this DDL, even where a source document writes "FK →" across a schema boundary (several H2/B4 column tables do this informally). Every such reference is implemented as a plain `UUID` column with an inline `-- logical FK -> schema.table.id (cross-schema; no constraint)` comment. Foreign keys with a real `REFERENCES` clause are used only when both tables live in the same schema. Referential integrity for cross-schema references is an application/event-bus concern, consistent with the module boundary philosophy in B2.
+
+**Enum strategy.** Two different mechanisms are used, deliberately:
+- The three workflow status/type enumerations that B4 explicitly names with an `_enum` suffix (`workflow_step_type_enum`, `workflow_instance_status_enum`, `workflow_step_status_enum`) are implemented as native PostgreSQL `CREATE TYPE ... AS ENUM`, scoped to the `workflow` schema.
+- Every other domain-value column (classification level, lifecycle state, user status, channel, etc.) uses `TEXT` + `CHECK`, consistent with the explicit PostgreSQL non-negotiable "Check constraints for state transitions" and to avoid `ALTER TYPE` migration friction. The same value list is repeated per schema rather than shared through a `CREATE DOMAIN`, to avoid introducing a different form of cross-schema coupling than Invariant #1 already prohibits for foreign keys.
+
+Casing of stored values follows whichever source document is the most specific, authoritative column-definition source for that table, not a single global convention — the source material itself is inconsistent across sub-domains (workflow statuses are lowercase in B4, notification statuses are title-case in D4, document classification is uppercase in H2). Where two sources disagree outright, the more DDL-specific source wins and the other is noted inline:
+- `documents.documents.lifecycle_state` uses H2's exact punctuated values (`'In-Workflow'`, `'Pending Approval'`) — D4's enum table renders the same states without separators (`InWorkflow`, `PendingApproval`) for display purposes only.
+- `workflow.step_instances.status` and `workflow.instances.status` use B4's complete, lowercase value sets, which differ in both naming and count from D4's simplified domain-model rendering (D4 omits `stuck` from instance status entirely, and uses different names for step status: `InProgress`/`Skipped`/`Overdue`/`ManuallyAdvanced` versus B4's `active`/`bypassed`/(SLA columns)/`bypassed`).
+- `workflow.definition_versions` has no `status` column in B4's schema at all — only `published_at`/`deprecated_at` timestamps. D4's `DefinitionStatus` enum (`Draft`/`Published`/`Deprecated`) is reconciled as a `GENERATED ALWAYS AS ... STORED` column derived from those two timestamps, so both sources are satisfied without storing redundant state.
+
+**Numbers vs. control numbers vs. final numbers.** H2 lists `final_number` and `control_number` as two separate nullable columns on `documents.documents`, while the main reference document's own prose sometimes uses "control number" loosely for the same concept H3 calls a series' "final" number. This DDL keeps both columns exactly as H2 specifies and resolves the terminology split as: `final_number` is populated for series whose own number is the document's formal number (the three legislative series, plus the single-stage administrative series logged directly — designation, notices, memos); `control_number` is reserved specifically for the two series the main document explicitly calls "control numbers" used purely as secretariat tracking references rather than numbers embedded in the document itself (Letters Received/SPR, Letters Sent/SPS). `documents.numbers` (the historical event-sourced table) extends D4's two-value `NumberType` (`PRELIMINARY`, `FINAL`) with a third value, `CONTROL`, to give this concept the same assignment-history tracking as the other two.
+
+**`documents.documents` vs. `documents.numbers`.** H2 lists `preliminary_number`/`final_number`/`control_number`/`number_series_id` as columns directly on `documents.documents` ("required columns for the documents.documents DDL"). D4 separately models a normalized `DocumentNumber` entity with an `isCurrent` flag, explicitly because preliminary numbers are "replaced (new record... old record), never edited in place." Both are implemented: `documents.documents` carries the current/denormalized values for fast, join-free reads; `documents.numbers` is the append-style historical ledger of every assignment event (each reassignment is a new row, `is_current` flips on the superseded row). The application is responsible for keeping the denormalized columns on `documents.documents` in sync with the latest `is_current = true` row in `documents.numbers`.
+
+**Entities not given their own table.** Per D4's own relationship notes, `CertificationOfUrgency` is realized as a `documents.attachments` row (`attachment_type = 'CERTIFICATION_OF_URGENCY'`) rather than a standalone table, and `TransmittalLetter` is realized as a `documents.documents` row of type `TRANSMITTAL_LETTER` consuming the shared `letters_sent` series. Because one Certification of Urgency can certify several measures, `documents.attachments` gains a `source_document_id` self-referencing column so the same certification can be attached once per measure without re-uploading the file.
+
+**Entities given a table beyond B2's "canonical" short list.** D4 models `PanlalawiganReview` and `PublicationRecord` as first-class entities related 0..1 to `Document`, each with enough independent fields (control number, dates, outcome / newspaper, publication date) to need durable, queryable storage beyond the ephemeral `workflow.instances.context` JSONB. Neither is flagged in D4 as folded into an existing structure (unlike Certification of Urgency and Transmittal Letter, which are explicitly called out). This DDL therefore adds `documents.panlalawigan_reviews` and `documents.publication_records`, beyond B2's seven-table "canonical list" for the `documents` schema, which is read as the core/primary set rather than an exhaustive one.
+
+**`documents.numbers` and `documents.versions`.** Table names follow B2's and the main schema map's explicit short forms (`numbers`, `versions`), not D4's longer entity names (`DocumentNumber`, `DocumentVersion`).
+
+**`records` schema is fully implemented, not reserved.** B2 labels the Records *module* "Phase: 2 — module delivered Phase 2; schema reserved in Phase 1 migration," which conflicts with the main reference document's explicit Phase 1 schema list (which includes `records` alongside `iam`/`organization`/`documents`/`workflow`/`tracking`/`notifications`/`audit`, with no "reserved only" annotation of the kind explicitly given to `search_meta`/`portal`/`reporting`) and with D4, which marks every Records entity "Phase: 1" in its entity index. The C1 task instruction itself lists `records` as a schema requiring full DDL. This document follows the more specific and more numerous sources: `records` gets full table DDL now; only the *application* bulk-operation/disposition workflows are assumed to go live in Phase 2.
+
+**Citizen Complaint and Document Request Form live in `documents`, not `portal`.** The main reference document explicitly states the Citizen Complaint Module and Document Request Form are "Phase 1 feature[s]," while also stating the `portal` schema (which would hold `citizen_requests`/`complaints`) is Phase 3 and reserved-only. H2's footnote suggesting the `portal` schema is "partially initialized" in Phase 1 is treated as the less authoritative, likely-stale statement, since it directly contradicts the main document's explicit, Developer-Decisions-Resolved instruction and the C1 task's own schema list (which excludes `portal`). The reconciliation: both citizen-facing processes are staff-mediated in Phase 1 (all three confirmed access modes route through Secretariat staff/clerk entry, never direct citizen self-service), so their data lives as ordinary `documents.documents` rows (`document_type` = `CITIZEN_COMPLAINT` / `DOCUMENT_REQUEST_FORM`) with type-specific JSONB metadata, exactly as H2's metadata field inventory describes. `owning_module = 'portal'` is kept on `documents.document_types` as a routing/ownership label only — it does not imply any `portal.*` table exists yet.
+
+**`panlalawigan_review_log` numbering.** H3 explicitly flags this series' entity classification as unresolved ("Whether this entity is modelled as a row in `documents.document_types` or as a distinct entity in `tracking` or `records` is unresolved"). This DDL does not create a `documents.document_types`/`documents.documents` row for it; instead, the series is defined in `documents.number_series` as usual (`document_type_id` nullable to allow this), and its control number is consumed by the dedicated `documents.panlalawigan_reviews` table via `number_series_id`.
+
+**`iam.mfa_records`.** D4's own entity-exclusion list marks `MfaRecord` "(Phase 2)" and omits it from the 46-entity domain model, while B2 and the main schema map both list `mfa_records` in the `iam` schema's Phase 1 canonical table set, and the Auth Architecture Requirements state the auth flow "must accommodate" MFA from day one. This DDL creates the table now (so Phase 2 TOTP enablement needs no migration) but expects it to hold no rows until Phase 2. Flagged again in [Open Items](#open-items-requiring-confirmation).
+
+**Unconstrained enumerations.** `OfficeType`, `AuthorityLevel`, `RecordType`, and `OrderOfBusinessItemType` are referenced as enum-typed attributes in D4 but no value list is given anywhere in the source material. Where there is enough structural context to infer a defensible list (`OfficeType` needs an `EXTERNAL` value because SPR documents record an external sender office as `originating_office_id`; `OrderOfBusinessItemType` is grounded in the explicit First/Second/Third Reading and Committee Report vocabulary used throughout), a `CHECK` constraint with inferred values is included and marked `[Inference]`. Where the grounding is too thin to commit to specific values (`AuthorityLevel`, `RecordType`), the column is left as unconstrained `TEXT` with an inline note rather than inventing a list that might not match the eventual decision.
+
+**Triggers and functions kept deliberately small.** Three are included, each because the source explicitly calls for DB-level enforcement as a second line of defense: a lifecycle-state transition guard on `documents.documents` (the non-negotiable "check constraints for state transitions... as a second line of defense"), an immutability guard on `documents.numbers` for `FINAL`/`CONTROL` rows ("no override path exists for any role"), and a `next_sequence_value()` helper that operationalizes "one sequence per series per year" ergonomically. Conversely, where B4 explicitly states a rule is application-layer only and *not* a DB constraint — the encoder/final-approver distinction (Invariant #13), `workflow.instances.definition_version_id` immutability outside `engine.migrateInstance` — no trigger is added; only an inline comment documents the rule.
+
+**Hash/HMAC computation stays out of the database.** Per the explicit instruction ("Implementation: Node built-in `crypto` only — no external library"), `audit.events.chain_hash` and `.hmac` are plain columns populated by the application before `INSERT`; no DB trigger computes them. A `sequence_number BIGINT` column (backed by its own sequence) gives the hash chain an unambiguous, monotonic "previous record" pointer that does not depend on wall-clock ordering.
+
+---
+
+## Preamble
+
+```sql
+-- ============================================================================
+-- PREAMBLE
+-- ============================================================================
+
+-- gen_random_uuid() is core in PostgreSQL 13+; the extension is created
+-- defensively for compatibility with older engines and is a no-op on 16+.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE SCHEMA IF NOT EXISTS iam;
+CREATE SCHEMA IF NOT EXISTS organization;
+CREATE SCHEMA IF NOT EXISTS documents;
+CREATE SCHEMA IF NOT EXISTS workflow;
+CREATE SCHEMA IF NOT EXISTS tracking;
+CREATE SCHEMA IF NOT EXISTS records;
+CREATE SCHEMA IF NOT EXISTS notifications;
+CREATE SCHEMA IF NOT EXISTS audit;
+
+-- Reserved Phase 2/3 namespaces — see "Reserved Phase 2/3 Schemas" below.
+CREATE SCHEMA IF NOT EXISTS search_meta;
+CREATE SCHEMA IF NOT EXISTS portal;
+CREATE SCHEMA IF NOT EXISTS reporting;
+```
+
+---
+
+## Shared Infrastructure
+
+To support in-process asynchronous message reliability (ADR-B2-1), failed event handlers are logged to a shared dead-letter table. This table lives in the `public` schema.
+
+```sql
+-- Shared infrastructure table for event bus dead letters (ADR-B2-1).
+-- Created in the public schema to avoid coupling with any specific domain schema.
+CREATE TABLE public.event_bus_dead_letters (
+    id              UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id         UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    event_id        UUID NOT NULL,
+    event_type      TEXT NOT NULL,
+    payload         JSONB NOT NULL,
+    failed_module   TEXT NOT NULL,
+    error_message   TEXT NOT NULL,
+    failed_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    retry_count     INTEGER NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at      TIMESTAMPTZ NULL,
+    deleted_by      UUID NULL
+);
+
+-- Index on failed_at for pgboss queue scanning and cleanup
+CREATE INDEX idx_event_bus_dead_letters_failed_at ON public.event_bus_dead_letters (failed_at);
+```
+
+---
+
+## Schema: iam
+
+Authentication, session control, JWT-adjacent token storage, role/permission resolution. ABAC office-scoping and Tier 1/2/3 authorization are application-layer concerns (Authorization Tiers, B2); no dedicated ABAC policy table exists in any source document, so none is invented here — `iam.role_assignments.office_scope_id` is the one piece of schema support the source material grounds for office-scoped rules.
+
+```sql
+-- ============================================================================
+-- SCHEMA: iam
+-- ============================================================================
+
+-- Login-capable identities only. Personal/employment data (name, office,
+-- position) lives in organization.employees; see Employee.hasAccount (D4),
+-- which is a 0..1 relationship from Employee to User.
+CREATE TABLE iam.users (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    username            TEXT NOT NULL,
+    email               TEXT NOT NULL,
+    status              TEXT NOT NULL DEFAULT 'ACTIVE'
+                            CHECK (status IN ('ACTIVE','INACTIVE','SUSPENDED','DEACTIVATED')),
+    mfa_enabled         BOOLEAN NOT NULL DEFAULT false,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL REFERENCES iam.users (id),
+    CONSTRAINT uq_users_city_username UNIQUE (city_id, username),
+    CONSTRAINT uq_users_city_email UNIQUE (city_id, email)
+);
+
+-- 1:1 with users (D4: User "1" *-- "1" Credential).
+CREATE TABLE iam.credentials (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    user_id             UUID NOT NULL REFERENCES iam.users (id),
+    password_hash       TEXT NOT NULL,
+    last_changed_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL REFERENCES iam.users (id),
+    CONSTRAINT uq_credentials_user UNIQUE (user_id)
+);
+
+-- One active session per user (Session Management: "Concurrent sessions:
+-- One active session per user"; "New login from different device: Logs
+-- out previous session"). Enforced via the partial unique index below as
+-- the DB-level second line of defense; the application is responsible for
+-- terminating the prior session in the same transaction as creating a new
+-- one.
+CREATE TABLE iam.sessions (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    user_id             UUID NOT NULL REFERENCES iam.users (id),
+    session_token_hash  TEXT NOT NULL,
+    ip_address          INET NULL,
+    user_agent          TEXT NULL,
+    issued_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at          TIMESTAMPTZ NOT NULL,
+    last_active_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    is_active           BOOLEAN NOT NULL DEFAULT true,
+    terminated_at       TIMESTAMPTZ NULL,
+    terminated_by       UUID NULL REFERENCES iam.users (id),
+    termination_reason  TEXT NULL
+                            CHECK (termination_reason IN ('user_action','forced','timeout')),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL REFERENCES iam.users (id),
+    CONSTRAINT uq_sessions_token_hash UNIQUE (session_token_hash)
+);
+
+CREATE UNIQUE INDEX uq_sessions_one_active_per_user
+    ON iam.sessions (user_id)
+    WHERE is_active = true AND deleted_at IS NULL;
+
+CREATE INDEX idx_sessions_user ON iam.sessions (user_id);
+
+-- Refresh token storage: server-side DB, hashed value (Auth Architecture
+-- Requirements). Never the raw token.
+CREATE TABLE iam.refresh_tokens (
+    id              UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id         UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    user_id         UUID NOT NULL REFERENCES iam.users (id),
+    session_id      UUID NULL REFERENCES iam.sessions (id),
+    token_hash      TEXT NOT NULL,
+    issued_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at      TIMESTAMPTZ NOT NULL,
+    is_revoked      BOOLEAN NOT NULL DEFAULT false,
+    revoked_at      TIMESTAMPTZ NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at      TIMESTAMPTZ NULL,
+    deleted_by      UUID NULL REFERENCES iam.users (id),
+    CONSTRAINT uq_refresh_tokens_hash UNIQUE (token_hash)
+);
+
+CREATE INDEX idx_refresh_tokens_user ON iam.refresh_tokens (user_id);
+
+CREATE TABLE iam.roles (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    name                TEXT NOT NULL,
+    code                TEXT NOT NULL,
+    description         TEXT NULL,
+    -- [Inference] Design aid for Invariant #12 (Platform Administrator role
+    -- cannot be combined with an operational/document-processing role).
+    -- Full enforcement is application-layer role-assignment validation per
+    -- source; this flag supports that check.
+    is_platform_admin   BOOLEAN NOT NULL DEFAULT false,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL REFERENCES iam.users (id),
+    CONSTRAINT uq_roles_city_code UNIQUE (city_id, code)
+);
+
+CREATE TABLE iam.permissions (
+    id              UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id         UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    resource        TEXT NOT NULL,
+    action          TEXT NOT NULL,
+    description     TEXT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at      TIMESTAMPTZ NULL,
+    deleted_by      UUID NULL REFERENCES iam.users (id),
+    CONSTRAINT uq_permissions_city_resource_action UNIQUE (city_id, resource, action)
+);
+
+-- Junction: Role *--* Permission : grants (D4).
+CREATE TABLE iam.role_permissions (
+    id              UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id         UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    role_id         UUID NOT NULL REFERENCES iam.roles (id),
+    permission_id   UUID NOT NULL REFERENCES iam.permissions (id),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at      TIMESTAMPTZ NULL,
+    deleted_by      UUID NULL REFERENCES iam.users (id),
+    CONSTRAINT uq_role_permissions UNIQUE (role_id, permission_id)
+);
+
+CREATE INDEX idx_role_permissions_role ON iam.role_permissions (role_id);
+CREATE INDEX idx_role_permissions_permission ON iam.role_permissions (permission_id);
+
+-- Junction: User *--* Role : assigned (D4). office_scope_id supports ABAC
+-- office-scoped rules ("Pure RBAC cannot express office-scoped rules");
+-- logical FK -> organization.offices.id (cross-schema; no constraint).
+CREATE TABLE iam.role_assignments (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    user_id             UUID NOT NULL REFERENCES iam.users (id),
+    role_id             UUID NOT NULL REFERENCES iam.roles (id),
+    office_scope_id     UUID NULL,
+    assigned_by         UUID NOT NULL REFERENCES iam.users (id),
+    assigned_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    revoked_by          UUID NULL REFERENCES iam.users (id),
+    revoked_at          TIMESTAMPTZ NULL,
+    is_active           BOOLEAN NOT NULL DEFAULT true,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL REFERENCES iam.users (id)
+);
+
+CREATE INDEX idx_role_assignments_user ON iam.role_assignments (user_id) WHERE is_active = true;
+CREATE INDEX idx_role_assignments_role ON iam.role_assignments (role_id);
+
+-- TOTP designed from day one; not enabled in Phase 1; required in Phase 2
+-- for Mayor, SP Secretary, Department Heads, Platform Administrator, IT
+-- Admin (Auth Architecture Requirements). See Conventions section above
+-- for the source conflict this table resolves.
+CREATE TABLE iam.mfa_records (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    user_id             UUID NOT NULL REFERENCES iam.users (id),
+    method              TEXT NOT NULL DEFAULT 'TOTP' CHECK (method IN ('TOTP')),
+    secret_encrypted    TEXT NOT NULL,
+    is_enabled          BOOLEAN NOT NULL DEFAULT false,
+    enabled_at          TIMESTAMPTZ NULL,
+    last_verified_at    TIMESTAMPTZ NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL REFERENCES iam.users (id),
+    CONSTRAINT uq_mfa_records_user_method UNIQUE (user_id, method)
+);
+```
+
+## Schema: organization
+
+Office hierarchy, positions, employees, assignments, delegation grants, and committees. `Committee`/`CommitteeMembership` are placed here per D4's explicit note ("they are not generic Office entities... they have term-bound membership and produce CommitteeReport entities that interact with the Workflow module"), but are not `organization.offices` rows.
+
+```sql
+-- ============================================================================
+-- SCHEMA: organization
+-- ============================================================================
+
+-- office_type values are [Inference] -- no enumerated list is given in any
+-- source document for D4's OfficeType attribute. EXTERNAL is structurally
+-- required because incoming-letter (SPR) documents record the external
+-- sender as originating_office_id, which is a row in this table.
+CREATE TABLE organization.offices (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    name                TEXT NOT NULL,
+    code                TEXT NOT NULL,
+    office_type         TEXT NOT NULL
+                            CHECK (office_type IN ('EXECUTIVE','LEGISLATIVE','DEPARTMENT','EXTERNAL')),
+    parent_office_id    UUID NULL REFERENCES organization.offices (id),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL, -- logical FK -> iam.users.id (cross-schema; no constraint)
+    CONSTRAINT uq_offices_city_code UNIQUE (city_id, code)
+);
+
+CREATE INDEX idx_offices_parent ON organization.offices (parent_office_id);
+
+-- authority_level is left as unconstrained TEXT: D4 declares Position.level
+-- as an AuthorityLevel enum but no value list is given anywhere in source,
+-- and (unlike OfficeType) there is no structural requirement strong enough
+-- to justify inventing specific values. Confirm with stakeholders before
+-- adding a CHECK constraint. See Open Items.
+CREATE TABLE organization.positions (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    office_id           UUID NOT NULL REFERENCES organization.offices (id),
+    title               TEXT NOT NULL,
+    code                TEXT NOT NULL,
+    authority_level     TEXT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL,
+    CONSTRAINT uq_positions_city_code UNIQUE (city_id, code)
+);
+
+CREATE INDEX idx_positions_office ON organization.positions (office_id);
+
+-- user_id is logical FK -> iam.users.id (cross-schema; no constraint).
+-- Employee "1" --> "0..1" User : hasAccount (D4) -- not every employee logs
+-- in. UNIQUE partial index enforces the implied inverse: a User account
+-- belongs to exactly one Employee.
+CREATE TABLE organization.employees (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    user_id             UUID NULL,
+    employee_number     TEXT NOT NULL,
+    first_name          TEXT NOT NULL,
+    last_name           TEXT NOT NULL,
+    email               TEXT NOT NULL,
+    phone_number        TEXT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL,
+    CONSTRAINT uq_employees_city_number UNIQUE (city_id, employee_number)
+);
+
+CREATE UNIQUE INDEX uq_employees_user_id ON organization.employees (user_id) WHERE user_id IS NOT NULL;
+
+CREATE TABLE organization.assignments (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    employee_id         UUID NOT NULL REFERENCES organization.employees (id),
+    position_id         UUID NOT NULL REFERENCES organization.positions (id),
+    office_id           UUID NOT NULL REFERENCES organization.offices (id),
+    start_date          DATE NOT NULL,
+    end_date            DATE NULL,
+    is_active           BOOLEAN NOT NULL DEFAULT true,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL,
+    CONSTRAINT chk_assignments_dates CHECK (end_date IS NULL OR end_date >= start_date)
+);
+
+CREATE INDEX idx_assignments_employee ON organization.assignments (employee_id);
+CREATE INDEX idx_assignments_position ON organization.assignments (position_id);
+CREATE INDEX idx_assignments_office ON organization.assignments (office_id);
+
+-- Invariant #16: one active designation per person at any time. References
+-- Employee, not User, matching D4's DelegationGrant relationships (B2's
+-- DelegationSummary TypeScript type names the same fields delegatingUserId/
+-- delegatedToUserId, but that is read as informal API naming, not a
+-- directive to FK against iam.users from this schema). Open-ended
+-- delegations are prohibited, so end_date is NOT NULL.
+CREATE TABLE organization.delegation_grants (
+    id                          UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                     UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    delegated_by_employee_id    UUID NOT NULL REFERENCES organization.employees (id),
+    delegated_to_employee_id    UUID NOT NULL REFERENCES organization.employees (id),
+    office_id                   UUID NOT NULL REFERENCES organization.offices (id),
+    position_id                 UUID NOT NULL REFERENCES organization.positions (id),
+    scope_description           TEXT NOT NULL,
+    legal_basis                 TEXT NULL,
+    start_date                  DATE NOT NULL,
+    end_date                    DATE NOT NULL,
+    is_active                   BOOLEAN NOT NULL DEFAULT true,
+    designation_document_id     UUID NULL, -- logical FK -> documents.documents.id (cross-schema)
+    revoked_by_employee_id      UUID NULL REFERENCES organization.employees (id),
+    revoked_at                  TIMESTAMPTZ NULL,
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                  TIMESTAMPTZ NULL,
+    deleted_by                  UUID NULL,
+    CONSTRAINT chk_delegation_dates CHECK (end_date > start_date),
+    CONSTRAINT chk_delegation_not_self CHECK (delegated_by_employee_id <> delegated_to_employee_id)
+);
+
+CREATE UNIQUE INDEX uq_delegation_one_active_per_delegatee
+    ON organization.delegation_grants (delegated_to_employee_id)
+    WHERE is_active = true AND deleted_at IS NULL;
+
+CREATE INDEX idx_delegation_delegator ON organization.delegation_grants (delegated_by_employee_id);
+CREATE INDEX idx_delegation_delegatee ON organization.delegation_grants (delegated_to_employee_id);
+
+-- D4 multiplicity is "1" (mandatory) on Committee --> Employee : chairedBy,
+-- taken literally rather than relaxed to 0..1.
+CREATE TABLE organization.committees (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    name                    TEXT NOT NULL,
+    code                    TEXT NOT NULL,
+    chaired_by_employee_id  UUID NOT NULL REFERENCES organization.employees (id),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ NULL,
+    deleted_by              UUID NULL,
+    CONSTRAINT uq_committees_city_code UNIQUE (city_id, code)
+);
+
+CREATE TABLE organization.committee_memberships (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    committee_id        UUID NOT NULL REFERENCES organization.committees (id),
+    employee_id         UUID NOT NULL REFERENCES organization.employees (id),
+    committee_role      TEXT NOT NULL CHECK (committee_role IN ('CHAIRMAN','VICE_CHAIRMAN','MEMBER')),
+    start_date          DATE NOT NULL,
+    is_active           BOOLEAN NOT NULL DEFAULT true,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL
+);
+
+CREATE UNIQUE INDEX uq_committee_membership_active
+    ON organization.committee_memberships (committee_id, employee_id)
+    WHERE is_active = true AND deleted_at IS NULL;
+
+CREATE INDEX idx_committee_memberships_employee ON organization.committee_memberships (employee_id);
+```
+
+## Schema: documents
+
+Document lifecycle, immutable versioning, two-stage series numbering, attachments, signatures, sponsorships, and the Panlalawigan review / publication satellite tables. This is the largest and most heavily cross-referenced schema; see the Conventions section above for the reasoning behind several structural decisions made here (numbers-vs-control-numbers, the denormalized-plus-historical numbering design, and the two tables added beyond B2's canonical seven).
+
+```sql
+-- ============================================================================
+-- SCHEMA: documents
+-- ============================================================================
+
+-- owning_module is a routing/ownership label, not a literal schema
+-- reference -- 'portal' is valid even though no portal.* tables exist in
+-- Phase 1 (see Conventions: "Citizen Complaint and Document Request Form
+-- live in documents, not portal").
+CREATE TABLE documents.document_types (
+    id                          UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                     UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    name                        TEXT NOT NULL,
+    code                        TEXT NOT NULL,
+    owning_module               TEXT NOT NULL CHECK (owning_module IN ('workflow','organization','portal')),
+    number_series_id            UUID NULL, -- FK added below, after documents.number_series exists
+    has_preliminary_numbering   BOOLEAN NOT NULL DEFAULT false,
+    control_number_deferred     BOOLEAN NOT NULL DEFAULT false,
+    requires_publication        BOOLEAN NOT NULL DEFAULT false,
+    retention_schedule_id       UUID NULL, -- logical FK -> records.retention_schedules.id (cross-schema)
+    classification_default      TEXT NOT NULL CHECK (classification_default IN ('PUBLIC','INTERNAL','CONFIDENTIAL','RESTRICTED')),
+    public_visibility_rule      TEXT NOT NULL CHECK (public_visibility_rule IN
+                                    ('TITLE_AND_FIRST_PAGE_PUBLIC','NOT_PUBLIC','COMPLAINANT_RESTRICTED','REQUESTER_RESTRICTED')),
+    required_step_types         TEXT[] NULL,
+    metadata_schema             JSONB NULL,
+    is_active                   BOOLEAN NOT NULL DEFAULT false,
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                  TIMESTAMPTZ NULL,
+    deleted_by                  UUID NULL,
+    CONSTRAINT uq_document_types_city_code UNIQUE (city_id, code),
+    -- Invariant #11 as a DB-level second line of defense, alongside the
+    -- application validation constraint the source also calls for.
+    CONSTRAINT chk_document_types_retention_before_activation
+        CHECK (is_active = false OR retention_schedule_id IS NOT NULL)
+);
+
+-- document_type_id is nullable specifically to accommodate
+-- panlalawigan_review_log, which this DDL does not model as a document
+-- type (see Conventions). series_type, sp_ordinal, and
+-- sequence_name_prefix are [Inference] additions per H3 Implementation
+-- Notes 1 and the sequence-naming table (Table 2).
+CREATE TABLE documents.number_series (
+    id                              UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                         UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    series_key                      TEXT NOT NULL,
+    document_type_id                UUID NULL REFERENCES documents.document_types (id),
+    series_type                     TEXT NOT NULL CHECK (series_type IN ('LEGISLATIVE','ADMINISTRATIVE')),
+    prefix                          TEXT NULL,
+    sp_ordinal                      TEXT NULL, -- [Inference -- H3 Note 1] separates the "7" in 7SP from the
+                                                -- rendered prefix string, so an administration change is a
+                                                -- single field update rather than three data edits.
+    sequence_padding                SMALLINT NOT NULL,
+    sequence_name_prefix            TEXT NOT NULL, -- e.g. 'ns_nch' (H3 Table 2); used by next_sequence_value()
+    preliminary_format              TEXT NULL,
+    final_format                    TEXT NOT NULL,
+    delimiter                       TEXT NOT NULL DEFAULT ' ',
+    resets_annually                 BOOLEAN NOT NULL DEFAULT true,
+    year_format                     TEXT NOT NULL DEFAULT 'YYYY',
+    authority_office_id             UUID NOT NULL, -- logical FK -> organization.offices.id (cross-schema)
+    preliminary_assignment_event    TEXT NULL,
+    final_assignment_event          TEXT NOT NULL,
+    deferred_final_assignment       BOOLEAN NOT NULL DEFAULT false,
+    phase                           TEXT NOT NULL DEFAULT '1' CHECK (phase IN ('1','1B')),
+    created_at                      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                      TIMESTAMPTZ NULL,
+    deleted_by                      UUID NULL,
+    CONSTRAINT uq_number_series_city_key UNIQUE (city_id, series_key)
+);
+
+ALTER TABLE documents.document_types
+    ADD CONSTRAINT fk_document_types_number_series
+    FOREIGN KEY (number_series_id) REFERENCES documents.number_series (id);
+
+-- Required columns per H2 ("the required columns for the documents.documents
+-- DDL"). preliminary_number / final_number / control_number /
+-- number_series_id are the DENORMALIZED current values for fast reads; the
+-- full assignment history lives in documents.numbers below.
+CREATE TABLE documents.documents (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_type_id        UUID NOT NULL REFERENCES documents.document_types (id),
+    title                   TEXT NOT NULL,
+    lifecycle_state         TEXT NOT NULL DEFAULT 'Draft' CHECK (lifecycle_state IN
+                                ('Draft','Submitted','In-Workflow','Pending Approval','Completed','Released','Archived','Disposed','Cancelled')),
+    classification_level    TEXT NOT NULL CHECK (classification_level IN ('PUBLIC','INTERNAL','CONFIDENTIAL','RESTRICTED')),
+    qr_tracking_number      UUID NOT NULL,
+    preliminary_number      TEXT NULL,
+    final_number            TEXT NULL,
+    control_number          TEXT NULL,
+    number_series_id        UUID NULL REFERENCES documents.number_series (id),
+    originating_office_id   UUID NOT NULL, -- logical FK -> organization.offices.id (cross-schema)
+    owned_by_office_id      UUID NOT NULL, -- logical FK -> organization.offices.id (cross-schema)
+    drafted_by_employee_id  UUID NULL,     -- logical FK -> organization.employees.id (cross-schema)
+    created_by              UUID NOT NULL, -- logical FK -> iam.users.id (cross-schema)
+    workflow_instance_id    UUID NULL,     -- logical FK -> workflow.instances.id (cross-schema)
+    retention_schedule_id   UUID NOT NULL, -- logical FK -> records.retention_schedules.id (cross-schema)
+    version_number          INTEGER NOT NULL DEFAULT 1,
+    metadata                JSONB NULL DEFAULT '{}'::jsonb,
+    tsv                     tsvector NULL, -- [Phase 1] FTS vector for title (ADR-B2-5)
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ NULL,
+    deleted_by              UUID NULL,
+    CONSTRAINT uq_documents_qr_tracking_number UNIQUE (qr_tracking_number)
+);
+
+CREATE INDEX idx_documents_type ON documents.documents (document_type_id);
+CREATE INDEX idx_documents_lifecycle_state ON documents.documents (lifecycle_state);
+CREATE INDEX idx_documents_originating_office ON documents.documents (originating_office_id);
+CREATE INDEX idx_documents_owned_by_office ON documents.documents (owned_by_office_id);
+CREATE INDEX idx_documents_workflow_instance ON documents.documents (workflow_instance_id);
+
+-- "JSONB -- Admin-configurable document metadata... Use GIN indexes. Query
+-- with @> operator and ->> accessors" (PostgreSQL Non-Negotiables), plus
+-- the three specific expression indexes H2 calls out as minimum targets.
+CREATE INDEX idx_documents_metadata_gin ON documents.documents USING GIN (metadata);
+CREATE INDEX idx_documents_metadata_certified_urgent ON documents.documents ((metadata ->> 'certified_urgent'));
+CREATE INDEX idx_documents_metadata_has_penalty ON documents.documents ((metadata ->> 'has_penalty_provision'));
+CREATE INDEX idx_documents_metadata_outcome_state ON documents.documents ((metadata ->> 'outcome_state'));
+
+-- "Check constraints for state transitions -- Enforce valid workflow state
+-- transitions at the DB level as a second line of defense" (PostgreSQL
+-- Non-Negotiables). The transition graph below is [Inference], derived
+-- from the stated lifecycle order plus the explicitly described
+-- "approval" step behavior (approve / reject / return for revision) and
+-- the terminal-state framing of Cancelled/Archived/Disposed. "Cancelled...
+-- reachable from any active state" is read as the states before Released
+-- (Draft through Completed); confirm the exact allowed transitions with
+-- the workflow engine team before relying on this as a hard gate.
+CREATE OR REPLACE FUNCTION documents.check_lifecycle_transition()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+    v_allowed BOOLEAN := false;
+BEGIN
+    IF NEW.lifecycle_state IS DISTINCT FROM OLD.lifecycle_state THEN
+        v_allowed := CASE OLD.lifecycle_state
+            WHEN 'Draft'             THEN NEW.lifecycle_state IN ('Submitted','Cancelled')
+            WHEN 'Submitted'         THEN NEW.lifecycle_state IN ('In-Workflow','Cancelled')
+            WHEN 'In-Workflow'       THEN NEW.lifecycle_state IN ('Pending Approval','Cancelled')
+            WHEN 'Pending Approval'  THEN NEW.lifecycle_state IN ('Completed','In-Workflow','Cancelled')
+            WHEN 'Completed'         THEN NEW.lifecycle_state IN ('Released','Cancelled')
+            WHEN 'Released'          THEN NEW.lifecycle_state IN ('Archived')
+            WHEN 'Archived'          THEN NEW.lifecycle_state IN ('Disposed')
+            WHEN 'Disposed'          THEN false
+            WHEN 'Cancelled'         THEN false
+            ELSE false
+        END;
+
+        IF NOT v_allowed THEN
+            RAISE EXCEPTION 'invalid document lifecycle transition: % to %', OLD.lifecycle_state, NEW.lifecycle_state;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$fn$;
+
+CREATE TRIGGER trg_documents_lifecycle_transition
+    BEFORE UPDATE ON documents.documents
+    FOR EACH ROW
+    EXECUTE FUNCTION documents.check_lifecycle_transition();
+
+-- FTS trigger to maintain the tsv column (ADR-B2-5)
+CREATE TRIGGER trg_documents_tsv_update
+    BEFORE INSERT OR UPDATE OF title ON documents.documents
+    FOR EACH ROW
+    EXECUTE FUNCTION tsvector_update_trigger(tsv, 'pg_catalog.english', title);
+
+-- Historical/event-sourced ledger of every number assignment (D4's
+-- DocumentNumber, with NumberType extended to add CONTROL -- see
+-- Conventions). Each reassignment is a new row; PRELIMINARY rows flip
+-- is_current = false when superseded, never edited in place.
+CREATE TABLE documents.numbers (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id         UUID NOT NULL REFERENCES documents.documents (id),
+    number_series_id    UUID NOT NULL REFERENCES documents.number_series (id),
+    number_type         TEXT NOT NULL CHECK (number_type IN ('PRELIMINARY','FINAL','CONTROL')),
+    number_value        TEXT NOT NULL,
+    year                INTEGER NOT NULL,
+    sequence_number     INTEGER NOT NULL,
+    is_current          BOOLEAN NOT NULL DEFAULT true,
+    assigned_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    assigned_by         UUID NOT NULL, -- logical FK -> iam.users.id (cross-schema)
+    superseded_at       TIMESTAMPTZ NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL,
+    -- H3 Implementation Note 2: unique constraint scoped to
+    -- (series, year, sequence) -- not the rendered format string, because
+    -- a resolution and an ordinance can legitimately share a rendered
+    -- number like "7SP 2026-05" under different series.
+    CONSTRAINT uq_numbers_series_year_seq UNIQUE (number_series_id, year, sequence_number)
+);
+
+CREATE UNIQUE INDEX uq_numbers_one_current_per_type
+    ON documents.numbers (document_id, number_type)
+    WHERE is_current = true AND deleted_at IS NULL;
+
+CREATE INDEX idx_numbers_document ON documents.numbers (document_id);
+
+-- "Final numbers (after the Draft prefix removed) are immutable -- no
+-- override path exists for any role" (main reference document, Numbering
+-- Architecture Decisions). Extended here to CONTROL numbers for the same
+-- reason.
+CREATE OR REPLACE FUNCTION documents.check_number_immutability()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $fn$
+BEGIN
+    IF OLD.number_type IN ('FINAL','CONTROL') AND OLD.number_value IS DISTINCT FROM NEW.number_value THEN
+        RAISE EXCEPTION 'final and control numbers are immutable once assigned: % %', OLD.number_type, OLD.number_value;
+    END IF;
+    RETURN NEW;
+END;
+$fn$;
+
+CREATE TRIGGER trg_numbers_immutability
+    BEFORE UPDATE ON documents.numbers
+    FOR EACH ROW
+    EXECUTE FUNCTION documents.check_number_immutability();
+
+-- file_key is UUID, never the original filename, per Invariant #5
+-- ("S3-compatible API only; UUID file keys").
+CREATE TABLE documents.versions (
+    id                              UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                         UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id                     UUID NOT NULL REFERENCES documents.documents (id),
+    version_number                  INTEGER NOT NULL,
+    file_key                        UUID NOT NULL,
+    mime_type                       TEXT NOT NULL,
+    page_count                      INTEGER NULL,
+    scan_quality                    TEXT NULL CHECK (scan_quality IN ('GOOD','FAIR','POOR')),
+    ocr_processed                   BOOLEAN NOT NULL DEFAULT false,
+    ocr_text                        TEXT NULL,
+    tsv                             tsvector NULL, -- [Phase 1] FTS vector for OCR text (ADR-B2-5)
+    -- "the system flags the scanned image for manual verification by a
+    -- Records Officer before acceptance as the official copy" (Versioning).
+    requires_manual_verification    BOOLEAN NOT NULL DEFAULT false,
+    verified_by                     UUID NULL, -- logical FK -> iam.users.id (cross-schema)
+    verified_at                     TIMESTAMPTZ NULL,
+    created_by                      UUID NOT NULL, -- logical FK -> iam.users.id (cross-schema)
+    created_at                      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                      TIMESTAMPTZ NULL,
+    deleted_by                      UUID NULL,
+    CONSTRAINT uq_versions_document_number UNIQUE (document_id, version_number)
+);
+
+CREATE INDEX idx_versions_document ON documents.versions (document_id);
+
+-- FTS trigger to maintain the tsv column (ADR-B2-5)
+CREATE TRIGGER trg_versions_tsv_update
+    BEFORE INSERT OR UPDATE OF ocr_text ON documents.versions
+    FOR EACH ROW
+    EXECUTE FUNCTION tsvector_update_trigger(tsv, 'pg_catalog.english', ocr_text);
+
+-- CertificationOfUrgency is realized as a row here, not as its own table
+-- (D4 Relationship Note 6). source_document_id lets one Certification of
+-- Urgency Document (its own documents.documents row, type
+-- CERTIFICATION_OF_URGENCY) be attached to several measures without
+-- re-uploading the file, since "a single Certification of Urgency can
+-- cover multiple measures in the same session."
+CREATE TABLE documents.attachments (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id         UUID NOT NULL REFERENCES documents.documents (id),
+    attachment_type     TEXT NOT NULL CHECK (attachment_type IN ('CERTIFICATION_OF_URGENCY','COMMITTEE_REPORT','TRANSMITTAL_LETTER','SCAN','OTHER')),
+    file_key             UUID NULL,
+    source_document_id  UUID NULL REFERENCES documents.documents (id),
+    mime_type            TEXT NULL,
+    description          TEXT NULL,
+    uploaded_by          UUID NOT NULL, -- logical FK -> iam.users.id (cross-schema)
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at            TIMESTAMPTZ NULL,
+    deleted_by            UUID NULL,
+    CONSTRAINT chk_attachments_file_or_source CHECK (file_key IS NOT NULL OR source_document_id IS NOT NULL)
+);
+
+CREATE INDEX idx_attachments_document ON documents.attachments (document_id);
+CREATE INDEX idx_attachments_source_document ON documents.attachments (source_document_id);
+
+CREATE TABLE documents.signatures (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id             UUID NOT NULL REFERENCES documents.documents (id),
+    signature_type          TEXT NOT NULL CHECK (signature_type IN ('PRESIDING_OFFICER','MAYOR','SP_SECRETARY','VICE_MAYOR','COMMITTEE_CHAIR')),
+    signed_by_employee_id   UUID NOT NULL, -- logical FK -> organization.employees.id (cross-schema)
+    signed_at               TIMESTAMPTZ NOT NULL,
+    is_wet_ink              BOOLEAN NOT NULL DEFAULT false,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ NULL,
+    deleted_by              UUID NULL
+);
+
+CREATE INDEX idx_signatures_document ON documents.signatures (document_id);
+
+-- Distinct from Document.draftedBy (one drafter); a measure may have
+-- several councilor sponsors. Required for the Index of Ordinances
+-- tracked fields (H2, footnote on Transmittal Letter section).
+CREATE TABLE documents.document_sponsorships (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id         UUID NOT NULL REFERENCES documents.documents (id),
+    sponsor_employee_id UUID NOT NULL, -- logical FK -> organization.employees.id (cross-schema)
+    sponsorship_type    TEXT NOT NULL CHECK (sponsorship_type IN ('PRINCIPAL_AUTHOR','CO_AUTHOR','INTRODUCER','CO_INTRODUCER')),
+    order_of_priority   INTEGER NOT NULL DEFAULT 1,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at            TIMESTAMPTZ NULL,
+    deleted_by            UUID NULL,
+    CONSTRAINT uq_sponsorships UNIQUE (document_id, sponsor_employee_id, sponsorship_type)
+);
+
+CREATE INDEX idx_sponsorships_document ON documents.document_sponsorships (document_id);
+
+-- Added beyond B2's seven-table canonical list -- see Conventions
+-- ("Entities given a table beyond B2's canonical short list"). control_no
+-- is populated from the panlalawigan_review_log series via
+-- number_series_id, not from a documents.documents row.
+CREATE TABLE documents.panlalawigan_reviews (
+    id                          UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                     UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id                 UUID NOT NULL REFERENCES documents.documents (id),
+    number_series_id            UUID NULL REFERENCES documents.number_series (id),
+    control_no                  TEXT NULL,
+    subject                     TEXT NULL,
+    transmitted_at              TIMESTAMPTZ NULL,
+    received_at                 TIMESTAMPTZ NULL,
+    date_referred                DATE NULL,
+    date_approved_disapproved   DATE NULL,
+    outcome                     TEXT NULL CHECK (outcome IN ('VALID','VALID_IN_PART','RETURNED','OPERATIVE_IN_ITS_ENTIRETY','DEEMED_APPROVED')),
+    panlalawigan_resolution_no  TEXT NULL,
+    remarks                      TEXT NULL,
+    days_elapsed                 INTEGER NULL,
+    created_at                    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                      TIMESTAMPTZ NULL,
+    deleted_by                       UUID NULL
+);
+
+CREATE INDEX idx_panlalawigan_reviews_document ON documents.panlalawigan_reviews (document_id);
+
+-- Added beyond B2's seven-table canonical list -- see Conventions. 0..1
+-- from Document per D4, hence the unique constraint on document_id.
+CREATE TABLE documents.publication_records (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id         UUID NOT NULL REFERENCES documents.documents (id),
+    newspaper           TEXT NOT NULL,
+    publication_date    DATE NOT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL,
+    CONSTRAINT uq_publication_records_document UNIQUE (document_id)
+);
+
+-- Operationalizes "Sequences for gapless document numbering -- Use
+-- PostgreSQL sequences with appropriate configuration per series per
+-- year" ergonomically. Assumes the target year's sequence already exists
+-- (created via the annual numbering-sequence migration -- an ops concern
+-- H3 explicitly excludes from DDL scope, not handled by this function).
+CREATE OR REPLACE FUNCTION documents.next_sequence_value(p_series_key TEXT, p_year INTEGER)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $fn$
+DECLARE
+    v_prefix    TEXT;
+    v_seq_name  TEXT;
+    v_next      BIGINT;
+BEGIN
+    SELECT sequence_name_prefix INTO v_prefix
+    FROM documents.number_series
+    WHERE series_key = p_series_key AND deleted_at IS NULL;
+
+    IF v_prefix IS NULL THEN
+        RAISE EXCEPTION 'unknown or deleted number series: %', p_series_key;
+    END IF;
+
+    v_seq_name := 'documents.' || v_prefix || '_' || p_year::text || '_seq';
+
+    BEGIN
+        EXECUTE format('SELECT nextval(%L)', v_seq_name) INTO v_next;
+    EXCEPTION WHEN undefined_table THEN
+        RAISE EXCEPTION 'sequence % does not exist yet; run the annual numbering-sequence migration for year % before assigning numbers', v_seq_name, p_year;
+    END;
+
+    RETURN v_next::INTEGER;
+END;
+$fn$;
+```
+
+## Schema: workflow
+
+The generic workflow engine (definitions, versions, steps, transitions, running instances and step instances, the append-only event log, and the Certified-Urgent bypass queue) exactly as specified in B4, plus the SP-Session/Committee-Report tables D4 places in this schema as "workflow-adjacent" but which B4 does not cover.
+
+```sql
+-- ============================================================================
+-- SCHEMA: workflow
+-- ============================================================================
+
+-- Native enums: B4 explicitly names these three types with an "_enum"
+-- suffix and gives complete, authoritative value lists, unlike every other
+-- domain-value column in this document (see Conventions: Enum strategy).
+CREATE TYPE workflow.workflow_step_type_enum AS ENUM
+    ('action','approval','multi_referral','decision','notification','termination','parallel_split','parallel_join');
+
+CREATE TYPE workflow.workflow_instance_status_enum AS ENUM
+    ('active','suspended','stuck','completed','cancelled');
+
+CREATE TYPE workflow.workflow_step_status_enum AS ENUM
+    ('pending','active','completed','bypassed','cancelled','failed');
+
+-- At most one active definition per document type (B4 DB-Level Constraint
+-- #1, partial unique index given verbatim in source).
+CREATE TABLE workflow.definitions (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_type_id    UUID NOT NULL, -- logical FK -> documents.document_types.id (cross-schema)
+    name                TEXT NOT NULL,
+    description         TEXT NULL,
+    is_active           BOOLEAN NOT NULL DEFAULT false,
+    created_by          UUID NOT NULL, -- logical FK -> iam.users.id (cross-schema)
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL
+);
+
+CREATE UNIQUE INDEX uq_definitions_one_active_per_doctype
+    ON workflow.definitions (document_type_id)
+    WHERE is_active = true AND deleted_at IS NULL;
+
+-- Immutable published snapshot. status is a GENERATED column reconciling
+-- D4's DefinitionStatus enum (Draft/Published/Deprecated) with B4's actual
+-- schema, which tracks the same information via two nullable timestamps
+-- rather than a stored status -- see Conventions.
+CREATE TABLE workflow.definition_versions (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    definition_id       UUID NOT NULL REFERENCES workflow.definitions (id),
+    version_number      INTEGER NOT NULL,
+    snapshot            JSONB NOT NULL,
+    published_at        TIMESTAMPTZ NULL,
+    published_by        UUID NULL, -- logical FK -> iam.users.id (cross-schema)
+    deprecated_at       TIMESTAMPTZ NULL,
+    is_current          BOOLEAN NOT NULL DEFAULT false,
+    status               TEXT GENERATED ALWAYS AS (
+                            CASE
+                                WHEN deprecated_at IS NOT NULL THEN 'Deprecated'
+                                WHEN published_at IS NOT NULL THEN 'Published'
+                                ELSE 'Draft'
+                            END
+                          ) STORED,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at           TIMESTAMPTZ NULL,
+    deleted_by           UUID NULL,
+    CONSTRAINT uq_definition_versions_def_number UNIQUE (definition_id, version_number)
+);
+
+-- At most one current version per definition (B4 DB-Level Constraint #2,
+-- partial unique index given verbatim in source).
+CREATE UNIQUE INDEX uq_definition_versions_one_current
+    ON workflow.definition_versions (definition_id)
+    WHERE is_current = true;
+
+CREATE INDEX idx_definition_versions_definition ON workflow.definition_versions (definition_id);
+
+-- Denormalized from definition_versions.snapshot for query efficiency; the
+-- snapshot JSONB remains authoritative on conflict (B4).
+CREATE TABLE workflow.steps (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    definition_version_id   UUID NOT NULL REFERENCES workflow.definition_versions (id),
+    step_key                TEXT NOT NULL,
+    step_type               workflow.workflow_step_type_enum NOT NULL,
+    label                   TEXT NOT NULL,
+    config                  JSONB NULL,
+    position                INTEGER NOT NULL DEFAULT 0,
+    is_start                BOOLEAN NOT NULL DEFAULT false,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ NULL,
+    deleted_by              UUID NULL,
+    CONSTRAINT uq_steps_version_key UNIQUE (definition_version_id, step_key)
+);
+
+-- "Exactly one step per definition version must have is_start = true.
+-- Validated at publish time" (B4) -- enforced here as a DB-level second
+-- line of defense via partial unique index.
+CREATE UNIQUE INDEX uq_steps_one_start_per_version
+    ON workflow.steps (definition_version_id)
+    WHERE is_start = true AND deleted_at IS NULL;
+
+CREATE INDEX idx_steps_definition_version ON workflow.steps (definition_version_id);
+
+CREATE TABLE workflow.transition_rules (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    definition_version_id   UUID NOT NULL REFERENCES workflow.definition_versions (id),
+    from_step_id            UUID NOT NULL REFERENCES workflow.steps (id),
+    to_step_id              UUID NOT NULL REFERENCES workflow.steps (id),
+    condition_expression    TEXT NULL,
+    outcome_filter          TEXT NULL,
+    priority                INTEGER NOT NULL DEFAULT 0,
+    label                   TEXT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ NULL,
+    deleted_by              UUID NULL
+);
+
+CREATE INDEX idx_transition_rules_from_step ON workflow.transition_rules (from_step_id);
+CREATE INDEX idx_transition_rules_definition_version ON workflow.transition_rules (definition_version_id);
+
+-- definition_version_id is pinned at creation (Invariant #4) and has "no
+-- application-layer update path... except via engine.migrateInstance" per
+-- B4's own DB-Level Constraints table (#5), which explicitly calls for a
+-- migration comment rather than a DB trigger -- so none is added here.
+-- lapse_status (named in B2's WorkflowInstanceSummary type) is
+-- intentionally NOT a stored column: B4's authoritative instances column
+-- table omits it, and it is derivable from the terminal step_instance's
+-- outcome code (LAPSED_INTO_LAW / DEEMED_APPROVED_PANLALAWIGAN).
+CREATE TABLE workflow.instances (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    definition_version_id   UUID NOT NULL REFERENCES workflow.definition_versions (id),
+    document_id             UUID NOT NULL, -- logical FK -> documents.documents.id (cross-schema)
+    status                  workflow.workflow_instance_status_enum NOT NULL DEFAULT 'active',
+    -- Mutable state store; schema enforced by the application (Zod, per
+    -- B4), not by a PostgreSQL CHECK constraint. See B4's "Context Schema"
+    -- reference for the full key set (mayor_action, panlalawigan_outcome,
+    -- certified_urgent, publication fields, etc).
+    context                 JSONB NOT NULL DEFAULT '{}'::jsonb,
+    sla_deadline            TIMESTAMPTZ NULL,
+    sla_breached_at         TIMESTAMPTZ NULL,
+    started_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    completed_at            TIMESTAMPTZ NULL,
+    created_by              UUID NOT NULL, -- logical FK -> iam.users.id (cross-schema)
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ NULL,
+    deleted_by              UUID NULL
+);
+
+CREATE INDEX idx_instances_document ON workflow.instances (document_id);
+CREATE INDEX idx_instances_definition_version ON workflow.instances (definition_version_id);
+CREATE INDEX idx_instances_sla_active ON workflow.instances (sla_deadline) WHERE status = 'active';
+
+-- Encoder/final-approver distinct-user invariant (#13) is explicitly
+-- application-layer only per B4 ("not a DB constraint") -- no trigger
+-- added here, by design.
+CREATE TABLE workflow.step_instances (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    instance_id         UUID NOT NULL REFERENCES workflow.instances (id),
+    step_id             UUID NOT NULL REFERENCES workflow.steps (id),
+    status              workflow.workflow_step_status_enum NOT NULL DEFAULT 'pending',
+    assigned_to         JSONB NULL,
+    started_at          TIMESTAMPTZ NULL,
+    completed_at        TIMESTAMPTZ NULL,
+    outcome             TEXT NULL,
+    outcome_comment     TEXT NULL,
+    -- Heavily used by multi_referral steps; null for action steps. See
+    -- B4's "step_instances.metadata Shape" reference for the structure.
+    metadata            JSONB NULL,
+    sla_deadline        TIMESTAMPTZ NULL,
+    sla_breached_at     TIMESTAMPTZ NULL,
+    bypassed_at         TIMESTAMPTZ NULL,
+    bypassed_by         UUID NULL, -- logical FK -> iam.users.id (cross-schema); null = system-triggered
+    bypass_reason       TEXT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL
+);
+
+CREATE INDEX idx_step_instances_instance ON workflow.step_instances (instance_id);
+CREATE INDEX idx_step_instances_step ON workflow.step_instances (step_id);
+CREATE INDEX idx_step_instances_metadata_gin ON workflow.step_instances USING GIN (metadata);
+
+-- Append-only event log. No deleted_at/deleted_by -- see Conventions
+-- ("Soft delete") -- and UPDATE/DELETE are revoked from
+-- workflow_app_user at the PostgreSQL grant level in the Roles section
+-- below, per B4's explicit instruction.
+CREATE TABLE workflow.workflow_events (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    instance_id         UUID NOT NULL REFERENCES workflow.instances (id),
+    step_instance_id    UUID NULL REFERENCES workflow.step_instances (id),
+    event_type          TEXT NOT NULL,
+    actor_id            UUID NULL, -- logical FK -> iam.users.id (cross-schema); null for system events
+    actor_type          TEXT NOT NULL CHECK (actor_type IN ('user','system','scheduler')),
+    payload             JSONB NOT NULL,
+    occurred_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_workflow_events_instance ON workflow.workflow_events (instance_id);
+CREATE INDEX idx_workflow_events_step_instance ON workflow.workflow_events (step_instance_id);
+CREATE INDEX idx_workflow_events_occurred_at ON workflow.workflow_events (occurred_at);
+
+-- Tracks deferred Certified Urgent bypasses for instances whose
+-- multi_referral step has not yet activated when the Certification is
+-- logged (B4).
+CREATE TABLE workflow.pending_certified_urgent_bypasses (
+    id                          UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                     UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    instance_id                 UUID NOT NULL REFERENCES workflow.instances (id),
+    step_key                    TEXT NOT NULL DEFAULT 'committee_referral',
+    certification_document_id   UUID NOT NULL, -- logical FK -> documents.documents.id (cross-schema)
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    applied_at                  TIMESTAMPTZ NULL,
+    applied_to_step_instance_id UUID NULL REFERENCES workflow.step_instances (id),
+    deleted_at                  TIMESTAMPTZ NULL,
+    deleted_by                  UUID NULL
+);
+
+CREATE INDEX idx_pending_bypasses_instance ON workflow.pending_certified_urgent_bypasses (instance_id);
+
+-- ----------------------------------------------------------------------------
+-- Workflow-adjacent: SP Session and Committee Report. D4 places these in
+-- the workflow schema explicitly ("Includes: SP Session and Committee
+-- Report -- workflow-adjacent"); B4 does not cover them since it scopes
+-- only the generic, reusable engine mechanics.
+-- ----------------------------------------------------------------------------
+
+-- 1:1 with a multi_referral step instance -- represents the eventual
+-- unified report for that step, not each individual committee submission
+-- (those live in step_instances.metadata.submissions per B4).
+CREATE TABLE workflow.committee_reports (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    step_instance_id    UUID NOT NULL REFERENCES workflow.step_instances (id),
+    submitted_at        TIMESTAMPTZ NULL,
+    is_unified          BOOLEAN NOT NULL DEFAULT false,
+    is_accepted         BOOLEAN NOT NULL DEFAULT false,
+    accepted_by         UUID NULL, -- logical FK -> iam.users.id (cross-schema)
+    accepted_at         TIMESTAMPTZ NULL,
+    content             TEXT NULL,
+    document_id         UUID NULL, -- logical FK -> documents.documents.id (cross-schema)
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL,
+    CONSTRAINT uq_committee_reports_step_instance UNIQUE (step_instance_id)
+);
+
+-- Junction for CommitteeReport *--* Committee : signedBy (D4) -- a unified
+-- report from a multi_referral step is signed by every assigned committee.
+CREATE TABLE workflow.committee_report_signatures (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    committee_report_id     UUID NOT NULL REFERENCES workflow.committee_reports (id),
+    committee_id            UUID NOT NULL, -- logical FK -> organization.committees.id (cross-schema)
+    signed_by_employee_id   UUID NULL,     -- logical FK -> organization.employees.id (cross-schema)
+    signed_at               TIMESTAMPTZ NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ NULL,
+    deleted_by              UUID NULL,
+    CONSTRAINT uq_committee_report_signatures UNIQUE (committee_report_id, committee_id)
+);
+
+CREATE TABLE workflow.sp_sessions (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    session_number          INTEGER NOT NULL,
+    session_date            DATE NOT NULL,
+    session_type            TEXT NOT NULL CHECK (session_type IN ('REGULAR','SPECIAL')),
+    presided_by_employee_id UUID NOT NULL, -- logical FK -> organization.employees.id (cross-schema)
+    present_count           INTEGER NULL,
+    quorum_achieved         BOOLEAN NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at               TIMESTAMPTZ NULL,
+    deleted_by                UUID NULL,
+    CONSTRAINT uq_sp_sessions_city_number UNIQUE (city_id, session_number)
+);
+
+CREATE TABLE workflow.session_attendances (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    sp_session_id       UUID NOT NULL REFERENCES workflow.sp_sessions (id),
+    employee_id         UUID NOT NULL, -- logical FK -> organization.employees.id (cross-schema)
+    is_present          BOOLEAN NOT NULL,
+    absence_reason      TEXT NULL CHECK (absence_reason IN ('OB','SICK_LEAVE','VACATION_LEAVE','ABSENT')),
+    recorded_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at            TIMESTAMPTZ NULL,
+    deleted_by             UUID NULL,
+    CONSTRAINT uq_session_attendance UNIQUE (sp_session_id, employee_id),
+    CONSTRAINT chk_attendance_reason CHECK (is_present = true OR absence_reason IS NOT NULL)
+);
+
+CREATE TABLE workflow.order_of_business (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    sp_session_id       UUID NOT NULL REFERENCES workflow.sp_sessions (id),
+    generated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    cutoff_date         DATE NOT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at           TIMESTAMPTZ NULL,
+    deleted_by            UUID NULL,
+    CONSTRAINT uq_order_of_business_session UNIQUE (sp_session_id)
+);
+
+-- item_type values are [Inference], grounded in the explicit First/Second/
+-- Third Reading + Committee Report vocabulary used throughout the source
+-- (Order of Business content is described as "all documents scheduled for
+-- the upcoming session's First Reading").
+CREATE TABLE workflow.order_of_business_items (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    order_of_business_id    UUID NOT NULL REFERENCES workflow.order_of_business (id),
+    document_id             UUID NOT NULL, -- logical FK -> documents.documents.id (cross-schema)
+    item_order              INTEGER NOT NULL,
+    item_type                TEXT NOT NULL CHECK (item_type IN ('FIRST_READING','SECOND_READING','THIRD_READING','COMMITTEE_REPORT','OTHER')),
+    is_red_flagged            BOOLEAN NOT NULL DEFAULT false,
+    created_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                  TIMESTAMPTZ NULL,
+    deleted_by                   UUID NULL,
+    CONSTRAINT uq_oob_items_order UNIQUE (order_of_business_id, item_order)
+);
+```
+
+## Schema: tracking
+
+QR code identity, the physical/custody tracking record per document, and the append-style routing history. Deliberately kept separate from `documents.documents.lifecycle_state`: "Physical custody | Tracked separately from digital workflow status" (main reference document, DTS).
+
+```sql
+-- ============================================================================
+-- SCHEMA: tracking
+-- ============================================================================
+
+-- tracking_id holds the same UUID value as documents.documents.
+-- qr_tracking_number (D4 Relationship Note 9: "Both hold the same UUID
+-- value"). Assigned at secretariat logging, before the preliminary number.
+CREATE TABLE tracking.qr_codes (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id         UUID NOT NULL, -- logical FK -> documents.documents.id (cross-schema)
+    tracking_id         UUID NOT NULL,
+    qr_image_file_key   UUID NULL,
+    assigned_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at          TIMESTAMPTZ NULL,
+    deleted_by          UUID NULL,
+    CONSTRAINT uq_qr_codes_tracking_id UNIQUE (tracking_id),
+    CONSTRAINT uq_qr_codes_document UNIQUE (document_id)
+);
+
+-- current_status is intentionally free TEXT, not CHECK-constrained against
+-- documents.documents.lifecycle_state -- the two are explicitly separate
+-- state machines (physical custody vs. digital workflow status).
+CREATE TABLE tracking.tracking_records (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id         UUID NOT NULL, -- logical FK -> documents.documents.id (cross-schema)
+    qr_code_id          UUID NOT NULL REFERENCES tracking.qr_codes (id),
+    current_status      TEXT NULL,
+    current_location    TEXT NULL,
+    last_moved_at        TIMESTAMPTZ NULL,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at             TIMESTAMPTZ NULL,
+    deleted_by              UUID NULL,
+    CONSTRAINT uq_tracking_records_document UNIQUE (document_id)
+);
+
+CREATE INDEX idx_tracking_records_qr_code ON tracking.tracking_records (qr_code_id);
+
+-- Field shape follows B2's RoutingEntry TypeScript interface
+-- (fromOfficeId/toOfficeId/actorId/actionDescription/timestamp) rather
+-- than D4's looser fromLocation/toLocation strings, since B2 is explicitly
+-- the "Shared Types -- Inform Column Definitions" source.
+CREATE TABLE tracking.routing_entries (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    tracking_record_id  UUID NOT NULL REFERENCES tracking.tracking_records (id),
+    from_office_id      UUID NULL, -- logical FK -> organization.offices.id (cross-schema)
+    to_office_id        UUID NULL, -- logical FK -> organization.offices.id (cross-schema)
+    actor_id            UUID NULL, -- logical FK -> iam.users.id (cross-schema); null = system action
+    action_description  TEXT NOT NULL,
+    occurred_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at             TIMESTAMPTZ NULL,
+    deleted_by              UUID NULL
+);
+
+CREATE INDEX idx_routing_entries_tracking_record ON tracking.routing_entries (tracking_record_id);
+CREATE INDEX idx_routing_entries_occurred_at ON tracking.routing_entries (occurred_at);
+```
+
+## Schema: records
+
+Retention schedules, classification rules, the post-workflow record catalog, archive entries, and dispositions. Implemented in full per the Conventions note above (this schema is not reserved-only, despite B2's module-phase label).
+
+```sql
+-- ============================================================================
+-- SCHEMA: records
+-- ============================================================================
+
+-- document_type_id is intentionally NOT a column here: the governing
+-- direction is documents.document_types.retention_schedule_id ->
+-- records.retention_schedules.id, so this table stays a standalone
+-- catalog rather than holding a redundant inverse reference.
+CREATE TABLE records.retention_schedules (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    name                    TEXT NOT NULL,
+    retention_period_years  INTEGER NULL,
+    is_permanent            BOOLEAN NOT NULL DEFAULT false,
+    disposition_rule        TEXT NULL,
+    legal_basis              TEXT NULL,
+    configured_by            UUID NULL, -- logical FK -> iam.users.id (cross-schema); Platform Admin, Tier 2
+    created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                  TIMESTAMPTZ NULL,
+    deleted_by                   UUID NULL,
+    CONSTRAINT chk_retention_period CHECK (is_permanent = true OR retention_period_years IS NOT NULL)
+);
+
+CREATE TABLE records.classification_rules (
+    id                              UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                         UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    retention_schedule_id           UUID NOT NULL REFERENCES records.retention_schedules (id),
+    condition_expression            TEXT NOT NULL,
+    target_classification_level     TEXT NOT NULL CHECK (target_classification_level IN ('PUBLIC','INTERNAL','CONFIDENTIAL','RESTRICTED')),
+    priority                         INTEGER NOT NULL DEFAULT 0,
+    created_at                        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                         TIMESTAMPTZ NULL,
+    deleted_by                          UUID NULL
+);
+
+CREATE INDEX idx_classification_rules_schedule ON records.classification_rules (retention_schedule_id);
+
+-- record_type is left as unconstrained TEXT -- D4 declares RecordType as
+-- an enum but gives no value list anywhere in source. See Open Items.
+CREATE TABLE records.records (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id         UUID NOT NULL, -- logical FK -> documents.documents.id (cross-schema)
+    record_number       TEXT NOT NULL,
+    record_type         TEXT NOT NULL,
+    physical_location    TEXT NULL,
+    formalized_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by             UUID NOT NULL, -- logical FK -> iam.users.id (cross-schema)
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                 TIMESTAMPTZ NULL,
+    deleted_by                  UUID NULL,
+    CONSTRAINT uq_records_city_number UNIQUE (city_id, record_number),
+    CONSTRAINT uq_records_document UNIQUE (document_id)
+);
+
+CREATE TABLE records.archive_entries (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id             UUID NOT NULL, -- logical FK -> documents.documents.id (cross-schema)
+    archived_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    archive_location        TEXT NULL,
+    archived_by_employee_id UUID NOT NULL, -- logical FK -> organization.employees.id (cross-schema)
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                 TIMESTAMPTZ NULL,
+    deleted_by                   UUID NULL,
+    CONSTRAINT uq_archive_entries_document UNIQUE (document_id)
+);
+
+-- disposition_type distinguishes standard disposition from RA 10173 PII
+-- erasure, which requires formal legal review (City Legal / DPO) before
+-- erasure -- enforced here via CHECK as a second line of defense alongside
+-- the application-layer process.
+CREATE TABLE records.dispositions (
+    id                          UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                     UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    document_id                 UUID NOT NULL, -- logical FK -> documents.documents.id (cross-schema)
+    disposed_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reason                      TEXT NOT NULL,
+    legal_basis                 TEXT NULL,
+    disposition_type            TEXT NOT NULL DEFAULT 'STANDARD' CHECK (disposition_type IN ('STANDARD','RA10173_ERASURE')),
+    legal_review_by             UUID NULL, -- logical FK -> iam.users.id (cross-schema)
+    legal_review_at             TIMESTAMPTZ NULL,
+    authorized_by_employee_id   UUID NOT NULL, -- logical FK -> organization.employees.id (cross-schema); Records Officer
+    created_at                   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                    TIMESTAMPTZ NULL,
+    deleted_by                     UUID NULL,
+    CONSTRAINT uq_dispositions_document UNIQUE (document_id),
+    CONSTRAINT chk_disposition_erasure_review CHECK (disposition_type <> 'RA10173_ERASURE' OR legal_review_by IS NOT NULL)
+);
+```
+
+## Schema: notifications
+
+Templates, dispatched notification events, and per-attempt delivery logs. Phase 1 recipients are internal employees only (D4 Relationship Note 14); `recipient_email`/`recipient_phone` exist to support external recipients such as complaint respondents. Per ADR-B2-4, all respondent notices route through this module to log delivery attempts in `delivery_log`.
+
+```sql
+-- ============================================================================
+-- SCHEMA: notifications
+-- ============================================================================
+
+CREATE TABLE notifications.templates (
+    id                  UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id             UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    name                TEXT NOT NULL,
+    channel             TEXT NOT NULL CHECK (channel IN ('IN_APP','EMAIL','SMS')),
+    subject_template    TEXT NULL,
+    body_template       TEXT NOT NULL,
+    is_active           BOOLEAN NOT NULL DEFAULT true,
+    created_by           UUID NULL, -- logical FK -> iam.users.id (cross-schema); Platform Admin, Tier 2
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                TIMESTAMPTZ NULL,
+    deleted_by                 UUID NULL,
+    CONSTRAINT uq_templates_city_name_channel UNIQUE (city_id, name, channel)
+);
+
+CREATE TABLE notifications.notification_events (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    template_id             UUID NOT NULL REFERENCES notifications.templates (id),
+    channel                 TEXT NOT NULL CHECK (channel IN ('IN_APP','EMAIL','SMS')),
+    recipient_employee_id   UUID NULL, -- logical FK -> organization.employees.id (cross-schema)
+    recipient_email         TEXT NULL,
+    recipient_phone         TEXT NULL,
+    template_data           JSONB NULL,
+    status                  TEXT NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending','Sent','Failed','Cancelled')),
+    triggered_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    source_event_type        TEXT NULL,
+    created_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                  TIMESTAMPTZ NULL,
+    deleted_by                   UUID NULL
+);
+
+CREATE INDEX idx_notification_events_template ON notifications.notification_events (template_id);
+CREATE INDEX idx_notification_events_recipient ON notifications.notification_events (recipient_employee_id);
+
+CREATE TABLE notifications.delivery_log (
+    id                      UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id                 UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    notification_event_id   UUID NOT NULL REFERENCES notifications.notification_events (id),
+    attempt_count            INTEGER NOT NULL DEFAULT 1,
+    status                   TEXT NOT NULL CHECK (status IN ('Delivered','Bounced','Failed')),
+    delivered_at              TIMESTAMPTZ NULL,
+    error_message             TEXT NULL,
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                   TIMESTAMPTZ NULL,
+    deleted_by                    UUID NULL
+);
+
+CREATE INDEX idx_delivery_log_event ON notifications.delivery_log (notification_event_id);
+```
+
+## Schema: audit
+
+Append-only, hash-chained, HMAC-signed activity log. The application — never the database — computes `chain_hash` and `hmac` using Node's built-in `crypto` module; this schema only stores the result.
+
+```sql
+-- ============================================================================
+-- SCHEMA: audit
+-- ============================================================================
+
+-- Gives the hash chain an unambiguous, monotonic "previous record" pointer
+-- independent of wall-clock timestamp ordering ([Inference] addition; the
+-- source describes the chain mechanism but not how "previous" is resolved
+-- at the storage layer).
+CREATE SEQUENCE audit.events_sequence_seq AS BIGINT INCREMENT 1 START 1;
+
+-- No deleted_at/deleted_by, no updated_at -- see Conventions ("Soft
+-- delete"). UPDATE and DELETE are revoked from audit_app_user at the
+-- PostgreSQL grant level below (Invariant #3).
+CREATE TABLE audit.events (
+    id              UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    city_id         UUID NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
+    sequence_number BIGINT NOT NULL DEFAULT nextval('audit.events_sequence_seq'),
+    event_type      TEXT NOT NULL,
+    actor_id        UUID NULL, -- logical FK -> iam.users.id (cross-schema); null for system events
+    target_id       UUID NULL,
+    target_type     TEXT NULL,
+    payload         JSONB NOT NULL,
+    chain_hash      TEXT NOT NULL CHECK (chain_hash ~ '^[a-f0-9]{64}$'),
+    hmac            TEXT NOT NULL CHECK (hmac ~ '^[a-f0-9]{64}$'),
+    hmac_key_version INTEGER NOT NULL DEFAULT 1,
+    occurred_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX uq_audit_events_sequence ON audit.events (sequence_number);
+CREATE INDEX idx_audit_events_city_occurred ON audit.events (city_id, occurred_at);
+CREATE INDEX idx_audit_events_actor ON audit.events (actor_id);
+CREATE INDEX idx_audit_events_target ON audit.events (target_id);
+```
+
+## Roles, Grants, and Row-Level Security
+
+Implements the two explicit PostgreSQL non-negotiables that cut across schemas: office-level data isolation via RLS, and IT admin having no access to document content. Actual login credentials/passwords are provisioned via the secrets manager / Terraform per Invariant #15 ("Backup credentials separate from production credentials") and are out of scope for DDL; only the roles and their grants are defined here.
+
+"IT admin has no document content access" (Invariant #10) and "IT admin must NOT have read access to confidential or restricted document content" (Authorization Model) are reconciled as two distinct rules: IT admin is blocked entirely from the file-content tables (`documents.versions`, `documents.attachments`), and is additionally blocked by RLS from even the metadata row on `documents.documents` when its classification is `CONFIDENTIAL` or `RESTRICTED`.
+
+```sql
+-- ============================================================================
+-- ROLES, GRANTS, AND ROW-LEVEL SECURITY
+-- ============================================================================
+
+CREATE ROLE app_runtime_user NOLOGIN;
+CREATE ROLE it_admin_user NOLOGIN;
+CREATE ROLE audit_app_user NOLOGIN;
+-- workflow_app_user is named explicitly in B4's REVOKE instruction for
+-- workflow.workflow_events; granted to app_runtime_user rather than kept
+-- fully separate, since the application runtime is the actor that writes
+-- workflow events day to day.
+CREATE ROLE workflow_app_user NOLOGIN;
+
+GRANT USAGE ON SCHEMA iam, organization, documents, workflow, tracking, records, notifications
+    TO app_runtime_user;
+
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA iam TO app_runtime_user;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA organization TO app_runtime_user;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA documents TO app_runtime_user;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA workflow TO app_runtime_user;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA tracking TO app_runtime_user;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA records TO app_runtime_user;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA notifications TO app_runtime_user;
+GRANT SELECT, INSERT, UPDATE ON public.event_bus_dead_letters TO app_runtime_user;
+-- No DELETE grant anywhere above: Invariant #2 ("no hard deletes") is
+-- reinforced at the grant level, not only by application code discipline.
+
+GRANT workflow_app_user TO app_runtime_user;
+GRANT SELECT, INSERT ON workflow.workflow_events TO workflow_app_user;
+REVOKE UPDATE, DELETE ON workflow.workflow_events FROM workflow_app_user;
+
+-- Invariant #3: audit log INSERT-only at the DB role level.
+GRANT USAGE ON SCHEMA audit TO audit_app_user;
+GRANT SELECT, INSERT ON audit.events TO audit_app_user;
+REVOKE UPDATE, DELETE ON audit.events FROM audit_app_user;
+GRANT USAGE ON SEQUENCE audit.events_sequence_seq TO audit_app_user;
+
+-- Invariant #10 / Authorization Model: IT admin has no document CONTENT
+-- access, full stop -- not even for public documents.
+GRANT USAGE ON SCHEMA documents TO it_admin_user;
+GRANT SELECT, UPDATE ON documents.documents TO it_admin_user;
+REVOKE ALL ON documents.versions, documents.attachments FROM it_admin_user;
+
+ALTER TABLE documents.documents ENABLE ROW LEVEL SECURITY;
+
+-- Office-level data isolation enforced at the DB engine ("PostgreSQL
+-- Non-Negotiables"). The application sets app.current_office_id (and,
+-- for elevated roles that legitimately need cross-office visibility,
+-- app.bypass_office_isolation) via SET at the start of each request/
+-- transaction.
+CREATE POLICY documents_office_isolation ON documents.documents
+    FOR SELECT
+    TO app_runtime_user
+    USING (
+        owned_by_office_id = current_setting('app.current_office_id', true)::uuid
+        OR current_setting('app.bypass_office_isolation', true) = 'true'
+    );
+
+-- IT admin may see metadata rows for non-confidential/restricted
+-- documents (e.g. to diagnose a stuck workflow) but never confidential or
+-- restricted ones, and can never see file content at all (revoked above).
+CREATE POLICY documents_it_admin_no_confidential ON documents.documents
+    FOR SELECT
+    TO it_admin_user
+    USING (classification_level NOT IN ('CONFIDENTIAL','RESTRICTED'));
+
+-- UPDATE is granted to it_admin_user above for operational fixes (e.g.
+-- correcting a stuck workflow_instance_id), but WITH CHECK (false) means
+-- no UPDATE can actually commit until a specific, narrower policy is
+-- added for the exact operational fields IT admin is allowed to touch --
+-- a deliberately closed default rather than an open one.
+CREATE POLICY documents_it_admin_metadata_only_update ON documents.documents
+    FOR UPDATE
+    TO it_admin_user
+    USING (true)
+    WITH CHECK (false);
+
+-- Supports "IT/security admin can force-terminate any session" while
+-- keeping ordinary session visibility scoped to the owning user.
+ALTER TABLE iam.sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY sessions_own_or_admin ON iam.sessions
+    FOR SELECT
+    TO app_runtime_user
+    USING (
+        user_id = current_setting('app.current_user_id', true)::uuid
+        OR current_setting('app.current_role_tier', true) IN ('IT_ADMIN','SECURITY_ADMIN')
+    );
+```
+
+## 2026 Numbering Sequences
+
+One PostgreSQL sequence per series per year ("Sequences for gapless document numbering," PostgreSQL Non-Negotiables; H3 Table 2). Only the current year's eleven sequences are created here; subsequent years are created by an annual migration following the same `ns_{prefix}_{YEAR}_seq` naming pattern — explicitly an operations/migration-scheduling concern that H3 excludes from DDL scope, not handled automatically by `documents.next_sequence_value()`.
+
+```sql
+-- ============================================================================
+-- 2026 NUMBERING SEQUENCES
+-- ============================================================================
+
+CREATE SEQUENCE documents.ns_sp_resolution_2026_seq AS INTEGER INCREMENT 1 START 1;
+CREATE SEQUENCE documents.ns_sp_ordinance_2026_seq AS INTEGER INCREMENT 1 START 1;
+CREATE SEQUENCE documents.ns_sp_appropriation_ordinance_2026_seq AS INTEGER INCREMENT 1 START 1;
+CREATE SEQUENCE documents.ns_nch_2026_seq AS INTEGER INCREMENT 1 START 1;
+CREATE SEQUENCE documents.ns_nosp_2026_seq AS INTEGER INCREMENT 1 START 1;
+CREATE SEQUENCE documents.ns_designation_2026_seq AS INTEGER INCREMENT 1 START 1;
+CREATE SEQUENCE documents.ns_letters_received_2026_seq AS INTEGER INCREMENT 1 START 1;
+CREATE SEQUENCE documents.ns_letters_sent_2026_seq AS INTEGER INCREMENT 1 START 1;
+CREATE SEQUENCE documents.ns_memo_outgoing_2026_seq AS INTEGER INCREMENT 1 START 1;
+CREATE SEQUENCE documents.ns_memo_incoming_2026_seq AS INTEGER INCREMENT 1 START 1;
+CREATE SEQUENCE documents.ns_panlalawigan_review_log_2026_seq AS INTEGER INCREMENT 1 START 1;
+```
+
+## Reserved Phase 2/3 Schemas
+
+Per the main reference document's explicit instruction: "`search_meta`, `portal`, and `reporting` are Phase 2/3. Reserve in the schema map but do not implement tables in Phase 1 DDL." The namespaces are created in the [Preamble](#preamble) above; no tables are created in any of the three. `search_meta` will hold `index_metadata`/`index_jobs`; `portal` will hold `public_documents`/`citizen_requests`/`complaints`/`announcements`; `reporting` will hold `report_definitions`/`schedules`/`outputs` — all deferred to their respective phases.
+
+---
+
+## Invariant and Non-Negotiable Compliance Checklist
+
+| # | Invariant / Non-Negotiable | DDL Implementation |
+|---|---|---|
+| 1 | Schema-per-module; no cross-schema FKs | Every cross-schema reference is a plain `UUID` column with an inline logical-FK comment; zero `REFERENCES` clauses cross a schema boundary anywhere in this document |
+| 2 | Soft-delete everywhere; no hard deletes | `deleted_at`/`deleted_by` on every table except `audit.events` and `workflow.workflow_events` (justified exception, see Conventions); no `DELETE` grant given to `app_runtime_user` |
+| 3 | Audit log INSERT-only at DB role level | `REVOKE UPDATE, DELETE ON audit.events FROM audit_app_user` |
+| 4 | Workflow instance pins to definition version at creation | `workflow.instances.definition_version_id NOT NULL`, no DB-level update guard per B4's explicit instruction (application-layer only, via `engine.migrateInstance`) |
+| 5 | S3-compatible API only; UUID file keys | `documents.versions.file_key` and `documents.attachments.file_key` are `UUID`, never filename `TEXT` |
+| 6 | UUID v4 primary keys everywhere | `id UUID PRIMARY KEY DEFAULT gen_random_uuid()` on every table |
+| 7 | `TIMESTAMPTZ` for all timestamps | Applied to every timestamp column without exception |
+| 8 | `city_id UUID NOT NULL` in all core entity tables | Applied to every table, defaulted to the Batac City placeholder constant |
+| 9 | Numbering assigned at defined lifecycle event only | Application/workflow-engine constraint per source; `documents.numbers` and the triggers support but do not themselves enforce event timing |
+| 10 | IT admin has no document content access | `REVOKE ALL ON documents.versions, documents.attachments FROM it_admin_user`; RLS additionally blocks confidential/restricted rows on `documents.documents` |
+| 11 | Document type must have retention schedule before activation | `CHECK (is_active = false OR retention_schedule_id IS NOT NULL)` on `documents.document_types` |
+| 12 | Platform Administrator role cannot be combined with operational roles | Application-layer role-assignment validation per source; `iam.roles.is_platform_admin` flag added as a design aid |
+| 13 | Encoder and final approver of same document cannot be the same user | Explicitly application-layer only per B4; no DB constraint added, by design |
+| 14 | Workflow constraints per document type (legally mandated minimum steps) | `documents.document_types.required_step_types`; enforced by the workflow editor at definition-authoring time, per source |
+| 15 | Backup credentials separate from production credentials | Out of DDL scope — infrastructure/Terraform concern |
+| 16 | One active designation per person at any time | `CREATE UNIQUE INDEX ... ON organization.delegation_grants (delegated_to_employee_id) WHERE is_active = true AND deleted_at IS NULL` |
+| — | JSONB for admin-configurable metadata, GIN-indexed | `documents.documents.metadata JSONB` + general GIN index + 3 targeted expression indexes |
+| — | Row-Level Security for office-level isolation | `documents_office_isolation` policy on `documents.documents`; `sessions_own_or_admin` policy on `iam.sessions` |
+| — | Append-only audit log | Grant-level `REVOKE` on `audit.events`, no soft-delete columns |
+| — | Check constraints for state transitions | `documents.check_lifecycle_transition()` trigger; `CHECK` constraints on every status/classification/type column |
+| — | One PostgreSQL sequence per numbering series per year | Eleven `documents.ns_*_2026_seq` sequences + `documents.next_sequence_value()` helper |
+
+---
+
+## Open Items Requiring Confirmation
+
+These are the points where source documents conflicted outright, or where an attribute was declared but no value list or table location was ever given. Each is resolved with a stated, defensible default above so the DDL is runnable now, but each should be confirmed with stakeholders before Production Rollout.
+
+| Item | Conflict / Gap | Resolution Taken | Confirm With |
+|---|---|---|---|
+| `iam.mfa_records` | D4 excludes `MfaRecord` from its Phase 1 entity list ("(Phase 2)"); B2 and the main schema map both list it as a Phase 1 `iam` table | Table created now, rows not expected until Phase 2 | Whoever owns the Phase 1/Phase 2 cutover plan for MFA |
+| `records` schema phase | B2 labels the Records module "Phase: 2... schema reserved in Phase 1 migration"; main doc and D4 both treat it as full Phase 1 | Full DDL implemented now; only bulk-op/disposition application logic assumed Phase 2 | Whoever owns the Phase 1 delivery scope for Records |
+| Citizen Complaint / Document Request data location | Main doc says `portal` is Phase 3, reserved-only; H2 footnote says portal is "partially initialized" in Phase 1 | Both document types live in `documents.documents` with JSONB metadata; no `portal.*` tables created | H2's author, to confirm the footnote is stale |
+| `documents.documents.control_number` vs. `final_number` | H2 lists both as separate columns; main doc's prose sometimes uses "control number" loosely for what H3 calls a series' final number | `control_number` reserved for Letters Received/Sent (SPR/SPS) only; everything else uses `final_number` | Whoever owns H2/H3 reconciliation |
+| `panlalawigan_review_log` entity classification | H3 explicitly flags this as unresolved | Modeled as `documents.panlalawigan_reviews` + a `number_series` row with no associated `document_types` row | H3's author |
+| `documents.panlalawigan_reviews`, `documents.publication_records` | Not in B2's seven-table canonical list for `documents`; present as D4 entities with independent fields | Added as two extra tables | Whoever owns B2's canonical table list, to confirm it was meant as a floor, not a ceiling |
+| `OfficeType` values | D4 declares the enum; no value list given anywhere | `[Inference]` CHECK: `EXECUTIVE, LEGISLATIVE, DEPARTMENT, EXTERNAL` | Organization module owner |
+| `AuthorityLevel` values | D4 declares the enum; no value list given anywhere | Left unconstrained `TEXT`, no CHECK added | Organization module owner |
+| `RecordType` values | D4 declares the enum; no value list given anywhere | Left unconstrained `TEXT`, no CHECK added | Records module owner |
+| `OrderOfBusinessItemType` values | D4 declares the enum; no value list given anywhere | `[Inference]` CHECK: `FIRST_READING, SECOND_READING, THIRD_READING, COMMITTEE_REPORT, OTHER` | Workflow module owner |
+| `documents.documents.lifecycle_state` transition graph | No explicit transition matrix given anywhere; only the linear order plus terminal-state framing | Trigger-enforced graph derived by inference (see inline comment on the trigger) | Workflow engine owner, before treating this trigger as a hard gate in production |
+| `sequence_padding` for `letters_sent` (SPS) | H3 itself flags this: "3-digit padding may be required... confirm with SP Secretariat before finalising" | Kept at 2 digits as H3's table specifies, padding is enforced at the application formatting layer, not by a DB constraint | SP Secretariat, per H3's own footnote |
+
+---
+
+## Validation Notes
+
+Every statement in this document — all `CREATE SCHEMA`, `CREATE TYPE`, `CREATE TABLE`, `CREATE INDEX`, `CREATE SEQUENCE`, `CREATE FUNCTION`, `CREATE TRIGGER`, `CREATE ROLE`, `GRANT`/`REVOKE`, `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, and `CREATE POLICY` — was executed against a clean PostgreSQL 16 database with `psql -v ON_ERROR_STOP=1`, in the order presented in this document, with zero errors on a full, repeated, clean run (52 tables created across the 8 Phase 1 schemas).
+
+In addition to a clean execution pass, the following behaviors were specifically exercised with live `INSERT`/`UPDATE` statements and confirmed correct:
+
+- `documents.check_lifecycle_transition()` accepts a valid transition (`Draft` → `Submitted`) and rejects an invalid one (`Submitted` → `Released`) with a clear error.
+- `documents.check_number_immutability()` rejects an attempt to change a `FINAL` number's value after assignment.
+- `uq_numbers_one_current_per_type` (the partial unique index enforcing one current number per type per document) correctly rejects a second concurrently-current `PRELIMINARY` row for the same document.
+- `documents.next_sequence_value()` correctly resolves a series key to its backing per-year sequence and returns successive values.
+- `workflow.definition_versions.status` (the generated column) correctly derives `Draft`, `Published`, and `Deprecated` from `published_at`/`deprecated_at` as those columns are set.
+
+This does not substitute for review against the live application's actual query patterns, nor for a security review of the RLS policies and role grants, which are illustrative of the required mechanisms (office isolation, IT-admin content exclusion, audit/event append-only enforcement) rather than a complete authorization model.
