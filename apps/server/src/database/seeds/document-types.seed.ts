@@ -735,23 +735,14 @@ const DOCUMENT_TYPE_DEFINITIONS: DocumentTypeDef[] = [
   },
 ];
 
+import { fileURLToPath } from 'node:url';
+
 // ────────── MAIN SEED FUNCTION ─────────────────────────────────────────────────
-async function main() {
-  const databaseUrl = process.env['DATABASE_URL_MIGRATE'] || process.env['DATABASE_URL_APP'];
-
-  if (!databaseUrl) {
-    console.error('[seed:document-types] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
-    process.exit(1);
-  }
-
-  console.log('[seed:document-types] Connecting to database...');
-  const client = postgres(databaseUrl, { max: 1 });
-  const db = drizzle(client);
-
-  try {
-    await db.transaction(async (tx) => {
-      console.log('[seed:document-types] Seeding 8 document types...');
-      let seededCount = 0;
+export async function seedDocumentTypes(db: any): Promise<Record<string, string>> {
+  const codeToIdMap: Record<string, string> = {};
+  await db.transaction(async (tx: any) => {
+    console.log('[seed:document-types] Seeding 8 document types...');
+    let seededCount = 0;
 
       for (const def of DOCUMENT_TYPE_DEFINITIONS) {
         // Query if associated number series exists to resolve numberSeriesId
@@ -812,6 +803,7 @@ async function main() {
 
         if (!upserted) throw new Error(`Failed to upsert ${def.code}`);
         const docTypeId = upserted.id;
+        codeToIdMap[def.code] = docTypeId;
 
         // Dynamic cross-referencing: Update the number_series table to point back to the new documentType ID.
         if (def.seriesKey && numberSeriesId) {
@@ -831,8 +823,21 @@ async function main() {
       }
 
       console.log(`[seed:document-types] Seeding completed. Upserted ${seededCount} document types.`);
-    });
+  });
+  return codeToIdMap;
+}
 
+async function main() {
+  const databaseUrl = process.env['DATABASE_URL_MIGRATE'] || process.env['DATABASE_URL_APP'];
+  if (!databaseUrl) {
+    console.error('[seed:document-types] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
+    process.exit(1);
+  }
+  console.log('[seed:document-types] Connecting to database...');
+  const client = postgres(databaseUrl, { max: 1 });
+  const db = drizzle(client);
+  try {
+    await seedDocumentTypes(db);
     console.log('[seed:document-types] Document types seeding completed successfully.');
   } catch (error) {
     console.error('[seed:document-types] Database seeding failed:', error);
@@ -842,7 +847,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('[seed:document-types] Unhandled error during seeding:', err);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error('[seed:document-types] Unhandled error during seeding:', err);
+    process.exit(1);
+  });
+}

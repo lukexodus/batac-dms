@@ -106,22 +106,12 @@ const COMMITTEES: CommitteeDef[] = [
   { code: 'CYSD',   name: 'Committee on Youth & Sports Development',                                                                          chairEmployeeNumber: 'SP-MIRASOL'       },
 ];
 
+import { fileURLToPath } from 'node:url';
+
 // ────────── MAIN SEED FUNCTION ─────────────────────────────────────────────────
-async function main() {
-  const databaseUrl = process.env['DATABASE_URL_MIGRATE'] || process.env['DATABASE_URL_APP'];
-
-  if (!databaseUrl) {
-    console.error('[seed:org] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
-    process.exit(1);
-  }
-
-  console.log('[seed:org] Connecting to database...');
-  const client = postgres(databaseUrl, { max: 1 });
-  const db = drizzle(client);
-
-  try {
-    await db.transaction(async (tx) => {
-      // ── Step 1: Upsert offices (two-pass for hierarchy) ──────────────────────
+export async function seedOrganization(db: any) {
+  await db.transaction(async (tx: any) => {
+    // ── Step 1: Upsert offices (two-pass for hierarchy) ──────────────────────
       // Pass 1 inserts all standalone offices (parentCode: null).
       // Pass 2 inserts SPS which references SP as its parent.
       // This ordering guarantees the parent row exists before the child FK is set.
@@ -244,8 +234,20 @@ async function main() {
       }
 
       console.log(`[seed:org] Upserted ${committeesSeeded} standing committees.`);
-    });
+  });
+}
 
+async function main() {
+  const databaseUrl = process.env['DATABASE_URL_MIGRATE'] || process.env['DATABASE_URL_APP'];
+  if (!databaseUrl) {
+    console.error('[seed:org] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
+    process.exit(1);
+  }
+  console.log('[seed:org] Connecting to database...');
+  const client = postgres(databaseUrl, { max: 1 });
+  const db = drizzle(client);
+  try {
+    await seedOrganization(db);
     console.log('[seed:org] Organization seed completed successfully.');
   } catch (error) {
     console.error('[seed:org] Database seeding failed:', error);
@@ -255,7 +257,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('[seed:org] Unhandled error during seeding:', err);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error('[seed:org] Unhandled error during seeding:', err);
+    process.exit(1);
+  });
+}

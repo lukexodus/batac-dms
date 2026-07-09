@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "db:seed": "tsx src/database/seeds/iam.seed.ts && tsx src/database/seeds/organization.seed.ts && tsx src/database/seeds/number-series.seed.ts && tsx src/database/seeds/document-types.seed.ts && tsx ../../packages/database/src/seeds/index.ts",
+    "db:seed": "tsx src/database/seeds/orchestrator.ts",
     "test": "vitest run"
   },
   "dependencies": {

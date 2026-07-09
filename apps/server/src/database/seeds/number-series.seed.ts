@@ -194,22 +194,12 @@ const SERIES_DEFINITIONS: NumberSeriesDef[] = [
   },
 ];
 
+import { fileURLToPath } from 'node:url';
+
 // ────────── MAIN SEED FUNCTION ─────────────────────────────────────────────────
-async function main() {
-  const databaseUrl = process.env['DATABASE_URL_MIGRATE'] || process.env['DATABASE_URL_APP'];
-
-  if (!databaseUrl) {
-    console.error('[seed:series] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
-    process.exit(1);
-  }
-
-  console.log('[seed:series] Connecting to database...');
-  const client = postgres(databaseUrl, { max: 1 });
-  const db = drizzle(client);
-
-  try {
-    await db.transaction(async (tx) => {
-      // ── Step 1: Resolve SP Secretariat office (code='SPS') ─────────────────
+export async function seedNumberSeries(db: any) {
+  await db.transaction(async (tx: any) => {
+    // ── Step 1: Resolve SP Secretariat office (code='SPS') ─────────────────
       console.log('[seed:series] Step 1: Querying SPS office id...');
       const [spsOffice] = await tx
         .select({ id: offices.id })
@@ -302,8 +292,20 @@ async function main() {
       await tx.execute(sql`CREATE SEQUENCE IF NOT EXISTS documents.ns_panlalawigan_review_log_2026_seq AS INTEGER INCREMENT 1 START 1;`);
 
       console.log('[seed:series] Sequence pre-creation completed.');
-    });
+  });
+}
 
+async function main() {
+  const databaseUrl = process.env['DATABASE_URL_MIGRATE'] || process.env['DATABASE_URL_APP'];
+  if (!databaseUrl) {
+    console.error('[seed:series] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
+    process.exit(1);
+  }
+  console.log('[seed:series] Connecting to database...');
+  const client = postgres(databaseUrl, { max: 1 });
+  const db = drizzle(client);
+  try {
+    await seedNumberSeries(db);
     console.log('[seed:series] Number series seeding completed successfully.');
   } catch (error) {
     console.error('[seed:series] Database seeding failed:', error);
@@ -313,7 +315,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('[seed:series] Unhandled error during seeding:', err);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error('[seed:series] Unhandled error during seeding:', err);
+    process.exit(1);
+  });
+}

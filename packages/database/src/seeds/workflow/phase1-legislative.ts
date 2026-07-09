@@ -409,6 +409,7 @@ export const SP_ORDINANCE_WORKFLOW: WorkflowDefinitionSeed = (() => {
     { from_step_key: "newspaper_publication", to_step_key: "portal_publication", outcome_filter: null, condition_expression: null, priority: 1, label: null }
   );
 
+  wf.version.transition_rules = ordRules.filter((r: any) => r.from_step_key !== 'second_reading_amended_vote');
   return wf;
 })();
 
@@ -466,21 +467,24 @@ export const APPROPRIATION_ORDINANCE_WORKFLOW: WorkflowDefinitionSeed = (() => {
     (finalOutcomeCheckStep.config as any).condition_expression = JSON.stringify({"in":[{"var":"panlalawigan_outcome"},["VALID","DEEMED_APPROVED","OPERATIVE_IN_ITS_ENTIRETY"]]});
   }
 
+  wf.version.transition_rules = appOrdRules.filter((r: any) => r.from_step_key !== 'second_reading_amended_vote');
   return wf;
 })();
 
 const ALL_WORKFLOWS = [SP_RESOLUTION_WORKFLOW, SP_ORDINANCE_WORKFLOW, APPROPRIATION_ORDINANCE_WORKFLOW];
 
-export async function seedPhase1WorkflowDefinitions(db: any) {
+export async function seedPhase1WorkflowDefinitions(db: any, documentTypeIds?: Record<string, string>) {
   const transaction = db as PgDatabase<any, any, any>;
   
   for (const wf of ALL_WORKFLOWS) {
-    const docTypeRes = await transaction.select({ id: documentTypes.id }).from(documentTypes).where(sql`${documentTypes.code} = ${wf.definition.document_type_code}`).limit(1);
-    if (!docTypeRes.length) {
-      console.warn(`[seed] Skipping ${wf.definition.document_type_code}: Document type not found in database.`);
-      continue;
+    let documentTypeId = documentTypeIds?.[wf.definition.document_type_code];
+    if (!documentTypeId) {
+      const docTypeRes = await transaction.select({ id: documentTypes.id }).from(documentTypes).where(sql`${documentTypes.code} = ${wf.definition.document_type_code}`).limit(1);
+      if (!docTypeRes.length) {
+        throw new Error(`[seed] Failed to resolve Document Type ID for ${wf.definition.document_type_code}. Ensure document-types seed has run.`);
+      }
+      documentTypeId = docTypeRes[0]!.id;
     }
-    const documentTypeId = docTypeRes[0]!.id;
 
     const defId = uuidv5(`wf-def-${wf.definition.document_type_code}`, WORKFLOW_SEED_NAMESPACE);
     const versionId = uuidv5(`wf-ver-${wf.definition.document_type_code}-${wf.version.version_number}`, WORKFLOW_SEED_NAMESPACE);

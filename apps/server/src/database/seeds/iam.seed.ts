@@ -412,22 +412,12 @@ const CROSS_OFFICE_GRANTS = [
   },
 ] as const;
 
+import { fileURLToPath } from 'node:url';
+
 // ────────── MAIN SEED FUNCTION ─────────────────────────────────────────────────
-async function main() {
-  const databaseUrl = process.env['DATABASE_URL_MIGRATE'] || process.env['DATABASE_URL_APP'];
-
-  if (!databaseUrl) {
-    console.error('[seed] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
-    process.exit(1);
-  }
-
-  console.log('[seed] Connecting to database...');
-  const client = postgres(databaseUrl, { max: 1 });
-  const db = drizzle(client);
-
-  try {
-    await db.transaction(async (tx) => {
-      console.log('[seed] Step 1: Inserting system user sentinel...');
+export async function seedIam(db: any) {
+  await db.transaction(async (tx: any) => {
+    console.log('[seed] Step 1: Inserting system user sentinel...');
       await tx.insert(users).values({
         id: SYS_USER,
         cityId: CITY_ID,
@@ -563,7 +553,20 @@ async function main() {
       }
 
       console.log(`Seeded: ${rolesSeeded} new roles (total ${Object.keys(roleMap).length} mapped), ${permsSeeded} new permissions (total ${Object.keys(permMap).length} cataloged), ${matrixEntriesSeeded} role_permission entries.`);
-    });
+  });
+}
+
+async function main() {
+  const databaseUrl = process.env['DATABASE_URL_MIGRATE'] || process.env['DATABASE_URL_APP'];
+  if (!databaseUrl) {
+    console.error('[seed] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
+    process.exit(1);
+  }
+  console.log('[seed] Connecting to database...');
+  const client = postgres(databaseUrl, { max: 1 });
+  const db = drizzle(client);
+  try {
+    await seedIam(db);
   } catch (error) {
     console.error('[seed] Database seeding failed:', error);
     process.exit(1);
@@ -572,7 +575,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('[seed] Unhandled error during seeding:', err);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error('[seed] Unhandled error during seeding:', err);
+    process.exit(1);
+  });
+}
