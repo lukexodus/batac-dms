@@ -1638,10 +1638,10 @@ export function createWorkflowRouter() {
           }
 
           // Map resolutionPath to engine outcome string
-          let outcome = 'RESOLVE_AS_IS';
-          if (input.resolutionPath === 'route_to_legal') outcome = 'ROUTE_TO_LEGAL';
-          else if (input.resolutionPath === 'route_to_committee') outcome = 'ROUTE_TO_COMMITTEE';
-          else if (input.resolutionPath === 'implement_directly') outcome = 'IMPLEMENT_DIRECTLY';
+          let outcome = 'RESOLVED_IN_PLACE';
+          if (input.resolutionPath === 'route_to_legal') outcome = 'ROUTED_TO_LEGAL';
+          else if (input.resolutionPath === 'route_to_committee') outcome = 'ROUTED_TO_COMMITTEE';
+          else if (input.resolutionPath === 'implement_directly') outcome = 'REVISED_DIRECTLY';
 
           // Refresh instance to get updated context (e.g. if we set referred_committee_chair_id)
           const updatedInstance = await txDeps.workflowRepository.getInstanceById(instance.id, tx as any);

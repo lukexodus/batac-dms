@@ -129,7 +129,7 @@ const ACTION_STEP_ROLES: ReadonlySet<string> = new Set([
 
 /** I1 §6.3 `step_instance:approve` / `reject` / `return` base role set. */
 const APPROVAL_STEP_ROLES: ReadonlySet<string> = new Set([
-  'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_captain',
+  'dept_approver', 'sp_secretary', 'mayor', 'brgy_captain',
 ]);
 
 /** I1 §6.2 ENCODER RESTRICTION — roles blocked from claiming general office queue steps. */

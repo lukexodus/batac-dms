@@ -1109,7 +1109,7 @@ describe('TASK-WF-021 Procedures', () => {
       mockGetInstanceById.mockResolvedValue(instance);
     }
 
-    it('resolve_as_is → maps to RESOLVE_AS_IS outcome and is audit-logged', async () => {
+    it('resolve_as_is → maps to RESOLVED_IN_PLACE outcome and is audit-logged', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
       const caller = callerFor(ctx as any);
       setupResolveValidInPartMocks('resolve_as_is');
@@ -1122,11 +1122,11 @@ describe('TASK-WF-021 Procedures', () => {
 
       expect(result.success).toBe(true);
       expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
-      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('RESOLVE_AS_IS');
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('RESOLVED_IN_PLACE');
       expect(mockSubmitStepApproval.mock.calls[0]![5]).toBe('Accept as-is per SP ruling.');
     });
 
-    it('route_to_legal → maps to ROUTE_TO_LEGAL outcome', async () => {
+    it('route_to_legal → maps to ROUTED_TO_LEGAL outcome', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
       const caller = callerFor(ctx as any);
       setupResolveValidInPartMocks('route_to_legal');
@@ -1138,10 +1138,10 @@ describe('TASK-WF-021 Procedures', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('ROUTE_TO_LEGAL');
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('ROUTED_TO_LEGAL');
     });
 
-    it('route_to_committee → maps to ROUTE_TO_COMMITTEE and writes referred_committee_chair_id to context', async () => {
+    it('route_to_committee → maps to ROUTED_TO_COMMITTEE and writes referred_committee_chair_id to context', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
       // Override orgService to verify it's called
       (ctx.req.server as any).organizationService.getCommitteeChair = vi.fn().mockResolvedValue({ userId: CHAIR_USER_ID });
@@ -1155,7 +1155,7 @@ describe('TASK-WF-021 Procedures', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('ROUTE_TO_COMMITTEE');
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('ROUTED_TO_COMMITTEE');
       // updateInstanceContext should have been called with referred_committee_chair_id
       expect(mockUpdateInstanceContext).toHaveBeenCalledWith(
         INSTANCE_ID,
@@ -1164,7 +1164,7 @@ describe('TASK-WF-021 Procedures', () => {
       );
     });
 
-    it('implement_directly → maps to IMPLEMENT_DIRECTLY outcome', async () => {
+    it('implement_directly → maps to REVISED_DIRECTLY outcome', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
       const caller = callerFor(ctx as any);
       setupResolveValidInPartMocks('implement_directly');
@@ -1176,7 +1176,7 @@ describe('TASK-WF-021 Procedures', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('IMPLEMENT_DIRECTLY');
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('REVISED_DIRECTLY');
     });
   });
 
