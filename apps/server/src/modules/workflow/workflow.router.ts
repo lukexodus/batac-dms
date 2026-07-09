@@ -558,13 +558,7 @@ export function createWorkflowRouter() {
         })
       )
       .query(async ({ input, ctx }) => {
-        enforceRoles(ctx, [
-          'records_officer',
-          'sp_secretary',
-          'sp_presiding_officer',
-          'mayor',
-          'auditor',
-        ]);
+        workflowPolicy.canAccessSlaData(ctx.auth);
 
         const conditions = [
           eq(instances.cityId, ctx.auth.cityId),
