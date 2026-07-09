@@ -81,6 +81,16 @@ describe('WorkflowRepository', () => {
     });
   });
 
+  describe('updateInstance', () => {
+    it('updates instance table columns successfully', async () => {
+      mockDb.returning.mockResolvedValueOnce([{ id: 'inst-1', status: 'stuck' }]);
+      const result = await repo.updateInstance('inst-1', { status: 'stuck' });
+      expect(result.status).toBe('stuck');
+      expect(mockDb.update).toHaveBeenCalledWith(instances);
+      expect(mockDb.set).toHaveBeenCalledWith({ status: 'stuck' });
+    });
+  });
+
   describe('createWorkflowEvent', () => {
     it('inserts a workflow event successfully', async () => {
       const mockEvent = {
@@ -144,6 +154,35 @@ describe('WorkflowRepository', () => {
       expect(mockDb.select).toHaveBeenCalled();
       expect(mockDb.from).toHaveBeenCalledWith(instances);
       expect(mockDb.innerJoin).toHaveBeenCalledTimes(2); // innerJoin stepInstances, steps
+      expect(mockDb.where).toHaveBeenCalled();
+      expect(result).toEqual(mockRows);
+    });
+  });
+
+  describe('lockInstanceForUpdate', () => {
+    it('uses FOR UPDATE in Drizzle', async () => {
+      mockDb.for.mockResolvedValueOnce([{ id: 'inst-1' }]);
+      
+      const result = await repo.lockInstanceForUpdate('inst-1', mockDb);
+      
+      expect(mockDb.select).toHaveBeenCalled();
+      expect(mockDb.from).toHaveBeenCalledWith(instances);
+      expect(mockDb.for).toHaveBeenCalledWith('update');
+      expect(result).toEqual({ id: 'inst-1' });
+    });
+  });
+
+  describe('getActiveInstancesWithSla', () => {
+    it('queries for active, suspended, and stuck instances with slaDeadline', async () => {
+      const mockRows = [
+        { id: 'inst-1', status: 'active', slaDeadline: new Date(), deletedAt: null }
+      ];
+      mockDb.where.mockResolvedValueOnce(mockRows);
+
+      const result = await repo.getActiveInstancesWithSla();
+
+      expect(mockDb.select).toHaveBeenCalled();
+      expect(mockDb.from).toHaveBeenCalledWith(instances);
       expect(mockDb.where).toHaveBeenCalled();
       expect(result).toEqual(mockRows);
     });

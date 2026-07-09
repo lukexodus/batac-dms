@@ -157,6 +157,143 @@ export async function evaluateSlaBreaches(
       }
     }
   }
+
+  // ── Instance-Level SLA Pass ──────────────────────────────────────────────
+  const activeInstances = await deps.workflowRepository.getActiveInstancesWithSla();
+
+  for (const instance of activeInstances) {
+    if (!instance.slaDeadline || !instance.startedAt) continue;
+
+    const startedAtTime = instance.startedAt.getTime();
+    const deadlineTime = instance.slaDeadline.getTime();
+    const duration = deadlineTime - startedAtTime;
+
+    if (duration <= 0) continue; // Safety check
+
+    const elapsed = nowTime - startedAtTime;
+    const percent = elapsed / duration;
+
+    // Check conditions before acquiring lock
+    const context = (instance.context as Record<string, any>) || {};
+    const slaWarningSentAt = context['_sla_warning_sent_at'];
+    const slaCriticalSentAt = context['_sla_critical_sent_at'];
+
+    const needsWarning = percent >= 0.8 && !slaWarningSentAt;
+    const needsBreach = nowTime > deadlineTime && !instance.slaBreachedAt;
+    const needsCritical = percent >= 1.5 && !slaCriticalSentAt;
+
+    if (!needsWarning && !needsBreach && !needsCritical) {
+      continue;
+    }
+
+    const emittedEvents: Array<{ type: string; payload: any }> = [];
+
+    // Process inside a transaction
+    await deps.workflowRepository.runInTransaction(async (tx) => {
+      const lockedInstance = await deps.workflowRepository.lockInstanceForUpdate(instance.id, tx);
+      if (!lockedInstance) return; // Deleted or not found
+
+      const lockedCtx = (lockedInstance.context as Record<string, any>) || {};
+      const applyUpdates: any = {};
+      let shouldUpdate = false;
+
+      // Re-check conditions under lock
+      if (percent >= 0.8 && !lockedCtx['_sla_warning_sent_at']) {
+        lockedCtx['_sla_warning_sent_at'] = now.toISOString();
+        applyUpdates.context = lockedCtx;
+        shouldUpdate = true;
+
+        await deps.workflowRepository.createWorkflowEvent({
+          instanceId: instance.id,
+          eventType: 'workflow.instance.sla.warning',
+          actorType: 'scheduler',
+          actorId: null,
+          payload: {
+            slaDeadline: instance.slaDeadline!.toISOString(),
+            percentElapsed: 80
+          }
+        }, tx);
+
+        emittedEvents.push({
+          type: 'workflow.instance.sla.warning',
+          payload: {
+            slaDeadline: instance.slaDeadline!.toISOString(),
+            percentElapsed: 80
+          }
+        });
+      }
+
+      if (nowTime > deadlineTime && !lockedInstance.slaBreachedAt) {
+        applyUpdates.slaBreachedAt = instance.slaDeadline;
+        shouldUpdate = true;
+
+        await deps.workflowRepository.createWorkflowEvent({
+          instanceId: instance.id,
+          eventType: 'workflow.instance.sla.breached',
+          actorType: 'scheduler',
+          actorId: null,
+          payload: {
+            slaDeadline: instance.slaDeadline!.toISOString(),
+            breachDetectedAt: now.toISOString(),
+            breachedAt: instance.slaDeadline!.toISOString()
+          }
+        }, tx);
+
+        emittedEvents.push({
+          type: 'workflow.instance.sla.breached',
+          payload: {
+            slaDeadline: instance.slaDeadline!.toISOString(),
+            breachDetectedAt: now.toISOString(),
+            breachedAt: instance.slaDeadline!.toISOString()
+          }
+        });
+      }
+
+      if (percent >= 1.5 && !lockedCtx['_sla_critical_sent_at']) {
+        lockedCtx['_sla_critical_sent_at'] = now.toISOString();
+        applyUpdates.context = lockedCtx;
+        shouldUpdate = true;
+
+        await deps.workflowRepository.createWorkflowEvent({
+          instanceId: instance.id,
+          eventType: 'workflow.instance.sla.critical',
+          actorType: 'scheduler',
+          actorId: null,
+          payload: {
+            slaDeadline: instance.slaDeadline!.toISOString()
+          }
+        }, tx);
+
+        emittedEvents.push({
+          type: 'workflow.instance.sla.critical',
+          payload: {
+            slaDeadline: instance.slaDeadline!.toISOString()
+          }
+        });
+      }
+
+      if (shouldUpdate) {
+        await deps.workflowRepository.updateInstance(
+          lockedInstance.id,
+          applyUpdates,
+          tx
+        );
+      }
+    });
+
+    if (deps.eventBus && emittedEvents.length > 0) {
+      for (const evt of emittedEvents) {
+        deps.eventBus.emit(evt.type as any, {
+          eventId: randomUUID(),
+          eventType: evt.type,
+          occurredAt: new Date().toISOString(),
+          cityId: instance.cityId,
+          schemaVersion: 1,
+          payload: evt.payload,
+        });
+      }
+    }
+  }
 }
 
 export function registerSlaMonitorJob(deps: EvaluateSlaBreachesDeps) {

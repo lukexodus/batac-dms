@@ -1,4 +1,4 @@
-import { eq, and, or, sql, desc, isNull, inArray } from 'drizzle-orm';
+import { eq, and, or, sql, desc, isNull, inArray, isNotNull } from 'drizzle-orm';
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
 import type { AppDb } from '../../db.js';
 import {
@@ -239,6 +239,19 @@ export class WorkflowRepository {
       .where(eq(instances.id, id));
   }
 
+  async updateInstance(
+    id: string,
+    data: Partial<InferInsertModel<typeof instances>>,
+    tx: AppDb = this.db
+  ): Promise<InstanceRow> {
+    const [row] = await tx
+      .update(instances)
+      .set(data)
+      .where(eq(instances.id, id))
+      .returning();
+    return row!;
+  }
+
   async migrateInstanceVersion(
     id: string,
     targetVersionId: string,
@@ -290,6 +303,19 @@ export class WorkflowRepository {
     }
 
     return await baseQuery;
+  }
+
+  async getActiveInstancesWithSla(tx: AppDb = this.db): Promise<InstanceRow[]> {
+    return await tx
+      .select()
+      .from(instances)
+      .where(
+        and(
+          inArray(instances.status, ['active', 'suspended', 'stuck']),
+          isNotNull(instances.slaDeadline),
+          isNull(instances.deletedAt)
+        )
+      );
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -384,6 +410,18 @@ export class WorkflowRepository {
       .select()
       .from(stepInstances)
       .where(and(eq(stepInstances.id, id), isNull(stepInstances.deletedAt)))
+      .for('update');
+    return row || null;
+  }
+
+  async lockInstanceForUpdate(
+    id: string,
+    tx: AppDb // tx is required for FOR UPDATE
+  ): Promise<InstanceRow | null> {
+    const [row] = await tx
+      .select()
+      .from(instances)
+      .where(and(eq(instances.id, id), isNull(instances.deletedAt)))
       .for('update');
     return row || null;
   }
