@@ -5,6 +5,7 @@ import workflowPlugin from './workflow.plugin.js';
 import * as bypassHandler from './engine/certified-urgent-bypass.handler.js';
 import * as createInstanceModule from './engine/create-instance.js';
 import cron from 'node-cron';
+import { WorkflowRepository } from './workflow.repository.js';
 
 // Mock dependencies
 vi.mock('node-cron', () => ({
@@ -46,7 +47,7 @@ const mockDependenciesPlugin = fp(async (fastify) => {
     insert: vi.fn().mockReturnThis(),
     values: vi.fn().mockReturnThis(),
     returning: vi.fn().mockResolvedValue([]),
-  });
+  } as any);
   
   const handlers = new Map<string, Function>();
 
@@ -60,16 +61,16 @@ const mockDependenciesPlugin = fp(async (fastify) => {
         return handler(payload);
       }
     }),
-  });
+  } as any);
 
-  fastify.decorate('auditService', {});
-  fastify.decorate('documentsService', {});
-  fastify.decorate('organizationService', {});
-  fastify.decorate('delegationService', {});
+  fastify.decorate('auditService', {} as any);
+  fastify.decorate('documentsService', {} as any);
+  fastify.decorate('organizationService', {} as any);
+  fastify.decorate('delegationService', {} as any);
   fastify.decorate('boss', {
     work: vi.fn(),
     schedule: vi.fn(),
-  });
+  } as any);
 }, { name: 'mock-deps' });
 
 describe('workflow.plugin', () => {
@@ -84,6 +85,13 @@ describe('workflow.plugin', () => {
     fastify.log.error = vi.fn();
 
     await fastify.register(mockDependenciesPlugin);
+    
+    // Register required dependency names
+    await fastify.register(fp(async () => {}, { name: 'database' }));
+    await fastify.register(fp(async () => {}, { name: 'event-bus' }));
+    await fastify.register(fp(async () => {}, { name: 'audit' }));
+    await fastify.register(fp(async () => {}, { name: 'organization' }));
+    await fastify.register(fp(async () => {}, { name: 'documents' }));
     
     // Register the plugin
     await fastify.register(workflowPlugin);
@@ -100,7 +108,7 @@ describe('workflow.plugin', () => {
     expect(fastify.eventBus.on).toHaveBeenCalledWith('document.certification_urgency.logged', expect.any(Function), 'workflow');
     
     // Trigger event
-    await fastify.eventBus.emit('document.certification_urgency.logged', { eventId: '123' });
+    await fastify.eventBus.emit('document.certification_urgency.logged', { eventId: '123', eventType: 'document.certification_urgency.logged', occurredAt: '2023-01-01T00:00:00Z', cityId: '1', schemaVersion: 1, payload: { certificationDocumentId: '1', associatedInstanceIds: [], loggedBy: '1', loggedAt: '1' } });
     
     expect(bypassHandler.processCertificationUrgencyEvent).toHaveBeenCalled();
   });
@@ -108,20 +116,21 @@ describe('workflow.plugin', () => {
   it('subscribes to document.created event and handles gracefully', async () => {
     expect(fastify.eventBus.on).toHaveBeenCalledWith('document.created', expect.any(Function), 'workflow');
     
-    // Mock the repository to simulate NO_ACTIVE_VERSION
-    const repoMock = vi.spyOn(require('./workflow.repository.js').WorkflowRepository.prototype, 'getActiveDefinitionForDocumentType')
+    const repoMock = vi.spyOn(WorkflowRepository.prototype, 'getActiveDefinitionForDocumentType')
       .mockResolvedValue(null);
       
-    await fastify.eventBus.emit('document.created', { eventId: '123', payload: { documentTypeId: '456', documentId: '789' } });
+    await fastify.eventBus.emit('document.created', { eventId: '123', eventType: 'document.created', occurredAt: '2023-01-01T00:00:00Z', cityId: '1', schemaVersion: 1, payload: { documentTypeId: '456', documentId: '789', ownedByOfficeId: '1', actorId: '1', cityId: '1' } });
     
     expect(repoMock).toHaveBeenCalledWith('456');
     expect(createInstanceModule.createInstance).not.toHaveBeenCalled();
     expect(fastify.log.info).toHaveBeenCalledWith(expect.objectContaining({ documentId: '789' }), expect.any(String));
   });
 
-  it('registers cron jobs', () => {
-    expect(cron.schedule).toHaveBeenCalledWith('0 * * * *', expect.any(Function), { timezone: 'Asia/Manila' });
-    expect(cron.schedule).toHaveBeenCalledWith('0 6 * * *', expect.any(Function), { timezone: 'Asia/Manila' });
+  it('registers cron jobs and boss jobs', () => {
+    expect(fastify.boss.schedule).toHaveBeenCalledWith('evaluateMayorLapseTimers', '0 * * * *', {}, { tz: 'Asia/Manila' });
+    expect(fastify.boss.schedule).toHaveBeenCalledWith('evaluatePanlalawiganTimers', '0 6 * * *', {}, { tz: 'Asia/Manila' });
+    expect(fastify.boss.work).toHaveBeenCalledWith('evaluateMayorLapseTimers', expect.any(Function));
+    expect(fastify.boss.work).toHaveBeenCalledWith('evaluatePanlalawiganTimers', expect.any(Function));
     expect(fastify.boss.schedule).toHaveBeenCalledWith('evaluateThursdayCutoffs', '0 0 * * 4', {});
     expect(fastify.boss.work).toHaveBeenCalledWith('evaluateThursdayCutoffs', expect.any(Function));
   });

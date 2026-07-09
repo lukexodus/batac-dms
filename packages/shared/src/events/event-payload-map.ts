@@ -104,6 +104,13 @@ export interface WorkflowContextUpdatedPayload {
   actorId: string;
 }
 
+export interface DocumentCertificationUrgencyLoggedPayload {
+  certificationDocumentId: string;
+  associatedInstanceIds: string[];
+  loggedBy: string;
+  loggedAt: string;
+}
+
 export interface EventPayloadMap {
   // ── IAM module ─────────────────────────────────────────────────────────────
   'user.login': Stub;
@@ -121,10 +128,12 @@ export interface EventPayloadMap {
   'delegation.expired': DelegationExpiredEvent;
   'delegation.revoked': DelegationRevokedEvent;
 
+
   // ── Documents module ───────────────────────────────────────────────────────
   'document.created': DocumentCreatedPayload;
   'document.state_changed': DocumentStateChangedEvent;
   'document.number_assigned': DocumentNumberAssignedEvent;
+  'document.certification_urgency.logged': DocumentCertificationUrgencyLoggedPayload;
   'document.panlalawigan.deemed_approved': { documentId: string; transmittedAt: Date; cityId: string; };
   'audit.document.panlalawigan_transmitted': { documentId: string; actorId: string; cityId: string; timestamp: Date; };
   'audit.document.panlalawigan_outcome_logged': { documentId: string; outcome: string; actorId: string; cityId: string; timestamp: Date; };

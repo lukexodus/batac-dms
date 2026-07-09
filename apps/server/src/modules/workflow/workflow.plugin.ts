@@ -38,13 +38,17 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorate('sessionTrpcRouter', sessionTrpcRouter);
 
   // Event Bus Subscriptions
+  const stepDeps = {
+    db,
+    workflowRepository,
+    documentsService: fastify.documentsService,
+    eventBus: fastify.eventBus,
+    orgService: fastify.organizationService,
+    delegationService: fastify.delegationService
+  };
+
   fastify.eventBus.on('document.certification_urgency.logged', (event) => {
-    processCertificationUrgencyEvent(event, {
-      db,
-      workflowRepository,
-      eventBus: fastify.eventBus,
-      auditService: fastify.auditService
-    }).catch(err => {
+    processCertificationUrgencyEvent(event.payload, stepDeps).catch(err => {
       fastify.log.error({ err, eventId: event.eventId }, 'workflow: document.certification_urgency.logged handler failed');
     });
   }, 'workflow');
@@ -59,9 +63,12 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
         fastify.log.info({ documentId: event.payload.documentId }, 'No active workflow definition found; skipping instance creation.');
         return;
       }
-      await createInstance(event, {
+      await createInstance(event.payload.documentId, activeDef.definition.id, event.payload.actorId, {
         db,
         workflowRepository,
+        documentsService: fastify.documentsService,
+        orgService: fastify.organizationService,
+        delegationService: fastify.delegationService,
         eventBus: fastify.eventBus
       });
     };
@@ -71,37 +78,32 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
   }, 'workflow');
 
   // Scheduler Jobs
-  const stepDeps = {
-    db,
-    workflowRepository,
-    documentsService: fastify.documentsService,
-    eventBus: fastify.eventBus,
-    orgService: fastify.organizationService,
-    delegationService: fastify.delegationService
-  };
-
-  cron.schedule('0 * * * *', async () => {
-    try {
-      await evaluateMayorLapseTimers(stepDeps);
-    } catch (err) {
-      fastify.log.error({ err }, '[Mayor Lapse Monitor] Failed to evaluate timers');
-    }
-  }, { timezone: 'Asia/Manila' });
-
-  cron.schedule('0 6 * * *', async () => {
-    try {
-      await evaluatePanlalawiganTimers(stepDeps);
-    } catch (err) {
-      fastify.log.error({ err }, '[Panlalawigan Timer] Failed to evaluate timers');
-    }
-  }, { timezone: 'Asia/Manila' });
-
   registerSlaMonitorJob({ workflowRepository });
   
   if (fastify.boss) {
+    fastify.boss.work('evaluateMayorLapseTimers', async () => {
+      try {
+        await evaluateMayorLapseTimers(stepDeps);
+      } catch (err) {
+        fastify.log.error({ err }, '[Mayor Lapse Monitor] Failed to evaluate timers');
+      }
+    });
+    // Schedule to run every hour (0 * * * *)
+    await fastify.boss.schedule('evaluateMayorLapseTimers', '0 * * * *', {}, { tz: 'Asia/Manila' });
+
+    fastify.boss.work('evaluatePanlalawiganTimers', async () => {
+      try {
+        await evaluatePanlalawiganTimers(stepDeps);
+      } catch (err) {
+        fastify.log.error({ err }, '[Panlalawigan Timer] Failed to evaluate timers');
+      }
+    });
+    // Schedule to run daily at 06:00 PHT (0 6 * * *)
+    await fastify.boss.schedule('evaluatePanlalawiganTimers', '0 6 * * *', {}, { tz: 'Asia/Manila' });
+
     fastify.boss.work('evaluateThursdayCutoffs', async () => {
       try {
-        await evaluateThursdayCutoffs({ db, boss: fastify.boss!, workflowRepository });
+        await evaluateThursdayCutoffs({ workflowRepository });
       } catch (err) {
         fastify.log.error({ err }, '[Thursday Cutoff] Failed to evaluate cutoffs');
       }

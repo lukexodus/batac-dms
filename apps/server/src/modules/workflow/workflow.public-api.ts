@@ -50,7 +50,9 @@ export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
         definitionVersionId: instance.definitionVersionId,
         currentStepType,
         currentStepInstanceId: activeSteps.length > 0 ? activeSteps[0]!.id : '',
-        currentAssigneeUserId: activeSteps.length > 0 ? activeSteps[0]!.assigneeUserId : null,
+        currentAssigneeUserId: activeSteps.length > 0 
+          ? ((activeSteps[0]!.assignedTo as any[])?.[0]?.type === 'user' ? (activeSteps[0]!.assignedTo as any[])?.[0]?.id : null)
+          : null,
         status: mapStatus(instance.status),
         slaDeadline: instance.slaDeadline,
         lapseStatus,

@@ -1359,9 +1359,14 @@ export function createDocumentsRouter() {
           }
         }
 
+        const associatedInstanceIds: string[] = [];
+
         for (const measureId of input.associatedMeasureIds) {
           const measure = await repo.findDocumentById(measureId);
           if (measure) {
+            if (measure.workflowInstanceId) {
+              associatedInstanceIds.push(measure.workflowInstanceId);
+            }
             const currentMetadata = measure.metadata as Record<string, unknown>;
             await repo.updateDocumentMetadata(measureId, {
               ...currentMetadata,
@@ -1370,6 +1375,20 @@ export function createDocumentsRouter() {
             });
           }
         }
+
+        ctx.req.server.eventBus.emit('document.certification_urgency.logged', {
+          eventId: crypto.randomUUID(),
+          eventType: 'document.certification_urgency.logged',
+          occurredAt: new Date().toISOString(),
+          cityId: subject.cityId,
+          schemaVersion: 1,
+          payload: {
+            certificationDocumentId: input.certifyingDocumentId,
+            associatedInstanceIds,
+            loggedBy: subject.userId,
+            loggedAt: new Date().toISOString(),
+          }
+        });
 
         return {
           certificationDocumentId: input.certifyingDocumentId,
