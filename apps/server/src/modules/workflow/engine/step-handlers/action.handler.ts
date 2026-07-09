@@ -52,7 +52,7 @@ export async function submitStepAction(
   );
 
   // Invoke context writer (for timer flags, etc.)
-  await writeTimerContextIfTriggered(stepDef, instance, actorId, deps as any, trx);
+  await writeTimerContextIfTriggered(stepDef, instance, actorId, 'user', deps as any, trx);
 
   await deps.workflowRepository.createWorkflowEvent(
     {
@@ -103,7 +103,7 @@ export async function autoCompleteActionStep(
   );
 
   // Invoke context writer (for timer flags, etc.), actorId is null for system
-  await writeTimerContextIfTriggered(stepDef, instance, 'SYSTEM', deps as any, trx);
+  await writeTimerContextIfTriggered(stepDef, instance, null, 'system', deps as any, trx);
 
   await deps.workflowRepository.createWorkflowEvent(
     {

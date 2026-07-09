@@ -19,7 +19,8 @@ export interface ContextWriterDeps {
 export async function writeTimerContextIfTriggered(
   step: StepRow,
   instance: InstanceRow,
-  actorId: string,
+  actorId: string | null,
+  actorType: 'user' | 'system',
   deps: ContextWriterDeps,
   trx?: DbTransaction
 ): Promise<void> {
@@ -64,7 +65,7 @@ export async function writeTimerContextIfTriggered(
     {
       instanceId: instance.id,
       eventType: 'workflow.context.updated',
-      actorType: 'user',
+      actorType: actorType,
       actorId: actorId,
       payload: {
         instanceId: instance.id,
