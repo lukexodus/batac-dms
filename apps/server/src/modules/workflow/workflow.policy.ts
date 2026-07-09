@@ -615,6 +615,28 @@ export class WorkflowPolicyGuard {
     }
   }
 
+  // ─── 6.9b Resolve Valid-In-Part ────────────────────────────────────────────
+
+  /**
+   * I1 §6.9 extension — `step_instance:resolve_valid_in_part`.
+   *
+   * sp_secretary ONLY. The step-key check for 'valid_in_part_decision' is
+   * enforced inline in the tRPC procedure (the step instance is fetched via
+   * a stepKey-filtered query, so a wrong key yields NOT_FOUND, not FORBIDDEN).
+   * This guard covers only the role gate, consistent with the minimal-guard
+   * pattern used for `canManuallyAdvanceMultiReferral`.
+   *
+   * Maps to: `resolveValidInPart` procedure.
+   */
+  canResolveValidInPart(subject: SubjectContext): void {
+    if (subject.roles.includes('sp_secretary')) return;
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      cause: 'resolve_valid_in_part_requires_sp_secretary',
+      message: 'Only the SP Secretary may resolve a valid-in-part Panlalawigan determination.',
+    });
+  }
+
   // ─── SP Secretary administrative logging actions ───────────────────────────
 
   /**

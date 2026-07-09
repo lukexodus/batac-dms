@@ -217,5 +217,31 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
 
       return rows.map(r => r.committeeId);
     },
+
+    async getCommitteeChair(committeeId: string): Promise<UserSummary | null> {
+      const db = deps.db;
+      const { committees } = await import('@batac/database/schema/organization.schema.js');
+      const rows = await db.select({
+        userId: employees.userId,
+        firstName: employees.firstName,
+        lastName: employees.lastName,
+      })
+      .from(committees)
+      .innerJoin(employees, eq(committees.chairedByEmployeeId, employees.id))
+      .where(and(
+        eq(committees.id, committeeId),
+        isNull(committees.deletedAt),
+        isNotNull(employees.userId),
+        isNull(employees.deletedAt)
+      ))
+      .limit(1);
+
+      if (rows.length === 0 || !rows[0]?.userId) return null;
+
+      return {
+        userId: rows[0].userId,
+        displayName: `${rows[0].firstName} ${rows[0].lastName}`,
+      };
+    },
   };
 }
