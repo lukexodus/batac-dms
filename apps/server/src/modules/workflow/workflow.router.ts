@@ -1375,11 +1375,77 @@ export function createWorkflowRouter() {
           absentCouncilorIds: z.array(z.string().uuid()),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'recordVetoOverrideVote is not implemented.',
+      .output(z.object({ success: z.literal(true) }))
+      .mutation(async ({ ctx, input }) => {
+        const stepContext = await fetchStepContext(input.stepInstanceId, ctx);
+        if (!stepContext) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
+        }
+
+        workflowPolicy.canLogSpSecretaryAction(ctx.auth);
+
+        const outcome = input.votesFor > input.votesAgainst
+          ? 'OVERRIDE_SUCCEEDED'
+          : 'OVERRIDE_FAILED';
+
+        const server4 = ctx.req.server as any;
+        const deps = {
+          db: ctx.db,
+          workflowRepository: new WorkflowRepository(ctx.db),
+          documentsService: server4.documentsService,
+          eventBus: server4.eventBus,
+          orgService: server4.organizationService,
+          delegationService: server4.delegationService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          const txDeps = {
+            ...deps,
+            workflowRepository: new WorkflowRepository(tx as any),
+          };
+
+          const patch: Record<string, any> = {
+            veto_override_votes_for: input.votesFor,
+            veto_override_votes_against: input.votesAgainst,
+            veto_override_absent_councilor_ids: input.absentCouncilorIds,
+          };
+
+          await txDeps.workflowRepository.updateInstanceContext(stepContext.instance.id, patch, tx as any);
+
+          const updatedInstance = await txDeps.workflowRepository.getInstanceById(stepContext.instance.id, tx as any);
+          if (!updatedInstance) throw new Error('Instance not found');
+
+          await submitStepApproval(
+            updatedInstance,
+            stepContext.stepInstance,
+            ctx.auth.userId,
+            'user',
+            outcome,
+            null, // comment — require_comment_on: [] for this step
+            txDeps,
+            tx as any
+          );
         });
+
+        if (server4.eventBus) {
+          server4.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: stepContext.instance.id,
+              stepInstanceId: stepContext.stepInstance.id,
+              stepId: stepContext.step.id,
+              stepType: stepContext.step.stepType,
+              outcome,
+              comment: null,
+            },
+          });
+        }
+
+        return { success: true };
       }),
 
     logDocketingCompletion: protectedProcedure

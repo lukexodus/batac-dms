@@ -575,7 +575,9 @@ export class WorkflowPolicyGuard {
    * office UUID is seeded at runtime (office code 'SPS'); this DB-query-free
    * guard cannot resolve it internally.
    *
-   * Maps to: `recordVetoOverrideVote` when used in a secretariat decision context.
+   * Does NOT map to `recordVetoOverrideVote` — that procedure uses the simpler
+   * `canLogSpSecretaryAction` guard (I2 §6). Retained in case a future procedure
+   * needs step-and-office-scoped secretariat decision logging.
    */
   canLogSecretariatDecision(
     subject: SubjectContext,
