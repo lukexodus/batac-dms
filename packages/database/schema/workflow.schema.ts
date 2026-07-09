@@ -212,6 +212,7 @@ export const steps = workflowSchema.table(
     config: jsonb('config'),
     position: integer('position').notNull().default(0),
     isStart: boolean('is_start').notNull().default(false),
+    legallyMandated: boolean('legally_mandated').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
