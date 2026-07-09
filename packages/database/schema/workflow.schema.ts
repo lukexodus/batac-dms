@@ -318,7 +318,7 @@ export const instances = workflowSchema.table(
     // Partial index for efficient SLA polling: only active instances with a deadline.
     index('idx_instances_sla_active')
       .on(table.slaDeadline)
-      .where(sql`${table.status} = 'active'`),
+      .where(sql`${table.status} IN ('active', 'suspended', 'stuck')`),
   ],
 );
 

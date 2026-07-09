@@ -50,6 +50,13 @@
       "when": 1783434061845,
       "tag": "0006_workflow_create_workflow_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783577123478,
+      "tag": "0007_slim_starfox",
+      "breakpoints": true
     }
   ]
 }

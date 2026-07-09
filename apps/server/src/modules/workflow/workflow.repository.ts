@@ -270,7 +270,10 @@ export class WorkflowRepository {
         )
       )
       .innerJoin(steps, eq(stepInstances.stepId, steps.id))
-      .where(and(eq(instances.status, 'active'), isNull(instances.deletedAt)))
+      .where(and(
+        inArray(instances.status, ['active', 'suspended', 'stuck']),
+        isNull(instances.deletedAt)
+      ))
       .$dynamic();
 
     if (config.stepType) {

@@ -24,6 +24,7 @@ describe('WorkflowRepository', () => {
       set: vi.fn().mockReturnThis(),
       execute: vi.fn().mockReturnThis(),
       for: vi.fn().mockReturnThis(),
+      $dynamic: vi.fn().mockReturnThis(),
     };
     repo = new WorkflowRepository(mockDb as unknown as AppDb);
   });
@@ -124,6 +125,27 @@ describe('WorkflowRepository', () => {
       expect(mockDb.from).toHaveBeenCalledWith(stepInstances);
       expect(mockDb.for).toHaveBeenCalledWith('update');
       expect(result).toEqual({ id: 'step-1' });
+    });
+  });
+
+  describe('getActiveInstancesByDefinitionAndStepConfig', () => {
+    it('queries for active, suspended, and stuck statuses and returns matched rows', async () => {
+      const mockRows = [
+        {
+          instance: { id: 'inst-1', status: 'stuck', deletedAt: null },
+          stepInstance: { id: 'step-inst-1', slaDeadline: new Date(), startedAt: new Date() }
+        }
+      ];
+      mockDb.where.mockReturnThis();
+      mockDb.$dynamic.mockResolvedValueOnce(mockRows);
+
+      const result = await repo.getActiveInstancesByDefinitionAndStepConfig({});
+
+      expect(mockDb.select).toHaveBeenCalled();
+      expect(mockDb.from).toHaveBeenCalledWith(instances);
+      expect(mockDb.innerJoin).toHaveBeenCalledTimes(2); // innerJoin stepInstances, steps
+      expect(mockDb.where).toHaveBeenCalled();
+      expect(result).toEqual(mockRows);
     });
   });
 });
