@@ -4,6 +4,7 @@ import type { WorkflowRepository } from '../workflow.repository.js';
 
 describe('SLA Escalation Monitor Job', () => {
   let mockWorkflowRepository: Partial<WorkflowRepository>;
+  let mockEventBus: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -15,11 +16,18 @@ describe('SLA Escalation Monitor Job', () => {
       updateStepInstance: vi.fn(),
       createWorkflowEvent: vi.fn(),
     };
+
+    mockEventBus = {
+      emit: vi.fn(),
+    };
   });
 
   const runJob = async (now: Date) => {
     return evaluateSlaBreaches(
-      { workflowRepository: mockWorkflowRepository as WorkflowRepository },
+      { 
+        workflowRepository: mockWorkflowRepository as WorkflowRepository,
+        eventBus: mockEventBus
+      },
       { now }
     );
   };
@@ -31,7 +39,7 @@ describe('SLA Escalation Monitor Job', () => {
 
     (mockWorkflowRepository.getActiveInstancesByDefinitionAndStepConfig as any).mockResolvedValue([
       {
-        instance: { id: 'inst-1' },
+        instance: { id: 'inst-1', cityId: 'city-1' },
         stepInstance: { id: 'step-inst-1', startedAt, slaDeadline: deadline, metadata: {} }
       }
     ]);
@@ -47,6 +55,11 @@ describe('SLA Escalation Monitor Job', () => {
       payload: expect.objectContaining({ percentElapsed: 80 })
     }), 'mock-tx');
 
+    expect(mockEventBus.emit).toHaveBeenCalledWith('workflow.sla.warning', expect.objectContaining({
+      cityId: 'city-1',
+      payload: expect.objectContaining({ percentElapsed: 80, stepInstanceId: 'step-inst-1' })
+    }));
+
     expect(mockWorkflowRepository.updateStepInstance).toHaveBeenCalledWith('step-inst-1', expect.objectContaining({
       metadata: { sla_warning_sent_at: now.toISOString() }
     }), 'mock-tx');
@@ -59,7 +72,7 @@ describe('SLA Escalation Monitor Job', () => {
 
     (mockWorkflowRepository.getActiveInstancesByDefinitionAndStepConfig as any).mockResolvedValue([
       {
-        instance: { id: 'inst-1' },
+        instance: { id: 'inst-1', cityId: 'city-1' },
         stepInstance: { id: 'step-inst-1', startedAt, slaDeadline: deadline, metadata: {} }
       }
     ]);
@@ -74,9 +87,18 @@ describe('SLA Escalation Monitor Job', () => {
       eventType: 'workflow.sla.breached',
       payload: expect.objectContaining({ 
         breachDetectedAt: now.toISOString(),
-        breachedAt: deadline.toISOString() // Not NOW
+        breachedAt: deadline.toISOString()
       })
     }), 'mock-tx');
+
+    expect(mockEventBus.emit).toHaveBeenCalledWith('workflow.sla.breached', expect.objectContaining({
+      cityId: 'city-1',
+      payload: expect.objectContaining({
+        breachDetectedAt: now.toISOString(),
+        breachedAt: deadline.toISOString(),
+        stepInstanceId: 'step-inst-1'
+      })
+    }));
 
     expect(mockWorkflowRepository.updateStepInstance).toHaveBeenCalledWith('step-inst-1', expect.objectContaining({
       slaBreachedAt: deadline
@@ -90,7 +112,7 @@ describe('SLA Escalation Monitor Job', () => {
 
     (mockWorkflowRepository.getActiveInstancesByDefinitionAndStepConfig as any).mockResolvedValue([
       {
-        instance: { id: 'inst-1' },
+        instance: { id: 'inst-1', cityId: 'city-1' },
         stepInstance: { id: 'step-inst-1', startedAt, slaDeadline: deadline, metadata: { sla_warning_sent_at: '2023-11-09T12:00:00Z' }, slaBreachedAt: deadline }
       }
     ]);
@@ -104,6 +126,14 @@ describe('SLA Escalation Monitor Job', () => {
     expect(mockWorkflowRepository.createWorkflowEvent).toHaveBeenCalledWith(expect.objectContaining({
       eventType: 'workflow.sla.critical',
     }), 'mock-tx');
+
+    expect(mockEventBus.emit).toHaveBeenCalledWith('workflow.sla.critical', expect.objectContaining({
+      cityId: 'city-1',
+      payload: expect.objectContaining({
+        stepInstanceId: 'step-inst-1',
+        slaDeadline: deadline.toISOString()
+      })
+    }));
 
     expect(mockWorkflowRepository.updateStepInstance).toHaveBeenCalledWith('step-inst-1', expect.objectContaining({
       metadata: expect.objectContaining({ sla_critical_sent_at: now.toISOString() })

@@ -78,7 +78,7 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
   }, 'workflow');
 
   // Scheduler Jobs
-  registerSlaMonitorJob({ workflowRepository });
+  registerSlaMonitorJob({ workflowRepository, eventBus: fastify.eventBus });
   
   if (fastify.boss) {
     fastify.boss.work('evaluateMayorLapseTimers', async () => {
@@ -114,7 +114,7 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
 
   // Run SLA monitor synchronously once on boot
   try {
-    await evaluateSlaBreaches({ workflowRepository });
+    await evaluateSlaBreaches({ workflowRepository, eventBus: fastify.eventBus });
   } catch (err) {
     fastify.log.error({ err }, '[SLA Monitor] Initial synchronous run failed');
   }

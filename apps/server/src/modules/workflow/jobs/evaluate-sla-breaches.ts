@@ -1,8 +1,11 @@
 import type { WorkflowRepository } from '../workflow.repository.js';
+import type { EventBus } from '@batac/shared';
 import cron from 'node-cron';
+import { randomUUID } from 'node:crypto';
 
 export interface EvaluateSlaBreachesDeps {
   workflowRepository: WorkflowRepository;
+  eventBus?: EventBus;
 }
 
 export async function evaluateSlaBreaches(
@@ -40,6 +43,8 @@ export async function evaluateSlaBreaches(
       continue;
     }
 
+    const emittedEvents: Array<{ type: string; payload: any }> = [];
+
     // Process inside a transaction
     await deps.workflowRepository.runInTransaction(async (tx) => {
       const lockedStep = await deps.workflowRepository.lockStepInstanceForUpdate(stepInstance.id, tx);
@@ -66,6 +71,15 @@ export async function evaluateSlaBreaches(
             percentElapsed: 80
           }
         }, tx);
+
+        emittedEvents.push({
+          type: 'workflow.sla.warning',
+          payload: {
+            stepInstanceId: lockedStep.id,
+            slaDeadline: stepInstance.slaDeadline!.toISOString(),
+            percentElapsed: 80
+          }
+        });
       }
 
       if (nowTime > deadlineTime && !lockedStep.slaBreachedAt) {
@@ -84,6 +98,16 @@ export async function evaluateSlaBreaches(
             breachedAt: stepInstance.slaDeadline!.toISOString()
           }
         }, tx);
+
+        emittedEvents.push({
+          type: 'workflow.sla.breached',
+          payload: {
+            stepInstanceId: lockedStep.id,
+            slaDeadline: stepInstance.slaDeadline!.toISOString(),
+            breachDetectedAt: now.toISOString(),
+            breachedAt: stepInstance.slaDeadline!.toISOString()
+          }
+        });
       }
 
       if (percent >= 1.5 && !lockedMeta['sla_critical_sent_at']) {
@@ -101,6 +125,14 @@ export async function evaluateSlaBreaches(
             slaDeadline: stepInstance.slaDeadline!.toISOString()
           }
         }, tx);
+
+        emittedEvents.push({
+          type: 'workflow.sla.critical',
+          payload: {
+            stepInstanceId: lockedStep.id,
+            slaDeadline: stepInstance.slaDeadline!.toISOString()
+          }
+        });
       }
 
       if (shouldUpdate) {
@@ -111,6 +143,19 @@ export async function evaluateSlaBreaches(
         );
       }
     });
+
+    if (deps.eventBus && emittedEvents.length > 0) {
+      for (const evt of emittedEvents) {
+        deps.eventBus.emit(evt.type as any, {
+          eventId: randomUUID(),
+          eventType: evt.type,
+          occurredAt: new Date().toISOString(),
+          cityId: instance.cityId,
+          schemaVersion: 1,
+          payload: evt.payload,
+        });
+      }
+    }
   }
 }
 
