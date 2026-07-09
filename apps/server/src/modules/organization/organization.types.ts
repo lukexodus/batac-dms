@@ -169,6 +169,7 @@ export interface OrgService {
   getEmployeeByUserId(userId: string): Promise<EmployeeSummary | null>;
   getPrimaryOfficeForUser(userId: string): Promise<{ officeId: string; officeCode: string } | null>;
   getCommitteeIdsForUser(userId: string): Promise<string[]>;
+  getCommitteeChair(committeeId: string): Promise<UserSummary | null>;
 }
 
 export interface DesignationView {

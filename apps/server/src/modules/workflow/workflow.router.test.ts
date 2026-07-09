@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { initTRPC, TRPCError } from '@trpc/server';
 import { createWorkflowRouter } from './workflow.router.js';
 import type { Context, AuthContext } from '../iam/iam.types.js';
+import { WorkflowRepository } from './workflow.repository.js';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────
 
@@ -757,3 +758,520 @@ describe('Workflow Router Mutation Procedures', () => {
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TASK-WF-021: Mayor/Panlalawigan/Publication Lapse Procedures
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Mock WorkflowRepository methods using spies so we don't break other tests that use the real class
+const mockLockStepInstanceForUpdate = vi.fn();
+const mockUpdateStepInstance = vi.fn().mockResolvedValue({});
+const mockCreateWorkflowEvent = vi.fn().mockResolvedValue({});
+const mockUpdateInstanceContext = vi.fn().mockResolvedValue(undefined);
+const mockGetInstanceById = vi.fn();
+const mockGetActiveInstanceForDocument = vi.fn();
+
+describe('TASK-WF-021 Procedures', () => {
+  let mockDb: ReturnType<typeof makeMockDb>;
+
+  const STEP_INSTANCE_ID = '55555555-5555-5555-5555-555555555555';
+  const INSTANCE_ID = '66666666-6666-6666-6666-666666666666';
+  const DOCUMENT_ID = '77777777-7777-7777-7777-777777777777';
+  const STEP_ID = '88888888-8888-8888-8888-888888888888';
+  const COMMITTEE_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+  const CHAIR_USER_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+
+  /** Default step context row for fetchStepContext (joined query via makeMockDb) */
+  function makeWF021StepContextRow(overrides: {
+    stepKey?: string;
+    instanceContext?: Record<string, any>;
+    metadata?: Record<string, any>;
+  } = {}) {
+    return [
+      {
+        stepInstance: {
+          id: STEP_INSTANCE_ID,
+          stepId: STEP_ID,
+          instanceId: INSTANCE_ID,
+          status: 'active',
+          assignedTo: [{ user_id: USER_ID }],
+          metadata: overrides.metadata ?? {},
+          deletedAt: null,
+        },
+        step: {
+          id: STEP_ID,
+          stepType: 'approval',
+          stepKey: overrides.stepKey ?? 'panlalawigan_review',
+          config: { allowed_outcomes: ['VALID', 'VALID_IN_PART', 'RETURNED'] },
+        },
+        instance: {
+          id: INSTANCE_ID,
+          documentId: DOCUMENT_ID,
+          definitionVersionId: VALID_UUID,
+          createdBy: USER_ID,
+          status: 'active',
+          cityId: CITY_ID,
+          context: overrides.instanceContext ?? {},
+        },
+        doc: {
+          id: DOCUMENT_ID,
+          ownedByOfficeId: OWN_OFFICE,
+          classificationLevel: 'internal',
+          createdBy: USER_ID,
+          cityId: CITY_ID,
+        },
+      },
+    ];
+  }
+
+  const SP_SECRETARY = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
+
+  function makeCtxWithServer(subject: AuthContext, db: ReturnType<typeof makeMockDb>) {
+    return {
+      auth: subject,
+      db: db as any,
+      req: {
+        server: {
+          eventBus: { emit: vi.fn() },
+          organizationService: { getCommitteeChair: vi.fn().mockResolvedValue({ userId: CHAIR_USER_ID }) },
+          documentsService: {},
+          delegationService: {},
+        } as any,
+      } as any,
+    };
+  }
+
+  beforeEach(() => {
+    mockDb = makeMockDb();
+    mockSubmitStepAction.mockClear();
+    mockSubmitStepApproval.mockClear();
+    mockLockStepInstanceForUpdate.mockClear();
+    mockUpdateStepInstance.mockClear().mockResolvedValue({});
+    mockCreateWorkflowEvent.mockClear().mockResolvedValue({});
+    mockUpdateInstanceContext.mockClear().mockResolvedValue(undefined);
+    mockGetInstanceById.mockClear();
+    mockGetActiveInstanceForDocument.mockClear();
+
+    vi.spyOn(WorkflowRepository.prototype, 'lockStepInstanceForUpdate').mockImplementation(mockLockStepInstanceForUpdate as any);
+    vi.spyOn(WorkflowRepository.prototype, 'updateStepInstance').mockImplementation(mockUpdateStepInstance as any);
+    vi.spyOn(WorkflowRepository.prototype, 'createWorkflowEvent').mockImplementation(mockCreateWorkflowEvent as any);
+    vi.spyOn(WorkflowRepository.prototype, 'updateInstanceContext').mockImplementation(mockUpdateInstanceContext as any);
+    vi.spyOn(WorkflowRepository.prototype, 'getInstanceById').mockImplementation(mockGetInstanceById as any);
+    vi.spyOn(WorkflowRepository.prototype, 'getActiveInstanceForDocument').mockImplementation(mockGetActiveInstanceForDocument as any);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // ── logMayorLapseConfirmation ──────────────────────────────────────────────
+
+  describe('logMayorLapseConfirmation', () => {
+    it('throws NOT_FOUND when step instance does not exist', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse([]); // fetchStepContext returns empty
+      await expect(
+        caller.logMayorLapseConfirmation({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('throws PRECONDITION_FAILED when no mayor_action_deadline in context', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: {} }));
+      await expect(
+        caller.logMayorLapseConfirmation({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+    });
+
+    it('is idempotent: second call returns success without creating a duplicate audit entry', async () => {
+      const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
+      const caller = callerFor(ctx as any);
+
+      // Already-confirmed metadata
+      const alreadyConfirmedMetadata = { lapse_confirmed_at: new Date().toISOString() };
+      mockLockStepInstanceForUpdate.mockResolvedValue({
+        id: STEP_INSTANCE_ID,
+        metadata: alreadyConfirmedMetadata,
+      });
+
+      mockDb.mockResponse(
+        makeWF021StepContextRow({ instanceContext: { mayor_action_deadline: new Date(Date.now() - 86400000).toISOString() } })
+      );
+
+      const result = await caller.logMayorLapseConfirmation({ stepInstanceId: STEP_INSTANCE_ID });
+
+      expect(result).toEqual({ success: true, legalBasis: 'RA7160_S47' });
+      // On idempotent path: updateStepInstance and createWorkflowEvent must NOT be called
+      expect(mockUpdateStepInstance).not.toHaveBeenCalled();
+      expect(mockCreateWorkflowEvent).not.toHaveBeenCalled();
+    });
+
+    it('writes audit metadata and creates workflow event on first confirmation', async () => {
+      const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
+      const caller = callerFor(ctx as any);
+
+      // No previous confirmation
+      mockLockStepInstanceForUpdate.mockResolvedValue({
+        id: STEP_INSTANCE_ID,
+        metadata: {},
+      });
+
+      mockDb.mockResponse(
+        makeWF021StepContextRow({ instanceContext: { mayor_action_deadline: new Date(Date.now() - 86400000).toISOString() } })
+      );
+
+      const result = await caller.logMayorLapseConfirmation({ stepInstanceId: STEP_INSTANCE_ID });
+
+      expect(result).toEqual({ success: true, legalBasis: 'RA7160_S47' });
+      expect(mockUpdateStepInstance).toHaveBeenCalledOnce();
+      expect(mockCreateWorkflowEvent).toHaveBeenCalledOnce();
+      // Metadata should include lapse_confirmed_at and lapse_confirmed_by
+      const updatedMeta = mockUpdateStepInstance.mock.calls[0]![1] as { metadata: Record<string, any> };
+      expect(updatedMeta.metadata['lapse_confirmed_at']).toBeDefined();
+      expect(updatedMeta.metadata['lapse_confirmed_by']).toBe(USER_ID);
+    });
+  });
+
+  // ── logDocketingCompletion ─────────────────────────────────────────────────
+
+  describe('logDocketingCompletion', () => {
+    it('throws NOT_FOUND when step instance does not exist', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse([]);
+      await expect(
+        caller.logDocketingCompletion({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('calls submitStepAction with correct args', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse(makeWF021StepContextRow({ stepKey: 'docketing' }));
+
+      const result = await caller.logDocketingCompletion({ stepInstanceId: STEP_INSTANCE_ID });
+
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepAction).toHaveBeenCalledOnce();
+      // 3rd arg = actorId, 4th arg = comment (null)
+      expect(mockSubmitStepAction.mock.calls[0]![2]).toBe(USER_ID);
+      expect(mockSubmitStepAction.mock.calls[0]![3]).toBeNull();
+    });
+  });
+
+  // ── recordPanlalawiganOutcome ──────────────────────────────────────────────
+
+  describe('recordPanlalawiganOutcome', () => {
+    it('throws NOT_FOUND when step instance does not exist', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse([]);
+      await expect(
+        caller.recordPanlalawiganOutcome({ stepInstanceId: STEP_INSTANCE_ID, outcome: 'VALID' })
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('writes panlalawigan fields to instance context and calls submitStepApproval (RETURNED outcome)', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse(makeWF021StepContextRow());
+
+      // Inside transaction: getInstanceById returns updated instance
+      const updatedInstance = {
+        id: INSTANCE_ID, status: 'active', documentId: DOCUMENT_ID,
+        context: { panlalawigan_outcome: 'RETURNED', panlalawigan_control_number: 'PN-001' },
+      };
+      mockGetInstanceById.mockResolvedValue(updatedInstance);
+
+      const result = await caller.recordPanlalawiganOutcome({
+        stepInstanceId: STEP_INSTANCE_ID,
+        outcome: 'RETURNED',
+        controlNumber: 'PN-001',
+        panlalawiganResolutionNumber: 'RES-2026-001',
+        dateReferred: new Date('2026-07-01'),
+        remarks: 'Returned for corrections',
+      });
+
+      expect(result.success).toBe(true);
+      // updateInstanceContext should have been called with all panlalawigan fields
+      expect(mockUpdateInstanceContext).toHaveBeenCalledOnce();
+      const contextPatch = mockUpdateInstanceContext.mock.calls[0]![1] as Record<string, any>;
+      expect(contextPatch['panlalawigan_outcome']).toBe('RETURNED');
+      expect(contextPatch['panlalawigan_control_number']).toBe('PN-001');
+      expect(contextPatch['panlalawigan_resolution_number']).toBe('RES-2026-001');
+      expect(contextPatch['panlalawigan_date_referred']).toBeDefined();
+      expect(contextPatch['panlalawigan_remarks']).toBe('Returned for corrections');
+      // submitStepApproval called with RETURNED outcome
+      expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('RETURNED');
+    });
+
+    it('writes context and calls submitStepApproval for VALID_IN_PART outcome', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse(makeWF021StepContextRow());
+
+      mockGetInstanceById.mockResolvedValue({
+        id: INSTANCE_ID, status: 'active', documentId: DOCUMENT_ID,
+        context: { panlalawigan_outcome: 'VALID_IN_PART' },
+      });
+
+      const result = await caller.recordPanlalawiganOutcome({
+        stepInstanceId: STEP_INSTANCE_ID,
+        outcome: 'VALID_IN_PART',
+      });
+
+      expect(result.success).toBe(true);
+      const contextPatch = mockUpdateInstanceContext.mock.calls[0]![1] as Record<string, any>;
+      expect(contextPatch['panlalawigan_outcome']).toBe('VALID_IN_PART');
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('VALID_IN_PART');
+    });
+  });
+
+  // ── resolveValidInPart ─────────────────────────────────────────────────────
+
+  describe('resolveValidInPart', () => {
+    it('rejects empty mandatoryComment (Zod .min(1))', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      await expect(
+        caller.resolveValidInPart({ documentId: DOCUMENT_ID, resolutionPath: 'resolve_as_is', mandatoryComment: '' })
+      ).rejects.toThrow();
+    });
+
+    function setupResolveValidInPartMocks(resolutionPath: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly') {
+      const instance = { id: INSTANCE_ID, documentId: DOCUMENT_ID, status: 'active', context: { panlalawigan_outcome: 'VALID_IN_PART' } };
+      mockGetActiveInstanceForDocument.mockResolvedValue(instance);
+
+      // fetchStepContext: first select returns stepInstances+steps rows (valid_in_part_decision)
+      mockDb.mockResponse([{ stepInstanceId: STEP_INSTANCE_ID }]); // rows query for valid_in_part_decision
+      mockDb.mockResponse(makeWF021StepContextRow({ stepKey: 'valid_in_part_decision' })); // fetchStepContext
+
+      if (resolutionPath === 'route_to_committee') {
+        // committeeRows query inside transaction
+        mockDb.mockResponse([{ metadata: { assigned_committees: [{ committee_id: COMMITTEE_ID }] } }]);
+      }
+
+      mockGetInstanceById.mockResolvedValue(instance);
+    }
+
+    it('resolve_as_is → maps to RESOLVE_AS_IS outcome and is audit-logged', async () => {
+      const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
+      const caller = callerFor(ctx as any);
+      setupResolveValidInPartMocks('resolve_as_is');
+
+      const result = await caller.resolveValidInPart({
+        documentId: DOCUMENT_ID,
+        resolutionPath: 'resolve_as_is',
+        mandatoryComment: 'Accept as-is per SP ruling.',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('RESOLVE_AS_IS');
+      expect(mockSubmitStepApproval.mock.calls[0]![5]).toBe('Accept as-is per SP ruling.');
+    });
+
+    it('route_to_legal → maps to ROUTE_TO_LEGAL outcome', async () => {
+      const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
+      const caller = callerFor(ctx as any);
+      setupResolveValidInPartMocks('route_to_legal');
+
+      const result = await caller.resolveValidInPart({
+        documentId: DOCUMENT_ID,
+        resolutionPath: 'route_to_legal',
+        mandatoryComment: 'Needs legal review.',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('ROUTE_TO_LEGAL');
+    });
+
+    it('route_to_committee → maps to ROUTE_TO_COMMITTEE and writes referred_committee_chair_id to context', async () => {
+      const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
+      // Override orgService to verify it's called
+      (ctx.req.server as any).organizationService.getCommitteeChair = vi.fn().mockResolvedValue({ userId: CHAIR_USER_ID });
+      const caller = callerFor(ctx as any);
+      setupResolveValidInPartMocks('route_to_committee');
+
+      const result = await caller.resolveValidInPart({
+        documentId: DOCUMENT_ID,
+        resolutionPath: 'route_to_committee',
+        mandatoryComment: 'Route back to committee.',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('ROUTE_TO_COMMITTEE');
+      // updateInstanceContext should have been called with referred_committee_chair_id
+      expect(mockUpdateInstanceContext).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        expect.objectContaining({ referred_committee_chair_id: CHAIR_USER_ID }),
+        expect.anything()
+      );
+    });
+
+    it('implement_directly → maps to IMPLEMENT_DIRECTLY outcome', async () => {
+      const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
+      const caller = callerFor(ctx as any);
+      setupResolveValidInPartMocks('implement_directly');
+
+      const result = await caller.resolveValidInPart({
+        documentId: DOCUMENT_ID,
+        resolutionPath: 'implement_directly',
+        mandatoryComment: 'Secretariat will implement.',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('IMPLEMENT_DIRECTLY');
+    });
+  });
+
+  // ── confirmPanlalawiganDeemedApproved ─────────────────────────────────────
+
+  describe('confirmPanlalawiganDeemedApproved', () => {
+    it('throws NOT_FOUND when step instance does not exist', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse([]);
+      await expect(
+        caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('throws PRECONDITION_FAILED when no panlalawigan_action_deadline in context', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: {} }));
+      await expect(
+        caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+    });
+
+    it('throws PRECONDITION_FAILED when 30-day window has not yet elapsed', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      const futureDeadline = new Date(Date.now() + 86400000 * 5).toISOString(); // 5 days in future
+      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: { panlalawigan_action_deadline: futureDeadline } }));
+      await expect(
+        caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID })
+      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+    });
+
+    it('is idempotent: second call returns success without creating a duplicate audit entry', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      const pastDeadline = new Date(Date.now() - 86400000 * 35).toISOString();
+      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: { panlalawigan_action_deadline: pastDeadline } }));
+
+      // Already confirmed
+      mockLockStepInstanceForUpdate.mockResolvedValue({
+        id: STEP_INSTANCE_ID,
+        metadata: { deemed_approved_confirmed_at: new Date().toISOString() },
+      });
+
+      const result = await caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID });
+
+      expect(result).toEqual({ success: true, legalBasis: 'RA7160_S56D' });
+      expect(mockUpdateStepInstance).not.toHaveBeenCalled();
+      expect(mockCreateWorkflowEvent).not.toHaveBeenCalled();
+    });
+
+    it('returns { success: true, legalBasis: "RA7160_S56D" } on first confirmation', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      const pastDeadline = new Date(Date.now() - 86400000 * 35).toISOString();
+      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: { panlalawigan_action_deadline: pastDeadline } }));
+
+      mockLockStepInstanceForUpdate.mockResolvedValue({
+        id: STEP_INSTANCE_ID,
+        metadata: {},
+      });
+
+      const result = await caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID });
+
+      expect(result).toEqual({ success: true, legalBasis: 'RA7160_S56D' });
+    });
+
+    it('does NOT call submitStepApproval (confirmation-only procedure)', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      const pastDeadline = new Date(Date.now() - 86400000 * 35).toISOString();
+      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: { panlalawigan_action_deadline: pastDeadline } }));
+
+      mockLockStepInstanceForUpdate.mockResolvedValue({ id: STEP_INSTANCE_ID, metadata: {} });
+
+      await caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID });
+
+      expect(mockSubmitStepApproval).not.toHaveBeenCalled();
+    });
+
+    it('writes deemed_approved_confirmed_at and deemed_approved_confirmed_by to step metadata', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      const pastDeadline = new Date(Date.now() - 86400000 * 35).toISOString();
+      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: { panlalawigan_action_deadline: pastDeadline } }));
+
+      mockLockStepInstanceForUpdate.mockResolvedValue({ id: STEP_INSTANCE_ID, metadata: {} });
+
+      await caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID });
+
+      expect(mockUpdateStepInstance).toHaveBeenCalledOnce();
+      const updatedMeta = mockUpdateStepInstance.mock.calls[0]![1] as { metadata: Record<string, any> };
+      expect(updatedMeta.metadata['deemed_approved_confirmed_at']).toBeDefined();
+      expect(updatedMeta.metadata['deemed_approved_confirmed_by']).toBe(USER_ID);
+    });
+  });
+
+  // ── recordNewspaperPublicationDate ─────────────────────────────────────────
+
+  describe('recordNewspaperPublicationDate', () => {
+    it('throws NOT_FOUND when no active workflow instance exists for document', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockGetActiveInstanceForDocument.mockResolvedValue(null);
+      await expect(
+        caller.recordNewspaperPublicationDate({ documentId: DOCUMENT_ID, publicationDate: new Date('2026-07-01') })
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('throws PRECONDITION_FAILED for non-Ordinance document types', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
+      mockDb.mockResponse([{ code: 'SP_RESOLUTION' }]); // document type lookup
+      await expect(
+        caller.recordNewspaperPublicationDate({ documentId: DOCUMENT_ID, publicationDate: new Date('2026-07-01') })
+      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+    });
+
+    it('writes publication_date and publication_newspaper to context for SP_ORDINANCE', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
+      mockDb.mockResponse([{ code: 'SP_ORDINANCE' }]); // document type lookup
+
+      const publicationDate = new Date('2026-07-09T00:00:00.000Z');
+      const result = await caller.recordNewspaperPublicationDate({
+        documentId: DOCUMENT_ID,
+        publicationDate,
+        newspaperName: 'Ilocos Times',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockUpdateInstanceContext).toHaveBeenCalledOnce();
+      const patch = mockUpdateInstanceContext.mock.calls[0]![1] as Record<string, any>;
+      expect(patch['publication_date']).toBe('2026-07-09'); // YYYY-MM-DD only
+      expect(patch['publication_newspaper']).toBe('Ilocos Times');
+    });
+
+    it('writes correct context for SP_APPROPRIATION_ORDINANCE', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
+      mockDb.mockResponse([{ code: 'SP_APPROPRIATION_ORDINANCE' }]);
+
+      const result = await caller.recordNewspaperPublicationDate({
+        documentId: DOCUMENT_ID,
+        publicationDate: new Date('2026-07-09T00:00:00.000Z'),
+      });
+
+      expect(result.success).toBe(true);
+      const patch = mockUpdateInstanceContext.mock.calls[0]![1] as Record<string, any>;
+      expect(patch['publication_date']).toBe('2026-07-09');
+      expect(patch['publication_newspaper']).toBe('Ilocos Times'); // default value
+    });
+
+    it('throws NOT_FOUND when document row not found', async () => {
+      const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
+      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
+      mockDb.mockResponse([]); // empty docRows
+      await expect(
+        caller.recordNewspaperPublicationDate({ documentId: DOCUMENT_ID, publicationDate: new Date('2026-07-01') })
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+  });
+});
+

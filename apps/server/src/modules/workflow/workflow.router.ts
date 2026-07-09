@@ -1211,10 +1211,100 @@ export function createWorkflowRouter() {
 
     logMayorLapseConfirmation: protectedProcedure
       .input(z.object({ stepInstanceId: z.string().uuid() }))
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'logMayorLapseConfirmation is not implemented.',
+      .output(z.object({ success: z.literal(true), legalBasis: z.literal('RA7160_S47') }))
+      .mutation(async ({ ctx, input }) => {
+        const stepContext = await fetchStepContext(input.stepInstanceId, ctx);
+        if (!stepContext) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
+        }
+
+        const { instance, stepInstance, stepAttrs } = stepContext;
+
+        workflowPolicy.canLogSpSecretaryAction(ctx.auth);
+
+        // Ambiguity resolution: Verify we are actually on a step that lapses.
+        const contextObj = (instance.context as Record<string, any>) || {};
+        if (!contextObj['mayor_action_deadline']) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Step is not subject to a mayor lapse timer (no deadline set).',
+          });
+        }
+
+        // Idempotency check: if the scheduler already completed the lapse, just return success
+        // Note: the manual confirmation is an acknowledgment that the lapse *did* occur.
+        // It does not change the step outcome if it's already LAPSED.
+        // Wait, the scheduler evaluates it and sets outcome = LAPSED. 
+        // We need to write an audit log that the Secretary *confirmed* it, unless already confirmed.
+        // However, there is no "confirmed" boolean. The prompt says "second call after lapse already recorded is a no-op".
+        // Wait, the spec says: "idempotent; repeated calls create no duplicate audit entry".
+        // If the Secretary clicks "Confirm Lapse", this procedure writes the audit event.
+        // What event type? 'workflow.step.completed' with outcome = 'LAPSED_CONFIRMED' or similar?
+        // Wait, the audit says: "If already lapsed... return no-op".
+        // Actually, if it's already LAPSED and this procedure was already called, how do we distinguish between "Scheduler set it to LAPSED" and "Secretary confirmed it"?
+        // Let's use `stepInstance.metadata['lapse_confirmed_at']` to track idempotency.
+        
+        return await ctx.db.transaction(async (tx) => {
+          // Re-fetch with lock to prevent race conditions
+          const txRepo = new WorkflowRepository(tx as any);
+          const lockedStepInstance = await txRepo.lockStepInstanceForUpdate(stepInstance.id, tx as any);
+          if (!lockedStepInstance) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
+          }
+
+          const lockedMetadata = (lockedStepInstance.metadata as Record<string, any>) || {};
+          
+          if (lockedMetadata['lapse_confirmed_at']) {
+             return { success: true, legalBasis: 'RA7160_S47' };
+          }
+
+          lockedMetadata['lapse_confirmed_at'] = new Date().toISOString();
+          lockedMetadata['lapse_confirmed_by'] = ctx.auth.userId;
+
+          await txRepo.updateStepInstance(
+            lockedStepInstance.id,
+            { metadata: lockedMetadata },
+            tx as any
+          );
+
+          await txRepo.createWorkflowEvent(
+            {
+              instanceId: instance.id,
+              eventType: 'workflow.step.completed', // Event type mapped in shared
+              actorType: 'user',
+              actorId: ctx.auth.userId,
+              payload: {
+                instanceId: instance.id,
+                stepInstanceId: lockedStepInstance.id,
+                stepId: stepContext.step.id,
+                stepType: stepContext.step.stepType,
+                outcome: 'LAPSED_CONFIRMED',
+                comment: 'Mayor lapse confirmed by SP Secretary',
+              },
+            },
+            tx as any
+          );
+          
+          const server = ctx.req.server as any;
+          if (server.eventBus) {
+            server.eventBus.emit('workflow.step.completed', {
+              eventId: randomUUID(),
+              eventType: 'workflow.step.completed',
+              occurredAt: new Date().toISOString(),
+              cityId: ctx.auth.cityId,
+              schemaVersion: 1,
+              payload: {
+                instanceId: instance.id,
+                stepInstanceId: lockedStepInstance.id,
+                stepId: stepContext.step.id,
+                stepType: stepContext.step.stepType,
+                outcome: 'LAPSED_CONFIRMED',
+                comment: 'Mayor lapse confirmed by SP Secretary',
+              },
+            });
+          }
+
+          return { success: true, legalBasis: 'RA7160_S47' };
         });
       }),
 
@@ -1236,11 +1326,62 @@ export function createWorkflowRouter() {
 
     logDocketingCompletion: protectedProcedure
       .input(z.object({ stepInstanceId: z.string().uuid() }))
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'logDocketingCompletion is not implemented.',
+      .output(z.object({ success: z.literal(true) }))
+      .mutation(async ({ ctx, input }) => {
+        const stepContext = await fetchStepContext(input.stepInstanceId, ctx);
+        if (!stepContext) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
+        }
+
+        workflowPolicy.canLogSpSecretaryAction(ctx.auth);
+
+        const server = ctx.req.server as any;
+        const deps = {
+          db: ctx.db,
+          workflowRepository: new WorkflowRepository(ctx.db),
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        const { submitStepAction } = await import('./engine/step-handlers/action.handler.js');
+
+        await ctx.db.transaction(async (tx) => {
+          const txDeps = {
+            ...deps,
+            workflowRepository: new WorkflowRepository(tx as any),
+          };
+
+          await submitStepAction(
+            stepContext.instance,
+            stepContext.stepInstance,
+            ctx.auth.userId,
+            null, // comment
+            txDeps,
+            tx as any
+          );
         });
+
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: stepContext.instance.id,
+              stepInstanceId: stepContext.stepInstance.id,
+              stepId: stepContext.step.id,
+              stepType: stepContext.step.stepType,
+              outcome: 'DONE',
+              comment: null,
+            },
+          });
+        }
+
+        return { success: true };
       }),
 
     recordPanlalawiganOutcome: protectedProcedure
@@ -1248,10 +1389,10 @@ export function createWorkflowRouter() {
         z.object({
           stepInstanceId: z.string().uuid(),
           outcome: z.enum([
-            'valid',
-            'valid_in_part',
-            'returned',
-            'operative_in_its_entirety',
+            'VALID',
+            'VALID_IN_PART',
+            'RETURNED',
+            'OPERATIVE_IN_ITS_ENTIRETY',
           ]),
           controlNumber: z.string().optional(),
           panlalawiganResolutionNumber: z.string().optional(),
@@ -1259,11 +1400,80 @@ export function createWorkflowRouter() {
           remarks: z.string().optional(),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'recordPanlalawiganOutcome is not implemented.',
+      .output(z.object({ success: z.literal(true) }))
+      .mutation(async ({ ctx, input }) => {
+        const stepContext = await fetchStepContext(input.stepInstanceId, ctx);
+        if (!stepContext) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
+        }
+
+        const { instance, stepInstance, stepAttrs } = stepContext;
+
+        workflowPolicy.canLogPanlalawiganAction(ctx.auth, stepAttrs);
+
+        const server2 = ctx.req.server as any;
+        const deps = {
+          db: ctx.db,
+          workflowRepository: new WorkflowRepository(ctx.db),
+          documentsService: server2.documentsService,
+          eventBus: server2.eventBus,
+          orgService: server2.organizationService,
+          delegationService: server2.delegationService,
+        };
+
+        const { submitStepApproval } = await import('./engine/step-handlers/approval.handler.js');
+
+        await ctx.db.transaction(async (tx) => {
+          const txDeps = {
+            ...deps,
+            workflowRepository: new WorkflowRepository(tx as any),
+          };
+
+          const patch: Record<string, any> = {
+            panlalawigan_outcome: input.outcome,
+          };
+          if (input.controlNumber !== undefined) patch['panlalawigan_control_number'] = input.controlNumber;
+          if (input.panlalawiganResolutionNumber !== undefined) patch['panlalawigan_resolution_number'] = input.panlalawiganResolutionNumber;
+          if (input.dateReferred !== undefined) patch['panlalawigan_date_referred'] = input.dateReferred.toISOString();
+          if (input.remarks !== undefined) patch['panlalawigan_remarks'] = input.remarks;
+
+          await txDeps.workflowRepository.updateInstanceContext(instance.id, patch, tx as any);
+          
+          // Refresh instance to get updated context
+          const updatedInstance = await txDeps.workflowRepository.getInstanceById(instance.id, tx as any);
+          if (!updatedInstance) throw new Error('Instance not found');
+
+          await submitStepApproval(
+            updatedInstance,
+            stepInstance,
+            ctx.auth.userId,
+            'user',
+            input.outcome,
+            input.remarks ?? null,
+            txDeps,
+            tx as any
+          );
         });
+
+        if (server2.eventBus) {
+          server2.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: stepContext.instance.id,
+              stepInstanceId: stepContext.stepInstance.id,
+              stepId: stepContext.step.id,
+              stepType: stepContext.step.stepType,
+              outcome: input.outcome,
+              comment: input.remarks ?? null,
+            },
+          });
+        }
+
+        return { success: true };
       }),
 
     resolveValidInPart: protectedProcedure
@@ -1279,19 +1489,225 @@ export function createWorkflowRouter() {
           mandatoryComment: z.string().min(1),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'resolveValidInPart is not implemented.',
+      .output(z.object({ success: z.literal(true) }))
+      .mutation(async ({ ctx, input }) => {
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const instance = await workflowRepository.getActiveInstanceForDocument(input.documentId);
+        if (!instance) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Active workflow instance not found for document' });
+        }
+        
+        const rows = await ctx.db
+          .select({
+            stepInstanceId: stepInstances.id,
+          })
+          .from(stepInstances)
+          .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+          .where(and(
+            eq(stepInstances.instanceId, instance.id),
+            eq(steps.stepKey, 'valid_in_part_decision'),
+            inArray(stepInstances.status, ['pending', 'active']),
+            isNull(stepInstances.deletedAt)
+          ))
+          .limit(1);
+
+        if (rows.length === 0) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'No active valid_in_part_decision step found' });
+        }
+
+        const stepContext = await fetchStepContext(rows[0]!.stepInstanceId, ctx);
+        if (!stepContext) throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
+        
+        workflowPolicy.canResolveValidInPart(ctx.auth);
+
+        const server3 = ctx.req.server as any;
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server3.documentsService,
+          eventBus: server3.eventBus,
+          orgService: server3.organizationService,
+          delegationService: server3.delegationService,
+        };
+
+        const { submitStepApproval } = await import('./engine/step-handlers/approval.handler.js');
+
+        await ctx.db.transaction(async (tx) => {
+          const txDeps = {
+            ...deps,
+            workflowRepository: new WorkflowRepository(tx as any),
+          };
+
+          if (input.resolutionPath === 'route_to_committee') {
+            // Find the original committee referral step instance to get the committee ID
+            const committeeRows = await tx
+              .select({ metadata: stepInstances.metadata })
+              .from(stepInstances)
+              .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+              .where(and(
+                eq(stepInstances.instanceId, instance.id),
+                eq(steps.stepKey, 'committee_referral'),
+                isNull(stepInstances.deletedAt)
+              ))
+              .orderBy(desc(stepInstances.createdAt))
+              .limit(1);
+
+            if (committeeRows.length === 0) {
+              throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'No committee referral found in this workflow instance to route back to.' });
+            }
+
+            const metadata = (committeeRows[0]!.metadata as Record<string, any>) || {};
+            const assignedCommittees = metadata['assigned_committees'] as Array<{ committee_id: string }> | undefined;
+            
+            if (!assignedCommittees || assignedCommittees.length === 0) {
+              throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'No committees were assigned during the referral step.' });
+            }
+
+            const primaryCommitteeId = assignedCommittees[0]!.committee_id;
+            const chair = await txDeps.orgService.getCommitteeChair(primaryCommitteeId);
+            
+            if (chair) {
+               await txDeps.workflowRepository.updateInstanceContext(instance.id, {
+                 referred_committee_chair_id: chair.userId
+               }, tx as any);
+            }
+          }
+
+          // Map resolutionPath to engine outcome string
+          let outcome = 'RESOLVE_AS_IS';
+          if (input.resolutionPath === 'route_to_legal') outcome = 'ROUTE_TO_LEGAL';
+          else if (input.resolutionPath === 'route_to_committee') outcome = 'ROUTE_TO_COMMITTEE';
+          else if (input.resolutionPath === 'implement_directly') outcome = 'IMPLEMENT_DIRECTLY';
+
+          // Refresh instance to get updated context (e.g. if we set referred_committee_chair_id)
+          const updatedInstance = await txDeps.workflowRepository.getInstanceById(instance.id, tx as any);
+          if (!updatedInstance) throw new Error('Instance not found');
+
+          await submitStepApproval(
+            updatedInstance,
+            stepContext.stepInstance,
+            ctx.auth.userId,
+            'user',
+            outcome,
+            input.mandatoryComment,
+            txDeps,
+            tx as any
+          );
         });
+
+        if (server3.eventBus) {
+          server3.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId: stepContext.stepInstance.id,
+              stepId: stepContext.step.id,
+              stepType: stepContext.step.stepType,
+              outcome: input.resolutionPath.toUpperCase(),
+              comment: input.mandatoryComment,
+            },
+          });
+        }
+
+        return { success: true };
       }),
 
     confirmPanlalawiganDeemedApproved: protectedProcedure
       .input(z.object({ stepInstanceId: z.string().uuid() }))
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'confirmPanlalawiganDeemedApproved is not implemented.',
+      .output(z.object({ success: z.literal(true), legalBasis: z.literal('RA7160_S56D') }))
+      .mutation(async ({ ctx, input }) => {
+        const stepContext = await fetchStepContext(input.stepInstanceId, ctx);
+        if (!stepContext) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
+        }
+
+        const { instance, stepInstance, stepAttrs } = stepContext;
+
+        workflowPolicy.canLogPanlalawiganAction(ctx.auth, stepAttrs);
+
+        const contextObj = (instance.context as Record<string, any>) || {};
+        const deadlineStr = contextObj['panlalawigan_action_deadline'];
+        
+        if (!deadlineStr) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'No Panlalawigan action deadline is set.',
+          });
+        }
+
+        const deadline = new Date(deadlineStr);
+        if (new Date() < deadline) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: '30-day window has not yet elapsed.',
+          });
+        }
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        return await ctx.db.transaction(async (tx) => {
+          const txRepo = new WorkflowRepository(tx as any);
+          const lockedStepInstance = await txRepo.lockStepInstanceForUpdate(stepInstance.id, tx as any);
+          if (!lockedStepInstance) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
+          }
+
+          const lockedMetadata = (lockedStepInstance.metadata as Record<string, any>) || {};
+          if (lockedMetadata['deemed_approved_confirmed_at']) {
+            return { success: true, legalBasis: 'RA7160_S56D' } as const;
+          }
+
+          lockedMetadata['deemed_approved_confirmed_at'] = new Date().toISOString();
+          lockedMetadata['deemed_approved_confirmed_by'] = ctx.auth.userId;
+
+          await txRepo.updateStepInstance(
+            lockedStepInstance.id,
+            { metadata: lockedMetadata },
+            tx as any
+          );
+
+          await txRepo.createWorkflowEvent(
+            {
+              instanceId: instance.id,
+              eventType: 'workflow.step.completed',
+              actorType: 'user',
+              actorId: ctx.auth.userId,
+              payload: {
+                instanceId: instance.id,
+                stepInstanceId: lockedStepInstance.id,
+                stepId: stepContext.step.id,
+                stepType: stepContext.step.stepType,
+                outcome: 'DEEMED_APPROVED_CONFIRMED',
+                comment: 'Panlalawigan deemed approval confirmed by SP Secretary',
+              },
+            },
+            tx as any
+          );
+
+          if (server.eventBus) {
+            server.eventBus.emit('workflow.step.completed', {
+              eventId: randomUUID(),
+              eventType: 'workflow.step.completed',
+              occurredAt: new Date().toISOString(),
+              cityId: ctx.auth.cityId,
+              schemaVersion: 1,
+              payload: {
+                instanceId: instance.id,
+                stepInstanceId: lockedStepInstance.id,
+                stepId: stepContext.step.id,
+                stepType: stepContext.step.stepType,
+                outcome: 'DEEMED_APPROVED_CONFIRMED',
+                comment: 'Panlalawigan deemed approval confirmed by SP Secretary',
+              },
+            });
+          }
+
+          return { success: true, legalBasis: 'RA7160_S56D' } as const;
         });
       }),
 
@@ -1303,11 +1719,51 @@ export function createWorkflowRouter() {
           newspaperName: z.string().default('Ilocos Times'),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'recordNewspaperPublicationDate is not implemented.',
+      .output(z.object({ success: z.literal(true) }))
+      .mutation(async ({ ctx, input }) => {
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const instance = await workflowRepository.getActiveInstanceForDocument(input.documentId);
+        if (!instance) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Active workflow instance not found for document' });
+        }
+        
+        workflowPolicy.canLogSpSecretaryAction(ctx.auth);
+
+        // Fetch document type to verify constraint
+        const docRows = await ctx.db
+          .select({
+            code: documentTypes.code,
+          })
+          .from(documents)
+          .innerJoin(documentTypes, eq(documents.documentTypeId, documentTypes.id))
+          .where(eq(documents.id, input.documentId))
+          .limit(1);
+
+        if (docRows.length === 0) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Document not found' });
+        }
+
+        const docType = docRows[0]!.code;
+        if (docType !== 'SP_ORDINANCE' && docType !== 'SP_APPROPRIATION_ORDINANCE') {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Only Ordinances and Appropriation Ordinances require newspaper publication.',
+          });
+        }
+
+        await ctx.db.transaction(async (tx) => {
+          const txRepo = new WorkflowRepository(tx as any);
+          await txRepo.updateInstanceContext(
+            instance.id,
+            {
+              publication_date: input.publicationDate.toISOString().split('T')[0],
+              publication_newspaper: input.newspaperName,
+            },
+            tx as any
+          );
         });
+
+        return { success: true };
       }),
 
     cancelInstance: protectedProcedure
