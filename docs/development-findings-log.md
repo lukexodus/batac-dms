@@ -1434,3 +1434,20 @@ Each of the four new mutation procedures (`completeActionStep`, `approveStep`, `
 
 **Finding:** The `postgres.js` Drizzle driver natively supports nested transactions using SQL `SAVEPOINT`. This means router procedures can safely wrap engine operations in `await ctx.db.transaction(...)` even if those engine operations also open their own transactions internally.
 **What was implemented:** All three new procedures (`cancelInstance`, `bypassStep`, `migrateInstance`) wrap their engine call in `await ctx.db.transaction(async (tx) => {...})`, passing `tx` as `deps.db` to the engine operations, matching `completeActionStep`/`approveStep`'s existing shape exactly, rather than diverging from it.
+
+---
+
+### LOG-0057: JSONLogic-failure default in decision step handler
+
+- date: 2026-07-09
+- task_id: TASK-WF-006
+- status: proposed
+- affects: decision.handler.ts
+
+**What was found:**
+Evaluating decision conditions using `json-logic-js` on dynamic context objects can raise runtime errors if variables are missing, typed unexpectedly, or if the logic is malformed. No pre-development document specified the fallback strategy when evaluation fails.
+
+**What was implemented:**
+To prevent logic errors from halting workflow execution, `decision.handler.ts` wraps the `jsonLogic.apply()` call in a `try...catch` block. If an error is caught, the handler catches the exception, logs a warning, and defaults the result to `false` (the fallback branch).
+
+[Inference]: Treating condition evaluation errors as `false` is a conservative, fail-closed default that keeps the workflow engine running and routes execution to defined failure/rejection branches on the state machine rather than throwing an unhandled exception that could leave the workflow instance stuck.
