@@ -1490,3 +1490,20 @@ There are currently three different, disjoint patterns in use to write events to
 No changes to code structure were made as this is a broad monorepo design pattern issue.
 
 [Observation]: The current layout is fragile. If a new entrypoint executes engine logic but forgets to implement Pattern A or B, it will execute silently without generating any audit records. Moving event bus publication inside the engine repositories or unified handlers (as suggested in LOG-0050) would resolve this risk.
+
+---
+
+### LOG-0060: Discrepancy between task prompt role list and I2 matrix for sp_presiding_officer
+
+- date: 2026-07-09
+- task_id: none
+- status: proposed
+- affects: I2, wf.md
+
+**What was found:**
+1. The task prompt in `docs/pre-development/A-project-planning/a1-tasks/wf.md` (line 1707) listed `sp_presiding_officer` as an allowed role for generic `approveStep`, `rejectStep`, and `returnStepForRevision` workflow actions.
+2. However, the `i2-role-permission-matrix.md` (Section 6) explicitly restricts the `sp_presiding_officer` from completing assigned approval steps (Approve, Reject, Return for revision) with `❌` entries, while granting the separate `Certify document` permission.
+3. Verification of the codebase (`workflow.policy.ts` and `iam.seed.ts`) showed that the enforced code rules already correctly side with `I2` and exclude `sp_presiding_officer` from generic approvals.
+
+**What was implemented:**
+Updated `docs/pre-development/A-project-planning/a1-tasks/wf.md` line 1707 to remove `sp_presiding_officer` from the list of allowed roles for generic approvals, aligning the documentation with `I2` and the actual codebase. No code changes were needed as the policy and database seed rules were already correctly aligned with the `I2` security requirements.
