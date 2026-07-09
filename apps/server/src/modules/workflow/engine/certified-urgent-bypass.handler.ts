@@ -163,7 +163,7 @@ export async function processCertificationUrgencyEvent(
             trx as any
           );
 
-        } else if (stepInstance.status === 'completed' || stepInstance.status === 'bypassed' || stepInstance.status === 'skipped' as any) {
+        } else if (stepInstance.status === 'completed' || stepInstance.status === 'bypassed' || stepInstance.status === 'cancelled') {
           // CASE C
           await deps.workflowRepository.createWorkflowEvent(
             {
