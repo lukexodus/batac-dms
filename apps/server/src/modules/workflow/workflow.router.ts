@@ -1232,25 +1232,152 @@ export function createWorkflowRouter() {
 
     certifyAsPresidingOfficer: protectedProcedure
       .input(z.object({ stepInstanceId: z.string().uuid() }))
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'certifyAsPresidingOfficer is not implemented.',
+      .mutation(async ({ input, ctx }) => {
+        const found = await fetchStepContext(input.stepInstanceId, ctx);
+        if (!found) throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        const { stepInstance, step, instance, stepAttrs } = found;
+
+        if (step.stepType !== 'approval' || step.stepKey !== 'vp_certification') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid step type or key.' });
+        }
+
+        const server = ctx.req.server as any;
+        const deps = {
+          db: ctx.db,
+          workflowRepository: new WorkflowRepository(ctx.db),
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        const hasRole = ctx.auth.effectiveRoles.includes('sp_presiding_officer');
+        if (!hasRole) throw new TRPCError({ code: 'FORBIDDEN', message: 'Requires sp_presiding_officer role.' });
+
+        const isAssignee = stepAttrs.assigneeUserId === ctx.auth.userId;
+        let isActingViaDelegation = false;
+        const delegationSummary = await deps.orgService.getActiveDelegationForUser(ctx.auth.userId);
+        if (delegationSummary) {
+          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.id);
+          if (grant?.scope?.roles?.includes('sp_presiding_officer')) {
+            isActingViaDelegation = true;
+          }
+        }
+
+        if (!isAssignee && !isActingViaDelegation) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be direct assignee or hold active delegation.' });
+        }
+
+        const { submitStepApproval } = await import('./engine/step-handlers/approval.handler.js');
+
+        await ctx.db.transaction(async (tx) => {
+          await submitStepApproval(
+            instance,
+            stepInstance,
+            ctx.auth.userId,
+            'user',
+            'SIGNED',
+            null,
+            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
+            tx as any
+          );
         });
+
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId: input.stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome: 'SIGNED',
+              comment: null,
+              userId: ctx.auth.userId,
+            },
+          });
+        }
+
+        return { success: true as const };
       }),
 
     mayorSign: protectedProcedure
-      .input(
-        z.object({
-          stepInstanceId: z.string().uuid(),
-          objectionsText: z.string().optional(),
-        })
-      )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'mayorSign is not implemented.',
+      .input(z.object({ stepInstanceId: z.string().uuid() }))
+      .mutation(async ({ input, ctx }) => {
+        const found = await fetchStepContext(input.stepInstanceId, ctx);
+        if (!found) throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        const { stepInstance, step, instance, stepAttrs } = found;
+
+        if (step.stepKey !== 'mayor_review' && step.stepKey !== 'mayor_signature') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid step key.' });
+        }
+
+        const server = ctx.req.server as any;
+        const deps = {
+          db: ctx.db,
+          workflowRepository: new WorkflowRepository(ctx.db),
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        const hasRole = ctx.auth.effectiveRoles.includes('mayor');
+        if (!hasRole) throw new TRPCError({ code: 'FORBIDDEN', message: 'Requires mayor role.' });
+
+        const isAssignee = stepAttrs.assigneeUserId === ctx.auth.userId;
+        let isActingViaDelegation = false;
+        const delegationSummary = await deps.orgService.getActiveDelegationForUser(ctx.auth.userId);
+        if (delegationSummary) {
+          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.id);
+          if (grant?.scope?.roles?.includes('mayor')) {
+            isActingViaDelegation = true;
+          }
+        }
+
+        if (!isAssignee && !isActingViaDelegation) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be direct assignee or hold active delegation.' });
+        }
+
+        const { submitStepApproval } = await import('./engine/step-handlers/approval.handler.js');
+
+        await ctx.db.transaction(async (tx) => {
+          await submitStepApproval(
+            instance,
+            stepInstance,
+            ctx.auth.userId,
+            'user',
+            'SIGNED',
+            null,
+            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
+            tx as any
+          );
         });
+
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId: input.stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome: 'SIGNED',
+              comment: null,
+              userId: ctx.auth.userId,
+            },
+          });
+        }
+
+        return { success: true as const };
       }),
 
     mayorVeto: protectedProcedure
@@ -1260,11 +1387,77 @@ export function createWorkflowRouter() {
           objectionsText: z.string().min(1),
         })
       )
-      .mutation(async () => {
-        throw new TRPCError({
-          code: 'NOT_IMPLEMENTED',
-          message: 'mayorVeto is not implemented.',
+      .mutation(async ({ input, ctx }) => {
+        const found = await fetchStepContext(input.stepInstanceId, ctx);
+        if (!found) throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        const { stepInstance, step, instance, stepAttrs } = found;
+
+        if (step.stepKey !== 'mayor_review' && step.stepKey !== 'mayor_signature') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid step key.' });
+        }
+
+        const server = ctx.req.server as any;
+        const deps = {
+          db: ctx.db,
+          workflowRepository: new WorkflowRepository(ctx.db),
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        const hasRole = ctx.auth.effectiveRoles.includes('mayor');
+        if (!hasRole) throw new TRPCError({ code: 'FORBIDDEN', message: 'Requires mayor role.' });
+
+        const isAssignee = stepAttrs.assigneeUserId === ctx.auth.userId;
+        let isActingViaDelegation = false;
+        const delegationSummary = await deps.orgService.getActiveDelegationForUser(ctx.auth.userId);
+        if (delegationSummary) {
+          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.id);
+          if (grant?.scope?.roles?.includes('mayor')) {
+            isActingViaDelegation = true;
+          }
+        }
+
+        if (!isAssignee && !isActingViaDelegation) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be direct assignee or hold active delegation.' });
+        }
+
+        const { submitStepApproval } = await import('./engine/step-handlers/approval.handler.js');
+
+        await ctx.db.transaction(async (tx) => {
+          await submitStepApproval(
+            instance,
+            stepInstance,
+            ctx.auth.userId,
+            'user',
+            'VETOED',
+            input.objectionsText,
+            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
+            tx as any
+          );
         });
+
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId: input.stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome: 'VETOED',
+              comment: input.objectionsText,
+              userId: ctx.auth.userId,
+            },
+          });
+        }
+
+        return { success: true as const };
       }),
 
     logMayorLapseConfirmation: protectedProcedure

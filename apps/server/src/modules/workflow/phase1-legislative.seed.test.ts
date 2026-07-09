@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { seedPhase1WorkflowDefinitions } from '../../../../../packages/database/src/seeds/workflow/phase1-legislative.ts';
+import { seedPhase1WorkflowDefinitions } from '../../../../../packages/database/src/seeds/workflow/phase1-legislative.js';
 import * as validatorMod from './engine/definition-validator.js';
 
 // Mock the validator module
@@ -33,7 +33,7 @@ describe('seedPhase1WorkflowDefinitions validation rollback', () => {
     // Mock validateDefinitionForPublish to return invalid
     vi.mocked(validatorMod.validateDefinitionForPublish).mockResolvedValue({
       valid: false,
-      errors: [{ path: 'step', message: 'invalid step' }]
+      errors: [{ code: 'custom', message: 'invalid step', path: ['step'] }] as any
     });
 
     // Run the seed function — it should throw

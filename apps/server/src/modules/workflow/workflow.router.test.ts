@@ -732,7 +732,7 @@ describe('Workflow Router Mutation Procedures', () => {
       mockDb.mockResponse(
         makeStepContextRow({
           stepType: 'multi_referral',
-          status: 'active',
+          stepStatus: 'active',
         })
       );
 
@@ -753,7 +753,7 @@ describe('Workflow Router Mutation Procedures', () => {
       mockDb.mockResponse(
         makeStepContextRow({
           stepType: 'multi_referral',
-          status: 'active',
+          stepStatus: 'active',
         })
       );
 
