@@ -299,7 +299,7 @@ describe('Workflow Router Read Procedures', () => {
 
       await expect(
         caller.getSlaComplianceData({})
-      ).rejects.toThrowError(/You do not have permission/);
+      ).rejects.toThrowError(/Your role is not permitted to access SLA compliance data/);
     });
 
     it('returns calculated SLA compliance data', async () => {
