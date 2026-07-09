@@ -139,7 +139,7 @@ export async function validateDefinitionForPublish(
       const fromStep = steps.find((s) => s.id === rule.fromStepId);
       errors.push({
         code: 'CROSS_VERSION_TRANSITION_REFERENCE',
-        step_key: fromStep?.stepKey,
+        ...(fromStep?.stepKey ? { step_key: fromStep.stepKey } : {}),
         message: `Transition rule references a step outside of definition version ${versionId}.`,
       });
     }
