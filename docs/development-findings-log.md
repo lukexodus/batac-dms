@@ -1675,3 +1675,50 @@ To align the documentation with the correct codebase implementation, the followi
    - `superseded` maps to `ARCHIVED` (with an inline comment referencing this log entry for the unresolved fallback decision).
 3. Updated `apps/web/src/lib/status-mapping.test.ts` to explicitly define and assert expected mappings for all 11 lifecycle states, asserting that any future schema expansion must explicitly update the mapping test suite.
 
+---
+
+### [LOG-0071] stepType human-readable label wording for MyAssignedStepsPage task inbox
+
+- date: 2026-07-10
+- task_id: TASK-WF-FE-001
+- status: proposed
+- affects: apps/web/src/pages/workflow/columns.tsx
+
+**What was found:**
+No pre-development document anywhere in the corpus (J6, I2, F1, F4, B4, D3, H1,
+or the consolidated reference) specifies human-readable display labels for the
+six `stepType` values used in `workflow.listMyAssignedSteps`: `action`,
+`approval`, `multi_referral`, `decision`, `notification`, `termination`.
+This was confirmed by direct grep of J6 (2036 lines) for all six literal values
+and for `stepType`/`step_type` — zero results. This is a genuine documentation
+gap, not an oversight resolvable by looking harder.
+
+**What was implemented:**
+[Inference] The following label mapping was chosen for `apps/web/src/pages/workflow/columns.tsx`:
+
+| DB value        | Display label   | Rationale                                                     |
+|-----------------|-----------------|---------------------------------------------------------------|
+| `action`        | Action          | Direct English equivalent, unambiguous                        |
+| `approval`      | Approval        | Direct English equivalent, matches LGU workflow terminology   |
+| `multi_referral`| Multi-Referral  | Hyphenated title-case preserves the compound nature visually  |
+| `decision`      | Decision        | Direct English equivalent, unambiguous                        |
+| `notification`  | Notification    | Direct English equivalent, unambiguous                        |
+| `termination`   | Termination     | Direct English equivalent; kept as-is vs "End/Close" pending |
+|                 |                 | human guidance on whether end-user-facing copy should differ  |
+
+The badge styling uses token-based colour-coded pill badges (blue=action,
+green=approval, purple=multi-referral, amber=decision, slate=notification,
+red=termination) to provide at-a-glance visual differentiation. Colour choices
+are conventional (green=affirmative, red=terminal, amber=decision-required) and
+are implementation defaults pending design review.
+
+The `StepTypeBadge` component is intentionally kept as a local helper in the
+`workflow/` page directory, NOT promoted to `packages/ui` — a full Tier 3
+component promotion would require the F5 §8 runbook process, which is not
+warranted for a single small label used in one page.
+
+**Human action needed:**
+Confirm or adjust: (a) the English label wording for each of the six values,
+particularly `termination` vs a softer end-user term; (b) the badge colour
+scheme; (c) whether `StepTypeBadge` should eventually be promoted to a shared
+Tier 3 component for reuse in future dashboard widgets.
