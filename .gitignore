@@ -26,3 +26,5 @@ build
 .next
 *.log
 /secrets/
+
+commit_msg.txt
