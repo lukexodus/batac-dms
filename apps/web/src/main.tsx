@@ -12,6 +12,7 @@ import { trpc, trpcClient } from './lib/trpc.js';
 
 import { DocumentListPage } from "./pages/documents/DocumentListPage";
 import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
+import DocumentDetailPage from "./pages/documents/DocumentDetailPage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
 import AppShellPage from "./pages/dev/AppShellPage";
 import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
@@ -43,6 +44,13 @@ const router = createBrowserRouter([
   {
     path: "/documents/new",
     element: <DocumentIntakePage />,
+  },
+  {
+    // /documents/new is registered before :documentId so the static segment
+    // always wins — React Router v6 also ranks static segments above dynamic
+    // params by default, but the explicit ordering removes any ambiguity.
+    path: "/documents/:documentId",
+    element: <DocumentDetailPage />,
   },
   {
     path: "/dev/components",
