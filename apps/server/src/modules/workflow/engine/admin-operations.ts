@@ -221,7 +221,9 @@ export async function migrateInstance(
 
     for (const activeStepInst of activeStepInstances) {
       const newStepId = stepMapping[activeStepInst.id];
-      await deps.workflowRepository.updateStepInstance(activeStepInst.id, { stepId: newStepId }, trx);
+      if (newStepId) {
+        await deps.workflowRepository.updateStepInstance(activeStepInst.id, { stepId: newStepId }, trx);
+      }
     }
 
     await deps.workflowRepository.markApprovalGrantUsed(approvalGrant.id, trx);
@@ -359,7 +361,9 @@ export async function reverseMigration(
 
     for (const activeStepInst of activeStepInstances) {
       const newStepId = stepMapping[activeStepInst.id];
-      await deps.workflowRepository.updateStepInstance(activeStepInst.id, { stepId: newStepId }, trx);
+      if (newStepId) {
+        await deps.workflowRepository.updateStepInstance(activeStepInst.id, { stepId: newStepId }, trx);
+      }
     }
 
     await deps.workflowRepository.createWorkflowEvent(
