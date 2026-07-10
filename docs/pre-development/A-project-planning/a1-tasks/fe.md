@@ -8,13 +8,7 @@ has no existing entry in wf.md or docs.md — both are closed (wf.md's workflow
 engine backend tasks TASK-WF-006 through TASK-WF-009 are done; docs.md's DOCS
 module task list is closed at DOCS-022, with DOCS-020/021/022/023 already built
 as standalone-document follow-ons). This task follows that same "standalone
-document after its module's task-list file closed" precedent, but this session
-did NOT have access to `frontend-tasklist-creation-knowledge-base.md` (the format
-template for how TASK-DOCS-023 itself was documented) — it was referenced as
-already-available but was not actually present in this session's files. Before
-authoring this task's own formal spec document (if a Phase/Module/Title/
-Prerequisites/Deliverables/Acceptance-Criteria/AI-Prompt structure is still
-wanted), locate and read that file yourself, or ask the human where it lives.
+document after its module's task-list file closed" precedent, (docs/compressed-knowledge-base/frontend-tasklist-creation-knowledge-base.md).
 Everything below is implementation guidance, verified against real code and
 docs in a prior session — it is not itself formatted as that template.
 
