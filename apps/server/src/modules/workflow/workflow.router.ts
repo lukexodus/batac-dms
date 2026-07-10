@@ -37,6 +37,12 @@ const paginationInput = z.object({
   limit: z.number().int().min(1).max(100).default(50),
 });
 
+const SP_SECRETARIAT_OFFICE_CODE = 'SPS';
+
+function getOrgService(ctx: Context) {
+  return ctx.req.server.organizationService;
+}
+
 async function checkWorkflowInstanceReadPermission(
   ctx: Context,
   doc: any,
@@ -193,15 +199,15 @@ function enforceRoles(ctx: Context, allowedRoles: string[]) {
 
 
 function computePanelHint(
-  status: string,
+  status: 'Active' | 'Completed' | 'Cancelled',
   currentStepType: string,
   currentStep: any,
-  instance: any
+  instance: any,
+  spsOfficeId?: string
 ): string | null {
   if (status !== 'Active' || !currentStep) return null;
 
   const { stepKey, metadata, config } = currentStep;
-  const stepConfigAssignee = (config as any)?.assignee;
   const instanceContext = (instance.context as Record<string, any>) || {};
   const stepMetadata = (metadata as Record<string, any>) || {};
 
@@ -227,7 +233,11 @@ function computePanelHint(
     return 'panlalawigan_outcome';
   } else if (stepKey === 'newspaper_publication') {
     return 'publication_date';
-  } else if ((currentStepType === 'action' || currentStepType === 'approval') && (stepConfigAssignee === 'role:sp_secretary' || stepConfigAssignee === 'role:secretariat_staff')) {
+  } else if (
+    (currentStepType === 'action' || currentStepType === 'approval') &&
+    spsOfficeId &&
+    ((currentStep.assignedTo as Array<any>)?.[0]?.office_id === spsOfficeId)
+  ) {
     return 'secretariat_decision';
   } else if (currentStepType === 'action') {
     return 'generic_action';
@@ -341,7 +351,8 @@ export function createWorkflowRouter() {
           ? (currentStep.stepType as any)
           : 'action';
 
-        const panelHint = computePanelHint(status, currentStepType, currentStep, instance);
+        const spsOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, ctx.auth!.cityId);
+        const panelHint = computePanelHint(status, currentStepType, currentStep, instance, spsOffice?.officeId);
 
         return {
           instanceId: instance.id,
@@ -461,7 +472,8 @@ export function createWorkflowRouter() {
           ? (currentStep.stepType as any)
           : 'action';
 
-        const panelHint = computePanelHint(status, currentStepType, currentStep, instance);
+        const spsOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, ctx.auth!.cityId);
+        const panelHint = computePanelHint(status, currentStepType, currentStep, instance, spsOffice?.officeId);
 
         return {
           instanceId: instance.id,
@@ -858,6 +870,92 @@ export function createWorkflowRouter() {
               stepType: step.stepType,
               outcome: 'APPROVED',
               comment,
+            },
+          });
+        }
+
+        return { success: true as const };
+      }),
+
+    logSecretariatDecision: protectedProcedure
+      .input(
+        z.object({
+          documentId: z.string().uuid(),
+          stepInstanceId: z.string().uuid(),
+          decision: z.enum(['approve', 'reject', 'amended']),
+          remarks: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const { stepInstanceId, decision, remarks = null } = input;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, step, instance, stepAttrs } = found;
+
+        // ABAC: SP Secretary + Office check
+        const spsOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, ctx.auth.cityId);
+        const isSpSecretariatOffice = spsOffice ? stepAttrs.assigneeOfficeId === spsOffice.officeId : false;
+        
+        workflowPolicy.canLogSecretariatDecision(ctx.auth, { isSpSecretariatOffice });
+
+        const outcomeMap: Record<string, string> = {
+          approve: 'APPROVED',
+          reject: 'REJECTED',
+          amended: 'AMENDED'
+        };
+        const outcome = outcomeMap[decision];
+
+        if (!outcome) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid decision outcome.' });
+        }
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          await submitStepApproval(
+            instance,
+            stepInstance,
+            ctx.auth!.userId,
+            'user',
+            outcome,
+            remarks,
+            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
+            tx as any
+          );
+        });
+
+        if (server.eventBus) {
+          server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome,
+              comment: remarks,
             },
           });
         }

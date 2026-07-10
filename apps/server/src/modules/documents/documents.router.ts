@@ -1503,45 +1503,6 @@ export function createDocumentsRouter() {
       }),
 
     // -----------------------------------------------------------------
-    // documents.logSecretariatDecision
-    // -----------------------------------------------------------------
-    logSecretariatDecision: protectedProcedure
-      .input(LogSecretariatDecisionInputSchema)
-      .output(SuccessOutputSchema)
-      .mutation(async ({ ctx, input }) => {
-        const subject = ctx.auth;
-        const repo = getRepository(ctx);
-        const service = getService(ctx);
 
-        const document = await repo.findDocumentById(input.documentId);
-        if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
-        }
-
-        if (!subject.roles.includes('sp_secretary')) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'SP Secretary role required' });
-        }
-
-        if (input.decision === 'approve') {
-          if (document.lifecycleState === 'submitted') {
-             await service.transitionState(document.id, 'in_workflow', subject.userId, input.remarks);
-          }
-        } else if (input.decision === 'reject') {
-          if (document.lifecycleState === 'submitted' || document.lifecycleState === 'in_workflow') {
-             await service.transitionState(document.id, 'cancelled', subject.userId, input.remarks);
-          }
-        } else if (input.decision === 'amended') {
-          // Log only
-        }
-
-        const currentMetadata = document.metadata as Record<string, unknown>;
-        await repo.updateDocumentMetadata(document.id, {
-          ...currentMetadata,
-          secretariatDecision: input.decision,
-          secretariatRemarks: input.remarks,
-        });
-
-        return { success: true };
-      }),
   });
 }

@@ -859,3 +859,479 @@ ACCEPTANCE CRITERIA
    proposed), since this is a schema change to an existing procedure's
    output that no pre-development document specifies in this exact shape.
 ````
+
+## TASK-WF-FE-003
+
+````
+# Implementation Prompt for Coding Agent — TASK-WF-FE-003 (Part A)
+
+
+
+## Objective
+
+
+
+Fix the `secretariat_decision` step-completion path in the Batac DMS workflow module. This has two coupled defects, both must be fixed together:
+
+
+
+1. **Wrong mutation / dead code path**: `documents.logSecretariatDecision` is pre-ADR-API-003 code. It is structurally a no-op for every real `secretariat_decision` step in production, yet the frontend unconditionally shows a success toast. Replace it with a Workflow-Router-driven mutation per ADR-API-003.
+
+2. **Wrong gating condition**: `computePanelHint`'s `secretariat_decision` detection uses a role-based proxy that over-fires. Replace it with the already-written, currently-unwired, office-scoped `canLogSecretariatDecision` policy check.
+
+
+
+This is a same-tier-document-authorized fix: ADR-API-003 was decided directly by Luke (the project owner), and Luke has now explicitly requested this task, which is being treated as the human greenlight this architecture change needed per `AGENTS.md` §4.5's three-tier hierarchy. You do not need to seek further authorization to implement the routing/gating change itself. You do need to follow the constraints in the "Explicitly Out of Scope" section below regarding *documentation* edits.
+
+
+
+---
+
+
+
+## Current Behavior (To Be Replaced) — Confirmed Defect
+
+
+
+**File:** `apps/server/src/modules/documents/documents.router.ts`, lines 1508–1545 (function `logSecretariatDecision`).
+
+**Input schema:** `LogSecretariatDecisionInputSchema`, `packages/shared/src/schemas/documents.ts` lines 531–536 — confirmed exact shape:
+
+```ts
+
+{ documentId: UuidSchema, stepInstanceId: UuidSchema, decision: z.enum(["approve","reject","amended"]), remarks: z.string().max(2048).optional() }
+
+```
+
+`stepInstanceId` is accepted in the schema but **never read** in the handler body — confirmed by direct reading, independently cross-checked across three separate exploration passes.
+
+
+
+Per-branch behavior of the current handler:
+
+- **`approve`**: only transitions state when `lifecycleState === 'submitted'` (line ~1525–1528). This is **structurally unreachable** for all 12 real `secretariat_decision`-tagged steps, because those steps exist only *after* a document has already left the `'submitted'` lifecycle state (confirmed against D3's state machine: the `Submitted → In-Workflow` transition is the intake action itself, conceptually prior to and different in kind from a Secretariat decision *inside* an already-running workflow).
+
+- **`reject`**: gates on `lifecycleState === 'submitted' OR 'in_workflow'`.
+
+- **`amended`**: **no gate at all** — pure log-only no-op, doesn't call `transitionState`.
+
+- **No `workflow.step.completed` emission anywhere in the function.** No `stepInstanceId`-driven step advancement anywhere in the function.
+
+
+
+**Confirmed consequence:** `SecretariatDecisionPanel.tsx` line 19 fires `toast.success('Decision logged successfully.')` unconditionally in `onSuccess`. Since the mutation does nothing meaningful for `amended` (always) or `approve` (whenever lifecycle state isn't `'submitted'`, i.e. almost always for these steps), users see "success" while the workflow step silently never advances. Treat this as a confirmed production bug, not a hypothesis to re-verify.
+
+
+
+---
+
+
+
+## Target Architecture (ADR-API-003 / "ADR-B2-3")
+
+
+
+**File:** `docs/pre-development/B-architecture-documents/b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-003-secretariat-decision-entry-point.md`. Status: Accepted, decided by Luke.
+
+
+
+- An `approval`-type step "accepts exactly this action shape" (ADR line 30).
+
+- Outcome routing rule (ADR line 31): **Approve/Amended-accepted → next step; Reject → rejection path.**
+
+- Design: the Secretariat submits the decision directly to the **Workflow Router**, which synchronously drives the document state transition as part of one atomic operation, then emits `workflow.step.completed` (dotted, confirmed to match shipped code — an earlier documentation inconsistency using `workflow.step_completed` with underscore has already been corrected repo-wide).
+
+- Corroborating ABAC rule (I1 §6.8), matches the shipped `canLogSecretariatDecision` guard exactly (see below):
+
+  ```
+
+  step_instance:log_secretariat_decision (action codes: 'approve','reject','amended')
+
+  ALLOW IF: subject.roles CONTAINS 'sp_secretary'
+
+    AND step.step_type IN ('action','approval')
+
+    AND step.assignee_office_id = SP_SECRETARIAT_OFFICE_ID
+
+  ```
+
+
+
+**Reference document B2 (v1.1)** is fully and consistently updated to reflect this ADR (changelog, module 3, module 4, events-consumed table, events-emitted table, master registry — all marked `[RESOLVED — ADR-B2-3]`). Treat B2 v1.1 as reliable background reading if useful; do not read the `.bak` version.
+
+
+
+---
+
+
+
+## Required Changes — Part 1: New Mutation Path
+
+
+
+### 1a. The policy guard is ready to wire in as-is
+
+
+
+**File:** `apps/server/src/modules/workflow/workflow.policy.ts`, lines 582–600 (method `canLogSecretariatDecision`, on the class instance accessed elsewhere as `workflowPolicy`). Verified directly, exact contents:
+
+
+
+```ts
+
+canLogSecretariatDecision(
+
+  subject: SubjectContext,
+
+  attrs: { isSpSecretariatOffice: boolean }
+
+): void {
+
+  if (!subject.roles.includes('sp_secretary')) {
+
+    throw new TRPCError({ code: 'FORBIDDEN', cause: 'secretariat_decision_requires_sp_secretary', ... });
+
+  }
+
+  if (!attrs.isSpSecretariatOffice) {
+
+    throw new TRPCError({ code: 'FORBIDDEN', cause: 'secretariat_decision_wrong_office', ... });
+
+  }
+
+}
+
+```
+
+
+
+Properties to respect when wiring this in:
+
+- **`void`-returning, throw-on-deny.** Call it directly for its throwing side effect inside the mutation handler — do not wrap it in `if (!canLogSecretariatDecision(...))`.
+
+- It does **not** resolve the office ID itself — the caller must pre-compute `isSpSecretariatOffice: boolean` and pass it in.
+
+- Its own docstring states it does **NOT** map to `recordVetoOverrideVote` (that uses the simpler `canLogSpSecretaryAction`) and was written anticipating exactly this future use ("Retained in case a future procedure needs step-and-office-scoped secretariat decision logging"). Treat its signature as settled/authoritative — do not redesign it.
+
+- Currently has **zero call sites** anywhere in the codebase (confirmed via direct search) — wiring in this call site is the entire job for this function.
+
+
+
+### 1b. How to resolve `isSpSecretariatOffice` on the mutation side
+
+
+
+Use **`fetchStepContext(stepInstanceId, ctx)`** — the same entry pattern already used by the two working sibling mutations, `completeActionStep` and `approveStep`, in `apps/server/src/modules/workflow/workflow.router.ts` (call sites around lines 734/739). It returns `{ stepInstance, step, instance, stepAttrs }` in one call.
+
+
+
+- **`stepAttrs.assigneeOfficeId` is already extracted and present** inside `fetchStepContext` (confirmed at lines 151–153 and 169–170 of that function) — pulled directly from `stepInstances.assignedTo`'s JSONB `office_id` field. No new query or join is needed for this side.
+
+- Resolve the SP Secretariat office's own ID once via `getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, subject.cityId)` — office code `'SPS'`. There is a precedent for this exact call in `documents.router.ts` around lines 1490–1491 (variable `isSp`), **but note that precedent checks the acting subject's own office membership, not the step's assignee office** — it's a useful template for *how to call `getOfficeByCode`*, not a template for the actual comparison. The correct comparison for this task is:
+
+  ```
+
+  isSpSecretariatOffice = (stepAttrs.assigneeOfficeId === <resolved SPS office's own ID>)
+
+  ```
+
+- `SP_SECRETARIAT_OFFICE_CODE` (`'SPS'`) is currently **locally redeclared per-file** (confirmed in `tracking.router.ts` line 82 and `documents.router.ts` line 117), not imported from a shared constants module. `workflow.router.ts` currently has none of this machinery — no local constant, no `getOfficeByCode` call, no `getOrgService` import. This must be introduced fresh into that file, following the existing local-redeclaration convention (introducing a shared constant instead is an optional improvement, not a requirement — use judgment, it is not scoped as required by this task).
+
+- The accessor pattern for org-service access elsewhere in the codebase is a small local `getXService(ctx)` factory reading `ctx.req.server.<serviceName>`, repeated per-file rather than shared — follow this same convention in `workflow.router.ts` since it doesn't currently have one.
+
+
+
+### 1c. Outcome handling — a real design decision, not a drop-in reuse
+
+
+
+**Do not assume `submitStepAction` (`action.handler.ts`) is reusable as-is.** It hardcodes the literal outcome `'DONE'` in three separate internal sites (confirmed exactly):
+
+1. Line 50 — `updateStepInstance(..., { outcome: 'DONE' })`
+
+2. Line 68 — inside the payload passed to `deps.workflowRepository.createWorkflowEvent(...)` (DB-persisted, inside the transaction)
+
+3. Line 79 — `resolveNextStep(instance, updatedStepInstance, 'DONE', deps, trx)`
+
+
+
+It has **no `outcome` parameter on its signature at all.** It is a single-outcome "step is done" primitive suited to `generic_action`'s semantics, and is **not** the shared primitive used by both working callers — `completeActionStep` calls `submitStepAction`, but `approveStep` calls a **separate sibling function**, `submitStepApproval` (`approval.handler.ts`, starting line 15). An earlier draft of this analysis incorrectly described `submitStepAction` as shared between both; that claim is superseded by direct re-verification.
+
+
+
+**`submitStepApproval` is already outcome-aware and is the better model to mirror:**
+
+- Takes `outcome: string` as an explicit parameter (line 15).
+
+- Validates it against `config['allowed_outcomes']` (lines 37–40) — a **per-step configurable allow-list**, not a hardcoded enum.
+
+- Threads the real outcome through all three equivalent internal sites: `updateStepInstance` (line 111), `createWorkflowEvent`'s payload (line 127), `resolveNextStep` (line 137).
+
+- `approveStep`'s own router-level event payload already correctly sets `outcome: 'APPROVED'` (line 859) — i.e. `approveStep` is already fully outcome-aware end-to-end, unlike `completeActionStep`.
+
+
+
+**Design decision for you to make and document (not pre-decided by exploration):** should the new `secretariat_decision` mutation:
+
+- **(a)** route through `submitStepApproval` directly, since it already validates arbitrary string outcomes against per-step `allowed_outcomes`, or
+
+- **(b)** build a new sibling function modeled on `submitStepApproval`'s pattern?
+
+
+
+This depends partly on whether `secretariat_decision` steps are conceptually `approval`-type or `action`-type — `computePanelHint`'s branch currently checks `currentStepType === 'action' || currentStepType === 'approval'`, meaning they can currently be either, while `submitStepApproval`'s name and its relationship to `approveStep` suggest it's intended specifically for `approval`-type steps. Make this call explicitly and record the reasoning (e.g. in a code comment and/or commit message) rather than leaving it implicit.
+
+
+
+**Do not modify `submitStepAction`'s existing hardcoded behavior** as a byproduct of this work — it has two existing callers (`completeActionStep` is one) whose current behavior must not regress. If you determine `submitStepAction` itself needs an `outcome` parameter as part of your chosen design, that is a shared-primitive change with real blast radius; treat it as a deliberate, explicitly-flagged decision, not an incidental side effect.
+
+
+
+**Event-emission split — both layers need the real outcome, not just one:** There are two separate event-recording mechanisms per mutation call, and both currently hardcode `'DONE'` in the `completeActionStep` path you're modeling against:
+
+1. `workflowRepository.createWorkflowEvent` — DB-persisted, written inside the transaction, inside the handler function (`submitStepAction` or `submitStepApproval`).
+
+2. `server.eventBus.emit('workflow.step.completed', { ..., payload: { ..., outcome: ... } })` — in-process, emitted separately at the **router/caller level**, *after* the transaction commits (confirmed for `completeActionStep` at `workflow.router.ts` line 780, hardcoding `outcome: 'DONE'` there too, distinct from and in addition to the internal `createWorkflowEvent` call).
+
+
+
+**Fixing only the internal handler-level outcome is not sufficient.** The new `secretariat_decision` mutation's own router-level `eventBus.emit(...)` call must also independently pass the real outcome (`'APPROVED'`/`'REJECTED'`/whatever `'amended'` maps to — see gap below) into its payload construction, mirroring how `approveStep` already does this correctly at line 859. Follow `approveStep`'s pattern here, not `completeActionStep`'s.
+
+
+
+`completeActionStep`'s return includes `nextStepType: null` (line 786) — part of the response contract shape a new mutation may need to mirror; it is not yet confirmed whether the frontend actually consumes this field, so mirror it for contract consistency but don't assume it's load-bearing.
+
+
+
+### 1d. CONFIRMED GAP requiring a human/product decision before this is fully correct — flag prominently, do not silently resolve
+
+
+
+The literal value `"AMENDED"` **does not appear anywhere in the seed workflow file** (`packages/database/src/seeds/workflow/phase1-legislative.ts`) — not in any step's `allowed_outcomes`, confirmed directly, not inferred from a sample. Several of the 12 relevant steps (assigned to `ROLE.SP_SECRETARY`/`ROLE.SECRETARIAT_STAFF`) have `allowed_outcomes` set to exactly `["APPROVED","REJECTED"]` or `["APPROVED","RETURNED_FOR_REVISION","REJECTED"]` (e.g. seed lines 79, 97, 368, 433), paired with `require_comment_on: ["REJECTED"]`.
+
+
+
+Under the *current* handler this gap is silently absorbed (`'amended'` is a no-op today, so nothing breaks). **If the new mutation routes through outcome validation** (`allowedOutcomes.includes(outcome)`, mirroring `approval.handler.ts` line 38), a submission mapping `'amended' → 'AMENDED'` will **fail validation outright** for every one of these 12 steps, since `'AMENDED'` is in no seed step's allow-list.
+
+
+
+This is a product/data-modeling decision, **not yours to make unilaterally**. Two options exist:
+
+1. Map the frontend's `'amended'` decision value to an already-existing outcome string — `RETURNED_FOR_REVISION` (appears in seed data, e.g. line 79) is the most plausible existing candidate.
+
+2. Add a genuinely new `AMENDED` outcome value to the relevant steps' seed-data `allowed_outcomes` arrays.
+
+
+
+**Do not pick one silently and proceed as though it were obvious.** Surface this explicitly — in your PR description, a prominent code comment, and/or by pausing to ask before finalizing this specific piece — before shipping. Shipping a plausible-looking guess here reproduces exactly the "looks done, silently broken" failure class this whole task exists to fix.
+
+
+
+---
+
+
+
+## Required Changes — Part 2: `computePanelHint` Gating Fix
+
+
+
+**Location:** `apps/server/src/modules/workflow/workflow.router.ts`. Signature: `computePanelHint(status: string, currentStepType: string, currentStep: any, instance: any): string | null` — synchronous, pure, no `ctx`, no async, no DB access, currently.
+
+
+
+**Current `secretariat_decision` branch (to be replaced):**
+
+```
+
+(currentStepType === 'action' || currentStepType === 'approval')
+
+  && (stepConfigAssignee === 'role:sp_secretary' || stepConfigAssignee === 'role:secretariat_staff')
+
+```
+
+
+
+### 2a. Two call sites — both must be patched identically
+
+
+
+1. **`getInstance` procedure** — `currentSteps` select at lines 284–291 selects exactly: `stepInstanceId, stepType, assignedTo, stepKey, metadata, config`. Return object has 10 fields including `panelHint`.
+
+2. **`getActiveInstanceForDocument` procedure** — call site at line 464, procedure body from line 361. **Near-identical sibling with an identical `currentSteps` select shape and identical `computePanelHint` call, but the query is duplicated per-procedure, not shared.** Confirmed live consumer: `DocumentDetailPage.tsx` calls this procedure directly (not dead code).
+
+
+
+**Critical implementation risk, explicitly confirmed:** because the `currentStep`-gathering query is duplicated (not shared) between these two procedures, patching only one and leaving the other unpatched will cause `computePanelHint` to receive an incomplete `currentStep` object from whichever procedure you missed — producing an inconsistent `secretariat_decision` hint depending on which page/procedure a user happens to hit (e.g. `DocumentDetailPage` showing a stale/wrong hint while `WorkflowStepActionPage`, which uses `getInstance`, shows the correct one, or vice versa). **Both procedures' queries must be updated identically, in the same commit.**
+
+
+
+### 2b. No new column or join is needed — the data is already there
+
+
+
+`assignee_office_id` is **not currently selected** in either query — this is the office-scoping column the new gate conceptually needs. But: **`assignedTo` (the raw JSONB) is already selected in both queries' `currentSteps` select.** This is the same field `fetchStepContext` already extracts `office_id` from, using shape `Array<{ user_id?: string; office_id?: string }>`. **Neither query needs a new column or join added** — the office ID is already present in the data reaching `computePanelHint`; it just isn't being extracted from the JSONB or compared yet.
+
+
+
+This splits into two genuinely separate needs, worth keeping distinct in your implementation:
+
+- **Mutation side** (Part 1 above): office data already available via `fetchStepContext` → `stepAttrs.assigneeOfficeId`. No new query machinery needed.
+
+- **Display side** (`computePanelHint`, this section): the raw JSONB is already selected; the only genuinely new machinery needed is (a) extracting `office_id` from `currentStep.assignedTo[0]` the same way `fetchStepContext` does, and (b) resolving/knowing the SP Secretariat's office ID to compare against.
+
+
+
+### 2c. Architectural tension requiring an explicit design choice — do not decide silently
+
+
+
+`computePanelHint` is currently synchronous and pure. Extracting `office_id` from JSONB is pure/sync and fine on its own. **But resolving the SP Secretariat office's own *ID* requires an async DB call** (`getOrgService(ctx).getOfficeByCode(...)`). This means one of:
+
+- **(a)** `computePanelHint` becomes `async`, and both call sites (`getInstance`, `getActiveInstanceForDocument`) `await` it, or
+
+- **(b)** the SP Secretariat office ID is resolved once by each caller procedure and passed in as an additional parameter to `computePanelHint`, changing its signature without making it async.
+
+
+
+This changes a shared pure function's signature and both its callers. **Make this choice explicitly and document the reasoning** (code comment and/or PR description) — it is a legitimate design decision within your scope to make (unlike the `AMENDED` mapping, which is not), but it should be made deliberately, not as an incidental side effect of "just making it compile."
+
+
+
+**Non-blocking performance note:** `getOfficeByCode` has no caching — confirmed plain DB query on every call. Not a blocker; existing `archive`/`publishPortal` mutations already pay this same per-request cost. `getInstance` is presumably a page-load-driving query called more frequently than an occasional action mutation, so it's worth being aware of, but do not over-engineer caching into this task as a hard requirement — it's a judgment call, not a stated acceptance criterion.
+
+
+
+### 2d. Expected post-fix behavior (not a regression to prevent)
+
+
+
+The corrected, office-scoped gate will likely **still match a broad set of steps** — potentially most or all of the same 12 originally matched by the role-based proxy. That breadth is expected and correct once office-scoping is genuinely applied (all 12 happen to be assigned to the SP Secretariat office in the current seed data) — it is not a symptom indicating the fix is wrong. Do not treat "still matches many steps" as evidence you've done something incorrectly.
+
+
+
+---
+
+
+
+## Frontend Change
+
+
+
+**File:** `SecretariatDecisionPanel.tsx`.
+
+- Already sends `stepInstanceId: instance.currentStepInstanceId` (line 33) and `documentId: instance.documentId` (line 32) at the call site — both already available in scope. The request shape likely needs **minimal** change once the new mutation exists; primarily point it at the new mutation procedure name/router instead of `documents.logSecretariatDecision`.
+
+- Line 19's unconditional `toast.success('Decision logged successfully.')` in `onSuccess` should be re-examined once the real mutation can genuinely fail (e.g. on outcome-validation rejection for the `AMENDED` gap above, or on the office-scope guard throwing) — ensure error states now actually surface as errors rather than being masked by an unconditional success toast, given that was the core symptom of the original bug.
+
+- **Stale comment cleanup**: the comment block at lines 7–11 documents the *old* rationale (`config.assignee` as "the only stable proxy available without an extra office-lookup join," referencing LOG-0077). Once this fix lands, that comment becomes actively misleading — it will describe the old proxy approach as if it were deliberate final design. Update or remove it as part of this change. (Same category of loose-end cleanup as the stale `hasRole` comment previously found and fixed in `MyAssignedStepsPage.tsx` — small, but don't skip it, since a misleading comment here is exactly the kind of thing that causes the *next* agent to reintroduce this bug's reasoning by accident.)
+
+
+
+---
+
+
+
+## Explicitly Out of Scope
+
+
+
+- **Test coverage** for this new path. This is a deliberately separate, later task (candidate: TASK-WF-FE-004), sequenced specifically so tests aren't written against a mutation path about to be replaced. Do not write tests as part of this task; do not leave the codebase in a state where existing tests reference the old `documents.logSecretariatDecision` path in a way that would now be misleading (if any exist — current confirmed state is zero test files for the workflow module specifically; one unrelated Vitest file, `status-mapping.test.ts`, exists elsewhere in `apps/web` and is unrelated to this change).
+
+- **Any edit to Group B–L pre-development governance documents** (F1, E1, ADR-API-003 itself, B2, findings-log entries, etc.) as part of this implementation. Per `AGENTS.md` §4.5, agents may only *append* new findings-log entries (which will default to `status: proposed`) — never directly edit F1/E1/B2/ADRs. Specifically out of scope for *this* task:
+
+  - Reconciling F1 §8.2's stale wording (still says "the assignee office is the SP Secretariat" in a way that doesn't reflect the actual pre-fix role-only check, and still doesn't reference `panelHint` at all in either F1 or E1).
+
+  - Correcting LOG-0079's framing issue (a prior findings-log entry that, despite the correct `status: proposed` tag, asserts ADR-API-003 as settled fact in its body language in a way that pre-empts a human decision it isn't its place to pre-empt).
+
+  - If, in the course of this work, you want to propose either of the above corrections, append a new findings-log entry describing the discrepancy — do not edit the source documents directly, and do not fold a doc-correction prompt into this same implementation pass. Present any such proposal separately for human review.
+
+- **Do not retire or fold the `secretariat_decision` panel into `generic_action`/`generic_approval`.** It represents a real, intentional, office-scoped variant of step completion per ADR-API-003 — the fix is routing + gating correction, not panel elimination.
+
+- **`panlalawigan_outcome`'s missing step-status gate** is a separate, previously-identified, low-severity finding that shares the same `computePanelHint`/`getInstance` code path (relevant only as background confirming query-shape claims above) — it is out of scope for this task. Do not fix it opportunistically as a drive-by change; if you notice it while editing the surrounding code, leave it and note it rather than expanding scope.
+
+- **Do not modify `submitStepAction`'s existing behavior** unless your Part 1c design choice specifically and deliberately requires it, and if so, flag that decision explicitly rather than treating it as incidental.
+
+
+
+---
+
+
+
+## Key File Reference Table (verified paths)
+
+
+
+| Purpose | Path | Notes |
+
+|---|---|---|
+
+| Old mutation to replace | `apps/server/src/modules/documents/documents.router.ts` | Lines 1508–1545, `logSecretariatDecision` |
+
+| Input schema (existing shape, reusable) | `packages/shared/src/schemas/documents.ts` | Lines 531–536, `LogSecretariatDecisionInputSchema` |
+
+| Policy guard to wire in | `apps/server/src/modules/workflow/workflow.policy.ts` | Lines 582–600, `canLogSecretariatDecision`, method on the `workflowPolicy` accessor instance |
+
+| Router to add new mutation to / edit `computePanelHint` in | `apps/server/src/modules/workflow/workflow.router.ts` | 2428 lines total. `getInstance` currentSteps select ~284–291; `getActiveInstanceForDocument` call site ~line 464, body from ~361; `completeActionStep` ~734–786; `approveStep`'s outcome-aware event emit ~line 859 |
+
+| Working action-completion handler (model, not to modify) | `action.handler.ts` — `submitStepAction` | Hardcodes `'DONE'` at lines ~50, ~68, ~79 |
+
+| Working outcome-aware handler (better model) | `approval.handler.ts` — `submitStepApproval`, starting line 15 | Takes `outcome: string`, validates against `config['allowed_outcomes']` lines ~37–40 |
+
+| tRPC app-level router mount | `apps/server/src/trpc/root.ts` | `workflowRouter` imported line 5, mounted under `workflow:` key line 15 — confirms the mutation lives under the `workflow.*` tRPC namespace once added |
+
+| Frontend panel to update | `SecretariatDecisionPanel.tsx` | Lines 7–11 (stale comment), 19 (toast), 32–33 (already-available IDs) |
+
+| Seed data for `allowed_outcomes` / `AMENDED` gap | `packages/database/src/seeds/workflow/phase1-legislative.ts` | e.g. lines 79, 97, 368, 433 |
+
+| Precedent for `getOfficeByCode` call shape (not the comparison logic) | `apps/server/src/modules/documents/documents.router.ts` | ~lines 1490–1491, variable `isSp` |
+
+| `SP_SECRETARIAT_OFFICE_CODE` constant precedent | `tracking.router.ts` line 82, `documents.router.ts` line 117 | Value `'SPS'`, locally redeclared per file, not shared — `workflow.router.ts` has none of this yet |
+
+| ADR source | `docs/pre-development/B-architecture-documents/b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-003-secretariat-decision-entry-point.md` | Lines 30–31 for outcome shape/routing |
+
+
+
+**Caution:** `apps/server/dist/` contains compiled build output mirroring several of these paths (e.g. a `.d.ts` for the policy file and the shared schema). Do not edit anything under `dist/` — it is generated output, not source.
+
+
+
+---
+
+
+
+## Validation Requirements (manual, since automated tests are explicitly out of scope for this task)
+
+
+
+1. Confirm the new mutation, when called for a step assigned to a non-SP-Secretariat office, throws `FORBIDDEN` with `cause: 'secretariat_decision_wrong_office'` (not a silent no-op or generic error).
+
+2. Confirm it throws `FORBIDDEN` with `cause: 'secretariat_decision_requires_sp_secretary'` for a non-`sp_secretary` role attempting the action, even if office-scoped correctly.
+
+3. Confirm a successful `approve`/`reject` submission against a real `secretariat_decision`-tagged step actually advances the step (i.e. `workflow.step.completed` is emitted with the correct outcome, and the next step in the workflow definition becomes current) — this is the core regression check against the original "false success" bug.
+
+4. Confirm `getInstance` and `getActiveInstanceForDocument` return an **identical** `panelHint` value for the same instance/step — directly test both call sites, not just one, given the confirmed duplication risk.
+
+5. Confirm the `AMENDED` decision path either (a) is explicitly blocked/surfaced with a clear error pending the human decision on outcome mapping, or (b) correctly implements whichever mapping option was chosen and confirmed — do not leave it silently passing through to a validation failure the user can't make sense of.
+
+6. Manually re-verify `SecretariatDecisionPanel`'s error states now surface real failures to the user (not masked by the old unconditional success toast).
+
+
+
+## Acceptance Criteria
+
+
+
+- `documents.logSecretariatDecision` is no longer called by `SecretariatDecisionPanel.tsx`; a new Workflow-Router mutation handles the decision, synchronously driving both the document/step state transition and a correctly-outcome-tagged `workflow.step.completed` emission (both the internal `createWorkflowEvent` call and the router-level `eventBus.emit` call must carry the real outcome, not a hardcoded `'DONE'`).
+
+- `canLogSecretariatDecision` has a real call site, correctly supplied with a caller-resolved `isSpSecretariatOffice: boolean` via `fetchStepContext`'s `stepAttrs.assigneeOfficeId`.
+
+- `computePanelHint`'s `secretariat_decision` branch is office-scoped, not role-based, and both `getInstance` and `getActiveInstanceForDocument` are patched identically in the same change.
+
+- The `AMENDED`-outcome seed-data gap is explicitly surfaced (not silently guessed at) with a clear decision or clear escalation.
+
+- The sync/async design choice for `computePanelHint` is made explicitly and documented, not left as an implicit side effect.
+
+- No edits to any Group B–L governance document land as part of this change.
+
+- The stale rationale comment in `SecretariatDecisionPanel.tsx` is updated or removed.
+````

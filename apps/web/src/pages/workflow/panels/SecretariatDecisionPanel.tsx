@@ -14,7 +14,7 @@ export function SecretariatDecisionPanel({ instance }: { instance: any }) {
   const utils = trpc.useUtils();
   const [remarks, setRemarks] = useState('');
 
-  const logDecisionMutation = trpc.documents.logSecretariatDecision.useMutation({
+  const logDecisionMutation = trpc.workflow.logSecretariatDecision.useMutation({
     onSuccess: () => {
       toast.success('Decision logged successfully.');
       utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });

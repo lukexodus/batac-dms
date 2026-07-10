@@ -76,7 +76,7 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
         is_start: false,
         position: 5,
         legally_mandated: true,
-        config: { assignee: ROLE.SP_SECRETARY, allowed_outcomes: ["APPROVED", "RETURNED_FOR_REVISION", "REJECTED"], require_comment_on: ["REJECTED"] },
+        config: { assignee: ROLE.SP_SECRETARY, allowed_outcomes: ["APPROVED", "AMENDED", "RETURNED_FOR_REVISION", "REJECTED"], require_comment_on: ["REJECTED"] },
       },
       {
         step_key: "amendments_logging",
@@ -94,7 +94,7 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
         is_start: false,
         position: 7,
         legally_mandated: false,
-        config: { assignee: ROLE.SP_SECRETARY, allowed_outcomes: ["APPROVED", "REJECTED"], require_comment_on: ["REJECTED"] },
+        config: { assignee: ROLE.SP_SECRETARY, allowed_outcomes: ["APPROVED", "AMENDED", "REJECTED"], require_comment_on: ["REJECTED"] },
       },
       {
         step_key: "final_number_assignment",
@@ -296,12 +296,14 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
       { from_step_key: "committee_referral", to_step_key: "second_reading_vote", outcome_filter: "BYPASSED_CERTIFIED_URGENT", condition_expression: null, priority: 3, label: "Certified Urgent bypass" },
       
       { from_step_key: "second_reading_vote", to_step_key: "final_number_assignment", outcome_filter: "APPROVED", condition_expression: null, priority: 1, label: "Approved — no amendments" },
+      { from_step_key: "second_reading_vote", to_step_key: "final_number_assignment", outcome_filter: "AMENDED", condition_expression: null, priority: 1, label: "Amended — no amendments" },
       { from_step_key: "second_reading_vote", to_step_key: "amendments_logging", outcome_filter: "RETURNED_FOR_REVISION", condition_expression: null, priority: 2, label: "Approved with amendments" },
       { from_step_key: "second_reading_vote", to_step_key: "end_rejected_at_vote", outcome_filter: "REJECTED", condition_expression: null, priority: 3, label: "Voted down" },
       
       { from_step_key: "amendments_logging", to_step_key: "second_reading_amended_vote", outcome_filter: null, condition_expression: null, priority: 1, label: null },
       
       { from_step_key: "second_reading_amended_vote", to_step_key: "final_number_assignment", outcome_filter: "APPROVED", condition_expression: null, priority: 1, label: "Amended version approved" },
+      { from_step_key: "second_reading_amended_vote", to_step_key: "final_number_assignment", outcome_filter: "AMENDED", condition_expression: null, priority: 1, label: "Amended version approved (Amended)" },
       { from_step_key: "second_reading_amended_vote", to_step_key: "end_rejected_at_vote", outcome_filter: "REJECTED", condition_expression: null, priority: 2, label: "Amended version voted down" },
       
       { from_step_key: "final_number_assignment", to_step_key: "vp_certification", outcome_filter: null, condition_expression: null, priority: 1, label: null },
@@ -365,7 +367,7 @@ export const SP_ORDINANCE_WORKFLOW: WorkflowDefinitionSeed = (() => {
       label: "Third Reading — Final Vote",
       position: ordSteps[stepIndex7]!.position,
       legally_mandated: true,
-      config: { assignee: ROLE.SP_SECRETARY, allowed_outcomes: ["APPROVED", "REJECTED"], require_comment_on: ["REJECTED"] }
+      config: { assignee: ROLE.SP_SECRETARY, allowed_outcomes: ["APPROVED", "AMENDED", "REJECTED"], require_comment_on: ["REJECTED"] }
     } as any;
   }
 
@@ -430,7 +432,7 @@ export const APPROPRIATION_ORDINANCE_WORKFLOW: WorkflowDefinitionSeed = (() => {
       label: "Third Reading — Final Vote",
       position: appOrdSteps[stepIndex7App]!.position,
       legally_mandated: true,
-      config: { assignee: ROLE.SP_SECRETARY, allowed_outcomes: ["APPROVED", "REJECTED"], require_comment_on: ["REJECTED"] }
+      config: { assignee: ROLE.SP_SECRETARY, allowed_outcomes: ["APPROVED", "AMENDED", "REJECTED"], require_comment_on: ["REJECTED"] }
     } as any;
   }
 
