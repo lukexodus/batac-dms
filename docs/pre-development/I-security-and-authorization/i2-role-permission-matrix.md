@@ -65,7 +65,7 @@ Audience: Development team — IAM configuration reference
 | 9 | Mayor | Highest executive approval authority |
 | 10 | Barangay Encoder | Submit documents on behalf of a barangay |
 | 11 | Barangay Captain | Approve and sign barangay-originated documents |
-| 12 | Auditor | Read-only: finalized documents and audit logs |
+| 12 | Auditor | Read-only: finalized documents, audit logs, and own task inbox |
 | 13 | Citizen | Public portal; own submitted requests and complaints only |
 
 ---
@@ -333,7 +333,7 @@ Audience: Development team — IAM configuration reference
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | View SP Secretary dashboard (queue, pending, session calendar) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | View Mayor dashboard (pending signatures, overdue items) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| View own task inbox / assigned steps | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| View own task inbox / assigned steps | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | View ARTA SLA compliance report | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
 | View Panlalawigan review tracking summary | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
 | View Index of Ordinances / Index of Resolutions | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |

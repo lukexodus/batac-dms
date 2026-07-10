@@ -334,7 +334,7 @@ I2 itself flags that this is "very likely not one route but a family of routes/c
 
 ### 8.1 `/workflow/steps` — task inbox
 
-**Component:** `MyAssignedStepsPage` · **Role:** Records Officer, Department Encoder, Department Approver, SP Secretary, SP Member, SP Presiding Officer, Mayor, Barangay Encoder, Barangay Captain `[Confirmed — E1, workflow.listMyAssignedSteps callable-by list]`
+**Component:** `MyAssignedStepsPage` · **Role:** Records Officer, Department Encoder, Department Approver, SP Secretary, SP Member, SP Presiding Officer, Mayor, Barangay Encoder, Barangay Captain, Auditor `[Confirmed — workflow.router.ts listMyAssignedSteps role check]`
 
 **Data:** `workflow.listMyAssignedSteps`. Each returned row carries both a `stepInstanceId` and the parent `instanceId` — relevant to the routing decision in §8.2.
 

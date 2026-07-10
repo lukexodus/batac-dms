@@ -1628,3 +1628,25 @@ Three instances of redundant `await import(...)` dynamic imports of `submitStepA
 **What was implemented:**
 Cleaned up these redundant dynamic imports, relying instead on the static imports at the top of `workflow.router.ts`.
 
+---
+
+### [LOG-0069] Auditor role assigned task inbox read visibility
+
+- date: 2026-07-10
+- task_id: none
+- status: confirmed
+- affects: F1, E1, I2
+- resolved_in: docs/pre-development/F-frontend-architecture/f1-application-route-map-v2.md (line 337), docs/pre-development/E-api-design/e1-trpc-router-and-procedure-catalog.md (line 912), docs/pre-development/I-security-and-authorization/i2-role-permission-matrix.md (lines 68, 336)
+
+**What was found:**
+A discrepancy was identified between the actual server router implementation (`apps/server/src/modules/workflow/workflow.router.ts` at `workflow.listMyAssignedSteps`) and three pre-development architecture documents (F1, E1, I2). The actual code permits 10 roles, including the `auditor` role, whereas the documents only listed 9 roles, omitting `auditor`.
+
+**What was implemented:**
+The human project owner directly decided that the `auditor` role should have read visibility into the task inbox. This is a confirmed project decision, not an agent inference. 
+
+To align the documentation with the correct codebase implementation, the following updates were made:
+1. Added "Auditor" to the role list for `MyAssignedStepsPage` in `f1-application-route-map-v2.md` and updated the citation to target `workflow.router.ts`.
+2. Added `auditor` to the `Callable by` list for `workflow.listMyAssignedSteps` in `e1-trpc-router-and-procedure-catalog.md`.
+3. Granted the permission to "View own task inbox / assigned steps" to the Auditor column (12th role column) in the `i2-role-permission-matrix.md` permission matrix.
+4. Updated the Auditor's Primary Scope description in the Roles Reference section of `i2-role-permission-matrix.md` to resolve the tension between the "read-only finalized documents" scope and the new ability to see own pending/in-flight assigned steps.
+

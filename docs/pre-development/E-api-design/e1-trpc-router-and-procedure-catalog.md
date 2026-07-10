@@ -909,7 +909,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Type | `query` |
 | Input | `paginationInput` |
 | Output | `z.object({ items: z.array(z.object({ stepInstanceId: z.string().uuid(), instanceId: z.string().uuid(), documentId: z.string().uuid(), documentTitle: z.string(), stepType: z.enum(['action','approval','multi_referral','decision','notification','termination']), assignedAt: z.coerce.date(), dueAt: z.coerce.date().nullable() })), nextCursor: z.string().nullable() })` |
-| Callable by | `records_officer`, `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain` |
+| Callable by | `records_officer`, `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain`, `auditor` |
 | ABAC conditions | `step.assignee_user_id = subject.user_id` **OR** office-scoped queue membership per the role (I1 §6.1). This is the backing query for the "own task inbox" dashboards referenced in I2 Section 16. |
 | Business operation | Reads `workflow.step_instances WHERE status = 'pending'` filtered by assignee/office. `[Confirmed — I1 §6.1; I2 Section 16 "View own task inbox / assigned steps"]` |
 
