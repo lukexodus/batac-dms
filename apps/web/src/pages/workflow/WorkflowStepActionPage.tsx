@@ -16,6 +16,7 @@ import { MultiReferralPanel } from './panels/MultiReferralPanel';
 import { DocketingPanel } from './panels/DocketingPanel';
 import { PanlalawiganOutcomePanel } from './panels/PanlalawiganOutcomePanel';
 import { PublicationDatePanel } from './panels/PublicationDatePanel';
+import { hasRole } from '@/lib/auth-helpers';
 
 export function WorkflowStepActionPage() {
   const { instanceId } = useParams<{ instanceId: string }>();
@@ -54,38 +55,78 @@ export function WorkflowStepActionPage() {
   }
 
   const renderPanel = () => {
+    const roles = session?.roleCodes ?? [];
+    let canAct = false;
+
     switch (instance.panelHint) {
       case 'generic_action':
-        return <GenericActionPanel instance={instance} />;
+        canAct = hasRole(roles, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain');
+        if (canAct) return <GenericActionPanel instance={instance} />;
+        break;
       case 'generic_approval':
-        return <GenericApprovalPanel instance={instance} />;
+        canAct = hasRole(roles, 'dept_approver', 'sp_secretary', 'mayor', 'brgy_captain');
+        if (canAct) return <GenericApprovalPanel instance={instance} />;
+        break;
       case 'secretariat_decision':
-        return <SecretariatDecisionPanel instance={instance} />;
+        canAct = hasRole(roles, 'sp_secretary');
+        if (canAct) return <SecretariatDecisionPanel instance={instance} />;
+        break;
       case 'vp_certification':
-        return <VPCertificationPanel instance={instance} />;
+        canAct = hasRole(roles, 'sp_presiding_officer');
+        if (canAct) return <VPCertificationPanel instance={instance} />;
+        break;
       case 'mayor_decision':
-        return <MayorDecisionPanel instance={instance} />;
+        canAct = hasRole(roles, 'mayor');
+        if (canAct) return <MayorDecisionPanel instance={instance} />;
+        break;
       case 'mayor_lapse_confirmation':
-        return <MayorLapseConfirmationPanel instance={instance} />;
+        canAct = hasRole(roles, 'sp_secretary');
+        if (canAct) return <MayorLapseConfirmationPanel instance={instance} />;
+        break;
       case 'veto_override_recording':
-        return <VetoOverrideRecordingPanel instance={instance} />;
+        canAct = hasRole(roles, 'sp_secretary');
+        if (canAct) return <VetoOverrideRecordingPanel instance={instance} />;
+        break;
       case 'multi_referral':
-        return <MultiReferralPanel instance={instance} />;
+        canAct = hasRole(roles, 'sp_secretary', 'sp_member');
+        if (canAct) return <MultiReferralPanel instance={instance} />;
+        break;
       case 'docketing':
-        return <DocketingPanel instance={instance} />;
+        canAct = hasRole(roles, 'sp_secretary');
+        if (canAct) return <DocketingPanel instance={instance} />;
+        break;
       case 'panlalawigan_outcome':
-        return <PanlalawiganOutcomePanel instance={instance} />;
+        canAct = hasRole(roles, 'sp_secretary');
+        if (canAct) return <PanlalawiganOutcomePanel instance={instance} />;
+        break;
       case 'publication_date':
-        return <PublicationDatePanel instance={instance} />;
+        canAct = hasRole(roles, 'sp_secretary');
+        if (canAct) return <PublicationDatePanel instance={instance} />;
+        break;
       default:
-        return (
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-muted-foreground">No action panel is available for this step state.</p>
-            </CardContent>
-          </Card>
-        );
+        break;
     }
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Workflow Step Summary</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground mb-4">
+            {instance.status !== 'Active' 
+              ? 'This workflow instance is no longer active.' 
+              : 'You do not have actionable access to this step or no panel is defined for its state.'}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div><strong>Status:</strong> {instance.status}</div>
+            <div><strong>Current Step Type:</strong> {instance.currentStepType}</div>
+            {instance.currentAssigneeUserId && <div><strong>Assignee:</strong> {instance.currentAssigneeUserId}</div>}
+            {instance.slaDeadline && <div><strong>Deadline:</strong> {new Date(instance.slaDeadline).toLocaleString()}</div>}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (

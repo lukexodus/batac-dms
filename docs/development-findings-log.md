@@ -1756,3 +1756,35 @@ F1 §8.2 specifies that the `Publication Date Panel` applies when a "penalty ord
 
 **What was implemented:**
 The backend logic (`workflow.getInstance` via `computePanelHint`) routes the `Publication Date Panel` based directly on `stepKey === 'newspaper_publication'`, rather than trying to infer the document type (penalty ordinance) and its state. This aligns the panel logic with how other step-specific panels are routed and relies on the workflow engine to correctly instantiate the `newspaper_publication` step only when applicable.
+
+---
+
+### [LOG-0077] panelHint addition to workflow.getInstance output
+
+- date: 2026-07-10
+- task_id: TASK-WF-FE-002
+- status: proposed
+- affects: E1, F1
+- resolved_in: apps/server/src/modules/workflow/workflow.router.ts
+
+**What was found:**
+F1 §8.2 specifies 10 conditionally-rendered action panels, many keyed on `step.name` or specific domain states (e.g., 10-day mayor lapse pending confirmation). However, `workflow.getInstance` (E1) only returns a basic set of fields (`currentStepType`, `status`, etc.) without exposing `stepKey`, step context, or step metadata. The frontend thus lacks sufficient state to accurately select the correct panel using the pre-development schema alone.
+
+**What was implemented:**
+Rather than exposing raw step metadata to the frontend and duplicating panel-selection rules, a new `panelHint` enum field was added to the output of `workflow.getInstance`. This field is computed server-side (`computePanelHint`), mapping the current step instance's internal state directly to one of the 10 defined panels (or `null` if no panel applies), centralizing the business logic and keeping the API contract clean.
+
+---
+
+### [LOG-0078] Secretariat Decision panel stepKey-detection rule
+
+- date: 2026-07-10
+- task_id: TASK-WF-FE-002
+- status: proposed
+- affects: F1
+- resolved_in: apps/server/src/modules/workflow/workflow.router.ts
+
+**What was found:**
+F1 states the Secretariat Decision panel applies when the "assignee office is the SP Secretariat". However, the mutation `documents.logSecretariatDecision` checks only for the `sp_secretary` role, with no office-based check. Furthermore, there is no discrete `stepKey` dedicated to secretariat decisions in the seed workflow definitions to distinguish it from generic actions or approvals.
+
+**What was implemented:**
+[Inference] In `computePanelHint`, the detection rule routes to the Secretariat Decision panel when `currentStepType` is 'action' or 'approval' AND the step configuration's assignee (`config.assignee`) is either `role:sp_secretary` or `role:secretariat_staff`. This serves as the most stable proxy for determining if the step is intended for a secretariat decision, bridging the gap between F1's prose and the backend's role-based execution.
