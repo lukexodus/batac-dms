@@ -563,6 +563,20 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         );
         return { membershipId: row.id };
       }),
+
+    listCommittees: protectedProcedure
+      .query(async ({ ctx }) => {
+        requireAnyRole(ctx, ['plat_admin', 'sp_secretary'], 'Access to committees list is not permitted for this role.');
+        const { orgRepository } = getDeps(ctx);
+        const rows = await orgRepository.committees.findAll({ includeDeleted: false });
+        return rows.map((r: { id: string; name: string; code: string | null; description: string | null; deletedAt: Date | string | null }) => ({
+          committeeId: r.id,
+          name: r.name,
+          code: r.code,
+          description: r.description,
+          deletedAt: r.deletedAt,
+        }));
+      }),
   });
 }
 

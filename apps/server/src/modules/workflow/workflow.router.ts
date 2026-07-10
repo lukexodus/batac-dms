@@ -192,6 +192,52 @@ function enforceRoles(ctx: Context, allowedRoles: string[]) {
 
 
 
+function computePanelHint(
+  status: string,
+  currentStepType: string,
+  currentStep: any,
+  instance: any
+): string | null {
+  if (status !== 'Active' || !currentStep) return null;
+
+  const { stepKey, metadata, config } = currentStep;
+  const stepConfigAssignee = (config as any)?.assignee;
+  const instanceContext = (instance.context as Record<string, any>) || {};
+  const stepMetadata = (metadata as Record<string, any>) || {};
+
+  if (currentStepType === 'multi_referral') {
+    return 'multi_referral';
+  } else if (stepKey === 'vp_certification') {
+    return 'vp_certification';
+  } else if (stepKey === 'mayor_review' || stepKey === 'mayor_signature') {
+    const deadlineStr = instanceContext['mayor_action_deadline'];
+    if (deadlineStr) {
+      const deadline = new Date(deadlineStr);
+      const lapseConfirmed = !!stepMetadata['lapse_confirmed_at'];
+      if (Date.now() > deadline.getTime() && !lapseConfirmed) {
+        return 'mayor_lapse_confirmation';
+      }
+    }
+    return 'mayor_decision';
+  } else if (stepKey === 'veto_override_vote') {
+    return 'veto_override_recording';
+  } else if (stepKey === 'docketing') {
+    return 'docketing';
+  } else if (stepKey === 'panlalawigan_review') {
+    return 'panlalawigan_outcome';
+  } else if (stepKey === 'newspaper_publication') {
+    return 'publication_date';
+  } else if ((currentStepType === 'action' || currentStepType === 'approval') && (stepConfigAssignee === 'role:sp_secretary' || stepConfigAssignee === 'role:secretariat_staff')) {
+    return 'secretariat_decision';
+  } else if (currentStepType === 'action') {
+    return 'generic_action';
+  } else if (currentStepType === 'approval') {
+    return 'generic_approval';
+  }
+
+  return null;
+}
+
 export function createWorkflowRouter() {
   return router({
     // Queries
@@ -239,6 +285,9 @@ export function createWorkflowRouter() {
             stepInstanceId: stepInstances.id,
             stepType: steps.stepType,
             assignedTo: stepInstances.assignedTo,
+            stepKey: steps.stepKey,
+            metadata: stepInstances.metadata,
+            config: steps.config,
           })
           .from(stepInstances)
           .innerJoin(steps, eq(stepInstances.stepId, steps.id))
@@ -292,6 +341,8 @@ export function createWorkflowRouter() {
           ? (currentStep.stepType as any)
           : 'action';
 
+        const panelHint = computePanelHint(status, currentStepType, currentStep, instance);
+
         return {
           instanceId: instance.id,
           documentId: instance.documentId,
@@ -302,6 +353,7 @@ export function createWorkflowRouter() {
           status,
           slaDeadline: instance.slaDeadline,
           lapseStatus,
+          panelHint,
         };
       }),
 
@@ -353,6 +405,9 @@ export function createWorkflowRouter() {
             stepInstanceId: stepInstances.id,
             stepType: steps.stepType,
             assignedTo: stepInstances.assignedTo,
+            stepKey: steps.stepKey,
+            metadata: stepInstances.metadata,
+            config: steps.config,
           })
           .from(stepInstances)
           .innerJoin(steps, eq(stepInstances.stepId, steps.id))
@@ -406,6 +461,8 @@ export function createWorkflowRouter() {
           ? (currentStep.stepType as any)
           : 'action';
 
+        const panelHint = computePanelHint(status, currentStepType, currentStep, instance);
+
         return {
           instanceId: instance.id,
           documentId: instance.documentId,
@@ -416,6 +473,7 @@ export function createWorkflowRouter() {
           status,
           slaDeadline: instance.slaDeadline,
           lapseStatus,
+          panelHint,
         };
       }),
 

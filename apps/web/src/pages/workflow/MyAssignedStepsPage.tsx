@@ -14,6 +14,7 @@ import {
 } from '@batac/ui';
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import { ClipboardList, Loader2 } from 'lucide-react';
+import { hasRole } from '../../lib/auth-helpers';
 
 // ─── Role gate ────────────────────────────────────────────────────────────────
 // Mirrors the local helper in DocumentDetailPage.tsx — not yet extracted to a
@@ -21,9 +22,6 @@ import { ClipboardList, Loader2 } from 'lucide-react';
 // currently has no shared utility file for this; a future refactor can extract
 // it once there are enough consumers to justify a shared module. See PR notes
 // for TASK-WF-FE-001 for the explicit rationale.
-function hasRole(roles: string[], ...allowed: string[]): boolean {
-  return allowed.some((r) => roles.includes(r));
-}
 
 // The 10-role set is sourced from workflow.router.ts lines 429-439
 // (ground truth). F1 §8.1, E1, I2, and F4 previously listed 9 (omitting
