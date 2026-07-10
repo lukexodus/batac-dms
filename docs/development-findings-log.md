@@ -1722,3 +1722,21 @@ Confirm or adjust: (a) the English label wording for each of the six values,
 particularly `termination` vs a softer end-user term; (b) the badge colour
 scheme; (c) whether `StepTypeBadge` should eventually be promoted to a shared
 Tier 3 component for reuse in future dashboard widgets.
+
+---
+
+### [LOG-0072] Docketing step key literal confirmation and terminology alignment in F1 route map
+
+- date: 2026-07-10
+- task_id: none
+- status: proposed
+- affects: F1
+- resolved_in: docs/pre-development/F-frontend-architecture/f1-application-route-map-v2.md (lines 354, 355, 359, 360)
+
+**What was found:**
+1. The literal value for the Docketing Panel's step key in the route map was marked as `[Inference]` because it was not confirmed in design documents. However, this has been confirmed as `docketing` in the database seed data (`packages/database/src/seeds/workflow/phase1-legislative.ts`, line 145: `step_key: "docketing"`).
+2. The property name referred to as `step.name` in F1 route map's panel table (§8.2) does not exist in the database schema; the correct field is `steps.stepKey` as defined in `packages/database/schema/workflow.schema.ts` (line 209).
+
+**What was implemented:**
+1. Replaced the `[Inference]` tag for the Docketing Panel row in `f1-application-route-map-v2.md` with a confirmed tag referencing the database seed file.
+2. Performed a find-and-replace terminology correction across the entire panel table in §8.2, replacing all occurrences of `step.name` with `step.stepKey` (affecting the VP Certification, Mayor Decision, Docketing, and Panlalawigan Outcome panels).

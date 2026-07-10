@@ -351,13 +351,13 @@ The page renders one of the following panels conditionally, based on `currentSte
 | Generic Action Panel | `step_type = 'action'` (default) | Department Encoder/Approver (own/assigned scope), SP Secretary, SP Presiding Officer, Mayor, Barangay Encoder (own/assigned scope), Barangay Captain | `workflow.completeActionStep` |
 | Generic Approval Panel | `step_type = 'approval'` (excluding the two named panels below) | Department Approver, SP Secretary, Mayor, Barangay Captain | `workflow.approveStep`, `workflow.rejectStep`, `workflow.returnStepForRevision` |
 | Secretariat Decision Panel | `step_type` is `action` or `approval` AND the assignee office is the SP Secretariat | SP Secretary | `documents.logSecretariatDecision` |
-| VP Certification Panel | `step.name = 'vp_certification'` | SP Presiding Officer | `workflow.certifyAsPresidingOfficer` |
-| Mayor Decision Panel | `step.name` is `mayor_review` or `mayor_signature` | Mayor | `workflow.mayorSign`, `workflow.mayorVeto` |
+| VP Certification Panel | `step.stepKey = 'vp_certification'` | SP Presiding Officer | `workflow.certifyAsPresidingOfficer` |
+| Mayor Decision Panel | `step.stepKey` is `mayor_review` or `mayor_signature` | Mayor | `workflow.mayorSign`, `workflow.mayorVeto` |
 | Mayor Lapse Confirmation Panel | system-triggered 10-day lapse, pending confirmation | SP Secretary | `workflow.logMayorLapseConfirmation` |
 | Veto Override Recording Panel | post-veto-override-vote step | SP Secretary | `workflow.recordVetoOverrideVote` |
 | Multi-Referral Panel | `step_type = 'multi_referral'` | SP Secretary; SP Member (committee-scoped) | `workflow.submitCommitteeReport`, `workflow.manuallyAdvanceMultiReferralStep` (SP Secretary only), `session.enterCommitteeHearingDate` (SP Secretary only), `organization.listCommittees` (read, `[Resolved — [ADR-UI-004](./f1-application-route-map-adrs/ADR-UI-004-committee-list-procedure.md)]`) |
-| Docketing Panel | `step.name = 'docketing'` `[Inference — the literal step-name value is not confirmed in source, only the existence of the action]` | SP Secretary | `workflow.logDocketingCompletion` |
-| Panlalawigan Outcome Panel | `step.name = 'panlalawigan_review'` | SP Secretary | `workflow.recordPanlalawiganOutcome`, `workflow.resolveValidInPart` (when outcome is valid-in-part), `workflow.confirmPanlalawiganDeemedApproved` (after the 30-day window) |
+| Docketing Panel | `step.stepKey = 'docketing'` `[Confirmed — packages/database/src/seeds/workflow/phase1-legislative.ts, line 145]` | SP Secretary | `workflow.logDocketingCompletion` |
+| Panlalawigan Outcome Panel | `step.stepKey = 'panlalawigan_review'` | SP Secretary | `workflow.recordPanlalawiganOutcome`, `workflow.resolveValidInPart` (when outcome is valid-in-part), `workflow.confirmPanlalawiganDeemedApproved` (after the 30-day window) |
 | Publication Date Panel | penalty ordinance pending newspaper publication | SP Secretary | `workflow.recordNewspaperPublicationDate` |
 
 Every panel also reads from the same `workflow.getInstance` call that loaded the page. `step_type` values `parallel_split` and `parallel_join` are Phase 2 per §2.4 and have no panel here.
