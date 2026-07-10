@@ -12,6 +12,7 @@ import { trpc, trpcClient } from './lib/trpc.js';
 
 import { DocumentListPage } from "./pages/documents/DocumentListPage";
 import { MyAssignedStepsPage } from "./pages/workflow/MyAssignedStepsPage";
+import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage";
 import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
 import DocumentDetailPage from "./pages/documents/DocumentDetailPage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
@@ -41,6 +42,10 @@ const router = createBrowserRouter([
   {
     path: "/workflow/steps",
     element: <MyAssignedStepsPage />,
+  },
+  {
+    path: "/workflow/steps/:instanceId",
+    element: <WorkflowStepActionPage />,
   },
   {
     path: "/documents",

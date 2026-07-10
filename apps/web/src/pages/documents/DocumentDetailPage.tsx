@@ -62,9 +62,7 @@ import type { LifecycleState } from '@batac/shared';
 // from the procedure definitions in the task spec and cross-referenced against
 // E1). These are intentionally NOT the blanket 10-role page set.
 
-function hasRole(roles: string[], ...allowed: string[]): boolean {
-  return allowed.some((r) => roles.includes(r));
-}
+import { hasRole } from '../../lib/auth-helpers';
 
 const SP_ROLES = ['sp_secretary', 'sp_member', 'sp_presiding_officer'];
 

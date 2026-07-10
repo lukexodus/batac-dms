@@ -1740,3 +1740,19 @@ Tier 3 component for reuse in future dashboard widgets.
 **What was implemented:**
 1. Replaced the `[Inference]` tag for the Docketing Panel row in `f1-application-route-map-v2.md` with a confirmed tag referencing the database seed file.
 2. Performed a find-and-replace terminology correction across the entire panel table in §8.2, replacing all occurrences of `step.name` with `step.stepKey` (affecting the VP Certification, Mayor Decision, Docketing, and Panlalawigan Outcome panels).
+
+---
+
+### [LOG-0076] Publication Date panel mapping: F1 specifies domain condition, implementation uses stepKey
+
+- date: 2026-07-10
+- task_id: TASK-WF-FE-002
+- status: proposed
+- affects: F1
+- resolved_in: apps/server/src/modules/workflow/workflow.router.ts
+
+**What was found:**
+F1 §8.2 specifies that the `Publication Date Panel` applies when a "penalty ordinance is pending newspaper publication." However, the system's workflow engine abstracts this state into a discrete workflow step with `stepKey = 'newspaper_publication'` (which is only spawned for penalty ordinances).
+
+**What was implemented:**
+The backend logic (`workflow.getInstance` via `computePanelHint`) routes the `Publication Date Panel` based directly on `stepKey === 'newspaper_publication'`, rather than trying to infer the document type (penalty ordinance) and its state. This aligns the panel logic with how other step-specific panels are routed and relies on the workflow engine to correctly instantiate the `newspaper_publication` step only when applicable.
