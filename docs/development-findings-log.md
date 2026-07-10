@@ -1788,3 +1788,36 @@ F1 states the Secretariat Decision panel applies when the "assignee office is th
 
 **What was implemented:**
 [Inference] In `computePanelHint`, the detection rule routes to the Secretariat Decision panel when `currentStepType` is 'action' or 'approval' AND the step configuration's assignee (`config.assignee`) is either `role:sp_secretary` or `role:secretariat_staff`. This serves as the most stable proxy for determining if the step is intended for a secretariat decision, bridging the gap between F1's prose and the backend's role-based execution.
+
+---
+
+### [LOG-0079] Corrected Secretariat Decision Panel routing in F1 §8.2
+
+- date: 2026-07-10
+- task_id: TASK-DOC-CORRECTION
+- status: proposed
+- affects: F1
+- resolved_in: docs/pre-development/F-frontend-architecture/f1-application-route-map-v2.md
+
+**What was found:**
+F1 §8.2's panel table cited the deprecated procedure `documents.logSecretariatDecision` as the key procedure for the "Secretariat Decision Panel". This procedure was superseded by ADR-B2-3, under which the action routes through the Workflow Router's step-completion mechanism (which synchronously calls `Documents.transitionState()` and emits `workflow.step_completed`).
+
+**What was implemented:**
+Updated the F1 §8.2 panel table row to reference the ADR-B2-3 supersession and the correct routing through the Workflow Router step-completion mechanism, along with the ABAC rule citation from I1 §6.8.
+
+---
+
+### [LOG-0080] Follow-up to LOG-0079: Secretariat Decision routing confirmation
+
+- date: 2026-07-10
+- task_id: TASK-DOC-CORRECTION
+- status: confirmed
+- affects: F1
+- resolved_in: docs/pre-development/F-frontend-architecture/f1-application-route-map-v2.md
+
+**What was found:**
+The question of whether ADR-API-003 supersedes F1 and the pre-ADR `documents.logSecretariatDecision` code path was reviewed directly with Luke (project decision-maker for ADR-API-003 per the ADR's own line 5) on July 10, 2026, via a chat session with an exploration/analysis agent. Luke confirmed ADR-API-003 should be treated as authoritative for this routing design. This entry exists to give LOG-0079's conclusion a documented human checkpoint, which its original body lacked.
+
+**What was implemented:**
+This follow-up entry was appended with status `confirmed` to document the human decision checkpoint approving the routing changes made under LOG-0079. No additional changes were made.
+

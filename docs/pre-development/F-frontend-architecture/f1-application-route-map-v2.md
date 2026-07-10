@@ -344,13 +344,13 @@ I2 itself flags that this is "very likely not one route but a family of routes/c
 
 `[Resolved — [ADR-UI-010](./f1-application-route-map-adrs/ADR-UI-010-workflow-step-route-key.md)]` The dynamic segment is named `:instanceId`, not `:stepInstanceId`. This is confirmed, not merely proposed: `workflow.getInstance` — the procedure that loads this page — takes `instanceId` as its input and returns `currentStepInstanceId` and `currentStepType` in its output. The various write actions (below) take `stepInstanceId` directly. Routing by `instanceId` lets the page load with one read call and then pass the resulting `currentStepInstanceId` straight into whichever action mutation applies, without a second lookup.
 
-The page renders one of the following panels conditionally, based on `currentStepType` and `step.name` from the loaded instance, and on the caller's role:
+The page renders one of the following panels conditionally, based on `currentStepType` and `step.stepKey` from the loaded instance, and on the caller's role:
 
 | Panel | Applies when | Role(s) | Key procedures |
 |---|---|---|---|
 | Generic Action Panel | `step_type = 'action'` (default) | Department Encoder/Approver (own/assigned scope), SP Secretary, SP Presiding Officer, Mayor, Barangay Encoder (own/assigned scope), Barangay Captain | `workflow.completeActionStep` |
 | Generic Approval Panel | `step_type = 'approval'` (excluding the two named panels below) | Department Approver, SP Secretary, Mayor, Barangay Captain | `workflow.approveStep`, `workflow.rejectStep`, `workflow.returnStepForRevision` |
-| Secretariat Decision Panel | `step_type` is `action` or `approval` AND the assignee office is the SP Secretariat | SP Secretary | `documents.logSecretariatDecision` |
+| Secretariat Decision Panel | `step_type` is `action` or `approval` AND the assignee office is the SP Secretariat | SP Secretary | `documents.logSecretariatDecision` [Routing superseded by ADR-B2-3] (routes through the Workflow Router's step-completion mechanism per [ADR-B2-3](file:///home/lukexodus/projects/batac-dms/docs/pre-development/B-architecture-documents/b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-003-secretariat-decision-entry-point.md) instead of the deprecated Documents-Router mutation; ABAC rule: [I1 §6.8](file:///home/lukexodus/projects/batac-dms/docs/pre-development/I-security-and-authorization/i1-abac-policy-specification.md#L866-L879)) |
 | VP Certification Panel | `step.stepKey = 'vp_certification'` | SP Presiding Officer | `workflow.certifyAsPresidingOfficer` |
 | Mayor Decision Panel | `step.stepKey` is `mayor_review` or `mayor_signature` | Mayor | `workflow.mayorSign`, `workflow.mayorVeto` |
 | Mayor Lapse Confirmation Panel | system-triggered 10-day lapse, pending confirmation | SP Secretary | `workflow.logMayorLapseConfirmation` |

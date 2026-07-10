@@ -886,10 +886,12 @@ This is the largest router. It is organized into five sub-sections: general docu
 |---|---|
 | Type | `query` |
 | Input | `z.object({ instanceId: z.string().uuid() })` |
-| Output | `z.object({ instanceId: z.string().uuid(), documentId: z.string().uuid(), definitionVersionId: z.string().uuid(), currentStepType: z.enum(['action','approval','multi_referral','decision','notification','termination','parallel_split','parallel_join']), currentStepInstanceId: z.string().uuid(), currentAssigneeUserId: z.string().uuid().nullable(), status: z.enum(['Active','Completed','Cancelled']), slaDeadline: z.coerce.date().nullable(), lapseStatus: z.enum(['mayor_10_day_lapsed','panlalawigan_30_day_deemed']).nullable() })` |
+| Output | `z.object({ instanceId: z.string().uuid(), documentId: z.string().uuid(), definitionVersionId: z.string().uuid(), currentStepType: z.enum(['action','approval','multi_referral','decision','notification','termination','parallel_split','parallel_join']), currentStepInstanceId: z.string().uuid(), currentAssigneeUserId: z.string().uuid().nullable(), status: z.enum(['Active','Completed','Cancelled']), slaDeadline: z.coerce.date().nullable(), lapseStatus: z.enum(['mayor_10_day_lapsed','panlalawigan_30_day_deemed']).nullable(), panelHint: z.enum(['multi_referral', 'vp_certification', 'mayor_decision', 'mayor_lapse_confirmation', 'veto_override_recording', 'docketing', 'panlalawigan_outcome', 'publication_date', 'secretariat_decision', 'generic_action', 'generic_approval']).nullable() })`[^panelHint-note] |
 | Callable by | `plat_admin`, `records_officer`, `dept_encoder` (🔶 scoped), `dept_approver` (🔶 scoped), `sp_secretary`, `sp_member` (🔶 scoped), `sp_presiding_officer`, `mayor`, `brgy_encoder` (🔶 scoped), `brgy_captain` (🔶 scoped), `auditor` |
 | ABAC conditions | Per I1 §5.1: own-office instances readable by the listed operational roles when scoped; `sp_secretary` has unconditional full visibility across SP Secretariat scope; cross-office read for `records_officer`/`sp_presiding_officer`/`mayor`/`auditor` requires `classification_level IN ('public','internal')`. |
 | Business operation | Calls `Workflow.getInstanceById()` (B2 Published API). `[Confirmed — I1 §5.1 in full]` |
+
+[^panelHint-note]: Note that the live backend implementation (`computePanelHint` inside `workflow.router.ts`) returns this dynamically computed value as `string | null` rather than validating it through a strict Zod enum schema at runtime. The enum type cataloged here specifies the exact string literals returned for each panel state.
 
 ### `workflow.getActiveInstanceForDocument`
 
@@ -922,7 +924,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Output | `z.object({ success: z.literal(true), nextStepType: z.string().nullable() })` |
 | Callable by | `dept_encoder` (🔶 scoped), `dept_approver`, `sp_secretary`, `sp_presiding_officer`, `mayor`, `brgy_encoder` (🔶 scoped), `brgy_captain` |
 | ABAC conditions | `step.step_type = 'action'`, `step.status = 'pending'`, and (`step.assignee_user_id = subject.user_id` **OR** office-match for the non-Encoder roles). **Encoder restriction** (I1 §6.2): `dept_encoder`/`brgy_encoder` may only complete a step where `step.assignee_user_id = subject.user_id` **OR** the parent document `created_by = subject.user_id` — they cannot claim arbitrary steps from the general office queue. |
-| Business operation | Marks the `workflow.step_instances` row `completed`, advances the instance per its `transition_rules`. Emits `workflow.step_completed` (B2 Module 4) → Tracking (routing entry append), Audit. `[Confirmed — I1 §6.2 in full; I2 Conditional Note ¹²]` |
+| Business operation | Marks the `workflow.step_instances` row `completed`, advances the instance per its `transition_rules`. Emits `workflow.step.completed` (B2 Module 4) → Tracking (routing entry append), Audit. `[Confirmed — I1 §6.2 in full; I2 Conditional Note ¹²]` |
 
 ### `workflow.approveStep` / `workflow.rejectStep` / `workflow.returnStepForRevision`
 
@@ -944,7 +946,7 @@ This is the largest router. It is organized into five sub-sections: general docu
 | Output | `z.object({ allCommitteesSubmitted: z.boolean() })` — tells the frontend whether this submission completed the step or whether other committees are still pending |
 | Callable by | `sp_secretary`, `sp_member` (committee-scoped) |
 | ABAC conditions | `step.step_type = 'multi_referral'`, `step.status = 'pending'`. For `sp_member`: `subject.committee_ids ∩ step.metadata.assigned_committee_ids ≠ ∅` (I1 §6.6, resolved via the JWT-cached `committee_ids` claim per D-ABAC-06). |
-| Business operation | Records this committee's contribution toward the unified report. **All assigned committees must sign/contribute before the step completes** — the resolver checks whether every committee in `step.metadata.assigned_committee_ids` now has a submitted contribution; if so, the step transitions to `completed` and emits `workflow.step_completed`; if not, the step remains `pending` with this committee marked submitted, and committees that have *not* yet submitted are surfaced as red-flagged in the Order of Business view (`session.getOrderOfBusiness`, Module 6 below) rather than blocking this individual committee's own action. `[Confirmed — I1 §6.6 in full; consolidated reference Part 8.3, Q-A02; B2 Module 4 multi_referral behavior note]` |
+| Business operation | Records this committee's contribution toward the unified report. **All assigned committees must sign/contribute before the step completes** — the resolver checks whether every committee in `step.metadata.assigned_committee_ids` now has a submitted contribution; if so, the step transitions to `completed` and emits `workflow.step.completed`; if not, the step remains `pending` with this committee marked submitted, and committees that have *not* yet submitted are surfaced as red-flagged in the Order of Business view (`session.getOrderOfBusiness`, Module 6 below) rather than blocking this individual committee's own action. `[Confirmed — I1 §6.6 in full; consolidated reference Part 8.3, Q-A02; B2 Module 4 multi_referral behavior note]` |
 
 ### `workflow.manuallyAdvanceMultiReferralStep`
 
