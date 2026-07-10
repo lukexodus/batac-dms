@@ -93,7 +93,11 @@ function makeCtx(subject: AuthContext, db: ReturnType<typeof makeMockDb>): Conte
     auth: subject,
     db: db as any,
     req: {
-      server: {},
+      server: {
+        organizationService: {
+          getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }),
+        },
+      },
     } as any,
   };
 }
@@ -564,6 +568,63 @@ describe('Workflow Router Mutation Procedures', () => {
       expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
       // Third positional arg (after instance, stepInstance, actorId, actorType) is outcome
       expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('APPROVED');
+    });
+  });
+
+  // ── logSecretariatDecision ────────────────────────────────────────────────
+  describe('logSecretariatDecision', () => {
+    it('throws FORBIDDEN when user does not have sp_secretary role', async () => {
+      const subject = makeSubject({ roles: ['dept_encoder'], effectiveRoles: ['dept_encoder'] });
+      const ctx = makeCtx(subject, mockDb);
+      (ctx.req.server as any).organizationService = { getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }) };
+      const caller = callerFor(ctx);
+
+      mockDb.mockResponse(makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'sps-123' }] }));
+
+      await expect(
+        caller.logSecretariatDecision({ documentId: VALID_UUID, stepInstanceId: STEP_INSTANCE_ID, decision: 'approve' })
+      ).rejects.toMatchObject({ code: 'FORBIDDEN', message: /Only the SP Secretary/ });
+    });
+
+    it('throws FORBIDDEN when step is not assigned to the SP Secretariat office', async () => {
+      const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
+      const ctx = makeCtx(subject, mockDb);
+      (ctx.req.server as any).organizationService = { getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }) };
+      const caller = callerFor(ctx);
+
+      mockDb.mockResponse(makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'other-office' }] }));
+
+      await expect(
+        caller.logSecretariatDecision({ documentId: VALID_UUID, stepInstanceId: STEP_INSTANCE_ID, decision: 'approve' })
+      ).rejects.toMatchObject({ code: 'FORBIDDEN', message: /not assigned to the SP Secretariat office/ });
+    });
+
+    it('succeeds for sp_secretary in correct office and passes APPROVED to handler', async () => {
+      const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
+      const ctx = makeCtx(subject, mockDb);
+      (ctx.req.server as any).organizationService = { getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }) };
+      const caller = callerFor(ctx);
+
+      mockDb.mockResponse(makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'sps-123' }] }));
+
+      const result = await caller.logSecretariatDecision({ documentId: VALID_UUID, stepInstanceId: STEP_INSTANCE_ID, decision: 'approve' });
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('APPROVED');
+    });
+
+    it('succeeds for sp_secretary and passes AMENDED to handler', async () => {
+      const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
+      const ctx = makeCtx(subject, mockDb);
+      (ctx.req.server as any).organizationService = { getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }) };
+      const caller = callerFor(ctx);
+
+      mockDb.mockResponse(makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'sps-123' }] }));
+
+      const result = await caller.logSecretariatDecision({ documentId: VALID_UUID, stepInstanceId: STEP_INSTANCE_ID, decision: 'amended', remarks: 'Fix typos' });
+      expect(result.success).toBe(true);
+      expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('AMENDED');
+      expect(mockSubmitStepApproval.mock.calls[0]![5]).toBe('Fix typos');
     });
   });
 
