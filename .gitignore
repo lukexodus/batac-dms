@@ -1,6 +1,7 @@
 .git/
 .obsidian/
 patches/
+docs/compressed-exploration-findings/
 
 batac-dms/
 "batac-dms (2)/"
@@ -9,6 +10,7 @@ batac-dms/
 *.docx#
 
 *.zip
+*.tar.gz
 
 *-ignore.md
 *-ignore.html
