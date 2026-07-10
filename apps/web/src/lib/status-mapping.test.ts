@@ -8,26 +8,29 @@ describe('status-mapping', () => {
       draft: 'DRAFT',
       submitted: 'SUBMITTED',
       in_workflow: 'IN_WORKFLOW',
+      pending_mayor_action: 'PENDING_MAYOR',
+      pending_panlalawigan_review: 'PANLALAWIGAN_REVIEW',
       completed: 'COMPLETED',
       released: 'RELEASED',
       archived: 'ARCHIVED',
       disposed: 'DISPOSED',
       cancelled: 'CANCELLED',
-      superseded: 'ARCHIVED', // Inferred fallback
-      // Wait, let's find the exact other 2 states if they exist
+      superseded: 'ARCHIVED', // Inferred fallback mapped to ARCHIVED pending design decision
     };
 
     // The enum values from LifecycleStateSchema
     const allStates = LifecycleStateSchema.options;
     
+    // Ensure the test defines expected mappings for every state in the schema
+    expect(allStates.length).toBe(11);
+    
     for (const state of allStates) {
       const documentState = mapLifecycleStateToDocumentState(state);
       expect(documentState).toBeDefined();
       
-      // If we know the expected mapping, test it directly
-      if (expectedMappings[state]) {
-        expect(documentState).toBe(expectedMappings[state]);
-      }
+      // Every lifecycle state must have an explicit expected mapping in this test
+      expect(expectedMappings[state]).toBeDefined();
+      expect(documentState).toBe(expectedMappings[state]);
     }
   });
 });

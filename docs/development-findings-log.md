@@ -1650,3 +1650,28 @@ To align the documentation with the correct codebase implementation, the followi
 3. Granted the permission to "View own task inbox / assigned steps" to the Auditor column (12th role column) in the `i2-role-permission-matrix.md` permission matrix.
 4. Updated the Auditor's Primary Scope description in the Roles Reference section of `i2-role-permission-matrix.md` to resolve the tension between the "read-only finalized documents" scope and the new ability to see own pending/in-flight assigned steps.
 
+---
+
+### [LOG-0070] Local type definition conflict and incomplete lifecycle state mapping in status-mapping.ts
+
+- date: 2026-07-10
+- task_id: none
+- status: proposed
+- affects: apps/web/src/lib/status-mapping.ts, apps/web/src/lib/status-mapping.test.ts
+
+**What was found:**
+1. `apps/web/src/lib/status-mapping.ts` declared its own duplicate, local, 8-member version of `DocumentState` instead of importing the canonical 26-member `DocumentState` defined in `packages/ui/src/types/domain.ts`.
+2. The mapping function `mapLifecycleStateToDocumentState` only handled 9 of the 11 database/backend `LifecycleState` values. The remaining 2 values (`pending_mayor_action` and `pending_panlalawigan_review`) fell through to a silent `default` mapping of `DRAFT`. This caused documents in these review states to be rendered in the UI with a "DRAFT" badge.
+3. Checking `docs/pre-development/D-uml-and-diagrams/d3-state-machine-diagrams.md` confirmed that:
+   - `pending_mayor_action` maps to the `PENDING_MAYOR` DocumentState.
+   - `pending_panlalawigan_review` maps to the `PANLALAWIGAN_REVIEW` DocumentState.
+4. The `superseded` lifecycle state has no corresponding `DocumentState` in `@batac/ui`. Pre-development task specification `a1-tasks/docs.md` (lines 2274 and 2861) indicates that `superseded` should map to `ARCHIVED` as a temporary fallback pending a future design decision.
+
+**What was implemented:**
+1. Updated `apps/web/src/lib/status-mapping.ts` to import `DocumentState` directly from `@batac/ui` and deleted the local, duplicate definition.
+2. Expanded the `mapLifecycleStateToDocumentState` switch statement to handle all 11 `LifecycleState` values explicitly:
+   - `pending_mayor_action` maps to `PENDING_MAYOR`.
+   - `pending_panlalawigan_review` maps to `PANLALAWIGAN_REVIEW`.
+   - `superseded` maps to `ARCHIVED` (with an inline comment referencing this log entry for the unresolved fallback decision).
+3. Updated `apps/web/src/lib/status-mapping.test.ts` to explicitly define and assert expected mappings for all 11 lifecycle states, asserting that any future schema expansion must explicitly update the mapping test suite.
+

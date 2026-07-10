@@ -1,18 +1,5 @@
 import type { LifecycleState } from '@batac/shared';
-// Assuming DocumentState exists in @batac/shared or ui, but the prompt says 
-// "projecting backend LifecycleState values into frontend DocumentState values."
-// If DocumentState is not defined, I will define it based on common states.
-// Looking at the AI prompt:
-// draft, submitted, in_workflow, completed, released, archived, disposed, cancelled
-export type DocumentState =
-  | 'DRAFT'
-  | 'SUBMITTED'
-  | 'IN_WORKFLOW'
-  | 'COMPLETED'
-  | 'RELEASED'
-  | 'ARCHIVED'
-  | 'DISPOSED'
-  | 'CANCELLED';
+import type { DocumentState } from '@batac/ui';
 
 // WorkflowStepContext is a placeholder type if needed
 export type WorkflowStepContext = any;
@@ -28,6 +15,10 @@ export function mapLifecycleStateToDocumentState(
       return 'SUBMITTED';
     case 'in_workflow':
       return 'IN_WORKFLOW';
+    case 'pending_mayor_action':
+      return 'PENDING_MAYOR';
+    case 'pending_panlalawigan_review':
+      return 'PANLALAWIGAN_REVIEW';
     case 'completed':
       return 'COMPLETED';
     case 'released':
@@ -39,7 +30,7 @@ export function mapLifecycleStateToDocumentState(
     case 'cancelled':
       return 'CANCELLED';
     case 'superseded':
-      // [Inference] superseded has no corresponding DocumentState, map to ARCHIVED pending future design decision.
+      // superseded has no corresponding DocumentState, map to ARCHIVED pending future design decision (see LOG-0070).
       return 'ARCHIVED';
     default:
       // Fallback for any unmapped or unexpected state
