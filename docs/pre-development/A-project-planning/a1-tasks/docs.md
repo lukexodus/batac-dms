@@ -23,169 +23,38 @@ Wave D — runs after ORG (Wave C) task list is complete.
 
 ---
 
+
+
 ## Table of Contents
 
-- [L190–L211] TASK-DOCS-001 — [MIGRATION] Create documents schema Drizzle definitions and DDL migration
-- [L212–L220] Project-wide DDL conventions (C1 Part 1) — Project-wide DDL conventions (C1 Part 1) — Project-wide DDL conventions (C1 Part 1)
-- [L221–L604] Table definitions (C1 Part 5, L741-L1233) — Table definitions (C1 Part 5, L741-L1233) — Table definitions (C1 Part 5, L741-L1233)
-  - [L223–L252] documents.document_types
-  - [L253–L287] documents.number_series
-  - [L288–L338] documents.documents
-  - [L339–L368] Lifecycle transition trigger (add manually to migration after db:generate)
-  - [L369–L405] documents.numbers
-  - [L406–L438] documents.versions
-  - [L439–L460] documents.attachments
-  - [L461–L479] documents.signatures
-  - [L480–L497] documents.document_sponsorships
-  - [L498–L524] documents.panlalawigan_reviews
-  - [L525–L542] documents.classification_allowlists (resolved I1 D-ABAC-02)
-  - [L543–L571] fn_get_next_sequence_value (add manually to migration)
-  - [L572–L604] Grants and RLS (C1 Part 12 -- add to end of migration manually)
-- [L605–L625] TASK-DOCS-002 — Scaffold DOCS module file structure with typed stubs
-- [L626–L628] Module location — Module location — Module location
-- [L629–L650] Published API interface (B2 Module 3 -- paste verbatim into documents.types.ts) — Published API interface (B2 Module 3 -- paste verbatim into documents.types.ts) — Published API interface (B2 Module 3 -- paste verbatim into documents.types.ts)
-- [L651–L669] Pattern to follow — Pattern to follow — Pattern to follow
-- [L670–L688] TASK-DOCS-003 — Implement shared Zod schemas — documents and document-metadata domains (E3 Parts 4-5)
-- [L689–L692] Files — Files — Files
-- [L693–L705] Key enum schemas (documents.ts) — Key enum schemas (documents.ts) — Key enum schemas (documents.ts)
-- [L706–L719] LogPanlalawiganOutcomeInputSchema (with refine -- implement exactly) — LogPanlalawiganOutcomeInputSchema (with refine -- implement exactly) — LogPanlalawiganOutcomeInputSchema (with refine -- implement exactly)
-- [L720–L736] SpResolutionMetadataSchema (with refine) — SpResolutionMetadataSchema (with refine) — SpResolutionMetadataSchema (with refine)
-- [L737–L753] DesignationMetadataSchema (with refines) — DesignationMetadataSchema (with refines) — DesignationMetadataSchema (with refines)
-- [L754–L761] CitizenComplaintMetadataSchema (implement from H2 §5 spec) — CitizenComplaintMetadataSchema (implement from H2 §5 spec) — CitizenComplaintMetadataSchema (implement from H2 §5 spec)
-- [L762–L768] DocumentRequestFormMetadataSchema (implement from H2 §6 spec) — DocumentRequestFormMetadataSchema (implement from H2 §6 spec) — DocumentRequestFormMetadataSchema (implement from H2 §6 spec)
-- [L769–L800] DocumentMetadataSchema discriminated union — DocumentMetadataSchema discriminated union — DocumentMetadataSchema discriminated union
-- [L801–L817] TASK-DOCS-004 — Implement DOCS repository layer — all nine documents.* tables
-- [L818–L823] Cross-module boundary rules (B2 Module 3, Law #2) — Cross-module boundary rules (B2 Module 3, Law #2) — Cross-module boundary rules (B2 Module 3, Law #2)
-- [L824–L829] Key type conventions — Key type conventions — Key type conventions
-- [L830–L834] updateDocumentNumbering -- atomic operation — updateDocumentNumbering -- atomic operation — updateDocumentNumbering -- atomic operation
-- [L835–L860] hasClassificationAllowlistEntry — hasClassificationAllowlistEntry — hasClassificationAllowlistEntry
-- [L861–L879] TASK-DOCS-005 — Implement numbering service (fn_get_next_sequence_value wrapper, preliminary/final assignment, gap logging)
-- [L880–L903] Number assignment rules (H3 + C1 Part 5) — Number assignment rules (H3 + C1 Part 5) — Number assignment rules (H3 + C1 Part 5)
-- [L904–L914] DB function call pattern — DB function call pattern — DB function call pattern
-- [L915–L919] Gap policy (H3 §9) — Gap policy (H3 §9) — Gap policy (H3 §9)
-- [L920–L933] Atomic transaction pattern — Atomic transaction pattern — Atomic transaction pattern
-- [L934–L952] TASK-DOCS-006 — Implement DOCS Published API (getDocumentById, getDocumentType, transitionState, assignFinalNumber, getAttachmentRefs)
-- [L953–L963] Published API interface (B2 Module 3 -- implement exactly) — Published API interface (B2 Module 3 -- implement exactly) — Published API interface (B2 Module 3 -- implement exactly)
-- [L964–L983] State machine (I1 §17 -- enforce in transitionState before any DB write) — State machine (I1 §17 -- enforce in transitionState before any DB write) — State machine (I1 §17 -- enforce in transitionState before any DB write)
-- [L984–L998] Domain events (B2 Module 3 -- emit on success) — Domain events (B2 Module 3 -- emit on success) — Domain events (B2 Module 3 -- emit on success)
-- [L999–L1005] Event consumers (B2 Module 3) — Event consumers (B2 Module 3) — Event consumers (B2 Module 3)
-- [L1006–L1020] S3 presigned URLs (getAttachmentRefs) — S3 presigned URLs (getAttachmentRefs) — S3 presigned URLs (getAttachmentRefs)
-- [L1021–L1037] TASK-DOCS-007 — Seed document_types — seven Phase 1 types + DESIGNATION record (inactive, Phase 1B)
-- [L1038–L1074] Document type catalog (H2 Catalog Summary Table) — Document type catalog (H2 Catalog Summary Table) — Document type catalog (H2 Catalog Summary Table)
-- [L1075–L1083] Retention schedule resolution — Retention schedule resolution — Retention schedule resolution
-- [L1084–L1097] metadata_schema values — metadata_schema values — metadata_schema values
-- [L1098–L1113] Idempotency pattern — Idempotency pattern — Idempotency pattern
-- [L1114–L1131] TASK-DOCS-008 — Seed number_series — all 11 series records + 2026 year sequences for Phase 1 active series
-- [L1132–L1138] Global field values (H3 -- identical across all 11 rows) — Global field values (H3 -- identical across all 11 rows) — Global field values (H3 -- identical across all 11 rows)
-- [L1139–L1162] All 11 series (H3 Tables 1-3) — All 11 series (H3 Tables 1-3) — All 11 series (H3 Tables 1-3)
-- [L1163–L1179] Phase 1 active series 2026 sequences (pre-create to avoid on-demand creation warning) — Phase 1 active series 2026 sequences (pre-create to avoid on-demand creation warning) — Phase 1 active series 2026 sequences (pre-create to avoid on-demand creation warning)
-- [L1180–L1200] TASK-DOCS-009 — [ABAC] Implement DOCS ABAC policy guard rules (document, document_version, document_attachment, number_series resource types)
-- [L1201–L1210] SubjectContext type (from IAM module) — SubjectContext type (from IAM module) — SubjectContext type (from IAM module)
-- [L1211–L1220] Global cascade gates (I1 §2 -- run in every read/download method) — Global cascade gates (I1 §2 -- run in every read/download method) — Global cascade gates (I1 §2 -- run in every read/download method)
-- [L1221–L1226] document:create (I1 §3.1) — document:create (I1 §3.1) — document:create (I1 §3.1)
-- [L1227–L1236] document:read metadata (I1 §3.2) — document:read metadata (I1 §3.2) — document:read metadata (I1 §3.2)
-- [L1237–L1241] document:update (I1 §3.3) — document:update (I1 §3.3) — document:update (I1 §3.3)
-- [L1242–L1246] document:soft_delete (I1 §3.4) — document:soft_delete (I1 §3.4) — document:soft_delete (I1 §3.4)
-- [L1247–L1252] document:submit (I1 §3.5) — document:submit (I1 §3.5) — document:submit (I1 §3.5)
-- [L1253–L1259] document:cancel (I1 §3.6) — document:cancel (I1 §3.6) — document:cancel (I1 §3.6)
-- [L1260–L1264] document:number_assign (I1 §3.7) — document:number_assign (I1 §3.7) — document:number_assign (I1 §3.7)
-- [L1265–L1269] document:number_promote (I1 §3.8) — document:number_promote (I1 §3.8) — document:number_promote (I1 §3.8)
-- [L1270–L1273] document:certify_urgent (I1 §3.9) — document:certify_urgent (I1 §3.9) — document:certify_urgent (I1 §3.9)
-- [L1274–L1278] document:archive (I1 §3.10) — document:archive (I1 §3.10) — document:archive (I1 §3.10)
-- [L1279–L1284] document:publish_portal (I1 §3.11) — document:publish_portal (I1 §3.11) — document:publish_portal (I1 §3.11)
-- [L1285–L1289] document_version:read / document_attachment:read (I1 §4.1) — document_version:read / document_attachment:read (I1 §4.1) — document_version:read / document_attachment:read (I1 §4.1)
-- [L1290–L1294] document_version:create (I1 §4.2) — document_version:create (I1 §4.2) — document_version:create (I1 §4.2)
-- [L1295–L1297] number_series:read (I1 §14.1) — number_series:read (I1 §14.1) — number_series:read (I1 §14.1)
-- [L1298–L1327] State-Action Compatibility Matrix (I1 §17) — State-Action Compatibility Matrix (I1 §17) — State-Action Compatibility Matrix (I1 §17)
-- [L1328–L1350] TASK-DOCS-010 — Implement OCR service job wrapper (auto-enqueue on upload, quality score callback, manual re-OCR trigger)
-- [L1351–L1369] OCR flow (confirmed Q-C01) — OCR flow (confirmed Q-C01) — OCR flow (confirmed Q-C01)
-- [L1370–L1387] OcrProvider interface (library-agnostic stub) — OcrProvider interface (library-agnostic stub) — OcrProvider interface (library-agnostic stub)
-- [L1388–L1401] Scan quality category thresholds (env-configurable) — Scan quality category thresholds (env-configurable) — Scan quality category thresholds (env-configurable)
-- [L1402–L1410] pgboss job enqueueing — pgboss job enqueueing — pgboss job enqueueing
-- [L1411–L1437] PreviewProvider interface (library-agnostic — same pattern as OcrProvider) — PreviewProvider interface (library-agnostic — same pattern as OcrProvider) — PreviewProvider interface (library-agnostic — same pattern as OcrProvider)
-- [L1438–L1468] First-page preview generation (SPEC-GAP-TRACK-02 resolution — unconditional) — First-page preview generation (SPEC-GAP-TRACK-02 resolution — unconditional) — First-page preview generation (SPEC-GAP-TRACK-02 resolution — unconditional)
-- [L1469–L1488] TASK-DOCS-011 — [ABAC][AUDIT] Implement documents tRPC router — general CRUD (eight procedures)
-- [L1489–L1494] tRPC context — tRPC context — tRPC context
-- [L1495–L1510] ABAC enforcement pattern (apply in every procedure) — ABAC enforcement pattern (apply in every procedure) — ABAC enforcement pattern (apply in every procedure)
-- [L1511–L1523] documents.create (mutation) — documents.create (mutation) — documents.create (mutation)
-- [L1524–L1529] documents.get (query) — documents.get (query) — documents.get (query)
-- [L1530–L1534] documents.getMetadataForAdmin (query -- sys_admin ONLY) — documents.getMetadataForAdmin (query -- sys_admin ONLY) — documents.getMetadataForAdmin (query -- sys_admin ONLY)
-- [L1535–L1539] documents.list (query) — documents.list (query) — documents.list (query)
-- [L1540–L1545] documents.search (query) — documents.search (query) — documents.search (query)
-- [L1546–L1550] documents.update (mutation) — documents.update (mutation) — documents.update (mutation)
-- [L1551–L1555] documents.delete (mutation -- soft delete ONLY) — documents.delete (mutation -- soft delete ONLY) — documents.delete (mutation -- soft delete ONLY)
-- [L1556–L1572] documents.cancel (mutation) — documents.cancel (mutation) — documents.cancel (mutation)
-- [L1573–L1592] TASK-DOCS-012 — [ABAC][AUDIT] Implement documents tRPC router — SP workflow specifics and Secretariat decision delegation (eight procedures)
-- [L1593–L1610] documents.submit (mutation) — documents.submit (mutation) — documents.submit (mutation)
-- [L1611–L1617] documents.assignPreliminaryNumber (mutation) — documents.assignPreliminaryNumber (mutation) — documents.assignPreliminaryNumber (mutation)
-- [L1618–L1625] documents.assignFinalNumber (mutation) — documents.assignFinalNumber (mutation) — documents.assignFinalNumber (mutation)
-- [L1626–L1637] documents.logCertificationOfUrgency (mutation) — documents.logCertificationOfUrgency (mutation) — documents.logCertificationOfUrgency (mutation)
-- [L1638–L1644] documents.publishToPortal / documents.unpublishFromPortal (mutations) — documents.publishToPortal / documents.unpublishFromPortal (mutations) — documents.publishToPortal / documents.unpublishFromPortal (mutations)
-- [L1645–L1649] documents.archive (mutation) — documents.archive (mutation) — documents.archive (mutation)
-- [L1650–L1669] documents.logSecretariatDecision (mutation) [ADR-B2-3 delegation] — documents.logSecretariatDecision (mutation) [ADR-B2-3 delegation] — documents.logSecretariatDecision (mutation) [ADR-B2-3 delegation]
-- [L1670–L1688] TASK-DOCS-013 — [ABAC] Implement documents tRPC router — file, version, and attachment handling (nine procedures)
-- [L1689–L1693] Architectural invariant -- files never touch app server disk (tech-stack.md) — Architectural invariant -- files never touch app server disk (tech-stack.md) — Architectural invariant -- files never touch app server disk (tech-stack.md)
-- [L1694–L1702] documents.requestUploadUrl (mutation) — documents.requestUploadUrl (mutation) — documents.requestUploadUrl (mutation)
-- [L1703–L1713] documents.confirmUpload (mutation) — documents.confirmUpload (mutation) — documents.confirmUpload (mutation)
-- [L1714–L1718] documents.getVersionHistory (query) — documents.getVersionHistory (query) — documents.getVersionHistory (query)
-- [L1719–L1725] documents.downloadVersion (mutation) — documents.downloadVersion (mutation) — documents.downloadVersion (mutation)
-- [L1726–L1730] documents.getOcrText (query) — documents.getOcrText (query) — documents.getOcrText (query)
-- [L1731–L1736] documents.getScanQualityIndicator (query) — documents.getScanQualityIndicator (query) — documents.getScanQualityIndicator (query)
-- [L1737–L1742] documents.triggerManualReOcr (mutation) — documents.triggerManualReOcr (mutation) — documents.triggerManualReOcr (mutation)
-- [L1743–L1747] documents.flagScannedBackForVerification (mutation) — documents.flagScannedBackForVerification (mutation) — documents.flagScannedBackForVerification (mutation)
-- [L1748–L1762] documents.acceptScannedBackAsOfficial (mutation) — documents.acceptScannedBackAsOfficial (mutation) — documents.acceptScannedBackAsOfficial (mutation)
-- [L1763–L1781] TASK-DOCS-014 — [AUDIT] Implement Panlalawigan review tRPC procedures (initiate transmittal, log outcome, deemed-approved timer)
-- [L1782–L1789] Business context (consolidated reference Part 4.3 + H3) — Business context (consolidated reference Part 4.3 + H3) — Business context (consolidated reference Part 4.3 + H3)
-- [L1790–L1803] documents.initiatePanlalawiganTransmittal (mutation) — documents.initiatePanlalawiganTransmittal (mutation) — documents.initiatePanlalawiganTransmittal (mutation)
-- [L1804–L1816] documents.logPanlalawiganOutcome (mutation) — documents.logPanlalawiganOutcome (mutation) — documents.logPanlalawiganOutcome (mutation)
-- [L1817–L1821] documents.getPanlalawiganReview (query) — documents.getPanlalawiganReview (query) — documents.getPanlalawiganReview (query)
-- [L1822–L1855] panlalawigan.checkDeemedApproved (pgboss scheduled job) — panlalawigan.checkDeemedApproved (pgboss scheduled job) — panlalawigan.checkDeemedApproved (pgboss scheduled job)
-- [L1856–L1872] TASK-DOCS-015 — Implement signature recording tRPC procedures (log signature, upload scan, scanned-back verification flow)
-- [L1873–L1882] Business rules — Business rules — Business rules
-- [L1883–L1888] Callable-by roles (I2 Section 9) — Callable-by roles (I2 Section 9) — Callable-by roles (I2 Section 9)
-- [L1889–L1901] LogSignatureInputSchema (E3) — LogSignatureInputSchema (E3) — LogSignatureInputSchema (E3)
-- [L1902–L1912] SignatureSelectSchema (E3) — SignatureSelectSchema (E3) — SignatureSelectSchema (E3)
-- [L1913–L1927] documents.uploadSignatureImage (mutation) — documents.uploadSignatureImage (mutation) — documents.uploadSignatureImage (mutation)
-- [L1928–L1946] TASK-DOCS-016 — [ABAC][AUDIT] Implement complaints tRPC router — internal SP Secretariat side (five procedures)
-- [L1947–L1952] [CONFLICT] Phase 1 storage (C1 followed over E1 per A1-AGENTS.md §1) — [CONFLICT] Phase 1 storage (C1 followed over E1 per A1-AGENTS.md §1) — [CONFLICT] Phase 1 storage (C1 followed over E1 per A1-AGENTS.md §1)
-- [L1953–L1963] CITIZEN_COMPLAINT metadata JSONB schema (H2 §5 -- enforce at procedure level) — CITIZEN_COMPLAINT metadata JSONB schema (H2 §5 -- enforce at procedure level) — CITIZEN_COMPLAINT metadata JSONB schema (H2 §5 -- enforce at procedure level)
-- [L1964–L1975] complaints.createClerkAssisted (mutation) — complaints.createClerkAssisted (mutation) — complaints.createClerkAssisted (mutation)
-- [L1976–L1981] complaints.logAndAssign (mutation) — complaints.logAndAssign (mutation) — complaints.logAndAssign (mutation)
-- [L1982–L1987] complaints.enterCommitteeReport (mutation) — complaints.enterCommitteeReport (mutation) — complaints.enterCommitteeReport (mutation)
-- [L1988–L1997] complaints.setOutcome (mutation) — complaints.setOutcome (mutation) — complaints.setOutcome (mutation)
-- [L1998–L2013] complaints.listAll (query) — complaints.listAll (query) — complaints.listAll (query)
-- [L2014–L2032] TASK-DOCS-017 — [ABAC][AUDIT] Implement document requests tRPC router — internal SP Secretariat side (six procedures)
-- [L2033–L2038] [CONFLICT] Phase 1 storage (C1 followed over E1 per A1-AGENTS.md §1) — [CONFLICT] Phase 1 storage (C1 followed over E1 per A1-AGENTS.md §1) — [CONFLICT] Phase 1 storage (C1 followed over E1 per A1-AGENTS.md §1)
-- [L2039–L2046] ADR-EVT-001 (June 2026) -- dual approval via Workflow steps (NOT JSONB flags) — ADR-EVT-001 (June 2026) -- dual approval via Workflow steps (NOT JSONB flags) — ADR-EVT-001 (June 2026) -- dual approval via Workflow steps (NOT JSONB flags)
-- [L2047–L2055] DOCUMENT_REQUEST_FORM metadata JSONB schema (H2 §6) — DOCUMENT_REQUEST_FORM metadata JSONB schema (H2 §6) — DOCUMENT_REQUEST_FORM metadata JSONB schema (H2 §6)
-- [L2056–L2065] documentRequests.createClerkAssisted (mutation) — documentRequests.createClerkAssisted (mutation) — documentRequests.createClerkAssisted (mutation)
-- [L2066–L2071] documentRequests.generatePrintableForm (query) — documentRequests.generatePrintableForm (query) — documentRequests.generatePrintableForm (query)
-- [L2072–L2080] documentRequests.approveAsPresidingOfficer (mutation) [Vice Mayor] — documentRequests.approveAsPresidingOfficer (mutation) [Vice Mayor] — documentRequests.approveAsPresidingOfficer (mutation) [Vice Mayor]
-- [L2081–L2090] documentRequests.approveAsSecretary (mutation) — documentRequests.approveAsSecretary (mutation) — documentRequests.approveAsSecretary (mutation)
-- [L2091–L2100] documentRequests.releaseCopy (mutation) — documentRequests.releaseCopy (mutation) — documentRequests.releaseCopy (mutation)
-- [L2101–L2115] documentRequests.listAll (query) — documentRequests.listAll (query) — documentRequests.listAll (query)
-- [L2116–L2135] TASK-DOCS-018 — [ABAC][AUDIT] Implement DESIGNATION document logging handler (atomic delegation grant creation on document log)
-- [L2136–L2142] Business context (H2 §8 + ORG module Published API) — Business context (H2 §8 + ORG module Published API) — Business context (H2 §8 + ORG module Published API)
-- [L2143–L2155] DESIGNATION metadata schema (DesignationMetadataSchema from TASK-DOCS-003) — DESIGNATION metadata schema (DesignationMetadataSchema from TASK-DOCS-003) — DESIGNATION metadata schema (DesignationMetadataSchema from TASK-DOCS-003)
-- [L2156–L2169] Atomicity requirement (B2 Module 3 -- cross-module transaction boundary) — Atomicity requirement (B2 Module 3 -- cross-module transaction boundary) — Atomicity requirement (B2 Module 3 -- cross-module transaction boundary)
-- [L2170–L2177] Integration point with documents.submit — Integration point with documents.submit — Integration point with documents.submit
-- [L2178–L2189] Cancellation handling — Cancellation handling — Cancellation handling
-- [L2190–L2218] ORG Published API method signatures (TASK-ORG-004 deliverable) — ORG Published API method signatures (TASK-ORG-004 deliverable) — ORG Published API method signatures (TASK-ORG-004 deliverable)
-- [L2219–L2238] TASK-DOCS-019 — Wire DOCS Fastify plugin and inject Published API into dependent module stubs
-- [L2239–L2285] Plugin structure — Plugin structure — Plugin structure
-- [L2286–L2298] Registration order in app.ts — Registration order in app.ts — Registration order in app.ts
-- [L2299–L2305] Event consumers registered in the plugin — Event consumers registered in the plugin — Event consumers registered in the plugin
-- [L2306–L2320] tRPC router merging — tRPC router merging — tRPC router merging
-- [L2321–L2434] Module Summary -- DOCS — Module Summary -- DOCS — Module Summary -- DOCS
-  - [L2327–L2352] Coverage map
-  - [L2353–L2366] Cross-module dependency map
-  - [L2367–L2372] Unresolved INFRA dependencies
-  - [L2373–L2383] Conflicts flagged (per A1-AGENTS.md §1)
-  - [L2384–L2417] Spec gaps flagged (per A1-AGENTS.md §8)
-  - [L2418–L2423] Known cross-document correction
-  - [L2424–L2434] Downstream consumers of DOCS Published API
+- [L59–L473] TASK-DOCS-001 — [MIGRATION] Create documents schema Drizzle definitions and DDL migration
+- [L474–L538] TASK-DOCS-002 — Scaffold DOCS module file structure with typed stubs
+- [L539–L669] TASK-DOCS-003 — Implement shared Zod schemas — documents and document-metadata domains (E3 Parts 4-5)
+- [L670–L729] TASK-DOCS-004 — Implement DOCS repository layer — all nine documents.* tables
+- [L730–L802] TASK-DOCS-005 — Implement numbering service (fn_get_next_sequence_value wrapper, preliminary/final assignment, gap logging)
+- [L803–L889] TASK-DOCS-006 — Implement DOCS Published API (getDocumentById, getDocumentType, transitionState, assignFinalNumber, getAttachmentRefs)
+- [L890–L982] TASK-DOCS-007 — Seed document_types — seven Phase 1 types + DESIGNATION record (inactive, Phase 1B)
+- [L983–L1048] TASK-DOCS-008 — Seed number_series — all 11 series records + 2026 year sequences for Phase 1 active series
+- [L1049–L1196] TASK-DOCS-009 — [ABAC] Implement DOCS ABAC policy guard rules (document, document_version, document_attachment, number_series resource types)
+- [L1197–L1337] TASK-DOCS-010 — Implement OCR service job wrapper (auto-enqueue on upload, quality score callback, manual re-OCR trigger) + first-page preview generation
+- [L1338–L1441] TASK-DOCS-011 — [ABAC][AUDIT] Implement documents tRPC router — general CRUD (eight procedures)
+- [L1442–L1538] TASK-DOCS-012 — [ABAC][AUDIT] Implement documents tRPC router — SP workflow specifics and Secretariat decision delegation (eight procedures)
+- [L1539–L1631] TASK-DOCS-013 — [ABAC] Implement documents tRPC router — file, version, and attachment handling (nine procedures)
+- [L1632–L1724] TASK-DOCS-014 — [AUDIT] Implement Panlalawigan review tRPC procedures (initiate transmittal, log outcome, deemed-approved timer)
+- [L1725–L1796] TASK-DOCS-015 — Implement signature recording tRPC procedures (log signature, upload scan image, get signature records)
+- [L1797–L1882] TASK-DOCS-016 — [ABAC][AUDIT] Implement complaints tRPC router — internal SP Secretariat side (five procedures)
+- [L1883–L1984] TASK-DOCS-017 — [ABAC][AUDIT] Implement document requests tRPC router — internal SP Secretariat side (six procedures)
+- [L1985–L2087] TASK-DOCS-018 — [ABAC][AUDIT] Implement DESIGNATION document logging handler (atomic delegation grant creation on document log)
+- [L2088–L2189] TASK-DOCS-019 — Wire DOCS Fastify plugin and inject Published API into dependent module stubs
+- [L2190–L2421] TASK-DOCS-020 — Setup client tRPC, auth context, Web Crypto PKCE generator, and backend CORS/root router fixes
+- [L2422–L2541] TASK-DOCS-021 — Create interactive document list view with metadata filter bars and status badges
+- [L2542–L2723] TASK-DOCS-022 — Build multi-step wizard for new document creation and direct-to-S3 file uploading
+- [L2724–L3305] TASK-DOCS-023 — Implement comprehensive document view showing version history, OCR text, and signatures
+- [L3306–L3430] Module Summary -- DOCS — Provide summary metrics, dependency charts, unresolved gaps, and downstream consumers
 
 ---
+
+
 
 ## TASK-DOCS-001
 
@@ -2852,10 +2721,592 @@ AI Prompt: |
 
 ---
 
+## TASK-DOCS-023
+
+Phase:          1 (Frontend)
+Module:         DOCS
+Title:          Document Detail page
+Prerequisites:  [TASK-DOCS-020, TASK-DOCS-021, TASK-DOCS-022, TASK-UI-012, TASK-UI-013, TASK-UI-015, TASK-UI-016, TASK-TRACK-007, TASK-WF-018]
+
+Deliverables:
+  - `/apps/web/src/pages/documents/DocumentDetailPage.tsx` — route component for
+    `/documents/:documentId`. Composes `StatusBadge` (TASK-UI-015),
+    `WorkflowStepIndicator` (TASK-UI-016), `RoutingHistoryTimeline` (TASK-UI-012),
+    and `QRCodeDisplay` (TASK-UI-013) — all four exist as
+    `/packages/ui/src/components/domain/*.tsx` already; this task wires data into
+    them, not their internal rendering.
+  - `/apps/web/src/main.tsx` — add the `/documents/:documentId` route pointing at
+    `DocumentDetailPage`, after the existing `/documents/new` route from
+    TASK-DOCS-022.
+  - `/apps/web/src/hooks/useScanQualityPolling.ts` — wraps
+    `trpc.documents.getScanQualityIndicator.useQuery({ versionId })` with a
+    `refetchInterval` that polls while `scanQualityCategory` is `null` and stops
+    once resolved.
+
+Acceptance Criteria:
+  - [ ] `pnpm typecheck` passes
+  - [ ] Page loads via `trpc.documents.get.useQuery({ documentId })` and renders
+    for exactly these 10 roles: `records_officer`, `dept_encoder`,
+    `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`,
+    `mayor`, `brgy_encoder`, `brgy_captain`, `auditor`. `sys_admin` cannot reach
+    this route's content — it is not in `documents.get`'s callable-by list at
+    all and reaches only `documents.getMetadataForAdmin` from its own §13 area.
+  - [ ] `officeScopeId`/office-scoping handling: the page must not assume a
+    document belongs to the viewer's own office. Cross-office reads are
+    permitted for `records_officer`/`sp_secretary`/`sp_presiding_officer`/
+    `mayor`/`auditor` when `classificationLevel IN ('public','internal')`; a
+    document whose `originatingOfficeId`/`ownedByOfficeId` differ from the
+    viewer's own office must not be treated as an error state.
+  - [ ] Each Lifecycle/Portal/File-OCR action button is shown/hidden or
+    disabled per its own callable-by set below — never gated by the blanket
+    10-role page-level list.
+  - [ ] Scan-quality indicator polls via `useScanQualityPolling` and stops once
+    `scanQualityCategory` resolves to non-null; a document whose OCR already
+    completed before Detail opens must not start polling at all.
+  - [ ] `records.*` action buttons (Classification, Legal Hold, Retention
+    Schedule) are NOT implemented in this task. Omit them entirely — do not
+    render disabled/stubbed buttons referencing them.
+  - [ ] Lifecycle-state text rendered anywhere on the page uses one of the 11
+    real values listed in the Lifecycle-State Gap note below, not any of
+    `under_review`/`approved`/`rejected`.
+  - [ ] The Secretariat decision action (approve/reject/amend), if built, calls
+    `workflow.submitStepAction`, not `documents.logSecretariatDecision` — see
+    the Superseded Procedure note below.
+  - [ ] `pnpm test` passes
+
+AI Prompt: |
+  You are building Document Detail, the richest page in the DOCS frontend —
+  nearly every document lifecycle action funnels through it. Foundation
+  (TASK-DOCS-020) built the tRPC client and auth (`useAuth()`, `trpc`, query
+  client — import, don't rebuild). List (TASK-DOCS-021) and Intake
+  (TASK-DOCS-022) established page/route conventions this task follows.
+
+  ═══════════════════════════════════════════════════════════════════════
+  DATABASE SCHEMA — documents.documents (relevant columns)
+  ═══════════════════════════════════════════════════════════════════════
+  ```sql
+  id                     UUID        PRIMARY KEY
+  document_type_id       UUID        NOT NULL
+  title                  TEXT        NOT NULL
+  lifecycle_state        TEXT        NOT NULL  -- see enum below
+  classification_level   TEXT        NOT NULL  -- 'public'|'internal'|'confidential'|'restricted'
+  qr_tracking_number     UUID        NOT NULL
+  preliminary_number     TEXT        NULL
+  final_number           TEXT        NULL
+  control_number         TEXT        NULL      -- Letters Received/Sent only
+  originating_office_id  UUID        NOT NULL  -- cross-schema FK → organization.offices.id
+  owned_by_office_id     UUID        NOT NULL  -- cross-schema FK → organization.offices.id
+  workflow_instance_id   UUID        NULL      -- cross-schema FK → workflow.instances.id
+  created_by             UUID        NOT NULL  -- cross-schema FK → iam.users.id
+  metadata               JSONB       NULL DEFAULT '{}'
+  superseded_by          UUID        NULL      -- FK → documents.documents(id)
+  superseded_at          TIMESTAMPTZ NULL
+  closure_reason         TEXT        NULL
+  created_at             TIMESTAMPTZ NOT NULL
+  updated_at             TIMESTAMPTZ NOT NULL
+  ```
+
+  documents.versions (relevant columns — needed for scan-quality polling):
+  ```sql
+  id                            UUID    PRIMARY KEY
+  document_id                   UUID    NOT NULL
+  version_number                INTEGER NOT NULL
+  original_filename             TEXT    NULL
+  mime_type                     TEXT    NOT NULL
+  file_size_bytes               BIGINT  NULL
+  page_count                    INTEGER NULL
+  scan_quality_score            NUMERIC(4,3) NULL  -- 0.0–1.0, nullable until OCR completes
+  scan_quality_category         TEXT    NULL  -- 'good'|'fair'|'poor', nullable until OCR completes
+  ocr_processed                 BOOLEAN NOT NULL DEFAULT false
+  ocr_text                      TEXT    NULL
+  requires_manual_verification  BOOLEAN NOT NULL DEFAULT false
+  verified_by                   UUID    NULL
+  verified_at                   TIMESTAMPTZ NULL
+  ```
+
+  ═══════════════════════════════════════════════════════════════════════
+  [SPEC GAP — DOCS-023-02] Lifecycle-state enum mismatch between E1 and the
+  real codebase — use the real one
+  ═══════════════════════════════════════════════════════════════════════
+  E1's procedure catalog declares `documentLifecycleStateEnum` as
+  `draft, under_review, pending_mayor_action, pending_panlalawigan_review,
+  approved, released, superseded, cancelled, rejected` and claims this
+  "mirrors C1 exactly." It does not. Verified directly against three real
+  sources, all three agreeing with each other and disagreeing with E1's
+  declared enum:
+
+  - C1's actual DDL CHECK constraint on `documents.documents.lifecycle_state`:
+    `draft, submitted, in_workflow, pending_mayor_action,
+    pending_panlalawigan_review, completed, released, archived, disposed,
+    cancelled, superseded` (11 values)
+  - `packages/shared/src/schemas/documents.ts`'s real `LifecycleStateSchema`:
+    identical 11-value list to C1
+  - `apps/server/.../documents.service.ts`'s real state-machine transition
+    table: uses `'draft'→'submitted'→'in_workflow'→...`, not
+    `'draft'→'under_review'→...`
+
+  **Use the real 11-value enum everywhere on this page** — for any status
+  text, badge state, or conditional rendering keyed on lifecycle state. Do
+  not use `under_review`, `approved`, or `rejected` — they do not exist in
+  the real schema and will never appear in `documents.get`'s actual
+  `lifecycleState` field at runtime.
+
+  `StatusBadge` (TASK-UI-015) already consumes the correct 26-member
+  `DocumentState` union (from `packages/ui/src/types/domain.ts`), which is a
+  frontend projection of the real 11-value backend enum via
+  `mapLifecycleStateToDocumentState()` in `apps/web/src/lib/status-mapping.ts`
+  — use that existing mapping function, do not write a second one.
+
+  Known pre-existing gap in that mapping function (not this task's problem
+  to fix, just be aware): `superseded` maps to `'ARCHIVED'` as a placeholder
+  pending a future design decision — this is already marked `[Inference]` in
+  the mapping function's own code comment.
+
+  ═══════════════════════════════════════════════════════════════════════
+  SCOPE, BY PROCEDURE GROUP
+  ═══════════════════════════════════════════════════════════════════════
+  Six of seven groups have real, implemented, or in-scope backends. One
+  (Records) does not — see the gap note further below before building
+  anything in that group.
+
+  ── READ GROUP ──
+
+  documents.get
+    Type: query
+    Input:  { documentId: string (uuid) }
+    Output: {
+      documentId: string (uuid),
+      documentTypeId: string (uuid),
+      documentTypeName: string,
+      title: string,
+      lifecycleState: <real 11-value enum, see gap note above>,
+      classificationLevel: 'public'|'internal'|'confidential'|'restricted',
+      originatingOfficeId: string (uuid),
+      ownedByOfficeId: string (uuid),
+      preliminaryNumber: string | null,
+      finalNumber: string | null,
+      qrTrackingNumber: string (uuid),
+      metadata: Record<string, unknown>,
+      createdBy: string (uuid),
+      createdAt: Date,
+      supersededBy: string (uuid) | null,
+      supersededAt: Date | null,
+      closureReason: string | null,
+    }
+    Callable by: records_officer, dept_encoder, dept_approver, sp_secretary,
+      sp_member, sp_presiding_officer, mayor, brgy_encoder, brgy_captain, auditor
+    ABAC: own-office read always allowed for the listed roles. Cross-office
+      read for records_officer/sp_secretary/sp_presiding_officer/mayor/auditor
+      requires classificationLevel IN ('public','internal') AND a
+      cross-office read grant. sp_member cross-committee read requires their
+      committee to intersect the document's assigned committee, or the
+      document having been read into an SP session. classificationLevel =
+      'public' is always readable by anyone authenticated. sys_admin is not
+      in this callable-by list at all — it reaches only
+      documents.getMetadataForAdmin (sys_admin-only, excludes metadata/
+      version/attachment fields), which belongs to a separate admin area,
+      not this page.
+
+  documents.getVersionHistory
+    Type: query
+    Input:  { documentId: string (uuid) }
+    Output: array of {
+      versionId: string (uuid), versionNumber: number,
+      originalFilename: string | null, mimeType: string,
+      fileSizeBytes: number, uploadedBy: string (uuid), uploadedAt: Date,
+      scanQualityCategory: 'good'|'fair'|'poor' | null,
+    }
+    Callable by: same 10 roles as documents.get
+    ABAC: same own-office/cross-office/committee scoping as documents.get
+
+  documents.downloadVersion
+    Type: mutation (issues a time-limited URL + logs access — a side effect,
+      not a pure cacheable read)
+    Input:  { versionId: string (uuid) }
+    Output: { presignedDownloadUrl: string (url), expiresInSeconds: number }
+    Callable by: same 10 roles as documents.get
+    ABAC: same as documents.get's content-read variant. sys_admin has no
+      grant here at all for any classification level, not even public/
+      internal — content access is a non-feature for sys_admin, not merely
+      gated.
+
+  documents.getOcrText
+    Type: query
+    Input:  { versionId: string (uuid) }
+    Output: { ocrText: string | null, ocrProcessed: boolean }
+    Callable by: same 10 roles as documents.get
+    ABAC: same own-office/cross-office scoping as version read; sys_admin
+      excluded for confidential/restricted documents, consistent with
+      treating OCR text as document content.
+
+  ── LIFECYCLE GROUP ──
+
+  documents.update
+    Type: mutation
+    Input:  { documentId: string (uuid), title?: string (max 500),
+              metadata?: Record<string, unknown> }
+    Output: { success: true }
+    Callable by: dept_encoder, dept_approver, sp_secretary, sp_presiding_officer,
+      mayor, brgy_encoder, brgy_captain, sp_member (own-authored drafts only)
+    ABAC: lifecycleState must be 'draft'. Once past Draft, this procedure is
+      unreachable for content edits — later amendments go through a separate
+      workflow amendment step, not this procedure. sp_member additionally
+      requires they authored the document.
+
+  documents.submit
+    Type: mutation
+    Input:  { documentId: string (uuid) }
+    Output: { lifecycleState: 'submitted', qrTrackingNumber: string (uuid) | null,
+              preliminaryNumber: string | null }
+    Callable by: dept_encoder, dept_approver, sp_secretary, sp_member,
+      sp_presiding_officer, mayor, brgy_encoder, brgy_captain
+    ABAC: lifecycleState must be 'draft'. For SP workflow document types
+      (resolution/ordinance/appropriation ordinance), formal submission that
+      triggers workflow-instance creation and QR assignment additionally
+      requires the sp_secretary role — an sp_member calling this on their
+      own drafted resolution is rejected and must hand off to the
+      Secretariat (the draft stays editable by them via documents.update in
+      the meantime).
+
+  documents.assignPreliminaryNumber
+    Type: mutation
+    Input:  { documentId: string (uuid) }
+    Output: { preliminaryNumber: string }
+    Callable by: sp_secretary only
+    ABAC: SP workflow document types only; lifecycleState IN ('submitted',
+      'in_workflow' — i.e. specifically at the secretariat logging step);
+      preliminaryNumber must currently be null.
+
+  documents.assignFinalNumber
+    Type: mutation
+    Input:  { documentId: string (uuid) }
+    Output: { finalNumber: string, assignedAt: Date }
+    Callable by: sp_secretary only
+    ABAC: SP workflow document types only. Current workflow step must be at
+      the appropriate vote-completed stage for the document type.
+      preliminaryNumber must be set and finalNumber must be null. Once set,
+      finalNumber is immutable (DB-trigger-enforced).
+      Note: production traffic to this exact effect can also come from the
+      Workflow module automatically at the right lifecycle event — this
+      button is the equivalent manually-triggerable form for when the SP
+      Secretary needs to fire it directly. Both paths converge on one
+      underlying call, so show this as a "Finalize Number" button only when
+      its precondition is actually met.
+
+  documents.cancel
+    Type: mutation
+    Input:  { documentId: string (uuid), reason: string (required, min 1 char) }
+    Output: { success: true }
+    Callable by: dept_approver, sp_secretary, sp_presiding_officer, mayor,
+      brgy_captain unconditionally; dept_encoder, brgy_encoder conditionally
+    ABAC: lifecycleState not IN ('superseded','cancelled') — note: E1's own
+      text also lists 'rejected' in this exclusion set, which per the
+      lifecycle-enum gap note above does not exist in the real schema;
+      exclude only the two real terminal-ish states that actually appear.
+      For dept_encoder/brgy_encoder: additionally lifecycleState IN
+      ('draft','submitted') AND no workflow_instance_id set yet.
+
+  documents.delete
+    Type: mutation
+    Input:  { documentId: string (uuid) }
+    Output: { success: true }
+    Callable by: dept_encoder, dept_approver, sp_secretary, sp_presiding_officer,
+      mayor, brgy_encoder, brgy_captain
+    ABAC: lifecycleState IN ('draft','submitted') AND no workflow_instance_id
+      set. This is a soft delete (sets deleted_at/deleted_by) — never a hard
+      DELETE.
+
+  documents.archive
+    Type: mutation
+    Input:  { documentId: string (uuid) }
+    Output: { success: true }
+    Callable by: records_officer, sp_secretary
+    ABAC: lifecycleState IN ('completed','released'). For sp_secretary:
+      additionally the document must be owned by the SP Secretariat office —
+      sp_secretary may only archive SP-originated documents; other offices'
+      documents require a Records Officer.
+
+  documents.logCertificationOfUrgency
+    Type: mutation
+    Input:  { certifyingDocumentId: string (uuid),
+              associatedMeasureIds: array of string (uuid), min 1 }
+    Output: { certificationDocumentId: string (uuid),
+              affectedDocumentIds: array of string (uuid) }
+    Callable by: sp_secretary only
+    ABAC: the certifying document must be of type Certification of Urgency.
+      Every referenced measure must be a resolution/ordinance/appropriation
+      ordinance in the pending-mayor-action-equivalent active state with its
+      current workflow step at the committee-referral-pending stage. If any
+      referenced measure fails this check, the whole action is rejected, not
+      partially applied.
+    Note: this action attaches an already-created Certification document
+      (created separately via documents.create/submit) — it is the
+      logging/attachment step, not creation of the Certification itself.
+
+  documents.logSecretariatDecision — SUPERSEDED, DO NOT CALL DIRECTLY
+    [SPEC GAP — DOCS-023-03, resolved]: this procedure name appears in F1
+    §7.3's Lifecycle group, but its own E1 entry marks it
+    "[Routing superseded by ADR-B2-3]". The real code path for the
+    Secretariat's Approve/Reject/Amended decision action is now
+    workflow.submitStepAction(stepInstanceId, outcome), which atomically
+    advances the workflow step AND synchronously updates the document's
+    lifecycle state — documents.logSecretariatDecision itself is no longer
+    the entry point. If building a Secretariat decision action on this page,
+    call workflow.submitStepAction, not documents.logSecretariatDecision.
+
+  ── PORTAL VISIBILITY GROUP ──
+
+  documents.publishToPortal / documents.unpublishFromPortal
+    Type: mutation
+    Input:  { documentId: string (uuid) }
+    Output: { success: true }
+    Callable by: sp_secretary only
+    ABAC: SP workflow document types only; lifecycleState IN ('released',
+      'superseded'); AND either classificationLevel = 'public', OR
+      (classificationLevel = 'internal' AND the document type's public
+      visibility rule allows title-and-first-page public display).
+
+  ── FILE & OCR GROUP ──
+
+  documents.requestUploadUrl
+    Type: mutation
+    Input:  { documentId: string (uuid), filename: string,
+              mimeType: string, fileSizeBytes: number (max 25MB) }
+    Output: { presignedUploadUrl: string (url), s3Key: string (uuid) }
+    Callable by: dept_encoder, dept_approver, sp_secretary,
+      sp_member (own-authored only), sp_presiding_officer, mayor,
+      brgy_encoder, brgy_captain
+    ABAC: parent document must be in caller's effective offices. sp_member:
+      must be the document's author.
+    Note: same direct-to-S3 pattern as TASK-DOCS-022's intake flow — request
+      URL, client PUTs directly to S3, then confirmUpload.
+
+  documents.confirmUpload
+    Type: mutation
+    Input:  { documentId: string (uuid), s3Key: string (uuid),
+              originalFilename: string, mimeType: string,
+              fileSizeBytes: number, pageCount?: number }
+    Output: { versionId: string (uuid), versionNumber: number,
+              ocrQueued: true }
+    Callable by: same as documents.requestUploadUrl
+    ABAC: same as documents.requestUploadUrl
+    Note: OCR runs automatically on upload with no separate trigger needed —
+      the queued job writes scanQualityScore/scanQualityCategory/ocrText
+      back onto this version row asynchronously, later.
+
+  documents.getScanQualityIndicator  ⚠ REQUIRED FOR useScanQualityPolling
+    Type: query
+    Input:  { versionId: string (uuid) }   — NOT documentId
+    Output: { scanQualityScore: number (0-1) | null,
+              scanQualityCategory: 'good'|'fair'|'poor' | null }
+    Callable by: records_officer, dept_encoder, dept_approver, sp_secretary,
+      sp_member, sp_presiding_officer, mayor, brgy_encoder, brgy_captain
+      (note: this list does not include auditor, unlike most other Read
+      procedures on this page)
+    ABAC: caller must be the document's author, OR the document must be in
+      caller's effective offices — looser than general content read (no
+      classification narrowing), because the quality score is a processing
+      artifact, not document content, and must reach the uploader even
+      before they know the document's eventual classification.
+    ⚠ CRITICAL: this procedure takes versionId, not documentId. Detail must
+      first resolve the current version's versionId — via
+      documents.getVersionHistory or the initial documents.get load — before
+      this hook can be called.
+
+  documents.triggerManualReOcr
+    Type: mutation
+    Input:  { versionId: string (uuid) }
+    Output: { ocrQueued: true }
+    Callable by: records_officer, sp_secretary
+    ABAC: none beyond role gate.
+
+  documents.flagScannedBackForVerification
+    Type: mutation
+    Input:  { versionId: string (uuid), notes?: string }
+    Output: { success: true }
+    Callable by: records_officer only
+    ABAC: none beyond role gate.
+
+  documents.acceptScannedBackAsOfficial
+    Type: mutation
+    Input:  { versionId: string (uuid) }
+    Output: { success: true }
+    Callable by: records_officer, sp_secretary
+    ABAC: none beyond role gate.
+
+  ── TRACKING GROUP — [Confirmed] implemented in TASK-TRACK-007 ──
+
+  tracking.getTrackingRecord
+    Type: query
+    Input:  { documentId: string (uuid) }
+    Output: { trackingId: string (uuid), documentId: string (uuid),
+              trackingNumber: string (e.g. 'DTS-2026-0001'),
+              qrCodeS3Key: string, assignedAt: Date,
+              physicalLocation: string | null }
+    Callable by: records_officer, dept_encoder, dept_approver, sp_secretary,
+      sp_member, sp_presiding_officer, mayor, brgy_encoder, brgy_captain,
+      auditor
+    ABAC: same own-office/cross-office-with-grant pattern as documents.get —
+      governed by the parent document's office/classification, not an
+      independent classification of its own.
+
+  tracking.printQrCoverSheet
+    Type: query (returns a render-ready payload, not a write)
+    Input:  { documentIds: array of string (uuid), min 1,
+              layout: 'single'|'multi_per_page' (default 'multi_per_page') }
+    Output: { pdfPresignedUrl: string (url) }
+    Callable by: sp_secretary only
+    ABAC: document(s) must be in SP Secretariat's scope.
+    Note: cover sheet contains only 3 fields — QR Code, Tracking Number,
+      Series Number. multi_per_page arranges several cover sheets on one
+      physical sheet to save paper.
+
+  tracking.getRoutingHistory
+    Type: query
+    Input:  { documentId: string (uuid) }
+    Output: array of { entryId: string (uuid), fromOfficeId: string (uuid) |
+              null, toOfficeId: string (uuid) | null, actorId: string (uuid),
+              actorDisplayName: string, actionDescription: string,
+              timestamp: Date }
+    Callable by: records_officer, dept_encoder, dept_approver, sp_secretary,
+      sp_member, sp_presiding_officer, mayor, brgy_encoder, brgy_captain,
+      auditor (own-office); sp_secretary, sp_presiding_officer, mayor,
+      records_officer, auditor (cross-office, classification-gated)
+    ABAC: own-office unconditional for operational roles; cross-office
+      requires classificationLevel IN ('public','internal').
+    Note: this is the authenticated internal view. The public unauthenticated
+      QR-scan result uses a completely separate REST endpoint, not this
+      procedure.
+
+  tracking.logRoutingEntry
+    Type: mutation
+    Input:  { documentId: string (uuid), toOfficeId: string (uuid) | null,
+              actionDescription: string (min 1) }
+    Output: { entryId: string (uuid) }
+    Callable by: sp_secretary only
+    ABAC: document must be owned by SP Secretariat.
+    Note: physical routing logging by other offices is deferred to Phase 2.
+
+  ── WORKFLOW LINK-OUT GROUP — [Confirmed] implemented in TASK-WF-018 ──
+
+  workflow.getActiveInstanceForDocument
+    Type: query
+    Input:  { documentId: string (uuid) }
+    Output (nullable): { instanceId: string (uuid), documentId: string (uuid),
+      definitionVersionId: string (uuid),
+      currentStepType: 'action'|'approval'|'multi_referral'|'decision'|
+        'notification'|'termination'|'parallel_split'|'parallel_join',
+      currentStepInstanceId: string (uuid),
+      currentAssigneeUserId: string (uuid) | null,
+      status: 'Active'|'Completed'|'Cancelled',
+      slaDeadline: Date | null,
+      lapseStatus: 'mayor_10_day_lapsed'|'panlalawigan_30_day_deemed' | null }
+    Callable by: plat_admin, records_officer, dept_encoder (scoped),
+      dept_approver (scoped), sp_secretary, sp_member (scoped),
+      sp_presiding_officer, mayor, brgy_encoder (scoped),
+      brgy_captain (scoped), auditor
+    ABAC: own-office instances readable by operational roles when scoped;
+      sp_secretary has unconditional full visibility across SP Secretariat
+      scope; cross-office read for records_officer/sp_presiding_officer/
+      mayor/auditor requires classificationLevel IN ('public','internal').
+    Links to /workflow/steps/:instanceId when a non-null instance exists.
+
+  ═══════════════════════════════════════════════════════════════════════
+  [SPEC GAP — DOCS-023-01] Records group has no implementing task or code
+  anywhere — DO NOT BUILD THIS GROUP
+  ═══════════════════════════════════════════════════════════════════════
+  F1 §7.3 names five records.* procedures for this page's Records group, all
+  five specified with full input/output schemas in E1, but confirmed absent
+  from both the codebase and every finished module's task list:
+
+  - No recordsRouter file, or any file matching *record*, exists anywhere
+    under apps/ or packages/.
+  - No task in any finished module's task list implements any of these five
+    procedure names.
+
+  The five specified (but unimplemented) procedures, for reference only —
+  do not call these, they don't exist yet:
+    records.applyClassification(documentId, classificationLevel) → success
+    records.isUnderLegalHold(documentId) → { underLegalHold: boolean }
+    records.placeLegalHold(documentId, reason) → success
+    records.removeLegalHold(documentId, reason) → success
+    records.applyRetentionSchedule(documentId, scheduleId) → success
+
+  One of these five (placeLegalHold/removeLegalHold) carries its own
+  narrower note in its spec: in Phase 1 it's meant to write to
+  documents.documents.metadata as a placeholder, since the dedicated
+  records schema tables are reserved but not yet populated — this may
+  indicate the absence is partly expected at the spec level for that one
+  procedure specifically. This does not extend to the other four, which
+  carry no comparable qualifier and are otherwise fully specified.
+
+  ACTION REQUIRED: do not build UI for this group. Do not stub disabled
+  buttons referencing these procedure names, and do not invent a storage
+  location or fallback behavior for them — that is the backend
+  procedure's own call to make when it is eventually implemented, not this
+  frontend task's call to make in its absence. When a task exists to
+  implement the records.* router, a follow-up frontend task should add
+  this group's five buttons to this page. The Deliverables and Acceptance
+  Criteria above already reflect this: the Records group is absent by
+  design, not by omission.
+
+  ═══════════════════════════════════════════════════════════════════════
+  SCAN-QUALITY POLLING — real functional requirement, not optional
+  ═══════════════════════════════════════════════════════════════════════
+  Intake's own task (TASK-DOCS-022) states: Detail is the page designed to
+  poll/refresh for scan-quality feedback once it exists; Intake's job ends
+  at a successful redirect. OCR runs async via a background job enqueued in
+  confirmUpload — that response tells you nothing about scan quality.
+  Detail cannot render getScanQualityIndicator's result as a one-time
+  static fetch; it must poll until the async job completes.
+
+  Both output fields (scanQualityScore, scanQualityCategory) are nullable
+  specifically because the OCR job may not have finished. Poll (refetchInterval
+  on the TanStack Query hook) while scanQualityCategory is null; stop once it
+  resolves. A document whose OCR already completed before Detail is opened
+  must not start an interval at all — recognize an already-resolved value on
+  first fetch.
+
+  ═══════════════════════════════════════════════════════════════════════
+  ROLE LIST AND ABAC — apply exactly
+  ═══════════════════════════════════════════════════════════════════════
+  The 10 callable-by roles for documents.get are listed above and in the
+  Acceptance Criteria. sys_admin is not in that callable-by list at all — it
+  reaches only documents.getMetadataForAdmin from its own System
+  Administrator area, not this route. Do not add a conditional branch for
+  sys_admin on this page.
+
+  This page does not use one blanket permission for every action button —
+  each action's own callable-by/ABAC list (pasted above, per procedure) is
+  the actual gate. Check each action button's own entry (e.g. documents.archive
+  is Records Officer/SP Secretary only) rather than gating every button by
+  the same 10-role list.
+
+  Before submitting this PR, confirm each item:
+  - [ ] pnpm typecheck passes
+  - [ ] Page renders correctly for all 10 confirmed roles, and sys_admin
+    cannot reach this route's content (only its own separate metadata-only
+    view)
+  - [ ] Each action button's visibility/disabled state matches its own
+    callable-by/ABAC list above, not a blanket page-level permission
+  - [ ] Scan-quality polling starts only when scanQualityCategory is null on
+    first fetch, and stops once it resolves
+  - [ ] No Records-group (records.*) button, stub, or disabled control
+    exists anywhere on this page
+  - [ ] All lifecycle-state text/logic uses the real 11-value enum (draft,
+    submitted, in_workflow, pending_mayor_action, pending_panlalawigan_review,
+    completed, released, archived, disposed, cancelled, superseded) — never
+    under_review/approved/rejected
+  - [ ] Any Secretariat decision action calls workflow.submitStepAction, not
+    documents.logSecretariatDecision
+  - [ ] pnpm test passes
+
+---
+
 ## Module Summary -- DOCS
 
-**Task count:** 19 (TASK-DOCS-001 through TASK-DOCS-019)
-**Estimated range from skeleton:** 14-22 tasks. Actual: 19. Within range.
+**Task count:** 23 (TASK-DOCS-001 through TASK-DOCS-023)
+**Estimated range from skeleton:** 14-22 tasks. Actual: 23. Within range.
 **Wave:** D (depends on ORG; precedes WORKFLOW, TRACKING, NOTIFICATIONS, PORTAL)
 
 ### Coverage map
@@ -2883,6 +3334,10 @@ AI Prompt: |
 | OCR service wrapper + OcrProvider interface | TASK-DOCS-010 |
 | DESIGNATION handler (cross-module atomic grant creation) | TASK-DOCS-018 |
 | Module wiring + sub-router merge + pgboss job registration | TASK-DOCS-019 |
+| Frontend tRPC foundation & auth PKCE integration | TASK-DOCS-020 |
+| Frontend Document List Page | TASK-DOCS-021 |
+| Frontend Document Intake flow & form | TASK-DOCS-022 |
+| Frontend Document Detail Page | TASK-DOCS-023 |
 
 ### Cross-module dependency map
 
@@ -2894,6 +3349,13 @@ AI Prompt: |
 | TASK-ORG-009 (office seed) | authority_office_id in number_series seed | TASK-DOCS-008 |
 | TASK-ORG-010 (ORG wire plugin) | fastify.orgService at documents plugin init | TASK-DOCS-019 |
 | TASK-IAM-004 (IAM PolicyGuard + PolicyEvaluator) | SubjectContext type + ABAC base pattern | TASK-DOCS-009 |
+| TASK-IAM-014 (IAM Session/Auth procedures) | Auth session handling in client foundation | TASK-DOCS-020 |
+| TASK-UI-012 (Tier 1 components) | Form buttons, layout shells, basic primitives | TASK-DOCS-023 |
+| TASK-UI-013 (Tier 2 components) | Dialogs, slide-overs, complex form fields | TASK-DOCS-023 |
+| TASK-UI-015 (UI layouts) | Shell, page structures, global layouts | TASK-DOCS-023 |
+| TASK-UI-016 (UI navigation components) | Navbar, sidebar, pagination indicators | TASK-DOCS-023 |
+| TASK-TRACK-007 (Tracking procedures/methods) | Document tracking and QR history display | TASK-DOCS-023 |
+| TASK-WF-018 (Workflow client/router) | Interactive action triggers on detail page | TASK-DOCS-023 |
 | TASK-INFRA-005 (env validation) | S3 + OCR env vars | TASK-DOCS-001, TASK-DOCS-010 |
 | TASK-INFRA-006 (fn_set_updated_at) | all DOCS tables use updated_at trigger | TASK-DOCS-001 |
 | INFRA pgboss task (ID unknown) | OcrService, PanlalawiganTimer | TASK-DOCS-010, TASK-DOCS-014 |
