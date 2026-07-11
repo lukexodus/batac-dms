@@ -78,6 +78,7 @@ State the conflict and which document you followed and why.
 | Write or amend an ADR                                                               | J5 → the relevant document above for the decision's domain                                                                                  |
 | Execute an A1 task (development phase)                                              | AGENTS.md (this file) + the row matching the task type above + `docs/development-findings-log.md` confirmed entries for the relevant module |
 | Generate or update A1 itself (A1-generation phase)                                  | See `docs/pre-development/A1-AGENTS.md` — a separate routing file governs A1 generation                                                     |
+| Continue a Mechanism-2 (post-closure forensic) task in fe.md or equivalent | fe.md's own task text (self-contained by design) → fe-handoff.md's "Office-Scoping Pattern" and "Workflow Engine — Outcome Handling" sections only if the task touches office-gated mutations or step-completion primitives |
 
 **Note on Tier 3 component tasks:** Every Tier 3 component PR includes a
 `/dev/{component-name}` dev route as a mandatory deliverable — not a separate
