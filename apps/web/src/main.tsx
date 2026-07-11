@@ -18,6 +18,7 @@ import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage"
 import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
 import DocumentDetailPage from "./pages/documents/DocumentDetailPage";
 import { ComplaintsListPage } from "./pages/documents/ComplaintsListPage";
+import { ComplaintIntakeClerkAssistedPage } from "./pages/complaints/ComplaintIntakeClerkAssistedPage";
 import { DocumentRequestsListPage } from "./pages/documents/DocumentRequestsListPage";
 import { SecretaryDashboardPage } from "./pages/workflow/SecretaryDashboardPage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
@@ -77,6 +78,8 @@ const router = createBrowserRouter([
     element: <ComplaintsListPage />,
   },
   {
+    path: "/complaints/new",
+    element: <ComplaintIntakeClerkAssistedPage />,
     path: "/document-requests",
     element: <DocumentRequestsListPage />,
   },
