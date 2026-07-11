@@ -19,6 +19,7 @@ import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
 import DocumentDetailPage from "./pages/documents/DocumentDetailPage";
 import { ComplaintsListPage } from "./pages/documents/ComplaintsListPage";
 import { DocumentRequestsListPage } from "./pages/documents/DocumentRequestsListPage";
+import { DocumentRequestIntakeClerkAssistedPage } from "./pages/documents/DocumentRequestIntakeClerkAssistedPage";
 import { SecretaryDashboardPage } from "./pages/workflow/SecretaryDashboardPage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
 import AppShellPage from "./pages/dev/AppShellPage";
@@ -79,6 +80,10 @@ const router = createBrowserRouter([
   {
     path: "/document-requests",
     element: <DocumentRequestsListPage />,
+  },
+  {
+    path: "/document-requests/new",
+    element: <DocumentRequestIntakeClerkAssistedPage />,
   },
   {
     // /documents/new is registered before :documentId so the static segment
