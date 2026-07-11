@@ -1,7 +1,7 @@
 .git/
 .obsidian/
 patches/
-docs/compressed-exploration-findings/
+# docs/compressed-exploration-findings/
 
 batac-dms/
 "batac-dms (2)/"
