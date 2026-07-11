@@ -301,6 +301,28 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         );
       }),
 
+    // Scope-expanded for TASK-FE-IAM-002: `createUserAccount` (iam.router.ts)
+    // is gated by isItAdmin. Its `employeeId` input requires an employee picker
+    // on the frontend. The existing `listEmployees` procedure is gated by
+    // isPlatformAdmin only, making it unreachable for system administrators.
+    // This procedure exposes identical data under the isItAdmin gate so the
+    // sysadmin UI can populate the picker. Decision: minimal/justified expansion,
+    // same Option-C reasoning as IAM-001's listRoleAssignmentsByUser.
+    listEmployeesForSysAdmin: protectedProcedure
+      .input(s.ListEmployeesInput)
+      .query(async ({ ctx, input }) => {
+        if (!ctx.auth.isItAdmin) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'System Administrator access required.' });
+        }
+        const { orgService } = getDeps(ctx);
+        return orgService.listEmployees(
+          ctx.auth.cityId,
+          input.limit,
+          input.cursor,
+          input.search
+        );
+      }),
+
     createEmployee: protectedProcedure
       .input(s.CreateEmployeeInput)
       .mutation(async ({ ctx, input }) => {

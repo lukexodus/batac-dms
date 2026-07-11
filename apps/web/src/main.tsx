@@ -13,6 +13,9 @@ import { trpc, trpcClient } from './lib/trpc.js';
 import { DocumentListPage } from "./pages/documents/DocumentListPage";
 import { CommitteeManagementPage } from "./pages/organization/CommitteeManagementPage";
 import { RoleAssignmentPage } from "./pages/iam/RoleAssignmentPage";
+import { SystemAdminHomePage } from "./pages/sysadmin/SystemAdminHomePage";
+import { ActiveSessionsPage } from "./pages/sysadmin/ActiveSessionsPage";
+import { UserAccountManagementPage } from "./pages/sysadmin/UserAccountManagementPage";
 import { MyAssignedStepsPage } from "./pages/workflow/MyAssignedStepsPage";
 import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage";
 import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
@@ -54,6 +57,18 @@ const router = createBrowserRouter([
     element: <RoleAssignmentPage />,
   },
   {
+    path: "/sysadmin",
+    element: <SystemAdminHomePage />,
+  },
+  {
+    path: "/sysadmin/sessions",
+    element: <ActiveSessionsPage />,
+  },
+  {
+    path: "/sysadmin/users",
+    element: <UserAccountManagementPage />,
+  },
+  {
     path: "/workflow/steps",
     element: <MyAssignedStepsPage />,
   },
@@ -80,6 +95,8 @@ const router = createBrowserRouter([
   {
     path: "/complaints/new",
     element: <ComplaintIntakeClerkAssistedPage />,
+  },
+  {
     path: "/document-requests",
     element: <DocumentRequestsListPage />,
   },
