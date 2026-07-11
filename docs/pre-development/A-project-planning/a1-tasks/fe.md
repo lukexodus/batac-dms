@@ -1,3 +1,30 @@
+
+## Table of Contents
+
+- [L28–L374] TASK-WF-FE-001 — Task inbox page listing all workflow steps currently assigned to the logged-in user.
+- [L375–L889] TASK-WF-FE-002 — Workflow step action detail page and prerequisite backend additions for committee list and panel hints.
+- [L890–L1373] TASK-WF-FE-003 — Fixes wrong mutation path and gating condition for the secretariat_decision step-completion workflow path.
+- [L1374–L1593] TIER 0 — Before Frontend Work Starts — Backend additions, bug fixes, and architecture decisions blocking subsequent frontend work.
+  - [L1380–L1481] TASK-PRE-01 — Add `complaints.get` and `documentRequests.get` (ADR-UI-005 was never implemented) — Implement get endpoints for complaints and document requests as specified in ADR-UI-005.
+  - [L1482–L1515] TASK-PRE-02 — Fix `organization.listCommittees` role gate (live bug in shipped code) — Widen `organization.listCommittees` role check to include `sp_member` to fix a live authorization bug.
+  - [L1516–L1547] TASK-PRE-03 — AUDIT backend/spec reconciliation (decision + implementation) — Resolve discrepancy between actual backend procedures and F1 spec for audit log query endpoints.
+  - [L1548–L1574] TASK-PRE-04 — Resolve Designation vs. Delegation (decision, not implementation) — Resolve product decision on automatic vs. manual substitute-officer selection for session attendance.
+  - [L1575–L1593] TASK-PRE-04b — Surface `presidedByEmployeeId` in `getAttendanceRecord` (conditional on TASK-PRE-04's outcome) — Expose `presidedByEmployeeId` in the session attendance record query to enable read-only substitute display.
+- [L1594–L1653] TIER 1 — IAM (no Tier 0 dependency) — Frontend task list for Identity and Access Management views and admin screens.
+- [L1654–L1702] TIER 2 — ORG (no Tier 0 dependency, except TASK-PRE-02 lands alongside) — Frontend task list for Organization structures, employees, and committee management views.
+- [L1703–L1757] TIER 3 — WF: Order of Business and Sessions — Frontend task list for legislative Order of Business and session attendance tracking.
+- [L1758–L1821] TIER 4 — WF: Dashboards — Frontend task list for role-specific landing dashboards (Secretary and Mayor).
+- [L1822–L1953] TIER 5 — DOCS: Complaints and Document Requests — Frontend task list for Document management workflows, including complaints and request tracking pages.
+  - [L1826–L1845] TASK-FE-DOCS-001 — `/complaints` (ComplaintsListPage) — Paginated list of citizen complaints with status filtering, linked to detail pages.
+  - [L1846–L1864] TASK-FE-DOCS-002 — `/complaints/new` (ComplaintIntakeClerkAssistedPage) — Clerk-assisted complaint intake form for SP Secretary, routing to details on success.
+  - [L1865–L1889] TASK-FE-DOCS-003 — `/complaints/:complaintId` (ComplaintDetailPage) — Complaint detail page with actions for assignment (Secretary), report entry (SP Member), and outcome resolution (Secretary).
+  - [L1890–L1909] TASK-FE-DOCS-004 — `/document-requests` (DocumentRequestsListPage) — Paginated list of document requests with name/number filters and simple dual-approval progress indicators.
+  - [L1910–L1928] TASK-FE-DOCS-005 — `/document-requests/new` (DocumentRequestIntakeClerkAssistedPage) — Clerk-assisted document request creation form with repeatable fields and a printable data layout view.
+  - [L1929–L1953] TASK-FE-DOCS-006 — `/document-requests/:requestId` (DocumentRequestDetailPage) — Document request detail page showing request details, dual approvals, and copy release actions.
+- [L1954–L1963] What's still not attempted, and why — unchanged from last turn, restated for completeness — Summary of unbuilt frontend routes and features that remain blocked on backend or spec decisions.
+
+---
+
 ## TASK-WF-FE-001
 
 ````
@@ -1335,3 +1362,602 @@ The corrected, office-scoped gate will likely **still match a broad set of steps
 
 - The stale rationale comment in `SecretariatDecisionPanel.tsx` is updated or removed.
 ````
+
+---
+
+# Batac City LGU Platform — Master Frontend Task List
+
+*Each task below is a complete, standalone implementation plan — written so an execution agent could pick up any single task with no other context and build it correctly. Everything here is verified directly against the live `batac-dms` repo this session; where the live code differs from what F1/ADRs state, I've used the live code and flagged the discrepancy rather than silently following the documents.*
+
+---
+
+## TIER 0 — Before Frontend Work Starts
+
+These are backend additions, one live bug fix, and two decisions. Nothing in Tier 1+ that depends on one of these should be started until it's resolved — each Tier 1+ task below states its Tier 0 dependency explicitly.
+
+---
+
+### TASK-PRE-01 — Add `complaints.get` and `documentRequests.get` (ADR-UI-005 was never implemented)
+
+**Type:** Backend addition. **Blocks:** `/complaints/:complaintId`, `/document-requests/:requestId`.
+
+**Context:** ADR-UI-005 (`docs/pre-development/F-frontend-architecture/f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md`), Status: Accepted, formally decided adding `complaints.get` and `documentRequests.get`. **Neither exists in the live routers.** Confirmed by direct read of `apps/server/src/modules/documents/complaints.router.ts` (5 procedures: `createComplaintClerkAssisted`, `logAndAssign`, `enterCommitteeReport`, `setOutcome`, `listAllComplaints` — no `get`) and `document-requests.router.ts` (6 procedures: `createDocumentRequestClerkAssisted`, `generatePrintableForm`, `approveAsPresidingOfficer`, `approveAsSecretary`, `releaseCopy`, `listAllDocumentRequests` — no `get`).
+
+**Deliverables:**
+- `apps/server/src/modules/documents/complaints.router.ts` — add `get: protectedProcedure`.
+- `apps/server/src/modules/documents/document-requests.router.ts` — add `get: protectedProcedure`.
+- Test coverage for both, following the existing per-file test convention (see `apps/server/src/modules/documents/__tests__/` if present, otherwise match `organization.router.test.ts`'s shape: one role-enforcement test per new procedure).
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] `complaints.get({ complaintId })` returns the full document row shaped like one item of `listAllComplaints`'s output (`complaintId`, `subjectMatter`, `outcomeState`, `assignedOfficeId`, `createdAt`) **plus** detail-only fields not in the list view: `committeeReport` (from `metadata.committeeReport`), `respondent` (from `metadata.respondent`), `incidentDetails` (from `metadata.incidentDetails`), `routingDecision` (from `metadata.routingDecision`).
+- [ ] `complaints.get` called by `sp_secretary`, `sp_presiding_officer`, or `auditor` succeeds unconditionally.
+- [ ] `complaints.get` called by `sp_member` succeeds only if `metadata.assignedOfficeId` is in `subject.committeeIds` — same condition already enforced in `enterCommitteeReport` (lines 162–169 of the live file), reuse it rather than reinventing the check.
+- [ ] `complaints.get` called by any other role, or by `sp_member` not assigned to the complaint's committee, returns `FORBIDDEN`.
+- [ ] `complaints.get` on a nonexistent or wrong-`cityId` complaint returns `NOT_FOUND` — match the existing `!document || document.cityId !== subject.cityId` pattern used in every other procedure in this file.
+- [ ] `documentRequests.get({ requestId })` returns the full row shaped like one item of `listAllDocumentRequests`'s output (`requestId`, `title`, `requesterName`, `lifecycleState`, `vmApproved`, `spApproved`, `accessMode`, `createdAt`) **plus** detail-only fields: `documentsRequested` (array), `purpose`, `payment`, `notificationChannel` — same fields `generatePrintableForm` already assembles (lines 212–223), reuse that shape rather than defining a new one.
+- [ ] `documentRequests.get` called by `sp_secretary`, `sp_presiding_officer`, `records_officer`, or `auditor` succeeds — same role list as `listAllDocumentRequests` (line 550).
+- [ ] `documentRequests.get` called by any other role returns `FORBIDDEN`.
+
+**AI Prompt:**
+> You are adding two missing single-record read procedures to the Batac City LGU platform's tRPC backend. ADR-UI-005 (read it first: `docs/pre-development/F-frontend-architecture/f1-application-route-map-adrs/ADR-UI-005-single-record-read-procedures.md`) formally decided to add `complaints.get` and `documentRequests.get`, but neither was ever implemented — this task closes that gap.
+>
+> For `complaints.get`, add to `apps/server/src/modules/documents/complaints.router.ts`, matching the file's existing style exactly (same `getRepository(ctx)`/`getDb(ctx)` helper pattern, same `TRPCError` usage, same inline role-check style already used in every other procedure in this file — do not introduce a new pattern):
+> ```ts
+> get: protectedProcedure
+>   .input(z.object({ complaintId: z.string().uuid() }))
+>   .query(async ({ ctx, input }) => {
+>     const subject = ctx.auth;
+>     const repo = getRepository(ctx);
+>     const document = await repo.findDocumentById(input.complaintId);
+>     if (!document || document.cityId !== subject.cityId) {
+>       throw new TRPCError({ code: 'NOT_FOUND' });
+>     }
+>     const metadata = document.metadata as Record<string, any>;
+>     const hasUnconditionalAccess =
+>       subject.roles.includes('sp_secretary') ||
+>       subject.roles.includes('sp_presiding_officer') ||
+>       subject.roles.includes('auditor');
+>     if (!hasUnconditionalAccess) {
+>       if (!subject.roles.includes('sp_member')) {
+>         throw new TRPCError({ code: 'FORBIDDEN' });
+>       }
+>       if (!metadata['assignedOfficeId'] || !subject.committeeIds.includes(metadata['assignedOfficeId'] as string)) {
+>         throw new TRPCError({ code: 'FORBIDDEN', message: 'Not assigned to this committee' });
+>       }
+>     }
+>     return {
+>       complaintId: document.id,
+>       subjectMatter: metadata['subjectCategory'] || 'Unknown',
+>       outcomeState: metadata['outcomeState'] || 'pending_hearing',
+>       assignedOfficeId: metadata['assignedOfficeId'] || null,
+>       createdAt: document.createdAt,
+>       committeeReport: metadata['committeeReport'] ?? null,
+>       respondent: metadata['respondent'] ?? null,
+>       incidentDetails: metadata['incidentDetails'] ?? null,
+>       routingDecision: metadata['routingDecision'] ?? null,
+>     };
+>   }),
+> ```
+> This mirrors `enterCommitteeReport`'s exact ABAC condition (lines 162–169) and `listAllComplaints`'s exact list-item shape (lines 306–315) plus the four detail fields named in the Acceptance Criteria — do not invent a different field set.
+>
+> For `documentRequests.get`, add to `apps/server/src/modules/documents/document-requests.router.ts`, same style conventions:
+> ```ts
+> get: protectedProcedure
+>   .input(z.object({ requestId: z.string().uuid() }))
+>   .query(async ({ ctx, input }) => {
+>     const subject = ctx.auth;
+>     const allowedRoles = ['sp_secretary', 'sp_presiding_officer', 'records_officer', 'auditor'];
+>     if (!allowedRoles.some((r) => subject.roles.includes(r))) {
+>       throw new TRPCError({ code: 'FORBIDDEN' });
+>     }
+>     const repo = getRepository(ctx);
+>     const document = await repo.findDocumentById(input.requestId);
+>     if (!document || document.cityId !== subject.cityId) {
+>       throw new TRPCError({ code: 'NOT_FOUND', message: 'Document request not found' });
+>     }
+>     const meta = document.metadata as Record<string, any>;
+>     return {
+>       requestId: document.id,
+>       title: document.title,
+>       requesterName: meta['requester']?.name ?? null,
+>       lifecycleState: document.lifecycleState,
+>       vmApproved: meta['vm_approved'] ?? false,
+>       spApproved: meta['sp_approved'] ?? false,
+>       accessMode: meta['accessMode'] ?? null,
+>       createdAt: document.createdAt,
+>       documentsRequested: meta['documentsRequested'] ?? [],
+>       purpose: meta['purpose'] ?? null,
+>       payment: meta['payment'] ?? null,
+>       notificationChannel: meta['notificationChannel'] ?? null,
+>     };
+>   }),
+> ```
+> This exact role list matches `listAllDocumentRequests` (line 550) and the field shape matches `generatePrintableForm`'s existing output (lines 212–223) merged with `listAllDocumentRequests`'s list-item shape (lines 625–637) — reuse both rather than defining new field names.
+>
+> Note for whoever picks up the DOCS frontend detail-page tasks afterward: the real procedure names in this codebase are `listAllComplaints`/`listAllDocumentRequests`, not `complaints.listAll`/`documentRequests.listAll` as F1 and this very ADR both say — F1's naming predates or diverged from the actual implementation. Use the real names.
+
+---
+
+### TASK-PRE-02 — Fix `organization.listCommittees` role gate (live bug in shipped code)
+
+**Type:** Bug fix, not new work. **Blocks:** nothing new — but should land before or alongside `/admin/committees` (Tier 2) since both touch the same procedure, and it's already breaking a real user today.
+
+**Context:** `organization.router.ts`'s `listCommittees` procedure (line 567) is gated to `requireAnyRole(ctx, ['plat_admin', 'sp_secretary'], ...)`. F1 §8.2 documents the Multi-Referral Panel's role set as "SP Secretary; SP Member (committee-scoped)" — and `apps/web/src/pages/workflow/panels/MultiReferralPanel.tsx` (already built, already shipped) calls `trpc.organization.listCommittees.useQuery(undefined, ...)` directly (line 38) with no fallback. **An SP Member opening the Multi-Referral Panel today receives `FORBIDDEN` on this call and cannot see the committee list needed to submit a committee report.** This is a live defect in already-shipped code, found by direct verification this session — not previously flagged in either the findings doc or the fe-handoff doc.
+
+**Deliverables:**
+- `apps/server/src/modules/organization/organization.router.ts` — widen `listCommittees`'s role check to include `sp_member`.
+- Existing `MultiReferralPanel.tsx` requires no change — it already calls the procedure correctly; only the server-side gate is wrong.
+- Update the test asserting `listCommittees` role enforcement, if one exists (check `organization.router.test.ts`).
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] `organization.listCommittees` called by `sp_member` succeeds (currently returns `FORBIDDEN` — this is the regression this task fixes).
+- [ ] `organization.listCommittees` called by `plat_admin` or `sp_secretary` still succeeds (no regression on existing access).
+- [ ] `organization.listCommittees` called by any role outside `{plat_admin, sp_secretary, sp_member}` still returns `FORBIDDEN`.
+- [ ] Manually verify (or add a test replicating) that `MultiReferralPanel.tsx` renders the committee list when loaded as an `sp_member` user with an active multi-referral step assigned.
+
+**AI Prompt:**
+> You are fixing a live authorization bug in the Batac City LGU platform. `apps/server/src/modules/organization/organization.router.ts` line 567 currently reads:
+> ```ts
+> listCommittees: protectedProcedure
+>   .query(async ({ ctx }) => {
+>     requireAnyRole(ctx, ['plat_admin', 'sp_secretary'], 'Access to committees list is not permitted for this role.');
+>     ...
+> ```
+> Change the role array to `['plat_admin', 'sp_secretary', 'sp_member']`. Do not change anything else in this procedure — the underlying query logic and output shape are correct and already used successfully by `plat_admin`/`sp_secretary` callers.
+>
+> Why this matters: `apps/web/src/pages/workflow/panels/MultiReferralPanel.tsx` (already built and shipped) calls this exact procedure with no role branching or fallback on its own side — it assumes any authorized viewer of the panel can call it. F1 §8.2's own role table for the Multi-Referral Panel names `SP Member (committee-scoped)` as a legitimate caller. The panel-level gate already correctly restricts *which* SP Members can act on a given referral (via `subject.committeeIds`), so widening this procedure's role gate does not open up anything the panel itself doesn't already scope correctly — it just stops blocking a caller the panel was always meant to support.
+>
+> Do not touch `DESIGNATION_READ_ROLES` (a different constant, a few lines above, gating `getActiveDesignations`/`getDesignationHistory`) — that one is correct as-is and out of scope for this fix.
+
+---
+
+### TASK-PRE-03 — AUDIT backend/spec reconciliation (decision + implementation)
+
+**Type:** Requires a human decision first, then backend implementation. **Blocks:** `/audit`, `/audit/full`, `/sysadmin/audit-integrity` (all three, entirely).
+
+**Context:** `apps/server/src/modules/audit/audit.router.ts` has exactly one procedure: `queryEvents`, gated to `sys_admin`/`auditor` only, taking `{ actorId?, targetId?, eventTypes?, from?, to?, pageSize?, cursor? }` and delegating to `AuditQueryService.queryEvents`. F1 §11 and §13.4 describe five different procedures — `listOwnActions`, `listOwnOfficeDocumentActions`, `listFullLog`, `validateChainIntegrity`, `exportEvents` — with a role split (all 12 internal roles can see their own actions at `/audit`; only Auditor sees the full log at `/audit/full`; only System Administrator gets chain-validation at `/sysadmin/audit-integrity`). None of F1's five names exist. `queryEvents`'s actual gate would reject 10 of the 12 roles F1 says should reach `/audit` at all.
+
+The underlying cryptographic primitives for chain validation **do exist** and work: `computeChainHash`, `canonicalizePayload`, `signHmac`, `verifyHmac` are all real, exported functions in `apps/server/src/modules/audit/audit.crypto.ts`. This is "wire existing crypto into a new gated procedure," not "invent hash-chain verification from scratch."
+
+**This task cannot be scoped further until a human picks one of two paths** — per this repo's own governance rule (confirmed directly in `A1-AGENTS.md` §8 this session: "A human resolves document issues between passes, not during them"), this is exactly that kind of decision, not one an agent should make unilaterally, because it has real security-scoping consequences (who can see whose audit trail).
+
+**Decision needed — pick one:**
+
+**Path A: Build F1's five procedures as specified.**
+- `listOwnActions` — query scoped to `actorId = ctx.auth.userId`, callable by all 12 roles. Can likely be implemented as a thin wrapper around the existing `AuditQueryService.queryEvents`, forcing `actorId` server-side rather than trusting a client-supplied value, with the role gate removed (or widened to all 12 roles) for this specific entry point.
+- `listOwnOfficeDocumentActions` — needs office-scoping logic; check whether `AuditQueryFilter` (the type `queryEvents` already accepts) has any office-level filter field, or whether this needs a new repository-level query. F1 restricts this variant to a named subset of roles (Records Officer, Department Approver, SP Secretary, SP Presiding Officer, Mayor, Barangay Captain, Auditor) — not all 12.
+- `listFullLog` — effectively `queryEvents` with no forced `actorId`, restricted to `auditor` only (tighter than the current `sys_admin`/`auditor` gate — System Administrator explicitly should NOT get this, per F1 §11.2's citation of I2 §15 denying System Administrator on "full log" access).
+- `validateChainIntegrity` — new procedure wrapping `computeChainHash`/`verifyHmac` against the actual event chain, restricted to `sys_admin` for `/sysadmin/audit-integrity`'s use, or possibly shared with `auditor` for `/audit/full` — this exact detail isn't settled by F1 and needs to be part of the decision.
+- `exportEvents` — new procedure, likely CSV/JSON export of a `queryEvents`-shaped result set, `auditor`-only per F1 §11.2.
+
+**Path B: Correct F1 to describe `queryEvents` as it actually is, and separately decide what (if anything) the other 10 roles get.** This means either accepting that most roles have no own-actions audit visibility in Phase 1 (a real scope reduction from what F1 currently promises), or deciding on a narrower single addition (e.g., just widen `queryEvents`'s existing role gate and let the frontend force `actorId = ctx.auth.userId` for non-privileged callers) rather than building all five named procedures.
+
+**Deliverables (once a path is chosen):**
+- Whichever procedures Path A/B settles on, added to `audit.router.ts`.
+- A corrected F1 §11/§13.4 reflecting whichever path was chosen — per this repo's rule that agents don't edit pre-dev docs directly (confirmed `A1-AGENTS.md` §8), this correction should be drafted precisely and handed to whoever has write authority, not applied unilaterally, mirroring how the prior session handled the retention-schedule correction (KF-12/KF-15 pattern).
+
+**Acceptance Criteria:** Cannot be written precisely until the path is chosen — write these as part of executing this task, once Path A or B is selected, following the same precision level as TASK-PRE-01's criteria above.
+
+**AI Prompt:**
+> Do not attempt to implement this task until a human has chosen Path A or Path B above. If you are an agent that has reached this task and no decision is recorded, stop and surface the choice explicitly rather than picking one yourself — this is a deliberate checkpoint, not an oversight in this task list. Once a path is chosen, this task's Deliverables and Acceptance Criteria sections should be filled in with the same precision as TASK-PRE-01 before any code is written, using the exact existing patterns in `audit.router.ts` (the `queryEvents` procedure) and `audit.crypto.ts` (the four existing crypto functions) as your implementation reference.
+
+---
+
+### TASK-PRE-04 — Resolve Designation vs. Delegation (decision, not implementation)
+
+**Type:** Requires a human decision. **Blocks:** the substitute-officer display on `/sessions/:sessionDate` (Tier 3 below) — but only partially; see below for what's genuinely unblocked regardless.
+
+**Context, sharpened from KF-11 with direct code verification this session:**
+
+`org.md`'s Module Summary defers "delegation management UI (designation logging form, active designation list view)" to Phase 1B. F1 §9 (via ADR-UI-007) says the Designation document type and its "Log Designation document" action are Phase 1.
+
+**What I found this session that neither document states:** `session.router.ts`'s `recordAttendance` mutation (lines 316–528) **already implements substitute-officer resolution automatically**, with no frontend involvement at all. When recording attendance, it checks whether the Vice Mayor/Presiding Officer is among the absences; if so, it queries `organization.schema.ts`'s `delegationGrants` table directly (`positionId`, `isActive`, `startDate`/`endDate`, `revokedAt`) for an active delegation and sets `presidedByEmployeeId` accordingly, falling back to the VM's own ID if no active delegation exists. **The `recordAttendance` input schema has no substitute-officer field at all** — `{ sessionDate, absences: [{ councilorEmployeeId, reason }] }`, nothing else. And **`presidedByEmployeeId` is written to `spSessions` but never read back by any query in this file** — `getAttendanceRecord`'s output has no field for it.
+
+This means F1 §9's claim that "the substitute-officer field on `/sessions/:sessionDate` now has a genuine Designation-document linkage" describes a frontend field that, as the backend currently stands, has nothing to submit and nowhere to display a result. The resolution already happens automatically server-side; there's no manual "select a substitute" interaction for the frontend to build at all, contrary to what both F1 and the ORG/F1 tension implied was still an open UI question.
+
+**Decision needed:** Given that automatic resolution already works, does `/sessions/:sessionDate` need any explicit Designation-related UI at all in Phase 1, or does it only need:
+(a) a read-only display of who actually presided (which requires a small backend addition — surfacing `presidedByEmployeeId`, resolved to a display name, from `getAttendanceRecord`'s output), and
+(b) nothing else, deferring any explicit "log a designation" *authoring* UI to ORG's own Phase 1B admin screen, exactly as `org.md` says?
+
+If yes to (a)+(b): this substantially resolves the tension in ORG's favor — the "Log Designation document" action ADR-UI-007 pulls into Phase 1 turns out to not need a dedicated UI surface on this particular page, because the backend already does the substitution transparently. If the intent was genuinely for a *manual* override (a human explicitly picks a substitute rather than the system picking one from `delegation_grants` automatically), that's a different, larger feature not currently reflected in `recordAttendance`'s schema at all, and would need its own backend change beyond just exposing the read.
+
+**This is a real product/UX decision** (automatic vs. manual substitute selection), not a documentation correction — I'm not picking one, per the same reasoning as TASK-PRE-03.
+
+**Deliverables:** A recorded decision. If (a)+(b) is chosen, a small backend addition — see TASK-PRE-04b below, written to be picked up immediately once the decision lands.
+
+**AI Prompt:**
+> Do not implement anything until this decision is recorded. Present both framings above to whoever has decision authority over this repo's pre-dev docs, cite `session.router.ts` lines 368–390 (the automatic delegation lookup) and lines 316–332 (the `recordAttendance` input schema with no substitute field) as your evidence, and record whichever choice is made before proceeding to TASK-PRE-04b or to the `/sessions/:sessionDate` frontend task in Tier 3.
+
+---
+
+### TASK-PRE-04b — Surface `presidedByEmployeeId` in `getAttendanceRecord` (conditional on TASK-PRE-04's outcome)
+
+**Type:** Backend addition. **Only proceed if TASK-PRE-04 resolves toward "read-only display of who presided."**
+
+**Deliverables:**
+- `apps/server/src/modules/workflow/session.router.ts` — `getAttendanceRecord`'s query and return object both need `presidedByEmployeeId` added, resolved to a display name via a join against `employees` (the same `employees.firstName`/`employees.lastName` pattern already used for `absences` in this same procedure, lines 100–101, 134).
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] `getAttendanceRecord`'s output includes `presidedByEmployeeId: string | null` and `presidedByDisplayName: string | null`.
+- [ ] For a session where the regular Presiding Officer was present, both fields resolve to that officer.
+- [ ] For a session where the Presiding Officer was absent and an active `delegationGrants` row covers that date, both fields resolve to the delegate, not the absent officer.
+- [ ] For a session with no session row yet (the `!session` early-return branch, lines 86–93), both new fields are `null`, consistent with the existing early-return shape for `presentCouncilors`/`absences`.
+
+**AI Prompt:**
+> Add `presidedByEmployeeId` and a resolved `presidedByDisplayName` to `getAttendanceRecord`'s output in `apps/server/src/modules/workflow/session.router.ts`. The `spSessions` row already selected at the top of this procedure (lines 74–84) already includes `presidedByEmployeeId` as a raw column — you're not adding a new column, just selecting it explicitly (the current `.select()` is a bare `select()` with no column list, so it's already present on the `session` object; verify this before assuming a schema change is needed) and joining it to `employees` for a display name, following the exact same join pattern already used for the `absences` array a few lines below (lines 95–104: `innerJoin(employees, eq(sessionAttendances.employeeId, employees.id))`, `firstName`/`lastName` concatenation). Add the corresponding fields to both return branches — the early-return at lines 86–93 (set both to `null`) and the main return at lines 140–145.
+
+---
+
+## TIER 1 — IAM (no Tier 0 dependency)
+
+### TASK-FE-IAM-001 — `/admin/roles` (RoleAssignmentPage)
+
+**Role:** Platform Administrator, gated via `ctx.auth.isPlatformAdmin` server-side — the live code uses this boolean flag, not a generic `roles.includes('plat_admin')` check (confirmed in `iam.router.ts`'s `assignRole`/`revokeRole`, lines 164, 187). Mirror this in any client-side conditional rendering that checks the current user's own permissions.
+
+**Deliverables:**
+- `apps/web/src/pages/iam/RoleAssignmentPage.tsx`
+- `apps/web/src/pages/iam/columns.tsx` (or extend an existing shared columns file if one exists by the time this task runs)
+- Route registration in `apps/web/src/main.tsx`: `{ path: "/admin/roles", element: <RoleAssignmentPage /> }`
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] Page renders a searchable user directory via `trpc.iam.listUserDirectory.useQuery({ pageSize, officeId?, search? })`.
+- [ ] **Output shape note:** `listUserDirectory` returns `{ items: UserRow[], nextCursor: null }` where `UserRow` is Drizzle's raw inferred type from `packages/database/schema/iam.schema.ts`'s `users` table — fields are `id, cityId, username, email, status, mfaEnabled, loginFailureCount, loginLockedUntil, createdAt, updatedAt, deletedAt, deletedBy`. **There is no `displayName`, `officeId`, or `positionTitle` on this output**, even though a different schema block in the same `iam.schemas.ts` file (`userSummaryOutput`) declares those fields — that schema is not what this procedure actually returns. Build the UI against the real `UserRow` fields (`username`, `email`) for display, not the unused `userSummaryOutput` shape.
+- [ ] `nextCursor` is always `null` in the current implementation (the router hardcodes it) — pagination beyond the first page isn't functional yet; don't build "load more" UI that expects it to work, or note this as a known limitation if you do.
+- [ ] Per-user role assignment control calls `trpc.iam.assignRole.useMutation({ userId, roleCode, officeScopeId? })`. `roleCode` must be one of the 13-value `roleCodeEnum` (`sys_admin, plat_admin, records_officer, dept_encoder, dept_approver, sp_secretary, sp_member, sp_presiding_officer, mayor, brgy_encoder, brgy_captain, auditor, citizen`) — render as a `<select>`, not free text.
+- [ ] Handle the `RoleCombinationForbiddenError` case: `assignRole` throws `FORBIDDEN` with a specific message (not a generic one) when a role combination is disallowed — surface `err.message` in the error toast, don't replace it with a generic "failed to assign role" string, since the specific message tells the user which combination was rejected.
+- [ ] Role revocation calls `trpc.iam.revokeRole.useMutation({ roleAssignmentId })`. **Known backend quirk, not something to fix from the frontend:** the router's `revokeRole` implementation passes `targetUserId: ''` to the service layer (an empty string, not the actual user's ID) — this is already how the procedure behaves; don't try to pass a `targetUserId` from the frontend since the input schema (`RevokeRoleInput`) only accepts `roleAssignmentId` and has no field for it.
+- [ ] Build only role *assignment*, not role *definition* — no UI for creating new roles or permission sets. Confirmed no such procedure exists anywhere in `iam.router.ts`; F1 §12.3 itself flags this as a known, unresolved gap outside this task's scope.
+
+**AI Prompt:**
+> Build `RoleAssignmentPage.tsx` as a searchable user directory with inline role-assignment controls. Use `trpc.iam.listUserDirectory.useQuery` for the list — input is `{ cursor?, pageSize (1-100, default 20), officeId?, search? }`. Each row should show `username` and `email` (the only identifying fields actually present on the raw `UserRow` — do not assume `displayName` exists). For each user, render their current role assignments (if the frontend needs to display *existing* roles per user, check whether `listUserDirectory`'s `UserRow` includes any join to `roleAssignments` — based on the Drizzle-inferred type, it does not; you may need a separate query or accept that this page can assign/revoke but not display current-state without an additional backend read, which is out of this task's scope to add unless you flag it as a follow-up).
+>
+> Wire `assignRole` and `revokeRole` mutations with `trpc.useUtils()` invalidation of `listUserDirectory` on success, and toast feedback on both success and error — follow the exact pattern already used in `apps/web/src/pages/workflow/panels/SecretariatDecisionPanel.tsx` (`useMutation({ onSuccess, onError })`, `sonner` toast calls, `utils.<procedure>.invalidate()`). Do not fire a success toast without checking the mutation actually returned a success indicator — both `assignRole` and `revokeRole` return objects with clear success signals (`{ roleAssignmentId }` and `{ success: true }` respectively) to check against.
+>
+> Register the route as a static path in `main.tsx`'s existing `createBrowserRouter` array — no dynamic segment needed, this is a single page with inline interactions, not a list→detail pair.
+
+---
+
+### TASK-FE-IAM-002 — `/sysadmin`, `/sysadmin/sessions`, `/sysadmin/users`
+
+**Role:** System Administrator, gated via `ctx.auth.isItAdmin` server-side (confirmed in `iam.router.ts` — `listAllActiveSessions`, `forceTerminateSession`, `createUserAccount` all check this exact flag, not a `roles.includes(...)` pattern).
+
+**Deliverables:**
+- `apps/web/src/pages/sysadmin/SystemAdminHomePage.tsx` — landing shell, links to the two children below, no data fetching of its own (mirror `/admin`'s existing landing-shell pattern once `/admin` exists, or build as a simple static links page if `/admin` hasn't landed yet).
+- `apps/web/src/pages/sysadmin/ActiveSessionsPage.tsx`
+- `apps/web/src/pages/sysadmin/UserAccountManagementPage.tsx`
+- Route registrations in `main.tsx`: `/sysadmin`, `/sysadmin/sessions`, `/sysadmin/users`.
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] `ActiveSessionsPage` lists sessions via `trpc.iam.listAllActiveSessions.useQuery({ cursor?, pageSize })`. **Output shape:** `{ items: SessionRow[], nextCursor: null }` — same "always null, no real pagination yet" caveat as `listUserDirectory` above. `SessionRow` is Drizzle-inferred from `sessions` table: `id, cityId, userId, sessionTokenHash, ipAddress, userAgent, lastActivityAt, locked_at, active, createdAt, terminatedAt, terminatedBy, terminationReason, deletedAt, deletedBy`. Do not display `sessionTokenHash` in the UI (it's a hash, not useful to a human, and displaying credential-adjacent hashes is bad practice even for admin tooling) — show `userId`, `ipAddress`, `userAgent`, `lastActivityAt`, `active` instead.
+- [ ] Per-row terminate action calls `trpc.iam.forceTerminateSession.useMutation({ sessionId, reason })`. **`reason` is required** (`z.string().min(1)`) — the mutation will reject an empty reason with a Zod validation error before the role check even runs; build the UI to require a non-empty reason input (e.g., a small text field or dropdown of reasons shown before the terminate button is enabled), not an unprompted one-click terminate.
+- [ ] `UserAccountManagementPage` provides create/edit/deactivate/reactivate via `trpc.iam.createUserAccount`, `editUserAccount`, `deactivateUserAccount`, `reactivateUserAccount`.
+- [ ] `createUserAccount` input is `{ username (3-64 chars), email, employeeId (uuid) }` — note `employeeId` references an ORG employee record, not a free-text field; this page needs an employee picker, which likely means calling ORG's employee-list capability (check whether `organization.router.ts` exposes a plain employee list — as of this session it has `createEmployee`/`updateEmployee` but the read side wasn't verified in this task list; confirm before assuming a picker data source exists, and flag as a blocker if it doesn't).
+- [ ] `editUserAccount`'s role gate is more permissive than the others: `ctx.auth.isItAdmin || ctx.auth.isPlatformAdmin || ctx.auth.userId === input.userId` — meaning a regular user could theoretically call this on themselves. This page is System-Administrator-only by route, so this extra self-edit branch is irrelevant here, but don't be surprised if a non-sysadmin caller of this same procedure elsewhere in the app succeeds unexpectedly; that's existing, correct backend behavior, not a bug to fix.
+- [ ] `deactivateUserAccount`/`reactivateUserAccount` both take `{ userId }` only and return `{ success: true, newStatus: 'deactivated' | 'active' }` — use the returned `newStatus` to update local UI state optimistically or via invalidation, don't assume the mutation name alone tells you the resulting status matches what you expect (both are literally correct here, but check `newStatus` rather than hardcoding an assumption for consistency with how these procedures are meant to be consumed).
+
+**AI Prompt:**
+> Build three pages under `apps/web/src/pages/sysadmin/`. `SystemAdminHomePage` is a minimal landing shell — copy the structural pattern of whatever `/admin`'s landing page ends up being (check if `PlatformAdminHomePage.tsx` exists yet; if not, build a simple page with a `PageHeader` (from `packages/ui/src/components/domain/PageHeader.tsx`) and three link cards to the three sysadmin sub-routes).
+>
+> `ActiveSessionsPage`: table of active sessions using `trpc.iam.listAllActiveSessions.useQuery`, columns for `userId`, `ipAddress`, `userAgent`, `lastActivityAt`, `active` status (use the `StatusBadge` domain component for the active/inactive indicator). Each row needs a "Terminate" action that opens a small confirmation requiring a `reason` string before calling `trpc.iam.forceTerminateSession.useMutation({ sessionId: row.id, reason })`.
+>
+> `UserAccountManagementPage`: a form for `createUserAccount` (`username`, `email`, and an employee picker for `employeeId` — confirm a data source for the picker exists in ORG's router before building it; if it doesn't, flag this explicitly as a blocking dependency rather than stubbing it silently) plus a list (reuse `listUserDirectory` from IAM-001 if that task has already landed, or call it fresh here) with per-row edit/deactivate/reactivate actions wired to `editUserAccount`, `deactivateUserAccount`, `reactivateUserAccount` respectively.
+>
+> All three pages gate on System Administrator only — check `ctx.auth.isItAdmin`-equivalent state on the client (however the session/auth store exposes this flag; check `apps/web/src/lib/auth-context.tsx` for the exact shape before assuming a field name).
+
+---
+
+## TIER 2 — ORG (no Tier 0 dependency, except TASK-PRE-02 lands alongside)
+
+### TASK-FE-ORG-001 — `/organization` (OrganizationPage)
+
+**Role:** View — `sys_admin, plat_admin, records_officer, sp_secretary, sp_member, sp_presiding_officer, mayor, auditor, dept_encoder, dept_approver` (this exact list is `ORG_CHART_VIEW_ROLES` in `organization.router.ts` line 71 — a flat allowlist, not a `PolicyEvaluator` ABAC check, confirmed by the file's own comment). Manage — Platform Administrator only (`requirePlatformAdmin(ctx)` guard on all write procedures).
+
+**Deliverables:**
+- `apps/web/src/pages/organization/OrganizationPage.tsx`
+- Route registration: `/organization`.
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] Read side calls `trpc.organization.getOfficeHierarchy.useQuery()` — **no input** (the procedure has no `.input(...)` call at all; calling it with any argument is a type error, not just unnecessary).
+- [ ] Output shape: `{ offices: OfficeSummary[] }` where each `OfficeSummary` is `{ officeId: string (uuid), name: string, parentOfficeId: string (uuid) | null, type: 'executive' | 'legislative' | 'department' | 'barangay' | 'external' }`. Build the hierarchy view by resolving `parentOfficeId` chains client-side — the backend returns a flat list, not a pre-nested tree, despite the type name `OfficeTree`.
+- [ ] Edit controls (visible only when `ctx.auth`-equivalent client state shows Platform Administrator) call `createOffice`, `updateOffice`, `deactivateOffice`, `createPosition`, `updatePosition`, `createEmployee`, `updateEmployee`, `assignEmployeeToPosition`.
+- [ ] **`officeType` enum values are `executive, legislative, department, barangay, external`** — confirmed against the live `ck_offices_office_type` DB CHECK constraint, the `organization.schema.ts` comment, seed data, and the shared `OfficeSummarySchema`, all four independently agreeing. Do not use any other plausible-sounding set (e.g., `sp_office`, `mayors_office`, `city_department` — an earlier, incorrect version of this enum that would pass Zod validation on the request but fail the live DB constraint on write, producing an opaque 500 rather than a clean validation error). This is documented explicitly in `organization.schemas.ts`'s file header (lines 10–23) as a known, already-resolved discrepancy — the file header is worth reading in full before building any office CRUD form.
+- [ ] `createEmployee`'s `employeeNumber` field is typed `.nullish()` in the Zod schema but is **NOT NULL** in the actual `employees` table — same file header, note 2. The router validates presence explicitly and returns `BAD_REQUEST` rather than letting a DB constraint violation surface as a 500, but the frontend form should still treat `employeeNumber` as effectively required (don't let a user submit without it just because the type allows `undefined`).
+- [ ] `createCommittee`'s `chairedByEmployeeId` has the same nullish-in-schema-but-NOT-NULL-in-DB pattern — treat as required in the form.
+
+**AI Prompt:**
+> Build `OrganizationPage.tsx` as a single page with a read-only office hierarchy tree (built client-side from the flat `offices` array returned by `getOfficeHierarchy`, resolving `parentOfficeId` links — offices with `parentOfficeId: null` are roots) and, for Platform Administrators only, inline edit controls for offices/positions/employees/assignments.
+>
+> Before building any create/edit form, read `apps/server/src/modules/organization/organization.schemas.ts` in full — its file header documents two already-resolved discrepancies between an earlier spec and the live database (the `officeType` enum values, and two fields that are typed optional in Zod but are actually required by DB constraints). Both are load-bearing for building a form that won't hit a confusing 500 on submission. Use `officeTypeEnum`'s actual five values (`executive, legislative, department, barangay, external`) for any office-type `<select>`, and treat `employeeNumber` (on employee creation) and `chairedByEmployeeId` (on committee creation) as required fields in the UI even though their Zod types are nullish.
+>
+> For the read query, call `trpc.organization.getOfficeHierarchy.useQuery()` with no arguments — the procedure takes no input. Gate all write UI behind a Platform Administrator check on the client (check `apps/web/src/lib/auth-context.tsx` for how role state is exposed).
+
+---
+
+### TASK-FE-ORG-002 — `/admin/committees` (CommitteeManagementPage)
+
+**Role:** Platform Administrator (page-level, per F1). **Note:** `listCommittees` itself is gated to `plat_admin, sp_secretary` (and, once TASK-PRE-02 lands, `sp_member`) — wider than just Platform Administrator, but this page is Platform-Administrator-only per F1's route table regardless; the wider procedure gate exists because `MultiReferralPanel.tsx` also calls it, not because this specific page needs to allow those other roles.
+
+**Deliverables:**
+- `apps/web/src/pages/organization/CommitteeManagementPage.tsx`
+- Route registration: `/admin/committees`.
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] List view calls `trpc.organization.listCommittees.useQuery()` — no input.
+- [ ] Output: array of `{ committeeId, name, code, description, deletedAt }` (confirmed exact shape from the live router, lines 569–578 — note this is a bespoke inline shape built in the router itself, not from the `committeeOutput` schema in `organization.schemas.ts`, which only covers the write side's `{ committeeId }` return).
+- [ ] Create/edit call `createCommittee` (`{ name, code, chairedByEmployeeId }` — treat `chairedByEmployeeId` as required per the schema-file note above) and `updateCommittee` (same shape, partial, plus `committeeId`).
+- [ ] Membership assignment calls `assignCommitteeMembership` (`{ committeeId, employeeId, committeeRole: 'chairman' | 'vice_chairman' | 'member', startDate }`).
+- [ ] This page is the write-side counterpart to data the Multi-Referral Panel (already built) already reads — building this page doesn't change that panel's behavior, only adds a management surface Platform Admin didn't have before.
+
+**AI Prompt:**
+> Build `CommitteeManagementPage.tsx`: a list of committees (`listCommittees`) with create/edit forms (`createCommittee`/`updateCommittee`) and a membership-assignment control (`assignCommitteeMembership`). The list output shape is a plain array (not `{ items, nextCursor }` like most other list procedures in this codebase) — don't assume pagination fields exist where they don't. Use `committeeRoleEnum`'s three values (`chairman, vice_chairman, member`) for the membership role selector. `chairedByEmployeeId` on creation needs an employee picker — same open question as TASK-FE-IAM-002 about whether a plain employee-list read exists; confirm before building, and flag rather than stub if it's missing.
+
+---
+
+## TIER 3 — WF: Order of Business and Sessions
+
+### TASK-FE-WF-001 — `/order-of-business` (OrderOfBusinessPage)
+
+**Role:** View — `sp_secretary, sp_member, sp_presiding_officer, mayor, auditor`. Manage — `sp_secretary` only. Both enforced via `session.router.ts`'s `enforceRoles(ctx, [...])` helper (a simple array-includes check against `ctx.auth.roles`/`ctx.auth.effectiveRoles` — different implementation style than IAM's boolean flags or ORG's `requireAnyRole`, worth knowing this codebase has three distinct role-check idioms across three modules, not one shared convention).
+
+**Deliverables:**
+- `apps/web/src/pages/workflow/OrderOfBusinessPage.tsx`
+- Route registration: `/order-of-business`.
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] Read calls `trpc.session.getOrderOfBusiness.useQuery({ sessionDate? })` — `sessionDate` is optional; omitting it defaults server-side to "next Tuesday" via `getNextTuesday()`. Build the page to work with no `sessionDate` param for the default view, with an optional date picker to view other sessions.
+- [ ] Output: `{ sessionDate: Date, items: Array<{ documentId, title, preliminaryNumber, committeeReportStatus: 'not_applicable' | 'all_submitted' | 'red_flagged', assignedCommittees: string[] }> }`. Render `committeeReportStatus === 'red_flagged'` items visibly marked (red), matching F4's documented UX ("items with missing or pending committee reports are marked red").
+- [ ] `scheduleDocumentForFirstReading` mutation (`{ documentId, sessionDate }`, `sp_secretary` only) — note the backend has real Tuesday-snapping and Thursday-cutoff logic (if the target date isn't a Tuesday it snaps forward; if past the Thursday-before cutoff it rolls to the following week) — the frontend does not need to replicate this logic, just submit the requested date and let the backend resolve the actual scheduled date; don't pre-validate "must be a Tuesday" client-side in a way that would block a valid submission the backend would otherwise accept and reschedule correctly.
+- [ ] `enterCommitteeHearingDate` mutation (`{ stepInstanceId, hearingDate? }`, `sp_secretary` only) — `hearingDate` is nullish (clearing a previously-set date is supported, send `null` explicitly rather than omitting the field if that's the intent).
+- [ ] `workflow.manuallyAdvanceMultiReferralStep` (note: this lives in `workflow.router.ts`, not `session.router.ts` — a different file than the other three procedures on this page) — `sp_secretary` only, per F1 requires "mandatory comment" for audit purposes; confirm this procedure's actual input schema in `workflow.router.ts` before building the override UI (not verified in this task-list-writing session; check before assuming a `comment` field name).
+- [ ] The `OrderOfBusinessRow` domain component already exists at `packages/ui/src/components/domain/OrderOfBusinessRow.tsx` with an existing dev-showcase route already registered (`/dev/components/order-of-business-row`) — check its actual prop shape against this page's real data before building a custom row component; it was very likely built anticipating this exact page.
+
+**AI Prompt:**
+> Build `OrderOfBusinessPage.tsx`. Primary read: `trpc.session.getOrderOfBusiness.useQuery({ sessionDate: selectedDate ?? undefined })`. Render each item using the existing `OrderOfBusinessRow` component from `@batac/ui` if its props match (check `packages/ui/src/components/domain/OrderOfBusinessRow.tsx` first) — don't build a parallel custom row component without checking this.
+>
+> For the `sp_secretary`-only management actions: "schedule for first reading" is a document-picker plus date submission to `session.scheduleDocumentForFirstReading` — the backend handles Tuesday-snapping and cutoff-rollover automatically, so don't add client-side date validation beyond basic sanity (a real date). "Enter committee hearing date" is a per-item date input calling `session.enterCommitteeHearingDate({ stepInstanceId, hearingDate })` for multi-referral items specifically (only items where `committeeReportStatus !== 'not_applicable'` are multi-referral). "Manually advance" calls `workflow.manuallyAdvanceMultiReferralStep` — before building this control, read that procedure's actual definition in `apps/server/src/modules/workflow/workflow.router.ts` to confirm its exact input shape, since this task list was written without verifying that one specifically and F1 mentions a "mandatory comment" requirement that needs to match the real field name.
+
+---
+
+### TASK-FE-WF-002 — `/sessions` and `/sessions/:sessionDate` (SessionAttendanceOverviewPage, SessionAttendanceDetailPage)
+
+**Role:** Both — `sp_secretary, sp_member, sp_presiding_officer, mayor, auditor` for viewing; recording attendance is `sp_secretary` only.
+
+**Tier 0 dependency:** TASK-PRE-04 (decision) and, conditionally, TASK-PRE-04b (backend addition) should land first if the decision favors displaying who presided. This task can proceed without them, but the "who presided" display sub-item below is blocked until then — build everything else regardless.
+
+**Deliverables:**
+- `apps/web/src/pages/workflow/SessionAttendanceOverviewPage.tsx`
+- `apps/web/src/pages/workflow/SessionAttendanceDetailPage.tsx`
+- Route registrations: `/sessions`, `/sessions/:sessionDate`.
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] Overview calls `trpc.session.getAttendanceStatistics.useQuery({ from?, to? })`. Output: `{ series: Array<{ sessionDate: Date, presentCount: number, absentCount: number }>, printableSummaryUrl: null }`. **`printableSummaryUrl` is hardcoded `null`** in the current implementation — do not build a "print summary" link/button that expects this to resolve to a real URL; either omit that control entirely or visibly disable it with a "not yet available" state.
+- [ ] Detail page keys on `sessionDate` from the route param, calls `trpc.session.getAttendanceRecord.useQuery({ sessionDate })`. Output: `{ sessionDate: Date, presentCouncilors: string[] (employee IDs, not names), absences: Array<{ councilorEmployeeId, councilorDisplayName, reason: string (human-readable, e.g. "Official Business", "Sick Leave", "Vacation Leave", "Absent (Unqualified)") }>, quorumMet: boolean }`. Note `presentCouncilors` is bare ID strings with no display name attached in this output — you'll need a separate lookup (e.g., against `organization.getOfficeHierarchy` or an employee list, if TASK-FE-IAM-002's open question about an employee-read procedure gets resolved) to show present-councilor names, or accept showing IDs as a known limitation.
+- [ ] Recording attendance calls `trpc.session.recordAttendance.useMutation({ sessionDate, absences: [{ councilorEmployeeId, reason }] })` where `reason` is one of `'official_business' | 'sick_leave' | 'vacation_leave' | 'absent_unqualified'` (note: these are the *input* enum values, different strings than the *output* `absences[].reason` human-readable strings above — don't confuse the two when building the recording form vs. the display view).
+- [ ] **Substitute-officer display, conditional on TASK-PRE-04's outcome:** if the decision was to expose `presidedByEmployeeId`/`presidedByDisplayName` (TASK-PRE-04b), display it read-only on this page once that backend addition lands. Do not build any input control for manually selecting a substitute — as of this session's verification, `recordAttendance`'s input schema has no field for it, and the backend resolves substitution automatically from `delegation_grants`. If TASK-PRE-04's decision was different (e.g., a genuine manual-override feature was decided), this acceptance criterion needs to be rewritten against whatever backend shape that decision produces — check TASK-PRE-04's recorded outcome before building this part.
+
+**AI Prompt:**
+> Build both pages as a standard overview→detail pair, same navigational shape as `/documents` → `/documents/:documentId`.
+>
+> `SessionAttendanceOverviewPage`: a simple chart or table of `getAttendanceStatistics`'s `series` (session date, present/absent counts) — the `SLATimer` or `StatCard` domain components may not be the right fit here (they're SLA/count-specific), so this may need custom presentation; check `packages/ui`'s available components before assuming one fits. Do not build a working "print summary" control — `printableSummaryUrl` is always `null` server-side right now.
+>
+> `SessionAttendanceDetailPage`: keyed on `:sessionDate` route param (coerce to `Date` before passing to the query, matching `z.coerce.date()` on the backend). Display `quorumMet` prominently (12-member body, quorum at 7 present, per the backend's own `presentCount >= 7` logic). List absences with their human-readable reasons directly from the query output. For `sp_secretary` users, provide an attendance-recording form: a per-councilor present/absent toggle, with a reason selector (using the four `enforceRoles`-adjacent input enum values: `official_business, sick_leave, vacation_leave, absent_unqualified`) for anyone marked absent, submitting the whole set via one `recordAttendance` call.
+>
+> **Before building any substitute-officer UI on this page, check whether TASK-PRE-04 has been decided and, if so, what it decided.** If undecided, build everything else and leave a clear placeholder or omit that section entirely rather than guessing at a shape — this task list deliberately does not resolve that decision.
+
+---
+
+## TIER 4 — WF: Dashboards
+
+### TASK-FE-WF-003 — `/secretary` (SecretaryDashboardPage)
+
+**Role:** SP Secretary only. **Sequencing note:** build after TASK-FE-WF-001/002 land, so this page's cross-links (`/order-of-business`, `/sessions`) resolve to real pages rather than stubs.
+
+**Deliverables:**
+- `apps/web/src/pages/workflow/SecretaryDashboardPage.tsx`
+- Five widget sub-components (can be inline in the page file or extracted, developer's judgment): `QueueWidget`, `PendingItemsWidget`, `SessionCalendarWidget`, `OrderOfBusinessSummaryWidget`, `SlaComplianceWidget`.
+- Route registration: `/secretary`.
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] `QueueWidget` calls `trpc.workflow.listMyAssignedSteps.useQuery({ pageSize: <small number, e.g. 5-10> })` — this is the exact same procedure `MyAssignedStepsPage` already uses; reuse the query hook/pattern from that existing page rather than reimplementing.
+- [ ] `PendingItemsWidget` calls `trpc.documents.list.useQuery({ officeId: <SP Secretariat office ID>, limit: <small number> })`. **`officeId` needs to be resolved first** — the SP Secretariat's office ID isn't a hardcoded constant available client-side; resolve it via whatever office-lookup pattern is established (the fe-handoff doc's office-scoping notes describe a `getOfficeByCode`-style backend helper, but that's server-side; on the frontend, either derive it from an already-loaded `getOfficeHierarchy` result by filtering for the SP Secretariat's known code (`'SPS'`, per the fe-handoff doc's office-code notes), or check whether the current user's own session/auth state already carries their office ID directly (SP Secretary's own office IS the SP Secretariat, so `ctx.auth`-equivalent client state may already have it without a lookup at all — check `auth-context.tsx` before building a lookup that isn't needed).
+- [ ] `SessionCalendarWidget` and `OrderOfBusinessSummaryWidget` both call `trpc.session.getOrderOfBusiness.useQuery()` (same call, per F4) — consider sharing one query result between both widgets rather than firing it twice.
+- [ ] `SlaComplianceWidget` calls `trpc.workflow.getSlaComplianceData.useQuery({ breachedOnly: true })` or similar — optional widget per F1/F4, build it but treat it as non-blocking if `workflowPolicy.canAccessSlaData` denies the caller (check what error shape that policy throws before assuming a generic `FORBIDDEN` — not verified in this session).
+- [ ] All four cross-links (`/order-of-business`, `/workflow/steps`, `/sessions`, `/documents`) point to real, already-existing or already-built-by-this-point routes — verify each resolves before considering this task complete.
+- [ ] `SLATimer` and `StatCard` domain components (`packages/ui/src/components/domain/`) are likely fits for the SLA widget and queue-count displays respectively — check their prop shapes before building custom equivalents.
+
+**AI Prompt:**
+> Build `SecretaryDashboardPage.tsx` composing five widgets, per F4 §4.3. All underlying data comes from procedures already consumed successfully by other, already-built pages — this is a composition task, not new backend integration.
+>
+> `QueueWidget`: top N rows from `workflow.listMyAssignedSteps`, same procedure as `MyAssignedStepsPage` — check that page's existing query setup and reuse the pattern (React Query key, invalidation behavior) rather than diverging.
+>
+> `PendingItemsWidget`: `documents.list` filtered by `officeId`. Resolve the SP Secretariat's office ID from client-side auth/session state first (check if it's already available — the logged-in user IS SP Secretary, whose own office is the SP Secretariat, so this may not need a lookup at all) before falling back to filtering `getOfficeHierarchy`'s result for the `'SPS'` office code.
+>
+> `SessionCalendarWidget` + `OrderOfBusinessSummaryWidget`: both read `session.getOrderOfBusiness` — share one query call between them via a shared parent-level `useQuery` rather than two independent calls.
+>
+> `SlaComplianceWidget`: `workflow.getSlaComplianceData`. This is gated by `workflowPolicy.canAccessSlaData(ctx.auth)` — a `PolicyEvaluator`-style guard, not a simple role array; check `workflow.policy.ts` around the citation "I2 §16" for the actual allowed-role set before assuming SP Secretary is definitely included (F1 states it is, but this task list didn't independently re-verify that specific policy function's contents this session).
+>
+> Wire all four cross-links using the routes this same build sequence establishes earlier (Tier 3) — by the time this task runs, `/order-of-business`, `/sessions`, and the already-existing `/workflow/steps`, `/documents` should all be real.
+
+---
+
+### TASK-FE-WF-004 — `/mayor` (MayorDashboardPage)
+
+**Role:** Mayor only. **Sequencing note:** same as WF-003, build after Tier 3.
+
+**Deliverables:**
+- `apps/web/src/pages/workflow/MayorDashboardPage.tsx`
+- Route registration: `/mayor`.
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] **Critical constraint, verified directly this session, not previously documented anywhere:** there is no server-side way to filter `listMyAssignedSteps`'s output to "mayor-action steps only" using the fields that procedure actually returns. Its output items are `{ stepInstanceId, instanceId, documentId, documentTitle, stepType, assignedAt, dueAt }` — `stepType` is the coarse category (`action | approval | multi_referral | decision | notification | termination`), not the fine-grained `stepKey` (`mayor_review`, `mayor_signature`, etc.) that actually distinguishes a mayoral step from any other `approval`-type step. `stepKey` is selected internally by `getInstance` (line 298) but **stripped before that procedure's response is returned** (compare the internal query at lines 293–301 against the actual returned object at lines 357–368 — `stepKey` is fetched, used to compute `panelHint` server-side, then dropped). The only externally-visible signal for step identity is `panelHint`, obtainable only via a **separate `getInstance` call per instance**.
+- [ ] Given the above, this dashboard has two honest implementation options — pick one and document the choice in a code comment, since neither is a small oversight to silently work around:
+  - **Option 1 (N+1, correct but potentially slow):** call `listMyAssignedSteps`, then call `getInstance({ instanceId })` for each returned row, filter client-side on `panelHint === 'mayor_decision'` (or `'mayor_lapse_confirmation'`). Fine for small result sets (a Mayor's own queue is likely small), acceptable for a first build.
+  - **Option 2 (requires a backend change, out of this task's scope but worth flagging forward):** add a server-side filter parameter to `listMyAssignedSteps`, or include `stepKey`/`panelHint` directly in its output. If Option 1 proves too slow in practice, this becomes its own small backend task, structured the same way as TASK-PRE-01/02 above.
+  - Build Option 1 for this task. Do not attempt to build a client-side filter against `stepKey` directly on `listMyAssignedSteps`'s raw output — that field does not exist there and referencing it will fail to compile against the real inferred type.
+- [ ] `SlaComplianceWidget`-equivalent here calls `getSlaComplianceData` — same call as the Secretary dashboard, confirm Mayor is included in the caller's `canAccessSlaData` policy check before assuming it "just works" the same way.
+- [ ] Every action item navigates to `/workflow/steps/:instanceId`, which already exists and already renders the Mayor Decision Panel correctly for `mayor_review`/`mayor_signature` steps — this dashboard is purely a filtered entry point into a page that already works, not new panel logic.
+
+**AI Prompt:**
+> Build `MayorDashboardPage.tsx`. Start with `trpc.workflow.listMyAssignedSteps.useQuery({ pageSize: <reasonably small> })` to get the Mayor's raw assigned-step list. **Because `stepKey` is not present in that output**, you cannot filter directly on it — for each returned row, issue a `trpc.workflow.getInstance.useQuery({ instanceId: row.instanceId })` call (React Query will handle these as independent parallel queries if you map over the rows and call the hook per-item via a component-per-row pattern, or use `useQueries` for a single batched hook) and filter the combined result down to items where the resolved `panelHint` is `'mayor_decision'` or `'mayor_lapse_confirmation'`. This is an N+1 pattern — acceptable for a first build given a Mayor's queue is likely small, but leave a comment noting that if this list grows large, the better fix is a server-side addition (a new filter param on `listMyAssignedSteps`, or including `stepKey`/`panelHint` in its existing output) rather than optimizing the N+1 pattern itself.
+>
+> Add `getSlaComplianceData` for an overdue-items indicator, same procedure the Secretary dashboard uses — verify `workflowPolicy.canAccessSlaData` actually permits the Mayor role before building the UI around an assumption it will succeed (check `workflow.policy.ts`).
+>
+> Every list item, once filtered, links to `/workflow/steps/:instanceId` (already built, already handles the Mayor Decision Panel correctly) — no new panel work needed here, this page is purely a filtered queue view.
+>
+> **Unrelated minor cleanup, optional, not blocking:** if you're touching `workflow.router.ts` in this session for any reason, `apps/web/src/pages/workflow/panels/SecretariatDecisionPanel.tsx` has a stale code comment (top of file) describing `computePanelHint`'s office-scoping as a role-based "proxy" — the live implementation (line 236–240 of `workflow.router.ts`) genuinely does a direct office-ID comparison now, confirmed this session. The comment predates that fix and was never updated. Not required for this task; flagging since you may be in the neighborhood.
+
+---
+
+## TIER 5 — DOCS: Complaints and Document Requests
+
+*All six tasks below depend on TASK-PRE-01 for the two `:id` detail pages specifically. The three list/new pages per resource have no Tier 0 dependency and can start immediately.*
+
+### TASK-FE-DOCS-001 — `/complaints` (ComplaintsListPage)
+
+**Role:** `sp_secretary, sp_presiding_officer, auditor` unconditional; `sp_member` committee-scoped.
+
+**Deliverables:**
+- `apps/web/src/pages/documents/ComplaintsListPage.tsx`
+- Route registration: `/complaints`.
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] **Real procedure name is `listAllComplaints`, not `complaints.listAll`** — F1 §8.3 uses the latter name; it does not exist. Call `trpc.documents.listAllComplaints.useQuery(...)` — confirm the actual router mount path (whether it's namespaced under `documents.*` or exposed as a top-level `complaints.*` router in the combined app router) by checking `apps/server/src/modules/documents/documents.app.router.ts`, since `complaints.router.ts`'s procedures are defined in isolation and this task list did not verify their final mount point this session.
+- [ ] Input: `PaginationInputSchema` (check `@batac/shared/schemas/common` for its exact shape — not independently re-verified in this session beyond confirming it's imported) extended with `{ outcomeState?: 'pending_hearing' | 'received_seen' | 'dismissed' | 'resolved' }`.
+- [ ] Output: `{ items: Array<{ complaintId, subjectMatter, outcomeState, assignedOfficeId, createdAt }>, nextCursor }`.
+- [ ] `sp_member` callers see only complaints where `assignedOfficeId` is in their own `committeeIds` — this filtering is entirely server-side; the frontend doesn't need its own committee-scoping logic, just render whatever the query returns.
+
+**AI Prompt:**
+> Build `ComplaintsListPage.tsx`: a paginated table of complaints with an `outcomeState` filter dropdown. Before writing the `trpc.*` call, check `apps/server/src/modules/documents/documents.app.router.ts` to confirm exactly how `complaints.router.ts`'s procedures are mounted in the final combined router (the procedure is internally named `listAllComplaints`, but its client-facing path depends on how the parent router nests it — this wasn't independently confirmed this session, so verify before writing the query call). Render `outcomeState` using the `StatusBadge` domain component if its variant set covers these four states, otherwise a plain badge is fine. Link each row to `/complaints/:complaintId` (built in TASK-FE-DOCS-003 below, which depends on TASK-PRE-01).
+
+---
+
+### TASK-FE-DOCS-002 — `/complaints/new` (ComplaintIntakeClerkAssistedPage)
+
+**Role:** `sp_secretary` only.
+
+**Deliverables:**
+- `apps/web/src/pages/documents/ComplaintIntakeClerkAssistedPage.tsx`
+- Route registration: `/complaints/new` (register before `/complaints/:complaintId` in `main.tsx`'s route array, matching the existing static-before-dynamic convention already used for `/documents/new` vs `/documents/:documentId`).
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] Calls `createComplaintClerkAssisted` (real name — not `complaints.createClerkAssisted` as F1 states). Input: `{ complainantName, complainantAddress?, complainantContact?, subjectCategory, incidentNarrative, respondentName?, respondentEmail?, respondentPhone? }`.
+- [ ] On success (`{ complaintId }`), navigate to `/complaints/:complaintId` using the returned ID.
+- [ ] This is the in-person, clerk-assisted intake mode only — do not build any citizen-facing self-submission UI here; that's REST, lives under `/apps/portal`, and is out of scope until the PORTAL module is built.
+
+**AI Prompt:**
+> Build a form matching `createComplaintClerkAssisted`'s exact input fields. `complainantName`, `subjectCategory`, and `incidentNarrative` are required (`min(1)`); the rest are optional. `respondentEmail` needs email format validation client-side to match the Zod `.email()` constraint before submission (not strictly required since the backend validates too, but a client-side check gives faster feedback). On success, navigate to the new complaint's detail page using the returned `complaintId`.
+
+---
+
+### TASK-FE-DOCS-003 — `/complaints/:complaintId` (ComplaintDetailPage)
+
+**Tier 0 dependency: TASK-PRE-01 must land first — this page cannot be built correctly without `complaints.get` existing.**
+
+**Role:** `sp_secretary` (log and assign, set outcome), `sp_member` (committee-scoped report entry), `sp_presiding_officer`/`auditor` (read).
+
+**Deliverables:**
+- `apps/web/src/pages/documents/ComplaintDetailPage.tsx`
+- Route registration: `/complaints/:complaintId`.
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] Read via the new `complaints.get` (or wherever TASK-PRE-01 mounts it) — do not build this page against client-side filtering of `listAllComplaints`'s already-loaded result; ADR-UI-005 explicitly rejected that approach for exactly this page, and TASK-PRE-01 exists to give this page a real single-record read.
+- [ ] `logAndAssign` mutation (`{ complaintId, assignedOfficeId, routingNotes? }`, `sp_secretary` only).
+- [ ] `enterCommitteeReport` mutation (`{ complaintId, reportText }`) — callable by `sp_secretary` unconditionally, or by `sp_member` only if `metadata.assignedOfficeId` is in their `committeeIds` (same condition TASK-PRE-01's `get` procedure reuses — the detail page's own visibility and this mutation's writability use the identical committee-membership check, so an `sp_member` who can see this page via `get` can also submit a report on it).
+- [ ] `setOutcome` mutation (`{ complaintId, outcome: 'dismissed' | 'resolved', notifyRespondentVia: 'contact_number' | 'email' }`, `sp_secretary` only). This mutation also emits an event bus signal (`complaint.outcome_set`) and an audit log entry server-side — no frontend action needed for either, just be aware the mutation does more than update the record.
+- [ ] Per-action role gating on this page should mirror `DocumentDetailPage.tsx`'s existing local `hasRole(roles, ...allowed)` helper pattern (per the fe-handoff doc's noted convention) rather than one page-level gate — this page needs several fine-grained gates (log-and-assign vs. enter-report vs. set-outcome each have different allowed callers), the same situation `DocumentDetailPage` already solved.
+
+**AI Prompt:**
+> Build `ComplaintDetailPage.tsx` using the new `complaints.get` procedure from TASK-PRE-01 as the primary read. Structure per-action visibility using the same local `hasRole(roles, ...allowed)` helper pattern already established in `apps/web/src/pages/documents/DocumentDetailPage.tsx` — check that file for the exact helper shape before reimplementing your own version, since the fe-handoff doc notes a second real consumer of this pattern (this page) is a natural point to extract it to a shared `apps/web/src/lib/auth-helpers.ts`, if that seems warranted once you're in the code.
+>
+> Three write actions, three different caller sets: `logAndAssign` (sp_secretary only), `enterCommitteeReport` (sp_secretary unconditionally, sp_member only if their committeeIds include the complaint's assignedOfficeId — check this client-side to decide whether to even show the control, but rely on the server's own enforcement as the real gate), `setOutcome` (sp_secretary only, and only sensible once a committee report exists — check `committeeReport` isn't empty before enabling this control, though the backend doesn't itself enforce that ordering as a precondition per this session's read of `setOutcome`'s implementation).
+
+---
+
+### TASK-FE-DOCS-004 — `/document-requests` (DocumentRequestsListPage)
+
+**Role:** `sp_secretary, sp_presiding_officer, records_officer, auditor`.
+
+**Deliverables:**
+- `apps/web/src/pages/documents/DocumentRequestsListPage.tsx`
+- Route registration: `/document-requests`.
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] **Real procedure name is `listAllDocumentRequests`, not `documentRequests.listAll`.**
+- [ ] Input: `PaginationInputSchema.extend({ requesterName?: string, documentNumber?: string })` — two optional text filters, both doing `ILIKE`-style matching server-side.
+- [ ] Output: `{ items: Array<{ requestId, title, requesterName, lifecycleState, vmApproved, spApproved, accessMode, createdAt }>, nextCursor }`.
+- [ ] `vmApproved`/`spApproved` are the Phase-1-stub dual-approval tracking fields (see TASK-FE-DOCS-006's notes below) — render them as a simple two-step progress indicator (e.g., two checkmarks) rather than anything implying a formal workflow-engine step sequence, since under the hood they're just JSONB booleans right now.
+
+**AI Prompt:**
+> Build `DocumentRequestsListPage.tsx`, structurally identical to `ComplaintsListPage` (TASK-FE-DOCS-001) — same list/filter/link-to-detail shape, different fields. Filters are `requesterName` and `documentNumber`, both free-text partial-match. Show `vmApproved`/`spApproved` as a simple two-checkmark approval-progress indicator.
+
+---
+
+### TASK-FE-DOCS-005 — `/document-requests/new` (DocumentRequestIntakeClerkAssistedPage)
+
+**Role:** `sp_secretary` only.
+
+**Deliverables:**
+- `apps/web/src/pages/documents/DocumentRequestIntakeClerkAssistedPage.tsx`
+- Route registration: `/document-requests/new` (before the `:requestId` dynamic route).
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] Calls `createDocumentRequestClerkAssisted` (real name — not `documentRequests.createClerkAssisted`). Input: `{ requesterName, requesterContact?, documentsRequested: Array<{ documentTitle, documentNumber? }> (min 1 item), purpose? }`.
+- [ ] `documentsRequested` needs a repeatable field group UI (add/remove rows) since it's a min-1 array, not a single object.
+- [ ] `generatePrintableForm` (`{ requestId }`, `sp_secretary` only, query not mutation) — offer a "print" action once a request exists (post-creation, or from the list/detail pages) that calls this and renders its returned structured data (`requestId, title, lifecycleState, createdAt, requester, documentsRequested, purpose, accessMode, payment, notificationChannel`) in a print-friendly layout. **This procedure returns data for the frontend to render, it does not generate a PDF itself** — actual PDF rendering is explicitly out of Phase 1 scope per the procedure's own code comment.
+
+**AI Prompt:**
+> Build the intake form with a repeatable `documentsRequested` field group (title + optional document number per row, at least one row required). On success (`{ requestId }`), navigate to the new request's detail page. Separately, build (here or reusable from the detail page) a "print" view that calls `generatePrintableForm` and renders the structured data it returns in a clean, printable layout — remember this procedure hands back data, not a PDF; the print layout itself is the frontend's job.
+
+---
+
+### TASK-FE-DOCS-006 — `/document-requests/:requestId` (DocumentRequestDetailPage)
+
+**Tier 0 dependency: TASK-PRE-01 must land first — this page cannot be built correctly without `documentRequests.get` existing.**
+
+**Role:** `sp_presiding_officer` (first approval), `sp_secretary` (second approval, then release).
+
+**Deliverables:**
+- `apps/web/src/pages/documents/DocumentRequestDetailPage.tsx`
+- Route registration: `/document-requests/:requestId`.
+
+**Acceptance Criteria:**
+- [ ] `pnpm typecheck` passes.
+- [ ] Read via the new `documentRequests.get` from TASK-PRE-01.
+- [ ] `approveAsPresidingOfficer` (`{ requestId }`, `sp_presiding_officer` only) — only meaningful while `lifecycleState` is in `{'draft', 'submitted', 'in_workflow', 'pending_mayor_action'}` (the `PRE_RELEASE_STATES` set); disable this control once the record has moved past that, matching the backend's own guard (`BAD_REQUEST` if attempted outside these states).
+- [ ] `approveAsSecretary` (`{ requestId }`, `sp_secretary` only) — check the backend's actual precondition (whether it requires `vmApproved` to already be true) by reading the procedure's full body before assuming an ordering; this task list read `approveAsPresidingOfficer` in full but only partially confirmed `approveAsSecretary`'s exact precondition logic this session.
+- [ ] `releaseCopy` (`{ requestId, orNumber?, collectingOfficer?, amountPaid? }`, `sp_secretary` only) — **hard backend precondition:** only allowed when `lifecycleState === 'completed'` (both approvals done), returns `BAD_REQUEST` otherwise with a message naming the actual current state. All three payment fields are optional — **payment does not block release in Phase 1** (explicit code comment, "Q-D04" — payment system is deferred to Phase 2), so build the release action to work with zero payment fields filled in, with payment details as a genuinely optional add-on, not a gate.
+- [ ] **Heads-up, not a blocker:** this entire router is explicitly marked "Phase 1 stub" in its own file header — the dual-approval tracking (`vm_approved`/`sp_approved`) is temporary JSONB metadata standing in for real Workflow Engine step instances, with `TODO(WF-INTEGRATION)` comments on both approval procedures marking this for replacement once WF integration lands. This is invisible to the frontend contract (the procedures work correctly as-is, with real role gates and real state transitions) — build against the current procedures normally; this note is context for why the underlying implementation looks the way it does, not something the frontend needs to work around.
+
+**AI Prompt:**
+> Build `DocumentRequestDetailPage.tsx` using `documentRequests.get` (TASK-PRE-01) as the primary read. Two sequential approval actions (`approveAsPresidingOfficer`, then `approveAsSecretary`) followed by `releaseCopy`. Before building `approveAsSecretary`'s enable/disable logic, read that procedure's full body in `apps/server/src/modules/documents/document-requests.router.ts` (starting around line 335) to confirm whether it actually requires `vm_approved` to be true first — this task list confirmed `approveAsPresidingOfficer`'s precondition logic in full but did not fully re-verify `approveAsSecretary`'s specific precondition check this session, so don't assume without checking.
+>
+> `releaseCopy`'s payment fields (`orNumber`, `collectingOfficer`, `amountPaid`) are all optional and must not block the release action if left empty — the code comment is explicit that payment is deferred to Phase 2 and does not gate release in Phase 1. Build the release button enabled whenever `lifecycleState === 'completed'`, regardless of whether any payment field has been filled in.
+
+---
+
+## What's still not attempted, and why — unchanged from last turn, restated for completeness
+
+- **`/retention-schedules`** — 100% backend-blocked (`records.getRetentionSchedule` has zero matches anywhere in `apps/server/src`; write procedures per ADR-UI-003 also unbuilt). Not given a Tier 0 task here because unlike the AUDIT/DOCS gaps above, there's no existing partial implementation or formally-decided-but-unbuilt spec to complete — this needs a full net-new backend build, which is a larger undertaking than this task list's Tier 0 items and would need its own dedicated planning pass.
+- **`/admin/config`** — spec-blocked; F1 itself says a detailed config-screen spec must exist before backend work can even start. No task to write here until that spec exists.
+- **`/admin/announcements`, `/admin/delivery-logs`, all `/portal/*` routes** — blocked on PORTAL/NOTIF modules, which are real, defined, un-run pipeline passes (`portal.md`, `notif.md` confirmed 0 lines), not a frontend planning gap.
+
+> **🚩 KF-14 — still genuinely unowned, still not converted into a task.** Four Tier-1 System Administrator capabilities (system health metrics, encryption key management, schema migrations, backup/restore) have no procedure, no module owner, and no route anywhere. I'm not inventing a task for this because there's nothing concrete to scope it against — no procedure name to wire up, no existing partial implementation to complete, unlike every Tier 0 task above. This needs a scoping decision (does this belong in this web app at all, or in a separate operations console per F1's own speculation?) before it can become a task, and that decision is a larger architectural call than the Tier 0 items above, which were all "finish what was already decided" rather than "decide what this even is."
+
+- **TRACK** — confirmed again this session, no page-level gap; its procedures are consumed entirely within the already-built `/documents/:documentId`.
+- **REC, NOTIF, PORTAL backends; SEARCH, REPORT** — out of scope, not a frontend planning problem.
