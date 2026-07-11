@@ -18,6 +18,7 @@ import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage"
 import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
 import DocumentDetailPage from "./pages/documents/DocumentDetailPage";
 import { ComplaintsListPage } from "./pages/documents/ComplaintsListPage";
+import { DocumentRequestsListPage } from "./pages/documents/DocumentRequestsListPage";
 import { SecretaryDashboardPage } from "./pages/workflow/SecretaryDashboardPage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
 import AppShellPage from "./pages/dev/AppShellPage";
@@ -74,6 +75,10 @@ const router = createBrowserRouter([
   {
     path: "/complaints",
     element: <ComplaintsListPage />,
+  },
+  {
+    path: "/document-requests",
+    element: <DocumentRequestsListPage />,
   },
   {
     // /documents/new is registered before :documentId so the static segment
