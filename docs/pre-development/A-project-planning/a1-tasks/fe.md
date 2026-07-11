@@ -35,11 +35,11 @@ has no existing entry in wf.md or docs.md — both are closed (wf.md's workflow
 engine backend tasks TASK-WF-006 through TASK-WF-009 are done; docs.md's DOCS
 module task list is closed at DOCS-022, with DOCS-020/021/022/023 already built
 as standalone-document follow-ons). This task follows that same "standalone
-document after its module's task-list file closed" precedent, (docs/compressed-knowledge-base/frontend-tasklist-creation-knowledge-base.md).
+document after its module's task-list file closed" precedent, (docs/compressed-exploration-findings/frontend-tasklist-creation-knowledge-base.md).
 Everything below is implementation guidance, verified against real code and
 docs in a prior session — it is not itself formatted as that template.
 
-Read docs/AGENTS.md before doing anything else if you have not already
+Read AGENTS.md before doing anything else if you have not already
 internalized it this session. The applicable routing row is "Build a frontend
 page or view in /apps/web" → F4 → F1 → F5 → J6 → I2 → E1. All six of those
 documents (plus ADR-UI-010, a dependency of F1 §8.2) were already read in full
@@ -383,7 +383,7 @@ Task B in the two-part workflow-frontend sequence following TASK-WF-FE-001
 /workflow/steps, registered in main.tsx). This task builds the page that
 Task A's rows link to.
 
-Read docs/AGENTS.md before doing anything else if you have not already
+Read AGENTS.md before doing anything else if you have not already
 internalized it this session. The applicable routing row is "Build a frontend
 page or view in /apps/web" -> F4 -> F1 -> F5 -> J6 -> I2 -> E1. This task ALSO
 spans "Write a tRPC procedure or router" (E1 -> I1 -> I2) because of the two
