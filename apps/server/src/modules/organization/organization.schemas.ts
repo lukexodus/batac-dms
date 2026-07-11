@@ -139,6 +139,13 @@ export const employeeOutput = z.object({
   employeeId: z.string().uuid(),
 });
 
+export const ListEmployeesInput = z.object({
+  search: z.string().optional(),
+  limit: z.number().int().positive().max(100).default(50),
+  cursor: z.string().nullish(), // UUID cursor for keyset pagination, or skip cursor for simple usage
+});
+export type ListEmployeesInput = z.infer<typeof ListEmployeesInput>;
+
 // ───────────────────────── assignments ─────────────────────────
 
 export const AssignEmployeeToPositionInput = z.object({

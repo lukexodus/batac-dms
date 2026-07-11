@@ -243,5 +243,65 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
         displayName: `${rows[0].firstName} ${rows[0].lastName}`,
       };
     },
+
+    async listEmployees(cityId: string, limit: number, cursor?: string | null, search?: string): Promise<{ items: EmployeeSummary[]; nextCursor: string | null }> {
+      const db = deps.db;
+      const { ilike } = await import('drizzle-orm');
+
+      const query = db.select({
+        employeeId: employees.id,
+        userId: employees.userId,
+        firstName: employees.firstName,
+        lastName: employees.lastName,
+        positionId: assignments.positionId,
+        positionTitle: positions.title,
+        officeId: assignments.officeId,
+      })
+      .from(employees)
+      .leftJoin(assignments, and(
+        eq(employees.id, assignments.employeeId),
+        eq(assignments.isActive, true),
+        eq(assignments.isPrimary, true),
+        isNull(assignments.deletedAt)
+      ))
+      .leftJoin(positions, eq(assignments.positionId, positions.id))
+      .where(and(
+        eq(employees.cityId, cityId),
+        isNull(employees.deletedAt),
+        search ? or(
+          ilike(employees.firstName, `%${search}%`),
+          ilike(employees.lastName, `%${search}%`)
+        ) : undefined
+      ))
+      .limit(limit + 1)
+      .orderBy(employees.lastName, employees.firstName, employees.id);
+
+      let offset = 0;
+      if (cursor) {
+        offset = parseInt(cursor, 10);
+        if (isNaN(offset)) offset = 0;
+      }
+      if (offset > 0) {
+        query.offset(offset);
+      }
+
+      const rows = await query;
+      let nextCursor: string | null = null;
+      if (rows.length > limit) {
+        rows.pop();
+        nextCursor = (offset + limit).toString();
+      }
+
+      const items = rows.map(r => ({
+        employeeId: r.employeeId,
+        userId: r.userId || '',
+        displayName: `${r.firstName} ${r.lastName}`,
+        positionId: r.positionId,
+        positionTitle: r.positionTitle,
+        officeId: r.officeId,
+      }));
+
+      return { items, nextCursor };
+    },
   };
 }
