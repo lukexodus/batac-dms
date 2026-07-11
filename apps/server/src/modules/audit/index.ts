@@ -31,13 +31,15 @@ export interface AuditEventInput {
  * Filter parameters for querying audit events (B2 Module 8).
  */
 export interface AuditQueryFilter {
-  actorId?:    string;
-  targetId?:   string;
-  eventTypes?: string[];
-  from?:       Date;
-  to?:         Date;
-  pageSize?:   number;   // default 50; max 200
-  cursor?:     string;   // opaque cursor = base64(String(sequence_number))
+  actorId?:           string;
+  targetId?:          string;
+  eventTypes?:        string[];
+  from?:              Date;
+  to?:                Date;
+  pageSize?:          number;    // default 50; max 200
+  cursor?:            string;    // opaque cursor = base64(String(sequence_number))
+  cityId?:            string;    // tenant isolation — always set by the router
+  resourceOfficeIds?: string[];  // for listOwnOfficeDocumentActions (I1 §8.3)
 }
 
 /**

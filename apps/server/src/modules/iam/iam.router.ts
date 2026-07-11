@@ -1,11 +1,16 @@
 import { TRPCError } from '@trpc/server';
+import { z } from 'zod';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import * as s from './iam.schemas.js';
 import { RoleCombinationForbiddenError } from './iam.errors.js';
-import type { IamService } from './iam.types.js';
+import type { IamService, IamRepository } from './iam.types.js';
 
 function getService(ctx: any): IamService {
   return ctx.req.server.iamService;
+}
+
+function getRepo(ctx: any): IamRepository {
+  return ctx.req.server.iamRepository;
 }
 
 export const iamRouter = router({
@@ -195,6 +200,23 @@ export const iamRouter = router({
         reason: 'Revoked by Platform Admin',
       });
       return { success: true };
+    }),
+
+  listRoleAssignmentsByUser: protectedProcedure
+    .input(z.object({ userId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      if (!ctx.auth.isPlatformAdmin) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Platform Admin access required' });
+      }
+      const repo = getRepo(ctx);
+      const assignments = await repo.findActiveRoleAssignmentsByUserId(input.userId);
+      return assignments.map((a) => ({
+        id: a.id,
+        roleCode: a.role.code,
+        roleName: a.role.name,
+        officeScopeId: a.officeScopeId,
+        assignedAt: a.assignedAt,
+      }));
     }),
 
   registerCitizenAccountClerkAssisted: protectedProcedure

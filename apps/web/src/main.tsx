@@ -12,12 +12,15 @@ import { trpc, trpcClient } from './lib/trpc.js';
 
 import { DocumentListPage } from "./pages/documents/DocumentListPage";
 import { CommitteeManagementPage } from "./pages/organization/CommitteeManagementPage";
+import { RoleAssignmentPage } from "./pages/iam/RoleAssignmentPage";
 import { MyAssignedStepsPage } from "./pages/workflow/MyAssignedStepsPage";
 import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage";
 import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
 import DocumentDetailPage from "./pages/documents/DocumentDetailPage";
 import { ComplaintsListPage } from "./pages/documents/ComplaintsListPage";
 import { ComplaintIntakeClerkAssistedPage } from "./pages/complaints/ComplaintIntakeClerkAssistedPage";
+import { DocumentRequestsListPage } from "./pages/documents/DocumentRequestsListPage";
+import { SecretaryDashboardPage } from "./pages/workflow/SecretaryDashboardPage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
 import AppShellPage from "./pages/dev/AppShellPage";
 import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
@@ -47,12 +50,20 @@ const router = createBrowserRouter([
     element: <CommitteeManagementPage />,
   },
   {
+    path: "/admin/roles",
+    element: <RoleAssignmentPage />,
+  },
+  {
     path: "/workflow/steps",
     element: <MyAssignedStepsPage />,
   },
   {
     path: "/workflow/steps/:instanceId",
     element: <WorkflowStepActionPage />,
+  },
+  {
+    path: "/secretary",
+    element: <SecretaryDashboardPage />,
   },
   {
     path: "/documents",
@@ -69,6 +80,8 @@ const router = createBrowserRouter([
   {
     path: "/complaints/new",
     element: <ComplaintIntakeClerkAssistedPage />,
+    path: "/document-requests",
+    element: <DocumentRequestsListPage />,
   },
   {
     // /documents/new is registered before :documentId so the static segment
