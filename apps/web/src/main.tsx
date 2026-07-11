@@ -12,6 +12,7 @@ import { trpc, trpcClient } from './lib/trpc.js';
 
 import { DocumentListPage } from "./pages/documents/DocumentListPage";
 import { CommitteeManagementPage } from "./pages/organization/CommitteeManagementPage";
+import { OrganizationPage } from "./pages/organization/OrganizationPage";
 import { RoleAssignmentPage } from "./pages/iam/RoleAssignmentPage";
 import { SystemAdminHomePage } from "./pages/sysadmin/SystemAdminHomePage";
 import { ActiveSessionsPage } from "./pages/sysadmin/ActiveSessionsPage";
@@ -48,6 +49,10 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <div>Batac DMS Home</div>,
+  },
+  {
+    path: "/organization",
+    element: <OrganizationPage />,
   },
   {
     path: "/admin/committees",
