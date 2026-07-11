@@ -25,6 +25,7 @@ import { ComplaintsListPage } from "./pages/documents/ComplaintsListPage";
 import { ComplaintIntakeClerkAssistedPage } from "./pages/complaints/ComplaintIntakeClerkAssistedPage";
 import { DocumentRequestsListPage } from "./pages/documents/DocumentRequestsListPage";
 import { DocumentRequestIntakeClerkAssistedPage } from "./pages/documents/DocumentRequestIntakeClerkAssistedPage";
+import { DocumentRequestDetailPage } from "./pages/documents/DocumentRequestDetailPage";
 import { SecretaryDashboardPage } from "./pages/workflow/SecretaryDashboardPage";
 import { OrderOfBusinessPage } from "./pages/workflow/OrderOfBusinessPage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
@@ -114,6 +115,13 @@ const router = createBrowserRouter([
   {
     path: "/document-requests/new",
     element: <DocumentRequestIntakeClerkAssistedPage />,
+  },
+  {
+    // /document-requests/new is registered before :requestId so the static
+    // segment always wins (React Router v6 ranks statics above params, but
+    // explicit ordering removes any ambiguity).
+    path: "/document-requests/:requestId",
+    element: <DocumentRequestDetailPage />,
   },
   {
     // /documents/new is registered before :documentId so the static segment
