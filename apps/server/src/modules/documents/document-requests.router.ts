@@ -638,5 +638,52 @@ export function createDocumentRequestsRouter() {
 
         return { items, nextCursor };
       }),
+
+    // -----------------------------------------------------------------------
+    // documentRequests.getDocumentRequest
+    //
+    // Callable by: sp_secretary, sp_presiding_officer, records_officer, auditor
+    //   — same role set as listAllDocumentRequests (line 550).
+    // Business: single-record read for /document-requests/:requestId detail
+    //   page (ADR-UI-005). Returns list-item shape (lines 625–637) plus
+    //   detail-only fields from generatePrintableForm (lines 212–223).
+    //   Named getDocumentRequest (not get) to avoid collision in the merged
+    //   documents namespace — same convention as listAllDocumentRequests.
+    // -----------------------------------------------------------------------
+    getDocumentRequest: protectedProcedure
+      .input(z.object({ requestId: z.string().uuid() }))
+      .query(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+
+        // ABAC: same role set as listAllDocumentRequests (I1 §13)
+        const allowedRoles = ['sp_secretary', 'sp_presiding_officer', 'records_officer', 'auditor'];
+        if (!allowedRoles.some((r) => subject.roles.includes(r))) {
+          throw new TRPCError({ code: 'FORBIDDEN' });
+        }
+
+        const repo = getRepository(ctx);
+        const document = await repo.findDocumentById(input.requestId);
+
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Document request not found' });
+        }
+
+        const meta = document.metadata as Record<string, any>;
+
+        return {
+          requestId: document.id,
+          title: document.title,
+          requesterName: meta['requester']?.name ?? null,
+          lifecycleState: document.lifecycleState,
+          vmApproved: meta['vm_approved'] ?? false,
+          spApproved: meta['sp_approved'] ?? false,
+          accessMode: meta['accessMode'] ?? null,
+          createdAt: document.createdAt,
+          documentsRequested: meta['documentsRequested'] ?? [],
+          purpose: meta['purpose'] ?? null,
+          payment: meta['payment'] ?? null,
+          notificationChannel: meta['notificationChannel'] ?? null,
+        };
+      }),
   });
 }

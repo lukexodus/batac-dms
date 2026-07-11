@@ -316,5 +316,55 @@ export function createComplaintsRouter() {
 
         return { items, nextCursor };
       }),
+
+    // -----------------------------------------------------------------------
+    // complaints.getComplaint
+    //
+    // Callable by: sp_secretary, sp_presiding_officer, auditor (unconditional);
+    //   sp_member (committee-scoped — same condition as enterCommitteeReport).
+    // Business: single-record read for /complaints/:complaintId detail page
+    //   (ADR-UI-005). Returns list-item shape plus four detail-only fields.
+    //   Named getComplaint (not get) to avoid collision in the merged
+    //   documents namespace — same convention as listAllComplaints.
+    // -----------------------------------------------------------------------
+    getComplaint: protectedProcedure
+      .input(z.object({ complaintId: z.string().uuid() }))
+      .query(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const document = await repo.findDocumentById(input.complaintId);
+
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const metadata = document.metadata as Record<string, any>;
+
+        const hasUnconditionalAccess =
+          subject.roles.includes('sp_secretary') ||
+          subject.roles.includes('sp_presiding_officer') ||
+          subject.roles.includes('auditor');
+
+        if (!hasUnconditionalAccess) {
+          if (!subject.roles.includes('sp_member')) {
+            throw new TRPCError({ code: 'FORBIDDEN' });
+          }
+          if (!metadata['assignedOfficeId'] || !subject.committeeIds.includes(metadata['assignedOfficeId'] as string)) {
+            throw new TRPCError({ code: 'FORBIDDEN', message: 'Not assigned to this committee' });
+          }
+        }
+
+        return {
+          complaintId: document.id,
+          subjectMatter: metadata['subjectCategory'] || 'Unknown',
+          outcomeState: metadata['outcomeState'] || 'pending_hearing',
+          assignedOfficeId: metadata['assignedOfficeId'] || null,
+          createdAt: document.createdAt,
+          committeeReport: metadata['committeeReport'] ?? null,
+          respondent: metadata['respondent'] ?? null,
+          incidentDetails: metadata['incidentDetails'] ?? null,
+          routingDecision: metadata['routingDecision'] ?? null,
+        };
+      }),
   });
 }

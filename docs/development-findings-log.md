@@ -1821,3 +1821,22 @@ The question of whether ADR-API-003 supersedes F1 and the pre-ADR `documents.log
 **What was implemented:**
 This follow-up entry was appended with status `confirmed` to document the human decision checkpoint approving the routing changes made under LOG-0079. No additional changes were made.
 
+---
+
+### [LOG-0081] TASK-PRE-01: `complaints.get` / `documentRequests.get` — procedure names deviated from ADR to avoid merged-namespace collision
+
+- date: 2026-07-11
+- task_id: TASK-PRE-01
+- status: proposed
+- affects: complaints.router.ts, document-requests.router.ts
+- tagged_documents: ADR-UI-005, F1
+
+**What was found:**
+ADR-UI-005 calls the new procedures `complaints.get` and `documentRequests.get`. When implemented as bare `get` keys in their respective router files, they collide with `documents.get` (an existing procedure in `documents.router.ts`) once all three routers are merged via `t.mergeRouters()` in `documents.app.router.ts`. TypeScript reports this as an intersected-input error on every call site passing only `{ documentId }`, e.g., `DocumentDetailPage.tsx:178`.
+
+This is the same naming discipline that already governs every other procedure in these files: `listAllComplaints` (not `list`), `createComplaintClerkAssisted` (not `create`), `listAllDocumentRequests` (not `list`). The ADR's procedure names implicitly assumed the procedures would live in separate tRPC namespaces, but the actual server wires them all into a single merged `documents` namespace via `documents.app.router.ts`.
+
+**What was implemented:**
+The procedures were named `getComplaint` and `getDocumentRequest` respectively, following the existing qualification convention. Frontend callers should use `trpc.documents.getComplaint({ complaintId })` and `trpc.documents.getDocumentRequest({ requestId })`.
+
+**[Inference]** The ADR's bare `get` name is a documentation mismatch, not an intent to break the codebase's existing convention. A human should decide whether to update ADR-UI-005 to use the qualified names, or note it as an acknowledged divergence from the ADR's text.

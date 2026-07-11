@@ -142,13 +142,14 @@ function makeMockDb(docType?: DocumentTypeRow | null) {
   } as any;
 }
 
-function makeMockRepository(rowOverrides: Partial<DocumentRow> = {}) {
+function makeMockRepository(rowOverrides: Partial<DocumentRow> | null = {}) {
+  const row = rowOverrides === null ? null : makeDrfRow(rowOverrides);
   return {
-    findDocumentById: vi.fn().mockResolvedValue(makeDrfRow(rowOverrides)),
+    findDocumentById: vi.fn().mockResolvedValue(row),
     insertDocument: vi.fn().mockImplementation(async (input: any) =>
       makeDrfRow({ ...input, id: DOC_ID })
     ),
-    updateDocumentMetadata: vi.fn().mockResolvedValue(makeDrfRow(rowOverrides)),
+    updateDocumentMetadata: vi.fn().mockResolvedValue(row),
     listDocuments: vi.fn().mockResolvedValue([]),
   };
 }
@@ -609,3 +610,121 @@ describe('documentRequests.generatePrintableForm', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });
+
+// ---------------------------------------------------------------------------
+
+/**
+ * documentRequests.getDocumentRequest tests (TASK-PRE-01 / ADR-UI-005)
+ *
+ * Coverage targets:
+ *  AC-DR1  Allowed roles (sp_secretary, sp_presiding_officer, records_officer,
+ *          auditor) can retrieve a single document request.
+ *  AC-DR2  Any other role throws FORBIDDEN.
+ *  AC-DR3  Nonexistent or wrong-cityId record throws NOT_FOUND.
+ *  AC-DR4  Return shape contains all list-item fields plus four detail fields.
+ */
+describe('documentRequests.getDocumentRequest', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const WRONG_CITY = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+
+  // AC-DR1 — allowed roles
+  it('AC-DR1: sp_secretary can get a document request', async () => {
+    const subject = makeSubject({ roles: ['sp_secretary'] });
+    const repository = makeMockRepository();
+    const db = makeMockDb();
+    const caller = callerFor(makeCtx(subject, { repository, db }));
+    const result = await caller.getDocumentRequest({ requestId: DOC_ID });
+    expect(result.requestId).toBe(DOC_ID);
+  });
+
+  it('AC-DR1: sp_presiding_officer can get a document request', async () => {
+    const subject = makeSubject({ roles: ['sp_presiding_officer'] });
+    const repository = makeMockRepository();
+    const db = makeMockDb();
+    const caller = callerFor(makeCtx(subject, { repository, db }));
+    const result = await caller.getDocumentRequest({ requestId: DOC_ID });
+    expect(result.requestId).toBe(DOC_ID);
+  });
+
+  it('AC-DR1: records_officer can get a document request', async () => {
+    const subject = makeSubject({ roles: ['records_officer'] });
+    const repository = makeMockRepository();
+    const db = makeMockDb();
+    const caller = callerFor(makeCtx(subject, { repository, db }));
+    const result = await caller.getDocumentRequest({ requestId: DOC_ID });
+    expect(result.requestId).toBe(DOC_ID);
+  });
+
+  it('AC-DR1: auditor can get a document request', async () => {
+    const subject = makeSubject({ roles: ['auditor'] });
+    const repository = makeMockRepository();
+    const db = makeMockDb();
+    const caller = callerFor(makeCtx(subject, { repository, db }));
+    const result = await caller.getDocumentRequest({ requestId: DOC_ID });
+    expect(result.requestId).toBe(DOC_ID);
+  });
+
+  // AC-DR2 — forbidden roles
+  it('AC-DR2: sp_member throws FORBIDDEN', async () => {
+    const subject = makeSubject({ roles: ['sp_member'] });
+    const caller = callerFor(makeCtx(subject));
+    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('AC-DR2: dept_encoder throws FORBIDDEN', async () => {
+    const subject = makeSubject({ roles: ['dept_encoder'] });
+    const caller = callerFor(makeCtx(subject));
+    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  // AC-DR3 — NOT_FOUND
+  it('AC-DR3: throws NOT_FOUND when document does not exist', async () => {
+    const subject = makeSubject({ roles: ['sp_secretary'] });
+    const repository = makeMockRepository(null);
+    const caller = callerFor(makeCtx(subject, { repository }));
+    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('AC-DR3: throws NOT_FOUND when cityId does not match', async () => {
+    const subject = makeSubject({ roles: ['sp_secretary'] });
+    const repository = makeMockRepository(makeDrfRow({ cityId: WRONG_CITY }));
+    const db = makeMockDb();
+    const caller = callerFor(makeCtx(subject, { repository, db }));
+    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  // AC-DR4 — return shape
+  it('AC-DR4: returns list-item fields merged with detail-only fields', async () => {
+    const subject = makeSubject({ roles: ['sp_secretary'] });
+    const repository = makeMockRepository();
+    const db = makeMockDb();
+    const caller = callerFor(makeCtx(subject, { repository, db }));
+    const result = await caller.getDocumentRequest({ requestId: DOC_ID });
+
+    // List-item fields (same as listAllDocumentRequests items)
+    expect(result).toHaveProperty('requestId');
+    expect(result).toHaveProperty('title');
+    expect(result).toHaveProperty('requesterName');
+    expect(result).toHaveProperty('lifecycleState');
+    expect(result).toHaveProperty('vmApproved');
+    expect(result).toHaveProperty('spApproved');
+    expect(result).toHaveProperty('accessMode');
+    expect(result).toHaveProperty('createdAt');
+
+    // Detail-only fields (from generatePrintableForm shape)
+    expect(result).toHaveProperty('documentsRequested');
+    expect(result).toHaveProperty('purpose');
+    expect(result).toHaveProperty('payment');
+    expect(result).toHaveProperty('notificationChannel');
+
+    // Spot-check values from the fixture
+    expect(result.requesterName).toBe('Juan dela Cruz');
+    expect(result.accessMode).toBe('in_person_clerk');
+    expect(Array.isArray(result.documentsRequested)).toBe(true);
+    expect(result.purpose).toBe('Personal reference');
+    expect(result.payment).toBeNull();
+    expect(result.notificationChannel).toBeNull();
+  });
+});
+
