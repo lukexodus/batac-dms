@@ -12,6 +12,7 @@ import { trpc, trpcClient } from './lib/trpc.js';
 
 import { DocumentListPage } from "./pages/documents/DocumentListPage";
 import { CommitteeManagementPage } from "./pages/organization/CommitteeManagementPage";
+import { RoleAssignmentPage } from "./pages/iam/RoleAssignmentPage";
 import { MyAssignedStepsPage } from "./pages/workflow/MyAssignedStepsPage";
 import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage";
 import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
@@ -43,6 +44,10 @@ const router = createBrowserRouter([
   {
     path: "/admin/committees",
     element: <CommitteeManagementPage />,
+  },
+  {
+    path: "/admin/roles",
+    element: <RoleAssignmentPage />,
   },
   {
     path: "/workflow/steps",
