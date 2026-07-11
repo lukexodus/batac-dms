@@ -87,6 +87,16 @@ export class AuditQueryService {
       conditions.push(lte(auditEvents.occurredAt, filter.to));
     }
 
+    // Tenant isolation — always supplied by the router for every public-facing procedure
+    if (filter.cityId) {
+      conditions.push(eq(auditEvents.cityId, filter.cityId));
+    }
+
+    // Office-scoped filter (I1 §8.3 / listOwnOfficeDocumentActions)
+    if (filter.resourceOfficeIds && filter.resourceOfficeIds.length > 0) {
+      conditions.push(inArray(auditEvents.resourceOfficeId, filter.resourceOfficeIds));
+    }
+
     // Fetch pageSize + 1 to determine if a next page exists
     const rows = await this.repo.db
       .select()
