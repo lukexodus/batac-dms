@@ -17,6 +17,7 @@ import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage"
 import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
 import DocumentDetailPage from "./pages/documents/DocumentDetailPage";
 import { ComplaintsListPage } from "./pages/documents/ComplaintsListPage";
+import { SecretaryDashboardPage } from "./pages/workflow/SecretaryDashboardPage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
 import AppShellPage from "./pages/dev/AppShellPage";
 import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
@@ -52,6 +53,10 @@ const router = createBrowserRouter([
   {
     path: "/workflow/steps/:instanceId",
     element: <WorkflowStepActionPage />,
+  },
+  {
+    path: "/secretary",
+    element: <SecretaryDashboardPage />,
   },
   {
     path: "/documents",
