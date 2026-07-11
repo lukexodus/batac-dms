@@ -1,5 +1,41 @@
 # Batac City LGU Platform — Frontend Task Planning: Architecture and Findings
 
+## Table of Contents
+
+- [L39–L42] System Overview — High-level architectural overview of platform modules and pipeline passes.
+- [L43–L65] Why There Is No Standalone FE Module — Explains the distributed frontend task ownership model where domain modules own their respective UI pages.
+- [L66–L70] Naming Convention Inconsistency (Finding) — Identifies the non-standard task-numbering convention used for WF module frontend tasks.
+- [L71–L91] Nature and Origin of `fe.md` — Explains the purpose, scope, and genesis of the fe.md post-closure task log.
+- [L92–L118] Two Distinct Task-Generation Mechanisms — Compares document-based pre-coding passes against post-coding live forensic file inspections.
+- [L119–L124] Status of the Master Phased Task List — Confirms that the master phased task list and outline files are currently empty.
+- [L125–L146] REC, NOTIF, and PORTAL Module Status — Verifies empty status of deferred backends and next steps for the Portal client application.
+- [L147–L175] Verified Module-by-Module Frontend Task Audit — F1-vs-repository gap analysis for IAM, AUDIT, ORG, DOCS, and WF modules.
+- [L176–L221] WF Frontend — Fully Verified State — Filing and status of built frontend panels and specific verification task scopes.
+- [L222–L230] F1 and F4 Route Map Documents — Analysis of the draft status and resolved gap registers in frontend route maps.
+- [L231–L238] System Overview — High-level architectural overview of platform modules and pipeline passes.
+- [L239–L282] Task Generation Pipeline (A1 Pipeline) — Structure, phases, operations, loading patterns, and governance rules of the task generation pipeline.
+- [L283–L289] Two Distinct Frontend Task-Generation Mechanisms — Duplicate of the task-generation mechanism distinction described on lines 56-82.
+- [L290–L312] Frontend Architecture Source Documents (F-series) — Summary of the F1 route map structure, resolved gaps register, and path references.
+- [L313–L328] ADR Ecosystem — Inventory and status of the 16 Architecture Decision Records in the codebase.
+- [L329–L346] Backend Router Ownership (Verified Against Server Source Code) — Direct filesystem audit verifying which backend modules own the various tRPC router procedures.
+- [L347–L360] Currently Built Frontend Surface (Ground Truth, Verified via Repo) — Filesystem audit of built directory trees, workflow panels, and the next.js portal scaffold.
+- [L361–L373] Module-by-Module Frontend Task Status — Frontend task status and self-reported spec gaps in completed module task lists.
+- [L374–L380] Retention Schedule — Findings — Details the non-existence of records.getRetentionSchedule and required write procedures.
+- [L381–L392] Designation vs. Delegation — Unresolved Tension (Flagged, Not Resolved) — Tension between F1's designation logging and org.md's delegation UI deferral.
+- [L393–L396] Announcements — Backend-Blocked — Details how portal announcements are blocked by the unbuilt PORTAL backend module.
+- [L397–L406] `/admin/config` — Cross-Cutting, Spec-Blocked — Requires a dedicated system configuration specification before backend work can start.
+- [L407–L410] `/admin/delivery-logs` — Backend-Blocked — Details the dependency on the unbuilt NOTIF module's listDeliveryLogs procedure.
+- [L411–L420] System Administrator (INFRA-Adjacent) — Unresolved Scope — Identifies four core sysadmin capabilities currently lacking tRPC procedures or routes.
+- [L421–L424] Safety-Relevant Finding: Workflow Panel Enforcement Asymmetry — Highlights security risks from missing server-side checks on Docketing and Veto panels.
+- [L425–L433] Other Verified Technical Facts — Database route registration order and role-based access flag verification.
+- [L434–L451] Answer to the Core Master-List Feasibility Question — Explains the three-tier framework used to construct a reliable master task list.
+- [L452–L463] First: the answer to the actual question — Answers whether a master task list can be extracted from current pipeline artifacts.
+- [L464–L567] Key Findings — this session's continuation — Detailed log of fifteen key technical and architectural findings from repository inspection.
+- [L568–L597] The master list, as it actually stands — Direct status mapping of 34 unbuilt, blocked, and deferred routes.
+
+---
+
+
 ## System Overview
 
 The Batac City LGU Platform is built via a document-governed, multi-pass generation pipeline defined in `docs/pre-development/A1-AGENTS.md`. Module-level task lists (infra, ui, iam, audit, org, docs, wf, track) are produced through a 14-pass generation process where each module pass loads a defined document set plus the already-generated task lists of its prerequisite modules, in dependency-wave order (Wave A → B → C → ... → G). Step 3 (Outline) and Step 4 (Integration) are meant to assemble everything into a final master list after individual module passes complete.

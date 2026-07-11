@@ -1,3 +1,20 @@
+
+## Table of Contents
+
+- [L18–L71] Handoff: Workflow module frontend — state after TASK-WF-FE-001 — Baseline status of the workflow frontend module after implementing the task-inbox page.
+- [L72–L75] Status correction — Task A — Confirms implementation of TASK-WF-FE-001 inbox and routing conventions.
+- [L76–L79] Role list — now fully resolved, not just "use the code" — Resolves auditor visibility conflict across specifications.
+- [L80–L89] New findings — enforcement asymmetry across panels — Identifies which workflow mutation steps lack server-side stepKey validation.
+- [L90–L93] Documentation correction applied — Applies stepKey terminology updates and status verification in F1.
+- [L94–L117] For whoever explores next — Hand-off instructions for future workflow frontend exploration and page development.
+- [L118–L128] Repo & Governance — Standing repository guidelines, document hierarchy rules, and findings log procedures.
+- [L129–L140] Workflow Engine — Outcome Handling (durable architecture fact) — Contrasts engine step-completion handlers and event-bus publication patterns.
+- [L141–L152] Office-Scoping Pattern (reusable for any office-gated action) — Standard patterns for resolving, comparing, and guarding office-scoped permissions.
+- [L153–L160] Frontend Test Infrastructure (state as of this exploration) — Vitest configuration status, script gaps, and lack of Playwright setup.
+- [L161–L165] Frontend Gotcha Pattern: Unconditional Success Feedback Masking Silent Mutation Failures — Warning against unconditional success toasts on silent backend mutation failures.
+
+---
+
 ## Handoff: Workflow module frontend — state after TASK-WF-FE-001
 
 ### Module status
