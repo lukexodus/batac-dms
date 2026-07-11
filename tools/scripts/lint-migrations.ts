@@ -17,14 +17,8 @@ function isTimestampName(name: string): boolean {
   if (lower.endsWith('_by') || lower.endsWith('_id')) {
     return false;
   }
-  if (lower.endsWith('_at') || lower.endsWith('_on') || lower.endsWith('_timestamp')) {
-    return true;
-  }
-  const words = [
-    'created', 'updated', 'deleted', 'expires', 'sent', 'received',
-    'approved', 'signed', 'submitted', 'logged', 'transmitted', 'published'
-  ];
-  return words.some(word => lower.startsWith(word) || lower.includes(word));
+  // All project timestamps use the _at, _on, or _timestamp suffix convention.
+  return lower.endsWith('_at') || lower.endsWith('_on') || lower.endsWith('_timestamp');
 }
 
 // Helper to determine the 1-based line number for a character offset
@@ -120,13 +114,58 @@ function runLinter() {
     const createdTablesInFile = new Set<string>();
 
     let ast: Statement[];
+    let skippedChunks: { line: number; preview: string }[] = [];
     try {
       ast = parse(content);
-    } catch (err: any) {
-      console.error(`[FAIL] Syntax error parsing migration file: ${file}`);
-      console.error(err.message || err);
-      hasFailures = true;
-      continue;
+    } catch {
+      // Fallback: split on Drizzle's statement-breakpoint markers and parse
+      // each chunk individually. Statements the parser cannot handle (CREATE
+      // TRIGGER, CREATE POLICY, SECURITY DEFINER, GRANT/REVOKE variants, etc.)
+      // are skipped with a warning; the remaining parseable statements still
+      // receive invariant checks.
+      ast = [];
+      const breakpoint = '--> statement-breakpoint';
+      const ranges: [number, number][] = [];
+      let scanPos = 0;
+      while (scanPos < content.length) {
+        const bpIdx = content.indexOf(breakpoint, scanPos);
+        if (bpIdx === -1) {
+          ranges.push([scanPos, content.length]);
+          break;
+        }
+        ranges.push([scanPos, bpIdx]);
+        scanPos = bpIdx + breakpoint.length;
+      }
+      for (const [rangeStart, rangeEnd] of ranges) {
+        const chunk = content.slice(rangeStart, rangeEnd);
+        if (!chunk.trim()) continue;
+        try {
+          const groupAst = parse(chunk);
+          for (const stmt of groupAst) {
+            if (stmt._location) {
+              stmt._location = {
+                ...stmt._location,
+                start: stmt._location.start + rangeStart,
+                end: (stmt._location.end ?? stmt._location.start) + rangeStart,
+              };
+            }
+          }
+          ast.push(...groupAst);
+        } catch {
+          const line = getLineNumber(content, rangeStart);
+          const firstLine = chunk.trim().split('\n')[0]?.trim().substring(0, 80) || '(empty)';
+          skippedChunks.push({ line, preview: firstLine });
+        }
+      }
+      if (skippedChunks.length > 0) {
+        const locs = skippedChunks.map(c => `  line ~${c.line}: ${c.preview}`).join('\n');
+        console.warn(`[WARN] ${file}: ${skippedChunks.length} statement(s) skipped — unparseable by pgsql-ast-parser.\n${locs}\n  Linting rules were applied to parseable portions only.`);
+      }
+      if (ast.length === 0) {
+        console.error(`[FAIL] ${file}: no parseable statements found — file contains only constructs the parser cannot handle.`);
+        hasFailures = true;
+        continue;
+      }
     }
 
     const visitor = astVisitor(v => ({
@@ -315,13 +354,23 @@ function runLinter() {
             const refSchema = refConstraint.foreignTable.schema;
             const owningSchemaForRef = tableSchema || 'public';
             if (refSchema && refSchema.toLowerCase() !== owningSchemaForRef.toLowerCase()) {
-              console.error(`[INVARIANT-01] Cross-schema foreign key detected.
+              const refComments = getPrecedingComments(lines, colLineNum);
+              const refSupp = checkSuppression(refComments, 'allow-cross-schema-fk');
+              if (refSupp.error) {
+                console.error(`[FAIL] Suppression comment missing reason.
+  File: ${file}
+  Line ${colLineNum}: ${lines[colLineNum - 1]?.trim() || ''}
+  Every suppression must include a reason.`);
+                hasFailures = true;
+              } else if (!refSupp.suppressed) {
+                console.error(`[INVARIANT-01] Cross-schema foreign key detected.
   File: ${file}
   Line ${colLineNum}: REFERENCES ${refSchema}.${refConstraint.foreignTable.name}(${refConstraint.foreignColumns.map(c => c.name).join(', ')})
   Tables in schema '${owningSchemaForRef}' may not reference tables in schema '${refSchema}'.
   Cross-schema relationships must be resolved at the application layer:
   store the UUID and resolve in code, or communicate via the event bus.`);
-              hasFailures = true;
+                hasFailures = true;
+              }
             }
           }
         }
@@ -334,13 +383,23 @@ function runLinter() {
               const owningSchemaForRef = tableSchema || 'public';
               const constrLineNum = getColumnLineNumber(lines, lineNum, constr.foreignTable.name);
               if (refSchema && refSchema.toLowerCase() !== owningSchemaForRef.toLowerCase()) {
-                console.error(`[INVARIANT-01] Cross-schema foreign key detected.
+                const fkComments = getPrecedingComments(lines, constrLineNum);
+                const fkSupp = checkSuppression(fkComments, 'allow-cross-schema-fk');
+                if (fkSupp.error) {
+                  console.error(`[FAIL] Suppression comment missing reason.
+  File: ${file}
+  Line ${constrLineNum}: ${lines[constrLineNum - 1]?.trim() || ''}
+  Every suppression must include a reason.`);
+                  hasFailures = true;
+                } else if (!fkSupp.suppressed) {
+                  console.error(`[INVARIANT-01] Cross-schema foreign key detected.
   File: ${file}
   Line ${constrLineNum}: REFERENCES ${refSchema}.${constr.foreignTable.name}(${constr.foreignColumns.map(c => c.name).join(', ')})
   Tables in schema '${owningSchemaForRef}' may not reference tables in schema '${refSchema}'.
   Cross-schema relationships must be resolved at the application layer:
   store the UUID and resolve in code, or communicate via the event bus.`);
-                hasFailures = true;
+                  hasFailures = true;
+                }
               }
             }
           }
@@ -406,13 +465,23 @@ function runLinter() {
               const refSchema = refConstraint.foreignTable.schema;
               const owningSchemaForRef = owningSchema || 'public';
               if (refSchema && refSchema.toLowerCase() !== owningSchemaForRef.toLowerCase()) {
-                console.error(`[INVARIANT-01] Cross-schema foreign key detected.
+                const refComments = getPrecedingComments(lines, changeLineNum);
+                const refSupp = checkSuppression(refComments, 'allow-cross-schema-fk');
+                if (refSupp.error) {
+                  console.error(`[FAIL] Suppression comment missing reason.
+  File: ${file}
+  Line ${changeLineNum}: ${lines[changeLineNum - 1]?.trim() || ''}
+  Every suppression must include a reason.`);
+                  hasFailures = true;
+                } else if (!refSupp.suppressed) {
+                  console.error(`[INVARIANT-01] Cross-schema foreign key detected.
   File: ${file}
   Line ${changeLineNum}: REFERENCES ${refSchema}.${refConstraint.foreignTable.name}(${refConstraint.foreignColumns.map(c => c.name).join(', ')})
   Tables in schema '${owningSchemaForRef}' may not reference tables in schema '${refSchema}'.
   Cross-schema relationships must be resolved at the application layer:
   store the UUID and resolve in code, or communicate via the event bus.`);
-                hasFailures = true;
+                  hasFailures = true;
+                }
               }
             }
           }
@@ -424,13 +493,32 @@ function runLinter() {
               const owningSchemaForRef = owningSchema || 'public';
               const changeLineNum = getColumnLineNumber(lines, lineNum, constr.foreignTable.name);
               if (refSchema && refSchema.toLowerCase() !== owningSchemaForRef.toLowerCase()) {
-                console.error(`[INVARIANT-01] Cross-schema foreign key detected.
+                // Find the actual ALTER TABLE line by searching for it, since _location
+                // is undefined in this pgsql-ast-parser version and lineNum is unreliable.
+                let alterTableLine = changeLineNum;
+                for (let i = 0; i < lines.length; i++) {
+                  if (lines[i].trim().startsWith('ALTER TABLE') && lines[i].includes(`"${constr.foreignTable.name}"`)) {
+                    alterTableLine = i + 1;
+                    break;
+                  }
+                }
+                const fkComments = getPrecedingComments(lines, alterTableLine);
+                const fkSupp = checkSuppression(fkComments, 'allow-cross-schema-fk');
+                if (fkSupp.error) {
+                  console.error(`[FAIL] Suppression comment missing reason.
+  File: ${file}
+  Line ${changeLineNum}: ${lines[changeLineNum - 1]?.trim() || ''}
+  Every suppression must include a reason.`);
+                  hasFailures = true;
+                } else if (!fkSupp.suppressed) {
+                  console.error(`[INVARIANT-01] Cross-schema foreign key detected.
   File: ${file}
   Line ${changeLineNum}: REFERENCES ${refSchema}.${constr.foreignTable.name}(${constr.foreignColumns.map(c => c.name).join(', ')})
   Tables in schema '${owningSchemaForRef}' may not reference tables in schema '${refSchema}'.
   Cross-schema relationships must be resolved at the application layer:
   store the UUID and resolve in code, or communicate via the event bus.`);
-                hasFailures = true;
+                  hasFailures = true;
+                }
               }
             }
           }

@@ -1859,3 +1859,46 @@ This conflicted with F1 §9's mention of a "Designation-document linkage" UI fie
 The decision authority (Luke) selected the option to **"Implement a manual override selection UI (requiring schema/router input changes)"**. 
 This means instead of relying solely on automatic server-side lookup, the attendance recording/editing process on the frontend `/sessions/:sessionDate` page should support a manual override selection of the presiding officer, requiring matching schema, input, and backend router updates to accept and store the manual override.
 
+---
+
+### [LOG-0083] `db:lint` is not wired into CI — resolves LOG-0016's open CI-question
+
+- date: 2026-07-11
+- task_id: N/A — verification task
+- status: proposed
+- affects: C5 (§7)
+- supersedes: (refines LOG-0016's open question; does not replace LOG-0016's parser-gap finding)
+
+**What was found:**
+LOG-0016 asked whether `db:lint` is actually invoked by CI as C5 §7 describes. Verified on 2026-07-11: it is not.
+
+`.github/workflows/ci.yml` defines six jobs: `lint-typecheck`, `unit-tests`, `integration-tests`, `build`, `e2e-tests`, and two deploy jobs. None of them invoke `db:lint` or `lint:migrations`. The `db:lint` Turborepo task is defined in `turbo.json` but no CI job's `pnpm turbo run ...` command includes it, and no other task that CI does run (e.g., `build`, `lint`, `test:*`) lists `db:lint` as a dependency. The only repo references to `db:lint` or `lint:migrations` outside of `turbo.json` itself are the script definitions in `packages/database/package.json` and `tools/scripts/package.json`.
+
+C5 §7 states: "The linter runs as a Turborepo task (`db:lint`) in CI on every pull request that touches `/packages/database/`. It must pass before the `build` task runs. A failed linter blocks merge." This is not currently the case — `db:lint` does not run in CI, does not block `build`, and does not block merge.
+
+[Tested]: Grep of all `.yml`, `.yaml`, and `.json` files for `db:lint`, `lint:migrations`, and `lint-migrations` confirmed only script/task definitions exist — no callers. Direct read of `ci.yml` and `turbo.json` confirmed no dependency chain from CI jobs to `db:lint`.
+
+---
+
+### [LOG-0084] `db:lint` parser gap resolved and CI wired — supersedes LOG-0016's open questions
+
+- date: 2026-07-11
+- task_id: N/A — verification task
+- status: proposed
+- affects: C5 (§7, Appendix A), tools/scripts/lint-migrations.ts, .github/workflows/ci.yml
+- supersedes: LOG-0016 (resolves both the parser gap and the CI-wiring question)
+
+**What was done:**
+LOG-0016 documented two issues: (1) `pgsql-ast-parser` cannot parse several DDL/DCL constructs present in merged migrations, causing `db:lint` to fail on `main`, and (2) it was unconfirmed whether CI invokes `db:lint` at all. Both are now resolved.
+
+**Parser gap fix** (`tools/scripts/lint-migrations.ts`): When `parse(content)` fails on a whole file, the linter now falls back to splitting the file on Drizzle's `--> statement-breakpoint` markers and parsing each chunk individually. Unparseable chunks (CREATE TRIGGER, CREATE POLICY, SECURITY DEFINER functions, GRANT/REVOKE variants, etc.) are skipped with a `[WARN]` message listing the skipped statements and their approximate line numbers. Parseable chunks still receive all invariant checks. Files that parse cleanly are unaffected — the fallback only activates on primary parse failure.
+
+**Additional fixes applied during resolution:**
+- `isTimestampName()`: removed the word-based substring matching (`includes`) that false-positived on column names like `is_present` (contains "sent"), `assigned_to` (contains "signed"), and `signed_by_display_name` (starts with "signed"). Now uses suffix-only matching (`_at`, `_on`, `_timestamp`), which is sufficient for all project timestamp columns.
+- INVARIANT-01 suppression: added `-- linter: allow-cross-schema-fk reason="..."` suppression support across all four check locations (CREATE TABLE inline refs, CREATE TABLE table-level FKs, ALTER TABLE add-column inline refs, ALTER TABLE add-constraint FKs). Applied to `0003_glamorous_scream.sql` for the pre-existing `organization.cross_office_grants → iam.roles` cross-schema FK.
+- Line number resolution for ALTER TABLE add-constraint: since `pgsql-ast-parser` v12 does not set `_location` on AST nodes, the INVARIANT-01 check now searches the lines array directly for the matching ALTER TABLE statement instead of relying on the unreliable `lineNum`.
+
+**CI wiring** (`.github/workflows/ci.yml`): Added `db:lint` to the `lint-typecheck` job's turbo command (`pnpm turbo run lint typecheck db:lint`). `db:lint` now runs on every PR and push to main, and a failure blocks the pipeline.
+
+[Tested]: `pnpm --filter @batac/scripts lint:migrations` exits 0 on the current migration set (0000–0010). All previously-failing files (0002–0006) now pass with skipped-statement warnings. No INVARIANT-01/06/07 FAIL-level errors remain.
+
