@@ -170,6 +170,7 @@ export interface OrgService {
   getPrimaryOfficeForUser(userId: string): Promise<{ officeId: string; officeCode: string } | null>;
   getCommitteeIdsForUser(userId: string): Promise<string[]>;
   getCommitteeChair(committeeId: string): Promise<UserSummary | null>;
+  listEmployees(cityId: string, limit: number, cursor?: string | null, search?: string): Promise<{ items: EmployeeSummary[]; nextCursor: string | null }>;
 }
 
 export interface DesignationView {

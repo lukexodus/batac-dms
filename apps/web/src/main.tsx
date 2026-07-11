@@ -11,6 +11,7 @@ import { queryClient } from './lib/query-client.js';
 import { trpc, trpcClient } from './lib/trpc.js';
 
 import { DocumentListPage } from "./pages/documents/DocumentListPage";
+import { CommitteeManagementPage } from "./pages/organization/CommitteeManagementPage";
 import { MyAssignedStepsPage } from "./pages/workflow/MyAssignedStepsPage";
 import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage";
 import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
@@ -38,6 +39,10 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <div>Batac DMS Home</div>,
+  },
+  {
+    path: "/admin/committees",
+    element: <CommitteeManagementPage />,
   },
   {
     path: "/workflow/steps",
