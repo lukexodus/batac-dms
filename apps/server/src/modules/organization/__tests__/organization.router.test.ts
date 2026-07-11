@@ -579,3 +579,32 @@ describe('organization router — designation creation and revocation mutations'
     });
   });
 });
+
+describe('organization.listCommittees', () => {
+  let deps: OrgRouterDeps;
+
+  beforeEach(() => {
+    deps = makeDeps();
+  });
+
+  it.each(['plat_admin', 'sp_secretary', 'sp_member'])('succeeds for role %s', async (role) => {
+    const caller = buildCaller(makeCtx([role]), deps);
+    deps.orgRepository.committees.findAll = vi.fn().mockResolvedValue([
+      { id: COMMITTEE_ID, name: 'Committee A', code: 'CA', description: 'Desc A', deletedAt: null },
+    ]);
+    const result = await caller.organization.listCommittees();
+    expect(result).toEqual([
+      { committeeId: COMMITTEE_ID, name: 'Committee A', code: 'CA', description: 'Desc A', deletedAt: null },
+    ]);
+    expect(deps.orgRepository.committees.findAll).toHaveBeenCalledOnce();
+  });
+
+  it('rejects a role outside the allowed list (e.g. dept_encoder) with UNAUTHORIZED', async () => {
+    const caller = buildCaller(makeCtx(['dept_encoder']), deps);
+    await expect(caller.organization.listCommittees()).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
+    expect(deps.orgRepository.committees.findAll).not.toHaveBeenCalled();
+  });
+});
+
