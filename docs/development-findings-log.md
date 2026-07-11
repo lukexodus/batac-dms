@@ -1840,3 +1840,22 @@ This is the same naming discipline that already governs every other procedure in
 The procedures were named `getComplaint` and `getDocumentRequest` respectively, following the existing qualification convention. Frontend callers should use `trpc.documents.getComplaint({ complaintId })` and `trpc.documents.getDocumentRequest({ requestId })`.
 
 **[Inference]** The ADR's bare `get` name is a documentation mismatch, not an intent to break the codebase's existing convention. A human should decide whether to update ADR-UI-005 to use the qualified names, or note it as an acknowledged divergence from the ADR's text.
+
+---
+
+### [LOG-0082] TASK-PRE-04: Substitute Presiding Officer Resolution Decision
+
+- date: 2026-07-11
+- task_id: TASK-PRE-04
+- status: proposed
+- affects: session.router.ts, /sessions/:sessionDate
+- tagged_documents: org.md, F1 §9, ADR-UI-007
+
+**What was found:**
+In `session.router.ts`, `recordAttendance` previously implemented automatic substitute-officer resolution when the Vice Mayor was absent by looking up active designations in the `delegationGrants` table. The `recordAttendance` input schema had no option for manually selecting a substitute. 
+This conflicted with F1 §9's mention of a "Designation-document linkage" UI field where users could manually log/select designations or substitute officers.
+
+**What was decided:**
+The decision authority (Luke) selected the option to **"Implement a manual override selection UI (requiring schema/router input changes)"**. 
+This means instead of relying solely on automatic server-side lookup, the attendance recording/editing process on the frontend `/sessions/:sessionDate` page should support a manual override selection of the presiding officer, requiring matching schema, input, and backend router updates to accept and store the manual override.
+
