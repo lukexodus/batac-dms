@@ -26,6 +26,7 @@ import { ComplaintIntakeClerkAssistedPage } from "./pages/complaints/ComplaintIn
 import { DocumentRequestsListPage } from "./pages/documents/DocumentRequestsListPage";
 import { DocumentRequestIntakeClerkAssistedPage } from "./pages/documents/DocumentRequestIntakeClerkAssistedPage";
 import { SecretaryDashboardPage } from "./pages/workflow/SecretaryDashboardPage";
+import { OrderOfBusinessPage } from "./pages/workflow/OrderOfBusinessPage";
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
 import AppShellPage from "./pages/dev/AppShellPage";
 import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
@@ -85,6 +86,10 @@ const router = createBrowserRouter([
   {
     path: "/secretary",
     element: <SecretaryDashboardPage />,
+  },
+  {
+    path: "/order-of-business",
+    element: <OrderOfBusinessPage />,
   },
   {
     path: "/documents",
