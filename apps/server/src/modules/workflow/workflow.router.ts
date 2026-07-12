@@ -605,7 +605,7 @@ export function createWorkflowRouter() {
         const nextCursor = startIndex + limit < filtered.length ? String(startIndex + limit) : null;
 
         const items = paginated.map((item) => {
-          const validStepTypes = new Set([
+          const validStepTypes = new Set<'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination' | 'parallel_split' | 'parallel_join'>([
             'action',
             'approval',
             'multi_referral',
@@ -614,7 +614,7 @@ export function createWorkflowRouter() {
             'termination',
           ]);
           const stepType = validStepTypes.has(item.stepType)
-            ? (item.stepType as any)
+            ? item.stepType
             : 'action';
 
           return {
