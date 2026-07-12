@@ -67,8 +67,8 @@ export function ComplaintIntakeClerkAssistedPage() {
       
       toast.success('Complaint logged successfully');
       navigate(`/complaints/${result.complaintId}`);
-    } catch (err: any) {
-      toast.error(err.message || 'An error occurred while logging the complaint');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'An error occurred while logging the complaint');
     }
   };
 
