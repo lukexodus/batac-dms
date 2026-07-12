@@ -214,7 +214,6 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
                   item={item}
                   agendaNumber={idx + 1}
                   isSecretary={isSecretary}
-                  sessionDate={new Date(data.sessionDate)}
                   onMutationSuccess={() => void refetch()}
                 />
               ))}
@@ -240,7 +239,6 @@ interface OobItemRowProps {
   item: OobItem;
   agendaNumber: number;
   isSecretary: boolean;
-  sessionDate: Date;
   onMutationSuccess: () => void;
 }
 
@@ -248,13 +246,11 @@ function OobItemRow({
   item,
   agendaNumber,
   isSecretary,
-  sessionDate,
   onMutationSuccess,
 }: OobItemRowProps) {
   const [expanded, setExpanded] = useState(false);
 
   const isRedFlagged = item.committeeReportStatus === 'red_flagged';
-  const isAllSubmitted = item.committeeReportStatus === 'all_submitted';
 
   return (
     <div
@@ -341,7 +337,6 @@ function OobItemRow({
           {isSecretary && (
             <SecretaryItemActions
               item={item}
-              sessionDate={sessionDate}
               onSuccess={onMutationSuccess}
             />
           )}
@@ -395,11 +390,9 @@ function CommitteeStatusBadge({
  */
 function SecretaryItemActions({
   item,
-  sessionDate,
   onSuccess,
 }: {
   item: OobItem;
-  sessionDate: Date;
   onSuccess: () => void;
 }) {
   const [hearingDateDialogOpen, setHearingDateDialogOpen] = useState(false);
