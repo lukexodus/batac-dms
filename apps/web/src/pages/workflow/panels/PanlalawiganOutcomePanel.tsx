@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 import {
   Card, CardHeader, CardTitle, CardContent, Button, Textarea,
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input,
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from '@batac/ui';
 
 import { trpc, type RouterOutputs } from '@/lib/trpc';
@@ -59,7 +59,7 @@ export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs
         {/* Record Outcome */}
         <div className="space-y-3 border p-4 rounded-md">
           <h3 className="font-medium text-sm">Record Outcome</h3>
-          <Select value={outcome} onValueChange={(val: any) => setOutcome(val)}>
+          <Select value={outcome} onValueChange={(val: 'VALID' | 'VALID_IN_PART' | 'OPERATIVE_IN_ITS_ENTIRETY' | 'RETURNED' | '') => setOutcome(val)}>
             <SelectTrigger><SelectValue placeholder="Select outcome…" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="VALID">Valid</SelectItem>
@@ -91,7 +91,7 @@ export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs
         {/* Resolve Valid in Part */}
         <div className="space-y-3 border p-4 rounded-md">
           <h3 className="font-medium text-sm">Resolve Valid in Part</h3>
-          <Select value={resolutionPath} onValueChange={(val: any) => setResolutionPath(val)}>
+          <Select value={resolutionPath} onValueChange={(val: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly') => setResolutionPath(val)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="resolve_as_is">Resolve As-Is</SelectItem>
