@@ -42,6 +42,7 @@ export const AuthResponseSchema = z.object({
   roleCodes:     z.array(z.string()),
   officeScopeId: z.string().uuid().nullable(),
   officeCode:    z.string().nullable(),
+  committeeIds:  z.array(z.string()),
 });
 
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;

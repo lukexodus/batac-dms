@@ -187,6 +187,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
         roleCodes,
         officeScopeId: office?.officeId     ?? null,
         officeCode:    office?.officeCode    ?? null,
+        committeeIds,
       },
     };
   }
@@ -507,6 +508,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
         roleCodes:           claims.display.roleCodes,
         officeScopeId:       claims.display.officeScopeId,
         officeCode:          claims.display.officeCode,
+        committeeIds:        claims.display.committeeIds,
         // Private: used by route handler to set cookies; NOT part of AuthResponse body
         _cookies: {
           accessToken,
@@ -685,6 +687,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
         roleCodes:           newClaims.display.roleCodes,
         officeScopeId:       newClaims.display.officeScopeId,
         officeCode:          newClaims.display.officeCode,
+        committeeIds:        newClaims.display.committeeIds,
         _cookies: {
           accessToken:              newAccessToken,
           refreshTokenCookieValue:  `${newTokenId}.${newRawBase64url}`,

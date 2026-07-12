@@ -167,6 +167,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         roleCodes:     result.roleCodes,
         officeScopeId: result.officeScopeId,
         officeCode:    result.officeCode,
+        committeeIds:  result.committeeIds,
       });
     },
   );
@@ -263,6 +264,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         roleCodes:     result.roleCodes,
         officeScopeId: result.officeScopeId,
         officeCode:    result.officeCode,
+        committeeIds:  result.committeeIds,
       });
     },
   );

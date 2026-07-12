@@ -150,6 +150,7 @@ export interface IamService extends IamPublicAPI {
     roleCodes:     string[];
     officeScopeId: string | null;
     officeCode:    string | null;
+    committeeIds:  string[];
   }>;
   logout(sessionId: string, userId: string): Promise<void>;
   refresh(refreshToken: string, ipAddress: string | null, userAgent: string | null): Promise<{
@@ -159,6 +160,7 @@ export interface IamService extends IamPublicAPI {
     roleCodes:     string[];
     officeScopeId: string | null;
     officeCode:    string | null;
+    committeeIds:  string[];
     _cookies?: {
       accessToken:              string;
       refreshTokenCookieValue:  string;

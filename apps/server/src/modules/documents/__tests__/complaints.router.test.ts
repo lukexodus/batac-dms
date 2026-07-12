@@ -241,7 +241,7 @@ describe('complaints.get', () => {
     expect(result.assignedOfficeId).toBe(COMMITTEE_ID);
     expect(result.committeeReport).toBeNull();
     expect(result.respondent).toBeDefined();
-    expect((result.respondent as any).name).toBe('Pedro Reyes');
-    expect((result.incidentDetails as any).narrative).toBe('Narrative text here');
+    expect(result.respondent?.name).toBe('Pedro Reyes');
+    expect(result.incidentDetails?.narrative).toBe('Narrative text here');
   });
 });

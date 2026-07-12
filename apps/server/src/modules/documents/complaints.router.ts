@@ -4,8 +4,11 @@ import crypto from 'node:crypto';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import { eq, and, isNull, inArray, sql } from 'drizzle-orm';
 import {
+  UuidSchema,
+  TimestampSchema,
   PaginationInputSchema,
 } from '@batac/shared/schemas/common';
+import { LifecycleStateSchema } from '@batac/shared/schemas/documents';
 import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
 import type { Context } from '../iam/iam.types.js';
 
@@ -20,6 +23,51 @@ function getRepository(ctx: Context) {
 function getEventBus(ctx: Context) {
   return (ctx.req.server as any).eventBus;
 }
+
+// ---------------------------------------------------------------------------
+// Output Schemas
+// ---------------------------------------------------------------------------
+
+const SuccessOutputSchema = z.object({ success: z.literal(true) });
+
+const CreateComplaintOutputSchema = z.object({
+  complaintId: UuidSchema,
+});
+
+const ComplaintListItemSchema = z.object({
+  complaintId: UuidSchema,
+  subjectMatter: z.string(),
+  outcomeState: z.enum(['pending_hearing', 'received_seen', 'dismissed', 'resolved']),
+  assignedOfficeId: UuidSchema.nullable(),
+  createdAt: TimestampSchema,
+});
+
+const ListComplaintsOutputSchema = z.object({
+  items: z.array(ComplaintListItemSchema),
+  nextCursor: UuidSchema.nullable(),
+});
+
+const ComplaintDetailOutputSchema = ComplaintListItemSchema.extend({
+  committeeReport: z.string().nullable(),
+  respondent: z
+    .object({
+      name: z.string(),
+      tricycleNumber: z.string().nullable(),
+      contactNumber: z.string().nullable(),
+      email: z.string().nullable(),
+      notificationChannel: z.string().nullable(),
+    })
+    .nullable(),
+  incidentDetails: z
+    .object({
+      date: z.string().nullable(),
+      time: z.string().nullable(),
+      place: z.string().nullable(),
+      narrative: z.string().nullable(),
+    })
+    .nullable(),
+  routingDecision: z.string().nullable(),
+});
 
 export function createComplaintsRouter() {
   return router({
@@ -36,6 +84,7 @@ export function createComplaintsRouter() {
           respondentPhone: z.string().optional(),
         })
       )
+      .output(CreateComplaintOutputSchema)
       .mutation(async ({ ctx, input }) => {
         const subject = ctx.auth;
 
@@ -113,6 +162,7 @@ export function createComplaintsRouter() {
           routingNotes: z.string().max(512).optional(),
         })
       )
+      .output(SuccessOutputSchema)
       .mutation(async ({ ctx, input }) => {
         const subject = ctx.auth;
 
@@ -137,7 +187,7 @@ export function createComplaintsRouter() {
         const service = ctx.req.server.documentsService;
         await service.transitionState(document.id, 'submitted', subject.userId, 'Complaint logged and assigned');
 
-        return { success: true };
+        return { success: true as const };
       }),
 
     enterCommitteeReport: protectedProcedure
@@ -147,6 +197,7 @@ export function createComplaintsRouter() {
           reportText: z.string().min(1),
         })
       )
+      .output(SuccessOutputSchema)
       .mutation(async ({ ctx, input }) => {
         const subject = ctx.auth;
         
@@ -174,7 +225,7 @@ export function createComplaintsRouter() {
           outcomeState: 'received_seen',
         });
 
-        return { success: true };
+        return { success: true as const };
       }),
 
     setOutcome: protectedProcedure
@@ -185,6 +236,7 @@ export function createComplaintsRouter() {
           notifyRespondentVia: z.enum(['contact_number', 'email']),
         })
       )
+      .output(SuccessOutputSchema)
       .mutation(async ({ ctx, input }) => {
         const subject = ctx.auth;
 
@@ -234,7 +286,7 @@ export function createComplaintsRouter() {
            });
         }
 
-        return { success: true };
+        return { success: true as const };
       }),
 
     listAllComplaints: protectedProcedure
@@ -243,6 +295,7 @@ export function createComplaintsRouter() {
           outcomeState: z.enum(['pending_hearing', 'received_seen', 'dismissed', 'resolved']).optional(),
         })
       )
+      .output(ListComplaintsOutputSchema)
       .query(async ({ ctx, input }) => {
         const subject = ctx.auth;
         
@@ -310,7 +363,7 @@ export function createComplaintsRouter() {
             subjectMatter: meta['subjectCategory'] || 'Unknown',
             outcomeState: meta['outcomeState'] || 'pending_hearing',
             assignedOfficeId: meta['assignedOfficeId'] || null,
-            createdAt: row.createdAt,
+            createdAt: row.createdAt.toISOString(),
           };
         });
 
@@ -329,6 +382,7 @@ export function createComplaintsRouter() {
     // -----------------------------------------------------------------------
     getComplaint: protectedProcedure
       .input(z.object({ complaintId: z.string().uuid() }))
+      .output(ComplaintDetailOutputSchema)
       .query(async ({ ctx, input }) => {
         const subject = ctx.auth;
         const repo = getRepository(ctx);
@@ -359,7 +413,7 @@ export function createComplaintsRouter() {
           subjectMatter: metadata['subjectCategory'] || 'Unknown',
           outcomeState: metadata['outcomeState'] || 'pending_hearing',
           assignedOfficeId: metadata['assignedOfficeId'] || null,
-          createdAt: document.createdAt,
+          createdAt: document.createdAt.toISOString(),
           committeeReport: metadata['committeeReport'] ?? null,
           respondent: metadata['respondent'] ?? null,
           incidentDetails: metadata['incidentDetails'] ?? null,

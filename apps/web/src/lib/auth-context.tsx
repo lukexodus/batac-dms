@@ -18,6 +18,7 @@ export interface AuthSession {
   roleCodes: string[];
   officeScopeId: string | null;
   officeCode: string | null;
+  committeeIds: string[];
 }
 
 interface AuthContextValue {

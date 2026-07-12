@@ -23,7 +23,9 @@ import { TRPCError } from '@trpc/server';
 import crypto from 'node:crypto';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import { eq, and, isNull, sql, or } from 'drizzle-orm';
-import { PaginationInputSchema } from '@batac/shared/schemas/common';
+import { UuidSchema, TimestampSchema, PaginationInputSchema } from '@batac/shared/schemas/common';
+import { LifecycleStateSchema } from '@batac/shared/schemas/documents';
+import type { LifecycleState } from '@batac/shared/schemas/documents';
 import {
   documents,
   documentTypes,
@@ -60,6 +62,80 @@ const DOCUMENT_REQUEST_FORM_CODE = 'DOCUMENT_REQUEST_FORM';
 const PRE_RELEASE_STATES = new Set(['draft', 'submitted', 'in_workflow', 'pending_mayor_action']);
 
 // ---------------------------------------------------------------------------
+// Output Schemas
+// ---------------------------------------------------------------------------
+
+const SuccessOutputSchema = z.object({ success: z.literal(true) });
+
+const CreateDocumentRequestOutputSchema = z.object({
+  requestId: UuidSchema,
+});
+
+const RequesterSchema = z
+  .object({
+    name: z.string(),
+    agencyOrOrganization: z.string().nullable(),
+    email: z.string().nullable(),
+    contactNumber: z.string().nullable(),
+    idTypePresented: z.string().nullable(),
+    citizenUserId: z.string().nullable(),
+  })
+  .nullable();
+
+const DocumentRequestedItemSchema = z.object({
+  documentTitle: z.string(),
+  documentId: z.string().nullable(),
+  documentTypeLabel: z.string().nullable(),
+  documentNumber: z.string().nullable(),
+  numberOfPages: z.number().nullable(),
+});
+
+const PaymentSchema = z
+  .object({
+    orNumber: z.string().nullable(),
+    collectingOfficer: z.string().nullable(),
+    amountPaid: z.number().nullable(),
+    paymentDate: z.string().nullable(),
+  })
+  .nullable();
+
+const PrintableFormOutputSchema = z.object({
+  requestId: UuidSchema,
+  title: z.string(),
+  lifecycleState: LifecycleStateSchema,
+  createdAt: TimestampSchema,
+  requester: RequesterSchema,
+  documentsRequested: z.array(DocumentRequestedItemSchema),
+  purpose: z.string().nullable(),
+  accessMode: z.string().nullable(),
+  payment: PaymentSchema,
+  notificationChannel: z.string().nullable(),
+});
+
+const DocumentRequestListItemSchema = z.object({
+  requestId: UuidSchema,
+  title: z.string(),
+  requesterName: z.string().nullable(),
+  lifecycleState: LifecycleStateSchema,
+  vmApproved: z.boolean(),
+  spApproved: z.boolean(),
+  accessMode: z.string().nullable(),
+  createdAt: TimestampSchema,
+});
+
+const ListDocumentRequestsOutputSchema = z.object({
+  items: z.array(DocumentRequestListItemSchema),
+  nextCursor: UuidSchema.nullable(),
+});
+
+const DocumentRequestDetailOutputSchema = DocumentRequestListItemSchema.extend({
+  documentsRequested: z.array(DocumentRequestedItemSchema),
+  purpose: z.string().nullable(),
+  payment: PaymentSchema,
+  notificationChannel: z.string().nullable(),
+});
+
+// ---------------------------------------------------------------------------
 // Router factory
 // ---------------------------------------------------------------------------
 
@@ -90,6 +166,7 @@ export function createDocumentRequestsRouter() {
           purpose: z.string().max(512).optional(),
         })
       )
+      .output(CreateDocumentRequestOutputSchema)
       .mutation(async ({ ctx, input }) => {
         const subject = ctx.auth;
 
@@ -174,6 +251,7 @@ export function createDocumentRequestsRouter() {
     // -----------------------------------------------------------------------
     generatePrintableForm: protectedProcedure
       .input(z.object({ requestId: z.string().uuid() }))
+      .output(PrintableFormOutputSchema)
       .query(async ({ ctx, input }) => {
         const subject = ctx.auth;
 
@@ -212,8 +290,8 @@ export function createDocumentRequestsRouter() {
         return {
           requestId: document.id,
           title: document.title,
-          lifecycleState: document.lifecycleState,
-          createdAt: document.createdAt,
+          lifecycleState: document.lifecycleState as LifecycleState,
+          createdAt: document.createdAt.toISOString(),
           requester: meta['requester'] ?? null,
           documentsRequested: meta['documentsRequested'] ?? [],
           purpose: meta['purpose'] ?? null,
@@ -237,6 +315,7 @@ export function createDocumentRequestsRouter() {
     // -----------------------------------------------------------------------
     approveAsPresidingOfficer: protectedProcedure
       .input(z.object({ requestId: z.string().uuid() }))
+      .output(SuccessOutputSchema)
       .mutation(async ({ ctx, input }) => {
         const subject = ctx.auth;
 
@@ -334,6 +413,7 @@ export function createDocumentRequestsRouter() {
     // -----------------------------------------------------------------------
     approveAsSecretary: protectedProcedure
       .input(z.object({ requestId: z.string().uuid() }))
+      .output(SuccessOutputSchema)
       .mutation(async ({ ctx, input }) => {
         const subject = ctx.auth;
 
@@ -441,6 +521,7 @@ export function createDocumentRequestsRouter() {
           amountPaid: z.number().positive().optional(),
         })
       )
+      .output(SuccessOutputSchema)
       .mutation(async ({ ctx, input }) => {
         const subject = ctx.auth;
 
@@ -543,6 +624,7 @@ export function createDocumentRequestsRouter() {
           documentNumber: z.string().optional(),
         })
       )
+      .output(ListDocumentRequestsOutputSchema)
       .query(async ({ ctx, input }) => {
         const subject = ctx.auth;
 
@@ -628,11 +710,11 @@ export function createDocumentRequestsRouter() {
             requestId: row.id,
             title: row.title,
             requesterName: meta['requester']?.name ?? null,
-            lifecycleState: row.lifecycleState,
-            vmApproved: meta['vm_approved'] ?? false,
-            spApproved: meta['sp_approved'] ?? false,
+            lifecycleState: row.lifecycleState as LifecycleState,
+            vmApproved: !!meta['vm_approved'],
+            spApproved: !!meta['sp_approved'],
             accessMode: meta['accessMode'] ?? null,
-            createdAt: row.createdAt,
+            createdAt: row.createdAt.toISOString(),
           };
         });
 
@@ -652,6 +734,7 @@ export function createDocumentRequestsRouter() {
     // -----------------------------------------------------------------------
     getDocumentRequest: protectedProcedure
       .input(z.object({ requestId: z.string().uuid() }))
+      .output(DocumentRequestDetailOutputSchema)
       .query(async ({ ctx, input }) => {
         const subject = ctx.auth;
 
@@ -674,11 +757,11 @@ export function createDocumentRequestsRouter() {
           requestId: document.id,
           title: document.title,
           requesterName: meta['requester']?.name ?? null,
-          lifecycleState: document.lifecycleState,
-          vmApproved: meta['vm_approved'] ?? false,
-          spApproved: meta['sp_approved'] ?? false,
+          lifecycleState: document.lifecycleState as LifecycleState,
+          vmApproved: !!meta['vm_approved'],
+          spApproved: !!meta['sp_approved'],
           accessMode: meta['accessMode'] ?? null,
-          createdAt: document.createdAt,
+          createdAt: document.createdAt.toISOString(),
           documentsRequested: meta['documentsRequested'] ?? [],
           purpose: meta['purpose'] ?? null,
           payment: meta['payment'] ?? null,
