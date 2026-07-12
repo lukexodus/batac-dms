@@ -1982,3 +1982,18 @@ Nothing — this was found incidentally while reading the file for unrelated con
 
 ---
 
+### [LOG-0089] `listCommittees` now returns `chairedByEmployeeId`, closing a chairperson-prefill bug — LOG-0087's broader envelope-shape question remains open
+
+- date: 2026-07-12
+- task_id: TASK-ORG-LINT-002
+- status: proposed
+- affects: apps/server/src/modules/organization/organization.router.ts
+- refines: LOG-0087
+
+**What was found:**
+While reviewing `TASK-ORG-LINT-001`'s implementation, `CommitteeManagementPage.tsx`'s `openEdit` function was found to read `committee.chairedByEmployeeId` when pre-populating the Chairperson field on the edit-committee dialog, but `organization.listCommittees` explicitly excluded this field from its returned object (via a hand-written 5-field object literal that omitted a field otherwise present on every row). The `committees` table's `chaired_by_employee_id` column is `.notNull()` and was already present on every row `orgRepository.committees.findAll(...)` returned post-`TASK-ORG-LINT-001` — the field was being dropped by `listCommittees`'s own mapping logic, not missing from the underlying data. Practical effect: opening the edit dialog for any committee always showed an empty Chairperson field regardless of the committee's actual chair, and saving without manually re-selecting one would silently clear the real chairperson on that committee.
+
+**What was implemented:**
+`listCommittees` now includes `chairedByEmployeeId: r.chairedByEmployeeId` in its returned object, typed as `string` (matching the column's non-nullable constraint). No frontend changes were required — `CommitteeManagementPage.tsx`'s local `CommitteeSummary` interface already declared this field, and `openEdit` was already written to read it correctly; it simply had never been receiving a real value.
+
+**[Inference]** This is a narrow, targeted fix for the one field needed to close the observed bug. It does not address the broader gap `LOG-0087` describes — `listCommittees` still does not conform to this codebase's `{ items: T[], nextCursor: string | null }` list-procedure envelope convention, and still has no `.output()` Zod schema. Whether E1/I2 should be updated to document this procedure (and whether it should be restructured to match the standard envelope as part of that), as `LOG-0087` already asks, is unchanged by this fix and remains a question for a human.

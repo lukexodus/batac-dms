@@ -616,11 +616,12 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         requireAnyRole(ctx, ['plat_admin', 'sp_secretary', 'sp_member'], 'Access to committees list is not permitted for this role.');
         const { orgRepository } = getDeps(ctx);
         const rows = await orgRepository.committees.findAll({ includeDeleted: false });
-        return rows.map((r: { id: string; name: string; code: string | null; description: string | null; deletedAt: Date | string | null }) => ({
+        return rows.map((r: { id: string; name: string; code: string | null; description: string | null; chairedByEmployeeId: string; deletedAt: Date | string | null }) => ({
           committeeId: r.id,
           name: r.name,
           code: r.code,
           description: r.description,
+          chairedByEmployeeId: r.chairedByEmployeeId,
           deletedAt: r.deletedAt,
         }));
       }),
