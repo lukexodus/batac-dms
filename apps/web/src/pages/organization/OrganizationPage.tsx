@@ -9,7 +9,7 @@ import {
   UserPlus,
   Briefcase,
 } from 'lucide-react';
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -44,6 +44,12 @@ interface OfficeSummary {
   name: string;
   parentOfficeId: string | null;
   type: 'executive' | 'legislative' | 'department' | 'barangay' | 'external';
+}
+
+interface EmployeeSummary {
+  employeeId: string;
+  displayName: string;
+  positionTitle: string | null;
 }
 
 interface OfficeNode extends OfficeSummary {
@@ -218,7 +224,7 @@ export function OrganizationPage() {
 
   // ─── Selected items ────────────────────────────────────────────────────────
   const [selectedOffice, setSelectedOffice] = useState<OfficeSummary | null>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeSummary | null>(null);
 
   // ─── Form state ────────────────────────────────────────────────────────────
   const defaultOfficeForm = { name: '', code: '', officeType: 'department' as OfficeType, parentOfficeId: '' };
@@ -295,7 +301,7 @@ export function OrganizationPage() {
     setEmployeeDialog('create');
   };
 
-  const openEditEmployee = (emp: any) => {
+  const openEditEmployee = (emp: EmployeeSummary) => {
     setSelectedEmployee(emp);
     const parts = (emp.displayName ?? '').split(' ');
     setEmployeeForm({
@@ -455,7 +461,7 @@ export function OrganizationPage() {
               <p className="text-sm text-muted-foreground py-2">No employees found.</p>
             ) : (
               <div className="divide-y rounded-md border">
-                {employeesData.items.map((emp: any) => (
+                {employeesData.items.map((emp) => (
                   <div
                     key={emp.employeeId}
                     className="flex items-center justify-between px-4 py-2.5 hover:bg-muted/50"
@@ -731,7 +737,7 @@ export function OrganizationPage() {
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
-                  {employeesData?.items.map((emp: any) => (
+                  {employeesData?.items.map((emp) => (
                     <SelectItem key={emp.employeeId} value={emp.employeeId}>
                       {emp.displayName}
                       {emp.positionTitle ? ` (${emp.positionTitle})` : ''}

@@ -1,4 +1,4 @@
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, type InferInsertModel } from 'drizzle-orm';
 import {
   offices,
   positions,
@@ -8,62 +8,76 @@ import {
   committees,
   committeeMemberships,
 } from '@batac/database/schema/organization.schema.js';
-import type { DbClient, DbTransaction } from './organization.types.js';
+import type { 
+  DbClient, 
+  DbTransaction,
+  OfficeRow,
+  PositionRow,
+  EmployeeRow,
+  AssignmentRow,
+  DelegationGrantRow,
+  CommitteeRow,
+  CommitteeMembershipRow,
+} from './organization.types.js';
+
+type UpdateInput<T> = {
+  [K in keyof T]?: T[K] | undefined;
+};
 
 export interface OrgRepository {
   offices: {
-    findById(id: string): Promise<any>;
-    findAll(opts?: { includeDeleted?: boolean }): Promise<any>;
-    create(input: any): Promise<any>;
-    update(id: string, input: any): Promise<any>;
-    softDelete(id: string, deletedBy: string): Promise<any>;
+    findById(id: string): Promise<OfficeRow | null>;
+    findAll(opts?: { includeDeleted?: boolean }): Promise<OfficeRow[]>;
+    create(input: InferInsertModel<typeof offices>): Promise<OfficeRow>;
+    update(id: string, input: UpdateInput<InferInsertModel<typeof offices>>): Promise<OfficeRow>;
+    softDelete(id: string, deletedBy: string): Promise<void>;
   };
   positions: {
-    findById(id: string): Promise<any>;
-    findAll(opts?: { includeDeleted?: boolean }): Promise<any>;
-    create(input: any): Promise<any>;
-    update(id: string, input: any): Promise<any>;
-    softDelete(id: string, deletedBy: string): Promise<any>;
+    findById(id: string): Promise<PositionRow | null>;
+    findAll(opts?: { includeDeleted?: boolean }): Promise<PositionRow[]>;
+    create(input: InferInsertModel<typeof positions>): Promise<PositionRow>;
+    update(id: string, input: UpdateInput<InferInsertModel<typeof positions>>): Promise<PositionRow>;
+    softDelete(id: string, deletedBy: string): Promise<void>;
   };
   employees: {
-    findById(id: string): Promise<any>;
-    findByUserId(userId: string): Promise<any>;
-    findAll(opts?: { includeDeleted?: boolean }): Promise<any>;
-    create(input: any): Promise<any>;
-    update(id: string, input: any): Promise<any>;
-    softDelete(id: string, deletedBy: string): Promise<any>;
+    findById(id: string): Promise<EmployeeRow | null>;
+    findByUserId(userId: string): Promise<EmployeeRow | null>;
+    findAll(opts?: { includeDeleted?: boolean }): Promise<EmployeeRow[]>;
+    create(input: InferInsertModel<typeof employees>): Promise<EmployeeRow>;
+    update(id: string, input: UpdateInput<InferInsertModel<typeof employees>>): Promise<EmployeeRow>;
+    softDelete(id: string, deletedBy: string): Promise<void>;
   };
   assignments: {
-    findById(id: string): Promise<any>;
-    findAll(opts?: { includeDeleted?: boolean }): Promise<any>;
-    create(input: any): Promise<any>;
-    update(id: string, input: any): Promise<any>;
-    softDelete(id: string, deletedBy: string): Promise<any>;
+    findById(id: string): Promise<AssignmentRow | null>;
+    findAll(opts?: { includeDeleted?: boolean }): Promise<AssignmentRow[]>;
+    create(input: InferInsertModel<typeof assignments>): Promise<AssignmentRow>;
+    update(id: string, input: UpdateInput<InferInsertModel<typeof assignments>>): Promise<AssignmentRow>;
+    softDelete(id: string, deletedBy: string): Promise<void>;
     setPrimaryAssignment(employeeId: string, assignmentId: string, tx: DbTransaction): Promise<void>;
   };
   delegationGrants: {
-    findById(id: string): Promise<any>;
-    findAll(opts?: { includeDeleted?: boolean }): Promise<any>;
-    create(input: any): Promise<any>;
-    update(id: string, input: any): Promise<any>;
-    softDelete(id: string, deletedBy: string): Promise<any>;
-    findActiveByUserId(userId: string): Promise<any>;
-    findByIdAndActive(id: string): Promise<any>;
+    findById(id: string): Promise<DelegationGrantRow | null>;
+    findAll(opts?: { includeDeleted?: boolean }): Promise<DelegationGrantRow[]>;
+    create(input: InferInsertModel<typeof delegationGrants>): Promise<DelegationGrantRow>;
+    update(id: string, input: UpdateInput<InferInsertModel<typeof delegationGrants>>): Promise<DelegationGrantRow>;
+    softDelete(id: string, deletedBy: string): Promise<void>;
+    findActiveByUserId(userId: string): Promise<DelegationGrantRow[]>;
+    findByIdAndActive(id: string): Promise<DelegationGrantRow | null>;
   };
   committees: {
-    findById(id: string): Promise<any>;
-    findAll(opts?: { includeDeleted?: boolean }): Promise<any>;
-    create(input: any): Promise<any>;
-    update(id: string, input: any): Promise<any>;
-    softDelete(id: string, deletedBy: string): Promise<any>;
+    findById(id: string): Promise<CommitteeRow | null>;
+    findAll(opts?: { includeDeleted?: boolean }): Promise<CommitteeRow[]>;
+    create(input: InferInsertModel<typeof committees>): Promise<CommitteeRow>;
+    update(id: string, input: UpdateInput<InferInsertModel<typeof committees>>): Promise<CommitteeRow>;
+    softDelete(id: string, deletedBy: string): Promise<void>;
   };
   committeeMemberships: {
-    findById(id: string): Promise<any>;
-    findAll(opts?: { includeDeleted?: boolean }): Promise<any>;
-    create(input: any): Promise<any>;
-    update(id: string, input: any): Promise<any>;
-    softDelete(id: string, deletedBy: string): Promise<any>;
-    findActiveByUserId(userId: string): Promise<any>;
+    findById(id: string): Promise<CommitteeMembershipRow | null>;
+    findAll(opts?: { includeDeleted?: boolean }): Promise<CommitteeMembershipRow[]>;
+    create(input: InferInsertModel<typeof committeeMemberships>): Promise<CommitteeMembershipRow>;
+    update(id: string, input: UpdateInput<InferInsertModel<typeof committeeMemberships>>): Promise<CommitteeMembershipRow>;
+    softDelete(id: string, deletedBy: string): Promise<void>;
+    findActiveByUserId(userId: string): Promise<CommitteeMembershipRow[]>;
   };
 }
 

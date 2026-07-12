@@ -1942,3 +1942,43 @@ TASK-FE-DOCS-003's AI Prompt says the frontend should check whether an `sp_membe
 
 ---
 
+### [LOG-0087] `organization.listCommittees` and `organization.listEmployees` are not documented in E1 or I2
+
+- date: 2026-07-12
+- task_id: (planning session — Option A investigation, OrgRepository interface lint fix)
+- status: proposed
+- affects: docs/pre-development/E-api-design/e1-trpc-router-and-procedure-catalog.md, docs/pre-development/I-security-and-authorization/i2-role-permission-matrix.md
+- resolved_in: none
+
+**What was found:**
+While investigating the root cause of `any`-typed lint errors in `CommitteeManagementPage.tsx` and `OrganizationPage.tsx` (apps/web), both files were traced back to two tRPC procedures — `organization.listCommittees` and `organization.listEmployees` — that are live in `organization.router.ts` and consumed by the frontend, but do not appear anywhere in either of this module's governing documents. E1's Module 2 (Organization Router, lines 460–604) documents `getOfficeHierarchy`, office/position/employee/committee create/update, `assignEmployeeToPosition`, and the designation-grant procedures in full (exact Zod input/output shapes for each), but has no entry for either `list` query — confirmed by a direct text search across the full document, not just the Module 2 section. I2's Section 2 (Organization Structure, lines 95–111) likewise has no row for "View committee records" or an equivalent list-employees permission; it covers create/edit for offices/positions/employees, org-chart viewing, and designation grants only.
+
+This is not a case of the code deviating from a documented procedure — there is no documented procedure for either endpoint to deviate from. `listCommittees` in particular has no `.input()` or `.output()` schema in the router at all (unlike every other procedure in the module), which is plausibly connected: with no Zod output schema to conform to, and no doc spec to build one against, the procedure's return type was never asserted at the boundary, which is part of why it currently returns `any` end-to-end via `orgRepository.committees.findAll()`'s untyped interface. `listEmployees` is independently, cleanly typed via `OrgService.listEmployees` (a separately-declared interface method with a real `Promise<{ items: EmployeeSummary[]; nextCursor: string | null }>` return type, implemented with its own directly-typed Drizzle query) — so the missing-doc gap did not have the same type-safety consequence there, but the documentation gap itself is the same for both procedures.
+
+**What was implemented:**
+Nothing yet — this entry is being logged ahead of the actual interface-fix prompt, per this project's convention of surfacing a doc/code conflict rather than silently resolving it in either direction (AGENTS.md §1).
+
+**[Inference]** The likely explanation is that both procedures were added ad hoc during frontend integration work, after E1/I2 were written, without a corresponding doc update — the same general failure mode as LOG-0086 (missing `.output()` schemas on `complaints.router.ts`/`document-requests.router.ts`), though a different module and a different specific mechanism. Whether E1/I2 should be updated to cover these two procedures, or whether they were deliberately left out of the Phase 1 MVC scope for some reason not visible in the router code itself, is a question for a human — not resolved here.
+
+---
+
+### [LOG-0088] `organization.plugin.ts` constructs `orgTrpcRouter` without an `orgRepository` key, unlike the already-logged LOG-0038 key-mismatch in the same file
+
+- date: 2026-07-12
+- task_id: (planning session — Option A investigation, OrgRepository interface lint fix)
+- status: proposed
+- affects: apps/server/src/modules/organization/organization.plugin.ts, apps/server/src/modules/organization/organization.router.ts
+- resolved_in: none
+
+**What was found:**
+While investigating `OrgRepository`'s interface typing (unrelated original purpose), `organization.plugin.ts` was read in full and found to construct `createOrgRouter(deps)` (lines 50–54) with an object containing only `policyEvaluator`, `organizationService`, and `delegationService` — no `orgRepository` key at all — cast away with `as any`. `createOrgRouter`'s own `getDeps(ctx)` helper (`organization.router.ts`, lines 184–194) has fallback logic: `if (deps) return deps;` before falling back to reading `server.orgRepository`/etc. directly off the Fastify instance. Because this check only tests truthiness of the whole `deps` object, not the presence of individual keys, and the object passed in at plugin-construction time is truthy (it has 3 of the 4 expected keys), `getDeps()` returns the incomplete object as-is rather than falling back — meaning `orgRepository` would resolve to `undefined` inside every procedure that calls `getDeps(ctx).orgRepository`, when the procedure is invoked through this plugin-constructed router instance specifically.
+
+This is structurally similar to LOG-0038 (`repository`/`orgRepository` key-name mismatch in the same file, already logged, already fixed per that entry's own text) but is a distinct occurrence: LOG-0038 was about `createDelegationService`'s dependency object using the wrong key *name*; this is about `createOrgRouter`'s dependency object *missing* the key entirely. Both share the same root mechanism — an `as any` cast at the construction call site suppressing what would otherwise be a structural type-check failure, which is the same mechanism LOG-0038's own text identifies as the reason its bug went uncaught by `pnpm typecheck`.
+
+**What was implemented:**
+Nothing — this was found incidentally while reading the file for unrelated context (confirming how `OrgRepository` is instantiated and wired) during a lint-remediation investigation, not while working a task that touches this file's actual construction logic. Not chased further or reproduced against a running server; this is a static-read finding about the object literal's shape, not a confirmed runtime reproduction.
+
+**[Inference]** If accurate, this would be a live bug (every organization-module procedure that reads `orgRepository` from `getDeps(ctx)` — which is most of them — would throw or behave unexpectedly when invoked through the app's actual registered Fastify plugin, not just in tests, which construct `OrgRouterDeps` differently and are unaffected). Not confirmed by directly running the server or writing a reproduction test; flagged from static reading only. A human or a future task should verify this against a running instance before treating it as confirmed, and should decide whether the fix is adding the missing `orgRepository` key at the call site (mirroring LOG-0038's fix) or, more durably, having `createOrgRouter` accept a required (non-optional) `deps` parameter so a missing key becomes a compile-time error rather than a silent runtime `undefined` — the latter would also apply to the `as any` casts on the other three construction calls in this same file (lines 24, 32, 42), which is beyond the scope of what was verified here.
+
+---
+

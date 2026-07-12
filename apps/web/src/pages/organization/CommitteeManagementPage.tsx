@@ -1,6 +1,5 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { Users, Plus, Edit, UserPlus } from 'lucide-react';
-import React, { useState } from 'react';
+import { Plus, Edit, UserPlus } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -30,8 +29,22 @@ import {
 
 import { trpc } from '../../lib/trpc';
 
+interface CommitteeSummary {
+  committeeId: string;
+  name: string;
+  code: string | null;
+  description: string | null;
+  chairedByEmployeeId?: string | null;
+  deletedAt: Date | string | null;
+}
+
+interface EmployeeSummary {
+  employeeId: string;
+  displayName: string;
+  positionTitle: string | null;
+}
+
 export function CommitteeManagementPage() {
-  const queryClient = useQueryClient();
   const utils = trpc.useUtils();
   const { data: committees, isLoading } = trpc.organization.listCommittees.useQuery();
 
@@ -39,7 +52,7 @@ export function CommitteeManagementPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   
-  const [selectedCommittee, setSelectedCommittee] = useState<any>(null);
+  const [selectedCommittee, setSelectedCommittee] = useState<CommitteeSummary | null>(null);
 
   // Forms state
   const [formData, setFormData] = useState({
@@ -48,7 +61,7 @@ export function CommitteeManagementPage() {
     chairedByEmployeeId: '',
   });
 
-  const [assignData, setAssignData] = useState({
+  const [assignData, setAssignData] = useState<{ employeeId: string; committeeRole: 'chairman' | 'vice_chairman' | 'member'; startDate: string }>({
     employeeId: '',
     committeeRole: 'member',
     startDate: new Date().toISOString().split('T')[0]!,
@@ -86,7 +99,7 @@ export function CommitteeManagementPage() {
     { limit: 100, search: employeeSearch }
   );
 
-  const openEdit = (committee: any) => {
+  const openEdit = (committee: CommitteeSummary) => {
     setSelectedCommittee(committee);
     setFormData({
       name: committee.name || '',
@@ -96,7 +109,7 @@ export function CommitteeManagementPage() {
     setIsEditOpen(true);
   };
 
-  const openAssign = (committee: any) => {
+  const openAssign = (committee: CommitteeSummary) => {
     setSelectedCommittee(committee);
     setAssignData({
       employeeId: '',
@@ -130,7 +143,7 @@ export function CommitteeManagementPage() {
     assignMutation.mutate({
       committeeId: selectedCommittee.committeeId,
       employeeId: assignData.employeeId,
-      committeeRole: assignData.committeeRole as any,
+      committeeRole: assignData.committeeRole,
       startDate: new Date(assignData.startDate),
     });
   };
@@ -176,7 +189,7 @@ export function CommitteeManagementPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                committees?.map((committee: any) => (
+                committees?.map((committee) => (
                   <TableRow key={committee.committeeId}>
                     <TableCell className="font-medium">{committee.code}</TableCell>
                     <TableCell>{committee.name}</TableCell>
@@ -240,7 +253,7 @@ export function CommitteeManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No Chairperson</SelectItem>
-                  {employeesData?.items.map((emp: any) => (
+                  {employeesData?.items.map((emp) => (
                     <SelectItem key={emp.employeeId} value={emp.employeeId}>
                       {emp.displayName} {emp.positionTitle ? `(${emp.positionTitle})` : ''}
                     </SelectItem>
@@ -275,7 +288,7 @@ export function CommitteeManagementPage() {
                   <SelectValue placeholder="Select Employee" />
                 </SelectTrigger>
                 <SelectContent>
-                  {employeesData?.items.map((emp: any) => (
+                  {employeesData?.items.map((emp) => (
                     <SelectItem key={emp.employeeId} value={emp.employeeId}>
                       {emp.displayName} {emp.positionTitle ? `(${emp.positionTitle})` : ''}
                     </SelectItem>
@@ -287,7 +300,7 @@ export function CommitteeManagementPage() {
               <Label>Role</Label>
               <Select
                 value={assignData.committeeRole}
-                onValueChange={(val) => setAssignData({ ...assignData, committeeRole: val })}
+                onValueChange={(val) => setAssignData({ ...assignData, committeeRole: val as 'chairman' | 'vice_chairman' | 'member' })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Role" />

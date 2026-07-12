@@ -341,7 +341,7 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
             lastName: input.lastName,
             email: input.email ?? null,
             phoneNumber: input.phoneNumber ?? null,
-            employeeNumber: input.employeeNumber,
+            employeeNumber: input.employeeNumber as string,
           }),
         );
         return { employeeId: row.id };
@@ -360,7 +360,13 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         if (!existing) {
           throw new TRPCError({ code: 'NOT_FOUND', message: `Employee '${employeeId}' was not found.` });
         }
-        const row = await runDbMutation(() => orgRepository.employees.update(employeeId, rest));
+        
+        const updatePayload = {
+          ...rest,
+          ...(rest.employeeNumber !== undefined ? { employeeNumber: rest.employeeNumber as string } : {})
+        } as Parameters<typeof orgRepository.employees.update>[1];
+        
+        const row = await runDbMutation(() => orgRepository.employees.update(employeeId, updatePayload));
         return { employeeId: row.id };
       }),
 
@@ -551,7 +557,7 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
           orgRepository.committees.create({
             name: input.name,
             code: input.code,
-            chairedByEmployeeId: input.chairedByEmployeeId,
+            chairedByEmployeeId: input.chairedByEmployeeId as string,
           }),
         );
         return { committeeId: row.id };
@@ -570,7 +576,13 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         if (!existing) {
           throw new TRPCError({ code: 'NOT_FOUND', message: `Committee '${committeeId}' was not found.` });
         }
-        const row = await runDbMutation(() => orgRepository.committees.update(committeeId, rest));
+        
+        const updatePayload = {
+          ...rest,
+          ...(rest.chairedByEmployeeId !== undefined ? { chairedByEmployeeId: rest.chairedByEmployeeId as string } : {})
+        } as Parameters<typeof orgRepository.committees.update>[1];
+        
+        const row = await runDbMutation(() => orgRepository.committees.update(committeeId, updatePayload));
         return { committeeId: row.id };
       }),
 
