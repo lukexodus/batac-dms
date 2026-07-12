@@ -161,7 +161,7 @@ describe('Session Router tRPC Procedures', () => {
       mockDb.mockResponse(roster); // 1. SP members check
       mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position
       mockDb.mockResponse([{ id: 'valid-override-id' }]); // 3. override validation (employee exists)
-      mockDb.mockResponse([{ id: 'assignment-id' }]); // 4. override eligibility (SP member)
+      mockDb.mockResponse([{ id: 'grant-id' }]); // 4. override eligibility (active delegation)
       mockDb.mockResponse([]); // 5. existing session check -> empty
       mockDb.mockResponse([{ maxNum: 5 }]); // 6. max session number
       mockDb.mockResponse([{ id: 'session-id' }]); // 7. insert session
@@ -242,8 +242,7 @@ describe('Session Router tRPC Procedures', () => {
       mockDb.mockResponse(roster); // 1. SP members check
       mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position
       mockDb.mockResponse([{ id: 'valid-override-id' }]); // 3. override validation (employee exists)
-      mockDb.mockResponse([]); // 4. override eligibility (NOT an SP member)
-      mockDb.mockResponse([]); // 5. override eligibility (NO active delegation)
+      mockDb.mockResponse([]); // 4. override eligibility (NO active delegation)
 
       await expect(
         caller.recordAttendance({

@@ -242,60 +242,37 @@ export function createSessionRouter() {
 
         const vmPositionId = vmPos[0]?.positionId;
 
-        const spMembers = await ctx.db
+        if (!vmPositionId) {
+          return [];
+        }
+
+        const candidateMap = new Map<string, { id: string; displayName: string }>();
+
+        const activeGrants = await ctx.db
           .select({
             id: employees.id,
             firstName: employees.firstName,
             lastName: employees.lastName,
           })
-          .from(employees)
-          .innerJoin(assignments, eq(assignments.employeeId, employees.id))
-          .innerJoin(offices, eq(assignments.officeId, offices.id))
+          .from(delegationGrants)
+          .innerJoin(employees, eq(delegationGrants.delegatedToEmployeeId, employees.id))
           .where(
             and(
-              eq(offices.code, 'SP'),
-              eq(offices.cityId, ctx.auth.cityId),
-              isNull(employees.deletedAt),
-              isNull(assignments.deletedAt)
+              eq(delegationGrants.positionId, vmPositionId),
+              eq(delegationGrants.isActive, true),
+              lte(delegationGrants.startDate, dateStr),
+              gte(delegationGrants.endDate, dateStr),
+              isNull(delegationGrants.revokedAt),
+              isNull(employees.deletedAt)
             )
           );
 
-        const candidateMap = new Map<string, { id: string; displayName: string }>();
-
-        for (const emp of spMembers) {
-          candidateMap.set(emp.id, {
-            id: emp.id,
-            displayName: `${emp.firstName} ${emp.lastName}`.trim(),
-          });
-        }
-
-        if (vmPositionId) {
-          const activeGrants = await ctx.db
-            .select({
-              id: employees.id,
-              firstName: employees.firstName,
-              lastName: employees.lastName,
-            })
-            .from(delegationGrants)
-            .innerJoin(employees, eq(delegationGrants.delegatedToEmployeeId, employees.id))
-            .where(
-              and(
-                eq(delegationGrants.positionId, vmPositionId),
-                eq(delegationGrants.isActive, true),
-                lte(delegationGrants.startDate, dateStr),
-                gte(delegationGrants.endDate, dateStr),
-                isNull(delegationGrants.revokedAt),
-                isNull(employees.deletedAt)
-              )
-            );
-
-          for (const emp of activeGrants) {
-            if (!candidateMap.has(emp.id)) {
-              candidateMap.set(emp.id, {
-                id: emp.id,
-                displayName: `${emp.firstName} ${emp.lastName}`.trim(),
-              });
-            }
+        for (const emp of activeGrants) {
+          if (!candidateMap.has(emp.id)) {
+            candidateMap.set(emp.id, {
+              id: emp.id,
+              displayName: `${emp.firstName} ${emp.lastName}`.trim(),
+            });
           }
         }
 
@@ -543,38 +520,22 @@ export function createSessionRouter() {
                   });
                 }
 
-                const [spMember] = await tx
-                  .select({ id: assignments.id })
-                  .from(assignments)
-                  .innerJoin(offices, eq(assignments.officeId, offices.id))
+                const [activeGrant] = await tx
+                  .select({ id: delegationGrants.id })
+                  .from(delegationGrants)
                   .where(
                     and(
-                      eq(assignments.employeeId, presidedByEmployeeIdOverride),
-                      eq(offices.code, 'SP'),
-                      eq(offices.cityId, ctx.auth.cityId),
-                      isNull(assignments.deletedAt)
+                      eq(delegationGrants.delegatedToEmployeeId, presidedByEmployeeIdOverride),
+                      eq(delegationGrants.positionId, vmPositionId),
+                      eq(delegationGrants.isActive, true),
+                      lte(delegationGrants.startDate, dateStr),
+                      gte(delegationGrants.endDate, dateStr),
+                      isNull(delegationGrants.revokedAt)
                     )
                   )
                   .limit(1);
 
-                let isEligible = !!spMember;
-                if (!isEligible) {
-                  const [activeGrant] = await tx
-                    .select({ id: delegationGrants.id })
-                    .from(delegationGrants)
-                    .where(
-                      and(
-                        eq(delegationGrants.delegatedToEmployeeId, presidedByEmployeeIdOverride),
-                        eq(delegationGrants.positionId, vmPositionId),
-                        eq(delegationGrants.isActive, true),
-                        lte(delegationGrants.startDate, dateStr),
-                        gte(delegationGrants.endDate, dateStr),
-                        isNull(delegationGrants.revokedAt)
-                      )
-                    )
-                    .limit(1);
-                  isEligible = !!activeGrant;
-                }
+                const isEligible = !!activeGrant;
 
                 if (!isEligible) {
                   throw new TRPCError({

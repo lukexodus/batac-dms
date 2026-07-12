@@ -234,7 +234,7 @@ export function SessionAttendanceDetailPage() {
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        Select a substitute from eligible SP members or those with an active delegation grant.
+                        Select a substitute from those with an active delegation grant for this position.
                       </p>
                     </div>
                   )}
