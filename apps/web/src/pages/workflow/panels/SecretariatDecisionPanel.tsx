@@ -8,9 +8,10 @@ import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // logSecretariatDecision requires sp_secretary role + stepInstanceId.
 // The server-side auth check is roles-only (subject.roles.includes('sp_secretary')).
-// The panelHint='secretariat_decision' is computed server-side via step config.assignee,
-// which is the only stable proxy available without an extra office-lookup join.
-// See LOG-0077 for the full reasoning.
+// The panelHint='secretariat_decision' is computed server-side in computePanelHint
+// (workflow.router.ts) via a direct comparison of the step's assigned office_id
+// against the SP Secretariat office's ID (resolved via getOfficeByCode).
+// See LOG-0092 for the correction (supersedes LOG-0077/LOG-0078's role-based-proxy description).
 export function SecretariatDecisionPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();

@@ -2017,3 +2017,39 @@ Human decision, given directly in conversation (not independently inferred): kee
 
 **Open item, not resolved by the above, deliberately left open:**
 This decision settles whether a conforming TODO's warning is a problem (no). It does not settle a separate requirement in the same §5.3: "every TODO and FIXME must include a GitHub issue number before a PR is merged to `main`." The comment at `DocumentIntakePage.tsx:68` currently reads `// TODO: validTypes only lists 3 of the 5 MIME types AllowedMimeTypeSchema actually accepts (missing Office document types)` — missing both the `(username)` attribution and a ticket reference §5.3 requires. Bringing this comment into full §5.3 format needs a real GitHub issue number and an author name, neither of which exists yet; not invented here. This is a separate, still-open mechanical gap, unrelated to the lint-severity question this entry resolves.
+
+---
+
+### [LOG-0091] TASK-WF-023: session.router.ts procedure names, count, and business logic diverge from spec
+
+- date: 2026-07-13
+- task_id: TASK-WF-023
+- status: proposed
+- affects: wf.md (TASK-WF-023, TASK-WF-024)
+
+**What was found:** TASK-WF-023's spec (wf.md, originally generated 2026-06-29) defines `sessionRouter` with four procedures — `session.logSpSession`, `session.logAttendance`, `session.getOrderOfBusiness`, `session.generateOrderOfBusiness` — but the live `apps/server/src/modules/workflow/session.router.ts` implements a different set: `getAttendanceRecord`, `getAttendanceStatistics`, `getOrderOfBusiness`, `recordAttendance`, `scheduleDocumentForFirstReading`, `enterCommitteeHearingDate`. This is not just a naming difference:
+
+1. **Procedure split/merge:** spec's `logSpSession` (create) + `logAttendance` (upsert existing) are merged into one live procedure, `recordAttendance`, which handles both create and upsert via an existing-session check (confirmed lines 415–460 of the live file).
+2. **`generateOrderOfBusiness` does not exist as a standalone procedure.** Its spec'd responsibility (create/refresh OoB for an upcoming session) is instead folded into `scheduleDocumentForFirstReading` (live file, lines 530–717), which is triggered by scheduling one specific document rather than by a general "generate OoB for date X" action, and does not implement the spec's `second_reading_eligible_date <= targetSessionDate` eligibility filter (spec: wf.md lines 2258–2263) in any directly comparable form — confirmed by reading `scheduleDocumentForFirstReading` in full; it contains Tuesday-snapping/Thursday-cutoff logic but no `second_reading_eligible_date` filtering logic at all.
+3. **Quorum formula differs.** Spec (wf.md line 2220) requires `quorumAchieved` computed dynamically as `presentCount >= ceil(totalActiveSpMembers / 2) + 1` against the actual SP membership roster, explicitly warning not to hardcode a count. The live `recordAttendance` (line 341) and `getAttendanceStatistics` (line 178) both hardcode a fixed 12-member body (`quorumMet = presentCount >= 7`; `absentCount = Math.max(0, 12 - presentCount)`), with no roster lookup.
+4. **`logSpSession`'s spec'd input requires `presidedByEmployeeId` as a mandatory field supplied by the caller** (wf.md line 2210, `z.string().uuid()`, no `.optional()`/`.nullish()`), implying the original design intended the secretary to explicitly supply the presiding officer on every call. The live `recordAttendance` input has no such field at all (confirmed lines 316–332) and instead resolves it automatically server-side via a VM-position lookup and `delegationGrants` query (lines 344–413) — a fully different mechanism, not just a missing field.
+5. **Absence-reason validation approach differs, though the live approach may be equivalent-or-better:** spec (line 2221) calls for an explicit runtime check that every `isPresent: false` entry has a non-null `absenceReason`, as a fail-fast measure ahead of the DB CHECK constraint. The live `recordAttendance` input shape (`absences: [{ councilorEmployeeId, reason }]`, `reason` a required non-optional enum, with no `isPresent` boolean at all) appears to make this invariant structurally impossible to violate rather than needing a runtime check — flagged as a possible case where the live design is arguably an improvement, not a regression, but noted here as still a divergence from what was spec'd, since a future reader relying on TASK-WF-023's text to understand this router's contract would be misled about the input shape either way.
+
+This finding is unrelated to LOG-0082 (the substitute-presiding-officer manual-override decision) — that entry concerns a different question (automatic vs. manual override for point 4's resolution mechanism) and was investigated/decided separately. This entry is about the router's overall shape and the quorum formula, which LOG-0082 does not address.
+
+No code or spec change has been made as a result of this finding. Whether `wf.md` should be updated to describe the router as actually implemented, whether the live router should be reworked toward the original spec (particularly the quorum formula, which has real behavioral consequences for a body whose membership could change — the spec's own comment at line 2220 explicitly anticipates this), or some hybrid, is left for human review — this is a genuine business-logic question (is a hardcoded 12-member quorum acceptable, or does it need to track actual SP membership), not a naming cleanup.
+---
+
+### [LOG-0092] computePanelHint's Secretariat Decision routing has moved past LOG-0078's role-based-proxy description; also stale in SecretariatDecisionPanel.tsx's comment
+
+- date: 2026-07-13
+- task_id: TASK-FE-WF-004
+- status: proposed
+- affects: F1
+- supersedes: LOG-0078
+
+**What was found:** LOG-0078 (status: proposed) describes `computePanelHint`'s Secretariat Decision detection as routing on `currentStepType` being 'action' or 'approval' AND the step configuration's assignee (`config.assignee`) being `role:sp_secretary` or `role:secretariat_staff` — "the most stable proxy available without an extra office-lookup join." The live implementation in `apps/server/src/modules/workflow/workflow.router.ts` (confirmed lines 236-240) no longer matches this description: it performs a direct office-ID comparison instead — `(currentStepType === 'action' || currentStepType === 'approval') && spsOfficeId && (currentStep.assignedTo?.[0]?.office_id === spsOfficeId)` — where `spsOfficeId` is resolved via an office lookup (`getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, ...)`, line 366) and passed into `computePanelHint` as a parameter (line 367). The role-based `config.assignee` check LOG-0078 describes is not present anywhere in the current function body.
+
+The same drift is separately visible in a code comment: `apps/web/src/pages/workflow/panels/SecretariatDecisionPanel.tsx` (lines 9-13) still documents the old role-based-proxy behavior and cites LOG-0077 (not LOG-0078, though both describe the same underlying mechanism) as its source. That comment has not been updated to reflect the office-ID-comparison implementation either.
+
+**What was implemented:** No code change from this task — this entry is a documentation correction only, recording that the mechanism has evolved since LOG-0078 without a superseding entry ever being filed. Whether the office-lookup join LOG-0078 called out as the reason to avoid a direct comparison was later added deliberately (i.e., an intentional design evolution) or the two changed independently without either author cross-referencing the other is not something this task investigated and is left for human review.

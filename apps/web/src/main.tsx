@@ -42,9 +42,12 @@ import { OrganizationPage } from "./pages/organization/OrganizationPage";
 import { ActiveSessionsPage } from "./pages/sysadmin/ActiveSessionsPage";
 import { SystemAdminHomePage } from "./pages/sysadmin/SystemAdminHomePage";
 import { UserAccountManagementPage } from "./pages/sysadmin/UserAccountManagementPage";
+import { MayorDashboardPage } from "./pages/workflow/MayorDashboardPage";
 import { MyAssignedStepsPage } from "./pages/workflow/MyAssignedStepsPage";
 import { OrderOfBusinessPage } from "./pages/workflow/OrderOfBusinessPage";
 import { SecretaryDashboardPage } from "./pages/workflow/SecretaryDashboardPage";
+import { SessionAttendanceDetailPage } from "./pages/workflow/SessionAttendanceDetailPage";
+import { SessionAttendanceOverviewPage } from "./pages/workflow/SessionAttendanceOverviewPage";
 import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage";
 
 const router = createBrowserRouter([
@@ -85,8 +88,20 @@ const router = createBrowserRouter([
     element: <WorkflowStepActionPage />,
   },
   {
+    path: "/mayor",
+    element: <MayorDashboardPage />,
+  },
+  {
     path: "/secretary",
     element: <SecretaryDashboardPage />,
+  },
+  {
+    path: "/sessions",
+    element: <SessionAttendanceOverviewPage />,
+  },
+  {
+    path: "/sessions/:sessionDate",
+    element: <SessionAttendanceDetailPage />,
   },
   {
     path: "/order-of-business",
