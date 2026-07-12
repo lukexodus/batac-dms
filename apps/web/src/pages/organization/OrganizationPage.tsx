@@ -213,7 +213,7 @@ export function OrganizationPage() {
     { enabled: isPlatAdmin },
   );
 
-  const offices = hierarchy?.offices ?? [];
+  const offices = useMemo(() => hierarchy?.offices ?? [], [hierarchy]);
   const tree = useMemo(() => buildTree(offices), [offices]);
 
   // ─── Dialog state ──────────────────────────────────────────────────────────
