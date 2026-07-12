@@ -89,6 +89,8 @@ export function createSessionRouter() {
             presentCouncilors: [],
             absences: [],
             quorumMet: false,
+            presidedByEmployeeId: null,
+            presidedByDisplayName: null,
           };
         }
 
@@ -137,11 +139,29 @@ export function createSessionRouter() {
           }
         }
 
+        let presidedByDisplayName: string | null = null;
+        if (session.presidedByEmployeeId) {
+          const [presidingEmp] = await ctx.db
+            .select({
+              firstName: employees.firstName,
+              lastName: employees.lastName,
+            })
+            .from(employees)
+            .where(eq(employees.id, session.presidedByEmployeeId))
+            .limit(1);
+
+          if (presidingEmp) {
+            presidedByDisplayName = `${presidingEmp.firstName} ${presidingEmp.lastName}`.trim();
+          }
+        }
+
         return {
           sessionDate: input.sessionDate,
           presentCouncilors,
           absences,
           quorumMet: session.quorumAchieved ?? false,
+          presidedByEmployeeId: session.presidedByEmployeeId,
+          presidedByDisplayName,
         };
       }),
 
@@ -328,12 +348,13 @@ export function createSessionRouter() {
               ]),
             })
           ),
+          presidedByEmployeeIdOverride: z.string().uuid().nullish(),
         })
       )
       .mutation(async ({ input, ctx }) => {
         enforceRoles(ctx, ['sp_secretary']);
 
-        const { sessionDate, absences } = input;
+        const { sessionDate, absences, presidedByEmployeeIdOverride } = input;
         const dateStr = formatDate(sessionDate);
 
         const absentCount = absences.length;
@@ -366,26 +387,91 @@ export function createSessionRouter() {
             const isVmAbsent = absences.some((a) => a.councilorEmployeeId === vmEmployeeId);
 
             if (isVmAbsent) {
-              const activeDesignation = await tx
-                .select({ delegatedToEmployeeId: delegationGrants.delegatedToEmployeeId })
-                .from(delegationGrants)
-                .where(
-                  and(
-                    eq(delegationGrants.positionId, vmPositionId),
-                    eq(delegationGrants.isActive, true),
-                    lte(delegationGrants.startDate, dateStr),
-                    gte(delegationGrants.endDate, dateStr),
-                    isNull(delegationGrants.revokedAt)
+              if (presidedByEmployeeIdOverride) {
+                const [overrideEmp] = await tx
+                  .select({ id: employees.id })
+                  .from(employees)
+                  .where(
+                    and(
+                      eq(employees.id, presidedByEmployeeIdOverride),
+                      eq(employees.cityId, ctx.auth.cityId),
+                      isNull(employees.deletedAt)
+                    )
                   )
-                )
-                .limit(1);
+                  .limit(1);
 
-              if (activeDesignation[0]) {
-                presidedByEmployeeId = activeDesignation[0].delegatedToEmployeeId;
+                if (!overrideEmp) {
+                  throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'The selected substitute presiding officer could not be found.',
+                  });
+                }
+
+                const [spMember] = await tx
+                  .select({ id: assignments.id })
+                  .from(assignments)
+                  .innerJoin(offices, eq(assignments.officeId, offices.id))
+                  .where(
+                    and(
+                      eq(assignments.employeeId, presidedByEmployeeIdOverride),
+                      eq(offices.code, 'SP'),
+                      eq(offices.cityId, ctx.auth.cityId),
+                      isNull(assignments.deletedAt)
+                    )
+                  )
+                  .limit(1);
+
+                let isEligible = !!spMember;
+                if (!isEligible) {
+                  const [activeGrant] = await tx
+                    .select({ id: delegationGrants.id })
+                    .from(delegationGrants)
+                    .where(
+                      and(
+                        eq(delegationGrants.delegatedToEmployeeId, presidedByEmployeeIdOverride),
+                        eq(delegationGrants.positionId, vmPositionId),
+                        eq(delegationGrants.isActive, true),
+                        lte(delegationGrants.startDate, dateStr),
+                        gte(delegationGrants.endDate, dateStr),
+                        isNull(delegationGrants.revokedAt)
+                      )
+                    )
+                    .limit(1);
+                  isEligible = !!activeGrant;
+                }
+
+                if (!isEligible) {
+                  throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'The selected substitute presiding officer is not eligible to preside.',
+                  });
+                }
+
+                presidedByEmployeeId = presidedByEmployeeIdOverride;
               } else {
-                presidedByEmployeeId = vmEmployeeId;
+                const activeDesignation = await tx
+                  .select({ delegatedToEmployeeId: delegationGrants.delegatedToEmployeeId })
+                  .from(delegationGrants)
+                  .where(
+                    and(
+                      eq(delegationGrants.positionId, vmPositionId),
+                      eq(delegationGrants.isActive, true),
+                      lte(delegationGrants.startDate, dateStr),
+                      gte(delegationGrants.endDate, dateStr),
+                      isNull(delegationGrants.revokedAt)
+                    )
+                  )
+                  .limit(1);
+
+                if (activeDesignation[0]) {
+                  presidedByEmployeeId = activeDesignation[0].delegatedToEmployeeId;
+                } else {
+                  presidedByEmployeeId = vmEmployeeId;
+                }
               }
             } else {
+              // The override is intentionally ignored in this branch.
+              // It only applies when the regular presiding officer is absent.
               presidedByEmployeeId = vmEmployeeId;
             }
           }

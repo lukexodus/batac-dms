@@ -151,6 +151,106 @@ describe('Session Router tRPC Procedures', () => {
       expect(result.presentCount).toBe(11);
       expect(result.quorumMet).toBe(true);
     });
+
+    it('records attendance when VM is absent and valid override is provided (override wins)', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 1. VM position
+      mockDb.mockResponse([{ id: 'valid-override-id' }]); // 2. override validation (employee exists)
+      mockDb.mockResponse([{ id: 'assignment-id' }]); // 3. override eligibility (SP member)
+      mockDb.mockResponse([]); // 4. existing session check -> empty
+      mockDb.mockResponse([{ maxNum: 5 }]); // 5. max session number
+      mockDb.mockResponse([{ id: 'session-id' }]); // 6. insert session
+      mockDb.mockResponse([{ id: 'councilor-1' }]); // 7. SP members check
+      mockDb.mockResponse([]); // 8. upsert attendance
+
+      const result = await caller.recordAttendance({
+        sessionDate: new Date('2026-07-14'),
+        absences: [
+          {
+            councilorEmployeeId: VM_EMP_UUID,
+            reason: 'sick_leave',
+          },
+        ],
+        presidedByEmployeeIdOverride: '11111111-1111-1111-1111-111111111111',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.presentCount).toBe(11);
+      expect(result.quorumMet).toBe(true);
+    });
+
+    it('ignores override if VM is present', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 1. VM position check
+      mockDb.mockResponse([]); // 2. existing session check -> empty
+      mockDb.mockResponse([{ maxNum: 5 }]); // 3. max session number
+      mockDb.mockResponse([{ id: 'session-id' }]); // 4. insert session
+      mockDb.mockResponse([{ id: 'councilor-1' }]); // 5. SP members check
+      mockDb.mockResponse([]); // 6. upsert attendance
+
+      const result = await caller.recordAttendance({
+        sessionDate: new Date('2026-07-14'),
+        absences: [
+          {
+            councilorEmployeeId: COUNCILOR_2_UUID,
+            reason: 'vacation_leave',
+          },
+        ],
+        presidedByEmployeeIdOverride: '11111111-1111-1111-1111-111111111111',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.presentCount).toBe(11);
+      expect(result.quorumMet).toBe(true);
+    });
+
+    it('throws BAD_REQUEST if override is provided, VM is absent, but override employee is not found', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 1. VM position
+      mockDb.mockResponse([]); // 2. override validation (employee does NOT exist)
+
+      await expect(
+        caller.recordAttendance({
+          sessionDate: new Date('2026-07-14'),
+          absences: [
+            {
+              councilorEmployeeId: VM_EMP_UUID,
+              reason: 'official_business',
+            },
+          ],
+          presidedByEmployeeIdOverride: '11111111-1111-1111-1111-111111111111',
+        })
+      ).rejects.toThrowError(/substitute presiding officer could not be found/);
+    });
+
+    it('throws BAD_REQUEST if override is provided, VM is absent, but override employee is not eligible', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 1. VM position
+      mockDb.mockResponse([{ id: 'valid-override-id' }]); // 2. override validation (employee exists)
+      mockDb.mockResponse([]); // 3. override eligibility (NOT an SP member)
+      mockDb.mockResponse([]); // 4. override eligibility (NO active delegation)
+
+      await expect(
+        caller.recordAttendance({
+          sessionDate: new Date('2026-07-14'),
+          absences: [
+            {
+              councilorEmployeeId: VM_EMP_UUID,
+              reason: 'official_business',
+            },
+          ],
+          presidedByEmployeeIdOverride: '11111111-1111-1111-1111-111111111111',
+        })
+      ).rejects.toThrowError(/substitute presiding officer is not eligible/);
+    });
   });
 
   describe('getAttendanceRecord', () => {
@@ -173,13 +273,15 @@ describe('Session Router tRPC Procedures', () => {
       expect(result.presentCouncilors).toEqual([]);
       expect(result.absences).toEqual([]);
       expect(result.quorumMet).toBe(false);
+      expect(result.presidedByEmployeeId).toBeNull();
+      expect(result.presidedByDisplayName).toBeNull();
     });
 
     it('returns attendance record with present and absent councilors', async () => {
       const subject = makeSubject({ roles: ['auditor'], effectiveRoles: ['auditor'] });
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ id: 'session-id', quorumAchieved: true }]); // session check
+      mockDb.mockResponse([{ id: 'session-id', quorumAchieved: true, presidedByEmployeeId: 'presiding-id' }]); // session check
       mockDb.mockResponse([
         {
           employeeId: 'emp-1',
@@ -196,6 +298,7 @@ describe('Session Router tRPC Procedures', () => {
           lastName: 'Clara',
         },
       ]); // attendances fetch
+      mockDb.mockResponse([{ firstName: 'Sub', lastName: 'Stitute' }]); // presiding emp lookup
 
       const result = await caller.getAttendanceRecord({ sessionDate: new Date('2026-07-14') });
       expect(result.presentCouncilors).toEqual(['emp-1']);
@@ -207,6 +310,8 @@ describe('Session Router tRPC Procedures', () => {
         },
       ]);
       expect(result.quorumMet).toBe(true);
+      expect(result.presidedByEmployeeId).toBe('presiding-id');
+      expect(result.presidedByDisplayName).toBe('Sub Stitute');
     });
   });
 
