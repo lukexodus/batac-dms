@@ -59,8 +59,16 @@ export function SessionAttendanceOverviewPage() {
                         <TableCell className="font-medium">
                           {format(new Date(item.sessionDate), 'MMMM d, yyyy')}
                         </TableCell>
-                        <TableCell className="text-success-600">{item.presentCount}</TableCell>
-                        <TableCell className="text-danger-600">{item.absentCount}</TableCell>
+                        {item.presentCount === null ? (
+                          <TableCell colSpan={2} className="text-muted-foreground">
+                            Not Yet Recorded
+                          </TableCell>
+                        ) : (
+                          <>
+                            <TableCell className="text-success-600">{item.presentCount}</TableCell>
+                            <TableCell className="text-danger-600">{item.absentCount}</TableCell>
+                          </>
+                        )}
                         <TableCell className="text-right">
                           <Link to={`/sessions/${dateStr}`}>
                             <Button variant="secondary" size="sm">

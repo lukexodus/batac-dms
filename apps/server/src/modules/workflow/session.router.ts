@@ -194,8 +194,13 @@ export function createSessionRouter() {
           const [year, month, day] = r.sessionDate.split('-').map(Number);
           const sessionDate = new Date(Date.UTC(year!, month! - 1, day!, 0, 0, 0));
 
-          const presentCount = r.presentCount ?? 0;
-          const absentCount = Math.max(0, 12 - presentCount);
+          let presentCount: number | null = null;
+          let absentCount: number | null = null;
+
+          if (r.presentCount !== null) {
+            presentCount = r.presentCount;
+            absentCount = Math.max(0, 12 - presentCount);
+          }
 
           return {
             sessionDate,
@@ -838,8 +843,8 @@ export function createSessionRouter() {
                 sessionDate: dateStr,
                 sessionType: 'regular',
                 presidedByEmployeeId,
-                presentCount: 12,
-                quorumAchieved: true,
+                presentCount: null,
+                quorumAchieved: null,
               })
               .returning();
             if (!newSession) throw new Error('Failed to create session');

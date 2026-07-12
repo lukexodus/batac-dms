@@ -345,6 +345,7 @@ describe('Session Router tRPC Procedures', () => {
       mockDb.mockResponse([
         { sessionDate: '2026-07-07', presentCount: 10 },
         { sessionDate: '2026-07-14', presentCount: 8 },
+        { sessionDate: '2026-07-21', presentCount: null },
       ]);
 
       const result = await caller.getAttendanceStatistics({
@@ -352,11 +353,13 @@ describe('Session Router tRPC Procedures', () => {
         to: new Date('2026-07-20'),
       });
 
-      expect(result.series.length).toBe(2);
+      expect(result.series.length).toBe(3);
       expect(result.series[0]?.presentCount).toBe(10);
       expect(result.series[0]?.absentCount).toBe(2);
       expect(result.series[1]?.presentCount).toBe(8);
       expect(result.series[1]?.absentCount).toBe(4);
+      expect(result.series[2]?.presentCount).toBeNull();
+      expect(result.series[2]?.absentCount).toBeNull();
       expect(result.printableSummaryUrl).toBeNull();
     });
   });
