@@ -17,7 +17,7 @@ export function SecretariatDecisionPanel({ instance }: { instance: RouterOutputs
   const logDecisionMutation = trpc.workflow.logSecretariatDecision.useMutation({
     onSuccess: () => {
       toast.success('Decision logged successfully.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to log decision.'),

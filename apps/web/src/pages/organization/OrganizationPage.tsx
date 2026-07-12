@@ -231,8 +231,8 @@ export function OrganizationPage() {
   const [assignForm, setAssignForm] = useState(defaultAssignForm);
 
   // ─── Mutations ─────────────────────────────────────────────────────────────
-  const invalidateHierarchy = () => utils.organization.getOfficeHierarchy.invalidate();
-  const invalidateEmployees = () => utils.organization.listEmployees.invalidate();
+  const invalidateHierarchy = () => { void utils.organization.getOfficeHierarchy.invalidate(); };
+  const invalidateEmployees = () => { void utils.organization.listEmployees.invalidate(); };
 
   const createOffice = trpc.organization.createOffice.useMutation({
     onSuccess: () => { toast.success('Office created'); setOfficeDialog(null); invalidateHierarchy(); },

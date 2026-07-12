@@ -56,7 +56,7 @@ function TerminateRow({ sessionId, onDone }: TerminateRowProps) {
   const terminateMutation = trpc.iam.forceTerminateSession.useMutation({
     onSuccess: () => {
       toast.success('Session terminated.');
-      utils.iam.listAllActiveSessions.invalidate();
+      void utils.iam.listAllActiveSessions.invalidate();
       setOpen(false);
       setReason('');
       onDone();

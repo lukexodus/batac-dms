@@ -30,3 +30,4 @@ build
 /secrets/
 
 commit_msg.txt
+lint-result

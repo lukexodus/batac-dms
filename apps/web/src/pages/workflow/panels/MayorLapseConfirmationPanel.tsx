@@ -12,7 +12,7 @@ export function MayorLapseConfirmationPanel({ instance }: { instance: RouterOutp
   const confirmMutation = trpc.workflow.logMayorLapseConfirmation.useMutation({
     onSuccess: () => {
       toast.success('10-day lapse confirmed.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to confirm lapse.'),

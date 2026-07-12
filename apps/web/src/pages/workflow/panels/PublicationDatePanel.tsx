@@ -14,7 +14,7 @@ export function PublicationDatePanel({ instance }: { instance: RouterOutputs['wo
   const recordMutation = trpc.workflow.recordNewspaperPublicationDate.useMutation({
     onSuccess: () => {
       toast.success('Publication date recorded.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to record publication date.'),

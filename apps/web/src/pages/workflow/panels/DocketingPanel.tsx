@@ -12,7 +12,7 @@ export function DocketingPanel({ instance }: { instance: RouterOutputs['workflow
   const logMutation = trpc.workflow.logDocketingCompletion.useMutation({
     onSuccess: () => {
       toast.success('Docketing completed.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to complete docketing.'),

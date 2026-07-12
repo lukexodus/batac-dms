@@ -89,8 +89,8 @@ function UserRoleRow({ userId, username, email, status }: UserRoleRowProps) {
   const assignRoleMutation = trpc.iam.assignRole.useMutation({
     onSuccess: () => {
       toast.success('Role assigned successfully.');
-      utils.iam.listUserDirectory.invalidate();
-      utils.iam.listRoleAssignmentsByUser.invalidate({ userId });
+      void utils.iam.listUserDirectory.invalidate();
+      void utils.iam.listRoleAssignmentsByUser.invalidate({ userId });
     },
     // NO fallback string — assignRole throws RoleCombinationForbiddenError with a
     // specific, meaningful message. That message must be surfaced verbatim.
@@ -100,8 +100,8 @@ function UserRoleRow({ userId, username, email, status }: UserRoleRowProps) {
   const revokeRoleMutation = trpc.iam.revokeRole.useMutation({
     onSuccess: () => {
       toast.success('Role revoked successfully.');
-      utils.iam.listUserDirectory.invalidate();
-      utils.iam.listRoleAssignmentsByUser.invalidate({ userId });
+      void utils.iam.listUserDirectory.invalidate();
+      void utils.iam.listRoleAssignmentsByUser.invalidate({ userId });
     },
     onError: (err) => toast.error(err.message || 'Failed to revoke role.'),
   });

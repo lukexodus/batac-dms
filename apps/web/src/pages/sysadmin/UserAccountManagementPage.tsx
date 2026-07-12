@@ -52,7 +52,7 @@ function CreateUserForm() {
   const createMutation = trpc.iam.createUserAccount.useMutation({
     onSuccess: () => {
       toast.success('User account created successfully.');
-      utils.iam.listUserDirectory.invalidate();
+      void utils.iam.listUserDirectory.invalidate();
       setUsername('');
       setEmail('');
       setEmployeeSearch('');
@@ -187,7 +187,7 @@ function EditUserForm({ userId, currentEmail, currentStatus, onDone }: EditFormP
   const editMutation = trpc.iam.editUserAccount.useMutation({
     onSuccess: () => {
       toast.success('User account updated.');
-      utils.iam.listUserDirectory.invalidate();
+      void utils.iam.listUserDirectory.invalidate();
       onDone();
     },
     onError: (err) => toast.error(err.message || 'Failed to update user account.'),
@@ -240,7 +240,7 @@ function UserRow({ userId, username, email, status, onRefresh }: UserRowProps) {
     onSuccess: (data) => {
       // Use the returned newStatus — don't hardcode an assumption
       toast.success(`Account ${data.newStatus === 'deactivated' ? 'deactivated' : 'updated'}.`);
-      utils.iam.listUserDirectory.invalidate();
+      void utils.iam.listUserDirectory.invalidate();
     },
     onError: (err) => toast.error(err.message || 'Failed to deactivate account.'),
   });
@@ -249,7 +249,7 @@ function UserRow({ userId, username, email, status, onRefresh }: UserRowProps) {
     onSuccess: (data) => {
       // Use the returned newStatus — don't hardcode an assumption
       toast.success(`Account ${data.newStatus === 'active' ? 'reactivated' : 'updated'}.`);
-      utils.iam.listUserDirectory.invalidate();
+      void utils.iam.listUserDirectory.invalidate();
     },
     onError: (err) => toast.error(err.message || 'Failed to reactivate account.'),
   });

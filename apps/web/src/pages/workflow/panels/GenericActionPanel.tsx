@@ -12,7 +12,7 @@ export function GenericActionPanel({ instance }: { instance: RouterOutputs['work
   const completeMutation = trpc.workflow.completeActionStep.useMutation({
     onSuccess: () => {
       toast.success('Action step completed successfully.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => {

@@ -14,7 +14,7 @@ export function MayorDecisionPanel({ instance }: { instance: RouterOutputs['work
   const signMutation = trpc.workflow.mayorSign.useMutation({
     onSuccess: () => {
       toast.success('Document signed.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to sign.'),
@@ -23,7 +23,7 @@ export function MayorDecisionPanel({ instance }: { instance: RouterOutputs['work
   const vetoMutation = trpc.workflow.mayorVeto.useMutation({
     onSuccess: () => {
       toast.success('Document vetoed.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to veto.'),

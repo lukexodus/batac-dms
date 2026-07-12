@@ -15,7 +15,7 @@ export function VetoOverrideRecordingPanel({ instance }: { instance: RouterOutpu
   const recordMutation = trpc.workflow.recordVetoOverrideVote.useMutation({
     onSuccess: () => {
       toast.success('Veto override vote recorded.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to record vote.'),

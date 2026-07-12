@@ -42,7 +42,7 @@ export function MultiReferralPanel({ instance }: { instance: RouterOutputs['work
   const submitReportMutation = trpc.workflow.submitCommitteeReport.useMutation({
     onSuccess: () => {
       toast.success('Committee report submitted.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
     },
     onError: (err) => toast.error(err.message || 'Failed to submit report.'),
   });
@@ -50,7 +50,7 @@ export function MultiReferralPanel({ instance }: { instance: RouterOutputs['work
   const hearingDateMutation = trpc.session.enterCommitteeHearingDate.useMutation({
     onSuccess: () => {
       toast.success('Hearing date recorded.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
     },
     onError: (err) => toast.error(err.message || 'Failed to enter hearing date.'),
   });
@@ -58,7 +58,7 @@ export function MultiReferralPanel({ instance }: { instance: RouterOutputs['work
   const advanceMutation = trpc.workflow.manuallyAdvanceMultiReferralStep.useMutation({
     onSuccess: () => {
       toast.success('Step advanced.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to advance step.'),

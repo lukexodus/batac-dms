@@ -12,7 +12,7 @@ export function VPCertificationPanel({ instance }: { instance: RouterOutputs['wo
   const certifyMutation = trpc.workflow.certifyAsPresidingOfficer.useMutation({
     onSuccess: () => {
       toast.success('Document certified successfully.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to certify.'),

@@ -12,7 +12,7 @@ export function GenericApprovalPanel({ instance }: { instance: RouterOutputs['wo
   const approveMutation = trpc.workflow.approveStep.useMutation({
     onSuccess: () => {
       toast.success('Step approved.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to approve.'),
@@ -21,7 +21,7 @@ export function GenericApprovalPanel({ instance }: { instance: RouterOutputs['wo
   const rejectMutation = trpc.workflow.rejectStep.useMutation({
     onSuccess: () => {
       toast.success('Step rejected.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to reject.'),
@@ -30,7 +30,7 @@ export function GenericApprovalPanel({ instance }: { instance: RouterOutputs['wo
   const returnMutation = trpc.workflow.returnStepForRevision.useMutation({
     onSuccess: () => {
       toast.success('Step returned for revision.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to return for revision.'),

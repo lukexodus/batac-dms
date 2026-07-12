@@ -23,7 +23,7 @@ export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs
   const recordMutation = trpc.workflow.recordPanlalawiganOutcome.useMutation({
     onSuccess: () => {
       toast.success('Outcome recorded.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to record outcome.'),
@@ -32,7 +32,7 @@ export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs
   const resolveMutation = trpc.workflow.resolveValidInPart.useMutation({
     onSuccess: () => {
       toast.success('Valid-in-part resolved.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to resolve valid-in-part.'),
@@ -41,7 +41,7 @@ export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs
   const confirmDeemedMutation = trpc.workflow.confirmPanlalawiganDeemedApproved.useMutation({
     onSuccess: () => {
       toast.success('Deemed approved confirmed.');
-      utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to confirm deemed approved.'),

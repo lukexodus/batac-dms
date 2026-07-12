@@ -217,7 +217,7 @@ export default function DocumentDetailPage() {
   const submitMutation = trpc.documents.submit.useMutation({
     onSuccess: () => {
       toast.success('Document submitted');
-      refetchDocument();
+      void refetchDocument();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -225,7 +225,7 @@ export default function DocumentDetailPage() {
   const assignPreliminaryMutation = trpc.documents.assignPreliminaryNumber.useMutation({
     onSuccess: () => {
       toast.success('Preliminary number assigned');
-      refetchDocument();
+      void refetchDocument();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -233,7 +233,7 @@ export default function DocumentDetailPage() {
   const assignFinalMutation = trpc.documents.assignFinalNumber.useMutation({
     onSuccess: () => {
       toast.success('Final number assigned');
-      refetchDocument();
+      void refetchDocument();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -241,7 +241,7 @@ export default function DocumentDetailPage() {
   const archiveMutation = trpc.documents.archive.useMutation({
     onSuccess: () => {
       toast.success('Document archived');
-      refetchDocument();
+      void refetchDocument();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -249,7 +249,7 @@ export default function DocumentDetailPage() {
   const publishMutation = trpc.documents.publishToPortal.useMutation({
     onSuccess: () => {
       toast.success('Published to portal');
-      refetchDocument();
+      void refetchDocument();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -257,7 +257,7 @@ export default function DocumentDetailPage() {
   const unpublishMutation = trpc.documents.unpublishFromPortal.useMutation({
     onSuccess: () => {
       toast.success('Unpublished from portal');
-      refetchDocument();
+      void refetchDocument();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -265,7 +265,7 @@ export default function DocumentDetailPage() {
   const triggerReOcrMutation = trpc.documents.triggerManualReOcr.useMutation({
     onSuccess: () => {
       toast.success('Re-OCR queued');
-      refetchVersions();
+      void refetchVersions();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -275,7 +275,7 @@ export default function DocumentDetailPage() {
       toast.success('Flagged for manual verification');
       setShowFlagDialog(false);
       setFlagReason('');
-      refetchVersions();
+      void refetchVersions();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -283,7 +283,7 @@ export default function DocumentDetailPage() {
   const acceptScannedBackMutation = trpc.documents.acceptScannedBackAsOfficial.useMutation({
     onSuccess: () => {
       toast.success('Accepted as official scanned back');
-      refetchVersions();
+      void refetchVersions();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -298,7 +298,7 @@ export default function DocumentDetailPage() {
   const logRoutingEntryMutation = trpc.tracking.logRoutingEntry.useMutation({
     onSuccess: () => {
       toast.success('Routing entry logged');
-      refetchDocument();
+      void refetchDocument();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -317,7 +317,7 @@ export default function DocumentDetailPage() {
       toast.success('Document cancelled');
       setShowCancelDialog(false);
       setCancelReason('');
-      refetchDocument();
+      void refetchDocument();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -343,7 +343,7 @@ export default function DocumentDetailPage() {
     onSuccess: () => {
       toast.success('New version uploaded — OCR is running in the background');
       setUploadFile(null);
-      refetchVersions();
+      void refetchVersions();
     },
     onError: (e) => toast.error(e.message),
   });

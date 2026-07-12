@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Restore session after reload using a silent refresh
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   return (

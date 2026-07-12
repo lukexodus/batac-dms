@@ -382,6 +382,18 @@ export function createWorkflowRouter() {
 
     getActiveInstanceForDocument: protectedProcedure
       .input(z.object({ documentId: z.string().uuid() }))
+      .output(z.object({
+        instanceId: z.string().uuid(),
+        documentId: z.string().uuid(),
+        definitionVersionId: z.string().uuid(),
+        currentStepType: z.enum(['action', 'approval', 'multi_referral', 'decision', 'notification', 'termination', 'parallel_split', 'parallel_join']),
+        currentStepInstanceId: z.string().uuid(),
+        currentAssigneeUserId: z.string().uuid().nullable(),
+        status: z.enum(['Active', 'Completed', 'Cancelled']),
+        slaDeadline: z.coerce.date().nullable(),
+        lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
+        panelHint: z.enum(['multi_referral', 'vp_certification', 'mayor_decision', 'mayor_lapse_confirmation', 'veto_override_recording', 'docketing', 'panlalawigan_outcome', 'publication_date', 'secretariat_decision', 'generic_action', 'generic_approval']).nullable(),
+      }).nullable())
       .query(async ({ input, ctx }) => {
         const { documentId } = input;
 

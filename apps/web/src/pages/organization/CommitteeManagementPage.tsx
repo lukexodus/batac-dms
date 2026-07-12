@@ -56,7 +56,7 @@ export function CommitteeManagementPage() {
     onSuccess: () => {
       toast.success('Committee created successfully');
       setIsCreateOpen(false);
-      utils.organization.listCommittees.invalidate();
+      void utils.organization.listCommittees.invalidate();
     },
     onError: (err) => toast.error(`Failed to create committee: ${err.message}`),
   });
@@ -65,7 +65,7 @@ export function CommitteeManagementPage() {
     onSuccess: () => {
       toast.success('Committee updated successfully');
       setIsEditOpen(false);
-      utils.organization.listCommittees.invalidate();
+      void utils.organization.listCommittees.invalidate();
     },
     onError: (err) => toast.error(`Failed to update committee: ${err.message}`),
   });
