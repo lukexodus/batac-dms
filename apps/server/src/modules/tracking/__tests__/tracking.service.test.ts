@@ -36,6 +36,8 @@ describe('TrackingService', () => {
         trackingId: 'track-1',
         fromOfficeId: null,
         toOfficeId: 'office-1',
+        fromOfficeName: null,
+        toOfficeName: 'Office B',
         actorId: 'actor-1',
         actionDescription: 'Routed',
         timestamp: new Date(),

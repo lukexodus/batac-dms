@@ -12,6 +12,7 @@ describe('TrackingRepository', () => {
       select: vi.fn().mockReturnThis(),
       from: vi.fn().mockReturnThis(),
       innerJoin: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
       orderBy: vi.fn().mockReturnThis(),
@@ -123,6 +124,8 @@ describe('TrackingRepository', () => {
           trackingId: 'track-1',
           fromOfficeId: 'off-1',
           toOfficeId: 'off-2',
+          fromOfficeName: 'Office A',
+          toOfficeName: 'Office B',
           actorId: 'user-1',
           actionDescription: 'Route 1',
           timestamp: new Date('2026-01-01T10:00:00Z'),
@@ -131,7 +134,19 @@ describe('TrackingRepository', () => {
       mockDb.orderBy.mockResolvedValueOnce(mockRows);
 
       const result = await repo.getRoutingHistory('doc-1');
-      expect(result).toEqual(mockRows);
+      expect(result).toEqual([
+        {
+          entryId: 'entry-1',
+          trackingId: 'track-1',
+          fromOfficeId: 'off-1',
+          toOfficeId: 'off-2',
+          fromOfficeName: 'Office A',
+          toOfficeName: 'Office B',
+          actorId: 'user-1',
+          actionDescription: 'Route 1',
+          timestamp: new Date('2026-01-01T10:00:00Z'),
+        },
+      ]);
       expect(mockDb.orderBy).toHaveBeenCalled();
     });
   });

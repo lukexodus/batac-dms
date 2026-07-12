@@ -34,6 +34,8 @@ export interface RoutingEntry {
   trackingId: string;      // qr_codes.tracking_id of the parent tracking record
   fromOfficeId: string | null;
   toOfficeId: string | null;
+  fromOfficeName: string | null;
+  toOfficeName: string | null;
   actorId: string;
   actionDescription: string;
   timestamp: Date;

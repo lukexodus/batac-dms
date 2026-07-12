@@ -1,7 +1,9 @@
 import { eq, and, isNull, asc, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { InferSelectModel } from 'drizzle-orm';
 import type { AppDb } from '../../db.js';
 import { qrCodes, trackingRecords, routingEntries } from './tracking.db.js';
+import { offices } from '@batac/database/schema/organization.schema.js';
 import type { TrackingRecordSummary, RoutingEntry } from './index.js';
 
 export type QrCodeRow = InferSelectModel<typeof qrCodes>;
@@ -213,12 +215,16 @@ export class TrackingRepository {
     documentId: string,
     db: AppDb = this.db
   ): Promise<RoutingEntry[]> {
+    const fromOfficeAlias = alias(offices, 'from_office');
+    const toOfficeAlias = alias(offices, 'to_office');
     const rows = await db
       .select({
         entryId: routingEntries.id,
         trackingId: qrCodes.trackingId,
         fromOfficeId: routingEntries.fromOfficeId,
         toOfficeId: routingEntries.toOfficeId,
+        fromOfficeName: fromOfficeAlias.name,
+        toOfficeName: toOfficeAlias.name,
         actorId: routingEntries.actorId,
         actionDescription: routingEntries.actionDescription,
         timestamp: routingEntries.occurredAt,
@@ -226,6 +232,8 @@ export class TrackingRepository {
       .from(routingEntries)
       .innerJoin(trackingRecords, eq(routingEntries.trackingRecordId, trackingRecords.id))
       .innerJoin(qrCodes, eq(trackingRecords.qrCodeId, qrCodes.id))
+      .leftJoin(fromOfficeAlias, eq(routingEntries.fromOfficeId, fromOfficeAlias.id))
+      .leftJoin(toOfficeAlias, eq(routingEntries.toOfficeId, toOfficeAlias.id))
       .where(
         and(eq(trackingRecords.documentId, documentId), isNull(routingEntries.deletedAt))
       )
@@ -236,6 +244,8 @@ export class TrackingRepository {
       trackingId: r.trackingId,
       fromOfficeId: r.fromOfficeId,
       toOfficeId: r.toOfficeId,
+      fromOfficeName: r.fromOfficeName,
+      toOfficeName: r.toOfficeName,
       actorId: r.actorId ?? 'SYSTEM',
       actionDescription: r.actionDescription,
       timestamp: r.timestamp,

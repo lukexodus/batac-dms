@@ -400,14 +400,14 @@ export default function DocumentDetailPage() {
   // The tracking.getRoutingHistory output uses snake_case / different shape from
   // RoutingEntry (the UI type). Map defensively.
   const routingEntries: RoutingEntry[] = (routingHistory ?? []).map((e: any) => ({
-    id: e.entryId ?? e.id,
+    id: e.entryId,
     actorName: e.actorDisplayName ?? e.actorId,
-    actorOfficeName: e.fromOfficeId ?? '',
+    actorOfficeName: e.fromOfficeName ?? '',
     action: 'Logged' as const, // actionDescription is free text; map to nearest RoutingAction
     timestamp: new Date(e.timestamp),
     notes: e.actionDescription,
-    ...(e.fromOfficeId && { fromOfficeName: e.fromOfficeId }),
-    ...(e.toOfficeId && { toOfficeName: e.toOfficeId }),
+    ...(e.fromOfficeName && { fromOfficeName: e.fromOfficeName }),
+    ...(e.toOfficeName && { toOfficeName: e.toOfficeName }),
   }));
 
   // ── Workflow → WorkflowStep list ───────────────────────────────────────────
