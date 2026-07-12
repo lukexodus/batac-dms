@@ -1,7 +1,7 @@
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import { FileText, Loader2, Plus } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import {
   Table,
@@ -19,6 +19,7 @@ import { useDocumentFilters } from '../../hooks/useDocumentFilters';
 import { trpc } from '../../lib/trpc';
 
 export function DocumentListPage() {
+  const navigate = useNavigate();
   const { filters } = useDocumentFilters();
   const [cursorHistory, setCursorHistory] = useState<string[]>([]);
   const currentCursor = cursorHistory[cursorHistory.length - 1] || undefined;
@@ -71,8 +72,7 @@ export function DocumentListPage() {
           action={{
             label: "New Document",
             onClick: () => {
-              // Placeholder action for New Document
-              console.log("New Document clicked");
+              navigate("/documents/new");
             }
           }}
         />
