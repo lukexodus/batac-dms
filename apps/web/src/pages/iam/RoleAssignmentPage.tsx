@@ -315,7 +315,7 @@ export function RoleAssignmentPage() {
           {/* Directory list */}
           {directoryQuery.isPending && (
             <div className="space-y-3">
-              {[...Array(4)].map((_, i) => (
+              {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full rounded-lg" />
               ))}
             </div>

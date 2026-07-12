@@ -145,7 +145,7 @@ export function ActiveSessionsPage() {
 
       {sessionsQuery.isPending && (
         <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
+          {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-16 w-full rounded-lg" />
           ))}
         </div>
