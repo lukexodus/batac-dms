@@ -160,6 +160,6 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
 }
 
 export default fp(documentsPlugin, {
-  name: 'documents-plugin',
+  name: 'documents',
   dependencies: ['database', 'event-bus', 'audit', 'organization'],
 });
