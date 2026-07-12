@@ -99,15 +99,15 @@ describe('Session Router tRPC Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       // mock sequence of DB queries/updates inside transaction:
-      mockDb.mockResponse([]); // 1. VM position check -> empty (fallback used)
-      mockDb.mockResponse([]); // 2. logged in employee
-      mockDb.mockResponse([{ id: 'fallback-emp-1' }]); // 3. first employee fallback
-      mockDb.mockResponse([]); // 4. existing session check -> empty (insert new)
-      mockDb.mockResponse([{ maxNum: 10 }]); // 5. max session number check
-      mockDb.mockResponse([{ id: 'new-session-id' }]); // 6. insert session return
-      mockDb.mockResponse([{ id: 'councilor-1' }, { id: COUNCILOR_2_UUID }]); // 7. SP members check
-      mockDb.mockResponse([]); // 8. upsert councilor-1
-      mockDb.mockResponse([]); // 9. upsert COUNCILOR_2_UUID
+      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? COUNCILOR_2_UUID : `councilor-${i}` }));
+      mockDb.mockResponse(roster); // 1. SP members check (returns 10 members)
+      mockDb.mockResponse([]); // 2. VM position check -> empty (fallback used)
+      mockDb.mockResponse([]); // 3. logged in employee
+      mockDb.mockResponse([{ id: 'fallback-emp-1' }]); // 4. first employee fallback
+      mockDb.mockResponse([]); // 5. existing session check -> empty (insert new)
+      mockDb.mockResponse([{ maxNum: 10 }]); // 6. max session number check
+      mockDb.mockResponse([{ id: 'new-session-id' }]); // 7. insert session return
+      roster.forEach(() => mockDb.mockResponse([])); // 8... upsert for each councilor
 
       const result = await caller.recordAttendance({
         sessionDate: new Date('2026-07-14'),
@@ -120,22 +120,23 @@ describe('Session Router tRPC Procedures', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.presentCount).toBe(11);
+      expect(result.presentCount).toBe(9); // 10 total - 1 absent
       expect(result.absentCount).toBe(1);
-      expect(result.quorumMet).toBe(true);
+      expect(result.quorumMet).toBe(true); // 9 >= ceil(10/2) + 1 = 6
     });
 
     it('records attendance when VM is absent and delegation is active', async () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 1. VM position
-      mockDb.mockResponse([{ delegatedToEmployeeId: 'substitute-emp-id' }]); // 2. active designation
-      mockDb.mockResponse([]); // 3. existing session check -> empty
-      mockDb.mockResponse([{ maxNum: 5 }]); // 4. max session number
-      mockDb.mockResponse([{ id: 'session-id' }]); // 5. insert session
-      mockDb.mockResponse([{ id: 'councilor-1' }]); // 6. SP members check
-      mockDb.mockResponse([]); // 7. upsert attendance
+      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? VM_EMP_UUID : `councilor-${i}` }));
+      mockDb.mockResponse(roster); // 1. SP members check
+      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position
+      mockDb.mockResponse([{ delegatedToEmployeeId: 'substitute-emp-id' }]); // 3. active designation
+      mockDb.mockResponse([]); // 4. existing session check -> empty
+      mockDb.mockResponse([{ maxNum: 5 }]); // 5. max session number
+      mockDb.mockResponse([{ id: 'session-id' }]); // 6. insert session
+      roster.forEach(() => mockDb.mockResponse([])); // 7... upsert attendance
 
       const result = await caller.recordAttendance({
         sessionDate: new Date('2026-07-14'),
@@ -148,7 +149,7 @@ describe('Session Router tRPC Procedures', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.presentCount).toBe(11);
+      expect(result.presentCount).toBe(9); // 10 - 1
       expect(result.quorumMet).toBe(true);
     });
 
@@ -156,14 +157,15 @@ describe('Session Router tRPC Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 1. VM position
-      mockDb.mockResponse([{ id: 'valid-override-id' }]); // 2. override validation (employee exists)
-      mockDb.mockResponse([{ id: 'assignment-id' }]); // 3. override eligibility (SP member)
-      mockDb.mockResponse([]); // 4. existing session check -> empty
-      mockDb.mockResponse([{ maxNum: 5 }]); // 5. max session number
-      mockDb.mockResponse([{ id: 'session-id' }]); // 6. insert session
-      mockDb.mockResponse([{ id: 'councilor-1' }]); // 7. SP members check
-      mockDb.mockResponse([]); // 8. upsert attendance
+      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? VM_EMP_UUID : `councilor-${i}` }));
+      mockDb.mockResponse(roster); // 1. SP members check
+      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position
+      mockDb.mockResponse([{ id: 'valid-override-id' }]); // 3. override validation (employee exists)
+      mockDb.mockResponse([{ id: 'assignment-id' }]); // 4. override eligibility (SP member)
+      mockDb.mockResponse([]); // 5. existing session check -> empty
+      mockDb.mockResponse([{ maxNum: 5 }]); // 6. max session number
+      mockDb.mockResponse([{ id: 'session-id' }]); // 7. insert session
+      roster.forEach(() => mockDb.mockResponse([])); // 8... upsert attendance
 
       const result = await caller.recordAttendance({
         sessionDate: new Date('2026-07-14'),
@@ -177,7 +179,7 @@ describe('Session Router tRPC Procedures', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.presentCount).toBe(11);
+      expect(result.presentCount).toBe(9); // 10 - 1
       expect(result.quorumMet).toBe(true);
     });
 
@@ -185,12 +187,13 @@ describe('Session Router tRPC Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 1. VM position check
-      mockDb.mockResponse([]); // 2. existing session check -> empty
-      mockDb.mockResponse([{ maxNum: 5 }]); // 3. max session number
-      mockDb.mockResponse([{ id: 'session-id' }]); // 4. insert session
-      mockDb.mockResponse([{ id: 'councilor-1' }]); // 5. SP members check
-      mockDb.mockResponse([]); // 6. upsert attendance
+      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? COUNCILOR_2_UUID : `councilor-${i}` }));
+      mockDb.mockResponse(roster); // 1. SP members check
+      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position check
+      mockDb.mockResponse([]); // 3. existing session check -> empty
+      mockDb.mockResponse([{ maxNum: 5 }]); // 4. max session number
+      mockDb.mockResponse([{ id: 'session-id' }]); // 5. insert session
+      roster.forEach(() => mockDb.mockResponse([])); // 6... upsert attendance
 
       const result = await caller.recordAttendance({
         sessionDate: new Date('2026-07-14'),
@@ -204,7 +207,7 @@ describe('Session Router tRPC Procedures', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.presentCount).toBe(11);
+      expect(result.presentCount).toBe(9); // 10 - 1
       expect(result.quorumMet).toBe(true);
     });
 
@@ -212,8 +215,10 @@ describe('Session Router tRPC Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 1. VM position
-      mockDb.mockResponse([]); // 2. override validation (employee does NOT exist)
+      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? VM_EMP_UUID : `councilor-${i}` }));
+      mockDb.mockResponse(roster); // 1. SP members check
+      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position
+      mockDb.mockResponse([]); // 3. override validation (employee does NOT exist)
 
       await expect(
         caller.recordAttendance({
@@ -233,10 +238,12 @@ describe('Session Router tRPC Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 1. VM position
-      mockDb.mockResponse([{ id: 'valid-override-id' }]); // 2. override validation (employee exists)
-      mockDb.mockResponse([]); // 3. override eligibility (NOT an SP member)
-      mockDb.mockResponse([]); // 4. override eligibility (NO active delegation)
+      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? VM_EMP_UUID : `councilor-${i}` }));
+      mockDb.mockResponse(roster); // 1. SP members check
+      mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position
+      mockDb.mockResponse([{ id: 'valid-override-id' }]); // 3. override validation (employee exists)
+      mockDb.mockResponse([]); // 4. override eligibility (NOT an SP member)
+      mockDb.mockResponse([]); // 5. override eligibility (NO active delegation)
 
       await expect(
         caller.recordAttendance({
@@ -250,6 +257,21 @@ describe('Session Router tRPC Procedures', () => {
           presidedByEmployeeIdOverride: '11111111-1111-1111-1111-111111111111',
         })
       ).rejects.toThrowError(/substitute presiding officer is not eligible/);
+    });
+
+    it('throws INTERNAL_SERVER_ERROR if no active SP members can be resolved', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([]); // 1. SP members check (primary) -> empty
+      mockDb.mockResponse([]); // 2. SP members check (fallback) -> empty
+
+      await expect(
+        caller.recordAttendance({
+          sessionDate: new Date('2026-07-14'),
+          absences: [],
+        })
+      ).rejects.toThrowError(/No active SP membership roster could be resolved/);
     });
   });
 

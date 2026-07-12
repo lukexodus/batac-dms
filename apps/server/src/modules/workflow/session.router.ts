@@ -210,6 +210,97 @@ export function createSessionRouter() {
         };
       }),
 
+    getEligibleSubstituteOfficers: protectedProcedure
+      .input(z.object({ sessionDate: z.coerce.date() }))
+      .query(async ({ input, ctx }) => {
+        enforceRoles(ctx, ['sp_secretary']);
+
+        const dateStr = formatDate(input.sessionDate);
+
+        const vmPos = await ctx.db
+          .select({ positionId: positions.id })
+          .from(positions)
+          .innerJoin(assignments, eq(assignments.positionId, positions.id))
+          .where(
+            and(
+              or(
+                ilike(positions.title, '%Vice Mayor%'),
+                ilike(positions.code, '%VM%'),
+                ilike(positions.title, '%Presiding%')
+              ),
+              isNull(positions.deletedAt),
+              isNull(assignments.deletedAt),
+              eq(assignments.isPrimary, true)
+            )
+          )
+          .limit(1);
+
+        const vmPositionId = vmPos[0]?.positionId;
+
+        const spMembers = await ctx.db
+          .select({
+            id: employees.id,
+            firstName: employees.firstName,
+            lastName: employees.lastName,
+          })
+          .from(employees)
+          .innerJoin(assignments, eq(assignments.employeeId, employees.id))
+          .innerJoin(offices, eq(assignments.officeId, offices.id))
+          .where(
+            and(
+              eq(offices.code, 'SP'),
+              eq(offices.cityId, ctx.auth.cityId),
+              isNull(employees.deletedAt),
+              isNull(assignments.deletedAt)
+            )
+          );
+
+        const candidateMap = new Map<string, { id: string; displayName: string }>();
+
+        for (const emp of spMembers) {
+          candidateMap.set(emp.id, {
+            id: emp.id,
+            displayName: `${emp.firstName} ${emp.lastName}`.trim(),
+          });
+        }
+
+        if (vmPositionId) {
+          const activeGrants = await ctx.db
+            .select({
+              id: employees.id,
+              firstName: employees.firstName,
+              lastName: employees.lastName,
+            })
+            .from(delegationGrants)
+            .innerJoin(employees, eq(delegationGrants.delegatedToEmployeeId, employees.id))
+            .where(
+              and(
+                eq(delegationGrants.positionId, vmPositionId),
+                eq(delegationGrants.isActive, true),
+                lte(delegationGrants.startDate, dateStr),
+                gte(delegationGrants.endDate, dateStr),
+                isNull(delegationGrants.revokedAt),
+                isNull(employees.deletedAt)
+              )
+            );
+
+          for (const emp of activeGrants) {
+            if (!candidateMap.has(emp.id)) {
+              candidateMap.set(emp.id, {
+                id: emp.id,
+                displayName: `${emp.firstName} ${emp.lastName}`.trim(),
+              });
+            }
+          }
+        }
+
+        const candidates = Array.from(candidateMap.values()).sort((a, b) =>
+          a.displayName.localeCompare(b.displayName)
+        );
+
+        return candidates;
+      }),
+
     getOrderOfBusiness: protectedProcedure
       .input(z.object({ sessionDate: z.coerce.date().optional() }))
       .query(async ({ input, ctx }) => {
@@ -358,10 +449,50 @@ export function createSessionRouter() {
         const dateStr = formatDate(sessionDate);
 
         const absentCount = absences.length;
-        const presentCount = Math.max(0, 12 - absentCount);
-        const quorumMet = presentCount >= 7;
 
         return await ctx.db.transaction(async (tx) => {
+          const spMembers = await tx
+            .select({ id: employees.id })
+            .from(employees)
+            .innerJoin(assignments, eq(assignments.employeeId, employees.id))
+            .innerJoin(offices, eq(assignments.officeId, offices.id))
+            .where(
+              and(
+                eq(offices.code, 'SP'),
+                eq(offices.cityId, ctx.auth.cityId),
+                isNull(employees.deletedAt),
+                isNull(assignments.deletedAt)
+              )
+            );
+
+          let councilorIds = spMembers.map((m) => m.id);
+          if (councilorIds.length === 0) {
+            const fallbackMembers = await tx
+              .select({ id: employees.id })
+              .from(employees)
+              .where(
+                and(
+                  ilike(employees.employeeNumber, 'SP-%'),
+                  eq(employees.cityId, ctx.auth.cityId),
+                  isNull(employees.deletedAt)
+                )
+              );
+            councilorIds = fallbackMembers.map((m) => m.id);
+          }
+
+          const totalActiveSpMembers = councilorIds.length;
+
+          // Defensive check for data-integrity edge case, not spec-mandated
+          if (totalActiveSpMembers === 0) {
+            throw new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'No active SP membership roster could be resolved; cannot compute quorum.',
+            });
+          }
+
+          const presentCount = Math.max(0, totalActiveSpMembers - absentCount);
+          const quorumMet = presentCount >= Math.ceil(totalActiveSpMembers / 2) + 1;
+
           let presidedByEmployeeId: string | null = null;
 
           const vmPos = await tx
@@ -545,34 +676,7 @@ export function createSessionRouter() {
             sessionId = newSession.id;
           }
 
-          const spMembers = await tx
-            .select({ id: employees.id })
-            .from(employees)
-            .innerJoin(assignments, eq(assignments.employeeId, employees.id))
-            .innerJoin(offices, eq(assignments.officeId, offices.id))
-            .where(
-              and(
-                eq(offices.code, 'SP'),
-                eq(offices.cityId, ctx.auth.cityId),
-                isNull(employees.deletedAt),
-                isNull(assignments.deletedAt)
-              )
-            );
 
-          let councilorIds = spMembers.map((m) => m.id);
-          if (councilorIds.length === 0) {
-            const fallbackMembers = await tx
-              .select({ id: employees.id })
-              .from(employees)
-              .where(
-                and(
-                  ilike(employees.employeeNumber, 'SP-%'),
-                  eq(employees.cityId, ctx.auth.cityId),
-                  isNull(employees.deletedAt)
-                )
-              );
-            councilorIds = fallbackMembers.map((m) => m.id);
-          }
 
           const absenceIds = absences.map((a) => a.councilorEmployeeId);
           const allTargetIds = Array.from(new Set([...councilorIds, ...absenceIds]));
