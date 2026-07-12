@@ -1997,3 +1997,23 @@ While reviewing `TASK-ORG-LINT-001`'s implementation, `CommitteeManagementPage.t
 `listCommittees` now includes `chairedByEmployeeId: r.chairedByEmployeeId` in its returned object, typed as `string` (matching the column's non-nullable constraint). No frontend changes were required — `CommitteeManagementPage.tsx`'s local `CommitteeSummary` interface already declared this field, and `openEdit` was already written to read it correctly; it simply had never been receiving a real value.
 
 **[Inference]** This is a narrow, targeted fix for the one field needed to close the observed bug. It does not address the broader gap `LOG-0087` describes — `listCommittees` still does not conform to this codebase's `{ items: T[], nextCursor: string | null }` list-procedure envelope convention, and still has no `.output()` Zod schema. Whether E1/I2 should be updated to document this procedure (and whether it should be restructured to match the standard envelope as part of that), as `LOG-0087` already asks, is unchanged by this fix and remains a question for a human.
+
+---
+
+### [LOG-0090] J3 §5.3's mandated TODO format structurally always trips J3 §7.3's `no-warning-comments` rule — resolved by human policy decision, no config or code change
+
+- date: 2026-07-13
+- status: proposed
+- affects: J3
+- task_id: none — surfaced during lint-remediation investigation (no TASK ID), not produced by an A1 task
+
+**What was found:**
+J3 §5.3 mandates the TODO/FIXME/HACK format `// TODO(username): description`, with the flagged term as the first token by construction. J3 §7.3 configures `'no-warning-comments': ['warn', { terms: ['todo', 'fixme', 'hack'], location: 'start' }]` — confirmed live in `packages/config/eslint.base.js` line 42, matching J3's own spec exactly. `location: 'start'` means the rule fires on any comment whose text begins with one of these terms. Because §5.3's format always begins with the flagged word, every comment written exactly as J3 instructs will always trigger the rule §7.3 configures. This is not a one-off phrasing accident in a single comment — confirmed structural by direct config read plus a live toolchain run: `apps/web/src/pages/documents/DocumentIntakePage.tsx:68` (a `// TODO: ...` comment, itself not yet in §5.3's format — see open item below) reproduces this exactly, reported as `no-warning-comments` in the real `pnpm --filter @batac/web lint` output. A reword that moves the flagged word off the start would dodge the rule but would then no longer match §5.3's mandated format — not a real fix, just relocating the non-conformance.
+
+Checked for a resolution elsewhere in J3 (full-document search for `no-warning-comments` and `eslint-disable`): none exists outside the two sections above. Checked whether any existing TODO in the codebase already reconciles this (e.g. via a working override): several correctly-`(username)`-formatted TODOs exist in `apps/server/src/modules/documents/document-requests.router.ts` and two other server files, but `apps/server` has no lint script and no ESLint config at all (confirmed separately, unrelated finding), so these have simply never been checked against the rule — not evidence of a working exemption.
+
+**What was decided:**
+Human decision, given directly in conversation (not independently inferred): keep `no-warning-comments` at `'warn'` with no config change. A TODO warning appearing in lint output is working as intended — the rule's job is visibility, not elimination — so this class of warning is not to be treated as a blocker or as something requiring a fix. No code change and no config change follow from this decision; the policy is the resolution.
+
+**Open item, not resolved by the above, deliberately left open:**
+This decision settles whether a conforming TODO's warning is a problem (no). It does not settle a separate requirement in the same §5.3: "every TODO and FIXME must include a GitHub issue number before a PR is merged to `main`." The comment at `DocumentIntakePage.tsx:68` currently reads `// TODO: validTypes only lists 3 of the 5 MIME types AllowedMimeTypeSchema actually accepts (missing Office document types)` — missing both the `(username)` attribution and a ticket reference §5.3 requires. Bringing this comment into full §5.3 format needs a real GitHub issue number and an author name, neither of which exists yet; not invented here. This is a separate, still-open mechanical gap, unrelated to the lint-severity question this entry resolves.
