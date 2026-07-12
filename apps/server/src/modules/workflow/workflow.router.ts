@@ -23,7 +23,7 @@ import {
   submitCommitteeReport as engineSubmitCommitteeReport,
   submitStepMultiReferral,
 } from './engine/step-handlers/multi-referral.handler.js';
-import { workflowPolicy } from './workflow.policy.js';
+import { workflowPolicy, MAYOR_STEP_KEYS } from './workflow.policy.js';
 import type { StepInstanceAttrs, WorkflowInstanceReadAttrs } from './workflow.policy.js';
 import type { Context } from '../iam/iam.types.js';
 import {
@@ -198,6 +198,20 @@ function enforceRoles(ctx: Context, allowedRoles: string[]) {
 
 
 
+export function computeMayorPanelHint(
+  mayorActionDeadline: string | null | undefined,
+  lapseConfirmedAt: unknown
+): 'mayor_decision' | 'mayor_lapse_confirmation' {
+  if (mayorActionDeadline) {
+    const deadline = new Date(mayorActionDeadline);
+    const lapseConfirmed = !!lapseConfirmedAt;
+    if (Date.now() > deadline.getTime() && !lapseConfirmed) {
+      return 'mayor_lapse_confirmation';
+    }
+  }
+  return 'mayor_decision';
+}
+
 function computePanelHint(
   status: 'Active' | 'Completed' | 'Cancelled',
   currentStepType: string,
@@ -216,15 +230,7 @@ function computePanelHint(
   } else if (stepKey === 'vp_certification') {
     return 'vp_certification';
   } else if (stepKey === 'mayor_review' || stepKey === 'mayor_signature') {
-    const deadlineStr = instanceContext['mayor_action_deadline'];
-    if (deadlineStr) {
-      const deadline = new Date(deadlineStr);
-      const lapseConfirmed = !!stepMetadata['lapse_confirmed_at'];
-      if (Date.now() > deadline.getTime() && !lapseConfirmed) {
-        return 'mayor_lapse_confirmation';
-      }
-    }
-    return 'mayor_decision';
+    return computeMayorPanelHint(instanceContext['mayor_action_deadline'], stepMetadata['lapse_confirmed_at']);
   } else if (stepKey === 'veto_override_vote') {
     return 'veto_override_recording';
   } else if (stepKey === 'docketing') {
@@ -514,7 +520,7 @@ export function createWorkflowRouter() {
       }),
 
     listMyAssignedSteps: protectedProcedure
-      .input(paginationInput)
+      .input(paginationInput.extend({ stepKeyIn: z.array(z.string()).optional() }))
       .query(async ({ input, ctx }) => {
         const roles = ctx.auth.roles;
         const effRoles = ctx.auth.effectiveRoles || [];
@@ -543,10 +549,13 @@ export function createWorkflowRouter() {
             documentId: instances.documentId,
             documentTitle: documents.title,
             stepType: steps.stepType,
+            stepKey: steps.stepKey,
             assignedTo: stepInstances.assignedTo,
             createdAt: stepInstances.createdAt,
             slaDeadline: stepInstances.slaDeadline,
             documentOfficeId: documents.ownedByOfficeId,
+            instanceContext: instances.context,
+            stepMetadata: stepInstances.metadata,
           })
           .from(stepInstances)
           .innerJoin(instances, eq(stepInstances.instanceId, instances.id))
@@ -599,10 +608,14 @@ export function createWorkflowRouter() {
           return false;
         });
 
+        const stepKeyFiltered = input.stepKeyIn && input.stepKeyIn.length > 0
+          ? filtered.filter((row) => input.stepKeyIn!.includes(row.stepKey))
+          : filtered;
+
         const limit = input.limit ?? 50;
         const startIndex = input.cursor ? parseInt(input.cursor, 10) : 0;
-        const paginated = filtered.slice(startIndex, startIndex + limit);
-        const nextCursor = startIndex + limit < filtered.length ? String(startIndex + limit) : null;
+        const paginated = stepKeyFiltered.slice(startIndex, startIndex + limit);
+        const nextCursor = startIndex + limit < stepKeyFiltered.length ? String(startIndex + limit) : null;
 
         const items = paginated.map((item) => {
           const validStepTypes = new Set<'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination' | 'parallel_split' | 'parallel_join'>([
@@ -617,14 +630,22 @@ export function createWorkflowRouter() {
             ? item.stepType
             : 'action';
 
+          const context = (item.instanceContext as Record<string, any>) || {};
+          const metadata = (item.stepMetadata as Record<string, any>) || {};
+          const panelHint = MAYOR_STEP_KEYS.has(item.stepKey)
+            ? computeMayorPanelHint(context['mayor_action_deadline'], metadata['lapse_confirmed_at'])
+            : null;
+
           return {
             stepInstanceId: item.stepInstanceId,
             instanceId: item.instanceId,
             documentId: item.documentId,
             documentTitle: item.documentTitle,
             stepType,
+            stepKey: item.stepKey,
             assignedAt: item.createdAt,
             dueAt: item.slaDeadline,
+            panelHint,
           };
         });
 

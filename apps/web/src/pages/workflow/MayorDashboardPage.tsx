@@ -11,7 +11,7 @@ import { StatCard } from "@batac/ui/components/domain/StatCard";
 
 import { useAuth } from "@/lib/auth-context";
 import { hasRole } from "@/lib/auth-helpers";
-import { trpc, type RouterOutputs } from "@/lib/trpc";
+import { trpc } from "@/lib/trpc";
 
 const PAGE_ALLOWED_ROLES = ["mayor"] as const;
 
@@ -48,39 +48,21 @@ function MayorDashboardContent() {
   );
 }
 
-type AssignedStepRow = RouterOutputs["workflow"]["listMyAssignedSteps"]["items"][number];
+
 
 function QueueWidget() {
+  // MUST STAY IN SYNC WITH MAYOR_STEP_KEYS IN workflow.policy.ts
+  const MAYOR_STEP_KEYS = ["mayor_review", "mayor_signature"];
   const { data, isLoading } = trpc.workflow.listMyAssignedSteps.useQuery({
     limit: 30,
+    stepKeyIn: [...MAYOR_STEP_KEYS],
   });
 
   const assignedRows = data?.items ?? [];
+  const loading = isLoading;
 
-  // N+1 batched fetching for panelHint
-  // Note: if this list grows large in practice, the better long-term fix is a server-side addition
-  // (a new filter param on listMyAssignedSteps, or including stepKey/panelHint directly in its existing output)
-  // rather than optimizing the N+1 pattern itself — this would be its own small backend task.
-  const instanceQueries = trpc.useQueries((t) =>
-    assignedRows.map((row) => t.workflow.getInstance({ instanceId: row.instanceId }))
-  );
-
-  const isInstancesLoading = instanceQueries.some((q) => q.isLoading);
-  const loading = isLoading || isInstancesLoading;
-
-  // Combine rows with their resolved instance data
-  const combinedItems = assignedRows.map((row, index) => {
-    const instanceData = instanceQueries[index]?.data;
-    return {
-      ...row,
-      panelHint: instanceData?.panelHint,
-      lapseStatus: instanceData?.lapseStatus,
-      slaDeadline: instanceData?.slaDeadline,
-    };
-  });
-
-  const decisions = combinedItems.filter((item) => item.panelHint === "mayor_decision");
-  const lapses = combinedItems.filter((item) => item.panelHint === "mayor_lapse_confirmation");
+  const decisions = assignedRows.filter((item) => item.panelHint === "mayor_decision");
+  const lapses = assignedRows.filter((item) => item.panelHint === "mayor_lapse_confirmation");
 
   return (
     <Card className="h-full">
@@ -162,11 +144,11 @@ function QueueWidget() {
                         </p>
                         <p className="text-xs text-text-muted mt-0.5">
                           Pending SP Secretary confirmation
-                          {step.slaDeadline && (
+                          {step.dueAt && (
                             <>
                               {" "}
                               &middot; Deadline passed on{" "}
-                              {new Date(step.slaDeadline).toLocaleDateString("en-PH", {
+                              {new Date(step.dueAt).toLocaleDateString("en-PH", {
                                 month: "short",
                                 day: "numeric",
                               })}

@@ -144,7 +144,7 @@ const SLA_READ_ROLES: ReadonlySet<string> = new Set([
 ]);
 
 /** I1 §6.5 — valid step keys for mayor actions. */
-const MAYOR_STEP_KEYS: ReadonlySet<string> = new Set(['mayor_review', 'mayor_signature']);
+export const MAYOR_STEP_KEYS: ReadonlySet<string> = new Set(['mayor_review', 'mayor_signature']);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

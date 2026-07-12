@@ -2073,3 +2073,16 @@ This is a distinct defect from the one already recorded in LOG-0091 point 3 and 
 **What was decided and implemented:** human decision, given directly in conversation. `scheduleDocumentForFirstReading`'s session-creation branch now inserts `presentCount: null, quorumAchieved: null` instead of the fabricated constants — both columns were already nullable in the schema (`packages/database/schema/workflow.schema.ts` lines 551–552, confirmed no `.notNull()` on either), so this required no migration. `getAttendanceStatistics`'s row-mapping, which previously coerced a `null` `presentCount` to `0` via `r.presentCount ?? 0` (confirmed line 197 pre-change) and then computed a fabricated `absentCount` from that `0` — itself a second, independent instance of the same "unknown treated as a specific wrong number" pattern — now passes through `null` explicitly rather than coercing it, and the frontend (`SessionAttendanceOverviewPage.tsx`) renders a distinct "Not Yet Recorded" state for these rows instead of numeric 0s. See TASK-WF-BE-002's standalone prompt for the exact implementation.
 
 The alternative considered — populating `presentCount` at `scheduleDocumentForFirstReading`'s session-creation time via a real roster-size lookup — was rejected: a roster-size lookup at that point could honestly report how many people are *on* the SP roster, but has no way to know how many will actually *attend* a session that hasn't happened yet, so using it to populate `presentCount` would still be fabricating an attendance outcome, just with a computed-looking number instead of an obviously-fake constant. The `null`-placeholder approach was chosen because it's the only one of the two that doesn't assert a false attendance fact.
+
+---
+
+### [LOG-0094] Cross-package runtime import constraint in apps/web
+
+- date: 2026-07-13
+- task_id: TASK-WF-BE-003
+- status: proposed
+- affects: none
+
+**What was found:** `apps/web` cannot cleanly import runtime values from `apps/server` (e.g. `MAYOR_STEP_KEYS` from `workflow.policy.ts`). It can only import types via `RouterOutputs`-style inference.
+
+**What was implemented:** To apply the server-side `stepKeyIn` filter for `listMyAssignedSteps` in `MayorDashboardPage.tsx` without an N+1 cost, the `MAYOR_STEP_KEYS` strings (`'mayor_review'`, `'mayor_signature'`) were inlined directly in the frontend component with a sync-comment referencing the backend `MAYOR_STEP_KEYS` constant. This leaves a partial single-source-of-truth gap across the frontend/backend boundary where the two lists could theoretically drift.
