@@ -11,7 +11,6 @@ import {
   Input,
   Label,
   Skeleton,
-  Badge,
 } from '@batac/ui';
 
 import { useAuth } from '@/lib/auth-context';
@@ -232,10 +231,9 @@ interface UserRowProps {
   username: string;
   email: string;
   status: string;
-  onRefresh: () => void;
 }
 
-function UserRow({ userId, username, email, status, onRefresh }: UserRowProps) {
+function UserRow({ userId, username, email, status }: UserRowProps) {
   const utils = trpc.useUtils();
   const [editing, setEditing] = useState(false);
 
@@ -405,7 +403,6 @@ export function UserAccountManagementPage() {
                   username={user.username}
                   email={user.email}
                   status={user.status}
-                  onRefresh={() => directoryQuery.refetch()}
                 />
               ))}
             </div>
