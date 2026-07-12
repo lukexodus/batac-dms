@@ -83,8 +83,8 @@ export function DocumentRequestIntakeClerkAssistedPage() {
 
       toast.success('Document request created successfully');
       navigate(`/document-requests/${requestId}`);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to create document request');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create document request');
     }
   };
 
@@ -108,7 +108,7 @@ export function DocumentRequestIntakeClerkAssistedPage() {
             </div>
           </div>
           {printableFormData.data && (
-            <PrintableFormView data={printableFormData.data as any} />
+            <PrintableFormView data={printableFormData.data} />
           )}
         </div>
       ) : (

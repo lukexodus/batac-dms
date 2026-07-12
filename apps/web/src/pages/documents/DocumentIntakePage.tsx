@@ -4,6 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { AllowedMimeTypeSchema } from '@batac/shared';
 import { 
   Button, 
   Input, 
@@ -64,6 +65,7 @@ export default function DocumentIntakePage() {
       return;
     }
 
+    // TODO: validTypes only lists 3 of the 5 MIME types AllowedMimeTypeSchema actually accepts (missing Office document types)
     const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
     if (!validTypes.includes(selected.type)) {
       setFile(null);
@@ -81,6 +83,12 @@ export default function DocumentIntakePage() {
       return;
     }
 
+    const mimeTypeCheck = AllowedMimeTypeSchema.safeParse(file.type);
+    if (!mimeTypeCheck.success) {
+      setFileError('Unsupported file type');
+      return;
+    }
+
     try {
       setIsUploading(true);
 
@@ -94,7 +102,7 @@ export default function DocumentIntakePage() {
       // 2. Request upload URL
       const { uploadUrl, s3Key } = await requestUploadUrl.mutateAsync({
         documentId,
-        mimeType: file.type as any,
+        mimeType: mimeTypeCheck.data,
       });
 
       // 3. Upload to S3
@@ -115,14 +123,14 @@ export default function DocumentIntakePage() {
         documentId,
         s3Key,
         originalFilename: file.name,
-        mimeType: file.type as any,
+        mimeType: mimeTypeCheck.data,
         fileSizeBytes: file.size,
       });
 
       toast.success('Document created successfully');
       navigate(`/documents/${documentId}`);
-    } catch (err: any) {
-      toast.error(err.message || 'An error occurred during upload');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'An error occurred during upload');
     } finally {
       setIsUploading(false);
     }

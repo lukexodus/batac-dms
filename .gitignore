@@ -31,3 +31,4 @@ build
 
 commit_msg.txt
 lint-result
+typecheck-result
