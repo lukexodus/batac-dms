@@ -1591,6 +1591,35 @@ If yes to (a)+(b): this substantially resolves the tension in ORG's favor — th
 
 ---
 
+### TASK-PRE-05 — Add `.output()` Zod schemas to `complaints.router.ts` and `document-requests.router.ts`
+
+**Discovered via:** TASK-FE-DOCS-003, surfaced as a `no-unsafe-call`/`no-unsafe-member-access` lint error on `ComplaintDetailPage.tsx`'s `outcomeState.toUpperCase()` call. Logged as `development-findings-log.md` LOG-0086.
+
+**Role:** backend/server — no frontend changes required.
+
+**Context:** `documents.router.ts`, the third file in this same module, declares `.output(SomeZodSchema)` on essentially every procedure it defines (~26 occurrences across ~27 procedures — e.g. `documents.get` returns `.output(DocumentSelectSchema)`), giving real end-to-end type safety from the Postgres row through tRPC to the React client. `complaints.router.ts` and `document-requests.router.ts` have zero `.output()` calls between them. Both repeatedly cast the `metadata` JSONB column with `document.metadata as Record<string, any>` and return fields read straight off that untyped object, with nothing at the procedure boundary to re-assert a real type. The result: every client-side consumer of every procedure in both files that touches `metadata` receives `any` for those fields, silently — `getComplaint`, `listAllComplaints`, `logAndAssign`, `enterCommitteeReport`, `setOutcome`, and the equivalent `document-requests` procedure set. This has only surfaced visibly once so far, because most consumers don't happen to call a method on the affected fields that trips a lint rule the way `.toUpperCase()` did — the gap itself is much wider than the one line that made it visible.
+
+**Deliverables:**
+
+- `.output()` Zod schemas added to every procedure in `complaints.router.ts` that currently lacks one.
+- Same for `document-requests.router.ts`.
+- Whatever `metadata`-field typing is needed to support those schemas without re-introducing `Record<string, any>` as the effective ceiling (e.g., typed accessor helpers, narrower per-field Zod parsing at the point of extraction, or a shared `ComplaintMetadata`/`DocumentRequestMetadata` interface — implementer's judgment, but the end state should not still bottom out in an untyped cast at the point where fields are actually read).
+
+**Acceptance Criteria:**
+
+- [ ] `pnpm typecheck` passes with no new errors.
+- [ ] `RouterOutputs['documents']['getComplaint']` (and the other affected procedures) resolves to a real, field-level type on the client — not `any` — confirmed by checking inferred types, not just the absence of a lint error.
+- [ ] `apps/server/src/modules/documents/__tests__/complaints.router.test.ts`'s existing AC-C1 through AC-C6 still pass unmodified. These currently assert `getComplaint`'s return shape structurally (checking specific keys exist), not against a Zod schema — adding `.output()` must not change the actual returned shape in a way that breaks these assertions.
+- [ ] Equivalent existing tests for `document-requests.router.ts`, if any, still pass unmodified.
+- [ ] `ComplaintDetailPage.tsx`'s local type-narrowing workaround on `outcomeState` (see file comment, references LOG-0086) can be removed once this lands, since the field will carry a real type from the source. Removing it is not part of this task's deliverables, but flag it in your summary as a small frontend follow-up.
+- [ ] No change to any procedure's runtime behavior — this is a typing-only change. If adding a schema reveals that a field's _actual_ runtime value doesn't match what the code implies it should be (e.g., a field that's sometimes genuinely `undefined` rather than always present), do not silently loosen the schema to paper over it — flag the discrepancy instead, the same way earlier sessions in this codebase have handled similar mismatches (see LOG-0081, LOG-0085 for precedent on flagging rather than guessing).
+
+**AI Prompt:**
+
+> Add `.output()` Zod schemas to every procedure in `apps/server/src/modules/documents/complaints.router.ts` and `apps/server/src/modules/documents/document-requests.router.ts`, following the exact convention already established in the sibling file `documents.router.ts` in the same directory — check that file for the schema-naming and placement pattern before writing your own (e.g. `DocumentSelectSchema`, `SuccessOutputSchema` — some of these existing shared schemas may be directly reusable rather than needing new ones written from scratch, particularly for simple `{ success: true }` mutation returns). The core problem is that both target files cast `document.metadata as Record<string, any>` and return fields read directly off that cast with nothing re-typing them at the procedure boundary — so adding `.output()` alone closes the client-visible gap, but consider also whether the internal `metadata` extraction itself should be typed more precisely, rather than just wrapping an untyped read in an output schema that happens to match today's shape by coincidence. Run the existing test suites for both files before and after your change and confirm no assertions break — these tests check structural shape, not types, so a passing test suite alone doesn't prove the new schema is correct; read the assertions and confirm the schema you add actually matches what they expect field-by-field.
+
+---
+
 ## TIER 1 — IAM (no Tier 0 dependency)
 
 ### TASK-FE-IAM-001 — `/admin/roles` (RoleAssignmentPage)

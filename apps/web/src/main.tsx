@@ -22,7 +22,8 @@ import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage"
 import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
 import DocumentDetailPage from "./pages/documents/DocumentDetailPage";
 import { ComplaintsListPage } from "./pages/documents/ComplaintsListPage";
-import { ComplaintIntakeClerkAssistedPage } from "./pages/complaints/ComplaintIntakeClerkAssistedPage";
+import { ComplaintIntakeClerkAssistedPage } from "./pages/documents/ComplaintIntakeClerkAssistedPage";
+import ComplaintDetailPage from "./pages/documents/ComplaintDetailPage";
 import { DocumentRequestsListPage } from "./pages/documents/DocumentRequestsListPage";
 import { DocumentRequestIntakeClerkAssistedPage } from "./pages/documents/DocumentRequestIntakeClerkAssistedPage";
 import { DocumentRequestDetailPage } from "./pages/documents/DocumentRequestDetailPage";
@@ -107,6 +108,13 @@ const router = createBrowserRouter([
   {
     path: "/complaints/new",
     element: <ComplaintIntakeClerkAssistedPage />,
+  },
+  {
+    // /complaints and /complaints/new are registered before :complaintId so the
+    // static segments always win — matches the same explicit-ordering
+    // convention already used for /documents/new vs /documents/:documentId.
+    path: "/complaints/:complaintId",
+    element: <ComplaintDetailPage />,
   },
   {
     path: "/document-requests",

@@ -1902,3 +1902,43 @@ LOG-0016 documented two issues: (1) `pgsql-ast-parser` cannot parse several DDL/
 
 [Tested]: `pnpm --filter @batac/scripts lint:migrations` exits 0 on the current migration set (0000–0010). All previously-failing files (0002–0006) now pass with skipped-statement warnings. No INVARIANT-01/06/07 FAIL-level errors remain.
 
+---
+
+### [LOG-0085] TASK-FE-DOCS-003: frontend `AuthSession` has no `committeeIds`, so `sp_member` committee-scoped control visibility cannot be checked client-side as specified
+
+- date: 2026-07-11
+- task_id: TASK-FE-DOCS-003
+- status: confirmed
+- affects: apps/web/src/lib/auth-context.tsx
+- tagged_documents: fe.md (TASK-FE-DOCS-003 AI Prompt), fe-handoff.md (Office-Scoping Pattern)
+
+**What was found:**
+TASK-FE-DOCS-003's AI Prompt says the frontend should check whether an `sp_member`'s `committeeIds` include the complaint's `assignedOfficeId` client-side, to decide whether to show the `enterCommitteeReport` control. The backend's `ctx.auth` subject does carry `committeeIds` (used directly in `complaints.router.ts`'s `enterCommitteeReport` and `getComplaint`), but the frontend's `AuthSession` interface (`apps/web/src/lib/auth-context.tsx`) does not expose an equivalent field — it has `roleCodes`, `officeScopeId` (singular), and `officeCode`, with no array of a member's committee memberships. No other page in `apps/web/src` currently reads `committeeIds` (confirmed by repo-wide search returning zero matches outside the backend). `officeScopeId` is used elsewhere (`SecretaryDashboardPage.tsx`) as a single office-scope parameter for a query, not as a membership-check comparison, and — being singular — cannot correctly represent a member belonging to more than one committee even if repurposed for this.
+
+**What was implemented:**
+`ComplaintDetailPage.tsx` shows the `enterCommitteeReport` control to any caller with the `sp_secretary` or `sp_member` role, without attempting a client-side committee match. The real enforcement remains server-side in `enterCommitteeReport`'s existing ABAC check. Practical effect: an `sp_member` not assigned to a given complaint's committee will see the control but receive a `FORBIDDEN` error on submit, rather than the control being hidden from them in advance.
+
+**[Inference]** This is a reasoned default chosen to avoid fabricating a client-side check against a field that doesn't exist on `AuthSession`, not a confirmed-correct design. A human should decide whether `AuthSession` (and the `/api/auth/login` / `/api/auth/refresh` responses it's built from) should be extended to carry committee memberships, to enable properly hiding this control for out-of-committee `sp_member` users.
+
+**Resolution:** `committeeIds` has been surfaced through the full call chain: `iam.service.ts` (display claims, login/refresh result objects) → `iam.routes.ts` (login/refresh response bodies) → `iam.schemas.ts` (AuthResponseSchema) → `auth-context.tsx` (AuthSession interface). `ComplaintDetailPage.tsx`'s `canEnterCommitteeReport` now accepts `committeeIds` and `assignedOfficeId` and performs the real client-side check for `sp_member`.
+
+---
+
+### [LOG-0086] `complaints.router.ts` and `document-requests.router.ts` lack `.output()` Zod schemas, so every field sourced from the `metadata` JSON column is typed `any` end-to-end, including on the client
+
+- date: 2026-07-12
+- task_id: TASK-FE-DOCS-003
+- status: proposed
+- affects: apps/server/src/modules/documents/complaints.router.ts, apps/server/src/modules/documents/document-requests.router.ts
+- tagged_documents: fe.md (TASK-PRE-01), ADR-UI-005
+
+**What was found:**
+`documents.router.ts` — the third file in the same module — declares `.output(SomeZodSchema)` on essentially every procedure (~26 occurrences across ~27 procedures, e.g. `documents.get` returns `.output(DocumentSelectSchema)`), giving end-to-end type safety from the Drizzle/Postgres row through tRPC to the React client, which is what this stack is designed to provide. `complaints.router.ts` and `document-requests.router.ts` have zero `.output()` calls between them. Both files repeatedly cast the `metadata` JSONB column with `const metadata = document.metadata as Record<string, any>` (complaints.router.ts: lines 160, 202, 307, 341; document-requests.router.ts: lines 207, 512, 626, 671) and then return fields read directly off that `any`-typed object. With no `.output()` schema to re-assert a real type at the procedure boundary, tRPC's return-type inference for `inferRouterOutputs<AppRouter>` traces straight back through the `any` cast, so `RouterOutputs['documents']['getComplaint']` (and likely every other procedure in both files that touches `metadata`) resolves to `any` on the client — not just for `getComplaint`, which is where this was first noticed, but for `listAllComplaints`, `logAndAssign`, `enterCommitteeReport`, and the full `document-requests` procedure set as well, none of which happen to call a method on the affected fields that trips `@typescript-eslint/no-unsafe-*` downstream, so the gap has stayed invisible everywhere except the one call site that did (`ComplaintDetailPage.tsx`'s `complaint.outcomeState.toUpperCase()`).
+
+**What was implemented:**
+`ComplaintDetailPage.tsx`'s one erroring call site was narrowed locally with an explicit, commented type assertion at the point of use (see file), so the frontend file itself is lint-clean. This is a local symptom patch, not a fix — it does nothing for the other ~10 untyped call sites across both files, and does nothing for any other current or future consumer of these procedures.
+
+**[Inference]** The real fix is adding `.output()` Zod schemas to both routers, matching `documents.router.ts`'s existing convention, plus typing the `metadata` extraction more precisely than a blanket `Record<string, any>` cast. This is backend work outside TASK-FE-DOCS-003's scope and touches procedures with existing, passing test coverage (`complaints.router.test.ts`'s AC-C1–AC-C6 assert `getComplaint`'s return shape structurally, not against a Zod schema) — a human should scope this as its own task rather than have it folded silently into a frontend deliverable.
+
+---
+
