@@ -45,9 +45,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
         return;
       }
-      const data = await response.json();
+      // The refresh endpoint's response body is not runtime-validated against
+      // a schema (no Zod schema for AuthSession exists in @batac/shared or
+      // elsewhere); this assertion trusts the server contract to return the
+      // AuthSession shape, the same trust boundary already relied on by the
+      // login flow below. `.json()` is typed `Promise<any>` by the DOM lib
+      // itself (a structural TS limitation, not a project misconfiguration).
+      const data = await response.json() as AuthSession;
       setSession(data);
-    } catch (error) {
+    } catch {
       setSession(null);
     }
   }, []);
@@ -72,7 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Login failed');
     }
 
-    const data = await response.json();
+    // Same trust boundary as refresh() above: no runtime schema validates
+    // this response, the assertion trusts the server contract's shape.
+    const data = await response.json() as AuthSession;
     setSession(data);
   }, []);
 
