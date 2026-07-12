@@ -38,3 +38,5 @@ export const AllowedMimeTypeSchema = z.enum([
   "image/png",
   "image/jpeg",
 ]);
+export type AllowedMimeType = z.infer<typeof AllowedMimeTypeSchema>;
+

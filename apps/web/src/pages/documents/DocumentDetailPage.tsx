@@ -40,7 +40,6 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-  Separator,
   Skeleton,
   Tabs,
   TabsList,
@@ -54,13 +53,13 @@ import {
 
 import { hasRole } from '../../lib/auth-helpers';
 
-import type { LifecycleState } from '@batac/shared';
+import type { LifecycleState, AllowedMimeType } from '@batac/shared';
 import type { WorkflowStep, RoutingEntry } from '@batac/ui';
 
 import { useScanQualityPolling } from '@/hooks/useScanQualityPolling';
 import { useAuth } from '@/lib/auth-context';
 import { mapLifecycleStateToDocumentState } from '@/lib/status-mapping';
-import { trpc } from '@/lib/trpc';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // ─── ABAC role helpers ──────────────────────────────────────────────────────
 // Each helper corresponds to a specific procedure's callable-by list (sourced
@@ -68,14 +67,6 @@ import { trpc } from '@/lib/trpc';
 // E1). These are intentionally NOT the blanket 10-role page set.
 
 
-const SP_ROLES = ['sp_secretary', 'sp_member', 'sp_presiding_officer'];
-
-/** documents.update: callable-by dept_encoder, dept_approver, sp_secretary,
- *  sp_presiding_officer, mayor, brgy_encoder, brgy_captain, sp_member */
-function canUpdate(roles: string[], lifecycleState: string): boolean {
-  if (!hasRole(roles, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain', 'sp_member')) return false;
-  return lifecycleState === 'draft';
-}
 
 /** documents.submit: callable-by dept_encoder, dept_approver, sp_secretary,
  *  sp_member, sp_presiding_officer, mayor, brgy_encoder, brgy_captain */
@@ -161,6 +152,13 @@ function canLogRoutingEntry(roles: string[]): boolean {
 /** tracking.printQrCoverSheet: callable-by sp_secretary only */
 function canPrintQrCoverSheet(roles: string[]): boolean {
   return roles.includes('sp_secretary');
+}
+
+// Runtime type guard bridging File.type (string) to the AllowedMimeType literal union.
+function isAllowedMimeType(value: string): value is AllowedMimeType {
+  return (['application/pdf', 'image/jpeg', 'image/png',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'] as const satisfies readonly AllowedMimeType[]).includes(value as AllowedMimeType);
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────
@@ -399,7 +397,7 @@ export default function DocumentDetailPage() {
   // ── Routing history → RoutingHistoryTimeline entries ──────────────────────
   // The tracking.getRoutingHistory output uses snake_case / different shape from
   // RoutingEntry (the UI type). Map defensively.
-  const routingEntries: RoutingEntry[] = (routingHistory ?? []).map((e: any) => ({
+  const routingEntries: RoutingEntry[] = (routingHistory ?? []).map((e: RouterOutputs['tracking']['getRoutingHistory'][number]) => ({
     id: e.entryId,
     actorName: e.actorDisplayName ?? e.actorId,
     actorOfficeName: e.fromOfficeName ?? '',
@@ -436,10 +434,7 @@ export default function DocumentDetailPage() {
       setUploadFile(null);
       return;
     }
-    const VALID = ['application/pdf', 'image/jpeg', 'image/png',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
-    if (!VALID.includes(selected.type)) {
+    if (!isAllowedMimeType(selected.type)) {
       setUploadFileError('Unsupported file type');
       setUploadFile(null);
       return;
@@ -450,9 +445,13 @@ export default function DocumentDetailPage() {
 
   const handleUpload = async () => {
     if (!uploadFile || !documentId) return;
+    if (!isAllowedMimeType(uploadFile.type)) {
+      toast.error('Unsupported file type');
+      return;
+    }
     const { uploadUrl, s3Key } = await requestUploadUrlMutation.mutateAsync({
       documentId,
-      mimeType: uploadFile.type as any,
+      mimeType: uploadFile.type,
     });
     const res = await fetch(uploadUrl, {
       method: 'PUT',
@@ -464,7 +463,7 @@ export default function DocumentDetailPage() {
       documentId,
       s3Key,
       originalFilename: uploadFile.name,
-      mimeType: uploadFile.type as any,
+      mimeType: uploadFile.type,
       fileSizeBytes: uploadFile.size,
     });
   };
@@ -649,9 +648,9 @@ export default function DocumentDetailPage() {
                       documentIds: [documentId],
                       layout: 'single',
                     });
-                    window.open((result as any).pdfPresignedUrl, '_blank');
-                  } catch (e: any) {
-                    toast.error(e.message);
+                    window.open(result.pdfPresignedUrl, '_blank');
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : 'Failed to print QR cover sheet');
                   }
                 }}
               >
@@ -750,20 +749,20 @@ export default function DocumentDetailPage() {
           <CardContent className="flex flex-col md:flex-row gap-6">
             <div className="w-40 shrink-0">
               <QRCodeDisplay
-                trackingId={(trackingRecord as any).qrCodeS3Key ?? (trackingRecord as any).trackingId}
-                documentNumber={displayNumber ?? (trackingRecord as any).trackingNumber}
+                trackingId={trackingRecord.qrCodeS3Key ?? trackingRecord.trackingId}
+                documentNumber={displayNumber ?? trackingRecord.trackingNumber}
                 title={document.title}
               />
             </div>
             <div className="space-y-2 text-sm">
               <div>
                 <span className="font-medium text-text-muted">Tracking Number:</span>{' '}
-                <span className="font-mono">{(trackingRecord as any).trackingNumber}</span>
+                <span className="font-mono">{trackingRecord.trackingNumber}</span>
               </div>
-              {(trackingRecord as any).physicalLocation && (
+              {trackingRecord.physicalLocation && (
                 <div>
                   <span className="font-medium text-text-muted">Physical Location:</span>{' '}
-                  {(trackingRecord as any).physicalLocation}
+                  {trackingRecord.physicalLocation}
                 </div>
               )}
             </div>
