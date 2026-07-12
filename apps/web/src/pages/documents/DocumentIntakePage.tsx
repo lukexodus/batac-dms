@@ -42,7 +42,7 @@ export default function DocumentIntakePage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<IntakeFormValues>({
-    resolver: zodResolver(IntakeFormSchema as any),
+    resolver: zodResolver(IntakeFormSchema),
     defaultValues: {
       documentTypeId: '',
       title: '',

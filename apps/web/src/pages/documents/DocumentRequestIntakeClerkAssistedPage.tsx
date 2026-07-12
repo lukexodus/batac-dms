@@ -58,7 +58,7 @@ export function DocumentRequestIntakeClerkAssistedPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<DocumentRequestFormValues>({
-    resolver: zodResolver(DocumentRequestSchema as any),
+    resolver: zodResolver(DocumentRequestSchema),
     defaultValues: {
       requesterName: '',
       requesterContact: '',

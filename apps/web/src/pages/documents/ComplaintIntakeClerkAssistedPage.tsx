@@ -43,7 +43,7 @@ export function ComplaintIntakeClerkAssistedPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<ComplaintIntakeValues>({
-    resolver: zodResolver(ComplaintIntakeSchema as any),
+    resolver: zodResolver(ComplaintIntakeSchema),
     defaultValues: {
       complainantName: '',
       complainantAddress: '',
