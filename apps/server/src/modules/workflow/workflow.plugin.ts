@@ -81,6 +81,8 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
   registerSlaMonitorJob({ workflowRepository, eventBus: fastify.eventBus });
   
   if (fastify.boss) {
+    await fastify.boss.createQueue('evaluateMayorLapseTimers');
+    await fastify.boss.schedule('evaluateMayorLapseTimers', '0 * * * *', {}, { tz: 'Asia/Manila' });
     fastify.boss.work('evaluateMayorLapseTimers', async () => {
       try {
         await evaluateMayorLapseTimers(stepDeps);
@@ -88,9 +90,9 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
         fastify.log.error({ err }, '[Mayor Lapse Monitor] Failed to evaluate timers');
       }
     });
-    // Schedule to run every hour (0 * * * *)
-    await fastify.boss.schedule('evaluateMayorLapseTimers', '0 * * * *', {}, { tz: 'Asia/Manila' });
 
+    await fastify.boss.createQueue('evaluatePanlalawiganTimers');
+    await fastify.boss.schedule('evaluatePanlalawiganTimers', '0 6 * * *', {}, { tz: 'Asia/Manila' });
     fastify.boss.work('evaluatePanlalawiganTimers', async () => {
       try {
         await evaluatePanlalawiganTimers(stepDeps);
@@ -98,9 +100,9 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
         fastify.log.error({ err }, '[Panlalawigan Timer] Failed to evaluate timers');
       }
     });
-    // Schedule to run daily at 06:00 PHT (0 6 * * *)
-    await fastify.boss.schedule('evaluatePanlalawiganTimers', '0 6 * * *', {}, { tz: 'Asia/Manila' });
 
+    await fastify.boss.createQueue('evaluateThursdayCutoffs');
+    await fastify.boss.schedule('evaluateThursdayCutoffs', '0 0 * * 4', {});
     fastify.boss.work('evaluateThursdayCutoffs', async () => {
       try {
         await evaluateThursdayCutoffs({ workflowRepository });
@@ -108,8 +110,6 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
         fastify.log.error({ err }, '[Thursday Cutoff] Failed to evaluate cutoffs');
       }
     });
-    // Schedule to run weekly on Thursday at midnight (0 0 * * 4)
-    await fastify.boss.schedule('evaluateThursdayCutoffs', '0 0 * * 4', {});
   }
 
   // Run SLA monitor synchronously once on boot
