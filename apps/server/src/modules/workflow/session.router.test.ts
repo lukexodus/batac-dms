@@ -388,6 +388,41 @@ describe('Session Router tRPC Procedures', () => {
       expect(result.success).toBe(true);
       vi.useRealTimers();
     });
+
+    it('inserts a new session row with null attendance when no session exists for the date', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-07-08T10:00:00Z'));
+
+      mockDb.mockResponse([]); // 1. vmPos select (VM/presiding-officer position lookup)
+      mockDb.mockResponse([]); // 2. loggedInEmployee select (fallback: current user as employee)
+      mockDb.mockResponse([{ employeeId: 'emp-1' }]); // 3. firstEmp select (fallback: any employee)
+      mockDb.mockResponse([]); // 4. session select (empty, forces session-creation branch)
+      mockDb.mockResponse([{ maxNumber: 1 }]); // 5. numRow select (max existing session number)
+      mockDb.mockResponse([{ id: 'new-session-id' }]); // 6. insert(spSessions).returning()
+      mockDb.mockResponse([{ id: 'oob-id' }]); // 7. oob select (Order of Business lookup)
+      mockDb.mockResponse([]); // 8. existingItem select (check if scheduled)
+      mockDb.mockResponse([{ maxOrder: 1 }]); // 9. orderRow select (max existing item order)
+      mockDb.mockResponse([]); // 10. insert(orderOfBusinessItems)
+
+      const result = await caller.scheduleDocumentForFirstReading({
+        documentId: VALID_UUID,
+        sessionDate: new Date('2026-07-14'),
+      });
+
+      expect(result.success).toBe(true);
+      
+      expect(mockDb.values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presentCount: null,
+          quorumAchieved: null,
+        })
+      );
+
+      vi.useRealTimers();
+    });
   });
 
   describe('getOrderOfBusiness', () => {
