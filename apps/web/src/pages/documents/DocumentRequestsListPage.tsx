@@ -19,7 +19,6 @@ import { mapLifecycleStateToDocumentState } from '../../lib/status-mapping';
 import { trpc } from '../../lib/trpc';
 
 import type { RouterOutputs } from '../../lib/trpc';
-import type { DocumentState } from '@batac/ui/types/domain';
 
 
 type DocumentRequestRow = RouterOutputs['documents']['listAllDocumentRequests']['items'][0];
