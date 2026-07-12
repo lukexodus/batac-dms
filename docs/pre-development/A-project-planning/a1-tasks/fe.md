@@ -1,27 +1,28 @@
 
 ## Table of Contents
 
-- [L28–L374] TASK-WF-FE-001 — Task inbox page listing all workflow steps currently assigned to the logged-in user.
-- [L375–L889] TASK-WF-FE-002 — Workflow step action detail page and prerequisite backend additions for committee list and panel hints.
-- [L890–L1373] TASK-WF-FE-003 — Fixes wrong mutation path and gating condition for the secretariat_decision step-completion workflow path.
-- [L1374–L1593] TIER 0 — Before Frontend Work Starts — Backend additions, bug fixes, and architecture decisions blocking subsequent frontend work.
-  - [L1380–L1481] TASK-PRE-01 — Add `complaints.get` and `documentRequests.get` (ADR-UI-005 was never implemented) — Implement get endpoints for complaints and document requests as specified in ADR-UI-005.
-  - [L1482–L1515] TASK-PRE-02 — Fix `organization.listCommittees` role gate (live bug in shipped code) — Widen `organization.listCommittees` role check to include `sp_member` to fix a live authorization bug.
-  - [L1516–L1547] TASK-PRE-03 — AUDIT backend/spec reconciliation (decision + implementation) — Resolve discrepancy between actual backend procedures and F1 spec for audit log query endpoints.
-  - [L1548–L1574] TASK-PRE-04 — Resolve Designation vs. Delegation (decision, not implementation) — Resolve product decision on automatic vs. manual substitute-officer selection for session attendance.
-  - [L1575–L1593] TASK-PRE-04b — Surface `presidedByEmployeeId` in `getAttendanceRecord` (conditional on TASK-PRE-04's outcome) — Expose `presidedByEmployeeId` in the session attendance record query to enable read-only substitute display.
-- [L1594–L1653] TIER 1 — IAM (no Tier 0 dependency) — Frontend task list for Identity and Access Management views and admin screens.
-- [L1654–L1702] TIER 2 — ORG (no Tier 0 dependency, except TASK-PRE-02 lands alongside) — Frontend task list for Organization structures, employees, and committee management views.
-- [L1703–L1757] TIER 3 — WF: Order of Business and Sessions — Frontend task list for legislative Order of Business and session attendance tracking.
-- [L1758–L1821] TIER 4 — WF: Dashboards — Frontend task list for role-specific landing dashboards (Secretary and Mayor).
-- [L1822–L1953] TIER 5 — DOCS: Complaints and Document Requests — Frontend task list for Document management workflows, including complaints and request tracking pages.
-  - [L1826–L1845] TASK-FE-DOCS-001 — `/complaints` (ComplaintsListPage) — Paginated list of citizen complaints with status filtering, linked to detail pages.
-  - [L1846–L1864] TASK-FE-DOCS-002 — `/complaints/new` (ComplaintIntakeClerkAssistedPage) — Clerk-assisted complaint intake form for SP Secretary, routing to details on success.
-  - [L1865–L1889] TASK-FE-DOCS-003 — `/complaints/:complaintId` (ComplaintDetailPage) — Complaint detail page with actions for assignment (Secretary), report entry (SP Member), and outcome resolution (Secretary).
-  - [L1890–L1909] TASK-FE-DOCS-004 — `/document-requests` (DocumentRequestsListPage) — Paginated list of document requests with name/number filters and simple dual-approval progress indicators.
-  - [L1910–L1928] TASK-FE-DOCS-005 — `/document-requests/new` (DocumentRequestIntakeClerkAssistedPage) — Clerk-assisted document request creation form with repeatable fields and a printable data layout view.
-  - [L1929–L1953] TASK-FE-DOCS-006 — `/document-requests/:requestId` (DocumentRequestDetailPage) — Document request detail page showing request details, dual approvals, and copy release actions.
-- [L1954–L1963] What's still not attempted, and why — unchanged from last turn, restated for completeness — Summary of unbuilt frontend routes and features that remain blocked on backend or spec decisions.
+- [L29–L375] TASK-WF-FE-001 — Task inbox page listing all workflow steps currently assigned to the logged-in user.
+- [L376–L890] TASK-WF-FE-002 — Workflow step action detail page and prerequisite backend additions for committee list and panel hints.
+- [L891–L1374] TASK-WF-FE-003 — Fixes wrong mutation path and gating condition for the secretariat_decision step-completion workflow path.
+- [L1375–L1623] TIER 0 — Before Frontend Work Starts — Backend additions, bug fixes, and architecture decisions blocking subsequent frontend work.
+  - [L1381–L1482] TASK-PRE-01 — Add `complaints.get` and `documentRequests.get` (ADR-UI-005 was never implemented) — Implement get endpoints for complaints and document requests as specified in ADR-UI-005.
+  - [L1483–L1516] TASK-PRE-02 — Fix `organization.listCommittees` role gate (live bug in shipped code) — Widen `organization.listCommittees` role check to include `sp_member` to fix a live authorization bug.
+  - [L1517–L1548] TASK-PRE-03 — AUDIT backend/spec reconciliation (decision + implementation) — Resolve discrepancy between actual backend procedures and F1 spec for audit log query endpoints.
+  - [L1549–L1575] TASK-PRE-04 — Resolve Designation vs. Delegation (decision, not implementation) — Resolve product decision on automatic vs. manual substitute-officer selection for session attendance.
+  - [L1576–L1594] TASK-PRE-04b — Surface `presidedByEmployeeId` in `getAttendanceRecord` (conditional on TASK-PRE-04's outcome) — Expose `presidedByEmployeeId` in the session attendance record query to enable read-only substitute display.
+  - [L1595–L1623] TASK-PRE-05 — Add `.output()` Zod schemas to `complaints.router.ts` and `document-requests.router.ts` — Add output schemas to complaints and document requests procedures to ensure client type safety.
+- [L1624–L1683] TIER 1 — IAM (no Tier 0 dependency) — Frontend task list for Identity and Access Management views and admin screens.
+- [L1684–L1732] TIER 2 — ORG (no Tier 0 dependency, except TASK-PRE-02 lands alongside) — Frontend task list for Organization structures, employees, and committee management views.
+- [L1733–L1787] TIER 3 — WF: Order of Business and Sessions — Frontend task list for legislative Order of Business and session attendance tracking.
+- [L1788–L1851] TIER 4 — WF: Dashboards — Frontend task list for role-specific landing dashboards (Secretary and Mayor).
+- [L1852–L1983] TIER 5 — DOCS: Complaints and Document Requests — Frontend task list for Document management workflows, including complaints and request tracking pages.
+  - [L1856–L1875] TASK-FE-DOCS-001 — `/complaints` (ComplaintsListPage) — Paginated list of citizen complaints with status filtering, linked to detail pages.
+  - [L1876–L1894] TASK-FE-DOCS-002 — `/complaints/new` (ComplaintIntakeClerkAssistedPage) — Clerk-assisted complaint intake form for SP Secretary, routing to details on success.
+  - [L1895–L1919] TASK-FE-DOCS-003 — `/complaints/:complaintId` (ComplaintDetailPage) — Complaint detail page with actions for assignment (Secretary), report entry (SP Member), and outcome resolution (Secretary).
+  - [L1920–L1939] TASK-FE-DOCS-004 — `/document-requests` (DocumentRequestsListPage) — Paginated list of document requests with name/number filters and simple dual-approval progress indicators.
+  - [L1940–L1958] TASK-FE-DOCS-005 — `/document-requests/new` (DocumentRequestIntakeClerkAssistedPage) — Clerk-assisted document request creation form with repeatable fields and a printable data layout view.
+  - [L1959–L1983] TASK-FE-DOCS-006 — `/document-requests/:requestId` (DocumentRequestDetailPage) — Document request detail page showing request details, dual approvals, and copy release actions.
+- [L1984–L1993] What's still not attempted, and why — unchanged from last turn, restated for completeness — Summary of unbuilt frontend routes and features that remain blocked on backend or spec decisions.
 
 ---
 
