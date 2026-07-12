@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { trpc } from '@/lib/trpc';
-import { IntakeFormSchema, type IntakeFormValues } from '@/lib/intake-schema';
+import React, { useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
 import { 
   Button, 
   Input, 
@@ -19,7 +19,11 @@ import {
   CardContent,
   CardFooter
 } from '@batac/ui';
-import { toast } from 'sonner';
+
+import { IntakeFormSchema, type IntakeFormValues } from '@/lib/intake-schema';
+import { trpc } from '@/lib/trpc';
+
+
 
 export default function DocumentIntakePage() {
   const navigate = useNavigate();

@@ -1,6 +1,17 @@
+import {
+  Building2,
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  Edit,
+  Trash2,
+  Users,
+  UserPlus,
+  Briefcase,
+} from 'lucide-react';
 import React, { useState, useMemo } from 'react';
-import { trpc } from '../../lib/trpc';
-import { useAuth } from '../../lib/auth-context';
+import { toast } from 'sonner';
+
 import {
   PageHeader,
   Card,
@@ -21,18 +32,10 @@ import {
   SelectContent,
   SelectItem,
 } from '@batac/ui';
-import { toast } from 'sonner';
-import {
-  Building2,
-  ChevronRight,
-  ChevronDown,
-  Plus,
-  Edit,
-  Trash2,
-  Users,
-  UserPlus,
-  Briefcase,
-} from 'lucide-react';
+
+import { useAuth } from '../../lib/auth-context';
+import { trpc } from '../../lib/trpc';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

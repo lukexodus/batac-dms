@@ -1,25 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { QueryClientProvider } from '@tanstack/react-query';
 
 import { TooltipProvider, Toaster } from "@batac/ui";
 import "@batac/ui/styles/globals.css";
 
-import { QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './lib/auth-context.js';
 import { queryClient } from './lib/query-client.js';
 import { trpc, trpcClient } from './lib/trpc.js';
-
-import { DocumentListPage } from "./pages/documents/DocumentListPage";
-import { CommitteeManagementPage } from "./pages/organization/CommitteeManagementPage";
-import { OrganizationPage } from "./pages/organization/OrganizationPage";
-import { RoleAssignmentPage } from "./pages/iam/RoleAssignmentPage";
-import { SystemAdminHomePage } from "./pages/sysadmin/SystemAdminHomePage";
-import { ActiveSessionsPage } from "./pages/sysadmin/ActiveSessionsPage";
-import { UserAccountManagementPage } from "./pages/sysadmin/UserAccountManagementPage";
-import { MyAssignedStepsPage } from "./pages/workflow/MyAssignedStepsPage";
-import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage";
-import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
 import DocumentDetailPage from "./pages/documents/DocumentDetailPage";
 import { ComplaintsListPage } from "./pages/documents/ComplaintsListPage";
 import { ComplaintIntakeClerkAssistedPage } from "./pages/documents/ComplaintIntakeClerkAssistedPage";
@@ -47,6 +36,16 @@ import StatCardPage from "./pages/dev/StatCardPage";
 import StatusBadgePage from "./pages/dev/StatusBadgePage";
 import TopbarPage from "./pages/dev/TopbarPage";
 import WorkflowStepIndicatorPage from "./pages/dev/WorkflowStepIndicatorPage";
+import DocumentIntakePage from "./pages/documents/DocumentIntakePage";
+import { DocumentListPage } from "./pages/documents/DocumentListPage";
+import { RoleAssignmentPage } from "./pages/iam/RoleAssignmentPage";
+import { CommitteeManagementPage } from "./pages/organization/CommitteeManagementPage";
+import { OrganizationPage } from "./pages/organization/OrganizationPage";
+import { ActiveSessionsPage } from "./pages/sysadmin/ActiveSessionsPage";
+import { SystemAdminHomePage } from "./pages/sysadmin/SystemAdminHomePage";
+import { UserAccountManagementPage } from "./pages/sysadmin/UserAccountManagementPage";
+import { MyAssignedStepsPage } from "./pages/workflow/MyAssignedStepsPage";
+import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage";
 
 const router = createBrowserRouter([
   {

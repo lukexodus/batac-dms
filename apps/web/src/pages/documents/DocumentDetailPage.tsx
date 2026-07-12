@@ -27,6 +27,7 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
 import {
   StatusBadge,
   WorkflowStepIndicator,
@@ -50,19 +51,22 @@ import {
   Input,
   Badge,
 } from '@batac/ui';
+
+import { hasRole } from '../../lib/auth-helpers';
+
+import type { LifecycleState } from '@batac/shared';
 import type { WorkflowStep, RoutingEntry } from '@batac/ui';
-import { trpc } from '@/lib/trpc';
+
+import { useScanQualityPolling } from '@/hooks/useScanQualityPolling';
 import { useAuth } from '@/lib/auth-context';
 import { mapLifecycleStateToDocumentState } from '@/lib/status-mapping';
-import { useScanQualityPolling } from '@/hooks/useScanQualityPolling';
-import type { LifecycleState } from '@batac/shared';
+import { trpc } from '@/lib/trpc';
 
 // ─── ABAC role helpers ──────────────────────────────────────────────────────
 // Each helper corresponds to a specific procedure's callable-by list (sourced
 // from the procedure definitions in the task spec and cross-referenced against
 // E1). These are intentionally NOT the blanket 10-role page set.
 
-import { hasRole } from '../../lib/auth-helpers';
 
 const SP_ROLES = ['sp_secretary', 'sp_member', 'sp_presiding_officer'];
 

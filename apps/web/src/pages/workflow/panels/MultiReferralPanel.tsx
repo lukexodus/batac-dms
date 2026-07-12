@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { trpc, type RouterOutputs } from '@/lib/trpc';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
 import {
   Card, CardHeader, CardTitle, CardContent, Button, Textarea,
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input,
 } from '@batac/ui';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+
 import { useAuth } from '@/lib/auth-context';
 import { hasRole } from '@/lib/auth-helpers';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // Per F1 §8.2 Multi-Referral role gates:
 //   submitCommitteeReport  → sp_secretary OR sp_member (committee-scoped)

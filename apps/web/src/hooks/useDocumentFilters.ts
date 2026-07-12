@@ -1,5 +1,6 @@
-import { useSearchParams } from 'react-router-dom';
 import { useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
 import type { RouterInputs } from '../lib/trpc';
 
 type ListDocumentsInput = RouterInputs['documents']['list'];

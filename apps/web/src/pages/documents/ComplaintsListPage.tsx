@@ -1,6 +1,8 @@
+import { useReactTable, getCoreRowModel, flexRender, createColumnHelper } from '@tanstack/react-table';
+import { FileText, Loader2, Plus, ArrowRight } from 'lucide-react';
 import React, { useState } from 'react';
-import { trpc } from '../../lib/trpc';
 import { Link } from 'react-router-dom';
+
 import {
   Table,
   TableHeader,
@@ -11,16 +13,15 @@ import {
   EmptyState,
   Button,
   StatusBadge,
-} from '@batac/ui';
-import {
+
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from '@batac/ui';
-import { useReactTable, getCoreRowModel, flexRender, createColumnHelper } from '@tanstack/react-table';
-import { FileText, Loader2, Plus, ArrowRight } from 'lucide-react';
+  SelectValue} from '@batac/ui';
+
+import { trpc } from '../../lib/trpc';
+
 import type { RouterOutputs } from '../../lib/trpc';
 import type { DocumentState } from '@batac/ui/types/domain';
 

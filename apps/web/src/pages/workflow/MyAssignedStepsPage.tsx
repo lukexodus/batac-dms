@@ -1,7 +1,7 @@
+import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
+import { ClipboardList, Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
-import { trpc } from '../../lib/trpc';
-import { useAuth } from '../../lib/auth-context';
-import { columns } from './columns';
+
 import {
   Table,
   TableHeader,
@@ -12,9 +12,11 @@ import {
   EmptyState,
   Button,
 } from '@batac/ui';
-import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
-import { ClipboardList, Loader2 } from 'lucide-react';
+
+import { columns } from './columns';
+import { useAuth } from '../../lib/auth-context';
 import { hasRole } from '../../lib/auth-helpers';
+import { trpc } from '../../lib/trpc';
 
 // ─── Role gate ────────────────────────────────────────────────────────────────
 // Mirrors the local helper in DocumentDetailPage.tsx — not yet extracted to a

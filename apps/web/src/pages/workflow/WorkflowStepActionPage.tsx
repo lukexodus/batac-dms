@@ -1,22 +1,24 @@
+import { Loader2 } from 'lucide-react';
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { trpc } from '@/lib/trpc';
-import { useAuth } from '@/lib/auth-context';
-import { Loader2 } from 'lucide-react';
+
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
 
+import { DocketingPanel } from './panels/DocketingPanel';
 import { GenericActionPanel } from './panels/GenericActionPanel';
 import { GenericApprovalPanel } from './panels/GenericApprovalPanel';
-import { SecretariatDecisionPanel } from './panels/SecretariatDecisionPanel';
-import { VPCertificationPanel } from './panels/VPCertificationPanel';
 import { MayorDecisionPanel } from './panels/MayorDecisionPanel';
 import { MayorLapseConfirmationPanel } from './panels/MayorLapseConfirmationPanel';
-import { VetoOverrideRecordingPanel } from './panels/VetoOverrideRecordingPanel';
 import { MultiReferralPanel } from './panels/MultiReferralPanel';
-import { DocketingPanel } from './panels/DocketingPanel';
 import { PanlalawiganOutcomePanel } from './panels/PanlalawiganOutcomePanel';
 import { PublicationDatePanel } from './panels/PublicationDatePanel';
+import { SecretariatDecisionPanel } from './panels/SecretariatDecisionPanel';
+import { VetoOverrideRecordingPanel } from './panels/VetoOverrideRecordingPanel';
+import { VPCertificationPanel } from './panels/VPCertificationPanel';
+
+import { useAuth } from '@/lib/auth-context';
 import { hasRole } from '@/lib/auth-helpers';
+import { trpc } from '@/lib/trpc';
 
 export function WorkflowStepActionPage() {
   const { instanceId } = useParams<{ instanceId: string }>();

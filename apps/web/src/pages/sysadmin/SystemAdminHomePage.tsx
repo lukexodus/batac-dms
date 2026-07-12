@@ -1,7 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/lib/auth-context';
+
 import { PageHeader, Card, CardHeader, CardTitle, CardContent } from '@batac/ui';
+
+import { useAuth } from '@/lib/auth-context';
 
 // Client-side sys-admin gate.
 // NOTE: This is an approximation of the server's ctx.auth.isItAdmin,

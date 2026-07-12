@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { trpc } from '@/lib/trpc';
-import { useAuth } from '@/lib/auth-context';
+import { toast } from 'sonner';
+
 import {
   Card,
   CardHeader,
@@ -11,7 +11,10 @@ import {
   Badge,
   Skeleton,
 } from '@batac/ui';
-import { toast } from 'sonner';
+
+import { useAuth } from '@/lib/auth-context';
+import { trpc } from '@/lib/trpc';
+
 
 // ─── Role code constants ────────────────────────────────────────────────────
 // Sourced from iam.schemas.ts roleCodeEnum — 13 values, confirmed current.

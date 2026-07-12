@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { trpc, type RouterOutputs } from '@/lib/trpc';
-import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@batac/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
+import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@batac/ui';
+
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // recordVetoOverrideVote: { stepInstanceId, votesFor, votesAgainst, absentCouncilorIds }
 // Per consolidated ref Part 4.1/4.2: override succeeds at ≥ 8 of 12 (hardcoded server-side too).

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { trpc, type RouterOutputs } from '@/lib/trpc';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
 import {
   Card, CardHeader, CardTitle, CardContent, Button, Textarea,
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input,
 } from '@batac/ui';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // recordPanlalawiganOutcome: { stepInstanceId, outcome, controlNumber?, panlalawiganResolutionNumber?, dateReferred?, remarks? }
 // resolveValidInPart: { documentId, resolutionPath, mandatoryComment }   ← takes documentId, NOT stepInstanceId

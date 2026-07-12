@@ -50,9 +50,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@batac/ui';
+
 import { useAuth } from '../../lib/auth-context';
 import { hasRole } from '../../lib/auth-helpers';
 import { trpc } from '../../lib/trpc';
+
 import type { DocumentState } from '@batac/ui/types/domain';
 
 // ─── ABAC role helpers ──────────────────────────────────────────────────────

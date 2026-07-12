@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { trpc, type RouterOutputs } from '@/lib/trpc';
-import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
+import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
+
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // logSecretariatDecision requires sp_secretary role + stepInstanceId.
 // The server-side auth check is roles-only (subject.roles.includes('sp_secretary')).

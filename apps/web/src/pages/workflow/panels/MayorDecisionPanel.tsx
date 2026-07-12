@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { trpc, type RouterOutputs } from '@/lib/trpc';
-import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
+import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
+
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // mayorSign: { stepInstanceId } only.
 // mayorVeto: { stepInstanceId, objectionsText: string (required) }.

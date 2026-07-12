@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { ReactNode } from 'react';
+
 import { generatePkcePair } from './pkce.js';
+
+import type { ReactNode } from 'react';
 
 export interface AuthSession {
   user: {

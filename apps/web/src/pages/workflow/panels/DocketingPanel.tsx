@@ -1,8 +1,10 @@
 import React from 'react';
-import { trpc, type RouterOutputs } from '@/lib/trpc';
-import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
+import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
+
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // logDocketingCompletion: input is { stepInstanceId } only.
 export function DocketingPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {

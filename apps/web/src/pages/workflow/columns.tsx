@@ -1,7 +1,8 @@
-import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
-import type { RouterOutputs } from '../../lib/trpc';
 import { Link } from 'react-router-dom';
+
+import type { RouterOutputs } from '../../lib/trpc';
+import type { ColumnDef } from '@tanstack/react-table';
 
 type AssignedStepRow = RouterOutputs['workflow']['listMyAssignedSteps']['items'][number];
 

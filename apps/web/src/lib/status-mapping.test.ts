@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { mapLifecycleStateToDocumentState } from './status-mapping.js';
+
 import { LifecycleStateSchema } from '@batac/shared';
+
+import { mapLifecycleStateToDocumentState } from './status-mapping.js';
 
 describe('status-mapping', () => {
   it('should map all 11 lifecycle states to a valid DocumentState', () => {

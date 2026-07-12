@@ -1,9 +1,12 @@
-import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
-import { StatusBadge, DocumentNumberBadge } from '@batac/ui';
-import { mapLifecycleStateToDocumentState } from '../../lib/status-mapping';
-import type { RouterOutputs } from '../../lib/trpc';
 import { Link } from 'react-router-dom';
+
+import { StatusBadge, DocumentNumberBadge } from '@batac/ui';
+
+import { mapLifecycleStateToDocumentState } from '../../lib/status-mapping';
+
+import type { RouterOutputs } from '../../lib/trpc';
+import type { ColumnDef } from '@tanstack/react-table';
 
 type DocumentSummary = RouterOutputs['documents']['list']['items'][number];
 

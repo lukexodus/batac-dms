@@ -1,5 +1,8 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { Users, Plus, Edit, UserPlus } from 'lucide-react';
 import React, { useState } from 'react';
-import { trpc } from '../../lib/trpc';
+import { toast } from 'sonner';
+
 import {
   PageHeader,
   Card,
@@ -24,9 +27,8 @@ import {
   SelectContent,
   SelectItem,
 } from '@batac/ui';
-import { toast } from 'sonner';
-import { Users, Plus, Edit, UserPlus } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
+
+import { trpc } from '../../lib/trpc';
 
 export function CommitteeManagementPage() {
   const queryClient = useQueryClient();

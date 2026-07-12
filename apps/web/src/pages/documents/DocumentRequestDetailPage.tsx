@@ -21,9 +21,6 @@
  * The frontend builds normally against the current contract.
  */
 
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { toast } from 'sonner';
 import {
   FileText,
   CheckCircle2,
@@ -35,6 +32,9 @@ import {
   User,
   Banknote,
 } from 'lucide-react';
+import React, { useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import {
   Card,
@@ -47,12 +47,12 @@ import {
   Input,
   Label,
   StatusBadge,
-} from '@batac/ui';
-import { cn } from '@batac/ui';
-import { trpc, type RouterOutputs } from '@/lib/trpc';
+ cn } from '@batac/ui';
+
 import { useAuth } from '@/lib/auth-context';
 import { hasRole } from '@/lib/auth-helpers';
 import { mapLifecycleStateToDocumentState } from '@/lib/status-mapping';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // ─── Constants mirroring backend ─────────────────────────────────────────────
 

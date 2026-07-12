@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { trpc, type RouterOutputs } from '@/lib/trpc';
-import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@batac/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
+import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@batac/ui';
+
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // recordNewspaperPublicationDate: { documentId, publicationDate: Date, newspaperName? }
 // Takes documentId (not stepInstanceId). Server looks up the active step internally.

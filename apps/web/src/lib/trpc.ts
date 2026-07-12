@@ -1,4 +1,5 @@
 import { createTRPCReact, httpBatchLink } from '@trpc/react-query';
+
 import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from 'server/src/trpc/root.js';
 

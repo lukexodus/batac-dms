@@ -1,7 +1,8 @@
+import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
+import { FileText, Loader2, Plus } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
-import { trpc } from '../../lib/trpc';
-import { useDocumentFilters } from '../../hooks/useDocumentFilters';
-import { columns } from './columns';
+import { Link } from 'react-router-dom';
+
 import {
   Table,
   TableHeader,
@@ -12,9 +13,10 @@ import {
   EmptyState,
   Button,
 } from '@batac/ui';
-import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
-import { FileText, Loader2, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+
+import { columns } from './columns';
+import { useDocumentFilters } from '../../hooks/useDocumentFilters';
+import { trpc } from '../../lib/trpc';
 
 export function DocumentListPage() {
   const { filters } = useDocumentFilters();
