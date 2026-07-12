@@ -38,6 +38,32 @@ const dateRangeInput = z.object({
   to:   z.coerce.date().optional(),
 });
 
+/**
+ * Drops keys whose value is `undefined`, keeping keys whose value is a real
+ * (possibly falsy) value. AuditQueryFilter's optional fields (e.g. `from?:
+ * Date`) require the key to be genuinely absent, not present-with-`undefined`,
+ * to satisfy exactOptionalPropertyTypes — this reconciles that with input
+ * shapes coming from optional Zod fields, whose values are typed `T | undefined`.
+ *
+ * The return type strips `| undefined` from every property's value type
+ * (via the mapped type below) — matching the actual runtime behavior. A
+ * version of this helper that returned the same type `T` unchanged would
+ * compile, but would not fix the exactOptionalPropertyTypes errors this
+ * exists to fix, since the type-checker only ever sees the signature, not
+ * the loop body's behavior.
+ */
+function omitUndefined<T extends Record<string, unknown>>(
+  obj: T,
+): { [K in keyof T]: Exclude<T[K], undefined> } {
+  const result = {} as { [K in keyof T]: Exclude<T[K], undefined> };
+  for (const key of Object.keys(obj) as Array<keyof T>) {
+    if (obj[key] !== undefined) {
+      result[key] = obj[key] as Exclude<T[typeof key], undefined>;
+    }
+  }
+  return result;
+}
+
 // ─── Output shape ─────────────────────────────────────────────────────────────
 
 /**
@@ -169,14 +195,14 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
         enforceRole(ctx.auth.roles, OWN_ACTIONS_ROLES);
 
         const service = auditService ?? (ctx.req.server as any).auditService as AuditPublicAPI;
-        const result = await service.queryEvents({
+        const result = await service.queryEvents(omitUndefined({
           actorId:  ctx.auth.userId,      // forced — I1 §8.2
           cityId:   ctx.auth.cityId,      // tenant isolation
           pageSize: input.pageSize,
           cursor:   input.cursor,
           from:     input.from,
           to:       input.to,
-        });
+        }));
 
         return {
           items:      mapToOutput(result.events),
@@ -227,14 +253,14 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
         }
 
         const service = auditService ?? (ctx.req.server as any).auditService as AuditPublicAPI;
-        const result = await service.queryEvents({
+        const result = await service.queryEvents(omitUndefined({
           resourceOfficeIds,              // I1 §8.3 / D-ABAC-04
           cityId:   ctx.auth.cityId,      // tenant isolation
           pageSize: input.pageSize,
           cursor:   input.cursor,
           from:     input.from,
           to:       input.to,
-        });
+        }));
 
         return {
           items:      mapToOutput(result.events),
@@ -271,7 +297,7 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
         }
 
         const service = auditService ?? (ctx.req.server as any).auditService as AuditPublicAPI;
-        const result = await service.queryEvents({
+        const result = await service.queryEvents(omitUndefined({
           actorId:    input.actorId,
           eventTypes: input.eventTypes,
           cityId:     ctx.auth.cityId,    // tenant isolation
@@ -279,7 +305,7 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
           cursor:     input.cursor,
           from:       input.from,
           to:         input.to,
-        });
+        }));
 
         return {
           items:                 mapToOutput(result.events),

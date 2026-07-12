@@ -87,7 +87,10 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
         officeId: row.id,
         name: row.name,
         parentOfficeId: row.parentOfficeId,
-        type: row.officeType,
+        // officeType is text() at the Drizzle level, but DB-enforced narrower
+        // by ck_offices_office_type (organization.schema.ts) to exactly
+        // OfficeSummary['type']'s five literal values.
+        type: row.officeType as OfficeSummary['type'],
       };
     },
 
@@ -105,7 +108,8 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
         officeId: row.id,
         name: row.name,
         parentOfficeId: row.parentOfficeId,
-        type: row.officeType,
+        // See getOfficeById above re: officeType's DB-enforced narrowing.
+        type: row.officeType as OfficeSummary['type'],
       };
     },
 
@@ -120,7 +124,8 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
           officeId: row.id,
           name: row.name,
           parentOfficeId: row.parentOfficeId,
-          type: row.officeType,
+          // See getOfficeById above re: officeType's DB-enforced narrowing.
+          type: row.officeType as OfficeSummary['type'],
         }))
       };
     },

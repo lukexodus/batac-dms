@@ -213,7 +213,7 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
                   item={item}
                   agendaNumber={idx + 1}
                   isSecretary={isSecretary}
-                  sessionDate={data.sessionDate}
+                  sessionDate={new Date(data.sessionDate)}
                   onMutationSuccess={() => void refetch()}
                 />
               ))}
@@ -225,7 +225,7 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
       {/* ─── Secretary quick-schedule panel ─── */}
       {isSecretary && (
         <ScheduleForFirstReadingPanel
-          sessionDate={data?.sessionDate}
+          {...(data ? { sessionDate: new Date(data.sessionDate) } : {})}
           onSuccess={() => void refetch()}
         />
       )}

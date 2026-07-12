@@ -33,11 +33,13 @@ export interface UserSummary {
   displayName: string;
 }
 
+export type OfficeType = 'executive' | 'legislative' | 'department' | 'barangay' | 'external';
+
 export interface OfficeSummary {
   officeId: string;
   name: string;
   parentOfficeId: string | null;
-  type: string;  // 'executive' | 'legislative' | 'department' | 'barangay' | 'external'
+  type: OfficeType;
 }
 
 export interface OfficeTree {
