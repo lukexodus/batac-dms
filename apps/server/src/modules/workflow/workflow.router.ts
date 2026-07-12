@@ -204,7 +204,7 @@ function computePanelHint(
   currentStep: any,
   instance: any,
   spsOfficeId?: string
-): string | null {
+): 'multi_referral' | 'vp_certification' | 'mayor_decision' | 'mayor_lapse_confirmation' | 'veto_override_recording' | 'docketing' | 'panlalawigan_outcome' | 'publication_date' | 'secretariat_decision' | 'generic_action' | 'generic_approval' | null {
   if (status !== 'Active' || !currentStep) return null;
 
   const { stepKey, metadata, config } = currentStep;
@@ -364,7 +364,7 @@ export function createWorkflowRouter() {
           : 'action';
 
         const spsOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, ctx.auth!.cityId);
-        const panelHint = computePanelHint(status, currentStepType, currentStep, instance, spsOffice?.officeId) as 'multi_referral' | 'vp_certification' | 'mayor_decision' | 'mayor_lapse_confirmation' | 'veto_override_recording' | 'docketing' | 'panlalawigan_outcome' | 'publication_date' | 'secretariat_decision' | 'generic_action' | 'generic_approval' | null;
+        const panelHint = computePanelHint(status, currentStepType, currentStep, instance, spsOffice?.officeId);
 
         return {
           instanceId: instance.id,
@@ -470,7 +470,7 @@ export function createWorkflowRouter() {
         };
         const status = statusMap[instance.status] || 'Active';
 
-        const validStepTypes = new Set([
+        const validStepTypes = new Set<'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination' | 'parallel_split' | 'parallel_join'>([
           'action',
           'approval',
           'multi_referral',
@@ -481,7 +481,7 @@ export function createWorkflowRouter() {
           'parallel_join',
         ]);
         const currentStepType = currentStep && validStepTypes.has(currentStep.stepType)
-          ? (currentStep.stepType as any)
+          ? currentStep.stepType
           : 'action';
 
         const spsOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, ctx.auth!.cityId);

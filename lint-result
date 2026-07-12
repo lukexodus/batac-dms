@@ -1,0 +1,644 @@
+
+> batac-dms@ lint /home/lukexodus/projects/batac-dms
+> turbo run lint
+
+
+   • Packages in scope: @batac/config, @batac/database, @batac/scripts, @batac/shared, @batac/ui, @batac/web, server
+   • Running lint in 7 packages
+   • Remote caching disabled
+
+@batac/web:lint: cache miss, executing 6d3eb9908baad89e
+@batac/web:lint: 
+@batac/web:lint: > @batac/web@0.0.0 lint /home/lukexodus/projects/batac-dms/apps/web
+@batac/web:lint: > eslint .
+@batac/web:lint: 
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/hooks/useDocumentFilters.ts
+@batac/web:lint:   2:1  error  There should be at least one empty line between import groups    import/order
+@batac/web:lint:   2:1  error  `react` import should occur before import of `react-router-dom`  import/order
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/lib/auth-context.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    3:1   error  `./pkce.js` import should occur before type import of `react`                                                                                                       import/order
+@batac/web:lint:   46:13  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   48:14  error  'error' is defined but never used                                                                                                                                   @typescript-eslint/no-unused-vars
+@batac/web:lint:   73:11  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   90:5   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/lib/query-client.ts
+@batac/web:lint:   8:61  error  Unsafe member access .code on an `any` value  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/lib/status-mapping.test.ts
+@batac/web:lint:   1:1  error  There should be at least one empty line between import groups               import/order
+@batac/web:lint:   2:1  error  There should be at least one empty line between import groups               import/order
+@batac/web:lint:   3:1  error  `@batac/shared` import should occur before import of `./status-mapping.js`  import/order
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/lib/status-mapping.ts
+@batac/web:lint:   5:35  error  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+@batac/web:lint:   9:3   error  'workflowStep' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/lib/trpc.ts
+@batac/web:lint:   1:1  error  There should be at least one empty line between import groups  import/order
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/main.tsx
+@batac/web:lint:    1:1  error  `react` import should occur after import of `@tanstack/react-query`                                                                     import/order
+@batac/web:lint:    2:1  error  `react-dom/client` import should occur after import of `@tanstack/react-query`                                                          import/order
+@batac/web:lint:    3:1  error  `react-router-dom` import should occur after import of `@tanstack/react-query`                                                          import/order
+@batac/web:lint:    5:1  error  `@batac/ui` import should occur after import of `@tanstack/react-query`                                                                 import/order
+@batac/web:lint:    8:1  error  There should be at least one empty line between import groups                                                                           import/order
+@batac/web:lint:   11:1  error  There should be no empty line within import group                                                                                       import/order
+@batac/web:lint:   13:1  error  `./pages/documents/DocumentListPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                        import/order
+@batac/web:lint:   14:1  error  `./pages/organization/CommitteeManagementPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`              import/order
+@batac/web:lint:   15:1  error  `./pages/organization/OrganizationPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                     import/order
+@batac/web:lint:   16:1  error  `./pages/iam/RoleAssignmentPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                            import/order
+@batac/web:lint:   17:1  error  `./pages/sysadmin/SystemAdminHomePage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                      import/order
+@batac/web:lint:   18:1  error  `./pages/sysadmin/ActiveSessionsPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                       import/order
+@batac/web:lint:   19:1  error  `./pages/sysadmin/UserAccountManagementPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                import/order
+@batac/web:lint:   20:1  error  `./pages/workflow/MyAssignedStepsPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                      import/order
+@batac/web:lint:   21:1  error  `./pages/workflow/WorkflowStepActionPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                   import/order
+@batac/web:lint:   22:1  error  `./pages/documents/DocumentIntakePage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                      import/order
+@batac/web:lint:   23:1  error  `./pages/documents/DocumentDetailPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                      import/order
+@batac/web:lint:   24:1  error  `./pages/documents/ComplaintsListPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                      import/order
+@batac/web:lint:   25:1  error  `./pages/documents/ComplaintIntakeClerkAssistedPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`        import/order
+@batac/web:lint:   26:1  error  `./pages/documents/ComplaintDetailPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                     import/order
+@batac/web:lint:   27:1  error  `./pages/documents/DocumentRequestsListPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                import/order
+@batac/web:lint:   28:1  error  `./pages/documents/DocumentRequestIntakeClerkAssistedPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`  import/order
+@batac/web:lint:   29:1  error  `./pages/documents/DocumentRequestDetailPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`               import/order
+@batac/web:lint:   30:1  error  `./pages/workflow/SecretaryDashboardPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                   import/order
+@batac/web:lint:   31:1  error  `./pages/workflow/OrderOfBusinessPage` import should occur after import of `./pages/dev/WorkflowStepIndicatorPage`                      import/order
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/documents/ComplaintDetailPage.tsx
+@batac/web:lint:   35:1  error  There should be at least one empty line between import groups  import/order
+@batac/web:lint:   55:1  error  There should be at least one empty line between import groups  import/order
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/documents/ComplaintIntakeClerkAssistedPage.tsx
+@batac/web:lint:    3:1   error  `react-hook-form` import should occur before import of `react-router-dom`  import/order
+@batac/web:lint:    4:1   error  `@hookform/resolvers/zod` import should occur before import of `react`     import/order
+@batac/web:lint:    5:1   error  There should be at least one empty line between import groups              import/order
+@batac/web:lint:    6:1   error  There should be at least one empty line between import groups              import/order
+@batac/web:lint:    7:1   error  There should be at least one empty line between import groups              import/order
+@batac/web:lint:    7:1   error  `@batac/ui` import should occur before import of `@/lib/trpc`              import/order
+@batac/web:lint:   19:1   error  `sonner` import should occur before import of `zod`                        import/order
+@batac/web:lint:   43:52  error  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+@batac/web:lint:   67:19  error  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+@batac/web:lint:   68:23  error  Unsafe member access .message on an `any` value                            @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/documents/ComplaintsListPage.tsx
+@batac/web:lint:    1:1  error  There should be at least one empty line between import groups             import/order
+@batac/web:lint:    2:1  error  There should be at least one empty line between import groups             import/order
+@batac/web:lint:    3:1  error  There should be at least one empty line between import groups             import/order
+@batac/web:lint:    3:1  error  `react-router-dom` import should occur before import of `../../lib/trpc`  import/order
+@batac/web:lint:    4:1  error  `@batac/ui` import should occur before import of `../../lib/trpc`         import/order
+@batac/web:lint:   14:8  error  '@batac/ui' imported multiple times                                       import/no-duplicates
+@batac/web:lint:   15:1  error  There should be at least one empty line between import groups             import/order
+@batac/web:lint:   15:1  error  `@batac/ui` import should occur before import of `../../lib/trpc`         import/order
+@batac/web:lint:   21:8  error  '@batac/ui' imported multiple times                                       import/no-duplicates
+@batac/web:lint:   22:1  error  `@tanstack/react-table` import should occur before import of `react`      import/order
+@batac/web:lint:   23:1  error  There should be at least one empty line between import groups             import/order
+@batac/web:lint:   23:1  error  `lucide-react` import should occur before import of `react`               import/order
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/documents/DocumentDetailPage.tsx
+@batac/web:lint:    29:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    30:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    42:3   error  'Separator' is defined but never used. Allowed unused vars must match /^_/u                                                                                         @typescript-eslint/no-unused-vars
+@batac/web:lint:    53:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    55:1   error  `@/lib/auth-context` import should occur before import of `@/lib/trpc`                                                                                              import/order
+@batac/web:lint:    56:1   error  `@/lib/status-mapping` import should occur before import of `@/lib/trpc`                                                                                            import/order
+@batac/web:lint:    57:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    57:1   error  `@/hooks/useScanQualityPolling` import should occur before import of `@/lib/trpc`                                                                                   import/order
+@batac/web:lint:    58:1   error  `@batac/shared` type import should occur before type import of `@batac/ui`                                                                                          import/order
+@batac/web:lint:    65:1   error  `../../lib/auth-helpers` import should occur before type import of `@batac/ui`                                                                                      import/order
+@batac/web:lint:    67:7   error  'SP_ROLES' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                 @typescript-eslint/no-unused-vars
+@batac/web:lint:    71:10  error  'canUpdate' is defined but never used. Allowed unused vars must match /^_/u                                                                                         @typescript-eslint/no-unused-vars
+@batac/web:lint:   220:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   228:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   236:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   244:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   252:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   260:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   268:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   278:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   286:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   301:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   320:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   346:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   398:9   error  Unsafe assignment of type `any[]` to a variable of type `RoutingEntry[]`                                                                                            @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   398:73  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   398:82  error  Unsafe return of a value of type `any`                                                                                                                              @typescript-eslint/no-unsafe-return
+@batac/web:lint:   399:5   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   399:11  error  Unsafe member access .entryId on an `any` value                                                                                                                     @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   399:24  error  Unsafe member access .id on an `any` value                                                                                                                          @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   400:5   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   400:18  error  Unsafe member access .actorDisplayName on an `any` value                                                                                                            @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   400:40  error  Unsafe member access .actorId on an `any` value                                                                                                                     @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   401:5   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   401:24  error  Unsafe member access .fromOfficeId on an `any` value                                                                                                                @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   403:27  error  Unsafe member access .timestamp on an `any` value                                                                                                                   @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   404:5   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   404:14  error  Unsafe member access .actionDescription on an `any` value                                                                                                           @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   405:11  error  Unsafe member access .fromOfficeId on an `any` value                                                                                                                @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   405:29  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   405:47  error  Unsafe member access .fromOfficeId on an `any` value                                                                                                                @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   406:11  error  Unsafe member access .toOfficeId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   406:27  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   406:43  error  Unsafe member access .toOfficeId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   416:11  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   451:7   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   451:36  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   463:7   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   463:36  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   648:44  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   648:49  error  Unsafe member access .pdfPresignedUrl on an `any` value                                                                                                             @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   649:31  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   650:35  error  Unsafe member access .message on an `any` value                                                                                                                     @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   749:29  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   749:48  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   749:53  error  Unsafe member access .qrCodeS3Key on an `any` value                                                                                                                 @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   749:87  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   749:92  error  Unsafe member access .trackingId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   750:33  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   750:69  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   750:74  error  Unsafe member access .trackingNumber on an `any` value                                                                                                              @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   757:65  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   757:70  error  Unsafe member access .trackingNumber on an `any` value                                                                                                              @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   759:35  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   759:40  error  Unsafe member access .physicalLocation on an `any` value                                                                                                            @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   762:39  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   762:44  error  Unsafe member access .physicalLocation on an `any` value                                                                                                            @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/documents/DocumentIntakePage.tsx
+@batac/web:lint:     3:1   error  `react-hook-form` import should occur before import of `react-router-dom`  import/order
+@batac/web:lint:     4:1   error  There should be at least one empty line between import groups              import/order
+@batac/web:lint:     4:1   error  `@hookform/resolvers/zod` import should occur before import of `react`     import/order
+@batac/web:lint:     6:1   error  There should be at least one empty line between import groups              import/order
+@batac/web:lint:     6:1   error  `@/lib/intake-schema` import should occur before import of `@/lib/trpc`    import/order
+@batac/web:lint:     7:1   error  There should be at least one empty line between import groups              import/order
+@batac/web:lint:     7:1   error  `@batac/ui` import should occur before import of `@/lib/trpc`              import/order
+@batac/web:lint:    22:1   error  `sonner` import should occur before import of `@/lib/trpc`                 import/order
+@batac/web:lint:    41:47  error  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+@batac/web:lint:    93:9   error  Unsafe assignment of an `any` value                                        @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    93:32  error  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+@batac/web:lint:   114:9   error  Unsafe assignment of an `any` value                                        @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   114:32  error  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+@batac/web:lint:   120:19  error  Unexpected any. Specify a different type                                   @typescript-eslint/no-explicit-any
+@batac/web:lint:   121:23  error  Unsafe member access .message on an `any` value                            @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/documents/DocumentListPage.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                            import/order
+@batac/web:lint:    1:1   error  `react` import should occur after import of `lucide-react`                               import/order
+@batac/web:lint:    2:1   error  `../../lib/trpc` import should occur after import of `react-router-dom`                  import/order
+@batac/web:lint:    3:1   error  `../../hooks/useDocumentFilters` import should occur after import of `react-router-dom`  import/order
+@batac/web:lint:    4:1   error  There should be at least one empty line between import groups                            import/order
+@batac/web:lint:    4:1   error  `./columns` import should occur after import of `react-router-dom`                       import/order
+@batac/web:lint:    5:1   error  There should be at least one empty line between import groups                            import/order
+@batac/web:lint:    5:1   error  `@batac/ui` import should occur after import of `react-router-dom`                       import/order
+@batac/web:lint:   73:15  error  Unexpected console statement                                                             no-console
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/documents/DocumentRequestDetailPage.tsx
+@batac/web:lint:    27:1   error  `lucide-react` import should occur before import of `react`               import/order
+@batac/web:lint:    50:8   error  '@batac/ui' imported multiple times                                       import/no-duplicates
+@batac/web:lint:    51:1   error  There should be at least one empty line between import groups             import/order
+@batac/web:lint:    51:20  error  '@batac/ui' imported multiple times                                       import/no-duplicates
+@batac/web:lint:    53:1   error  `@/lib/auth-context` import should occur before import of `@/lib/trpc`    import/order
+@batac/web:lint:    54:1   error  `@/lib/auth-helpers` import should occur before import of `@/lib/trpc`    import/order
+@batac/web:lint:    55:1   error  `@/lib/status-mapping` import should occur before import of `@/lib/trpc`  import/order
+@batac/web:lint:   160:85  error  Unexpected any. Specify a different type                                  @typescript-eslint/no-explicit-any
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/documents/DocumentRequestIntakeClerkAssistedPage.tsx
+@batac/web:lint:     3:1   error  `react-hook-form` import should occur before import of `react-router-dom`                       import/order
+@batac/web:lint:     4:1   error  `@hookform/resolvers/zod` import should occur before import of `react`                          import/order
+@batac/web:lint:     5:1   error  There should be at least one empty line between import groups                                   import/order
+@batac/web:lint:     6:1   error  There should be at least one empty line between import groups                                   import/order
+@batac/web:lint:     7:1   error  There should be at least one empty line between import groups                                   import/order
+@batac/web:lint:     7:1   error  `@batac/ui` import should occur before import of `@/lib/trpc`                                   import/order
+@batac/web:lint:    18:1   error  `sonner` import should occur before import of `zod`                                             import/order
+@batac/web:lint:    19:1   error  There should be at least one empty line between import groups                                   import/order
+@batac/web:lint:    19:1   error  `lucide-react` import should occur before import of `react`                                     import/order
+@batac/web:lint:    20:1   error  `./PrintableFormView` import should occur before import of `@/lib/trpc`                         import/order
+@batac/web:lint:    41:28  error  'setCreatedRequestId' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+@batac/web:lint:    57:52  error  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+@batac/web:lint:    82:19  error  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+@batac/web:lint:    83:23  error  Unsafe member access .message on an `any` value                                                 @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   107:38  error  Unsafe assignment of an `any` value                                                             @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   107:64  error  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/documents/DocumentRequestsListPage.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                     import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                     import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                     import/order
+@batac/web:lint:    3:1   error  `react-router-dom` import should occur before import of `../../lib/trpc`          import/order
+@batac/web:lint:    4:1   error  There should be at least one empty line between import groups                     import/order
+@batac/web:lint:    4:1   error  `@batac/ui` import should occur before import of `../../lib/trpc`                 import/order
+@batac/web:lint:   15:1   error  `@tanstack/react-table` import should occur before import of `react`              import/order
+@batac/web:lint:   16:1   error  There should be at least one empty line between import groups                     import/order
+@batac/web:lint:   16:1   error  `lucide-react` import should occur before import of `react`                       import/order
+@batac/web:lint:   18:1   error  There should be at least one empty line between import groups                     import/order
+@batac/web:lint:   18:15  error  'DocumentState' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+@batac/web:lint:   19:1   error  `../../lib/status-mapping` import should occur before import of `../../lib/trpc`  import/order
+@batac/web:lint:   52:76  error  Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/documents/PrintableFormView.tsx
+@batac/web:lint:   1:1  error  There should be at least one empty line between import groups  import/order
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/documents/columns.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                        import/order
+@batac/web:lint:    1:1   error  `@tanstack/react-table` type import should occur after import of `react-router-dom`  import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                        import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                        import/order
+@batac/web:lint:    3:1   error  `@batac/ui` import should occur after import of `react-router-dom`                   import/order
+@batac/web:lint:    4:1   error  There should be at least one empty line between import groups                        import/order
+@batac/web:lint:    4:1   error  `../../lib/status-mapping` import should occur after import of `react-router-dom`    import/order
+@batac/web:lint:    5:1   error  There should be at least one empty line between import groups                        import/order
+@batac/web:lint:    5:1   error  `../../lib/trpc` type import should occur after import of `react-router-dom`         import/order
+@batac/web:lint:   37:85  error  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/iam/RoleAssignmentPage.tsx
+@batac/web:lint:     1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     3:1   error  `@/lib/auth-context` import should occur before import of `@/lib/trpc`                                                                                              import/order
+@batac/web:lint:     4:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     4:1   error  `@batac/ui` import should occur before import of `@/lib/trpc`                                                                                                       import/order
+@batac/web:lint:    14:1   error  `sonner` import should occur before import of `@/lib/trpc`                                                                                                          import/order
+@batac/web:lint:    92:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:    93:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   103:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   104:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   315:17  error  Unsafe spread of an `any` value in an array                                                                                                                         @typescript-eslint/no-unsafe-assignment
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/organization/CommitteeManagementPage.tsx
+@batac/web:lint:     1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     3:1   error  `@batac/ui` import should occur before import of `../../lib/trpc`                                                                                                   import/order
+@batac/web:lint:    27:1   error  `sonner` import should occur before import of `../../lib/trpc`                                                                                                      import/order
+@batac/web:lint:    28:1   error  `lucide-react` import should occur before import of `react`                                                                                                         import/order
+@batac/web:lint:    28:10  error  'Users' is defined but never used. Allowed unused vars must match /^_/u                                                                                             @typescript-eslint/no-unused-vars
+@batac/web:lint:    29:1   error  `@tanstack/react-query` import should occur before import of `react`                                                                                                import/order
+@batac/web:lint:    32:9   error  'queryClient' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                              @typescript-eslint/no-unused-vars
+@batac/web:lint:    34:17  error  Unsafe object destructuring of a property with an `any` value                                                                                                       @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    40:10  error  Unsafe array destructuring of a tuple element with an `any` value                                                                                                   @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    40:62  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:    59:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:    68:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:    87:32  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:    90:7   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    90:23  error  Unsafe member access .name on an `any` value                                                                                                                        @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:    91:7   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    91:23  error  Unsafe member access .code on an `any` value                                                                                                                        @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:    92:7   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    92:38  error  Unsafe member access .chairedByEmployeeId on an `any` value                                                                                                         @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:    97:34  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   119:7   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   119:38  error  Unsafe member access .committeeId on an `any` value                                                                                                                 @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   129:7   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   129:38  error  Unsafe member access .committeeId on an `any` value                                                                                                                 @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   131:7   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   131:50  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   170:31  error  Unsafe member access .length on an `any` value                                                                                                                      @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   177:17  error  Unsafe call of an `any` typed value                                                                                                                                 @typescript-eslint/no-unsafe-call
+@batac/web:lint:   177:29  error  Unsafe member access .map on an `any` value                                                                                                                         @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   177:45  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   178:34  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   178:44  error  Unsafe member access .committeeId on an `any` value                                                                                                                 @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   179:67  error  Unsafe member access .code on an `any` value                                                                                                                        @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   180:43  error  Unsafe member access .name on an `any` value                                                                                                                        @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   181:43  error  Unsafe member access .description on an `any` value                                                                                                                 @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   241:51  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   242:38  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   242:42  error  Unsafe member access .employeeId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   242:61  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   242:65  error  Unsafe member access .employeeId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   243:28  error  Unsafe member access .displayName on an `any` value                                                                                                                 @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   243:46  error  Unsafe member access .positionTitle on an `any` value                                                                                                               @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   243:70  error  Unsafe member access .positionTitle on an `any` value                                                                                                               @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   263:65  error  Unsafe member access .name on an `any` value                                                                                                                        @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   276:51  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   277:38  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   277:42  error  Unsafe member access .employeeId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   277:61  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   277:65  error  Unsafe member access .employeeId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   278:28  error  Unsafe member access .displayName on an `any` value                                                                                                                 @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   278:46  error  Unsafe member access .positionTitle on an `any` value                                                                                                               @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   278:70  error  Unsafe member access .positionTitle on an `any` value                                                                                                               @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/organization/OrganizationPage.tsx
+@batac/web:lint:     1:1   error    There should be at least one empty line between import groups                                                                                                                                   import/order
+@batac/web:lint:     3:1   error    There should be at least one empty line between import groups                                                                                                                                   import/order
+@batac/web:lint:     3:1   error    `../../lib/auth-context` import should occur before import of `../../lib/trpc`                                                                                                                  import/order
+@batac/web:lint:     4:1   error    There should be at least one empty line between import groups                                                                                                                                   import/order
+@batac/web:lint:     4:1   error    `@batac/ui` import should occur before import of `../../lib/trpc`                                                                                                                               import/order
+@batac/web:lint:    24:1   error    `sonner` import should occur before import of `../../lib/trpc`                                                                                                                                  import/order
+@batac/web:lint:    25:1   error    `lucide-react` import should occur before import of `react`                                                                                                                                     import/order
+@batac/web:lint:   207:9   warning  The 'offices' logical expression could make the dependencies of useMemo Hook (at line 208) change on every render. To fix this, wrap the initialization of 'offices' in its own useMemo() Hook  react-hooks/exhaustive-deps
+@batac/web:lint:   218:10  error    Unsafe array destructuring of a tuple element with an `any` value                                                                                                                               @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   218:60  error    Unexpected any. Specify a different type                                                                                                                                                        @typescript-eslint/no-explicit-any
+@batac/web:lint:   238:80  error    Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator                              @typescript-eslint/no-floating-promises
+@batac/web:lint:   242:80  error    Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator                              @typescript-eslint/no-floating-promises
+@batac/web:lint:   246:61  error    Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator                              @typescript-eslint/no-floating-promises
+@batac/web:lint:   254:84  error    Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator                              @typescript-eslint/no-floating-promises
+@batac/web:lint:   258:84  error    Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator                              @typescript-eslint/no-floating-promises
+@batac/web:lint:   295:34  error    Unexpected any. Specify a different type                                                                                                                                                        @typescript-eslint/no-explicit-any
+@batac/web:lint:   297:11  error    Unsafe assignment of an `any` value                                                                                                                                                             @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   297:19  error    Unsafe call of an `any` typed value                                                                                                                                                             @typescript-eslint/no-unsafe-call
+@batac/web:lint:   297:24  error    Unsafe member access .displayName on an `any` value                                                                                                                                             @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   297:43  error    Unsafe member access .split on an `any` value                                                                                                                                                   @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   299:7   error    Unsafe assignment of an `any` value                                                                                                                                                             @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   299:24  error    Unsafe member access [0] on an `any` value                                                                                                                                                      @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   300:7   error    Unsafe assignment of an `any` value                                                                                                                                                             @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   300:17  error    Unsafe call of an `any` typed value                                                                                                                                                             @typescript-eslint/no-unsafe-call
+@batac/web:lint:   300:17  error    Unsafe call of an `any` typed value                                                                                                                                                             @typescript-eslint/no-unsafe-call
+@batac/web:lint:   300:23  error    Unsafe member access .slice on an `any` value                                                                                                                                                   @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   300:32  error    Unsafe member access .join on an `any` value                                                                                                                                                    @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   354:9   error    Unsafe assignment of an `any` value                                                                                                                                                             @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   354:38  error    Unsafe member access .employeeId on an `any` value                                                                                                                                              @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   455:48  error    Unexpected any. Specify a different type                                                                                                                                                        @typescript-eslint/no-explicit-any
+@batac/web:lint:   457:26  error    Unsafe assignment of an `any` value                                                                                                                                                             @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   457:30  error    Unsafe member access .employeeId on an `any` value                                                                                                                                              @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   461:63  error    Unsafe member access .displayName on an `any` value                                                                                                                                             @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   463:30  error    Unsafe member access .positionTitle on an `any` value                                                                                                                                           @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   731:51  error    Unexpected any. Specify a different type                                                                                                                                                        @typescript-eslint/no-explicit-any
+@batac/web:lint:   732:38  error    Unsafe assignment of an `any` value                                                                                                                                                             @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   732:42  error    Unsafe member access .employeeId on an `any` value                                                                                                                                              @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   732:61  error    Unsafe assignment of an `any` value                                                                                                                                                             @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   732:65  error    Unsafe member access .employeeId on an `any` value                                                                                                                                              @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   733:28  error    Unsafe member access .displayName on an `any` value                                                                                                                                             @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   734:28  error    Unsafe member access .positionTitle on an `any` value                                                                                                                                           @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   734:53  error    Unsafe member access .positionTitle on an `any` value                                                                                                                                           @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/sysadmin/ActiveSessionsPage.tsx
+@batac/web:lint:     1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     3:1   error  `@/lib/auth-context` import should occur before import of `@/lib/trpc`                                                                                              import/order
+@batac/web:lint:     4:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     4:1   error  `@batac/ui` import should occur before import of `@/lib/trpc`                                                                                                       import/order
+@batac/web:lint:    12:1   error  `sonner` import should occur before import of `@/lib/trpc`                                                                                                          import/order
+@batac/web:lint:    59:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   145:13  error  Unsafe spread of an `any` value in an array                                                                                                                         @typescript-eslint/no-unsafe-assignment
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/sysadmin/SystemAdminHomePage.tsx
+@batac/web:lint:   2:1  error  There should be at least one empty line between import groups          import/order
+@batac/web:lint:   3:1  error  There should be at least one empty line between import groups          import/order
+@batac/web:lint:   4:1  error  `@batac/ui` import should occur before import of `@/lib/auth-context`  import/order
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/sysadmin/UserAccountManagementPage.tsx
+@batac/web:lint:     1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     3:1   error  `@/lib/auth-context` import should occur before import of `@/lib/trpc`                                                                                              import/order
+@batac/web:lint:     4:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     4:1   error  `@batac/ui` import should occur before import of `@/lib/trpc`                                                                                                       import/order
+@batac/web:lint:    14:3   error  'Badge' is defined but never used. Allowed unused vars must match /^_/u                                                                                             @typescript-eslint/no-unused-vars
+@batac/web:lint:    16:1   error  `sonner` import should occur before import of `@/lib/trpc`                                                                                                          import/order
+@batac/web:lint:    55:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   190:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   235:53  error  'onRefresh' is defined but never used. Allowed unused args must match /^_/u                                                                                         @typescript-eslint/no-unused-vars
+@batac/web:lint:   243:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   252:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   379:17  error  Unsafe spread of an `any` value in an array                                                                                                                         @typescript-eslint/no-unsafe-assignment
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/MyAssignedStepsPage.tsx
+@batac/web:lint:    1:1  error  There should be at least one empty line between import groups                  import/order
+@batac/web:lint:    1:1  error  `react` import should occur after import of `lucide-react`                     import/order
+@batac/web:lint:    2:1  error  `../../lib/trpc` import should occur after import of `../../lib/auth-helpers`  import/order
+@batac/web:lint:    3:1  error  `../../lib/auth-context` import should occur after import of `lucide-react`    import/order
+@batac/web:lint:    4:1  error  There should be at least one empty line between import groups                  import/order
+@batac/web:lint:    4:1  error  `./columns` import should occur after import of `lucide-react`                 import/order
+@batac/web:lint:    5:1  error  There should be at least one empty line between import groups                  import/order
+@batac/web:lint:    5:1  error  `@batac/ui` import should occur after import of `lucide-react`                 import/order
+@batac/web:lint:   16:1  error  There should be at least one empty line between import groups                  import/order
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/OrderOfBusinessPage.tsx
+@batac/web:lint:    16:1   error  `lucide-react` import should occur before import of `react`                                import/order
+@batac/web:lint:    45:8   error  '@batac/ui' imported multiple times                                                        import/no-duplicates
+@batac/web:lint:    46:1   error  There should be at least one empty line between import groups                              import/order
+@batac/web:lint:    46:20  error  '@batac/ui' imported multiple times                                                        import/no-duplicates
+@batac/web:lint:    47:1   error  There should be at least one empty line between import groups                              import/order
+@batac/web:lint:    49:1   error  `@/lib/auth-context` import should occur before import of `@/lib/trpc`                     import/order
+@batac/web:lint:    50:1   error  `@/lib/auth-helpers` import should occur before import of `@/lib/trpc`                     import/order
+@batac/web:lint:   256:9   error  'isAllSubmitted' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+@batac/web:lint:   397:3   error  'sessionDate' is defined but never used. Allowed unused args must match /^_/u              @typescript-eslint/no-unused-vars
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/WorkflowStepActionPage.tsx
+@batac/web:lint:    1:1  error  `react` import should occur after import of `lucide-react`                                                 import/order
+@batac/web:lint:    2:1  error  There should be at least one empty line between import groups                                              import/order
+@batac/web:lint:    2:1  error  `react-router-dom` import should occur after import of `lucide-react`                                      import/order
+@batac/web:lint:    3:1  error  `@/lib/trpc` import should occur after import of `@/lib/auth-helpers`                                      import/order
+@batac/web:lint:    4:1  error  There should be at least one empty line between import groups                                              import/order
+@batac/web:lint:    4:1  error  `@/lib/auth-context` import should occur after import of `./panels/PublicationDatePanel`                   import/order
+@batac/web:lint:    5:1  error  There should be at least one empty line between import groups                                              import/order
+@batac/web:lint:    8:1  error  `./panels/GenericActionPanel` import should occur after import of `./panels/DocketingPanel`                import/order
+@batac/web:lint:    9:1  error  `./panels/GenericApprovalPanel` import should occur after import of `./panels/DocketingPanel`              import/order
+@batac/web:lint:   10:1  error  `./panels/SecretariatDecisionPanel` import should occur after import of `./panels/PublicationDatePanel`    import/order
+@batac/web:lint:   11:1  error  `./panels/VPCertificationPanel` import should occur after import of `./panels/PublicationDatePanel`        import/order
+@batac/web:lint:   12:1  error  `./panels/MayorDecisionPanel` import should occur after import of `./panels/DocketingPanel`                import/order
+@batac/web:lint:   13:1  error  `./panels/MayorLapseConfirmationPanel` import should occur after import of `./panels/DocketingPanel`       import/order
+@batac/web:lint:   14:1  error  `./panels/VetoOverrideRecordingPanel` import should occur after import of `./panels/PublicationDatePanel`  import/order
+@batac/web:lint:   15:1  error  `./panels/MultiReferralPanel` import should occur after import of `./panels/DocketingPanel`                import/order
+@batac/web:lint:   18:1  error  There should be at least one empty line between import groups                                              import/order
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/columns.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                        import/order
+@batac/web:lint:    1:1   error  `@tanstack/react-table` type import should occur after import of `react-router-dom`  import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                        import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                        import/order
+@batac/web:lint:    3:1   error  `../../lib/trpc` type import should occur after import of `react-router-dom`         import/order
+@batac/web:lint:   84:49  error  Unsafe assignment of an `any` value                                                  @typescript-eslint/no-unsafe-assignment
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/panels/DocketingPanel.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  `@/lib/trpc` import should occur after import of `sonner`                                                                                                           import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    3:1   error  `@batac/ui` import should occur after import of `sonner`                                                                                                            import/order
+@batac/web:lint:    8:58  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   15:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   15:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   15:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   32:34  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   32:59  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/panels/GenericActionPanel.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  `@/lib/trpc` import should occur after import of `sonner`                                                                                                           import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    3:1   error  `@batac/ui` import should occur after import of `sonner`                                                                                                            import/order
+@batac/web:lint:    7:62  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   15:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   15:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   15:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   40:15  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   40:40  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/panels/GenericApprovalPanel.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  `@/lib/trpc` import should occur after import of `sonner`                                                                                                           import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    3:1   error  `@batac/ui` import should occur after import of `sonner`                                                                                                            import/order
+@batac/web:lint:    7:64  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   15:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   15:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   15:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   24:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   24:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   24:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   33:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   33:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   33:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   61:17  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   61:42  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   73:39  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   73:64  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   83:39  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   83:64  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/panels/MayorDecisionPanel.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  `@/lib/trpc` import should occur after import of `sonner`                                                                                                           import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    3:1   error  `@batac/ui` import should occur after import of `sonner`                                                                                                            import/order
+@batac/web:lint:    9:62  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   17:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   17:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   17:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   26:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   26:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   26:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   52:50  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   52:75  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   62:17  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   62:42  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/panels/MayorLapseConfirmationPanel.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  `@/lib/trpc` import should occur after import of `sonner`                                                                                                           import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    3:1   error  `@batac/ui` import should occur after import of `sonner`                                                                                                            import/order
+@batac/web:lint:    8:71  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   15:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   15:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   15:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   33:38  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   33:63  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/panels/MultiReferralPanel.tsx
+@batac/web:lint:     1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     2:1   error  `@/lib/trpc` import should occur after import of `@/lib/auth-helpers`                                                                                               import/order
+@batac/web:lint:     3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     3:1   error  `@batac/ui` import should occur after import of `sonner`                                                                                                            import/order
+@batac/web:lint:     8:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    19:62  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:    38:17  error  Unsafe object destructuring of a property with an `any` value                                                                                                       @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    45:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:    45:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    45:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:    53:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:    53:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    53:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:    61:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:    61:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    61:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:    81:18  error  Unsafe call of an `any` typed value                                                                                                                                 @typescript-eslint/no-unsafe-call
+@batac/web:lint:    81:37  error  Unsafe member access .map on an `any` value                                                                                                                         @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:    96:19  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    96:44  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   122:19  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   122:44  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   150:19  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   150:44  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/panels/PanlalawiganOutcomePanel.tsx
+@batac/web:lint:     1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     2:1   error  `@/lib/trpc` import should occur after import of `sonner`                                                                                                           import/order
+@batac/web:lint:     3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:     3:1   error  `@batac/ui` import should occur after import of `sonner`                                                                                                            import/order
+@batac/web:lint:     5:66  error  'Input' is defined but never used. Allowed unused vars must match /^_/u                                                                                             @typescript-eslint/no-unused-vars
+@batac/web:lint:    13:68  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:    26:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:    26:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    26:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:    35:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:    35:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    35:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:    44:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:    44:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    44:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:    60:56  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:    78:17  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:    78:42  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:    92:63  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   111:17  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   111:38  error  Unsafe member access .documentId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   131:46  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   131:71  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/panels/PublicationDatePanel.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  `@/lib/trpc` import should occur after import of `sonner`                                                                                                           import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    3:1   error  `@batac/ui` import should occur after import of `sonner`                                                                                                            import/order
+@batac/web:lint:    9:64  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   17:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   17:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   17:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   44:15  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   44:36  error  Unsafe member access .documentId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/panels/SecretariatDecisionPanel.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  `@/lib/trpc` import should occur after import of `sonner`                                                                                                           import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    3:1   error  `@batac/ui` import should occur after import of `sonner`                                                                                                            import/order
+@batac/web:lint:   12:68  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   20:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   20:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   20:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   32:7   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   32:28  error  Unsafe member access .documentId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   33:7   error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   33:32  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/panels/VPCertificationPanel.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  `@/lib/trpc` import should occur after import of `sonner`                                                                                                           import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    3:1   error  `@batac/ui` import should occur after import of `sonner`                                                                                                            import/order
+@batac/web:lint:    8:64  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   15:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   15:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   15:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   29:38  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   29:63  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: /home/lukexodus/projects/batac-dms/apps/web/src/pages/workflow/panels/VetoOverrideRecordingPanel.tsx
+@batac/web:lint:    1:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    2:1   error  `@/lib/trpc` import should occur after import of `sonner`                                                                                                           import/order
+@batac/web:lint:    3:1   error  There should be at least one empty line between import groups                                                                                                       import/order
+@batac/web:lint:    3:1   error  `@batac/ui` import should occur after import of `sonner`                                                                                                            import/order
+@batac/web:lint:    9:70  error  Unexpected any. Specify a different type                                                                                                                            @typescript-eslint/no-explicit-any
+@batac/web:lint:   18:7   error  Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator  @typescript-eslint/no-floating-promises
+@batac/web:lint:   18:47  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   18:68  error  Unsafe member access .instanceId on an `any` value                                                                                                                  @typescript-eslint/no-unsafe-member-access
+@batac/web:lint:   59:15  error  Unsafe assignment of an `any` value                                                                                                                                 @typescript-eslint/no-unsafe-assignment
+@batac/web:lint:   59:40  error  Unsafe member access .currentStepInstanceId on an `any` value                                                                                                       @typescript-eslint/no-unsafe-member-access
+@batac/web:lint: 
+@batac/web:lint: ✖ 540 problems (539 errors, 1 warning)
+@batac/web:lint:   239 errors and 0 warnings potentially fixable with the `--fix` option.
+@batac/web:lint: 
+@batac/web:lint:  ELIFECYCLE  Command failed with exit code 1.
+
+ Tasks:    0 successful, 1 total
+Cached:    0 cached, 1 total
+  Time:    33.073s 
+Failed:    @batac/web#lint
+
+ ELIFECYCLE  Command failed with exit code 1.
