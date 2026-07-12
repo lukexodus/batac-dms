@@ -253,6 +253,18 @@ export function createWorkflowRouter() {
     // Queries
     getInstance: protectedProcedure
       .input(z.object({ instanceId: z.string().uuid() }))
+      .output(z.object({
+        instanceId: z.string().uuid(),
+        documentId: z.string().uuid(),
+        definitionVersionId: z.string().uuid(),
+        currentStepType: z.enum(['action', 'approval', 'multi_referral', 'decision', 'notification', 'termination', 'parallel_split', 'parallel_join']),
+        currentStepInstanceId: z.string().uuid(),
+        currentAssigneeUserId: z.string().uuid().nullable(),
+        status: z.enum(['Active', 'Completed', 'Cancelled']),
+        slaDeadline: z.coerce.date().nullable(),
+        lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
+        panelHint: z.enum(['multi_referral', 'vp_certification', 'mayor_decision', 'mayor_lapse_confirmation', 'veto_override_recording', 'docketing', 'panlalawigan_outcome', 'publication_date', 'secretariat_decision', 'generic_action', 'generic_approval']).nullable(),
+      }))
       .query(async ({ input, ctx }) => {
         const { instanceId } = input;
 
@@ -337,7 +349,7 @@ export function createWorkflowRouter() {
         };
         const status = statusMap[instance.status] || 'Active';
 
-        const validStepTypes = new Set([
+        const validStepTypes = new Set<'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination' | 'parallel_split' | 'parallel_join'>([
           'action',
           'approval',
           'multi_referral',
@@ -348,11 +360,11 @@ export function createWorkflowRouter() {
           'parallel_join',
         ]);
         const currentStepType = currentStep && validStepTypes.has(currentStep.stepType)
-          ? (currentStep.stepType as any)
+          ? currentStep.stepType
           : 'action';
 
         const spsOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, ctx.auth!.cityId);
-        const panelHint = computePanelHint(status, currentStepType, currentStep, instance, spsOffice?.officeId);
+        const panelHint = computePanelHint(status, currentStepType, currentStep, instance, spsOffice?.officeId) as 'multi_referral' | 'vp_certification' | 'mayor_decision' | 'mayor_lapse_confirmation' | 'veto_override_recording' | 'docketing' | 'panlalawigan_outcome' | 'publication_date' | 'secretariat_decision' | 'generic_action' | 'generic_approval' | null;
 
         return {
           instanceId: instance.id,

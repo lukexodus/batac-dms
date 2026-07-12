@@ -1,11 +1,11 @@
 import React from 'react';
-import { trpc } from '@/lib/trpc';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 // logMayorLapseConfirmation: input is { stepInstanceId } only.
-export function MayorLapseConfirmationPanel({ instance }: { instance: any }) {
+export function MayorLapseConfirmationPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 

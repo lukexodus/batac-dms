@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { trpc } from '@/lib/trpc';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from '@batac/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 // recordVetoOverrideVote: { stepInstanceId, votesFor, votesAgainst, absentCouncilorIds }
 // Per consolidated ref Part 4.1/4.2: override succeeds at ≥ 8 of 12 (hardcoded server-side too).
-export function VetoOverrideRecordingPanel({ instance }: { instance: any }) {
+export function VetoOverrideRecordingPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const [votesFor, setVotesFor] = useState(0);

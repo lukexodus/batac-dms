@@ -34,7 +34,7 @@ export const columns: ColumnDef<DocumentSummary>[] = [
     accessorKey: 'lifecycleState',
     header: 'Status',
     cell: ({ row }) => {
-      const state = mapLifecycleStateToDocumentState(row.original.lifecycleState as any);
+      const state = mapLifecycleStateToDocumentState(row.original.lifecycleState);
       return <StatusBadge state={state} />;
     },
   },

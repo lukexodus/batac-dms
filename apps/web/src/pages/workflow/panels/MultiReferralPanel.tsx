@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { trpc } from '@/lib/trpc';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 import {
   Card, CardHeader, CardTitle, CardContent, Button, Textarea,
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input,
@@ -16,7 +16,7 @@ import { hasRole } from '@/lib/auth-helpers';
 //
 // Per-action gating is intentional (not page-level) to avoid sp_member
 // seeing sp_secretary-only controls.
-export function MultiReferralPanel({ instance }: { instance: any }) {
+export function MultiReferralPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const { session } = useAuth();

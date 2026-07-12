@@ -157,7 +157,7 @@ function DocumentRequestDetailContent() {
           </h1>
           <p className="text-xs text-text-muted">Request ID: {data.requestId}</p>
         </div>
-        <StatusBadge state={mapLifecycleStateToDocumentState(data.lifecycleState as any)} />
+        <StatusBadge state={mapLifecycleStateToDocumentState(data.lifecycleState)} />
       </div>
 
       {/* ─── Approval status strip ─── */}

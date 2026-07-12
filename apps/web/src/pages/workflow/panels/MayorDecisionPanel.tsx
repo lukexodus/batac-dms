@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { trpc } from '@/lib/trpc';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 // mayorSign: { stepInstanceId } only.
 // mayorVeto: { stepInstanceId, objectionsText: string (required) }.
-export function MayorDecisionPanel({ instance }: { instance: any }) {
+export function MayorDecisionPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const [objectionsText, setObjectionsText] = useState('');

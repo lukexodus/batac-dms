@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { trpc } from '@/lib/trpc';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 // The panelHint='secretariat_decision' is computed server-side via step config.assignee,
 // which is the only stable proxy available without an extra office-lookup join.
 // See LOG-0077 for the full reasoning.
-export function SecretariatDecisionPanel({ instance }: { instance: any }) {
+export function SecretariatDecisionPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const [remarks, setRemarks] = useState('');

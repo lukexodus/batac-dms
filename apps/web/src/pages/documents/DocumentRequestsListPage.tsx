@@ -49,7 +49,7 @@ const columns = [
   columnHelper.accessor('lifecycleState', {
     header: 'Status',
     cell: (info) => {
-      const docState = mapLifecycleStateToDocumentState(info.getValue() as any);
+      const docState = mapLifecycleStateToDocumentState(info.getValue());
       return <StatusBadge state={docState} />;
     },
   }),

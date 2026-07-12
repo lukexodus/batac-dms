@@ -1,12 +1,8 @@
 import type { LifecycleState } from '@batac/shared';
 import type { DocumentState } from '@batac/ui';
 
-// WorkflowStepContext is a placeholder type if needed
-export type WorkflowStepContext = any;
-
 export function mapLifecycleStateToDocumentState(
   lifecycleState: LifecycleState,
-  workflowStep?: WorkflowStepContext,
 ): DocumentState {
   switch (lifecycleState) {
     case 'draft':

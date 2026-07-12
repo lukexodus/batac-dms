@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { trpc } from '@/lib/trpc';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 import {
   Card, CardHeader, CardTitle, CardContent, Button, Textarea,
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input,
@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 // recordPanlalawiganOutcome: { stepInstanceId, outcome, controlNumber?, panlalawiganResolutionNumber?, dateReferred?, remarks? }
 // resolveValidInPart: { documentId, resolutionPath, mandatoryComment }   ← takes documentId, NOT stepInstanceId
 // confirmPanlalawiganDeemedApproved: { stepInstanceId }  only
-export function PanlalawiganOutcomePanel({ instance }: { instance: any }) {
+export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 

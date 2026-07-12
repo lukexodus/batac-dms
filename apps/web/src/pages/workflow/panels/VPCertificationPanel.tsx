@@ -1,11 +1,11 @@
 import React from 'react';
-import { trpc } from '@/lib/trpc';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 // certifyAsPresidingOfficer: input is { stepInstanceId } only — no comment field.
-export function VPCertificationPanel({ instance }: { instance: any }) {
+export function VPCertificationPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 
