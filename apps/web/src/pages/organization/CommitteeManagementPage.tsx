@@ -38,12 +38,6 @@ interface CommitteeSummary {
   deletedAt: Date | string | null;
 }
 
-interface EmployeeSummary {
-  employeeId: string;
-  displayName: string;
-  positionTitle: string | null;
-}
-
 export function CommitteeManagementPage() {
   const utils = trpc.useUtils();
   const { data: committees, isLoading } = trpc.organization.listCommittees.useQuery();
