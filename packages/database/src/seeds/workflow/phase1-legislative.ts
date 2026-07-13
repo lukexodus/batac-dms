@@ -379,10 +379,11 @@ export const SP_ORDINANCE_WORKFLOW: WorkflowDefinitionSeed = (() => {
   const rule2 = ordRules.find((r: any) => r.from_step_key === 'amendments_logging' && r.to_step_key === 'second_reading_amended_vote');
   if (rule2) rule2.to_step_key = 'third_reading_vote';
 
-  // 4. Add third_reading_vote → final_number_assignment and third_reading_vote → end_rejected_at_vote
+  // 4. Add third_reading_vote transition rules
   ordRules.push(
     { from_step_key: "third_reading_vote", to_step_key: "final_number_assignment", outcome_filter: "APPROVED", condition_expression: null, priority: 1, label: null },
-    { from_step_key: "third_reading_vote", to_step_key: "end_rejected_at_vote", outcome_filter: "REJECTED", condition_expression: null, priority: 2, label: null }
+    { from_step_key: "third_reading_vote", to_step_key: "amendments_logging", outcome_filter: "AMENDED", condition_expression: null, priority: 2, label: "Amended at third reading" },
+    { from_step_key: "third_reading_vote", to_step_key: "end_rejected_at_vote", outcome_filter: "REJECTED", condition_expression: null, priority: 3, label: null }
   );
 
   // 5. Insert publication_check and newspaper_publication after archive
@@ -444,7 +445,8 @@ export const APPROPRIATION_ORDINANCE_WORKFLOW: WorkflowDefinitionSeed = (() => {
 
   appOrdRules.push(
     { from_step_key: "third_reading_vote", to_step_key: "final_number_assignment", outcome_filter: "APPROVED", condition_expression: null, priority: 1, label: null },
-    { from_step_key: "third_reading_vote", to_step_key: "end_rejected_at_vote", outcome_filter: "REJECTED", condition_expression: null, priority: 2, label: null }
+    { from_step_key: "third_reading_vote", to_step_key: "amendments_logging", outcome_filter: "AMENDED", condition_expression: null, priority: 2, label: "Amended at third reading" },
+    { from_step_key: "third_reading_vote", to_step_key: "end_rejected_at_vote", outcome_filter: "REJECTED", condition_expression: null, priority: 3, label: null }
   );
 
   // 1. Add "OPERATIVE_IN_ITS_ENTIRETY" to panlalawigan_review allowed_outcomes
