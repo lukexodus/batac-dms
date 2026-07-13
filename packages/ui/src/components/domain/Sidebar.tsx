@@ -5,6 +5,7 @@ import { cn } from "@batac/ui/lib/utils";
 import type { SidebarUser } from "./types";
 import { AvatarName } from "../ui/avatar";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
+import { Link } from "react-router-dom";
 
 export interface NavItem {
   id: string;
@@ -67,10 +68,10 @@ export function Sidebar({
       <nav className="flex-1 py-4 overflow-y-auto px-2 space-y-1">
         {items.map((item) => {
           const isActive = item.id === activeItemId;
-          const Tag = item.href && !item.disabled ? "a" : "button";
+          const Tag = (item.href && !item.disabled ? Link : "button") as any;
           const itemProps =
-            Tag === "a"
-              ? { href: item.href }
+            Tag === Link
+              ? { to: item.href }
               : { type: "button" as const };
 
           const element = (
