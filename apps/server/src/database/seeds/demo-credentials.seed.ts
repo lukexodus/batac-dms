@@ -86,6 +86,17 @@ const DEMO_ACCOUNTS: DemoAccountDef[] = [
     newEmployee: { employeeNumber: 'SPS-LAGURA', firstName: 'Gladys R.', lastName: 'Lagura' },
   },
   {
+    username: 'records.mesina',
+    email: 'mesina@batac.gov.ph',
+    roleCode: 'records_officer',
+    officeCode: 'SPS',
+    displayName: 'Mia Prima M. Mesina (Records Officer — Admin Officer II, Ordinances & Resolutions Section)',
+    // Not one of the 12 SP_MEMBERS councilors seeded by organization.seed.ts,
+    // and not created by any other seed — needs a fresh employees row, same
+    // as mayor.chua / vicemayor.chua / secretary.lagura above.
+    newEmployee: { employeeNumber: 'SPS-MESINA', firstName: 'Mia Prima M.', lastName: 'Mesina' },
+  },
+  {
     // One representative councilor for the demo — chair of Laws (co-referral
     // committee on nearly every measure) and Economic Enterprise per Part 6.
     username: 'councilor.flojo',
@@ -207,21 +218,31 @@ async function main() {
 
         // ── Link or create the employees row ───────────────────────────────
         if (account.newEmployee) {
-          // Mayor / Vice Mayor / SP Secretary: no employee row exists yet.
-          await tx
-            .insert(employees)
-            .values({
-              cityId: CITY_ID,
-              userId,
-              employeeNumber: account.newEmployee.employeeNumber,
-              firstName: account.newEmployee.firstName,
-              lastName: account.newEmployee.lastName,
-              email: account.email,
-            })
-            .onConflictDoUpdate({
-              target: [employees.cityId, employees.employeeNumber],
-              set: { userId, updatedAt: new Date() },
-            });
+          // Mayor / Vice Mayor / SP Secretary: employee row may not exist yet
+          // (first run) or may already be linked (re-run). Check first to avoid
+          // violating uq_employees_user_id on re-runs.
+          const [existingEmp] = await tx
+            .select({ id: employees.id })
+            .from(employees)
+            .where(sql`${employees.userId} = ${userId}`)
+            .limit(1);
+
+          if (!existingEmp) {
+            await tx
+              .insert(employees)
+              .values({
+                cityId: CITY_ID,
+                userId,
+                employeeNumber: account.newEmployee.employeeNumber,
+                firstName: account.newEmployee.firstName,
+                lastName: account.newEmployee.lastName,
+                email: account.email,
+              })
+              .onConflictDoUpdate({
+                target: [employees.cityId, employees.employeeNumber],
+                set: { userId, updatedAt: new Date() },
+              });
+          }
         } else if (account.existingEmployeeNumber) {
           // Councilors: employee row already exists from organization.seed.ts —
           // link it to the new user account by setting userId.
