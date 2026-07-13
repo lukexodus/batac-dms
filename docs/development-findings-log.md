@@ -2336,3 +2336,109 @@ This is a security-relevant gap that predates the tRPC wrapping decision.
 The `app.ts` wrapping (LOG-0099) was partly justified by Hook 3 now
 covering tRPC traffic — a justification that only holds if Hook 3
 actually works, which this finding shows it does not.
+
+### [LOG-0101] Fix for LOG-0100: request-scoped transaction via split-wait Promise bridge + AsyncLocalStorage proxy
+
+- date: 2026-07-13
+- task_id: TASK-IAM-041
+- status: proposed
+- affects: iam.middleware.ts (Hook 3), database.plugin.ts, iam.types.ts, trpc/trpc.ts, iam.middleware.test.ts
+- supersedes: LOG-0100
+
+**What was found / implemented:**
+
+LOG-0100 identified that Hook 3's `db.execute(sql\`SELECT set_config(..., true)\`)`
+runs SET LOCAL in an auto-committed implicit transaction, discarding GUC values
+before any subsequent query can observe them. The fix wraps each request's
+auth-context-dependent work inside a single PostgreSQL transaction that stays
+open for the request's entire lifetime.
+
+**Architecture — three components:**
+
+1. **database.plugin.ts — AsyncLocalStorage-aware proxy:**
+   `rlsStore` (an `AsyncLocalStorage<{tx}>`) is created at module scope. The
+   `fastify.db` decoration is now a `Proxy` around the base drizzle client.
+   The proxy's `get` trap checks `rlsStore.getStore()` for an active request-
+   scoped transaction. When present, all method calls (`.select()`, `.insert()`,
+   `.execute()`, `.transaction()`) delegate to the stored transaction handle.
+   Non-function properties (`$table`, `$schema`) pass through to the base
+   client directly. When no transaction is active, the proxy falls back to the
+   base drizzle client for direct auto-committed queries.
+
+2. **iam.middleware.ts — Hook 3 split-wait pattern:**
+   Hook 3 opens a request-scoped transaction via `this.db.transaction(callback)`.
+   The callback sets GUCs via `SET LOCAL`, stores the transaction handle in
+   `rlsStore` via `rlsStore.run()`, then blocks on a Promise (`txOpen`) that
+   only resolves when the `onResponse` hook fires. Crucially, Hook 3 does NOT
+   `await` the full `db.transaction()` promise — that would deadlock because
+   the promise only resolves when `onResponse` fires, but `onResponse` cannot
+   fire until the route handler runs, which requires Hook 3 to return.
+
+   Instead, a second Promise (`gucsReady`) resolves once GUCs are set inside
+   the transaction but BEFORE the transaction commits. Hook 3 `await`s only
+   `gucsReady`, then returns so the rest of the request lifecycle proceeds.
+   The PostgreSQL transaction remains open — committed by `onResponse`.
+
+3. **iam.middleware.ts — onResponse hook:**
+   The `authMiddlewarePlugin` registers an `onResponse` hook that calls the
+   stored resolve function (`request._resolveRlsTx`), unblocking `txOpen`.
+   This causes the `db.transaction()` callback to return, triggering COMMIT
+   and releasing the reserved connection back to the pool.
+
+**Deadlock analysis (critical design note):**
+
+The initial implementation `await`ed the full `db.transaction(callback)` inside
+Hook 3. This caused a deadlock because:
+- `db.transaction()` only commits when its callback returns
+- The callback blocks on `await txOpen` (waiting for `onResponse`)
+- `onResponse` cannot fire until the route handler completes
+- The route handler cannot run until all `preHandler` hooks complete
+- Hook 3 (a `preHandler` hook) cannot complete because it's `await`ing `db.transaction()`
+
+The split-wait pattern breaks this cycle by only awaiting GUC setup, not
+transaction commit. The transaction stays alive as a pending promise — its
+connection held from the pool — until `onResponse` resolves `txOpen`.
+
+**Proxy approach — transparent fix for both tRPC and REST paths:**
+
+The AsyncLocalStorage proxy means all code that calls `fastify.db` (or `ctx.db`
+in tRPC, which reads `req.server.db` via `createContext` in trpc/trpc.ts)
+automatically operates within the request's transaction when one is active.
+This fixes both the tRPC path (where `ctx.db` is a captured reference to the
+fastify.db proxy) and the REST path (where plugin files like
+documents.plugin.ts, workflow.plugin.ts, tracking.plugin.ts, audit.plugin.ts,
+iam.plugin.ts, and organization.plugin.ts capture `fastify.db` at registration
+time — the captured reference IS the proxy, so downstream calls are intercepted).
+
+**Types — iam.types.ts:**
+
+Added `_rlsTx?: DbTransaction` to the `FastifyRequest` interface augmentation
+(for diagnostic/inspection purposes). Fixed a pre-existing extra closing brace
+(`}`) at end of file that caused a TS1128 parse error.
+
+**Tests — iam.middleware.test.ts:**
+
+Updated `makeMockDb()` to return `{ execute, transaction }` where `transaction`
+is a mock that calls the callback with a mock tx sharing the same `execute` spy.
+This matches the production flow: Hook 3 calls `tx.execute()` inside the
+callback, not `db.execute()` directly. The shared mock reference means existing
+`expect(db.execute).toHaveBeenCalledOnce()` assertions still pass.
+
+**Verification:**
+- `pnpm typecheck` passes with no errors
+- All 800 unit tests pass (0 failures), including all 21 iam.middleware tests
+- The fix is structurally verified but not yet tested against a real PostgreSQL
+  instance with RLS policies. LOG-0100's note about indistinguishability from
+  "no data yet" still applies until integration/E2E tests exercise RLS with
+  actual document rows.
+
+**Open items for human review:**
+- The split-wait pattern means the connection is held from the pool for the
+  full request duration. Under high concurrency this could exhaust the pool.
+  Connection pool sizing should be reviewed once the system is load-tested.
+- If `db.transaction()` fails after GUCs are set (e.g., network error during
+  the transaction), the `.catch()` handler calls `rejectGucs(err)` which is
+  a no-op (promise already resolved). The error is silently absorbed. This is
+  acceptable because the route handler has already run, but the transaction
+  rollback + connection release happen asynchronously. If this is concerning,
+  the `onResponse` hook could be extended to handle error cases explicitly.
