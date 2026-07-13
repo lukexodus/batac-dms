@@ -17,7 +17,7 @@ pnpm install
 cp .env.example .env
 ```
 
-**Then edit `.env` and fix `CITY_ID` before doing anything else.** This is not optional — it's a real, confirmed bug in the repo, not a maybe:
+**Then edit `.env` and fix `CITY_ID` before running any seed command — not after.** This is not optional — it's a real, confirmed bug in the repo, not a maybe:
 
 ```
 # .env.example ships with:
@@ -27,13 +27,16 @@ CITY_ID=01930a7d-0000-0000-0000-000000000001
 # script you already ran) hardcodes a DIFFERENT value as its default:
 CITY_ID=00000000-0000-4000-8000-000000000001
 
-# Change .env to the second value. If you skip this, seeding will succeed
-# (it writes rows under the .env value) but your data will be siloed under
-# a city_id nothing else in the app queries against by default — you'd see
-# empty screens everywhere despite a "successful" seed.
+# Change .env to the second value BEFORE you seed. If you seed first and fix
+# .env second, you'll get rows planted under the stale city_id that are
+# invisible to the app and to every other seed script — empty screens everywhere
+# despite a "successful" seed. Untangling it means manually deleting from
+# iam.role_assignments, iam.credentials, organization.employees, and iam.users
+# by hand. That's a four-table cleanup; it's cheap to avoid entirely by just
+# getting the ordering right the first time.
 ```
 
-You already found and fixed this once mid-session — this note is so it doesn't surprise you again if you ever wipe the volume and start clean (see Step 3's warning below).
+You already found and fixed this once mid-session — this note is so it doesn't surprise you again if you ever wipe the volume and start clean (see Step 2's warning below).
 
 Everything else in `.env.example` is safe to leave as-is for a local demo — the dev placeholder secrets, ports, and Argon2 cost parameters are all fine for this purpose.
 
@@ -63,7 +66,24 @@ docker compose -f compose.yml ps
 # a meaningful check, not a formality.
 ```
 
-## Step 3 — Run migrations
+## Step 3 — Fix the workflow seed definition (before first seed)
+
+```bash
+# In packages/database/src/seeds/workflow/phase1-legislative.ts,
+# find the SP_ORDINANCE_WORKFLOW block and add an AMENDED transition rule
+# for third_reading_vote (after the existing APPROVED and REJECTED rules):
+#
+#   { from_step_key: "third_reading_vote", to_step_key: "amendments_logging",
+#     outcome_filter: "AMENDED", condition_expression: null, priority: 2,
+#     label: "Amended at third reading" },
+#
+# Do the same in the APPROPRIATION_ORDINANCE_WORKFLOW block (same file,
+# same pattern).
+```
+
+This is **not optional and not environment-specific** — it reproduces on a clean checkout every time. Both ordinance workflows declare `AMENDED` as an allowed outcome on `third_reading_vote` but don't provide a transition rule for it, so `pnpm db:seed` will hard-fail at the workflow-definition stage with `MISSING_OUTCOME_TRANSITION` before any of the rest of the setup can proceed. The fix is two identical one-line additions in the same file — same `from_step_key`, same `outcome_filter`, same `to_step_key` in both blocks.
+
+## Step 4 — Run migrations
 
 ```bash
 pnpm --filter @batac/database db:migrate
@@ -71,7 +91,7 @@ pnpm --filter @batac/database db:migrate
 
 (This resolves to `tsx scripts/migrate.ts` — confirmed directly in `packages/database/package.json`. The README's phrasing of this step was hedged; this is the exact, real command.)
 
-## Step 4 — Seed reference data
+## Step 5 — Seed reference data
 
 ```bash
 pnpm db:seed
@@ -79,20 +99,20 @@ pnpm db:seed
 
 This runs, in order (confirmed from `apps/server/src/database/seeds/orchestrator.ts`): IAM (roles/permissions) → Organization (offices, 12 councilors, 23 committees) → Number Series → Document Types → Phase 1 Workflow Definitions (Resolution, Ordinance, Appropriation Ordinance). Watch the console output — it logs each step by name, so if something fails you'll know exactly which stage.
 
-## Step 5 — Seed demo login credentials
+## Step 6 — Seed demo login credentials
 
 ```bash
 pnpm --filter server exec tsx src/database/seeds/demo-credentials.seed.ts
 ```
 
-You already ran this successfully and extended it with the Records Officer account. This must run **after** Step 4, not before — it depends on offices, roles, and the councilor employee placeholders already existing. Confirm your console output shows all six accounts, either freshly "Created" (first run) or correctly "Already existed — skipped" (any re-run):
+You already ran this successfully and extended it with the Records Officer account. This must run **after** Step 5, not before — it depends on offices, roles, and the councilor employee placeholders already existing. Confirm your console output shows all six accounts, either freshly "Created" (first run) or correctly "Already existed — skipped" (any re-run):
 
 ```
 mayor.chua, vicemayor.chua, secretary.lagura, records.mesina, councilor.flojo, councilor.aguinaldo
 ```
 Shared password: `BatacDemo2026!`
 
-## Step 6 — Start the app
+## Step 7 — Start the app
 
 ```bash
 pnpm dev
@@ -161,7 +181,7 @@ This is where you introduce your **second resolution** — something genuinely t
 1. Attach a **Certification of Urgency** to it. Explain what this actually is in real life first: *"This isn't a system feature invented for this demo — it's a real, formal document the Mayor's office already issues, and your own records show it happens often."* (Part 4.17, confirmed: "Frequency: Frequent — explicitly noted as a common occurrence.")
 2. Show what happens the instant it's attached: **the committee referral step is bypassed entirely**, and the resolution jumps straight to being eligible for Second Reading in the *same session* as First Reading. Say: *"Right now, someone has to know this rule exists and manually route around the committee step. Here, attaching the real certified document is what changes the workflow — the system doesn't take anyone's word for it, it reacts to the actual certification being on file."*
 3. Advance this resolution through **Second Reading** — show the vote outcome options (Approved / Amended / Returned for Revision / Rejected), matching the actual four outcomes coded into the workflow engine (`second_reading_vote` step, `allowed_outcomes` in the seed data you now know is real, not illustrative). Pick **"Amended"** for this one deliberately — don't only show the clean path.
-4. Show the **amendments logging step** that appears as a direct consequence — Secretariat records what changed, prepares the final copy. Tie it back to the requirement: *"No separate third reading for a resolution amendment — that's not a shortcut the software is taking, that's the actual confirmed rule for resolutions specifically. Ordinances work differently — they get a third reading. This system knows the difference automatically, per document type."*
+4. Show the **amendments logging step** that appears as a direct consequence — Secretariat records what changed, prepares the final copy. Tie it back to the requirement: *"No separate third reading for a resolution amendment — that's not a shortcut the software is taking, that's the actual confirmed rule for resolutions specifically. Ordinances work differently — they get a third reading. This system knows the difference automatically, per document type."* If you demo the ordinance path specifically and choose "Amended" at Second Reading, the document now correctly routes through a real `amendments_logging` step before Third Reading (rather than dead-ending), so expect and narrate that extra step when it appears on screen — it's the ordinance path doing exactly what it should.
 5. **Now show your first resolution finishing cleanly** (no amendment) alongside it — approved outright at Second Reading, no detour. Having both paths visible back-to-back is the entire point of this segment: *"Same starting point, two different real outcomes — urgent versus normal, clean versus amended — same system, no special-casing by a person."*
 
 ---
