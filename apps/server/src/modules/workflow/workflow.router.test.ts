@@ -132,7 +132,7 @@ describe('Workflow Router Read Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID }]); // 1. instance
+      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID, slaDeadline: null }]); // 1. instance
       mockDb.mockResponse([{ id: VALID_UUID, ownedByOfficeId: OWN_OFFICE, classificationLevel: 'internal' }]); // 2. parent document
       mockDb.mockResponse([{ stepInstanceId: VALID_UUID, stepType: 'approval', assignedTo: [{ user_id: USER_ID }] }]); // 3. current steps lookup
       mockDb.mockResponse([]); // 4. all steps lookup (for lapse status)
@@ -160,7 +160,7 @@ describe('Workflow Router Read Procedures', () => {
       const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID }]);
+      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID, slaDeadline: null }]);
       mockDb.mockResponse([{ id: VALID_UUID, ownedByOfficeId: OTHER_OFFICE, classificationLevel: 'internal' }]);
       mockDb.mockResponse([{ code: 'SP' }]); // 3. offices select (check SP code)
       mockDb.mockResponse([{ stepInstanceId: VALID_UUID, stepType: 'action', assignedTo: [] }]); // 4. current steps
@@ -174,7 +174,7 @@ describe('Workflow Router Read Procedures', () => {
       const subject = makeSubject({ roles: ['mayor'], effectiveRoles: ['mayor'], effectiveOfficeIds: ['mayor-office'] });
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID }]);
+      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID, slaDeadline: null }]);
       mockDb.mockResponse([{ id: VALID_UUID, ownedByOfficeId: OTHER_OFFICE, classificationLevel: 'internal' }]); // internal document
       mockDb.mockResponse([{ stepInstanceId: VALID_UUID, stepType: 'decision', assignedTo: [] }]);
       mockDb.mockResponse([]);
@@ -211,7 +211,7 @@ describe('Workflow Router Read Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID }]);
+      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID, slaDeadline: null }]);
       mockDb.mockResponse([{ id: VALID_UUID, ownedByOfficeId: OWN_OFFICE, classificationLevel: 'public' }]);
       mockDb.mockResponse([{ stepInstanceId: VALID_UUID, stepType: 'action', assignedTo: [] }]);
       mockDb.mockResponse([]);

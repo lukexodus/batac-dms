@@ -424,10 +424,11 @@ describe('audit.listFullLog', () => {
     // listFullLog passes through actorId from input, doesn't force it
     expect(service.queryEvents).toHaveBeenCalledWith(
       expect.objectContaining({
-        actorId: undefined,
         cityId: CITY_ID,
       }),
     );
+    // Verify actorId was NOT passed (omitUndefined strips it)
+    expect(service.queryEvents.mock.calls[0]![0]).not.toHaveProperty('actorId');
   });
 
   it('passes actorId filter when supplied', async () => {

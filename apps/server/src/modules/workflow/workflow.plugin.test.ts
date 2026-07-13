@@ -68,6 +68,7 @@ const mockDependenciesPlugin = fp(async (fastify) => {
   fastify.decorate('organizationService', {} as any);
   fastify.decorate('delegationService', {} as any);
   fastify.decorate('boss', {
+    createQueue: vi.fn().mockResolvedValue(undefined),
     work: vi.fn(),
     schedule: vi.fn(),
   } as any);

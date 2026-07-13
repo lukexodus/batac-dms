@@ -34,6 +34,7 @@ describe('TSA Export Job (Integration)', () => {
     const consoleWarnSpy = vi.spyOn(console, 'warn');
     
     const bossMock = {
+      createQueue: vi.fn().mockResolvedValue(undefined),
       schedule: vi.fn().mockResolvedValue(undefined),
       work: vi.fn().mockImplementation(async (name, handler) => {
         // immediately invoke the handler for testing

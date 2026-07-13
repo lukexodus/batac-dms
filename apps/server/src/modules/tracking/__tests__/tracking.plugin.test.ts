@@ -51,7 +51,7 @@ const mockDependenciesPlugin = fp(async (fastify) => {
   fastify.decorate('iamService', {
     getUserById: vi.fn(),
   });
-}, { name: 'documents-plugin' });
+}, { name: 'documents' });
 
 const mockIamPlugin = fp(async () => {}, { name: 'iam-plugin' });
 
