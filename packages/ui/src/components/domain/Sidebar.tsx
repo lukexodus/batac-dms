@@ -68,27 +68,19 @@ export function Sidebar({
       <nav className="flex-1 py-4 overflow-y-auto px-2 space-y-1">
         {items.map((item) => {
           const isActive = item.id === activeItemId;
-          const Tag = (item.href && !item.disabled ? Link : "button") as any;
-          const itemProps =
-            Tag === Link
-              ? { to: item.href }
-              : { type: "button" as const };
+          const isLink = Boolean(item.href) && !item.disabled;
 
-          const element = (
-            <Tag
-              aria-current={isActive ? "page" : undefined}
-              aria-label={collapsed ? item.label : undefined}
-              tabIndex={item.disabled ? -1 : undefined}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warning-500",
-                isActive
-                  ? "bg-primary-700 text-white font-semibold border-l-2 border-l-warning-500"
-                  : "text-primary-200 hover:bg-primary-800 hover:text-white",
-                item.disabled && "opacity-40 cursor-not-allowed pointer-events-none",
-                collapsed && "justify-center px-0 w-10 h-10 mx-auto"
-              )}
-              {...itemProps}
-            >
+          const sharedClassName = cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warning-500",
+            isActive
+              ? "bg-primary-700 text-white font-semibold border-l-2 border-l-warning-500"
+              : "text-primary-200 hover:bg-primary-800 hover:text-white",
+            item.disabled && "opacity-40 cursor-not-allowed pointer-events-none",
+            collapsed && "justify-center px-0 w-10 h-10 mx-auto"
+          );
+
+          const sharedChildren = (
+            <>
               <item.icon className="h-5 w-5 shrink-0" />
               <span className={cn(collapsed ? "sr-only" : "truncate")}>
                 {item.label}
@@ -98,7 +90,29 @@ export function Sidebar({
                   {item.badge}
                 </span>
               ) : null}
-            </Tag>
+            </>
+          );
+
+          const element = isLink ? (
+            <Link
+              to={item.href}
+              aria-current={isActive ? "page" : undefined}
+              aria-label={collapsed ? item.label : undefined}
+              tabIndex={item.disabled ? -1 : undefined}
+              className={sharedClassName}
+            >
+              {sharedChildren}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              aria-current={isActive ? "page" : undefined}
+              aria-label={collapsed ? item.label : undefined}
+              tabIndex={item.disabled ? -1 : undefined}
+              className={sharedClassName}
+            >
+              {sharedChildren}
+            </button>
           );
 
           if (collapsed) {
