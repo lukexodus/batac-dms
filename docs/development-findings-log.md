@@ -2199,3 +2199,140 @@ decision into the type contract.
   `recordAttendance` tests); 12 pre-existing failures in other test files
   are unrelated (workflow.plugin, workflow.router slaDeadline, tracking.plugin,
   audit.router, audit.tsa-export).
+
+### [LOG-0099] `app.ts` wrapping of `authMiddlewarePlugin` around tRPC route is the final, intended session-lock enforcement mechanism for tRPC — replaces the originally-planned native tRPC-side check
+
+- date: 2026-07-13
+- task_id: TASK-WF-FE-007
+- status: proposed
+- affects: app.ts (lines 125-139), iam.middleware.ts, trpc/trpc.ts, B5 (§4.4, §4.6)
+
+**What was found:**
+TASK-WF-FE-007-A originally specified adding native `locked_at` and
+inactivity checks directly inside tRPC's `protectedProcedure` in
+`apps/server/src/trpc/trpc.ts`, signaling a locked session as a tRPC
+`UNAUTHORIZED` error with `message: 'SESSION_LOCKED'` (raw HTTP 401).
+That specific mechanism was never built — `protectedProcedure` is
+unmodified from its pre-task baseline (confirmed: no session lookup,
+no locked_at check, no inactivity check, no SESSION_LOCKED message).
+
+Instead, `app.ts` (lines 125-139) wraps the existing REST-side
+`authMiddlewarePlugin` — the same plugin/hook chain that protects
+`/api/auth/lock`, `/api/auth/logout`, `/api/admin/sessions/:id/terminate`
+— around the entire tRPC route registration. This means all four hooks
+(verifyAccessToken, loadDelegationContext, setDatabaseSessionVars,
+updateLastActivity) now run on every tRPC request as a Fastify
+preHandler, BEFORE `fastifyTRPCPlugin`'s own request handling.
+
+This produces a locked-session response of: HTTP 423,
+`{ code: 'SESSION_LOCKED', message: 'Session is locked' }` — a flat
+JSON object, NOT wrapped in tRPC's batch-array or `{ result/error }`
+envelope, because the Fastify preHandler terminates the request before
+tRPC's handler ever runs.
+
+**Decision made by Luke:** This wrapping approach is the permanent,
+intended mechanism. Reasons: (1) reuses already-tested REST-side logic
+rather than duplicating the check; (2) incidentally closes a pre-existing
+gap — Hook 3 (`setDatabaseSessionVars`) now also runs on tRPC requests,
+which it never did before (confirmed via repo-wide grep: no tRPC
+procedure or `createContext` ever independently set these GUC vars).
+The tradeoff accepted: the 423 flat-object error shape is foreign to
+tRPC's normal client-side error-handling and requires the frontend to
+detect it differently.
+
+The originally-planned native tRPC check (TASK-WF-FE-007-A Step 2) is
+thereby superseded. Do not build a second enforcement point in
+`protectedProcedure`.
+
+Cross-references: LOG-0097 (original discovery of the gap this resolves).
+
+### [LOG-0100] Hook 3 `setDatabaseSessionVars` SET LOCAL values do not survive to subsequent queries — failure mode (a) confirmed: vars lost after Hook 3's own `db.execute()` statement regardless of connection pooling
+
+- date: 2026-07-13
+- task_id: TASK-WF-FE-007 (Step 0)
+- status: proposed
+- affects: iam.middleware.ts (Hook 3, lines 297-326), database.plugin.ts, all RLS policies referencing `app.current_office_id` / `app.current_user_id` / `app.current_role_tier`
+
+**What was found:**
+`setDatabaseSessionVars` (iam.middleware.ts lines 297-326) calls
+`this.db.execute(sql\`SELECT set_config(..., true)\`)` to set PostgreSQL
+session-local GUC variables (`app.current_user_id`, `app.current_office_id`,
+`app.city_id`, `app.current_role_tier`, `app.is_ita`, `app.is_pa`) using
+`is_local=true` (SET LOCAL semantics).
+
+The SET LOCAL values do NOT persist to subsequent queries. This is failure
+mode (a) from the TASK-WF-FE-007 prompt's Step 0 analysis — the "even
+worse" variant where vars are lost immediately regardless of connection
+pooling:
+
+1. `db.execute()` runs via drizzle-orm/postgres-js. Each `sql` tagged
+   template call (which drizzle's `db.execute()` ultimately invokes via
+   `client.unsafe()`) acquires a connection from the pool, sends the
+   statement, and releases the connection — each statement runs in its
+   own implicit auto-committed transaction. (Source: postgres-js docs:
+   "Queries will be sent over the wire immediately on the next available
+   connection in the pool"; "Connections are automatically taken out of
+   the pool if you start a transaction using sql.begin().")
+
+2. PostgreSQL's `SET LOCAL` only persists for the current transaction.
+   (Source: PostgreSQL docs: "The effects of SET LOCAL last only till the
+   end of the current transaction, whether committed or not. Issuing this
+   outside of a transaction block emits a warning and otherwise has no
+   effect.")
+
+3. When Hook 3's `db.execute()` completes, the implicit auto-committed
+   transaction commits, and the SET LOCAL values are discarded. The
+   connection returns to the pool.
+
+4. Subsequent queries in the route handler (whether inside `db.transaction()`
+   or standalone `db.select()` calls) acquire their own connections and
+   run in their own transactions. The GUC values from Hook 3 are not
+   visible to these queries.
+
+5. When `current_setting('app.current_office_id', true)` is evaluated
+   inside an RLS policy and the GUC was never set (or was set in a
+   different transaction), PostgreSQL returns NULL (the `true` second
+   parameter means "return NULL if missing"). Any comparison against
+   NULL evaluates to FALSE, so RLS policies block all access.
+
+**Empirical verification:**
+- `SELECT set_config('app.test_var', 'hello', true)` followed by
+  `SELECT current_setting('app.test_var', true)` in a separate psql
+  statement returns empty/NULL — confirming SET LOCAL is lost after the
+  implicit transaction commits.
+- `documents.documents` table has RLS enabled (migration 0004, line 435)
+  with policies referencing `current_setting('app.current_office_id', true)`.
+  The `batac_app` role has no BYPASSRLS privilege. Without GUC values set,
+  `SELECT count(*) FROM documents.documents` returns 0 (confirmed against
+  the running dev database — though the dev database also has 0 document
+  rows, so this particular test cannot distinguish "RLS blocks everything"
+  from "no data exists").
+- The `batac_app` role is not the table owner (`batac_migrate` is);
+  `relforcerowsecurity` is false on `documents.documents`.
+- `iam.sessions` also has RLS enabled (migration 0002, line 233) with
+  `sessions_own_or_admin` policy checking `current_setting('app.current_user_id', true)`.
+
+**Impact:** Every RLS-protected query through the `batac_app` role runs
+with NULL GUC values, meaning RLS policies evaluate their conditions
+against NULL rather than the intended user/office context. For
+`documents.documents`'s `documents_office_isolation` policy:
+`owned_by_office_id = NULL::uuid` evaluates to FALSE (NULL comparison
+rule), so the policy excludes all rows. This affects both the REST path
+(where Hook 3 has always had this issue) and the newly-wrapped tRPC path.
+
+**Why this hasn't been caught:** The dev database has 0 documents and 0
+active role_assignments with office_scope_id, so the over-restrictive
+RLS behavior is indistinguishable from "no data yet." Unit tests for
+Hook 3 (iam.middleware.test.ts) mock `db.execute` and verify it was
+called but never test against real PostgreSQL to confirm GUC visibility.
+
+**Recommended fix (not implemented here — scope expansion):** Wrap each
+request's full auth-context-dependent work (Hook 3's set_config call AND
+all subsequent queries in that request) inside a single `db.transaction()`
+block, so they share one connection and one transaction. This is a broader
+architectural change than this task's scope.
+
+This is a security-relevant gap that predates the tRPC wrapping decision.
+The `app.ts` wrapping (LOG-0099) was partly justified by Hook 3 now
+covering tRPC traffic — a justification that only holds if Hook 3
+actually works, which this finding shows it does not.
