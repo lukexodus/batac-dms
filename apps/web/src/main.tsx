@@ -40,6 +40,7 @@ import { RoleAssignmentPage } from "./pages/iam/RoleAssignmentPage";
 import { CommitteeManagementPage } from "./pages/organization/CommitteeManagementPage";
 import { OrganizationPage } from "./pages/organization/OrganizationPage";
 import { ActiveSessionsPage } from "./pages/sysadmin/ActiveSessionsPage";
+import { PlatformAdminHomePage } from "./pages/admin/PlatformAdminHomePage";
 import { SystemAdminHomePage } from "./pages/sysadmin/SystemAdminHomePage";
 import { UserAccountManagementPage } from "./pages/sysadmin/UserAccountManagementPage";
 import { MayorDashboardPage } from "./pages/workflow/MayorDashboardPage";
@@ -54,6 +55,8 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { HomePage } from "./pages/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
+import { AuthenticatedLayout } from "./components/AuthenticatedLayout";
+
 const router = createBrowserRouter([
   {
     path: "/login",
@@ -61,104 +64,109 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
-    element: <RequireAuth><HomePage /></RequireAuth>,
-  },
-  {
-    path: "/organization",
-    element: <OrganizationPage />,
-  },
-  {
-    path: "/admin/committees",
-    element: <CommitteeManagementPage />,
-  },
-  {
-    path: "/admin/roles",
-    element: <RoleAssignmentPage />,
-  },
-  {
-    path: "/sysadmin",
-    element: <SystemAdminHomePage />,
-  },
-  {
-    path: "/sysadmin/sessions",
-    element: <ActiveSessionsPage />,
-  },
-  {
-    path: "/sysadmin/users",
-    element: <UserAccountManagementPage />,
-  },
-  {
-    path: "/workflow/steps",
-    element: <MyAssignedStepsPage />,
-  },
-  {
-    path: "/workflow/steps/:instanceId",
-    element: <WorkflowStepActionPage />,
-  },
-  {
-    path: "/mayor",
-    element: <MayorDashboardPage />,
-  },
-  {
-    path: "/secretary",
-    element: <SecretaryDashboardPage />,
-  },
-  {
-    path: "/sessions",
-    element: <SessionAttendanceOverviewPage />,
-  },
-  {
-    path: "/sessions/:sessionDate",
-    element: <SessionAttendanceDetailPage />,
-  },
-  {
-    path: "/order-of-business",
-    element: <OrderOfBusinessPage />,
-  },
-  {
-    path: "/documents",
-    element: <DocumentListPage />,
-  },
-  {
-    path: "/documents/new",
-    element: <DocumentIntakePage />,
-  },
-  {
-    path: "/complaints",
-    element: <ComplaintsListPage />,
-  },
-  {
-    path: "/complaints/new",
-    element: <ComplaintIntakeClerkAssistedPage />,
-  },
-  {
-    // /complaints and /complaints/new are registered before :complaintId so the
-    // static segments always win — matches the same explicit-ordering
-    // convention already used for /documents/new vs /documents/:documentId.
-    path: "/complaints/:complaintId",
-    element: <ComplaintDetailPage />,
-  },
-  {
-    path: "/document-requests",
-    element: <DocumentRequestsListPage />,
-  },
-  {
-    path: "/document-requests/new",
-    element: <DocumentRequestIntakeClerkAssistedPage />,
-  },
-  {
-    // /document-requests/new is registered before :requestId so the static
-    // segment always wins (React Router v6 ranks statics above params, but
-    // explicit ordering removes any ambiguity).
-    path: "/document-requests/:requestId",
-    element: <DocumentRequestDetailPage />,
-  },
-  {
-    // /documents/new is registered before :documentId so the static segment
-    // always wins — React Router v6 also ranks static segments above dynamic
-    // params by default, but the explicit ordering removes any ambiguity.
-    path: "/documents/:documentId",
-    element: <DocumentDetailPage />,
+    element: <RequireAuth><AuthenticatedLayout /></RequireAuth>,
+    children: [
+      {
+        index: true,
+        element: <HomePage />,
+      },
+      {
+        path: "organization",
+        element: <OrganizationPage />,
+      },
+      {
+        path: "admin",
+        element: <PlatformAdminHomePage />,
+      },
+      {
+        path: "admin/committees",
+        element: <CommitteeManagementPage />,
+      },
+      {
+        path: "admin/roles",
+        element: <RoleAssignmentPage />,
+      },
+      {
+        path: "sysadmin",
+        element: <SystemAdminHomePage />,
+      },
+      {
+        path: "sysadmin/sessions",
+        element: <ActiveSessionsPage />,
+      },
+      {
+        path: "sysadmin/users",
+        element: <UserAccountManagementPage />,
+      },
+      {
+        path: "workflow/steps",
+        element: <MyAssignedStepsPage />,
+      },
+      {
+        path: "workflow/steps/:instanceId",
+        element: <WorkflowStepActionPage />,
+      },
+      {
+        path: "mayor",
+        element: <MayorDashboardPage />,
+      },
+      {
+        path: "secretary",
+        element: <SecretaryDashboardPage />,
+      },
+      {
+        path: "sessions",
+        element: <SessionAttendanceOverviewPage />,
+      },
+      {
+        path: "sessions/:sessionDate",
+        element: <SessionAttendanceDetailPage />,
+      },
+      {
+        path: "order-of-business",
+        element: <OrderOfBusinessPage />,
+      },
+      {
+        path: "documents",
+        element: <DocumentListPage />,
+      },
+      {
+        path: "documents/new",
+        element: <DocumentIntakePage />,
+      },
+      {
+        path: "complaints",
+        element: <ComplaintsListPage />,
+      },
+      {
+        path: "complaints/new",
+        element: <ComplaintIntakeClerkAssistedPage />,
+      },
+      {
+        path: "complaints/:complaintId",
+        element: <ComplaintDetailPage />,
+      },
+      {
+        path: "document-requests",
+        element: <DocumentRequestsListPage />,
+      },
+      {
+        path: "document-requests/new",
+        element: <DocumentRequestIntakeClerkAssistedPage />,
+      },
+      {
+        path: "document-requests/:requestId",
+        element: <DocumentRequestDetailPage />,
+      },
+      {
+        path: "documents/:documentId",
+        element: <DocumentDetailPage />,
+      },
+      {
+        path: "*",
+        element: <NotFoundPage />,
+      },
+    ],
   },
   {
     path: "/dev/components",
@@ -232,10 +240,7 @@ const router = createBrowserRouter([
     path: "/dev/all-components",
     element: <AllComponentsPage />,
   },
-  {
-    path: "*",
-    element: <NotFoundPage />,
-  },
+
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
