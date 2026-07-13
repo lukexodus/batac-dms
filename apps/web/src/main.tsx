@@ -6,7 +6,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { TooltipProvider, Toaster } from "@batac/ui";
 import "@batac/ui/styles/globals.css";
 
-import { AuthProvider } from './lib/auth-context.js';
+import { SessionHydrator } from './components/SessionHydrator';
 import { queryClient } from './lib/query-client.js';
 import { trpc, trpcClient } from './lib/trpc.js';
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
@@ -245,9 +245,10 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AuthProvider>
+    <>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
+          <SessionHydrator />
           <TooltipProvider delayDuration={500}>
             <RouterProvider router={router} />
             <Toaster
@@ -265,6 +266,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           </TooltipProvider>
         </QueryClientProvider>
       </trpc.Provider>
-    </AuthProvider>
+    </>
   </React.StrictMode>
 );

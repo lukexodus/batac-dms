@@ -194,7 +194,17 @@ export function createIamService(deps: IamServiceDeps): IamService {
 
   return {
     evaluatePolicy: () => { throw new Error('not implemented'); },
-    getUserById:    () => { throw new Error('not implemented'); },
+    getUserById: async (id: string) => {
+      const u = await iamRepo.findUserById(id);
+      if (!u) return null;
+      return {
+        userId: u.id,
+        displayName: u.username,
+        email: u.email,
+        officeId: null,
+        positionTitle: null,
+      };
+    },
     // ─── logout ──────────────────────────────────────────────────────────────
     async logout(sessionId: string, userId: string): Promise<void> {
       await db.transaction(async (tx) => {

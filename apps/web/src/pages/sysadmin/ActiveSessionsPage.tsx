@@ -10,7 +10,7 @@ import {
   Skeleton,
 } from '@batac/ui';
 
-import { useAuth } from '@/lib/auth-context';
+import { useSessionStore } from '@/stores';
 import { trpc } from '@/lib/trpc';
 
 
@@ -64,7 +64,7 @@ function TerminateRow({ sessionId, onDone }: TerminateRowProps) {
       setReason('');
       onDone();
     },
-    onError: (err) => toast.error(err.message || 'Failed to terminate session.'),
+    onError: (err) => toast.error(err.message || 'Failed to terminate identity.'),
   });
 
   if (!open) {
@@ -119,12 +119,12 @@ function TerminateRow({ sessionId, onDone }: TerminateRowProps) {
 
 // ─── Main page ───────────────────────────────────────────────────────────────
 export function ActiveSessionsPage() {
-  const { session } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
 
   // Client-side sys-admin gate.
   // NOTE: approximation of server's ctx.auth.isItAdmin — see SystemAdminHomePage
   // for the full divergence-risk comment; same limitation applies here.
-  if (!session?.roleCodes.includes('sys_admin')) {
+  if (!identity?.roleCodes.includes('sys_admin')) {
     return <AccessDenied />;
   }
 

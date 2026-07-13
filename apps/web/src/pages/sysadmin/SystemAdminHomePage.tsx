@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { PageHeader, Card, CardHeader, CardTitle, CardContent } from '@batac/ui';
 
-import { useAuth } from '@/lib/auth-context';
+import { useSessionStore } from '@/stores';
 
 // Client-side sys-admin gate.
 // NOTE: This is an approximation of the server's ctx.auth.isItAdmin,
@@ -45,10 +45,10 @@ const NAV_ITEMS = [
 ] as const;
 
 export function SystemAdminHomePage() {
-  const { session } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
 
   // See divergence-risk comment above.
-  if (!session?.roleCodes.includes('sys_admin')) {
+  if (!identity?.roleCodes.includes('sys_admin')) {
     return <AccessDenied />;
   }
 

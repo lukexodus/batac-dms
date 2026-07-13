@@ -51,7 +51,7 @@ import {
   SelectValue,
 } from '@batac/ui';
 
-import { useAuth } from '../../lib/auth-context';
+import { useSessionStore, type ActiveUserIdentity } from '@/stores';
 import { hasRole } from '../../lib/auth-helpers';
 import { trpc } from '../../lib/trpc';
 
@@ -64,8 +64,8 @@ import type { DocumentState } from '@batac/ui/types/domain';
 // auth-helpers.ts implementation — not reimplemented here.
 
 /** documents.logAndAssign: callable-by sp_secretary only */
-function canLogAndAssign(roles: string[]): boolean {
-  return hasRole(roles, 'sp_secretary');
+function canLogAndAssign(identity: ActiveUserIdentity | null): boolean {
+  return hasRole(identity, 'sp_secretary');
 }
 
 /**
@@ -75,12 +75,12 @@ function canLogAndAssign(roles: string[]): boolean {
  * the session's committeeIds (surfaced from the backend via LOG-0085).
  */
 function canEnterCommitteeReport(
-  roles: string[],
+  identity: ActiveUserIdentity | null,
   committeeIds: string[],
   assignedOfficeId: string | null,
 ): boolean {
-  if (hasRole(roles, 'sp_secretary')) return true;
-  if (!hasRole(roles, 'sp_member')) return false;
+  if (hasRole(identity, 'sp_secretary')) return true;
+  if (!hasRole(identity, 'sp_member')) return false;
   return !!assignedOfficeId && committeeIds.includes(assignedOfficeId);
 }
 
@@ -92,8 +92,8 @@ function canEnterCommitteeReport(
  * so this check prevents a confusing premature action rather than closing a
  * security gap.
  */
-function canSetOutcome(roles: string[], committeeReport: string | null): boolean {
-  if (!hasRole(roles, 'sp_secretary')) return false;
+function canSetOutcome(identity: ActiveUserIdentity | null, committeeReport: string | null): boolean {
+  if (!hasRole(identity, 'sp_secretary')) return false;
   return !!committeeReport && committeeReport.trim().length > 0;
 }
 
@@ -101,8 +101,8 @@ function canSetOutcome(roles: string[], committeeReport: string | null): boolean
 
 export default function ComplaintDetailPage() {
   const { complaintId } = useParams<{ complaintId: string }>();
-  const { session } = useAuth();
-  const roles = session?.roleCodes ?? [];
+  const identity = useSessionStore((s) => s.identity);
+  const roles = identity?.roleCodes ?? [];
 
   // ── Read: documents.getComplaint ────────────────────────────────────────
   const {
@@ -324,7 +324,7 @@ export default function ComplaintDetailPage() {
         <CardContent className="space-y-6">
           <div className="flex flex-wrap gap-2">
             {/* Log and Assign — sp_secretary only */}
-            {canLogAndAssign(roles) && (
+            {canLogAndAssign(identity) && (
               <Button
                 size="sm"
                 onClick={() => setShowAssignDialog(true)}
@@ -335,12 +335,12 @@ export default function ComplaintDetailPage() {
             )}
 
             {/* Set Outcome — sp_secretary only, enabled once a committee report exists */}
-            {hasRole(roles, 'sp_secretary') && (
+            {hasRole(identity, 'sp_secretary') && (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => setShowOutcomeDialog(true)}
-                disabled={!canSetOutcome(roles, complaint.committeeReport) || setOutcomeMutation.isPending}
+                disabled={!canSetOutcome(identity, complaint.committeeReport) || setOutcomeMutation.isPending}
                 title={
                   !complaint.committeeReport
                     ? 'A committee report must be entered before setting an outcome'
@@ -353,7 +353,7 @@ export default function ComplaintDetailPage() {
           </div>
 
           {/* Log and Assign inline form */}
-          {showAssignDialog && canLogAndAssign(roles) && (
+          {showAssignDialog && canLogAndAssign(identity) && (
             <div className="border rounded-md p-4 space-y-3 bg-neutral-50">
               <p className="text-sm font-medium">Log and Assign</p>
               <div className="space-y-1">
@@ -399,8 +399,8 @@ export default function ComplaintDetailPage() {
           )}
 
           {/* Enter Committee Report — sp_secretary unconditionally, sp_member
-              committee-scoped (client-side check via session.committeeIds) */}
-          {canEnterCommitteeReport(roles, session?.committeeIds ?? [], complaint.assignedOfficeId) && (
+              committee-scoped (client-side check via identity.committeeIds) */}
+          {canEnterCommitteeReport(identity, identity?.committeeIds ?? [], complaint.assignedOfficeId) && (
             <div className="border rounded-md p-4 space-y-3">
               <p className="text-sm font-medium">Enter Committee Report</p>
               <Textarea
@@ -420,7 +420,7 @@ export default function ComplaintDetailPage() {
           )}
 
           {/* Set Outcome inline form */}
-          {showOutcomeDialog && hasRole(roles, 'sp_secretary') && (
+          {showOutcomeDialog && hasRole(identity, 'sp_secretary') && (
             <div className="border rounded-md p-4 space-y-3 bg-neutral-50">
               <p className="text-sm font-medium">Set Outcome</p>
               <div className="space-y-1">

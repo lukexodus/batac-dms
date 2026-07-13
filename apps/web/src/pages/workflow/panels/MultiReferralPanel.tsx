@@ -7,7 +7,7 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input,
 } from '@batac/ui';
 
-import { useAuth } from '@/lib/auth-context';
+import { useSessionStore } from '@/stores';
 import { hasRole } from '@/lib/auth-helpers';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
@@ -21,11 +21,11 @@ import { trpc, type RouterOutputs } from '@/lib/trpc';
 export function MultiReferralPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
-  const { session } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
 
-  const roleCodes: string[] = session?.roleCodes ?? [];
-  const isSpSecretary = hasRole(roleCodes, 'sp_secretary');
-  const isSpMember = hasRole(roleCodes, 'sp_member');
+  const roleCodes: string[] = identity?.roleCodes ?? [];
+  const isSpSecretary = hasRole(identity, 'sp_secretary');
+  const isSpMember = hasRole(identity, 'sp_member');
 
   // Committee report state
   const [committeeId, setCommitteeId] = useState('');

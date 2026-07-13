@@ -1981,13 +1981,1519 @@ If yes to (a)+(b): this substantially resolves the tension in ORG's favor — th
 
 ---
 
-## What's still not attempted, and why — unchanged from last turn, restated for completeness
+## TASK-WF-FE-004
 
-- **`/retention-schedules`** — 100% backend-blocked (`records.getRetentionSchedule` has zero matches anywhere in `apps/server/src`; write procedures per ADR-UI-003 also unbuilt). Not given a Tier 0 task here because unlike the AUDIT/DOCS gaps above, there's no existing partial implementation or formally-decided-but-unbuilt spec to complete — this needs a full net-new backend build, which is a larger undertaking than this task list's Tier 0 items and would need its own dedicated planning pass.
-- **`/admin/config`** — spec-blocked; F1 itself says a detailed config-screen spec must exist before backend work can even start. No task to write here until that spec exists.
-- **`/admin/announcements`, `/admin/delivery-logs`, all `/portal/*` routes** — blocked on PORTAL/NOTIF modules, which are real, defined, un-run pipeline passes (`portal.md`, `notif.md` confirmed 0 lines), not a frontend planning gap.
+````
+CONTEXT — READ THIS FIRST
 
-> **🚩 KF-14 — still genuinely unowned, still not converted into a task.** Four Tier-1 System Administrator capabilities (system health metrics, encryption key management, schema migrations, backup/restore) have no procedure, no module owner, and no route anywhere. I'm not inventing a task for this because there's nothing concrete to scope it against — no procedure name to wire up, no existing partial implementation to complete, unlike every Tier 0 task above. This needs a scoping decision (does this belong in this web app at all, or in a separate operations console per F1's own speculation?) before it can become a task, and that decision is a larger architectural call than the Tier 0 items above, which were all "finish what was already decided" rather than "decide what this even is."
+You are implementing TASK-WF-FE-004, a new standalone frontend task with no
+existing entry in fe.md's Tier 0-5 sections — all of which are closed (every
+task in fe.md's own ToC has a corresponding built file, confirmed by direct
+repo listing this session: apps/web/src/pages/ contains dev/, documents/,
+iam/, organization/, sysadmin/, workflow/, all matching fe.md's deliverables
+exactly). This follows the same "standalone document after the existing task
+list closed" precedent TASK-WF-FE-001 established.
 
-- **TRACK** — confirmed again this session, no page-level gap; its procedures are consumed entirely within the already-built `/documents/:documentId`.
-- **REC, NOTIF, PORTAL backends; SEARCH, REPORT** — out of scope, not a frontend planning problem.
+Read AGENTS.md before doing anything else if you have not already
+internalized it this session. The applicable routing row is "Build a frontend
+page or view in /apps/web" → F4 → F1 → F5 → J6 → I2 → E1. This task ALSO
+touches "Write a Zustand store" (F2 → F1 → E3) because of the AppShell-wiring
+work below — read the union of both rows per AGENTS.md Section 2's
+instruction for multi-row tasks, though in practice the Zustand store
+(useLayoutStore) already exists and needs no new design, just consumption.
+
+Before starting, check docs/development-findings-log.md for any entries
+tagged F1, F5, auth-context, or AppShell since this prompt was written — this
+session's read ended at LOG-0094. This prompt introduces a new entry,
+LOG-0095, for the ADR-UI-012/auth-context.tsx architecture question raised
+below — check whether it has moved from `proposed` to `confirmed` before
+starting, since that resolution changes this task's scope (see the
+"Open architecture question" section).
+
+────────────────────────────────────────────────────────────────────────────
+WHY THIS TASK EXISTS — VERIFIED GAP, NOT SPECULATION
+
+F1 (docs/pre-development/F-frontend-architecture/f1-application-route-map-v2.md)
+was read in full this session — Sections 1-4 (notation, cross-cutting notes,
+route hierarchy diagram, master route table) and Section 16 ("Items
+considered and not given a dedicated route") specifically. Neither the master
+route table (Section 4, every row checked) nor the route hierarchy Mermaid
+diagram (Section 3) contains a row or node for `/` or `/login` in
+`/apps/web`. Section 16 lists exactly four items deliberately excluded from a
+dedicated route (generic account settings, a notifications inbox, Phase 1B
+document types, Phase 2 reporting) — root and login are not among them. This
+is a genuine, unflagged specification gap, not a documented exclusion.
+
+Separately confirmed via direct repo inspection this session:
+- apps/web/src/main.tsx line 56: the "/" route's element is the literal JSX
+  `<div>Batac DMS Home</div>` — a placeholder, not a component import.
+- No "/login" path exists anywhere in main.tsx's route array (confirmed by
+  full read of the file, 254 lines).
+- No wildcard/catch-all route (`path: "*"`) exists anywhere in main.tsx.
+- apps/web/src/lib/auth-context.tsx already exports a working `useAuth()`
+  hook with `session`, `login(username, password)`, `logout()`, `refresh()`
+  — all four already correctly calling real backend endpoints (confirmed
+  directly against apps/server/src/modules/iam/iam.routes.ts: POST
+  /api/auth/login, /api/auth/refresh, /api/auth/logout all real, working,
+  rate-limited, cookie-based). This hook has no consumer anywhere in
+  apps/web/src/pages/ — confirmed via repo-wide grep for `useAuth()` outside
+  the file itself; every existing page that imports useAuth() (e.g.
+  DocumentDetailPage.tsx) uses only `session` for role-gating, never `login`
+  or `logout`.
+
+This task does not invent new backend work — the entire auth flow already
+works. This task is exclusively about the two missing frontend routes that
+call it.
+
+────────────────────────────────────────────────────────────────────────────
+WHAT TO BUILD — TWO COMPONENTS, TWO ROUTES
+
+Component: `LoginPage`
+Route: `/login`
+New file: apps/web/src/pages/auth/LoginPage.tsx
+(new directory: apps/web/src/pages/auth/ — no auth/ directory exists yet;
+create it, following the same lowercase-module-name convention as documents/,
+workflow/, organization/, sysadmin/)
+
+Component: `HomePage`
+Route: `/` (replacing the current placeholder div)
+New file: apps/web/src/pages/HomePage.tsx
+(top-level pages/ file, not in a subdirectory — this page has no natural
+module home; DO NOT create a home/ directory for a single file)
+
+────────────────────────────────────────────────────────────────────────────
+LOGINPAGE — DATA CONTRACT
+
+Calls `useAuth().login(username, password)` from the existing auth-context.tsx
+— do not write a new fetch call or duplicate the PKCE/cookie logic already
+inside that hook. This is a thin form wrapping an existing, working function.
+
+Real input shape (confirmed, apps/server/src/modules/iam/iam.schemas.ts
+lines 8-14, LoginInputSchema): `{ username: string (min 1), password: string
+(min 1), code_verifier, code_challenge, code_challenge_method: 'S256' }`. The
+last three fields are already generated and attached inside `login()` itself
+(auth-context.tsx lines 62-74, calls `generatePkcePair()` from
+apps/web/src/lib/pkce.ts) — LoginPage's form only needs to collect `username`
+and `password` and call `login(username, password)`. Do not re-implement
+PKCE generation in the page component.
+
+ERROR HANDLING — confirmed real error shapes from iam.routes.ts's actual
+implementation (lines 107-134), not guessed:
+- Invalid credentials: backend returns 401 `{ code: 'INVALID_CREDENTIALS' }`.
+  auth-context.tsx's current `login()` implementation only checks
+  `response.ok` and throws a generic `new Error('Login failed')` on any
+  non-2xx (line 78) — it does NOT currently surface the specific `code`
+  field from the response body. Build LoginPage's error display against
+  what `login()` actually throws today (a generic Error with message "Login
+  failed") rather than assuming the specific INVALID_CREDENTIALS/
+  TOO_MANY_REQUESTS/VALIDATION_ERROR codes are available to the frontend —
+  they are not, currently. If you want more specific error messages
+  (e.g. distinguishing "wrong password" from "rate limited"), that requires
+  first modifying auth-context.tsx's `login()` to parse and rethrow the
+  response body's `code` field — a small, in-scope change to make as part of
+  this task if you choose to build specific error UI, but state explicitly
+  in your PR description whether you did this or built against the generic
+  error only.
+- Rate limiting: real, confirmed 5 requests / 15 minutes per IP
+  (iam.routes.ts lines 74-79). A real user mistyping their password five
+  times will hit this. If you do the auth-context.tsx enhancement above,
+  surface the 429 case distinctly (e.g. "Too many attempts — try again in a
+  few minutes") rather than a generic failure message, since a generic
+  "login failed" message on the 6th attempt would be actively misleading.
+
+ON SUCCESS: `login()` sets `session` in the auth context (auth-context.tsx
+line 84, `setSession(data)`). Once `session` is populated, navigate to `/`
+(the new HomePage from this same task) via `useNavigate()` from
+react-router-dom — do not navigate to a role-specific dashboard directly from
+LoginPage; that routing decision belongs to HomePage (see below), keeping
+LoginPage's own responsibility narrow (authenticate, then hand off).
+
+SESSION-ALREADY-EXISTS CASE: if a user with a valid, unexpired session
+navigates directly to /login (e.g. via back-button or a stale bookmark),
+redirect them to `/` immediately rather than showing the login form again —
+check `session` from `useAuth()` on mount; if non-null, `<Navigate to="/"
+replace />` before rendering the form. This avoids a confusing
+already-logged-in-but-seeing-a-login-form state.
+
+────────────────────────────────────────────────────────────────────────────
+HOMEPAGE — ROLE-BASED LANDING REDIRECT, NOT A NEW DASHBOARD
+
+Do NOT build new dashboard content here. Four role-specific dashboards
+already exist and are fully built: SecretaryDashboardPage (/secretary),
+MayorDashboardPage (/mayor), SystemAdminHomePage (/sysadmin), and — per F1's
+master route table — PlatformAdminHomePage is named at `/admin` but does NOT
+appear to exist as a built file (confirmed: no PlatformAdminHomePage.tsx
+anywhere in apps/web/src/pages/, and no "/admin" entry in main.tsx's route
+array, only "/admin/committees" and "/admin/roles" — the parent landing
+shell itself is missing). This is a second, smaller gap this task does NOT
+fix — HomePage should treat plat_admin users as a case with no dedicated
+landing page yet (see fallback behavior below) rather than linking to a
+route that doesn't exist. Flag this second gap explicitly in your PR
+description as a follow-up (a natural candidate task: TASK-FE-ORG-003 or
+similar, out of scope here).
+
+WHAT HOMEPAGE SHOULD DO:
+1. Check `session` from `useAuth()`. If null, this page should not normally
+   be reachable (see route-guard note below) — but as a defensive fallback,
+   redirect to `/login` if session is null on mount.
+2. If session exists, inspect `session.roleCodes` (confirmed field,
+   AuthSession interface, auth-context.tsx line 20) and redirect to the
+   single most relevant landing page for that role:
+   - `sp_secretary` → `/secretary`
+   - `mayor` → `/mayor`
+   - `sys_admin` → `/sysadmin`
+   - all other roles (records_officer, dept_encoder, dept_approver, sp_member,
+     sp_presiding_officer, brgy_encoder, brgy_captain, auditor, plat_admin,
+     citizen) → no dedicated dashboard exists for any of these roles as of
+     this session's verification. Do not guess a redirect target. Render a
+     minimal generic landing view instead (see below) rather than picking an
+     arbitrary existing page to redirect to.
+3. A user can hold multiple roles simultaneously (confirmed:
+   `roleCodes: string[]`, plural, not a single role) — if a session's
+   roleCodes contains more than one of the three redirect-target roles above
+   (e.g. someone is both sp_secretary and mayor, however unlikely in
+   practice), pick a deterministic priority order and document it in a code
+   comment (recommendation: mayor > sp_secretary > sys_admin, executive
+   authority first, but this is your call to make and state explicitly, not
+   a settled rule from any source document).
+
+GENERIC LANDING VIEW (for roles with no dedicated dashboard): a minimal page
+using the existing `PageHeader` component (@batac/ui, already used
+throughout the codebase) with a title along the lines of "Batac DMS" and a
+short set of links to routes that role can actually access. Use
+`session.roleCodes` to decide which links to show — e.g. a records_officer
+should see a link to /documents but not /admin/roles. Cross-reference each
+target route's role gate against F1's master route table (Section 4, already
+read in full this session) or, more reliably, against the route's own
+component file's actual role-check logic, since several of fe.md's existing
+tasks note the codebase's role lists don't always match F1's prose exactly.
+Do not build this as an elaborate dashboard — it is a fallback for roles
+that don't have one yet, not a new feature to over-invest in.
+
+DO NOT hardcode a redirect priority that silently drops a role a session
+actually has — if you build the three-role redirect above and a session has
+none of those three, the generic landing view is the correct behavior, not
+an error state or a blank page.
+
+────────────────────────────────────────────────────────────────────────────
+ROUTE GUARD — GENUINELY OPEN, YOUR DESIGN CHOICE TO MAKE
+
+No route-guarding wrapper exists anywhere in this codebase currently
+(confirmed: every route in main.tsx is a bare path/element pair, same
+finding TASK-WF-FE-001 made for its own route and never contradicted since).
+Every existing page does its OWN internal role-gating after rendering
+(DocumentDetailPage.tsx's local hasRole pattern, referenced throughout
+fe.md's other tasks) — but none of them check whether `session` is non-null
+at all before attempting to render. A logged-out user navigating directly to
+/documents today would see the page attempt to load with `session === null`,
+and downstream behavior depends entirely on how each individual page happens
+to handle that (not verified uniformly across all 22 existing pages this
+session — out of scope to audit every one here).
+
+This task does not require auditing or fixing every existing page's
+null-session behavior — that is a larger, separate undertaking. This task
+DOES require building a single reusable guard for LoginPage and HomePage's
+own correctness (LoginPage should redirect away if already authenticated;
+HomePage should redirect to /login if not). Two honest options:
+
+- (a) A small `<RequireAuth>` wrapper component
+  (apps/web/src/components/RequireAuth.tsx or similar), checking
+  `useAuth().session`, rendering `<Navigate to="/login" replace />` when
+  null, otherwise rendering `children`. Wrap it around HomePage's route
+  definition in main.tsx. This is the natural foundation for eventually
+  wrapping every authenticated route, though doing so for all 22 existing
+  routes is explicitly OUT OF SCOPE for this task — build the wrapper, apply
+  it to HomePage only (and optionally the reverse-guard on LoginPage), and
+  leave a code comment noting it's intended to be the shared pattern for
+  future route-guarding work.
+- (b) Inline the check directly inside HomePage/LoginPage's own component
+  bodies (matching the existing per-page-responsibility convention).
+
+Pick one and state your reasoning in your PR description — this codebase
+doesn't yet have a settled answer, and this task is a reasonable point to
+start one, but forcing a full retrofit of all existing routes is scope
+creep beyond what this task needs.
+
+────────────────────────────────────────────────────────────────────────────
+ROUTE REGISTRATION
+
+apps/web/src/main.tsx:
+1. Replace the existing `{ path: "/", element: <div>Batac DMS Home</div> }`
+   entry with `{ path: "/", element: <HomePage /> }` (or wrapped in your
+   chosen guard from above).
+2. Add `{ path: "/login", element: <LoginPage /> }` — register it before
+   "/" in the array for readability (not load-bearing for routing
+   correctness, React Router v6 doesn't require path-order for non-nested
+   static routes, but matches this file's general top-of-file convention for
+   entry-point-adjacent routes).
+3. Add a wildcard fallback: `{ path: "*", element: <NotFoundPage /> }` at
+   the END of the route array. This requires a third new small component,
+   apps/web/src/pages/NotFoundPage.tsx — a minimal "page not found" view
+   with a link back to `/`. This wasn't originally scoped in this task's
+   title but is a natural, small companion gap (confirmed zero wildcard
+   route exists anywhere) — build it, it's a five-minute addition once
+   you're already touching main.tsx's route array, not a separate task
+   worth its own overhead.
+
+────────────────────────────────────────────────────────────────────────────
+OPEN ARCHITECTURE QUESTION — DO NOT SILENTLY RESOLVE
+
+ADR-UI-012 (docs/pre-development/F-frontend-architecture/f2-zustand-store-design-adrs/ADR-UI-012-session-store-rolecodes-shape.md,
+read in full, Status: Accepted) mandates a Zustand `useSessionStore` with an
+`isHydrated: false | true` state specifically so route guards "don't flash
+an incorrect redirect" (ADR's own rationale, point 1). The actual codebase
+uses `auth-context.tsx`'s React Context instead — no `useSessionStore`, no
+`isHydrated` flag, exists anywhere (confirmed via repo-wide grep, zero
+matches for either term outside this ADR document itself). The findings log
+was checked in full this session (72 entries, LOG-0001 through LOG-0094) —
+no entry addresses this discrepancy.
+
+This matters concretely for THIS task: `auth-context.tsx`'s `refresh()` is
+called once on mount (line 100, `useEffect(() => { void refresh(); },
+[refresh])`) to silently restore a session after a page reload, but there is
+no exposed "is this restoration attempt still in flight" boolean — `session`
+starts as `null` and either stays `null` (not logged in) or becomes populated
+(logged in), with no third state distinguishing "haven't checked yet" from
+"checked, and you're logged out." This means HomePage's route guard, built
+naively, WILL flash a redirect to /login on every page reload for an
+actually-logged-in user, for the brief window before the silent refresh
+resolves — exactly the bug ADR-UI-012 says its `isHydrated` flag exists to
+prevent.
+
+Two honest paths, and this task should NOT pick one unilaterally:
+1. **Minimal, in-scope-only fix:** add a local `isLoading`/similar boolean to
+   auth-context.tsx itself (not a full Zustand migration), set true until
+   the initial `refresh()` call resolves, and have your route guard check
+   that boolean before deciding to redirect. This is a small, contained
+   change to an existing file, directly needed for this task's own
+   correctness, and does not require resolving the larger
+   Context-vs-Zustand architecture question.
+2. **Larger, explicitly out-of-scope fix:** migrate auth-context.tsx to a
+   genuine `useSessionStore` Zustand store matching ADR-UI-012/F2 §5's full
+   spec. This is a real, separate undertaking — every existing page that
+   currently calls `useAuth()` (confirmed multiple consumers via grep) would
+   need updating, and F2 itself hasn't been read in full this session to
+   scope that migration properly. DO NOT attempt this as part of TASK-WF-FE-004.
+
+Implement path 1 (the minimal fix) as part of this task — it's necessary for
+HomePage/LoginPage to work correctly regardless of the larger question. Do
+NOT attempt path 2. Append a findings-log entry (LOG-0095, verify this is
+still the next free number when you actually write it — do not trust the
+number quoted here without checking the log's current tail yourself) stating
+plainly that auth-context.tsx's Context pattern has diverged from ADR-UI-012's
+Zustand mandate, that this task applied only the minimal in-scope fix, and
+that the larger reconciliation is a decision for a human to make, not
+something this task resolved. Label it `status: proposed`, per every other
+agent-authored entry in this log.
+
+────────────────────────────────────────────────────────────────────────────
+NON-GOALS — DO NOT BUILD
+
+- PlatformAdminHomePage / the missing `/admin` landing shell — a separate,
+  smaller gap, flagged above for a future task, not built here.
+- Auditing or retrofitting all 22 existing routes with the RequireAuth guard
+  — apply it only to the two new routes this task adds.
+- The full useSessionStore Zustand migration — explicitly deferred, see
+  above.
+- Any change to iam.routes.ts, iam.service.ts, or any backend file — the
+  entire backend auth flow already works correctly; this task is
+  frontend-only.
+- "Remember me" / persistent-login checkboxes, password-reset flows, MFA
+  entry UI (session.user.mfaEnabled exists as a field but no MFA challenge
+  flow is specified anywhere in the source documents reviewed this session)
+  — none of these are in scope; build a plain username/password form only.
+- The /api/auth/unlock and /api/auth/lock endpoints (confirmed real,
+  iam.routes.ts lines 278-407) — these back a session-lock/re-auth flow with
+  no corresponding frontend page or context method anywhere (auth-context.tsx
+  exposes no `lock`/`unlock` functions). This is a separate, real gap, but
+  distinct from plain login — flag it in your PR description as a further
+  follow-up candidate, do not attempt to build it here.
+
+────────────────────────────────────────────────────────────────────────────
+DELIVERABLE CHECKLIST
+
+1. New directory apps/web/src/pages/auth/
+2. apps/web/src/pages/auth/LoginPage.tsx — username/password form calling
+   the existing useAuth().login(), generic error display (or enhanced error
+   display if you also modify auth-context.tsx's login() to surface response
+   codes — your choice, state it), already-authenticated redirect to /.
+3. apps/web/src/pages/HomePage.tsx — role-based redirect to /secretary,
+   /mayor, or /sysadmin per session.roleCodes with a documented priority
+   order for multi-role sessions, generic landing view fallback for all
+   other roles, not-authenticated redirect to /login.
+4. apps/web/src/pages/NotFoundPage.tsx — minimal 404 view.
+5. A route guard (RequireAuth wrapper or inline checks — your choice,
+   documented) applied to the two new routes.
+6. A minimal isLoading/hydration-tracking addition to auth-context.tsx (the
+   "minimal fix" from the Open Architecture Question section) — necessary
+   for the route guard to not flash-redirect on reload.
+7. Three new route registrations in main.tsx: "/login", updated "/", and a
+   wildcard "*" fallback.
+8. A findings-log entry (LOG-0095 or the actual next free number — verify
+   before writing) documenting the ADR-UI-012/auth-context.tsx divergence,
+   status: proposed.
+9. State explicitly in your PR description: (a) which route-guard approach
+   you chose and why; (b) whether you enhanced auth-context.tsx's error
+   surfacing beyond the generic "Login failed" message; (c) confirmation you
+   did not touch any backend file; (d) the multi-role redirect priority
+   order you chose for HomePage; (e) explicit flagging of the two follow-up
+   gaps noted above (missing PlatformAdminHomePage/`/admin` shell, and the
+   unbuilt lock/unlock session flow) as candidates for future tasks, not
+   silently dropped.
+````
+
+---
+
+## TASK-WF-FE-005
+
+````
+CONTEXT — READ THIS FIRST
+
+You are implementing TASK-WF-FE-005, a new standalone frontend task. Read
+AGENTS.md before doing anything else if you have not already internalized it
+this session. The applicable routing row is "Build a frontend page or view
+in /apps/web" → F4 → F1 → F5 → J6 → I2 → E1, plus "Write a Zustand store"
+(F2 → F1 → E3) since this task consumes an existing Zustand store
+(useLayoutStore) though it does not design a new one.
+
+Sequencing note: this task is independent of TASK-WF-FE-004 (LoginPage/
+HomePage) and can be built in either order or in parallel — it does not
+depend on either of that task's new routes. It DOES touch main.tsx's route
+array, the same file TASK-WF-FE-004 touches, so if both are being worked in
+parallel by different agents, coordinate on merge order to avoid a
+conflicting main.tsx diff — not a design dependency, a mechanical one.
+
+────────────────────────────────────────────────────────────────────────────
+WHY THIS TASK EXISTS — VERIFIED GAP
+
+F5 (docs/pre-development/F-frontend-architecture/f5-ui-component-library-setup-and-package-architecture.md,
+§4.3 Tier 3, lines 520-608, read in full) specifies three components —
+AppShell, Sidebar, Topbar — plus PageHeader, with AppShell's own description
+stating plainly: "Persistent layout frame for ALL authenticated views in
+apps/web." All three are confirmed fully built and correctly exported:
+`export * from './components/domain/AppShell'` (and Sidebar, Topbar,
+PageHeader) all present in packages/ui/src/index.ts lines 37-40, confirmed
+by direct read. A working dev showcase exists and renders correctly:
+apps/web/src/pages/dev/AppShellPage.tsx, registered at
+/dev/components/app-shell.
+
+apps/web/src/stores/layout.store.ts also exists, fully implemented, matching
+F5's exact spec for what should drive AppShell's sidebarCollapsed prop
+(useLayoutStore, Zustand, persisted to localStorage under key
+"batac-dms:layout", confirmed by direct read).
+
+**Neither is used by a single real page.** Confirmed via repo-wide grep this
+session: `grep -rl "AppShell" apps/web/src/pages/` returns only the dev/
+directory. `grep -rl "useLayoutStore" apps/web/src/` returns only the store's
+own definition file — zero consumers anywhere, not even the dev showcase
+page (which uses local useState instead, per direct read of
+AppShellPage.tsx lines 27, 36). Every one of the 22 real, already-built pages
+in apps/web/src/pages/ (documents/, workflow/, organization/, iam/,
+sysadmin/) renders as a standalone content block with no shared sidebar,
+topbar, or navigation — confirmed by direct read of OrganizationPage.tsx's
+imports (PageHeader, Card, Dialog, etc. from @batac/ui — no AppShell,
+Sidebar, or Topbar) as a representative sample, and no contradicting example
+found in a broader scan of the same import block pattern across the other
+21 page files.
+
+This is the single largest concrete gap behind what your prompt described as
+"the main pages/components are already made, we just need to complete it" —
+the components ARE made, genuinely, to spec, and correctly. They were simply
+never assembled into the app frame that wraps the real pages.
+
+────────────────────────────────────────────────────────────────────────────
+WHAT TO BUILD
+
+Component: `AuthenticatedLayout`
+New file: apps/web/src/components/AuthenticatedLayout.tsx
+(new directory: apps/web/src/components/ — confirmed no such directory
+exists yet in apps/web/src at the time of this session's exploration, only
+pages/, hooks/, lib/, stores/, types/, config/. This is the natural home for
+a cross-cutting layout wrapper that isn't itself a routed page — do not put
+it under pages/, since it is not a route target itself.)
+
+This is a composing wrapper, not a new visual design — it assembles the
+already-built AppShell + Sidebar + Topbar using real session data and real
+navigation state, and is meant to wrap every authenticated route via
+React Router's nested-route / Outlet pattern.
+
+────────────────────────────────────────────────────────────────────────────
+DATA WIRING — EXACT PROP SOURCES, VERIFIED
+
+`sidebarCollapsed` / `onSidebarToggle`: from `useLayoutStore()` — confirmed
+shape `{ sidebarCollapsed: boolean, toggleSidebar: () => void,
+setSidebarCollapsed: (collapsed: boolean) => void }` (layout.store.ts,
+already read in full this session). Use `toggleSidebar` directly as
+`onSidebarToggle`.
+
+`currentUser` (shared `SidebarUser` type per F5's spec, `{ name: string,
+role: string }`): F5 states this type "should be defined once in
+packages/ui/src/components/domain/types.ts" — check whether it already is
+(not independently verified this session; check before assuming) and import
+it rather than redeclaring locally if it exists.
+
+**Genuinely open, not resolved by any source document checked this
+session:** `AuthSession` (auth-context.tsx) has no `name` field at all —
+only `user: { id, username, email, cityId, status, mfaEnabled, createdAt,
+updatedAt }` and a separate top-level `roleCodes: string[]`. There is no
+single human-readable "display name" anywhere in the session shape, and
+`roleCodes` is a plural array of role code strings (e.g. 'sp_secretary'),
+not a single human-readable role label (e.g. "SP Secretary"). You will need
+to make two small mapping decisions:
+1. What to show for `SidebarUser.name` — `session.user.username` is the only
+   candidate field that exists today. Use it. Do not invent a display-name
+   field on the backend as part of this task; that's a separate, larger
+   change (would need a new column and a login-response schema change, well
+   beyond this task's scope) — flag it in your PR description as a
+   possible future enhancement, but ship against `username` for now.
+2. What to show for `SidebarUser.role` when `roleCodes` may contain more
+   than one code — build a small local role-code-to-label lookup (e.g.
+   'sp_secretary' → "SP Secretary", matching the readable names already
+   used in F1 §2.2's role reference table, which you should cross-reference
+   for the exact 13 label strings rather than inventing your own wording)
+   and, for multi-role sessions, pick the first matching role in the same
+   priority order you establish in TASK-WF-FE-004 for HomePage's redirect
+   logic if that task has already landed (mayor > sp_secretary > sys_admin >
+   ...), or a reasonable default ordering of your own if it hasn't — state
+   your choice explicitly either way.
+
+`onUserMenuAction`: Topbar's real prop signature accepts
+`(action: 'profile' | 'logout') => void` (F5 spec, confirmed). Wire
+`'logout'` to `useAuth().logout()` directly — this already works, already
+calls the real backend endpoint, already clears the session. Wire
+`'profile'` to... nothing meaningful currently exists to navigate to (no
+account-settings page exists — confirmed, and F1 §16 explicitly, deliberately
+excludes one: "Generic account settings / profile management ... no named F1
+view covers this"). Do not build a fake destination for 'profile' — either
+omit the action from the menu, disable it with a "coming soon" affordance,
+or make it a no-op with a code comment explaining why; your choice, but do
+not silently navigate somewhere incorrect.
+
+`breadcrumbs` (Topbar prop, `BreadcrumbItem[]`): genuinely the hardest part
+of this task to get right generically, because breadcrumbs are inherently
+per-route, not a single fixed value AuthenticatedLayout can hardcode once.
+Two honest approaches:
+- (a) A route-to-breadcrumb-label lookup table maintained inside
+  AuthenticatedLayout itself (or a colocated file), keyed by pathname,
+  checked against `useLocation()` from react-router-dom. Simple to build,
+  but every new route added in the future requires remembering to add an
+  entry here too — a real maintenance cost, worth naming explicitly.
+- (b) Each individual page supplies its own breadcrumb trail via a small
+  context or a route-data mechanism, with AuthenticatedLayout only rendering
+  whatever the active page provides. More correct long-term, meaningfully
+  more work, and touches every existing page file to add breadcrumb data —
+  a much larger blast radius than this task's stated scope.
+Given AppShell/Sidebar/Topbar wiring is already the primary deliverable
+here, build option (a) — the lookup table — for this task. Cover, at
+minimum, every route currently registered in main.tsx (confirmed 41 real
+routes as of this session, not counting /dev/* showcase routes, which do
+not need breadcrumbs since they're not part of the authenticated app
+experience proper). Document in a code comment that this table needs a new
+entry whenever a future route is added, and that option (b) is the more
+scalable fix if this becomes a recurring maintenance burden — do not build
+option (b) as part of this task.
+
+────────────────────────────────────────────────────────────────────────────
+SIDEBAR NAV ITEMS — ROLE-FILTERED, VERIFIED AGAINST REAL ROUTE GATES
+
+Sidebar's `items: NavItem[]` prop needs a curated, not exhaustive, list —
+not literally all 41 registered routes (many are detail/edit sub-routes like
+/documents/:documentId that don't belong in persistent top-level nav; some,
+like /complaints/new, are actions reached from within the /complaints list
+page, not top-level destinations).
+
+Build a nav item list covering the genuinely top-level destinations:
+/documents, /workflow/steps, /order-of-business, /sessions, /complaints,
+/document-requests, /organization, plus the role-specific dashboards
+(/secretary, /mayor) and admin sections (/admin/committees, /admin/roles,
+/sysadmin) — filtered per-session so a given user only sees items their role
+can actually reach. Cross-reference each target route's ACTUAL role gate
+(read the target page's own component file, not just F1's prose, since
+several of this codebase's existing pages have role lists that diverge from
+F1 in confirmed, documented ways — e.g. TASK-WF-FE-001's own finding that
+F1/E1/I2 collectively omit `auditor` from a role list the live code
+includes) before deciding whether to show a nav item to a given role.
+
+This is real, non-trivial cross-referencing work across ~10 target pages'
+actual role checks — budget real time for it rather than copying F1's
+role table uncritically, given this codebase's own established pattern of
+F1 prose sometimes lagging the live implementation.
+
+────────────────────────────────────────────────────────────────────────────
+WIRING INTO ROUTING — NESTED ROUTE PATTERN
+
+main.tsx currently registers all routes as flat, independent path/element
+pairs (confirmed, no nesting anywhere). To wrap authenticated pages in
+AuthenticatedLayout without individually editing all 22+ existing page
+components, use React Router v6's nested-route + `<Outlet />` pattern:
+
+```tsx
+// Inside AuthenticatedLayout.tsx
+import { Outlet } from 'react-router-dom';
+// ... AppShell wiring as described above ...
+return (
+  <AppShell ...>
+    <Outlet />
+  </AppShell>
+);
+```
+
+Then in main.tsx, restructure the relevant routes as children of a single
+parent route whose element is `<AuthenticatedLayout />`, rather than each
+being a top-level sibling. This is a real, non-trivial restructuring of
+main.tsx's route array — every existing authenticated route (all of them
+except /login, once TASK-WF-FE-004 lands, and the /dev/* showcase routes,
+which should NOT be wrapped in AuthenticatedLayout since they're
+development-only tooling, not part of the real app chrome) moves from a
+top-level entry to a nested child entry.
+
+**Import statements do not need to change** — moving a route to be a nested
+child of a parent route object doesn't change how its element is imported at
+the top of the file, only where the `{ path, element }` pair sits inside the
+`createBrowserRouter([...])` array structure.
+
+**Do not restructure /dev/* routes into this nesting** — they're
+intentionally standalone tooling pages outside the authenticated-user
+experience, and AppShellPage itself already demonstrates AppShell usage on
+its own terms as a dev showcase; wrapping it in the real
+AuthenticatedLayout would be redundant and potentially confusing (a shell
+inside a shell).
+
+If TASK-WF-FE-004 has already landed by the time you do this work, `/` and
+the new NotFoundPage's wildcard route should also be nested under
+AuthenticatedLayout (both are post-login, authenticated-only experiences);
+`/login` should NOT be (logging in happens before there's a session to
+build a sidebar/topbar around). If TASK-WF-FE-004 has not yet landed, build
+this task's nesting around the routes that currently exist, and leave a
+code comment noting `/` and any future /login route need to be
+slotted into the correct side of this nesting boundary once that task lands.
+
+────────────────────────────────────────────────────────────────────────────
+ROLE-GATING INTERACTION — DOES NOT REPLACE EXISTING PER-PAGE CHECKS
+
+AuthenticatedLayout wrapping a route does NOT replace that page's own
+internal role/session checks (e.g. DocumentDetailPage's local hasRole
+pattern) — it only adds shared visual chrome around it. A page that
+currently redirects or shows a FORBIDDEN state internally should continue
+to do so exactly as before; AuthenticatedLayout's own responsibility is
+narrowly the sidebar/topbar/nav-filtering described above, not a second,
+duplicate authorization layer. Do not remove or weaken any existing page's
+own role-gating as a side effect of this restructuring — this task changes
+WHERE in the component tree a page renders (nested under a layout, instead
+of standalone), not WHETHER it renders.
+
+────────────────────────────────────────────────────────────────────────────
+NON-GOALS — DO NOT BUILD
+
+- A route guard checking for `session !== null` before rendering
+  AuthenticatedLayout's children at all — that's TASK-WF-FE-004's scope
+  (RequireAuth or equivalent), not this task's. This task assumes a session
+  already exists by the time AuthenticatedLayout renders; if
+  TASK-WF-FE-004 hasn't landed yet, a logged-out user reaching an
+  AuthenticatedLayout-wrapped route today will see a sidebar/topbar built
+  around a null session (SidebarUser fields would be undefined/empty) —
+  a real but narrow rough edge, acceptable as an interim state until
+  TASK-WF-FE-004's guard lands, not something to solve twice.
+- The notifications bell's actual functionality (Topbar's
+  `notificationCount`/`onNotificationClick` props) — F1 §16 explicitly
+  defers a dedicated notifications page, "assumed to back a header dropdown
+  widget," `[Speculation]` per F1's own notation. No notifications backend
+  procedure list was confirmed against this session's reading. Render the
+  bell icon with `notificationCount` hardcoded to 0 (or omitted, letting
+  Topbar's own default apply if it has one — check the component's actual
+  implementation) and `onNotificationClick` as a no-op or a small
+  "coming soon" toast, rather than building real notification-fetching
+  logic — that's a separate, larger, not-yet-scoped feature.
+- Any change to AppShell, Sidebar, or Topbar's own internal implementation
+  in packages/ui — they are correctly built to spec; this task only
+  consumes them from apps/web, it does not modify packages/ui.
+- The missing PlatformAdminHomePage/`/admin` landing shell (same gap
+  TASK-WF-FE-004 flags) — if you add an /admin/* nav item, it should point
+  at /admin/committees or /admin/roles directly (both real, both already
+  built) rather than a non-existent /admin parent route, until that gap is
+  separately closed.
+
+────────────────────────────────────────────────────────────────────────────
+DELIVERABLE CHECKLIST
+
+1. New directory apps/web/src/components/
+2. apps/web/src/components/AuthenticatedLayout.tsx — composes AppShell +
+   Sidebar + Topbar using useLayoutStore, useAuth(), a role-filtered nav
+   item list, a route-to-breadcrumb lookup table, and an Outlet for nested
+   children.
+3. A role-code-to-readable-label lookup (colocated or in a small shared
+   file) for Sidebar/Topbar's currentUser.role display, sourced from F1
+   §2.2's 13-role reference table.
+4. main.tsx restructured: authenticated routes nested as children of a
+   single AuthenticatedLayout parent route; /dev/* routes and /login (if it
+   exists by the time you do this work) left as top-level siblings, not
+   nested.
+5. Sidebar nav items cross-referenced against each target page's actual
+   (not just F1's documented) role gate.
+6. State explicitly in your PR description: (a) your breadcrumb-lookup
+   approach and its maintenance-cost tradeoff, acknowledged; (b) your
+   multi-role priority ordering for currentUser.role display, and whether
+   it matches TASK-WF-FE-004's HomePage ordering if that task has landed;
+   (c) confirmation /dev/* routes were deliberately excluded from the
+   AuthenticatedLayout nesting and why; (d) the interim rough-edge you're
+   accepting if TASK-WF-FE-004 hasn't landed yet (null-session rendering
+   inside AppShell).
+````
+
+---
+
+## TASK-FE-ORG-003
+
+````
+CONTEXT
+
+New standalone task, no existing fe.md entry. Read AGENTS.md first if not
+already internalized this session — routing row "Build a frontend page or
+view in /apps/web" → F4 → F1 → F5 → J6 → I2 → E1.
+
+────────────────────────────────────────────────────────────────────────────
+WHY THIS TASK EXISTS
+
+F1's master route table (Section 4, read in full this session) has a row for
+`/admin` — "PlatformAdminHomePage | Platform Administrator | — (landing
+shell)" — structurally identical in kind to the already-built `/sysadmin`
+row (SystemAdminHomePage, confirmed built and working, apps/web/src/pages/
+sysadmin/SystemAdminHomePage.tsx). The route hierarchy diagram (Section 3)
+shows `/admin` as the parent of four children: /admin/committees,
+/admin/config, /admin/delivery-logs, /admin/roles, plus /admin/announcements
+per a later ADR resolution.
+
+Confirmed via direct repo check this session: `/admin/committees` and
+`/admin/roles` are both built and registered in main.tsx. `/admin/config`
+and `/admin/delivery-logs` are NOT built (blocked separately — see Non-Goals
+below, this is expected and not this task's problem). `/admin` itself — the
+PARENT landing shell — has no corresponding file anywhere in
+apps/web/src/pages/ and no route registration in main.tsx (confirmed: only
+"/admin/committees" and "/admin/roles" appear as literal path strings in the
+file, never "/admin" alone).
+
+This mirrors SystemAdminHomePage's existing pattern exactly and should be
+comparably small — this is not a large task, but it's a real, missing file,
+and TASK-WF-FE-004 (LoginPage/HomePage) explicitly flags plat_admin as a
+role with nowhere to land, deferring the fix here.
+
+────────────────────────────────────────────────────────────────────────────
+WHAT TO BUILD
+
+Component: `PlatformAdminHomePage`
+Route: `/admin`
+New file: apps/web/src/pages/organization/PlatformAdminHomePage.tsx
+
+Placement note: F1's component name suggests no obvious module home; ORG is
+the closest existing directory by convention (CommitteeManagementPage and
+OrganizationPage both already live in pages/organization/, and
+/admin/committees is ORG-adjacent) but this is a judgment call, not a
+settled convention — if you disagree, pick a different placement (e.g. a new
+pages/admin/ directory, matching sysadmin/'s own precedent) and state your
+reasoning in your PR description. Either is defensible; this task list does
+not mandate one.
+
+Mirror SystemAdminHomePage.tsx's existing structure closely — read that file
+in full before building this one. It is confirmed to be a minimal landing
+shell with no data-fetching of its own (per its own fe.md task's Deliverables
+description, "landing shell... no data fetching of its own"), linking out to
+its children via a PageHeader plus link cards.
+
+────────────────────────────────────────────────────────────────────────────
+CONTENT — LINK OUT TO WHAT ACTUALLY EXISTS, NOT WHAT F1 PROMISES
+
+F1's route hierarchy lists five children under /admin: committees, config,
+delivery-logs, roles, announcements. Confirmed this session: only two are
+actually built (committees, roles). Build PlatformAdminHomePage to link only
+to what's real:
+- A card/link to /admin/committees (built, working).
+- A card/link to /admin/roles (built, working).
+- Do NOT add cards linking to /admin/config, /admin/delivery-logs, or
+  /admin/announcements — none of these routes exist, and a landing page
+  linking to dead routes is a worse experience than a landing page that
+  simply doesn't mention unbuilt features yet. If you want to acknowledge
+  they're coming, a plainly-disabled or "coming soon"-labeled card is
+  acceptable (matching the `disabled` pattern already supported by the
+  Sidebar NavItem type per F5's spec, if you choose to reuse that shape
+  here), but do not build them as functional links.
+
+────────────────────────────────────────────────────────────────────────────
+ROLE GATE
+
+Platform Administrator only, mirroring F1's own stated gate for this route
+and consistent with every other page in this codebase that checks
+`ctx.auth.isPlatformAdmin`-equivalent client state rather than a generic
+`roles.includes('plat_admin')` array check — confirmed this specific
+boolean-flag convention (not array-includes) is used by IAM module
+procedures per TASK-FE-IAM-001's own already-completed task notes in fe.md.
+Check apps/web/src/lib/auth-context.tsx's actual AuthSession shape (already
+read in full this session) — note it currently only exposes `roleCodes:
+string[]`, NOT a `isPlatformAdmin` boolean equivalent. This means this page
+should check `session.roleCodes.includes('plat_admin')` on the frontend
+(array-based, since that's genuinely all the frontend has available), even
+though the backend's own internal check uses a different boolean-flag
+mechanism — these are two different layers with two different real
+implementations, and the frontend should use what's actually available to
+it rather than assuming a boolean flag exists client-side that doesn't.
+
+────────────────────────────────────────────────────────────────────────────
+NON-GOALS — DO NOT BUILD
+
+- /admin/config or /admin/delivery-logs themselves — both are separately,
+  genuinely blocked (config per F1's own note that "a detailed config-screen
+  spec must exist before backend work can even start," delivery-logs on the
+  unbuilt NOTIF module) — this task only builds the parent shell, not its
+  missing children.
+- /admin/announcements — blocked on backend procedures per ADR-UI-006 that
+  were not confirmed built this session; do not assume they exist without
+  checking apps/server/src/modules for a notifications/announcements router
+  first, and do not build this page's frontend if that backend doesn't
+  exist yet.
+- Any change to AuthenticatedLayout or main.tsx's broader routing structure
+  beyond adding this one new route — if TASK-WF-FE-005 has already landed,
+  register /admin as a nested child of AuthenticatedLayout matching every
+  other authenticated route's pattern; if it hasn't, register it as a
+  top-level entry in main.tsx exactly like every other currently-registered
+  route, and don't attempt to build the nesting structure yourself as a
+  side effect of this smaller task.
+
+────────────────────────────────────────────────────────────────────────────
+DELIVERABLE CHECKLIST
+
+1. apps/web/src/pages/organization/PlatformAdminHomePage.tsx (or your chosen
+   alternate placement, documented) — minimal landing shell, no data
+   fetching, links only to /admin/committees and /admin/roles.
+2. Route registration: main.tsx, path "/admin".
+3. Role gate: `session.roleCodes.includes('plat_admin')` client-side check,
+   with the boolean-flag-vs-array-check discrepancy from the backend noted
+   in a code comment.
+4. State in your PR description: your placement choice (organization/ vs. a
+   new admin/ directory) and reasoning.
+````
+
+---
+
+## What's still not attempted, and why — new items this task list surfaces
+
+- **`useSessionStore` (ADR-UI-012 / F2 §5) vs. `auth-context.tsx`'s React Context** — a real, verified architecture divergence, not resolved here. TASK-WF-FE-004 applies a narrow, local fix (an `isLoading` flag) sufficient for its own correctness, and files a findings-log entry rather than migrating the whole app. A full reconciliation is a human decision with real blast radius (every page calling `useAuth()`), same category as TASK-PRE-03/TASK-PRE-04's "not an agent's call to make unilaterally" reasoning.
+- **`/api/auth/lock` and `/api/auth/unlock`** — confirmed real, working backend endpoints (session-lock/re-auth-while-locked flow) with zero frontend surface anywhere. Flagged in TASK-WF-FE-004 as a follow-up candidate, not built.
+- **`/admin/config`, `/admin/delivery-logs`, `/admin/announcements`** — all three remain blocked exactly as fe.md's own existing "What's still not attempted" section already documented (config needs a spec first; delivery-logs needs NOTIF; announcements needs ADR-UI-006's procedures confirmed). TASK-FE-ORG-003 deliberately does not link to any of them.
+- **Retrofitting all 22 existing pages with `AuthenticatedLayout`** — TASK-WF-FE-005 builds the nesting structure and moves every currently-registered route under it, so in practice this does get done as part of that task's main.tsx restructuring — but auditing each of the 22 pages' own internal null-session handling is explicitly out of scope and not verified page-by-page in this session.
+
+---
+
+## TASK-WF-FE-006
+
+````
+CONTEXT — READ THIS FIRST
+
+You are implementing TASK-WF-FE-006. This resolves the divergence
+TASK-WF-FE-004 deliberately deferred (its "Open Architecture Question"
+section, and the LOG-0095 entry it filed) between auth-context.tsx's React
+Context and F2/ADR-UI-012's mandated useSessionStore. TASK-WF-FE-004 applied
+a narrow local fix (an isLoading flag on auth-context.tsx) sufficient for its
+own correctness and explicitly did NOT attempt this migration. This task now
+does.
+
+Read AGENTS.md before doing anything else if you have not already
+internalized it this session. Applicable rows, union per Section 2's
+multi-row instruction: "Write a Zustand store" (F2 → F1 → E3) AND "Build a
+frontend page or view in /apps/web" (F4 → F1 → F5 → J6 → I2 → E1), since this
+task both designs/builds a new store per spec and rewires every page that
+consumes it.
+
+Read F2 in full before starting (docs/pre-development/F-frontend-architecture/f2-zustand-store-design.md,
+1038 lines) — Section 1 (the Zustand/TanStack Query boundary), Section 2
+(store inventory), and Sections 4-5 (useShellStore, useSessionStore) are
+directly load-bearing for this task and were read in full during this
+session's discovery; the rest of the document (Stores 3-11) is NOT this
+task's concern and does not need re-reading, but skim its ToC so you don't
+accidentally step on a different store's territory while touching
+apps/web/src/stores/.
+
+Before starting, check docs/development-findings-log.md for status changes
+on LOG-0095 (filed by TASK-WF-FE-004, documenting this exact divergence) and
+anything newer touching F2, useSessionStore, or iam.getCurrentUser — this
+session's read ended at LOG-0094, with LOG-0095 to be filed by this task
+itself if TASK-WF-FE-004 has not already done so (check before assuming;
+this prompt was written assuming TASK-WF-FE-004 landed first, but if it
+hasn't, file LOG-0095 as part of this task instead, using the same content
+this prompt would have referenced).
+
+────────────────────────────────────────────────────────────────────────────
+WHY THIS IS A RESOLUTION, NOT A DEFERRAL — READ BEFORE OBJECTING TO SCOPE
+
+A prior pass on this task list treated the Context-vs-Zustand question as a
+product decision requiring human sign-off, in the same category as
+TASK-PRE-03 (audit procedure scoping) and TASK-PRE-04 (designation vs.
+delegation). It is not the same category, and F2 itself settles this:
+
+F2's closing paragraph (line 1037, read in full and verbatim): "This document
+supersedes any informal or ad-hoc Zustand store definitions that may exist in
+/apps/web prior to Phase 1 development start... in full." Section 18 (line
+1021): "All items... are resolved... F2 carries zero open items."
+
+auth-context.tsx is exactly the kind of informal, ad-hoc pattern this
+sentence describes — it was never itself proposed as an alternative to
+useSessionStore in any ADR, findings-log entry, or other document checked
+this session; it simply exists, unreconciled, alongside a spec that already
+claims supersession over it. This is a code/spec conformance gap (matching
+the officeType-enum and stepKey-naming category of fixes fe.md's existing
+tasks apply directly), not an open product question. Do not re-litigate
+whether useSessionStore is the right design — F2 already made that call, and
+ADR-UI-012 through ADR-UI-016 record five rounds of the team explicitly
+refining and confirming its exact shape. Your job is conformance, not a
+second design pass.
+
+What genuinely IS still open, and is a decision within THIS task's scope for
+you to make deliberately (not silently) — see the two subsections below —
+is HOW to sequence the migration given that F2's prescribed hydration
+mechanism has its own real, separate bug.
+
+────────────────────────────────────────────────────────────────────────────
+BLOCKING DISCOVERY — F2'S OWN HYDRATION MECHANISM IS BROKEN
+
+F2 §5's usage notes (line 214) prescribe: "On app mount, /apps/web calls the
+auth check endpoint (a tRPC iam.getCurrentUser call...). If the cookie is
+valid, the response is used to populate setIdentity."
+
+Confirmed via direct read this session: `iam.getCurrentUser`
+(apps/server/src/modules/iam/iam.router.ts, lines 17-32) is real, mounted,
+and protected — but its handler calls `service.getUserById(targetId)`
+(line 27), and `getUserById` (apps/server/src/modules/iam/iam.service.ts,
+line 197) is a literal stub: `getUserById: () => { throw new Error('not
+implemented') }`. Calling this procedure today throws unconditionally,
+regardless of session validity.
+
+This means a naive migration — swap auth-context.tsx for useSessionStore,
+point its hydration at iam.getCurrentUser exactly as F2 prescribes — would
+break session restoration on every page reload for every user, replacing a
+currently-working flow (auth-context.tsx's refresh() correctly calls the
+real, working POST /api/auth/refresh REST endpoint) with a call that always
+throws. This is not a reason to abandon the migration; it is a reason to
+sequence it correctly. Two real options:
+
+**(a) Fix `getUserById` first, as part of this same task, then hydrate
+exactly as F2 prescribes.** `getUserById` needs to return a `UserRow`-shaped
+object (same shape `findUserById` in iam.repository.ts already returns,
+confirmed real and working, used correctly by `updateOwnProfile` and several
+other real call sites in this file) for the target user. This is a small,
+contained fix — `getUserById: (id) => iamRepo.findUserById(id)` is very
+likely sufficient, though verify `iamRepo`'s exact binding/closure shape in
+this file before assuming that one-line change is complete (this session
+confirmed the stub's existence and `findUserById`'s real implementation
+separately, but did not trace whether `iamRepo` is already in scope at the
+stub's exact location — check before writing the fix).
+
+**(b) Keep useSessionStore's hydration source as the existing, working
+POST /api/auth/refresh REST call (not iam.getCurrentUser), diverging from
+F2's literal usage note on this one implementation detail while keeping
+everything else — the store shape, the actions, isHydrated, hasRole — exactly
+as spec'd.** This works today with zero backend changes, but means
+useSessionStore's setIdentity is populated from a REST response shape
+(AuthResponseSchema, confirmed real) rather than a tRPC iam.getCurrentUser
+response shape (UserRow, a different shape entirely — no roleCodes,
+officeScopeId, or officeCode on UserRow at all, confirmed by direct
+comparison of the two schemas this session). These two response shapes are
+NOT interchangeable — AuthResponseSchema is exactly what ADR-UI-012 was
+about (roleCodes/officeScopeId/officeCode added specifically for this
+purpose); UserRow is the raw user table row with none of that. Option (b) is
+therefore the ONLY viable choice if you don't also fix getUserById, since
+iam.getCurrentUser's actual current output cannot populate
+ActiveUserIdentity's required fields at all.
+
+**Recommendation for this task: do (a), fixing `getUserById`, BUT populate
+`setIdentity` from the SAME already-working POST /api/auth/refresh call's
+response for the actual hydration path (matching option (b)'s data source),
+while ALSO fixing getUserById as a small, independently-valuable, low-risk
+correctness fix (it's a stub throwing on every call — a real defect
+regardless of this migration, and iam.getCurrentUser has at least one other
+real call site's worth of value once fixed: a future profile page, per F1
+§16's own note that iam.getCurrentUser is "assumed... cross-cutting app-shell
+plumbing"). This gets you a working migration today without waiting on or
+blocking on the hydration-endpoint question, while also not leaving a known
+stub unfixed when the fix is this contained. State this choice, or your own
+different one, explicitly in your PR description — this task list is
+recommending, not mandating, a specific sequencing, and if you find a reason
+mid-implementation that changes the calculus, document it rather than
+silently overriding the recommendation without a trace.**
+
+Do NOT block this entire task on getUserById's fix if you choose differently
+— that would replicate exactly the kind of unnecessary blocking TASK-PRE-03/
+04 correctly avoid for decisions that ARE genuinely undecidable pre-dev; this
+one is not undecidable, it just has two reasonable sequencings, and you
+should pick one and move.
+
+────────────────────────────────────────────────────────────────────────────
+SECOND, SEPARATE BUG FOUND ALONG THE WAY — FLAG, DO NOT FIX HERE
+
+`updateOwnProfile` (apps/server/src/modules/iam/iam.service.ts, lines
+914-918) accepts `displayName`/`phoneNumber` via its input type but its body
+is exactly:
+```ts
+async updateOwnProfile(input: { userId: string; displayName?: string; phoneNumber?: string }): Promise<UserRow> {
+  const user = await iamRepo.findUserById(input.userId);
+  if (!user) throw new NotFoundError('User', input.userId);
+  return user;
+},
+```
+It reads the user back unchanged and returns it — neither field is ever
+written anywhere. Confirmed separately: no `displayName`/`display_name`
+column exists anywhere in packages/database/schema/iam.schema.ts's `users`
+table (repo-wide grep, zero matches) — so even a correct write
+implementation would need a new migration first, this isn't just a missing
+`UPDATE` statement.
+
+This is directly relevant to THIS task because F2's `ActiveUserIdentity`
+shape requires `displayName: string` (line 187, "computed from employee
+first+last, or username fallback") as a REQUIRED field, not optional. Since
+no real displayName source exists today (no column, no working write path,
+and — separately — no confirmed join to an `employees` table's first/last
+name either, not verified this session), this task's useSessionStore
+implementation should populate `displayName` with the username fallback
+ONLY (`identity.displayName = session.user.username`, matching what
+TASK-WF-FE-004's HomePage/AuthenticatedLayout work already settled on as an
+interim choice for SidebarUser.name, if that task has landed) — do not
+attempt to build the employee-first+last computation F2's comment describes
+as the primary source; that requires backend work (a real join, or a real
+displayName column with a real write path) well beyond this task's scope.
+
+Do NOT fix updateOwnProfile's no-op bug as part of this task — it's a real,
+separate defect but touches a different code path (profile editing, not
+session hydration) that this task doesn't otherwise need. File a
+findings-log entry for it (see Deliverable Checklist) and leave it for a
+future task explicitly scoped around profile management — which, per F1
+§16, doesn't have a page to attach to yet anyway (profile settings is one of
+F1's own confirmed, deliberate exclusions).
+
+────────────────────────────────────────────────────────────────────────────
+WHAT TO BUILD
+
+1. apps/web/src/stores/session.store.ts — new file, matching F2 §5's exact
+   spec: `ActiveUserIdentity` interface, `SessionState` (`identity`,
+   `isHydrated`), `SessionActions` (`setIdentity`, `clearIdentity`,
+   `setHydrated`). Match field names EXACTLY as F2 specifies —
+   `userId` not `id`, `roleCodes` not `roles`, etc. — since these will be
+   referenced throughout the 14 consumer files being migrated and a naming
+   drift here just relocates the Context-vs-spec divergence one level down
+   instead of closing it.
+
+2. apps/web/src/stores/shell.store.ts — new file, matching F2 §4's exact
+   spec: `ShellState` (`sidebarOpen`, `sidebarCollapsed`, `activeNavItem`),
+   `ShellActions` (six actions per spec). This REPLACES the existing
+   apps/web/src/stores/layout.store.ts, which is confirmed real but
+   incomplete against F2's spec — it has only `sidebarCollapsed` (no
+   `sidebarOpen` for the mobile drawer variant F2 describes, no
+   `activeNavItem`). Do not keep both files; layout.store.ts's one existing
+   field and its localStorage persistence pattern (name: "batac-dms:layout",
+   version: 1 — reasonable to carry forward unchanged) should inform
+   shell.store.ts's implementation, then layout.store.ts should be deleted.
+   Confirmed zero real consumers of layout.store.ts exist yet (repo-wide
+   grep, this session) — so this replacement has zero migration cost beyond
+   the file itself; nothing downstream needs updating for this specific
+   swap. If TASK-WF-FE-005 (AuthenticatedLayout) has already landed and
+   DOES consume layout.store.ts by the time you do this work, that file's
+   AppShell-wiring code needs updating to shell.store.ts's field names as
+   part of this task too — check before assuming zero consumers still holds.
+
+3. apps/web/src/stores/index.ts — barrel file per F2 §3's spec, re-exporting
+   both new hooks (and any other stores that may exist by the time this task
+   runs — check apps/web/src/stores/ for ui.store.ts, confirmed to already
+   exist and cover a different concern (modals/toasts) not touched by this
+   task; include it in the barrel too if a barrel doesn't already exist, or
+   extend the existing one if it does).
+
+4. apps/web/src/lib/auth-helpers.ts (or wherever hasRole currently lives —
+   confirmed a local, un-shared pattern per TASK-WF-FE-001's own findings;
+   check whether a later task already extracted it to this exact path) — add
+   or update a `hasRole(identity: ActiveUserIdentity | null, ...roles:
+   string[])` helper matching F2's own recommended pattern (line 216:
+   "hasRole(store.identity, 'sp_secretary')... not inline string comparisons
+   scattered across components"). If hasRole already exists locally per-file
+   in multiple places (confirmed pattern across DocumentDetailPage,
+   MyAssignedStepsPage, WorkflowStepActionPage per fe.md's own prior task
+   notes), this migration is the natural point to consolidate all of them
+   into one shared, session-store-aware version — do this as part of this
+   task rather than leaving N separate local copies each needing their own
+   signature update.
+
+5. apps/web/src/lib/auth-context.tsx — DELETE. Every real consumer migrates
+   to useSessionStore directly (see below). Do not leave it in place
+   "just in case" — a codebase with two competing session-state mechanisms
+   after this task is a worse outcome than either one alone.
+
+────────────────────────────────────────────────────────────────────────────
+MIGRATION — ALL 14 REAL CONSUMERS, CONFIRMED UNIFORM PATTERN
+
+Confirmed via repo-wide grep this session: exactly 14 files outside
+auth-context.tsx itself call `useAuth()`, and every single one uses the
+identical pattern `const { session } = useAuth();` — none calls `login`,
+`logout`, or `refresh` directly (those three are only ever called from
+inside auth-context.tsx itself, or — once TASK-WF-FE-004/005 land — from
+LoginPage and AuthenticatedLayout's Topbar wiring respectively, which this
+task also needs to update, see below). This is good news: the migration is
+mechanical, not 14 bespoke integrations.
+
+The 14 files (confirmed exact list, this session):
+- apps/web/src/pages/documents/ComplaintDetailPage.tsx
+- apps/web/src/pages/documents/DocumentDetailPage.tsx
+- apps/web/src/pages/documents/DocumentRequestDetailPage.tsx
+- apps/web/src/pages/iam/RoleAssignmentPage.tsx
+- apps/web/src/pages/organization/OrganizationPage.tsx
+- apps/web/src/pages/sysadmin/ActiveSessionsPage.tsx
+- apps/web/src/pages/sysadmin/SystemAdminHomePage.tsx
+- apps/web/src/pages/sysadmin/UserAccountManagementPage.tsx
+- apps/web/src/pages/workflow/MayorDashboardPage.tsx
+- apps/web/src/pages/workflow/MyAssignedStepsPage.tsx
+- apps/web/src/pages/workflow/OrderOfBusinessPage.tsx
+- apps/web/src/pages/workflow/SecretaryDashboardPage.tsx
+- apps/web/src/pages/workflow/WorkflowStepActionPage.tsx
+- apps/web/src/pages/workflow/panels/MultiReferralPanel.tsx
+
+For each: replace `import { useAuth } from '.../auth-context'` +
+`const { session } = useAuth();` with `import { useSessionStore } from
+'.../stores/session.store'` (or the barrel, `'.../stores'`, per your
+barrel-import convention choice) + `const identity = useSessionStore((s) =>
+s.identity);`. Then update every downstream reference in that file from
+`session.<field>` to `identity.<field>` PER FIELD, since field names are not
+identical between AuthSession and ActiveUserIdentity — confirm each
+individually rather than a blind find-replace:
+- `session.user.id` → `identity.userId` (note: nested under `.user` in the
+  old shape, flat in the new one)
+- `session.user.username` → `identity.username`
+- `session.roleCodes` → `identity.roleCodes` (unchanged name, still present)
+- `session.officeScopeId` → `identity.officeScopeId` (unchanged)
+- `session.officeCode` → `identity.officeCode` (unchanged)
+- `session.committeeIds` → **NO EQUIVALENT FIELD EXISTS on ActiveUserIdentity
+  per F2's spec as written.** Confirmed: F2 §5's ActiveUserIdentity interface
+  (lines 184-193) has no committeeIds field, and no ADR-UI-012 through
+  ADR-UI-016 adds one. This is a real gap in F2 itself, not something this
+  task invented — but it's directly load-bearing: LOG-0085 (confirmed, this
+  session's log read) documents committeeIds being added to AuthSession
+  specifically to fix ComplaintDetailPage's sp_member committee-scoping
+  check. ComplaintDetailPage.tsx (confirmed a real consumer above) reads
+  `session.committeeIds` directly. A literal migration to F2's spec as
+  written would silently regress this already-fixed, already-logged bug.
+  **Do not silently drop this field.** Add `committeeIds: string[]` to your
+  session.store.ts's ActiveUserIdentity interface as a deliberate,
+  documented DEVIATION from F2's literal text — state this explicitly in
+  your PR description and file a findings-log entry (see checklist) noting
+  that F2 §5 is missing a field its own downstream consumer (ComplaintDetailPage,
+  fixed via LOG-0085) genuinely needs; this is exactly the kind of
+  spec-lags-implementation gap AGENTS.md Section 1 says to flag rather than
+  silently follow the (incomplete) document over the (correct, tested)
+  code.
+- `session.expiresAt` → `identity.expiresAt` (unchanged)
+- `session.sessionId` → `identity.sessionId` (unchanged)
+- `session.user.email`, `session.user.status`, `session.user.mfaEnabled`,
+  `session.user.createdAt`, `session.user.updatedAt` → **NO EQUIVALENT on
+  ActiveUserIdentity**, and per F2's own explicit design (line 218: "The
+  store does NOT hold a full UserSelectSchema object... The full user
+  profile... is fetched by TanStack Query via iam.getCurrentUser when a
+  profile page or settings view needs it"), this is INTENTIONAL, not a gap
+  to fix. Before assuming this is safe to drop for a given consumer, grep
+  that specific file for whether it actually reads any of these five fields
+  (not verified per-file individually this session, only that `session.`
+  appears in each) — if one does, that specific usage needs its own TanStack
+  Query call added (`trpc.iam.getCurrentUser.useQuery()`, once the
+  getUserById stub is fixed per the "Blocking Discovery" section above) as
+  part of migrating that file, rather than assuming the field simply isn't
+  used anywhere.
+
+For the small number of files with additional useAuth() usage beyond a bare
+session read — none confirmed this session, but verify per-file rather than
+trusting this summary — apply the same field-by-field reasoning above rather
+than a mechanical search-replace.
+
+────────────────────────────────────────────────────────────────────────────
+HYDRATION WIRING — WHERE setHydrated/setIdentity/clearIdentity GET CALLED
+
+This logic currently lives inside auth-context.tsx's AuthProvider
+(useEffect calling refresh() once on mount, lines 98-101). Once
+auth-context.tsx is deleted, this needs a new home. Recommendation: a small
+new component, apps/web/src/components/SessionHydrator.tsx, mounted once at
+the top of the app (in main.tsx, wrapping <RouterProvider>, replacing the
+current <AuthProvider> wrapper) — a component with no visible UI, whose only
+job is: on mount, call the chosen hydration source (per the Blocking
+Discovery section's sequencing decision), then call `setIdentity` +
+`setHydrated` on success or `clearIdentity` + `setHydrated` on failure/401.
+This mirrors auth-context.tsx's existing working logic almost exactly, just
+relocated from a Context provider's effect to a small standalone mount-once
+component talking to the Zustand store instead of Context state.
+
+login()/logout() also currently live inside auth-context.tsx. These need a
+new home too — NOT inside session.store.ts itself (per F2's own boundary
+rule and store-independence note, §3: "Stores do not call each other's
+setters directly... cross-store coordination is done in component event
+handlers or custom hooks," and login/logout are side-effecting async
+operations against a REST endpoint, not pure state transitions, which is a
+different category of code than a Zustand action per F2's whole document's
+own pattern — every store's own "Actions" section is synchronous setters
+only, confirmed by scanning all 11 stores' Actions interfaces in F2's ToC
+during this session's skim). Recommendation: a small standalone hook,
+apps/web/src/hooks/useAuthActions.ts, exporting `login(username, password)`
+and `logout()` functions that internally call the same PKCE-generating
+fetch logic auth-context.tsx already has (this logic itself does not need to
+change, just relocate) and then call `useSessionStore.getState().setIdentity(...)`
+/ `.clearIdentity()` directly (using the imperative `.getState()` API rather
+than the hook form, since these are called from event handlers, not
+rendered reactively) on success.
+
+TASK-WF-FE-004's LoginPage (if landed) needs updating to import from
+useAuthActions instead of useAuth. TASK-WF-FE-005's AuthenticatedLayout (if
+landed) needs its Topbar onUserMenuAction 'logout' wiring updated the same
+way.
+
+────────────────────────────────────────────────────────────────────────────
+NON-GOALS — DO NOT BUILD
+
+- Fixing updateOwnProfile's no-op bug, or adding a displayName column — flag
+  only, per the "Second, Separate Bug" section above.
+- Any of Stores 3-11 from F2 (useModalStore, useNotificationDrawerStore,
+  useDocumentIntakeStore, etc.) — entirely out of scope, this task only
+  touches useShellStore and useSessionStore.
+- A profile/account-settings page — F1 §16 explicitly, deliberately excludes
+  this; do not build one as a side effect of now having a real
+  iam.getCurrentUser path (if you chose to fix getUserById).
+- Retrofitting hasRole's consolidation into every file that has its own
+  local copy if that turns out to be a large, unbounded set — do the
+  consolidation for the confirmed cases only (DocumentDetailPage,
+  MyAssignedStepsPage, WorkflowStepActionPage, per fe.md's own prior
+  findings), and flag rather than silently expand scope if you discover
+  more local copies mid-task.
+
+────────────────────────────────────────────────────────────────────────────
+DELIVERABLE CHECKLIST
+
+1. apps/web/src/stores/session.store.ts — new, matching F2 §5's spec plus
+   the deliberate committeeIds deviation, documented in a code comment
+   pointing at this task and at LOG-0085.
+2. apps/web/src/stores/shell.store.ts — new, matching F2 §4's spec, replacing
+   layout.store.ts (deleted).
+3. apps/web/src/stores/index.ts — barrel, extended or created.
+4. Consolidated hasRole helper, session-store-aware.
+5. apps/web/src/hooks/useAuthActions.ts — login/logout, relocated from
+   auth-context.tsx.
+6. apps/web/src/components/SessionHydrator.tsx — mount-once hydration,
+   wired into main.tsx replacing <AuthProvider>.
+7. apps/web/src/lib/auth-context.tsx — deleted.
+8. All 14 consumer files migrated, field-by-field, per the mapping above.
+9. TASK-WF-FE-004's LoginPage and TASK-WF-FE-005's AuthenticatedLayout
+   updated if either has landed.
+10. getUserById fixed (if you chose sequencing option (a) from the Blocking
+    Discovery section) or explicitly left stubbed with a code comment citing
+    this task if you chose (b) — either way, state which in your PR.
+11. A findings-log entry (next free LOG number — verify against the log's
+    actual current tail, do not trust any number quoted in this prompt)
+    documenting: (a) this migration itself as the resolution to LOG-0095;
+    (b) the getUserById-stub discovery and your sequencing choice;
+    (c) the updateOwnProfile no-op discovery, flagged for a future task;
+    (d) the committeeIds deviation from F2's literal spec text.
+12. State explicitly in your PR description: all four items above, plus
+    confirmation every one of the 14 listed files was actually migrated
+    (not just a representative sample), plus confirmation auth-context.tsx
+    no longer exists anywhere in the repo.
+````
+
+## TASK-WF-FE-007
+
+````
+CONTEXT — READ THIS FIRST
+
+You are implementing TASK-WF-FE-007, a new standalone task with two parts:
+a required backend fix, then the frontend it unblocks. This follows the same
+two-part shape as TASK-WF-FE-002 (backend prerequisite, then the page it
+serves) — do not skip Part 1 to get to Part 2 sooner; Part 2 is not
+meaningfully testable without it.
+
+Read AGENTS.md before doing anything else if you have not already
+internalized it this session. Routing rows, union per Section 2's multi-row
+instruction: "Write a tRPC procedure or router" (E1 → I1 → I2) for Part 1,
+"Build a frontend page or view in /apps/web" (F4 → F1 → F5 → J6 → I2 → E1)
+for Part 2.
+
+Before starting, read B5 §4.4-4.7 in full (docs/pre-development/B-architecture-documents/b5-authentication-and-authorization-architecture.md,
+lines 379-424) and ADR-AUTH-010 in full
+(docs/pre-development/B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-010-session-locked_at-behavior-when-access-token-expires-while-locked.md,
+52 lines) — both were read in full this session and are directly load-bearing
+for both parts below. Both are Status: Accepted / Confirmed; this task does
+NOT reopen either document's decisions, it implements what they already
+settled.
+
+────────────────────────────────────────────────────────────────────────────
+WHY THIS TASK EXISTS — TWO SEPARATE VERIFIED GAPS, NOT ONE
+
+Gap 1 (backend, blocking): B5 §4.6 ("Shared Workstation Lock") specifies
+that while a session is locked, "all protected routes reject requests with
+locked session status" (line 411). The actual enforcement
+(apps/server/src/modules/iam/iam.middleware.ts, lines 167-172, confirmed by
+direct read: `if (session.locked_at !== null && request.url !==
+'/api/auth/unlock') { return reply.code(423).send({ code: 'SESSION_LOCKED'
+...}) }`) is real and correctly implemented — but it is only wired into
+Fastify inside iam.routes.ts's own nested protected sub-app (`fastify.register(async
+(protectedApp) => { await protectedApp.register(authMiddlewarePlugin); ...
+})`, confirmed at iam.routes.ts line 369), which covers exactly three REST
+routes: /api/auth/lock, /api/auth/logout, /api/admin/sessions/:id/terminate.
+
+tRPC is registered entirely separately (apps/server/src/app.ts line 125,
+`fastify.register(fastifyTRPCPlugin, { prefix: '/api/trpc', ... })`) as a
+sibling top-level plugin, not nested inside iam.routes.ts's protected
+sub-app. tRPC's own auth gate (apps/server/src/trpc/trpc.ts,
+`protectedProcedure`, lines 19-32) only checks whether `ctx.auth` is
+truthy — it never re-checks `locked_at`. Confirmed via repo-wide grep this
+session: zero references to `locked_at`, `SESSION_LOCKED`, or `isLocked`
+exist anywhere under apps/server/src/trpc/ or in any of the seven tRPC
+router files under apps/server/src/modules/*/,*.router.ts.
+
+**Concrete consequence:** as the backend stands today, locking a session via
+POST /api/auth/lock sets `locked_at` correctly, but every tRPC call —
+meaning nearly all real application traffic, since every page in this
+codebase (confirmed: all 22 built pages) uses `trpc.*` calls, not REST —
+continues to succeed exactly as if the session were not locked. B5's own
+stated guarantee ("all protected routes reject requests with locked session
+status") is false for tRPC routes as currently wired. This is not a
+frontend gap to work around; it is a real backend enforcement hole that must
+close before a lock-screen frontend would mean anything.
+
+Gap 2 (frontend, this task's main deliverable): zero frontend surface exists
+for locking, the lock screen itself, or unlocking — confirmed via repo-wide
+search of apps/web/src for "lock"/"unlock" (case-insensitive), matching only
+unrelated string fragments ("block", "unlocked" in unrelated contexts), no
+real consumer of POST /api/auth/lock or /api/auth/unlock anywhere. Also
+confirmed: no frontend idle-timer exists for B5 §4.4's "25-minute warning is
+frontend-driven" requirement — this task's Part 2 also builds this, since
+it's tightly coupled to the lock flow (the idle timer is what triggers the
+lock in the first place, per the natural reading of "Switch User / Lock
+Screen action" in §4.6 combined with §4.4's warning-then-inactivity-timeout
+design — no source document makes this coupling fully explicit, this is an
+`[Inference]` this task list is making, flagged here rather than silently
+assumed).
+
+────────────────────────────────────────────────────────────────────────────
+PART 1 — CLOSE THE tRPC ENFORCEMENT GAP (REQUIRED, DOES NOT BLOCK ON A DECISION)
+
+Unlike TASK-PRE-03/04, this is not a product decision — B5 §4.6's rule is
+already Confirmed, and the fix is mechanical: extend the SAME check
+iam.middleware.ts already correctly implements to also cover tRPC's request
+path. Two honest implementation shapes; pick one, this task does not mandate
+which:
+
+**(a) A global Fastify onRequest/preHandler hook**, registered before
+fastifyTRPCPlugin in app.ts's registration order (currently line 125), that
+performs the same locked_at check against any request whose auth is already
+resolved — this would need `req.auth` to already be populated by the point
+this hook runs, which means it needs to run after whatever currently
+populates `req.auth` for tRPC requests today. **Open sub-question you need
+to resolve by tracing the code, not guessing:** confirm exactly what
+currently populates `req.auth` for a tRPC request before Hook 1
+(verifyAccessToken) or an equivalent check ever runs — trpc.ts's
+createContext (line 8) reads `(req as any).auth || null`, implying
+SOMETHING already sets `req.auth` for tRPC requests to work at all today
+(protectedProcedure's `ctx.auth` checks clearly succeed for real users
+right now, confirmed by every existing built page's data loading working).
+Trace this fully — likely a separate, currently-undiscovered global hook
+already runs Hook 1-3's equivalent logic (JWT verification, session lookup,
+RLS context-setting) for tRPC requests, just without Hook 1's step 4 (the
+locked check specifically) or without being the exact same function. Do not
+assume iam.middleware.ts's verifyAccessToken is literally unused for tRPC
+without confirming what IS used instead — find that mechanism first.
+
+**(b) Add the locked_at check directly inside trpc.ts's protectedProcedure
+middleware** (the `t.procedure.use(async (opts) => {...})` block, lines
+19-32), immediately after the existing `if (!opts.ctx.auth)` check. This
+requires `ctx.auth` to already carry a `sessionId` (confirmed present on
+every real session — the `AuthSession`/JWT payload structures already
+carry `sid`/`sessionId` throughout this codebase) and a way to look up that
+session's current `locked_at` value — either a fresh DB query per-request
+(matching the REST middleware's own approach, real per-request cost, but
+consistent with the existing pattern) or, if `ctx.auth`'s existing resolved
+shape already carries a locked boolean somehow (not confirmed this
+session — check before assuming), reuse that instead of a new query.
+
+Whichever you choose, the tRPC-side response for a locked session should
+throw a `TRPCError` — tRPC does not have a native way to send a raw HTTP 423
+the way the REST middleware does (`TRPCError`'s `code` field is drawn from
+a fixed set of standard codes: UNAUTHORIZED, FORBIDDEN, etc., none of which
+map to "423 Locked" natively). Recommendation: throw `TRPCError({ code:
+'UNAUTHORIZED', message: 'SESSION_LOCKED' })` or, if this codebase's tRPC
+error-shape conventions support a custom `cause` field (check an existing
+precedent — workflow.policy.ts's `canLogSecretariatDecision`, read in a
+prior session's TASK-WF-FE-003, throws `TRPCError({ code: 'FORBIDDEN',
+cause: 'secretariat_decision_wrong_office' })` — the same `cause`-string
+pattern is directly reusable here: `TRPCError({ code: 'UNAUTHORIZED', cause:
+'SESSION_LOCKED' })`), use that, since it gives the frontend a distinguishable
+signal without inventing a new tRPC error code. State your choice explicitly
+in your PR description — this is a real design decision within this task's
+scope to make, not a pre-settled convention.
+
+**Exclude the unlock path itself from this check**, mirroring the REST
+middleware's own `request.url !== '/api/auth/unlock'` exclusion — but
+unlock is a REST endpoint, not tRPC, so this exclusion is likely automatic
+(no tRPC procedure should ever need to bypass this check, since unlocking
+doesn't go through tRPC at all) — confirm this holds for your chosen
+implementation shape rather than assuming.
+
+────────────────────────────────────────────────────────────────────────────
+PART 2 — FRONTEND: IDLE WARNING, LOCK SCREEN, UNLOCK FLOW
+
+Three pieces, all coupled, build together:
+
+**2a. Idle timer + 25-minute warning** (B5 §4.4). A new hook,
+apps/web/src/hooks/useIdleTimer.ts — monitors keyboard/mouse/touch events
+(matching §4.4's "keyboard/mouse events" language; touch is a reasonable
+addition for tablet use in a government-office context, not contradicted by
+any source document, your call whether to include it). At 25 minutes of no
+detected activity, surface a warning (a Dialog/Modal — check whether
+useModalStore, F2 §6, already exists and is the right home for this modal's
+open/closed state per this codebase's established Zustand/TanStack Query
+boundary rule; if useModalStore doesn't exist yet as a built store, a local
+component-level state is an acceptable fallback for just this one modal,
+document which you chose). The warning should offer "I'm still here" (which
+should, per B5 §4.4's own note that "the frontend sends a keepalive request
+... when the user resumes activity," simply make ANY authenticated request —
+confirmed this session that iam.middleware.ts's Hook 4 (updateLastActivity)
+already runs on every authenticated REST request and, once Part 1 above is
+implemented, should be extended to run for tRPC requests too if it doesn't
+already — check whether it currently does before assuming a new dedicated
+"keepalive" endpoint needs to be built; B5's phrase "designated endpoint"
+does not necessarily mean a NEW endpoint, since any lightweight existing
+authenticated call, e.g. a cheap existing query already used elsewhere,
+would satisfy this if Hook 4 already covers tRPC. Trace this as part of Part
+1's investigation into what currently populates req.auth for tRPC — the
+answer likely resolves both questions together.) or "Lock now" (triggers
+2b immediately).
+
+**2b. Lock screen.** At 30 minutes total idle (or on explicit user action,
+e.g. a "Lock" item in Topbar's account menu — TASK-WF-FE-005's
+AuthenticatedLayout, if landed, has an `onUserMenuAction` prop supporting
+only `'profile' | 'logout'` per F5's spec; this task needs to extend that
+union to include `'lock'` if AuthenticatedLayout has already landed, or
+build the menu item directly if it hasn't), call POST /api/auth/lock (a
+plain fetch, matching auth-context.tsx's or useAuthActions.ts's existing
+fetch pattern for /api/auth/login — no request body needed per
+iam.routes.ts's real implementation, confirmed a bare `protectedApp.post`
+with no input schema). On success, render a full-screen lock overlay —
+NOT a route change (the user's in-progress work/scroll position/form state
+underneath should be preserved, not navigated away from) — showing the
+current user's display context (name/username — same source as
+TASK-WF-FE-005/006's SidebarUser.name resolution, if either has landed) and
+a password-only re-entry field. Do not show a full login form (username
+field, PKCE flow) — B5 §4.6 is explicit: "Re-authentication (password only;
+no full login flow)."
+
+**2c. Unlock.** Submit calls POST /api/auth/unlock with `{ password }`
+(confirmed real input shape, `UnlockInputSchema`, iam.schemas.ts line 18-20:
+`z.object({ password: z.string().min(1) })`). Confirmed real response
+handling from iam.routes.ts (lines 288-367, already read in full this
+session):
+- Success: `{ unlocked: true }`, 200. Dismiss the lock overlay, resume
+  normal app state (no reload/re-navigation needed — the underlying page
+  was never unmounted).
+- Wrong password: 401 `{ code: 'INVALID_PASSWORD' }` (or, per the service
+  layer's actual thrown codes, confirmed this session as `INVALID_PASSWORD`
+  for both a missing credential row and a failed argon2 verify — same
+  external code either way, do not attempt to distinguish these two cases
+  in the UI, since the backend deliberately doesn't either, avoiding a
+  user-enumeration signal). Show an inline "incorrect password" error,
+  keep the lock overlay up, allow retry.
+- Session's refresh token itself invalid (expired past 14 days,
+  revoked, or reused): 401 `{ code: 'REFRESH_REQUIRED', message: "Your
+  session has expired. Please log in again." }` (confirmed exact shape,
+  iam.routes.ts lines 337-340; also confirmed this response includes a
+  `clearAuthCookies(reply)` call server-side per line 338, meaning cookies
+  are already cleared by the time this response reaches the frontend). This
+  is the one case where the lock overlay should NOT simply retry — redirect
+  to /login instead (once TASK-WF-FE-004 has landed; if it hasn't,
+  redirect to whatever the eventual login route will be, or handle this
+  case as a full page reload to "/" as an interim fallback, documented as
+  such).
+- Note per ADR-AUTH-010 and this section's own read of unlockSession's
+  implementation (apps/server/src/modules/iam/iam.service.ts lines
+  1020-1030): a silent refresh happens transparently inside a successful
+  unlock when the access token had expired — the frontend does not need to
+  detect or handle this specially; a 200 `{ unlocked: true }` (or whatever
+  fields the full success response carries beyond that — check the
+  remainder of unlockSession's implementation past line 1050, not fully
+  re-read to its end in this session, before assuming the response shape
+  stops at `{ unlocked: true }`) means the frontend can simply proceed as
+  though nothing about token freshness needed handling — this is B5 §4.6's
+  and ADR-AUTH-010's own explicit design intent ("invisible to them").
+
+────────────────────────────────────────────────────────────────────────────
+DETECTING AN ALREADY-LOCKED SESSION MID-APP-USE (NOT JUST SELF-INITIATED LOCK)
+
+A session can become locked two ways: the current tab locks it
+(2b above, straightforward — the tab that called /api/auth/lock already
+knows to show the overlay), or — genuinely possible, not yet handled by
+anything this task has described — a DIFFERENT tab or device locked the
+SAME session (sessions are server-side state, not per-tab; nothing in B5 or
+the schema ties a session to a single browser tab). If a locked session
+makes a tRPC call from a tab that did NOT itself trigger the lock, Part 1's
+new check will reject it with the `SESSION_LOCKED`-cause error — this
+tab's frontend needs a global handler (a tRPC error link /
+onError interceptor, check apps/web/src/lib/trpc.ts's existing client setup
+for the right place to add this) that recognizes this specific error and
+shows the SAME lock overlay from 2b, reactively, rather than letting the
+error surface as a generic failed-query toast on whatever page happened to
+be open. This is a real, non-optional case — do not build 2b as something
+only reachable via the Topbar "Lock" menu item.
+
+────────────────────────────────────────────────────────────────────────────
+NON-GOALS — DO NOT BUILD
+
+- Step-up (re-)authentication for high-risk actions — explicitly, twice,
+  deferred to Phase 2 by both B5 §4.6 and ADR-AUTH-010 itself. Do not build
+  any "confirm your password before approving this document" style
+  challenge as part of this task.
+- A "maximum session age" hard ceiling shorter than the 14-day refresh
+  token lifetime — explicitly, twice, NOT adopted by ADR-AUTH-010. Do not
+  add one as a "safety improvement" while you're in this code.
+- Any change to the REST /api/auth/lock, /api/auth/unlock route handlers
+  themselves, or the argon2/password-verification logic inside
+  unlockSession — all confirmed correct and complete already; Part 1 only
+  extends WHERE the locked_at check runs (tRPC's path too), it does not
+  change the check's logic or the unlock service's own implementation.
+- Building a NEW dedicated "keepalive" REST/tRPC endpoint before confirming
+  one is actually needed — trace Hook 4's actual tRPC coverage first (Part
+  1's investigation), per the note in 2a above; only build a new endpoint if
+  that trace confirms none of the app's existing authenticated calls would
+  serve the purpose.
+
+────────────────────────────────────────────────────────────────────────────
+DELIVERABLE CHECKLIST
+
+1. Part 1: locked-session check extended to cover tRPC requests, using
+   either shape (a) or (b) above, with the "what currently populates
+   req.auth for tRPC" question traced and documented (code comment and/or
+   PR description) rather than assumed.
+2. Confirmation (from the same trace) of whether Hook 4's updateLastActivity
+   already covers tRPC requests or needs the same extension as Part 1's
+   locked check — if it needs the same fix, apply it in the same PR, since
+   it's the identical wiring gap.
+3. apps/web/src/hooks/useIdleTimer.ts — 25-minute warning, 30-minute
+   auto-lock (or your own justified variant of these two numbers if B5's
+   stated figures don't survive contact with your implementation —
+   document any deviation explicitly).
+4. Lock screen overlay component (not a route) — full-screen, password-only,
+   preserves underlying app state.
+5. Unlock flow wired to POST /api/auth/unlock with all three real response
+   cases (success, INVALID_PASSWORD, REFRESH_REQUIRED) handled per their
+   actual confirmed shapes above.
+6. A global tRPC error interceptor recognizing the SESSION_LOCKED signal
+   from Part 1 and showing the lock overlay reactively, for the
+   different-tab/device case.
+7. Topbar's onUserMenuAction extended to include 'lock' (if
+   TASK-WF-FE-005 has landed) or an equivalent manual-lock trigger built
+   directly (if it hasn't).
+8. State explicitly in your PR description: (a) which Part 1 implementation
+   shape you chose (a vs. b) and why; (b) what you found actually populates
+   req.auth for tRPC requests today; (c) whether Hook 4/updateLastActivity
+   needed the same tRPC-coverage fix; (d) your useModalStore-vs-local-state
+   choice for the idle-warning dialog; (e) confirmation this task did not
+   touch the REST lock/unlock handlers' own logic, only tRPC's enforcement
+   path.
+9. A findings-log entry (next free LOG number — verify against the log's
+   actual current tail before writing, do not trust a number quoted here)
+   documenting the tRPC-enforcement-gap discovery from Part 1 as the primary
+   finding, status: proposed.
+````

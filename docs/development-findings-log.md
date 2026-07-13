@@ -2099,3 +2099,16 @@ The alternative considered — populating `presentCount` at `scheduleDocumentFor
 **What was found:** ADR-UI-012 mandates a `useSessionStore` Zustand store with an `isHydrated` flag to prevent route guards from flashing incorrect redirects. However, the actual implementation uses React Context (`auth-context.tsx`) and lacks this hydration tracking, causing route guards to briefly flash a redirect to `/login` on page reload for authenticated users before the silent refresh resolves.
 
 **What was implemented:** A minimal, in-scope fix was applied: an `isLoading` boolean was added to `auth-context.tsx` to track the initial silent refresh. This prevents the route guard (`RequireAuth`) from flashing a redirect without requiring a full migration to Zustand. The larger architectural reconciliation (whether to migrate `auth-context.tsx` to Zustand per ADR-UI-012) is deferred for a human decision.
+### [LOG-0096] Resolution of auth-context vs useSessionStore divergence
+
+- date: 2026-07-13
+- task_id: TASK-WF-FE-006
+- status: proposed
+- affects: F2, I1
+- supersedes: LOG-0095
+
+The React Context (`auth-context.tsx`) was successfully migrated to `useSessionStore` globally.
+1. The `getUserById` stub in `iam.service.ts` was implemented to return `UserSummary` by calling `iamRepo.findUserById(id)`.
+2. A known bug was found in `updateOwnProfile` (`iam.service.ts`), which is currently a no-op (fetches user but does not update DB). This was left as-is per instructions to flag but not fix unrelated issues.
+3. `committeeIds` was explicitly added to `ActiveUserIdentity` as a documented deviation from the F2 spec to prevent regressing LOG-0085.
+4. Hydration currently relies on the existing `POST /api/auth/refresh` endpoint rather than mapping `iam.getCurrentUser` directly because the required store fields (`roleCodes`, `officeScopeId`, etc.) are not present in the base `UserRow` shape returned by the `getCurrentUser` endpoint.

@@ -12,7 +12,7 @@ import {
   Skeleton,
 } from '@batac/ui';
 
-import { useAuth } from '@/lib/auth-context';
+import { useSessionStore } from '@/stores';
 import { trpc } from '@/lib/trpc';
 
 
@@ -248,7 +248,7 @@ function UserRoleRow({ userId, username, email, status }: UserRoleRowProps) {
 
 // ─── Main page ───────────────────────────────────────────────────────────────
 export function RoleAssignmentPage() {
-  const { session } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -259,7 +259,7 @@ export function RoleAssignmentPage() {
   // under the seed data (only 'plat_admin' has that flag set), but would
   // diverge if a custom role were ever created with a different code and
   // is_platform_admin = true, or if plat_admin's own flag were changed.
-  if (!session?.roleCodes.includes('plat_admin')) {
+  if (!identity?.roleCodes.includes('plat_admin')) {
     return <AccessDenied />;
   }
 

@@ -49,7 +49,7 @@ import {
   StatusBadge,
  cn } from '@batac/ui';
 
-import { useAuth } from '@/lib/auth-context';
+import { useSessionStore } from '@/stores';
 import { hasRole } from '@/lib/auth-helpers';
 import { mapLifecycleStateToDocumentState } from '@/lib/status-mapping';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
@@ -80,10 +80,10 @@ type RequestDetail = RouterOutputs['documents']['getDocumentRequest'];
 // ─── Page root (role gate) ────────────────────────────────────────────────────
 
 export function DocumentRequestDetailPage() {
-  const { session } = useAuth();
-  const roleCodes = session?.roleCodes ?? [];
+  const identity = useSessionStore((s) => s.identity);
+  const roleCodes = identity?.roleCodes ?? [];
 
-  if (!hasRole(roleCodes, ...VIEW_ROLES)) {
+  if (!hasRole(identity, ...VIEW_ROLES)) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-text-muted">
         You do not have permission to view this page.
@@ -98,11 +98,11 @@ export function DocumentRequestDetailPage() {
 
 function DocumentRequestDetailContent() {
   const { requestId } = useParams<{ requestId: string }>();
-  const { session } = useAuth();
-  const roleCodes = session?.roleCodes ?? [];
+  const identity = useSessionStore((s) => s.identity);
+  const roleCodes = identity?.roleCodes ?? [];
 
-  const isSecretary = hasRole(roleCodes, 'sp_secretary');
-  const isPresidingOfficer = hasRole(roleCodes, 'sp_presiding_officer');
+  const isSecretary = hasRole(identity, 'sp_secretary');
+  const isPresidingOfficer = hasRole(identity, 'sp_presiding_officer');
 
   const { data, isLoading, isError, refetch } =
     trpc.documents.getDocumentRequest.useQuery(

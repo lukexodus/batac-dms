@@ -20,9 +20,10 @@ interface BreadcrumbItem {
   href?: string;
 }
 
-import { useAuth } from '../lib/auth-context';
+import { useSessionStore } from '@/stores';
+import { useAuthActions } from '@/hooks/useAuthActions';
 import { hasRole } from '../lib/auth-helpers';
-import { useLayoutStore } from '../stores/layout.store';
+import { useShellStore } from '@/stores';
 
 const ROLE_LABELS: Record<string, string> = {
   sys_admin: 'System Administrator',
@@ -57,11 +58,12 @@ const ROLE_PRIORITY = [
 ];
 
 export function AuthenticatedLayout() {
-  const { session, logout } = useAuth();
-  const { sidebarCollapsed, toggleSidebar } = useLayoutStore();
+  const identity = useSessionStore((s) => s.identity);
+  const { logout } = useAuthActions();
+  const { sidebarCollapsed, toggleSidebar } = useShellStore();
   const location = useLocation();
 
-  const roleCodes = session?.roleCodes ?? [];
+  const roleCodes = identity?.roleCodes ?? [];
 
   // 1. Role formatting for Topbar
   const displayRole = useMemo(() => {
@@ -74,7 +76,7 @@ export function AuthenticatedLayout() {
   }, [roleCodes]);
 
   const currentUser = {
-    name: session?.user?.username || 'Unknown User',
+    name: identity?.username || 'Unknown User',
     role: displayRole,
   };
 
@@ -83,55 +85,55 @@ export function AuthenticatedLayout() {
     const items = [];
 
     // Documents
-    if (hasRole(roleCodes, 'records_officer', 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain')) {
+    if (hasRole(identity, 'records_officer', 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain')) {
       items.push({ id: 'documents', icon: FileText, label: 'Documents', href: '/documents' });
     }
 
     // Workflow Steps
-    if (hasRole(roleCodes, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain')) {
+    if (hasRole(identity, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain')) {
       items.push({ id: 'workflow', icon: CheckSquare, label: 'My Tasks', href: '/workflow/steps' });
     }
 
     // Order of Business
-    if (hasRole(roleCodes, 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'auditor')) {
+    if (hasRole(identity, 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'auditor')) {
       items.push({ id: 'order-of-business', icon: List, label: 'Order of Business', href: '/order-of-business' });
     }
 
     // Sessions
-    if (hasRole(roleCodes, 'sp_secretary', 'auditor')) {
+    if (hasRole(identity, 'sp_secretary', 'auditor')) {
       items.push({ id: 'sessions', icon: Calendar, label: 'Sessions', href: '/sessions' });
     }
 
     // Complaints
-    if (hasRole(roleCodes, 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor')) {
+    if (hasRole(identity, 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor')) {
       items.push({ id: 'complaints', icon: AlertCircle, label: 'Complaints', href: '/complaints' });
     }
 
     // Document Requests
-    if (hasRole(roleCodes, 'sp_secretary', 'mayor', 'sp_presiding_officer', 'sp_member', 'records_officer')) {
+    if (hasRole(identity, 'sp_secretary', 'mayor', 'sp_presiding_officer', 'sp_member', 'records_officer')) {
       items.push({ id: 'document-requests', icon: Inbox, label: 'Document Requests', href: '/document-requests' });
     }
 
     // Organization
-    if (hasRole(roleCodes, 'plat_admin', 'records_officer', 'sp_secretary')) {
+    if (hasRole(identity, 'plat_admin', 'records_officer', 'sp_secretary')) {
       items.push({ id: 'organization', icon: Users, label: 'Organization', href: '/organization' });
     }
 
     // Role-specific Dashboards
-    if (hasRole(roleCodes, 'sp_secretary')) {
+    if (hasRole(identity, 'sp_secretary')) {
       items.push({ id: 'secretary-dashboard', icon: LayoutDashboard, label: 'Secretary Dashboard', href: '/secretary' });
     }
-    if (hasRole(roleCodes, 'mayor')) {
+    if (hasRole(identity, 'mayor')) {
       items.push({ id: 'mayor-dashboard', icon: LayoutDashboard, label: 'Mayor Dashboard', href: '/mayor' });
     }
 
     // System/Platform Admin
-    if (hasRole(roleCodes, 'sys_admin')) {
+    if (hasRole(identity, 'sys_admin')) {
       items.push({ id: 'sysadmin', icon: Settings, label: 'System Admin', href: '/sysadmin' });
       items.push({ id: 'sysadmin-sessions', icon: Settings, label: 'Active Sessions', href: '/sysadmin/sessions' });
       items.push({ id: 'sysadmin-users', icon: Users, label: 'User Accounts', href: '/sysadmin/users' });
     }
-    if (hasRole(roleCodes, 'plat_admin')) {
+    if (hasRole(identity, 'plat_admin')) {
       items.push({ id: 'admin-roles', icon: Shield, label: 'Role Assignment', href: '/admin/roles' });
       items.push({ id: 'admin-committees', icon: Building, label: 'Committees', href: '/admin/committees' });
     }

@@ -57,7 +57,7 @@ import type { LifecycleState, AllowedMimeType } from '@batac/shared';
 import type { WorkflowStep, RoutingEntry } from '@batac/ui';
 
 import { useScanQualityPolling } from '@/hooks/useScanQualityPolling';
-import { useAuth } from '@/lib/auth-context';
+import { useSessionStore, type ActiveUserIdentity } from '@/stores';
 import { mapLifecycleStateToDocumentState } from '@/lib/status-mapping';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
@@ -70,29 +70,29 @@ import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 /** documents.submit: callable-by dept_encoder, dept_approver, sp_secretary,
  *  sp_member, sp_presiding_officer, mayor, brgy_encoder, brgy_captain */
-function canSubmit(roles: string[], lifecycleState: string): boolean {
-  if (!hasRole(roles, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain')) return false;
+function canSubmit(identity: ActiveUserIdentity | null, lifecycleState: string): boolean {
+  if (!hasRole(identity, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain')) return false;
   return lifecycleState === 'draft';
 }
 
 /** documents.assignPreliminaryNumber: callable-by sp_secretary only */
-function canAssignPreliminaryNumber(roles: string[], lifecycleState: string, preliminaryNumber: string | null): boolean {
-  if (!roles.includes('sp_secretary')) return false;
+function canAssignPreliminaryNumber(identity: ActiveUserIdentity | null, lifecycleState: string, preliminaryNumber: string | null): boolean {
+  if (hasRole(identity, 'sp_secretary')) return false;
   return ['submitted', 'in_workflow'].includes(lifecycleState) && !preliminaryNumber;
 }
 
 /** documents.assignFinalNumber: callable-by sp_secretary only */
-function canAssignFinalNumber(roles: string[], preliminaryNumber: string | null, finalNumber: string | null): boolean {
-  if (!roles.includes('sp_secretary')) return false;
+function canAssignFinalNumber(identity: ActiveUserIdentity | null, preliminaryNumber: string | null, finalNumber: string | null): boolean {
+  if (hasRole(identity, 'sp_secretary')) return false;
   return !!preliminaryNumber && !finalNumber;
 }
 
 /** documents.cancel: callable-by dept_approver, sp_secretary, sp_presiding_officer,
  *  mayor, brgy_captain unconditionally; dept_encoder/brgy_encoder conditionally */
-function canCancel(roles: string[], lifecycleState: string, workflowInstanceId: string | null | undefined): boolean {
+function canCancel(identity: ActiveUserIdentity | null, lifecycleState: string, workflowInstanceId: string | null | undefined): boolean {
   if (['superseded', 'cancelled'].includes(lifecycleState)) return false;
-  if (hasRole(roles, 'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_captain')) return true;
-  if (hasRole(roles, 'dept_encoder', 'brgy_encoder')) {
+  if (hasRole(identity, 'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_captain')) return true;
+  if (hasRole(identity, 'dept_encoder', 'brgy_encoder')) {
     return ['draft', 'submitted'].includes(lifecycleState) && !workflowInstanceId;
   }
   return false;
@@ -100,58 +100,58 @@ function canCancel(roles: string[], lifecycleState: string, workflowInstanceId: 
 
 /** documents.delete: callable-by dept_encoder, dept_approver, sp_secretary,
  *  sp_presiding_officer, mayor, brgy_encoder, brgy_captain */
-function canDelete(roles: string[], lifecycleState: string, workflowInstanceId: string | null | undefined): boolean {
-  if (!hasRole(roles, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain')) return false;
+function canDelete(identity: ActiveUserIdentity | null, lifecycleState: string, workflowInstanceId: string | null | undefined): boolean {
+  if (!hasRole(identity, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain')) return false;
   return ['draft', 'submitted'].includes(lifecycleState) && !workflowInstanceId;
 }
 
 /** documents.archive: callable-by records_officer, sp_secretary */
-function canArchive(roles: string[], lifecycleState: string): boolean {
-  if (!hasRole(roles, 'records_officer', 'sp_secretary')) return false;
+function canArchive(identity: ActiveUserIdentity | null, lifecycleState: string): boolean {
+  if (!hasRole(identity, 'records_officer', 'sp_secretary')) return false;
   return ['completed', 'released'].includes(lifecycleState);
 }
 
 /** documents.logCertificationOfUrgency: callable-by sp_secretary only */
-function canLogCertificationOfUrgency(roles: string[]): boolean {
-  return roles.includes('sp_secretary');
+function canLogCertificationOfUrgency(identity: ActiveUserIdentity | null): boolean {
+  return hasRole(identity, 'sp_secretary');
 }
 
 /** documents.publishToPortal / unpublishFromPortal: callable-by sp_secretary only */
-function canPublishToPortal(roles: string[], lifecycleState: string): boolean {
-  if (!roles.includes('sp_secretary')) return false;
+function canPublishToPortal(identity: ActiveUserIdentity | null, lifecycleState: string): boolean {
+  if (hasRole(identity, 'sp_secretary')) return false;
   return ['released', 'superseded'].includes(lifecycleState);
 }
 
 /** documents.requestUploadUrl / confirmUpload: callable-by dept_encoder, dept_approver,
  *  sp_secretary, sp_member (own-authored), sp_presiding_officer, mayor, brgy_encoder,
  *  brgy_captain */
-function canUploadVersion(roles: string[]): boolean {
-  return hasRole(roles, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain');
+function canUploadVersion(identity: ActiveUserIdentity | null): boolean {
+  return hasRole(identity, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain');
 }
 
 /** documents.triggerManualReOcr: callable-by records_officer, sp_secretary */
-function canTriggerReOcr(roles: string[]): boolean {
-  return hasRole(roles, 'records_officer', 'sp_secretary');
+function canTriggerReOcr(identity: ActiveUserIdentity | null): boolean {
+  return hasRole(identity, 'records_officer', 'sp_secretary');
 }
 
 /** documents.flagScannedBackForVerification: callable-by records_officer only */
-function canFlagScannedBack(roles: string[]): boolean {
-  return roles.includes('records_officer');
+function canFlagScannedBack(identity: ActiveUserIdentity | null): boolean {
+  return hasRole(identity, 'records_officer');
 }
 
 /** documents.acceptScannedBackAsOfficial: callable-by records_officer, sp_secretary */
-function canAcceptScannedBack(roles: string[]): boolean {
-  return hasRole(roles, 'records_officer', 'sp_secretary');
+function canAcceptScannedBack(identity: ActiveUserIdentity | null): boolean {
+  return hasRole(identity, 'records_officer', 'sp_secretary');
 }
 
 /** tracking.logRoutingEntry: callable-by sp_secretary only */
-function canLogRoutingEntry(roles: string[]): boolean {
-  return roles.includes('sp_secretary');
+function canLogRoutingEntry(identity: ActiveUserIdentity | null): boolean {
+  return hasRole(identity, 'sp_secretary');
 }
 
 /** tracking.printQrCoverSheet: callable-by sp_secretary only */
-function canPrintQrCoverSheet(roles: string[]): boolean {
-  return roles.includes('sp_secretary');
+function canPrintQrCoverSheet(identity: ActiveUserIdentity | null): boolean {
+  return hasRole(identity, 'sp_secretary');
 }
 
 // Runtime type guard bridging File.type (string) to the AllowedMimeType literal union.
@@ -165,10 +165,10 @@ function isAllowedMimeType(value: string): value is AllowedMimeType {
 
 export default function DocumentDetailPage() {
   const { documentId } = useParams<{ documentId: string }>();
-  const { session } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
   const navigate = useNavigate();
   const utils = trpc.useUtils();
-  const roles = session?.roleCodes ?? [];
+  const roles = identity?.roleCodes ?? [];
 
   // ── Read group: documents.get ──────────────────────────────────────────────
   const {
@@ -533,7 +533,7 @@ export default function DocumentDetailPage() {
           <div className="flex flex-wrap gap-2">
 
             {/* Submit */}
-            {canSubmit(roles, lifecycleState) && (
+            {canSubmit(identity, lifecycleState) && (
               <Button
                 size="sm"
                 onClick={() => submitMutation.mutate({ documentId })}
@@ -544,7 +544,7 @@ export default function DocumentDetailPage() {
             )}
 
             {/* Assign Preliminary Number */}
-            {canAssignPreliminaryNumber(roles, lifecycleState, document.preliminaryNumber ?? null) && (
+            {canAssignPreliminaryNumber(identity, lifecycleState, document.preliminaryNumber ?? null) && (
               <Button
                 size="sm"
                 variant="outline"
@@ -556,7 +556,7 @@ export default function DocumentDetailPage() {
             )}
 
             {/* Assign Final Number */}
-            {canAssignFinalNumber(roles, document.preliminaryNumber ?? null, document.finalNumber ?? null) && (
+            {canAssignFinalNumber(identity, document.preliminaryNumber ?? null, document.finalNumber ?? null) && (
               <Button
                 size="sm"
                 variant="outline"
@@ -568,7 +568,7 @@ export default function DocumentDetailPage() {
             )}
 
             {/* Archive */}
-            {canArchive(roles, lifecycleState) && (
+            {canArchive(identity, lifecycleState) && (
               <Button
                 size="sm"
                 variant="outline"
@@ -580,7 +580,7 @@ export default function DocumentDetailPage() {
             )}
 
             {/* Publish / Unpublish Portal */}
-            {canPublishToPortal(roles, lifecycleState) && (
+            {canPublishToPortal(identity, lifecycleState) && (
               <>
                 <Button
                   size="sm"
@@ -602,14 +602,14 @@ export default function DocumentDetailPage() {
             )}
 
             {/* Certification of Urgency — sp_secretary only */}
-            {canLogCertificationOfUrgency(roles) && (
+            {canLogCertificationOfUrgency(identity) && (
               <Button size="sm" variant="outline" disabled>
                 Log Certification of Urgency
               </Button>
             )}
 
             {/* Cancel */}
-            {canCancel(roles, lifecycleState, document.workflowInstanceId) && (
+            {canCancel(identity, lifecycleState, document.workflowInstanceId) && (
               <Button
                 size="sm"
                 variant="destructive"
@@ -620,7 +620,7 @@ export default function DocumentDetailPage() {
             )}
 
             {/* Delete */}
-            {canDelete(roles, lifecycleState, document.workflowInstanceId) && (
+            {canDelete(identity, lifecycleState, document.workflowInstanceId) && (
               <Button
                 size="sm"
                 variant="destructive"
@@ -636,7 +636,7 @@ export default function DocumentDetailPage() {
             )}
 
             {/* Print QR Cover Sheet — sp_secretary only */}
-            {canPrintQrCoverSheet(roles) && (
+            {canPrintQrCoverSheet(identity) && (
               <Button
                 size="sm"
                 variant="outline"
@@ -659,7 +659,7 @@ export default function DocumentDetailPage() {
             )}
 
             {/* Log Routing Entry — sp_secretary only */}
-            {canLogRoutingEntry(roles) && (
+            {canLogRoutingEntry(identity) && (
               <Button
                 size="sm"
                 variant="outline"
@@ -843,7 +843,7 @@ export default function DocumentDetailPage() {
         <TabsContent value="files" className="mt-4 space-y-4">
 
           {/* Upload new version — shown only to roles that can upload */}
-          {canUploadVersion(roles) && (
+          {canUploadVersion(identity) && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Upload New Version</CardTitle>
@@ -932,7 +932,7 @@ export default function DocumentDetailPage() {
                             </Button>
 
                             {/* Re-OCR — records_officer / sp_secretary */}
-                            {canTriggerReOcr(roles) && (
+                            {canTriggerReOcr(identity) && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -946,7 +946,7 @@ export default function DocumentDetailPage() {
                             )}
 
                             {/* Flag scanned back — records_officer only */}
-                            {canFlagScannedBack(roles) && (
+                            {canFlagScannedBack(identity) && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -961,7 +961,7 @@ export default function DocumentDetailPage() {
                             )}
 
                             {/* Accept scanned back — records_officer / sp_secretary */}
-                            {canAcceptScannedBack(roles) && (
+                            {canAcceptScannedBack(identity) && (
                               <Button
                                 size="sm"
                                 variant="outline"

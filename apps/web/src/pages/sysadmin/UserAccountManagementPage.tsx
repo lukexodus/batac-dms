@@ -13,7 +13,7 @@ import {
   Skeleton,
 } from '@batac/ui';
 
-import { useAuth } from '@/lib/auth-context';
+import { useSessionStore } from '@/stores';
 import { trpc } from '@/lib/trpc';
 
 
@@ -324,14 +324,14 @@ function UserRow({ userId, username, email, status }: UserRowProps) {
 
 // ─── Main page ───────────────────────────────────────────────────────────────
 export function UserAccountManagementPage() {
-  const { session } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Client-side sys-admin gate.
   // NOTE: approximation of server's ctx.auth.isItAdmin — same divergence-risk
   // caveat as SystemAdminHomePage applies here.
-  if (!session?.roleCodes.includes('sys_admin')) {
+  if (!identity?.roleCodes.includes('sys_admin')) {
     return <AccessDenied />;
   }
 

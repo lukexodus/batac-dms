@@ -5,9 +5,9 @@
  * Manage roles: sp_secretary only
  *
  * Procedures used:
- *   session.getOrderOfBusiness           (query)
- *   session.scheduleDocumentForFirstReading (mutation, sp_secretary)
- *   session.enterCommitteeHearingDate       (mutation, sp_secretary)
+ *   identity.getOrderOfBusiness           (query)
+ *   identity.scheduleDocumentForFirstReading (mutation, sp_secretary)
+ *   identity.enterCommitteeHearingDate       (mutation, sp_secretary)
  *   workflow.manuallyAdvanceMultiReferralStep (mutation, sp_secretary — different router)
  */
 
@@ -46,7 +46,7 @@ import {
 
 import type { RouterOutputs } from '@/lib/trpc';
 
-import { useAuth } from '@/lib/auth-context';
+import { useSessionStore } from '@/stores';
 import { hasRole } from '@/lib/auth-helpers';
 import { trpc } from '@/lib/trpc';
 
@@ -69,10 +69,10 @@ type OobItem = RouterOutputs['session']['getOrderOfBusiness']['items'][number];
 // ─── Top-level page (gate) ────────────────────────────────────────────────────
 
 export function OrderOfBusinessPage() {
-  const { session } = useAuth();
-  const roleCodes = session?.roleCodes ?? [];
+  const identity = useSessionStore((s) => s.identity);
+  const roleCodes = identity?.roleCodes ?? [];
 
-  if (!hasRole(roleCodes, ...VIEW_ROLES)) {
+  if (!hasRole(identity, ...VIEW_ROLES)) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-text-muted">
         You do not have permission to view this page.
@@ -80,7 +80,7 @@ export function OrderOfBusinessPage() {
     );
   }
 
-  const isSecretary = hasRole(roleCodes, ...MANAGE_ROLES);
+  const isSecretary = hasRole(identity, ...MANAGE_ROLES);
 
   return <OrderOfBusinessContent isSecretary={isSecretary} />;
 }
@@ -115,7 +115,7 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
           Order of Business
         </h1>
         <p className="text-sm text-text-muted">
-          Agenda items scheduled for the upcoming SP session.
+          Agenda items scheduled for the upcoming SP identity.
         </p>
       </div>
 
@@ -204,7 +204,7 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
             <EmptyState
               icon={CalendarDays}
               heading="No agenda items"
-              body="No documents are scheduled for this session."
+              body="No documents are scheduled for this identity."
             />
           ) : (
             <div className="divide-y divide-neutral-100">

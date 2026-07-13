@@ -1,21 +1,24 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Button, Input, Label, Card, CardHeader, CardTitle, CardContent, CardDescription } from '@batac/ui';
-import { useAuth } from '../../lib/auth-context';
+import { useSessionStore } from '@/stores';
+import { useAuthActions } from '@/hooks/useAuthActions';
 
 export function LoginPage() {
-  const { session, login, isLoading } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
+  const isHydrated = useSessionStore((s) => s.isHydrated);
+  const { login } = useAuthActions();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (isLoading) {
+  if (!isHydrated) {
     return <div className="flex min-h-screen w-full items-center justify-center">Loading...</div>;
   }
 
-  if (session) {
+  if (identity) {
     return <Navigate to="/" replace />;
   }
 

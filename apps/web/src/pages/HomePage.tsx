@@ -1,16 +1,17 @@
 import React from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import { useAuth } from '../lib/auth-context';
+import { useSessionStore } from '@/stores';
+import { useAuthActions } from '@/hooks/useAuthActions';
 import { PageHeader, Card, CardHeader, CardTitle, CardContent } from '@batac/ui';
 
 export function HomePage() {
-  const { session } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
 
-  if (!session) {
+  if (!identity) {
     return <Navigate to="/login" replace />;
   }
 
-  const roles = session.roleCodes;
+  const roles = identity.roleCodes;
   
   // Priority: mayor > sp_secretary > sys_admin
   if (roles.includes('mayor')) {

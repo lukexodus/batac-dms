@@ -12,7 +12,7 @@ import { Link } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, EmptyState, Skeleton } from "@batac/ui";
 import { StatCard } from "@batac/ui/components/domain/StatCard";
 
-import { useAuth } from "@/lib/auth-context";
+import { useSessionStore } from '@/stores';
 import { hasRole } from "@/lib/auth-helpers";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
 
@@ -21,10 +21,10 @@ type AssignedStep = RouterOutputs["workflow"]["listMyAssignedSteps"]["items"][nu
 const PAGE_ALLOWED_ROLES = ["sp_secretary"] as const;
 
 export function SecretaryDashboardPage() {
-  const { session } = useAuth();
-  const roleCodes = session?.roleCodes ?? [];
+  const identity = useSessionStore((s) => s.identity);
+  const roleCodes = identity?.roleCodes ?? [];
 
-  if (!hasRole(roleCodes, ...PAGE_ALLOWED_ROLES)) {
+  if (!hasRole(identity, ...PAGE_ALLOWED_ROLES)) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-text-muted">
         You do not have permission to view this page.
@@ -147,8 +147,8 @@ function QueueWidget() {
 // ─── PendingItemsWidget ───────────────────────────────────────────────────────
 
 function PendingItemsWidget() {
-  const { session } = useAuth();
-  const officeId = session?.officeScopeId;
+  const identity = useSessionStore((s) => s.identity);
+  const officeId = identity?.officeScopeId;
 
   const { data, isLoading } = trpc.documents.list.useQuery(
     { officeId: officeId!, limit: 5 },
@@ -301,7 +301,7 @@ function OrderOfBusinessSummaryWidget({
           <div className="space-y-3">
             {data.items.length === 0 ? (
               <p className="text-sm text-text-muted">
-                No agenda items for this session.
+                No agenda items for this identity.
               </p>
             ) : (
               <>

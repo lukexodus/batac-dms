@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 
 import { PageHeader, Card, CardHeader, CardTitle, CardContent } from '@batac/ui';
 
-import { useAuth } from '@/lib/auth-context';
+import { useSessionStore } from '@/stores';
 
 // Client-side plat-admin gate.
-// NOTE: This checks `session.roleCodes.includes('plat_admin')` on the frontend.
+// NOTE: This checks `identity.roleCodes.includes('plat_admin')` on the frontend.
 // The backend's own internal IAM checks use a distinct boolean-flag mechanism 
 // (`ctx.auth.isPlatformAdmin` derived from claims), rather than checking a generic 
 // `roleCodes` array. This is a known divergence: the frontend only has access to the 
@@ -66,10 +66,10 @@ const NAV_ITEMS = [
 ] as const;
 
 export function PlatformAdminHomePage() {
-  const { session } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
 
   // See divergence-risk comment above.
-  if (!session?.roleCodes.includes('plat_admin')) {
+  if (!identity?.roleCodes.includes('plat_admin')) {
     return <AccessDenied />;
   }
 

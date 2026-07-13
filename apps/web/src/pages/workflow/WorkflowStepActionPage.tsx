@@ -16,14 +16,14 @@ import { SecretariatDecisionPanel } from './panels/SecretariatDecisionPanel';
 import { VetoOverrideRecordingPanel } from './panels/VetoOverrideRecordingPanel';
 import { VPCertificationPanel } from './panels/VPCertificationPanel';
 
-import { useAuth } from '@/lib/auth-context';
+import { useSessionStore } from '@/stores';
 import { hasRole } from '@/lib/auth-helpers';
 import { trpc } from '@/lib/trpc';
 
 export function WorkflowStepActionPage() {
   const { instanceId } = useParams<{ instanceId: string }>();
   const navigate = useNavigate();
-  const { session } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
 
   const { data: instance, isLoading, error } = trpc.workflow.getInstance.useQuery(
     { instanceId: instanceId! },
@@ -57,52 +57,52 @@ export function WorkflowStepActionPage() {
   }
 
   const renderPanel = () => {
-    const roles = session?.roleCodes ?? [];
+    const roles = identity?.roleCodes ?? [];
     let canAct = false;
 
     switch (instance.panelHint) {
       case 'generic_action':
-        canAct = hasRole(roles, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain');
+        canAct = hasRole(identity, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain');
         if (canAct) return <GenericActionPanel instance={instance} />;
         break;
       case 'generic_approval':
-        canAct = hasRole(roles, 'dept_approver', 'sp_secretary', 'mayor', 'brgy_captain');
+        canAct = hasRole(identity, 'dept_approver', 'sp_secretary', 'mayor', 'brgy_captain');
         if (canAct) return <GenericApprovalPanel instance={instance} />;
         break;
       case 'secretariat_decision':
-        canAct = hasRole(roles, 'sp_secretary');
+        canAct = hasRole(identity, 'sp_secretary');
         if (canAct) return <SecretariatDecisionPanel instance={instance} />;
         break;
       case 'vp_certification':
-        canAct = hasRole(roles, 'sp_presiding_officer');
+        canAct = hasRole(identity, 'sp_presiding_officer');
         if (canAct) return <VPCertificationPanel instance={instance} />;
         break;
       case 'mayor_decision':
-        canAct = hasRole(roles, 'mayor');
+        canAct = hasRole(identity, 'mayor');
         if (canAct) return <MayorDecisionPanel instance={instance} />;
         break;
       case 'mayor_lapse_confirmation':
-        canAct = hasRole(roles, 'sp_secretary');
+        canAct = hasRole(identity, 'sp_secretary');
         if (canAct) return <MayorLapseConfirmationPanel instance={instance} />;
         break;
       case 'veto_override_recording':
-        canAct = hasRole(roles, 'sp_secretary');
+        canAct = hasRole(identity, 'sp_secretary');
         if (canAct) return <VetoOverrideRecordingPanel instance={instance} />;
         break;
       case 'multi_referral':
-        canAct = hasRole(roles, 'sp_secretary', 'sp_member');
+        canAct = hasRole(identity, 'sp_secretary', 'sp_member');
         if (canAct) return <MultiReferralPanel instance={instance} />;
         break;
       case 'docketing':
-        canAct = hasRole(roles, 'sp_secretary');
+        canAct = hasRole(identity, 'sp_secretary');
         if (canAct) return <DocketingPanel instance={instance} />;
         break;
       case 'panlalawigan_outcome':
-        canAct = hasRole(roles, 'sp_secretary');
+        canAct = hasRole(identity, 'sp_secretary');
         if (canAct) return <PanlalawiganOutcomePanel instance={instance} />;
         break;
       case 'publication_date':
-        canAct = hasRole(roles, 'sp_secretary');
+        canAct = hasRole(identity, 'sp_secretary');
         if (canAct) return <PublicationDatePanel instance={instance} />;
         break;
       default:

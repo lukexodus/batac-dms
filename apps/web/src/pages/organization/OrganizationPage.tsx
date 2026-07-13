@@ -33,7 +33,7 @@ import {
   SelectItem,
 } from '@batac/ui';
 
-import { useAuth } from '../../lib/auth-context';
+import { useSessionStore } from '@/stores';
 import { trpc } from '../../lib/trpc';
 
 
@@ -196,12 +196,12 @@ function OfficeTreeNode({
 // ─── OrganizationPage ──────────────────────────────────────────────────────────
 
 export function OrganizationPage() {
-  const { session } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
   const utils = trpc.useUtils();
 
   // Client-side platform-admin gate — same approach as RoleAssignmentPage.tsx.
   // Under current seed data, only 'plat_admin' has is_platform_admin = true.
-  const isPlatAdmin = session?.roleCodes.includes('plat_admin') ?? false;
+  const isPlatAdmin = identity?.roleCodes.includes('plat_admin') ?? false;
 
   // ─── Queries ───────────────────────────────────────────────────────────────
   const { data: hierarchy, isLoading: hierarchyLoading } =

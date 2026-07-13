@@ -1,15 +1,17 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../lib/auth-context';
+import { useSessionStore } from '@/stores';
+import { useAuthActions } from '@/hooks/useAuthActions';
 
 export function RequireAuth({ children }: { children?: React.ReactNode }) {
-  const { session, isLoading } = useAuth();
+  const identity = useSessionStore((s) => s.identity);
+  const isHydrated = useSessionStore((s) => s.isHydrated);
 
-  if (isLoading) {
+  if (!isHydrated) {
     return <div className="flex min-h-screen w-full items-center justify-center">Loading...</div>;
   }
 
-  if (!session) {
+  if (!identity) {
     return <Navigate to="/login" replace />;
   }
 

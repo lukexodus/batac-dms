@@ -9,17 +9,17 @@ import { Link } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, EmptyState, Skeleton } from "@batac/ui";
 import { StatCard } from "@batac/ui/components/domain/StatCard";
 
-import { useAuth } from "@/lib/auth-context";
+import { useSessionStore } from '@/stores';
 import { hasRole } from "@/lib/auth-helpers";
 import { trpc } from "@/lib/trpc";
 
 const PAGE_ALLOWED_ROLES = ["mayor"] as const;
 
 export function MayorDashboardPage() {
-  const { session } = useAuth();
-  const roleCodes = session?.roleCodes ?? [];
+  const identity = useSessionStore((s) => s.identity);
+  const roleCodes = identity?.roleCodes ?? [];
 
-  if (!hasRole(roleCodes, ...PAGE_ALLOWED_ROLES)) {
+  if (!hasRole(identity, ...PAGE_ALLOWED_ROLES)) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-text-muted">
         You do not have permission to view this page.
