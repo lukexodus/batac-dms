@@ -71,6 +71,25 @@ export function createSessionRouter() {
 
         const dateStr = formatDate(input.sessionDate);
 
+        const vmPos = await ctx.db
+          .select({ employeeId: assignments.employeeId })
+          .from(positions)
+          .innerJoin(assignments, eq(assignments.positionId, positions.id))
+          .where(
+            and(
+              or(
+                ilike(positions.title, '%Vice Mayor%'),
+                ilike(positions.code, '%VM%'),
+                ilike(positions.title, '%Presiding%')
+              ),
+              isNull(positions.deletedAt),
+              isNull(assignments.deletedAt),
+              eq(assignments.isPrimary, true)
+            )
+          )
+          .limit(1);
+        const vmEmployeeId = vmPos[0]?.employeeId || null;
+
         const [session] = await ctx.db
           .select()
           .from(spSessions)
@@ -91,6 +110,7 @@ export function createSessionRouter() {
             quorumMet: false,
             presidedByEmployeeId: null,
             presidedByDisplayName: null,
+            vmEmployeeId,
           };
         }
 
@@ -162,6 +182,7 @@ export function createSessionRouter() {
           quorumMet: session.quorumAchieved ?? false,
           presidedByEmployeeId: session.presidedByEmployeeId,
           presidedByDisplayName,
+          vmEmployeeId,
         };
       }),
 

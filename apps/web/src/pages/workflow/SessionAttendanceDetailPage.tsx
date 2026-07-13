@@ -42,7 +42,7 @@ export function SessionAttendanceDetailPage() {
   });
 
   const [absences, setAbsences] = useState<Array<{ councilorEmployeeId: string; reason: string }>>([]);
-  const [isVMAbsent, setIsVMAbsent] = useState(false);
+  const isVMAbsent = record?.vmEmployeeId ? absences.some(a => a.councilorEmployeeId === record.vmEmployeeId) : false;
   const [substituteId, setSubstituteId] = useState<string>('');
 
   const handleAddAbsence = () => {
@@ -203,17 +203,6 @@ export function SessionAttendanceDetailPage() {
                 </div>
 
                 <div className="space-y-4 rounded-md border p-4">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="isVMAbsent"
-                      checked={isVMAbsent}
-                      onCheckedChange={(val) => setIsVMAbsent(!!val)}
-                    />
-                    <Label htmlFor="isVMAbsent" className="font-medium">
-                      Regular Presiding Officer is absent
-                    </Label>
-                  </div>
-                  
                   {isVMAbsent && (
                     <div className="ml-6 space-y-2">
                       <Label>Substitute Presiding Officer</Label>

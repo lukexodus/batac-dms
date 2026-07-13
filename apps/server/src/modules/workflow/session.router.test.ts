@@ -288,6 +288,7 @@ describe('Session Router tRPC Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
+      mockDb.mockResponse([{ employeeId: 'vm-emp-id' }]); // vm position lookup
       mockDb.mockResponse([]); // session check -> empty
 
       const result = await caller.getAttendanceRecord({ sessionDate: new Date('2026-07-14') });
@@ -302,6 +303,7 @@ describe('Session Router tRPC Procedures', () => {
       const subject = makeSubject({ roles: ['auditor'], effectiveRoles: ['auditor'] });
       const caller = callerFor(makeCtx(subject, mockDb));
 
+      mockDb.mockResponse([{ employeeId: 'vm-emp-id' }]); // vm position lookup
       mockDb.mockResponse([{ id: 'session-id', quorumAchieved: true, presidedByEmployeeId: 'presiding-id' }]); // session check
       mockDb.mockResponse([
         {
