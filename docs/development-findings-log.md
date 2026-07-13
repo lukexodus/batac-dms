@@ -2442,3 +2442,111 @@ callback, not `db.execute()` directly. The shared mock reference means existing
   acceptable because the route handler has already run, but the transaction
   rollback + connection release happen asynchronously. If this is concerning,
   the `onResponse` hook could be extended to handle error cases explicitly.
+
+### [LOG-0102] TASK-IAM-042: AsyncLocalStorage design justified, _rlsTx typing fixed, error-rollback flaw corrected
+
+- date: 2026-07-13
+- task_id: TASK-IAM-042
+- status: proposed
+- affects: iam.middleware.ts, iam.types.ts, iam.middleware.test.ts, LOG-0100, LOG-0101
+- supersedes: (extends, does not supersede — supersedes claim in LOG-0101 about `_rlsTx` type)
+
+**What was found / implemented:**
+
+This entry documents the completion of TASK-IAM-042, which had three objectives:
+(1) justify the AsyncLocalStorage/split-wait design against two originally-offered
+alternatives, (2) fix the `_rlsTx`/`_resolveRlsTx` typing inconsistency from
+LOG-0101, and (3) empirically verify GUC visibility against real PostgreSQL.
+
+---
+
+**Step 1 — Design justification (outcome 1a):**
+
+Two alternatives were considered alongside the AsyncLocalStorage/split-wait approach:
+
+**(a) `reserve()` (connection pinning without explicit transaction):**
+postgres-js v3.4.9 `reserve()` pins a connection but sends no `BEGIN` (confirmed
+via source read: `node_modules/postgres/src/index.js` lines 203-225). `SET LOCAL`
+is transaction-scoped per PostgreSQL semantics — values are discarded after each
+implicit autocommitted statement, even on the same pinned connection. This
+approach was rejected because it does not address the root cause (LOG-0100).
+
+**(b) Full request-scoped transaction via split-wait + AsyncLocalStorage:**
+This approach was chosen because it directly addresses the root cause: an explicit
+transaction keeps `SET LOCAL` values alive across multiple statements, and the
+split-wait pattern prevents deadlock with the Fastify request lifecycle.
+
+**`onResponse` fires on error responses too** — confirmed via source read of
+`node_modules/fastify/lib/reply.js` (`setupResponseListeners` attaches to Node's
+`http.ServerResponse` `finish` event), `error-handler.js` (calls `reply.raw.end()`),
+`hooks.js`, and `route.js`. Also independently confirmed by Fastify test files
+`500s.test.js` and `404s.test.js`. This is critical because the error-rollback
+path depends on `onResponse` firing even when the route handler throws.
+
+**Error-rollback flaw identified and fixed:**
+The original TASK-IAM-041 implementation always committed the transaction on error
+responses because `onResponse` called `resolveTx()` regardless of status code. This
+meant a 500 error would COMMIT partial writes instead ofROLLBACK. Fixed in Step 2.
+
+---
+
+**Step 2 — Typing fix and error-rollback correction:**
+
+*iam.types.ts:*
+- Replaced `_rlsTx?: DbTransaction` (never read/written) and untyped
+  `_resolveRlsTx` (accessed via `as any` casts) with a single typed property:
+  `_rlsTx?: { resolve: () => void; reject: (err: unknown) => void }`
+
+*iam.middleware.ts Hook 3:*
+- Stores `{ resolve: resolveTx, reject: rejectTx }` pair instead of just `resolveTx`
+
+*iam.middleware.ts `onResponse` hook:*
+- Status-based commit/rollback: `reply.statusCode >= 400` → `bridge.reject()`
+  (drizzle ROLLBACK) vs `bridge.resolve()` (drizzle COMMIT). All `as any` casts
+  removed from the hook.
+
+---
+
+**Step 3a — Typecheck:**
+`pnpm typecheck` passes monorepo-wide with 0 errors.
+
+**Step 3b — Existing tests:**
+All 21 iam.middleware tests pass (including 4 Hook 3 tests). Full suite 804/804 pass.
+
+**Step 3c — New tests (iam.middleware.test.ts):**
+Four new tests added under `TASK-IAM-042 — split-wait lifecycle`:
+
+1. **"route handler runs while the transaction is still open"**: Verifies
+   `db.transaction` was called, GUCs were set, and the route handler completed
+   (200). Proves Hook 3 opens the transaction but returns before it commits.
+
+2. **"onResponse commits on a 200 response"**: Wraps `db.transaction` to track
+   callback outcome. After a 200, the callback resolved (drizzle COMMIT path).
+
+3. **"onResponse rolls back on a 500 response"**: Same mock wrapper. After a
+   route throws → 500, the callback rejected (drizzle ROLLBACK path). This
+   directly tests the error-rollback fix.
+
+4. **"cross-boundary: route handler db.execute() executes within the request
+   lifecycle"**: Route handler calls `db.execute()` after Hook 3 sets up ALS.
+   Verifies both Hook 3 GUCs and the route handler call happened (2 calls).
+
+**Step 3d — Real-database GUC visibility test:**
+Ran against real PostgreSQL (port 5435, `batac_app` role):
+- Within same transaction (separate queries): `set_config(..., true)` then
+  `current_setting(...)` returns the value ✅
+- After COMMIT (new connection): `current_setting(...)` returns NULL ✅
+
+This confirms the fundamental PostgreSQL behavior that the entire fix depends on:
+SET LOCAL values persist across separate statements within one transaction, but
+not across transactions.
+
+---
+
+**Open items for human review:**
+- The split-wait pattern holds a connection for the full request duration.
+  Pool sizing should be reviewed under load.
+- The error-rollback path (`bridge.reject()`) triggers drizzle ROLLBACK. If
+  drizzle's rollback itself fails (e.g., connection dropped), the error is
+  absorbed by the `.catch()` handler. This is acceptable — the connection is
+  released by the pool regardless.

@@ -345,7 +345,8 @@ async function setDatabaseSessionVars(
   //   the transaction commits. Hook 3 awaits this, then returns so the rest of
   //   the request lifecycle (Hook 4, route handler, `onResponse`) can proceed.
   let resolveTx!: () => void;
-  const txOpen = new Promise<void>((resolve) => { resolveTx = resolve; });
+  let rejectTx!: (err: unknown) => void;
+  const txOpen = new Promise<void>((resolve, reject) => { resolveTx = resolve; rejectTx = reject; });
 
   let resolveGucs!: () => void;
   let rejectGucs!: (err: unknown) => void;
@@ -394,8 +395,8 @@ async function setDatabaseSessionVars(
   // transaction remains open — it will be committed by the `onResponse` hook.
   await gucsReady;
 
-  // Store resolve function for the onResponse hook to call.
-  (request as any)._resolveRlsTx = resolveTx;
+  // Store promise bridge for the onResponse hook to call.
+  request._rlsTx = { resolve: resolveTx, reject: rejectTx };
 }
 
 // ─── Hook 4 — updateLastActivity ─────────────────────────────────────────────
@@ -441,14 +442,21 @@ export const authMiddlewarePlugin = fp(
     fastify.addHook('preHandler', setDatabaseSessionVars);
     fastify.addHook('preHandler', updateLastActivity);
 
-    // Commit the request-scoped RLS transaction after the response is sent.
-    // The transaction was opened by Hook 3 and stored on the request; its
-    // resolve function was captured to bridge the Promise back to Hook 3.
-    fastify.addHook('onResponse', async function commitRlsTx(request, _reply) {
-      const resolveRlsTx = (request as any)._resolveRlsTx as (() => void) | undefined;
-      if (resolveRlsTx) {
-        resolveRlsTx();
-        delete (request as any)._resolveRlsTx;
+    // Commit or rollback the request-scoped RLS transaction based on response.
+    // On success (status < 400): resolve txOpen → db.transaction() callback
+    //   returns → drizzle COMMITs → connection released.
+    // On error (status >= 400): reject txOpen → db.transaction() callback
+    //   throws → drizzle ROLLBACKs → partial writes discarded.
+    // Source: TASK-IAM-041; TASK-IAM-042 (onResponse-fires-on-error fix).
+    fastify.addHook('onResponse', async function commitRlsTx(request, reply) {
+      const bridge = request._rlsTx;
+      if (bridge) {
+        if (reply.statusCode >= 400) {
+          bridge.reject(new Error(`Response ${reply.statusCode}`));
+        } else {
+          bridge.resolve();
+        }
+        delete request._rlsTx;
       }
     });
   },

@@ -395,12 +395,11 @@ declare module 'fastify' {
      */
     auth: AuthContext | null;
     /**
-     * Request-scoped database transaction opened by Hook 3
-     * (`setDatabaseSessionVars`). Holds the GUC values set via
-     * `set_config(..., is_local=true)` so they persist for the duration of
-     * the request. Committed by the `onResponse` hook in iam.middleware.ts.
-     * Source: TASK-IAM-041.
+     * Promise bridge pair stored by Hook 3 (`setDatabaseSessionVars`) for the
+     * request-scoped RLS transaction. `resolve` commits the transaction (called
+     * by the `onResponse` hook on success); `reject` rolls it back (called on
+     * error responses >= 400). Source: TASK-IAM-041, TASK-IAM-042.
      */
-    _rlsTx?: DbTransaction;
+    _rlsTx?: { resolve: () => void; reject: (err: unknown) => void };
   }
 }
