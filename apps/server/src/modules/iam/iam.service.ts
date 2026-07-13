@@ -653,7 +653,25 @@ export function createIamService(deps: IamServiceDeps): IamService {
         newTokenId = randomUUID();
         const expiresAt = new Date(Date.now() + JWT_REFRESH_TTL_SECONDS * 1000);
 
-        await txRepo.markRefreshTokenUsed(tokenId, newTokenId);
+        const wasMarkedUsed = await txRepo.markRefreshTokenUsed(tokenId, newTokenId);
+        if (!wasMarkedUsed) {
+          // Another concurrent request already marked this token as used
+          // between this request's step-4 reuse check and this rotation
+          // step. Treat identically to the step-4 reuse-detection branch:
+          // this is the same observable fact (a used token was presented)
+          // discovered at a different point in the flow.
+          await txRepo.revokeRefreshTokenFamily(tokenRow.familyId, 'reuse_detected');
+          const raceSession = await txRepo.findSessionById(tokenRow.sessionId);
+          if (raceSession && raceSession.active) {
+            await txRepo.terminateSession(raceSession.id, 'reuse_detected', null);
+          }
+          // Note: audit event intentionally omitted from this branch.
+          // Add follow-up audit write here if coverage for this race path is needed.
+          throw Object.assign(new Error('Session security event detected'), {
+            code:       'UNAUTHORIZED',
+            statusCode: 401,
+          });
+        }
 
         await txRepo.createRefreshToken({
           id:        newTokenId,
@@ -1054,7 +1072,22 @@ export function createIamService(deps: IamServiceDeps): IamService {
           newTokenId = randomUUID();
           const expiresAt = new Date(Date.now() + JWT_REFRESH_TTL_SECONDS * 1000);
 
-          await txRepo.markRefreshTokenUsed(latestRt.id, newTokenId);
+          const wasMarkedUsed = await txRepo.markRefreshTokenUsed(latestRt.id, newTokenId);
+          if (!wasMarkedUsed) {
+            // Same rationale as the equivalent guard in refresh() — see
+            // that method for the full explanation.
+            await txRepo.revokeRefreshTokenFamily(latestRt.familyId, 'reuse_detected');
+            const raceSession = await txRepo.findSessionById(sessionId);
+            if (raceSession && raceSession.active) {
+              await txRepo.terminateSession(raceSession.id, 'reuse_detected', null);
+            }
+            // Note: audit event intentionally omitted from this branch.
+            // Add follow-up audit write here if coverage for this race path is needed.
+            throw Object.assign(new Error('Session security event detected'), {
+              code:       'UNAUTHORIZED',
+              statusCode: 401,
+            });
+          }
 
           await txRepo.createRefreshToken({
             id:        newTokenId,

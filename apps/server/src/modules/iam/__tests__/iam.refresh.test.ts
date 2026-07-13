@@ -156,7 +156,7 @@ describe('IamService - refresh', () => {
     txRepoStub = {
       revokeRefreshTokenFamily: vi.fn().mockResolvedValue(undefined),
       updateSessionActiveState: vi.fn().mockResolvedValue(undefined),
-      markRefreshTokenUsed: vi.fn().mockResolvedValue(undefined),
+      markRefreshTokenUsed: vi.fn().mockResolvedValue(true),
       createRefreshToken: vi.fn().mockResolvedValue(undefined),
       updateLastActivity: vi.fn().mockResolvedValue(undefined),
       findSessionById: vi.fn().mockResolvedValue(makeSession()),
@@ -233,6 +233,33 @@ describe('IamService - refresh', () => {
     expect(auditServiceStub.writeEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'token_reuse_detected' })
     );
+  });
+
+  it('detects concurrent race and revokes family', async () => {
+    const rawBytes = randomBytes(32);
+    const saltBytes = randomBytes(16);
+    const rawBase64url = rawBytes.toString('base64url');
+    const saltBase64url = saltBytes.toString('base64url');
+    const tokenHash = createHash('sha256').update(rawBase64url + saltBase64url, 'utf8').digest('hex');
+    const tokenId = randomUUID();
+
+    const tokenRow = makeRefreshToken({
+      id: tokenId,
+      salt: saltBase64url,
+      tokenHash,
+      usedAt: null,
+    });
+
+    iamRepoStub.findRefreshTokenById.mockResolvedValue(tokenRow);
+    txRepoStub.markRefreshTokenUsed.mockResolvedValueOnce(false);
+
+    await expect(sut.refresh(`${tokenId}.${rawBase64url}`, '127.0.0.1', 'test-agent'))
+      .rejects.toThrow('Session security event detected');
+
+    expect(txRepoStub.revokeRefreshTokenFamily).toHaveBeenCalledWith(tokenRow.familyId, 'reuse_detected');
+    expect(txRepoStub.terminateSession).toHaveBeenCalledWith(SESSION_ID, 'reuse_detected', null);
+    expect(txRepoStub.createRefreshToken).not.toHaveBeenCalled();
+    expect(txRepoStub.updateLastActivity).not.toHaveBeenCalled();
   });
 
   it('rejects expired token', async () => {

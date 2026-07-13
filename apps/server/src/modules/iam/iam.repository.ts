@@ -103,7 +103,11 @@ export function createIamRepository(db: DbClient | DbTransaction): IamRepository
       return token || null;
     },
     markRefreshTokenUsed: async (id, replacedById) => {
-      await db.update(refreshTokens).set({ usedAt: new Date(), replacedBy: replacedById }).where(eq(refreshTokens.id, id));
+      const updated = await db.update(refreshTokens)
+        .set({ usedAt: new Date(), replacedBy: replacedById })
+        .where(and(eq(refreshTokens.id, id), isNull(refreshTokens.usedAt)))
+        .returning();
+      return updated.length > 0;
     },
     revokeRefreshTokensBySessionId: async (sessionId, reason) => {
       await db.update(refreshTokens).set({ revokedAt: new Date(), revocationReason: reason }).where(and(eq(refreshTokens.sessionId, sessionId), isNull(refreshTokens.usedAt), isNull(refreshTokens.revokedAt), isNull(refreshTokens.deletedAt)));

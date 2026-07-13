@@ -211,7 +211,7 @@ function makeRepo(overrides: Partial<IamRepository> = {}): IamRepository {
 
     createRefreshToken:         vi.fn().mockResolvedValue({}),
     findRefreshTokenById:       vi.fn().mockResolvedValue(null),
-    markRefreshTokenUsed:       vi.fn().mockResolvedValue(undefined),
+    markRefreshTokenUsed:       vi.fn().mockResolvedValue(true),
     revokeRefreshTokensBySessionId: vi.fn().mockResolvedValue(undefined),
     revokeRefreshTokenFamily:   vi.fn().mockResolvedValue(undefined),
     findLatestActiveRefreshTokenForSession: vi.fn().mockResolvedValue(null),

@@ -330,7 +330,7 @@ export interface IamRepository {
   // Refresh tokens
   createRefreshToken(input: CreateRefreshTokenInput): Promise<RefreshTokenRow>;
   findRefreshTokenById(id: string): Promise<RefreshTokenRow | null>;
-  markRefreshTokenUsed(id: string, replacedById: string): Promise<void>;
+  markRefreshTokenUsed(id: string, replacedById: string): Promise<boolean>;
   revokeRefreshTokensBySessionId(sessionId: string, reason: string): Promise<void>;
   revokeRefreshTokenFamily(familyId: string, reason: string): Promise<void>;
   findLatestActiveRefreshTokenForSession(sessionId: string): Promise<RefreshTokenRow | null>;
