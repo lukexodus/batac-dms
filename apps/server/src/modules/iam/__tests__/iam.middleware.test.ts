@@ -129,8 +129,13 @@ function makeMockRepository(sessionOverride?: Partial<SessionRow> | null): Parti
 
 // ─── Mock db.execute ──────────────────────────────────────────────────────────
 
-function makeMockDb(): { execute: ReturnType<typeof vi.fn> } {
-  return { execute: vi.fn().mockResolvedValue([]) };
+function makeMockDb(): { execute: ReturnType<typeof vi.fn>; transaction: ReturnType<typeof vi.fn> } {
+  const execute = vi.fn().mockResolvedValue([]);
+  const transaction = vi.fn(async (callback: (tx: { execute: ReturnType<typeof vi.fn> }) => Promise<void>) => {
+    const tx = { execute };
+    await callback(tx);
+  });
+  return { execute, transaction };
 }
 
 // ─── Fastify test-app factory ─────────────────────────────────────────────────

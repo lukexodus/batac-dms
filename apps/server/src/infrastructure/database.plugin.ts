@@ -1,42 +1,75 @@
 /**
- * database.plugin.ts — decorates `fastify.db` with the Drizzle ORM client
- * for the `batac_app` PostgreSQL role.
+ * database.plugin.ts — decorates `fastify.db` with an AsyncLocalStorage-aware
+ * proxy around the Drizzle ORM client for the `batac_app` PostgreSQL role.
  *
- * [Unverified — gap-fill] This file was not part of TASK-IAM-014's deliverables
- * list, but TASK-IAM-014's own "app.ts registration order" example imports it
- * from this exact path, `iam.plugin.ts`'s pre-existing fp() stub already
- * declares `dependencies: ['database', 'event-bus', 'audit']`, and
- * `iam.middleware.ts` / `iam.types.ts` already reference `fastify.db` as
- * something "registered on the Fastify instance by the database plugin."
- * No prior task in this snapshot of the repo created it. Per AGENTS.md
- * Section 4 ("Fastify plugin registration order" is explicitly listed as a
- * question no document answers in advance), this is implemented as the most
- * conservative reasonable default rather than blocking TASK-IAM-014 on a
- * missing prerequisite — see development-findings-log.md for the logged
- * entry.
+ * The proxy transparently delegates to a request-scoped transaction when one is
+ * active (set by Hook 3 in iam.middleware.ts), ensuring that SET LOCAL GUC
+ * values used by RLS policies persist across all queries within a request.
+ * When no transaction is active, the proxy falls back to the base Drizzle
+ * client for direct auto-committed queries.
  *
- * No module dependencies — this is the root of the Wave B plugin
- * dependency chain; `event-bus`, `audit`, and `iam` all depend on it
- * (directly or transitively) for `fastify.db`.
- *
- * `fastify.db`'s ambient type (`DbClient`, an alias of `AppDb`) is declared
- * in modules/iam/iam.types.ts, not here — that file's `declare module
- * 'fastify'` block already covers it. This file only needs to supply a
- * runtime value satisfying that type.
- *
- * Source: TASK-IAM-014. Instantiation pattern copied verbatim from the
- * worked example in src/db.ts's `AppDb` doc comment (itself sourced to
- * TASK-INFRA-023 / TASK-INFRA-006).
+ * Source: TASK-IAM-014 (original db decoration); TASK-IAM-041 (proxy).
  */
 import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { env } from '../config/env.js';
+import type { AppDb } from '../db.js';
+
+/**
+ * Request-scoped database context stored in AsyncLocalStorage.
+ * When a transaction is active, `tx` holds the drizzle transaction handle
+ * (which operates within the open PostgreSQL transaction). When null, the
+ * proxy falls back to the base drizzle client.
+ */
+interface RlsStore {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tx: any;
+}
+
+/**
+ * Module-level AsyncLocalStorage instance. Each incoming request runs within
+ * a `store.run(...)` scope so that the proxy can access the request's
+ * transaction handle without explicit parameter threading.
+ */
+export const rlsStore = new AsyncLocalStorage<RlsStore>();
 
 async function databasePlugin(fastify: FastifyInstance): Promise<void> {
   const client = postgres(env.DATABASE_URL_APP);
-  const db = drizzle(client);
+  const baseDb: AppDb = drizzle(client);
+
+  /**
+   * Proxy handler: intercepts method calls on the Drizzle client.
+   * When a method is called, it checks AsyncLocalStorage for an active
+   * request-scoped transaction. If found, it delegates to that transaction's
+   * method. If not found, it delegates to the base client.
+   * Non-function properties (e.g. $table, $schema) pass through to the base
+   * client directly, since they are static metadata.
+   */
+  const proxyHandler: ProxyHandler<AppDb> = {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+
+      if (typeof value !== 'function') {
+        return value;
+      }
+
+      return function (this: unknown, ...args: unknown[]) {
+        const store = rlsStore.getStore();
+        const activeTarget = store?.tx ?? target;
+        const activeValue = Reflect.get(activeTarget, prop,
+          activeTarget === target ? receiver : activeTarget);
+        if (typeof activeValue === 'function') {
+          return activeValue.apply(activeTarget, args);
+        }
+        return activeValue;
+      };
+    },
+  };
+
+  const db = new Proxy(baseDb, proxyHandler) as AppDb;
 
   fastify.decorate('db', db);
 }

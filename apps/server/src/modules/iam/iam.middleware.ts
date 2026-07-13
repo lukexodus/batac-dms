@@ -37,6 +37,7 @@ import { sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { AuthContext } from './iam.types.js';
 import { env } from '../../config/env.js';
+import { rlsStore } from '../../infrastructure/database.plugin.js';
 
 // ─── Inactivity Timeout ──────────────────────────────────────────────────────
 
@@ -275,9 +276,16 @@ async function loadDelegationContext(
 /**
  * Hook 3: setDatabaseSessionVars
  *
- * Sets PostgreSQL session-local GUC variables used by RLS policies.
- * All variables use the `is_local=true` flag on set_config, which provides
- * SET LOCAL semantics — they are cleared automatically when the transaction ends.
+ * Opens a request-scoped database transaction and sets PostgreSQL session-local
+ * GUC variables within it. The transaction stays open for the entire request
+ * lifetime — a Promise bridge connects the transaction callback to the
+ * `onResponse` hook's commit, ensuring all subsequent queries in the same
+ * request execute within the same transaction and observe the SET LOCAL GUC
+ * values.
+ *
+ * The `fastify.db` accessor is an AsyncLocalStorage-aware proxy (installed by
+ * `database.plugin.ts`) that transparently delegates to this request's
+ * transaction when one is active.
  *
  * IMPORTANT — null officeId handling:
  * When `request.auth.officeId` is null, `set_config('app.current_office_id', NULL, true)`
@@ -293,6 +301,20 @@ async function loadDelegationContext(
  *   'SECURITY_ADMIN' if roles includes 'auditor'
  *   'STANDARD'       otherwise
  * Source: TASK-IAM-005 Hook 3.
+ *
+ * Fix: TASK-IAM-041 — the original bare `db.execute()` ran SET LOCAL in an
+ * auto-committed implicit transaction, discarding GUC values before any
+ * subsequent query could observe them (LOG-0100). This version opens an
+ * explicit transaction via `db.transaction()`, stores the handle in
+ * AsyncLocalStorage for the proxy, and uses a split-wait Promise bridge:
+ * `gucsReady` resolves once GUCs are set (Hook 3 returns after this, so
+ * the request lifecycle continues), while `txOpen` keeps the PostgreSQL
+ * transaction open until the `onResponse` hook commits it.
+ *
+ * CRITICAL DESIGN NOTE: Hook 3 must NOT `await` the full `db.transaction()`
+ * promise — it only resolves when the transaction commits (in `onResponse`).
+ * Awaiting it would deadlock the request lifecycle because `onResponse` cannot
+ * fire until the route handler runs, which requires Hook 3 to return.
  */
 async function setDatabaseSessionVars(
   this: FastifyInstance,
@@ -312,17 +334,68 @@ async function setDatabaseSessionVars(
       ? 'SECURITY_ADMIN'
       : 'STANDARD';
 
-  // set_config(name, value, is_local). is_local=true → SET LOCAL semantics.
-  // Passing null as value sets the GUC to SQL NULL — not the string 'null'.
-  await this.db.execute(sql`
-    SELECT
-      set_config('app.current_user_id',   ${auth.userId},   true),
-      set_config('app.current_office_id', ${auth.officeId}, true),
-      set_config('app.city_id',           ${auth.cityId},   true),
-      set_config('app.current_role_tier', ${roleTier},      true),
-      set_config('app.is_ita',            ${String(auth.isItAdmin)},      true),
-      set_config('app.is_pa',             ${String(auth.isPlatformAdmin)}, true)
-  `);
+  // Promise bridge (split-wait): two promises coordinate the transaction lifecycle.
+  //
+  // `txOpen` — resolves when the `onResponse` hook fires, causing the
+  //   `db.transaction()` callback to return and the PostgreSQL transaction to
+  //   COMMIT. Until resolved, the callback is suspended and the transaction
+  //   (with its SET LOCAL GUC values) remains active.
+  //
+  // `gucsReady` — resolves once GUCs are set inside the transaction but BEFORE
+  //   the transaction commits. Hook 3 awaits this, then returns so the rest of
+  //   the request lifecycle (Hook 4, route handler, `onResponse`) can proceed.
+  let resolveTx!: () => void;
+  const txOpen = new Promise<void>((resolve) => { resolveTx = resolve; });
+
+  let resolveGucs!: () => void;
+  let rejectGucs!: (err: unknown) => void;
+  const gucsReady = new Promise<void>((resolve, reject) => {
+    resolveGucs = resolve;
+    rejectGucs = reject;
+  });
+
+  // Start the transaction. Do NOT `await` the full `db.transaction()` promise —
+  // it only resolves when the transaction commits (triggered by `onResponse`).
+  // Instead, `.catch()` propagates early failures (e.g., connection errors) to
+  // Hook 3 via `rejectGucs`, and we `await gucsReady` to ensure GUCs are set.
+  this.db.transaction(async (tx) => {
+    // set_config(name, value, is_local). is_local=true → SET LOCAL semantics.
+    // Passing null as value sets the GUC to SQL NULL — not the string 'null'.
+    await tx.execute(sql`
+      SELECT
+        set_config('app.current_user_id',   ${auth.userId},   true),
+        set_config('app.current_office_id', ${auth.officeId}, true),
+        set_config('app.city_id',           ${auth.cityId},   true),
+        set_config('app.current_role_tier', ${roleTier},      true),
+        set_config('app.is_ita',            ${String(auth.isItAdmin)},      true),
+        set_config('app.is_pa',             ${String(auth.isPlatformAdmin)}, true)
+    `);
+
+    // Store the transaction handle in AsyncLocalStorage so the proxy on
+    // fastify.db can access it for all downstream queries in this request.
+    // The ALS scope lives for the duration of the run() callback, which
+    // stays suspended until the onResponse hook resolves txOpen.
+    await rlsStore.run({ tx }, async () => {
+      // Signal that GUCs are set — Hook 3 can return and let the request
+      // lifecycle continue. The transaction remains open (awaiting txOpen).
+      resolveGucs();
+      await txOpen;
+    });
+  }).catch((err) => {
+    // If the transaction fails to start or GUC setup fails, propagate the
+    // error to Hook 3 so Fastify can return a 500. If GUCs were already set,
+    // rejectGucs is a no-op (promise already resolved) and the error is
+    // silently absorbed — the route handler has already run by this point.
+    rejectGucs(err);
+  });
+
+  // Wait for GUCs to be set (or transaction setup to fail). Once GUCs are set,
+  // Hook 3 returns so Hook 4 and the route handler can proceed. The PostgreSQL
+  // transaction remains open — it will be committed by the `onResponse` hook.
+  await gucsReady;
+
+  // Store resolve function for the onResponse hook to call.
+  (request as any)._resolveRlsTx = resolveTx;
 }
 
 // ─── Hook 4 — updateLastActivity ─────────────────────────────────────────────
@@ -354,7 +427,12 @@ async function updateLastActivity(
  * (POST /api/auth/login, POST /api/auth/refresh, public portal endpoints)
  * must NOT register this plugin.
  *
- * Source: B5 §10.1; TASK-IAM-005 Export section.
+ * Also registers an onResponse hook to commit the request-scoped database
+ * transaction opened by Hook 3 (setDatabaseSessionVars). The transaction
+ * keeps SET LOCAL GUC values alive for RLS policies; committing it after
+ * the response is sent releases the reserved connection back to the pool.
+ *
+ * Source: B5 §10.1; TASK-IAM-005 Export section; TASK-IAM-041.
  */
 export const authMiddlewarePlugin = fp(
   async function authMiddlewarePluginFn(fastify: FastifyInstance): Promise<void> {
@@ -362,6 +440,17 @@ export const authMiddlewarePlugin = fp(
     fastify.addHook('preHandler', loadDelegationContext);
     fastify.addHook('preHandler', setDatabaseSessionVars);
     fastify.addHook('preHandler', updateLastActivity);
+
+    // Commit the request-scoped RLS transaction after the response is sent.
+    // The transaction was opened by Hook 3 and stored on the request; its
+    // resolve function was captured to bridge the Promise back to Hook 3.
+    fastify.addHook('onResponse', async function commitRlsTx(request, _reply) {
+      const resolveRlsTx = (request as any)._resolveRlsTx as (() => void) | undefined;
+      if (resolveRlsTx) {
+        resolveRlsTx();
+        delete (request as any)._resolveRlsTx;
+      }
+    });
   },
   { name: 'auth-middleware', dependencies: ['iam'] },
 );

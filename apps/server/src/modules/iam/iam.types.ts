@@ -391,8 +391,16 @@ declare module 'fastify' {
      * Populated by the `verifyAccessToken` preHandler hook (TASK-IAM-005 Hook 1)
      * for every authenticated request. Null on public/unauthenticated routes.
      * Hook 2 (`loadDelegationContext`) expands `effectiveOfficeIds` and
-     * `effectiveRoles` in-place after Hook 1 populates the base context.
+     * effectiveRoles` in-place after Hook 1 populates the base context.
      */
     auth: AuthContext | null;
+    /**
+     * Request-scoped database transaction opened by Hook 3
+     * (`setDatabaseSessionVars`). Holds the GUC values set via
+     * `set_config(..., is_local=true)` so they persist for the duration of
+     * the request. Committed by the `onResponse` hook in iam.middleware.ts.
+     * Source: TASK-IAM-041.
+     */
+    _rlsTx?: DbTransaction;
   }
 }
