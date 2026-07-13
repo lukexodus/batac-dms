@@ -25,6 +25,7 @@ export interface AuthSession {
 
 interface AuthContextValue {
   session: AuthSession | null;
+  isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -34,6 +35,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
@@ -55,6 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data);
     } catch {
       setSession(null);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -101,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   return (
-    <AuthContext.Provider value={{ session, login, logout, refresh }}>
+    <AuthContext.Provider value={{ session, isLoading, login, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

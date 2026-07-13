@@ -49,11 +49,19 @@ import { SecretaryDashboardPage } from "./pages/workflow/SecretaryDashboardPage"
 import { SessionAttendanceDetailPage } from "./pages/workflow/SessionAttendanceDetailPage";
 import { SessionAttendanceOverviewPage } from "./pages/workflow/SessionAttendanceOverviewPage";
 import { WorkflowStepActionPage } from "./pages/workflow/WorkflowStepActionPage";
+import { RequireAuth } from "./components/RequireAuth";
+import { LoginPage } from "./pages/auth/LoginPage";
+import { HomePage } from "./pages/HomePage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
 const router = createBrowserRouter([
   {
+    path: "/login",
+    element: <LoginPage />,
+  },
+  {
     path: "/",
-    element: <div>Batac DMS Home</div>,
+    element: <RequireAuth><HomePage /></RequireAuth>,
   },
   {
     path: "/organization",
@@ -223,6 +231,10 @@ const router = createBrowserRouter([
   {
     path: "/dev/all-components",
     element: <AllComponentsPage />,
+  },
+  {
+    path: "*",
+    element: <NotFoundPage />,
   },
 ]);
 

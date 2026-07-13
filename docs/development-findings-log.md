@@ -2086,3 +2086,16 @@ The alternative considered — populating `presentCount` at `scheduleDocumentFor
 **What was found:** `apps/web` cannot cleanly import runtime values from `apps/server` (e.g. `MAYOR_STEP_KEYS` from `workflow.policy.ts`). It can only import types via `RouterOutputs`-style inference.
 
 **What was implemented:** To apply the server-side `stepKeyIn` filter for `listMyAssignedSteps` in `MayorDashboardPage.tsx` without an N+1 cost, the `MAYOR_STEP_KEYS` strings (`'mayor_review'`, `'mayor_signature'`) were inlined directly in the frontend component with a sync-comment referencing the backend `MAYOR_STEP_KEYS` constant. This leaves a partial single-source-of-truth gap across the frontend/backend boundary where the two lists could theoretically drift.
+
+---
+
+### [LOG-0095] ADR-UI-012 vs auth-context.tsx divergence (Zustand vs Context)
+
+- date: 2026-07-13
+- task_id: TASK-WF-FE-004
+- status: proposed
+- affects: ADR-UI-012, F2
+
+**What was found:** ADR-UI-012 mandates a `useSessionStore` Zustand store with an `isHydrated` flag to prevent route guards from flashing incorrect redirects. However, the actual implementation uses React Context (`auth-context.tsx`) and lacks this hydration tracking, causing route guards to briefly flash a redirect to `/login` on page reload for authenticated users before the silent refresh resolves.
+
+**What was implemented:** A minimal, in-scope fix was applied: an `isLoading` boolean was added to `auth-context.tsx` to track the initial silent refresh. This prevents the route guard (`RequireAuth`) from flashing a redirect without requiring a full migration to Zustand. The larger architectural reconciliation (whether to migrate `auth-context.tsx` to Zustand per ADR-UI-012) is deferred for a human decision.
