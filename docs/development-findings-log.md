@@ -2163,3 +2163,39 @@ trace's conclusion (`ctx.auth` should be `null` o3n every tRPC call) was
 not independently confirmed against a running instance from a static
 upload. [Inference] labeled throughout the investigation prompt for the
 local agent; see TASK-WF-FE-007 Part 1's Step 0.
+
+### [LOG-0098] Added `.output()` Zod schema to `recordAttendance` in session.router.ts
+
+- date: 2026-07-13
+- task_id: TASK-WF-BE-004
+- status: proposed
+- affects: session.router.ts (typing-only, no runtime behavior change)
+
+**What was found:**
+`recordAttendance` in `apps/server/src/modules/workflow/session.router.ts`
+had no `.output()` Zod schema — its return type was TypeScript-inferred
+only. The procedure's sole success return is
+`{ success: true as const, presentCount, absentCount, quorumMet }`. This
+was the only procedure in the file with no `.output()` call (confirmed via
+grep: zero `.output(` calls existed anywhere in the file prior to this
+change). LOG-0097's resolution of `absentCount`'s presence as intentional
+was the direct motivation — adding the output schema formally locks that
+decision into the type contract.
+
+**What was implemented:**
+- Defined `RecordAttendanceOutputSchema` as a named constant at the top of
+  session.router.ts (after the existing `dateRangeInput` constant),
+  following `documents.router.ts`'s convention of naming all output
+  schemas rather than inlining them. The schema requires exactly four
+  fields: `success` (`z.literal(true)`), `presentCount`
+  (`z.number().int().nonnegative()`), `absentCount`
+  (`z.number().int().nonnegative()`), `quorumMet` (`z.boolean()`).
+- Added `.output(RecordAttendanceOutputSchema)` to the `recordAttendance`
+  procedure chain, between `.input(...)` and `.mutation(...)`.
+- No other procedure in session.router.ts was touched.
+- No Group B–L document was edited.
+- `pnpm typecheck` passes monorepo-wide (7/7 packages successful).
+- All 17 tests in `session.router.test.ts` pass (including all
+  `recordAttendance` tests); 12 pre-existing failures in other test files
+  are unrelated (workflow.plugin, workflow.router slaDeadline, tracking.plugin,
+  audit.router, audit.tsa-export).

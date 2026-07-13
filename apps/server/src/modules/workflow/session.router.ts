@@ -27,6 +27,13 @@ const dateRangeInput = z.object({
   to: z.coerce.date().nullish(),
 });
 
+const RecordAttendanceOutputSchema = z.object({
+  success: z.literal(true),
+  presentCount: z.number().int().nonnegative(),
+  absentCount: z.number().int().nonnegative(),
+  quorumMet: z.boolean(),
+});
+
 function formatDate(date: Date): string {
   // Manila is UTC+8
   const offset = 8 * 60;
@@ -445,6 +452,7 @@ export function createSessionRouter() {
           presidedByEmployeeIdOverride: z.string().uuid().nullish(),
         })
       )
+      .output(RecordAttendanceOutputSchema)
       .mutation(async ({ input, ctx }) => {
         enforceRoles(ctx, ['sp_secretary']);
 
