@@ -18,19 +18,23 @@ export interface ActiveUserIdentity {
 interface SessionState {
   identity: ActiveUserIdentity | null; // null = unauthenticated
   isHydrated: boolean;                 // true once the store has checked initial session
+  isLocked: boolean;                   // true when session is locked due to inactivity
 }
 
 interface SessionActions {
   setIdentity: (identity: ActiveUserIdentity) => void;
   clearIdentity: () => void;
   setHydrated: () => void;
+  setIsLocked: (locked: boolean) => void;
 }
 
 export const useSessionStore = create<SessionState & SessionActions>((set) => ({
   identity: null,
   isHydrated: false,
+  isLocked: false,
   
   setIdentity: (identity) => set({ identity }),
-  clearIdentity: () => set({ identity: null }),
+  clearIdentity: () => set({ identity: null, isLocked: false }),
   setHydrated: () => set({ isHydrated: true }),
+  setIsLocked: (locked) => set({ isLocked: locked }),
 }));

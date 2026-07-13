@@ -122,15 +122,20 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     credentials: true,
   });
 
-  await fastify.register(fastifyTRPCPlugin, {
-    prefix: '/api/trpc',
-    trpcOptions: {
-      router: appRouter,
-      createContext,
-      onError: ({ error, path }: { error: unknown; path?: string }) => {
-        fastify.log.error({ err: error, path }, 'tRPC error');
+  await fastify.register(async (trpcApp) => {
+    const { authMiddlewarePlugin } = await import('./modules/iam/iam.middleware.js');
+    await trpcApp.register(authMiddlewarePlugin);
+
+    await trpcApp.register(fastifyTRPCPlugin, {
+      prefix: '/api/trpc',
+      trpcOptions: {
+        router: appRouter,
+        createContext,
+        onError: ({ error, path }: { error: unknown; path?: string }) => {
+          trpcApp.log.error({ err: error, path }, 'tRPC error');
+        },
       },
-    },
+    });
   });
 
   return fastify;

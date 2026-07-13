@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { eq, asc, and, gte, lt } from 'drizzle-orm';
 import { auditEvents } from '@batac/database/schema/audit.schema.js';
-import { router, protectedProcedure } from '../../trpc.js';
+import { router, protectedProcedure } from '../../trpc/trpc.js';
 import { computeChainHash, canonicalizePayload, verifyHmac, GENESIS_HASH } from './audit.crypto.js';
 import type { AuditPublicAPI, AuditQueryResult, AuditEvent } from './index.js';
 
@@ -155,9 +155,7 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
       .input(auditQueryEventsInput)
       .query(async ({ ctx, input }): Promise<AuditQueryResult> => {
         const ALLOWED_ROLES = ['sys_admin', 'auditor'] as const;
-        const hasRole = ctx.session?.roles.some((r) =>
-          (ALLOWED_ROLES as readonly string[]).includes(r),
-        ) ?? ctx.auth?.roles.some((r) =>
+        const hasRole = ctx.auth.roles.some((r) =>
           (ALLOWED_ROLES as readonly string[]).includes(r),
         );
 

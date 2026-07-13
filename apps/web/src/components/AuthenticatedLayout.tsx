@@ -24,6 +24,8 @@ import { useSessionStore } from '@/stores';
 import { useAuthActions } from '@/hooks/useAuthActions';
 import { hasRole } from '../lib/auth-helpers';
 import { useShellStore } from '@/stores';
+import { useIdleTimer } from '@/hooks/useIdleTimer';
+import { SessionLockScreen } from '@/pages/auth/SessionLockScreen';
 
 const ROLE_LABELS: Record<string, string> = {
   sys_admin: 'System Administrator',
@@ -58,7 +60,9 @@ const ROLE_PRIORITY = [
 ];
 
 export function AuthenticatedLayout() {
+  useIdleTimer();
   const identity = useSessionStore((s) => s.identity);
+  const isLocked = useSessionStore((s) => s.isLocked);
   const { logout } = useAuthActions();
   const { sidebarCollapsed, toggleSidebar } = useShellStore();
   const location = useLocation();
@@ -191,35 +195,38 @@ export function AuthenticatedLayout() {
   }, [location.pathname]);
 
   return (
-    <AppShell
-      sidebarCollapsed={sidebarCollapsed}
-      onSidebarToggle={toggleSidebar}
-      sidebarContent={
-        <Sidebar
-          items={navItems}
-          activeItemId={activeItemId}
-          collapsed={sidebarCollapsed}
-          onToggle={toggleSidebar}
-          currentUser={currentUser}
-        />
-      }
-      topbarContent={
-        <Topbar
-          breadcrumbs={breadcrumbs}
-          sidebarCollapsed={sidebarCollapsed}
-          currentUser={currentUser}
-          notificationCount={0}
-          onUserMenuAction={(action) => {
-            if (action === 'logout') {
-              void logout();
-            } else if (action === 'profile') {
-              // No-op per F1 specification - no profile page exists yet.
-            }
-          }}
-        />
-      }
-    >
-      <Outlet />
-    </AppShell>
+    <>
+      <AppShell
+        sidebarCollapsed={sidebarCollapsed}
+        onSidebarToggle={toggleSidebar}
+        sidebarContent={
+          <Sidebar
+            items={navItems}
+            activeItemId={activeItemId}
+            collapsed={sidebarCollapsed}
+            onToggle={toggleSidebar}
+            currentUser={currentUser}
+          />
+        }
+        topbarContent={
+          <Topbar
+            breadcrumbs={breadcrumbs}
+            sidebarCollapsed={sidebarCollapsed}
+            currentUser={currentUser}
+            notificationCount={0}
+            onUserMenuAction={(action) => {
+              if (action === 'logout') {
+                void logout();
+              } else if (action === 'profile') {
+                // No-op per F1 specification - no profile page exists yet.
+              }
+            }}
+          />
+        }
+      >
+        <Outlet />
+      </AppShell>
+      {isLocked && <SessionLockScreen />}
+    </>
   );
 }

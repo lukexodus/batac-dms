@@ -2112,3 +2112,54 @@ The React Context (`auth-context.tsx`) was successfully migrated to `useSessionS
 2. A known bug was found in `updateOwnProfile` (`iam.service.ts`), which is currently a no-op (fetches user but does not update DB). This was left as-is per instructions to flag but not fix unrelated issues.
 3. `committeeIds` was explicitly added to `ActiveUserIdentity` as a documented deviation from the F2 spec to prevent regressing LOG-0085.
 4. Hydration currently relies on the existing `POST /api/auth/refresh` endpoint rather than mapping `iam.getCurrentUser` directly because the required store fields (`roleCodes`, `officeScopeId`, etc.) are not present in the base `UserRow` shape returned by the `getCurrentUser` endpoint.
+
+---
+
+### [LOG-0097] tRPC requests have no auth/session enforcement path — locked_at and inactivity checks (B5 §4.4, §4.6) both silently skip tRPC; two separate protectedProcedure instances exist server-side
+
+- date: 2026-07-13
+- task_id: TASK-WF-FE-007
+- status: proposed
+- affects: B5 (§4.4, §4.6), ADR-AUTH-010, trpc.ts, apps/server/src/trpc/trpc.ts, apps/server/src/modules/audit/audit.router.ts
+
+**What was found:**
+`iam.middleware.ts`'s Hook 1 (`verifyAccessToken`) is the only place in the
+server codebase that ever assigns to `request.auth` (confirmed via
+repo-wide grep, excluding tests). This hook — which contains both the
+`locked_at` check (B5 §4.6) and the 30-minute inactivity/expiry check
+(B5 §4.4) — is only ever registered via `authMiddlewarePlugin`, which is
+only ever `.register()`-ed once, inside `iam.routes.ts`'s scoped
+protected sub-app covering exactly 3 REST routes
+(`/api/auth/lock`, `/api/auth/logout`,
+`/api/admin/sessions/:id/terminate`). No global hook, no alternate JWT
+verification path, and no `decorateRequest` default exists anywhere else.
+`trpc/trpc.ts`'s `createContext` reads `(req as any).auth || null`, which
+by this trace should evaluate to `null` on every tRPC request.
+
+Separately: two independent `protectedProcedure` definitions exist, from
+two separate `initTRPC...create()` calls — `apps/server/src/trpc.ts`
+(root-level) and `apps/server/src/trpc/trpc.ts` (nested). 10 of 11
+routers use the nested one, which is also the one `app.ts` wires to
+`fastifyTRPCPlugin`'s `createContext`. `audit.router.ts` alone uses the
+root-level one, and its router (6 procedures, including a mutation) is
+genuinely mounted into `appRouter` under `trpc.audit.*`. A fix applied
+only to the nested file's `protectedProcedure` would leave
+`trpc.audit.*` completely unaddressed.
+
+Related but distinct: LOG-0067 (`proposed`) separately flags that
+`protectedProcedure` doesn't run ABAC policy Gates 1-5. That is a
+different gap (authorization-level, not session-state-level) in the same
+function; this entry does not supersede or duplicate it.
+
+**What was implemented:**
+No code changes from this investigation session (planning-only). Per
+Luke's direction: Part 1 will consolidate the two `protectedProcedure`
+definitions into one (deleting the root-level `trpc.ts`, repointing
+`audit.router.ts`'s import to the nested file), fold the inactivity-check
+tRPC gap into the same fix as the locked_at gap (same function, same
+root cause), and confirm empirically — before any code changes — whether
+tRPC calls currently succeed at all in the running app, since this
+trace's conclusion (`ctx.auth` should be `null` o3n every tRPC call) was
+not independently confirmed against a running instance from a static
+upload. [Inference] labeled throughout the investigation prompt for the
+local agent; see TASK-WF-FE-007 Part 1's Step 0.
