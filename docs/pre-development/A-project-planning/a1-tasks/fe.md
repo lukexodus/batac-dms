@@ -3497,3 +3497,6 @@ DELIVERABLE CHECKLIST
    documenting the tRPC-enforcement-gap discovery from Part 1 as the primary
    finding, status: proposed.
 ````
+
+---
+
