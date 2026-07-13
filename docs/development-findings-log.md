@@ -2550,3 +2550,28 @@ not across transactions.
   drizzle's rollback itself fails (e.g., connection dropped), the error is
   absorbed by the `.catch()` handler. This is acceptable — the connection is
   released by the pool regardless.
+### [LOG-0103] Frontend retry loop mitigation for locked sessions (status 423)
+
+- date: 2026-07-13
+- task_id: frontend-locked-session-retry-loop
+- status: proposed
+- affects: none (frontend HTTP handling detail)
+- resolved_in: apps/web/src/lib/trpc.ts
+
+A locked session returned a flat JSON 423 response from the backend (not a tRPC envelope). The frontend trpc.ts fetch handler was letting this pass through unmodified. Because it was not a valid tRPC envelope, tRPC could not parse it and the query-client retry policy interpreted it as a generic failure, retrying up to 3 times by default.
+
+[Tested]: The custom fetch handler in apps/web/src/lib/trpc.ts was modified to intercept 423 responses. It now synchronously locks the useSessionStore state and returns a synthetic tRPC error response shaped exactly as a server-side UNAUTHORIZED tRPC error:
+```json
+{
+  "error": {
+    "message": "Session is locked",
+    "code": -32001,
+    "data": {
+      "code": "UNAUTHORIZED",
+      "httpStatus": 401
+    }
+  }
+}
+```
+
+[Tested]: Verified end-to-end (via a manual node test exercising @trpc/client and httpBatchLink) that returning a Response with status 401 and this exact envelope correctly parses into a TRPCClientError where error.data?.code === 'UNAUTHORIZED'. This allows the existing query retry condition in query-client.ts to cleanly catch it and suppress retries. No changes were required in query-client.ts.

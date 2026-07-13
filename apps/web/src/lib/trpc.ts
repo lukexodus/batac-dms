@@ -2,6 +2,7 @@ import { createTRPCReact, httpBatchLink } from '@trpc/react-query';
 
 import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from 'server/src/trpc/root.js';
+import { useSessionStore } from '@/stores';
 
 export const trpc = createTRPCReact<AppRouter>();
 export type RouterInputs = inferRouterInputs<AppRouter>;
@@ -48,6 +49,23 @@ export const trpcClient = trpc.createClient({
           }
         }
         
+        if (response.status === 423) {
+          useSessionStore.getState().setIsLocked(true);
+          return new Response(
+            JSON.stringify({
+              error: {
+                message: 'Session is locked',
+                code: -32001,
+                data: {
+                  code: 'UNAUTHORIZED',
+                  httpStatus: 401,
+                },
+              },
+            }),
+            { status: 401, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
         return response;
       },
     }),
