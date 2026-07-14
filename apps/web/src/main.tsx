@@ -62,9 +62,9 @@ import { AuthenticatedLayout } from "./components/AuthenticatedLayout";
 
 rum.init({
   applicationId: 'batac-dms',
-  clientToken: 'YWRtaW5AYmF0YWMuZ292LnBoOkNvbXBsZXhQYXNzd29yZDEyMw==',
-  site: 'http://localhost:5080',
-  organization: 'default',
+  clientToken: import.meta.env.VITE_OTEL_RUM_CLIENT_TOKEN,
+  site: import.meta.env.VITE_OTEL_RUM_SITE,
+  organization: import.meta.env.VITE_OTEL_RUM_ORGANIZATION,
   service: 'batac-web',
   env: import.meta.env.MODE,
   trackViewsManually: true,

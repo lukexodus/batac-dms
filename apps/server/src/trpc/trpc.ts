@@ -10,6 +10,7 @@ export function createContext({ req, res }: CreateFastifyContextOptions): Contex
     auth: (req as any).auth || null,
     db: (req.server as any).db as AppDb,
     req: req as any,
+    requestId: req.id,
   };
 }
 
@@ -34,7 +35,7 @@ export const t = initTRPC.context<Context>().create({
       ...shape,
       data: {
         ...shape.data,
-        traceId: ctx?.req?.id ?? null,
+        traceId: ctx?.requestId ?? null,
         domainError,
         zodError,
         // Strip stack trace in production

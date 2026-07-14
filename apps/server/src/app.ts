@@ -52,6 +52,25 @@ import rateLimit from '@fastify/rate-limit';
 // registration, when each module's own plugin-wiring task completes.
 
 /**
+ * Parses the OTEL_EXPORTER_OTLP_HEADERS env var into a headers object for
+ * the OTLP exporters. Follows the standard OTel spec format: comma-separated
+ * `key=value` pairs (e.g. "Authorization=Basic xyz,X-Custom=abc"), matching
+ * the same format instrumentation.ts already parses for the trace exporter.
+ */
+function parseOtlpHeaders(raw: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (!raw) return headers;
+  for (const pair of raw.split(',')) {
+    const [key, ...rest] = pair.split('=');
+    const value = rest.join('=');
+    if (key && value) {
+      headers[key.trim()] = value.trim();
+    }
+  }
+  return headers;
+}
+
+/**
  * [Confirmed — see docs/development-findings-log.md, Bug B] `organizationPlugin`
  * reads `fastify.boss` synchronously during its own registration (to build
  * `delegationService`'s deps). Previously, `index.ts`'s `main()` called
@@ -84,34 +103,97 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   let loggerConfig: any = false;
 
   if (env.LOG_LEVEL !== 'silent') {
-    let dest: pino.DestinationStream;
+    // Resolve the primary destination (stdout / stderr / file path) as a
+    // pino/file transport target rather than a separate `dest` argument.
+    // [Fixed — see docs/development-findings-log.md, LOG-0107] Pino does not
+    // allow both `opts.transport` and a second positional `dest` argument to
+    // be pino.destination(...) at the same time: when opts.transport is set,
+    // Pino builds its stream entirely from `opts.transport` and silently
+    // ignores whatever `dest` was also passed — no error is thrown, but
+    // LOG_DESTINATION's actual value (stdout vs. stderr vs. a file) has no
+    // effect whenever LOG_PRETTY is true. This was confirmed by direct
+    // reproduction: constructing pino({ transport }, pino.destination('/tmp/x.log'))
+    // and logging a line writes nothing to /tmp/x.log; the line goes to
+    // stdout via pino-pretty instead. Folding the primary destination into
+    // the same `targets` array as every other transport (pino-pretty, the
+    // OTLP log shipper below) avoids this footgun entirely, since there is
+    // then only ever one `transport` option and no separate `dest` argument.
+    let destinationTarget: { target: string; options: Record<string, unknown> };
     if (env.LOG_DESTINATION === 'stdout') {
-      dest = pino.destination(1);
+      destinationTarget = { target: 'pino/file', options: { destination: 1 } };
     } else if (env.LOG_DESTINATION === 'stderr') {
-      dest = pino.destination(2);
+      destinationTarget = { target: 'pino/file', options: { destination: 2 } };
     } else {
+      // Fail loudly at startup if the configured path can't actually be
+      // opened for writing, rather than silently falling back to stdout —
+      // a swallowed misconfiguration here would recreate the exact
+      // "declared but not doing what you think" problem this file's own
+      // logging setup exists to fix.
       try {
-        dest = pino.destination(env.LOG_DESTINATION);
+        pino.destination(env.LOG_DESTINATION).end();
       } catch (err) {
         throw new Error(`Invalid LOG_DESTINATION configuration: ${env.LOG_DESTINATION}. Failed to open for writing: ${err instanceof Error ? err.message : String(err)}`);
       }
+      destinationTarget = { target: 'pino/file', options: { destination: env.LOG_DESTINATION, mkdir: true } };
     }
 
-    const transport = env.LOG_PRETTY
-      ? {
-          target: 'pino-pretty',
-          options: { colorize: true },
-        }
-      : undefined;
+    const targets: Array<{ target: string; options: Record<string, unknown>; level?: string }> = [];
 
-    loggerConfig = pino(
-      {
-        level: env.LOG_LEVEL,
-        redact: env.LOG_REDACT_PATHS,
-        ...(transport ? { transport } : {}),
+    if (env.LOG_PRETTY) {
+      // In pretty mode, pino-pretty owns stdout/stderr formatting directly
+      // (it accepts its own `destination` option), so the plain
+      // destinationTarget above would be redundant with it for stdout/stderr.
+      // For a genuine file destination, keep both: a human-readable stream
+      // to the console plus the raw JSON file, since pretty-printing a
+      // long-lived log file defeats the point of a machine-parseable
+      // LOG_DESTINATION.
+      const prettyDestination =
+        env.LOG_DESTINATION === 'stdout' ? 1 : env.LOG_DESTINATION === 'stderr' ? 2 : 1;
+      targets.push({ target: 'pino-pretty', options: { colorize: true, destination: prettyDestination } });
+      if (env.LOG_DESTINATION !== 'stdout' && env.LOG_DESTINATION !== 'stderr') {
+        targets.push(destinationTarget);
+      }
+    } else {
+      targets.push(destinationTarget);
+    }
+
+    // Ship Pino log content to OpenObserve via OTLP, so that log lines (not
+    // just traces) are visible and searchable in OpenObserve's UI. Uses the
+    // same OTEL_EXPORTER_OTLP_ENDPOINT / OTEL_EXPORTER_OTLP_HEADERS env vars
+    // already declared for the trace exporter in instrumentation.ts.
+    // Protocol is fixed to 'http/protobuf' to match this project's chosen
+    // HTTP-OTLP transport (see instrumentation.ts's OTLPTraceExporter from
+    // @opentelemetry/exporter-trace-otlp-http) rather than gRPC. Shape
+    // verified directly against otlp-logger@2.1.1's own published types
+    // (LogRecordProcessorOptions.exporterOptions is a discriminated union on
+    // `protocol`; for 'http/protobuf' the url/headers config lives one level
+    // deeper, under `protobufExporterOptions`, not flat under
+    // `exporterOptions` itself).
+    targets.push({
+      target: 'pino-opentelemetry-transport',
+      level: env.LOG_LEVEL,
+      options: {
+        loggerName: 'batac-server',
+        serviceVersion: env.APP_VERSION,
+        resourceAttributes: { 'service.name': 'batac-server' },
+        logRecordProcessorOptions: {
+          recordProcessorType: 'batch',
+          exporterOptions: {
+            protocol: 'http/protobuf',
+            protobufExporterOptions: {
+              url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/logs`,
+              headers: parseOtlpHeaders(env.OTEL_EXPORTER_OTLP_HEADERS),
+            },
+          },
+        },
       },
-      dest
-    );
+    });
+
+    loggerConfig = pino({
+      level: env.LOG_LEVEL,
+      redact: env.LOG_REDACT_PATHS,
+      transport: { targets },
+    });
   }
 
   const fastify = Fastify({

@@ -87,9 +87,10 @@ export type AuthContext = {
 };
 
 export type Context = {
-  auth: AuthContext | null;
-  db:   DbClient;
-  req:  FastifyRequest;
+  auth:      AuthContext | null;
+  db:        DbClient;
+  req:       FastifyRequest;
+  requestId: string;
 };
 
 export interface UserSummary {
