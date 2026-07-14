@@ -17,6 +17,8 @@
  * preference for labeling judgment calls outside the literal deliverables
  * list.
  */
+import './instrumentation.js'; // Must be first to instrument everything
+
 import PgBoss from 'pg-boss';
 import { env } from './config/env.js';
 import { buildApp } from './app.js';

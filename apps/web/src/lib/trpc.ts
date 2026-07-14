@@ -3,6 +3,7 @@ import { createTRPCReact, httpBatchLink } from '@trpc/react-query';
 import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from 'server/src/trpc/root.js';
 import { useSessionStore } from '@/stores';
+import { logger } from './logger.js';
 
 export const trpc = createTRPCReact<AppRouter>();
 export type RouterInputs = inferRouterInputs<AppRouter>;
@@ -40,16 +41,35 @@ export const trpcClient = trpc.createClient({
         } as RequestInit;
         let response = await fetch(url, fetchOptions);
         
+        let traceId: string | undefined;
+        try {
+          if (!response.ok) {
+            const cloned = response.clone();
+            const json = await cloned.json();
+            if (Array.isArray(json)) {
+              traceId = json[0]?.error?.json?.data?.traceId;
+            } else {
+              traceId = json?.error?.json?.data?.traceId;
+            }
+          }
+        } catch {
+          // Ignore parsing errors; we just want traceId if available
+        }
+        
         if (response.status === 401) {
+          logger.warn('trpc_401_unauthorized', { url, traceId });
           const success = await performSilentRefresh();
           if (success) {
+            logger.info('session_refresh_success', { url });
             response = await fetch(url, fetchOptions);
           } else {
+            logger.error('session_refresh_failed_redirecting', { url, traceId });
             window.location.href = '/login';
           }
         }
         
         if (response.status === 423) {
+          logger.error('session_locked', { url, traceId });
           useSessionStore.getState().setIsLocked(true);
           return new Response(
             JSON.stringify({

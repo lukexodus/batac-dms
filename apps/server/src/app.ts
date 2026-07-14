@@ -35,6 +35,8 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type PgBoss from 'pg-boss';
 import { env } from './config/env.js';
+import { nanoid } from 'nanoid';
+import pino from 'pino';
 import { registerHealthRoute } from './routes/health.route.js';
 import databasePlugin from './infrastructure/database.plugin.js';
 import eventBusPlugin from './infrastructure/event-bus.plugin.js';
@@ -79,8 +81,42 @@ export interface BuildAppOptions extends FastifyServerOptions {
 export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInstance> {
   const { boss, ...fastifyOpts } = opts;
 
+  let loggerConfig: any = false;
+
+  if (env.LOG_LEVEL !== 'silent') {
+    let dest: pino.DestinationStream;
+    if (env.LOG_DESTINATION === 'stdout') {
+      dest = pino.destination(1);
+    } else if (env.LOG_DESTINATION === 'stderr') {
+      dest = pino.destination(2);
+    } else {
+      try {
+        dest = pino.destination(env.LOG_DESTINATION);
+      } catch (err) {
+        throw new Error(`Invalid LOG_DESTINATION configuration: ${env.LOG_DESTINATION}. Failed to open for writing: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    const transport = env.LOG_PRETTY
+      ? {
+          target: 'pino-pretty',
+          options: { colorize: true },
+        }
+      : undefined;
+
+    loggerConfig = pino(
+      {
+        level: env.LOG_LEVEL,
+        redact: env.LOG_REDACT_PATHS,
+        ...(transport ? { transport } : {}),
+      },
+      dest
+    );
+  }
+
   const fastify = Fastify({
-    logger: env.LOG_LEVEL !== 'silent' ? { level: env.LOG_LEVEL } : false,
+    logger: loggerConfig,
+    genReqId: () => `req_${nanoid(12)}`,
     ...fastifyOpts,
   });
 

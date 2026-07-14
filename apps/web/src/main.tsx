@@ -9,6 +9,9 @@ import "@batac/ui/styles/globals.css";
 import { SessionHydrator } from './components/SessionHydrator';
 import { queryClient } from './lib/query-client.js';
 import { trpc, trpcClient } from './lib/trpc.js';
+import { rum } from '@openobserve/browser-rum';
+import { useLocation, Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
 import AppShellPage from "./pages/dev/AppShellPage";
 import CommitteeReferralBlockPage from "./pages/dev/CommitteeReferralBlockPage";
@@ -57,14 +60,39 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 
 import { AuthenticatedLayout } from "./components/AuthenticatedLayout";
 
+rum.init({
+  applicationId: 'batac-dms',
+  clientToken: 'YWRtaW5AYmF0YWMuZ292LnBoOkNvbXBsZXhQYXNzd29yZDEyMw==',
+  site: 'http://localhost:5080',
+  organization: 'default',
+  service: 'batac-web',
+  env: import.meta.env.MODE,
+  trackViewsManually: true,
+  trackInteractions: true,
+  trackResources: true,
+  trackLongTasks: true,
+  defaultPrivacyLevel: 'mask-user-input',
+});
+
+function RouteTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    rum.startView(location.pathname);
+  }, [location.pathname]);
+  return <Outlet />;
+}
+
 const router = createBrowserRouter([
   {
-    path: "/login",
-    element: <LoginPage />,
-  },
-  {
-    path: "/",
-    element: <RequireAuth><AuthenticatedLayout /></RequireAuth>,
+    element: <RouteTracker />,
+    children: [
+      {
+        path: "/login",
+        element: <LoginPage />,
+      },
+      {
+        path: "/",
+        element: <RequireAuth><AuthenticatedLayout /></RequireAuth>,
     children: [
       {
         index: true,
@@ -236,11 +264,12 @@ const router = createBrowserRouter([
     path: "/dev/components/order-of-business-row",
     element: <OrderOfBusinessRowPage />,
   },
-  {
-    path: "/dev/all-components",
-    element: <AllComponentsPage />,
+      {
+        path: "/dev/all-components",
+        element: <AllComponentsPage />,
+      },
+    ],
   },
-
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

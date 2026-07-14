@@ -142,6 +142,10 @@ export const serverEnvSchema = z.object({
   NOTIF_RETENTION_DAYS: positiveInt.default(30),
   NOTIF_MAX_UNREAD_PER_USER: positiveInt.default(200),
 
+  // ─── OpenTelemetry ────────────────────────────────────────────────────
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().default('http://localhost:5080/api/default'),
+  OTEL_EXPORTER_OTLP_HEADERS: z.string().default('Authorization=Basic YWRtaW5AYmF0YWMuZ292LnBoOkNvbXBsZXhQYXNzd29yZDEyMw=='),
+
   // ─── Sentry ───────────────────────────────────────────────────────────
   SENTRY_DSN: z.string().url().optional(),
   SENTRY_ENVIRONMENT: z.string().optional(),

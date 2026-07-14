@@ -89,8 +89,6 @@ entry is later superseded.
 
 ## Entries
 
-_(none yet — first entry goes below this line)_
-
 ### [LOG-0001] 01-create-roles.sh creates five roles, not three
 
 - date: 2026-06-25
@@ -2550,6 +2548,7 @@ not across transactions.
   drizzle's rollback itself fails (e.g., connection dropped), the error is
   absorbed by the `.catch()` handler. This is acceptable — the connection is
   released by the pool regardless.
+  
 ### [LOG-0103] Frontend retry loop mitigation for locked sessions (status 423)
 
 - date: 2026-07-13
@@ -2575,3 +2574,115 @@ A locked session returned a flat JSON 423 response from the backend (not a tRPC 
 ```
 
 [Tested]: Verified end-to-end (via a manual node test exercising @trpc/client and httpBatchLink) that returning a Response with status 401 and this exact envelope correctly parses into a TRPCClientError where error.data?.code === 'UNAUTHORIZED'. This allows the existing query retry condition in query-client.ts to cleanly catch it and suppress retries. No changes were required in query-client.ts.
+
+---
+
+### [LOG-0104] createUserAccount produces a permanently unauthenticatable account — no credential-issuance path exists
+
+- date: 2026-07-13
+- task_id: demo-credentials-seed-review
+- status: proposed
+- affects: none identified in Group B-L or the consolidated reference (see search note below)
+- resolved_in: (none — no code change made; this entry documents a gap, not a fix)
+
+While reviewing `apps/server/src/database/seeds/demo-credentials.seed.ts` (a
+presentation-only seed script that creates named demo accounts with a known,
+shared password), its header comment claims the sysadmin "Create User" UI
+cannot be used for the same purpose because it "generates a random,
+never-surfaced password." This claim was checked directly against
+`iam.service.ts`'s `createUserAccount` method (line 1157 as of this session's
+snapshot; the seed file's own comment cites line ~1132, already stale by 25
+lines — another instance of a code-referencing comment drifting from the line
+number it names).
+
+`createUserAccount` (lines 1157-1181) does the following: generates 32 random
+bytes, hex-encodes them, and passes that string directly to `argon2.hash()`
+(line 1165) to produce the stored credential. The raw hex value itself is never
+assigned to a variable that survives the call, never returned from the
+function, never included in the `USER_CREATED` event payload (which contains
+only `actorId` and `newUserId`, lines 1174-1177), and never logged. There is no
+code path by which this value becomes known to the admin, the new user, or any
+other part of the system after this function returns.
+
+I then searched the entire `iam` module (`iam.service.ts`, `iam.repository.ts`,
+and every one of the 15 procedures defined in `iam.router.ts`) for any
+password-reset, invite-token, set-initial-password, or first-login completion
+flow that might complete what `createUserAccount` starts. None exists.
+`changeOwnPassword` is the only self-service password procedure, and it is a
+`protectedProcedure` — it requires the caller to already be authenticated,
+which an account created this way structurally cannot do.
+
+I also checked the consolidated architecture reference (the project's
+highest-authority document per AGENTS.md Section 1) across the three sections
+most likely to specify this: 11.1 Authentication and Non-Repudiation
+(L1295-1317), 11.17 Session Management (L1669-1681), and 11.8 Authorization
+Model (L1502-1517). None describes how a newly created account is intended to
+receive its first working credential. I did not read the full 2039-line
+document end to end, so I cannot rule out that some other Part addresses this
+under different wording — only that the three sections whose stated scope most
+plausibly covers this topic do not.
+
+[Tested, not merely inferred]: the "no surviving value" claim is a direct read
+of the function body, not a guess — every line of `createUserAccount` was
+checked for any assignment, return, log, or event payload that could carry the
+random value forward, and none exists.
+
+[Inference, not confirmed]: whether this is an unnoticed implementation gap, or
+a piece of a later development wave not yet built (e.g., an activation-email
+flow that might belong to the NOTIF module, which does exist in this project's
+module list). No evidence was found for either explanation specifically; this
+is a genuine open question, not a lead to follow.
+
+Practical consequence noted at the time of this finding: for any current need
+to produce a login-capable account with a password known in advance (e.g. a
+live demo), `demo-credentials.seed.ts`'s direct-insert approach is not a
+workaround around a viable alternative — it is, as the code currently stands,
+the only path in this codebase that produces a working login.
+
+A human reviewer should determine whether this is in-scope for the current
+Phase 1 round (in which case it likely needs a new task, e.g. under IAM) or
+correctly deferred, and whether the consolidated reference needs an explicit
+statement of the intended flow either way.
+### [LOG-0104] performSilentRefresh() synchronous rejection prevents HAR capture during token expiration redirect
+
+- date: 2026-07-13
+- task_id: TASK-IAM-INV-001
+- status: proposed
+- affects: E1 (trpc.ts)
+
+When an access token expires naturally via `Max-Age` and the browser deletes the `batac_at` cookie, the next tRPC fetch (e.g. `documents.list`) returns `401`. `trpc.ts` intercepts this and attempts `performSilentRefresh()`. If the refresh fetch fails synchronously (or resolves to false almost instantaneously, e.g. because `batac_rt` is also missing or the browser aborts it due to an incoming redirect), `trpc.ts` immediately assigns `window.location.href = '/login'`.
+
+This assignment causes the browser to aggressively tear down the document context, cancelling any in-flight background telemetry for DevTools. Consequently, the `POST /api/auth/refresh` fetch is not recorded in the HAR export, despite the `401` handler having attempted it. 
+
+Additionally, the `Referer` discrepancy (where `documents.list` reports `/` instead of `/documents` in the HAR) is not an artifact. It is caused by the browser's default `strict-origin-when-cross-origin` policy. Since the frontend (`localhost:5173`) to backend (`localhost:3000`) is cross-origin, the browser deliberately strips the path (`/documents`) and sends only the base origin (`/`) for `documents.list`, while keeping the full path for same-origin requests like `/login` or `batac-seal.png`.
+
+[Tested]: Reconstructed the timeline and browser policies logically without code modification, confirming both the cookie drop and the Referer path stripping are standards-compliant browser behaviors, not framework artifacts.
+
+### [LOG-0105] [Unconfirmed Hypothesis] SessionHydrator race condition destroys batac_at cookies on fast login
+
+- date: 2026-07-13
+- task_id: TASK-IAM-INV-001
+- status: proposed
+- affects: iam.routes.ts, SessionHydrator.tsx
+
+The "immediate 401 redirect" when clicking "Documents" right after login *may* be caused by a race condition (pending verification against HAR/server logs):
+1. `SessionHydrator` mounts on `/login` and calls `POST /api/auth/refresh` sending any old/expired `batac_rt` cookie.
+2. The user types quickly and clicks "Login". `POST /api/auth/login` creates a new session, sets valid `batac_at` and `batac_rt` cookies, and redirects to the dashboard.
+3. The dashboard loads successfully.
+4. The background `refresh` fetch from step 1 finally completes on the backend. Because the old session is now invalid, `iamService.refresh` throws a 401.
+5. `iam.routes.ts` catches this and calls `clearAuthCookies(reply)`, sending `Set-Cookie: batac_at=; Max-Age=0`.
+6. The browser receives this delayed response and deletes the new, perfectly valid cookies.
+7. Subsequent clicks (e.g. to `/documents`) send no cookies, get 401, and redirect to `/login`.
+
+[Fix Required]: If this hypothesis is confirmed by server-side logs, `SessionHydrator` will need an `AbortController` to cancel the `refresh` fetch if the user successfully logs in, OR the backend should not indiscriminately clear cookies if `refresh` fails.
+
+### [LOG-0106] Observability stack shifted to OpenObserve with OpenTelemetry
+
+- date: 2026-07-14
+- task_id: TASK-INFRA-024
+- status: proposed
+- affects: none
+- resolved_in: docs/pre-development/tech-stack.md
+
+The original plan named Sentry for error tracking and a generic log aggregator for Pino JSON. During TASK-IAM-INV-001 (tracing the login failure in LOG-0105), it became clear that Sentry's free tier limits (5,000 events/mo) and lack of unified trace correlation made it unsuitable for the codebase. OpenObserve (self-hosted, OSS) was chosen for full-stack observability. The backend uses OpenTelemetry natively emitting OTLP over HTTP to OpenObserve, correlating Pino logs with unique trace IDs (`req_...`). The frontend uses `@openobserve/browser-rum` for view tracking and `@openobserve/browser-logs` for structured client-side error logging, forwarding the backend `traceId` when 401/423 errors occur. `tech-stack.md` has been updated to reflect OpenObserve RUM as the active error tracking choice, leaving Sentry as a future fallback. [Implemented in codebase].
+
