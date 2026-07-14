@@ -153,7 +153,7 @@ services:
     volumes:
       - openobserve_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5080/health"]
+      test: ["CMD", "/openobserve", "node", "status"]
       interval: 10s
       timeout: 5s
       retries: 5
