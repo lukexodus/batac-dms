@@ -149,7 +149,7 @@ services:
     environment:
       # Default credentials for local dev
       ZO_ROOT_USER_EMAIL: admin@batac.gov.ph
-      ZO_ROOT_USER_PASSWORD: ComplexPassword123
+      ZO_ROOT_USER_PASSWORD: ComplexPassword123!
     volumes:
       - openobserve_data:/data
     healthcheck:
