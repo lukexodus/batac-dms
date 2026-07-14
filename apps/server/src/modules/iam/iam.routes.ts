@@ -83,8 +83,13 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       const parseResult = LoginInputSchema.safeParse(request.body);
       if (!parseResult.success) {
         return reply.status(400).send({
-          code:   'VALIDATION_ERROR',
-          errors: parseResult.error.flatten().fieldErrors,
+          ok: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'The provided input failed validation.',
+            traceId: request.id,
+            details: parseResult.error.flatten().fieldErrors,
+          },
         });
       }
 
@@ -118,16 +123,35 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         const e = err as { code?: string; statusCode?: number; retryAfter?: number };
 
         if (e.statusCode === 400) {
-          return reply.status(400).send({ code: e.code ?? 'BAD_REQUEST' });
+          return reply.status(400).send({
+            ok: false,
+            error: {
+              code: e.code ?? 'VALIDATION_ERROR',
+              traceId: request.id,
+            },
+          });
         }
         if (e.statusCode === 429) {
           if (e.retryAfter !== undefined) {
             reply.header('Retry-After', String(e.retryAfter));
           }
-          return reply.status(429).send({ code: e.code ?? 'TOO_MANY_REQUESTS' });
+          return reply.status(429).send({
+            ok: false,
+            error: {
+              code: e.code ?? 'RATE_LIMITED',
+              traceId: request.id,
+            },
+          });
         }
         if (e.statusCode === 401) {
-          return reply.status(401).send({ code: 'INVALID_CREDENTIALS' });
+          return reply.status(401).send({
+            ok: false,
+            error: {
+              code: 'INVALID_CREDENTIALS',
+              message: 'The provided username or password is incorrect.',
+              traceId: request.id,
+            },
+          });
         }
         // Unexpected error — rethrow for Fastify's error handler
         throw err;
@@ -138,7 +162,14 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       if (!cookies) {
         // Should never happen — guard against future refactors
         fastify.log.error('iam.routes: login result missing _cookies property');
-        return reply.status(500).send({ code: 'INTERNAL_ERROR' });
+        return reply.status(500).send({
+          ok: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred.',
+            traceId: request.id,
+          },
+        });
       }
 
       const secure   = env.AUTH_COOKIE_SECURE;
@@ -161,13 +192,16 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       // ── Return 200 with AuthResponseSchema body ───────────────────────────
       // Tokens are NEVER in this body.
       return reply.status(200).send({
-        user:          result.user,
-        sessionId:     result.sessionId,
-        expiresAt:     result.expiresAt,
-        roleCodes:     result.roleCodes,
-        officeScopeId: result.officeScopeId,
-        officeCode:    result.officeCode,
-        committeeIds:  result.committeeIds,
+        ok: true,
+        data: {
+          user:          result.user,
+          sessionId:     result.sessionId,
+          expiresAt:     result.expiresAt,
+          roleCodes:     result.roleCodes,
+          officeScopeId: result.officeScopeId,
+          officeCode:    result.officeCode,
+          committeeIds:  result.committeeIds,
+        },
       });
     },
   );
@@ -200,7 +234,14 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         .find((c) => c.startsWith(`${cookieName}=`));
 
       if (!tokenMatch) {
-        return reply.status(401).send({ code: 'UNAUTHORIZED' });
+        return reply.status(401).send({
+          ok: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'No valid session found.',
+            traceId: request.id,
+          },
+        });
       }
       const refreshTokenValue = tokenMatch.split('=')[1] || '';
 
@@ -226,7 +267,14 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
 
         if (e.statusCode === 401) {
           clearAuthCookies(reply);
-          return reply.status(401).send({ code: 'UNAUTHORIZED' });
+          return reply.status(401).send({
+            ok: false,
+            error: {
+              code: 'UNAUTHORIZED',
+              message: 'No valid session found.',
+              traceId: request.id,
+            },
+          });
         }
         // Unexpected error — rethrow
         throw err;
@@ -236,7 +284,14 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       const cookies = result._cookies;
       if (!cookies) {
         fastify.log.error('iam.routes: refresh result missing _cookies property');
-        return reply.status(500).send({ code: 'INTERNAL_ERROR' });
+        return reply.status(500).send({
+          ok: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An unexpected error occurred.',
+            traceId: request.id,
+          },
+        });
       }
 
       const secure   = env.AUTH_COOKIE_SECURE;
@@ -258,13 +313,16 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
 
       // 4. Return AuthResponseSchema body
       return reply.status(200).send({
-        user:          result.user,
-        sessionId:     result.sessionId,
-        expiresAt:     result.expiresAt,
-        roleCodes:     result.roleCodes,
-        officeScopeId: result.officeScopeId,
-        officeCode:    result.officeCode,
-        committeeIds:  result.committeeIds,
+        ok: true,
+        data: {
+          user:          result.user,
+          sessionId:     result.sessionId,
+          expiresAt:     result.expiresAt,
+          roleCodes:     result.roleCodes,
+          officeScopeId: result.officeScopeId,
+          officeCode:    result.officeCode,
+          committeeIds:  result.committeeIds,
+        },
       });
     },
   );
@@ -289,8 +347,13 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       const parseResult = UnlockInputSchema.safeParse(request.body);
       if (!parseResult.success) {
         return reply.status(400).send({
-          code: 'VALIDATION_ERROR',
-          errors: parseResult.error.flatten().fieldErrors,
+          ok: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'The provided input failed validation.',
+            traceId: request.id,
+            details: parseResult.error.flatten().fieldErrors,
+          },
         });
       }
 
@@ -302,7 +365,14 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         .find((c) => c.startsWith(`${cookieName}=`));
 
       if (!tokenMatch) {
-        return reply.status(401).send({ code: 'UNAUTHORIZED' });
+        return reply.status(401).send({
+          ok: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'No valid session found.',
+            traceId: request.id,
+          },
+        });
       }
       const accessTokenValue = tokenMatch.split('=')[1] || '';
 
@@ -310,11 +380,25 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       try {
         decoded = jwt.decode(accessTokenValue);
       } catch (err) {
-        return reply.status(401).send({ code: 'UNAUTHORIZED' });
+        return reply.status(401).send({
+          ok: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'No valid session found.',
+            traceId: request.id,
+          },
+        });
       }
 
       if (!decoded || !decoded.uid || !decoded.sid || typeof decoded.exp !== 'number') {
-        return reply.status(401).send({ code: 'UNAUTHORIZED' });
+        return reply.status(401).send({
+          ok: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'No valid session found.',
+            traceId: request.id,
+          },
+        });
       }
 
       const isExpired = decoded.exp * 1000 < Date.now();
@@ -336,9 +420,23 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         if (e.statusCode === 401) {
           if (e.code === 'REFRESH_REQUIRED') {
             clearAuthCookies(reply);
-            return reply.status(401).send({ code: 'REFRESH_REQUIRED', message: e.message || 'Your session has expired. Please log in again.' });
+            return reply.status(401).send({
+              ok: false,
+              error: {
+                code: 'REFRESH_REQUIRED',
+                message: e.message || 'Your session has expired. Please log in again.',
+                traceId: request.id,
+              },
+            });
           }
-          return reply.status(401).send({ code: e.code ?? 'UNAUTHORIZED' });
+          return reply.status(401).send({
+            ok: false,
+            error: {
+              code: e.code ?? 'UNAUTHORIZED',
+              message: 'No valid session found.',
+              traceId: request.id,
+            },
+          });
         }
         throw err;
       }
@@ -362,7 +460,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         reply.header('Set-Cookie', [atCookie, rtCookie]);
       }
 
-      return reply.status(200).send({ unlocked: true });
+      return reply.status(200).send({ ok: true, data: { unlocked: true } });
     }
   );
 
@@ -383,7 +481,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
           sessionId: auth.sessionId,
           userId: auth.userId,
         });
-        return reply.status(200).send({ locked: true });
+        return reply.status(200).send({ ok: true, data: { locked: true } });
       }
     );
 
@@ -420,8 +518,13 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         const parseResult = TerminateSessionInputSchema.safeParse(request.body);
         if (!parseResult.success) {
           return reply.status(400).send({
-            code: 'VALIDATION_ERROR',
-            errors: parseResult.error.flatten().fieldErrors,
+            ok: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'The provided input failed validation.',
+              traceId: request.id,
+              details: parseResult.error.flatten().fieldErrors,
+            },
           });
         }
 
@@ -445,7 +548,14 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
             payload: { action: 'force_terminate', denial_reason: result.reason },
             cityId: auth.cityId,
           });
-          return reply.status(403).send({ code: 'FORBIDDEN', message: 'Access denied.' });
+          return reply.status(403).send({
+            ok: false,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Access denied.',
+              traceId: request.id,
+            },
+          });
         }
 
         try {
@@ -455,12 +565,16 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
             reason: body.reason,
             cityId: auth.cityId,
           });
-          return reply.status(200).send(res);
+          return reply.status(200).send({ ok: true, data: res });
         } catch (err: unknown) {
           if (err instanceof NotFoundError) {
             return reply.status(404).send({
-              code: 'NOT_FOUND',
-              message: err.message,
+              ok: false,
+              error: {
+                code: 'NOT_FOUND',
+                message: err.message,
+                traceId: request.id,
+              },
             });
           }
           throw err;
