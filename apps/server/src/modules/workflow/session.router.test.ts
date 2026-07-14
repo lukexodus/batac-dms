@@ -64,6 +64,7 @@ function makeCtx(subject: AuthContext, db: ReturnType<typeof makeMockDb>): Conte
     req: {
       server: {},
     } as any,
+    requestId: 'test-request-id',
   };
 }
 

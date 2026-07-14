@@ -99,6 +99,7 @@ function makeCtx(subject: AuthContext, db: ReturnType<typeof makeMockDb>): Conte
         },
       },
     } as any,
+    requestId: 'test-request-id',
   };
 }
 

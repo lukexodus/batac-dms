@@ -127,6 +127,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
             ok: false,
             error: {
               code: e.code ?? 'VALIDATION_ERROR',
+              message: 'The provided request could not be processed.',
               traceId: request.id,
             },
           });
