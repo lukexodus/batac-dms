@@ -13,6 +13,7 @@ import {
   documentTypes,
 } from '@batac/database/schema/documents.schema.js';
 import type { DbClient, DbTransaction } from './documents.types.js';
+import type { LifecycleState, ClassificationLevel } from '@batac/shared';
 
 // ---------------------------------------------------------------------------
 // Inferred row types from the schema — these are the authoritative shapes
@@ -93,7 +94,7 @@ export class DocumentsRepository {
   /**
    * Find all non-deleted documents in a given lifecycle state.
    */
-  async findDocumentsByLifecycleState(lifecycleState: string): Promise<DocumentRow[]> {
+  async findDocumentsByLifecycleState(lifecycleState: LifecycleState): Promise<DocumentRow[]> {
     return this.db
       .select()
       .from(documents)
@@ -112,7 +113,7 @@ export class DocumentsRepository {
    */
   async updateDocumentLifecycleState(
     id: string,
-    lifecycleState: string,
+    lifecycleState: LifecycleState,
   ): Promise<DocumentRow | null> {
     const [row] = await this.db
       .update(documents)
@@ -184,7 +185,7 @@ export class DocumentsRepository {
    * Return the single current number row for a given document + number_type.
    * Returns null when no current row exists (e.g. no preliminary assigned yet).
    */
-  async findCurrentNumber(documentId: string, numberType: string): Promise<NumberRow | null> {
+  async findCurrentNumber(documentId: string, numberType: 'final' | 'preliminary' | 'control'): Promise<NumberRow | null> {
     const [row] = await this.db
       .select()
       .from(numbers)
@@ -321,7 +322,7 @@ export class DocumentsRepository {
     update: {
       ocrText: string;
       scanQualityScore: string | null;
-      scanQualityCategory: string | null;
+      scanQualityCategory: 'good' | 'fair' | 'poor' | null;
     },
   ): Promise<VersionRow | null> {
     const [row] = await this.db
@@ -629,7 +630,7 @@ export class DocumentsRepository {
     scope: { kind: 'all' } | { kind: 'own'; officeIds: string[] } | { kind: 'none' };
     callerRoles: string[];
     documentTypeId?: string;
-    lifecycleState?: string;
+    lifecycleState?: LifecycleState;
     officeId?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -691,7 +692,7 @@ export class DocumentsRepository {
     callerRoles: string[];
     queryText: string;
     documentTypeIds?: string[];
-    classificationLevels?: string[];
+    classificationLevels?: ClassificationLevel[];
     dateFrom?: string;
     dateTo?: string;
     cursor?: string;
@@ -815,7 +816,7 @@ export class DocumentsRepository {
   }
 
   /** @deprecated Use updateDocumentLifecycleState */
-  async updateState(id: string, state: string, _actorId: string): Promise<void> {
+  async updateState(id: string, state: LifecycleState, _actorId: string): Promise<void> {
     await this.updateDocumentLifecycleState(id, state);
   }
 

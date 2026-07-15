@@ -7467,3 +7467,1322 @@ If any of these headers are missing or have a different value than listed, that'
 4. The server starts with no plugin-registration errors.
 5. A manual request to any route shows all six headers listed under "Testing" above, with the exact values specified.
 6. No file outside `apps/server/package.json` and `apps/server/src/app.ts` (plus the lockfile, updated automatically by the install command) has been modified.
+
+---
+
+# TASK-DOCS-SHARED-002
+
+````
+TASK-DOCS-SHARED-002
+
+Standalone prompt for local agent execution. This prompt is self-contained:
+do not assume access to any prior conversation, planning session, or the
+knowledge-reference document that may have informed its creation.
+
+═══════════════════════════════════════════════════════════════════════════
+CONTEXT (read fully before making any change)
+═══════════════════════════════════════════════════════════════════════════
+
+The file `packages/database/schema/documents.schema.ts` currently declares
+13 columns as plain Drizzle `text()` with the enum-like constraint enforced
+only via a raw SQL `check(...)` clause. This means TypeScript has zero
+awareness of the allowed value set for these columns: `drizzle-zod`'s
+`createSelectSchema()` infers them as unconstrained `ZodString`, and nothing
+catches a typo'd or invalid string literal at compile time anywhere these
+columns are read or written in application code.
+
+This task converts all 13 to genuine PostgreSQL native enum types via
+Drizzle's `pgEnum()` helper, and propagates the resulting stricter
+TypeScript types to the three call sites in `documents.repository.ts` that
+currently type these values as plain `string`.
+
+The application has not yet launched (no production traffic, no
+production data). This is why this task uses a SINGLE, DIRECT migration
+rather than the three-phase expand-contract sequence that
+`docs/pre-development/C-database/c5-migration-strategy-and-conventions.md`
+Section 5.3 mandates for breaking changes to a LIVE system — that
+protection exists specifically to avoid breaking traffic against a
+populated database, which does not apply here. Section 5.1 of that same
+document explicitly classifies `ALTER COLUMN ... TYPE` as a breaking
+operation; this task proceeds with it directly ONLY because of the
+pre-launch status confirmed above. Do not skip the "Precondition Check"
+step below on the assumption that pre-launch status makes it unnecessary —
+verify it directly, because this task's own instructions depend on it
+being true, not the other way around.
+
+═══════════════════════════════════════════════════════════════════════════
+PART 1 — PRECONDITION CHECK (must pass before proceeding to Part 2)
+═══════════════════════════════════════════════════════════════════════════
+
+Before making any schema or migration change, connect to the target
+database (the one `DATABASE_URL_MIGRATE` in the local `.env` points at) and
+run:
+
+```sql
+SELECT
+  (SELECT count(*) FROM documents.documents) AS documents_count,
+  (SELECT count(*) FROM documents.document_types) AS document_types_count,
+  (SELECT count(*) FROM documents.versions) AS versions_count,
+  (SELECT count(*) FROM documents.attachments) AS attachments_count,
+  (SELECT count(*) FROM documents.numbers) AS numbers_count,
+  (SELECT count(*) FROM documents.number_series) AS number_series_count,
+  (SELECT count(*) FROM documents.signatures) AS signatures_count,
+  (SELECT count(*) FROM documents.document_sponsorships) AS document_sponsorships_count,
+  (SELECT count(*) FROM documents.panlalawigan_reviews) AS panlalawigan_reviews_count;
+```
+
+- If every count is 0 (or the tables do not exist yet because no migration
+  has been applied to this database at all): proceed to Part 2.
+- If ANY count is non-zero: STOP. Do not proceed with Part 2 or Part 3.
+  Report the non-zero table(s) and their row counts back to the user. This
+  is a genuine decision point (real data exists that a direct
+  `ALTER COLUMN ... TYPE` would need to cast) — do not choose an approach
+  yourself; the user must decide whether this is disposable seed/test data
+  that can be safely dropped and recreated, or real data requiring the
+  full expand-contract sequence from C5 Section 5.3 instead.
+
+═══════════════════════════════════════════════════════════════════════════
+PART 2 — SCHEMA FILE CHANGES: packages/database/schema/documents.schema.ts
+═══════════════════════════════════════════════════════════════════════════
+
+Convert these 13 columns from `text('...')` + CHECK constraint to
+`pgEnum(...)`-backed columns. For each, the exact current allowed value
+list (taken directly from the existing CHECK constraint, do not alter any
+value) is given below.
+
+Add near the top of the file, after the existing imports, one `pgEnum(...)`
+declaration per distinct value set. IMPORTANT: `classification_default`
+(on `document_types`) and `classification_level` (on `documents`) share the
+IDENTICAL 4-value set — use ONE shared enum type for both columns, do not
+create two separate enum types with the same values. All other 11 columns
+have distinct value sets and each gets its own enum type.
+
+```typescript
+import { pgEnum } from 'drizzle-orm/pg-core';
+// (add pgEnum to the existing destructured import from 'drizzle-orm/pg-core'
+//  at the top of the file — do not add a second, separate import statement)
+
+export const lifecycleStateEnum = documentsSchema.enum('lifecycle_state_enum', [
+  'draft', 'submitted', 'in_workflow', 'pending_mayor_action',
+  'pending_panlalawigan_review', 'completed', 'released', 'archived',
+  'disposed', 'cancelled', 'superseded',
+]);
+
+export const classificationLevelEnum = documentsSchema.enum('classification_level_enum', [
+  'public', 'internal', 'confidential', 'restricted',
+]);
+
+export const owningModuleEnum = documentsSchema.enum('owning_module_enum', [
+  'workflow', 'organization', 'portal',
+]);
+
+export const publicVisibilityRuleEnum = documentsSchema.enum('public_visibility_rule_enum', [
+  'title_and_first_page_public', 'not_public', 'complainant_restricted', 'requester_restricted',
+]);
+
+export const seriesTypeEnum = documentsSchema.enum('series_type_enum', [
+  'legislative', 'administrative',
+]);
+
+export const phaseEnum = documentsSchema.enum('phase_enum', [
+  '1', '1b',
+]);
+
+export const numberTypeEnum = documentsSchema.enum('number_type_enum', [
+  'preliminary', 'final', 'control',
+]);
+
+export const scanQualityCategoryEnum = documentsSchema.enum('scan_quality_category_enum', [
+  'good', 'fair', 'poor',
+]);
+
+export const attachmentTypeEnum = documentsSchema.enum('attachment_type_enum', [
+  'certification_of_urgency', 'committee_report', 'transmittal_letter', 'scan', 'other',
+]);
+
+export const signatureTypeEnum = documentsSchema.enum('signature_type_enum', [
+  'presiding_officer', 'mayor', 'sp_secretary', 'vice_mayor', 'committee_chair',
+]);
+
+export const sponsorshipTypeEnum = documentsSchema.enum('sponsorship_type_enum', [
+  'principal_author', 'co_author', 'introducer', 'co_introducer',
+]);
+
+export const panlalawiganOutcomeEnum = documentsSchema.enum('panlalawigan_outcome_enum', [
+  'valid', 'valid_in_part', 'returned', 'operative_in_its_entirety', 'deemed_approved',
+]);
+```
+
+NOTE ON SYNTAX: `documentsSchema.enum(...)` is Drizzle's schema-scoped enum
+helper (creates the type inside the `documents` PostgreSQL schema, matching
+how every table in this file is already scoped via `documentsSchema.table`).
+This mirrors the existing `pgSchema('documents')` pattern already used for
+every table declaration in this file — do not use the bare top-level
+`pgEnum(...)` helper instead, since that would create the type in the
+default `public` schema, inconsistent with this file's existing convention
+of scoping everything to the `documents` schema.
+[Unverified against installed package source — this repository upload does
+not include node_modules, so the exact method name/signature on the
+pgSchema-returned object could not be checked directly against the
+installed drizzle-orm@0.45.2 API surface. If `documentsSchema.enum(...)`
+is not the correct method name in the installed version, `pnpm typecheck`
+in Part 4 below will surface this immediately as a compile error — resolve
+by checking the actual type definitions shipped in
+`node_modules/drizzle-orm/pg-core/schema.d.ts` (or wherever the pgSchema
+return type is declared) before assuming the syntax above is wrong for a
+different reason.]
+
+Then, for each of the 13 columns, replace the `text('column_name')...` +
+its corresponding `check(...)` line with the enum column reference. Full
+before/after for every site:
+
+1. `documentTypes.owningModule` (line ~73): change
+   `owningModule: text('owning_module').notNull(),`
+   to
+   `owningModule: owningModuleEnum('owning_module').notNull(),`
+   — then DELETE the corresponding check block at lines ~107–110
+   (`document_types_owning_module_check`).
+
+2. `documentTypes.classificationDefault` (line ~91): change
+   `classificationDefault: text('classification_default').notNull(),`
+   to
+   `classificationDefault: classificationLevelEnum('classification_default').notNull(),`
+   — then DELETE the check block at lines ~111–114
+   (`document_types_classification_default_check`).
+
+3. `documentTypes.publicVisibilityRule` (line ~92): change
+   `publicVisibilityRule: text('public_visibility_rule').notNull(),`
+   to
+   `publicVisibilityRule: publicVisibilityRuleEnum('public_visibility_rule').notNull(),`
+   — then DELETE the check block at lines ~115–118
+   (`document_types_public_visibility_rule_check`).
+
+4. `numberSeries.seriesType` (line ~144): change
+   `seriesType: text('series_type').notNull(),`
+   to
+   `seriesType: seriesTypeEnum('series_type').notNull(),`
+   — then DELETE the check block for `number_series_series_type_check`.
+
+5. `numberSeries.phase` (line ~146): change
+   `phase: text('phase').notNull().default('1'),`
+   to
+   `phase: phaseEnum('phase').notNull().default('1'),`
+   — then DELETE the check block for `number_series_phase_check`.
+
+6. `documents.lifecycleState` (line ~208): change
+   `lifecycleState: text('lifecycle_state').notNull().default('draft'),`
+   to
+   `lifecycleState: lifecycleStateEnum('lifecycle_state').notNull().default('draft'),`
+   — then DELETE the check block for `documents_lifecycle_state_check`
+   (lines ~245–248).
+   DO NOT touch the `documents.check_lifecycle_transition()` trigger
+   function or the `trg_documents_...` triggers — those are separate,
+   unrelated enforcement (a BEFORE UPDATE trigger validating the
+   transition GRAPH, not the value set) and are not part of this file;
+   they live in the SQL migration history, not in this Drizzle schema
+   file, and must not be modified.
+
+7. `documents.classificationLevel` (line ~209): change
+   `classificationLevel: text('classification_level').notNull(),`
+   to
+   `classificationLevel: classificationLevelEnum('classification_level').notNull(),`
+   — then DELETE the check block for `documents_classification_level_check`
+   (lines ~249–252). This reuses the SAME `classificationLevelEnum`
+   declared in step 2 above — do not create a second enum type.
+
+8. `numbers.numberType` (line ~293): change
+   `numberType: text('number_type').notNull(),`
+   to
+   `numberType: numberTypeEnum('number_type').notNull(),`
+   — then DELETE the check block for `numbers_number_type_check`.
+
+9. `versions.scanQualityCategory` (line ~366): change
+   `scanQualityCategory: text('scan_quality_category'),`
+   to
+   `scanQualityCategory: scanQualityCategoryEnum('scan_quality_category'),`
+   (note: this column is nullable — no `.notNull()` — preserve that)
+   — then DELETE the check block for `versions_scan_quality_category_check`.
+
+10. `attachments.attachmentType` (line ~417): change
+    `attachmentType: text('attachment_type').notNull(),`
+    to
+    `attachmentType: attachmentTypeEnum('attachment_type').notNull(),`
+    — then DELETE the check block for `attachments_attachment_type_check`.
+
+11. `signatures.signatureType` (line ~463): change
+    `signatureType: text('signature_type').notNull(),`
+    to
+    `signatureType: signatureTypeEnum('signature_type').notNull(),`
+    — then DELETE the check block for `signatures_signature_type_check`.
+
+12. `documentSponsorships.sponsorshipType` (line ~503): change
+    `sponsorshipType: text('sponsorship_type').notNull(),`
+    to
+    `sponsorshipType: sponsorshipTypeEnum('sponsorship_type').notNull(),`
+    — then DELETE the check block for
+    `document_sponsorships_sponsorship_type_check`.
+
+13. `panlalawiganReviews.outcome` (line ~556): change
+    `outcome: text('outcome'),`
+    to
+    `outcome: panlalawiganOutcomeEnum('outcome'),`
+    (nullable column — no `.notNull()` — preserve that)
+    — then DELETE the check block for `panlalawigan_reviews_outcome_check`.
+
+DO NOT change any other column in this file. DO NOT change any column in
+any OTHER schema file (`iam.schema.ts`, `organization.schema.ts`,
+`workflow.schema.ts`, `tracking.schema.ts`, `records.schema.ts`,
+`notifications.schema.ts`, `audit.schema.ts`, `shared.schema.ts`) even if
+you notice a similar text+CHECK pattern there — that is out of scope for
+this task.
+
+═══════════════════════════════════════════════════════════════════════════
+PART 3 — GENERATE AND APPLY THE MIGRATION
+═══════════════════════════════════════════════════════════════════════════
+
+```bash
+# From monorepo root:
+pnpm --filter @batac/database db:generate
+```
+
+Review the generated SQL file in `packages/database/migrations/` before
+applying. It should contain 13 `CREATE TYPE documents.{name} AS ENUM (...)`
+statements (12 distinct types — remember classification_level_enum is
+shared/reused for 2 columns) and 13 `ALTER TABLE ... ALTER COLUMN ... TYPE
+documents.{enum_name} USING {column}::documents.{enum_name}` statements
+(or equivalent — Drizzle Kit's exact generated form may differ slightly;
+what matters is that the intent matches: create the enum type, then cast
+the existing column to it), plus the corresponding `DROP CONSTRAINT`
+statements removing the 13 old CHECK constraints.
+
+Confirm per C5 Section 4 pre-apply checklist:
+- [ ] The SQL's intent matches the schema file diff (13 columns, 12 enum
+      types, 13 dropped CHECK constraints).
+- [ ] No cross-schema foreign keys introduced (none should be — this
+      change touches only column types, not FK relationships).
+- [ ] No `\copy`, `\i`, `\set`, or other psql meta-commands present.
+- [ ] The file runs cleanly when piped as
+      `psql $DATABASE_URL_MIGRATE -f {file}.sql` (test this against the
+      confirmed-empty local database from Part 1).
+
+Then apply:
+
+```bash
+pnpm --filter @batac/database db:migrate
+```
+
+═══════════════════════════════════════════════════════════════════════════
+PART 4 — PROPAGATE TO documents.repository.ts (apps/server)
+═══════════════════════════════════════════════════════════════════════════
+
+File: `apps/server/src/modules/documents/documents.repository.ts`
+
+Three existing function signatures currently type `lifecycleState` as
+plain `string`. Once Part 2/3 land, `InferSelectModel<typeof documents>`
+will automatically narrow `DocumentRow['lifecycleState']` to the real
+11-value union with zero change needed to that line — but these three
+signatures do NOT reference `DocumentRow` and will keep silently accepting
+any string unless updated directly:
+
+1. Add this import near the top of the file (after the existing
+   `@batac/database/schema/documents.schema.js` import block):
+
+```typescript
+import type { LifecycleState, ClassificationLevel } from '@batac/shared';
+```
+
+2. Change (around line 98-99):
+```typescript
+  async findDocumentsByLifecycleState(
+    lifecycleState: string,
+  ): Promise<DocumentRow[]> {
+```
+to:
+```typescript
+  async findDocumentsByLifecycleState(
+    lifecycleState: LifecycleState,
+  ): Promise<DocumentRow[]> {
+```
+
+3. Change (around line 125-127):
+```typescript
+  async updateDocumentLifecycleState(
+    id: string,
+    lifecycleState: string,
+  ): Promise<DocumentRow | null> {
+```
+to:
+```typescript
+  async updateDocumentLifecycleState(
+    id: string,
+    lifecycleState: LifecycleState,
+  ): Promise<DocumentRow | null> {
+```
+
+4. Change (around line 700, inside the `listDocuments` filter object type):
+```typescript
+    lifecycleState?: string;
+```
+to:
+```typescript
+    lifecycleState?: LifecycleState;
+```
+
+Do NOT widen this to also type `classificationLevel` anywhere in this
+file unless you find an existing `classificationLevel: string` parameter
+during this edit — a targeted search for this was not run as part of
+writing this prompt, since the three sites above were confirmed but a
+`classificationLevel`-specific repository parameter was not separately
+searched for. If you find one, apply the same treatment using the
+`ClassificationLevel` type already imported above; if you find none, do
+not add one speculatively.
+
+═══════════════════════════════════════════════════════════════════════════
+PART 5 — CORRECT E3'S STALE LifecycleStateSchema DOCUMENTATION
+═══════════════════════════════════════════════════════════════════════════
+
+EXPLICIT AUTHORIZATION NOTE — READ BEFORE SKIPPING THIS PART: AGENTS.md
+Section 4.5 states agents never edit any Group B–L document (which
+includes E3) as a result of an A1-execution-time discovery, and must
+append a findings-log entry instead and let a human decide on the source
+edit. That rule is correct and still applies by default. This part is an
+EXPLICIT, ONE-TIME EXCEPTION the human directing this task granted during
+the planning session that produced this prompt, specifically for this one
+correction, because the human was consulted directly and chose "edit E3
+directly + also log a findings entry" over the log-only default. This
+exception does not generalize — do not treat this as license to edit any
+other Group B–L document in this or any future task without the same kind
+of direct, explicit human sign-off.
+
+File: `docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md`
+
+The current `LifecycleStateSchema` entry (verify the exact current line
+numbers yourself before editing — do not assume the numbers below are
+still accurate, they were correct at prompt-authoring time but this file
+may have changed since):
+
+```typescript
+export const LifecycleStateSchema = z.enum([
+  "draft", "under_review", "pending_mayor_action", "pending_panlalawigan_review",
+  "approved", "released", "superseded", "cancelled", "rejected",
+]);
+export type LifecycleState = z.infer<typeof LifecycleStateSchema>;
+```
+
+Replace with:
+
+```typescript
+export const LifecycleStateSchema = z.enum([
+  "draft", "submitted", "in_workflow", "pending_mayor_action",
+  "pending_panlalawigan_review", "completed", "released", "archived",
+  "disposed", "cancelled", "superseded",
+]);
+export type LifecycleState = z.infer<typeof LifecycleStateSchema>;
+```
+
+This corrects the enum to the actual 11-value set already live in
+`packages/shared/src/schemas/documents.ts`, the PostgreSQL CHECK
+constraint's historical value list (now superseded by the native enum
+type from Part 2 of this task, which encodes this same 11-value list),
+and the `documents.check_lifecycle_transition()` trigger function — all
+three of which already agree with each other and disagree with E3's
+current 9-value list. The 9-value list predates the D3 post-ADR-013/
+ADR-014 state-machine revision.
+
+CRITICAL — TABLE OF CONTENTS: This document's own Table of Contents states
+line ranges for every section (e.g. "[L1219–L1783] Part 4 — Documents
+Domain"). Changing the `LifecycleStateSchema` code block from 4 lines to
+11 lines shifts every line number below this edit for the rest of the
+file. Per this project's hard convention: DO NOT recalculate, adjust, or
+touch ANY Table of Contents line number as a result of this edit, even
+though the ToC will become stale immediately after this change. Leaving
+the ToC stale is the correct, expected outcome — the human handles ToC
+line renumbering manually and separately. Do not attempt to "fix" this
+yourself.
+
+Also update the `**Source:**` line immediately below the code block
+(currently reads `**Source:** \`documents.lifecycle_state_enum\` | ...`)
+— leave this line's text unchanged; it already correctly anticipates a
+native enum source, which Part 2 of this task now makes literally true
+(the Postgres type is genuinely named `lifecycle_state_enum` inside the
+`documents` schema per Part 2 step 6 above).
+
+═══════════════════════════════════════════════════════════════════════════
+PART 6 — FINDINGS LOG ENTRY
+═══════════════════════════════════════════════════════════════════════════
+
+Before appending, run this check yourself (do not trust any number stated
+in this prompt — re-verify at execution time, since other entries may
+have been added since this prompt was written):
+
+```bash
+grep -n "^### \[LOG-" docs/development-findings-log.md | tail -5
+```
+
+Take the highest number found, and use the next sequential number for the
+entry below. Append to the END of `docs/development-findings-log.md`
+(after the last existing entry, preserving the file's existing `---`
+separator convention), replacing `LOG-{NNN}` below with the actual
+correct next number:
+
+```
+### [LOG-{NNN}] E3's LifecycleStateSchema corrected from 9 values to the authoritative 11-value set (TASK-DOCS-SHARED-002)
+
+- date: {today's actual date at execution time, format YYYY-MM-DD}
+- task_id: TASK-DOCS-SHARED-002
+- status: proposed
+- affects: docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md (`LifecycleStateSchema` entry, Part 4 — Documents Domain — Enum Schemas)
+- resolved_in: docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md
+
+**What was found:** E3's `LifecycleStateSchema` listed 9 values (`draft`,
+`under_review`, `pending_mayor_action`, `pending_panlalawigan_review`,
+`approved`, `released`, `superseded`, `cancelled`, `rejected`) — a stale
+set predating the D3 post-ADR-013/ADR-014 lifecycle-state revision. The
+actual live system (the `documents.documents.lifecycle_state` PostgreSQL
+CHECK constraint prior to this task, the `documents.check_lifecycle_transition()`
+trigger function, `apps/server/src/modules/documents/documents.service.ts`'s
+`VALID_TRANSITIONS` map, `apps/server/src/modules/documents/documents.types.ts`'s
+`DocumentLifecycleState` type, and `packages/shared/src/schemas/documents.ts`'s
+own `LifecycleStateSchema`, already corrected under a prior task tagged
+`TASK-DOCS-011`) all independently agree on an 11-value set: `draft`,
+`submitted`, `in_workflow`, `pending_mayor_action`,
+`pending_panlalawigan_review`, `completed`, `released`, `archived`,
+`disposed`, `cancelled`, `superseded`. Only 6 of the 11 values overlapped
+between the two sets.
+
+**What was done:** Per explicit human direction given during the planning
+session that produced this task (an exception to the default AGENTS.md
+Section 4.5 log-only rule for Group B–L documents), E3 was edited directly
+to replace the stale 9-value list with the correct 11-value list, matching
+what `packages/shared/src/schemas/documents.ts` and the newly-created
+native PostgreSQL enum type (`documents.lifecycle_state_enum`, created by
+this same task) both already encode.
+
+**Not independently re-verified as part of this entry:** whether any OTHER
+document in the pre-dev corpus (beyond E3) also references the stale
+9-value set — a targeted search for this was not run as part of this
+task; if a future task or human review finds another stale reference, it
+should get its own findings-log entry rather than assuming this entry
+covers it.
+```
+
+═══════════════════════════════════════════════════════════════════════════
+PART 7 — VERIFICATION
+═══════════════════════════════════════════════════════════════════════════
+
+1. `pnpm typecheck` (run at monorepo root, or `--filter @batac/database`
+   and `--filter @batac/server` separately) passes with zero errors.
+2. Confirm zero remaining `text('...')` + `check(...)` pairs for any of
+   the 13 columns listed in Part 2 — run:
+   ```bash
+   grep -n "check(" -A 2 packages/database/schema/documents.schema.ts | grep " IN ("
+   ```
+   This should now return EMPTY (all 13 were converted). If any of the 13
+   original constraints still appear, the corresponding column was missed.
+3. Deliberate-drift regression check: temporarily add an invalid literal
+   (e.g. `lifecycleState: 'not_a_real_state'`) to a `.set({...})` or
+   `.values({...})` call touching the `documents` table anywhere in
+   `apps/server/src/modules/documents/`, confirm `pnpm typecheck` now
+   reports a type error at that exact line, then revert the change.
+4. Confirm `documents.repository.ts`'s three updated signatures
+   (Part 4) no longer accept a plain `string` literal that isn't a member
+   of `LifecycleState` — same deliberate-drift technique, temporary and
+   reverted.
+5. `git status` (or manual directory diff, since this repo snapshot may
+   not include `.git` history) should show changes ONLY in:
+   - `packages/database/schema/documents.schema.ts`
+   - `packages/database/migrations/` (one new `.sql` file, plus Drizzle
+     Kit's own snapshot/meta files it manages automatically — do not
+     hand-edit these)
+   - `apps/server/src/modules/documents/documents.repository.ts`
+   - `docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md`
+   - `docs/development-findings-log.md`
+   No other file should be touched by this task.
+
+Before submitting this PR, confirm each item:
+- [ ] Precondition check (Part 1) ran and confirmed all 9 tables empty (or explicitly stopped and reported non-zero counts instead of proceeding).
+- [ ] All 13 columns converted to `pgEnum`-backed types; zero `text()` + `check(... IN (...))` pairs remain for these 13 columns.
+- [ ] `classification_level_enum` is shared/reused between `document_types.classification_default` and `documents.classification_level` (not duplicated).
+- [ ] Migration generated, reviewed against the C5 Section 4 checklist, and applied successfully to the confirmed-empty local database.
+- [ ] `documents.repository.ts`'s three `string`-typed lifecycleState parameters updated to `LifecycleState`.
+- [ ] E3's `LifecycleStateSchema` corrected to the 11-value set; ToC line numbers left untouched.
+- [ ] Findings-log entry appended with a freshly-verified (not assumed) next sequential LOG number.
+- [ ] `pnpm typecheck` passes with zero errors monorepo-wide.
+- [ ] Deliberate-drift regression checks (Part 7, items 3–4) both confirmed and reverted.
+- [ ] Diff scope matches exactly the file list in Part 7, item 5.
+A reviewer will verify each one independently.
+````
+
+---
+
+# TASK-DOCS-SHARED-003
+
+````
+TASK-DOCS-SHARED-003
+
+Standalone prompt for local agent execution. This prompt is self-contained:
+do not assume access to any prior conversation, planning session, or the
+knowledge-reference document that may have informed its creation.
+
+═══════════════════════════════════════════════════════════════════════════
+HARD PREREQUISITE
+═══════════════════════════════════════════════════════════════════════════
+
+This task REQUIRES TASK-DOCS-SHARED-002 to have already landed (the native
+PostgreSQL enum conversion for 13 columns in
+`packages/database/schema/documents.schema.ts`). Before starting, confirm
+this prerequisite is actually met — run:
+
+```bash
+grep -n "pgEnum\|documentsSchema.enum" packages/database/schema/documents.schema.ts | head -5
+```
+
+If this returns nothing, STOP. Do not proceed — report back that
+TASK-DOCS-SHARED-002 has not yet been applied to this repository snapshot,
+and this task cannot safely run until it has (four of the five schemas
+this task touches depend on enum types that TASK-DOCS-SHARED-002
+introduces; running this task first would mean re-doing part of the work
+once that task lands).
+
+═══════════════════════════════════════════════════════════════════════════
+CONTEXT
+═══════════════════════════════════════════════════════════════════════════
+
+`packages/shared/src/schemas/documents.ts` currently has 7 schemas tagged
+`*SelectSchema`. Only 2 (`DocumentSelectSchema`, `VersionSelectSchema`) are
+derived from `drizzle-zod`'s `createSelectSchema()`. The other 5
+(`DocumentTypeSelectSchema`, `AttachmentSelectSchema`,
+`DocumentNumberSelectSchema`, `SignatureSelectSchema`,
+`PanlalawiganReviewSelectSchema`) are fully hand-written `z.object()`
+calls with zero connection to their underlying Drizzle tables — meaning
+zero compile-time drift protection if the DB schema changes underneath
+them.
+
+Per `docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md`,
+Conventions > Schema Type Tags: "**Select** | Full entity shape derived
+from `drizzle-zod`'s `createSelectSchema()`." And Part 16, Rule 2: "Select
+schemas must be derived from or compositionally consistent with
+`createSelectSchema()`... Intentional divergences... are documented in
+this catalog at the point of divergence." These 5 schemas currently
+violate this rule.
+
+This task migrates all 5 to the same `.shape`-spread `z.object()`
+construction pattern already used by `DocumentSelectSchema` and
+`VersionSelectSchema` in the same file (read those two existing
+constructions in the file before starting — they are the reference
+pattern to follow exactly, including the code style of listing overrides
+after the spread).
+
+IMPORTANT — FIELD NAME DIVERGENCES FOUND DURING PLANNING: three of these
+five schemas have field names that differ from their underlying Drizzle
+column names. For two of them, live application code depends on the
+CURRENT (non-DB-matching) field name — renaming would break that code.
+For the third, nothing depends on the current name. Exact treatment for
+each is specified per-schema below. Do NOT resolve any of these three
+by your own judgment beyond what's specified — the instructions below are
+exact and were determined by checking actual call sites, not guessed.
+
+═══════════════════════════════════════════════════════════════════════════
+FILE: packages/shared/src/schemas/documents.ts
+═══════════════════════════════════════════════════════════════════════════
+
+For each of the 5 schemas below: (a) confirm the Drizzle table import
+already exists at the top of the file (it does, for `documentTypes` —
+check whether `attachments`, `numbers`, `signatures`, and
+`panlalawiganReviews` are already imported from
+`@batac/database/schema/documents.schema.js`; if not, add them to the
+existing import statement), (b) replace the entire current schema
+definition with the corrected version given.
+
+---
+
+### 1. DocumentTypeSelectSchema
+
+Current (to be replaced in full):
+```typescript
+export const DocumentTypeSelectSchema = z.object({
+  id: UuidSchema,
+  name: z.string(),
+  code: z.string(),
+  owningModule: z.string(),
+  numberSeriesId: UuidSchema.nullable(),
+  preliminaryNumbering: z.boolean(),
+  controlNumberDeferred: z.boolean(),
+  classificationDefault: ClassificationLevelSchema,
+  publicVisibilityRule: PublicVisibilityRuleSchema,
+  metadataSchema: z.record(z.unknown()),
+  isActive: z.boolean(),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+});
+export type DocumentTypeSelect = z.infer<typeof DocumentTypeSelectSchema>;
+```
+
+Replace with:
+```typescript
+export const DocumentTypeSelectSchema = z.object({
+  ...createSelectSchema(documentTypes).omit({
+    cityId: true,
+    deletedAt: true,
+    deletedBy: true,
+  }).shape,
+  id: UuidSchema,
+  numberSeriesId: UuidSchema.nullable(),
+  // Renamed from Drizzle's `hasPreliminaryNumbering` to
+  // `preliminaryNumbering` to match this field's existing, established
+  // name in this schema. Confirmed via repo-wide search: no live code
+  // outside this file depends on the OLD Drizzle-matching name
+  // (`hasPreliminaryNumbering` is not referenced anywhere as a property
+  // access), so this override is a safe rename, not a compatibility
+  // requirement — kept as an explicit override rather than accepting the
+  // derived name because `preliminaryNumbering` is the name already used
+  // by this schema's existing consumers, and there was no reason found
+  // to force a rename onto them.
+  preliminaryNumbering: z.boolean(),
+  classificationDefault: ClassificationLevelSchema,
+  publicVisibilityRule: PublicVisibilityRuleSchema,
+  metadataSchema: z.record(z.unknown()),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+});
+export type DocumentTypeSelect = z.infer<typeof DocumentTypeSelectSchema>;
+```
+
+NOTE: this adds `requiresPublication` and `requiredStepTypes` to the
+schema's shape (both exist on the Drizzle table but were absent from the
+old hand-written version). This is an intentional, in-scope consequence
+of deriving from the full table shape per E3 Rule 2 — not a mistake to
+correct. If this breaks a strict-shape assumption anywhere downstream
+(e.g. a test asserting an exact key set), that is a legitimate finding to
+report back, not something to silently work around by re-adding an
+`.omit()` for these two fields.
+
+---
+
+### 2. AttachmentSelectSchema
+
+Current (to be replaced in full):
+```typescript
+export const AttachmentSelectSchema = z.object({
+  id: UuidSchema,
+  documentId: UuidSchema,
+  s3Key: z.string(),
+  attachmentType: AttachmentTypeSchema,
+  description: z.string().nullable(),
+  mimeType: z.string(),
+  fileSizeBytes: z.number().int().positive(),
+  uploadedBy: UuidSchema,
+  createdAt: TimestampSchema,
+});
+export type AttachmentSelect = z.infer<typeof AttachmentSelectSchema>;
+```
+
+Replace with:
+```typescript
+export const AttachmentSelectSchema = z.object({
+  ...createSelectSchema(attachments).omit({
+    cityId: true,
+    deletedAt: true,
+    deletedBy: true,
+  }).shape,
+  id: UuidSchema,
+  documentId: UuidSchema,
+  // Renamed from Drizzle's `fileKey` to `s3Key` to match this field's
+  // existing, established name in this schema. Confirmed via repo-wide
+  // search: no live code depends on the OLD Drizzle-matching name
+  // (`fileKey` is not referenced as a property access on any
+  // attachment-shaped object outside this file), so this is a safe
+  // rename. The underlying Drizzle column is nullable
+  // (`fileKey: uuid('file_key')`, no `.notNull()`), but this schema's
+  // existing consumers expect a non-nullable string — preserved as-is
+  // below rather than silently widening to nullable, since that would be
+  // a behavior change beyond this task's scope. If a genuinely
+  // attachment-without-a-file-key row can exist (the Drizzle comment for
+  // `sourceDocumentId` below suggests one can — a Certification of
+  // Urgency attachment referencing a source document instead of its own
+  // file), this non-nullable override may be WRONG and is flagged here
+  // as a finding, not silently resolved:
+  s3Key: z.string(),
+  sourceDocumentId: UuidSchema.nullable(),
+  description: z.string().nullable(),
+  fileSizeBytes: z.number().int().positive(),
+  uploadedBy: UuidSchema,
+  createdAt: TimestampSchema,
+});
+export type AttachmentSelect = z.infer<typeof AttachmentSelectSchema>;
+```
+
+FLAG FOR HUMAN REVIEW (do not resolve yourself — this exact concern is
+called out inline above but repeated here since it's a real design
+question): `s3Key: z.string()` (non-nullable) may not be correct for
+every real row now that `sourceDocumentId` is included in this schema's
+output — a row where `sourceDocumentId` is set and `fileKey` is
+genuinely null (the "shared certification attachment" case the Drizzle
+schema comment describes) would fail to parse against this schema. This
+was not silently changed to nullable because doing so is also a
+meaningful behavior change for anything currently assuming `s3Key` is
+always present. Report this back as a specific, named finding rather than
+picking a resolution.
+
+---
+
+### 3. DocumentNumberSelectSchema
+
+Current (to be replaced in full):
+```typescript
+export const DocumentNumberSelectSchema = z.object({
+  id: UuidSchema,
+  documentId: UuidSchema,
+  seriesId: UuidSchema,
+  numberType: NumberTypeSchema,
+  numberValue: z.string(),
+  sequenceYear: z.number().int(),
+  sequenceNumber: z.number().int(),
+  isCurrent: z.boolean(),
+  assignedAt: TimestampSchema,
+  assignedBy: UuidSchema,
+  supersededAt: TimestampSchema.nullable(),
+  cancellationReason: z.string().nullable(),
+});
+export type DocumentNumberSelect = z.infer<typeof DocumentNumberSelectSchema>;
+```
+
+Replace with:
+```typescript
+export const DocumentNumberSelectSchema = z.object({
+  ...createSelectSchema(numbers).omit({
+    cityId: true,
+    deletedAt: true,
+    deletedBy: true,
+  }).shape,
+  id: UuidSchema,
+  documentId: UuidSchema,
+  // Renamed from Drizzle's `numberSeriesId` to `seriesId` to match this
+  // field's existing, established name in this schema. Confirmed via
+  // repo-wide search: no live code depends on the OLD Drizzle-matching
+  // name (`numberSeriesId` is not referenced as a property access on any
+  // number-shaped object outside this file), so this is a safe rename.
+  seriesId: UuidSchema,
+  numberValue: z.string(),
+  assignedAt: TimestampSchema,
+  assignedBy: UuidSchema,
+  supersededAt: TimestampSchema.nullable(),
+  cancellationReason: z.string().nullable(),
+});
+export type DocumentNumberSelect = z.infer<typeof DocumentNumberSelectSchema>;
+```
+
+Note this file's `numbers` table (Drizzle export name `numbers`, not
+`documentNumbers` — confirm this import name matches exactly what's
+already imported elsewhere in this file for the `numbers` table before
+using it here; if the existing codebase imports it under a different
+local alias, use that same alias consistently rather than introducing a
+second name for the same import).
+
+---
+
+### 4. SignatureSelectSchema
+
+Current (to be replaced in full):
+```typescript
+export const SignatureSelectSchema = z.object({
+  id: UuidSchema,
+  documentId: UuidSchema,
+  signedByEmployeeId: UuidSchema,
+  signedByDisplayName: z.string(),
+  signatureType: SignatureTypeSchema,
+  signedAt: TimestampSchema,
+  isWetInk: z.boolean(),
+  signatureImageS3Key: z.string().nullable(),
+  createdAt: TimestampSchema,
+});
+export type SignatureSelect = z.infer<typeof SignatureSelectSchema>;
+```
+
+Replace with:
+```typescript
+export const SignatureSelectSchema = z.object({
+  ...createSelectSchema(signatures).omit({
+    cityId: true,
+    deletedAt: true,
+    deletedBy: true,
+  }).shape,
+  id: UuidSchema,
+  documentId: UuidSchema,
+  signedByEmployeeId: UuidSchema,
+  signedByDisplayName: z.string().nullable(),
+  signedAt: TimestampSchema,
+  signatureImageS3Key: z.string().nullable(),
+  createdAt: TimestampSchema,
+});
+export type SignatureSelect = z.infer<typeof SignatureSelectSchema>;
+```
+
+NOTE: `signedByDisplayName` changes from non-nullable `z.string()` to
+`z.string().nullable()` — the Drizzle column
+(`signedByDisplayName: text('signed_by_display_name')`) has no
+`.notNull()`, so it IS genuinely nullable at the DB level, and the old
+hand-written schema was arguably wrong to mark it required. This is a
+correction, not a preserved quirk — flag it as such if asked, but proceed
+with the nullable version since it matches the actual DB constraint. If
+this breaks a downstream consumer assuming non-null, that consumer had a
+latent bug this task is surfacing, not causing.
+
+This schema has no field-name divergences from its Drizzle table — the
+simplest of the five to migrate.
+
+---
+
+### 5. PanlalawiganReviewSelectSchema
+
+Current (to be replaced in full):
+```typescript
+export const PanlalawiganReviewSelectSchema = z.object({
+  id: UuidSchema,
+  documentId: UuidSchema,
+  controlNumber: z.string().nullable(),
+  subject: z.string().nullable(),
+  transmittedAt: TimestampSchema.nullable(),
+  receivedAt: TimestampSchema.nullable(),
+  dateReferred: TimestampSchema.nullable(),
+  outcome: PanlalawiganOutcomeSchema.nullable(),
+  panlalawiganResolutionNumber: z.string().nullable(),
+  remarks: z.string().nullable(),
+  daysElapsed: z.number().int().nonnegative().nullable(),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+});
+export type PanlalawiganReviewSelect = z.infer<typeof PanlalawiganReviewSelectSchema>;
+```
+
+Replace with:
+```typescript
+export const PanlalawiganReviewSelectSchema = z.object({
+  ...createSelectSchema(panlalawiganReviews).omit({
+    cityId: true,
+    deletedAt: true,
+    deletedBy: true,
+  }).shape,
+  id: UuidSchema,
+  documentId: UuidSchema,
+  numberSeriesId: UuidSchema.nullable(),
+  // OVERRIDE REQUIRED, NOT OPTIONAL: the underlying Drizzle column is
+  // named `controlNo` (DB: `control_no`), but this schema has ALWAYS
+  // exposed it as `controlNumber`, and live code genuinely depends on
+  // that name — confirmed via repo-wide search:
+  // `apps/server/src/modules/workflow/workflow.router.ts` line ~1940
+  // reads `input.controlNumber`. Renaming this to match Drizzle would
+  // break that call site. Do NOT rename to `controlNo` — keep the
+  // override exactly as below.
+  controlNumber: z.string().nullable(),
+  subject: z.string().nullable(),
+  transmittedAt: TimestampSchema.nullable(),
+  receivedAt: TimestampSchema.nullable(),
+  actionDeadline: TimestampSchema.nullable(),
+  responseDate: TimestampSchema.nullable(),
+  outcome: PanlalawiganOutcomeSchema.nullable(),
+  // OVERRIDE REQUIRED, NOT OPTIONAL: same situation as controlNumber
+  // above — the underlying Drizzle column is named `resolutionNumber`,
+  // but this schema has always exposed it as
+  // `panlalawiganResolutionNumber`, and live code depends on that name
+  // (`apps/server/src/modules/workflow/workflow.router.ts` line ~1941,
+  // `apps/server/src/modules/documents/panlalawigan.router.ts` line
+  // ~138). Do NOT rename to `resolutionNumber` — keep the override
+  // exactly as below.
+  panlalawiganResolutionNumber: z.string().nullable(),
+  remarks: z.string().nullable(),
+  daysElapsed: z.number().int().nonnegative().nullable(),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+});
+export type PanlalawiganReviewSelect = z.infer<typeof PanlalawiganReviewSelectSchema>;
+```
+
+NOTE: this adds `numberSeriesId` and `actionDeadline` /
+`responseDate` to the schema's output (present on the Drizzle table,
+absent from the old hand-written version — `dateReferred` in the OLD
+schema does not exist as a column on this table at all under that exact
+name; do not assume it maps to `actionDeadline` or `responseDate` without
+checking — if `dateReferred` was intentionally tracking something
+different from both of those two real columns, that is a finding to
+report, not to silently paper over by dropping the field or guessing
+which real column it meant).
+
+═══════════════════════════════════════════════════════════════════════════
+WHAT NOT TO TOUCH
+═══════════════════════════════════════════════════════════════════════════
+
+- `DocumentSelectSchema` and `VersionSelectSchema` — already correctly
+  migrated in a prior task, not in scope here.
+- `DocumentTypeSummarySchema` — not tagged Select, out of scope even
+  though it shares the `preliminaryNumbering` field name.
+- Any Input, Filter, Response, or Params-tagged schema in this file.
+- Any file other than `packages/shared/src/schemas/documents.ts`.
+
+═══════════════════════════════════════════════════════════════════════════
+VERIFICATION
+═══════════════════════════════════════════════════════════════════════════
+
+1. `pnpm typecheck --filter @batac/shared` passes with zero errors, zero
+   new `as any` casts introduced.
+2. `pnpm typecheck` at monorepo root passes with zero errors — this
+   confirms the `numberSeriesId`/`actionDeadline`/`responseDate`/
+   `sourceDocumentId` additions and the `signedByDisplayName`
+   nullability change don't break any consuming code in `apps/server` or
+   `apps/web`. If it does NOT pass, do not silently patch the consuming
+   code's types to make it pass — report which consumer broke and why,
+   since that's a signal the schema migration surfaced a real prior gap,
+   not something to paper over.
+3. Runtime `.safeParse()` smoke test (temporary script, delete after use)
+   for all 5 schemas against a realistic object matching each table's
+   actual current column set — confirm no throw, `success: true` for
+   valid input.
+4. Confirm the two explicitly-flagged override fields
+   (`PanlalawiganReviewSelectSchema.controlNumber` and
+   `.panlalawiganResolutionNumber`) were NOT renamed to their Drizzle
+   column names — grep for `controlNo` and plain `resolutionNumber` (not
+   `panlalawiganResolutionNumber`) in the final file; neither should
+   appear as an exported field name.
+5. Report the `AttachmentSelectSchema.s3Key` nullability question (flagged
+   inline above) back explicitly — do not resolve it as part of this
+   task.
+
+Before submitting this PR, confirm each item:
+- [ ] All 5 schemas converted to `.shape`-spread `createSelectSchema()` construction.
+- [ ] `controlNumber`/`panlalawiganResolutionNumber` overrides preserved exactly (not renamed to DB column names).
+- [ ] `preliminaryNumbering`/`s3Key`/`seriesId` renamed per instructions (confirmed safe — no live dependents on the DB-matching names).
+- [ ] `signedByDisplayName` correctly widened to nullable per the real DB constraint.
+- [ ] `dateReferred` field-mapping ambiguity reported as a finding, not silently resolved.
+- [ ] `AttachmentSelectSchema.s3Key` nullability question reported as a finding, not silently resolved.
+- [ ] `pnpm typecheck` passes with zero errors, monorepo-wide.
+- [ ] Zero changes outside `packages/shared/src/schemas/documents.ts`.
+A reviewer will verify each one independently.
+````
+
+---
+
+# TASK-DOCS-SHARED-004
+
+````
+TASK-DOCS-SHARED-004
+
+Standalone prompt for local agent execution. This prompt is self-contained:
+do not assume access to any prior conversation, planning session, or the
+knowledge-reference document that may have informed its creation.
+
+═══════════════════════════════════════════════════════════════════════════
+CONTEXT
+═══════════════════════════════════════════════════════════════════════════
+
+`docs/development-findings-log.md` contains an entry, currently numbered
+LOG-0108 (RE-VERIFY THIS NUMBER YOURSELF BEFORE STARTING — see the note
+below; it may have changed since this prompt was written), titled "Zod
+major-version split between `packages/shared` (v3) and `apps/web` (v4)".
+That entry documents that `packages/shared` and `apps/server` install Zod
+v3 (`^3.23.0`) while `apps/web` installs Zod v4 (`^4.4.3`), and that this
+runs against `tech-stack.md`'s stated intent that shared Zod schemas are
+the platform's "single source of truth" through to frontend forms. That
+entry is currently `status: proposed` and does NOT propose a specific
+resolution — it only documents the discovery.
+
+This task's job is narrow: research and PROPOSE a resolution strategy as
+a NEW findings-log entry that references LOG-0108, backed by direct
+verification of the two runtime-import call sites that entry names. This
+task does NOT decide the resolution, does NOT edit `tech-stack.md`, and
+does NOT edit `AGENTS.md`. Per `AGENTS.md` Section 4.5: "Agents may append
+entries... Only a human moves an entry to `confirmed` or `superseded`,"
+and "Agents never edit AGENTS.md... or any Group B–L document as a result
+of something learned during A1 work." `tech-stack.md` is a Group B–L-tier
+document for this purpose (it sits directly under
+`docs/pre-development/`, governed by the same Section 1 source-of-truth
+hierarchy as Group B–L documents). This rule is NOT waived for this task
+— unlike a separate task that received an explicit one-time human
+exception for a different document, no such exception was given here.
+Stay strictly within the findings-log-entry boundary described below.
+
+═══════════════════════════════════════════════════════════════════════════
+STEP 1 — RE-VERIFY LOG-0108 STILL EXISTS AND STILL SAYS WHAT THIS PROMPT ASSUMES
+═══════════════════════════════════════════════════════════════════════════
+
+```bash
+grep -n "^### \[LOG-0108\]" docs/development-findings-log.md
+```
+
+If this returns nothing, search more broadly for the topic instead of
+assuming the number:
+
+```bash
+grep -n "Zod major-version split" docs/development-findings-log.md
+```
+
+Use whatever entry number this search finds as "the LOG-0108 entry"
+throughout the rest of this task, and note in your final report if the
+number differs from what this prompt assumed.
+
+═══════════════════════════════════════════════════════════════════════════
+STEP 2 — VERIFY THE TWO RUNTIME-IMPORT CALL SITES DIRECTLY
+═══════════════════════════════════════════════════════════════════════════
+
+The LOG-0108 entry's "What was NOT done" section states that no
+investigation was run into whether the version split currently causes a
+concrete problem. This step does that investigation.
+
+Confirm these two files still import a real Zod schema instance (not just
+a TypeScript type) from `@batac/shared`:
+
+```bash
+grep -n "from '@batac/shared'\|from \"@batac/shared\"" apps/web/src/pages/documents/DocumentIntakePage.tsx
+grep -rn "from '@batac/shared'\|from \"@batac/shared\"" apps/web/src --include="*.test.ts" --include="*.test.tsx" | grep -i "lifecycle\|status-mapping"
+```
+
+For each confirmed runtime import found:
+1. Confirm it is used in a way that does NOT compose it with a local
+   `apps/web` Zod schema via `.extend()`, `.merge()`, or
+   `z.intersection()` — i.e., confirm it's called directly
+   (`.safeParse()`, `.parse()`, `.options`, property access) rather than
+   passed as an operand into a schema-combining function alongside a
+   locally-defined `apps/web` schema.
+2. If you find ANY site where a `@batac/shared`-imported schema IS
+   composed with a local `apps/web` schema via `.extend()`, `.merge()`,
+   or `z.intersection()`, STOP and report this specifically — this would
+   be the exact failure pattern documented in TASK-DOCS-SHARED-001's
+   original investigation (cross-branch Zod composition throwing at
+   runtime), and would mean the risk is NOT merely theoretical the way
+   LOG-0108 currently frames it. This is a genuine severity escalation,
+   not something to resolve yourself.
+3. If no composition is found (only isolated, non-composed usage), this
+   confirms — but does not eliminate — the position that the current
+   runtime risk is low. Say so plainly in your findings-log entry, with
+   the word "confirmed" reserved only for what you actually tested this
+   session, not for claims carried over from a prior investigation you
+   did not personally re-run.
+
+═══════════════════════════════════════════════════════════════════════════
+STEP 3 — APPEND A NEW FINDINGS-LOG ENTRY
+═══════════════════════════════════════════════════════════════════════════
+
+Re-check the current highest log entry number immediately before
+appending (do not trust any number cited elsewhere in this prompt or any
+other document):
+
+```bash
+grep -n "^### \[LOG-" docs/development-findings-log.md | tail -5
+```
+
+Append to the end of `docs/development-findings-log.md`:
+
+```
+### [LOG-{NNN}] Proposed resolution strategy for LOG-{the LOG-0108-or-renumbered-entry-number} (Zod v3/v4 package split)
+
+- date: {today's actual date at execution time, format YYYY-MM-DD}
+- task_id: TASK-DOCS-SHARED-004
+- status: proposed
+- affects: tech-stack.md (same sections named in the entry this supersedes/extends), AGENTS.md (no existing routing row covers "verify no cross-branch Zod composition" as a review step — see proposal below)
+
+**What this entry adds to the referenced entry:** the referenced entry
+documented the Zod v3 (`packages/shared`, `apps/server`) / v4 (`apps/web`)
+split but explicitly did not investigate whether it causes a concrete
+problem today, or propose a resolution. This entry does both, within the
+constraints of what an agent may decide (see "What this entry does NOT
+do" below).
+
+**Direct verification performed this session:** {fill in based on Step 2
+above — state plainly which of the two named call sites (AllowedMimeTypeSchema
+in DocumentIntakePage.tsx; LifecycleStateSchema in status-mapping.test.ts,
+or wherever it was actually found) were confirmed present, and whether
+either composes an imported `@batac/shared` schema with a local `apps/web`
+schema via `.extend()`/`.merge()`/`z.intersection()`. If a composition
+site WAS found, do not use this entry template — stop and report that
+finding on its own instead, since it changes the severity classification
+entirely.}
+
+**Proposed resolution (for human decision — not implemented as part of
+this entry):** two options were considered, presented here for a human to
+choose between rather than decided by this task:
+
+1. **Formally document the version boundary as a standing constraint**:
+   add an explicit note to `tech-stack.md`'s dependency-flow diagram
+   section stating that `apps/web`'s local Zod instance (v4) must never
+   compose a `@batac/shared`-imported schema (v3) via `.extend()`,
+   `.merge()`, or `z.intersection()` — isolated usage
+   (`.safeParse()`/`.parse()`/property access) is safe, composition is
+   not. This requires a human to make the `tech-stack.md` edit; this
+   entry does not make it. A corresponding routing-table or Section-4.5-adjacent
+   note in `AGENTS.md` could also be added by a human, flagging this as a
+   review-time check for any future PR touching `apps/web` schema
+   composition — this task does not draft that edit, since drafting
+   AGENTS.md routing-table content was judged out of scope for a
+   findings-log task; a human who wants that can request it as its own
+   follow-up.
+2. **Upgrade `packages/shared`/`apps/server` to Zod v4**, eliminating the
+   split entirely. Not investigated as part of this task — the blast
+   radius of a Zod v3→v4 upgrade across `packages/shared`'s entire schema
+   catalog and its interaction with the already-pinned `drizzle-zod@0.7.1`
+   (itself pinned specifically to stay on Zod's classic-v3-branch
+   internal types — see the `drizzle-zod` version investigation from
+   TASK-DOCS-SHARED-001) was not assessed. This is very likely a larger,
+   separately-scoped task if pursued, not a quick fix — flagging this
+   scale concern explicitly rather than either recommending or
+   discouraging the option outright.
+
+**What this entry does NOT do:** it does not edit `tech-stack.md`. It does
+not edit `AGENTS.md`. It does not choose between the two options above. It
+does not set this entry's own `status` to anything other than `proposed`.
+Per AGENTS.md Section 4.5, only a human may do any of those four things.
+```
+
+═══════════════════════════════════════════════════════════════════════════
+VERIFICATION
+═══════════════════════════════════════════════════════════════════════════
+
+1. Confirm no file other than `docs/development-findings-log.md` was
+   modified by this task.
+2. Confirm the new entry's `status` field reads `proposed`, not
+   `resolved`, `confirmed`, or any other value.
+3. Confirm the new entry does not contain the words "prevent",
+   "guarantee", "will never", "fixes", "eliminates", or "ensures" other
+   than inside a direct quotation — per this log file's own header rules.
+4. Confirm Step 2's investigation was genuinely run (grep output actually
+   produced, not asserted) before the entry was written — the entry's
+   "Direct verification performed this session" paragraph should describe
+   real command output, not a restated assumption.
+
+Before submitting this PR, confirm each item:
+- [ ] LOG-0108 (or its actual current number, re-verified) confirmed present before proceeding.
+- [ ] Both named runtime-import call sites directly re-checked this session, not assumed from a prior investigation.
+- [ ] Any newly-found cross-branch composition site reported as a standalone finding, not folded into the standard entry template.
+- [ ] New findings-log entry appended with a freshly-verified next sequential number.
+- [ ] Entry status is `proposed`.
+- [ ] Zero edits to tech-stack.md or AGENTS.md.
+A reviewer will verify each one independently.
+````
+
+# TASK-DOCS-FE-002
+
+````
+TASK-DOCS-FE-002
+
+Standalone prompt for local agent execution. This prompt is self-contained:
+do not assume access to any prior conversation, planning session, or the
+knowledge-reference document that may have informed its creation.
+
+═══════════════════════════════════════════════════════════════════════════
+CONTEXT
+═══════════════════════════════════════════════════════════════════════════
+
+File: `apps/web/src/pages/documents/DocumentIntakePage.tsx`
+
+This file has a manual, hardcoded client-side MIME-type gate that only
+accepts 3 of the 5 file types the shared `AllowedMimeTypeSchema` actually
+allows (defined in `packages/shared/src/schemas/common.ts`):
+
+```typescript
+export const AllowedMimeTypeSchema = z.enum([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/png",
+  "image/jpeg",
+]);
+```
+
+The file already correctly imports and uses `AllowedMimeTypeSchema` for a
+SECOND validation check later in the same submit flow (line ~86:
+`AllowedMimeTypeSchema.safeParse(file.type)`), so the fix does not
+require adding a new import — `AllowedMimeTypeSchema` is already imported
+at the top of the file (line 7: `import { AllowedMimeTypeSchema } from
+'@batac/shared';`).
+
+The bug: a user attempting to upload a `.docx` or `.xlsx` file is
+incorrectly rejected by the EARLIER, manual gate (in `handleFileChange`)
+before ever reaching the correct, later `AllowedMimeTypeSchema.safeParse()`
+check in `onSubmit`.
+
+═══════════════════════════════════════════════════════════════════════════
+CHANGE
+═══════════════════════════════════════════════════════════════════════════
+
+In the `handleFileChange` function, find this exact current code:
+
+```typescript
+    // TODO: validTypes only lists 3 of the 5 MIME types AllowedMimeTypeSchema actually accepts (missing Office document types)
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (!validTypes.includes(selected.type)) {
+      setFile(null);
+      setFileError('Invalid file type. Must be PDF, JPEG, or PNG');
+      return;
+    }
+```
+
+Replace with:
+
+```typescript
+    const mimeTypeCheck = AllowedMimeTypeSchema.safeParse(selected.type);
+    if (!mimeTypeCheck.success) {
+      setFile(null);
+      setFileError('Invalid file type. Must be PDF, Word (.docx), Excel (.xlsx), JPEG, or PNG');
+      return;
+    }
+```
+
+This removes the hardcoded `validTypes` array entirely (eliminating the
+duplication that caused the drift in the first place — there is now only
+ONE place in this file that lists allowed MIME types: the import of
+`AllowedMimeTypeSchema` itself) and derives the check directly from the
+shared schema, matching the pattern the file's own `onSubmit` function
+already uses for its second, later check.
+
+The error message text is also updated. The OLD message ("Must be PDF,
+JPEG, or PNG") was already inaccurate before this fix in the sense that
+it didn't mention two types the schema always accepted — leaving the
+message unchanged after this fix would make it newly, additionally wrong
+in the opposite direction (rejecting nothing the message doesn't
+mention, but now silently accepting two types the message never lists).
+Do not skip this message update on the assumption that only the
+validation LOGIC needed fixing.
+
+═══════════════════════════════════════════════════════════════════════════
+WHAT NOT TO TOUCH
+═══════════════════════════════════════════════════════════════════════════
+
+- Do not modify the existing `onSubmit` function's own
+  `AllowedMimeTypeSchema.safeParse(file.type)` check (line ~86) — it is
+  already correct and is NOT the bug. Both checks now derive from the
+  same schema, which is intentional (the first is an early
+  user-experience gate at file-selection time; the second is the
+  authoritative pre-submit validation) — do not consolidate them into a
+  single check as part of this task, since that would be a larger UX
+  refactor outside this task's scope.
+- Do not modify `AllowedMimeTypeSchema` itself in
+  `packages/shared/src/schemas/common.ts`.
+- Do not modify the `MAX_SIZE` file-size check immediately above this
+  code block — unrelated, out of scope.
+- Do not modify any other file.
+
+═══════════════════════════════════════════════════════════════════════════
+VERIFICATION
+═══════════════════════════════════════════════════════════════════════════
+
+1. `pnpm typecheck --filter @batac/web` passes with zero errors.
+2. Confirm the string literal `validTypes` no longer appears anywhere in
+   this file:
+   ```bash
+   grep -n "validTypes" apps/web/src/pages/documents/DocumentIntakePage.tsx
+   ```
+   This should return EMPTY.
+3. Manually trace (read, do not need to run the app) that selecting a
+   file with `type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'`
+   now passes `handleFileChange`'s gate (it would have been rejected
+   before this fix).
+4. Confirm the file's diff touches only the one code block specified
+   above — no other line in this file should change.
+
+Before submitting this PR, confirm each item:
+- [ ] Manual `validTypes` array removed entirely.
+- [ ] `handleFileChange`'s gate now uses `AllowedMimeTypeSchema.safeParse()`.
+- [ ] Error message updated to mention all 5 accepted formats.
+- [ ] `onSubmit`'s existing, separate MIME check left untouched.
+- [ ] `pnpm typecheck --filter @batac/web` passes with zero errors.
+- [ ] Diff scope is exactly one code block in one file.
+A reviewer will verify each one independently.
+````

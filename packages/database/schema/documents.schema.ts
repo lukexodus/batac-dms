@@ -1,5 +1,6 @@
 import {
   pgSchema,
+  pgEnum,
   uuid,
   text,
   boolean,
@@ -42,6 +43,56 @@ import { sql } from 'drizzle-orm';
  */
 export const documentsSchema = pgSchema('documents');
 
+export const lifecycleStateEnum = documentsSchema.enum('lifecycle_state_enum', [
+  'draft', 'submitted', 'in_workflow', 'pending_mayor_action',
+  'pending_panlalawigan_review', 'completed', 'released', 'archived',
+  'disposed', 'cancelled', 'superseded',
+]);
+
+export const classificationLevelEnum = documentsSchema.enum('classification_level_enum', [
+  'public', 'internal', 'confidential', 'restricted',
+]);
+
+export const owningModuleEnum = documentsSchema.enum('owning_module_enum', [
+  'workflow', 'organization', 'portal',
+]);
+
+export const publicVisibilityRuleEnum = documentsSchema.enum('public_visibility_rule_enum', [
+  'title_and_first_page_public', 'not_public', 'complainant_restricted', 'requester_restricted',
+]);
+
+export const seriesTypeEnum = documentsSchema.enum('series_type_enum', [
+  'legislative', 'administrative',
+]);
+
+export const phaseEnum = documentsSchema.enum('phase_enum', [
+  '1', '1b',
+]);
+
+export const numberTypeEnum = documentsSchema.enum('number_type_enum', [
+  'preliminary', 'final', 'control',
+]);
+
+export const scanQualityCategoryEnum = documentsSchema.enum('scan_quality_category_enum', [
+  'good', 'fair', 'poor',
+]);
+
+export const attachmentTypeEnum = documentsSchema.enum('attachment_type_enum', [
+  'certification_of_urgency', 'committee_report', 'transmittal_letter', 'scan', 'other',
+]);
+
+export const signatureTypeEnum = documentsSchema.enum('signature_type_enum', [
+  'presiding_officer', 'mayor', 'sp_secretary', 'vice_mayor', 'committee_chair',
+]);
+
+export const sponsorshipTypeEnum = documentsSchema.enum('sponsorship_type_enum', [
+  'principal_author', 'co_author', 'introducer', 'co_introducer',
+]);
+
+export const panlalawiganOutcomeEnum = documentsSchema.enum('panlalawigan_outcome_enum', [
+  'valid', 'valid_in_part', 'returned', 'operative_in_its_entirety', 'deemed_approved',
+]);
+
 /**
  * `tsvector` has no built-in Drizzle pg-core column helper as of drizzle-orm
  * 0.45.2 (verified: no `tsvector` export under `drizzle-orm/pg-core`). Defined
@@ -70,7 +121,7 @@ export const documentTypes = documentsSchema.table(
       .default(sql`'00000000-0000-4000-8000-000000000001'::uuid`),
     name: text('name').notNull(),
     code: text('code').notNull(),
-    owningModule: text('owning_module').notNull(),
+    owningModule: owningModuleEnum('owning_module').notNull(),
     /**
      * FK added after `numberSeries` below — breaks the circular DDL
      * dependency between document_types and number_series (C1 Part 5).
@@ -80,8 +131,8 @@ export const documentTypes = documentsSchema.table(
     controlNumberDeferred: boolean('control_number_deferred').notNull().default(false),
     requiresPublication: boolean('requires_publication').notNull().default(false),
     retentionScheduleId: uuid('retention_schedule_id'), // logical FK -> records.retention_schedules.id (cross-schema)
-    classificationDefault: text('classification_default').notNull(),
-    publicVisibilityRule: text('public_visibility_rule').notNull(),
+    classificationDefault: classificationLevelEnum('classification_default').notNull(),
+    publicVisibilityRule: publicVisibilityRuleEnum('public_visibility_rule').notNull(),
     requiredStepTypes: text('required_step_types').array(),
     metadataSchema: jsonb('metadata_schema'),
     isActive: boolean('is_active').notNull().default(false),
@@ -92,18 +143,6 @@ export const documentTypes = documentsSchema.table(
   },
   (table) => [
     unique('uq_document_types_city_code').on(table.cityId, table.code),
-    check(
-      'document_types_owning_module_check',
-      sql`${table.owningModule} IN ('workflow','organization','portal')`,
-    ),
-    check(
-      'document_types_classification_default_check',
-      sql`${table.classificationDefault} IN ('public','internal','confidential','restricted')`,
-    ),
-    check(
-      'document_types_public_visibility_rule_check',
-      sql`${table.publicVisibilityRule} IN ('title_and_first_page_public','not_public','complainant_restricted','requester_restricted')`,
-    ),
     check(
       'ck_document_types_retention_before_activation',
       sql`${table.isActive} = false OR ${table.retentionScheduleId} IS NOT NULL`,
@@ -127,9 +166,9 @@ export const numberSeries = documentsSchema.table(
       .default(sql`'00000000-0000-4000-8000-000000000001'::uuid`),
     seriesKey: text('series_key').notNull(),
     documentTypeId: uuid('document_type_id').references((): AnyPgColumn => documentTypes.id),
-    seriesType: text('series_type').notNull(),
+    seriesType: seriesTypeEnum('series_type').notNull(),
     /** '1' = active in Phase 1; '1b' = Phase 1B (seeded inactive, activated later). */
-    phase: text('phase').notNull().default('1'),
+    phase: phaseEnum('phase').notNull().default('1'),
     prefix: text('prefix'),
     /**
      * Separates the "7" in "7SP" from the prefix string so an administration
@@ -156,11 +195,6 @@ export const numberSeries = documentsSchema.table(
   },
   (table) => [
     unique('uq_number_series_city_key').on(table.cityId, table.seriesKey),
-    check(
-      'number_series_series_type_check',
-      sql`${table.seriesType} IN ('legislative','administrative')`,
-    ),
-    check('number_series_phase_check', sql`${table.phase} IN ('1','1b')`),
   ],
 );
 
@@ -182,8 +216,8 @@ export const documents = documentsSchema.table(
       .notNull()
       .references(() => documentTypes.id),
     title: text('title').notNull(),
-    lifecycleState: text('lifecycle_state').notNull().default('draft'),
-    classificationLevel: text('classification_level').notNull(),
+    lifecycleState: lifecycleStateEnum('lifecycle_state').notNull().default('draft'),
+    classificationLevel: classificationLevelEnum('classification_level').notNull(),
     /** UUID encoded into the physical QR code. Immutable from QR assignment. */
     qrTrackingNumber: uuid('qr_tracking_number').notNull(),
     /** Denormalized current number values for fast reads; full history lives in documents.numbers. */
@@ -213,14 +247,6 @@ export const documents = documentsSchema.table(
   },
   (table) => [
     unique('uq_documents_qr_tracking_number').on(table.qrTrackingNumber),
-    check(
-      'documents_lifecycle_state_check',
-      sql`${table.lifecycleState} IN ('draft','submitted','in_workflow','pending_mayor_action','pending_panlalawigan_review','completed','released','archived','disposed','cancelled','superseded')`,
-    ),
-    check(
-      'documents_classification_level_check',
-      sql`${table.classificationLevel} IN ('public','internal','confidential','restricted')`,
-    ),
     index('idx_documents_type').on(table.documentTypeId),
     index('idx_documents_lifecycle_state').on(table.lifecycleState),
     index('idx_documents_originating_office').on(table.originatingOfficeId),
@@ -255,7 +281,7 @@ export const numbers = documentsSchema.table(
       .notNull()
       .references(() => numberSeries.id),
     /** 'control' is for Letters Received/Sent (SPR/SPS) only. */
-    numberType: text('number_type').notNull(),
+    numberType: numberTypeEnum('number_type').notNull(),
     numberValue: text('number_value').notNull(),
     sequenceYear: smallint('sequence_year').notNull(),
     sequenceNumber: integer('sequence_number').notNull(),
@@ -274,10 +300,6 @@ export const numbers = documentsSchema.table(
       table.numberSeriesId,
       table.sequenceYear,
       table.sequenceNumber,
-    ),
-    check(
-      'numbers_number_type_check',
-      sql`${table.numberType} IN ('preliminary','final','control')`,
     ),
     /** At most one current number per type per document. */
     uniqueIndex('uq_numbers_one_current_per_type')
@@ -324,7 +346,7 @@ export const versions = documentsSchema.table(
       scale: 3,
     }),
     /** Derived at OCR-completion time by application against OCR_QUALITY_THRESHOLD; not a GENERATED column. */
-    scanQualityCategory: text('scan_quality_category'),
+    scanQualityCategory: scanQualityCategoryEnum('scan_quality_category'),
     ocrProcessed: boolean('ocr_processed').notNull().default(false),
     ocrText: text('ocr_text'),
     /** FTS vector for OCR text; maintained by trg_versions_tsv_update (manual SQL). */
@@ -339,10 +361,6 @@ export const versions = documentsSchema.table(
   },
   (table) => [
     unique('uq_versions_document_number').on(table.documentId, table.versionNumber),
-    check(
-      'versions_scan_quality_category_check',
-      sql`${table.scanQualityCategory} IN ('good','fair','poor')`,
-    ),
     check(
       'ck_versions_scan_quality_range',
       sql`${table.scanQualityScore} IS NULL OR (${table.scanQualityScore} >= 0 AND ${table.scanQualityScore} <= 1)`,
@@ -368,7 +386,7 @@ export const attachments = documentsSchema.table(
     documentId: uuid('document_id')
       .notNull()
       .references(() => documents.id),
-    attachmentType: text('attachment_type').notNull(),
+    attachmentType: attachmentTypeEnum('attachment_type').notNull(),
     fileKey: uuid('file_key'),
     sourceDocumentId: uuid('source_document_id').references(() => documents.id),
     mimeType: text('mime_type'),
@@ -380,10 +398,6 @@ export const attachments = documentsSchema.table(
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
   },
   (table) => [
-    check(
-      'attachments_attachment_type_check',
-      sql`${table.attachmentType} IN ('certification_of_urgency','committee_report','transmittal_letter','scan','other')`,
-    ),
     check(
       'ck_attachments_file_or_source',
       sql`${table.fileKey} IS NOT NULL OR ${table.sourceDocumentId} IS NOT NULL`,
@@ -410,7 +424,7 @@ export const signatures = documentsSchema.table(
     documentId: uuid('document_id')
       .notNull()
       .references(() => documents.id),
-    signatureType: text('signature_type').notNull(),
+    signatureType: signatureTypeEnum('signature_type').notNull(),
     signedByEmployeeId: uuid('signed_by_employee_id').notNull(), // logical FK -> organization.employees.id (cross-schema)
     signedByDisplayName: text('signed_by_display_name'), // denormalized for rendering without a join
     signedAt: timestamp('signed_at', { withTimezone: true }).notNull(),
@@ -421,10 +435,6 @@ export const signatures = documentsSchema.table(
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
   },
   (table) => [
-    check(
-      'signatures_signature_type_check',
-      sql`${table.signatureType} IN ('presiding_officer','mayor','sp_secretary','vice_mayor','committee_chair')`,
-    ),
     index('idx_signatures_document').on(table.documentId),
   ],
 );
@@ -448,7 +458,7 @@ export const documentSponsorships = documentsSchema.table(
       .notNull()
       .references(() => documents.id),
     sponsorEmployeeId: uuid('sponsor_employee_id').notNull(), // logical FK -> organization.employees.id (cross-schema)
-    sponsorshipType: text('sponsorship_type').notNull(),
+    sponsorshipType: sponsorshipTypeEnum('sponsorship_type').notNull(),
     orderOfPriority: integer('order_of_priority').notNull().default(1),
     /** display_name: denormalized per D4 Relationship Note 15 for stable rendering when the employee record changes. */
     displayName: text('display_name').notNull(),
@@ -458,10 +468,6 @@ export const documentSponsorships = documentsSchema.table(
   },
   (table) => [
     unique('uq_sponsorships').on(table.documentId, table.sponsorEmployeeId, table.sponsorshipType),
-    check(
-      'document_sponsorships_sponsorship_type_check',
-      sql`${table.sponsorshipType} IN ('principal_author','co_author','introducer','co_introducer')`,
-    ),
     index('idx_sponsorships_document').on(table.documentId),
   ],
 );
@@ -493,7 +499,7 @@ export const panlalawiganReviews = documentsSchema.table(
     receivedAt: timestamp('received_at', { withTimezone: true }),
     actionDeadline: timestamp('action_deadline', { withTimezone: true }),
     responseDate: timestamp('response_date', { withTimezone: true }),
-    outcome: text('outcome'),
+    outcome: panlalawiganOutcomeEnum('outcome'),
     /** Original column naming used (not the abbreviated 'resolution_no'); sourced from B4 context field names. */
     resolutionNumber: text('resolution_number'),
     remarks: text('remarks'),
@@ -505,10 +511,6 @@ export const panlalawiganReviews = documentsSchema.table(
   },
   (table) => [
     unique('uq_panlalawigan_reviews_document').on(table.documentId),
-    check(
-      'panlalawigan_reviews_outcome_check',
-      sql`${table.outcome} IN ('valid','valid_in_part','returned','operative_in_its_entirety','deemed_approved')`,
-    ),
     index('idx_panlalawigan_reviews_document').on(table.documentId),
   ],
 );

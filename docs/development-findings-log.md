@@ -2751,3 +2751,81 @@ This runs against `tech-stack.md`'s own stated intent that the shared package's 
 
 **What this entry does NOT do:** it does not edit `tech-stack.md`. It does not edit `AGENTS.md`. It does not choose between the two options above. It does not set this entry's own `status` to anything other than `proposed`. Per AGENTS.md Section 4.5, only a human may do any of those four things.
 
+
+### [LOG-0112] E3's LifecycleStateSchema corrected from 9 values to the authoritative 11-value set (TASK-DOCS-SHARED-002)
+
+- date: 2026-07-15
+- task_id: TASK-DOCS-SHARED-002
+- status: proposed
+- affects: docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md ( entry, Part 4 — Documents Domain — Enum Schemas)
+- resolved_in: docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md
+
+**What was found:** E3's  listed 9 values (,
+, , ,
+, , , , ) — a stale
+set predating the D3 post-ADR-013/ADR-014 lifecycle-state revision. The
+actual live system (the  PostgreSQL
+CHECK constraint prior to this task, the 
+trigger function, 's
+ map, 's
+ type, and 's
+own , already corrected under a prior task tagged
+) all independently agree on an 11-value set: ,
+, , ,
+, , , ,
+, , . Only 6 of the 11 values overlapped
+between the two sets.
+
+**What was done:** Per explicit human direction given during the planning
+session that produced this task (an exception to the default AGENTS.md
+Section 4.5 log-only rule for Group B–L documents), E3 was edited directly
+to replace the stale 9-value list with the correct 11-value list, matching
+what  and the newly-created
+native PostgreSQL enum type (, created by
+this same task) both already encode.
+
+**Not independently re-verified as part of this entry:** whether any OTHER
+document in the pre-dev corpus (beyond E3) also references the stale
+9-value set — a targeted search for this was not run as part of this
+task; if a future task or human review finds another stale reference, it
+should get its own findings-log entry rather than assuming this entry
+covers it.
+
+### [LOG-0112] E3's LifecycleStateSchema corrected from 9 values to the authoritative 11-value set (TASK-DOCS-SHARED-002)
+
+- date: 2026-07-15
+- task_id: TASK-DOCS-SHARED-002
+- status: proposed
+- affects: docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md (`LifecycleStateSchema` entry, Part 4 — Documents Domain — Enum Schemas)
+- resolved_in: docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md
+
+**What was found:** E3's `LifecycleStateSchema` listed 9 values (`draft`,
+`under_review`, `pending_mayor_action`, `pending_panlalawigan_review`,
+`approved`, `released`, `superseded`, `cancelled`, `rejected`) — a stale
+set predating the D3 post-ADR-013/ADR-014 lifecycle-state revision. The
+actual live system (the `documents.documents.lifecycle_state` PostgreSQL
+CHECK constraint prior to this task, the `documents.check_lifecycle_transition()`
+trigger function, `apps/server/src/modules/documents/documents.service.ts`'s
+`VALID_TRANSITIONS` map, `apps/server/src/modules/documents/documents.types.ts`'s
+`DocumentLifecycleState` type, and `packages/shared/src/schemas/documents.ts`'s
+own `LifecycleStateSchema`, already corrected under a prior task tagged
+`TASK-DOCS-011`) all independently agree on an 11-value set: `draft`,
+`submitted`, `in_workflow`, `pending_mayor_action`,
+`pending_panlalawigan_review`, `completed`, `released`, `archived`,
+`disposed`, `cancelled`, `superseded`. Only 6 of the 11 values overlapped
+between the two sets.
+
+**What was done:** Per explicit human direction given during the planning
+session that produced this task (an exception to the default AGENTS.md
+Section 4.5 log-only rule for Group B–L documents), E3 was edited directly
+to replace the stale 9-value list with the correct 11-value list, matching
+what `packages/shared/src/schemas/documents.ts` and the newly-created
+native PostgreSQL enum type (`documents.lifecycle_state_enum`, created by
+this same task) both already encode.
+
+**Not independently re-verified as part of this entry:** whether any OTHER
+document in the pre-dev corpus (beyond E3) also references the stale
+9-value set — a targeted search for this was not run as part of this
+task; if a future task or human review finds another stale reference, it
+should get its own findings-log entry rather than assuming this entry
+covers it.

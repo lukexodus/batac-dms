@@ -78,6 +78,13 @@
       "when": 1783588991222,
       "tag": "0010_watery_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784105841545,
+      "tag": "0011_lumpy_goblin_queen",
+      "breakpoints": true
     }
   ]
 }

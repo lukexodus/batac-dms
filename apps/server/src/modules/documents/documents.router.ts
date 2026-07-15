@@ -943,10 +943,12 @@ export function createDocumentsRouter() {
           fileSizeBytes: v.fileSizeBytes ?? 0,
           pageCount: v.pageCount,
           scanQualityScore: v.scanQualityScore ? Number(v.scanQualityScore) : null,
-          scanQualityCategory: v.scanQualityCategory as any,
+          scanQualityCategory: v.scanQualityCategory as 'good' | 'fair' | 'poor' | null,
           ocrProcessed: v.ocrProcessed,
           uploadedBy: v.createdBy,
           createdAt: v.createdAt.toISOString(),
+          deletedAt: v.deletedAt,
+          deletedBy: v.deletedBy,
         }));
       }),
 

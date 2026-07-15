@@ -1230,8 +1230,9 @@ export type RevokeDelegationInput = z.infer<typeof RevokeDelegationInputSchema>;
 
 ```typescript
 export const LifecycleStateSchema = z.enum([
-  "draft", "under_review", "pending_mayor_action", "pending_panlalawigan_review",
-  "approved", "released", "superseded", "cancelled", "rejected",
+  "draft", "submitted", "in_workflow", "pending_mayor_action",
+  "pending_panlalawigan_review", "completed", "released", "archived",
+  "disposed", "cancelled", "superseded",
 ]);
 export type LifecycleState = z.infer<typeof LifecycleStateSchema>;
 ```
