@@ -1,6 +1,5 @@
 # ADR-GEN-008: No-Deletion Invariant with Soft-Delete on Every Table
 
-
 **Status:** Accepted **Date:** June 2026 **Deciders:** Development team
 
 ---

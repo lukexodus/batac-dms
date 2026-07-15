@@ -12,7 +12,11 @@ import { trpc, type RouterOutputs } from '@/lib/trpc';
 // (workflow.router.ts) via a direct comparison of the step's assigned office_id
 // against the SP Secretariat office's ID (resolved via getOfficeByCode).
 // See LOG-0092 for the correction (supersedes LOG-0077/LOG-0078's role-based-proxy description).
-export function SecretariatDecisionPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
+export function SecretariatDecisionPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const [remarks, setRemarks] = useState('');
@@ -46,7 +50,7 @@ export function SecretariatDecisionPanel({ instance }: { instance: RouterOutputs
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Remarks</label>
+          <label className="mb-1 block text-sm font-medium">Remarks</label>
           <Textarea
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}

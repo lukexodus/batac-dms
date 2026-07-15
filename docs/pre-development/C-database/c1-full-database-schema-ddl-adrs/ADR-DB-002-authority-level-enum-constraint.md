@@ -16,7 +16,7 @@
 This comment is factually incorrect. E3 (`e3-shared-zod-schema-catalog.md`, Part 3) defines:
 
 ```typescript
-export const AuthorityLevelSchema = z.enum(["executive", "managerial", "staff", "support"]);
+export const AuthorityLevelSchema = z.enum(['executive', 'managerial', 'staff', 'support']);
 ```
 
 and uses it as a **required, non-nullable** field in both `PositionSelectSchema` and `CreatePositionInputSchema`. C2's ERD also documents the same four values (flagged `[Unverified values]` only due to the C1 gap, not because E3 was unknown). D4's class diagram declares `Position.level: AuthorityLevel` with no nullability marker, consistent with a required field.

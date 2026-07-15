@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { cancelInstance } from '../engine/admin-operations.js';
-import { ValidationFailedError, InvalidWorkflowTransitionError } from '../../../errors/domain/workflow.js';
+import {
+  ValidationFailedError,
+  InvalidWorkflowTransitionError,
+} from '../../../errors/domain/workflow.js';
 import * as StepResolution from '../engine/step-resolution.js';
 
 describe('Admin Operations — Cancel (CANCEL)', () => {
@@ -31,11 +34,14 @@ describe('Admin Operations — Cancel (CANCEL)', () => {
       await cancelInstance('inst-1', 'admin-1', 'Testing cancel', mockDeps);
 
       expect(mockDeps.workflowRepository.updateInstanceStatus).toHaveBeenCalledWith(
-        'inst-1', 'cancelled', expect.any(Date), mockTrx
+        'inst-1',
+        'cancelled',
+        expect.any(Date),
+        mockTrx,
       );
-      expect(mockDeps.workflowRepository.cancelActiveAndPendingStepInstancesForInstance).toHaveBeenCalledWith(
-        'inst-1', mockTrx
-      );
+      expect(
+        mockDeps.workflowRepository.cancelActiveAndPendingStepInstancesForInstance,
+      ).toHaveBeenCalledWith('inst-1', mockTrx);
       expect(mockDeps.workflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: 'workflow.instance.cancelled',
@@ -47,31 +53,33 @@ describe('Admin Operations — Cancel (CANCEL)', () => {
             cancellation_reason: 'Testing cancel',
           }),
         }),
-        mockTrx
+        mockTrx,
       );
     });
   });
 
   describe('CANCEL-I: Invalid cancel operations', () => {
     it('CANCEL-I-01 (INV10): empty reason throws ValidationFailedError', async () => {
-      await expect(
-        cancelInstance('inst-1', 'admin-1', '', mockDeps)
-      ).rejects.toThrow(ValidationFailedError);
+      await expect(cancelInstance('inst-1', 'admin-1', '', mockDeps)).rejects.toThrow(
+        ValidationFailedError,
+      );
     });
 
     it('CANCEL-I-02 (INV10): whitespace-only reason throws ValidationFailedError', async () => {
-      await expect(
-        cancelInstance('inst-1', 'admin-1', '   ', mockDeps)
-      ).rejects.toThrow('cancellation reason must not be empty');
+      await expect(cancelInstance('inst-1', 'admin-1', '   ', mockDeps)).rejects.toThrow(
+        'cancellation reason must not be empty',
+      );
     });
 
     it('CANCEL-I-03 (INV6): already-terminal instance propagates InvalidWorkflowTransitionError', async () => {
       mockDeps.workflowRepository.updateInstanceStatus.mockRejectedValue(
-        new InvalidWorkflowTransitionError('Cannot update status of a completed workflow instance.')
+        new InvalidWorkflowTransitionError(
+          'Cannot update status of a completed workflow instance.',
+        ),
       );
-      await expect(
-        cancelInstance('inst-1', 'admin-1', 'some reason', mockDeps)
-      ).rejects.toThrow(InvalidWorkflowTransitionError);
+      await expect(cancelInstance('inst-1', 'admin-1', 'some reason', mockDeps)).rejects.toThrow(
+        InvalidWorkflowTransitionError,
+      );
     });
   });
 });

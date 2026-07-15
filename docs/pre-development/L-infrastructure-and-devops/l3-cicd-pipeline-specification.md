@@ -291,16 +291,16 @@ No production deployment occurs without a passing E2E run on staging. The job de
 
 ## 4. Merge Gate Summary
 
-| Stage | Blocks PR merge | Blocks production deploy | When it runs |
-|---|---|---|---|
-| Lint | Yes | Yes (transitively) | Every PR push + main push |
-| Typecheck | Yes | Yes (transitively) | Every PR push + main push |
-| Unit tests | Yes | Yes (transitively) | Every PR push + main push |
-| Integration tests | Yes | Yes (transitively) | Every PR push + main push |
-| Build (TypeScript/Vite) | Yes | Yes (transitively) | Every PR push + main push |
-| E2E tests (Playwright) | **No** | **Yes** | Main push + release tags only |
-| Deploy staging | No | Yes (prerequisite of E2E) | Main push only |
-| Deploy production | No | N/A (is the gate) | Manual, after E2E passes |
+| Stage                   | Blocks PR merge | Blocks production deploy  | When it runs                  |
+| ----------------------- | --------------- | ------------------------- | ----------------------------- |
+| Lint                    | Yes             | Yes (transitively)        | Every PR push + main push     |
+| Typecheck               | Yes             | Yes (transitively)        | Every PR push + main push     |
+| Unit tests              | Yes             | Yes (transitively)        | Every PR push + main push     |
+| Integration tests       | Yes             | Yes (transitively)        | Every PR push + main push     |
+| Build (TypeScript/Vite) | Yes             | Yes (transitively)        | Every PR push + main push     |
+| E2E tests (Playwright)  | **No**          | **Yes**                   | Main push + release tags only |
+| Deploy staging          | No              | Yes (prerequisite of E2E) | Main push only                |
+| Deploy production       | No              | N/A (is the gate)         | Manual, after E2E passes      |
 
 **Coverage reports** are uploaded as artifacts on unit test runs. They never appear in this table.
 
@@ -350,7 +350,7 @@ TURBO_TOKEN=<shared_api_token>        # any value; shared across CI and develope
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: batac-lgu
-  TURBO_API: https://turbo-cache.internal.batac.gov.ph   # internal hostname
+  TURBO_API: https://turbo-cache.internal.batac.gov.ph # internal hostname
 ```
 
 **Developer configuration (in `.turbo/config.json` at the repo root, committed):**
@@ -421,19 +421,19 @@ The `turbo.json` at the repo root wires all CI-invoked tasks. The following is t
 
 CI jobs receive application environment variables via GitHub Actions secrets, not via a `.env` file (which is gitignored and must never be committed). The mapping follows the same logic as L2 Part 9: variables that differ between the container context and the outside world are overridden explicitly.
 
-| Variable | Source in CI | Notes |
-|---|---|---|
-| `DATABASE_URL_APP` | Constructed from secrets | Points to the CI service container postgres at `localhost:5432` |
-| `DATABASE_URL_AUDIT` | Constructed from secrets | Same CI postgres instance, `batac_audit` role |
-| `DATABASE_URL_MIGRATE` | Constructed from secrets | Same CI postgres instance, `batac_migrate` role |
-| `S3_ENDPOINT` | `http://localhost:9000` | CI MinIO service container |
-| `S3_ACCESS_KEY` | `ci_minio_access` (fixed CI value) | Not a production secret |
-| `S3_SECRET_KEY` | `ci_minio_secret` (fixed CI value) | Not a production secret |
-| `S3_BUCKET` | `batac-lgu-ci` | CI-only bucket; destroyed after run |
-| `JWT_SECRET` | `${{ secrets.CI_JWT_SECRET }}` | Must be a real secret; used in auth tests |
-| `HMAC_SECRET` | `${{ secrets.CI_HMAC_SECRET }}` | Must be a real secret; used in audit log tests |
-| `CITY_ID` | Hardcoded fixture UUID | Same UUID used in fixture set per K1 Section 9.2 |
-| `APP_ENV` | `test` | Disables external integrations (email, SSE delivery) |
+| Variable               | Source in CI                       | Notes                                                           |
+| ---------------------- | ---------------------------------- | --------------------------------------------------------------- |
+| `DATABASE_URL_APP`     | Constructed from secrets           | Points to the CI service container postgres at `localhost:5432` |
+| `DATABASE_URL_AUDIT`   | Constructed from secrets           | Same CI postgres instance, `batac_audit` role                   |
+| `DATABASE_URL_MIGRATE` | Constructed from secrets           | Same CI postgres instance, `batac_migrate` role                 |
+| `S3_ENDPOINT`          | `http://localhost:9000`            | CI MinIO service container                                      |
+| `S3_ACCESS_KEY`        | `ci_minio_access` (fixed CI value) | Not a production secret                                         |
+| `S3_SECRET_KEY`        | `ci_minio_secret` (fixed CI value) | Not a production secret                                         |
+| `S3_BUCKET`            | `batac-lgu-ci`                     | CI-only bucket; destroyed after run                             |
+| `JWT_SECRET`           | `${{ secrets.CI_JWT_SECRET }}`     | Must be a real secret; used in auth tests                       |
+| `HMAC_SECRET`          | `${{ secrets.CI_HMAC_SECRET }}`    | Must be a real secret; used in audit log tests                  |
+| `CITY_ID`              | Hardcoded fixture UUID             | Same UUID used in fixture set per K1 Section 9.2                |
+| `APP_ENV`              | `test`                             | Disables external integrations (email, SSE delivery)            |
 
 Variables that must never be real credentials in CI (PostgreSQL passwords, MinIO keys) use fixed CI-only values. They are not stored as secrets — they are plaintext in the workflow YAML, because the CI database is ephemeral and contains no real data.
 
@@ -449,13 +449,13 @@ The `production` environment has `required_reviewers` set. The `staging` environ
 
 ## 8. Branch and Trigger Strategy
 
-| Event | Triggers |
-|---|---|
-| Push to a PR branch (targeting `main`) | Jobs A (lint + typecheck), B (unit tests), C (integration tests), D (build) |
-| Push to `main` (PR merged) | All PR jobs + Job E (E2E on staging) + Job F (staging already updated) |
-| Scheduled (nightly, optional) | Full pipeline including E2E; catches timing-dependent test regressions |
-| Manual workflow dispatch | Any individual job group; useful for re-running a flaky E2E suite without a new commit |
-| Release tag (e.g., `v1.0.0-rc1`) | Full pipeline including E2E; enables the production deploy gate |
+| Event                                  | Triggers                                                                               |
+| -------------------------------------- | -------------------------------------------------------------------------------------- |
+| Push to a PR branch (targeting `main`) | Jobs A (lint + typecheck), B (unit tests), C (integration tests), D (build)            |
+| Push to `main` (PR merged)             | All PR jobs + Job E (E2E on staging) + Job F (staging already updated)                 |
+| Scheduled (nightly, optional)          | Full pipeline including E2E; catches timing-dependent test regressions                 |
+| Manual workflow dispatch               | Any individual job group; useful for re-running a flaky E2E suite without a new commit |
+| Release tag (e.g., `v1.0.0-rc1`)       | Full pipeline including E2E; enables the production deploy gate                        |
 
 **Branch protection rules on `main`** (set in GitHub repository settings):
 
@@ -470,15 +470,15 @@ The `production` environment has `required_reviewers` set. The `staging` environ
 
 These are enforced informally (alert when exceeded; not a hard CI failure) except where K1 sets an explicit budget.
 
-| Stage | K1 budget | Target in practice |
-|---|---|---|
-| Lint | — | < 30 seconds |
-| Typecheck | — | < 60 seconds |
-| Unit tests | 60 seconds total | < 45 seconds with Turborepo cache hits |
-| Integration tests | 5 minutes total | < 3 minutes for Phase 1 test volume |
-| Build | — | < 2 minutes; < 10 seconds on cache hit |
-| E2E tests | — | < 15 minutes; alert if consistently > 10 minutes |
-| Full PR pipeline (Jobs A–D) | — | < 8 minutes end-to-end |
+| Stage                       | K1 budget        | Target in practice                               |
+| --------------------------- | ---------------- | ------------------------------------------------ |
+| Lint                        | —                | < 30 seconds                                     |
+| Typecheck                   | —                | < 60 seconds                                     |
+| Unit tests                  | 60 seconds total | < 45 seconds with Turborepo cache hits           |
+| Integration tests           | 5 minutes total  | < 3 minutes for Phase 1 test volume              |
+| Build                       | —                | < 2 minutes; < 10 seconds on cache hit           |
+| E2E tests                   | —                | < 15 minutes; alert if consistently > 10 minutes |
+| Full PR pipeline (Jobs A–D) | —                | < 8 minutes end-to-end                           |
 
 When the integration test suite grows beyond the 5-minute budget, the first remediation is to run test files in parallel workers (Vitest supports this per K1 Section 6.2 — parallel files, sequential within each file). Splitting into separate CI jobs is the escalation path.
 
@@ -521,19 +521,19 @@ The `node_modules` directory is cached between CI jobs using `actions/cache` on 
 
 ## 12. Constraints and Invariants
 
-| # | Constraint | Enforcement |
-|---|---|---|
-| 1 | Coverage thresholds must never block a CI stage or PR merge | No `--coverage-threshold` flag in any Vitest config; CI configuration review |
-| 2 | Integration tests must run against a real PostgreSQL instance — never a mock | No `pg-mem` or `jest-mock` of DB in integration test files; code review policy |
-| 3 | The workflow engine is never stubbed in E2E tests | No mock imports in Playwright test setup; confirmed by K1 Section 7 |
-| 4 | Production secrets are never accessible to PR pipeline jobs | GitHub environment scoping; `production` environment secrets only accessible to Job G |
-| 5 | No CI run ever uses a persistent shared test database | Service container spun up per run; no `DATABASE_URL` pointing to a shared host |
-| 6 | Meilisearch is absent from CI in Phase 1 | No Meilisearch service container in any job definition until Phase 2 begins |
-| 7 | `pnpm install --frozen-lockfile` on every CI run | Lockfile drift fails the install step before any test runs |
-| 8 | The same bootstrap scripts (migrate.js, seed.js) run in CI and container entrypoint | No CI-specific database setup script; direct invocation of L2 scripts |
-| 9 | Turborepo remote cache stores no build artifacts outside LGU-controlled infrastructure | Self-hosted turborepo-remote-cache backed by MinIO; Vercel remote cache never used |
-| 10 | A failed E2E run cannot be bypassed to trigger a production deployment | Job G has a hard `needs: [test:e2e]` dependency in the GitHub Actions workflow |
+| #   | Constraint                                                                             | Enforcement                                                                           |
+| --- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 1   | Coverage thresholds must never block a CI stage or PR merge                            | No `--coverage-threshold` flag in any Vitest config; CI configuration review          |
+| 2   | Integration tests must run against a real PostgreSQL instance — never a mock           | No `pg-mem` or `jest-mock` of DB in integration test files; code review policy        |
+| 3   | The workflow engine is never stubbed in E2E tests                                      | No mock imports in Playwright test setup; confirmed by K1 Section 7                   |
+| 4   | Production secrets are never accessible to PR pipeline jobs                            | GitHub environment scoping; `production` environment secrets only accessible to Job G |
+| 5   | No CI run ever uses a persistent shared test database                                  | Service container spun up per run; no `DATABASE_URL` pointing to a shared host        |
+| 6   | Meilisearch is absent from CI in Phase 1                                               | No Meilisearch service container in any job definition until Phase 2 begins           |
+| 7   | `pnpm install --frozen-lockfile` on every CI run                                       | Lockfile drift fails the install step before any test runs                            |
+| 8   | The same bootstrap scripts (migrate.js, seed.js) run in CI and container entrypoint    | No CI-specific database setup script; direct invocation of L2 scripts                 |
+| 9   | Turborepo remote cache stores no build artifacts outside LGU-controlled infrastructure | Self-hosted turborepo-remote-cache backed by MinIO; Vercel remote cache never used    |
+| 10  | A failed E2E run cannot be bypassed to trigger a production deployment                 | Job G has a hard `needs: [test:e2e]` dependency in the GitHub Actions workflow        |
 
 ---
 
-*This document is part of the L-series infrastructure reference set. Update it when: (1) a new Turborepo task is added that should be part of the merge gate, (2) the CI provider changes, (3) the staging or production deployment mechanism changes, or (4) K1's timing budgets are revised. K3 (Playwright E2E Specification) will cross-reference this document when written.*
+_This document is part of the L-series infrastructure reference set. Update it when: (1) a new Turborepo task is added that should be part of the merge gate, (2) the CI provider changes, (3) the staging or production deployment mechanism changes, or (4) K1's timing budgets are revised. K3 (Playwright E2E Specification) will cross-reference this document when written._

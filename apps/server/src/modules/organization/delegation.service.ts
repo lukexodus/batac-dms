@@ -37,29 +37,32 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       const delegatorEmp = alias(employees, 'delegator_emp');
       const delegateeEmp = alias(employees, 'delegatee_emp');
 
-      const rows = await db.select({
-        id: delegationGrants.id,
-        designationDocumentId: delegationGrants.designationDocumentId,
-        scope: delegationGrants.scope,
-        officeId: delegationGrants.officeId,
-        positionId: delegationGrants.positionId,
-        startDate: delegationGrants.startDate,
-        endDate: delegationGrants.endDate,
-        delegatingUserId: delegatorEmp.userId,
-        delegatedToUserId: delegateeEmp.userId,
-      })
-      .from(delegationGrants)
-      .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
-      .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
-      .where(and(
-        eq(delegateeEmp.userId, userId),
-        eq(delegationGrants.isActive, true),
-        isNull(delegationGrants.revokedAt),
-        isNull(delegationGrants.deletedAt),
-        lte(delegationGrants.startDate, nowStr),
-        gte(delegationGrants.endDate, nowStr)
-      ))
-      .limit(1);
+      const rows = await db
+        .select({
+          id: delegationGrants.id,
+          designationDocumentId: delegationGrants.designationDocumentId,
+          scope: delegationGrants.scope,
+          officeId: delegationGrants.officeId,
+          positionId: delegationGrants.positionId,
+          startDate: delegationGrants.startDate,
+          endDate: delegationGrants.endDate,
+          delegatingUserId: delegatorEmp.userId,
+          delegatedToUserId: delegateeEmp.userId,
+        })
+        .from(delegationGrants)
+        .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
+        .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
+        .where(
+          and(
+            eq(delegateeEmp.userId, userId),
+            eq(delegationGrants.isActive, true),
+            isNull(delegationGrants.revokedAt),
+            isNull(delegationGrants.deletedAt),
+            lte(delegationGrants.startDate, nowStr),
+            gte(delegationGrants.endDate, nowStr),
+          ),
+        )
+        .limit(1);
 
       if (rows.length === 0) return null;
       const row = rows[0]!;
@@ -77,21 +80,26 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       };
     },
 
-    async getDelegationGrantById(delegationGrantId: string): Promise<{ scope: { roles: string[]; officeIds: string[]; actions: string[] } } | null> {
+    async getDelegationGrantById(
+      delegationGrantId: string,
+    ): Promise<{ scope: { roles: string[]; officeIds: string[]; actions: string[] } } | null> {
       const db = deps.db;
       const nowStr = new Date().toISOString().split('T')[0]!;
 
-      const [row] = await db.select({
-        scope: delegationGrants.scope,
-      })
-      .from(delegationGrants)
-      .where(and(
-        eq(delegationGrants.id, delegationGrantId),
-        eq(delegationGrants.isActive, true),
-        isNull(delegationGrants.revokedAt),
-        isNull(delegationGrants.deletedAt),
-        gte(delegationGrants.endDate, nowStr)
-      ));
+      const [row] = await db
+        .select({
+          scope: delegationGrants.scope,
+        })
+        .from(delegationGrants)
+        .where(
+          and(
+            eq(delegationGrants.id, delegationGrantId),
+            eq(delegationGrants.isActive, true),
+            isNull(delegationGrants.revokedAt),
+            isNull(delegationGrants.deletedAt),
+            gte(delegationGrants.endDate, nowStr),
+          ),
+        );
 
       if (!row) return null;
 
@@ -101,7 +109,7 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
           roles: Array.isArray(scope?.roles) ? scope.roles : [],
           officeIds: Array.isArray(scope?.officeIds) ? scope.officeIds : [],
           actions: Array.isArray(scope?.actions) ? scope.actions : [],
-        }
+        },
       };
     },
 
@@ -147,23 +155,23 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       // only checks role membership; remaining fields not relevant to this gate
       // are set to safe defaults.
       const policySubject = {
-        userId:             subject.userId,
-        sessionId:          '',
-        officeId:           null,
-        cityId:             subject.cityId,
-        roles:              subject.roles,
-        permissions:        ['delegation_grant:create'], // RBAC pre-checked: the caller holds this route
-        committeeIds:       [],
-        delegationGrantId:  null,
+        userId: subject.userId,
+        sessionId: '',
+        officeId: null,
+        cityId: subject.cityId,
+        roles: subject.roles,
+        permissions: ['delegation_grant:create'], // RBAC pre-checked: the caller holds this route
+        committeeIds: [],
+        delegationGrantId: null,
         effectiveOfficeIds: [],
-        effectiveRoles:     subject.roles,
-        isItAdmin:          false,
-        isPlatformAdmin:    false,
+        effectiveRoles: subject.roles,
+        isItAdmin: false,
+        isPlatformAdmin: false,
       };
 
       const policyResource = {
-        type:   'delegation_grant',
-        id:     'new',
+        type: 'delegation_grant',
+        id: 'new',
         cityId: subject.cityId,
       };
 
@@ -176,7 +184,7 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       if (!evaluation.allowed) {
         throw new PolicyDeniedError({
           reason: evaluation.reason,
-          action:  'delegation_grant:create',
+          action: 'delegation_grant:create',
         });
       }
 
@@ -206,11 +214,13 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       const existing = await db
         .select({ id: delegationGrants.id })
         .from(delegationGrants)
-        .where(and(
-          eq(delegationGrants.delegatedToEmployeeId, input.delegatedToEmployeeId),
-          eq(delegationGrants.isActive, true),
-          isNull(delegationGrants.deletedAt),
-        ))
+        .where(
+          and(
+            eq(delegationGrants.delegatedToEmployeeId, input.delegatedToEmployeeId),
+            eq(delegationGrants.isActive, true),
+            isNull(delegationGrants.deletedAt),
+          ),
+        )
         .limit(1);
 
       if (existing.length > 0) {
@@ -220,20 +230,20 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       }
 
       // ── Step 4: INSERT ─────────────────────────────────────────────────────
-      const grant = await orgRepo.delegationGrants.create({
-        cityId:                 input.cityId,
-        delegatingEmployeeId:   input.delegatingEmployeeId,
-        delegatedToEmployeeId:  input.delegatedToEmployeeId,
-        officeId:               input.officeId,
-        positionId:             input.positionId,
-        designationDocumentId:  input.designationDocumentId,
-        scopeDescription:       input.scopeDescription,
+      const grant = (await orgRepo.delegationGrants.create({
+        cityId: input.cityId,
+        delegatingEmployeeId: input.delegatingEmployeeId,
+        delegatedToEmployeeId: input.delegatedToEmployeeId,
+        officeId: input.officeId,
+        positionId: input.positionId,
+        designationDocumentId: input.designationDocumentId,
+        scopeDescription: input.scopeDescription,
         scope: input.scope ?? { roles: [], officeIds: [], actions: [] },
         legalBasis: input.legalBasis ?? null,
-        startDate:  input.startDate,
-        endDate:    input.endDate,
-        isActive:   true,
-      }) as DelegationGrantRow;
+        startDate: input.startDate,
+        endDate: input.endDate,
+        isActive: true,
+      })) as DelegationGrantRow;
 
       // ── Step 5: Resolve employee → user IDs for the event payload ───────────
       const delegatorEmp = alias(employees, 'delegator_emp');
@@ -241,39 +251,37 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
 
       const [empRow] = await db
         .select({
-          delegatingUserId:  delegatorEmp.userId,
+          delegatingUserId: delegatorEmp.userId,
           delegatedToUserId: delegateeEmp.userId,
         })
         .from(delegatorEmp)
-        .innerJoin(delegateeEmp, eq(
-          delegateeEmp.id, input.delegatedToEmployeeId
-        ))
+        .innerJoin(delegateeEmp, eq(delegateeEmp.id, input.delegatedToEmployeeId))
         .where(eq(delegatorEmp.id, input.delegatingEmployeeId))
         .limit(1);
 
-      const delegatingUserId  = empRow?.delegatingUserId  ?? '';
+      const delegatingUserId = empRow?.delegatingUserId ?? '';
       const delegatedToUserId = empRow?.delegatedToUserId ?? '';
 
       // ── Step 6: Emit delegation.granted domain event ────────────────────────
       deps.eventBus.emit('delegation.granted', {
-        eventId:       randomUUID(),
-        eventType:     'delegation.granted',
-        occurredAt:    new Date().toISOString(),
-        cityId:        input.cityId,
+        eventId: randomUUID(),
+        eventType: 'delegation.granted',
+        occurredAt: new Date().toISOString(),
+        cityId: input.cityId,
         schemaVersion: 1,
         payload: {
-          delegationId:           grant.id,
-          designationDocumentId:  grant.designationDocumentId,
+          delegationId: grant.id,
+          designationDocumentId: grant.designationDocumentId,
           delegatingUserId,
           delegatedToUserId,
           // grantorId maps to actorId field read by audit.event-consumer.ts
-          grantorId:  subject.userId,
+          grantorId: subject.userId,
           scope: {
-            officeId:   grant.officeId,
+            officeId: grant.officeId,
             positionId: grant.positionId,
           },
-          validFrom:   grant.startDate,
-          validUntil:  grant.endDate,
+          validFrom: grant.startDate,
+          validUntil: grant.endDate,
         },
       });
 
@@ -282,20 +290,20 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       // atomicity guarantees between their write and the audit record.
       // Source: TASK-ORG-005 AI Prompt; audit/index.ts AuditPublicAPI comment.
       await deps.auditService.writeEvent({
-        eventType:        'delegation_grant.created',
-        actorId:          subject.userId,
-        targetId:         grant.id,
-        targetType:       'delegation_grant',
+        eventType: 'delegation_grant.created',
+        actorId: subject.userId,
+        targetId: grant.id,
+        targetType: 'delegation_grant',
         resourceOfficeId: null, // cross-office grants have no single owning office
         payload: {
-          delegationId:          grant.id,
+          delegationId: grant.id,
           designationDocumentId: grant.designationDocumentId,
-          delegatingEmployeeId:  grant.delegatingEmployeeId,
+          delegatingEmployeeId: grant.delegatingEmployeeId,
           delegatedToEmployeeId: grant.delegatedToEmployeeId,
-          officeId:              grant.officeId,
-          positionId:            grant.positionId,
-          startDate:             grant.startDate,
-          endDate:               grant.endDate,
+          officeId: grant.officeId,
+          positionId: grant.positionId,
+          startDate: grant.startDate,
+          endDate: grant.endDate,
         },
         cityId: input.cityId,
       });
@@ -304,7 +312,7 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       await deps.boss.send(
         'delegation.expire',
         { delegationGrantId: grant.id },
-        { startAfter: grant.endDate }
+        { startAfter: grant.endDate },
       );
 
       return grant;
@@ -329,16 +337,17 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       const delegatorEmp = alias(employees, 'delegator_emp');
       const delegateeEmp = alias(employees, 'delegatee_emp');
 
-      const rows = await db.select({
-        grant: delegationGrants,
-        delegatingUserId: delegatorEmp.userId,
-        delegatedToUserId: delegateeEmp.userId,
-      })
-      .from(delegationGrants)
-      .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
-      .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
-      .where(eq(delegationGrants.id, grantId))
-      .limit(1);
+      const rows = await db
+        .select({
+          grant: delegationGrants,
+          delegatingUserId: delegatorEmp.userId,
+          delegatedToUserId: delegateeEmp.userId,
+        })
+        .from(delegationGrants)
+        .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
+        .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
+        .where(eq(delegationGrants.id, grantId))
+        .limit(1);
 
       if (rows.length === 0) {
         throw new DelegationGrantNotFoundError({ grantId });
@@ -382,7 +391,7 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
         policySubject,
         policyResource,
         'revoke_early',
-        { writtenInstructionReference: input.writtenInstructionReference }
+        { writtenInstructionReference: input.writtenInstructionReference },
       );
 
       if (!evaluation.allowed) {
@@ -395,7 +404,8 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       const now = new Date();
 
       // Step 2: UPDATE
-      const [updatedGrant] = await db.update(delegationGrants)
+      const [updatedGrant] = await db
+        .update(delegationGrants)
         .set({
           isActive: false,
           revokedAt: now,
@@ -450,32 +460,35 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       const delegatorEmp = alias(employees, 'delegator_emp');
       const delegateeEmp = alias(employees, 'delegatee_emp');
 
-      const rows = await db.select({
-        id: delegationGrants.id,
-        designationDocumentId: delegationGrants.designationDocumentId,
-        officeId: delegationGrants.officeId,
-        startDate: delegationGrants.startDate,
-        endDate: delegationGrants.endDate,
-        delegatingUserId: delegatorEmp.userId,
-        delegatingFirstName: delegatorEmp.firstName,
-        delegatingLastName: delegatorEmp.lastName,
-        delegatedToUserId: delegateeEmp.userId,
-        delegatedToFirstName: delegateeEmp.firstName,
-        delegatedToLastName: delegateeEmp.lastName,
-        positionTitle: positions.title,
-      })
-      .from(delegationGrants)
-      .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
-      .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
-      .leftJoin(positions, eq(delegationGrants.positionId, positions.id))
-      .where(and(
-        eq(delegationGrants.isActive, true),
-        isNull(delegationGrants.revokedAt),
-        isNull(delegationGrants.deletedAt),
-      ))
-      .orderBy(desc(delegationGrants.startDate));
+      const rows = await db
+        .select({
+          id: delegationGrants.id,
+          designationDocumentId: delegationGrants.designationDocumentId,
+          officeId: delegationGrants.officeId,
+          startDate: delegationGrants.startDate,
+          endDate: delegationGrants.endDate,
+          delegatingUserId: delegatorEmp.userId,
+          delegatingFirstName: delegatorEmp.firstName,
+          delegatingLastName: delegatorEmp.lastName,
+          delegatedToUserId: delegateeEmp.userId,
+          delegatedToFirstName: delegateeEmp.firstName,
+          delegatedToLastName: delegateeEmp.lastName,
+          positionTitle: positions.title,
+        })
+        .from(delegationGrants)
+        .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
+        .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
+        .leftJoin(positions, eq(delegationGrants.positionId, positions.id))
+        .where(
+          and(
+            eq(delegationGrants.isActive, true),
+            isNull(delegationGrants.revokedAt),
+            isNull(delegationGrants.deletedAt),
+          ),
+        )
+        .orderBy(desc(delegationGrants.startDate));
 
-      return rows.map(row => ({
+      return rows.map((row) => ({
         delegationId: row.id,
         designationDocumentId: row.designationDocumentId || '',
         delegatingUserId: row.delegatingUserId || '',
@@ -489,41 +502,47 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       }));
     },
 
-    async listDesignationHistory(opts: { limit: number; employeeId?: string }): Promise<DesignationHistoryItem[]> {
+    async listDesignationHistory(opts: {
+      limit: number;
+      employeeId?: string;
+    }): Promise<DesignationHistoryItem[]> {
       const db = deps.db;
       const delegatorEmp = alias(employees, 'delegator_emp');
       const delegateeEmp = alias(employees, 'delegatee_emp');
 
       const conditions = [isNull(delegationGrants.deletedAt)];
       if (opts.employeeId) {
-        conditions.push(or(
-          eq(delegationGrants.delegatingEmployeeId, opts.employeeId),
-          eq(delegationGrants.delegatedToEmployeeId, opts.employeeId),
-        )!);
+        conditions.push(
+          or(
+            eq(delegationGrants.delegatingEmployeeId, opts.employeeId),
+            eq(delegationGrants.delegatedToEmployeeId, opts.employeeId),
+          )!,
+        );
       }
 
-      const rows = await db.select({
-        id: delegationGrants.id,
-        designationDocumentId: delegationGrants.designationDocumentId,
-        startDate: delegationGrants.startDate,
-        endDate: delegationGrants.endDate,
-        isActive: delegationGrants.isActive,
-        revokedAt: delegationGrants.revokedAt,
-        delegatingFirstName: delegatorEmp.firstName,
-        delegatingLastName: delegatorEmp.lastName,
-        delegatedToFirstName: delegateeEmp.firstName,
-        delegatedToLastName: delegateeEmp.lastName,
-        positionTitle: positions.title,
-      })
-      .from(delegationGrants)
-      .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
-      .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
-      .leftJoin(positions, eq(delegationGrants.positionId, positions.id))
-      .where(and(...conditions))
-      .orderBy(desc(delegationGrants.startDate))
-      .limit(opts.limit);
+      const rows = await db
+        .select({
+          id: delegationGrants.id,
+          designationDocumentId: delegationGrants.designationDocumentId,
+          startDate: delegationGrants.startDate,
+          endDate: delegationGrants.endDate,
+          isActive: delegationGrants.isActive,
+          revokedAt: delegationGrants.revokedAt,
+          delegatingFirstName: delegatorEmp.firstName,
+          delegatingLastName: delegatorEmp.lastName,
+          delegatedToFirstName: delegateeEmp.firstName,
+          delegatedToLastName: delegateeEmp.lastName,
+          positionTitle: positions.title,
+        })
+        .from(delegationGrants)
+        .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
+        .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
+        .leftJoin(positions, eq(delegationGrants.positionId, positions.id))
+        .where(and(...conditions))
+        .orderBy(desc(delegationGrants.startDate))
+        .limit(opts.limit);
 
-      return rows.map(row => ({
+      return rows.map((row) => ({
         delegationId: row.id,
         designationDocumentId: row.designationDocumentId || '',
         delegatingDisplayName: `${row.delegatingFirstName} ${row.delegatingLastName}`,
@@ -541,20 +560,23 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
       const delegatorEmp = alias(employees, 'delegator_emp');
       const delegateeEmp = alias(employees, 'delegatee_emp');
 
-      const rows = await db.select({
-        delegatingUserId: delegatorEmp.userId,
-        delegatedToUserId: delegateeEmp.userId,
-      })
-      .from(delegationGrants)
-      .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
-      .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
-      .where(and(
-        eq(delegationGrants.isActive, true),
-        isNull(delegationGrants.revokedAt),
-        isNull(delegationGrants.deletedAt),
-      ));
+      const rows = await db
+        .select({
+          delegatingUserId: delegatorEmp.userId,
+          delegatedToUserId: delegateeEmp.userId,
+        })
+        .from(delegationGrants)
+        .innerJoin(delegatorEmp, eq(delegationGrants.delegatingEmployeeId, delegatorEmp.id))
+        .innerJoin(delegateeEmp, eq(delegationGrants.delegatedToEmployeeId, delegateeEmp.id))
+        .where(
+          and(
+            eq(delegationGrants.isActive, true),
+            isNull(delegationGrants.revokedAt),
+            isNull(delegationGrants.deletedAt),
+          ),
+        );
 
-      return rows.map(row => ({
+      return rows.map((row) => ({
         delegatingUserId: row.delegatingUserId || '',
         delegatedToUserId: row.delegatedToUserId || '',
       }));

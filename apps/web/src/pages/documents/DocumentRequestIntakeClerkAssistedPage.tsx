@@ -18,9 +18,7 @@ import {
   CardFooter,
 } from '@batac/ui';
 
-
 import { trpc } from '@/lib/trpc';
-
 
 const DocumentRequestSchema = z.object({
   requesterName: z.string().min(1, 'Requester name is required'),
@@ -30,7 +28,7 @@ const DocumentRequestSchema = z.object({
       z.object({
         documentTitle: z.string().min(1, 'Document title is required'),
         documentNumber: z.string().optional(),
-      })
+      }),
     )
     .min(1, 'At least one document is required'),
   purpose: z.string().max(512).optional(),
@@ -40,8 +38,7 @@ type DocumentRequestFormValues = z.infer<typeof DocumentRequestSchema>;
 
 export function DocumentRequestIntakeClerkAssistedPage() {
   const navigate = useNavigate();
-  const createMutation =
-    trpc.documents.createDocumentRequestClerkAssisted.useMutation();
+  const createMutation = trpc.documents.createDocumentRequestClerkAssisted.useMutation();
 
   const {
     register,
@@ -80,7 +77,7 @@ export function DocumentRequestIntakeClerkAssistedPage() {
   };
 
   return (
-    <div className="container max-w-2xl mx-auto py-8">
+    <div className="container mx-auto max-w-2xl py-8">
       <Card>
         <CardHeader>
           <CardTitle>New Document Request (Clerk-Assisted)</CardTitle>
@@ -95,9 +92,7 @@ export function DocumentRequestIntakeClerkAssistedPage() {
                 placeholder="Enter requester's full name"
               />
               {errors.requesterName && (
-                <p className="text-sm text-destructive">
-                  {errors.requesterName.message}
-                </p>
+                <p className="text-destructive text-sm">{errors.requesterName.message}</p>
               )}
             </div>
 
@@ -117,9 +112,7 @@ export function DocumentRequestIntakeClerkAssistedPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    append({ documentTitle: '', documentNumber: '' })
-                  }
+                  onClick={() => append({ documentTitle: '', documentNumber: '' })}
                 >
                   <Plus className="mr-1 h-3 w-3" />
                   Add Document
@@ -127,46 +120,29 @@ export function DocumentRequestIntakeClerkAssistedPage() {
               </div>
 
               {errors.documentsRequested?.message && (
-                <p className="text-sm text-destructive">
-                  {errors.documentsRequested.message}
-                </p>
+                <p className="text-destructive text-sm">{errors.documentsRequested.message}</p>
               )}
 
               <div className="space-y-3">
                 {fields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="flex items-start gap-2 rounded-md border p-3"
-                  >
-                    <div className="flex-1 grid grid-cols-[1fr_auto] gap-2">
+                  <div key={field.id} className="flex items-start gap-2 rounded-md border p-3">
+                    <div className="grid flex-1 grid-cols-[1fr_auto] gap-2">
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">
-                          Document Title *
-                        </Label>
+                        <Label className="text-muted-foreground text-xs">Document Title *</Label>
                         <Input
-                          {...register(
-                            `documentsRequested.${index}.documentTitle`
-                          )}
+                          {...register(`documentsRequested.${index}.documentTitle`)}
                           placeholder="e.g., Barangay Clearance"
                         />
-                        {errors.documentsRequested?.[index]
-                          ?.documentTitle && (
-                          <p className="text-xs text-destructive">
-                            {
-                              errors.documentsRequested[index]
-                                ?.documentTitle?.message
-                            }
+                        {errors.documentsRequested?.[index]?.documentTitle && (
+                          <p className="text-destructive text-xs">
+                            {errors.documentsRequested[index]?.documentTitle?.message}
                           </p>
                         )}
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">
-                          Document No.
-                        </Label>
+                        <Label className="text-muted-foreground text-xs">Document No.</Label>
                         <Input
-                          {...register(
-                            `documentsRequested.${index}.documentNumber`
-                          )}
+                          {...register(`documentsRequested.${index}.documentNumber`)}
                           placeholder="Optional"
                           className="w-36"
                         />
@@ -177,7 +153,7 @@ export function DocumentRequestIntakeClerkAssistedPage() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="mt-5 text-destructive hover:text-destructive"
+                        className="text-destructive hover:text-destructive mt-5"
                         onClick={() => remove(index)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -197,9 +173,7 @@ export function DocumentRequestIntakeClerkAssistedPage() {
                 rows={3}
               />
               {errors.purpose && (
-                <p className="text-sm text-destructive">
-                  {errors.purpose.message}
-                </p>
+                <p className="text-destructive text-sm">{errors.purpose.message}</p>
               )}
             </div>
           </CardContent>

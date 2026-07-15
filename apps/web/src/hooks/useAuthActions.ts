@@ -37,7 +37,7 @@ export function useAuthActions() {
       throw new Error('Login failed');
     }
 
-    const data = await response.json() as AuthResponse;
+    const data = (await response.json()) as AuthResponse;
     useSessionStore.getState().setIdentity({
       userId: data.user.id,
       username: data.user.username,

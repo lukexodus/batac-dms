@@ -75,30 +75,18 @@ export const documentTypes = documentsSchema.table(
      * FK added after `numberSeries` below — breaks the circular DDL
      * dependency between document_types and number_series (C1 Part 5).
      */
-    numberSeriesId: uuid('number_series_id').references(
-      (): AnyPgColumn => numberSeries.id,
-    ),
-    hasPreliminaryNumbering: boolean('has_preliminary_numbering')
-      .notNull()
-      .default(false),
-    controlNumberDeferred: boolean('control_number_deferred')
-      .notNull()
-      .default(false),
-    requiresPublication: boolean('requires_publication')
-      .notNull()
-      .default(false),
+    numberSeriesId: uuid('number_series_id').references((): AnyPgColumn => numberSeries.id),
+    hasPreliminaryNumbering: boolean('has_preliminary_numbering').notNull().default(false),
+    controlNumberDeferred: boolean('control_number_deferred').notNull().default(false),
+    requiresPublication: boolean('requires_publication').notNull().default(false),
     retentionScheduleId: uuid('retention_schedule_id'), // logical FK -> records.retention_schedules.id (cross-schema)
     classificationDefault: text('classification_default').notNull(),
     publicVisibilityRule: text('public_visibility_rule').notNull(),
     requiredStepTypes: text('required_step_types').array(),
     metadataSchema: jsonb('metadata_schema'),
     isActive: boolean('is_active').notNull().default(false),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
   },
@@ -138,9 +126,7 @@ export const numberSeries = documentsSchema.table(
       .notNull()
       .default(sql`'00000000-0000-4000-8000-000000000001'::uuid`),
     seriesKey: text('series_key').notNull(),
-    documentTypeId: uuid('document_type_id').references(
-      (): AnyPgColumn => documentTypes.id,
-    ),
+    documentTypeId: uuid('document_type_id').references((): AnyPgColumn => documentTypes.id),
     seriesType: text('series_type').notNull(),
     /** '1' = active in Phase 1; '1b' = Phase 1B (seeded inactive, activated later). */
     phase: text('phase').notNull().default('1'),
@@ -161,16 +147,10 @@ export const numberSeries = documentsSchema.table(
     authorityOfficeId: uuid('authority_office_id').notNull(), // logical FK -> organization.offices.id (cross-schema)
     preliminaryAssignmentEvent: text('preliminary_assignment_event'),
     finalAssignmentEvent: text('final_assignment_event').notNull(),
-    deferredFinalAssignment: boolean('deferred_final_assignment')
-      .notNull()
-      .default(false),
+    deferredFinalAssignment: boolean('deferred_final_assignment').notNull().default(false),
     isActive: boolean('is_active').notNull().default(true),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
   },
@@ -180,10 +160,7 @@ export const numberSeries = documentsSchema.table(
       'number_series_series_type_check',
       sql`${table.seriesType} IN ('legislative','administrative')`,
     ),
-    check(
-      'number_series_phase_check',
-      sql`${table.phase} IN ('1','1b')`,
-    ),
+    check('number_series_phase_check', sql`${table.phase} IN ('1','1b')`),
   ],
 );
 
@@ -226,17 +203,11 @@ export const documents = documentsSchema.table(
     /** FTS vector for title; maintained by trg_documents_tsv_update (manual SQL). */
     tsv: tsvector('tsv'),
     /** superseded_by/superseded_at/closure_reason required for the 'superseded' terminal state (D3 L121, ADR-014). */
-    supersededBy: uuid('superseded_by').references(
-      (): AnyPgColumn => documents.id,
-    ),
+    supersededBy: uuid('superseded_by').references((): AnyPgColumn => documents.id),
     supersededAt: timestamp('superseded_at', { withTimezone: true }),
     closureReason: text('closure_reason'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
   },
@@ -256,15 +227,9 @@ export const documents = documentsSchema.table(
     index('idx_documents_owned_by_office').on(table.ownedByOfficeId),
     index('idx_documents_workflow_instance').on(table.workflowInstanceId),
     index('idx_documents_metadata_gin').using('gin', table.metadata),
-    index('idx_documents_metadata_certified_urgent').on(
-      sql`(metadata->>'certified_urgent')`,
-    ),
-    index('idx_documents_metadata_has_penalty').on(
-      sql`(metadata->>'has_penalty_provision')`,
-    ),
-    index('idx_documents_metadata_outcome_state').on(
-      sql`(metadata->>'outcome_state')`,
-    ),
+    index('idx_documents_metadata_certified_urgent').on(sql`(metadata->>'certified_urgent')`),
+    index('idx_documents_metadata_has_penalty').on(sql`(metadata->>'has_penalty_provision')`),
+    index('idx_documents_metadata_outcome_state').on(sql`(metadata->>'outcome_state')`),
   ],
 );
 
@@ -295,15 +260,11 @@ export const numbers = documentsSchema.table(
     sequenceYear: smallint('sequence_year').notNull(),
     sequenceNumber: integer('sequence_number').notNull(),
     isCurrent: boolean('is_current').notNull().default(true),
-    assignedAt: timestamp('assigned_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
     assignedBy: uuid('assigned_by').notNull(), // logical FK -> iam.users.id (cross-schema)
     supersededAt: timestamp('superseded_at', { withTimezone: true }),
     cancellationReason: text('cancellation_reason'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
   },
@@ -368,23 +329,16 @@ export const versions = documentsSchema.table(
     ocrText: text('ocr_text'),
     /** FTS vector for OCR text; maintained by trg_versions_tsv_update (manual SQL). */
     tsv: tsvector('tsv'),
-    requiresManualVerification: boolean('requires_manual_verification')
-      .notNull()
-      .default(false),
+    requiresManualVerification: boolean('requires_manual_verification').notNull().default(false),
     verifiedBy: uuid('verified_by'), // logical FK -> iam.users.id (cross-schema)
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
     createdBy: uuid('created_by').notNull(), // logical FK -> iam.users.id (cross-schema)
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
   },
   (table) => [
-    unique('uq_versions_document_number').on(
-      table.documentId,
-      table.versionNumber,
-    ),
+    unique('uq_versions_document_number').on(table.documentId, table.versionNumber),
     check(
       'versions_scan_quality_category_check',
       sql`${table.scanQualityCategory} IN ('good','fair','poor')`,
@@ -416,16 +370,12 @@ export const attachments = documentsSchema.table(
       .references(() => documents.id),
     attachmentType: text('attachment_type').notNull(),
     fileKey: uuid('file_key'),
-    sourceDocumentId: uuid('source_document_id').references(
-      () => documents.id,
-    ),
+    sourceDocumentId: uuid('source_document_id').references(() => documents.id),
     mimeType: text('mime_type'),
     fileSizeBytes: bigint('file_size_bytes', { mode: 'number' }), // [Inference] see versions.fileSizeBytes note
     description: text('description'),
     uploadedBy: uuid('uploaded_by').notNull(), // logical FK -> iam.users.id (cross-schema)
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
   },
@@ -466,9 +416,7 @@ export const signatures = documentsSchema.table(
     signedAt: timestamp('signed_at', { withTimezone: true }).notNull(),
     isWetInk: boolean('is_wet_ink').notNull().default(false),
     signatureImageS3Key: text('signature_image_s3_key'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
   },
@@ -504,18 +452,12 @@ export const documentSponsorships = documentsSchema.table(
     orderOfPriority: integer('order_of_priority').notNull().default(1),
     /** display_name: denormalized per D4 Relationship Note 15 for stable rendering when the employee record changes. */
     displayName: text('display_name').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
   },
   (table) => [
-    unique('uq_sponsorships').on(
-      table.documentId,
-      table.sponsorEmployeeId,
-      table.sponsorshipType,
-    ),
+    unique('uq_sponsorships').on(table.documentId, table.sponsorEmployeeId, table.sponsorshipType),
     check(
       'document_sponsorships_sponsorship_type_check',
       sql`${table.sponsorshipType} IN ('principal_author','co_author','introducer','co_introducer')`,
@@ -543,9 +485,7 @@ export const panlalawiganReviews = documentsSchema.table(
       .notNull()
       .references(() => documents.id),
     /** -> panlalawigan_review_log series (document_type_id = NULL on that row; confirmed per ADR-DB-001, not deferred). */
-    numberSeriesId: uuid('number_series_id').references(
-      () => numberSeries.id,
-    ),
+    numberSeriesId: uuid('number_series_id').references(() => numberSeries.id),
     /** The SP Secretariat's sequential log number (e.g. '2026-01'). Not unique — multiple documents per batch share one reference. */
     controlNo: text('control_no'),
     subject: text('subject'),
@@ -558,12 +498,8 @@ export const panlalawiganReviews = documentsSchema.table(
     resolutionNumber: text('resolution_number'),
     remarks: text('remarks'),
     daysElapsed: integer('days_elapsed'), // computed by application on outcome receipt
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
   },
@@ -594,9 +530,7 @@ export const classificationAllowlists = documentsSchema.table(
       .notNull()
       .references(() => documentTypes.id),
     roleCode: text('role_code').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     createdBy: uuid('created_by').notNull(), // logical FK -> iam.users.id (cross-schema)
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)

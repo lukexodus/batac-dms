@@ -22,14 +22,14 @@ describe('status-mapping', () => {
 
     // The enum values from LifecycleStateSchema
     const allStates = LifecycleStateSchema.options;
-    
+
     // Ensure the test defines expected mappings for every state in the schema
     expect(allStates.length).toBe(11);
-    
+
     for (const state of allStates) {
       const documentState = mapLifecycleStateToDocumentState(state);
       expect(documentState).toBeDefined();
-      
+
       // Every lifecycle state must have an explicit expected mapping in this test
       expect(expectedMappings[state]).toBeDefined();
       expect(documentState).toBe(expectedMappings[state]);

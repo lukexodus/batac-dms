@@ -34,7 +34,12 @@ describe('Lapse Timer Scheduler Jobs (LAPSE)', () => {
       ]);
 
       mockRepo.getDefinitionVersionWithSteps.mockResolvedValue({
-        steps: [{ id: 'step-1', config: { allowed_outcomes: ['APPROVED', 'VETOED', 'LAPSED'], ...stepConfig } }],
+        steps: [
+          {
+            id: 'step-1',
+            config: { allowed_outcomes: ['APPROVED', 'VETOED', 'LAPSED'], ...stepConfig },
+          },
+        ],
       });
 
       mockRepo.lockStepInstanceForUpdate.mockResolvedValue({ id: 'step-inst-1', outcome: null });
@@ -51,10 +56,11 @@ describe('Lapse Timer Scheduler Jobs (LAPSE)', () => {
         {
           status: 'completed',
           outcome: 'LAPSED',
-          outcomeComment: 'Mayor took no action within 10 calendar days. Lapsed into law per RA 7160 Section 47.',
+          outcomeComment:
+            'Mayor took no action within 10 calendar days. Lapsed into law per RA 7160 Section 47.',
           completedAt: deadline, // CRITICAL: NOT now
         },
-        'mock-tx'
+        'mock-tx',
       );
     });
 
@@ -68,7 +74,7 @@ describe('Lapse Timer Scheduler Jobs (LAPSE)', () => {
           mayor_action: 'LAPSED',
           mayor_action_date: deadline.toISOString(),
         },
-        'mock-tx'
+        'mock-tx',
       );
     });
 
@@ -88,7 +94,7 @@ describe('Lapse Timer Scheduler Jobs (LAPSE)', () => {
             deadlineWas: deadline.toISOString(),
           },
         },
-        'mock-tx'
+        'mock-tx',
       );
     });
 
@@ -106,14 +112,19 @@ describe('Lapse Timer Scheduler Jobs (LAPSE)', () => {
       mockRepo.getDefinitionVersionWithSteps.mockResolvedValue({
         steps: [{ id: 'step-1', config: { allowed_outcomes: ['APPROVED', 'LAPSED'] } }],
       });
-      await evaluateMayorLapseTimers({ workflowRepository: mockRepo } as any, { now: new Date('2023-11-20T12:00:00Z') });
+      await evaluateMayorLapseTimers({ workflowRepository: mockRepo } as any, {
+        now: new Date('2023-11-20T12:00:00Z'),
+      });
       expect(mockRepo.runInTransaction).not.toHaveBeenCalled();
     });
 
     it('MAYOR-RC: race condition — mayor acts between SELECT and lock → no update (INV3)', async () => {
       const { now } = makeSetup({});
       // Lock reveals outcome already set
-      mockRepo.lockStepInstanceForUpdate.mockResolvedValue({ id: 'step-inst-1', outcome: 'APPROVED' });
+      mockRepo.lockStepInstanceForUpdate.mockResolvedValue({
+        id: 'step-inst-1',
+        outcome: 'APPROVED',
+      });
       await evaluateMayorLapseTimers({ workflowRepository: mockRepo } as any, { now });
 
       expect(mockRepo.updateStepInstance).not.toHaveBeenCalled();
@@ -135,7 +146,9 @@ describe('Lapse Timer Scheduler Jobs (LAPSE)', () => {
       mockRepo.getDefinitionVersionWithSteps.mockResolvedValue({
         steps: [{ id: 'step-1', config: { allowed_outcomes: ['APPROVED', 'VETOED'] } }], // no LAPSED
       });
-      await evaluateMayorLapseTimers({ workflowRepository: mockRepo } as any, { now: new Date('2023-11-20T12:00:00Z') });
+      await evaluateMayorLapseTimers({ workflowRepository: mockRepo } as any, {
+        now: new Date('2023-11-20T12:00:00Z'),
+      });
       expect(mockRepo.runInTransaction).not.toHaveBeenCalled();
     });
   });
@@ -163,7 +176,9 @@ describe('Lapse Timer Scheduler Jobs (LAPSE)', () => {
       ]);
 
       mockRepo.getDefinitionVersionWithSteps.mockResolvedValue({
-        steps: [{ id: 'step-2', config: { allowed_outcomes: ['VALID', 'RETURNED', 'DEEMED_APPROVED'] } }],
+        steps: [
+          { id: 'step-2', config: { allowed_outcomes: ['VALID', 'RETURNED', 'DEEMED_APPROVED'] } },
+        ],
       });
 
       mockRepo.lockStepInstanceForUpdate.mockResolvedValue({ id: 'step-inst-2', outcome: null });
@@ -180,10 +195,11 @@ describe('Lapse Timer Scheduler Jobs (LAPSE)', () => {
         {
           status: 'completed',
           outcome: 'DEEMED_APPROVED',
-          outcomeComment: 'Deemed approved per RA 7160 Section 56(d) — 30 calendar days elapsed with no action from the Sangguniang Panlalawigan.',
+          outcomeComment:
+            'Deemed approved per RA 7160 Section 56(d) — 30 calendar days elapsed with no action from the Sangguniang Panlalawigan.',
           completedAt: deadline, // CRITICAL: NOT now
         },
-        'mock-tx'
+        'mock-tx',
       );
     });
 
@@ -197,7 +213,7 @@ describe('Lapse Timer Scheduler Jobs (LAPSE)', () => {
           panlalawigan_outcome: 'DEEMED_APPROVED',
           panlalawigan_response_date: deadline.toISOString(),
         },
-        'mock-tx'
+        'mock-tx',
       );
     });
 
@@ -218,7 +234,7 @@ describe('Lapse Timer Scheduler Jobs (LAPSE)', () => {
             deadlineWas: deadline.toISOString(),
           },
         },
-        'mock-tx'
+        'mock-tx',
       );
     });
 

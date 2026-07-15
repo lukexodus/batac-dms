@@ -42,7 +42,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
- cn } from '@batac/ui';
+  cn,
+} from '@batac/ui';
 
 import type { RouterOutputs } from '@/lib/trpc';
 
@@ -74,7 +75,7 @@ export function OrderOfBusinessPage() {
 
   if (!hasRole(identity, ...VIEW_ROLES)) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-text-muted">
+      <div className="text-text-muted flex flex-col items-center justify-center p-8">
         You do not have permission to view this page.
       </div>
     );
@@ -91,30 +92,24 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
   // Optional date picker state; undefined = let server default to next Tuesday
   const [selectedDate, setSelectedDate] = useState<string>('');
 
-  const queryInput = selectedDate
-    ? { sessionDate: new Date(selectedDate) }
-    : {};
+  const queryInput = selectedDate ? { sessionDate: new Date(selectedDate) } : {};
 
   const { data, isLoading, isError, refetch } =
     trpc.session.getOrderOfBusiness.useQuery(queryInput);
 
-  const redFlagged = data?.items.filter(
-    (i) => i.committeeReportStatus === 'red_flagged',
-  ) ?? [];
+  const redFlagged = data?.items.filter((i) => i.committeeReportStatus === 'red_flagged') ?? [];
 
-  const allSubmitted = data?.items.filter(
-    (i) => i.committeeReportStatus === 'all_submitted',
-  ) ?? [];
+  const allSubmitted = data?.items.filter((i) => i.committeeReportStatus === 'all_submitted') ?? [];
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
       {/* ─── Page header ─── */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-          <CalendarDays className="h-6 w-6 text-primary-500" />
+        <h1 className="text-text-primary flex items-center gap-2 text-2xl font-bold">
+          <CalendarDays className="text-primary-500 h-6 w-6" />
           Order of Business
         </h1>
-        <p className="text-sm text-text-muted">
+        <p className="text-text-muted text-sm">
           Agenda items scheduled for the upcoming SP identity.
         </p>
       </div>
@@ -124,7 +119,7 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="oob-date-picker" className="text-xs text-text-muted">
+              <Label htmlFor="oob-date-picker" className="text-text-muted text-xs">
                 Session Date
               </Label>
               <Input
@@ -136,15 +131,11 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
               />
             </div>
             {selectedDate && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedDate('')}
-              >
+              <Button variant="ghost" size="sm" onClick={() => setSelectedDate('')}>
                 Reset to next Tuesday
               </Button>
             )}
-            <div className="ml-auto text-xs text-text-muted italic">
+            <div className="text-text-muted ml-auto text-xs italic">
               {!selectedDate && 'Defaulting to next scheduled session (next Tuesday).'}
             </div>
           </div>
@@ -154,7 +145,7 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
       {/* ─── Summary strip ─── */}
       {!isLoading && data && (
         <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-text-secondary">
+          <div className="text-text-secondary flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium">
             <CalendarDays className="h-3.5 w-3.5" />
             {new Date(data.sessionDate).toLocaleDateString('en-PH', {
               weekday: 'long',
@@ -163,17 +154,17 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
               day: 'numeric',
             })}
           </div>
-          <div className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-text-secondary">
+          <div className="text-text-secondary flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium">
             {data.items.length} item{data.items.length !== 1 ? 's' : ''}
           </div>
           {allSubmitted.length > 0 && (
-            <div className="flex items-center gap-1.5 rounded-full bg-success-100 px-3 py-1 text-xs font-medium text-success-800">
+            <div className="bg-success-100 text-success-800 flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium">
               <CheckCircle2 className="h-3.5 w-3.5" />
               {allSubmitted.length} reports ready
             </div>
           )}
           {redFlagged.length > 0 && (
-            <div className="flex items-center gap-1.5 rounded-full bg-danger-100 px-3 py-1 text-xs font-medium text-danger-800">
+            <div className="bg-danger-100 text-danger-800 flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium">
               <AlertTriangle className="h-3.5 w-3.5" />
               {redFlagged.length} red-flagged
             </div>
@@ -184,9 +175,7 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
       {/* ─── Item list ─── */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-text-primary">
-            Agenda Items
-          </CardTitle>
+          <CardTitle className="text-text-primary text-sm font-semibold">Agenda Items</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -196,7 +185,7 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
               ))}
             </div>
           ) : isError ? (
-            <div className="p-6 flex items-center gap-2 text-sm text-danger-600">
+            <div className="text-danger-600 flex items-center gap-2 p-6 text-sm">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               Failed to load order of business. Please try again.
             </div>
@@ -242,12 +231,7 @@ interface OobItemRowProps {
   onMutationSuccess: () => void;
 }
 
-function OobItemRow({
-  item,
-  agendaNumber,
-  isSecretary,
-  onMutationSuccess,
-}: OobItemRowProps) {
+function OobItemRow({ item, agendaNumber, isSecretary, onMutationSuccess }: OobItemRowProps) {
   const [expanded, setExpanded] = useState(false);
 
   const isRedFlagged = item.committeeReportStatus === 'red_flagged';
@@ -262,20 +246,18 @@ function OobItemRow({
       {/* ── Main row ── */}
       <button
         type="button"
-        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        className="flex w-full items-center gap-3 px-4 py-3 text-left"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
       >
         {/* Agenda number */}
-        <span className="font-mono text-sm text-text-muted w-7 shrink-0">
-          {agendaNumber}.
-        </span>
+        <span className="text-text-muted w-7 shrink-0 font-mono text-sm">{agendaNumber}.</span>
 
         {/* Title */}
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <p
             className={cn(
-              'text-sm font-medium truncate',
+              'truncate text-sm font-medium',
               isRedFlagged ? 'text-danger-800' : 'text-text-primary',
             )}
             title={item.title}
@@ -283,9 +265,7 @@ function OobItemRow({
             {item.title}
           </p>
           {item.preliminaryNumber && (
-            <p className="text-xs text-text-muted mt-0.5">
-              Preliminary #{item.preliminaryNumber}
-            </p>
+            <p className="text-text-muted mt-0.5 text-xs">Preliminary #{item.preliminaryNumber}</p>
           )}
         </div>
 
@@ -295,37 +275,29 @@ function OobItemRow({
         {/* Red flag icon */}
         {isRedFlagged && (
           <Flag
-            className="h-4 w-4 text-danger-500 shrink-0"
+            className="text-danger-500 h-4 w-4 shrink-0"
             aria-label="Missing or pending committee report — red flagged"
           />
         )}
 
         {/* Expand chevron */}
-        <span className="shrink-0 text-text-muted">
-          {expanded ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+        <span className="text-text-muted shrink-0">
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </span>
       </button>
 
       {/* ── Expanded detail panel ── */}
       {expanded && (
-        <div className="px-4 pb-4 space-y-4">
+        <div className="space-y-4 px-4 pb-4">
           {/* Assigned committees */}
           {item.assignedCommittees.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-text-muted uppercase tracking-wide">
+              <p className="text-text-muted text-xs font-semibold tracking-wide uppercase">
                 Assigned Committees
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {item.assignedCommittees.map((name) => (
-                  <Badge
-                    key={name}
-                    variant="secondary"
-                    className="text-xs"
-                  >
+                  <Badge key={name} variant="secondary" className="text-xs">
                     {name}
                   </Badge>
                 ))}
@@ -334,12 +306,7 @@ function OobItemRow({
           )}
 
           {/* Secretary-only actions */}
-          {isSecretary && (
-            <SecretaryItemActions
-              item={item}
-              onSuccess={onMutationSuccess}
-            />
-          )}
+          {isSecretary && <SecretaryItemActions item={item} onSuccess={onMutationSuccess} />}
         </div>
       )}
     </div>
@@ -355,7 +322,7 @@ function CommitteeStatusBadge({
 }) {
   if (status === 'all_submitted') {
     return (
-      <span className="flex items-center gap-1 rounded-full bg-success-100 px-2 py-0.5 text-xs font-medium text-success-800 shrink-0">
+      <span className="bg-success-100 text-success-800 flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium">
         <CheckCircle2 className="h-3 w-3" />
         Reports ready
       </span>
@@ -363,14 +330,14 @@ function CommitteeStatusBadge({
   }
   if (status === 'red_flagged') {
     return (
-      <span className="flex items-center gap-1 rounded-full bg-danger-100 px-2 py-0.5 text-xs font-medium text-danger-800 shrink-0">
+      <span className="bg-danger-100 text-danger-800 flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium">
         <AlertTriangle className="h-3 w-3" />
         Red flagged
       </span>
     );
   }
   return (
-    <span className="flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 shrink-0">
+    <span className="flex shrink-0 items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
       <MinusCircle className="h-3 w-3" />
       N/A
     </span>
@@ -388,23 +355,17 @@ function CommitteeStatusBadge({
  * must supply it from the workflow instance. We render an input to capture it.
  * The backend will validate it exists and belongs to the document.
  */
-function SecretaryItemActions({
-  item,
-  onSuccess,
-}: {
-  item: OobItem;
-  onSuccess: () => void;
-}) {
+function SecretaryItemActions({ item, onSuccess }: { item: OobItem; onSuccess: () => void }) {
   const [hearingDateDialogOpen, setHearingDateDialogOpen] = useState(false);
   const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
 
   return (
-    <div className="flex flex-wrap gap-2 pt-1 border-t border-neutral-100">
+    <div className="flex flex-wrap gap-2 border-t border-neutral-100 pt-1">
       <Button
         id={`btn-hearing-date-${item.documentId}`}
         variant="outline"
         size="sm"
-        className="text-xs gap-1.5"
+        className="gap-1.5 text-xs"
         onClick={() => setHearingDateDialogOpen(true)}
       >
         <Calendar className="h-3.5 w-3.5" />
@@ -416,7 +377,7 @@ function SecretaryItemActions({
           id={`btn-advance-${item.documentId}`}
           variant="outline"
           size="sm"
-          className="text-xs gap-1.5 border-danger-200 text-danger-700 hover:bg-danger-50"
+          className="border-danger-200 text-danger-700 hover:bg-danger-50 gap-1.5 text-xs"
           onClick={() => setAdvanceDialogOpen(true)}
         >
           <ArrowRightCircle className="h-3.5 w-3.5" />
@@ -497,17 +458,22 @@ function EnterHearingDateDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-primary-500" />
+            <Calendar className="text-primary-500 h-4 w-4" />
             Enter Committee Hearing Date
           </DialogTitle>
         </DialogHeader>
 
-        <p className="text-xs text-text-muted -mt-2 mb-2 truncate" title={documentTitle}>
-          Document: <span className="font-medium text-text-primary">{documentTitle}</span>
+        <p className="text-text-muted -mt-2 mb-2 truncate text-xs" title={documentTitle}>
+          Document: <span className="text-text-primary font-medium">{documentTitle}</span>
         </p>
 
         <form id="hearing-date-form" onSubmit={handleSubmit} className="space-y-4">
@@ -522,7 +488,7 @@ function EnterHearingDateDialog({
               onChange={(e) => setStepInstanceId(e.target.value)}
               required
             />
-            <p className="text-xs text-text-muted">
+            <p className="text-text-muted text-xs">
               Find this in the workflow step action page for this document.
             </p>
           </div>
@@ -542,12 +508,7 @@ function EnterHearingDateDialog({
         </form>
 
         <DialogFooter className="gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            disabled={mutation.isPending}
-          >
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={mutation.isPending}>
             Cancel
           </Button>
           {hearingDate && (
@@ -621,24 +582,29 @@ function ManuallyAdvanceDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-danger-700">
+          <DialogTitle className="text-danger-700 flex items-center gap-2">
             <ArrowRightCircle className="h-4 w-4" />
             Manually Advance Multi-Referral Step
           </DialogTitle>
         </DialogHeader>
 
-        <p className="text-xs text-text-muted -mt-2 mb-1 truncate" title={documentTitle}>
-          Document: <span className="font-medium text-text-primary">{documentTitle}</span>
+        <p className="text-text-muted -mt-2 mb-1 truncate text-xs" title={documentTitle}>
+          Document: <span className="text-text-primary font-medium">{documentTitle}</span>
         </p>
 
-        <div className="rounded-md bg-warning-50 border border-warning-200 px-3 py-2 text-xs text-warning-800 flex items-start gap-2 mb-3">
-          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+        <div className="bg-warning-50 border-warning-200 text-warning-800 mb-3 flex items-start gap-2 rounded-md border px-3 py-2 text-xs">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
-            This override advances the workflow even though not all committee reports have
-            been submitted. A mandatory comment is required for audit purposes.
+            This override advances the workflow even though not all committee reports have been
+            submitted. A mandatory comment is required for audit purposes.
           </span>
         </div>
 
@@ -673,12 +639,7 @@ function ManuallyAdvanceDialog({
         </form>
 
         <DialogFooter className="gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            disabled={mutation.isPending}
-          >
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={mutation.isPending}>
             Cancel
           </Button>
           <Button
@@ -686,11 +647,7 @@ function ManuallyAdvanceDialog({
             type="submit"
             size="sm"
             variant="destructive"
-            disabled={
-              mutation.isPending ||
-              !stepInstanceId.trim() ||
-              !mandatoryComment.trim()
-            }
+            disabled={mutation.isPending || !stepInstanceId.trim() || !mandatoryComment.trim()}
           >
             {mutation.isPending ? 'Advancing…' : 'Override & Advance'}
           </Button>
@@ -716,14 +673,14 @@ function ScheduleForFirstReadingPanel({
 }) {
   const [documentId, setDocumentId] = useState('');
   const [targetDate, setTargetDate] = useState(
-    sessionDate
-      ? sessionDate.toISOString().substring(0, 10)
-      : '',
+    sessionDate ? sessionDate.toISOString().substring(0, 10) : '',
   );
 
   const mutation = trpc.session.scheduleDocumentForFirstReading.useMutation({
     onSuccess() {
-      toast.success('Document scheduled for First Reading. The backend has resolved the actual session date.');
+      toast.success(
+        'Document scheduled for First Reading. The backend has resolved the actual session date.',
+      );
       setDocumentId('');
       onSuccess();
     },
@@ -752,10 +709,10 @@ function ScheduleForFirstReadingPanel({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold text-text-primary flex items-center gap-2">
-          <CalendarDays className="h-4 w-4 text-primary-500" />
+        <CardTitle className="text-text-primary flex items-center gap-2 text-sm font-semibold">
+          <CalendarDays className="text-primary-500 h-4 w-4" />
           Schedule Document for First Reading
-          <Badge variant="secondary" className="text-xs ml-auto font-normal">
+          <Badge variant="secondary" className="ml-auto text-xs font-normal">
             SP Secretary only
           </Badge>
         </CardTitle>
@@ -766,7 +723,7 @@ function ScheduleForFirstReadingPanel({
           onSubmit={handleSubmit}
           className="flex flex-wrap items-end gap-4"
         >
-          <div className="flex flex-col gap-1.5 flex-1 min-w-48">
+          <div className="flex min-w-48 flex-1 flex-col gap-1.5">
             <Label htmlFor="schedule-doc-id" className="text-xs">
               Document ID (UUID) <span className="text-danger-500">*</span>
             </Label>
@@ -791,7 +748,7 @@ function ScheduleForFirstReadingPanel({
               onChange={(e) => setTargetDate(e.target.value)}
               required
             />
-            <p className="text-xs text-text-muted">
+            <p className="text-text-muted text-xs">
               The server will snap to the next valid Tuesday.
             </p>
           </div>

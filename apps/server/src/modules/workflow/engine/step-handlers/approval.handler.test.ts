@@ -45,9 +45,17 @@ describe('Approval Step Handler', () => {
 
   it('throws VALIDATION_FAILED if outcome not in allowed_outcomes', async () => {
     setupMockDefinition({ allowed_outcomes: ['APPROVED', 'REJECTED'] });
-    
+
     await expect(
-      submitStepApproval(mockInstance, mockStepInstance, 'user-approver', 'user', 'UNKNOWN_OUTCOME', 'comment', mockDeps)
+      submitStepApproval(
+        mockInstance,
+        mockStepInstance,
+        'user-approver',
+        'user',
+        'UNKNOWN_OUTCOME',
+        'comment',
+        mockDeps,
+      ),
     ).rejects.toThrow('VALIDATION_FAILED: outcome not allowed');
   });
 
@@ -55,7 +63,15 @@ describe('Approval Step Handler', () => {
     setupMockDefinition({ allowed_outcomes: ['APPROVED', 'REJECTED', 'LAPSED'] });
 
     try {
-      await submitStepApproval(mockInstance, mockStepInstance, 'user-approver', 'user', 'LAPSED', 'comment', mockDeps);
+      await submitStepApproval(
+        mockInstance,
+        mockStepInstance,
+        'user-approver',
+        'user',
+        'LAPSED',
+        'comment',
+        mockDeps,
+      );
       expect.fail('Should have thrown');
     } catch (e: any) {
       expect(e.message).toContain('FORBIDDEN');
@@ -67,7 +83,15 @@ describe('Approval Step Handler', () => {
     setupMockDefinition({ allowed_outcomes: ['APPROVED', 'REJECTED', 'DEEMED_APPROVED'] });
 
     try {
-      await submitStepApproval(mockInstance, mockStepInstance, 'user-approver', 'user', 'DEEMED_APPROVED', 'comment', mockDeps);
+      await submitStepApproval(
+        mockInstance,
+        mockStepInstance,
+        'user-approver',
+        'user',
+        'DEEMED_APPROVED',
+        'comment',
+        mockDeps,
+      );
       expect.fail('Should have thrown');
     } catch (e: any) {
       expect(e.message).toContain('FORBIDDEN');
@@ -80,7 +104,15 @@ describe('Approval Step Handler', () => {
     mockInstance.context.veto_override_vote_count = 7;
 
     await expect(
-      submitStepApproval(mockInstance, mockStepInstance, 'user-approver', 'user', 'OVERRIDE_SUCCEEDED', null, mockDeps)
+      submitStepApproval(
+        mockInstance,
+        mockStepInstance,
+        'user-approver',
+        'user',
+        'OVERRIDE_SUCCEEDED',
+        null,
+        mockDeps,
+      ),
     ).rejects.toThrow('VALIDATION_FAILED: insufficient votes for override');
   });
 
@@ -89,47 +121,82 @@ describe('Approval Step Handler', () => {
     mockInstance.context.veto_override_vote_count = 8;
 
     await expect(
-      submitStepApproval(mockInstance, mockStepInstance, 'user-approver', 'user', 'OVERRIDE_FAILED', null, mockDeps)
+      submitStepApproval(
+        mockInstance,
+        mockStepInstance,
+        'user-approver',
+        'user',
+        'OVERRIDE_FAILED',
+        null,
+        mockDeps,
+      ),
     ).rejects.toThrow('VALIDATION_FAILED: override failed but vote count is >= 8');
   });
 
   it('K2 INV11-01a: vp_certification with is_final_approval = true and actorId === encoder throws', async () => {
     setupMockDefinition({ allowed_outcomes: ['APPROVED'], is_final_approval: true });
-    
+
     // Assign encoder to the step to bypass role check
     mockStepInstance.assignedTo = [{ user_id: 'user-encoder' }];
 
     await expect(
-      submitStepApproval(mockInstance, mockStepInstance, 'user-encoder', 'user', 'APPROVED', null, mockDeps)
+      submitStepApproval(
+        mockInstance,
+        mockStepInstance,
+        'user-encoder',
+        'user',
+        'APPROVED',
+        null,
+        mockDeps,
+      ),
     ).rejects.toThrow('ENCODER_CANNOT_BE_FINAL_APPROVER');
   });
 
   it('K2 INV11-01b: is_final_approval = true and actorId !== encoder succeeds normally', async () => {
     setupMockDefinition({ allowed_outcomes: ['APPROVED'], is_final_approval: true });
-    
+
     // Test resolveNextStep is a mocked module in a real run, but here it might throw if not mocked.
     // We mock resolveNextStep by intercepting it or just let it fail if it reaches there.
     // Actually, Vitest doesn't mock resolveNextStep by default unless we use vi.mock.
     // Let's vi.mock '../step-resolution.js'
-    
-    await submitStepApproval(mockInstance, mockStepInstance, 'user-approver', 'user', 'APPROVED', null, mockDeps);
-    
+
+    await submitStepApproval(
+      mockInstance,
+      mockStepInstance,
+      'user-approver',
+      'user',
+      'APPROVED',
+      null,
+      mockDeps,
+    );
+
     expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith(
       'step-inst-1',
       expect.objectContaining({ status: 'completed', outcome: 'APPROVED' }),
-      undefined
+      undefined,
     );
   });
 
   it('RETURNED_FOR_REVISION outcome sets step status to Returned (NOT Completed)', async () => {
-    setupMockDefinition({ allowed_outcomes: ['APPROVED', 'RETURNED_FOR_REVISION'], require_comment_on: ['RETURNED_FOR_REVISION'] });
-    
-    await submitStepApproval(mockInstance, mockStepInstance, 'user-approver', 'user', 'RETURNED_FOR_REVISION', 'needs work', mockDeps);
-    
+    setupMockDefinition({
+      allowed_outcomes: ['APPROVED', 'RETURNED_FOR_REVISION'],
+      require_comment_on: ['RETURNED_FOR_REVISION'],
+    });
+
+    await submitStepApproval(
+      mockInstance,
+      mockStepInstance,
+      'user-approver',
+      'user',
+      'RETURNED_FOR_REVISION',
+      'needs work',
+      mockDeps,
+    );
+
     expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith(
       'step-inst-1',
       expect.objectContaining({ status: 'returned', outcome: 'RETURNED_FOR_REVISION' }),
-      undefined
+      undefined,
     );
   });
 });

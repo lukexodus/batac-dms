@@ -138,25 +138,25 @@ The top-level `code` is the JSON-RPC numeric error code (set by tRPC automatical
 
 ### 3.2 tRPC Error Code → HTTP Status Mapping
 
-| tRPC Code | JSON-RPC Code | HTTP Status | When Used on This Platform |
-|---|---|---|---|
-| `PARSE_ERROR` | -32700 | 400 | tRPC input schema validation failed (Zod) |
-| `BAD_REQUEST` | -32600 | 400 | Invalid request not caused by schema type issues |
-| `UNAUTHORIZED` | -32001 | 401 | No valid session / JWT expired or absent |
-| `FORBIDDEN` | -32003 | 403 | Authenticated but ABAC policy denied; step not assigned to caller |
-| `NOT_FOUND` | -32004 | 404 | Entity does not exist or is not visible to this actor (RLS / ABAC) |
-| `METHOD_NOT_SUPPORTED` | -32005 | 405 | Procedure called with wrong HTTP method |
-| `TIMEOUT` | -32008 | 408 | Procedure timed out (e.g., long-running OCR job) |
-| `CONFLICT` | -32009 | 409 | Domain invariant conflict: duplicate number, locked document, active designation, etc. |
-| `PRECONDITION_FAILED` | -32012 | 412 | A required prior condition is not met (e.g., missing Certification of Urgency) |
-| `PAYLOAD_TOO_LARGE` | -32013 | 413 | File upload exceeds the 25 MB per-file limit |
-| `UNPROCESSABLE_CONTENT` | -32022 | 422 | Semantically invalid input that passes schema validation (invalid state transition, quorum not met) |
-| `TOO_MANY_REQUESTS` | -32029 | 429 | Rate limit exceeded (`@fastify/rate-limit`) |
-| `CLIENT_CLOSED_REQUEST` | -32099 | 499 | Client disconnected before response was sent |
-| `INTERNAL_SERVER_ERROR` | -32603 | 500 | Unhandled exception; audit chain corruption |
-| `NOT_IMPLEMENTED` | -32604 | 501 | Feature not yet implemented in current phase |
-| `BAD_GATEWAY` | -32014 | 502 | Upstream dependency failure (S3-compatible storage, OCR service) |
-| `SERVICE_UNAVAILABLE` | -32022 | 503 | Application in maintenance or degraded mode |
+| tRPC Code               | JSON-RPC Code | HTTP Status | When Used on This Platform                                                                          |
+| ----------------------- | ------------- | ----------- | --------------------------------------------------------------------------------------------------- |
+| `PARSE_ERROR`           | -32700        | 400         | tRPC input schema validation failed (Zod)                                                           |
+| `BAD_REQUEST`           | -32600        | 400         | Invalid request not caused by schema type issues                                                    |
+| `UNAUTHORIZED`          | -32001        | 401         | No valid session / JWT expired or absent                                                            |
+| `FORBIDDEN`             | -32003        | 403         | Authenticated but ABAC policy denied; step not assigned to caller                                   |
+| `NOT_FOUND`             | -32004        | 404         | Entity does not exist or is not visible to this actor (RLS / ABAC)                                  |
+| `METHOD_NOT_SUPPORTED`  | -32005        | 405         | Procedure called with wrong HTTP method                                                             |
+| `TIMEOUT`               | -32008        | 408         | Procedure timed out (e.g., long-running OCR job)                                                    |
+| `CONFLICT`              | -32009        | 409         | Domain invariant conflict: duplicate number, locked document, active designation, etc.              |
+| `PRECONDITION_FAILED`   | -32012        | 412         | A required prior condition is not met (e.g., missing Certification of Urgency)                      |
+| `PAYLOAD_TOO_LARGE`     | -32013        | 413         | File upload exceeds the 25 MB per-file limit                                                        |
+| `UNPROCESSABLE_CONTENT` | -32022        | 422         | Semantically invalid input that passes schema validation (invalid state transition, quorum not met) |
+| `TOO_MANY_REQUESTS`     | -32029        | 429         | Rate limit exceeded (`@fastify/rate-limit`)                                                         |
+| `CLIENT_CLOSED_REQUEST` | -32099        | 499         | Client disconnected before response was sent                                                        |
+| `INTERNAL_SERVER_ERROR` | -32603        | 500         | Unhandled exception; audit chain corruption                                                         |
+| `NOT_IMPLEMENTED`       | -32604        | 501         | Feature not yet implemented in current phase                                                        |
+| `BAD_GATEWAY`           | -32014        | 502         | Upstream dependency failure (S3-compatible storage, OCR service)                                    |
+| `SERVICE_UNAVAILABLE`   | -32022        | 503         | Application in maintenance or degraded mode                                                         |
 
 **Rule:** tRPC error code selection is the responsibility of the procedure, not the error formatter. The formatter transforms the shape; it does not reclassify errors. When throwing a `TRPCError`, always select the most semantically correct code from the table above. Do not default to `INTERNAL_SERVER_ERROR` for domain errors.
 
@@ -184,10 +184,7 @@ const t = initTRPC.context<Context>().create({
           }
         : null;
 
-    const zodError =
-      error.cause instanceof ZodError
-        ? error.cause.flatten()
-        : null;
+    const zodError = error.cause instanceof ZodError ? error.cause.flatten() : null;
 
     return {
       ...shape,
@@ -238,8 +235,7 @@ export const DOMAIN_ERROR_CODES = {
   AUDIT_CHAIN_CORRUPTED: 'AUDIT_CHAIN_CORRUPTED',
 } as const;
 
-export type DomainErrorCode =
-  (typeof DOMAIN_ERROR_CODES)[keyof typeof DOMAIN_ERROR_CODES];
+export type DomainErrorCode = (typeof DOMAIN_ERROR_CODES)[keyof typeof DOMAIN_ERROR_CODES];
 ```
 
 Type guard on the frontend:
@@ -255,10 +251,7 @@ export function isDomainError(
   error: unknown,
   code: DomainErrorCode,
 ): error is TRPCClientError<AppRouter> {
-  return (
-    error instanceof TRPCClientError &&
-    error.data?.domainError?.code === code
-  );
+  return error instanceof TRPCClientError && error.data?.domainError?.code === code;
 }
 ```
 
@@ -270,8 +263,13 @@ const { mutate } = trpc.documents.assignControlNumber.useMutation({
     if (isDomainError(error, 'DUPLICATE_CONTROL_NUMBER')) {
       // error.data.domainError.details is typed via DomainErrorDetails
       // (see section 6.5) after runtime validation with Zod
-      const details = parseDomainDetails('DUPLICATE_CONTROL_NUMBER', error.data.domainError.details);
-      toast.error(`Control number ${details.series} ${details.year}-${details.number} is already assigned.`);
+      const details = parseDomainDetails(
+        'DUPLICATE_CONTROL_NUMBER',
+        error.data.domainError.details,
+      );
+      toast.error(
+        `Control number ${details.series} ${details.year}-${details.number} is already assigned.`,
+      );
       return;
     }
     // Unrecognized errors fall through to the global QueryCache handler
@@ -358,11 +356,7 @@ export const errorHandlerPlugin: FastifyPluginAsync = async (fastify) => {
 
     // 2. Known domain error thrown directly from a route handler
     const domainErr =
-      error instanceof AppError
-        ? error
-        : error.cause instanceof AppError
-          ? error.cause
-          : null;
+      error instanceof AppError ? error : error.cause instanceof AppError ? error.cause : null;
 
     if (domainErr) {
       return reply.status(domainErr.httpStatus).send({
@@ -416,8 +410,7 @@ export const errorHandlerPlugin: FastifyPluginAsync = async (fastify) => {
       ok: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message:
-          'An unexpected error occurred. Note your trace ID when reporting this issue.',
+        message: 'An unexpected error occurred. Note your trace ID when reporting this issue.',
         traceId,
       },
     });
@@ -612,11 +605,7 @@ export class ActiveDesignationExistsError extends AppError {
   readonly httpStatus = 409;
   readonly trpcCode = 'CONFLICT' as const;
 
-  constructor(details: {
-    userId: string;
-    activeDesignationId: string;
-    activeUntil: string;
-  }) {
+  constructor(details: { userId: string; activeDesignationId: string; activeUntil: string }) {
     super(
       'This person already holds one active designation. Only one active designation per person is permitted.',
       details,
@@ -629,11 +618,7 @@ export class NumberSeriesExhaustedError extends AppError {
   readonly httpStatus = 409;
   readonly trpcCode = 'CONFLICT' as const;
 
-  constructor(details: {
-    series: string;
-    year: number;
-    maxValue: number;
-  }) {
+  constructor(details: { series: string; year: number; maxValue: number }) {
     super(
       `The document number series ${details.series} for ${details.year} has reached its configured maximum (${details.maxValue}).`,
       details,
@@ -652,70 +637,70 @@ Full inventory for Phase 1. Entries must be added here before the error class is
 
 #### Number Series (module: `documents`)
 
-| Code | HTTP | tRPC Code | Trigger | Sentry |
-|---|---|---|---|---|
-| `NUMBER_SERIES_EXHAUSTED` | 409 | `CONFLICT` | PostgreSQL sequence for a `(series, year)` combination has hit its configured max. Yearly counters reset annually; this is rare but operationally significant. | `captureMessage` — warning level |
-| `DUPLICATE_CONTROL_NUMBER` | 409 | `CONFLICT` | Unique constraint on `(series, year, number)` — the control number is already assigned to another document. | No |
-| `NUMBER_IS_IMMUTABLE` | 409 | `CONFLICT` | Attempt to modify or reassign a finalized (non-`Draft`) series number. Final numbers are immutable by platform invariant. | No |
-| `SERIES_NOT_FOUND` | 404 | `NOT_FOUND` | The requested `number_series` record does not exist or is inactive. | No |
+| Code                       | HTTP | tRPC Code   | Trigger                                                                                                                                                        | Sentry                           |
+| -------------------------- | ---- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `NUMBER_SERIES_EXHAUSTED`  | 409  | `CONFLICT`  | PostgreSQL sequence for a `(series, year)` combination has hit its configured max. Yearly counters reset annually; this is rare but operationally significant. | `captureMessage` — warning level |
+| `DUPLICATE_CONTROL_NUMBER` | 409  | `CONFLICT`  | Unique constraint on `(series, year, number)` — the control number is already assigned to another document.                                                    | No                               |
+| `NUMBER_IS_IMMUTABLE`      | 409  | `CONFLICT`  | Attempt to modify or reassign a finalized (non-`Draft`) series number. Final numbers are immutable by platform invariant.                                      | No                               |
+| `SERIES_NOT_FOUND`         | 404  | `NOT_FOUND` | The requested `number_series` record does not exist or is inactive.                                                                                            | No                               |
 
 ---
 
 #### Designation / Delegation (module: `organization`)
 
-| Code | HTTP | tRPC Code | Trigger | Sentry |
-|---|---|---|---|---|
-| `ACTIVE_DESIGNATION_EXISTS` | 409 | `CONFLICT` | A user already holds one active `delegation_grant`. Only one active designation per person is permitted at any time (enforced by both app-level validation and a PostgreSQL partial unique index on active delegations per user). | No |
+| Code                        | HTTP | tRPC Code  | Trigger                                                                                                                                                                                                                           | Sentry |
+| --------------------------- | ---- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `ACTIVE_DESIGNATION_EXISTS` | 409  | `CONFLICT` | A user already holds one active `delegation_grant`. Only one active designation per person is permitted at any time (enforced by both app-level validation and a PostgreSQL partial unique index on active delegations per user). | No     |
 
 ---
 
 #### Workflow (module: `workflow`)
 
-| Code | HTTP | tRPC Code | Trigger | Sentry |
-|---|---|---|---|---|
-| `INVALID_WORKFLOW_TRANSITION` | 422 | `UNPROCESSABLE_CONTENT` | The requested state transition is not permitted by the workflow state machine for the document's current step/state. | No |
-| `COMMITTEE_REPORTS_PENDING` | 409 | `CONFLICT` | A `multi_referral` workflow step cannot auto-complete while one or more assigned committees have not yet submitted their contribution to the unified report. Manual SP Secretary override is required; that override is audit-logged with a mandatory comment. | No |
-| `CERTIFICATION_OF_URGENCY_REQUIRED` | 412 | `PRECONDITION_FAILED` | Attempting to skip the committee review step without a valid Certification of Urgency attached to the measure. The Certification of Urgency is a Mayor-issued formal document; its absence means the standard committee path must be followed. | No |
-| `QUORUM_NOT_MET` | 422 | `UNPROCESSABLE_CONTENT` | A vote is recorded but the present member count is below the required 7 of 12 quorum threshold. | No |
-| `WORKFLOW_STEP_NOT_ASSIGNED` | 403 | `FORBIDDEN` | The calling user is not the current step's assignee and holds no active delegation covering this action. | No |
+| Code                                | HTTP | tRPC Code               | Trigger                                                                                                                                                                                                                                                        | Sentry |
+| ----------------------------------- | ---- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `INVALID_WORKFLOW_TRANSITION`       | 422  | `UNPROCESSABLE_CONTENT` | The requested state transition is not permitted by the workflow state machine for the document's current step/state.                                                                                                                                           | No     |
+| `COMMITTEE_REPORTS_PENDING`         | 409  | `CONFLICT`              | A `multi_referral` workflow step cannot auto-complete while one or more assigned committees have not yet submitted their contribution to the unified report. Manual SP Secretary override is required; that override is audit-logged with a mandatory comment. | No     |
+| `CERTIFICATION_OF_URGENCY_REQUIRED` | 412  | `PRECONDITION_FAILED`   | Attempting to skip the committee review step without a valid Certification of Urgency attached to the measure. The Certification of Urgency is a Mayor-issued formal document; its absence means the standard committee path must be followed.                 | No     |
+| `QUORUM_NOT_MET`                    | 422  | `UNPROCESSABLE_CONTENT` | A vote is recorded but the present member count is below the required 7 of 12 quorum threshold.                                                                                                                                                                | No     |
+| `WORKFLOW_STEP_NOT_ASSIGNED`        | 403  | `FORBIDDEN`             | The calling user is not the current step's assignee and holds no active delegation covering this action.                                                                                                                                                       | No     |
 
 ---
 
 #### Document (module: `documents`)
 
-| Code | HTTP | tRPC Code | Trigger | Sentry |
-|---|---|---|---|---|
-| `DOCUMENT_NOT_FOUND` | 404 | `NOT_FOUND` | The document does not exist, has been soft-deleted, or is not visible to this actor under RLS / ABAC. | No |
-| `DOCUMENT_LOCKED` | 409 | `CONFLICT` | The document is under pessimistic lock held by another user. Lock timeout is 15 minutes (configurable per document type). `details` includes the lock holder's name and expiry time for display in the UI. | No |
-| `DOCUMENT_IS_IMMUTABLE` | 409 | `CONFLICT` | Attempt to modify a document that has been finalized and is now immutable by platform invariant. | No |
-| `DOCUMENT_UNDER_LEGAL_HOLD` | 409 | `CONFLICT` | A retention schedule change or disposition action was attempted while the document is under a legal hold. | No |
+| Code                        | HTTP | tRPC Code   | Trigger                                                                                                                                                                                                    | Sentry |
+| --------------------------- | ---- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `DOCUMENT_NOT_FOUND`        | 404  | `NOT_FOUND` | The document does not exist, has been soft-deleted, or is not visible to this actor under RLS / ABAC.                                                                                                      | No     |
+| `DOCUMENT_LOCKED`           | 409  | `CONFLICT`  | The document is under pessimistic lock held by another user. Lock timeout is 15 minutes (configurable per document type). `details` includes the lock holder's name and expiry time for display in the UI. | No     |
+| `DOCUMENT_IS_IMMUTABLE`     | 409  | `CONFLICT`  | Attempt to modify a document that has been finalized and is now immutable by platform invariant.                                                                                                           | No     |
+| `DOCUMENT_UNDER_LEGAL_HOLD` | 409  | `CONFLICT`  | A retention schedule change or disposition action was attempted while the document is under a legal hold.                                                                                                  | No     |
 
 ---
 
 #### Authorization (module: `iam`)
 
-| Code | HTTP | tRPC Code | Trigger | Sentry |
-|---|---|---|---|---|
-| `ROLE_COMBINATION_FORBIDDEN` | 422 | `FORBIDDEN` | Attempt to assign the Platform Administrator role to a user who already holds any document-processing role, or vice versa. These roles cannot coexist on one account. | No |
+| Code                         | HTTP | tRPC Code   | Trigger                                                                                                                                                               | Sentry |
+| ---------------------------- | ---- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `ROLE_COMBINATION_FORBIDDEN` | 422  | `FORBIDDEN` | Attempt to assign the Platform Administrator role to a user who already holds any document-processing role, or vice versa. These roles cannot coexist on one account. | No     |
 
 ---
 
 #### File / Storage (module: `documents`)
 
-| Code | HTTP | tRPC Code | Trigger | Sentry |
-|---|---|---|---|---|
-| `FILE_SIZE_LIMIT_EXCEEDED` | 413 | `PAYLOAD_TOO_LARGE` | Uploaded file exceeds the 25 MB per-file limit (configured via `FILE_SIZE_LIMIT_BYTES` env var). | No |
-| `UNSUPPORTED_FILE_TYPE` | 422 | `UNPROCESSABLE_CONTENT` | File MIME type is not in the allowed set: `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `image/png`, `image/jpeg`. | No |
-| `STORAGE_SERVICE_ERROR` | 502 | `BAD_GATEWAY` | S3-compatible storage call failed (upload, presigned URL generation, delete). The underlying S3 error is logged but never forwarded to the client. | `captureException` |
+| Code                       | HTTP | tRPC Code               | Trigger                                                                                                                                                                                                                                 | Sentry             |
+| -------------------------- | ---- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `FILE_SIZE_LIMIT_EXCEEDED` | 413  | `PAYLOAD_TOO_LARGE`     | Uploaded file exceeds the 25 MB per-file limit (configured via `FILE_SIZE_LIMIT_BYTES` env var).                                                                                                                                        | No                 |
+| `UNSUPPORTED_FILE_TYPE`    | 422  | `UNPROCESSABLE_CONTENT` | File MIME type is not in the allowed set: `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `image/png`, `image/jpeg`. | No                 |
+| `STORAGE_SERVICE_ERROR`    | 502  | `BAD_GATEWAY`           | S3-compatible storage call failed (upload, presigned URL generation, delete). The underlying S3 error is logged but never forwarded to the client.                                                                                      | `captureException` |
 
 ---
 
 #### Infrastructure / Security (modules: `documents`, `audit`)
 
-| Code | HTTP | tRPC Code | Trigger | Sentry |
-|---|---|---|---|---|
-| `OCR_PROCESSING_FAILED` | 502 | `BAD_GATEWAY` | The OCR service interface threw an error. The document is stored successfully but is not indexed for full-text search. Users are shown the scan quality indicator as unknown; they may re-trigger OCR manually. | `captureException` |
-| `AUDIT_CHAIN_CORRUPTED` | 500 | `INTERNAL_SERVER_ERROR` | Hash chain validation at retrieval time detected a broken chain — a tamper indicator. This is a security event, not a user-correctable error. | `captureException` — fatal level |
+| Code                    | HTTP | tRPC Code               | Trigger                                                                                                                                                                                                         | Sentry                           |
+| ----------------------- | ---- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `OCR_PROCESSING_FAILED` | 502  | `BAD_GATEWAY`           | The OCR service interface threw an error. The document is stored successfully but is not indexed for full-text search. Users are shown the scan quality indicator as unknown; they may re-trigger OCR manually. | `captureException`               |
+| `AUDIT_CHAIN_CORRUPTED` | 500  | `INTERNAL_SERVER_ERROR` | Hash chain validation at retrieval time detected a broken chain — a tamper indicator. This is a security event, not a user-correctable error.                                                                   | `captureException` — fatal level |
 
 ---
 
@@ -723,14 +708,14 @@ Full inventory for Phase 1. Entries must be added here before the error class is
 
 These codes are returned by the REST error handler for non-domain errors. They do not have corresponding `AppError` subclasses.
 
-| Code | HTTP | When |
-|---|---|---|
-| `VALIDATION_ERROR` | 400 | Zod / `fastify-type-provider-zod` schema validation failure |
-| `UNAUTHORIZED` | 401 | No valid session / JWT expired or absent |
-| `FORBIDDEN` | 403 | ABAC denial with no further domain context to add |
-| `NOT_FOUND` | 404 | Generic 404 when no specific domain error applies |
-| `RATE_LIMITED` | 429 | `@fastify/rate-limit` threshold exceeded |
-| `INTERNAL_ERROR` | 500 | Unhandled exception |
+| Code               | HTTP | When                                                        |
+| ------------------ | ---- | ----------------------------------------------------------- |
+| `VALIDATION_ERROR` | 400  | Zod / `fastify-type-provider-zod` schema validation failure |
+| `UNAUTHORIZED`     | 401  | No valid session / JWT expired or absent                    |
+| `FORBIDDEN`        | 403  | ABAC denial with no further domain context to add           |
+| `NOT_FOUND`        | 404  | Generic 404 when no specific domain error applies           |
+| `RATE_LIMITED`     | 429  | `@fastify/rate-limit` threshold exceeded                    |
+| `INTERNAL_ERROR`   | 500  | Unhandled exception                                         |
 
 ### 6.3 Domain Error Propagation in tRPC Procedures
 
@@ -879,7 +864,7 @@ export const domainErrorDetails = {
 };
 
 export type DomainErrorDetails = {
-  [K in DomainErrorCode]: z.infer<typeof domainErrorDetails[K]>;
+  [K in DomainErrorCode]: z.infer<(typeof domainErrorDetails)[K]>;
 };
 
 // Runtime validator used on the frontend before reading details fields
@@ -995,18 +980,15 @@ async function getNextNumber(series: string, year: number): Promise<number> {
     return await db.execute(sql`SELECT nextval(${sequenceName(series, year)})`);
   } catch (err) {
     if (isPostgresSequenceError(err)) {
-      Sentry.captureMessage(
-        `Document number series exhausted: ${series} ${year}`,
-        {
-          level: 'warning',
-          tags: {
-            module: 'documents',
-            event: 'NUMBER_SERIES_EXHAUSTED',
-            series,
-            year: String(year),
-          },
+      Sentry.captureMessage(`Document number series exhausted: ${series} ${year}`, {
+        level: 'warning',
+        tags: {
+          module: 'documents',
+          event: 'NUMBER_SERIES_EXHAUSTED',
+          series,
+          year: String(year),
         },
-      );
+      });
       throw new NumberSeriesExhaustedError({ series, year, maxValue: SERIES_MAX });
     }
     throw err;
@@ -1049,7 +1031,7 @@ fastify.addHook('onRequest', async (request) => {
   Sentry.setUser(
     request.user
       ? {
-          id: request.user.id,            // UUID only — never name or email
+          id: request.user.id, // UUID only — never name or email
           role: request.user.primaryRole, // role string
         }
       : undefined,
@@ -1096,12 +1078,28 @@ The `scrubPII` function applied in `beforeSend`:
 
 ```typescript
 const PII_KEY_DENYLIST = new Set([
-  'name', 'fullName', 'firstName', 'lastName',
-  'email', 'phone', 'phoneNumber', 'contactNumber',
-  'address', 'birthdate', 'dateOfBirth',
-  'content', 'body', 'text', 'title',   // document content fields
-  'complainantName', 'respondentName',
-  'password', 'token', 'secret', 'cookie', 'authorization',
+  'name',
+  'fullName',
+  'firstName',
+  'lastName',
+  'email',
+  'phone',
+  'phoneNumber',
+  'contactNumber',
+  'address',
+  'birthdate',
+  'dateOfBirth',
+  'content',
+  'body',
+  'text',
+  'title', // document content fields
+  'complainantName',
+  'respondentName',
+  'password',
+  'token',
+  'secret',
+  'cookie',
+  'authorization',
 ]);
 
 function scrubPII(event: Sentry.Event): Sentry.Event {
@@ -1116,14 +1114,14 @@ function scrubPII(event: Sentry.Event): Sentry.Event {
 
 ### 7.4 Sentry Severity Reference
 
-| Capture Pattern | Level | Condition |
-|---|---|---|
-| Unhandled exception in REST error handler | `error` | All 5xx from `setErrorHandler`'s final branch |
-| Unhandled exception in tRPC procedure | `error` | `INTERNAL_SERVER_ERROR` tRPC code in `sentryErrorMiddleware` |
-| Audit chain corruption | `fatal` | `detectChainCorruption()` returns a result |
-| Storage service failure | `error` | S3-compatible client throws |
-| OCR processing failure | `error` | OCR service interface throws |
-| Number series exhausted | `warning` | PostgreSQL sequence error detected in number series service |
+| Capture Pattern                           | Level     | Condition                                                    |
+| ----------------------------------------- | --------- | ------------------------------------------------------------ |
+| Unhandled exception in REST error handler | `error`   | All 5xx from `setErrorHandler`'s final branch                |
+| Unhandled exception in tRPC procedure     | `error`   | `INTERNAL_SERVER_ERROR` tRPC code in `sentryErrorMiddleware` |
+| Audit chain corruption                    | `fatal`   | `detectChainCorruption()` returns a result                   |
+| Storage service failure                   | `error`   | S3-compatible client throws                                  |
+| OCR processing failure                    | `error`   | OCR service interface throws                                 |
+| Number series exhausted                   | `warning` | PostgreSQL sequence error detected in number series service  |
 
 All other domain errors — `DUPLICATE_CONTROL_NUMBER`, `ACTIVE_DESIGNATION_EXISTS`, `DOCUMENT_LOCKED`, `INVALID_WORKFLOW_TRANSITION`, `FORBIDDEN`, `UNAUTHORIZED`, validation errors — are **not sent to Sentry at any level**. They are logged by Pino at `info` level and are part of normal operational traffic.
 
@@ -1158,18 +1156,14 @@ export const queryClient = new QueryClient({
 
         case 'INTERNAL_SERVER_ERROR':
           toast.error('An unexpected error occurred.', {
-            description: error.data.traceId
-              ? `Trace ID: ${error.data.traceId}`
-              : undefined,
+            description: error.data.traceId ? `Trace ID: ${error.data.traceId}` : undefined,
           });
           return;
 
         default:
           // Unexpected domain error not caught locally — show trace ID
           toast.error(error.message ?? 'Something went wrong.', {
-            description: error.data?.traceId
-              ? `Trace ID: ${error.data.traceId}`
-              : undefined,
+            description: error.data?.traceId ? `Trace ID: ${error.data.traceId}` : undefined,
           });
       }
     },
@@ -1179,24 +1173,24 @@ export const queryClient = new QueryClient({
 
 ### 8.2 Error Display Decision Rules
 
-| Error Type | Display Location | Notes |
-|---|---|---|
-| Zod field validation — client-side | Inline field error (react-hook-form) | Shown below the field; no toast. Never show a toast for a field error. |
-| Zod field validation — server (`PARSE_ERROR`) | Inline field error via `setServerZodErrors` | Bridge server errors to form fields using the helper in section 5.3. |
-| `DUPLICATE_CONTROL_NUMBER` | Inline near the submit action | Show the conflicting number from `details`; do not toast. |
-| `ACTIVE_DESIGNATION_EXISTS` | Inline in the designation form | Show `activeUntil` from `details` so the user knows when the current one expires. |
-| `DOCUMENT_LOCKED` | Inline banner on the document view | Show `lockedByName` and `expiresAt` from `details`. Auto-dismiss or re-check when lock expires. |
-| `COMMITTEE_REPORTS_PENDING` | Inline on the workflow step panel | List pending committee names from `details.committeeNames`. |
-| `INVALID_WORKFLOW_TRANSITION` | Toast + inline state indicator | List `allowedTransitions` from `details` to guide the user. |
-| `QUORUM_NOT_MET` | Inline on the vote recording panel | Show `presentCount` / `requiredCount`. |
-| `FORBIDDEN` | Toast | "You do not have permission to perform this action." No domain details. |
-| `UNAUTHORIZED` | Redirect to login | See global handler. |
-| `FILE_SIZE_LIMIT_EXCEEDED` | Inline on the file input | Show `fileSizeBytes` and `limitBytes` formatted in MB. |
-| `UNSUPPORTED_FILE_TYPE` | Inline on the file input | Show `providedMimeType` and `allowedMimeTypes`. |
-| `INTERNAL_ERROR` / `INTERNAL_SERVER_ERROR` | Toast with trace ID | "An unexpected error occurred. Note your Trace ID when reporting this." |
-| `STORAGE_SERVICE_ERROR` | Toast with trace ID | "File upload failed. Please try again or contact support." |
-| `OCR_PROCESSING_FAILED` | Inline non-blocking notice on the document | "Text could not be extracted from this document. You can trigger re-processing." |
-| Network error / offline | Toast | "Connection issue — please try again." |
+| Error Type                                    | Display Location                            | Notes                                                                                           |
+| --------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Zod field validation — client-side            | Inline field error (react-hook-form)        | Shown below the field; no toast. Never show a toast for a field error.                          |
+| Zod field validation — server (`PARSE_ERROR`) | Inline field error via `setServerZodErrors` | Bridge server errors to form fields using the helper in section 5.3.                            |
+| `DUPLICATE_CONTROL_NUMBER`                    | Inline near the submit action               | Show the conflicting number from `details`; do not toast.                                       |
+| `ACTIVE_DESIGNATION_EXISTS`                   | Inline in the designation form              | Show `activeUntil` from `details` so the user knows when the current one expires.               |
+| `DOCUMENT_LOCKED`                             | Inline banner on the document view          | Show `lockedByName` and `expiresAt` from `details`. Auto-dismiss or re-check when lock expires. |
+| `COMMITTEE_REPORTS_PENDING`                   | Inline on the workflow step panel           | List pending committee names from `details.committeeNames`.                                     |
+| `INVALID_WORKFLOW_TRANSITION`                 | Toast + inline state indicator              | List `allowedTransitions` from `details` to guide the user.                                     |
+| `QUORUM_NOT_MET`                              | Inline on the vote recording panel          | Show `presentCount` / `requiredCount`.                                                          |
+| `FORBIDDEN`                                   | Toast                                       | "You do not have permission to perform this action." No domain details.                         |
+| `UNAUTHORIZED`                                | Redirect to login                           | See global handler.                                                                             |
+| `FILE_SIZE_LIMIT_EXCEEDED`                    | Inline on the file input                    | Show `fileSizeBytes` and `limitBytes` formatted in MB.                                          |
+| `UNSUPPORTED_FILE_TYPE`                       | Inline on the file input                    | Show `providedMimeType` and `allowedMimeTypes`.                                                 |
+| `INTERNAL_ERROR` / `INTERNAL_SERVER_ERROR`    | Toast with trace ID                         | "An unexpected error occurred. Note your Trace ID when reporting this."                         |
+| `STORAGE_SERVICE_ERROR`                       | Toast with trace ID                         | "File upload failed. Please try again or contact support."                                      |
+| `OCR_PROCESSING_FAILED`                       | Inline non-blocking notice on the document  | "Text could not be extracted from this document. You can trigger re-processing."                |
+| Network error / offline                       | Toast                                       | "Connection issue — please try again."                                                          |
 
 ### 8.3 React Error Boundary
 
@@ -1210,25 +1204,25 @@ The boundary stores the most recently seen `traceId` from TanStack Query events 
 
 ## Appendix: Domain Error Quick Reference
 
-| Code | HTTP | tRPC Code | Module | Sentry |
-|---|---|---|---|---|
-| `NUMBER_SERIES_EXHAUSTED` | 409 | `CONFLICT` | documents | warning |
-| `DUPLICATE_CONTROL_NUMBER` | 409 | `CONFLICT` | documents | No |
-| `NUMBER_IS_IMMUTABLE` | 409 | `CONFLICT` | documents | No |
-| `SERIES_NOT_FOUND` | 404 | `NOT_FOUND` | documents | No |
-| `ACTIVE_DESIGNATION_EXISTS` | 409 | `CONFLICT` | organization | No |
-| `INVALID_WORKFLOW_TRANSITION` | 422 | `UNPROCESSABLE_CONTENT` | workflow | No |
-| `COMMITTEE_REPORTS_PENDING` | 409 | `CONFLICT` | workflow | No |
-| `CERTIFICATION_OF_URGENCY_REQUIRED` | 412 | `PRECONDITION_FAILED` | workflow | No |
-| `QUORUM_NOT_MET` | 422 | `UNPROCESSABLE_CONTENT` | workflow | No |
-| `WORKFLOW_STEP_NOT_ASSIGNED` | 403 | `FORBIDDEN` | workflow | No |
-| `DOCUMENT_NOT_FOUND` | 404 | `NOT_FOUND` | documents | No |
-| `DOCUMENT_LOCKED` | 409 | `CONFLICT` | documents | No |
-| `DOCUMENT_IS_IMMUTABLE` | 409 | `CONFLICT` | documents | No |
-| `DOCUMENT_UNDER_LEGAL_HOLD` | 409 | `CONFLICT` | records | No |
-| `ROLE_COMBINATION_FORBIDDEN` | 422 | `FORBIDDEN` | iam | No |
-| `FILE_SIZE_LIMIT_EXCEEDED` | 413 | `PAYLOAD_TOO_LARGE` | documents | No |
-| `UNSUPPORTED_FILE_TYPE` | 422 | `UNPROCESSABLE_CONTENT` | documents | No |
-| `STORAGE_SERVICE_ERROR` | 502 | `BAD_GATEWAY` | documents | exception |
-| `OCR_PROCESSING_FAILED` | 502 | `BAD_GATEWAY` | documents | exception |
-| `AUDIT_CHAIN_CORRUPTED` | 500 | `INTERNAL_SERVER_ERROR` | audit | fatal |
+| Code                                | HTTP | tRPC Code               | Module       | Sentry    |
+| ----------------------------------- | ---- | ----------------------- | ------------ | --------- |
+| `NUMBER_SERIES_EXHAUSTED`           | 409  | `CONFLICT`              | documents    | warning   |
+| `DUPLICATE_CONTROL_NUMBER`          | 409  | `CONFLICT`              | documents    | No        |
+| `NUMBER_IS_IMMUTABLE`               | 409  | `CONFLICT`              | documents    | No        |
+| `SERIES_NOT_FOUND`                  | 404  | `NOT_FOUND`             | documents    | No        |
+| `ACTIVE_DESIGNATION_EXISTS`         | 409  | `CONFLICT`              | organization | No        |
+| `INVALID_WORKFLOW_TRANSITION`       | 422  | `UNPROCESSABLE_CONTENT` | workflow     | No        |
+| `COMMITTEE_REPORTS_PENDING`         | 409  | `CONFLICT`              | workflow     | No        |
+| `CERTIFICATION_OF_URGENCY_REQUIRED` | 412  | `PRECONDITION_FAILED`   | workflow     | No        |
+| `QUORUM_NOT_MET`                    | 422  | `UNPROCESSABLE_CONTENT` | workflow     | No        |
+| `WORKFLOW_STEP_NOT_ASSIGNED`        | 403  | `FORBIDDEN`             | workflow     | No        |
+| `DOCUMENT_NOT_FOUND`                | 404  | `NOT_FOUND`             | documents    | No        |
+| `DOCUMENT_LOCKED`                   | 409  | `CONFLICT`              | documents    | No        |
+| `DOCUMENT_IS_IMMUTABLE`             | 409  | `CONFLICT`              | documents    | No        |
+| `DOCUMENT_UNDER_LEGAL_HOLD`         | 409  | `CONFLICT`              | records      | No        |
+| `ROLE_COMBINATION_FORBIDDEN`        | 422  | `FORBIDDEN`             | iam          | No        |
+| `FILE_SIZE_LIMIT_EXCEEDED`          | 413  | `PAYLOAD_TOO_LARGE`     | documents    | No        |
+| `UNSUPPORTED_FILE_TYPE`             | 422  | `UNPROCESSABLE_CONTENT` | documents    | No        |
+| `STORAGE_SERVICE_ERROR`             | 502  | `BAD_GATEWAY`           | documents    | exception |
+| `OCR_PROCESSING_FAILED`             | 502  | `BAD_GATEWAY`           | documents    | exception |
+| `AUDIT_CHAIN_CORRUPTED`             | 500  | `INTERNAL_SERVER_ERROR` | audit        | fatal     |

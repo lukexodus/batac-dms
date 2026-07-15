@@ -25,15 +25,16 @@ export function WorkflowStepActionPage() {
   const navigate = useNavigate();
   const identity = useSessionStore((s) => s.identity);
 
-  const { data: instance, isLoading, error } = trpc.workflow.getInstance.useQuery(
-    { instanceId: instanceId! },
-    { enabled: !!instanceId }
-  );
+  const {
+    data: instance,
+    isLoading,
+    error,
+  } = trpc.workflow.getInstance.useQuery({ instanceId: instanceId! }, { enabled: !!instanceId });
 
   if (isLoading) {
     return (
-      <div className="p-8 flex justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex justify-center p-8">
+        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -62,7 +63,16 @@ export function WorkflowStepActionPage() {
 
     switch (instance.panelHint) {
       case 'generic_action':
-        canAct = hasRole(identity, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain');
+        canAct = hasRole(
+          identity,
+          'dept_encoder',
+          'dept_approver',
+          'sp_secretary',
+          'sp_presiding_officer',
+          'mayor',
+          'brgy_encoder',
+          'brgy_captain',
+        );
         if (canAct) return <GenericActionPanel instance={instance} />;
         break;
       case 'generic_approval':
@@ -115,16 +125,28 @@ export function WorkflowStepActionPage() {
           <CardTitle>Workflow Step Summary</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <p className="text-sm text-muted-foreground mb-4">
-            {instance.status !== 'Active' 
-              ? 'This workflow instance is no longer active.' 
+          <p className="text-muted-foreground mb-4 text-sm">
+            {instance.status !== 'Active'
+              ? 'This workflow instance is no longer active.'
               : 'You do not have actionable access to this step or no panel is defined for its state.'}
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div><strong>Status:</strong> {instance.status}</div>
-            <div><strong>Current Step Type:</strong> {instance.currentStepType}</div>
-            {instance.currentAssigneeUserId && <div><strong>Assignee:</strong> {instance.currentAssigneeUserId}</div>}
-            {instance.slaDeadline && <div><strong>Deadline:</strong> {new Date(instance.slaDeadline).toLocaleString()}</div>}
+          <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+            <div>
+              <strong>Status:</strong> {instance.status}
+            </div>
+            <div>
+              <strong>Current Step Type:</strong> {instance.currentStepType}
+            </div>
+            {instance.currentAssigneeUserId && (
+              <div>
+                <strong>Assignee:</strong> {instance.currentAssigneeUserId}
+              </div>
+            )}
+            {instance.slaDeadline && (
+              <div>
+                <strong>Deadline:</strong> {new Date(instance.slaDeadline).toLocaleString()}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -132,13 +154,11 @@ export function WorkflowStepActionPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Step Action</h1>
-          <p className="text-muted-foreground mt-1">
-            Instance: {instance.instanceId}
-          </p>
+          <p className="text-muted-foreground mt-1">Instance: {instance.instanceId}</p>
         </div>
         <Button variant="outline" onClick={() => navigate(`/documents/${instance.documentId}`)}>
           View Document

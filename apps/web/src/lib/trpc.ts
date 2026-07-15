@@ -40,7 +40,7 @@ export const trpcClient = trpc.createClient({
           credentials: 'include' as const,
         } as RequestInit;
         let response = await fetch(url, fetchOptions);
-        
+
         let traceId: string | undefined;
         try {
           if (!response.ok) {
@@ -55,7 +55,7 @@ export const trpcClient = trpc.createClient({
         } catch {
           // Ignore parsing errors; we just want traceId if available
         }
-        
+
         if (response.status === 401) {
           logger.warn('trpc_401_unauthorized', { url, traceId });
           const success = await performSilentRefresh();
@@ -67,7 +67,7 @@ export const trpcClient = trpc.createClient({
             window.location.href = '/login';
           }
         }
-        
+
         if (response.status === 423) {
           logger.error('session_locked', { url, traceId });
           useSessionStore.getState().setIsLocked(true);
@@ -82,7 +82,7 @@ export const trpcClient = trpc.createClient({
                 },
               },
             }),
-            { status: 401, headers: { 'Content-Type': 'application/json' } }
+            { status: 401, headers: { 'Content-Type': 'application/json' } },
           );
         }
 

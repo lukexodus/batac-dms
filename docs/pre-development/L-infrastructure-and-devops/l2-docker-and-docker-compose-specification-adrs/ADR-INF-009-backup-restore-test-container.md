@@ -43,18 +43,18 @@ The following additions are required — they are not implemented now but are do
 
 ```yaml
 postgres-restore-scratch:
-  image: bitnami/postgresql:16          # match primary image — see ADR-L2-02
-  restart: no                           # not a persistent service; started on demand
+  image: bitnami/postgresql:16 # match primary image — see ADR-L2-02
+  restart: no # not a persistent service; started on demand
   profiles:
-    - backup-test                       # activated only when backup test runs
+    - backup-test # activated only when backup test runs
   environment:
     POSTGRESQL_POSTGRES_PASSWORD: ${DB_RESTORE_SCRATCH_PASSWORD}
     POSTGRESQL_DATABASE: restore_scratch
     TZ: Asia/Manila
   tmpfs:
-    - /bitnami/postgresql/data          # ephemeral — data lives only for the test run
+    - /bitnami/postgresql/data # ephemeral — data lives only for the test run
   healthcheck:
-    test: ["CMD-SHELL", "pg_isready -U postgres -d restore_scratch"]
+    test: ['CMD-SHELL', 'pg_isready -U postgres -d restore_scratch']
     interval: 5s
     timeout: 5s
     retries: 10

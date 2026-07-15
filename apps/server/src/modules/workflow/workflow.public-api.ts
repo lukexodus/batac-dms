@@ -1,6 +1,12 @@
 import { eq, and, isNull, or, gte, lte, sql } from 'drizzle-orm';
 import type { AppDb } from '../../db.js';
-import type { WorkflowPublicAPI, WorkflowInstanceSummary, WorkflowSLAFilter, WorkflowSLAData, WorkflowStepType } from './index.js';
+import type {
+  WorkflowPublicAPI,
+  WorkflowInstanceSummary,
+  WorkflowSLAFilter,
+  WorkflowSLAData,
+  WorkflowStepType,
+} from './index.js';
 import { WorkflowRepository } from './workflow.repository.js';
 import { SlaService } from './services/sla.service.js';
 import { instances, steps, definitionVersions } from '@batac/database/schema/workflow.schema.js';
@@ -10,7 +16,9 @@ export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
   const repository = new WorkflowRepository(db);
   const slaService = new SlaService();
 
-  function mapStatus(status: 'active' | 'completed' | 'cancelled' | 'stuck' | 'suspended'): 'Active' | 'Completed' | 'Cancelled' {
+  function mapStatus(
+    status: 'active' | 'completed' | 'cancelled' | 'stuck' | 'suspended',
+  ): 'Active' | 'Completed' | 'Cancelled' {
     switch (status) {
       case 'active':
       case 'stuck':
@@ -29,19 +37,22 @@ export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
       if (!instance) return null;
 
       const activeSteps = await repository.getActiveStepInstancesForInstance(instanceId);
-      const versionData = await repository.getDefinitionVersionWithSteps(instance.definitionVersionId);
+      const versionData = await repository.getDefinitionVersionWithSteps(
+        instance.definitionVersionId,
+      );
       if (!versionData) return null;
 
       let currentStepType: WorkflowStepType = 'action';
       if (activeSteps.length > 0) {
-        const stepDef = versionData.steps.find(s => s.id === activeSteps[0]?.stepId);
+        const stepDef = versionData.steps.find((s) => s.id === activeSteps[0]?.stepId);
         if (stepDef) currentStepType = stepDef.stepType as WorkflowStepType;
       }
 
       const context = (instance.context as Record<string, any>) || {};
       let lapseStatus: 'mayor_10_day_lapsed' | 'panlalawigan_30_day_deemed' | null = null;
       if (context['mayor_action'] === 'lapsed') lapseStatus = 'mayor_10_day_lapsed';
-      if (context['panlalawigan_outcome'] === 'deemed_approved') lapseStatus = 'panlalawigan_30_day_deemed';
+      if (context['panlalawigan_outcome'] === 'deemed_approved')
+        lapseStatus = 'panlalawigan_30_day_deemed';
 
       return {
         instanceId: instance.id,
@@ -50,9 +61,12 @@ export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
         definitionVersionId: instance.definitionVersionId,
         currentStepType,
         currentStepInstanceId: activeSteps.length > 0 ? activeSteps[0]!.id : '',
-        currentAssigneeUserId: activeSteps.length > 0 
-          ? ((activeSteps[0]!.assignedTo as any[])?.[0]?.type === 'user' ? (activeSteps[0]!.assignedTo as any[])?.[0]?.id : null)
-          : null,
+        currentAssigneeUserId:
+          activeSteps.length > 0
+            ? (activeSteps[0]!.assignedTo as any[])?.[0]?.type === 'user'
+              ? (activeSteps[0]!.assignedTo as any[])?.[0]?.id
+              : null
+            : null,
         status: mapStatus(instance.status),
         slaDeadline: instance.slaDeadline,
         lapseStatus,
@@ -60,16 +74,16 @@ export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
       };
     },
 
-    async getActiveInstanceForDocument(documentId: string): Promise<WorkflowInstanceSummary | null> {
+    async getActiveInstanceForDocument(
+      documentId: string,
+    ): Promise<WorkflowInstanceSummary | null> {
       const instance = await repository.getActiveInstanceForDocument(documentId);
       if (!instance) return null;
       return this.getInstanceById(instance.id);
     },
 
     async getWorkflowSLAData(filter: WorkflowSLAFilter): Promise<WorkflowSLAData[]> {
-      const conditions = [
-        isNull(instances.deletedAt)
-      ];
+      const conditions = [isNull(instances.deletedAt)];
 
       if (filter.documentTypeId) {
         conditions.push(eq(documents.documentTypeId, filter.documentTypeId));
@@ -79,8 +93,8 @@ export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
         conditions.push(
           or(
             eq(documents.ownedByOfficeId, filter.officeId)!,
-            eq(documents.originatingOfficeId, filter.officeId)!
-          )!
+            eq(documents.originatingOfficeId, filter.officeId)!,
+          )!,
         );
       }
 
@@ -137,7 +151,10 @@ export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
         }
 
         const endDate = row.completedAt || new Date();
-        const elapsedWorkingDays = await slaService.elapsedWorkingDays(row.startedAt || new Date(), endDate);
+        const elapsedWorkingDays = await slaService.elapsedWorkingDays(
+          row.startedAt || new Date(),
+          endDate,
+        );
 
         const isBreached =
           !!row.slaBreachedAt ||
@@ -162,6 +179,6 @@ export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
       }
 
       return result;
-    }
+    },
   };
 }

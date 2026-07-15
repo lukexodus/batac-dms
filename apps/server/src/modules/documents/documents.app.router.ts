@@ -7,6 +7,6 @@ export function createDocumentsAppRouter() {
   return t.mergeRouters(
     createDocumentsRouter(),
     createComplaintsRouter(),
-    createDocumentRequestsRouter()
+    createDocumentRequestsRouter(),
   );
 }

@@ -16,15 +16,15 @@ export async function executeTerminationStep(
   instance: InstanceRow,
   stepInstance: StepInstanceRow,
   deps: TerminationHandlerDeps,
-  trx?: DbTransaction
+  trx?: DbTransaction,
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any
+    trx as any,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
-  const stepDef = versionData.steps.find(s => s.id === stepInstance.stepId);
+  const stepDef = versionData.steps.find((s) => s.id === stepInstance.stepId);
   if (!stepDef) throw new Error('Step definition not found');
 
   const config = (stepDef.config as Record<string, any>) || {};
@@ -38,7 +38,7 @@ export async function executeTerminationStep(
     // in the same transaction as the instance status update below.
     await deps.workflowRepository.cancelActiveAndPendingStepInstancesForInstance(
       instance.id,
-      trx as any
+      trx as any,
     );
 
     // Mark instance as completed
@@ -56,18 +56,17 @@ export async function executeTerminationStep(
           documentId: instance.documentId,
           outcomeCode: 'CANCELLED',
           finalDocumentStatus: null,
-        }
+        },
       },
-      trx as any
+      trx as any,
     );
-
   } else if (outcomeCode === 'REPASSED') {
     // DO NOT set instances.status = 'Completed'
     // Set step_instances.status = 'Completed'
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
       { status: 'completed', completedAt: now, outcome: outcomeCode },
-      trx as any
+      trx as any,
     );
 
     // Emit workflow.instance.repassed
@@ -80,17 +79,16 @@ export async function executeTerminationStep(
         payload: {
           instanceId: instance.id,
           documentId: instance.documentId,
-        }
+        },
       },
-      trx as any
+      trx as any,
     );
-
   } else {
     // Standard terminal outcomes (APPROVED_AND_RELEASED, etc.)
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
       { status: 'completed', completedAt: now, outcome: outcomeCode },
-      trx as any
+      trx as any,
     );
 
     await deps.workflowRepository.updateInstanceStatus(instance.id, 'completed', now, trx as any);
@@ -100,10 +98,19 @@ export async function executeTerminationStep(
         // Transition document state
         // B2 specifies DocumentsPublicAPI has transitionState method
         if (typeof deps.documentsService.transitionState === 'function') {
-          await deps.documentsService.transitionState(instance.documentId, finalDocumentStatus, 'SYSTEM', undefined, trx as any);
+          await deps.documentsService.transitionState(
+            instance.documentId,
+            finalDocumentStatus,
+            'SYSTEM',
+            undefined,
+            trx as any,
+          );
         }
       } catch (err) {
-        console.error(`Failed to transition document ${instance.documentId} to ${finalDocumentStatus}:`, err);
+        console.error(
+          `Failed to transition document ${instance.documentId} to ${finalDocumentStatus}:`,
+          err,
+        );
         // Prompt says "Call Documents.transitionState", if it fails it should probably fail the tx
         throw err;
       }
@@ -121,9 +128,9 @@ export async function executeTerminationStep(
           documentId: instance.documentId,
           outcomeCode,
           finalDocumentStatus,
-        }
+        },
       },
-      trx as any
+      trx as any,
     );
   }
 }

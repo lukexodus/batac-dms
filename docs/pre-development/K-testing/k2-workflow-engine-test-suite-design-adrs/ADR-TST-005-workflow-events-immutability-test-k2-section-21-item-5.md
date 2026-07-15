@@ -1,6 +1,5 @@
 # ADR-TST-005: workflow_events` Immutability Test (K2 §21, item 5)
 
-
 **Decision:** Add a dedicated test that attempts a direct SQL `UPDATE` and a direct SQL `DELETE` against a `workflow.workflow_events` row (inserted via normal engine operation in the test's Given step) and asserts both are rejected by the database itself — not merely by the application layer.
 
 **Decided by:** Claude — this item has no remaining design ambiguity; B4 invariant 13 fully specifies the behavior (`REVOKE UPDATE, DELETE ON workflow.workflow_events FROM workflow_app_user`) and §21 itself only flagged "no test case verifies this is actually enforced," which is a test-coverage gap, not a behavior question.

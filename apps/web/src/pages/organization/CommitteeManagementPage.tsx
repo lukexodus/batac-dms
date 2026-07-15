@@ -45,7 +45,7 @@ export function CommitteeManagementPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
-  
+
   const [selectedCommittee, setSelectedCommittee] = useState<CommitteeSummary | null>(null);
 
   // Forms state
@@ -55,7 +55,11 @@ export function CommitteeManagementPage() {
     chairedByEmployeeId: '',
   });
 
-  const [assignData, setAssignData] = useState<{ employeeId: string; committeeRole: 'chairman' | 'vice_chairman' | 'member'; startDate: string }>({
+  const [assignData, setAssignData] = useState<{
+    employeeId: string;
+    committeeRole: 'chairman' | 'vice_chairman' | 'member';
+    startDate: string;
+  }>({
     employeeId: '',
     committeeRole: 'member',
     startDate: new Date().toISOString().split('T')[0]!,
@@ -89,9 +93,10 @@ export function CommitteeManagementPage() {
 
   // Employee Search
   const [employeeSearch, setEmployeeSearch] = useState('');
-  const { data: employeesData } = trpc.organization.listEmployees.useQuery(
-    { limit: 100, search: employeeSearch }
-  );
+  const { data: employeesData } = trpc.organization.listEmployees.useQuery({
+    limit: 100,
+    search: employeeSearch,
+  });
 
   const openEdit = (committee: CommitteeSummary) => {
     setSelectedCommittee(committee);
@@ -148,11 +153,13 @@ export function CommitteeManagementPage() {
         title="Committees"
         subtitle="Manage standing committees and assignments"
         actions={
-          <Button onClick={() => {
-            setFormData({ name: '', code: '', chairedByEmployeeId: '' });
-            setIsCreateOpen(true);
-          }}>
-            <Plus className="w-4 h-4 mr-2" />
+          <Button
+            onClick={() => {
+              setFormData({ name: '', code: '', chairedByEmployeeId: '' });
+              setIsCreateOpen(true);
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
             New Committee
           </Button>
         }
@@ -172,13 +179,13 @@ export function CommitteeManagementPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={4} className="text-muted-foreground py-6 text-center">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : committees?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={4} className="text-muted-foreground py-6 text-center">
                     No committees found.
                   </TableCell>
                 </TableRow>
@@ -191,11 +198,11 @@ export function CommitteeManagementPage() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" size="sm" onClick={() => openEdit(committee)}>
-                          <Edit className="w-4 h-4 mr-2" />
+                          <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => openAssign(committee)}>
-                          <UserPlus className="w-4 h-4 mr-2" />
+                          <UserPlus className="mr-2 h-4 w-4" />
                           Assign
                         </Button>
                       </div>
@@ -209,12 +216,15 @@ export function CommitteeManagementPage() {
       </Card>
 
       {/* Create / Edit Dialog */}
-      <Dialog open={isCreateOpen || isEditOpen} onOpenChange={(open) => {
-        if (!open) {
-          setIsCreateOpen(false);
-          setIsEditOpen(false);
-        }
-      }}>
+      <Dialog
+        open={isCreateOpen || isEditOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateOpen(false);
+            setIsEditOpen(false);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{isEditOpen ? 'Edit Committee' : 'Create Committee'}</DialogTitle>
@@ -240,7 +250,9 @@ export function CommitteeManagementPage() {
               <Label>Chairperson</Label>
               <Select
                 value={formData.chairedByEmployeeId}
-                onValueChange={(val) => setFormData({ ...formData, chairedByEmployeeId: val === "none" ? "" : val })}
+                onValueChange={(val) =>
+                  setFormData({ ...formData, chairedByEmployeeId: val === 'none' ? '' : val })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Chairperson" />
@@ -257,8 +269,19 @@ export function CommitteeManagementPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsCreateOpen(false); setIsEditOpen(false); }}>Cancel</Button>
-            <Button onClick={isEditOpen ? handleUpdate : handleCreate} disabled={createMutation.isPending || updateMutation.isPending}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCreateOpen(false);
+                setIsEditOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={isEditOpen ? handleUpdate : handleCreate}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
               {isEditOpen ? 'Save Changes' : 'Create'}
             </Button>
           </DialogFooter>
@@ -294,7 +317,12 @@ export function CommitteeManagementPage() {
               <Label>Role</Label>
               <Select
                 value={assignData.committeeRole}
-                onValueChange={(val) => setAssignData({ ...assignData, committeeRole: val as 'chairman' | 'vice_chairman' | 'member' })}
+                onValueChange={(val) =>
+                  setAssignData({
+                    ...assignData,
+                    committeeRole: val as 'chairman' | 'vice_chairman' | 'member',
+                  })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Role" />
@@ -316,8 +344,12 @@ export function CommitteeManagementPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignOpen(false)}>Cancel</Button>
-            <Button onClick={handleAssign} disabled={assignMutation.isPending}>Assign</Button>
+            <Button variant="outline" onClick={() => setIsAssignOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAssign} disabled={assignMutation.isPending}>
+              Assign
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

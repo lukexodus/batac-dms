@@ -92,7 +92,10 @@ function canEnterCommitteeReport(
  * so this check prevents a confusing premature action rather than closing a
  * security gap.
  */
-function canSetOutcome(identity: ActiveUserIdentity | null, committeeReport: string | null): boolean {
+function canSetOutcome(
+  identity: ActiveUserIdentity | null,
+  committeeReport: string | null,
+): boolean {
   if (!hasRole(identity, 'sp_secretary')) return false;
   return !!committeeReport && committeeReport.trim().length > 0;
 }
@@ -146,7 +149,9 @@ export default function ComplaintDetailPage() {
   // ── Set Outcome dialog state ────────────────────────────────────────────
   const [showOutcomeDialog, setShowOutcomeDialog] = useState(false);
   const [outcome, setOutcome] = useState<'dismissed' | 'resolved' | ''>('');
-  const [notifyRespondentVia, setNotifyRespondentVia] = useState<'contact_number' | 'email' | ''>('');
+  const [notifyRespondentVia, setNotifyRespondentVia] = useState<'contact_number' | 'email' | ''>(
+    '',
+  );
 
   const setOutcomeMutation = trpc.documents.setOutcome.useMutation({
     onSuccess: () => {
@@ -170,7 +175,7 @@ export default function ComplaintDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container max-w-5xl mx-auto py-8 space-y-4">
+      <div className="container mx-auto max-w-5xl space-y-4 py-8">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-48" />
         <Skeleton className="h-64 w-full" />
@@ -180,7 +185,7 @@ export default function ComplaintDetailPage() {
 
   if (isError || !complaint) {
     return (
-      <div className="container py-8 space-y-4">
+      <div className="container space-y-4 py-8">
         <p className="text-danger-600">
           Complaint not found or you do not have permission to view it.
         </p>
@@ -231,10 +236,12 @@ export default function ComplaintDetailPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="container max-w-5xl mx-auto py-8 space-y-6">
+    <div className="container mx-auto max-w-5xl space-y-6 py-8">
       {/* ── Breadcrumb ── */}
-      <div className="text-sm text-text-muted">
-        <Link to="/complaints" className="hover:underline text-primary">Complaints</Link>
+      <div className="text-text-muted text-sm">
+        <Link to="/complaints" className="text-primary hover:underline">
+          Complaints
+        </Link>
         <span className="mx-2">›</span>
         <span>{complaint.subjectMatter}</span>
       </div>
@@ -242,19 +249,19 @@ export default function ComplaintDetailPage() {
       {/* ── Header card ── */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="space-y-1 flex-1 min-w-0">
-              <CardTitle className="text-xl font-semibold leading-tight truncate">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1 space-y-1">
+              <CardTitle className="truncate text-xl leading-tight font-semibold">
                 {complaint.subjectMatter}
               </CardTitle>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
+              <div className="mt-1 flex flex-wrap items-center gap-2">
                 <StatusBadge state={docState} />
                 {complaint.assignedOfficeId && (
-                  <Badge variant="outline" className="text-xs font-mono">
+                  <Badge variant="outline" className="font-mono text-xs">
                     Assigned: {complaint.assignedOfficeId}
                   </Badge>
                 )}
-                <span className="text-xs text-text-muted">
+                <span className="text-text-muted text-xs">
                   Logged {new Date(complaint.createdAt).toLocaleDateString()}
                 </span>
               </div>
@@ -271,45 +278,43 @@ export default function ComplaintDetailPage() {
         <CardContent className="space-y-4">
           {incidentDetails?.narrative && (
             <div>
-              <p className="text-xs font-medium text-text-muted mb-1">Incident Narrative</p>
+              <p className="text-text-muted mb-1 text-xs font-medium">Incident Narrative</p>
               <p className="text-sm whitespace-pre-wrap">{incidentDetails.narrative}</p>
             </div>
           )}
           <div className="flex flex-wrap gap-6">
             {incidentDetails?.date && (
               <div>
-                <p className="text-xs font-medium text-text-muted">Date</p>
+                <p className="text-text-muted text-xs font-medium">Date</p>
                 <p className="text-sm">{incidentDetails.date}</p>
               </div>
             )}
             {incidentDetails?.place && (
               <div>
-                <p className="text-xs font-medium text-text-muted">Place</p>
+                <p className="text-text-muted text-xs font-medium">Place</p>
                 <p className="text-sm">{incidentDetails.place}</p>
               </div>
             )}
           </div>
           {respondent?.name && (
             <div>
-              <p className="text-xs font-medium text-text-muted mb-1">Respondent</p>
+              <p className="text-text-muted mb-1 text-xs font-medium">Respondent</p>
               <p className="text-sm">{respondent.name}</p>
               {respondent.contactNumber && (
-                <p className="text-xs text-text-muted">{respondent.contactNumber}</p>
+                <p className="text-text-muted text-xs">{respondent.contactNumber}</p>
               )}
-              {respondent.email && (
-                <p className="text-xs text-text-muted">{respondent.email}</p>
-              )}
+              {respondent.email && <p className="text-text-muted text-xs">{respondent.email}</p>}
             </div>
           )}
           {complaint.routingDecision && (
             <div>
-              <p className="text-xs font-medium text-text-muted mb-1">Routing Notes</p>
+              <p className="text-text-muted mb-1 text-xs font-medium">Routing Notes</p>
               <p className="text-sm whitespace-pre-wrap">{complaint.routingDecision}</p>
             </div>
           )}
           {complaint.committeeReport && (
             <div>
-              <p className="text-xs font-medium text-text-muted mb-1">Committee Report</p>
+              <p className="text-text-muted mb-1 text-xs font-medium">Committee Report</p>
               <p className="text-sm whitespace-pre-wrap">{complaint.committeeReport}</p>
             </div>
           )}
@@ -340,7 +345,10 @@ export default function ComplaintDetailPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => setShowOutcomeDialog(true)}
-                disabled={!canSetOutcome(identity, complaint.committeeReport) || setOutcomeMutation.isPending}
+                disabled={
+                  !canSetOutcome(identity, complaint.committeeReport) ||
+                  setOutcomeMutation.isPending
+                }
                 title={
                   !complaint.committeeReport
                     ? 'A committee report must be entered before setting an outcome'
@@ -354,7 +362,7 @@ export default function ComplaintDetailPage() {
 
           {/* Log and Assign inline form */}
           {showAssignDialog && canLogAndAssign(identity) && (
-            <div className="border rounded-md p-4 space-y-3 bg-neutral-50">
+            <div className="space-y-3 rounded-md border bg-neutral-50 p-4">
               <p className="text-sm font-medium">Log and Assign</p>
               <div className="space-y-1">
                 <Label htmlFor="assigned-office-id">Assigned Office ID (required)</Label>
@@ -400,8 +408,12 @@ export default function ComplaintDetailPage() {
 
           {/* Enter Committee Report — sp_secretary unconditionally, sp_member
               committee-scoped (client-side check via identity.committeeIds) */}
-          {canEnterCommitteeReport(identity, identity?.committeeIds ?? [], complaint.assignedOfficeId) && (
-            <div className="border rounded-md p-4 space-y-3">
+          {canEnterCommitteeReport(
+            identity,
+            identity?.committeeIds ?? [],
+            complaint.assignedOfficeId,
+          ) && (
+            <div className="space-y-3 rounded-md border p-4">
               <p className="text-sm font-medium">Enter Committee Report</p>
               <Textarea
                 value={reportText}
@@ -421,11 +433,14 @@ export default function ComplaintDetailPage() {
 
           {/* Set Outcome inline form */}
           {showOutcomeDialog && hasRole(identity, 'sp_secretary') && (
-            <div className="border rounded-md p-4 space-y-3 bg-neutral-50">
+            <div className="space-y-3 rounded-md border bg-neutral-50 p-4">
               <p className="text-sm font-medium">Set Outcome</p>
               <div className="space-y-1">
                 <Label htmlFor="outcome-select">Outcome (required)</Label>
-                <Select value={outcome} onValueChange={(v) => setOutcome(v as 'dismissed' | 'resolved')}>
+                <Select
+                  value={outcome}
+                  onValueChange={(v) => setOutcome(v as 'dismissed' | 'resolved')}
+                >
                   <SelectTrigger id="outcome-select">
                     <SelectValue placeholder="Select outcome" />
                   </SelectTrigger>

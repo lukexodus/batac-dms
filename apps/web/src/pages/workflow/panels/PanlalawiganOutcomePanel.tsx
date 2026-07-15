@@ -3,8 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import {
-  Card, CardHeader, CardTitle, CardContent, Button, Textarea,
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Textarea,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from '@batac/ui';
 
 import { trpc, type RouterOutputs } from '@/lib/trpc';
@@ -12,14 +21,22 @@ import { trpc, type RouterOutputs } from '@/lib/trpc';
 // recordPanlalawiganOutcome: { stepInstanceId, outcome, controlNumber?, panlalawiganResolutionNumber?, dateReferred?, remarks? }
 // resolveValidInPart: { documentId, resolutionPath, mandatoryComment }   ← takes documentId, NOT stepInstanceId
 // confirmPanlalawiganDeemedApproved: { stepInstanceId }  only
-export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
+export function PanlalawiganOutcomePanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 
-  const [outcome, setOutcome] = useState<'VALID' | 'VALID_IN_PART' | 'OPERATIVE_IN_ITS_ENTIRETY' | 'RETURNED' | ''>('');
+  const [outcome, setOutcome] = useState<
+    'VALID' | 'VALID_IN_PART' | 'OPERATIVE_IN_ITS_ENTIRETY' | 'RETURNED' | ''
+  >('');
   const [remarks, setRemarks] = useState('');
 
-  const [resolutionPath, setResolutionPath] = useState<'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly'>('resolve_as_is');
+  const [resolutionPath, setResolutionPath] = useState<
+    'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly'
+  >('resolve_as_is');
   const [mandatoryComment, setMandatoryComment] = useState('');
 
   const recordMutation = trpc.workflow.recordPanlalawiganOutcome.useMutation({
@@ -55,12 +72,18 @@ export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs
         <CardTitle>Panlalawigan Outcome</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-
         {/* Record Outcome */}
-        <div className="space-y-3 border p-4 rounded-md">
-          <h3 className="font-medium text-sm">Record Outcome</h3>
-          <Select value={outcome} onValueChange={(val: 'VALID' | 'VALID_IN_PART' | 'OPERATIVE_IN_ITS_ENTIRETY' | 'RETURNED' | '') => setOutcome(val)}>
-            <SelectTrigger><SelectValue placeholder="Select outcome…" /></SelectTrigger>
+        <div className="space-y-3 rounded-md border p-4">
+          <h3 className="text-sm font-medium">Record Outcome</h3>
+          <Select
+            value={outcome}
+            onValueChange={(
+              val: 'VALID' | 'VALID_IN_PART' | 'OPERATIVE_IN_ITS_ENTIRETY' | 'RETURNED' | '',
+            ) => setOutcome(val)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select outcome…" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="VALID">Valid</SelectItem>
               <SelectItem value="VALID_IN_PART">Valid in Part</SelectItem>
@@ -75,7 +98,10 @@ export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs
           />
           <Button
             onClick={() => {
-              if (!outcome) { toast.error('Outcome is required'); return; }
+              if (!outcome) {
+                toast.error('Outcome is required');
+                return;
+              }
               recordMutation.mutate({
                 stepInstanceId: instance.currentStepInstanceId,
                 outcome,
@@ -89,10 +115,17 @@ export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs
         </div>
 
         {/* Resolve Valid in Part */}
-        <div className="space-y-3 border p-4 rounded-md">
-          <h3 className="font-medium text-sm">Resolve Valid in Part</h3>
-          <Select value={resolutionPath} onValueChange={(val: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly') => setResolutionPath(val)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+        <div className="space-y-3 rounded-md border p-4">
+          <h3 className="text-sm font-medium">Resolve Valid in Part</h3>
+          <Select
+            value={resolutionPath}
+            onValueChange={(
+              val: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly',
+            ) => setResolutionPath(val)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="resolve_as_is">Resolve As-Is</SelectItem>
               <SelectItem value="route_to_legal">Route to Legal</SelectItem>
@@ -108,7 +141,10 @@ export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs
           <Button
             variant="outline"
             onClick={() => {
-              if (!mandatoryComment) { toast.error('Comment is required'); return; }
+              if (!mandatoryComment) {
+                toast.error('Comment is required');
+                return;
+              }
               resolveMutation.mutate({
                 documentId: instance.documentId,
                 resolutionPath,
@@ -122,10 +158,10 @@ export function PanlalawiganOutcomePanel({ instance }: { instance: RouterOutputs
         </div>
 
         {/* Confirm 30-Day Deemed Approved */}
-        <div className="flex items-center justify-between border p-4 rounded-md">
+        <div className="flex items-center justify-between rounded-md border p-4">
           <div>
-            <h3 className="font-medium text-sm">Confirm 30-Day Deemed Approved</h3>
-            <p className="text-xs text-muted-foreground">RA 7160 §56(d) — 30-day window elapsed.</p>
+            <h3 className="text-sm font-medium">Confirm 30-Day Deemed Approved</h3>
+            <p className="text-muted-foreground text-xs">RA 7160 §56(d) — 30-day window elapsed.</p>
           </div>
           <Button
             variant="outline"

@@ -8,11 +8,11 @@
  * open/onOpenChange from this store at the page level.
  * No component in packages/ui manages its own open state.
  */
-import { create } from "zustand";
+import { create } from 'zustand';
 
 /* ── Toast ────────────────────────────────────────────────── */
 
-export type ToastVariant = "success" | "error" | "warning" | "info";
+export type ToastVariant = 'success' | 'error' | 'warning' | 'info';
 
 interface ToastState {
   open: boolean;
@@ -54,7 +54,6 @@ interface UIState {
   dismissToast: () => void;
 }
 
-
 export const useUIStore = create<UIState>()((set) => ({
   sheetOpen: false,
   sheetDocId: null,
@@ -66,8 +65,8 @@ export const useUIStore = create<UIState>()((set) => ({
 
   toast: {
     open: false,
-    variant: "info",
-    title: "",
+    variant: 'info',
+    title: '',
   },
 
   openSheet: (docId) => set({ sheetOpen: true, sheetDocId: docId }),
@@ -81,6 +80,5 @@ export const useUIStore = create<UIState>()((set) => ({
 
   showToast: (variant, title, body) =>
     set({ toast: { open: true, variant, title, ...(body !== undefined && { body }) } }),
-  dismissToast: () =>
-    set((s) => ({ toast: { ...s.toast, open: false } })),
+  dismissToast: () => set((s) => ({ toast: { ...s.toast, open: false } })),
 }));

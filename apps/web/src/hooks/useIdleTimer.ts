@@ -2,13 +2,15 @@ import { useEffect, useRef } from 'react';
 import { useSessionStore } from '@/stores/session.store';
 
 // Default to 30 minutes if not provided via env
-const INACTIVITY_TIMEOUT_MS = Number(import.meta.env['VITE_AUTH_SESSION_INACTIVITY_TIMEOUT_MS'] || 30 * 60 * 1000);
+const INACTIVITY_TIMEOUT_MS = Number(
+  import.meta.env['VITE_AUTH_SESSION_INACTIVITY_TIMEOUT_MS'] || 30 * 60 * 1000,
+);
 
 export function useIdleTimer() {
   const identity = useSessionStore((state) => state.identity);
   const isLocked = useSessionStore((state) => state.isLocked);
   const setIsLocked = useSessionStore((state) => state.setIsLocked);
-  
+
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {

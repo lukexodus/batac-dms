@@ -40,7 +40,7 @@ export function initializePublishedAPI(
   delegationService = createDelegationService({
     db,
     orgRepository: repo,
-    eventBus: undefined as any,   // overridden by plugin at startup; stubs in tests inject directly
+    eventBus: undefined as any, // overridden by plugin at startup; stubs in tests inject directly
     auditService: auditService as AuditPublicAPI,
     policyEvaluator: policyEvaluator as PolicyEvaluator,
     boss: boss as PgBoss,
@@ -63,20 +63,18 @@ function getDelegationService() {
 
 export async function resolveCurrentHolder(
   positionId: string,
-  asOf?: Date
+  asOf?: Date,
 ): Promise<UserSummary | null> {
   return getOrgService().resolveCurrentHolder(positionId, asOf);
 }
 
 export async function getActiveDelegationForUser(
-  userId: string
+  userId: string,
 ): Promise<DelegationSummary | null> {
   return getDelegationService().getActiveDelegationForUser(userId);
 }
 
-export async function getOfficeById(
-  officeId: string
-): Promise<OfficeSummary | null> {
+export async function getOfficeById(officeId: string): Promise<OfficeSummary | null> {
   return getOrgService().getOfficeById(officeId);
 }
 
@@ -84,26 +82,22 @@ export async function getOfficeHierarchy(): Promise<OfficeTree> {
   return getOrgService().getOfficeHierarchy();
 }
 
-export async function getEmployeeByUserId(
-  userId: string
-): Promise<EmployeeSummary | null> {
+export async function getEmployeeByUserId(userId: string): Promise<EmployeeSummary | null> {
   return getOrgService().getEmployeeByUserId(userId);
 }
 
 export async function getPrimaryOfficeForUser(
-  userId: string
+  userId: string,
 ): Promise<{ officeId: string; officeCode: string } | null> {
   return getOrgService().getPrimaryOfficeForUser(userId);
 }
 
-export async function getCommitteeIdsForUser(
-  userId: string
-): Promise<string[]> {
+export async function getCommitteeIdsForUser(userId: string): Promise<string[]> {
   return getOrgService().getCommitteeIdsForUser(userId);
 }
 
 export async function getDelegationGrantById(
-  delegationGrantId: string
+  delegationGrantId: string,
 ): Promise<{ scope: { roles: string[]; officeIds: string[]; actions: string[] } } | null> {
   return getDelegationService().getDelegationGrantById(delegationGrantId);
 }

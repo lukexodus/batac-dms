@@ -9,10 +9,7 @@ import {
   definitionVersions,
   workflowEvents,
 } from '@batac/database/schema/workflow.schema.js';
-import {
-  documents,
-  documentTypes,
-} from '@batac/database/schema/documents.schema.js';
+import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
 import { offices } from '@batac/database/schema/organization.schema.js';
 import { eq, and, or, isNull, inArray, desc, gte, lte } from 'drizzle-orm';
 import { SlaService } from './services/sla.service.js';
@@ -26,11 +23,7 @@ import {
 import { workflowPolicy, MAYOR_STEP_KEYS } from './workflow.policy.js';
 import type { StepInstanceAttrs, WorkflowInstanceReadAttrs } from './workflow.policy.js';
 import type { Context } from '../iam/iam.types.js';
-import {
-  cancelInstance,
-  bypassStep,
-  migrateInstance,
-} from './engine/admin-operations.js';
+import { cancelInstance, bypassStep, migrateInstance } from './engine/admin-operations.js';
 
 const paginationInput = z.object({
   cursor: z.string().nullish(),
@@ -46,7 +39,7 @@ function getOrgService(ctx: Context) {
 async function checkWorkflowInstanceReadPermission(
   ctx: Context,
   doc: any,
-  tx: any = ctx.db
+  tx: any = ctx.db,
 ): Promise<boolean> {
   if (!ctx.auth) return false;
   const roles = ctx.auth.roles;
@@ -70,8 +63,7 @@ async function checkWorkflowInstanceReadPermission(
 
   const effectiveOfficeIds = new Set(ctx.auth.effectiveOfficeIds || []);
   const isOwnOffice =
-    effectiveOfficeIds.has(doc.ownedByOfficeId) ||
-    effectiveOfficeIds.has(doc.originatingOfficeId);
+    effectiveOfficeIds.has(doc.ownedByOfficeId) || effectiveOfficeIds.has(doc.originatingOfficeId);
 
   // 1. Own-office instances and has allowed role
   if (isOwnOffice && hasAllowedRole) {
@@ -118,7 +110,7 @@ async function checkWorkflowInstanceReadPermission(
  */
 async function fetchStepContext(
   stepInstanceId: string,
-  ctx: Context
+  ctx: Context,
 ): Promise<{
   stepInstance: typeof stepInstances.$inferSelect;
   step: typeof steps.$inferSelect;
@@ -139,12 +131,7 @@ async function fetchStepContext(
     .innerJoin(steps, eq(stepInstances.stepId, steps.id))
     .innerJoin(instances, eq(stepInstances.instanceId, instances.id))
     .innerJoin(documents, eq(instances.documentId, documents.id))
-    .where(
-      and(
-        eq(stepInstances.id, stepInstanceId),
-        isNull(stepInstances.deletedAt)
-      )
-    )
+    .where(and(eq(stepInstances.id, stepInstanceId), isNull(stepInstances.deletedAt)))
     .limit(1);
 
   const row = rows[0];
@@ -154,13 +141,15 @@ async function fetchStepContext(
 
   // Extract assignee from JSONB array (first element, per policy guard contract).
   // assigned_to is stored as [{ user_id?: string, office_id?: string }, ...]
-  const assignedTo = (stepInstance.assignedTo as Array<{ user_id?: string; office_id?: string }>) ?? [];
+  const assignedTo =
+    (stepInstance.assignedTo as Array<{ user_id?: string; office_id?: string }>) ?? [];
   const assigneeUserId = assignedTo[0]?.user_id ?? null;
   const assigneeOfficeId = assignedTo[0]?.office_id ?? null;
 
   // Extract assigned committees from metadata (for multi_referral step ABAC)
   const metadata = (stepInstance.metadata as Record<string, any>) ?? {};
-  const assignedCommittees = (metadata['assigned_committees'] as Array<{ committee_id: string }>) ?? [];
+  const assignedCommittees =
+    (metadata['assigned_committees'] as Array<{ committee_id: string }>) ?? [];
   const assignedCommitteeIds = assignedCommittees.map((c) => c.committee_id);
 
   // isFinalApprovalStep lives in steps.config['is_final_approval'] (JSONB)
@@ -196,11 +185,9 @@ function enforceRoles(ctx: Context, allowedRoles: string[]) {
   }
 }
 
-
-
 export function computeMayorPanelHint(
   mayorActionDeadline: string | null | undefined,
-  lapseConfirmedAt: unknown
+  lapseConfirmedAt: unknown,
 ): 'mayor_decision' | 'mayor_lapse_confirmation' {
   if (mayorActionDeadline) {
     const deadline = new Date(mayorActionDeadline);
@@ -217,8 +204,20 @@ function computePanelHint(
   currentStepType: string,
   currentStep: any,
   instance: any,
-  spsOfficeId?: string
-): 'multi_referral' | 'vp_certification' | 'mayor_decision' | 'mayor_lapse_confirmation' | 'veto_override_recording' | 'docketing' | 'panlalawigan_outcome' | 'publication_date' | 'secretariat_decision' | 'generic_action' | 'generic_approval' | null {
+  spsOfficeId?: string,
+):
+  | 'multi_referral'
+  | 'vp_certification'
+  | 'mayor_decision'
+  | 'mayor_lapse_confirmation'
+  | 'veto_override_recording'
+  | 'docketing'
+  | 'panlalawigan_outcome'
+  | 'publication_date'
+  | 'secretariat_decision'
+  | 'generic_action'
+  | 'generic_approval'
+  | null {
   if (status !== 'Active' || !currentStep) return null;
 
   const { stepKey, metadata, config } = currentStep;
@@ -230,7 +229,10 @@ function computePanelHint(
   } else if (stepKey === 'vp_certification') {
     return 'vp_certification';
   } else if (stepKey === 'mayor_review' || stepKey === 'mayor_signature') {
-    return computeMayorPanelHint(instanceContext['mayor_action_deadline'], stepMetadata['lapse_confirmed_at']);
+    return computeMayorPanelHint(
+      instanceContext['mayor_action_deadline'],
+      stepMetadata['lapse_confirmed_at'],
+    );
   } else if (stepKey === 'veto_override_vote') {
     return 'veto_override_recording';
   } else if (stepKey === 'docketing') {
@@ -242,7 +244,7 @@ function computePanelHint(
   } else if (
     (currentStepType === 'action' || currentStepType === 'approval') &&
     spsOfficeId &&
-    ((currentStep.assignedTo as Array<any>)?.[0]?.office_id === spsOfficeId)
+    (currentStep.assignedTo as Array<any>)?.[0]?.office_id === spsOfficeId
   ) {
     return 'secretariat_decision';
   } else if (currentStepType === 'action') {
@@ -259,18 +261,43 @@ export function createWorkflowRouter() {
     // Queries
     getInstance: protectedProcedure
       .input(z.object({ instanceId: z.string().uuid() }))
-      .output(z.object({
-        instanceId: z.string().uuid(),
-        documentId: z.string().uuid(),
-        definitionVersionId: z.string().uuid(),
-        currentStepType: z.enum(['action', 'approval', 'multi_referral', 'decision', 'notification', 'termination', 'parallel_split', 'parallel_join']),
-        currentStepInstanceId: z.string().uuid(),
-        currentAssigneeUserId: z.string().uuid().nullable(),
-        status: z.enum(['Active', 'Completed', 'Cancelled']),
-        slaDeadline: z.coerce.date().nullable(),
-        lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
-        panelHint: z.enum(['multi_referral', 'vp_certification', 'mayor_decision', 'mayor_lapse_confirmation', 'veto_override_recording', 'docketing', 'panlalawigan_outcome', 'publication_date', 'secretariat_decision', 'generic_action', 'generic_approval']).nullable(),
-      }))
+      .output(
+        z.object({
+          instanceId: z.string().uuid(),
+          documentId: z.string().uuid(),
+          definitionVersionId: z.string().uuid(),
+          currentStepType: z.enum([
+            'action',
+            'approval',
+            'multi_referral',
+            'decision',
+            'notification',
+            'termination',
+            'parallel_split',
+            'parallel_join',
+          ]),
+          currentStepInstanceId: z.string().uuid(),
+          currentAssigneeUserId: z.string().uuid().nullable(),
+          status: z.enum(['Active', 'Completed', 'Cancelled']),
+          slaDeadline: z.coerce.date().nullable(),
+          lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
+          panelHint: z
+            .enum([
+              'multi_referral',
+              'vp_certification',
+              'mayor_decision',
+              'mayor_lapse_confirmation',
+              'veto_override_recording',
+              'docketing',
+              'panlalawigan_outcome',
+              'publication_date',
+              'secretariat_decision',
+              'generic_action',
+              'generic_approval',
+            ])
+            .nullable(),
+        }),
+      )
       .query(async ({ input, ctx }) => {
         const { instanceId } = input;
 
@@ -319,12 +346,7 @@ export function createWorkflowRouter() {
           })
           .from(stepInstances)
           .innerJoin(steps, eq(stepInstances.stepId, steps.id))
-          .where(
-            and(
-              eq(stepInstances.instanceId, instanceId),
-              isNull(stepInstances.deletedAt)
-            )
-          )
+          .where(and(eq(stepInstances.instanceId, instanceId), isNull(stepInstances.deletedAt)))
           .orderBy(desc(stepInstances.createdAt))
           .limit(1);
 
@@ -336,12 +358,7 @@ export function createWorkflowRouter() {
         const allSteps = await ctx.db
           .select({ outcome: stepInstances.outcome })
           .from(stepInstances)
-          .where(
-            and(
-              eq(stepInstances.instanceId, instanceId),
-              isNull(stepInstances.deletedAt)
-            )
-          );
+          .where(and(eq(stepInstances.instanceId, instanceId), isNull(stepInstances.deletedAt)));
 
         if (allSteps.some((s) => s.outcome === 'LAPSED')) {
           lapseStatus = 'mayor_10_day_lapsed';
@@ -355,7 +372,16 @@ export function createWorkflowRouter() {
         };
         const status = statusMap[instance.status] || 'Active';
 
-        const validStepTypes = new Set<'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination' | 'parallel_split' | 'parallel_join'>([
+        const validStepTypes = new Set<
+          | 'action'
+          | 'approval'
+          | 'multi_referral'
+          | 'decision'
+          | 'notification'
+          | 'termination'
+          | 'parallel_split'
+          | 'parallel_join'
+        >([
           'action',
           'approval',
           'multi_referral',
@@ -365,19 +391,29 @@ export function createWorkflowRouter() {
           'parallel_split',
           'parallel_join',
         ]);
-        const currentStepType = currentStep && validStepTypes.has(currentStep.stepType)
-          ? currentStep.stepType
-          : 'action';
+        const currentStepType =
+          currentStep && validStepTypes.has(currentStep.stepType) ? currentStep.stepType : 'action';
 
-        const spsOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, ctx.auth!.cityId);
-        const panelHint = computePanelHint(status, currentStepType, currentStep, instance, spsOffice?.officeId);
+        const spsOffice = await getOrgService(ctx).getOfficeByCode(
+          SP_SECRETARIAT_OFFICE_CODE,
+          ctx.auth!.cityId,
+        );
+        const panelHint = computePanelHint(
+          status,
+          currentStepType,
+          currentStep,
+          instance,
+          spsOffice?.officeId,
+        );
 
         return {
           instanceId: instance.id,
           documentId: instance.documentId,
           definitionVersionId: instance.definitionVersionId,
           currentStepType,
-          currentStepInstanceId: currentStep ? currentStep.stepInstanceId : '00000000-0000-0000-0000-000000000000',
+          currentStepInstanceId: currentStep
+            ? currentStep.stepInstanceId
+            : '00000000-0000-0000-0000-000000000000',
           currentAssigneeUserId,
           status,
           slaDeadline: instance.slaDeadline,
@@ -388,18 +424,45 @@ export function createWorkflowRouter() {
 
     getActiveInstanceForDocument: protectedProcedure
       .input(z.object({ documentId: z.string().uuid() }))
-      .output(z.object({
-        instanceId: z.string().uuid(),
-        documentId: z.string().uuid(),
-        definitionVersionId: z.string().uuid(),
-        currentStepType: z.enum(['action', 'approval', 'multi_referral', 'decision', 'notification', 'termination', 'parallel_split', 'parallel_join']),
-        currentStepInstanceId: z.string().uuid(),
-        currentAssigneeUserId: z.string().uuid().nullable(),
-        status: z.enum(['Active', 'Completed', 'Cancelled']),
-        slaDeadline: z.coerce.date().nullable(),
-        lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
-        panelHint: z.enum(['multi_referral', 'vp_certification', 'mayor_decision', 'mayor_lapse_confirmation', 'veto_override_recording', 'docketing', 'panlalawigan_outcome', 'publication_date', 'secretariat_decision', 'generic_action', 'generic_approval']).nullable(),
-      }).nullable())
+      .output(
+        z
+          .object({
+            instanceId: z.string().uuid(),
+            documentId: z.string().uuid(),
+            definitionVersionId: z.string().uuid(),
+            currentStepType: z.enum([
+              'action',
+              'approval',
+              'multi_referral',
+              'decision',
+              'notification',
+              'termination',
+              'parallel_split',
+              'parallel_join',
+            ]),
+            currentStepInstanceId: z.string().uuid(),
+            currentAssigneeUserId: z.string().uuid().nullable(),
+            status: z.enum(['Active', 'Completed', 'Cancelled']),
+            slaDeadline: z.coerce.date().nullable(),
+            lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
+            panelHint: z
+              .enum([
+                'multi_referral',
+                'vp_certification',
+                'mayor_decision',
+                'mayor_lapse_confirmation',
+                'veto_override_recording',
+                'docketing',
+                'panlalawigan_outcome',
+                'publication_date',
+                'secretariat_decision',
+                'generic_action',
+                'generic_approval',
+              ])
+              .nullable(),
+          })
+          .nullable(),
+      )
       .query(async ({ input, ctx }) => {
         const { documentId } = input;
 
@@ -410,8 +473,8 @@ export function createWorkflowRouter() {
             and(
               eq(instances.documentId, documentId),
               eq(instances.status, 'active'),
-              isNull(instances.deletedAt)
-            )
+              isNull(instances.deletedAt),
+            ),
           )
           .orderBy(desc(instances.createdAt))
           .limit(1);
@@ -452,12 +515,7 @@ export function createWorkflowRouter() {
           })
           .from(stepInstances)
           .innerJoin(steps, eq(stepInstances.stepId, steps.id))
-          .where(
-            and(
-              eq(stepInstances.instanceId, instance.id),
-              isNull(stepInstances.deletedAt)
-            )
-          )
+          .where(and(eq(stepInstances.instanceId, instance.id), isNull(stepInstances.deletedAt)))
           .orderBy(desc(stepInstances.createdAt))
           .limit(1);
 
@@ -469,12 +527,7 @@ export function createWorkflowRouter() {
         const allSteps = await ctx.db
           .select({ outcome: stepInstances.outcome })
           .from(stepInstances)
-          .where(
-            and(
-              eq(stepInstances.instanceId, instance.id),
-              isNull(stepInstances.deletedAt)
-            )
-          );
+          .where(and(eq(stepInstances.instanceId, instance.id), isNull(stepInstances.deletedAt)));
 
         if (allSteps.some((s) => s.outcome === 'LAPSED')) {
           lapseStatus = 'mayor_10_day_lapsed';
@@ -488,7 +541,16 @@ export function createWorkflowRouter() {
         };
         const status = statusMap[instance.status] || 'Active';
 
-        const validStepTypes = new Set<'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination' | 'parallel_split' | 'parallel_join'>([
+        const validStepTypes = new Set<
+          | 'action'
+          | 'approval'
+          | 'multi_referral'
+          | 'decision'
+          | 'notification'
+          | 'termination'
+          | 'parallel_split'
+          | 'parallel_join'
+        >([
           'action',
           'approval',
           'multi_referral',
@@ -498,19 +560,29 @@ export function createWorkflowRouter() {
           'parallel_split',
           'parallel_join',
         ]);
-        const currentStepType = currentStep && validStepTypes.has(currentStep.stepType)
-          ? currentStep.stepType
-          : 'action';
+        const currentStepType =
+          currentStep && validStepTypes.has(currentStep.stepType) ? currentStep.stepType : 'action';
 
-        const spsOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, ctx.auth!.cityId);
-        const panelHint = computePanelHint(status, currentStepType, currentStep, instance, spsOffice?.officeId);
+        const spsOffice = await getOrgService(ctx).getOfficeByCode(
+          SP_SECRETARIAT_OFFICE_CODE,
+          ctx.auth!.cityId,
+        );
+        const panelHint = computePanelHint(
+          status,
+          currentStepType,
+          currentStep,
+          instance,
+          spsOffice?.officeId,
+        );
 
         return {
           instanceId: instance.id,
           documentId: instance.documentId,
           definitionVersionId: instance.definitionVersionId,
           currentStepType,
-          currentStepInstanceId: currentStep ? currentStep.stepInstanceId : '00000000-0000-0000-0000-000000000000',
+          currentStepInstanceId: currentStep
+            ? currentStep.stepInstanceId
+            : '00000000-0000-0000-0000-000000000000',
           currentAssigneeUserId,
           status,
           slaDeadline: instance.slaDeadline,
@@ -566,8 +638,8 @@ export function createWorkflowRouter() {
               eq(stepInstances.cityId, ctx.auth.cityId),
               inArray(stepInstances.status, ['active', 'pending']),
               isNull(stepInstances.deletedAt),
-              isNull(instances.deletedAt)
-            )
+              isNull(instances.deletedAt),
+            ),
           )
           .orderBy(desc(stepInstances.createdAt));
 
@@ -578,14 +650,15 @@ export function createWorkflowRouter() {
         const spOfficeIds = new Set(
           allOffices
             .filter((o) => o.code === 'SP' || o.code === 'SPS' || o.code === 'OVM')
-            .map((o) => o.id)
+            .map((o) => o.id),
         );
 
         const subjectUserId = ctx.auth.userId;
         const effectiveOfficeIds = new Set(ctx.auth.effectiveOfficeIds || []);
 
         const filtered = rows.filter((row) => {
-          const assigned = (row.assignedTo as Array<{ user_id?: string; office_id?: string }>) || [];
+          const assigned =
+            (row.assignedTo as Array<{ user_id?: string; office_id?: string }>) || [];
 
           if (assigned.some((a) => a.user_id === subjectUserId)) {
             return true;
@@ -608,32 +681,37 @@ export function createWorkflowRouter() {
           return false;
         });
 
-        const stepKeyFiltered = input.stepKeyIn && input.stepKeyIn.length > 0
-          ? filtered.filter((row) => input.stepKeyIn!.includes(row.stepKey))
-          : filtered;
+        const stepKeyFiltered =
+          input.stepKeyIn && input.stepKeyIn.length > 0
+            ? filtered.filter((row) => input.stepKeyIn!.includes(row.stepKey))
+            : filtered;
 
         const limit = input.limit ?? 50;
         const startIndex = input.cursor ? parseInt(input.cursor, 10) : 0;
         const paginated = stepKeyFiltered.slice(startIndex, startIndex + limit);
-        const nextCursor = startIndex + limit < stepKeyFiltered.length ? String(startIndex + limit) : null;
+        const nextCursor =
+          startIndex + limit < stepKeyFiltered.length ? String(startIndex + limit) : null;
 
         const items = paginated.map((item) => {
-          const validStepTypes = new Set<'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination' | 'parallel_split' | 'parallel_join'>([
-            'action',
-            'approval',
-            'multi_referral',
-            'decision',
-            'notification',
-            'termination',
-          ]);
-          const stepType = validStepTypes.has(item.stepType)
-            ? item.stepType
-            : 'action';
+          const validStepTypes = new Set<
+            | 'action'
+            | 'approval'
+            | 'multi_referral'
+            | 'decision'
+            | 'notification'
+            | 'termination'
+            | 'parallel_split'
+            | 'parallel_join'
+          >(['action', 'approval', 'multi_referral', 'decision', 'notification', 'termination']);
+          const stepType = validStepTypes.has(item.stepType) ? item.stepType : 'action';
 
           const context = (item.instanceContext as Record<string, any>) || {};
           const metadata = (item.stepMetadata as Record<string, any>) || {};
           const panelHint = MAYOR_STEP_KEYS.has(item.stepKey)
-            ? computeMayorPanelHint(context['mayor_action_deadline'], metadata['lapse_confirmed_at'])
+            ? computeMayorPanelHint(
+                context['mayor_action_deadline'],
+                metadata['lapse_confirmed_at'],
+              )
             : null;
 
           return {
@@ -663,15 +741,12 @@ export function createWorkflowRouter() {
           breachedOnly: z.boolean().default(false),
           from: z.coerce.date().optional(),
           to: z.coerce.date().optional(),
-        })
+        }),
       )
       .query(async ({ input, ctx }) => {
         workflowPolicy.canAccessSlaData(ctx.auth);
 
-        const conditions = [
-          eq(instances.cityId, ctx.auth.cityId),
-          isNull(instances.deletedAt)
-        ];
+        const conditions = [eq(instances.cityId, ctx.auth.cityId), isNull(instances.deletedAt)];
 
         if (input.documentTypeId) {
           conditions.push(eq(documents.documentTypeId, input.documentTypeId));
@@ -681,8 +756,8 @@ export function createWorkflowRouter() {
           conditions.push(
             or(
               eq(documents.ownedByOfficeId, input.officeId)!,
-              eq(documents.originatingOfficeId, input.officeId)!
-            )!
+              eq(documents.originatingOfficeId, input.officeId)!,
+            )!,
           );
         }
 
@@ -779,7 +854,7 @@ export function createWorkflowRouter() {
         z.object({
           stepInstanceId: z.string().uuid(),
           comment: z.string().optional(),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.auth) {
@@ -817,7 +892,7 @@ export function createWorkflowRouter() {
             ctx.auth!.userId,
             comment,
             { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any
+            tx as any,
           );
         });
 
@@ -857,7 +932,7 @@ export function createWorkflowRouter() {
         z.object({
           stepInstanceId: z.string().uuid(),
           comment: z.string().optional(),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.auth) {
@@ -897,7 +972,7 @@ export function createWorkflowRouter() {
             'APPROVED',
             comment,
             { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any
+            tx as any,
           );
         });
 
@@ -929,7 +1004,7 @@ export function createWorkflowRouter() {
           stepInstanceId: z.string().uuid(),
           decision: z.enum(['approve', 'reject', 'amended']),
           remarks: z.string().optional(),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.auth) {
@@ -946,15 +1021,20 @@ export function createWorkflowRouter() {
         const { stepInstance, step, instance, stepAttrs } = found;
 
         // ABAC: SP Secretary + Office check
-        const spsOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, ctx.auth.cityId);
-        const isSpSecretariatOffice = spsOffice ? stepAttrs.assigneeOfficeId === spsOffice.officeId : false;
-        
+        const spsOffice = await getOrgService(ctx).getOfficeByCode(
+          SP_SECRETARIAT_OFFICE_CODE,
+          ctx.auth.cityId,
+        );
+        const isSpSecretariatOffice = spsOffice
+          ? stepAttrs.assigneeOfficeId === spsOffice.officeId
+          : false;
+
         workflowPolicy.canLogSecretariatDecision(ctx.auth, { isSpSecretariatOffice });
 
         const outcomeMap: Record<string, string> = {
           approve: 'APPROVED',
           reject: 'REJECTED',
-          amended: 'AMENDED'
+          amended: 'AMENDED',
         };
         const outcome = outcomeMap[decision];
 
@@ -983,7 +1063,7 @@ export function createWorkflowRouter() {
             outcome,
             remarks,
             { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any
+            tx as any,
           );
         });
 
@@ -1021,7 +1101,7 @@ export function createWorkflowRouter() {
         z.object({
           stepInstanceId: z.string().uuid(),
           comment: z.string().min(1),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.auth) {
@@ -1060,7 +1140,7 @@ export function createWorkflowRouter() {
             'REJECTED',
             comment,
             { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any
+            tx as any,
           );
         });
 
@@ -1098,7 +1178,7 @@ export function createWorkflowRouter() {
         z.object({
           stepInstanceId: z.string().uuid(),
           comment: z.string().min(1),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.auth) {
@@ -1137,7 +1217,7 @@ export function createWorkflowRouter() {
             'RETURNED_FOR_REVISION',
             comment,
             { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any
+            tx as any,
           );
         });
 
@@ -1178,7 +1258,7 @@ export function createWorkflowRouter() {
           committeeId: z.string().uuid(),
           reportText: z.string().min(1),
           reportAttachmentS3Key: z.string().uuid().optional(),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.auth) {
@@ -1217,7 +1297,7 @@ export function createWorkflowRouter() {
 
         await ctx.db.transaction(async (tx) => {
           const txWorkflowRepo = new WorkflowRepository(tx as any);
-          
+
           await engineSubmitCommitteeReport(
             instance,
             stepInstance,
@@ -1225,19 +1305,26 @@ export function createWorkflowRouter() {
             ctx.auth!.userId,
             contributionDocId,
             { ...deps, db: tx as any, workflowRepository: txWorkflowRepo },
-            tx as any
+            tx as any,
           );
 
           // After submitting, check if all committees have submitted.
           // The engine handler updates stepInstance in DB, so we must fetch the fresh row
           // inside this transaction to check the updated submissions array.
-          const freshStepInstance = await txWorkflowRepo.getStepInstanceById(stepInstanceId, tx as any);
+          const freshStepInstance = await txWorkflowRepo.getStepInstanceById(
+            stepInstanceId,
+            tx as any,
+          );
           if (!freshStepInstance) {
-            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve fresh step instance.' });
+            throw new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Failed to retrieve fresh step instance.',
+            });
           }
 
           const freshMetadata = (freshStepInstance.metadata as Record<string, any>) ?? {};
-          const assigned = (freshMetadata['assigned_committees'] as Array<{ committee_id: string }>) ?? [];
+          const assigned =
+            (freshMetadata['assigned_committees'] as Array<{ committee_id: string }>) ?? [];
           const submissions = (freshMetadata['submissions'] as Array<any>) ?? [];
 
           if (submissions.length >= assigned.length) {
@@ -1260,7 +1347,7 @@ export function createWorkflowRouter() {
           instanceId: z.string().uuid(),
           stepInstanceId: z.string().uuid(),
           unifiedReportDocumentId: z.string().uuid(),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.auth) {
@@ -1272,7 +1359,7 @@ export function createWorkflowRouter() {
         if (!found) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
         }
-        
+
         const { stepInstance, instance } = found;
 
         if (instance.id !== instanceId) {
@@ -1303,16 +1390,26 @@ export function createWorkflowRouter() {
 
         await ctx.db.transaction(async (tx) => {
           const txWorkflowRepo = new WorkflowRepository(tx as any);
-          
-          const freshStepInstance = await txWorkflowRepo.getStepInstanceById(stepInstanceId, tx as any);
+
+          const freshStepInstance = await txWorkflowRepo.getStepInstanceById(
+            stepInstanceId,
+            tx as any,
+          );
           if (!freshStepInstance) {
-            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve fresh step instance.' });
+            throw new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Failed to retrieve fresh step instance.',
+            });
           }
 
           const freshMetadata = (freshStepInstance.metadata as Record<string, any>) ?? {};
-          
+
           freshMetadata['unified_report_document_id'] = unifiedReportDocumentId;
-          await txWorkflowRepo.updateStepInstance(stepInstanceId, { metadata: freshMetadata }, tx as any);
+          await txWorkflowRepo.updateStepInstance(
+            stepInstanceId,
+            { metadata: freshMetadata },
+            tx as any,
+          );
 
           await submitStepMultiReferral(
             instance,
@@ -1322,7 +1419,7 @@ export function createWorkflowRouter() {
             'REPORT_ACCEPTED',
             null,
             { ...deps, db: tx as any, workflowRepository: txWorkflowRepo },
-            tx as any
+            tx as any,
           );
         });
 
@@ -1360,7 +1457,7 @@ export function createWorkflowRouter() {
         z.object({
           stepInstanceId: z.string().uuid(),
           mandatoryComment: z.string().min(1),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.auth) {
@@ -1399,7 +1496,7 @@ export function createWorkflowRouter() {
             'SECRETARY_ADVANCED',
             mandatoryComment,
             { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any
+            tx as any,
           );
         });
 
@@ -1446,7 +1543,11 @@ export function createWorkflowRouter() {
         };
 
         const hasRole = ctx.auth.effectiveRoles.includes('sp_presiding_officer');
-        if (!hasRole) throw new TRPCError({ code: 'FORBIDDEN', message: 'Requires sp_presiding_officer role.' });
+        if (!hasRole)
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Requires sp_presiding_officer role.',
+          });
 
         const isAssignee = stepAttrs.assigneeUserId === ctx.auth.userId;
         let isActingViaDelegation = false;
@@ -1459,10 +1560,11 @@ export function createWorkflowRouter() {
         }
 
         if (!isAssignee && !isActingViaDelegation) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be direct assignee or hold active delegation.' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Must be direct assignee or hold active delegation.',
+          });
         }
-
-
 
         await ctx.db.transaction(async (tx) => {
           await submitStepApproval(
@@ -1473,7 +1575,7 @@ export function createWorkflowRouter() {
             'SIGNED',
             null,
             { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any
+            tx as any,
           );
         });
 
@@ -1534,10 +1636,11 @@ export function createWorkflowRouter() {
         }
 
         if (!isAssignee && !isActingViaDelegation) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be direct assignee or hold active delegation.' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Must be direct assignee or hold active delegation.',
+          });
         }
-
-
 
         await ctx.db.transaction(async (tx) => {
           await submitStepApproval(
@@ -1548,7 +1651,7 @@ export function createWorkflowRouter() {
             'SIGNED',
             null,
             { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any
+            tx as any,
           );
         });
 
@@ -1579,7 +1682,7 @@ export function createWorkflowRouter() {
         z.object({
           stepInstanceId: z.string().uuid(),
           objectionsText: z.string().min(1),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         const found = await fetchStepContext(input.stepInstanceId, ctx);
@@ -1614,10 +1717,11 @@ export function createWorkflowRouter() {
         }
 
         if (!isAssignee && !isActingViaDelegation) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be direct assignee or hold active delegation.' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Must be direct assignee or hold active delegation.',
+          });
         }
-
-
 
         await ctx.db.transaction(async (tx) => {
           await submitStepApproval(
@@ -1628,7 +1732,7 @@ export function createWorkflowRouter() {
             'VETOED',
             input.objectionsText,
             { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any
+            tx as any,
           );
         });
 
@@ -1680,19 +1784,22 @@ export function createWorkflowRouter() {
         // prevent duplicate audit trail logging. Rationale: The SP Secretary's acknowledgment
         // that the lapse occurred is distinguished from the scheduler-set status using the
         // presence of the lapse_confirmed_at key in the step instance's metadata.
-        
+
         return await ctx.db.transaction(async (tx) => {
           // Re-fetch with lock to prevent race conditions
           const txRepo = new WorkflowRepository(tx as any);
-          const lockedStepInstance = await txRepo.lockStepInstanceForUpdate(stepInstance.id, tx as any);
+          const lockedStepInstance = await txRepo.lockStepInstanceForUpdate(
+            stepInstance.id,
+            tx as any,
+          );
           if (!lockedStepInstance) {
             throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
           }
 
           const lockedMetadata = (lockedStepInstance.metadata as Record<string, any>) || {};
-          
+
           if (lockedMetadata['lapse_confirmed_at']) {
-             return { success: true, legalBasis: 'RA7160_S47' };
+            return { success: true, legalBasis: 'RA7160_S47' };
           }
 
           lockedMetadata['lapse_confirmed_at'] = new Date().toISOString();
@@ -1701,7 +1808,7 @@ export function createWorkflowRouter() {
           await txRepo.updateStepInstance(
             lockedStepInstance.id,
             { metadata: lockedMetadata },
-            tx as any
+            tx as any,
           );
 
           await txRepo.createWorkflowEvent(
@@ -1719,9 +1826,9 @@ export function createWorkflowRouter() {
                 comment: 'Mayor lapse confirmed by SP Secretary',
               },
             },
-            tx as any
+            tx as any,
           );
-          
+
           const server = ctx.req.server as any;
           if (server.eventBus) {
             server.eventBus.emit('workflow.step.completed', {
@@ -1752,7 +1859,7 @@ export function createWorkflowRouter() {
           votesFor: z.number().int().min(0).max(12),
           votesAgainst: z.number().int().min(0).max(12),
           absentCouncilorIds: z.array(z.string().uuid()),
-        })
+        }),
       )
       .output(z.object({ success: z.literal(true) }))
       .mutation(async ({ ctx, input }) => {
@@ -1765,9 +1872,7 @@ export function createWorkflowRouter() {
 
         // 2/3 of 12 SP members = 8. Hardcoded per consolidated reference Part 4.1/4.2
         // ("Override vote: 2/3 = 8 of 12") — not a judgment call, not configurable.
-        const outcome = input.votesFor >= 8
-          ? 'OVERRIDE_SUCCEEDED'
-          : 'OVERRIDE_FAILED';
+        const outcome = input.votesFor >= 8 ? 'OVERRIDE_SUCCEEDED' : 'OVERRIDE_FAILED';
 
         const server4 = ctx.req.server as any;
         const deps = {
@@ -1791,9 +1896,16 @@ export function createWorkflowRouter() {
             veto_override_absent_councilor_ids: input.absentCouncilorIds,
           };
 
-          await txDeps.workflowRepository.updateInstanceContext(stepContext.instance.id, patch, tx as any);
+          await txDeps.workflowRepository.updateInstanceContext(
+            stepContext.instance.id,
+            patch,
+            tx as any,
+          );
 
-          const updatedInstance = await txDeps.workflowRepository.getInstanceById(stepContext.instance.id, tx as any);
+          const updatedInstance = await txDeps.workflowRepository.getInstanceById(
+            stepContext.instance.id,
+            tx as any,
+          );
           if (!updatedInstance) throw new Error('Instance not found');
 
           await submitStepApproval(
@@ -1804,7 +1916,7 @@ export function createWorkflowRouter() {
             outcome,
             null, // comment — require_comment_on: [] for this step
             txDeps,
-            tx as any
+            tx as any,
           );
         });
 
@@ -1850,8 +1962,6 @@ export function createWorkflowRouter() {
           delegationService: server.delegationService,
         };
 
-
-
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
             ...deps,
@@ -1864,7 +1974,7 @@ export function createWorkflowRouter() {
             ctx.auth.userId,
             null, // comment
             txDeps,
-            tx as any
+            tx as any,
           );
         });
 
@@ -1893,17 +2003,12 @@ export function createWorkflowRouter() {
       .input(
         z.object({
           stepInstanceId: z.string().uuid(),
-          outcome: z.enum([
-            'VALID',
-            'VALID_IN_PART',
-            'RETURNED',
-            'OPERATIVE_IN_ITS_ENTIRETY',
-          ]),
+          outcome: z.enum(['VALID', 'VALID_IN_PART', 'RETURNED', 'OPERATIVE_IN_ITS_ENTIRETY']),
           controlNumber: z.string().optional(),
           panlalawiganResolutionNumber: z.string().optional(),
           dateReferred: z.coerce.date().optional(),
           remarks: z.string().optional(),
-        })
+        }),
       )
       .output(z.object({ success: z.literal(true) }))
       .mutation(async ({ ctx, input }) => {
@@ -1926,8 +2031,6 @@ export function createWorkflowRouter() {
           delegationService: server2.delegationService,
         };
 
-
-
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
             ...deps,
@@ -1937,15 +2040,21 @@ export function createWorkflowRouter() {
           const patch: Record<string, any> = {
             panlalawigan_outcome: input.outcome,
           };
-          if (input.controlNumber !== undefined) patch['panlalawigan_control_number'] = input.controlNumber;
-          if (input.panlalawiganResolutionNumber !== undefined) patch['panlalawigan_resolution_number'] = input.panlalawiganResolutionNumber;
-          if (input.dateReferred !== undefined) patch['panlalawigan_date_referred'] = input.dateReferred.toISOString();
+          if (input.controlNumber !== undefined)
+            patch['panlalawigan_control_number'] = input.controlNumber;
+          if (input.panlalawiganResolutionNumber !== undefined)
+            patch['panlalawigan_resolution_number'] = input.panlalawiganResolutionNumber;
+          if (input.dateReferred !== undefined)
+            patch['panlalawigan_date_referred'] = input.dateReferred.toISOString();
           if (input.remarks !== undefined) patch['panlalawigan_remarks'] = input.remarks;
 
           await txDeps.workflowRepository.updateInstanceContext(instance.id, patch, tx as any);
-          
+
           // Refresh instance to get updated context
-          const updatedInstance = await txDeps.workflowRepository.getInstanceById(instance.id, tx as any);
+          const updatedInstance = await txDeps.workflowRepository.getInstanceById(
+            instance.id,
+            tx as any,
+          );
           if (!updatedInstance) throw new Error('Instance not found');
 
           await submitStepApproval(
@@ -1956,7 +2065,7 @@ export function createWorkflowRouter() {
             input.outcome,
             input.remarks ?? null,
             txDeps,
-            tx as any
+            tx as any,
           );
         });
 
@@ -1992,37 +2101,46 @@ export function createWorkflowRouter() {
             'implement_directly',
           ]),
           mandatoryComment: z.string().min(1),
-        })
+        }),
       )
       .output(z.object({ success: z.literal(true) }))
       .mutation(async ({ ctx, input }) => {
         const workflowRepository = new WorkflowRepository(ctx.db);
         const instance = await workflowRepository.getActiveInstanceForDocument(input.documentId);
         if (!instance) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Active workflow instance not found for document' });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Active workflow instance not found for document',
+          });
         }
-        
+
         const rows = await ctx.db
           .select({
             stepInstanceId: stepInstances.id,
           })
           .from(stepInstances)
           .innerJoin(steps, eq(stepInstances.stepId, steps.id))
-          .where(and(
-            eq(stepInstances.instanceId, instance.id),
-            eq(steps.stepKey, 'valid_in_part_decision'),
-            inArray(stepInstances.status, ['pending', 'active']),
-            isNull(stepInstances.deletedAt)
-          ))
+          .where(
+            and(
+              eq(stepInstances.instanceId, instance.id),
+              eq(steps.stepKey, 'valid_in_part_decision'),
+              inArray(stepInstances.status, ['pending', 'active']),
+              isNull(stepInstances.deletedAt),
+            ),
+          )
           .limit(1);
 
         if (rows.length === 0) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No active valid_in_part_decision step found' });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'No active valid_in_part_decision step found',
+          });
         }
 
         const stepContext = await fetchStepContext(rows[0]!.stepInstanceId, ctx);
-        if (!stepContext) throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
-        
+        if (!stepContext)
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
+
         workflowPolicy.canResolveValidInPart(ctx.auth);
 
         const server3 = ctx.req.server as any;
@@ -2034,8 +2152,6 @@ export function createWorkflowRouter() {
           orgService: server3.organizationService,
           delegationService: server3.delegationService,
         };
-
-
 
         // Map resolutionPath to engine outcome string
         let outcome = 'RESOLVED_IN_PLACE';
@@ -2055,37 +2171,54 @@ export function createWorkflowRouter() {
               .select({ metadata: stepInstances.metadata })
               .from(stepInstances)
               .innerJoin(steps, eq(stepInstances.stepId, steps.id))
-              .where(and(
-                eq(stepInstances.instanceId, instance.id),
-                eq(steps.stepKey, 'committee_referral'),
-                isNull(stepInstances.deletedAt)
-              ))
+              .where(
+                and(
+                  eq(stepInstances.instanceId, instance.id),
+                  eq(steps.stepKey, 'committee_referral'),
+                  isNull(stepInstances.deletedAt),
+                ),
+              )
               .orderBy(desc(stepInstances.createdAt))
               .limit(1);
 
             if (committeeRows.length === 0) {
-              throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'No committee referral found in this workflow instance to route back to.' });
+              throw new TRPCError({
+                code: 'PRECONDITION_FAILED',
+                message: 'No committee referral found in this workflow instance to route back to.',
+              });
             }
 
             const metadata = (committeeRows[0]!.metadata as Record<string, any>) || {};
-            const assignedCommittees = metadata['assigned_committees'] as Array<{ committee_id: string }> | undefined;
-            
+            const assignedCommittees = metadata['assigned_committees'] as
+              | Array<{ committee_id: string }>
+              | undefined;
+
             if (!assignedCommittees || assignedCommittees.length === 0) {
-              throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'No committees were assigned during the referral step.' });
+              throw new TRPCError({
+                code: 'PRECONDITION_FAILED',
+                message: 'No committees were assigned during the referral step.',
+              });
             }
 
             const primaryCommitteeId = assignedCommittees[0]!.committee_id;
             const chair = await txDeps.orgService.getCommitteeChair(primaryCommitteeId);
-            
+
             if (chair) {
-               await txDeps.workflowRepository.updateInstanceContext(instance.id, {
-                 referred_committee_chair_id: chair.userId
-               }, tx as any);
+              await txDeps.workflowRepository.updateInstanceContext(
+                instance.id,
+                {
+                  referred_committee_chair_id: chair.userId,
+                },
+                tx as any,
+              );
             }
           }
 
           // Refresh instance to get updated context (e.g. if we set referred_committee_chair_id)
-          const updatedInstance = await txDeps.workflowRepository.getInstanceById(instance.id, tx as any);
+          const updatedInstance = await txDeps.workflowRepository.getInstanceById(
+            instance.id,
+            tx as any,
+          );
           if (!updatedInstance) throw new Error('Instance not found');
 
           await submitStepApproval(
@@ -2096,7 +2229,7 @@ export function createWorkflowRouter() {
             outcome,
             input.mandatoryComment,
             txDeps,
-            tx as any
+            tx as any,
           );
         });
 
@@ -2136,7 +2269,7 @@ export function createWorkflowRouter() {
 
         const contextObj = (instance.context as Record<string, any>) || {};
         const deadlineStr = contextObj['panlalawigan_action_deadline'];
-        
+
         if (!deadlineStr) {
           throw new TRPCError({
             code: 'PRECONDITION_FAILED',
@@ -2157,7 +2290,10 @@ export function createWorkflowRouter() {
 
         return await ctx.db.transaction(async (tx) => {
           const txRepo = new WorkflowRepository(tx as any);
-          const lockedStepInstance = await txRepo.lockStepInstanceForUpdate(stepInstance.id, tx as any);
+          const lockedStepInstance = await txRepo.lockStepInstanceForUpdate(
+            stepInstance.id,
+            tx as any,
+          );
           if (!lockedStepInstance) {
             throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
           }
@@ -2173,7 +2309,7 @@ export function createWorkflowRouter() {
           await txRepo.updateStepInstance(
             lockedStepInstance.id,
             { metadata: lockedMetadata },
-            tx as any
+            tx as any,
           );
 
           await txRepo.createWorkflowEvent(
@@ -2191,7 +2327,7 @@ export function createWorkflowRouter() {
                 comment: 'Panlalawigan deemed approval confirmed by SP Secretary',
               },
             },
-            tx as any
+            tx as any,
           );
 
           if (server.eventBus) {
@@ -2222,16 +2358,19 @@ export function createWorkflowRouter() {
           documentId: z.string().uuid(),
           publicationDate: z.coerce.date(),
           newspaperName: z.string().default('Ilocos Times'),
-        })
+        }),
       )
       .output(z.object({ success: z.literal(true) }))
       .mutation(async ({ ctx, input }) => {
         const workflowRepository = new WorkflowRepository(ctx.db);
         const instance = await workflowRepository.getActiveInstanceForDocument(input.documentId);
         if (!instance) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Active workflow instance not found for document' });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Active workflow instance not found for document',
+          });
         }
-        
+
         workflowPolicy.canLogSpSecretaryAction(ctx.auth);
 
         // Fetch document type and metadata to verify constraint
@@ -2244,11 +2383,11 @@ export function createWorkflowRouter() {
           .innerJoin(documentTypes, eq(documents.documentTypeId, documentTypes.id))
           .where(eq(documents.id, input.documentId))
           .limit(1);
- 
+
         if (docRows.length === 0) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Document not found' });
         }
- 
+
         const docType = docRows[0]!.code;
         if (docType !== 'SP_ORDINANCE' && docType !== 'SP_APPROPRIATION_ORDINANCE') {
           throw new TRPCError({
@@ -2259,7 +2398,9 @@ export function createWorkflowRouter() {
 
         // Add penalty clause check
         const docMetadata = (docRows[0]!.metadata as Record<string, any>) || {};
-        const hasPenalty = docMetadata['has_penalty_provision'] === true || docMetadata['has_penalty_provision'] === 'true';
+        const hasPenalty =
+          docMetadata['has_penalty_provision'] === true ||
+          docMetadata['has_penalty_provision'] === 'true';
         if (!hasPenalty) {
           throw new TRPCError({
             code: 'PRECONDITION_FAILED',
@@ -2274,20 +2415,26 @@ export function createWorkflowRouter() {
           })
           .from(stepInstances)
           .innerJoin(steps, eq(stepInstances.stepId, steps.id))
-          .where(and(
-            eq(stepInstances.instanceId, instance.id),
-            eq(steps.stepKey, 'newspaper_publication'),
-            inArray(stepInstances.status, ['pending', 'active']),
-            isNull(stepInstances.deletedAt)
-          ))
+          .where(
+            and(
+              eq(stepInstances.instanceId, instance.id),
+              eq(steps.stepKey, 'newspaper_publication'),
+              inArray(stepInstances.status, ['pending', 'active']),
+              isNull(stepInstances.deletedAt),
+            ),
+          )
           .limit(1);
 
         if (rows.length === 0) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No active newspaper_publication step found for this instance' });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'No active newspaper_publication step found for this instance',
+          });
         }
 
         const stepContext = await fetchStepContext(rows[0]!.stepInstanceId, ctx);
-        if (!stepContext) throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
+        if (!stepContext)
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
 
         const server = ctx.req.server as any;
         const deps = {
@@ -2299,21 +2446,19 @@ export function createWorkflowRouter() {
           delegationService: server.delegationService,
         };
 
-
- 
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
             ...deps,
             workflowRepository: new WorkflowRepository(tx as any),
           };
-          
+
           await txDeps.workflowRepository.updateInstanceContext(
             instance.id,
             {
               publication_date: input.publicationDate.toISOString().split('T')[0],
               publication_newspaper: input.newspaperName,
             },
-            tx as any
+            tx as any,
           );
 
           await submitStepAction(
@@ -2322,7 +2467,7 @@ export function createWorkflowRouter() {
             ctx.auth.userId,
             null, // comment
             txDeps,
-            tx as any
+            tx as any,
           );
         });
 
@@ -2343,7 +2488,7 @@ export function createWorkflowRouter() {
             },
           });
         }
- 
+
         return { success: true };
       }),
 
@@ -2352,7 +2497,7 @@ export function createWorkflowRouter() {
         z.object({
           instanceId: z.string().uuid(),
           reason: z.string().min(1),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.auth) {
@@ -2381,7 +2526,11 @@ export function createWorkflowRouter() {
 
         const attrs: WorkflowInstanceReadAttrs = {
           documentOfficeId: doc.ownedByOfficeId,
-          classificationLevel: doc.classificationLevel as 'public' | 'internal' | 'confidential' | 'restricted',
+          classificationLevel: doc.classificationLevel as
+            | 'public'
+            | 'internal'
+            | 'confidential'
+            | 'restricted',
         };
 
         workflowPolicy.canCancelInstance(ctx.auth, attrs);
@@ -2395,8 +2544,10 @@ export function createWorkflowRouter() {
             eventBus: server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
-            getApprovalGrant: (instanceId: string, versionId: string) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
-            markApprovalGrantUsed: (grantId: string) => deps.workflowRepository.markApprovalGrantUsed(grantId),
+            getApprovalGrant: (instanceId: string, versionId: string) =>
+              deps.workflowRepository.getApprovalGrant(instanceId, versionId),
+            markApprovalGrantUsed: (grantId: string) =>
+              deps.workflowRepository.markApprovalGrantUsed(grantId),
           };
           await cancelInstance(input.instanceId, ctx.auth!.userId, input.reason, deps);
         });
@@ -2426,7 +2577,7 @@ export function createWorkflowRouter() {
           bypassReason: z.string().min(1),
           comment: z.string().min(1),
           outcomeCode: z.string().min(1),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.auth) {
@@ -2444,10 +2595,19 @@ export function createWorkflowRouter() {
             eventBus: server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
-            getApprovalGrant: (instanceId: string, versionId: string) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
-            markApprovalGrantUsed: (grantId: string) => deps.workflowRepository.markApprovalGrantUsed(grantId),
+            getApprovalGrant: (instanceId: string, versionId: string) =>
+              deps.workflowRepository.getApprovalGrant(instanceId, versionId),
+            markApprovalGrantUsed: (grantId: string) =>
+              deps.workflowRepository.markApprovalGrantUsed(grantId),
           };
-          await bypassStep(input.stepInstanceId, ctx.auth!.userId, input.bypassReason, input.comment, input.outcomeCode, deps);
+          await bypassStep(
+            input.stepInstanceId,
+            ctx.auth!.userId,
+            input.bypassReason,
+            input.comment,
+            input.outcomeCode,
+            deps,
+          );
         });
 
         const [stepInstance] = await ctx.db
@@ -2483,7 +2643,7 @@ export function createWorkflowRouter() {
           newDefinitionVersionId: z.string().uuid(),
           mandatoryReason: z.string().min(1),
           secondLevelApproverUserId: z.string().uuid(),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.auth) {
@@ -2503,15 +2663,17 @@ export function createWorkflowRouter() {
             eventBus: server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
-            getApprovalGrant: (instanceId: string, versionId: string) => deps.workflowRepository.getApprovalGrant(instanceId, versionId),
-            markApprovalGrantUsed: (grantId: string) => deps.workflowRepository.markApprovalGrantUsed(grantId),
+            getApprovalGrant: (instanceId: string, versionId: string) =>
+              deps.workflowRepository.getApprovalGrant(instanceId, versionId),
+            markApprovalGrantUsed: (grantId: string) =>
+              deps.workflowRepository.markApprovalGrantUsed(grantId),
           };
           result = await migrateInstance(
             input.instanceId,
             input.newDefinitionVersionId,
             ctx.auth!.userId,
             input.mandatoryReason,
-            deps
+            deps,
           );
         });
 
@@ -2522,8 +2684,8 @@ export function createWorkflowRouter() {
             .where(
               and(
                 eq(workflowEvents.instanceId, input.instanceId),
-                eq(workflowEvents.eventType, 'workflow.instance.migration.started')
-              )
+                eq(workflowEvents.eventType, 'workflow.instance.migration.started'),
+              ),
             )
             .orderBy(desc(workflowEvents.occurredAt))
             .limit(1);
@@ -2545,8 +2707,8 @@ export function createWorkflowRouter() {
             .where(
               and(
                 eq(workflowEvents.instanceId, input.instanceId),
-                eq(workflowEvents.eventType, 'workflow.instance.migration.completed')
-              )
+                eq(workflowEvents.eventType, 'workflow.instance.migration.completed'),
+              ),
             )
             .orderBy(desc(workflowEvents.occurredAt))
             .limit(1);

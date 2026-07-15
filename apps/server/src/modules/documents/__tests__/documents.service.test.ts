@@ -6,10 +6,10 @@ import type { DbClient } from '../documents.types.js';
 describe('DocumentsService', () => {
   let mockDeps: any;
   let service: ReturnType<typeof createDocumentsService>;
-  
+
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     mockDeps = {
       db: {
         transaction: vi.fn(async (cb) => cb(mockDeps.db)),
@@ -22,7 +22,7 @@ describe('DocumentsService', () => {
         emit: vi.fn(),
       },
     };
-    
+
     service = createDocumentsService(mockDeps);
   });
 
@@ -31,13 +31,13 @@ describe('DocumentsService', () => {
       vi.spyOn(DocumentsRepository.prototype, 'findDocumentById').mockResolvedValueOnce({
         id: 'doc-1',
         lifecycleState: 'draft',
-        cityId: 'city-1'
+        cityId: 'city-1',
       } as any);
 
       await expect(service.transitionState('doc-1', 'disposed', 'user-1')).rejects.toThrowError(
-        'invalid state transition: draft -> disposed'
+        'invalid state transition: draft -> disposed',
       );
-      
+
       expect(mockDeps.eventBus.emit).not.toHaveBeenCalled();
     });
 
@@ -45,15 +45,17 @@ describe('DocumentsService', () => {
       vi.spyOn(DocumentsRepository.prototype, 'findDocumentById').mockResolvedValueOnce({
         id: 'doc-2',
         lifecycleState: 'in_workflow',
-        cityId: 'city-1'
+        cityId: 'city-1',
       } as any);
-      
-      const updateSpy = vi.spyOn(DocumentsRepository.prototype, 'updateDocumentLifecycleState').mockResolvedValueOnce(undefined as any);
+
+      const updateSpy = vi
+        .spyOn(DocumentsRepository.prototype, 'updateDocumentLifecycleState')
+        .mockResolvedValueOnce(undefined as any);
 
       await service.transitionState('doc-2', 'cancelled', 'user-1', 'Test reason');
 
       expect(updateSpy).toHaveBeenCalledWith('doc-2', 'cancelled');
-      
+
       expect(mockDeps.eventBus.emit).toHaveBeenCalledWith(
         'document.state_changed',
         expect.objectContaining({
@@ -65,8 +67,8 @@ describe('DocumentsService', () => {
             toState: 'cancelled',
             actorId: 'user-1',
             reason: 'Test reason',
-          })
-        })
+          }),
+        }),
       );
     });
   });

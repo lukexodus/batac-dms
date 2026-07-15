@@ -125,7 +125,9 @@ export function buildMockApprovalDeps(repoOverrides: Record<string, any> = {}) {
   };
 }
 
-export async function withFakeTimers<T>(fn: (setTime: (d: Date) => void) => Promise<T>): Promise<T> {
+export async function withFakeTimers<T>(
+  fn: (setTime: (d: Date) => void) => Promise<T>,
+): Promise<T> {
   vi.useFakeTimers();
   try {
     return await fn((d: Date) => vi.setSystemTime(d));

@@ -17,9 +17,9 @@ export const columns: ColumnDef<DocumentSummary>[] = [
     cell: ({ row }) => {
       // Placeholder link to a detail page that doesn't exist yet
       return (
-        <Link 
-          to={`/documents/${row.original.id}`} 
-          className="font-medium hover:underline text-primary"
+        <Link
+          to={`/documents/${row.original.id}`}
+          className="text-primary font-medium hover:underline"
         >
           {row.getValue('title')}
         </Link>
@@ -55,7 +55,11 @@ export const columns: ColumnDef<DocumentSummary>[] = [
     accessorKey: 'createdAt',
     header: 'Created',
     cell: ({ row }) => {
-      return <span className="text-muted-foreground">{format(new Date(row.getValue('createdAt')), 'PP')}</span>;
+      return (
+        <span className="text-muted-foreground">
+          {format(new Date(row.getValue('createdAt')), 'PP')}
+        </span>
+      );
     },
   },
 ];

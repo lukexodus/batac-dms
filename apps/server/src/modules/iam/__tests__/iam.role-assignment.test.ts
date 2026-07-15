@@ -13,14 +13,20 @@ vi.mock('../../../config/env.js', () => ({
     AUTH_ACCESS_TOKEN_COOKIE_NAME: 'batac_at',
     AUTH_REFRESH_TOKEN_COOKIE_NAME: 'batac_rt',
     AUTH_SESSION_INACTIVITY_TIMEOUT_MS: 1800000,
-  }
+  },
 }));
 
 import { randomUUID } from 'node:crypto';
 import { createIamService } from '../iam.service.js';
 import { RoleCombinationForbiddenError } from '../iam.errors.js';
 import { NotFoundError } from '../../../errors/domain/not-found.js';
-import type { IamRepository, IamServiceDeps, RoleRow, RoleAssignmentRow, UserRow } from '../iam.types.js';
+import type {
+  IamRepository,
+  IamServiceDeps,
+  RoleRow,
+  RoleAssignmentRow,
+  UserRow,
+} from '../iam.types.js';
 import type { AuditPublicAPI } from '../../audit/index.js';
 import type { EventBus } from '@batac/shared';
 
@@ -162,12 +168,12 @@ describe('IamService.assignRole()', () => {
   let bus: EventBus;
   let deps: IamServiceDeps;
 
-  const actorId    = randomUUID();
+  const actorId = randomUUID();
   const targetUser = makeUser();
 
   beforeEach(() => {
     repo = makeRepo();
-    bus  = makeEventBus();
+    bus = makeEventBus();
     deps = {
       db: null as any,
       iamRepository: repo,
@@ -184,7 +190,12 @@ describe('IamService.assignRole()', () => {
     vi.mocked(repo.findRoleById).mockResolvedValue(null);
 
     await expect(
-      service.assignRole({ actorId, targetUserId: targetUser.id, roleId: 'missing', officeScopeId: null }),
+      service.assignRole({
+        actorId,
+        targetUserId: targetUser.id,
+        roleId: 'missing',
+        officeScopeId: null,
+      }),
     ).rejects.toBeInstanceOf(NotFoundError);
 
     expect(repo.createRoleAssignment).not.toHaveBeenCalled();
@@ -194,7 +205,7 @@ describe('IamService.assignRole()', () => {
 
   it('throws RoleCombinationForbiddenError before INSERT when assigning platform_admin to a document_processor user', async () => {
     const platformAdminRole = makeRole({ typeCode: 'platform_admin' });
-    const existingDpRole    = makeRole({ typeCode: 'document_processor' });
+    const existingDpRole = makeRole({ typeCode: 'document_processor' });
 
     vi.mocked(repo.findRoleById).mockResolvedValue(platformAdminRole);
     vi.mocked(repo.findConflictingTypeCodeForUser).mockResolvedValue(existingDpRole);
@@ -202,7 +213,12 @@ describe('IamService.assignRole()', () => {
     const service = createIamService(deps);
 
     await expect(
-      service.assignRole({ actorId, targetUserId: targetUser.id, roleId: platformAdminRole.id, officeScopeId: null }),
+      service.assignRole({
+        actorId,
+        targetUserId: targetUser.id,
+        roleId: platformAdminRole.id,
+        officeScopeId: null,
+      }),
     ).rejects.toThrow(RoleCombinationForbiddenError);
 
     // Conflict check called with the correct conflicting type
@@ -218,7 +234,7 @@ describe('IamService.assignRole()', () => {
   // ── Document Processor → Platform Admin conflict ────────────────────────────
 
   it('throws RoleCombinationForbiddenError before INSERT when assigning document_processor to a platform_admin user', async () => {
-    const dpRole              = makeRole({ typeCode: 'document_processor' });
+    const dpRole = makeRole({ typeCode: 'document_processor' });
     const existingPlatAdmRole = makeRole({ typeCode: 'platform_admin' });
 
     vi.mocked(repo.findRoleById).mockResolvedValue(dpRole);
@@ -247,14 +263,19 @@ describe('IamService.assignRole()', () => {
 
   it('does not perform exclusion check for sys_admin type roles', async () => {
     const sysAdminRole = makeRole({ typeCode: 'sys_admin' });
-    const assignment   = makeAssignment({ userId: targetUser.id, roleId: sysAdminRole.id });
+    const assignment = makeAssignment({ userId: targetUser.id, roleId: sysAdminRole.id });
 
     vi.mocked(repo.findRoleById).mockResolvedValue(sysAdminRole);
     vi.mocked(repo.findUserById).mockResolvedValue(targetUser);
     vi.mocked(repo.createRoleAssignment).mockResolvedValue(assignment);
 
     const service = createIamService(deps);
-    await service.assignRole({ actorId, targetUserId: targetUser.id, roleId: sysAdminRole.id, officeScopeId: null });
+    await service.assignRole({
+      actorId,
+      targetUserId: targetUser.id,
+      roleId: sysAdminRole.id,
+      officeScopeId: null,
+    });
 
     expect(repo.findConflictingTypeCodeForUser).not.toHaveBeenCalled();
     expect(repo.createRoleAssignment).toHaveBeenCalledOnce();
@@ -263,7 +284,7 @@ describe('IamService.assignRole()', () => {
   // ── Successful assignment ───────────────────────────────────────────────────
 
   it('inserts the assignment and emits role.assigned on success', async () => {
-    const role       = makeRole({ typeCode: 'document_processor', name: 'Dept Encoder' });
+    const role = makeRole({ typeCode: 'document_processor', name: 'Dept Encoder' });
     const assignment = makeAssignment({ userId: targetUser.id, roleId: role.id });
 
     vi.mocked(repo.findRoleById).mockResolvedValue(role);
@@ -272,7 +293,7 @@ describe('IamService.assignRole()', () => {
     vi.mocked(repo.createRoleAssignment).mockResolvedValue(assignment);
 
     const service = createIamService(deps);
-    const result  = await service.assignRole({
+    const result = await service.assignRole({
       actorId,
       targetUserId: targetUser.id,
       roleId: role.id,
@@ -312,12 +333,12 @@ describe('IamService.revokeRole()', () => {
   let bus: EventBus;
   let deps: IamServiceDeps;
 
-  const actorId    = randomUUID();
+  const actorId = randomUUID();
   const targetUser = makeUser();
 
   beforeEach(() => {
     repo = makeRepo();
-    bus  = makeEventBus();
+    bus = makeEventBus();
     deps = {
       db: null as any,
       iamRepository: repo,
@@ -334,7 +355,12 @@ describe('IamService.revokeRole()', () => {
 
     const service = createIamService(deps);
     await expect(
-      service.revokeRole({ actorId, targetUserId: targetUser.id, roleAssignmentId: 'missing', reason: 'test' }),
+      service.revokeRole({
+        actorId,
+        targetUserId: targetUser.id,
+        roleAssignmentId: 'missing',
+        reason: 'test',
+      }),
     ).rejects.toBeInstanceOf(NotFoundError);
 
     expect(repo.revokeRoleAssignment).not.toHaveBeenCalled();
@@ -361,7 +387,7 @@ describe('IamService.revokeRole()', () => {
   // ── Successful revocation ───────────────────────────────────────────────────
 
   it('revokes the assignment and emits role.revoked on success', async () => {
-    const role       = makeRole({ name: 'Dept Approver' });
+    const role = makeRole({ name: 'Dept Approver' });
     const assignment = makeAssignment({ userId: targetUser.id, roleId: role.id, isActive: true });
 
     vi.mocked(repo.findAssignmentsByUserId).mockResolvedValue([assignment]);
@@ -397,9 +423,9 @@ describe('IamService.revokeRole()', () => {
   // ── Audit event payload correctness ────────────────────────────────────────
 
   it('includes reason in the role.revoked event payload', async () => {
-    const role       = makeRole({ name: 'SP Member' });
+    const role = makeRole({ name: 'SP Member' });
     const assignment = makeAssignment({ userId: targetUser.id, roleId: role.id, isActive: true });
-    const reason     = 'term ended';
+    const reason = 'term ended';
 
     vi.mocked(repo.findAssignmentsByUserId).mockResolvedValue([assignment]);
     vi.mocked(repo.revokeRoleAssignment).mockResolvedValue(undefined);
@@ -407,7 +433,12 @@ describe('IamService.revokeRole()', () => {
     vi.mocked(repo.findUserById).mockResolvedValue(targetUser);
 
     const service = createIamService(deps);
-    await service.revokeRole({ actorId, targetUserId: targetUser.id, roleAssignmentId: assignment.id, reason });
+    await service.revokeRole({
+      actorId,
+      targetUserId: targetUser.id,
+      roleAssignmentId: assignment.id,
+      reason,
+    });
 
     const payload = vi.mocked(bus.emit).mock.calls[0]![1].payload as Record<string, unknown>;
     expect(payload['reason']).toBe(reason);

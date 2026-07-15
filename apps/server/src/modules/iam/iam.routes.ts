@@ -31,19 +31,19 @@ function parseExpiresInSeconds(expiresIn: string): number {
 }
 
 const JWT_ACCESS_TTL_SECONDS = parseExpiresInSeconds(env.AUTH_JWT_ACCESS_EXPIRES_IN);
-const REFRESH_TTL_SECONDS    = 14 * 24 * 3600;
+const REFRESH_TTL_SECONDS = 14 * 24 * 3600;
 
 /**
  * Assemble a Set-Cookie header string without relying on `@fastify/cookie`.
  * Produces a single string value suitable for `reply.header('Set-Cookie', [v1, v2])`.
  */
 function buildCookieHeader(
-  name:    string,
-  value:   string,
+  name: string,
+  value: string,
   options: {
-    maxAge:   number;
-    path:     string;
-    secure:   boolean;
+    maxAge: number;
+    path: string;
+    secure: boolean;
     sameSite: string;
   },
 ): string {
@@ -79,7 +79,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
     {
       config: {
         rateLimit: {
-          max:      5,
+          max: 5,
           timeWindow: 15 * 60 * 1000, // 15 minutes in ms
         },
       },
@@ -99,32 +99,31 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         });
       }
 
-      const body      = parseResult.data;
-      const ipAddress = (request.headers['x-forwarded-for'] as string | undefined)
-        ?? request.ip
-        ?? null;
+      const body = parseResult.data;
+      const ipAddress =
+        (request.headers['x-forwarded-for'] as string | undefined) ?? request.ip ?? null;
       const userAgent = request.headers['user-agent'] ?? null;
 
       // ── Call service.login ────────────────────────────────────────────────
       let result: Awaited<ReturnType<typeof fastify.iamService.login>> & {
         _cookies?: {
-          accessToken:              string;
-          refreshTokenCookieValue:  string;
-          accessMaxAge:             number;
-          refreshMaxAge:            number;
+          accessToken: string;
+          refreshTokenCookieValue: string;
+          accessMaxAge: number;
+          refreshMaxAge: number;
         };
       };
 
       try {
-        result = await fastify.iamService.login({
-          username:              body.username,
-          password:              body.password,
-          code_verifier:         body.code_verifier,
-          code_challenge:        body.code_challenge,
+        result = (await fastify.iamService.login({
+          username: body.username,
+          password: body.password,
+          code_verifier: body.code_verifier,
+          code_challenge: body.code_challenge,
           code_challenge_method: 'S256',
           ipAddress,
           userAgent,
-        }) as typeof result;
+        })) as typeof result;
       } catch (err: unknown) {
         const e = err as { code?: string; statusCode?: number; retryAfter?: number };
 
@@ -179,14 +178,15 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         });
       }
 
-      const secure   = env.AUTH_COOKIE_SECURE;
+      const secure = env.AUTH_COOKIE_SECURE;
       const sameSite = env.AUTH_COOKIE_SAMESITE;
 
-      const atCookie = buildCookieHeader(
-        env.AUTH_ACCESS_TOKEN_COOKIE_NAME,
-        cookies.accessToken,
-        { maxAge: JWT_ACCESS_TTL_SECONDS, path: '/', secure, sameSite },
-      );
+      const atCookie = buildCookieHeader(env.AUTH_ACCESS_TOKEN_COOKIE_NAME, cookies.accessToken, {
+        maxAge: JWT_ACCESS_TTL_SECONDS,
+        path: '/',
+        secure,
+        sameSite,
+      });
 
       const rtCookie = buildCookieHeader(
         env.AUTH_REFRESH_TOKEN_COOKIE_NAME,
@@ -201,13 +201,13 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       return reply.status(200).send({
         ok: true,
         data: {
-          user:          result.user,
-          sessionId:     result.sessionId,
-          expiresAt:     result.expiresAt,
-          roleCodes:     result.roleCodes,
+          user: result.user,
+          sessionId: result.sessionId,
+          expiresAt: result.expiresAt,
+          roleCodes: result.roleCodes,
           officeScopeId: result.officeScopeId,
-          officeCode:    result.officeCode,
-          committeeIds:  result.committeeIds,
+          officeCode: result.officeCode,
+          committeeIds: result.committeeIds,
         },
       });
     },
@@ -253,22 +253,25 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       const refreshTokenValue = tokenMatch.split('=')[1] || '';
 
       // 2. Call refresh service
-      const ipAddress = (request.headers['x-forwarded-for'] as string | undefined)
-        ?? request.ip
-        ?? null;
+      const ipAddress =
+        (request.headers['x-forwarded-for'] as string | undefined) ?? request.ip ?? null;
       const userAgent = request.headers['user-agent'] ?? null;
 
       let result: Awaited<ReturnType<typeof fastify.iamService.refresh>> & {
         _cookies?: {
-          accessToken:              string;
-          refreshTokenCookieValue:  string;
-          accessMaxAge:             number;
-          refreshMaxAge:            number;
+          accessToken: string;
+          refreshTokenCookieValue: string;
+          accessMaxAge: number;
+          refreshMaxAge: number;
         };
       };
 
       try {
-        result = await fastify.iamService.refresh(refreshTokenValue, ipAddress || '', userAgent || '');
+        result = await fastify.iamService.refresh(
+          refreshTokenValue,
+          ipAddress || '',
+          userAgent || '',
+        );
       } catch (err: unknown) {
         const e = err as { code?: string; statusCode?: number };
 
@@ -301,14 +304,15 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
         });
       }
 
-      const secure   = env.AUTH_COOKIE_SECURE;
+      const secure = env.AUTH_COOKIE_SECURE;
       const sameSite = env.AUTH_COOKIE_SAMESITE;
 
-      const atCookie = buildCookieHeader(
-        env.AUTH_ACCESS_TOKEN_COOKIE_NAME,
-        cookies.accessToken,
-        { maxAge: JWT_ACCESS_TTL_SECONDS, path: '/', secure, sameSite },
-      );
+      const atCookie = buildCookieHeader(env.AUTH_ACCESS_TOKEN_COOKIE_NAME, cookies.accessToken, {
+        maxAge: JWT_ACCESS_TTL_SECONDS,
+        path: '/',
+        secure,
+        sameSite,
+      });
 
       const rtCookie = buildCookieHeader(
         env.AUTH_REFRESH_TOKEN_COOKIE_NAME,
@@ -322,13 +326,13 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       return reply.status(200).send({
         ok: true,
         data: {
-          user:          result.user,
-          sessionId:     result.sessionId,
-          expiresAt:     result.expiresAt,
-          roleCodes:     result.roleCodes,
+          user: result.user,
+          sessionId: result.sessionId,
+          expiresAt: result.expiresAt,
+          roleCodes: result.roleCodes,
           officeScopeId: result.officeScopeId,
-          officeCode:    result.officeCode,
-          committeeIds:  result.committeeIds,
+          officeCode: result.officeCode,
+          committeeIds: result.committeeIds,
         },
       });
     },
@@ -409,7 +413,8 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       }
 
       const isExpired = decoded.exp * 1000 < Date.now();
-      const ipAddress = (request.headers['x-forwarded-for'] as string | undefined) ?? request.ip ?? null;
+      const ipAddress =
+        (request.headers['x-forwarded-for'] as string | undefined) ?? request.ip ?? null;
       const userAgent = request.headers['user-agent'] ?? null;
 
       let result;
@@ -449,7 +454,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       }
 
       if (result._cookies) {
-        const secure   = env.AUTH_COOKIE_SECURE;
+        const secure = env.AUTH_COOKIE_SECURE;
         const sameSite = env.AUTH_COOKIE_SAMESITE;
 
         const atCookie = buildCookieHeader(
@@ -468,7 +473,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
       }
 
       return reply.status(200).send({ ok: true, data: { unlocked: true } });
-    }
+    },
   );
 
   fastify.register(async (protectedApp) => {
@@ -480,17 +485,14 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
      * Protected route — requires valid access token.
      * Sets locked_at = NOW() on the active session.
      */
-    protectedApp.post(
-      '/api/auth/lock',
-      async (request: FastifyRequest, reply: FastifyReply) => {
-        const auth = request.auth!;
-        await protectedApp.iamService.lockSession({
-          sessionId: auth.sessionId,
-          userId: auth.userId,
-        });
-        return reply.status(200).send({ ok: true, data: { locked: true } });
-      }
-    );
+    protectedApp.post('/api/auth/lock', async (request: FastifyRequest, reply: FastifyReply) => {
+      const auth = request.auth!;
+      await protectedApp.iamService.lockSession({
+        sessionId: auth.sessionId,
+        userId: auth.userId,
+      });
+      return reply.status(200).send({ ok: true, data: { locked: true } });
+    });
 
     /**
      * POST /api/auth/logout
@@ -499,17 +501,14 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
      * Terminates the session, revokes refresh tokens, clears cookies, and writes audit event.
      * Source: TASK-IAM-008
      */
-    protectedApp.post(
-      '/api/auth/logout',
-      async (request: FastifyRequest, reply: FastifyReply) => {
-        const auth = request.auth!;
-        await protectedApp.iamService.logout(auth.sessionId, auth.userId);
+    protectedApp.post('/api/auth/logout', async (request: FastifyRequest, reply: FastifyReply) => {
+      const auth = request.auth!;
+      await protectedApp.iamService.logout(auth.sessionId, auth.userId);
 
-        clearAuthCookies(reply);
+      clearAuthCookies(reply);
 
-        return reply.status(204).send();
-      }
-    );
+      return reply.status(204).send();
+    });
 
     /**
      * POST /api/admin/sessions/:id/terminate
@@ -544,7 +543,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
           auth,
           { type: 'session', id: params.id, cityId: auth.cityId },
           'force_terminate',
-          { reason: body.reason }
+          { reason: body.reason },
         );
         if (!result.allowed) {
           await protectedApp.auditService.writeEvent({
@@ -586,7 +585,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
           }
           throw err;
         }
-      }
+      },
     );
   });
 }

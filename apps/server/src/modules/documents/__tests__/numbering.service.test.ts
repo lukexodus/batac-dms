@@ -105,7 +105,9 @@ describe('NumberingService', () => {
 
       let selectCount = 0;
       const trx: any = {
-        execute: vi.fn().mockResolvedValue({ rows: [{ sequence_value: BigInt(1), was_created: false }] }),
+        execute: vi
+          .fn()
+          .mockResolvedValue({ rows: [{ sequence_value: BigInt(1), was_created: false }] }),
         select: vi.fn(() => {
           selectCount++;
           if (selectCount === 1) {
@@ -121,7 +123,12 @@ describe('NumberingService', () => {
       const db: any = { transaction: vi.fn(async (cb: any) => cb(trx)) };
       const svc = new NumberingService({ db, logger: mockLogger });
 
-      const result = await svc.assignPreliminaryNumber('doc-1', 'sp_resolution', 'city-1', 'actor-1');
+      const result = await svc.assignPreliminaryNumber(
+        'doc-1',
+        'sp_resolution',
+        'city-1',
+        'actor-1',
+      );
 
       // Ledger row inserted
       expect(trx.insert).toHaveBeenCalledTimes(1);
@@ -168,13 +175,18 @@ describe('NumberingService', () => {
     it('logs a warn when fn_get_next_sequence_value returns was_created=true', async () => {
       const year = new Date().getFullYear();
       const insertedRow = {
-        id: 'num-1', numberValue: `Draft 7SP ${year}-01`,
-        sequenceNumber: 1, sequenceYear: year, assignedAt: new Date(),
+        id: 'num-1',
+        numberValue: `Draft 7SP ${year}-01`,
+        sequenceNumber: 1,
+        sequenceYear: year,
+        assignedAt: new Date(),
       };
 
       let selectCount = 0;
       const trx: any = {
-        execute: vi.fn().mockResolvedValue({ rows: [{ sequence_value: BigInt(1), was_created: true }] }),
+        execute: vi
+          .fn()
+          .mockResolvedValue({ rows: [{ sequence_value: BigInt(1), was_created: true }] }),
         select: vi.fn(() => {
           selectCount++;
           if (selectCount === 1) return makeBuilder([]); // no existing prelim
@@ -233,7 +245,9 @@ describe('NumberingService', () => {
 
       let selectCount = 0;
       const trx: any = {
-        execute: vi.fn().mockResolvedValue({ rows: [{ sequence_value: BigInt(1), was_created: false }] }),
+        execute: vi
+          .fn()
+          .mockResolvedValue({ rows: [{ sequence_value: BigInt(1), was_created: false }] }),
         select: vi.fn(() => {
           selectCount++;
           if (selectCount === 1) return makeBuilder([docRow]); // findDocumentById
@@ -271,10 +285,16 @@ describe('NumberingService', () => {
       const db: any = { update: vi.fn(() => updateChain) };
       const svc = new NumberingService({ db, logger: mockLogger });
 
-      await svc.logCancellationGap('number-uuid-1', 'Document cancelled by SP Secretary', 'actor-1');
+      await svc.logCancellationGap(
+        'number-uuid-1',
+        'Document cancelled by SP Secretary',
+        'actor-1',
+      );
 
       expect(db.update).toHaveBeenCalledTimes(1);
-      expect(updateChain.set).toHaveBeenCalledWith({ cancellationReason: 'Document cancelled by SP Secretary' });
+      expect(updateChain.set).toHaveBeenCalledWith({
+        cancellationReason: 'Document cancelled by SP Secretary',
+      });
     });
   });
 
@@ -286,7 +306,9 @@ describe('NumberingService', () => {
 
       let selectCount = 0;
       const trx: any = {
-        execute: vi.fn().mockResolvedValue({ rows: [{ sequence_value: BigInt(5), was_created: false }] }),
+        execute: vi
+          .fn()
+          .mockResolvedValue({ rows: [{ sequence_value: BigInt(5), was_created: false }] }),
         select: vi.fn(() => {
           selectCount++;
           if (selectCount === 1) return makeBuilder([]); // no prelim
@@ -310,4 +332,3 @@ describe('NumberingService', () => {
     });
   });
 });
-

@@ -59,8 +59,11 @@ async function databasePlugin(fastify: FastifyInstance): Promise<void> {
       return function (this: unknown, ...args: unknown[]) {
         const store = rlsStore.getStore();
         const activeTarget = store?.tx ?? target;
-        const activeValue = Reflect.get(activeTarget, prop,
-          activeTarget === target ? receiver : activeTarget);
+        const activeValue = Reflect.get(
+          activeTarget,
+          prop,
+          activeTarget === target ? receiver : activeTarget,
+        );
         if (typeof activeValue === 'function') {
           return activeValue.apply(activeTarget, args);
         }

@@ -8,7 +8,8 @@ const interactiveDocWithSLA: DocumentPreview = {
   id: 'doc-001',
   documentNumber: '7SP 2026-001',
   numberVariant: 'final',
-  title: 'An Ordinance Providing for the Comprehensive Solid Waste Management Program of the City of Batac, Ilocos Norte, Appropriating Funds Therefor, and for Other Purposes.',
+  title:
+    'An Ordinance Providing for the Comprehensive Solid Waste Management Program of the City of Batac, Ilocos Norte, Appropriating Funds Therefor, and for Other Purposes.',
   documentState: 'PANLALAWIGAN_REVIEW',
   lastActionAt: new Date('2026-06-13T09:00:00+08:00'),
   slaDeadlineAt: new Date('2026-07-13T09:00:00+08:00'),
@@ -40,16 +41,17 @@ const docNoThumbnail: DocumentPreview = {
 
 export function DocumentPreviewCardPage() {
   return (
-    <div className="p-8 space-y-12 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl space-y-12 p-8">
       <div className="space-y-4">
         <h2 className="text-xl font-bold">Interactive with SLATimer</h2>
         <p className="text-sm text-neutral-500">
-          State is PANLALAWIGAN_REVIEW and SLA fields are present. `onClick` is provided, so it is interactive.
+          State is PANLALAWIGAN_REVIEW and SLA fields are present. `onClick` is provided, so it is
+          interactive.
         </p>
         <div className="max-w-[280px]">
-          <DocumentPreviewCard 
-            document={interactiveDocWithSLA} 
-            onClick={() => console.log('Clicked doc-001')} 
+          <DocumentPreviewCard
+            document={interactiveDocWithSLA}
+            onClick={() => console.log('Clicked doc-001')}
           />
         </div>
       </div>
@@ -57,23 +59,20 @@ export function DocumentPreviewCardPage() {
       <div className="space-y-4">
         <h2 className="text-xl font-bold">Non-interactive, No SLATimer</h2>
         <p className="text-sm text-neutral-500">
-          State is ARCHIVED. SLA fields are present, but SLATimer should NOT render. No `onClick` provided.
+          State is ARCHIVED. SLA fields are present, but SLATimer should NOT render. No `onClick`
+          provided.
         </p>
         <div className="max-w-[280px]">
-          <DocumentPreviewCard 
-            document={docNoSLA} 
-          />
+          <DocumentPreviewCard document={docNoSLA} />
         </div>
       </div>
 
       <div className="space-y-4">
         <h2 className="text-xl font-bold">No Thumbnail, Interactive with SLATimer</h2>
-        <p className="text-sm text-neutral-500">
-          State is PENDING_MAYOR.
-        </p>
+        <p className="text-sm text-neutral-500">State is PENDING_MAYOR.</p>
         <div className="max-w-[280px]">
-          <DocumentPreviewCard 
-            document={docNoThumbnail} 
+          <DocumentPreviewCard
+            document={docNoThumbnail}
             onClick={() => console.log('Clicked doc-003')}
           />
         </div>
@@ -85,10 +84,7 @@ export function DocumentPreviewCardPage() {
           `isLoading` is true. Skeleton placeholders should match real content positions.
         </p>
         <div className="max-w-[280px]">
-          <DocumentPreviewCard 
-            document={interactiveDocWithSLA} 
-            isLoading={true} 
-          />
+          <DocumentPreviewCard document={interactiveDocWithSLA} isLoading={true} />
         </div>
       </div>
     </div>

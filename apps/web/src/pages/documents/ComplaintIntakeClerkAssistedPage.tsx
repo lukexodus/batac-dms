@@ -5,10 +5,10 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
-import { 
-  Button, 
-  Input, 
-  Label, 
+import {
+  Button,
+  Input,
+  Label,
   Textarea,
   Card,
   CardHeader,
@@ -19,7 +19,6 @@ import {
 } from '@batac/ui';
 
 import { trpc } from '@/lib/trpc';
-
 
 const ComplaintIntakeSchema = z.object({
   complainantName: z.string().min(1, 'Complainant name is required'),
@@ -64,21 +63,20 @@ export function ComplaintIntakeClerkAssistedPage() {
       };
 
       const result = await createComplaint.mutateAsync(payload);
-      
+
       toast.success('Complaint logged successfully');
       navigate(`/complaints/${result.complaintId}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'An error occurred while logging the complaint');
+      toast.error(
+        err instanceof Error ? err.message : 'An error occurred while logging the complaint',
+      );
     }
   };
 
   return (
-    <div className="container max-w-3xl mx-auto py-8">
-      <PageHeader 
-        title="Log Citizen Complaint" 
-        subtitle="Clerk-Assisted Intake" 
-      />
-      
+    <div className="container mx-auto max-w-3xl py-8">
+      <PageHeader title="Log Citizen Complaint" subtitle="Clerk-Assisted Intake" />
+
       <Card className="mt-6">
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardHeader>
@@ -87,17 +85,21 @@ export function ComplaintIntakeClerkAssistedPage() {
           <CardContent className="space-y-6">
             {/* Complainant Section */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm text-neutral-500 uppercase tracking-wider">Complainant Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h3 className="text-sm font-semibold tracking-wider text-neutral-500 uppercase">
+                Complainant Information
+              </h3>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="complainantName">Full Name <span className="text-danger-500">*</span></Label>
+                  <Label htmlFor="complainantName">
+                    Full Name <span className="text-danger-500">*</span>
+                  </Label>
                   <Input
                     id="complainantName"
                     {...register('complainantName')}
                     placeholder="e.g. Juan Dela Cruz"
                   />
                   {errors.complainantName && (
-                    <p className="text-sm text-danger-500">{errors.complainantName.message}</p>
+                    <p className="text-danger-500 text-sm">{errors.complainantName.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -120,9 +122,11 @@ export function ComplaintIntakeClerkAssistedPage() {
             </div>
 
             {/* Respondent Section */}
-            <div className="space-y-4 pt-4 border-t">
-              <h3 className="font-semibold text-sm text-neutral-500 uppercase tracking-wider">Respondent Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-sm font-semibold tracking-wider text-neutral-500 uppercase">
+                Respondent Information
+              </h3>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="respondentName">Respondent Name</Label>
                   <Input
@@ -140,7 +144,7 @@ export function ComplaintIntakeClerkAssistedPage() {
                     placeholder="Optional"
                   />
                   {errors.respondentEmail && (
-                    <p className="text-sm text-danger-500">{errors.respondentEmail.message}</p>
+                    <p className="text-danger-500 text-sm">{errors.respondentEmail.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -155,22 +159,28 @@ export function ComplaintIntakeClerkAssistedPage() {
             </div>
 
             {/* Incident Section */}
-            <div className="space-y-4 pt-4 border-t">
-              <h3 className="font-semibold text-sm text-neutral-500 uppercase tracking-wider">Incident Details</h3>
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-sm font-semibold tracking-wider text-neutral-500 uppercase">
+                Incident Details
+              </h3>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="subjectCategory">Subject / Category <span className="text-danger-500">*</span></Label>
+                  <Label htmlFor="subjectCategory">
+                    Subject / Category <span className="text-danger-500">*</span>
+                  </Label>
                   <Input
                     id="subjectCategory"
                     {...register('subjectCategory')}
                     placeholder="e.g. Noise Disturbance, Illegal Parking"
                   />
                   {errors.subjectCategory && (
-                    <p className="text-sm text-danger-500">{errors.subjectCategory.message}</p>
+                    <p className="text-danger-500 text-sm">{errors.subjectCategory.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="incidentNarrative">Narrative <span className="text-danger-500">*</span></Label>
+                  <Label htmlFor="incidentNarrative">
+                    Narrative <span className="text-danger-500">*</span>
+                  </Label>
                   <Textarea
                     id="incidentNarrative"
                     {...register('incidentNarrative')}
@@ -178,14 +188,13 @@ export function ComplaintIntakeClerkAssistedPage() {
                     className="min-h-[120px]"
                   />
                   {errors.incidentNarrative && (
-                    <p className="text-sm text-danger-500">{errors.incidentNarrative.message}</p>
+                    <p className="text-danger-500 text-sm">{errors.incidentNarrative.message}</p>
                   )}
                 </div>
               </div>
             </div>
-            
           </CardContent>
-          <CardFooter className="flex justify-end gap-2 border-t pt-4 mt-2">
+          <CardFooter className="mt-2 flex justify-end gap-2 border-t pt-4">
             <Button
               type="button"
               variant="outline"

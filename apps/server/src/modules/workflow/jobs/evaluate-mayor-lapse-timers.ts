@@ -7,13 +7,14 @@ export type EvaluateMayorLapseTimersDeps = StepResolutionDeps;
 
 export async function evaluateMayorLapseTimers(
   deps: EvaluateMayorLapseTimersDeps,
-  options?: { now?: Date }
+  options?: { now?: Date },
 ): Promise<void> {
   const now = options?.now || new Date();
 
-  const instancesAndSteps = await deps.workflowRepository.getActiveInstancesByDefinitionAndStepConfig({
-    stepType: 'approval'
-  });
+  const instancesAndSteps =
+    await deps.workflowRepository.getActiveInstancesByDefinitionAndStepConfig({
+      stepType: 'approval',
+    });
 
   for (const { instance, stepInstance } of instancesAndSteps) {
     if (stepInstance.outcome !== null) {
@@ -21,11 +22,11 @@ export async function evaluateMayorLapseTimers(
     }
 
     const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
-      instance.definitionVersionId
+      instance.definitionVersionId,
     );
     if (!versionData) continue;
 
-    const stepDef = versionData.steps.find(s => s.id === stepInstance.stepId);
+    const stepDef = versionData.steps.find((s) => s.id === stepInstance.stepId);
     if (!stepDef) continue;
 
     const config = (stepDef.config as Record<string, any>) || {};
@@ -49,7 +50,10 @@ export async function evaluateMayorLapseTimers(
     // Deadline passed, execute lapse in a transaction
     await deps.workflowRepository.runInTransaction(async (tx) => {
       // 1. Lock the step instance
-      const lockedStepInstance = await deps.workflowRepository.lockStepInstanceForUpdate(stepInstance.id, tx);
+      const lockedStepInstance = await deps.workflowRepository.lockStepInstanceForUpdate(
+        stepInstance.id,
+        tx,
+      );
       if (!lockedStepInstance) return;
 
       // 2. Race condition check
@@ -63,10 +67,11 @@ export async function evaluateMayorLapseTimers(
         {
           status: 'completed',
           outcome: 'LAPSED',
-          outcomeComment: 'Mayor took no action within 10 calendar days. Lapsed into law per RA 7160 Section 47.',
-          completedAt: deadline // CRITICAL: deadline, not NOW()
+          outcomeComment:
+            'Mayor took no action within 10 calendar days. Lapsed into law per RA 7160 Section 47.',
+          completedAt: deadline, // CRITICAL: deadline, not NOW()
         },
-        tx
+        tx,
       );
 
       // 4. Update instance context
@@ -74,9 +79,9 @@ export async function evaluateMayorLapseTimers(
         instance.id,
         {
           mayor_action: 'LAPSED',
-          mayor_action_date: deadlineStr
+          mayor_action_date: deadlineStr,
         },
-        tx
+        tx,
       );
 
       // 5. Emit event
@@ -89,10 +94,10 @@ export async function evaluateMayorLapseTimers(
           payload: {
             stepInstanceId: stepInstance.id,
             legalBasis: 'RA 7160 Section 47',
-            deadlineWas: deadlineStr
-          }
+            deadlineWas: deadlineStr,
+          },
         },
-        tx
+        tx,
       );
 
       // Reload instance because context changed
@@ -100,13 +105,7 @@ export async function evaluateMayorLapseTimers(
       if (!updatedInstance) throw new Error('Instance not found during lapse execution');
 
       // 6. Run step resolution
-      await resolveNextStep(
-        updatedInstance,
-        updatedStepInstance,
-        'LAPSED',
-        deps,
-        tx as any
-      );
+      await resolveNextStep(updatedInstance, updatedStepInstance, 'LAPSED', deps, tx as any);
     });
   }
 }

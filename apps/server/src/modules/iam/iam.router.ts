@@ -14,22 +14,23 @@ function getRepo(ctx: any): IamRepository {
 }
 
 export const iamRouter = router({
-  getCurrentUser: protectedProcedure
-    .input(s.GetProfileInput)
-    .query(async ({ ctx, input }) => {
-      const targetId = input.userId ?? ctx.auth.userId;
-      if (targetId !== ctx.auth.userId) {
-        if (!ctx.auth.isItAdmin && !ctx.auth.isPlatformAdmin) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required to view other profiles' });
-        }
+  getCurrentUser: protectedProcedure.input(s.GetProfileInput).query(async ({ ctx, input }) => {
+    const targetId = input.userId ?? ctx.auth.userId;
+    if (targetId !== ctx.auth.userId) {
+      if (!ctx.auth.isItAdmin && !ctx.auth.isPlatformAdmin) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Admin access required to view other profiles',
+        });
       }
-      const service = getService(ctx);
-      const user = await service.getUserById(targetId);
-      if (!user) {
-        throw new TRPCError({ code: 'NOT_FOUND' });
-      }
-      return user;
-    }),
+    }
+    const service = getService(ctx);
+    const user = await service.getUserById(targetId);
+    if (!user) {
+      throw new TRPCError({ code: 'NOT_FOUND' });
+    }
+    return user;
+  }),
 
   updateOwnProfile: protectedProcedure
     .input(s.UpdateProfileInput)
@@ -61,11 +62,10 @@ export const iamRouter = router({
       }
     }),
 
-  listActiveSessions: protectedProcedure
-    .query(async ({ ctx }) => {
-      const service = getService(ctx);
-      return service.listSessionsByUserId(ctx.auth.userId);
-    }),
+  listActiveSessions: protectedProcedure.query(async ({ ctx }) => {
+    const service = getService(ctx);
+    return service.listSessionsByUserId(ctx.auth.userId);
+  }),
 
   listAllActiveSessions: protectedProcedure
     .input(s.paginationInput)
@@ -130,7 +130,10 @@ export const iamRouter = router({
     .input(s.EditUserAccountInput)
     .mutation(async ({ ctx, input }) => {
       if (!ctx.auth.isItAdmin && !ctx.auth.isPlatformAdmin && ctx.auth.userId !== input.userId) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required to edit other users' });
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Admin access required to edit other users',
+        });
       }
       const service = getService(ctx);
       return service.updateUserAccount({
@@ -163,44 +166,40 @@ export const iamRouter = router({
       return { success: true, newStatus: 'active' };
     }),
 
-  assignRole: protectedProcedure
-    .input(s.AssignRoleInput)
-    .mutation(async ({ ctx, input }) => {
-      if (!ctx.auth.isPlatformAdmin) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Platform Admin access required' });
-      }
-      const service = getService(ctx);
-      try {
-        const assignment = await service.assignRole({
-          actorId: ctx.auth.userId,
-          targetUserId: input.userId,
-          roleId: input.roleCode,
-          officeScopeId: input.officeScopeId ?? null,
-        });
-        return { roleAssignmentId: assignment.id };
-      } catch (err) {
-        if (err instanceof RoleCombinationForbiddenError) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: err.message, cause: err });
-        }
-        throw err;
-      }
-    }),
-
-  revokeRole: protectedProcedure
-    .input(s.RevokeRoleInput)
-    .mutation(async ({ ctx, input }) => {
-      if (!ctx.auth.isPlatformAdmin) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Platform Admin access required' });
-      }
-      const service = getService(ctx);
-      await service.revokeRole({
+  assignRole: protectedProcedure.input(s.AssignRoleInput).mutation(async ({ ctx, input }) => {
+    if (!ctx.auth.isPlatformAdmin) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Platform Admin access required' });
+    }
+    const service = getService(ctx);
+    try {
+      const assignment = await service.assignRole({
         actorId: ctx.auth.userId,
-        targetUserId: '',
-        roleAssignmentId: input.roleAssignmentId,
-        reason: 'Revoked by Platform Admin',
+        targetUserId: input.userId,
+        roleId: input.roleCode,
+        officeScopeId: input.officeScopeId ?? null,
       });
-      return { success: true };
-    }),
+      return { roleAssignmentId: assignment.id };
+    } catch (err) {
+      if (err instanceof RoleCombinationForbiddenError) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: err.message, cause: err });
+      }
+      throw err;
+    }
+  }),
+
+  revokeRole: protectedProcedure.input(s.RevokeRoleInput).mutation(async ({ ctx, input }) => {
+    if (!ctx.auth.isPlatformAdmin) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Platform Admin access required' });
+    }
+    const service = getService(ctx);
+    await service.revokeRole({
+      actorId: ctx.auth.userId,
+      targetUserId: '',
+      roleAssignmentId: input.roleAssignmentId,
+      reason: 'Revoked by Platform Admin',
+    });
+    return { success: true };
+  }),
 
   listRoleAssignmentsByUser: protectedProcedure
     .input(z.object({ userId: z.string().uuid() }))

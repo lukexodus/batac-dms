@@ -117,10 +117,7 @@ describe('DocumentsRepository', () => {
 
     it('returns null if no current number is found', async () => {
       mockDb.limit.mockResolvedValueOnce([]);
-      const result = await repo.findCurrentNumber(
-        '550e8400-e29b-41d4-a716-446655449999',
-        'final',
-      );
+      const result = await repo.findCurrentNumber('550e8400-e29b-41d4-a716-446655449999', 'final');
       expect(result).toBeNull();
     });
   });
@@ -128,11 +125,7 @@ describe('DocumentsRepository', () => {
   describe('hasClassificationAllowlistEntry', () => {
     it('returns true if a matching allowlist entry exists', async () => {
       mockDb.limit.mockResolvedValueOnce([{ id: 'allowlist-1' }]);
-      const result = await repo.hasClassificationAllowlistEntry(
-        'type-1',
-        'role-1',
-        'city-1',
-      );
+      const result = await repo.hasClassificationAllowlistEntry('type-1', 'role-1', 'city-1');
       expect(result).toBe(true);
       expect(mockDb.select).toHaveBeenCalled();
       expect(mockDb.from).toHaveBeenCalledWith(classificationAllowlists);
@@ -140,11 +133,7 @@ describe('DocumentsRepository', () => {
 
     it('returns false for unlisted type/role/city pairs', async () => {
       mockDb.limit.mockResolvedValueOnce([]);
-      const result = await repo.hasClassificationAllowlistEntry(
-        'type-2',
-        'role-2',
-        'city-2',
-      );
+      const result = await repo.hasClassificationAllowlistEntry('type-2', 'role-2', 'city-2');
       expect(result).toBe(false);
     });
   });

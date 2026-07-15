@@ -18,7 +18,7 @@ describe('Organization Repository', () => {
       set: vi.fn().mockReturnThis(),
       $dynamic: vi.fn().mockReturnThis(),
     };
-    
+
     repo = createOrgRepository(mockDb as unknown as DbClient);
   });
 
@@ -41,7 +41,7 @@ describe('Organization Repository', () => {
       mockDb.where.mockResolvedValueOnce([]);
       await repo.offices.findAll();
       // Should have called where with isNull(offices.deletedAt)
-      expect(mockDb.where).toHaveBeenCalled(); 
+      expect(mockDb.where).toHaveBeenCalled();
     });
 
     it('findAll includes deleted records when option is true', async () => {
@@ -54,10 +54,12 @@ describe('Organization Repository', () => {
       mockDb.where.mockResolvedValueOnce([]);
       await repo.offices.softDelete('office-id', 'user-id');
       expect(mockDb.update).toHaveBeenCalled();
-      expect(mockDb.set).toHaveBeenCalledWith(expect.objectContaining({
-        deletedBy: 'user-id',
-        deletedAt: expect.any(Date)
-      }));
+      expect(mockDb.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deletedBy: 'user-id',
+          deletedAt: expect.any(Date),
+        }),
+      );
     });
   });
 
@@ -73,16 +75,22 @@ describe('Organization Repository', () => {
 
       // Verify it was called twice
       expect(mockTx.update).toHaveBeenCalledTimes(2);
-      
+
       // First call clears isPrimary
-      expect(mockTx.set).toHaveBeenNthCalledWith(1, expect.objectContaining({
-        isPrimary: false
-      }));
+      expect(mockTx.set).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          isPrimary: false,
+        }),
+      );
 
       // Second call sets isPrimary for target
-      expect(mockTx.set).toHaveBeenNthCalledWith(2, expect.objectContaining({
-        isPrimary: true
-      }));
+      expect(mockTx.set).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          isPrimary: true,
+        }),
+      );
     });
   });
 });

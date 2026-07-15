@@ -34,8 +34,6 @@ declare module 'fastify' {
 }
 
 export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
-
-  
   const repository = new TrackingRepository(fastify.db);
   const s3Client = new S3Client({
     region: env.S3_REGION || 'ap-southeast-1',
@@ -48,9 +46,9 @@ export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
   });
 
   const qrCodeService = new QrCodeService(repository, s3Client, env as any, fastify.db);
-  
+
   const trackingService = createTrackingService(repository);
-  
+
   // Decorate for router access via ctx.req.server.*
   fastify.decorate('trackingRepository', repository);
   fastify.decorate('trackingService', trackingService);
@@ -65,25 +63,47 @@ export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
     documentsService: fastify.documentsService,
     s3Client,
     s3Bucket: env.S3_BUCKET || 'batac-dms-assets',
-    config: { APP_BASE_URL: env.APP_URL, PREVIEW_URL_EXPIRY_SECONDS: String(env.S3_SIGNED_URL_EXPIRES_S) }
+    config: {
+      APP_BASE_URL: env.APP_URL,
+      PREVIEW_URL_EXPIRY_SECONDS: String(env.S3_SIGNED_URL_EXPIRES_S),
+    },
   });
 
   fastify.get('/track/:trackingId', publicLookupHandler);
 
-  const eventConsumer = new TrackingEventConsumer(repository, qrCodeService, fastify.log, fastify.db);
+  const eventConsumer = new TrackingEventConsumer(
+    repository,
+    qrCodeService,
+    fastify.log,
+    fastify.db,
+  );
 
-  fastify.eventBus.on('document.created', (event) => {
-    eventConsumer.handleDocumentCreated(event).catch((err) => {
-      fastify.log.error({ err, eventId: event.eventId }, 'tracking: document.created handler failed');
-      // dead-letter handling is owned by the INFRA pgboss dead-letter task
-    });
-  }, 'tracking');
+  fastify.eventBus.on(
+    'document.created',
+    (event) => {
+      eventConsumer.handleDocumentCreated(event).catch((err) => {
+        fastify.log.error(
+          { err, eventId: event.eventId },
+          'tracking: document.created handler failed',
+        );
+        // dead-letter handling is owned by the INFRA pgboss dead-letter task
+      });
+    },
+    'tracking',
+  );
 
-  fastify.eventBus.on('workflow.step_completed', (event) => {
-    eventConsumer.handleWorkflowStepCompleted(event).catch((err) => {
-      fastify.log.error({ err, eventId: event.eventId }, 'tracking: workflow.step_completed handler failed');
-    });
-  }, 'tracking');
+  fastify.eventBus.on(
+    'workflow.step_completed',
+    (event) => {
+      eventConsumer.handleWorkflowStepCompleted(event).catch((err) => {
+        fastify.log.error(
+          { err, eventId: event.eventId },
+          'tracking: workflow.step_completed handler failed',
+        );
+      });
+    },
+    'tracking',
+  );
 
   // TODO(PORTAL-INTEGRATION): Portal (Phase 3) will call trackingService.getTrackingRecordForDocument()
   // for the public scan display on the citizen portal.

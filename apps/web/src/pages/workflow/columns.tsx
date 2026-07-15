@@ -15,12 +15,15 @@ type AssignedStepRow = RouterOutputs['workflow']['listMyAssignedSteps']['items']
 // but is intentionally NOT extracted to packages/ui — it's a small local
 // helper for this page only. See TASK-WF-FE-001 implementation notes.
 
-type StepType = 'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination';
+type StepType =
+  | 'action'
+  | 'approval'
+  | 'multi_referral'
+  | 'decision'
+  | 'notification'
+  | 'termination';
 
-const STEP_TYPE_META: Record<
-  StepType,
-  { label: string; className: string }
-> = {
+const STEP_TYPE_META: Record<StepType, { label: string; className: string }> = {
   action: {
     label: 'Action',
     className:
@@ -72,7 +75,7 @@ export const columns: ColumnDef<AssignedStepRow>[] = [
       return (
         <Link
           to={`/workflow/steps/${row.original.instanceId}`}
-          className="font-medium hover:underline text-primary"
+          className="text-primary font-medium hover:underline"
         >
           {row.getValue('documentTitle')}
         </Link>
@@ -102,13 +105,7 @@ export const columns: ColumnDef<AssignedStepRow>[] = [
       const dueDate = new Date(due);
       const isOverdue = dueDate < new Date();
       return (
-        <span
-          className={
-            isOverdue
-              ? 'font-medium text-red-600'
-              : 'text-muted-foreground'
-          }
-        >
+        <span className={isOverdue ? 'font-medium text-red-600' : 'text-muted-foreground'}>
           {format(dueDate, 'PP')}
         </span>
       );

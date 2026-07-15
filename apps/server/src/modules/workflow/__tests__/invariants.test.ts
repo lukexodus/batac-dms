@@ -5,7 +5,10 @@ import { executeTerminationStep } from '../engine/step-handlers/termination.hand
 import { validateDefinitionForPublish } from '../engine/definition-validator.js';
 import { cancelInstance, migrateInstance } from '../engine/admin-operations.js';
 import { WorkflowRepository } from '../workflow.repository.js';
-import { InvalidWorkflowTransitionError, ValidationFailedError } from '../../../errors/domain/workflow.js';
+import {
+  InvalidWorkflowTransitionError,
+  ValidationFailedError,
+} from '../../../errors/domain/workflow.js';
 import {
   buildMockApprovalDeps,
   buildMockInstance,
@@ -46,7 +49,15 @@ describe('B4 Engine Invariants', () => {
       });
 
       try {
-        await submitStepMultiReferral(mockInstance, mockStepInstance, 'user-sec', 'user', 'REPORT_ACCEPTED', null, mockDeps);
+        await submitStepMultiReferral(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'REPORT_ACCEPTED',
+          null,
+          mockDeps,
+        );
         expect.unreachable('Should have thrown');
       } catch (e: any) {
         expect(e.message).toContain('all assigned committees must submit');
@@ -66,14 +77,28 @@ describe('B4 Engine Invariants', () => {
       mockInstance = buildMockInstance();
       mockStepInstance = buildMockStepInstance();
       mockDeps.workflowRepository.getDefinitionVersionWithSteps.mockResolvedValue({
-        steps: [{ id: 'step-mayor', stepType: 'approval', config: { allowed_outcomes: ['LAPSED', 'DEEMED_APPROVED'] } }],
+        steps: [
+          {
+            id: 'step-mayor',
+            stepType: 'approval',
+            config: { allowed_outcomes: ['LAPSED', 'DEEMED_APPROVED'] },
+          },
+        ],
       });
       mockDeps.workflowRepository.getStepInstanceById.mockResolvedValue(mockStepInstance);
     });
 
     it('INV3-01a: LAPSED submitted by user → FORBIDDEN with LAPSED_IS_SCHEDULER_ONLY', async () => {
       try {
-        await submitStepApproval(mockInstance, mockStepInstance, 'user-1', 'user', 'LAPSED', null, mockDeps);
+        await submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-1',
+          'user',
+          'LAPSED',
+          null,
+          mockDeps,
+        );
         expect.unreachable();
       } catch (e: any) {
         expect(e.message).toContain('FORBIDDEN');
@@ -83,7 +108,15 @@ describe('B4 Engine Invariants', () => {
 
     it('INV3-01b: DEEMED_APPROVED submitted by user → FORBIDDEN with DEEMED_APPROVED_IS_SCHEDULER_ONLY', async () => {
       try {
-        await submitStepApproval(mockInstance, mockStepInstance, 'user-1', 'user', 'DEEMED_APPROVED', null, mockDeps);
+        await submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-1',
+          'user',
+          'DEEMED_APPROVED',
+          null,
+          mockDeps,
+        );
         expect.unreachable();
       } catch (e: any) {
         expect(e.message).toContain('FORBIDDEN');
@@ -93,7 +126,15 @@ describe('B4 Engine Invariants', () => {
 
     it('INV3-02: LAPSED submitted by scheduler succeeds', async () => {
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'scheduler', 'scheduler', 'LAPSED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'scheduler',
+          'scheduler',
+          'LAPSED',
+          null,
+          mockDeps,
+        ),
       ).resolves.not.toThrow();
     });
   });
@@ -103,20 +144,30 @@ describe('B4 Engine Invariants', () => {
     it('INV4-01: MISSING_OUTCOME_TRANSITION raised when outcome has no covering rule', async () => {
       const mockRepo = buildMockRepo();
       mockRepo.getStepsAndRulesForValidation.mockResolvedValue({
-        steps: [{
-          id: 's1', stepKey: 'vote', stepType: 'approval', isStart: true,
-          config: { allowed_outcomes: ['APPROVED', 'REJECTED'] },
-        }],
+        steps: [
+          {
+            id: 's1',
+            stepKey: 'vote',
+            stepType: 'approval',
+            isStart: true,
+            config: { allowed_outcomes: ['APPROVED', 'REJECTED'] },
+          },
+        ],
         transitionRules: [
           { id: 'r1', fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' },
           // REJECTED has no rule → should fail
         ],
       });
-      const result = await validateDefinitionForPublish('ver-1', { workflowRepository: mockRepo as any });
+      const result = await validateDefinitionForPublish('ver-1', {
+        workflowRepository: mockRepo as any,
+      });
       expect(result.valid).toBe(false);
       if (!result.valid) {
         expect(result.errors).toContainEqual(
-          expect.objectContaining({ code: 'MISSING_OUTCOME_TRANSITION', missing_outcome_code: 'REJECTED' })
+          expect.objectContaining({
+            code: 'MISSING_OUTCOME_TRANSITION',
+            missing_outcome_code: 'REJECTED',
+          }),
         );
       }
     });
@@ -124,22 +175,29 @@ describe('B4 Engine Invariants', () => {
     it('INV4-02: MISSING_LAPSE_TRANSITION is raised specifically for LAPSED (not MISSING_OUTCOME_TRANSITION)', async () => {
       const mockRepo = buildMockRepo();
       mockRepo.getStepsAndRulesForValidation.mockResolvedValue({
-        steps: [{
-          id: 's1', stepKey: 'mayor', stepType: 'approval', isStart: true,
-          config: { allowed_outcomes: ['APPROVED', 'LAPSED'] },
-        }],
+        steps: [
+          {
+            id: 's1',
+            stepKey: 'mayor',
+            stepType: 'approval',
+            isStart: true,
+            config: { allowed_outcomes: ['APPROVED', 'LAPSED'] },
+          },
+        ],
         transitionRules: [
           { id: 'r1', fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' },
         ],
       });
-      const result = await validateDefinitionForPublish('ver-1', { workflowRepository: mockRepo as any });
+      const result = await validateDefinitionForPublish('ver-1', {
+        workflowRepository: mockRepo as any,
+      });
       expect(result.valid).toBe(false);
       if (!result.valid) {
         const codes = result.errors.map((e) => e.code);
         expect(codes).toContain('MISSING_LAPSE_TRANSITION');
         // LAPSED should NOT also raise MISSING_OUTCOME_TRANSITION
         const hasOutcomeErr = result.errors.some(
-          (e) => e.code === 'MISSING_OUTCOME_TRANSITION' && e.missing_outcome_code === 'LAPSED'
+          (e) => e.code === 'MISSING_OUTCOME_TRANSITION' && e.missing_outcome_code === 'LAPSED',
         );
         expect(hasOutcomeErr).toBe(false);
       }
@@ -151,14 +209,18 @@ describe('B4 Engine Invariants', () => {
     it('INV5-01: parallel_split in definition → STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1', async () => {
       const mockRepo = buildMockRepo();
       mockRepo.getStepsAndRulesForValidation.mockResolvedValue({
-        steps: [{ id: 's1', stepKey: 'par', stepType: 'parallel_split', isStart: true, config: {} }],
+        steps: [
+          { id: 's1', stepKey: 'par', stepType: 'parallel_split', isStart: true, config: {} },
+        ],
         transitionRules: [],
       });
-      const result = await validateDefinitionForPublish('ver-1', { workflowRepository: mockRepo as any });
+      const result = await validateDefinitionForPublish('ver-1', {
+        workflowRepository: mockRepo as any,
+      });
       expect(result.valid).toBe(false);
       if (!result.valid) {
         expect(result.errors).toContainEqual(
-          expect.objectContaining({ code: 'STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1' })
+          expect.objectContaining({ code: 'STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1' }),
         );
       }
     });
@@ -169,11 +231,13 @@ describe('B4 Engine Invariants', () => {
         steps: [{ id: 's1', stepKey: 'par', stepType: 'parallel_join', isStart: true, config: {} }],
         transitionRules: [],
       });
-      const result = await validateDefinitionForPublish('ver-1', { workflowRepository: mockRepo as any });
+      const result = await validateDefinitionForPublish('ver-1', {
+        workflowRepository: mockRepo as any,
+      });
       expect(result.valid).toBe(false);
       if (!result.valid) {
         expect(result.errors).toContainEqual(
-          expect.objectContaining({ code: 'STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1' })
+          expect.objectContaining({ code: 'STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1' }),
         );
       }
     });
@@ -200,9 +264,9 @@ describe('B4 Engine Invariants', () => {
         $dynamic: vi.fn().mockReturnThis(),
       };
       const repo = new WorkflowRepository(mockDb);
-      await expect(
-        repo.updateInstanceStatus('inst-1', 'active')
-      ).rejects.toThrow(InvalidWorkflowTransitionError);
+      await expect(repo.updateInstanceStatus('inst-1', 'active')).rejects.toThrow(
+        InvalidWorkflowTransitionError,
+      );
       expect(mockDb.update).not.toHaveBeenCalled();
     });
 
@@ -225,9 +289,9 @@ describe('B4 Engine Invariants', () => {
         $dynamic: vi.fn().mockReturnThis(),
       };
       const repo = new WorkflowRepository(mockDb);
-      await expect(
-        repo.updateInstanceStatus('inst-1', 'active')
-      ).rejects.toThrow(InvalidWorkflowTransitionError);
+      await expect(repo.updateInstanceStatus('inst-1', 'active')).rejects.toThrow(
+        InvalidWorkflowTransitionError,
+      );
     });
   });
 
@@ -243,10 +307,24 @@ describe('B4 Engine Invariants', () => {
         },
       });
       mockDeps.workflowRepository.getDefinitionVersionWithSteps.mockResolvedValue({
-        steps: [{ id: 'step-mayor', stepType: 'multi_referral', config: { allow_secretary_advance: true } }],
+        steps: [
+          {
+            id: 'step-mayor',
+            stepType: 'multi_referral',
+            config: { allow_secretary_advance: true },
+          },
+        ],
       });
       await expect(
-        submitStepMultiReferral(mockInstance, mockStepInstance, 'user-sec', 'user', 'SECRETARY_ADVANCED', '', mockDeps)
+        submitStepMultiReferral(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'SECRETARY_ADVANCED',
+          '',
+          mockDeps,
+        ),
       ).rejects.toThrow('COMMENT_REQUIRED');
     });
 
@@ -260,10 +338,24 @@ describe('B4 Engine Invariants', () => {
         },
       });
       mockDeps.workflowRepository.getDefinitionVersionWithSteps.mockResolvedValue({
-        steps: [{ id: 'step-mayor', stepType: 'multi_referral', config: { allow_secretary_advance: true } }],
+        steps: [
+          {
+            id: 'step-mayor',
+            stepType: 'multi_referral',
+            config: { allow_secretary_advance: true },
+          },
+        ],
       });
       await expect(
-        submitStepMultiReferral(mockInstance, mockStepInstance, 'user-sec', 'user', 'SECRETARY_ADVANCED', null, mockDeps)
+        submitStepMultiReferral(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'SECRETARY_ADVANCED',
+          null,
+          mockDeps,
+        ),
       ).rejects.toThrow('COMMENT_REQUIRED');
     });
   });
@@ -283,7 +375,7 @@ describe('B4 Engine Invariants', () => {
         migrateInstance('inst-1', 'ver-2', 'admin-1', 'reason', {
           db: mockDb,
           workflowRepository: mockRepo as any,
-        })
+        }),
       ).rejects.toThrow(); // NoAdminApprovalError or similar
     });
   });
@@ -313,13 +405,13 @@ describe('B4 Engine Invariants', () => {
       expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith(
         'step-inst-1',
         expect.objectContaining({ status: 'completed', outcome: 'REPASSED' }),
-        undefined
+        undefined,
       );
 
       // Must emit repassed event, not completed
       expect(mockDeps.workflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
         expect.objectContaining({ eventType: 'workflow.instance.repassed' }),
-        undefined
+        undefined,
       );
     });
   });
@@ -330,7 +422,10 @@ describe('B4 Engine Invariants', () => {
       const mockDb = { transaction: vi.fn(async (cb: any) => cb('mock-tx')) } as any;
       const mockRepo = buildMockRepo();
       await expect(
-        cancelInstance('inst-1', 'admin-1', '', { db: mockDb, workflowRepository: mockRepo as any })
+        cancelInstance('inst-1', 'admin-1', '', {
+          db: mockDb,
+          workflowRepository: mockRepo as any,
+        }),
       ).rejects.toThrow(ValidationFailedError);
     });
 
@@ -338,7 +433,10 @@ describe('B4 Engine Invariants', () => {
       const mockDb = { transaction: vi.fn(async (cb: any) => cb('mock-tx')) } as any;
       const mockRepo = buildMockRepo();
       await expect(
-        cancelInstance('inst-1', 'admin-1', '   ', { db: mockDb, workflowRepository: mockRepo as any })
+        cancelInstance('inst-1', 'admin-1', '   ', {
+          db: mockDb,
+          workflowRepository: mockRepo as any,
+        }),
       ).rejects.toThrow(ValidationFailedError);
     });
   });
@@ -352,7 +450,9 @@ describe('B4 Engine Invariants', () => {
     beforeEach(() => {
       mockDeps = buildMockApprovalDeps();
       // Instance context.created_by = 'user-encoder' (the encoder/submitter)
-      mockInstance = buildMockInstance({ context: { created_by: 'user-encoder', document_type: 'resolution' } });
+      mockInstance = buildMockInstance({
+        context: { created_by: 'user-encoder', document_type: 'resolution' },
+      });
       mockStepInstance = buildMockStepInstance({
         assignedTo: [{ user_id: 'user-encoder' }], // encoder IS assigned
       });
@@ -361,48 +461,78 @@ describe('B4 Engine Invariants', () => {
     it('INV11-01a (INV11): vp_certification step rejects encoder as approver → ENCODER_CANNOT_BE_FINAL_APPROVER', async () => {
       // The is_final_approval flag lives in step config (JSONB), not a column
       mockDeps.workflowRepository.getDefinitionVersionWithSteps.mockResolvedValue({
-        steps: [{
-          id: 'step-mayor',
-          stepType: 'approval',
-          config: { allowed_outcomes: ['APPROVED', 'REJECTED'], is_final_approval: true },
-        }],
+        steps: [
+          {
+            id: 'step-mayor',
+            stepType: 'approval',
+            config: { allowed_outcomes: ['APPROVED', 'REJECTED'], is_final_approval: true },
+          },
+        ],
       });
       mockDeps.workflowRepository.getStepInstanceById.mockResolvedValue(mockStepInstance);
 
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-encoder', 'user', 'APPROVED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-encoder',
+          'user',
+          'APPROVED',
+          null,
+          mockDeps,
+        ),
       ).rejects.toThrow('ENCODER_CANNOT_BE_FINAL_APPROVER');
     });
 
     it('INV11-01b (INV11): non-encoder actor succeeds on is_final_approval step', async () => {
       mockDeps.workflowRepository.getDefinitionVersionWithSteps.mockResolvedValue({
-        steps: [{
-          id: 'step-mayor',
-          stepType: 'approval',
-          config: { allowed_outcomes: ['APPROVED'], is_final_approval: true },
-        }],
+        steps: [
+          {
+            id: 'step-mayor',
+            stepType: 'approval',
+            config: { allowed_outcomes: ['APPROVED'], is_final_approval: true },
+          },
+        ],
       });
       // Assign a different user
       const nonEncoderStep = buildMockStepInstance({ assignedTo: [{ user_id: 'user-vp' }] });
       mockDeps.workflowRepository.getStepInstanceById.mockResolvedValue(nonEncoderStep);
 
       await expect(
-        submitStepApproval(mockInstance, nonEncoderStep, 'user-vp', 'user', 'APPROVED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          nonEncoderStep,
+          'user-vp',
+          'user',
+          'APPROVED',
+          null,
+          mockDeps,
+        ),
       ).resolves.not.toThrow();
     });
 
     it('INV11-02: non-final-approval step allows encoder to approve', async () => {
       mockDeps.workflowRepository.getDefinitionVersionWithSteps.mockResolvedValue({
-        steps: [{
-          id: 'step-mayor',
-          stepType: 'approval',
-          config: { allowed_outcomes: ['APPROVED'], is_final_approval: false },
-        }],
+        steps: [
+          {
+            id: 'step-mayor',
+            stepType: 'approval',
+            config: { allowed_outcomes: ['APPROVED'], is_final_approval: false },
+          },
+        ],
       });
       mockDeps.workflowRepository.getStepInstanceById.mockResolvedValue(mockStepInstance);
 
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-encoder', 'user', 'APPROVED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-encoder',
+          'user',
+          'APPROVED',
+          null,
+          mockDeps,
+        ),
       ).resolves.not.toThrow();
     });
   });
@@ -412,17 +542,21 @@ describe('B4 Engine Invariants', () => {
     it('INV12-01: cross-version rule → CROSS_VERSION_TRANSITION_REFERENCE error at publish time', async () => {
       const mockRepo = buildMockRepo();
       mockRepo.getStepsAndRulesForValidation.mockResolvedValue({
-        steps: [{ id: 's1', stepKey: 'action_step', stepType: 'action', isStart: true, config: {} }],
+        steps: [
+          { id: 's1', stepKey: 'action_step', stepType: 'action', isStart: true, config: {} },
+        ],
         transitionRules: [
           // toStepId 'other-version-step' is not in the version's steps list
           { id: 'r1', fromStepId: 's1', toStepId: 'other-version-step', outcomeFilter: null },
         ],
       });
-      const result = await validateDefinitionForPublish('ver-1', { workflowRepository: mockRepo as any });
+      const result = await validateDefinitionForPublish('ver-1', {
+        workflowRepository: mockRepo as any,
+      });
       expect(result.valid).toBe(false);
       if (!result.valid) {
         expect(result.errors).toContainEqual(
-          expect.objectContaining({ code: 'CROSS_VERSION_TRANSITION_REFERENCE' })
+          expect.objectContaining({ code: 'CROSS_VERSION_TRANSITION_REFERENCE' }),
         );
       }
     });

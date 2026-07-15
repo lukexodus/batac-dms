@@ -2,6 +2,9 @@
   "name": "@batac/config",
   "private": true,
   "version": "0.0.0",
+  "scripts": {
+    "format": "prettier --write --config ./.prettierrc.json --ignore-path ./.prettierignore --ignore-unknown ."
+  },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "eslint-plugin-boundaries": "^4.0.0",

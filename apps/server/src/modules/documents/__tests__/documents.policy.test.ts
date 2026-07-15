@@ -29,7 +29,11 @@ const guard = new DocumentPolicyGuard();
 
 describe('canCreate', () => {
   it('[acceptance] dept_encoder creating in own office → true', () => {
-    const subject = makeSubject({ roles: ['dept_encoder'], officeId: 'A', effectiveOfficeIds: ['A'] });
+    const subject = makeSubject({
+      roles: ['dept_encoder'],
+      officeId: 'A',
+      effectiveOfficeIds: ['A'],
+    });
     expect(guard.canCreate(subject, { ownedByOfficeId: 'A' })).toBe(true);
   });
 
@@ -46,17 +50,29 @@ describe('canCreate', () => {
   });
 
   it('allows sp_member (Councilors may draft SP measures)', () => {
-    const subject = makeSubject({ roles: ['sp_member'], officeId: 'SP', effectiveOfficeIds: ['SP'] });
+    const subject = makeSubject({
+      roles: ['sp_member'],
+      officeId: 'SP',
+      effectiveOfficeIds: ['SP'],
+    });
     expect(guard.canCreate(subject, { ownedByOfficeId: 'SP' })).toBe(true);
   });
 
   it('denies when target office is outside the subject effective offices', () => {
-    const subject = makeSubject({ roles: ['dept_encoder'], officeId: 'A', effectiveOfficeIds: ['A'] });
+    const subject = makeSubject({
+      roles: ['dept_encoder'],
+      officeId: 'A',
+      effectiveOfficeIds: ['A'],
+    });
     expect(guard.canCreate(subject, { ownedByOfficeId: 'B' })).toBe(false);
   });
 
   it('allows via a delegation-extended office', () => {
-    const subject = makeSubject({ roles: ['dept_approver'], officeId: 'A', effectiveOfficeIds: ['A', 'B'] });
+    const subject = makeSubject({
+      roles: ['dept_approver'],
+      officeId: 'A',
+      effectiveOfficeIds: ['A', 'B'],
+    });
     expect(guard.canCreate(subject, { ownedByOfficeId: 'B' })).toBe(true);
   });
 });
@@ -66,12 +82,16 @@ describe('canCreate', () => {
 describe('canReadMetadata', () => {
   it('allows own-office operational role', () => {
     const subject = makeSubject({ roles: ['dept_encoder'], effectiveOfficeIds: ['A'] });
-    expect(guard.canReadMetadata(subject, { ownedByOfficeId: 'A', classificationLevel: 'internal' })).toBe(true);
+    expect(
+      guard.canReadMetadata(subject, { ownedByOfficeId: 'A', classificationLevel: 'internal' }),
+    ).toBe(true);
   });
 
   it('denies own-office read for a role with no document access (citizen)', () => {
     const subject = makeSubject({ roles: ['citizen'], effectiveOfficeIds: ['A'] });
-    expect(guard.canReadMetadata(subject, { ownedByOfficeId: 'A', classificationLevel: 'internal' })).toBe(false);
+    expect(
+      guard.canReadMetadata(subject, { ownedByOfficeId: 'A', classificationLevel: 'internal' }),
+    ).toBe(false);
   });
 
   it('allows cross-office read when role qualifies, classification is internal, and grant is present', () => {
@@ -97,7 +117,11 @@ describe('canReadMetadata', () => {
   });
 
   it('allows sp_member via committee membership regardless of office', () => {
-    const subject = makeSubject({ roles: ['sp_member'], effectiveOfficeIds: ['A'], committeeIds: ['committee-1'] });
+    const subject = makeSubject({
+      roles: ['sp_member'],
+      effectiveOfficeIds: ['A'],
+      committeeIds: ['committee-1'],
+    });
     expect(
       guard.canReadMetadata(subject, {
         ownedByOfficeId: 'other-office',
@@ -108,7 +132,11 @@ describe('canReadMetadata', () => {
   });
 
   it('allows sp_member via active SP session flag', () => {
-    const subject = makeSubject({ roles: ['sp_member'], effectiveOfficeIds: ['A'], committeeIds: [] });
+    const subject = makeSubject({
+      roles: ['sp_member'],
+      effectiveOfficeIds: ['A'],
+      committeeIds: [],
+    });
     expect(
       guard.canReadMetadata(subject, {
         ownedByOfficeId: 'other-office',
@@ -119,7 +147,11 @@ describe('canReadMetadata', () => {
   });
 
   it('denies sp_member with neither committee membership nor an active SP session', () => {
-    const subject = makeSubject({ roles: ['sp_member'], effectiveOfficeIds: ['A'], committeeIds: [] });
+    const subject = makeSubject({
+      roles: ['sp_member'],
+      effectiveOfficeIds: ['A'],
+      committeeIds: [],
+    });
     expect(
       guard.canReadMetadata(subject, {
         ownedByOfficeId: 'other-office',
@@ -137,14 +169,22 @@ describe('canReadMetadata', () => {
   it('[Gate 4] denies confidential metadata without an allowlist entry, even for an own-office role', () => {
     const subject = makeSubject({ roles: ['dept_encoder'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canReadMetadata(subject, { ownedByOfficeId: 'A', classificationLevel: 'confidential', hasAllowlistEntry: false }),
+      guard.canReadMetadata(subject, {
+        ownedByOfficeId: 'A',
+        classificationLevel: 'confidential',
+        hasAllowlistEntry: false,
+      }),
     ).toBe(false);
   });
 
   it('[Gate 4] allows confidential metadata for an own-office role with an allowlist entry', () => {
     const subject = makeSubject({ roles: ['sp_secretary'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canReadMetadata(subject, { ownedByOfficeId: 'A', classificationLevel: 'confidential', hasAllowlistEntry: true }),
+      guard.canReadMetadata(subject, {
+        ownedByOfficeId: 'A',
+        classificationLevel: 'confidential',
+        hasAllowlistEntry: true,
+      }),
     ).toBe(true);
   });
 });
@@ -159,27 +199,47 @@ describe('canUpdate', () => {
 
   it('denies edits once the document has left Draft state', () => {
     const subject = makeSubject({ roles: ['dept_encoder'], effectiveOfficeIds: ['A'] });
-    expect(guard.canUpdate(subject, { lifecycleState: 'in_workflow', ownedByOfficeId: 'A' })).toBe(false);
+    expect(guard.canUpdate(subject, { lifecycleState: 'in_workflow', ownedByOfficeId: 'A' })).toBe(
+      false,
+    );
   });
 
   it('allows sp_member to edit only their own self-authored draft', () => {
-    const subject = makeSubject({ roles: ['sp_member'], userId: 'author-1', effectiveOfficeIds: ['SP'] });
+    const subject = makeSubject({
+      roles: ['sp_member'],
+      userId: 'author-1',
+      effectiveOfficeIds: ['SP'],
+    });
     expect(
-      guard.canUpdate(subject, { lifecycleState: 'draft', ownedByOfficeId: 'SP', createdBy: 'author-1' }),
+      guard.canUpdate(subject, {
+        lifecycleState: 'draft',
+        ownedByOfficeId: 'SP',
+        createdBy: 'author-1',
+      }),
     ).toBe(true);
   });
 
   it('denies sp_member editing a draft authored by a different SP Member', () => {
-    const subject = makeSubject({ roles: ['sp_member'], userId: 'author-1', effectiveOfficeIds: ['SP'] });
+    const subject = makeSubject({
+      roles: ['sp_member'],
+      userId: 'author-1',
+      effectiveOfficeIds: ['SP'],
+    });
     expect(
-      guard.canUpdate(subject, { lifecycleState: 'draft', ownedByOfficeId: 'SP', createdBy: 'author-2' }),
+      guard.canUpdate(subject, {
+        lifecycleState: 'draft',
+        ownedByOfficeId: 'SP',
+        createdBy: 'author-2',
+      }),
     ).toBe(false);
   });
 
   it('denies records_officer / auditor from updating document content', () => {
     for (const role of ['records_officer', 'auditor']) {
       const subject = makeSubject({ roles: [role], effectiveOfficeIds: ['A'] });
-      expect(guard.canUpdate(subject, { lifecycleState: 'draft', ownedByOfficeId: 'A' })).toBe(false);
+      expect(guard.canUpdate(subject, { lifecycleState: 'draft', ownedByOfficeId: 'A' })).toBe(
+        false,
+      );
     }
   });
 });
@@ -190,21 +250,33 @@ describe('canSoftDelete', () => {
   it('allows dept_encoder to soft-delete a pre-workflow Draft in their office', () => {
     const subject = makeSubject({ roles: ['dept_encoder'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canSoftDelete(subject, { lifecycleState: 'draft', workflowInstanceId: null, ownedByOfficeId: 'A' }),
+      guard.canSoftDelete(subject, {
+        lifecycleState: 'draft',
+        workflowInstanceId: null,
+        ownedByOfficeId: 'A',
+      }),
     ).toBe(true);
   });
 
-  it('[LOG-0028] allows brgy_encoder to soft-delete, matching I1 prose + I2 despite the omission in I1 §3.4\'s literal ALLOW-clause role list', () => {
+  it("[LOG-0028] allows brgy_encoder to soft-delete, matching I1 prose + I2 despite the omission in I1 §3.4's literal ALLOW-clause role list", () => {
     const subject = makeSubject({ roles: ['brgy_encoder'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canSoftDelete(subject, { lifecycleState: 'submitted', workflowInstanceId: null, ownedByOfficeId: 'A' }),
+      guard.canSoftDelete(subject, {
+        lifecycleState: 'submitted',
+        workflowInstanceId: null,
+        ownedByOfficeId: 'A',
+      }),
     ).toBe(true);
   });
 
   it('denies dept_encoder once a workflow instance exists', () => {
     const subject = makeSubject({ roles: ['dept_encoder'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canSoftDelete(subject, { lifecycleState: 'submitted', workflowInstanceId: 'wf-1', ownedByOfficeId: 'A' }),
+      guard.canSoftDelete(subject, {
+        lifecycleState: 'submitted',
+        workflowInstanceId: 'wf-1',
+        ownedByOfficeId: 'A',
+      }),
     ).toBe(false);
   });
 
@@ -224,14 +296,22 @@ describe('canSoftDelete', () => {
     // action those roles retain once a workflow is active.
     const subject = makeSubject({ roles: ['sp_secretary'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canSoftDelete(subject, { lifecycleState: 'submitted', workflowInstanceId: 'wf-1', ownedByOfficeId: 'A' }),
+      guard.canSoftDelete(subject, {
+        lifecycleState: 'submitted',
+        workflowInstanceId: 'wf-1',
+        ownedByOfficeId: 'A',
+      }),
     ).toBe(false);
   });
 
   it('denies deletion of a Completed document by any role (soft-delete is pre-workflow only)', () => {
     const subject = makeSubject({ roles: ['sp_secretary'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canSoftDelete(subject, { lifecycleState: 'completed', workflowInstanceId: null, ownedByOfficeId: 'A' }),
+      guard.canSoftDelete(subject, {
+        lifecycleState: 'completed',
+        workflowInstanceId: null,
+        ownedByOfficeId: 'A',
+      }),
     ).toBe(false);
   });
 });
@@ -241,12 +321,16 @@ describe('canSoftDelete', () => {
 describe('canSubmit', () => {
   it('allows an operational role submitting their own-office Draft', () => {
     const subject = makeSubject({ roles: ['brgy_captain'], effectiveOfficeIds: ['BRGY'] });
-    expect(guard.canSubmit(subject, { lifecycleState: 'draft', ownedByOfficeId: 'BRGY' })).toBe(true);
+    expect(guard.canSubmit(subject, { lifecycleState: 'draft', ownedByOfficeId: 'BRGY' })).toBe(
+      true,
+    );
   });
 
   it('denies submitting a non-Draft document', () => {
     const subject = makeSubject({ roles: ['dept_encoder'], effectiveOfficeIds: ['A'] });
-    expect(guard.canSubmit(subject, { lifecycleState: 'submitted', ownedByOfficeId: 'A' })).toBe(false);
+    expect(guard.canSubmit(subject, { lifecycleState: 'submitted', ownedByOfficeId: 'A' })).toBe(
+      false,
+    );
   });
 });
 
@@ -268,35 +352,57 @@ describe('canCancel', () => {
   it('allows dept_approver to cancel from any active (non-terminal) state', () => {
     const subject = makeSubject({ roles: ['dept_approver'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canCancel(subject, { lifecycleState: 'in_workflow', workflowInstanceId: 'wf-1', ownedByOfficeId: 'A' }),
+      guard.canCancel(subject, {
+        lifecycleState: 'in_workflow',
+        workflowInstanceId: 'wf-1',
+        ownedByOfficeId: 'A',
+      }),
     ).toBe(true);
   });
 
   it('denies cancellation once archived, disposed, or cancelled', () => {
     const subject = makeSubject({ roles: ['mayor'], effectiveOfficeIds: ['A'] });
     for (const lifecycleState of ['archived', 'disposed', 'cancelled'] as const) {
-      expect(guard.canCancel(subject, { lifecycleState, workflowInstanceId: null, ownedByOfficeId: 'A' })).toBe(false);
+      expect(
+        guard.canCancel(subject, {
+          lifecycleState,
+          workflowInstanceId: null,
+          ownedByOfficeId: 'A',
+        }),
+      ).toBe(false);
     }
   });
 
   it('allows dept_encoder to cancel only pre-workflow', () => {
     const subject = makeSubject({ roles: ['dept_encoder'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canCancel(subject, { lifecycleState: 'submitted', workflowInstanceId: null, ownedByOfficeId: 'A' }),
+      guard.canCancel(subject, {
+        lifecycleState: 'submitted',
+        workflowInstanceId: null,
+        ownedByOfficeId: 'A',
+      }),
     ).toBe(true);
   });
 
   it('denies dept_encoder from cancelling once a workflow instance exists', () => {
     const subject = makeSubject({ roles: ['dept_encoder'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canCancel(subject, { lifecycleState: 'in_workflow', workflowInstanceId: 'wf-1', ownedByOfficeId: 'A' }),
+      guard.canCancel(subject, {
+        lifecycleState: 'in_workflow',
+        workflowInstanceId: 'wf-1',
+        ownedByOfficeId: 'A',
+      }),
     ).toBe(false);
   });
 
   it('denies sp_member from cancelling (not in any grant)', () => {
     const subject = makeSubject({ roles: ['sp_member'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canCancel(subject, { lifecycleState: 'draft', workflowInstanceId: null, ownedByOfficeId: 'A' }),
+      guard.canCancel(subject, {
+        lifecycleState: 'draft',
+        workflowInstanceId: null,
+        ownedByOfficeId: 'A',
+      }),
     ).toBe(false);
   });
 });
@@ -391,17 +497,23 @@ describe('canAssignFinalNumber', () => {
 describe('canCertifyUrgent', () => {
   it('allows sp_secretary logging a Certification of Urgency', () => {
     const subject = makeSubject({ roles: ['sp_secretary'] });
-    expect(guard.canCertifyUrgent(subject, { certifyingDocumentTypeCode: 'CERTIFICATION_OF_URGENCY' })).toBe(true);
+    expect(
+      guard.canCertifyUrgent(subject, { certifyingDocumentTypeCode: 'CERTIFICATION_OF_URGENCY' }),
+    ).toBe(true);
   });
 
   it('denies a non-sp_secretary role', () => {
     const subject = makeSubject({ roles: ['mayor'] });
-    expect(guard.canCertifyUrgent(subject, { certifyingDocumentTypeCode: 'CERTIFICATION_OF_URGENCY' })).toBe(false);
+    expect(
+      guard.canCertifyUrgent(subject, { certifyingDocumentTypeCode: 'CERTIFICATION_OF_URGENCY' }),
+    ).toBe(false);
   });
 
   it('denies when the referenced document is not a Certification of Urgency', () => {
     const subject = makeSubject({ roles: ['sp_secretary'] });
-    expect(guard.canCertifyUrgent(subject, { certifyingDocumentTypeCode: 'SP_RESOLUTION' })).toBe(false);
+    expect(guard.canCertifyUrgent(subject, { certifyingDocumentTypeCode: 'SP_RESOLUTION' })).toBe(
+      false,
+    );
   });
 });
 
@@ -410,26 +522,38 @@ describe('canCertifyUrgent', () => {
 describe('canArchive', () => {
   it('allows records_officer to archive a Completed document from any office', () => {
     const subject = makeSubject({ roles: ['records_officer'] });
-    expect(guard.canArchive(subject, { lifecycleState: 'completed', ownedByOfficeId: 'X' })).toBe(true);
+    expect(guard.canArchive(subject, { lifecycleState: 'completed', ownedByOfficeId: 'X' })).toBe(
+      true,
+    );
   });
 
   it('allows sp_secretary to archive only SP-Secretariat-owned documents', () => {
     const subject = makeSubject({ roles: ['sp_secretary'] });
     expect(
-      guard.canArchive(subject, { lifecycleState: 'released', ownedByOfficeId: 'SPS', isSpSecretariatOffice: true }),
+      guard.canArchive(subject, {
+        lifecycleState: 'released',
+        ownedByOfficeId: 'SPS',
+        isSpSecretariatOffice: true,
+      }),
     ).toBe(true);
   });
 
   it('denies sp_secretary archiving a document not owned by SP Secretariat', () => {
     const subject = makeSubject({ roles: ['sp_secretary'] });
     expect(
-      guard.canArchive(subject, { lifecycleState: 'released', ownedByOfficeId: 'CAO', isSpSecretariatOffice: false }),
+      guard.canArchive(subject, {
+        lifecycleState: 'released',
+        ownedByOfficeId: 'CAO',
+        isSpSecretariatOffice: false,
+      }),
     ).toBe(false);
   });
 
   it('denies archiving a document that is not Completed or Released', () => {
     const subject = makeSubject({ roles: ['records_officer'] });
-    expect(guard.canArchive(subject, { lifecycleState: 'draft', ownedByOfficeId: 'X' })).toBe(false);
+    expect(guard.canArchive(subject, { lifecycleState: 'draft', ownedByOfficeId: 'X' })).toBe(
+      false,
+    );
   });
 });
 
@@ -493,7 +617,12 @@ describe('canReadContent', () => {
 
   it('IT Admin is also blocked for confidential content (Gate 2 explicit backstop)', () => {
     const subject = makeSubject({ roles: ['sys_admin'], isItAdmin: true });
-    expect(guard.canReadContent(subject, { classificationLevel: 'confidential', hasAllowlistEntry: true })).toBe(false);
+    expect(
+      guard.canReadContent(subject, {
+        classificationLevel: 'confidential',
+        hasAllowlistEntry: true,
+      }),
+    ).toBe(false);
   });
 
   it('IT Admin is blocked even for public-classification content (no ALLOW branch includes sys_admin)', () => {
@@ -503,32 +632,52 @@ describe('canReadContent', () => {
 
   it('allows an own-office operational role to read internal content', () => {
     const subject = makeSubject({ roles: ['dept_encoder'], effectiveOfficeIds: ['A'] });
-    expect(guard.canReadContent(subject, { ownedByOfficeId: 'A', classificationLevel: 'internal' })).toBe(true);
+    expect(
+      guard.canReadContent(subject, { ownedByOfficeId: 'A', classificationLevel: 'internal' }),
+    ).toBe(true);
   });
 
   it('[LOG-0029] allows cross-office content read without an explicit grant, unlike metadata read', () => {
     const subject = makeSubject({ roles: ['records_officer'], effectiveOfficeIds: ['A'] });
-    expect(guard.canReadContent(subject, { ownedByOfficeId: 'B', classificationLevel: 'internal' })).toBe(true);
+    expect(
+      guard.canReadContent(subject, { ownedByOfficeId: 'B', classificationLevel: 'internal' }),
+    ).toBe(true);
   });
 
   it('[Gate 4] denies confidential content without an allowlist entry', () => {
     const subject = makeSubject({ roles: ['sp_secretary'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canReadContent(subject, { ownedByOfficeId: 'A', classificationLevel: 'confidential', hasAllowlistEntry: false }),
+      guard.canReadContent(subject, {
+        ownedByOfficeId: 'A',
+        classificationLevel: 'confidential',
+        hasAllowlistEntry: false,
+      }),
     ).toBe(false);
   });
 
   it('[Gate 4] allows confidential content for an allowlisted own-office role', () => {
     const subject = makeSubject({ roles: ['sp_secretary'], effectiveOfficeIds: ['A'] });
     expect(
-      guard.canReadContent(subject, { ownedByOfficeId: 'A', classificationLevel: 'confidential', hasAllowlistEntry: true }),
+      guard.canReadContent(subject, {
+        ownedByOfficeId: 'A',
+        classificationLevel: 'confidential',
+        hasAllowlistEntry: true,
+      }),
     ).toBe(true);
   });
 
   it('denies sp_member content read outside their committee/session even for internal classification', () => {
-    const subject = makeSubject({ roles: ['sp_member'], effectiveOfficeIds: ['A'], committeeIds: ['committee-1'] });
+    const subject = makeSubject({
+      roles: ['sp_member'],
+      effectiveOfficeIds: ['A'],
+      committeeIds: ['committee-1'],
+    });
     expect(
-      guard.canReadContent(subject, { ownedByOfficeId: 'other', classificationLevel: 'internal', documentCommitteeId: 'committee-2' }),
+      guard.canReadContent(subject, {
+        ownedByOfficeId: 'other',
+        classificationLevel: 'internal',
+        documentCommitteeId: 'committee-2',
+      }),
     ).toBe(false);
   });
 });
@@ -553,7 +702,9 @@ describe('canCreateVersion', () => {
   it('restricts sp_member to their own self-authored document', () => {
     const subject = makeSubject({ roles: ['sp_member'], userId: 'u1', effectiveOfficeIds: ['SP'] });
     expect(guard.canCreateVersion(subject, { ownedByOfficeId: 'SP', createdBy: 'u1' })).toBe(true);
-    expect(guard.canCreateVersion(subject, { ownedByOfficeId: 'SP', createdBy: 'someone-else' })).toBe(false);
+    expect(
+      guard.canCreateVersion(subject, { ownedByOfficeId: 'SP', createdBy: 'someone-else' }),
+    ).toBe(false);
   });
 
   it('denies uploads outside the subject effective offices', () => {
@@ -572,7 +723,9 @@ describe('canReadOcrText', () => {
 
   it('allows an own-office operational role to read OCR text', () => {
     const subject = makeSubject({ roles: ['dept_approver'], effectiveOfficeIds: ['A'] });
-    expect(guard.canReadOcrText(subject, { ownedByOfficeId: 'A', classificationLevel: 'internal' })).toBe(true);
+    expect(
+      guard.canReadOcrText(subject, { ownedByOfficeId: 'A', classificationLevel: 'internal' }),
+    ).toBe(true);
   });
 });
 
@@ -581,22 +734,36 @@ describe('canReadOcrText', () => {
 describe('canReadScanQuality', () => {
   it('allows the uploader to view their own scan quality indicator regardless of office', () => {
     const subject = makeSubject({ roles: ['dept_encoder'], userId: 'u1', effectiveOfficeIds: [] });
-    expect(guard.canReadScanQuality(subject, { createdBy: 'u1', ownedByOfficeId: 'other' })).toBe(true);
+    expect(guard.canReadScanQuality(subject, { createdBy: 'u1', ownedByOfficeId: 'other' })).toBe(
+      true,
+    );
   });
 
   it('allows an own-office role to view scan quality for a document uploaded by someone else', () => {
-    const subject = makeSubject({ roles: ['records_officer'], userId: 'u2', effectiveOfficeIds: ['A'] });
+    const subject = makeSubject({
+      roles: ['records_officer'],
+      userId: 'u2',
+      effectiveOfficeIds: ['A'],
+    });
     expect(guard.canReadScanQuality(subject, { createdBy: 'u1', ownedByOfficeId: 'A' })).toBe(true);
   });
 
   it('denies auditor (excluded from this role set, unlike other content reads)', () => {
     const subject = makeSubject({ roles: ['auditor'], effectiveOfficeIds: ['A'] });
-    expect(guard.canReadScanQuality(subject, { createdBy: 'someone', ownedByOfficeId: 'A' })).toBe(false);
+    expect(guard.canReadScanQuality(subject, { createdBy: 'someone', ownedByOfficeId: 'A' })).toBe(
+      false,
+    );
   });
 
   it('denies when neither self-authored nor own-office', () => {
-    const subject = makeSubject({ roles: ['dept_encoder'], userId: 'u2', effectiveOfficeIds: ['A'] });
-    expect(guard.canReadScanQuality(subject, { createdBy: 'u1', ownedByOfficeId: 'B' })).toBe(false);
+    const subject = makeSubject({
+      roles: ['dept_encoder'],
+      userId: 'u2',
+      effectiveOfficeIds: ['A'],
+    });
+    expect(guard.canReadScanQuality(subject, { createdBy: 'u1', ownedByOfficeId: 'B' })).toBe(
+      false,
+    );
   });
 });
 
@@ -656,7 +823,9 @@ describe('checkStateActionCompatibility', () => {
   });
 
   it('allows number_promote only in pending_mayor_action', () => {
-    expect(guard.checkStateActionCompatibility('number_promote', 'pending_mayor_action')).toBe(true);
+    expect(guard.checkStateActionCompatibility('number_promote', 'pending_mayor_action')).toBe(
+      true,
+    );
     expect(guard.checkStateActionCompatibility('number_promote', 'in_workflow')).toBe(false);
   });
 
@@ -678,7 +847,11 @@ describe('checkStateActionCompatibility', () => {
   it('[LOG-0027][Inference] pending_panlalawigan_review (missing from I1 §17) allows read and cancel only', () => {
     expect(guard.checkStateActionCompatibility('read', 'pending_panlalawigan_review')).toBe(true);
     expect(guard.checkStateActionCompatibility('cancel', 'pending_panlalawigan_review')).toBe(true);
-    expect(guard.checkStateActionCompatibility('approve', 'pending_panlalawigan_review')).toBe(false);
-    expect(guard.checkStateActionCompatibility('update', 'pending_panlalawigan_review')).toBe(false);
+    expect(guard.checkStateActionCompatibility('approve', 'pending_panlalawigan_review')).toBe(
+      false,
+    );
+    expect(guard.checkStateActionCompatibility('update', 'pending_panlalawigan_review')).toBe(
+      false,
+    );
   });
 });

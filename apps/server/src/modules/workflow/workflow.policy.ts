@@ -29,12 +29,7 @@ export type StepType =
   | 'parallel_split'
   | 'parallel_join';
 
-export type StepStatus =
-  | 'pending'
-  | 'active'
-  | 'completed'
-  | 'skipped'
-  | 'overridden';
+export type StepStatus = 'pending' | 'active' | 'completed' | 'skipped' | 'overridden';
 
 // ─── Resource attribute types ─────────────────────────────────────────────────
 
@@ -111,25 +106,44 @@ export interface StepInstanceAttrs {
 
 /** I1 §5.1 own-office read for `workflow_instance:read`. */
 const INSTANCE_OWN_OFFICE_READ_ROLES: ReadonlySet<string> = new Set([
-  'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member',
-  'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain',
-  'records_officer', 'auditor', 'plat_admin',
+  'dept_encoder',
+  'dept_approver',
+  'sp_secretary',
+  'sp_member',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_encoder',
+  'brgy_captain',
+  'records_officer',
+  'auditor',
+  'plat_admin',
 ]);
 
 /** I1 §5.1 cross-office read — additionally requires classification in {'public','internal'}. */
 const INSTANCE_CROSS_OFFICE_READ_ROLES: ReadonlySet<string> = new Set([
-  'records_officer', 'sp_presiding_officer', 'mayor', 'auditor',
+  'records_officer',
+  'sp_presiding_officer',
+  'mayor',
+  'auditor',
 ]);
 
 /** I1 §6.2 `step_instance:complete_action` base role set (encoder restriction applied separately). */
 const ACTION_STEP_ROLES: ReadonlySet<string> = new Set([
-  'dept_encoder', 'dept_approver', 'sp_secretary',
-  'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain',
+  'dept_encoder',
+  'dept_approver',
+  'sp_secretary',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_encoder',
+  'brgy_captain',
 ]);
 
 /** I1 §6.3 `step_instance:approve` / `reject` / `return` base role set. */
 const APPROVAL_STEP_ROLES: ReadonlySet<string> = new Set([
-  'dept_approver', 'sp_secretary', 'mayor', 'brgy_captain',
+  'dept_approver',
+  'sp_secretary',
+  'mayor',
+  'brgy_captain',
 ]);
 
 /** I1 §6.2 ENCODER RESTRICTION — roles blocked from claiming general office queue steps. */
@@ -140,7 +154,11 @@ const ENCODER_ROLES: ReadonlySet<string> = new Set(['dept_encoder', 'brgy_encode
  * no office scoping applied. [Confirmed — I2 §16; acceptance criteria]
  */
 const SLA_READ_ROLES: ReadonlySet<string> = new Set([
-  'records_officer', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'auditor',
+  'records_officer',
+  'sp_secretary',
+  'sp_presiding_officer',
+  'mayor',
+  'auditor',
 ]);
 
 /** I1 §6.5 — valid step keys for mayor actions. */
@@ -230,7 +248,8 @@ export class WorkflowPolicyGuard {
     throw new TRPCError({
       code: 'FORBIDDEN',
       cause: 'workflow_migrate_requires_plat_admin',
-      message: 'Only the Platform Administrator may migrate a workflow instance to a new definition version.',
+      message:
+        'Only the Platform Administrator may migrate a workflow instance to a new definition version.',
     });
   }
 
@@ -438,8 +457,7 @@ export class WorkflowPolicyGuard {
    * Maps to: `mayorSign`, `mayorVeto` procedures.
    */
   canMayorSign(subject: SubjectContext, attrs: StepInstanceAttrs): void {
-    const hasRole =
-      subject.roles.includes('mayor') || subject.effectiveRoles.includes('mayor');
+    const hasRole = subject.roles.includes('mayor') || subject.effectiveRoles.includes('mayor');
 
     if (!hasRole) {
       throw new TRPCError({
@@ -505,14 +523,13 @@ export class WorkflowPolicyGuard {
     if (subject.roles.includes('sp_member')) {
       const assignedCommittees = attrs.assignedCommitteeIds ?? [];
       const hasCommitteeOverlap = subject.committeeIds.some((cid) =>
-        assignedCommittees.includes(cid)
+        assignedCommittees.includes(cid),
       );
       if (!hasCommitteeOverlap) {
         throw new TRPCError({
           code: 'FORBIDDEN',
           cause: 'sp_member_not_in_assigned_committee',
-          message:
-            'You are not a member of any committee assigned to this referral step.',
+          message: 'You are not a member of any committee assigned to this referral step.',
         });
       }
       return;
@@ -581,7 +598,7 @@ export class WorkflowPolicyGuard {
    */
   canLogSecretariatDecision(
     subject: SubjectContext,
-    attrs: { isSpSecretariatOffice: boolean }
+    attrs: { isSpSecretariatOffice: boolean },
   ): void {
     if (!subject.roles.includes('sp_secretary')) {
       throw new TRPCError({
@@ -760,9 +777,16 @@ export class WorkflowPolicyGuard {
    */
   canListAssignedSteps(subject: SubjectContext): void {
     const OPERATIONAL_ROLES: ReadonlySet<string> = new Set([
-      'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member',
-      'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain',
-      'records_officer', 'auditor',
+      'dept_encoder',
+      'dept_approver',
+      'sp_secretary',
+      'sp_member',
+      'sp_presiding_officer',
+      'mayor',
+      'brgy_encoder',
+      'brgy_captain',
+      'records_officer',
+      'auditor',
     ]);
     if (rolesIntersect(subject.roles, OPERATIONAL_ROLES)) return;
     throw new TRPCError({

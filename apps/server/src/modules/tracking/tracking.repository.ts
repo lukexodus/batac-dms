@@ -21,7 +21,7 @@ export class TrackingRepository {
       generatedBy: string | null;
       cityId?: string;
     },
-    db: AppDb = this.db
+    db: AppDb = this.db,
   ): Promise<QrCodeRow> {
     const [row] = await db
       .insert(qrCodes)
@@ -39,12 +39,9 @@ export class TrackingRepository {
   async updateQrImageKey(
     qrCodeId: string,
     qrImageFileKey: string,
-    db: AppDb = this.db
+    db: AppDb = this.db,
   ): Promise<void> {
-    await db
-      .update(qrCodes)
-      .set({ qrImageFileKey })
-      .where(eq(qrCodes.id, qrCodeId));
+    await db.update(qrCodes).set({ qrImageFileKey }).where(eq(qrCodes.id, qrCodeId));
   }
 
   async createTrackingRecord(
@@ -55,7 +52,7 @@ export class TrackingRepository {
       currentStatus?: string;
       cityId?: string;
     },
-    db: AppDb = this.db
+    db: AppDb = this.db,
   ): Promise<TrackingRecordRow> {
     const [row] = await db
       .insert(trackingRecords)
@@ -74,7 +71,7 @@ export class TrackingRepository {
     trackingRecordId: string,
     currentCustodianOfficeId: string | null,
     lastMovedAt: Date,
-    db: AppDb = this.db
+    db: AppDb = this.db,
   ): Promise<void> {
     await db
       .update(trackingRecords)
@@ -94,7 +91,7 @@ export class TrackingRepository {
       actionDescription: string;
       cityId?: string;
     },
-    db: AppDb = this.db
+    db: AppDb = this.db,
   ): Promise<RoutingEntryRow> {
     const [row] = await db
       .insert(routingEntries)
@@ -112,7 +109,7 @@ export class TrackingRepository {
 
   async findTrackingRecordByDocumentId(
     documentId: string,
-    db: AppDb = this.db
+    db: AppDb = this.db,
   ): Promise<TrackingRecordSummary | null> {
     const result = await db
       .select({
@@ -126,12 +123,7 @@ export class TrackingRepository {
       })
       .from(trackingRecords)
       .innerJoin(qrCodes, eq(trackingRecords.qrCodeId, qrCodes.id))
-      .where(
-        and(
-          eq(trackingRecords.documentId, documentId),
-          isNull(trackingRecords.deletedAt)
-        )
-      )
+      .where(and(eq(trackingRecords.documentId, documentId), isNull(trackingRecords.deletedAt)))
       .limit(1);
 
     const row = result[0];
@@ -150,10 +142,7 @@ export class TrackingRepository {
     };
   }
 
-  async findQrCodeByTrackingId(
-    trackingId: string,
-    db: AppDb = this.db
-  ): Promise<QrCodeRow | null> {
+  async findQrCodeByTrackingId(trackingId: string, db: AppDb = this.db): Promise<QrCodeRow | null> {
     const result = await db
       .select()
       .from(qrCodes)
@@ -163,10 +152,7 @@ export class TrackingRepository {
     return (result[0] as QrCodeRow) || null;
   }
 
-  async findQrCodeByDocumentId(
-    documentId: string,
-    db: AppDb = this.db
-  ): Promise<QrCodeRow | null> {
+  async findQrCodeByDocumentId(documentId: string, db: AppDb = this.db): Promise<QrCodeRow | null> {
     const result = await db
       .select()
       .from(qrCodes)
@@ -176,12 +162,9 @@ export class TrackingRepository {
     return (result[0] as QrCodeRow) || null;
   }
 
-  async getNextTrackingNumber(
-    year: number,
-    db: AppDb = this.db
-  ): Promise<string> {
+  async getNextTrackingNumber(year: number, db: AppDb = this.db): Promise<string> {
     const result = await db.execute<{ sequence_value: number; was_created: boolean }>(
-      sql`SELECT * FROM tracking.fn_get_next_tracking_number(${year})`
+      sql`SELECT * FROM tracking.fn_get_next_tracking_number(${year})`,
     );
     const { sequence_value, was_created } = (result as any).rows[0];
     if (was_created) {
@@ -195,26 +178,18 @@ export class TrackingRepository {
 
   async findTrackingRecordRowByDocumentId(
     documentId: string,
-    db: AppDb = this.db
+    db: AppDb = this.db,
   ): Promise<TrackingRecordRow | null> {
     const result = await db
       .select()
       .from(trackingRecords)
-      .where(
-        and(
-          eq(trackingRecords.documentId, documentId),
-          isNull(trackingRecords.deletedAt)
-        )
-      )
+      .where(and(eq(trackingRecords.documentId, documentId), isNull(trackingRecords.deletedAt)))
       .limit(1);
 
     return (result[0] as TrackingRecordRow) || null;
   }
 
-  async getRoutingHistory(
-    documentId: string,
-    db: AppDb = this.db
-  ): Promise<RoutingEntry[]> {
+  async getRoutingHistory(documentId: string, db: AppDb = this.db): Promise<RoutingEntry[]> {
     const fromOfficeAlias = alias(offices, 'from_office');
     const toOfficeAlias = alias(offices, 'to_office');
     const rows = await db
@@ -234,9 +209,7 @@ export class TrackingRepository {
       .innerJoin(qrCodes, eq(trackingRecords.qrCodeId, qrCodes.id))
       .leftJoin(fromOfficeAlias, eq(routingEntries.fromOfficeId, fromOfficeAlias.id))
       .leftJoin(toOfficeAlias, eq(routingEntries.toOfficeId, toOfficeAlias.id))
-      .where(
-        and(eq(trackingRecords.documentId, documentId), isNull(routingEntries.deletedAt))
-      )
+      .where(and(eq(trackingRecords.documentId, documentId), isNull(routingEntries.deletedAt)))
       .orderBy(asc(routingEntries.occurredAt));
 
     return rows.map((r) => ({

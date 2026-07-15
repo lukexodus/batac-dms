@@ -1,6 +1,5 @@
 # ADR-GEN-004: Pessimistic Locking for Document Editing
 
-
 **Status:** Accepted **Date:** June 2026 **Deciders:** Development team
 
 ---

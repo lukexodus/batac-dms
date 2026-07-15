@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Button, Input, Label, Card, CardHeader, CardTitle, CardContent, CardDescription } from '@batac/ui';
+import {
+  Button,
+  Input,
+  Label,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from '@batac/ui';
 import { useSessionStore } from '@/stores';
 import { useAuthActions } from '@/hooks/useAuthActions';
 
@@ -38,7 +47,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    <div className="bg-muted/40 flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Batac DMS</CardTitle>
@@ -66,7 +75,7 @@ export function LoginPage() {
                 required
               />
             </div>
-            {error && <p className="text-sm text-danger-500">{error}</p>}
+            {error && <p className="text-danger-500 text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? 'Logging in...' : 'Login'}
             </Button>

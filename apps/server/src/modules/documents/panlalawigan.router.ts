@@ -3,9 +3,7 @@ import { TRPCError } from '@trpc/server';
 import crypto from 'node:crypto';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import type { Context } from '../iam/iam.types.js';
-import {
-  type LifecycleState,
-} from '@batac/shared';
+import { type LifecycleState } from '@batac/shared';
 import {
   DocumentIdInputSchema,
   InitiatePanlalawiganTransmittalInputSchema,
@@ -43,21 +41,24 @@ export function createPanlalawiganProcedures() {
 
         // Callable by: sp_secretary ONLY
         if (!subject.roles.includes('sp_secretary')) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only SP Secretary can initiate transmittal' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Only SP Secretary can initiate transmittal',
+          });
         }
 
         const repo = getRepository(ctx);
         const document = await repo.findDocumentById(input.documentId);
-        
+
         if (!document) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Document not found' });
         }
 
         // Precondition: document.lifecycle_state MUST BE 'pending_panlalawigan_review'
         if (document.lifecycleState !== 'pending_panlalawigan_review') {
-          throw new TRPCError({ 
-            code: 'PRECONDITION_FAILED', 
-            message: 'Document lifecycle state must be pending_panlalawigan_review' 
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Document lifecycle state must be pending_panlalawigan_review',
           });
         }
 
@@ -68,13 +69,13 @@ export function createPanlalawiganProcedures() {
         // Assign panlalawigan_review_log series control number
         const numberingService = getNumberingService(ctx);
         const year = new Date(input.transmittedAt).getFullYear();
-        
+
         // As per task instructions: series_key='panlalawigan_review_log'
         const controlNumberObj = await numberingService.assignControlNumber(
           input.documentId,
           'panlalawigan_review_log',
           subject.cityId,
-          subject.userId
+          subject.userId,
         );
 
         const review = await repo.insertPanlalawiganReview({
@@ -99,8 +100,8 @@ export function createPanlalawiganProcedures() {
               documentId: input.documentId,
               actorId: subject.userId,
               cityId: subject.cityId,
-              timestamp: now
-            }
+              timestamp: now,
+            },
           });
         }
 
@@ -118,14 +119,20 @@ export function createPanlalawiganProcedures() {
         }
 
         if (input.outcome === 'deemed_approved') {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'deemed_approved is set by the system only' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'deemed_approved is set by the system only',
+          });
         }
 
         const repo = getRepository(ctx);
         const review = await repo.findPanlalawiganReviewByDocument(input.documentId);
-        
+
         if (!review) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Panlalawigan review not found for this document' });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Panlalawigan review not found for this document',
+          });
         }
 
         if (review.cityId !== subject.cityId) {
@@ -149,7 +156,12 @@ export function createPanlalawiganProcedures() {
         }
 
         if (nextState) {
-          await service.transitionState(input.documentId, nextState, subject.userId, 'Panlalawigan review outcome logged');
+          await service.transitionState(
+            input.documentId,
+            nextState,
+            subject.userId,
+            'Panlalawigan review outcome logged',
+          );
         }
 
         const eventBus = getEventBus(ctx);
@@ -166,8 +178,8 @@ export function createPanlalawiganProcedures() {
               outcome: input.outcome,
               actorId: subject.userId,
               cityId: subject.cityId,
-              timestamp: now
-            }
+              timestamp: now,
+            },
           });
         }
 
@@ -178,15 +190,24 @@ export function createPanlalawiganProcedures() {
       .input(DocumentIdInputSchema)
       .query(async ({ ctx, input }) => {
         const subject = ctx.auth;
-        const allowedRoles = ['sp_secretary', 'sp_presiding_officer', 'records_officer', 'auditor', 'mayor'];
-        
-        if (!subject.roles.some(r => allowedRoles.includes(r))) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have permission to view Panlalawigan reviews' });
+        const allowedRoles = [
+          'sp_secretary',
+          'sp_presiding_officer',
+          'records_officer',
+          'auditor',
+          'mayor',
+        ];
+
+        if (!subject.roles.some((r) => allowedRoles.includes(r))) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You do not have permission to view Panlalawigan reviews',
+          });
         }
 
         const repo = getRepository(ctx);
         const review = await repo.findPanlalawiganReviewByDocument(input.documentId);
-        
+
         if (!review || review.cityId !== subject.cityId) {
           return null;
         }
@@ -208,6 +229,6 @@ export function createPanlalawiganProcedures() {
           panlalawiganResolutionNumber: review.resolutionNumber,
           daysElapsed: review.daysElapsed,
         };
-      })
+      }),
   };
 }

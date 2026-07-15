@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { submitStepApproval } from '../engine/step-handlers/approval.handler.js';
-import { buildMockApprovalDeps, buildMockInstance, buildMockStepInstance } from './fixtures/workflow-test-helpers.js';
+import {
+  buildMockApprovalDeps,
+  buildMockInstance,
+  buildMockStepInstance,
+} from './fixtures/workflow-test-helpers.js';
 
 vi.mock('../engine/step-resolution.js', () => ({
   resolveNextStep: vi.fn(),
@@ -28,12 +32,20 @@ describe('Step Lifecycle (STEP)', () => {
     it('STEP-V-01: approval step activates — status becomes active and approval can be submitted', async () => {
       setupDefinition({ allowed_outcomes: ['APPROVED'] });
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-mayor', 'user', 'APPROVED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-mayor',
+          'user',
+          'APPROVED',
+          null,
+          mockDeps,
+        ),
       ).resolves.not.toThrow();
       expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith(
         'step-inst-1',
         expect.objectContaining({ status: 'completed', outcome: 'APPROVED' }),
-        undefined
+        undefined,
       );
     });
 
@@ -41,7 +53,15 @@ describe('Step Lifecycle (STEP)', () => {
       setupDefinition({ allowed_outcomes: ['APPROVED'] });
       mockStepInstance.status = 'pending';
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-mayor', 'user', 'APPROVED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-mayor',
+          'user',
+          'APPROVED',
+          null,
+          mockDeps,
+        ),
       ).rejects.toThrow('CONFLICT: step is not active');
     });
 
@@ -49,7 +69,15 @@ describe('Step Lifecycle (STEP)', () => {
       setupDefinition({ allowed_outcomes: ['APPROVED'] });
       mockStepInstance.status = 'completed';
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-mayor', 'user', 'APPROVED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-mayor',
+          'user',
+          'APPROVED',
+          null,
+          mockDeps,
+        ),
       ).rejects.toThrow('CONFLICT: step is not active');
     });
 
@@ -58,11 +86,19 @@ describe('Step Lifecycle (STEP)', () => {
         allowed_outcomes: ['APPROVED', 'RETURNED_FOR_REVISION'],
         require_comment_on: ['RETURNED_FOR_REVISION'],
       });
-      await submitStepApproval(mockInstance, mockStepInstance, 'user-mayor', 'user', 'RETURNED_FOR_REVISION', 'needs work', mockDeps);
+      await submitStepApproval(
+        mockInstance,
+        mockStepInstance,
+        'user-mayor',
+        'user',
+        'RETURNED_FOR_REVISION',
+        'needs work',
+        mockDeps,
+      );
       expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith(
         'step-inst-1',
         expect.objectContaining({ status: 'returned' }),
-        undefined
+        undefined,
       );
     });
   });

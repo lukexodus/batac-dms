@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write --config ../../packages/config/.prettierrc.json --ignore-path ../../packages/config/.prettierignore --ignore-unknown ."
   },
   "dependencies": {
     "@batac/shared": "workspace:*",

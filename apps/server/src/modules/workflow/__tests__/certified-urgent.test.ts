@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { processCertificationUrgencyEvent } from '../engine/certified-urgent-bypass.handler.js';
-import { buildMockInstance, buildMockStepInstance, buildMockRepo } from './fixtures/workflow-test-helpers.js';
+import {
+  buildMockInstance,
+  buildMockStepInstance,
+  buildMockRepo,
+} from './fixtures/workflow-test-helpers.js';
 
 vi.mock('../engine/step-resolution.js', () => ({
   resolveNextStep: vi.fn(),
@@ -38,7 +42,7 @@ describe('Certified Urgent Bypass Handler (CU)', () => {
     mockRepo.getInstanceById.mockResolvedValue(null);
     // Should not throw; error is caught per-instance
     await expect(
-      processCertificationUrgencyEvent(makePayload(['inst-missing']), mockDeps)
+      processCertificationUrgencyEvent(makePayload(['inst-missing']), mockDeps),
     ).resolves.not.toThrow();
   });
 
@@ -49,7 +53,7 @@ describe('Certified Urgent Bypass Handler (CU)', () => {
     await processCertificationUrgencyEvent(makePayload(['inst-1']), mockDeps);
     expect(mockRepo.createWorkflowEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'workflow.certification_urgency.already_inactive' }),
-      mockTrx
+      mockTrx,
     );
     expect(mockRepo.updateStepInstance).not.toHaveBeenCalled();
   });
@@ -71,15 +75,15 @@ describe('Certified Urgent Bypass Handler (CU)', () => {
         bypassReason: 'CERTIFIED_URGENT',
         outcome: 'BYPASSED_CERTIFIED_URGENT',
       }),
-      mockTrx
+      mockTrx,
     );
     expect(mockRepo.createWorkflowEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'workflow.step.bypassed' }),
-      mockTrx
+      mockTrx,
     );
     expect(mockRepo.createWorkflowEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'workflow.certification_urgency.bypass_applied' }),
-      mockTrx
+      mockTrx,
     );
   });
 
@@ -94,11 +98,11 @@ describe('Certified Urgent Bypass Handler (CU)', () => {
     await processCertificationUrgencyEvent(makePayload(['inst-1']), mockDeps);
     expect(mockRepo.createPendingBypass).toHaveBeenCalledWith(
       expect.objectContaining({ instanceId: 'inst-1', certificationDocumentId: 'cert-doc-1' }),
-      mockTrx
+      mockTrx,
     );
     expect(mockRepo.createWorkflowEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'workflow.certification_urgency.bypass_deferred' }),
-      mockTrx
+      mockTrx,
     );
   });
 
@@ -111,8 +115,10 @@ describe('Certified Urgent Bypass Handler (CU)', () => {
     mockRepo.getMultiReferralStepInstanceForInstance.mockResolvedValue(step);
     await processCertificationUrgencyEvent(makePayload(['inst-1']), mockDeps);
     expect(mockRepo.createWorkflowEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'workflow.certification_urgency.already_past_referral' }),
-      mockTrx
+      expect.objectContaining({
+        eventType: 'workflow.certification_urgency.already_past_referral',
+      }),
+      mockTrx,
     );
     expect(mockRepo.updateStepInstance).not.toHaveBeenCalled();
   });
@@ -133,7 +139,7 @@ describe('Certified Urgent Bypass Handler (CU)', () => {
         certified_urgent: true,
         certified_urgent_document_id: 'cert-doc-1',
       }),
-      mockTrx
+      mockTrx,
     );
   });
 
@@ -142,9 +148,7 @@ describe('Certified Urgent Bypass Handler (CU)', () => {
     const inst2 = buildMockInstance({ id: 'inst-ok', status: 'active' });
     const step = buildMockStepInstance({ status: 'active', stepId: 'step-mref' });
 
-    mockRepo.getInstanceById
-      .mockResolvedValueOnce(inst1)
-      .mockResolvedValueOnce(inst2);
+    mockRepo.getInstanceById.mockResolvedValueOnce(inst1).mockResolvedValueOnce(inst2);
     // First instance: getMultiReferralStepInstanceForInstance throws
     mockRepo.getMultiReferralStepInstanceForInstance
       .mockRejectedValueOnce(new Error('DB error'))
@@ -156,7 +160,7 @@ describe('Certified Urgent Bypass Handler (CU)', () => {
 
     // Should not throw even with inst-fail erroring
     await expect(
-      processCertificationUrgencyEvent(makePayload(['inst-fail', 'inst-ok']), mockDeps)
+      processCertificationUrgencyEvent(makePayload(['inst-fail', 'inst-ok']), mockDeps),
     ).resolves.not.toThrow();
   });
 
@@ -177,7 +181,7 @@ describe('Certified Urgent Bypass Handler (CU)', () => {
           updatedKeys: ['certified_urgent', 'certified_urgent_document_id'],
         }),
       }),
-      mockTrx
+      mockTrx,
     );
   });
 });

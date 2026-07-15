@@ -43,9 +43,7 @@ export class DeadLetterRepository implements IDeadLetterRepository {
    * Ordered oldest-first so that stale events are retried before recent ones.
    * Limit 100 per run to bound the job's runtime.
    */
-  async fetchPending(opts: {
-    maxRetries: number;
-  }): Promise<PendingDeadLetter[]> {
+  async fetchPending(opts: { maxRetries: number }): Promise<PendingDeadLetter[]> {
     const rows = await this.db
       .select()
       .from(eventBusDeadLetters)
@@ -76,9 +74,7 @@ export class DeadLetterRepository implements IDeadLetterRepository {
    * Called by the retry job on each successful re-emit.
    */
   async markRetried(id: string): Promise<void> {
-    await this.db
-      .delete(eventBusDeadLetters)
-      .where(eq(eventBusDeadLetters.id, id));
+    await this.db.delete(eventBusDeadLetters).where(eq(eventBusDeadLetters.id, id));
   }
 
   /**

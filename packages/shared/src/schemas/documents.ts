@@ -1,6 +1,6 @@
-import { z } from "zod";
-import { createSelectSchema } from "drizzle-zod";
-import { documents, versions } from "@batac/database/schema/documents.schema.js";
+import { z } from 'zod';
+import { createSelectSchema } from 'drizzle-zod';
+import { documents, versions } from '@batac/database/schema/documents.schema.js';
 import {
   UuidSchema,
   TimestampSchema,
@@ -9,8 +9,8 @@ import {
   SortOrderSchema,
   DateRangeSchema,
   AllowedMimeTypeSchema,
-} from "./common.js";
-import { OfficeSummarySchema } from "./organization.js";
+} from './common.js';
+import { OfficeSummarySchema } from './organization.js';
 
 // Enums
 /**
@@ -27,62 +27,67 @@ import { OfficeSummarySchema } from "./organization.js";
  * docs/development-findings-log.md for the full note.
  */
 export const LifecycleStateSchema = z.enum([
-  "draft",
-  "submitted",
-  "in_workflow",
-  "pending_mayor_action",
-  "pending_panlalawigan_review",
-  "completed",
-  "released",
-  "archived",
-  "disposed",
-  "cancelled",
-  "superseded",
+  'draft',
+  'submitted',
+  'in_workflow',
+  'pending_mayor_action',
+  'pending_panlalawigan_review',
+  'completed',
+  'released',
+  'archived',
+  'disposed',
+  'cancelled',
+  'superseded',
 ]);
 export type LifecycleState = z.infer<typeof LifecycleStateSchema>;
 
-export const ClassificationLevelSchema = z.enum(["public", "internal", "confidential", "restricted"]);
+export const ClassificationLevelSchema = z.enum([
+  'public',
+  'internal',
+  'confidential',
+  'restricted',
+]);
 export type ClassificationLevel = z.infer<typeof ClassificationLevelSchema>;
 
 export const PublicVisibilityRuleSchema = z.enum([
-  "title_and_first_page_public",
-  "not_public",
-  "complainant_restricted",
-  "requester_restricted",
+  'title_and_first_page_public',
+  'not_public',
+  'complainant_restricted',
+  'requester_restricted',
 ]);
 export type PublicVisibilityRule = z.infer<typeof PublicVisibilityRuleSchema>;
 
-export const NumberTypeSchema = z.enum(["preliminary", "final"]);
+export const NumberTypeSchema = z.enum(['preliminary', 'final']);
 export type NumberType = z.infer<typeof NumberTypeSchema>;
 
 export const AttachmentTypeSchema = z.enum([
-  "certification_of_urgency",
-  "committee_report",
-  "transmittal_letter",
-  "scan",
-  "other",
+  'certification_of_urgency',
+  'committee_report',
+  'transmittal_letter',
+  'scan',
+  'other',
 ]);
 export type AttachmentType = z.infer<typeof AttachmentTypeSchema>;
 
 export const SignatureTypeSchema = z.enum([
-  "presiding_officer",
-  "mayor",
-  "sp_secretary",
-  "vice_mayor",
-  "committee_chair",
+  'presiding_officer',
+  'mayor',
+  'sp_secretary',
+  'vice_mayor',
+  'committee_chair',
 ]);
 export type SignatureType = z.infer<typeof SignatureTypeSchema>;
 
 export const PanlalawiganOutcomeSchema = z.enum([
-  "valid",
-  "valid_in_part",
-  "returned",
-  "operative_in_its_entirety",
-  "deemed_approved",
+  'valid',
+  'valid_in_part',
+  'returned',
+  'operative_in_its_entirety',
+  'deemed_approved',
 ]);
 export type PanlalawiganOutcome = z.infer<typeof PanlalawiganOutcomeSchema>;
 
-export const ScanQualityCategorySchema = z.enum(["good", "fair", "poor"]);
+export const ScanQualityCategorySchema = z.enum(['good', 'fair', 'poor']);
 export type ScanQualityCategory = z.infer<typeof ScanQualityCategorySchema>;
 
 // Document Type
@@ -197,7 +202,9 @@ export const DocumentFilterSchema = z.object({
   officeId: UuidSchema.optional(),
   search: z.string().max(256).optional(),
   dateRange: DateRangeSchema.optional(),
-  sortBy: z.enum(["title", "createdAt", "updatedAt", "finalNumber", "lifecycleState"]).default("createdAt"),
+  sortBy: z
+    .enum(['title', 'createdAt', 'updatedAt', 'finalNumber', 'lifecycleState'])
+    .default('createdAt'),
   sortOrder: SortOrderSchema,
   ...PaginationInputSchema.shape,
 });
@@ -214,14 +221,14 @@ export type CancelDocumentInput = z.infer<typeof CancelDocumentInputSchema>;
 export const CreateDocumentInputSchema = z.object({
   documentTypeId: UuidSchema,
   title: z.string().min(1).max(500).trim(),
-  classificationLevel: ClassificationLevelSchema.default("internal"),
+  classificationLevel: ClassificationLevelSchema.default('internal'),
   metadata: z.record(z.unknown()).default({}),
 });
 export type CreateDocumentInput = z.infer<typeof CreateDocumentInputSchema>;
 
 export const CreateDocumentOutputSchema = z.object({
   documentId: UuidSchema,
-  lifecycleState: z.literal("draft"),
+  lifecycleState: z.literal('draft'),
 });
 export type CreateDocumentOutput = z.infer<typeof CreateDocumentOutputSchema>;
 
@@ -483,7 +490,9 @@ export const InitiatePanlalawiganTransmittalInputSchema = z.object({
   controlNumber: z.string().max(64).optional(),
   subject: z.string().max(512).optional(),
 });
-export type InitiatePanlalawiganTransmittalInput = z.infer<typeof InitiatePanlalawiganTransmittalInputSchema>;
+export type InitiatePanlalawiganTransmittalInput = z.infer<
+  typeof InitiatePanlalawiganTransmittalInputSchema
+>;
 
 export const LogPanlalawiganOutcomeInputSchema = z
   .object({
@@ -494,13 +503,13 @@ export const LogPanlalawiganOutcomeInputSchema = z
     dateReferred: TimestampSchema.optional(),
     remarks: z.string().max(2048).optional(),
   })
-  .refine((v) => v.outcome !== "valid_in_part" || (v.remarks && v.remarks.length >= 10), {
-    message: "Remarks required for VALID-IN-PART (min 10 chars)",
-    path: ["remarks"],
+  .refine((v) => v.outcome !== 'valid_in_part' || (v.remarks && v.remarks.length >= 10), {
+    message: 'Remarks required for VALID-IN-PART (min 10 chars)',
+    path: ['remarks'],
   })
-  .refine((v) => v.outcome !== "returned" || (v.remarks && v.remarks.length >= 10), {
-    message: "Remarks required for RETURNED (min 10 chars)",
-    path: ["remarks"],
+  .refine((v) => v.outcome !== 'returned' || (v.remarks && v.remarks.length >= 10), {
+    message: 'Remarks required for RETURNED (min 10 chars)',
+    path: ['remarks'],
   });
 export type LogPanlalawiganOutcomeInput = z.infer<typeof LogPanlalawiganOutcomeInputSchema>;
 
@@ -512,7 +521,7 @@ export const SubmitDocumentInputSchema = z.object({
 export type SubmitDocumentInput = z.infer<typeof SubmitDocumentInputSchema>;
 
 export const SubmitDocumentOutputSchema = z.object({
-  lifecycleState: z.literal("submitted"),
+  lifecycleState: z.literal('submitted'),
   qrTrackingNumber: UuidSchema,
   preliminaryNumber: z.string().nullable(),
 });
@@ -564,7 +573,7 @@ export type ArchiveDocumentInput = z.infer<typeof ArchiveDocumentInputSchema>;
 export const LogSecretariatDecisionInputSchema = z.object({
   documentId: UuidSchema,
   stepInstanceId: UuidSchema,
-  decision: z.enum(["approve", "reject", "amended"]),
+  decision: z.enum(['approve', 'reject', 'amended']),
   remarks: z.string().max(2048).optional(),
 });
 export type LogSecretariatDecisionInput = z.infer<typeof LogSecretariatDecisionInputSchema>;

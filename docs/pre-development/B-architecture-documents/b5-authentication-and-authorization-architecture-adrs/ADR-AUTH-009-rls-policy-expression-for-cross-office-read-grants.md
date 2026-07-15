@@ -1,6 +1,5 @@
 # ADR-AUTH-009: RLS Policy Expression for Cross-Office Read Grants
 
-
 **Status:** Accepted
 
 **Context**

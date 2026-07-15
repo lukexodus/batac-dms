@@ -6,6 +6,7 @@ office: Sangguniang Panlungsod (SP)
 ---
 
 # MEMO - INCOMING
+
 ## (2025 – 7SP)
 
 | Control No. | Date Received     | Origin                         | Subject                                                                                                    |

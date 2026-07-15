@@ -6,7 +6,11 @@ import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@bat
 
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
-export function GenericActionPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
+export function GenericActionPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const [comment, setComment] = useState('');
@@ -29,7 +33,7 @@ export function GenericActionPanel({ instance }: { instance: RouterOutputs['work
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Comment (optional)</label>
+          <label className="mb-1 block text-sm font-medium">Comment (optional)</label>
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}

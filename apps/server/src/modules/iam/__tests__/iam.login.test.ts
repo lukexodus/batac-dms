@@ -43,21 +43,21 @@ import type { EventBus } from '@batac/shared';
 
 vi.mock('../../../config/env.js', () => ({
   env: {
-    CITY_ID:                     '00000000-0000-4000-8000-000000000001',
-    AUTH_JWT_ACCESS_SECRET:      'test-secret-at-least-32-characters-long!!',
-    AUTH_JWT_REFRESH_SECRET:     'refresh-secret-at-least-32-characters!',
-    AUTH_JWT_ALGORITHM:          'HS256',
-    AUTH_JWT_ACCESS_EXPIRES_IN:  '15m',
+    CITY_ID: '00000000-0000-4000-8000-000000000001',
+    AUTH_JWT_ACCESS_SECRET: 'test-secret-at-least-32-characters-long!!',
+    AUTH_JWT_REFRESH_SECRET: 'refresh-secret-at-least-32-characters!',
+    AUTH_JWT_ALGORITHM: 'HS256',
+    AUTH_JWT_ACCESS_EXPIRES_IN: '15m',
     AUTH_JWT_REFRESH_EXPIRES_IN: '30d',
-    AUTH_COOKIE_SECURE:          false,
-    AUTH_COOKIE_SAMESITE:        'Strict',
-    AUTH_ACCESS_TOKEN_COOKIE_NAME:  'batac_at',
+    AUTH_COOKIE_SECURE: false,
+    AUTH_COOKIE_SAMESITE: 'Strict',
+    AUTH_ACCESS_TOKEN_COOKIE_NAME: 'batac_at',
     AUTH_REFRESH_TOKEN_COOKIE_NAME: 'batac_rt',
     AUTH_SESSION_INACTIVITY_TIMEOUT_MS: 1800000,
-    ARGON2_MEMORY_COST:  4096,  // minimal for test speed
-    ARGON2_TIME_COST:    1,
-    ARGON2_PARALLELISM:  1,
-    ARGON2_HASH_LENGTH:  16,
+    ARGON2_MEMORY_COST: 4096, // minimal for test speed
+    ARGON2_TIME_COST: 1,
+    ARGON2_PARALLELISM: 1,
+    ARGON2_HASH_LENGTH: 16,
   },
 }));
 
@@ -65,7 +65,7 @@ vi.mock('../../../config/env.js', () => ({
 vi.mock('argon2', () => ({
   default: {
     verify: vi.fn(),
-    hash:   vi.fn(),
+    hash: vi.fn(),
   },
 }));
 
@@ -74,22 +74,22 @@ import { createIamService } from '../iam.service.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CITY_ID     = '00000000-0000-4000-8000-000000000001';
-const USER_ID     = randomUUID();
-const SESSION_ID  = randomUUID();
+const CITY_ID = '00000000-0000-4000-8000-000000000001';
+const USER_ID = randomUUID();
+const SESSION_ID = randomUUID();
 const NEW_SESSION_ID = randomUUID();
 
 // ─── PKCE helpers ─────────────────────────────────────────────────────────────
 
 function makePkce(): { code_verifier: string; code_challenge: string } {
-  const code_verifier  = randomBytes(32).toString('base64url');
+  const code_verifier = randomBytes(32).toString('base64url');
   const code_challenge = createHash('sha256').update(code_verifier, 'ascii').digest('base64url');
   return { code_verifier, code_challenge };
 }
 
 function makeBadPkce(): { code_verifier: string; code_challenge: string } {
   return {
-    code_verifier:  randomBytes(32).toString('base64url'),
+    code_verifier: randomBytes(32).toString('base64url'),
     code_challenge: randomBytes(32).toString('base64url'), // mismatched
   };
 }
@@ -98,34 +98,34 @@ function makeBadPkce(): { code_verifier: string; code_challenge: string } {
 
 function makeUser(overrides: Partial<UserRow> = {}): UserRow {
   return {
-    id:               USER_ID,
-    cityId:           CITY_ID,
-    username:         'testuser',
-    email:            'test@batac.gov.ph',
-    status:           'active',
-    mfaEnabled:       false,
+    id: USER_ID,
+    cityId: CITY_ID,
+    username: 'testuser',
+    email: 'test@batac.gov.ph',
+    status: 'active',
+    mfaEnabled: false,
     loginFailureCount: 0,
     loginLockedUntil: null,
-    createdAt:        new Date('2026-01-01'),
-    updatedAt:        new Date('2026-01-01'),
-    deletedAt:        null,
-    deletedBy:        null,
-    updatedBy:        null,
+    createdAt: new Date('2026-01-01'),
+    updatedAt: new Date('2026-01-01'),
+    deletedAt: null,
+    deletedBy: null,
+    updatedBy: null,
     ...overrides,
   };
 }
 
 function makeCredential(overrides: Partial<CredentialRow> = {}): CredentialRow {
   return {
-    id:            randomUUID(),
-    userId:        USER_ID,
-    passwordHash:  '$argon2id$v=19$stub-hash',
+    id: randomUUID(),
+    userId: USER_ID,
+    passwordHash: '$argon2id$v=19$stub-hash',
     lastChangedAt: new Date(),
-    createdAt:     new Date(),
-    updatedAt:     new Date(),
-    deletedAt:     null,
-    deletedBy:     null,
-    updatedBy:     null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    deletedBy: null,
+    updatedBy: null,
     ...overrides,
   };
 }
@@ -133,23 +133,23 @@ function makeCredential(overrides: Partial<CredentialRow> = {}): CredentialRow {
 function makeSession(overrides: Partial<SessionRow> = {}): SessionRow {
   const now = new Date();
   return {
-    id:               SESSION_ID,
-    userId:           USER_ID,
+    id: SESSION_ID,
+    userId: USER_ID,
     sessionTokenHash: 'oldhash',
-    active:           true,
-    ipAddress:        '10.0.0.1',
-    userAgent:        'Mozilla/5.0',
-    cityId:           CITY_ID,
-    locked_at:        null,
-    lastActivityAt:   now,
-    createdAt:        now,
-    terminatedAt:     null,
+    active: true,
+    ipAddress: '10.0.0.1',
+    userAgent: 'Mozilla/5.0',
+    cityId: CITY_ID,
+    locked_at: null,
+    lastActivityAt: now,
+    createdAt: now,
+    terminatedAt: null,
     terminationReason: null,
-    terminatedBy:     null,
-    deletedAt:        null,
-    deletedBy:        null,
-    updatedAt:        now,
-    updatedBy:        null,
+    terminatedBy: null,
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: now,
+    updatedBy: null,
     ...overrides,
   };
 }
@@ -158,7 +158,7 @@ function makeNewSession(overrides: Partial<SessionRow> = {}): SessionRow {
   const now = new Date();
   return {
     ...makeSession({ id: NEW_SESSION_ID }),
-    active:           true,
+    active: true,
     sessionTokenHash: 'pending',
     ...overrides,
   };
@@ -166,18 +166,18 @@ function makeNewSession(overrides: Partial<SessionRow> = {}): SessionRow {
 
 function makeRole(overrides: Partial<RoleRow> = {}): RoleRow {
   return {
-    id:          randomUUID(),
-    cityId:      CITY_ID,
-    name:        'Document Processor',
-    code:        'dept_encoder',
-    typeCode:    'document_processor',
+    id: randomUUID(),
+    cityId: CITY_ID,
+    name: 'Document Processor',
+    code: 'dept_encoder',
+    typeCode: 'document_processor',
     description: null,
-    isSystem:    false,
-    createdAt:   new Date(),
-    updatedAt:   new Date(),
-    deletedAt:   null,
-    deletedBy:   null,
-    updatedBy:   null,
+    isSystem: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    deletedBy: null,
+    updatedBy: null,
     ...overrides,
   };
 }
@@ -185,49 +185,49 @@ function makeRole(overrides: Partial<RoleRow> = {}): RoleRow {
 /** Returns a stub IamRepository with all methods stubbed. */
 function makeRepo(overrides: Partial<IamRepository> = {}): IamRepository {
   return {
-    findUserById:               vi.fn().mockResolvedValue(null),
-    findUserByUsername:         vi.fn().mockResolvedValue(null),
-    findUserByEmail:            vi.fn().mockResolvedValue(null),
-    createUser:                 vi.fn().mockRejectedValue(new Error('not stubbed')),
-    updateUser:                 vi.fn().mockRejectedValue(new Error('not stubbed')),
-    softDeleteUser:             vi.fn().mockRejectedValue(new Error('not stubbed')),
-    listUsers:                  vi.fn().mockResolvedValue([]),
-    updateLoginFailure:         vi.fn().mockResolvedValue(undefined),
-    resetLoginFailure:          vi.fn().mockResolvedValue(undefined),
+    findUserById: vi.fn().mockResolvedValue(null),
+    findUserByUsername: vi.fn().mockResolvedValue(null),
+    findUserByEmail: vi.fn().mockResolvedValue(null),
+    createUser: vi.fn().mockRejectedValue(new Error('not stubbed')),
+    updateUser: vi.fn().mockRejectedValue(new Error('not stubbed')),
+    softDeleteUser: vi.fn().mockRejectedValue(new Error('not stubbed')),
+    listUsers: vi.fn().mockResolvedValue([]),
+    updateLoginFailure: vi.fn().mockResolvedValue(undefined),
+    resetLoginFailure: vi.fn().mockResolvedValue(undefined),
 
-    findCredentialByUserId:     vi.fn().mockResolvedValue(null),
-    createCredential:           vi.fn().mockResolvedValue(undefined),
-    updateCredentialHash:       vi.fn().mockResolvedValue(undefined),
+    findCredentialByUserId: vi.fn().mockResolvedValue(null),
+    createCredential: vi.fn().mockResolvedValue(undefined),
+    updateCredentialHash: vi.fn().mockResolvedValue(undefined),
 
-    createSession:              vi.fn().mockResolvedValue(makeNewSession()),
-    findActiveSessionByUserId:  vi.fn().mockResolvedValue(null),
-    findSessionByTokenHash:     vi.fn().mockResolvedValue(null),
-    findSessionById:            vi.fn().mockResolvedValue(null),
-    terminateSession:           vi.fn().mockResolvedValue(undefined),
-    updateLastActivity:         vi.fn().mockResolvedValue(undefined),
-    setSessionLocked:           vi.fn().mockResolvedValue(undefined),
-    listSessionsByUserId:       vi.fn().mockResolvedValue([]),
-    listAllActiveSessions:      vi.fn().mockResolvedValue([]),
+    createSession: vi.fn().mockResolvedValue(makeNewSession()),
+    findActiveSessionByUserId: vi.fn().mockResolvedValue(null),
+    findSessionByTokenHash: vi.fn().mockResolvedValue(null),
+    findSessionById: vi.fn().mockResolvedValue(null),
+    terminateSession: vi.fn().mockResolvedValue(undefined),
+    updateLastActivity: vi.fn().mockResolvedValue(undefined),
+    setSessionLocked: vi.fn().mockResolvedValue(undefined),
+    listSessionsByUserId: vi.fn().mockResolvedValue([]),
+    listAllActiveSessions: vi.fn().mockResolvedValue([]),
 
-    createRefreshToken:         vi.fn().mockResolvedValue({}),
-    findRefreshTokenById:       vi.fn().mockResolvedValue(null),
-    markRefreshTokenUsed:       vi.fn().mockResolvedValue(true),
+    createRefreshToken: vi.fn().mockResolvedValue({}),
+    findRefreshTokenById: vi.fn().mockResolvedValue(null),
+    markRefreshTokenUsed: vi.fn().mockResolvedValue(true),
     revokeRefreshTokensBySessionId: vi.fn().mockResolvedValue(undefined),
-    revokeRefreshTokenFamily:   vi.fn().mockResolvedValue(undefined),
+    revokeRefreshTokenFamily: vi.fn().mockResolvedValue(undefined),
     findLatestActiveRefreshTokenForSession: vi.fn().mockResolvedValue(null),
 
-    findRoleById:               vi.fn().mockResolvedValue(null),
-    findRoleByCode:             vi.fn().mockResolvedValue(null),
-    listActiveRoles:            vi.fn().mockResolvedValue([]),
+    findRoleById: vi.fn().mockResolvedValue(null),
+    findRoleByCode: vi.fn().mockResolvedValue(null),
+    listActiveRoles: vi.fn().mockResolvedValue([]),
 
     findActiveRoleAssignmentsByUserId: vi.fn().mockResolvedValue([]),
-    createRoleAssignment:       vi.fn().mockRejectedValue(new Error('not stubbed')),
-    revokeRoleAssignment:       vi.fn().mockResolvedValue(undefined),
-    findAssignmentsByUserId:    vi.fn().mockResolvedValue([]),
+    createRoleAssignment: vi.fn().mockRejectedValue(new Error('not stubbed')),
+    revokeRoleAssignment: vi.fn().mockResolvedValue(undefined),
+    findAssignmentsByUserId: vi.fn().mockResolvedValue([]),
     findConflictingTypeCodeForUser: vi.fn().mockResolvedValue(null),
 
-    findPermissionsByRoleIds:   vi.fn().mockResolvedValue([]),
-    findMfaRecordByUserId:      vi.fn().mockResolvedValue(null),
+    findPermissionsByRoleIds: vi.fn().mockResolvedValue([]),
+    findMfaRecordByUserId: vi.fn().mockResolvedValue(null),
 
     ...overrides,
   };
@@ -236,16 +236,16 @@ function makeRepo(overrides: Partial<IamRepository> = {}): IamRepository {
 function makeEventBus(): EventBus {
   return {
     emit: vi.fn(),
-    on:   vi.fn(),
-    off:  vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
   } as unknown as EventBus;
 }
 
 function makeAuditService(): AuditPublicAPI {
   return {
-    writeEvent:  vi.fn().mockResolvedValue(undefined),
+    writeEvent: vi.fn().mockResolvedValue(undefined),
     queryEvents: vi.fn().mockRejectedValue(new Error('not stubbed')),
-    _internal:   { repo: null as any, writeService: null as any },
+    _internal: { repo: null as any, writeService: null as any },
   };
 }
 
@@ -257,13 +257,15 @@ function makeDb(txRepo?: Partial<IamRepository>) {
   // The transaction mock must call the callback with a fake tx object.
   // iam.service.ts imports createIamRepository inside the transaction and
   // calls it with the tx parameter. We intercept that by mocking the module.
-  const mockTx = { /* drizzle tx placeholder */ };
+  const mockTx = {
+    /* drizzle tx placeholder */
+  };
   return {
     transaction: vi.fn().mockImplementation(async (cb: (tx: any) => Promise<any>) => {
       return cb(mockTx);
     }),
     update: vi.fn().mockReturnValue({
-      set:   vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
         where: vi.fn().mockResolvedValue(undefined),
       }),
     }),
@@ -290,15 +292,15 @@ vi.mock('../iam.repository.js', async (importOriginal) => {
 
 // Mock @batac/database/schema/iam.schema.js for the sessions.update call
 vi.mock('@batac/database/schema/iam.schema.js', () => ({
-  sessions:      { id: 'sessions.id' },
-  credentials:   {},
-  users:         {},
+  sessions: { id: 'sessions.id' },
+  credentials: {},
+  users: {},
   refreshTokens: {},
-  roles:         {},
-  permissions:   {},
+  roles: {},
+  permissions: {},
   rolePermissions: {},
   roleAssignments: {},
-  mfaRecords:    {},
+  mfaRecords: {},
 }));
 
 vi.mock('drizzle-orm', async (importOriginal) => {
@@ -316,46 +318,48 @@ function makeDeps(
   repoOverrides: Partial<IamRepository> = {},
   dbOverrides?: Partial<ReturnType<typeof makeDb>>,
 ): {
-  repo:         IamRepository;
-  audit:        AuditPublicAPI;
-  bus:          EventBus;
-  db:           ReturnType<typeof makeDb>;
-  deps:         IamServiceDeps;
+  repo: IamRepository;
+  audit: AuditPublicAPI;
+  bus: EventBus;
+  db: ReturnType<typeof makeDb>;
+  deps: IamServiceDeps;
 } {
-  const repo  = makeRepo(repoOverrides);
+  const repo = makeRepo(repoOverrides);
   const audit = makeAuditService();
-  const bus   = makeEventBus();
-  const db    = { ...makeDb(), ...dbOverrides };
+  const bus = makeEventBus();
+  const db = { ...makeDb(), ...dbOverrides };
 
   const deps: IamServiceDeps = {
-    db:            db as any,
+    db: db as any,
     iamRepository: repo,
-    auditService:  audit,
-    eventBus:      bus,
+    auditService: audit,
+    eventBus: bus,
     policyEvaluator: null as any,
   };
   return { repo, audit, bus, db, deps };
 }
 
 /** Build a valid login input with matching PKCE pair. */
-function makeLoginInput(overrides: Partial<{
-  username: string;
-  password:  string;
-  code_verifier:         string;
-  code_challenge:        string;
-  code_challenge_method: 'S256';
-  ipAddress:             string | null;
-  userAgent:             string | null;
-}> = {}) {
+function makeLoginInput(
+  overrides: Partial<{
+    username: string;
+    password: string;
+    code_verifier: string;
+    code_challenge: string;
+    code_challenge_method: 'S256';
+    ipAddress: string | null;
+    userAgent: string | null;
+  }> = {},
+) {
   const { code_verifier, code_challenge } = makePkce();
   return {
-    username:              'testuser',
-    password:              'correct-password',
+    username: 'testuser',
+    password: 'correct-password',
     code_verifier,
     code_challenge,
     code_challenge_method: 'S256' as const,
-    ipAddress:             '10.0.0.1',
-    userAgent:             'Mozilla/5.0',
+    ipAddress: '10.0.0.1',
+    userAgent: 'Mozilla/5.0',
     ...overrides,
   };
 }
@@ -380,7 +384,7 @@ describe('IamService.login()', () => {
 
   it('returns 400 with code PKCE_MISMATCH when code_verifier does not satisfy the challenge', async () => {
     const { deps } = makeDeps();
-    const service  = createIamService(deps);
+    const service = createIamService(deps);
     const { code_verifier, code_challenge } = makeBadPkce();
 
     const err = await service
@@ -423,9 +427,7 @@ describe('IamService.login()', () => {
   it('returns 429 with retryAfter when account is locked', async () => {
     const lockedUntil = new Date(Date.now() + 60_000); // 60s from now
     const { deps } = makeDeps({
-      findUserByUsername: vi.fn().mockResolvedValue(
-        makeUser({ loginLockedUntil: lockedUntil }),
-      ),
+      findUserByUsername: vi.fn().mockResolvedValue(makeUser({ loginLockedUntil: lockedUntil })),
     });
     const service = createIamService(deps);
 
@@ -444,7 +446,7 @@ describe('IamService.login()', () => {
     const cred = makeCredential();
     const audit = makeAuditService();
     const { deps, repo } = makeDeps({
-      findUserByUsername:     vi.fn().mockResolvedValue(user),
+      findUserByUsername: vi.fn().mockResolvedValue(user),
       findCredentialByUserId: vi.fn().mockResolvedValue(cred),
     });
     deps.auditService = audit;
@@ -474,7 +476,7 @@ describe('IamService.login()', () => {
     const user = makeUser({ loginFailureCount: 5 }); // next failure is #6 → 30s lockout
     const cred = makeCredential();
     const { deps, repo } = makeDeps({
-      findUserByUsername:     vi.fn().mockResolvedValue(user),
+      findUserByUsername: vi.fn().mockResolvedValue(user),
       findCredentialByUserId: vi.fn().mockResolvedValue(cred),
     });
     vi.mocked(argon2.verify).mockResolvedValue(false);
@@ -482,11 +484,7 @@ describe('IamService.login()', () => {
     const service = createIamService(deps);
     await service.login(makeLoginInput()).catch(() => {});
 
-    expect(vi.mocked(repo.updateLoginFailure)).toHaveBeenCalledWith(
-      user.id,
-      6,
-      expect.any(Date),
-    );
+    expect(vi.mocked(repo.updateLoginFailure)).toHaveBeenCalledWith(user.id, 6, expect.any(Date));
     const lockedUntil: Date = vi.mocked(repo.updateLoginFailure).mock.calls[0]![2] as Date;
     const delaySec = Math.round((lockedUntil.getTime() - Date.now()) / 1000);
     // 30 seconds lockout for count=6 (allow ±2s for timing)
@@ -505,7 +503,7 @@ describe('IamService.login()', () => {
       const user = makeUser({ loginFailureCount: prevCount });
       const cred = makeCredential();
       const { deps, repo } = makeDeps({
-        findUserByUsername:     vi.fn().mockResolvedValue(user),
+        findUserByUsername: vi.fn().mockResolvedValue(user),
         findCredentialByUserId: vi.fn().mockResolvedValue(cred),
       });
       const service = createIamService(deps);
@@ -532,14 +530,28 @@ describe('IamService.login()', () => {
     });
 
     const { deps, repo, audit } = makeDeps({
-      findUserByUsername:                vi.fn().mockResolvedValue(user),
-      findCredentialByUserId:            vi.fn().mockResolvedValue(cred),
+      findUserByUsername: vi.fn().mockResolvedValue(user),
+      findCredentialByUserId: vi.fn().mockResolvedValue(cred),
       findActiveRoleAssignmentsByUserId: vi.fn().mockResolvedValue([
-        { ...makeRepo().findAssignmentsByUserId, id: randomUUID(), userId: USER_ID,
-          roleId: role.id, isActive: true, role, assignedBy: randomUUID(),
-          officeScopeId: null, cityId: CITY_ID, revokedAt: null, revokedBy: null,
-          revocationReason: null, createdAt: new Date(), updatedAt: new Date(),
-          deletedAt: null, deletedBy: null, updatedBy: null },
+        {
+          ...makeRepo().findAssignmentsByUserId,
+          id: randomUUID(),
+          userId: USER_ID,
+          roleId: role.id,
+          isActive: true,
+          role,
+          assignedBy: randomUUID(),
+          officeScopeId: null,
+          cityId: CITY_ID,
+          revokedAt: null,
+          revokedBy: null,
+          revocationReason: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+          deletedBy: null,
+          updatedBy: null,
+        },
       ]),
       findPermissionsByRoleIds: vi.fn().mockResolvedValue([]),
       resetLoginFailure: vi.fn().mockResolvedValue(undefined),
@@ -547,7 +559,7 @@ describe('IamService.login()', () => {
 
     vi.mocked(argon2.verify).mockResolvedValue(true);
     const service = createIamService(deps);
-    const result  = await service.login(makeLoginInput());
+    const result = await service.login(makeLoginInput());
 
     // Body shape
     expect(result.user.id).toBe(user.id);
@@ -561,12 +573,12 @@ describe('IamService.login()', () => {
 
     // Tokens must NOT appear in response body
     const responseBody = {
-      user:          result.user,
-      sessionId:     result.sessionId,
-      expiresAt:     result.expiresAt,
-      roleCodes:     result.roleCodes,
+      user: result.user,
+      sessionId: result.sessionId,
+      expiresAt: result.expiresAt,
+      roleCodes: result.roleCodes,
       officeScopeId: result.officeScopeId,
-      officeCode:    result.officeCode,
+      officeCode: result.officeCode,
     };
     const bodyStr = JSON.stringify(responseBody);
     expect(bodyStr).not.toMatch(/eyJ/); // JWT prefix
@@ -584,17 +596,17 @@ describe('IamService.login()', () => {
     });
 
     const { deps } = makeDeps({
-      findUserByUsername:                vi.fn().mockResolvedValue(user),
-      findCredentialByUserId:            vi.fn().mockResolvedValue(cred),
+      findUserByUsername: vi.fn().mockResolvedValue(user),
+      findCredentialByUserId: vi.fn().mockResolvedValue(cred),
       findActiveRoleAssignmentsByUserId: vi.fn().mockResolvedValue([]),
-      findPermissionsByRoleIds:          vi.fn().mockResolvedValue([]),
-      resetLoginFailure:                 vi.fn().mockResolvedValue(undefined),
+      findPermissionsByRoleIds: vi.fn().mockResolvedValue([]),
+      resetLoginFailure: vi.fn().mockResolvedValue(undefined),
     });
     // getPrimaryOffice not provided → defaults to () => null
     vi.mocked(argon2.verify).mockResolvedValue(true);
 
     const service = createIamService(deps);
-    const result  = await service.login(makeLoginInput());
+    const result = await service.login(makeLoginInput());
 
     expect(result.officeScopeId).toBeNull();
     expect(result.officeCode).toBeNull();
@@ -603,23 +615,23 @@ describe('IamService.login()', () => {
   // ── Concurrent-session replacement ────────────────────────────────────────
 
   it('terminates old session and emits session_replaced when an active session exists', async () => {
-    const user       = makeUser();
-    const cred       = makeCredential();
+    const user = makeUser();
+    const cred = makeCredential();
     const oldSession = makeSession();
 
     txRepoStub = makeRepo({
       findActiveSessionByUserId: vi.fn().mockResolvedValue(oldSession),
-      terminateSession:          vi.fn().mockResolvedValue(undefined),
+      terminateSession: vi.fn().mockResolvedValue(undefined),
       revokeRefreshTokensBySessionId: vi.fn().mockResolvedValue(undefined),
       createSession: vi.fn().mockResolvedValue(makeNewSession()),
     });
 
     const { deps, audit } = makeDeps({
-      findUserByUsername:                vi.fn().mockResolvedValue(user),
-      findCredentialByUserId:            vi.fn().mockResolvedValue(cred),
+      findUserByUsername: vi.fn().mockResolvedValue(user),
+      findCredentialByUserId: vi.fn().mockResolvedValue(cred),
       findActiveRoleAssignmentsByUserId: vi.fn().mockResolvedValue([]),
-      findPermissionsByRoleIds:          vi.fn().mockResolvedValue([]),
-      resetLoginFailure:                 vi.fn().mockResolvedValue(undefined),
+      findPermissionsByRoleIds: vi.fn().mockResolvedValue([]),
+      resetLoginFailure: vi.fn().mockResolvedValue(undefined),
     });
     vi.mocked(argon2.verify).mockResolvedValue(true);
 
@@ -641,9 +653,7 @@ describe('IamService.login()', () => {
 
     // session_replaced audit event emitted
     const auditCalls = vi.mocked(audit.writeEvent).mock.calls;
-    const replacedEvent = auditCalls.find(
-      ([e]) => e.eventType === 'session_replaced',
-    );
+    const replacedEvent = auditCalls.find(([e]) => e.eventType === 'session_replaced');
     expect(replacedEvent).toBeDefined();
     const payload = replacedEvent![0].payload;
     expect(payload['old_session_id']).toBe(oldSession.id);
@@ -661,11 +671,11 @@ describe('IamService.login()', () => {
     });
 
     const { deps, audit } = makeDeps({
-      findUserByUsername:                vi.fn().mockResolvedValue(user),
-      findCredentialByUserId:            vi.fn().mockResolvedValue(cred),
+      findUserByUsername: vi.fn().mockResolvedValue(user),
+      findCredentialByUserId: vi.fn().mockResolvedValue(cred),
       findActiveRoleAssignmentsByUserId: vi.fn().mockResolvedValue([]),
-      findPermissionsByRoleIds:          vi.fn().mockResolvedValue([]),
-      resetLoginFailure:                 vi.fn().mockResolvedValue(undefined),
+      findPermissionsByRoleIds: vi.fn().mockResolvedValue([]),
+      resetLoginFailure: vi.fn().mockResolvedValue(undefined),
     });
     vi.mocked(argon2.verify).mockResolvedValue(true);
 
@@ -690,11 +700,11 @@ describe('IamService.login()', () => {
     });
 
     const { deps, repo } = makeDeps({
-      findUserByUsername:                vi.fn().mockResolvedValue(user),
-      findCredentialByUserId:            vi.fn().mockResolvedValue(cred),
+      findUserByUsername: vi.fn().mockResolvedValue(user),
+      findCredentialByUserId: vi.fn().mockResolvedValue(cred),
       findActiveRoleAssignmentsByUserId: vi.fn().mockResolvedValue([]),
-      findPermissionsByRoleIds:          vi.fn().mockResolvedValue([]),
-      resetLoginFailure:                 vi.fn().mockResolvedValue(undefined),
+      findPermissionsByRoleIds: vi.fn().mockResolvedValue([]),
+      resetLoginFailure: vi.fn().mockResolvedValue(undefined),
     });
     vi.mocked(argon2.verify).mockResolvedValue(true);
 
@@ -716,16 +726,16 @@ describe('IamService.login()', () => {
     });
 
     const { deps } = makeDeps({
-      findUserByUsername:                vi.fn().mockResolvedValue(user),
-      findCredentialByUserId:            vi.fn().mockResolvedValue(cred),
+      findUserByUsername: vi.fn().mockResolvedValue(user),
+      findCredentialByUserId: vi.fn().mockResolvedValue(cred),
       findActiveRoleAssignmentsByUserId: vi.fn().mockResolvedValue([]),
-      findPermissionsByRoleIds:          vi.fn().mockResolvedValue([]),
-      resetLoginFailure:                 vi.fn().mockResolvedValue(undefined),
+      findPermissionsByRoleIds: vi.fn().mockResolvedValue([]),
+      resetLoginFailure: vi.fn().mockResolvedValue(undefined),
     });
     vi.mocked(argon2.verify).mockResolvedValue(true);
 
     const service = createIamService(deps);
-    const result  = await service.login(makeLoginInput()) as any;
+    const result = (await service.login(makeLoginInput())) as any;
 
     expect(result._cookies.accessMaxAge).toBe(900); // 15m = 900s
     expect(result._cookies.refreshMaxAge).toBe(14 * 24 * 3600); // 1209600
@@ -743,16 +753,16 @@ describe('IamService.login()', () => {
     });
 
     const { deps } = makeDeps({
-      findUserByUsername:                vi.fn().mockResolvedValue(user),
-      findCredentialByUserId:            vi.fn().mockResolvedValue(cred),
+      findUserByUsername: vi.fn().mockResolvedValue(user),
+      findCredentialByUserId: vi.fn().mockResolvedValue(cred),
       findActiveRoleAssignmentsByUserId: vi.fn().mockResolvedValue([]),
-      findPermissionsByRoleIds:          vi.fn().mockResolvedValue([]),
-      resetLoginFailure:                 vi.fn().mockResolvedValue(undefined),
+      findPermissionsByRoleIds: vi.fn().mockResolvedValue([]),
+      resetLoginFailure: vi.fn().mockResolvedValue(undefined),
     });
     vi.mocked(argon2.verify).mockResolvedValue(true);
 
     const service = createIamService(deps);
-    const result  = await service.login(makeLoginInput()) as any;
+    const result = (await service.login(makeLoginInput())) as any;
 
     const parts = result._cookies.refreshTokenCookieValue.split('.');
     // UUID has 5 parts separated by '-'; total cookie has UUID + '.' + base64url

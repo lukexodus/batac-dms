@@ -44,7 +44,7 @@ This boundary is not a future improvement to be closed later by this team; it is
   1. Must issue RFC 3161-compliant timestamp tokens.
   2. Must not require sending raw document content or citizen PII — only the hash/digest of the monthly export snapshot is transmitted externally, preserving the RA 10173 data-sovereignty posture already established for OCR (Stack Context, "OCR Strategy": "Cloud OCR services that send data off-premise are excluded").
   3. Must support a verifiable, independent token-validation path (i.e., the LGU is not solely dependent on the TSA provider's own verification API remaining available — the RFC 3161 standard itself guarantees this, but a provider whose tokens require a proprietary verifier is disqualified).
-- **Provider confirmation is tracked as an open follow-up item**, not blocking Phase 1 development of the Audit module itself (the hash chain and HMAC layers function independently of TSA export; TSA export only extends the tamper-evidence guarantee to cover bulk deletion of *recent* un-exported records). The Audit module's `tsaExportSvc` (B1, Module 8) is built against the RFC 3161 protocol interface so any compliant provider can be substituted without code changes once selected.
+- **Provider confirmation is tracked as an open follow-up item**, not blocking Phase 1 development of the Audit module itself (the hash chain and HMAC layers function independently of TSA export; TSA export only extends the tamper-evidence guarantee to cover bulk deletion of _recent_ un-exported records). The Audit module's `tsaExportSvc` (B1, Module 8) is built against the RFC 3161 protocol interface so any compliant provider can be substituted without code changes once selected.
 
 ## Consequences
 

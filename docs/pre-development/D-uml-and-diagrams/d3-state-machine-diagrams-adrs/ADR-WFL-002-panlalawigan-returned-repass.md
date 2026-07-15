@@ -22,14 +22,14 @@ No stakeholder was asked about this, and the consolidated reference does not add
 
 1. SP Secretary logs the Panlalawigan RETURNED outcome against the original document. The original document's `panlalawigan_outcome` field is set to `RETURNED`.
 2. SP Secretary initiates the repass action (a manual UI action, not automatic). This creates a **new document record**:
-    - Inherits title, authors, sponsors, and substantive content from the original.
-    - Receives a fresh `document_id` and a fresh **preliminary** ("Draft") number under the normal preliminary-numbering rules (ADR does not change preliminary numbering — see consolidated reference Part 5.2).
-    - Records `previous_document_id` pointing at the original, for traceability.
+   - Inherits title, authors, sponsors, and substantive content from the original.
+   - Receives a fresh `document_id` and a fresh **preliminary** ("Draft") number under the normal preliminary-numbering rules (ADR does not change preliminary numbering — see consolidated reference Part 5.2).
+   - Records `previous_document_id` pointing at the original, for traceability.
 3. The original document record is marked:
-    - `superseded_by = <new_document_id>`
-    - `closure_reason = "Panlalawigan RETURNED; repassed"`
-    - `superseded_at = NOW()`
-    - Lifecycle status transitions `Pending Panlalawigan Review → In-Workflow` is **not** used here; instead, per ADR-015, the original's _workflow instance_ status is left untouched (`Running`), and the original _document_ lifecycle status is set to a value reflecting closure-via-supersession rather than reverting to `In-Workflow`. (Exact lifecycle status value for a superseded document is specified in the D3 revision accompanying this ADR — see "Document Lifecycle Impact" below.)
+   - `superseded_by = <new_document_id>`
+   - `closure_reason = "Panlalawigan RETURNED; repassed"`
+   - `superseded_at = NOW()`
+   - Lifecycle status transitions `Pending Panlalawigan Review → In-Workflow` is **not** used here; instead, per ADR-015, the original's _workflow instance_ status is left untouched (`Running`), and the original _document_ lifecycle status is set to a value reflecting closure-via-supersession rather than reverting to `In-Workflow`. (Exact lifecycle status value for a superseded document is specified in the D3 revision accompanying this ADR — see "Document Lifecycle Impact" below.)
 4. The new document proceeds through the full legislative workflow again from `Draft` (First Reading, committee referral or Certified Urgent, readings, VP signature, Transmittal, Mayor review, Panlalawigan review) as an ordinary new workflow instance.
 5. **If and only if** the new document is eventually approved through to `Completed`: at final-number assignment time, the engine assigns the **original document's final number** to the new document, rather than drawing the next number from the per-year sequence. The original final number is retired from the live sequence at the moment of supersession (step 3) and is not available for any other document; it is held in reserve specifically for this republished version.
 6. If the new document itself fails (voted down, RETURNED again, withdrawn, etc.) before reaching `Completed`, the reserved final number remains reserved against that lineage. Repeated repass attempts continue inheriting the same reserved number down the `previous_document_id` chain until one succeeds or the matter is formally abandoned (abandonment handling is out of scope for this ADR and is not yet decided).
@@ -43,7 +43,7 @@ The public portal shows one document under the original final number (e.g., `7SP
 **This decision overrides an existing documented invariant and the amendment is recorded here explicitly, per the consolidated reference's own change-control convention** (Part 5.2: "Reuse: Never, even if cancelled"; Part 11.5: same; Part 12 invariant table, the numbering-related rows derived from those sections).
 
 > **Prior rule (Part 5.2, Part 11.5):** "Reuse: Never, even if cancelled."
-> 
+>
 > **Amended rule, effective from this ADR:** Final series numbers are never reused **except** in the single case of a document superseded due to a Panlalawigan RETURNED outcome and subsequently repassed to approval, per the mechanism in this ADR. In that specific case, the reserved final number is assigned exactly once to whichever document in the supersession chain is first approved to `Completed`. All other cancellation, rejection, and withdrawal scenarios remain governed by the original "never reused" rule unchanged. Cancelled or rejected documents that are **not** the subject of a Panlalawigan-RETURNED repass do **not** have their numbers reserved or reused under any circumstance.
 
 This is a narrow, explicitly-scoped exception, not a general relaxation of the immutability rule. The development team implementing the numbering service (consolidated reference Part 11.5, `documents.number_series`) must treat "number reservation pending repass outcome" as a distinct, auditable state — not silently identical to ordinary gap-logging for cancelled documents (Part 5.2's existing gap mechanism, which remains the default for everything outside this one exception).

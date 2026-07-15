@@ -91,7 +91,7 @@ describe('Session Router tRPC Procedures', () => {
         caller.recordAttendance({
           sessionDate: new Date('2026-07-14'),
           absences: [],
-        })
+        }),
       ).rejects.toThrowError(/You do not have permission/);
     });
 
@@ -100,7 +100,9 @@ describe('Session Router tRPC Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       // mock sequence of DB queries/updates inside transaction:
-      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? COUNCILOR_2_UUID : `councilor-${i}` }));
+      const roster = Array.from({ length: 10 }).map((_, i) => ({
+        id: i === 0 ? COUNCILOR_2_UUID : `councilor-${i}`,
+      }));
       mockDb.mockResponse(roster); // 1. SP members check (returns 10 members)
       mockDb.mockResponse([]); // 2. VM position check -> empty (fallback used)
       mockDb.mockResponse([]); // 3. logged in employee
@@ -130,7 +132,9 @@ describe('Session Router tRPC Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? VM_EMP_UUID : `councilor-${i}` }));
+      const roster = Array.from({ length: 10 }).map((_, i) => ({
+        id: i === 0 ? VM_EMP_UUID : `councilor-${i}`,
+      }));
       mockDb.mockResponse(roster); // 1. SP members check
       mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position
       mockDb.mockResponse([{ delegatedToEmployeeId: 'substitute-emp-id' }]); // 3. active designation
@@ -158,7 +162,9 @@ describe('Session Router tRPC Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? VM_EMP_UUID : `councilor-${i}` }));
+      const roster = Array.from({ length: 10 }).map((_, i) => ({
+        id: i === 0 ? VM_EMP_UUID : `councilor-${i}`,
+      }));
       mockDb.mockResponse(roster); // 1. SP members check
       mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position
       mockDb.mockResponse([{ id: 'valid-override-id' }]); // 3. override validation (employee exists)
@@ -188,7 +194,9 @@ describe('Session Router tRPC Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? COUNCILOR_2_UUID : `councilor-${i}` }));
+      const roster = Array.from({ length: 10 }).map((_, i) => ({
+        id: i === 0 ? COUNCILOR_2_UUID : `councilor-${i}`,
+      }));
       mockDb.mockResponse(roster); // 1. SP members check
       mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position check
       mockDb.mockResponse([]); // 3. existing session check -> empty
@@ -216,7 +224,9 @@ describe('Session Router tRPC Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? VM_EMP_UUID : `councilor-${i}` }));
+      const roster = Array.from({ length: 10 }).map((_, i) => ({
+        id: i === 0 ? VM_EMP_UUID : `councilor-${i}`,
+      }));
       mockDb.mockResponse(roster); // 1. SP members check
       mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position
       mockDb.mockResponse([]); // 3. override validation (employee does NOT exist)
@@ -231,7 +241,7 @@ describe('Session Router tRPC Procedures', () => {
             },
           ],
           presidedByEmployeeIdOverride: '11111111-1111-1111-1111-111111111111',
-        })
+        }),
       ).rejects.toThrowError(/substitute presiding officer could not be found/);
     });
 
@@ -239,7 +249,9 @@ describe('Session Router tRPC Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      const roster = Array.from({ length: 10 }).map((_, i) => ({ id: i === 0 ? VM_EMP_UUID : `councilor-${i}` }));
+      const roster = Array.from({ length: 10 }).map((_, i) => ({
+        id: i === 0 ? VM_EMP_UUID : `councilor-${i}`,
+      }));
       mockDb.mockResponse(roster); // 1. SP members check
       mockDb.mockResponse([{ employeeId: VM_EMP_UUID, positionId: 'vm-pos-id' }]); // 2. VM position
       mockDb.mockResponse([{ id: 'valid-override-id' }]); // 3. override validation (employee exists)
@@ -255,7 +267,7 @@ describe('Session Router tRPC Procedures', () => {
             },
           ],
           presidedByEmployeeIdOverride: '11111111-1111-1111-1111-111111111111',
-        })
+        }),
       ).rejects.toThrowError(/substitute presiding officer is not eligible/);
     });
 
@@ -270,7 +282,7 @@ describe('Session Router tRPC Procedures', () => {
         caller.recordAttendance({
           sessionDate: new Date('2026-07-14'),
           absences: [],
-        })
+        }),
       ).rejects.toThrowError(/No active SP membership roster could be resolved/);
     });
   });
@@ -281,7 +293,7 @@ describe('Session Router tRPC Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       await expect(
-        caller.getAttendanceRecord({ sessionDate: new Date('2026-07-14') })
+        caller.getAttendanceRecord({ sessionDate: new Date('2026-07-14') }),
       ).rejects.toThrowError(/You do not have permission/);
     });
 
@@ -305,7 +317,9 @@ describe('Session Router tRPC Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       mockDb.mockResponse([{ employeeId: 'vm-emp-id' }]); // vm position lookup
-      mockDb.mockResponse([{ id: 'session-id', quorumAchieved: true, presidedByEmployeeId: 'presiding-id' }]); // session check
+      mockDb.mockResponse([
+        { id: 'session-id', quorumAchieved: true, presidedByEmployeeId: 'presiding-id' },
+      ]); // session check
       mockDb.mockResponse([
         {
           employeeId: 'emp-1',
@@ -415,12 +429,12 @@ describe('Session Router tRPC Procedures', () => {
       });
 
       expect(result.success).toBe(true);
-      
+
       expect(mockDb.values).toHaveBeenCalledWith(
         expect.objectContaining({
           presentCount: null,
           quorumAchieved: null,
-        })
+        }),
       );
 
       vi.useRealTimers();
@@ -460,9 +474,7 @@ describe('Session Router tRPC Procedures', () => {
           },
         },
       ]); // items inside OOB
-      mockDb.mockResponse([
-        { id: 'comm-1', name: 'Committee on Laws', code: 'CL' },
-      ]); // committees table
+      mockDb.mockResponse([{ id: 'comm-1', name: 'Committee on Laws', code: 'CL' }]); // committees table
 
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-07-10T12:00:00Z')); // Friday (past July 9 cutoff)

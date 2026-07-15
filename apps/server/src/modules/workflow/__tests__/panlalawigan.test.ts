@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { submitStepApproval } from '../engine/step-handlers/approval.handler.js';
-import { buildMockApprovalDeps, buildMockInstance, buildMockStepInstance } from './fixtures/workflow-test-helpers.js';
+import {
+  buildMockApprovalDeps,
+  buildMockInstance,
+  buildMockStepInstance,
+} from './fixtures/workflow-test-helpers.js';
 
 /**
  * Panlalawigan-specific tests (PANLA test group).
@@ -55,11 +59,19 @@ describe('Panlalawigan Review (PANLA)', () => {
   describe('PANLA-04: VALID outcome succeeds', () => {
     it('PANLA-04: VALID outcome completes the step', async () => {
       setupPanlalawiganDef({ allowed_outcomes: ['VALID', 'RETURNED', 'DEEMED_APPROVED'] });
-      await submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'VALID', null, mockDeps);
+      await submitStepApproval(
+        mockInstance,
+        mockStepInstance,
+        'user-sec',
+        'user',
+        'VALID',
+        null,
+        mockDeps,
+      );
       expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith(
         'step-inst-1',
         expect.objectContaining({ status: 'completed', outcome: 'VALID' }),
-        undefined
+        undefined,
       );
     });
   });
@@ -70,17 +82,25 @@ describe('Panlalawigan Review (PANLA)', () => {
         allowed_outcomes: ['VALID', 'RETURNED', 'DEEMED_APPROVED'],
         require_comment_on: ['RETURNED'],
       });
-      await submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'RETURNED', 'needs revision', mockDeps);
+      await submitStepApproval(
+        mockInstance,
+        mockStepInstance,
+        'user-sec',
+        'user',
+        'RETURNED',
+        'needs revision',
+        mockDeps,
+      );
       expect(mockDeps.workflowRepository.updateStepInstance).not.toHaveBeenCalledWith(
         'step-inst-1',
         expect.objectContaining({ status: 'returned' }),
-        undefined
+        undefined,
       );
       // RETURNED maps to status='completed' (only RETURNED_FOR_REVISION maps to 'returned')
       expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith(
         'step-inst-1',
         expect.objectContaining({ status: 'completed', outcome: 'RETURNED' }),
-        undefined
+        undefined,
       );
     });
   });
@@ -89,7 +109,15 @@ describe('Panlalawigan Review (PANLA)', () => {
     it('PANLA-06: DEEMED_APPROVED submitted by user → FORBIDDEN', async () => {
       setupPanlalawiganDef({ allowed_outcomes: ['VALID', 'DEEMED_APPROVED'] });
       try {
-        await submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'DEEMED_APPROVED', null, mockDeps);
+        await submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'DEEMED_APPROVED',
+          null,
+          mockDeps,
+        );
         expect.unreachable('Should have thrown');
       } catch (e: any) {
         expect(e.message).toContain('FORBIDDEN');
@@ -107,7 +135,15 @@ describe('Panlalawigan Review (PANLA)', () => {
         require_comment_on: ['RETURNED'],
       });
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'RETURNED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'RETURNED',
+          null,
+          mockDeps,
+        ),
       ).rejects.toThrow('VALIDATION_FAILED: comment is required');
     });
 
@@ -117,7 +153,15 @@ describe('Panlalawigan Review (PANLA)', () => {
         require_comment_on: ['RETURNED'],
       });
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'RETURNED', 'issues found', mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'RETURNED',
+          'issues found',
+          mockDeps,
+        ),
       ).resolves.not.toThrow();
     });
   });
@@ -128,7 +172,15 @@ describe('Panlalawigan Review (PANLA)', () => {
     it('PANLA-08: user not in assigned_to → FORBIDDEN: actor is not assigned', async () => {
       setupPanlalawiganDef({ allowed_outcomes: ['VALID'] });
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-unauthorized', 'user', 'VALID', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-unauthorized',
+          'user',
+          'VALID',
+          null,
+          mockDeps,
+        ),
       ).rejects.toThrow('FORBIDDEN: actor is not assigned to this step');
     });
   });
@@ -140,7 +192,15 @@ describe('Panlalawigan Review (PANLA)', () => {
       setupPanlalawiganDef({ allowed_outcomes: ['VALID'] });
       mockStepInstance.status = 'pending';
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'VALID', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'VALID',
+          null,
+          mockDeps,
+        ),
       ).rejects.toThrow('CONFLICT: step is not active');
     });
   });
@@ -163,7 +223,15 @@ describe('Panlalawigan Review (PANLA)', () => {
       setupPanlalawiganDef({ allowed_outcomes: ['OVERRIDE_SUCCEEDED', 'OVERRIDE_FAILED'] });
       mockInstance.context.veto_override_vote_count = 5;
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'OVERRIDE_SUCCEEDED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'OVERRIDE_SUCCEEDED',
+          null,
+          mockDeps,
+        ),
       ).rejects.toThrow('VALIDATION_FAILED: insufficient votes for override');
     });
 
@@ -171,7 +239,15 @@ describe('Panlalawigan Review (PANLA)', () => {
       setupPanlalawiganDef({ allowed_outcomes: ['OVERRIDE_SUCCEEDED'] });
       mockInstance.context.veto_override_vote_count = 8;
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'OVERRIDE_SUCCEEDED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'OVERRIDE_SUCCEEDED',
+          null,
+          mockDeps,
+        ),
       ).resolves.not.toThrow();
     });
 
@@ -179,7 +255,15 @@ describe('Panlalawigan Review (PANLA)', () => {
       setupPanlalawiganDef({ allowed_outcomes: ['OVERRIDE_SUCCEEDED', 'OVERRIDE_FAILED'] });
       mockInstance.context.veto_override_vote_count = 9;
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'OVERRIDE_FAILED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'OVERRIDE_FAILED',
+          null,
+          mockDeps,
+        ),
       ).rejects.toThrow('VALIDATION_FAILED: override failed but vote count is >= 8');
     });
 
@@ -187,7 +271,15 @@ describe('Panlalawigan Review (PANLA)', () => {
       setupPanlalawiganDef({ allowed_outcomes: ['OVERRIDE_FAILED'] });
       mockInstance.context.veto_override_vote_count = 3;
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'OVERRIDE_FAILED', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'OVERRIDE_FAILED',
+          null,
+          mockDeps,
+        ),
       ).resolves.not.toThrow();
     });
   });
@@ -199,7 +291,15 @@ describe('Panlalawigan Review (PANLA)', () => {
       setupPanlalawiganDef({ allowed_outcomes: ['VALID', 'OPERATIVE_IN_ITS_ENTIRETY'] });
       // instance context.document_type = 'resolution' (not appropriation_ordinance)
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'OPERATIVE_IN_ITS_ENTIRETY', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'OPERATIVE_IN_ITS_ENTIRETY',
+          null,
+          mockDeps,
+        ),
       ).rejects.toThrow('OUTCOME_NOT_VALID_FOR_DOCUMENT_TYPE');
     });
 
@@ -207,7 +307,15 @@ describe('Panlalawigan Review (PANLA)', () => {
       setupPanlalawiganDef({ allowed_outcomes: ['VALID', 'OPERATIVE_IN_ITS_ENTIRETY'] });
       mockInstance.context.document_type = 'appropriation_ordinance';
       await expect(
-        submitStepApproval(mockInstance, mockStepInstance, 'user-sec', 'user', 'OPERATIVE_IN_ITS_ENTIRETY', null, mockDeps)
+        submitStepApproval(
+          mockInstance,
+          mockStepInstance,
+          'user-sec',
+          'user',
+          'OPERATIVE_IN_ITS_ENTIRETY',
+          null,
+          mockDeps,
+        ),
       ).resolves.not.toThrow();
     });
   });

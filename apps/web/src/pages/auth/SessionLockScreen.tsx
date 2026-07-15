@@ -64,20 +64,21 @@ export function SessionLockScreen() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-lg border bg-card text-card-foreground shadow-sm">
-        <div className="flex flex-col space-y-1.5 p-6 pb-4 items-center justify-center text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-2">
-            <LockKeyhole className="h-8 w-8 text-muted-foreground" />
+    <div className="bg-background/80 fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+      <div className="bg-card text-card-foreground w-full max-w-md rounded-lg border shadow-sm">
+        <div className="flex flex-col items-center justify-center space-y-1.5 p-6 pb-4 text-center">
+          <div className="bg-muted mb-2 flex h-16 w-16 items-center justify-center rounded-full">
+            <LockKeyhole className="text-muted-foreground h-8 w-8" />
           </div>
-          <h3 className="whitespace-nowrap tracking-tight text-2xl font-semibold leading-none">
+          <h3 className="text-2xl leading-none font-semibold tracking-tight whitespace-nowrap">
             Session Locked
           </h3>
-          <p className="text-sm text-muted-foreground pt-1">
-            Welcome back, <span className="font-medium text-foreground">{identity.displayName}</span>
+          <p className="text-muted-foreground pt-1 text-sm">
+            Welcome back,{' '}
+            <span className="text-foreground font-medium">{identity.displayName}</span>
           </p>
         </div>
-        
+
         <div className="p-6 pt-0">
           <form onSubmit={handleUnlock} className="space-y-4">
             <div className="space-y-2">
@@ -93,11 +94,11 @@ export function SessionLockScreen() {
                 disabled={isSubmitting}
               />
             </div>
-            
+
             {error && (
               <Alert variant="destructive" className="py-2">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-sm ml-2">{error}</AlertDescription>
+                <AlertDescription className="ml-2 text-sm">{error}</AlertDescription>
               </Alert>
             )}
 

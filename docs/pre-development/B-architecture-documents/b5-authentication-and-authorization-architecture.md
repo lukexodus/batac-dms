@@ -95,13 +95,13 @@ This document does **not** cover:
 
 **Sources:** Stack Context ("Short-lived JWT access tokens (15–60 min)"); Consolidated Reference Part 11.1, Part 11.17.
 
-|Property|Value|Source|
-|---|---|---|
-|Format|Signed JWT (JWS compact serialization)|[CONFIRMED]|
-|Lifetime|15–60 minutes — configurable per environment via `JWT_ACCESS_TTL_SECONDS`|[CONFIRMED]|
-|Storage|HTTP-only cookie exclusively|[CONFIRMED]|
-|Client-side localStorage / sessionStorage|**Never** — architectural prohibition|[CONFIRMED]|
-|Signing algorithm|RS256|[Resolved — [ADR-AUTH-001](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-001-jwt-signing-algorithm.md). SSO integration confirmed as a near-term priority; RS256 selected to support public-key verification by external relying parties. Key pair generation and secure private-key storage required before first IAM migration.]|
+| Property                                  | Value                                                                     | Source                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Format                                    | Signed JWT (JWS compact serialization)                                    | [CONFIRMED]                                                                                                                                                                                                                                                                                                                                         |
+| Lifetime                                  | 15–60 minutes — configurable per environment via `JWT_ACCESS_TTL_SECONDS` | [CONFIRMED]                                                                                                                                                                                                                                                                                                                                         |
+| Storage                                   | HTTP-only cookie exclusively                                              | [CONFIRMED]                                                                                                                                                                                                                                                                                                                                         |
+| Client-side localStorage / sessionStorage | **Never** — architectural prohibition                                     | [CONFIRMED]                                                                                                                                                                                                                                                                                                                                         |
+| Signing algorithm                         | RS256                                                                     | [Resolved — [ADR-AUTH-001](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-001-jwt-signing-algorithm.md). SSO integration confirmed as a near-term priority; RS256 selected to support public-key verification by external relying parties. Key pair generation and secure private-key storage required before first IAM migration.] |
 
 #### JWT Payload — Registered Claims
 
@@ -124,31 +124,31 @@ This document does **not** cover:
 
 ```json
 {
-  "uid":     "<user-uuid>",
-  "oid":     "<primary-office-uuid> | null",
-  "rid":     ["<role-uuid-1>", "<role-uuid-2>"],
-  "perm":    ["documents:read", "documents:approve", "workflow:advance"],
-  "cid":     ["<committee-uuid-1>", "..."],
-  "dg":      "<delegation-grant-uuid | null>",
-  "city":    "<batac-city-uuid>",
-  "sid":     "<session-uuid>",
-  "is_ita":  false,
-  "is_pa":   false
+  "uid": "<user-uuid>",
+  "oid": "<primary-office-uuid> | null",
+  "rid": ["<role-uuid-1>", "<role-uuid-2>"],
+  "perm": ["documents:read", "documents:approve", "workflow:advance"],
+  "cid": ["<committee-uuid-1>", "..."],
+  "dg": "<delegation-grant-uuid | null>",
+  "city": "<batac-city-uuid>",
+  "sid": "<session-uuid>",
+  "is_ita": false,
+  "is_pa": false
 }
 ```
 
-|Claim|Purpose|Notes|
-|---|---|---|
-|`uid`|User identity for downstream lookups|Redundant with `sub` but avoids casting ambiguity|
-|`oid`|Primary office assignment for office scoping in ABAC|The office this user belongs to in `organization.assignments`. **`null`able [RESOLVED — see `docs/pre-development/A-project-planning/a1-tasks/iam.md` Module Summary, "oid typed and placeholdered as a non-nullable empty string"]:** not every `iam.users` row resolves to an `organization.employees` row with an active `organization.assignments` row — `organization.employees.user_id` is nullable by design (C1 Part 4) — and an empty string is not a valid UUID for any RLS policy that casts this claim `::uuid` (§6.3 below). Consistent with frontend ADR-UI-012's `officeScopeId: z.string().uuid().nullable()`.|
-|`rid`|Role IDs for RBAC entry-point check|Array; populated at token issue from active role assignments|
-|`perm`|Resolved permission codes|Derived from `rid` at token issue; format: `<resource>:<action>`|
-|`cid`|Committee membership IDs for SP Member committee-scoped policies|`[RESOLVED — D-ABAC-06, I1 §1]` Added after this table was first written; active `organization.committee_memberships` rows for the subject at token issue, same staleness model as `rid`/`perm`. Empty array if none.|
-|`dg`|Active delegation grant UUID|Null if user is not currently acting under a delegation; populated if active `delegation_grant` exists with `delegated_to_user_id = uid`|
-|`city`|`city_id` for tenant isolation|Always `batac-city-uuid` in Phase 1; multi-tenancy path for future|
-|`sid`|Session UUID from `iam.sessions`|Used for concurrent session enforcement at every authenticated request|
-|`is_ita`|Boolean: is this an IT Admin session|Shortcircuits to content access denial in ABAC evaluation step 2|
-|`is_pa`|Boolean: is this a Platform Administrator session|Shortcircuits to operational denial in ABAC evaluation step 3|
+| Claim    | Purpose                                                          | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `uid`    | User identity for downstream lookups                             | Redundant with `sub` but avoids casting ambiguity                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `oid`    | Primary office assignment for office scoping in ABAC             | The office this user belongs to in `organization.assignments`. **`null`able [RESOLVED — see `docs/pre-development/A-project-planning/a1-tasks/iam.md` Module Summary, "oid typed and placeholdered as a non-nullable empty string"]:** not every `iam.users` row resolves to an `organization.employees` row with an active `organization.assignments` row — `organization.employees.user_id` is nullable by design (C1 Part 4) — and an empty string is not a valid UUID for any RLS policy that casts this claim `::uuid` (§6.3 below). Consistent with frontend ADR-UI-012's `officeScopeId: z.string().uuid().nullable()`. |
+| `rid`    | Role IDs for RBAC entry-point check                              | Array; populated at token issue from active role assignments                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `perm`   | Resolved permission codes                                        | Derived from `rid` at token issue; format: `<resource>:<action>`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `cid`    | Committee membership IDs for SP Member committee-scoped policies | `[RESOLVED — D-ABAC-06, I1 §1]` Added after this table was first written; active `organization.committee_memberships` rows for the subject at token issue, same staleness model as `rid`/`perm`. Empty array if none.                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `dg`     | Active delegation grant UUID                                     | Null if user is not currently acting under a delegation; populated if active `delegation_grant` exists with `delegated_to_user_id = uid`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `city`   | `city_id` for tenant isolation                                   | Always `batac-city-uuid` in Phase 1; multi-tenancy path for future                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `sid`    | Session UUID from `iam.sessions`                                 | Used for concurrent session enforcement at every authenticated request                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `is_ita` | Boolean: is this an IT Admin session                             | Shortcircuits to content access denial in ABAC evaluation step 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `is_pa`  | Boolean: is this a Platform Administrator session                | Shortcircuits to operational denial in ABAC evaluation step 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 **Critical timing note [Inference]:** `perm` and `rid` are resolved at token issue time. A role assignment change during an active token's lifetime does not take effect until the next token refresh. Role changes that must take effect immediately (e.g., employee termination, emergency revocation) require a forced session termination. The forced logout mechanism (Part 11.17) covers this case.
 
@@ -156,15 +156,15 @@ This document does **not** cover:
 
 **Sources:** Stack Context ("Long-lived refresh tokens stored server-side in PostgreSQL; rotated on every refresh"). Consolidated Reference Part 11.1.
 
-|Property|Value|Source|
-|---|---|---|
-|Format|Cryptographically random opaque string|[CONFIRMED intent; format is [Inference]]|
-|Generation|32 bytes from `crypto.randomBytes(32)`, base64url-encoded|[Inference]|
-|Server-side storage|PostgreSQL `iam.refresh_tokens`, hashed with SHA-256 + per-token salt|[Resolved — [ADR-AUTH-004](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-004-refresh-token-hash-algorithm.md). Argon2id is unnecessary here: the raw token is a 32-byte (256-bit) cryptographically random value with no guessing-feasible search space, so a slow hash adds CPU cost on every refresh (up to 20/min/session per Section 10.4) with no corresponding security benefit. Argon2id remains the algorithm for `iam.credentials` password hashing, which is unaffected by this decision.]|
-|Client-side storage|HTTP-only cookie|[CONFIRMED]|
-|Rotation policy|One-time use — rotated on every use|[CONFIRMED]|
-|Lifetime|14 days|[Resolved — [ADR-AUTH-003](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-003-refresh-token-lifetime.md). Chosen over the document's original 7-day starting point to prioritize convenience for staff with infrequent access; offset by the existing reuse-detection design (token families) as the primary mitigation against a stolen token's 14-day usability window. Interacts directly with the Section 4.6 shared-workstation lock behavior — see that section.]|
-|Reuse detection|Token families; family-wide revocation on reuse|[Inference]|
+| Property            | Value                                                                 | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Format              | Cryptographically random opaque string                                | [CONFIRMED intent; format is [Inference]]                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Generation          | 32 bytes from `crypto.randomBytes(32)`, base64url-encoded             | [Inference]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Server-side storage | PostgreSQL `iam.refresh_tokens`, hashed with SHA-256 + per-token salt | [Resolved — [ADR-AUTH-004](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-004-refresh-token-hash-algorithm.md). Argon2id is unnecessary here: the raw token is a 32-byte (256-bit) cryptographically random value with no guessing-feasible search space, so a slow hash adds CPU cost on every refresh (up to 20/min/session per Section 10.4) with no corresponding security benefit. Argon2id remains the algorithm for `iam.credentials` password hashing, which is unaffected by this decision.] |
+| Client-side storage | HTTP-only cookie                                                      | [CONFIRMED]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Rotation policy     | One-time use — rotated on every use                                   | [CONFIRMED]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Lifetime            | 14 days                                                               | [Resolved — [ADR-AUTH-003](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-003-refresh-token-lifetime.md). Chosen over the document's original 7-day starting point to prioritize convenience for staff with infrequent access; offset by the existing reuse-detection design (token families) as the primary mitigation against a stolen token's 14-day usability window. Interacts directly with the Section 4.6 shared-workstation lock behavior — see that section.]                               |
+| Reuse detection     | Token families; family-wide revocation on reuse                       | [Inference]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 #### Refresh Token Table Schema [Inference — not confirmed]
 
@@ -235,10 +235,10 @@ Both the access token and refresh token are delivered exclusively as HTTP-only c
 
 ### 2.1 Cookie Attributes
 
-|Cookie|Name|Path|Attributes|
-|---|---|---|---|
-|Access token|`batac_at`|`/`|`HttpOnly; Secure; SameSite=Strict`|
-|Refresh token|`batac_rt`|`/api/auth/refresh`|`HttpOnly; Secure; SameSite=Strict`|
+| Cookie        | Name       | Path                | Attributes                          |
+| ------------- | ---------- | ------------------- | ----------------------------------- |
+| Access token  | `batac_at` | `/`                 | `HttpOnly; Secure; SameSite=Strict` |
+| Refresh token | `batac_rt` | `/api/auth/refresh` | `HttpOnly; Secure; SameSite=Strict` |
 
 **Attribute rationale:**
 
@@ -316,15 +316,15 @@ The `code_verifier` is generated in the browser and held in memory (JavaScript v
 
 ### 4.1 Session Lifecycle
 
-|Event|Action|Source|
-|---|---|---|
-|Successful login|New row in `iam.sessions`; access + refresh token cookies set|[CONFIRMED]|
-|Inactivity at 25 minutes|Warning displayed to user in UI; countdown visible|[CONFIRMED]|
-|Inactivity at 30 minutes|Session terminated; cookies cleared; redirect to login|[CONFIRMED]|
-|User-initiated logout|Session terminated; both cookies cleared; refresh token revoked|[CONFIRMED]|
-|New login from different device|Existing active session terminated; new session created; notification sent to user|[CONFIRMED]|
-|Forced logout (IT/Security Admin)|Session forcibly terminated; audit-logged with mandatory reason; user sees "Session ended by administrator" message on next request|[CONFIRMED]|
-|Shared workstation lock|Session suspended (not terminated); screen locked; re-authentication required to resume|[CONFIRMED]|
+| Event                             | Action                                                                                                                              | Source      |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| Successful login                  | New row in `iam.sessions`; access + refresh token cookies set                                                                       | [CONFIRMED] |
+| Inactivity at 25 minutes          | Warning displayed to user in UI; countdown visible                                                                                  | [CONFIRMED] |
+| Inactivity at 30 minutes          | Session terminated; cookies cleared; redirect to login                                                                              | [CONFIRMED] |
+| User-initiated logout             | Session terminated; both cookies cleared; refresh token revoked                                                                     | [CONFIRMED] |
+| New login from different device   | Existing active session terminated; new session created; notification sent to user                                                  | [CONFIRMED] |
+| Forced logout (IT/Security Admin) | Session forcibly terminated; audit-logged with mandatory reason; user sees "Session ended by administrator" message on next request | [CONFIRMED] |
+| Shared workstation lock           | Session suspended (not terminated); screen locked; re-authentication required to resume                                             | [CONFIRMED] |
 
 ### 4.2 Session Table Schema [Inference — not confirmed]
 
@@ -413,8 +413,8 @@ The "Switch User / Lock Screen" action does not terminate the session. It sets `
 - Re-authentication (password only; no full login flow) resumes the session and clears `locked_at`.
 - The refresh endpoint continues to rotate tokens while locked (to maintain token freshness when the user unlocks).
 - **[Resolved — [ADR-AUTH-010](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-010-session-locked_at-behavior-when-access-token-expires-while-locked.md)]** If the access token has expired by the time the user unlocks, the unlock flow performs a silent refresh using the still-valid (still-rotating) refresh token, gated only on the same validity checks already defined in Section 1.2 (not found / already used / revoked / expired). The user is not separately prompted about token expiry — re-entering their password to unlock (already required, above) is the security control; token refresh itself is invisible. A full re-login is required only if the refresh token itself is invalid per those existing checks, not merely because the access token expired while locked.
-    - Explicitly out of scope for this decision, deferred to Phase 2: step-up (re-)authentication for specific high-risk actions (approvals, signing, role changes) regardless of recent login — this would require an in-session challenge mechanism not present anywhere in this design, and depends on TOTP infrastructure that Section 10.5 does not activate until Phase 2.
-    - Explicitly not adopted: a separate "maximum session age" ceiling shorter than the 14-day refresh token lifetime (Section 1.2). Introducing one would cut against the rationale for that 14-day lifetime; if a hard ceiling independent of refresh-token validity is wanted, it requires its own deliberate decision and is not introduced by default here.
+  - Explicitly out of scope for this decision, deferred to Phase 2: step-up (re-)authentication for specific high-risk actions (approvals, signing, role changes) regardless of recent login — this would require an in-session challenge mechanism not present anywhere in this design, and depends on TOTP infrastructure that Section 10.5 does not activate until Phase 2.
+  - Explicitly not adopted: a separate "maximum session age" ceiling shorter than the 14-day refresh token lifetime (Section 1.2). Introducing one would cut against the rationale for that 14-day lifetime; if a hard ceiling independent of refresh-token validity is wanted, it requires its own deliberate decision and is not introduced by default here.
 
 ### 4.7 Administration Transition Sessions [CONFIRMED]
 
@@ -443,11 +443,11 @@ The "Switch User / Lock Screen" action does not terminate the session. It sets `
 
 **Source:** Consolidated Reference Part 11.8 (three tiers confirmed).
 
-|Tier|Scope|Who configures|Example capabilities|
-|---|---|---|---|
-|Tier 1|System-level (hardcoded)|Code only|Audit log insert; backup and restore; schema migrations; encryption key management|
-|Tier 2|Platform-level|Platform Administrator via admin UI|Role definitions; workflow step definitions; document type definitions; office hierarchy; retention schedules; SLA thresholds; numbering series; public visibility rules|
-|Tier 3|Instance-level (runtime)|Derived from workflow state and explicit grants|Current step assignee; document owning office; classification level; explicit share grants|
+| Tier   | Scope                    | Who configures                                  | Example capabilities                                                                                                                                                     |
+| ------ | ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Tier 1 | System-level (hardcoded) | Code only                                       | Audit log insert; backup and restore; schema migrations; encryption key management                                                                                       |
+| Tier 2 | Platform-level           | Platform Administrator via admin UI             | Role definitions; workflow step definitions; document type definitions; office hierarchy; retention schedules; SLA thresholds; numbering series; public visibility rules |
+| Tier 3 | Instance-level (runtime) | Derived from workflow state and explicit grants | Current step assignee; document owning office; classification level; explicit share grants                                                                               |
 
 **Tier 1 is the only tier that configures the audit log.** Platform Administrators cannot change audit log behavior. No role grants the ability to modify or delete audit records.
 
@@ -455,53 +455,53 @@ The "Switch User / Lock Screen" action does not terminate the session. It sets `
 
 [Inference — resource type names not confirmed in source documents. Derived from the module boundary map in Part 10.2 and document type list in Part 4.]
 
-|Resource Type|Key Attributes Used in Policy|Notes|
-|---|---|---|
-|`document`|`document_type_id`, `office_id`, `classification_level`, `workflow_status`, `city_id`|Primary protected resource|
-|`document_version`|`document_id` → inherits parent classification|Version access inherits document access|
-|`document_attachment`|`document_id` → inherits parent classification|Same as version|
-|`document_number`|`document_id`|Numbering data inherits parent access|
-|`workflow_instance`|`document_id`, `current_step_type`, `current_step_assignee_office_id`|Instance visibility scoped to owning office|
-|`workflow_step_instance`|`assignee_user_id`, `assignee_office_id`, `step_type`, `status`|Step-level action gating|
-|`iam_user`|`office_id`, `active`, `city_id`|User directory vs. sensitive auth data|
-|`role`|`role_type`|Role definitions — Tier 2 only|
-|`office`|`office_type`, `city_id`|Organization structure — Tier 2 only|
-|`delegation_grant`|`delegating_user_id`, `delegated_to_user_id`, `scope`, `active`|Visible only to the parties involved|
-|`audit_event`|`city_id`, `actor_id`|Tier 1 access only|
-|`citizen_complaint`|`status`, `assignee_office_id`, `city_id`|Complaint handling — SP Secretariat scoped|
-|`citizen_request`|`requester_user_id`, `status`|Document copy requests|
-|`session`|`user_id`, `active`|Own sessions only; IT Admin sees all|
-|`report_output`|`classification_level`, `city_id`|Report access tied to underlying document access|
+| Resource Type            | Key Attributes Used in Policy                                                         | Notes                                            |
+| ------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `document`               | `document_type_id`, `office_id`, `classification_level`, `workflow_status`, `city_id` | Primary protected resource                       |
+| `document_version`       | `document_id` → inherits parent classification                                        | Version access inherits document access          |
+| `document_attachment`    | `document_id` → inherits parent classification                                        | Same as version                                  |
+| `document_number`        | `document_id`                                                                         | Numbering data inherits parent access            |
+| `workflow_instance`      | `document_id`, `current_step_type`, `current_step_assignee_office_id`                 | Instance visibility scoped to owning office      |
+| `workflow_step_instance` | `assignee_user_id`, `assignee_office_id`, `step_type`, `status`                       | Step-level action gating                         |
+| `iam_user`               | `office_id`, `active`, `city_id`                                                      | User directory vs. sensitive auth data           |
+| `role`                   | `role_type`                                                                           | Role definitions — Tier 2 only                   |
+| `office`                 | `office_type`, `city_id`                                                              | Organization structure — Tier 2 only             |
+| `delegation_grant`       | `delegating_user_id`, `delegated_to_user_id`, `scope`, `active`                       | Visible only to the parties involved             |
+| `audit_event`            | `city_id`, `actor_id`                                                                 | Tier 1 access only                               |
+| `citizen_complaint`      | `status`, `assignee_office_id`, `city_id`                                             | Complaint handling — SP Secretariat scoped       |
+| `citizen_request`        | `requester_user_id`, `status`                                                         | Document copy requests                           |
+| `session`                | `user_id`, `active`                                                                   | Own sessions only; IT Admin sees all             |
+| `report_output`          | `classification_level`, `city_id`                                                     | Report access tied to underlying document access |
 
 ### 5.4 Actions
 
 [Inference — action vocabulary not confirmed. The following is a proposed set derived from confirmed workflow steps and operational patterns.]
 
-|Action|Description|
-|---|---|
-|`create`|Create a new resource instance|
-|`read`|Read resource content or metadata|
-|`update`|Modify a resource (non-state-change)|
-|`delete`|Soft-delete via `deleted_at` (no hard deletes — invariant)|
-|`submit`|Submit a draft document into workflow|
-|`approve`|Approve a workflow step|
-|`reject`|Reject a workflow step (returns to prior step or archives)|
-|`amend`|Log an amendment to a document at a workflow step|
-|`advance`|Manually advance a workflow step without completing prerequisites (SP Secretary only; always audit-logged with mandatory comment)|
-|`assign`|Assign a workflow step to a specific user or office|
-|`complete_step`|Mark a workflow step as completed (system action or user action)|
-|`number_assign`|Assign a document number (preliminary or final)|
-|`number_promote`|Promote a document from preliminary ("Draft") number to final number|
-|`certify_urgent`|Log a Certification of Urgency and update associated workflow instances|
-|`revoke_delegation`|Revoke an active delegation grant|
-|`export`|Export one or more documents|
-|`bulk_archive`|Bulk archive (Records Officers only)|
-|`bulk_export`|Bulk export|
-|`force_logout`|Terminate another user's active session|
-|`manage_roles`|Create, edit, deactivate role definitions (Platform Administrator only)|
-|`manage_workflow_def`|Publish or deprecate a workflow definition version (Platform Administrator only)|
-|`view_audit`|Read audit log entries (authorized readers only — see Section 7)|
-|`scan_qr`|Scan a QR code to retrieve document tracking record|
+| Action                | Description                                                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `create`              | Create a new resource instance                                                                                                    |
+| `read`                | Read resource content or metadata                                                                                                 |
+| `update`              | Modify a resource (non-state-change)                                                                                              |
+| `delete`              | Soft-delete via `deleted_at` (no hard deletes — invariant)                                                                        |
+| `submit`              | Submit a draft document into workflow                                                                                             |
+| `approve`             | Approve a workflow step                                                                                                           |
+| `reject`              | Reject a workflow step (returns to prior step or archives)                                                                        |
+| `amend`               | Log an amendment to a document at a workflow step                                                                                 |
+| `advance`             | Manually advance a workflow step without completing prerequisites (SP Secretary only; always audit-logged with mandatory comment) |
+| `assign`              | Assign a workflow step to a specific user or office                                                                               |
+| `complete_step`       | Mark a workflow step as completed (system action or user action)                                                                  |
+| `number_assign`       | Assign a document number (preliminary or final)                                                                                   |
+| `number_promote`      | Promote a document from preliminary ("Draft") number to final number                                                              |
+| `certify_urgent`      | Log a Certification of Urgency and update associated workflow instances                                                           |
+| `revoke_delegation`   | Revoke an active delegation grant                                                                                                 |
+| `export`              | Export one or more documents                                                                                                      |
+| `bulk_archive`        | Bulk archive (Records Officers only)                                                                                              |
+| `bulk_export`         | Bulk export                                                                                                                       |
+| `force_logout`        | Terminate another user's active session                                                                                           |
+| `manage_roles`        | Create, edit, deactivate role definitions (Platform Administrator only)                                                           |
+| `manage_workflow_def` | Publish or deprecate a workflow definition version (Platform Administrator only)                                                  |
+| `view_audit`          | Read audit log entries (authorized readers only — see Section 7)                                                                  |
+| `scan_qr`             | Scan a QR code to retrieve document tracking record                                                                               |
 
 ### 5.5 Policy Evaluation Order
 
@@ -593,12 +593,12 @@ Step 8 — ALLOW
 
 Certain roles are granted explicit cross-office read access by design: [Inference]
 
-|Role|Cross-Office Access|
-|---|---|
-|Records Officer|Read metadata (not content) across all offices for archival purposes|
-|SP Secretary|Read and act on all workflow steps across SP Secretariat scope|
-|Platform Administrator|Read organizational structure and workflow definitions only; no document content access|
-|IT Admin|Audit log and session data only; no document content across any office|
+| Role                   | Cross-Office Access                                                                     |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| Records Officer        | Read metadata (not content) across all offices for archival purposes                    |
+| SP Secretary           | Read and act on all workflow steps across SP Secretariat scope                          |
+| Platform Administrator | Read organizational structure and workflow definitions only; no document content access |
+| IT Admin               | Audit log and session data only; no document content across any office                  |
 
 #### Office Scoping for Workflow Steps
 
@@ -620,7 +620,6 @@ When a user holds an active delegation grant, the ABAC evaluator expands their e
 **At request time:**
 
 1. The JWT `dg` claim carries the active delegation grant UUID (null if none active).
-    
 2. If `dg` is not null: the evaluator loads the `organization.delegation_grants` row for that UUID.
    **[RESOLVED — access mechanism]** via `Organization.getDelegationGrantById()` on the
    Organization Published API (B2), called through an injected resolver on `IamServiceDeps`
@@ -628,23 +627,20 @@ When a user holds an active delegation grant, the ABAC evaluator expands their e
    Earlier drafts of the IAM preHandler chain (TASK-IAM-005) read this row via direct
    cross-schema SQL, which is a Law #2 violation per B2's Enforcement Mechanisms; that has
    been corrected.
-    
 3. **[Resolved — [ADR-AUTH-006](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-006-delegation_grant.scope-field-schema.md)]** The row's `scope` field is a `JSONB` column with the following required shape, mirroring the three dimensions this section already requires the evaluator to check:
-    
-    ```json
-    {
-      "roles": ["<role-uuid>", "..."],
-      "office_ids": ["<office-uuid>", "..."],
-      "actions": ["<action-string>", "..."]
-    }
-    ```
-    
-    All three keys are required arrays (empty array, not null, when a dimension grants nothing extra). `roles` and `office_ids` reference `iam.roles.id` and `organization.offices.id`. `actions` uses the existing action vocabulary from Section 5.4. Note: this schema has no wildcard convention for "all actions a role can perform" — a delegation covering every action for a role must enumerate them. If a future scenario needs an "everything this role can do" delegation, that requires a follow-up decision rather than assuming a wildcard works.
-    
+
+   ```json
+   {
+     "roles": ["<role-uuid>", "..."],
+     "office_ids": ["<office-uuid>", "..."],
+     "actions": ["<action-string>", "..."]
+   }
+   ```
+
+   All three keys are required arrays (empty array, not null, when a dimension grants nothing extra). `roles` and `office_ids` reference `iam.roles.id` and `organization.offices.id`. `actions` uses the existing action vocabulary from Section 5.4. Note: this schema has no wildcard convention for "all actions a role can perform" — a delegation covering every action for a role must enumerate them. If a future scenario needs an "everything this role can do" delegation, that requires a follow-up decision rather than assuming a wildcard works.
+
 4. The user's effective roles and office scope are temporarily expanded to match the delegation's scope for the duration of the request.
-    
 5. Step 7d of the evaluation cascade checks that the requested action falls within the delegation scope.
-    
 
 **One active delegation per user enforced at DB level:** [CONFIRMED — Part 12, Invariant 16]
 
@@ -680,13 +676,13 @@ Request
 
 [Inference — role structure not confirmed in source documents. Derived from confirmed requirements in Parts 11.8, 11.11, and 12.]
 
-|DB Role|Purpose|Key Permissions|
-|---|---|---|
-|`batac_app`|Runtime application service account|SELECT, INSERT, UPDATE (guarded by RLS); REVOKE UPDATE and DELETE on `audit` schema|
-|`batac_audit`|Audit log writes|INSERT only on `audit.events`; no SELECT, UPDATE, or DELETE|
-|`batac_it_admin`|IT Admin operations|DDL via migrations; SELECT on operational metadata; **REVOKE on document content for confidential/restricted**|
-|`batac_readonly`|Read-only monitoring|SELECT only; RLS applies|
-|`postgres`|Emergency superuser|Physical access only; credentials in sealed envelope per Part 11.20|
+| DB Role          | Purpose                             | Key Permissions                                                                                                |
+| ---------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `batac_app`      | Runtime application service account | SELECT, INSERT, UPDATE (guarded by RLS); REVOKE UPDATE and DELETE on `audit` schema                            |
+| `batac_audit`    | Audit log writes                    | INSERT only on `audit.events`; no SELECT, UPDATE, or DELETE                                                    |
+| `batac_it_admin` | IT Admin operations                 | DDL via migrations; SELECT on operational metadata; **REVOKE on document content for confidential/restricted** |
+| `batac_readonly` | Read-only monitoring                | SELECT only; RLS applies                                                                                       |
+| `postgres`       | Emergency superuser                 | Physical access only; credentials in sealed envelope per Part 11.20                                            |
 
 ### 6.3 Session Context Variables
 
@@ -709,46 +705,46 @@ These variables are set within the PostgreSQL transaction scope (`SET LOCAL`), s
 
 #### `documents` Schema
 
-|Table|RLS Policy Intent|
-|---|---|
-|`documents.documents`|City isolation (`city_id`); office scope (`office_id`); classification gate for Confidential/Restricted|
-|`documents.versions`|Inherits parent document access; IT Admin blocked from Confidential/Restricted content|
-|`documents.attachments`|Same as versions|
-|`documents.numbers`|Readable if parent document is readable to the requesting user|
-|`documents.number_series`|Platform Administrator and Records Officer read; write via migration only|
+| Table                     | RLS Policy Intent                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `documents.documents`     | City isolation (`city_id`); office scope (`office_id`); classification gate for Confidential/Restricted |
+| `documents.versions`      | Inherits parent document access; IT Admin blocked from Confidential/Restricted content                  |
+| `documents.attachments`   | Same as versions                                                                                        |
+| `documents.numbers`       | Readable if parent document is readable to the requesting user                                          |
+| `documents.number_series` | Platform Administrator and Records Officer read; write via migration only                               |
 
 #### `workflow` Schema
 
-|Table|RLS Policy Intent|
-|---|---|
-|`workflow.instances`|Office-scoped: visible if owned document is in user's office scope|
-|`workflow.step_instances`|Visible if: assigned to user's office; or assignee is the user; or user holds SP Secretary role|
-|`workflow.definitions`|All authenticated users may read active definitions; Platform Admin writes|
-|`workflow.definition_versions`|Same as definitions|
+| Table                          | RLS Policy Intent                                                                               |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `workflow.instances`           | Office-scoped: visible if owned document is in user's office scope                              |
+| `workflow.step_instances`      | Visible if: assigned to user's office; or assignee is the user; or user holds SP Secretary role |
+| `workflow.definitions`         | All authenticated users may read active definitions; Platform Admin writes                      |
+| `workflow.definition_versions` | Same as definitions                                                                             |
 
 #### `iam` Schema
 
-|Table|RLS Policy Intent|
-|---|---|
-|`iam.users`|All authenticated users see basic profile (name, office); credentials columns not selectable by `batac_app` role|
-|`iam.credentials`|No SELECT by any application role; writes via specific stored procedures only|
-|`iam.sessions`|User sees only their own sessions; IT Admin and Security Admin see all|
-|`iam.refresh_tokens`|No application-layer read; refresh endpoint uses stored procedure for lookup|
-|`iam.role_assignments`|Readable by Platform Admin and IT Admin; others see their own only|
+| Table                  | RLS Policy Intent                                                                                                |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `iam.users`            | All authenticated users see basic profile (name, office); credentials columns not selectable by `batac_app` role |
+| `iam.credentials`      | No SELECT by any application role; writes via specific stored procedures only                                    |
+| `iam.sessions`         | User sees only their own sessions; IT Admin and Security Admin see all                                           |
+| `iam.refresh_tokens`   | No application-layer read; refresh endpoint uses stored procedure for lookup                                     |
+| `iam.role_assignments` | Readable by Platform Admin and IT Admin; others see their own only                                               |
 
 #### `organization` Schema
 
-|Table|RLS Policy Intent|
-|---|---|
-|`organization.offices`|All authenticated users read; Platform Admin writes|
-|`organization.assignments`|Users see their own; Platform Admin sees all|
-|`organization.delegation_grants`|User sees grants where they are delegating party or delegated-to party; Platform Admin sees all|
+| Table                            | RLS Policy Intent                                                                               |
+| -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `organization.offices`           | All authenticated users read; Platform Admin writes                                             |
+| `organization.assignments`       | Users see their own; Platform Admin sees all                                                    |
+| `organization.delegation_grants` | User sees grants where they are delegating party or delegated-to party; Platform Admin sees all |
 
 #### `audit` Schema
 
-|Table|RLS Policy Intent|
-|---|---|
-|`audit.events`|`batac_audit` role: INSERT only; `batac_app` role: **no SELECT** (cannot be read via app runtime); authorized audit reader role: SELECT via dedicated procedure with filtering|
+| Table          | RLS Policy Intent                                                                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `audit.events` | `batac_audit` role: INSERT only; `batac_app` role: **no SELECT** (cannot be read via app runtime); authorized audit reader role: SELECT via dedicated procedure with filtering |
 
 The application runtime role (`batac_app`) cannot read the audit log directly. Audit log access goes through a separate reader role with its own controlled SELECT grant.
 
@@ -899,17 +895,17 @@ GRANT SELECT ON documents.versions_metadata TO batac_it_admin;
 
 ### 7.3 What IT Admin Can and Cannot Access
 
-|Resource|IT Admin Access|Enforcement|
-|---|---|---|
-|Schema migrations|Full (via deployment tooling, not app runtime)|Deployment process|
-|Backup and restore|Full|Infrastructure config|
-|`iam.users` (profile, office, role assignments)|Full|Application access|
-|`iam.sessions` (all active sessions, for security monitoring)|Full|RLS policy|
-|`iam.credentials` (password hashes)|**No SELECT** — stored procedure only|DB role permission|
-|Audit log (read for tamper detection)|Via audit reader procedure; SELECT only|Separate reader role|
-|Non-confidential document metadata (titles, statuses, numbers)|Read|RLS allows|
-|Confidential or Restricted document versions and attachments|**DENIED — invariant**|Three-layer enforcement|
-|Confidential or Restricted document metadata (title, status)|[Inference: readable — metadata is not the sensitive content]|RLS allows metadata|
+| Resource                                                       | IT Admin Access                                               | Enforcement             |
+| -------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------- |
+| Schema migrations                                              | Full (via deployment tooling, not app runtime)                | Deployment process      |
+| Backup and restore                                             | Full                                                          | Infrastructure config   |
+| `iam.users` (profile, office, role assignments)                | Full                                                          | Application access      |
+| `iam.sessions` (all active sessions, for security monitoring)  | Full                                                          | RLS policy              |
+| `iam.credentials` (password hashes)                            | **No SELECT** — stored procedure only                         | DB role permission      |
+| Audit log (read for tamper detection)                          | Via audit reader procedure; SELECT only                       | Separate reader role    |
+| Non-confidential document metadata (titles, statuses, numbers) | Read                                                          | RLS allows              |
+| Confidential or Restricted document versions and attachments   | **DENIED — invariant**                                        | Three-layer enforcement |
+| Confidential or Restricted document metadata (title, status)   | [Inference: readable — metadata is not the sensitive content] | RLS allows metadata     |
 
 ---
 
@@ -929,13 +925,13 @@ The Platform Administrator configures the rules that govern document workflows: 
 
 The following role categories are incompatible with Platform Administrator:
 
-|Category|Example Roles|
-|---|---|
-|SP Office operational|SP Secretary, Administrative Officer II, Clerk III, Records Officer|
-|Legislative|Councilor, Committee Chair, Committee Member|
-|Executive|Mayor, Vice Mayor, Acting Mayor, OIC (any)|
-|Document handler|Encoder, Records Aide, Librarian|
-|Citizen-facing|Citizen (portal user)|
+| Category              | Example Roles                                                       |
+| --------------------- | ------------------------------------------------------------------- |
+| SP Office operational | SP Secretary, Administrative Officer II, Clerk III, Records Officer |
+| Legislative           | Councilor, Committee Chair, Committee Member                        |
+| Executive             | Mayor, Vice Mayor, Acting Mayor, OIC (any)                          |
+| Document handler      | Encoder, Records Aide, Librarian                                    |
+| Citizen-facing        | Citizen (portal user)                                               |
 
 **Platform Administrator may be combined with:** IT Admin-adjacent technical roles where no document-processing actions are involved. [Inference]
 
@@ -953,19 +949,19 @@ async function assignRole(actorId: string, targetUserId: string, roleId: string)
     getRoleById(roleId),
   ]);
 
-  const targetHasPlatformAdmin = targetExistingRoles
-    .some(r => r.type === 'platform_admin');
-  const targetHasDocumentProcessing = targetExistingRoles
-    .some(r => r.type === 'document_processor');
+  const targetHasPlatformAdmin = targetExistingRoles.some((r) => r.type === 'platform_admin');
+  const targetHasDocumentProcessing = targetExistingRoles.some(
+    (r) => r.type === 'document_processor',
+  );
 
   if (incomingRole.type === 'platform_admin' && targetHasDocumentProcessing) {
     throw new ConflictError(
-      'Cannot assign Platform Administrator role to a user who holds document-processing roles.'
+      'Cannot assign Platform Administrator role to a user who holds document-processing roles.',
     );
   }
   if (incomingRole.type === 'document_processor' && targetHasPlatformAdmin) {
     throw new ConflictError(
-      'Cannot assign a document-processing role to a Platform Administrator.'
+      'Cannot assign a document-processing role to a Platform Administrator.',
     );
   }
 
@@ -1032,16 +1028,16 @@ The Phase 1 authentication implementation is designed to support a future migrat
 
 ### 9.2 Decisions Made in Phase 1 That Support SSO Migration
 
-|Concern|Phase 1 Implementation|Why It Supports SSO|
-|---|---|---|
-|SPA auth flow|PKCE with internal server as auth server|SPA uses the same PKCE flow with any OAuth 2.0 / OIDC-compliant IdP; only the authorization endpoint URL changes|
-|Token delivery|HTTP-only cookies for all tokens|Unchanged when migrating; server exchanges IdP tokens for internal session tokens and sets the same cookies|
-|JWT claims|Custom private claims with `uid` anchoring to internal UUID|`uid` always refers to the internal user record; an `external_idp_sub` field maps to the IdP's `sub` claim|
-|Session management|Server-side sessions in `iam.sessions`|Unchanged; session is created after IdP authentication, not inside it|
-|User identity|`iam.users.id` as UUID primary key|Internal identity is never the IdP's identifier; IdP subject stored as a secondary field|
-|MFA|TOTP hook point in Phase 1; activated in Phase 2|Deferred to the IdP when SSO is available; TOTP disabled for SSO-authenticated users|
-|Password auth|Argon2id for Phase 1|Disabled field for SSO-authenticated accounts; `password_hash` column is nullable for SSO users [Inference]|
-|Protocol|OAuth 2.0 + PKCE patterns|Standard; compatible with all major OIDC-compliant IdPs|
+| Concern            | Phase 1 Implementation                                      | Why It Supports SSO                                                                                              |
+| ------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| SPA auth flow      | PKCE with internal server as auth server                    | SPA uses the same PKCE flow with any OAuth 2.0 / OIDC-compliant IdP; only the authorization endpoint URL changes |
+| Token delivery     | HTTP-only cookies for all tokens                            | Unchanged when migrating; server exchanges IdP tokens for internal session tokens and sets the same cookies      |
+| JWT claims         | Custom private claims with `uid` anchoring to internal UUID | `uid` always refers to the internal user record; an `external_idp_sub` field maps to the IdP's `sub` claim       |
+| Session management | Server-side sessions in `iam.sessions`                      | Unchanged; session is created after IdP authentication, not inside it                                            |
+| User identity      | `iam.users.id` as UUID primary key                          | Internal identity is never the IdP's identifier; IdP subject stored as a secondary field                         |
+| MFA                | TOTP hook point in Phase 1; activated in Phase 2            | Deferred to the IdP when SSO is available; TOTP disabled for SSO-authenticated users                             |
+| Password auth      | Argon2id for Phase 1                                        | Disabled field for SSO-authenticated accounts; `password_hash` column is nullable for SSO users [Inference]      |
+| Protocol           | OAuth 2.0 + PKCE patterns                                   | Standard; compatible with all major OIDC-compliant IdPs                                                          |
 
 ### 9.3 Required Schema Addition for SSO [Inference]
 
@@ -1139,23 +1135,23 @@ tRPC procedures for the internal SPA use a context object populated from the ver
 
 ```typescript
 export type AuthContext = {
-  userId:             string;
-  sessionId:          string;
-  officeId:           string;
-  cityId:             string;
-  roles:              string[];
-  permissions:        string[];
-  delegationGrantId:  string | null;
-  effectiveOfficeIds: string[];   // includes delegation-extended offices
-  effectiveRoles:     string[];   // includes delegation-extended roles
-  isItAdmin:          boolean;
-  isPlatformAdmin:    boolean;
+  userId: string;
+  sessionId: string;
+  officeId: string;
+  cityId: string;
+  roles: string[];
+  permissions: string[];
+  delegationGrantId: string | null;
+  effectiveOfficeIds: string[]; // includes delegation-extended offices
+  effectiveRoles: string[]; // includes delegation-extended roles
+  isItAdmin: boolean;
+  isPlatformAdmin: boolean;
 };
 
 export type Context = {
-  auth: AuthContext | null;  // null on unauthenticated routes
-  db:   DbClient;
-  req:  FastifyRequest;
+  auth: AuthContext | null; // null on unauthenticated routes
+  db: DbClient;
+  req: FastifyRequest;
 };
 ```
 
@@ -1167,24 +1163,24 @@ The ABAC policy evaluator accepts a `Context` and a resource descriptor and retu
 
 All of the following must produce an audit record via the audit service. The audit service is the only path to the `audit.events` table.
 
-|Event|Required Audit Payload|
-|---|---|
-|`login_success`|`user_id`, `session_id`, `ip_address`, `user_agent`|
-|`login_failed`|`attempted_identifier_hash` (SHA-256 of attempted username; never plaintext), `ip_address`, `user_agent`, `failure_reason`|
-|`logout`|`user_id`, `session_id`, `method: 'user_initiated'`|
-|`session_expired_inactivity`|`user_id`, `session_id`|
-|`session_replaced`|`user_id`, `old_session_id`, `new_session_id`, `new_ip_address`|
-|`forced_logout`|`actor_id`, `target_user_id`, `target_session_id`, `reason` (mandatory)|
-|`token_refresh`|`user_id`, `session_id`|
-|`token_reuse_detected`|`user_id`, `family_id`, `ip_address`, `action_taken: 'family_revoked'`|
-|`role_assigned`|`actor_id`, `target_user_id`, `role_id`, `role_name`|
-|`role_revoked`|`actor_id`, `target_user_id`, `role_id`, `role_name`, `reason`|
-|`delegation_grant_created`|`actor_id`, `delegated_to_user_id`, `scope_summary`, `start_at`, `end_at`|
-|`delegation_grant_revoked`|`actor_id`, `delegation_grant_id`, `reason`|
-|`password_changed`|`user_id`, `actor_id` (same if self-service; different if admin reset)|
-|`abac_denial`|`user_id`, `resource_type`, `resource_id`, `action`, `denial_step`, `denial_reason`|
-|`session_locked`|`user_id`, `session_id` (Switch User / Lock Screen action)|
-|`session_unlocked`|`user_id`, `session_id`|
+| Event                        | Required Audit Payload                                                                                                     |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `login_success`              | `user_id`, `session_id`, `ip_address`, `user_agent`                                                                        |
+| `login_failed`               | `attempted_identifier_hash` (SHA-256 of attempted username; never plaintext), `ip_address`, `user_agent`, `failure_reason` |
+| `logout`                     | `user_id`, `session_id`, `method: 'user_initiated'`                                                                        |
+| `session_expired_inactivity` | `user_id`, `session_id`                                                                                                    |
+| `session_replaced`           | `user_id`, `old_session_id`, `new_session_id`, `new_ip_address`                                                            |
+| `forced_logout`              | `actor_id`, `target_user_id`, `target_session_id`, `reason` (mandatory)                                                    |
+| `token_refresh`              | `user_id`, `session_id`                                                                                                    |
+| `token_reuse_detected`       | `user_id`, `family_id`, `ip_address`, `action_taken: 'family_revoked'`                                                     |
+| `role_assigned`              | `actor_id`, `target_user_id`, `role_id`, `role_name`                                                                       |
+| `role_revoked`               | `actor_id`, `target_user_id`, `role_id`, `role_name`, `reason`                                                             |
+| `delegation_grant_created`   | `actor_id`, `delegated_to_user_id`, `scope_summary`, `start_at`, `end_at`                                                  |
+| `delegation_grant_revoked`   | `actor_id`, `delegation_grant_id`, `reason`                                                                                |
+| `password_changed`           | `user_id`, `actor_id` (same if self-service; different if admin reset)                                                     |
+| `abac_denial`                | `user_id`, `resource_type`, `resource_id`, `action`, `denial_step`, `denial_reason`                                        |
+| `session_locked`             | `user_id`, `session_id` (Switch User / Lock Screen action)                                                                 |
+| `session_unlocked`           | `user_id`, `session_id`                                                                                                    |
 
 ABAC denials (`abac_denial`) are always audited, including for routine denials (e.g., a councilor trying to access the Mayor's pending actions queue). The volume of denial events may be high; log aggregation must handle this without dropping records.
 
@@ -1192,13 +1188,13 @@ ABAC denials (`abac_denial`) are always audited, including for routine denials (
 
 **Source:** Stack Context (`@fastify/rate-limit` on "Auth and portal endpoints").
 
-|Endpoint|Limit|Window|Strategy|
-|---|---|---|---|
-|`POST /api/auth/login`|5 attempts|15 minutes per IP|IP-based; block after limit|
-|`POST /api/auth/refresh`|20 requests|1 minute per user session|Session-based; sliding window|
-|`POST /api/auth/logout`|10 requests|1 minute per IP|IP-based|
-|`POST /api/auth/password-reset-request`|3 requests|1 hour per IP|IP-based|
-|All other auth endpoints|30 requests|1 minute per IP|IP-based|
+| Endpoint                                | Limit       | Window                    | Strategy                      |
+| --------------------------------------- | ----------- | ------------------------- | ----------------------------- |
+| `POST /api/auth/login`                  | 5 attempts  | 15 minutes per IP         | IP-based; block after limit   |
+| `POST /api/auth/refresh`                | 20 requests | 1 minute per user session | Session-based; sliding window |
+| `POST /api/auth/logout`                 | 10 requests | 1 minute per IP           | IP-based                      |
+| `POST /api/auth/password-reset-request` | 3 requests  | 1 hour per IP             | IP-based                      |
+| All other auth endpoints                | 30 requests | 1 minute per IP           | IP-based                      |
 
 [Inference — specific limits not confirmed. The above are a proposed starting point; they must be tuned based on observed traffic patterns before production.]
 
@@ -1210,14 +1206,14 @@ This supplements the per-IP throttling above with per-account tracking, to addre
 
 **Decision: progressive per-account delay, not a hard lockout.** A hard lockout after N failures is itself a denial-of-service vector — it lets an attacker lock a legitimate (and possibly privileged) account out of use without ever needing to guess the password.
 
-|Failures (this account, any IP)|Response|
-|---|---|
-|1–5|Normal response time|
-|6|30-second delay before response|
-|7|60-second delay|
-|8|2-minute delay|
-|9|5-minute delay|
-|10+|15-minute delay (repeats; does not escalate further)|
+| Failures (this account, any IP) | Response                                             |
+| ------------------------------- | ---------------------------------------------------- |
+| 1–5                             | Normal response time                                 |
+| 6                               | 30-second delay before response                      |
+| 7                               | 60-second delay                                      |
+| 8                               | 2-minute delay                                       |
+| 9                               | 5-minute delay                                       |
+| 10+                             | 15-minute delay (repeats; does not escalate further) |
 
 The account is never fully locked — authentication remains eventually possible for a legitimate user, just with increasing delay. This runs alongside, not instead of, the per-IP limits above. Every failure increments an audit-logged counter; an administrator alert fires once a threshold is crossed.
 
@@ -1256,19 +1252,19 @@ POST /api/auth/login
 
 **Status as of this revision: 8 of 10 items resolved outright; 1 (D-AUTH-08) remains fully open; 3 otherwise-resolved items (D-AUTH-02, D-AUTH-05, D-AUTH-07) carry a narrower follow-up that doesn't block migration.** Resolutions are recorded in the relevant body sections above (cross-referenced below) and in the corresponding ADRs. The fully-open item and the three follow-ups are moved to Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md) (Remaining Open Items) rather than left in this table, since this table's original purpose — tracking what's still unresolved — is better served by not mixing closed and open items together.
 
-|#|Item|Resolution|Recorded In|
-|---|---|---|---|
-|D-AUTH-01|JWT signing algorithm: HS256 vs. RS256|**Resolved: RS256.** SSO confirmed as a near-term priority.|Section 1.1; [ADR-AUTH-001](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-001-jwt-signing-algorithm.md)|
-|D-AUTH-02|Argon2id parameters (m, t, p) for password hashing|**Resolved: `m=65536 (64 MB), t=2, p=1`**, exposed via environment variables (`ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`) rather than hardcoded, adopted as OWASP's published baseline. **Hardware benchmarking against target server hardware remains required before production** — this is not optional and is carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).|[ADR-AUTH-002](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-002-argon2id-parameters.md) (no other body location exists for this parameter; password hashing is otherwise only referenced at Section 9.2)|
-|D-AUTH-03|Refresh token lifetime|**Resolved: 14 days.**|Section 1.2; [ADR-AUTH-003](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-003-refresh-token-lifetime.md)|
-|D-AUTH-04|Refresh token hash algorithm: Argon2id vs. SHA-256|**Resolved: SHA-256 with per-token salt** (not Argon2id) — token entropy makes a slow hash unnecessary; Argon2id is retained for password hashing (D-AUTH-02), which is unaffected.|Section 1.2; [ADR-AUTH-004](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-004-refresh-token-hash-algorithm.md)|
-|D-AUTH-05|Full list of document-processing roles for Platform Admin exclusion trigger|**Resolved for seeding: Section 8.3's list, used verbatim.** One accuracy flag on "Acting Mayor" / "OIC (any)" not fully closed — carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).|Section 8.3|
-|D-AUTH-06|`delegation_grant.scope` field schema|**Resolved:** `JSONB` with required `{ roles: [], office_ids: [], actions: [] }` shape.|Section 5.7; [ADR-AUTH-006](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-006-delegation_grant.scope-field-schema.md)|
-|D-AUTH-07|Account lockout policy on repeated login failures|**Resolved: progressive per-account delay, no hard lockout** (Section 10.4.1), alongside the existing per-IP limits. Alert threshold value not set — carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md). MFA-tier escalation explicitly deferred to Phase 2.|Section 10.4.1; [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md)|
-|D-AUTH-08|External TSA provider for audit log timestamps|**Not resolved.** Vendor/procurement selection, out of architectural scope — see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).|Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md)|
-|D-AUTH-09|RLS policy expression for cross-office read grants|**Resolved:** `organization.cross_office_grants` table and `has_cross_office_read_grant()` function defined. Two specific limitations (non-"all" office scoping; `access_level` not yet enforced) remain implementation work, not blocking.|Section 6.5; [ADR-AUTH-009](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-009-rls-policy-expression-for-cross-office-read-grants.md)|
-|D-AUTH-10|Session `locked_at` behavior when access token expires while locked|**Resolved: silent refresh on unlock** using the existing rotating refresh token, gated on existing validity checks only. Step-up authentication for high-risk actions and a separate "max session age" concept were both explicitly considered and **not adopted** in Phase 1.|Section 4.6; [ADR-AUTH-010](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-010-session-locked_at-behavior-when-access-token-expires-while-locked.md)|
-|D-AUTH-11|`organization.assignments` primary-office tie-break: which row counts as "primary" when an employee holds more than one active assignment|**Resolved: explicit `is_primary BOOLEAN NOT NULL DEFAULT false` column** added to `organization.assignments`. Application layer maintains the one-primary-per-employee invariant; a partial unique index (`uq_assignments_one_primary_per_employee`) provides DB-level safety net. `getPrimaryOfficeForUser` queries `WHERE is_primary = true AND is_active = true AND deleted_at IS NULL`.|C1 Part 4; E3 §3 (`AssignmentSelectSchema`); B2 Module 2 (`getPrimaryOfficeForUser`); [ADR-AUTH-011](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-011-organization-assignments-primary-flag.md)|
+| #         | Item                                                                                                                                      | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Recorded In                                                                                                                                                                                                                |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D-AUTH-01 | JWT signing algorithm: HS256 vs. RS256                                                                                                    | **Resolved: RS256.** SSO confirmed as a near-term priority.                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Section 1.1; [ADR-AUTH-001](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-001-jwt-signing-algorithm.md)                                                                                                   |
+| D-AUTH-02 | Argon2id parameters (m, t, p) for password hashing                                                                                        | **Resolved: `m=65536 (64 MB), t=2, p=1`**, exposed via environment variables (`ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`) rather than hardcoded, adopted as OWASP's published baseline. **Hardware benchmarking against target server hardware remains required before production** — this is not optional and is carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md). | [ADR-AUTH-002](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-002-argon2id-parameters.md) (no other body location exists for this parameter; password hashing is otherwise only referenced at Section 9.2) |
+| D-AUTH-03 | Refresh token lifetime                                                                                                                    | **Resolved: 14 days.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Section 1.2; [ADR-AUTH-003](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-003-refresh-token-lifetime.md)                                                                                                  |
+| D-AUTH-04 | Refresh token hash algorithm: Argon2id vs. SHA-256                                                                                        | **Resolved: SHA-256 with per-token salt** (not Argon2id) — token entropy makes a slow hash unnecessary; Argon2id is retained for password hashing (D-AUTH-02), which is unaffected.                                                                                                                                                                                                                                                                                                                          | Section 1.2; [ADR-AUTH-004](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-004-refresh-token-hash-algorithm.md)                                                                                            |
+| D-AUTH-05 | Full list of document-processing roles for Platform Admin exclusion trigger                                                               | **Resolved for seeding: Section 8.3's list, used verbatim.** One accuracy flag on "Acting Mayor" / "OIC (any)" not fully closed — carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).                                                                                                                                                                                                     | Section 8.3                                                                                                                                                                                                                |
+| D-AUTH-06 | `delegation_grant.scope` field schema                                                                                                     | **Resolved:** `JSONB` with required `{ roles: [], office_ids: [], actions: [] }` shape.                                                                                                                                                                                                                                                                                                                                                                                                                      | Section 5.7; [ADR-AUTH-006](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-006-delegation_grant.scope-field-schema.md)                                                                                     |
+| D-AUTH-07 | Account lockout policy on repeated login failures                                                                                         | **Resolved: progressive per-account delay, no hard lockout** (Section 10.4.1), alongside the existing per-IP limits. Alert threshold value not set — carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md). MFA-tier escalation explicitly deferred to Phase 2.                                                                                                                              | Section 10.4.1; [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md)                                                                    |
+| D-AUTH-08 | External TSA provider for audit log timestamps                                                                                            | **Not resolved.** Vendor/procurement selection, out of architectural scope — see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).                                                                                                                                                                                                                                                                           | Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md)                                                                           |
+| D-AUTH-09 | RLS policy expression for cross-office read grants                                                                                        | **Resolved:** `organization.cross_office_grants` table and `has_cross_office_read_grant()` function defined. Two specific limitations (non-"all" office scoping; `access_level` not yet enforced) remain implementation work, not blocking.                                                                                                                                                                                                                                                                  | Section 6.5; [ADR-AUTH-009](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-009-rls-policy-expression-for-cross-office-read-grants.md)                                                                      |
+| D-AUTH-10 | Session `locked_at` behavior when access token expires while locked                                                                       | **Resolved: silent refresh on unlock** using the existing rotating refresh token, gated on existing validity checks only. Step-up authentication for high-risk actions and a separate "max session age" concept were both explicitly considered and **not adopted** in Phase 1.                                                                                                                                                                                                                              | Section 4.6; [ADR-AUTH-010](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-010-session-locked_at-behavior-when-access-token-expires-while-locked.md)                                                       |
+| D-AUTH-11 | `organization.assignments` primary-office tie-break: which row counts as "primary" when an employee holds more than one active assignment | **Resolved: explicit `is_primary BOOLEAN NOT NULL DEFAULT false` column** added to `organization.assignments`. Application layer maintains the one-primary-per-employee invariant; a partial unique index (`uq_assignments_one_primary_per_employee`) provides DB-level safety net. `getPrimaryOfficeForUser` queries `WHERE is_primary = true AND is_active = true AND deleted_at IS NULL`.                                                                                                                 | C1 Part 4; E3 §3 (`AssignmentSelectSchema`); B2 Module 2 (`getPrimaryOfficeForUser`); [ADR-AUTH-011](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-011-organization-assignments-primary-flag.md)          |
 
 ---
 
@@ -1276,13 +1272,13 @@ POST /api/auth/login
 
 One item is entirely unresolved, and three otherwise-resolved items each carry a narrower follow-up. None of these four rows block the IAM module's first migration on their own — each is scoped narrowly below, with the reason it doesn't block stated explicitly so this isn't mistaken for a blanket deferral.
 
-| Item                | What's Open                                                                                                                                                                                                                                                                                                                                                                            | Why It Doesn't Block the IAM Migration                                                                                                                                                                                                                | Required Before                                                                                                                          |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| D-AUTH-02 follow-up | Argon2id parameters (`m=65536, t=2, p=1`) are set as a default, but have **not been benchmarked on actual target server hardware**.                                                                                                                                                                                                                                                    | The parameters are env-configurable (`ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`), so the migration can proceed with the default and the values adjusted later without a schema change.                                            | Production deployment                                                                                                                    |
-| D-AUTH-05 follow-up | "Acting Mayor" and "OIC (any)" in Section 8.3's role list read as role _categories_, not confirmed literal `iam.roles.name` rows — "OIC (any)" in particular may need to be several office-specific seeded roles rather than one literal row, or a different enforcement mechanism entirely. This was not resolved, only flagged; the list was used verbatim per explicit instruction. | The trigger logic (Section 8.4) operates on `type_code`, not on the specific role name — so the migration and trigger can be written now. This only affects the literal seed `INSERT` statements for `iam.roles`, not the schema or trigger function. | IAM seed data (i.e., before the seed `INSERT`s are written, not before the migration creating the tables/trigger)                        |
-| D-AUTH-07 follow-up | The administrator alert threshold for repeated account-level login failures (Section 10.4.1) has no value. No production traffic data exists yet to calibrate a number that distinguishes normal mistyped-password volume from an actual attack pattern, and no value should be guessed without that data.                                                                             | The counter, audit logging, and progressive-delay mechanism don't require the threshold to be set to be built — the threshold is a comparison value that can be added or changed via configuration after launch, using observed data.                 | Should be set using real post-launch data, or provisionally set conservatively high and tuned down — either way, not a schema dependency |
-| D-AUTH-08           | External RFC 3161 Time-Stamping Authority (TSA) provider for the monthly audit log export — entirely unresolved. This is a vendor/procurement decision requiring current research into provider offerings, pricing, and any government-procurement constraints; it is not an architectural design choice and was not researched as part of this resolution.                            | The audit export mechanism and schedule are already defined independently of which TSA is used; the provider is a configuration/integration detail at export time, not a schema or application-logic dependency.                                      | Pre-production (per original deadline, unchanged)                                                                                        |
-| Office-assignment uniqueness `[Resolved — 2026-06-26, ADR-AUTH-011]` | **Resolved.** An explicit `is_primary BOOLEAN NOT NULL DEFAULT false` column has been added to `organization.assignments`, with partial unique index `uq_assignments_one_primary_per_employee` as a DB-level safety net. `getPrimaryOfficeForUser` queries `WHERE is_primary = true AND is_active = true AND deleted_at IS NULL`. Moved to Section 11 as D-AUTH-11. | N/A — resolved before the ORG module's Step 2 pass. | Completed 2026-06-26 |
+| Item                                                                 | What's Open                                                                                                                                                                                                                                                                                                                                                                            | Why It Doesn't Block the IAM Migration                                                                                                                                                                                                                | Required Before                                                                                                                          |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| D-AUTH-02 follow-up                                                  | Argon2id parameters (`m=65536, t=2, p=1`) are set as a default, but have **not been benchmarked on actual target server hardware**.                                                                                                                                                                                                                                                    | The parameters are env-configurable (`ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`), so the migration can proceed with the default and the values adjusted later without a schema change.                                            | Production deployment                                                                                                                    |
+| D-AUTH-05 follow-up                                                  | "Acting Mayor" and "OIC (any)" in Section 8.3's role list read as role _categories_, not confirmed literal `iam.roles.name` rows — "OIC (any)" in particular may need to be several office-specific seeded roles rather than one literal row, or a different enforcement mechanism entirely. This was not resolved, only flagged; the list was used verbatim per explicit instruction. | The trigger logic (Section 8.4) operates on `type_code`, not on the specific role name — so the migration and trigger can be written now. This only affects the literal seed `INSERT` statements for `iam.roles`, not the schema or trigger function. | IAM seed data (i.e., before the seed `INSERT`s are written, not before the migration creating the tables/trigger)                        |
+| D-AUTH-07 follow-up                                                  | The administrator alert threshold for repeated account-level login failures (Section 10.4.1) has no value. No production traffic data exists yet to calibrate a number that distinguishes normal mistyped-password volume from an actual attack pattern, and no value should be guessed without that data.                                                                             | The counter, audit logging, and progressive-delay mechanism don't require the threshold to be set to be built — the threshold is a comparison value that can be added or changed via configuration after launch, using observed data.                 | Should be set using real post-launch data, or provisionally set conservatively high and tuned down — either way, not a schema dependency |
+| D-AUTH-08                                                            | External RFC 3161 Time-Stamping Authority (TSA) provider for the monthly audit log export — entirely unresolved. This is a vendor/procurement decision requiring current research into provider offerings, pricing, and any government-procurement constraints; it is not an architectural design choice and was not researched as part of this resolution.                            | The audit export mechanism and schedule are already defined independently of which TSA is used; the provider is a configuration/integration detail at export time, not a schema or application-logic dependency.                                      | Pre-production (per original deadline, unchanged)                                                                                        |
+| Office-assignment uniqueness `[Resolved — 2026-06-26, ADR-AUTH-011]` | **Resolved.** An explicit `is_primary BOOLEAN NOT NULL DEFAULT false` column has been added to `organization.assignments`, with partial unique index `uq_assignments_one_primary_per_employee` as a DB-level safety net. `getPrimaryOfficeForUser` queries `WHERE is_primary = true AND is_active = true AND deleted_at IS NULL`. Moved to Section 11 as D-AUTH-11.                    | N/A — resolved before the ORG module's Step 2 pass.                                                                                                                                                                                                   | Completed 2026-06-26                                                                                                                     |
 
 ---
 

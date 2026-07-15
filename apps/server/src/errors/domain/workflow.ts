@@ -31,10 +31,9 @@ export class DefinitionPublishValidationError extends AppError {
   readonly errors: ValidationError[];
 
   constructor(errors: ValidationError[]) {
-    super(
-      `Definition version failed publish validation with ${errors.length} error(s).`,
-      { errors }
-    );
+    super(`Definition version failed publish validation with ${errors.length} error(s).`, {
+      errors,
+    });
     this.errors = errors;
   }
 }
@@ -88,7 +87,7 @@ export class StepKeyNotFoundInTargetVersionError extends AppError {
   constructor(missingStepKeys: string[]) {
     super(
       `Cannot migrate instance: target version is missing step keys: ${missingStepKeys.join(', ')}`,
-      { missingStepKeys }
+      { missingStepKeys },
     );
     this.missingStepKeys = missingStepKeys;
   }

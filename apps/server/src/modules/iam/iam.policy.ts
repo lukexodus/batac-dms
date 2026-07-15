@@ -2,21 +2,19 @@ import type { AuthContext } from './iam.types.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type EvaluationResult =
-  | { allowed: true }
-  | { allowed: false; reason: string };
+export type EvaluationResult = { allowed: true } | { allowed: false; reason: string };
 
 export type SubjectContext = AuthContext;
 
 export type ResourceDescriptor = {
-  type:                  string;
-  id:                    string;
-  cityId:                string;
-  classificationLevel?:  string;
-  deletedAt?:            Date | null;
-  userId?:               string;       // for session resources
-  officeId?:             string;
-  documentTypeId?:       string;
+  type: string;
+  id: string;
+  cityId: string;
+  classificationLevel?: string;
+  deletedAt?: Date | null;
+  userId?: string; // for session resources
+  officeId?: string;
+  documentTypeId?: string;
   [key: string]: unknown;
 };
 
@@ -87,10 +85,7 @@ const IT_ADMIN_ISOLATED_ACTIONS: ReadonlySet<string> = new Set([
  * Classification levels that trigger Gate 4.
  * Source: I1 §2 Gate 4.
  */
-const CLASSIFIED_LEVELS: ReadonlySet<string> = new Set([
-  'confidential',
-  'restricted',
-]);
+const CLASSIFIED_LEVELS: ReadonlySet<string> = new Set(['confidential', 'restricted']);
 
 /**
  * Actions still permitted on soft-deleted resources (Gate 5).
@@ -124,7 +119,11 @@ export class PolicyGuard {
    * Synchronous gates (1–3, 5). Called first by PolicyEvaluator.
    * Returns DENY on the first failing gate, or ALLOW if all pass.
    */
-  checkGates(subject: SubjectContext, resource: ResourceDescriptor, action: string): EvaluationResult {
+  checkGates(
+    subject: SubjectContext,
+    resource: ResourceDescriptor,
+    action: string,
+  ): EvaluationResult {
     // Gate 1 — City Isolation (Invariant #8)
     // Source: I1 §2 Gate 1; Consolidated Reference Part 11.9
     if (resource.cityId !== subject.cityId) {
@@ -306,11 +305,7 @@ function sessionResourceHandler(
 
     case 'force_terminate': {
       const reason = context?.['reason'];
-      if (
-        subject.isItAdmin &&
-        typeof reason === 'string' &&
-        reason.length > 0
-      ) {
+      if (subject.isItAdmin && typeof reason === 'string' && reason.length > 0) {
         return { allowed: true };
       }
       return { allowed: false, reason: 'session_action_not_permitted' };

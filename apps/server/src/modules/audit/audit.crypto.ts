@@ -9,7 +9,7 @@ export const GENESIS_HASH = '000000000000000000000000000000000000000000000000000
  * Deterministically serializes a payload by explicitly sorting object keys.
  * This ensures that structurally identical objects produce the exact same JSON string,
  * which is critical for consistent hashing.
- * 
+ *
  * Handles undefined values properly (omitting them from objects or returning empty string at top level).
  */
 export function canonicalizePayload(payload: unknown): string {
@@ -60,14 +60,11 @@ export function verifyHmac(payload: string, secret: string, signature: string): 
   if (typeof signature !== 'string' || signature.length !== 64) {
     return false;
   }
-  
+
   const expected = signHmac(payload, secret);
-  
+
   try {
-    return timingSafeEqual(
-      Buffer.from(expected, 'hex'),
-      Buffer.from(signature, 'hex')
-    );
+    return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signature, 'hex'));
   } catch {
     return false;
   }

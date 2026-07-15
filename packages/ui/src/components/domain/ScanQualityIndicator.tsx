@@ -1,6 +1,6 @@
-import * as React from "react";
-import { cn } from "../../lib/utils";
-import { Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
+import * as React from 'react';
+import { cn } from '../../lib/utils';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 
 export interface ScanQualityIndicatorProps {
   /** 0–100. Component derives ScanQualityLevel internally. */
@@ -19,17 +19,17 @@ export function ScanQualityIndicator({
   let labelText: string;
 
   if (score >= 95) {
-    colorClass = "text-success-500";
-    labelText = "Excellent";
+    colorClass = 'text-success-500';
+    labelText = 'Excellent';
   } else if (score >= 80) {
-    colorClass = "text-info-500";
-    labelText = "Good";
+    colorClass = 'text-info-500';
+    labelText = 'Good';
   } else if (score >= 60) {
-    colorClass = "text-warning-500";
-    labelText = "Fair";
+    colorClass = 'text-warning-500';
+    labelText = 'Fair';
   } else {
-    colorClass = "text-danger-500";
-    labelText = "Poor";
+    colorClass = 'text-danger-500';
+    labelText = 'Poor';
   }
 
   return (
@@ -37,11 +37,7 @@ export function ScanQualityIndicator({
       <TooltipTrigger asChild>
         <span
           tabIndex={0}
-          className={cn(
-            "inline-flex items-center gap-1.5 touch-exempt",
-            colorClass,
-            className
-          )}
+          className={cn('touch-exempt inline-flex items-center gap-1.5', colorClass, className)}
         >
           <svg
             width="12"
@@ -54,11 +50,13 @@ export function ScanQualityIndicator({
           >
             <circle cx="6" cy="6" r="4" fill="currentColor" />
           </svg>
-          {showLabel && <span className="font-medium text-sm">{labelText}</span>}
+          {showLabel && <span className="text-sm font-medium">{labelText}</span>}
         </span>
       </TooltipTrigger>
       <TooltipContent>
-        <p>{labelText} — {score} / 100</p>
+        <p>
+          {labelText} — {score} / 100
+        </p>
       </TooltipContent>
     </Tooltip>
   );

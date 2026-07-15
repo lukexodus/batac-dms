@@ -53,18 +53,9 @@ export const officeTypeEnum = z.enum([
   'external',
 ]);
 
-export const authorityLevelEnum = z.enum([
-  'executive',
-  'managerial',
-  'staff',
-  'support',
-]);
+export const authorityLevelEnum = z.enum(['executive', 'managerial', 'staff', 'support']);
 
-export const committeeRoleEnum = z.enum([
-  'chairman',
-  'vice_chairman',
-  'member',
-]);
+export const committeeRoleEnum = z.enum(['chairman', 'vice_chairman', 'member']);
 
 /**
  * Reuse the already-established shared schema rather than redefining a
@@ -82,9 +73,11 @@ export const CreateOfficeInput = z.object({
 });
 export type CreateOfficeInput = z.infer<typeof CreateOfficeInput>;
 
-export const UpdateOfficeInput = z.object({
-  officeId: z.string().uuid(),
-}).merge(CreateOfficeInput.partial());
+export const UpdateOfficeInput = z
+  .object({
+    officeId: z.string().uuid(),
+  })
+  .merge(CreateOfficeInput.partial());
 export type UpdateOfficeInput = z.infer<typeof UpdateOfficeInput>;
 
 export const DeactivateOfficeInput = z.object({
@@ -107,9 +100,11 @@ export type CreatePositionInput = z.infer<typeof CreatePositionInput>;
  * Input(update) is given. Following the literal pattern used for
  * updateOffice (`z.object({ officeId }).merge(createInput.partial())`).
  */
-export const UpdatePositionInput = z.object({
-  positionId: z.string().uuid(),
-}).merge(CreatePositionInput.partial());
+export const UpdatePositionInput = z
+  .object({
+    positionId: z.string().uuid(),
+  })
+  .merge(CreatePositionInput.partial());
 export type UpdatePositionInput = z.infer<typeof UpdatePositionInput>;
 
 export const positionOutput = z.object({
@@ -130,9 +125,11 @@ export const CreateEmployeeInput = z.object({
 export type CreateEmployeeInput = z.infer<typeof CreateEmployeeInput>;
 
 /** [Inference] same update-shape pattern as positions/offices — see note above. */
-export const UpdateEmployeeInput = z.object({
-  employeeId: z.string().uuid(),
-}).merge(CreateEmployeeInput.partial());
+export const UpdateEmployeeInput = z
+  .object({
+    employeeId: z.string().uuid(),
+  })
+  .merge(CreateEmployeeInput.partial());
 export type UpdateEmployeeInput = z.infer<typeof UpdateEmployeeInput>;
 
 export const employeeOutput = z.object({
@@ -222,9 +219,11 @@ export const CreateCommitteeInput = z.object({
 export type CreateCommitteeInput = z.infer<typeof CreateCommitteeInput>;
 
 /** [Inference] same update-shape pattern as offices — see note above. */
-export const UpdateCommitteeInput = z.object({
-  committeeId: z.string().uuid(),
-}).merge(CreateCommitteeInput.partial());
+export const UpdateCommitteeInput = z
+  .object({
+    committeeId: z.string().uuid(),
+  })
+  .merge(CreateCommitteeInput.partial());
 export type UpdateCommitteeInput = z.infer<typeof UpdateCommitteeInput>;
 
 export const committeeOutput = z.object({

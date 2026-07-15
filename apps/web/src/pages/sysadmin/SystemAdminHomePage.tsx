@@ -16,11 +16,11 @@ import { useSessionStore } from '@/stores';
 // is server-side; this is UX-only defense-in-depth.
 function AccessDenied() {
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Card className="max-w-md w-full">
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Card className="w-full max-w-md">
         <CardContent className="pt-6 text-center">
-          <p className="text-lg font-semibold text-destructive">Access Denied</p>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-destructive text-lg font-semibold">Access Denied</p>
+          <p className="text-muted-foreground mt-2 text-sm">
             This section requires System Administrator privileges.
           </p>
         </CardContent>
@@ -53,28 +53,26 @@ export function SystemAdminHomePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="mx-auto max-w-4xl px-4 py-8">
       <PageHeader
         title="System Administration"
         subtitle="Infrastructure-level controls for the Batac City LGU platform."
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {NAV_ITEMS.map((item) => (
-          <Link
-            key={item.href}
-            to={item.href}
-            className="group no-underline"
-          >
-            <Card className="h-full transition-shadow hover:shadow-md group-hover:border-primary/40 cursor-pointer">
+          <Link key={item.href} to={item.href} className="group no-underline">
+            <Card className="group-hover:border-primary/40 h-full cursor-pointer transition-shadow hover:shadow-md">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <span role="img" aria-hidden>{item.icon}</span>
+                  <span role="img" aria-hidden>
+                    {item.icon}
+                  </span>
                   {item.label}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
+                <p className="text-muted-foreground text-sm">{item.description}</p>
               </CardContent>
             </Card>
           </Link>

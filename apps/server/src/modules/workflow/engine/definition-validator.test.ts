@@ -14,7 +14,7 @@ describe('Definition Publish-Time Validator', () => {
 
   const runValidator = async (
     steps: Partial<StepRow>[],
-    transitionRules: Partial<TransitionRuleRow>[]
+    transitionRules: Partial<TransitionRuleRow>[],
   ) => {
     (mockWorkflowRepository.getStepsAndRulesForValidation as any).mockResolvedValue({
       steps: steps.map((s) => ({
@@ -40,15 +40,10 @@ describe('Definition Publish-Time Validator', () => {
   };
 
   it('MISSING_START_STEP: zero is_start = true steps fails', async () => {
-    const result = await runValidator(
-      [{ id: 's1', isStart: false }],
-      []
-    );
+    const result = await runValidator([{ id: 's1', isStart: false }], []);
     expect(result.valid).toBe(false);
     if (!result.valid) {
-      expect(result.errors).toContainEqual(
-        expect.objectContaining({ code: 'MISSING_START_STEP' })
-      );
+      expect(result.errors).toContainEqual(expect.objectContaining({ code: 'MISSING_START_STEP' }));
     }
   });
 
@@ -58,12 +53,12 @@ describe('Definition Publish-Time Validator', () => {
         { id: 's1', isStart: true },
         { id: 's2', isStart: true },
       ],
-      []
+      [],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
       expect(result.errors).toContainEqual(
-        expect.objectContaining({ code: 'MULTIPLE_START_STEPS' })
+        expect.objectContaining({ code: 'MULTIPLE_START_STEPS' }),
       );
     }
   });
@@ -74,12 +69,12 @@ describe('Definition Publish-Time Validator', () => {
         { id: 's1', isStart: true, stepType: 'parallel_split' },
         { id: 's2', isStart: false, stepType: 'parallel_join' },
       ],
-      []
+      [],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
       expect(result.errors).toContainEqual(
-        expect.objectContaining({ code: 'STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1' })
+        expect.objectContaining({ code: 'STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1' }),
       );
       expect(result.errors.length).toBe(2);
     }
@@ -97,17 +92,17 @@ describe('Definition Publish-Time Validator', () => {
         },
         { id: 's2', isStart: false },
       ],
-      [
-        { fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' },
-      ]
+      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' }],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
       expect(result.errors).toContainEqual(
-        expect.objectContaining({ code: 'MISSING_LAPSE_TRANSITION', step_key: 'mayor_review' })
+        expect.objectContaining({ code: 'MISSING_LAPSE_TRANSITION', step_key: 'mayor_review' }),
       );
       // PUBVAL-02c: ensures we do NOT return MISSING_OUTCOME_TRANSITION for LAPSED
-      const hasOutcomeError = result.errors.some((e) => e.code === 'MISSING_OUTCOME_TRANSITION' && e.missing_outcome_code === 'LAPSED');
+      const hasOutcomeError = result.errors.some(
+        (e) => e.code === 'MISSING_OUTCOME_TRANSITION' && e.missing_outcome_code === 'LAPSED',
+      );
       expect(hasOutcomeError).toBe(false);
     }
   });
@@ -127,7 +122,7 @@ describe('Definition Publish-Time Validator', () => {
       [
         { fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' },
         { fromStepId: 's1', toStepId: 's2', outcomeFilter: 'LAPSED' },
-      ]
+      ],
     );
     expect(result.valid).toBe(true);
   });
@@ -144,9 +139,7 @@ describe('Definition Publish-Time Validator', () => {
         },
         { id: 's2', isStart: false },
       ],
-      [
-        { fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' },
-      ]
+      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' }],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
@@ -155,7 +148,7 @@ describe('Definition Publish-Time Validator', () => {
           code: 'MISSING_OUTCOME_TRANSITION',
           step_key: 'second_reading_vote',
           missing_outcome_code: 'REJECTED',
-        })
+        }),
       );
     }
   });
@@ -175,9 +168,7 @@ describe('Definition Publish-Time Validator', () => {
         },
         { id: 's2', isStart: false },
       ],
-      [
-        { fromStepId: 's1', toStepId: 's2', outcomeFilter: 'REPORT_ACCEPTED' },
-      ]
+      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: 'REPORT_ACCEPTED' }],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
@@ -185,7 +176,7 @@ describe('Definition Publish-Time Validator', () => {
         expect.objectContaining({
           code: 'MISSING_CERTIFIED_URGENT_TRANSITION',
           step_key: 'committee_referral',
-        })
+        }),
       );
     }
   });
@@ -206,7 +197,7 @@ describe('Definition Publish-Time Validator', () => {
           config: { thursday_cutoff_enabled: false }, // missing require_all...
         },
       ],
-      []
+      [],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {

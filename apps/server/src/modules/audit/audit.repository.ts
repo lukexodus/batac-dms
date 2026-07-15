@@ -85,7 +85,9 @@ export class AuditRepository {
     const now = new Date();
     // Previous calendar month in UTC
     const firstOfPrevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-    const lastOfPrevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59, 999));
+    const lastOfPrevMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59, 999),
+    );
 
     let conditions;
     if (hasPriorExport) {
@@ -103,9 +105,11 @@ export class AuditRepository {
     // Serialize as newline-delimited JSON
     // We convert bigint to string if present, though JSON.stringify handles basic types,
     // we need a replacer for BigInt because sequenceNumber is bigint
-    const ndjson = rows.map(row => JSON.stringify(row, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )).join('\n');
+    const ndjson = rows
+      .map((row) =>
+        JSON.stringify(row, (key, value) => (typeof value === 'bigint' ? value.toString() : value)),
+      )
+      .join('\n');
 
     return Buffer.from(ndjson, 'utf-8');
   }

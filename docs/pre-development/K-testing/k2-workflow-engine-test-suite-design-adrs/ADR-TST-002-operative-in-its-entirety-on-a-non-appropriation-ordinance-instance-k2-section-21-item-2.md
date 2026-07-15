@@ -1,6 +1,5 @@
 # ADR-TST-002: OPERATIVE_IN_ITS_ENTIRETY` on a Non-Appropriation-Ordinance Instance (K2 §21, item 2)
 
-
 **Decision:** Submitting `panlalawigan_review` outcome `OPERATIVE_IN_ITS_ENTIRETY` against an instance whose document type is not Appropriation Ordinance (i.e., against an SP Resolution or a regular SP Ordinance) is rejected. The engine throws a validation error; it does not route the outcome anywhere.
 
 **Decided by:** Luke — confirming the speculation K2-context §8 itself offered ("likely: invalid input; throw").

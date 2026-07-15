@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const UuidSchema = z.string().uuid();
 export type Uuid = z.infer<typeof UuidSchema>;
@@ -8,7 +8,7 @@ export type Timestamp = z.infer<typeof TimestampSchema>;
 
 export const DateSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date — expected YYYY-MM-DD");
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date — expected YYYY-MM-DD');
 export type DateString = z.infer<typeof DateSchema>;
 
 export const PaginationInputSchema = z.object({
@@ -17,7 +17,7 @@ export const PaginationInputSchema = z.object({
 });
 export type PaginationInput = z.infer<typeof PaginationInputSchema>;
 
-export const SortOrderSchema = z.enum(["asc", "desc"]).default("asc");
+export const SortOrderSchema = z.enum(['asc', 'desc']).default('asc');
 export type SortOrder = z.infer<typeof SortOrderSchema>;
 
 export const DateRangeSchema = z
@@ -25,18 +25,16 @@ export const DateRangeSchema = z
     from: DateSchema.optional(),
     to: DateSchema.optional(),
   })
-  .refine(
-    (v) => !(v.from && v.to) || v.from <= v.to,
-    { message: "'from' must not be later than 'to'" }
-  );
+  .refine((v) => !(v.from && v.to) || v.from <= v.to, {
+    message: "'from' must not be later than 'to'",
+  });
 export type DateRange = z.infer<typeof DateRangeSchema>;
 
 export const AllowedMimeTypeSchema = z.enum([
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "image/png",
-  "image/jpeg",
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/png',
+  'image/jpeg',
 ]);
 export type AllowedMimeType = z.infer<typeof AllowedMimeTypeSchema>;
-

@@ -124,18 +124,30 @@ describe('Workflow Router Read Procedures', () => {
 
       mockDb.mockResponse([]); // 1. instance select -> empty
 
-      await expect(
-        caller.getInstance({ instanceId: VALID_UUID })
-      ).rejects.toThrowError(/Workflow instance not found/);
+      await expect(caller.getInstance({ instanceId: VALID_UUID })).rejects.toThrowError(
+        /Workflow instance not found/,
+      );
     });
 
     it('allows read when user has operational role in own office', async () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID, slaDeadline: null }]); // 1. instance
-      mockDb.mockResponse([{ id: VALID_UUID, ownedByOfficeId: OWN_OFFICE, classificationLevel: 'internal' }]); // 2. parent document
-      mockDb.mockResponse([{ stepInstanceId: VALID_UUID, stepType: 'approval', assignedTo: [{ user_id: USER_ID }] }]); // 3. current steps lookup
+      mockDb.mockResponse([
+        {
+          id: VALID_UUID,
+          documentId: VALID_UUID,
+          status: 'active',
+          definitionVersionId: VALID_UUID,
+          slaDeadline: null,
+        },
+      ]); // 1. instance
+      mockDb.mockResponse([
+        { id: VALID_UUID, ownedByOfficeId: OWN_OFFICE, classificationLevel: 'internal' },
+      ]); // 2. parent document
+      mockDb.mockResponse([
+        { stepInstanceId: VALID_UUID, stepType: 'approval', assignedTo: [{ user_id: USER_ID }] },
+      ]); // 3. current steps lookup
       mockDb.mockResponse([]); // 4. all steps lookup (for lapse status)
 
       const result = await caller.getInstance({ instanceId: VALID_UUID });
@@ -150,19 +162,31 @@ describe('Workflow Router Read Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active' }]);
-      mockDb.mockResponse([{ id: VALID_UUID, ownedByOfficeId: OTHER_OFFICE, classificationLevel: 'internal' }]);
+      mockDb.mockResponse([
+        { id: VALID_UUID, ownedByOfficeId: OTHER_OFFICE, classificationLevel: 'internal' },
+      ]);
 
-      await expect(
-        caller.getInstance({ instanceId: VALID_UUID })
-      ).rejects.toThrowError(/You do not have permission/);
+      await expect(caller.getInstance({ instanceId: VALID_UUID })).rejects.toThrowError(
+        /You do not have permission/,
+      );
     });
 
     it('allows read for SP secretary on SP document in other office scope', async () => {
       const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID, slaDeadline: null }]);
-      mockDb.mockResponse([{ id: VALID_UUID, ownedByOfficeId: OTHER_OFFICE, classificationLevel: 'internal' }]);
+      mockDb.mockResponse([
+        {
+          id: VALID_UUID,
+          documentId: VALID_UUID,
+          status: 'active',
+          definitionVersionId: VALID_UUID,
+          slaDeadline: null,
+        },
+      ]);
+      mockDb.mockResponse([
+        { id: VALID_UUID, ownedByOfficeId: OTHER_OFFICE, classificationLevel: 'internal' },
+      ]);
       mockDb.mockResponse([{ code: 'SP' }]); // 3. offices select (check SP code)
       mockDb.mockResponse([{ stepInstanceId: VALID_UUID, stepType: 'action', assignedTo: [] }]); // 4. current steps
       mockDb.mockResponse([]); // 5. lapse status check
@@ -172,11 +196,25 @@ describe('Workflow Router Read Procedures', () => {
     });
 
     it('allows cross-office read for senior roles on public/internal documents', async () => {
-      const subject = makeSubject({ roles: ['mayor'], effectiveRoles: ['mayor'], effectiveOfficeIds: ['mayor-office'] });
+      const subject = makeSubject({
+        roles: ['mayor'],
+        effectiveRoles: ['mayor'],
+        effectiveOfficeIds: ['mayor-office'],
+      });
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID, slaDeadline: null }]);
-      mockDb.mockResponse([{ id: VALID_UUID, ownedByOfficeId: OTHER_OFFICE, classificationLevel: 'internal' }]); // internal document
+      mockDb.mockResponse([
+        {
+          id: VALID_UUID,
+          documentId: VALID_UUID,
+          status: 'active',
+          definitionVersionId: VALID_UUID,
+          slaDeadline: null,
+        },
+      ]);
+      mockDb.mockResponse([
+        { id: VALID_UUID, ownedByOfficeId: OTHER_OFFICE, classificationLevel: 'internal' },
+      ]); // internal document
       mockDb.mockResponse([{ stepInstanceId: VALID_UUID, stepType: 'decision', assignedTo: [] }]);
       mockDb.mockResponse([]);
 
@@ -185,15 +223,21 @@ describe('Workflow Router Read Procedures', () => {
     });
 
     it('denies cross-office read for senior roles on confidential/restricted documents', async () => {
-      const subject = makeSubject({ roles: ['mayor'], effectiveRoles: ['mayor'], effectiveOfficeIds: ['mayor-office'] });
+      const subject = makeSubject({
+        roles: ['mayor'],
+        effectiveRoles: ['mayor'],
+        effectiveOfficeIds: ['mayor-office'],
+      });
       const caller = callerFor(makeCtx(subject, mockDb));
 
       mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active' }]);
-      mockDb.mockResponse([{ id: VALID_UUID, ownedByOfficeId: OTHER_OFFICE, classificationLevel: 'confidential' }]); // confidential
+      mockDb.mockResponse([
+        { id: VALID_UUID, ownedByOfficeId: OTHER_OFFICE, classificationLevel: 'confidential' },
+      ]); // confidential
 
-      await expect(
-        caller.getInstance({ instanceId: VALID_UUID })
-      ).rejects.toThrowError(/You do not have permission/);
+      await expect(caller.getInstance({ instanceId: VALID_UUID })).rejects.toThrowError(
+        /You do not have permission/,
+      );
     });
   });
 
@@ -212,8 +256,18 @@ describe('Workflow Router Read Procedures', () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse([{ id: VALID_UUID, documentId: VALID_UUID, status: 'active', definitionVersionId: VALID_UUID, slaDeadline: null }]);
-      mockDb.mockResponse([{ id: VALID_UUID, ownedByOfficeId: OWN_OFFICE, classificationLevel: 'public' }]);
+      mockDb.mockResponse([
+        {
+          id: VALID_UUID,
+          documentId: VALID_UUID,
+          status: 'active',
+          definitionVersionId: VALID_UUID,
+          slaDeadline: null,
+        },
+      ]);
+      mockDb.mockResponse([
+        { id: VALID_UUID, ownedByOfficeId: OWN_OFFICE, classificationLevel: 'public' },
+      ]);
       mockDb.mockResponse([{ stepInstanceId: VALID_UUID, stepType: 'action', assignedTo: [] }]);
       mockDb.mockResponse([]);
 
@@ -302,9 +356,9 @@ describe('Workflow Router Read Procedures', () => {
       const subject = makeSubject({ roles: ['dept_encoder'], effectiveRoles: ['dept_encoder'] });
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      await expect(
-        caller.getSlaComplianceData({})
-      ).rejects.toThrowError(/Your role is not permitted to access SLA compliance data/);
+      await expect(caller.getSlaComplianceData({})).rejects.toThrowError(
+        /Your role is not permitted to access SLA compliance data/,
+      );
     });
 
     it('returns calculated SLA compliance data', async () => {
@@ -349,15 +403,17 @@ describe('Workflow Router Mutation Procedures', () => {
   const ENCODER_USER_ID = '99999999-9999-9999-9999-999999999999';
 
   /** A single joined row returned by fetchStepContext's query */
-  function makeStepContextRow(overrides: {
-    stepType?: string;
-    stepStatus?: string;
-    assignedTo?: any[];
-    metadata?: Record<string, any>;
-    isFinalApproval?: boolean;
-    instanceCreatedBy?: string;
-    documentCreatedBy?: string;
-  } = {}) {
+  function makeStepContextRow(
+    overrides: {
+      stepType?: string;
+      stepStatus?: string;
+      assignedTo?: any[];
+      metadata?: Record<string, any>;
+      isFinalApproval?: boolean;
+      instanceCreatedBy?: string;
+      documentCreatedBy?: string;
+    } = {},
+  ) {
     return [
       {
         stepInstance: {
@@ -374,7 +430,10 @@ describe('Workflow Router Mutation Procedures', () => {
           stepType: overrides.stepType ?? 'action',
           stepKey: 'dept_review',
           config: overrides.isFinalApproval
-            ? { is_final_approval: true, allowed_outcomes: ['APPROVED', 'REJECTED', 'RETURNED_FOR_REVISION'] }
+            ? {
+                is_final_approval: true,
+                allowed_outcomes: ['APPROVED', 'REJECTED', 'RETURNED_FOR_REVISION'],
+              }
             : { allowed_outcomes: ['APPROVED', 'REJECTED', 'RETURNED_FOR_REVISION'] },
         },
         instance: {
@@ -415,19 +474,22 @@ describe('Workflow Router Mutation Procedures', () => {
       mockDb.mockResponse([]);
 
       await expect(
-        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID })
+        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID }),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
 
     it('throws FORBIDDEN when user role is not permitted for action steps', async () => {
       // records_officer is not in ACTION_STEP_ROLES
-      const subject = makeSubject({ roles: ['records_officer'], effectiveRoles: ['records_officer'] });
+      const subject = makeSubject({
+        roles: ['records_officer'],
+        effectiveRoles: ['records_officer'],
+      });
       const caller = callerFor(makeCtx(subject, mockDb));
 
       mockDb.mockResponse(makeStepContextRow());
 
       await expect(
-        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID })
+        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
@@ -441,12 +503,10 @@ describe('Workflow Router Mutation Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       // Step is assigned to USER_ID, caller is some-other-user, document created by ENCODER_USER_ID
-      mockDb.mockResponse(
-        makeStepContextRow({ assignedTo: [{ user_id: USER_ID }] })
-      );
+      mockDb.mockResponse(makeStepContextRow({ assignedTo: [{ user_id: USER_ID }] }));
 
       await expect(
-        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID })
+        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
@@ -459,11 +519,11 @@ describe('Workflow Router Mutation Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       mockDb.mockResponse(
-        makeStepContextRow({ assignedTo: [{ user_id: 'other-user', office_id: OWN_OFFICE }] })
+        makeStepContextRow({ assignedTo: [{ user_id: 'other-user', office_id: OWN_OFFICE }] }),
       );
 
       await expect(
-        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID })
+        caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
@@ -475,7 +535,10 @@ describe('Workflow Router Mutation Procedures', () => {
       mockDb.mockResponse(makeStepContextRow({ assignedTo: [{ user_id: USER_ID }] }));
       // transaction mock is already set up in makeMockDb
 
-      const result = await caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID, comment: 'Done.' });
+      const result = await caller.completeActionStep({
+        stepInstanceId: STEP_INSTANCE_ID,
+        comment: 'Done.',
+      });
 
       expect(result.success).toBe(true);
       expect(mockSubmitStepAction).toHaveBeenCalledOnce();
@@ -489,9 +552,7 @@ describe('Workflow Router Mutation Procedures', () => {
       });
       const caller = callerFor(makeCtx(subject, mockDb));
 
-      mockDb.mockResponse(
-        makeStepContextRow({ assignedTo: [{ office_id: OWN_OFFICE }] })
-      );
+      mockDb.mockResponse(makeStepContextRow({ assignedTo: [{ office_id: OWN_OFFICE }] }));
 
       const result = await caller.completeActionStep({ stepInstanceId: STEP_INSTANCE_ID });
       expect(result.success).toBe(true);
@@ -508,9 +569,9 @@ describe('Workflow Router Mutation Procedures', () => {
 
       mockDb.mockResponse([]);
 
-      await expect(
-        caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })
-      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      await expect(caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      });
     });
 
     it('throws FORBIDDEN when dept_encoder tries to approve (not in APPROVAL_STEP_ROLES)', async () => {
@@ -519,9 +580,9 @@ describe('Workflow Router Mutation Procedures', () => {
 
       mockDb.mockResponse(makeStepContextRow({ stepType: 'approval' }));
 
-      await expect(
-        caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })
-      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
     });
 
     it('throws FORBIDDEN (Invariant #13) when approver is same as document creator on final approval step', async () => {
@@ -535,12 +596,12 @@ describe('Workflow Router Mutation Procedures', () => {
           assignedTo: [{ user_id: USER_ID }],
           isFinalApproval: true,
           documentCreatedBy: USER_ID, // same as caller
-        })
+        }),
       );
 
-      await expect(
-        caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })
-      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
     });
 
     it('throws FORBIDDEN when step type is not approval', async () => {
@@ -548,11 +609,13 @@ describe('Workflow Router Mutation Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       // stepType = 'action' — policy guard should reject
-      mockDb.mockResponse(makeStepContextRow({ stepType: 'action', assignedTo: [{ user_id: USER_ID }] }));
+      mockDb.mockResponse(
+        makeStepContextRow({ stepType: 'action', assignedTo: [{ user_id: USER_ID }] }),
+      );
 
-      await expect(
-        caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })
-      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
     });
 
     it('succeeds for authorized approver and calls submitStepApproval with APPROVED', async () => {
@@ -560,10 +623,13 @@ describe('Workflow Router Mutation Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       mockDb.mockResponse(
-        makeStepContextRow({ stepType: 'approval', assignedTo: [{ user_id: USER_ID }] })
+        makeStepContextRow({ stepType: 'approval', assignedTo: [{ user_id: USER_ID }] }),
       );
 
-      const result = await caller.approveStep({ stepInstanceId: STEP_INSTANCE_ID, comment: 'Looks good.' });
+      const result = await caller.approveStep({
+        stepInstanceId: STEP_INSTANCE_ID,
+        comment: 'Looks good.',
+      });
 
       expect(result.success).toBe(true);
       expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
@@ -577,38 +643,65 @@ describe('Workflow Router Mutation Procedures', () => {
     it('throws FORBIDDEN when user does not have sp_secretary role', async () => {
       const subject = makeSubject({ roles: ['dept_encoder'], effectiveRoles: ['dept_encoder'] });
       const ctx = makeCtx(subject, mockDb);
-      (ctx.req.server as any).organizationService = { getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }) };
+      (ctx.req.server as any).organizationService = {
+        getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }),
+      };
       const caller = callerFor(ctx);
 
-      mockDb.mockResponse(makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'sps-123' }] }));
+      mockDb.mockResponse(
+        makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'sps-123' }] }),
+      );
 
       await expect(
-        caller.logSecretariatDecision({ documentId: VALID_UUID, stepInstanceId: STEP_INSTANCE_ID, decision: 'approve' })
+        caller.logSecretariatDecision({
+          documentId: VALID_UUID,
+          stepInstanceId: STEP_INSTANCE_ID,
+          decision: 'approve',
+        }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN', message: /Only the SP Secretary/ });
     });
 
     it('throws FORBIDDEN when step is not assigned to the SP Secretariat office', async () => {
       const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
       const ctx = makeCtx(subject, mockDb);
-      (ctx.req.server as any).organizationService = { getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }) };
+      (ctx.req.server as any).organizationService = {
+        getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }),
+      };
       const caller = callerFor(ctx);
 
-      mockDb.mockResponse(makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'other-office' }] }));
+      mockDb.mockResponse(
+        makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'other-office' }] }),
+      );
 
       await expect(
-        caller.logSecretariatDecision({ documentId: VALID_UUID, stepInstanceId: STEP_INSTANCE_ID, decision: 'approve' })
-      ).rejects.toMatchObject({ code: 'FORBIDDEN', message: /not assigned to the SP Secretariat office/ });
+        caller.logSecretariatDecision({
+          documentId: VALID_UUID,
+          stepInstanceId: STEP_INSTANCE_ID,
+          decision: 'approve',
+        }),
+      ).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+        message: /not assigned to the SP Secretariat office/,
+      });
     });
 
     it('succeeds for sp_secretary in correct office and passes APPROVED to handler', async () => {
       const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
       const ctx = makeCtx(subject, mockDb);
-      (ctx.req.server as any).organizationService = { getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }) };
+      (ctx.req.server as any).organizationService = {
+        getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }),
+      };
       const caller = callerFor(ctx);
 
-      mockDb.mockResponse(makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'sps-123' }] }));
+      mockDb.mockResponse(
+        makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'sps-123' }] }),
+      );
 
-      const result = await caller.logSecretariatDecision({ documentId: VALID_UUID, stepInstanceId: STEP_INSTANCE_ID, decision: 'approve' });
+      const result = await caller.logSecretariatDecision({
+        documentId: VALID_UUID,
+        stepInstanceId: STEP_INSTANCE_ID,
+        decision: 'approve',
+      });
       expect(result.success).toBe(true);
       expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
       expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('APPROVED');
@@ -617,12 +710,21 @@ describe('Workflow Router Mutation Procedures', () => {
     it('succeeds for sp_secretary and passes AMENDED to handler', async () => {
       const subject = makeSubject({ roles: ['sp_secretary'], effectiveRoles: ['sp_secretary'] });
       const ctx = makeCtx(subject, mockDb);
-      (ctx.req.server as any).organizationService = { getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }) };
+      (ctx.req.server as any).organizationService = {
+        getOfficeByCode: vi.fn().mockResolvedValue({ officeId: 'sps-123' }),
+      };
       const caller = callerFor(ctx);
 
-      mockDb.mockResponse(makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'sps-123' }] }));
+      mockDb.mockResponse(
+        makeStepContextRow({ stepType: 'approval', assignedTo: [{ office_id: 'sps-123' }] }),
+      );
 
-      const result = await caller.logSecretariatDecision({ documentId: VALID_UUID, stepInstanceId: STEP_INSTANCE_ID, decision: 'amended', remarks: 'Fix typos' });
+      const result = await caller.logSecretariatDecision({
+        documentId: VALID_UUID,
+        stepInstanceId: STEP_INSTANCE_ID,
+        decision: 'amended',
+        remarks: 'Fix typos',
+      });
       expect(result.success).toBe(true);
       expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('AMENDED');
       expect(mockSubmitStepApproval.mock.calls[0]![5]).toBe('Fix typos');
@@ -637,7 +739,7 @@ describe('Workflow Router Mutation Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       await expect(
-        caller.rejectStep({ stepInstanceId: STEP_INSTANCE_ID, comment: '' })
+        caller.rejectStep({ stepInstanceId: STEP_INSTANCE_ID, comment: '' }),
       ).rejects.toThrow();
     });
 
@@ -646,10 +748,13 @@ describe('Workflow Router Mutation Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       mockDb.mockResponse(
-        makeStepContextRow({ stepType: 'approval', assignedTo: [{ user_id: USER_ID }] })
+        makeStepContextRow({ stepType: 'approval', assignedTo: [{ user_id: USER_ID }] }),
       );
 
-      const result = await caller.rejectStep({ stepInstanceId: STEP_INSTANCE_ID, comment: 'Not compliant.' });
+      const result = await caller.rejectStep({
+        stepInstanceId: STEP_INSTANCE_ID,
+        comment: 'Not compliant.',
+      });
 
       expect(result.success).toBe(true);
       expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
@@ -665,7 +770,7 @@ describe('Workflow Router Mutation Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       await expect(
-        caller.returnStepForRevision({ stepInstanceId: STEP_INSTANCE_ID, comment: '' })
+        caller.returnStepForRevision({ stepInstanceId: STEP_INSTANCE_ID, comment: '' }),
       ).rejects.toThrow();
     });
 
@@ -674,7 +779,7 @@ describe('Workflow Router Mutation Procedures', () => {
       const caller = callerFor(makeCtx(subject, mockDb));
 
       mockDb.mockResponse(
-        makeStepContextRow({ stepType: 'approval', assignedTo: [{ user_id: USER_ID }] })
+        makeStepContextRow({ stepType: 'approval', assignedTo: [{ user_id: USER_ID }] }),
       );
 
       const result = await caller.returnStepForRevision({
@@ -702,8 +807,10 @@ describe('Workflow Router Mutation Procedures', () => {
       mockDb.mockResponse(
         makeStepContextRow({
           stepType: 'multi_referral',
-          metadata: { assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }] },
-        })
+          metadata: {
+            assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
+          },
+        }),
       );
 
       await expect(
@@ -711,7 +818,7 @@ describe('Workflow Router Mutation Procedures', () => {
           stepInstanceId: STEP_INSTANCE_ID,
           committeeId: '11111111-1111-1111-1111-111111111111',
           reportText: 'Test report',
-        })
+        }),
       ).rejects.toThrow(/You are not a member of any committee assigned/);
     });
 
@@ -727,18 +834,28 @@ describe('Workflow Router Mutation Procedures', () => {
       mockDb.mockResponse(
         makeStepContextRow({
           stepType: 'multi_referral',
-          metadata: { assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }, { committee_id: '33333333-3333-3333-3333-333333333333' }] },
-        })
+          metadata: {
+            assigned_committees: [
+              { committee_id: '11111111-1111-1111-1111-111111111111' },
+              { committee_id: '33333333-3333-3333-3333-333333333333' },
+            ],
+          },
+        }),
       );
 
       // Second query: fetch updated instance in transaction
-      mockDb.mockResponse([{
-        id: STEP_INSTANCE_ID,
-        metadata: {
-          assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }, { committee_id: '33333333-3333-3333-3333-333333333333' }],
-          submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // only 1 submission
+      mockDb.mockResponse([
+        {
+          id: STEP_INSTANCE_ID,
+          metadata: {
+            assigned_committees: [
+              { committee_id: '11111111-1111-1111-1111-111111111111' },
+              { committee_id: '33333333-3333-3333-3333-333333333333' },
+            ],
+            submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // only 1 submission
+          },
         },
-      }]);
+      ]);
 
       const result = await caller.submitCommitteeReport({
         stepInstanceId: STEP_INSTANCE_ID,
@@ -759,18 +876,22 @@ describe('Workflow Router Mutation Procedures', () => {
       mockDb.mockResponse(
         makeStepContextRow({
           stepType: 'multi_referral',
-          metadata: { assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }] },
-        })
+          metadata: {
+            assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
+          },
+        }),
       );
 
       // Second query: fetch updated instance in transaction
-      mockDb.mockResponse([{
-        id: STEP_INSTANCE_ID,
-        metadata: {
-          assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
-          submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // all assigned submitted
+      mockDb.mockResponse([
+        {
+          id: STEP_INSTANCE_ID,
+          metadata: {
+            assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
+            submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // all assigned submitted
+          },
         },
-      }]);
+      ]);
 
       const result = await caller.submitCommitteeReport({
         stepInstanceId: STEP_INSTANCE_ID,
@@ -795,7 +916,7 @@ describe('Workflow Router Mutation Procedures', () => {
         makeStepContextRow({
           stepType: 'multi_referral',
           stepStatus: 'active',
-        })
+        }),
       );
 
       await expect(
@@ -803,7 +924,7 @@ describe('Workflow Router Mutation Procedures', () => {
           instanceId: INSTANCE_ID,
           stepInstanceId: STEP_INSTANCE_ID,
           unifiedReportDocumentId: VALID_UUID,
-        })
+        }),
       ).rejects.toThrow(/Only the SP Secretary can accept/);
     });
 
@@ -816,22 +937,26 @@ describe('Workflow Router Mutation Procedures', () => {
         makeStepContextRow({
           stepType: 'multi_referral',
           stepStatus: 'active',
-        })
+        }),
       );
 
       // Second query: fetch fresh instance in transaction
-      mockDb.mockResponse([{
-        id: STEP_INSTANCE_ID,
-        metadata: {
-          assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
-          submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // all submitted
+      mockDb.mockResponse([
+        {
+          id: STEP_INSTANCE_ID,
+          metadata: {
+            assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
+            submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // all submitted
+          },
         },
-      }]);
+      ]);
 
       // Third query: updateStepInstance
-      mockDb.mockResponse([{
-        id: STEP_INSTANCE_ID,
-      }]);
+      mockDb.mockResponse([
+        {
+          id: STEP_INSTANCE_ID,
+        },
+      ]);
 
       const result = await caller.acceptUnifiedReport({
         instanceId: INSTANCE_ID,
@@ -849,7 +974,10 @@ describe('Workflow Router Mutation Procedures', () => {
 
   describe('manuallyAdvanceMultiReferralStep', () => {
     it('throws FORBIDDEN for non-secretary', async () => {
-      const subject = makeSubject({ roles: ['sp_presiding_officer'], effectiveRoles: ['sp_presiding_officer'] });
+      const subject = makeSubject({
+        roles: ['sp_presiding_officer'],
+        effectiveRoles: ['sp_presiding_officer'],
+      });
       const caller = callerFor(makeCtx(subject, mockDb));
 
       mockDb.mockResponse(makeStepContextRow({ stepType: 'multi_referral' }));
@@ -858,7 +986,7 @@ describe('Workflow Router Mutation Procedures', () => {
         caller.manuallyAdvanceMultiReferralStep({
           stepInstanceId: STEP_INSTANCE_ID,
           mandatoryComment: 'Override',
-        })
+        }),
       ).rejects.toThrow(/Only the SP Secretary/);
     });
 
@@ -904,11 +1032,13 @@ describe('TASK-WF-021 Procedures', () => {
   const CHAIR_USER_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
 
   /** Default step context row for fetchStepContext (joined query via makeMockDb) */
-  function makeWF021StepContextRow(overrides: {
-    stepKey?: string;
-    instanceContext?: Record<string, any>;
-    metadata?: Record<string, any>;
-  } = {}) {
+  function makeWF021StepContextRow(
+    overrides: {
+      stepKey?: string;
+      instanceContext?: Record<string, any>;
+      metadata?: Record<string, any>;
+    } = {},
+  ) {
     return [
       {
         stepInstance: {
@@ -955,7 +1085,9 @@ describe('TASK-WF-021 Procedures', () => {
       req: {
         server: {
           eventBus: { emit: vi.fn() },
-          organizationService: { getCommitteeChair: vi.fn().mockResolvedValue({ userId: CHAIR_USER_ID }) },
+          organizationService: {
+            getCommitteeChair: vi.fn().mockResolvedValue({ userId: CHAIR_USER_ID }),
+          },
           documentsService: {},
           delegationService: {},
         } as any,
@@ -974,12 +1106,24 @@ describe('TASK-WF-021 Procedures', () => {
     mockGetInstanceById.mockClear();
     mockGetActiveInstanceForDocument.mockClear();
 
-    vi.spyOn(WorkflowRepository.prototype, 'lockStepInstanceForUpdate').mockImplementation(mockLockStepInstanceForUpdate as any);
-    vi.spyOn(WorkflowRepository.prototype, 'updateStepInstance').mockImplementation(mockUpdateStepInstance as any);
-    vi.spyOn(WorkflowRepository.prototype, 'createWorkflowEvent').mockImplementation(mockCreateWorkflowEvent as any);
-    vi.spyOn(WorkflowRepository.prototype, 'updateInstanceContext').mockImplementation(mockUpdateInstanceContext as any);
-    vi.spyOn(WorkflowRepository.prototype, 'getInstanceById').mockImplementation(mockGetInstanceById as any);
-    vi.spyOn(WorkflowRepository.prototype, 'getActiveInstanceForDocument').mockImplementation(mockGetActiveInstanceForDocument as any);
+    vi.spyOn(WorkflowRepository.prototype, 'lockStepInstanceForUpdate').mockImplementation(
+      mockLockStepInstanceForUpdate as any,
+    );
+    vi.spyOn(WorkflowRepository.prototype, 'updateStepInstance').mockImplementation(
+      mockUpdateStepInstance as any,
+    );
+    vi.spyOn(WorkflowRepository.prototype, 'createWorkflowEvent').mockImplementation(
+      mockCreateWorkflowEvent as any,
+    );
+    vi.spyOn(WorkflowRepository.prototype, 'updateInstanceContext').mockImplementation(
+      mockUpdateInstanceContext as any,
+    );
+    vi.spyOn(WorkflowRepository.prototype, 'getInstanceById').mockImplementation(
+      mockGetInstanceById as any,
+    );
+    vi.spyOn(WorkflowRepository.prototype, 'getActiveInstanceForDocument').mockImplementation(
+      mockGetActiveInstanceForDocument as any,
+    );
   });
 
   afterEach(() => {
@@ -993,7 +1137,7 @@ describe('TASK-WF-021 Procedures', () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockDb.mockResponse([]); // fetchStepContext returns empty
       await expect(
-        caller.logMayorLapseConfirmation({ stepInstanceId: STEP_INSTANCE_ID })
+        caller.logMayorLapseConfirmation({ stepInstanceId: STEP_INSTANCE_ID }),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
 
@@ -1001,7 +1145,7 @@ describe('TASK-WF-021 Procedures', () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: {} }));
       await expect(
-        caller.logMayorLapseConfirmation({ stepInstanceId: STEP_INSTANCE_ID })
+        caller.logMayorLapseConfirmation({ stepInstanceId: STEP_INSTANCE_ID }),
       ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
     });
 
@@ -1017,7 +1161,9 @@ describe('TASK-WF-021 Procedures', () => {
       });
 
       mockDb.mockResponse(
-        makeWF021StepContextRow({ instanceContext: { mayor_action_deadline: new Date(Date.now() - 86400000).toISOString() } })
+        makeWF021StepContextRow({
+          instanceContext: { mayor_action_deadline: new Date(Date.now() - 86400000).toISOString() },
+        }),
       );
 
       const result = await caller.logMayorLapseConfirmation({ stepInstanceId: STEP_INSTANCE_ID });
@@ -1039,7 +1185,9 @@ describe('TASK-WF-021 Procedures', () => {
       });
 
       mockDb.mockResponse(
-        makeWF021StepContextRow({ instanceContext: { mayor_action_deadline: new Date(Date.now() - 86400000).toISOString() } })
+        makeWF021StepContextRow({
+          instanceContext: { mayor_action_deadline: new Date(Date.now() - 86400000).toISOString() },
+        }),
       );
 
       const result = await caller.logMayorLapseConfirmation({ stepInstanceId: STEP_INSTANCE_ID });
@@ -1048,7 +1196,9 @@ describe('TASK-WF-021 Procedures', () => {
       expect(mockUpdateStepInstance).toHaveBeenCalledOnce();
       expect(mockCreateWorkflowEvent).toHaveBeenCalledOnce();
       // Metadata should include lapse_confirmed_at and lapse_confirmed_by
-      const updatedMeta = mockUpdateStepInstance.mock.calls[0]![1] as { metadata: Record<string, any> };
+      const updatedMeta = mockUpdateStepInstance.mock.calls[0]![1] as {
+        metadata: Record<string, any>;
+      };
       expect(updatedMeta.metadata['lapse_confirmed_at']).toBeDefined();
       expect(updatedMeta.metadata['lapse_confirmed_by']).toBe(USER_ID);
     });
@@ -1061,22 +1211,37 @@ describe('TASK-WF-021 Procedures', () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockDb.mockResponse([]);
       await expect(
-        caller.recordVetoOverrideVote({ stepInstanceId: STEP_INSTANCE_ID, votesFor: 8, votesAgainst: 4, absentCouncilorIds: [] })
+        caller.recordVetoOverrideVote({
+          stepInstanceId: STEP_INSTANCE_ID,
+          votesFor: 8,
+          votesAgainst: 4,
+          absentCouncilorIds: [],
+        }),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
 
     it('records OVERRIDE_SUCCEEDED when votesFor >= 8', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockDb.mockResponse(makeWF021StepContextRow());
-      mockGetInstanceById.mockResolvedValue({ id: INSTANCE_ID, status: 'active', documentId: DOCUMENT_ID, context: {} });
+      mockGetInstanceById.mockResolvedValue({
+        id: INSTANCE_ID,
+        status: 'active',
+        documentId: DOCUMENT_ID,
+        context: {},
+      });
 
-      const result = await caller.recordVetoOverrideVote({ stepInstanceId: STEP_INSTANCE_ID, votesFor: 8, votesAgainst: 4, absentCouncilorIds: [] });
+      const result = await caller.recordVetoOverrideVote({
+        stepInstanceId: STEP_INSTANCE_ID,
+        votesFor: 8,
+        votesAgainst: 4,
+        absentCouncilorIds: [],
+      });
 
       expect(result).toEqual({ success: true });
       expect(mockUpdateInstanceContext).toHaveBeenCalledOnce();
       const patch = mockUpdateInstanceContext.mock.calls[0]![1] as Record<string, any>;
       expect(patch['veto_override_votes_for']).toBe(8);
-      
+
       expect(mockSubmitStepApproval).toHaveBeenCalledOnce();
       expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('OVERRIDE_SUCCEEDED');
     });
@@ -1084,9 +1249,19 @@ describe('TASK-WF-021 Procedures', () => {
     it('records OVERRIDE_FAILED when votesFor < 8', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockDb.mockResponse(makeWF021StepContextRow());
-      mockGetInstanceById.mockResolvedValue({ id: INSTANCE_ID, status: 'active', documentId: DOCUMENT_ID, context: {} });
+      mockGetInstanceById.mockResolvedValue({
+        id: INSTANCE_ID,
+        status: 'active',
+        documentId: DOCUMENT_ID,
+        context: {},
+      });
 
-      const result = await caller.recordVetoOverrideVote({ stepInstanceId: STEP_INSTANCE_ID, votesFor: 7, votesAgainst: 5, absentCouncilorIds: [] });
+      const result = await caller.recordVetoOverrideVote({
+        stepInstanceId: STEP_INSTANCE_ID,
+        votesFor: 7,
+        votesAgainst: 5,
+        absentCouncilorIds: [],
+      });
 
       expect(result).toEqual({ success: true });
       expect(mockUpdateInstanceContext).toHaveBeenCalledOnce();
@@ -1105,7 +1280,7 @@ describe('TASK-WF-021 Procedures', () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockDb.mockResponse([]);
       await expect(
-        caller.logDocketingCompletion({ stepInstanceId: STEP_INSTANCE_ID })
+        caller.logDocketingCompletion({ stepInstanceId: STEP_INSTANCE_ID }),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
 
@@ -1130,7 +1305,7 @@ describe('TASK-WF-021 Procedures', () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockDb.mockResponse([]);
       await expect(
-        caller.recordPanlalawiganOutcome({ stepInstanceId: STEP_INSTANCE_ID, outcome: 'VALID' })
+        caller.recordPanlalawiganOutcome({ stepInstanceId: STEP_INSTANCE_ID, outcome: 'VALID' }),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
 
@@ -1140,7 +1315,9 @@ describe('TASK-WF-021 Procedures', () => {
 
       // Inside transaction: getInstanceById returns updated instance
       const updatedInstance = {
-        id: INSTANCE_ID, status: 'active', documentId: DOCUMENT_ID,
+        id: INSTANCE_ID,
+        status: 'active',
+        documentId: DOCUMENT_ID,
         context: { panlalawigan_outcome: 'RETURNED', panlalawigan_control_number: 'PN-001' },
       };
       mockGetInstanceById.mockResolvedValue(updatedInstance);
@@ -1173,7 +1350,9 @@ describe('TASK-WF-021 Procedures', () => {
       mockDb.mockResponse(makeWF021StepContextRow());
 
       mockGetInstanceById.mockResolvedValue({
-        id: INSTANCE_ID, status: 'active', documentId: DOCUMENT_ID,
+        id: INSTANCE_ID,
+        status: 'active',
+        documentId: DOCUMENT_ID,
         context: { panlalawigan_outcome: 'VALID_IN_PART' },
       });
 
@@ -1195,12 +1374,27 @@ describe('TASK-WF-021 Procedures', () => {
     it('rejects empty mandatoryComment (Zod .min(1))', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       await expect(
-        caller.resolveValidInPart({ documentId: DOCUMENT_ID, resolutionPath: 'resolve_as_is', mandatoryComment: '' })
+        caller.resolveValidInPart({
+          documentId: DOCUMENT_ID,
+          resolutionPath: 'resolve_as_is',
+          mandatoryComment: '',
+        }),
       ).rejects.toThrow();
     });
 
-    function setupResolveValidInPartMocks(resolutionPath: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly') {
-      const instance = { id: INSTANCE_ID, documentId: DOCUMENT_ID, status: 'active', context: { panlalawigan_outcome: 'VALID_IN_PART' } };
+    function setupResolveValidInPartMocks(
+      resolutionPath:
+        | 'resolve_as_is'
+        | 'route_to_legal'
+        | 'route_to_committee'
+        | 'implement_directly',
+    ) {
+      const instance = {
+        id: INSTANCE_ID,
+        documentId: DOCUMENT_ID,
+        status: 'active',
+        context: { panlalawigan_outcome: 'VALID_IN_PART' },
+      };
       mockGetActiveInstanceForDocument.mockResolvedValue(instance);
 
       // fetchStepContext: first select returns stepInstances+steps rows (valid_in_part_decision)
@@ -1209,7 +1403,9 @@ describe('TASK-WF-021 Procedures', () => {
 
       if (resolutionPath === 'route_to_committee') {
         // committeeRows query inside transaction
-        mockDb.mockResponse([{ metadata: { assigned_committees: [{ committee_id: COMMITTEE_ID }] } }]);
+        mockDb.mockResponse([
+          { metadata: { assigned_committees: [{ committee_id: COMMITTEE_ID }] } },
+        ]);
       }
 
       mockGetInstanceById.mockResolvedValue(instance);
@@ -1231,12 +1427,15 @@ describe('TASK-WF-021 Procedures', () => {
       expect(mockSubmitStepApproval.mock.calls[0]![4]).toBe('RESOLVED_IN_PLACE');
       expect(mockSubmitStepApproval.mock.calls[0]![5]).toBe('Accept as-is per SP ruling.');
 
-      expect(ctx.req.server.eventBus.emit).toHaveBeenCalledWith('workflow.step.completed', expect.objectContaining({
-        payload: expect.objectContaining({
-          outcome: 'RESOLVED_IN_PLACE',
-          comment: 'Accept as-is per SP ruling.',
-        })
-      }));
+      expect(ctx.req.server.eventBus.emit).toHaveBeenCalledWith(
+        'workflow.step.completed',
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            outcome: 'RESOLVED_IN_PLACE',
+            comment: 'Accept as-is per SP ruling.',
+          }),
+        }),
+      );
     });
 
     it('route_to_legal → maps to ROUTED_TO_LEGAL outcome', async () => {
@@ -1257,7 +1456,9 @@ describe('TASK-WF-021 Procedures', () => {
     it('route_to_committee → maps to ROUTED_TO_COMMITTEE and writes referred_committee_chair_id to context', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
       // Override orgService to verify it's called
-      (ctx.req.server as any).organizationService.getCommitteeChair = vi.fn().mockResolvedValue({ userId: CHAIR_USER_ID });
+      (ctx.req.server as any).organizationService.getCommitteeChair = vi
+        .fn()
+        .mockResolvedValue({ userId: CHAIR_USER_ID });
       const caller = callerFor(ctx as any);
       setupResolveValidInPartMocks('route_to_committee');
 
@@ -1273,7 +1474,7 @@ describe('TASK-WF-021 Procedures', () => {
       expect(mockUpdateInstanceContext).toHaveBeenCalledWith(
         INSTANCE_ID,
         expect.objectContaining({ referred_committee_chair_id: CHAIR_USER_ID }),
-        expect.anything()
+        expect.anything(),
       );
     });
 
@@ -1300,7 +1501,7 @@ describe('TASK-WF-021 Procedures', () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockDb.mockResponse([]);
       await expect(
-        caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID })
+        caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID }),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
 
@@ -1308,23 +1509,31 @@ describe('TASK-WF-021 Procedures', () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: {} }));
       await expect(
-        caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID })
+        caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID }),
       ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
     });
 
     it('throws PRECONDITION_FAILED when 30-day window has not yet elapsed', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       const futureDeadline = new Date(Date.now() + 86400000 * 5).toISOString(); // 5 days in future
-      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: { panlalawigan_action_deadline: futureDeadline } }));
+      mockDb.mockResponse(
+        makeWF021StepContextRow({
+          instanceContext: { panlalawigan_action_deadline: futureDeadline },
+        }),
+      );
       await expect(
-        caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID })
+        caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID }),
       ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
     });
 
     it('is idempotent: second call returns success without creating a duplicate audit entry', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       const pastDeadline = new Date(Date.now() - 86400000 * 35).toISOString();
-      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: { panlalawigan_action_deadline: pastDeadline } }));
+      mockDb.mockResponse(
+        makeWF021StepContextRow({
+          instanceContext: { panlalawigan_action_deadline: pastDeadline },
+        }),
+      );
 
       // Already confirmed
       mockLockStepInstanceForUpdate.mockResolvedValue({
@@ -1332,7 +1541,9 @@ describe('TASK-WF-021 Procedures', () => {
         metadata: { deemed_approved_confirmed_at: new Date().toISOString() },
       });
 
-      const result = await caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID });
+      const result = await caller.confirmPanlalawiganDeemedApproved({
+        stepInstanceId: STEP_INSTANCE_ID,
+      });
 
       expect(result).toEqual({ success: true, legalBasis: 'RA7160_S56D' });
       expect(mockUpdateStepInstance).not.toHaveBeenCalled();
@@ -1342,14 +1553,20 @@ describe('TASK-WF-021 Procedures', () => {
     it('returns { success: true, legalBasis: "RA7160_S56D" } on first confirmation', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       const pastDeadline = new Date(Date.now() - 86400000 * 35).toISOString();
-      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: { panlalawigan_action_deadline: pastDeadline } }));
+      mockDb.mockResponse(
+        makeWF021StepContextRow({
+          instanceContext: { panlalawigan_action_deadline: pastDeadline },
+        }),
+      );
 
       mockLockStepInstanceForUpdate.mockResolvedValue({
         id: STEP_INSTANCE_ID,
         metadata: {},
       });
 
-      const result = await caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID });
+      const result = await caller.confirmPanlalawiganDeemedApproved({
+        stepInstanceId: STEP_INSTANCE_ID,
+      });
 
       expect(result).toEqual({ success: true, legalBasis: 'RA7160_S56D' });
     });
@@ -1357,7 +1574,11 @@ describe('TASK-WF-021 Procedures', () => {
     it('does NOT call submitStepApproval (confirmation-only procedure)', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       const pastDeadline = new Date(Date.now() - 86400000 * 35).toISOString();
-      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: { panlalawigan_action_deadline: pastDeadline } }));
+      mockDb.mockResponse(
+        makeWF021StepContextRow({
+          instanceContext: { panlalawigan_action_deadline: pastDeadline },
+        }),
+      );
 
       mockLockStepInstanceForUpdate.mockResolvedValue({ id: STEP_INSTANCE_ID, metadata: {} });
 
@@ -1369,14 +1590,20 @@ describe('TASK-WF-021 Procedures', () => {
     it('writes deemed_approved_confirmed_at and deemed_approved_confirmed_by to step metadata', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       const pastDeadline = new Date(Date.now() - 86400000 * 35).toISOString();
-      mockDb.mockResponse(makeWF021StepContextRow({ instanceContext: { panlalawigan_action_deadline: pastDeadline } }));
+      mockDb.mockResponse(
+        makeWF021StepContextRow({
+          instanceContext: { panlalawigan_action_deadline: pastDeadline },
+        }),
+      );
 
       mockLockStepInstanceForUpdate.mockResolvedValue({ id: STEP_INSTANCE_ID, metadata: {} });
 
       await caller.confirmPanlalawiganDeemedApproved({ stepInstanceId: STEP_INSTANCE_ID });
 
       expect(mockUpdateStepInstance).toHaveBeenCalledOnce();
-      const updatedMeta = mockUpdateStepInstance.mock.calls[0]![1] as { metadata: Record<string, any> };
+      const updatedMeta = mockUpdateStepInstance.mock.calls[0]![1] as {
+        metadata: Record<string, any>;
+      };
       expect(updatedMeta.metadata['deemed_approved_confirmed_at']).toBeDefined();
       expect(updatedMeta.metadata['deemed_approved_confirmed_by']).toBe(USER_ID);
     });
@@ -1389,42 +1616,72 @@ describe('TASK-WF-021 Procedures', () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
       mockGetActiveInstanceForDocument.mockResolvedValue(null);
       await expect(
-        caller.recordNewspaperPublicationDate({ documentId: DOCUMENT_ID, publicationDate: new Date('2026-07-01') })
+        caller.recordNewspaperPublicationDate({
+          documentId: DOCUMENT_ID,
+          publicationDate: new Date('2026-07-01'),
+        }),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
 
     it('throws PRECONDITION_FAILED for non-Ordinance document types', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
-      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
+      mockGetActiveInstanceForDocument.mockResolvedValue({
+        id: INSTANCE_ID,
+        documentId: DOCUMENT_ID,
+      });
       mockDb.mockResponse([{ code: 'SP_RESOLUTION', metadata: {} }]); // document type lookup
       await expect(
-        caller.recordNewspaperPublicationDate({ documentId: DOCUMENT_ID, publicationDate: new Date('2026-07-01') })
+        caller.recordNewspaperPublicationDate({
+          documentId: DOCUMENT_ID,
+          publicationDate: new Date('2026-07-01'),
+        }),
       ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
     });
 
     it('throws PRECONDITION_FAILED when has_penalty_provision is false', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
-      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
+      mockGetActiveInstanceForDocument.mockResolvedValue({
+        id: INSTANCE_ID,
+        documentId: DOCUMENT_ID,
+      });
       mockDb.mockResponse([{ code: 'SP_ORDINANCE', metadata: { has_penalty_provision: false } }]); // document type lookup
       await expect(
-        caller.recordNewspaperPublicationDate({ documentId: DOCUMENT_ID, publicationDate: new Date('2026-07-01') })
-      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED', message: expect.stringContaining('penalty provision') });
+        caller.recordNewspaperPublicationDate({
+          documentId: DOCUMENT_ID,
+          publicationDate: new Date('2026-07-01'),
+        }),
+      ).rejects.toMatchObject({
+        code: 'PRECONDITION_FAILED',
+        message: expect.stringContaining('penalty provision'),
+      });
     });
 
     it('throws NOT_FOUND when no active newspaper_publication step found', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
-      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
+      mockGetActiveInstanceForDocument.mockResolvedValue({
+        id: INSTANCE_ID,
+        documentId: DOCUMENT_ID,
+      });
       mockDb.mockResponse([{ code: 'SP_ORDINANCE', metadata: { has_penalty_provision: true } }]); // document type lookup
       mockDb.mockResponse([]); // active step query returns empty
       await expect(
-        caller.recordNewspaperPublicationDate({ documentId: DOCUMENT_ID, publicationDate: new Date('2026-07-01') })
-      ).rejects.toMatchObject({ code: 'NOT_FOUND', message: expect.stringContaining('newspaper_publication step') });
+        caller.recordNewspaperPublicationDate({
+          documentId: DOCUMENT_ID,
+          publicationDate: new Date('2026-07-01'),
+        }),
+      ).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+        message: expect.stringContaining('newspaper_publication step'),
+      });
     });
 
     it('writes publication_date and publication_newspaper to context for SP_ORDINANCE', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
       const caller = callerFor(ctx as any);
-      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
+      mockGetActiveInstanceForDocument.mockResolvedValue({
+        id: INSTANCE_ID,
+        documentId: DOCUMENT_ID,
+      });
       mockDb.mockResponse([{ code: 'SP_ORDINANCE', metadata: { has_penalty_provision: true } }]); // document type lookup
       mockDb.mockResponse([{ stepInstanceId: STEP_INSTANCE_ID }]); // active step query
       mockDb.mockResponse(makeWF021StepContextRow({ stepKey: 'newspaper_publication' })); // fetchStepContext
@@ -1443,17 +1700,25 @@ describe('TASK-WF-021 Procedures', () => {
       expect(patch['publication_newspaper']).toBe('Ilocos Times');
 
       expect(mockSubmitStepAction).toHaveBeenCalledOnce();
-      expect(ctx.req.server.eventBus.emit).toHaveBeenCalledWith('workflow.step.completed', expect.objectContaining({
-        payload: expect.objectContaining({
-          outcome: 'DONE',
-        })
-      }));
+      expect(ctx.req.server.eventBus.emit).toHaveBeenCalledWith(
+        'workflow.step.completed',
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            outcome: 'DONE',
+          }),
+        }),
+      );
     });
 
     it('writes correct context for SP_APPROPRIATION_ORDINANCE', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
-      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
-      mockDb.mockResponse([{ code: 'SP_APPROPRIATION_ORDINANCE', metadata: { has_penalty_provision: true } }]); // document type lookup
+      mockGetActiveInstanceForDocument.mockResolvedValue({
+        id: INSTANCE_ID,
+        documentId: DOCUMENT_ID,
+      });
+      mockDb.mockResponse([
+        { code: 'SP_APPROPRIATION_ORDINANCE', metadata: { has_penalty_provision: true } },
+      ]); // document type lookup
       mockDb.mockResponse([{ stepInstanceId: STEP_INSTANCE_ID }]); // active step query
       mockDb.mockResponse(makeWF021StepContextRow({ stepKey: 'newspaper_publication' })); // fetchStepContext
 
@@ -1470,12 +1735,17 @@ describe('TASK-WF-021 Procedures', () => {
 
     it('throws NOT_FOUND when document row not found', async () => {
       const caller = callerFor(makeCtxWithServer(SP_SECRETARY, mockDb) as any);
-      mockGetActiveInstanceForDocument.mockResolvedValue({ id: INSTANCE_ID, documentId: DOCUMENT_ID });
+      mockGetActiveInstanceForDocument.mockResolvedValue({
+        id: INSTANCE_ID,
+        documentId: DOCUMENT_ID,
+      });
       mockDb.mockResponse([]); // empty docRows
       await expect(
-        caller.recordNewspaperPublicationDate({ documentId: DOCUMENT_ID, publicationDate: new Date('2026-07-01') })
+        caller.recordNewspaperPublicationDate({
+          documentId: DOCUMENT_ID,
+          publicationDate: new Date('2026-07-01'),
+        }),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
   });
 });
-

@@ -18,7 +18,10 @@ async function runDemo() {
     boss = new PgBoss(env.DATABASE_URL_APP);
     await boss.start();
   } catch (err) {
-    console.warn('\x1b[33m%s\x1b[0m', '   [Warning] Could not connect/start PgBoss. Running without background queue decoration.');
+    console.warn(
+      '\x1b[33m%s\x1b[0m',
+      '   [Warning] Could not connect/start PgBoss. Running without background queue decoration.',
+    );
   }
 
   const app = await buildApp(boss ? { boss } : {});
@@ -38,7 +41,7 @@ async function runDemo() {
 
   try {
     console.log('\n2. Creating a test user and credentials via DB transactions...');
-    
+
     // Hash password using Argon2id
     const passwordHash = await argon2.hash(passwordPlain, {
       memoryCost: env.ARGON2_MEMORY_COST ?? 65536,
@@ -51,7 +54,7 @@ async function runDemo() {
       // Find SP Secretariat office
       const officeRows = await tx.select().from(offices).where(eq(offices.code, 'SPS')).limit(1);
       const spsOffice = officeRows[0];
-      
+
       if (!spsOffice) {
         throw new Error('SPS office not found. Please run "pnpm db:seed" first.');
       }
@@ -76,7 +79,7 @@ async function runDemo() {
       // Find sp_secretary role
       const roleRows = await tx.select().from(roles).where(eq(roles.code, 'sp_secretary')).limit(1);
       const secretaryRole = roleRows[0];
-      
+
       if (secretaryRole) {
         // Assign sp_secretary role to our user
         await tx.insert(roleAssignments).values({
@@ -112,7 +115,7 @@ async function runDemo() {
     console.log('   Response cookies (including HttpOnly session tokens):');
     const setCookieHeaders = loginResult.headers['set-cookie'];
     if (Array.isArray(setCookieHeaders)) {
-      setCookieHeaders.forEach(cookie => console.log(`     - ${cookie.split(';')[0]}`));
+      setCookieHeaders.forEach((cookie) => console.log(`     - ${cookie.split(';')[0]}`));
     } else if (setCookieHeaders) {
       console.log(`     - ${setCookieHeaders.split(';')[0]}`);
     }
@@ -138,7 +141,10 @@ async function runDemo() {
 
     console.log('   Verifying entire audit chain integrity...');
     if (chainValidationStatus === 'intact') {
-      console.log('\x1b[32m%s\x1b[0m', '   ✓ Cryptographic integrity verified: Hash chain is fully intact and unmodified.');
+      console.log(
+        '\x1b[32m%s\x1b[0m',
+        '   ✓ Cryptographic integrity verified: Hash chain is fully intact and unmodified.',
+      );
     } else {
       console.log('\x1b[31m%s\x1b[0m', `   ✗ Integrity Verification Failed: Chain is broken.`);
     }
@@ -151,7 +157,6 @@ async function runDemo() {
       await tx.delete(users).where(eq(users.id, testUserId));
     });
     console.log('   Demo data cleaned up successfully.');
-
   } catch (error) {
     console.error('\nAn error occurred during the demo:', error);
   } finally {

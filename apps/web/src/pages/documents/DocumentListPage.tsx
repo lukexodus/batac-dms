@@ -57,7 +57,7 @@ export function DocumentListPage() {
   if (isLoading && cursorHistory.length === 0) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -70,10 +70,10 @@ export function DocumentListPage() {
           heading="No documents available"
           body="There are no documents to display at this time. This could be due to your current access permissions or active filters."
           action={{
-            label: "New Document",
+            label: 'New Document',
             onClick: () => {
-              navigate("/documents/new");
-            }
+              navigate('/documents/new');
+            },
           }}
         />
       </div>
@@ -102,10 +102,7 @@ export function DocumentListPage() {
                     <TableHead key={header.id}>
                       {header.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                        : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   );
                 })}
@@ -115,26 +112,17 @@ export function DocumentListPage() {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   No results.
                 </TableCell>
               </TableRow>
@@ -144,20 +132,10 @@ export function DocumentListPage() {
       </div>
 
       <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handlePrev}
-          disabled={!hasPrevPage}
-        >
+        <Button variant="outline" size="sm" onClick={handlePrev} disabled={!hasPrevPage}>
           Previous
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleNext}
-          disabled={!hasNextPage}
-        >
+        <Button variant="outline" size="sm" onClick={handleNext} disabled={!hasNextPage}>
           Next
         </Button>
       </div>

@@ -15,10 +15,10 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
-@import "tailwindcss";
+@import 'tailwindcss';
 
-@source "../components/**/*.{ts,tsx}";
-@source "../../../apps/web/src/**/*.{ts,tsx}";
+@source '../components/**/*.{ts,tsx}';
+@source '../../../apps/web/src/**/*.{ts,tsx}';
 
 /* ── Google Fonts ─────────────────────────────────────────────
    Inter + JetBrains Mono loaded globally.
@@ -32,12 +32,11 @@
    ─────────────────────────────────────────────────────────── */
 @layer base {
   :root {
-
     /* --------------------------------------------------------
        PRIMARY — Brand navy
        Source: DESIGN.md §3 / batac.gov.ph seal + nav
     -------------------------------------------------------- */
-    --color-primary-50:  #eef2f9;
+    --color-primary-50: #eef2f9;
     --color-primary-100: #d5e0f0;
     --color-primary-200: #adc2e3;
     --color-primary-300: #7d9fd2;
@@ -49,17 +48,17 @@
     --color-primary-900: #0e2044;
     --color-primary-950: #081229;
 
-    --color-brand:        var(--color-primary-800);
-    --color-brand-hover:  var(--color-primary-900);
+    --color-brand: var(--color-primary-800);
+    --color-brand-hover: var(--color-primary-900);
     --color-brand-active: var(--color-primary-950);
     --color-brand-subtle: var(--color-primary-100);
-    --color-brand-muted:  var(--color-primary-200);
+    --color-brand-muted: var(--color-primary-200);
 
     /* --------------------------------------------------------
        NEUTRAL — UI chrome grays
        Source: DESIGN.md §3
     -------------------------------------------------------- */
-    --color-neutral-50:  #f8f9fa;
+    --color-neutral-50: #f8f9fa;
     --color-neutral-100: #f1f3f5;
     --color-neutral-200: #e9ecef;
     --color-neutral-300: #dee2e6;
@@ -95,7 +94,7 @@
        kitchen-sink STATUS_META + OrderOfBusinessRow.
        Added: [Proposed default — consistent with danger scale]
     -------------------------------------------------------- */
-    --color-danger-50:  #fef2f2;
+    --color-danger-50: #fef2f2;
     --color-danger-100: #fee2e2;
     --color-danger-200: #fecaca;
     --color-danger-500: #ef4444;
@@ -112,18 +111,18 @@
     /* --------------------------------------------------------
        SURFACES (DESIGN.md §3)
     -------------------------------------------------------- */
-    --color-surface-base:    #ffffff;
-    --color-surface-raised:  #f8f9fa;
+    --color-surface-base: #ffffff;
+    --color-surface-raised: #f8f9fa;
     --color-surface-overlay: #ffffff;
-    --color-surface-sunken:  #f1f3f5;
+    --color-surface-sunken: #f1f3f5;
 
     /* --------------------------------------------------------
        BORDERS (DESIGN.md §3)
     -------------------------------------------------------- */
     --color-border-default: #dee2e6;
-    --color-border-strong:  #ced4da;
-    --color-border-subtle:  #e9ecef;
-    --color-border-brand:   #adc2e3;
+    --color-border-strong: #ced4da;
+    --color-border-subtle: #e9ecef;
+    --color-border-brand: #adc2e3;
 
     /* --------------------------------------------------------
        TEXT (DESIGN.md §3)
@@ -131,74 +130,74 @@
        (3.8:1, fails WCAG AA) to #5a6470 (6.01:1, passes AA).
        All other text tokens from DESIGN.md §3 unchanged.
     -------------------------------------------------------- */
-    --color-text-primary:    #212529;   /* 14.6:1 on white — ✅ */
-    --color-text-secondary:  #495057;   /* 7.0:1  on white — ✅ */
-    --color-text-muted:      #5a6470;   /* 6.01:1 on white — ✅ CORRECTED */
-    --color-text-inverse:    #ffffff;
-    --color-text-disabled:   #ced4da;   /* intentional low contrast for disabled state */
-    --color-text-link:       #1e3d7a;
+    --color-text-primary: #212529; /* 14.6:1 on white — ✅ */
+    --color-text-secondary: #495057; /* 7.0:1  on white — ✅ */
+    --color-text-muted: #5a6470; /* 6.01:1 on white — ✅ CORRECTED */
+    --color-text-inverse: #ffffff;
+    --color-text-disabled: #ced4da; /* intentional low contrast for disabled state */
+    --color-text-link: #1e3d7a;
     --color-text-link-hover: #0e2044;
 
     /* --------------------------------------------------------
        TYPOGRAPHY (DESIGN.md §3)
     -------------------------------------------------------- */
-    --font-sans:  'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     --font-serif: 'Lora', Georgia, serif;
-    --font-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
 
-    --text-xs:   0.75rem;
-    --text-sm:   0.875rem;
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
     --text-base: 1rem;
-    --text-lg:   1.125rem;
-    --text-xl:   1.25rem;
-    --text-2xl:  1.5rem;
-    --text-3xl:  1.875rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
 
-    --leading-xs:   1.333;
-    --leading-sm:   1.429;
+    --leading-xs: 1.333;
+    --leading-sm: 1.429;
     --leading-base: 1.5;
-    --leading-lg:   1.444;
-    --leading-xl:   1.4;
-    --leading-2xl:  1.333;
-    --leading-3xl:  1.2;
+    --leading-lg: 1.444;
+    --leading-xl: 1.4;
+    --leading-2xl: 1.333;
+    --leading-3xl: 1.2;
 
-    --font-normal:   400;
-    --font-medium:   500;
+    --font-normal: 400;
+    --font-medium: 500;
     --font-semibold: 600;
-    --font-bold:     700;
+    --font-bold: 700;
 
     /* --------------------------------------------------------
        SPACING — 4px base unit (DESIGN.md §3)
     -------------------------------------------------------- */
-    --space-0:  0px;
-    --space-1:  4px;
-    --space-2:  8px;
-    --space-3:  12px;
-    --space-4:  16px;
-    --space-5:  20px;
-    --space-6:  24px;
-    --space-7:  28px;
-    --space-8:  32px;
+    --space-0: 0px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-7: 28px;
+    --space-8: 32px;
     --space-10: 40px;
     --space-12: 48px;
     --space-16: 64px;
     --space-20: 80px;
     --space-24: 96px;
 
-    --sidebar-width-expanded:  240px;
-    --sidebar-width-collapsed:  56px;
-    --topbar-height:            56px;
-    --page-content-max:       1280px;
-    --content-padding:          24px;
+    --sidebar-width-expanded: 240px;
+    --sidebar-width-collapsed: 56px;
+    --topbar-height: 56px;
+    --page-content-max: 1280px;
+    --content-padding: 24px;
 
     /* --------------------------------------------------------
        BORDER RADIUS (DESIGN.md §3)
     -------------------------------------------------------- */
     --radius-none: 0px;
-    --radius-sm:   2px;
-    --radius-md:   4px;
-    --radius-lg:   8px;
-    --radius-xl:   12px;
+    --radius-sm: 2px;
+    --radius-md: 4px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
     --radius-full: 9999px;
 
     /* --------------------------------------------------------
@@ -212,12 +211,12 @@
     /* --------------------------------------------------------
        Z-INDEX (DESIGN.md §3)
     -------------------------------------------------------- */
-    --z-base:     0;
-    --z-raised:   10;
-    --z-sticky:   100;
+    --z-base: 0;
+    --z-raised: 10;
+    --z-sticky: 100;
     --z-dropdown: 200;
-    --z-modal:    300;
-    --z-toast:    400;
+    --z-modal: 300;
+    --z-toast: 400;
 
     /* --------------------------------------------------------
        TRANSITIONS (DESIGN.md §3)
@@ -227,14 +226,14 @@
     --duration-slow: 300ms;
 
     --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
-    --ease-in:      cubic-bezier(0.4, 0, 1, 1);
-    --ease-out:     cubic-bezier(0, 0, 0.2, 1);
-    --ease-in-out:  cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 
     /* --------------------------------------------------------
        FOCUS RING (DESIGN.md §3 + §8 Rule 10)
     -------------------------------------------------------- */
-    --focus-ring:       0 0 0 2px #ffffff, 0 0 0 4px var(--color-primary-600);
+    --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px var(--color-primary-600);
     --focus-ring-inset: inset 0 0 0 2px var(--color-primary-600);
 
     /* ========================================================
@@ -243,51 +242,51 @@
        HSL values computed from the hex values above.
     ======================================================== */
 
-    --background:              0 0% 100%;       /* surface-base #ffffff */
-    --foreground:              210 11% 15%;      /* text-primary #212529 */
+    --background: 0 0% 100%; /* surface-base #ffffff */
+    --foreground: 210 11% 15%; /* text-primary #212529 */
 
-    --card:                    0 0% 100%;
-    --card-foreground:         210 11% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 11% 15%;
 
-    --popover:                 0 0% 100%;
-    --popover-foreground:      210 11% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 11% 15%;
 
     /* Primary: primary-800 #162e60 → hsl(219, 62%, 23%) */
-    --primary:                 219 62% 23%;
-    --primary-foreground:      0 0% 100%;
+    --primary: 219 62% 23%;
+    --primary-foreground: 0 0% 100%;
 
     /* Secondary: neutral-100 #f1f3f5 → hsl(210, 17%, 95%) */
-    --secondary:               210 17% 95%;
-    --secondary-foreground:    210 11% 29%;     /* neutral-700 #495057 */
+    --secondary: 210 17% 95%;
+    --secondary-foreground: 210 11% 29%; /* neutral-700 #495057 */
 
     /* Muted: neutral-100 */
-    --muted:                   210 17% 95%;
-    --muted-foreground:        210 8% 56%;      /* neutral-500 #adb5bd */
+    --muted: 210 17% 95%;
+    --muted-foreground: 210 8% 56%; /* neutral-500 #adb5bd */
 
     /* Accent: primary-100 #d5e0f0 → hsl(216, 43%, 89%) */
-    --accent:                  216 43% 89%;
-    --accent-foreground:       219 62% 23%;     /* primary-800 */
+    --accent: 216 43% 89%;
+    --accent-foreground: 219 62% 23%; /* primary-800 */
 
     /* Destructive: danger-500 #ef4444 → hsl(0, 84%, 60%) */
-    --destructive:             0 84% 60%;
-    --destructive-foreground:  0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
     /* Border: border-default #dee2e6 → hsl(210, 18%, 87%) */
-    --border:                  210 18% 87%;
-    --input:                   210 18% 87%;
+    --border: 210 18% 87%;
+    --input: 210 18% 87%;
 
     /* Ring: primary-800 (same as --primary) */
-    --ring:                    219 62% 23%;
+    --ring: 219 62% 23%;
 
     /* Radius: 4px = formal/rectilinear per DESIGN.md §3 */
-    --radius:                  0.25rem;
+    --radius: 0.25rem;
 
     /* Chart tokens — dashboard panels (confirmed: Recharts) */
-    --chart-1:                 219 62% 23%;     /* brand navy */
-    --chart-2:                 38 92% 50%;      /* warning amber */
-    --chart-3:                 160 84% 39%;     /* success green */
-    --chart-4:                 217 91% 60%;     /* info blue */
-    --chart-5:                 0 84% 60%;       /* danger red */
+    --chart-1: 219 62% 23%; /* brand navy */
+    --chart-2: 38 92% 50%; /* warning amber */
+    --chart-3: 160 84% 39%; /* success green */
+    --chart-4: 217 91% 60%; /* info blue */
+    --chart-5: 0 84% 60%; /* danger red */
   }
 
   /* ── Dark mode — deferred to Phase 2 ─────────────────────
@@ -307,7 +306,7 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: var(--font-sans);
-    font-size: var(--text-sm);        /* 14px — data-density default per §8 Rule 4 */
+    font-size: var(--text-sm); /* 14px — data-density default per §8 Rule 4 */
     line-height: var(--leading-sm);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -321,7 +320,9 @@
 
   /* Reduced motion compliance (DESIGN.md §5) */
   @media (prefers-reduced-motion: reduce) {
-    *, ::before, ::after {
+    *,
+    ::before,
+    ::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
@@ -331,9 +332,9 @@
 
   /* Touch target minimum — 44×44px (DESIGN.md §5, §8 Rule 11) */
   button,
-  [role="button"],
-  input[type="checkbox"],
-  input[type="radio"],
+  [role='button'],
+  input[type='checkbox'],
+  input[type='radio'],
   select,
   a {
     min-height: 44px;
@@ -368,9 +369,8 @@
    opacity modifier pipeline and is therefore omitted.
 ────────────────────────────────────────────────────────── */
 @theme {
-
   /* Primary */
-  --color-primary-50:  #eef2f9;
+  --color-primary-50: #eef2f9;
   --color-primary-100: #d5e0f0;
   --color-primary-200: #adc2e3;
   --color-primary-300: #7d9fd2;
@@ -383,7 +383,7 @@
   --color-primary-950: #081229;
 
   /* Neutral */
-  --color-neutral-50:  #f8f9fa;
+  --color-neutral-50: #f8f9fa;
   --color-neutral-100: #f1f3f5;
   --color-neutral-200: #e9ecef;
   --color-neutral-300: #dee2e6;
@@ -405,74 +405,74 @@
   --color-warning-500: #f59e0b;
   --color-warning-900: #78350f;
 
-  --color-danger-50:   #fef2f2;
-  --color-danger-100:  #fee2e2;
-  --color-danger-200:  #fecaca;
-  --color-danger-500:  #ef4444;
-  --color-danger-700:  #b91c1c;
-  --color-danger-900:  #7f1d1d;
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;
+  --color-danger-500: #ef4444;
+  --color-danger-700: #b91c1c;
+  --color-danger-900: #7f1d1d;
 
-  --color-info-100:    #dbeafe;
-  --color-info-500:    #3b82f6;
-  --color-info-900:    #1e3a8a;
+  --color-info-100: #dbeafe;
+  --color-info-500: #3b82f6;
+  --color-info-900: #1e3a8a;
 
   /* Surfaces */
-  --color-surface-base:    #ffffff;
-  --color-surface-raised:  #f8f9fa;
+  --color-surface-base: #ffffff;
+  --color-surface-raised: #f8f9fa;
   --color-surface-overlay: #ffffff;
-  --color-surface-sunken:  #f1f3f5;
+  --color-surface-sunken: #f1f3f5;
 
   /* Borders */
-  --color-border-default:  #dee2e6;
-  --color-border-strong:   #ced4da;
-  --color-border-subtle:   #e9ecef;
-  --color-border-brand:    #adc2e3;
+  --color-border-default: #dee2e6;
+  --color-border-strong: #ced4da;
+  --color-border-subtle: #e9ecef;
+  --color-border-brand: #adc2e3;
 
   /* Text — text-muted corrected to #5a6470 for WCAG AA */
-  --color-text-primary:    #212529;
-  --color-text-secondary:  #495057;
-  --color-text-muted:      #5a6470;
-  --color-text-inverse:    #ffffff;
-  --color-text-disabled:   #ced4da;
-  --color-text-link:       #1e3d7a;
+  --color-text-primary: #212529;
+  --color-text-secondary: #495057;
+  --color-text-muted: #5a6470;
+  --color-text-inverse: #ffffff;
+  --color-text-disabled: #ced4da;
+  --color-text-link: #1e3d7a;
   --color-text-link-hover: #0e2044;
 
   /* Font families */
-  --font-family-sans:  'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-family-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-family-serif: 'Lora', Georgia, serif;
-  --font-family-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
 
   /* Font size scale */
-  --font-size-xs:   0.75rem;
-  --font-size-sm:   0.875rem;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
-  --font-size-lg:   1.125rem;
-  --font-size-xl:   1.25rem;
-  --font-size-2xl:  1.5rem;
-  --font-size-3xl:  1.875rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
 
   /* Border radius */
-  --radius-none:    0px;
-  --radius-sm:      2px;
+  --radius-none: 0px;
+  --radius-sm: 2px;
   --radius-DEFAULT: 4px;
-  --radius-md:      4px;
-  --radius-lg:      8px;
-  --radius-xl:      12px;
-  --radius-full:    9999px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
-  --shadow-md: 0 1px 3px 0 rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.06);
-  --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.06);
-  --shadow-xl: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.05);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
 
   /* Z-index — generates z-sticky, z-dropdown, z-modal, z-toast */
-  --z-index-base:     0;
-  --z-index-raised:   10;
-  --z-index-sticky:   100;
+  --z-index-base: 0;
+  --z-index-raised: 10;
+  --z-index-sticky: 100;
   --z-index-dropdown: 200;
-  --z-index-modal:    300;
-  --z-index-toast:    400;
+  --z-index-modal: 300;
+  --z-index-toast: 400;
 
   /* Transitions */
   --transition-duration-fast: 100ms;
@@ -480,8 +480,8 @@
   --transition-duration-slow: 300ms;
 
   /* Layout constants — usable as arbitrary values */
-  --width-sidebar:           240px;
-  --width-sidebar-collapsed:  56px;
-  --height-topbar:            56px;
-  --width-page-max:         1280px;
+  --width-sidebar: 240px;
+  --width-sidebar-collapsed: 56px;
+  --height-topbar: 56px;
+  --width-page-max: 1280px;
 }

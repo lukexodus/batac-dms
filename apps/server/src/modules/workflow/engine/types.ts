@@ -23,7 +23,9 @@ export type TransitionRuleRow = InferSelectModel<typeof transitionRules>;
 export type InstanceRow = InferSelectModel<typeof instances>;
 export type StepInstanceRow = InferSelectModel<typeof stepInstances>;
 export type WorkflowEventRow = InferSelectModel<typeof workflowEvents>;
-export type PendingCertifiedUrgentBypassRow = InferSelectModel<typeof pendingCertifiedUrgentBypasses>;
+export type PendingCertifiedUrgentBypassRow = InferSelectModel<
+  typeof pendingCertifiedUrgentBypasses
+>;
 export type CommitteeReportRow = InferSelectModel<typeof committeeReports>;
 export type CommitteeReportSignatureRow = InferSelectModel<typeof committeeReportSignatures>;
 export type SpSessionRow = InferSelectModel<typeof spSessions>;
@@ -36,4 +38,11 @@ export type WorkflowStepInstance = StepInstanceRow;
 
 // Instance and step status enums (D3-authoritative)
 export type WorkflowInstanceStatus = 'Running' | 'Paused' | 'Stuck' | 'Completed' | 'Cancelled';
-export type WorkflowStepStatus = 'Pending' | 'Active' | 'Completed' | 'Skipped' | 'Returned' | 'Failed' | 'Cancelled';
+export type WorkflowStepStatus =
+  | 'Pending'
+  | 'Active'
+  | 'Completed'
+  | 'Skipped'
+  | 'Returned'
+  | 'Failed'
+  | 'Cancelled';

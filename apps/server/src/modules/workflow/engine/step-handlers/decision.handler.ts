@@ -7,15 +7,15 @@ export async function executeDecisionStep(
   instance: InstanceRow,
   stepInstance: StepInstanceRow,
   deps: StepResolutionDeps,
-  trx?: DbTransaction
+  trx?: DbTransaction,
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any
+    trx as any,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
-  const stepDef = versionData.steps.find(s => s.id === stepInstance.stepId);
+  const stepDef = versionData.steps.find((s) => s.id === stepInstance.stepId);
   if (!stepDef) throw new Error('Step definition not found');
 
   const config = (stepDef.config as Record<string, any>) || {};
@@ -40,7 +40,7 @@ export async function executeDecisionStep(
   await deps.workflowRepository.updateStepInstance(
     stepInstance.id,
     { status: 'completed', completedAt: now, outcome },
-    trx as any
+    trx as any,
   );
 
   await deps.workflowRepository.createWorkflowEvent(
@@ -56,12 +56,15 @@ export async function executeDecisionStep(
         stepType: stepDef.stepType,
         outcome,
         comment: null,
-      }
+      },
     },
-    trx as any
+    trx as any,
   );
 
-  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(stepInstance.id, trx as any);
+  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
+    stepInstance.id,
+    trx as any,
+  );
   if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 
   await resolveNextStep(instance, updatedStepInstance, outcome, deps, trx);

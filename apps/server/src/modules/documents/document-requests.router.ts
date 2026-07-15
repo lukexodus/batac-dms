@@ -26,10 +26,7 @@ import { eq, and, isNull, sql, or } from 'drizzle-orm';
 import { UuidSchema, TimestampSchema, PaginationInputSchema } from '@batac/shared/schemas/common';
 import { LifecycleStateSchema } from '@batac/shared/schemas/documents';
 import type { LifecycleState } from '@batac/shared/schemas/documents';
-import {
-  documents,
-  documentTypes,
-} from '@batac/database/schema/documents.schema.js';
+import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
 import type { Context } from '../iam/iam.types.js';
 
 // ---------------------------------------------------------------------------
@@ -141,7 +138,6 @@ const DocumentRequestDetailOutputSchema = DocumentRequestListItemSchema.extend({
 
 export function createDocumentRequestsRouter() {
   return router({
-
     // -----------------------------------------------------------------------
     // documentRequests.createClerkAssisted
     //
@@ -160,11 +156,11 @@ export function createDocumentRequestsRouter() {
               z.object({
                 documentTitle: z.string().min(1),
                 documentNumber: z.string().optional(),
-              })
+              }),
             )
             .min(1),
           purpose: z.string().max(512).optional(),
-        })
+        }),
       )
       .output(CreateDocumentRequestOutputSchema)
       .mutation(async ({ ctx, input }) => {
@@ -470,7 +466,7 @@ export function createDocumentRequestsRouter() {
           document.id,
           'completed',
           subject.userId,
-          'Dual approval complete — presiding officer and secretary both approved'
+          'Dual approval complete — presiding officer and secretary both approved',
         );
 
         // Emit audit event
@@ -519,7 +515,7 @@ export function createDocumentRequestsRouter() {
           orNumber: z.string().max(64).optional(),
           collectingOfficer: z.string().max(256).optional(),
           amountPaid: z.number().positive().optional(),
-        })
+        }),
       )
       .output(SuccessOutputSchema)
       .mutation(async ({ ctx, input }) => {
@@ -584,7 +580,7 @@ export function createDocumentRequestsRouter() {
           document.id,
           'released',
           subject.userId,
-          'Copy released to requester'
+          'Copy released to requester',
         );
 
         // Emit notification signal for requester pickup notification
@@ -622,19 +618,14 @@ export function createDocumentRequestsRouter() {
         PaginationInputSchema.extend({
           requesterName: z.string().optional(),
           documentNumber: z.string().optional(),
-        })
+        }),
       )
       .output(ListDocumentRequestsOutputSchema)
       .query(async ({ ctx, input }) => {
         const subject = ctx.auth;
 
         // ABAC: allowed roles (I1 §13 pattern; I2 Section 13)
-        const allowedRoles = [
-          'sp_secretary',
-          'sp_presiding_officer',
-          'records_officer',
-          'auditor',
-        ];
+        const allowedRoles = ['sp_secretary', 'sp_presiding_officer', 'records_officer', 'auditor'];
         const hasAccess = allowedRoles.some((r) => subject.roles.includes(r));
         if (!hasAccess) {
           throw new TRPCError({ code: 'FORBIDDEN' });
@@ -663,7 +654,7 @@ export function createDocumentRequestsRouter() {
         // Optional JSONB text filters
         if (input.requesterName) {
           conditions.push(
-            sql`lower(${documents.metadata}->>'requester'->>'name') LIKE lower(${'%' + input.requesterName + '%'})`
+            sql`lower(${documents.metadata}->>'requester'->>'name') LIKE lower(${'%' + input.requesterName + '%'})`,
           );
         }
 
@@ -673,7 +664,7 @@ export function createDocumentRequestsRouter() {
             sql`EXISTS (
               SELECT 1 FROM jsonb_array_elements(${documents.metadata}->'documentsRequested') AS elem
               WHERE lower(elem->>'documentNumber') LIKE lower(${'%' + input.documentNumber + '%'})
-            )`
+            )`,
           );
         }
 
@@ -686,7 +677,7 @@ export function createDocumentRequestsRouter() {
             .where(eq(documents.id, input.cursor));
           if (cursorRow) {
             conditions.push(
-              sql`(${documents.createdAt}, ${documents.id}) < (${cursorRow.createdAt}, ${input.cursor})`
+              sql`(${documents.createdAt}, ${documents.id}) < (${cursorRow.createdAt}, ${input.cursor})`,
             );
           }
         }

@@ -21,7 +21,7 @@ export async function cancelInstance(
   instanceId: string,
   actorId: string,
   reason: string,
-  deps: AdminOperationsDeps
+  deps: AdminOperationsDeps,
 ): Promise<void> {
   if (!reason || reason.trim().length === 0) {
     throw new ValidationFailedError('cancellation reason must not be empty');
@@ -46,7 +46,7 @@ export async function cancelInstance(
           cancellation_reason: reason,
         },
       },
-      trx
+      trx,
     );
   });
 }
@@ -57,7 +57,7 @@ export async function bypassStep(
   bypassReason: string,
   comment: string,
   outcomeCode: string,
-  deps: AdminOperationsDeps
+  deps: AdminOperationsDeps,
 ): Promise<void> {
   if (!comment || comment.trim().length === 0) {
     throw new ValidationFailedError('bypass comment must not be empty');
@@ -71,7 +71,7 @@ export async function bypassStep(
     const stepInstance = await deps.workflowRepository.getStepInstanceById(stepInstanceId, trx);
     if (!stepInstance || stepInstance.status !== 'active') {
       throw new InvalidWorkflowTransitionError(
-        `Cannot bypass a step instance that is not active (current: ${stepInstance?.status ?? 'not found'}).`
+        `Cannot bypass a step instance that is not active (current: ${stepInstance?.status ?? 'not found'}).`,
       );
     }
 
@@ -87,7 +87,7 @@ export async function bypassStep(
         bypassReason,
         outcomeComment: comment,
       },
-      trx
+      trx,
     );
 
     await deps.workflowRepository.createWorkflowEvent(
@@ -104,12 +104,12 @@ export async function bypassStep(
           bypassed_by: actorId,
         },
       },
-      trx
+      trx,
     );
 
-    // B4 invariant #12: if outcomeCode doesn't match an outcome filter in target version, resolveNextStep 
+    // B4 invariant #12: if outcomeCode doesn't match an outcome filter in target version, resolveNextStep
     // will leave the instance stuck and emit workflow.instance.stuck.
-    // Notice: we cast deps to any here because AdminOperationsDeps does not have the full 
+    // Notice: we cast deps to any here because AdminOperationsDeps does not have the full
     // StepResolutionDeps (eventBus, orgService, delegationService, documentsService).
     // In actual runtime, the caller (router) has to provide all of these if they expect resolveNextStep
     // to function correctly (or we inject them). For this task, we will just cast.
@@ -122,7 +122,7 @@ export async function migrateInstance(
   targetVersionId: string,
   actorId: string,
   reason: string,
-  deps: AdminOperationsDeps
+  deps: AdminOperationsDeps,
 ): Promise<{ migrationId: string; reversibleUntil: Date }> {
   if (!reason || reason.trim().length === 0) {
     throw new ValidationFailedError('migration reason must not be empty');
@@ -134,19 +134,28 @@ export async function migrateInstance(
     if (!instance) throw new Error(`Instance ${instanceId} not found`);
 
     if (instance.status !== 'active') {
-      throw new InstanceNotActiveError(`Cannot migrate instance that is not active (current: ${instance.status}).`);
+      throw new InstanceNotActiveError(
+        `Cannot migrate instance that is not active (current: ${instance.status}).`,
+      );
     }
 
     // 1. targetVersionId must be a published version for the same definition_id
-    const targetVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(targetVersionId, trx as any);
+    const targetVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
+      targetVersionId,
+      trx as any,
+    );
     if (!targetVersionData) throw new Error(`Target version ${targetVersionId} not found`);
     if (!targetVersionData.version.publishedAt) {
       throw new ValidationFailedError(`Target version ${targetVersionId} is not published`);
     }
-    
-    const currentVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(instance.definitionVersionId, trx as any);
-    if (!currentVersionData) throw new Error(`Current version ${instance.definitionVersionId} not found`);
-    
+
+    const currentVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
+      instance.definitionVersionId,
+      trx as any,
+    );
+    if (!currentVersionData)
+      throw new Error(`Current version ${instance.definitionVersionId} not found`);
+
     if (targetVersionData.version.definitionId !== currentVersionData.version.definitionId) {
       throw new ValidationFailedError(`Target version belongs to a different definition`);
     }
@@ -155,7 +164,7 @@ export async function migrateInstance(
     const approvalGrant = await deps.workflowRepository.getApprovalGrant(
       instanceId,
       targetVersionId,
-      trx
+      trx,
     );
 
     if (!approvalGrant) {
@@ -167,19 +176,22 @@ export async function migrateInstance(
     }
 
     // Load active step instances
-    const activeStepInstances = await deps.workflowRepository.getActiveStepInstancesForInstance(instanceId, trx);
+    const activeStepInstances = await deps.workflowRepository.getActiveStepInstancesForInstance(
+      instanceId,
+      trx,
+    );
 
     // Step mapping
     const stepMapping: Record<string, string> = {}; // { oldStepInstanceId: newStepId }
     const missingKeys: string[] = [];
 
-    const currentStepsById = new Map(currentVersionData.steps.map(s => [s.id, s]));
+    const currentStepsById = new Map(currentVersionData.steps.map((s) => [s.id, s]));
 
     for (const activeStepInst of activeStepInstances) {
       const oldStep = currentStepsById.get(activeStepInst.stepId);
       if (!oldStep) throw new Error(`Step ${activeStepInst.stepId} not found in current version`);
 
-      const newStep = targetVersionData.steps.find(s => s.stepKey === oldStep.stepKey);
+      const newStep = targetVersionData.steps.find((s) => s.stepKey === oldStep.stepKey);
       if (!newStep) {
         missingKeys.push(oldStep.stepKey);
       } else {
@@ -192,8 +204,8 @@ export async function migrateInstance(
     }
 
     // Context compatibility check (NO-OP)
-    // [Inference] no mechanism exists in steps.config or elsewhere to declare required context keys per step; 
-    // B4 §7.3 step 4 assumes one exists without specifying it. This NO-OP passes vacuously until such a mechanism 
+    // [Inference] no mechanism exists in steps.config or elsewhere to declare required context keys per step;
+    // B4 §7.3 step 4 assumes one exists without specifying it. This NO-OP passes vacuously until such a mechanism
     // and its DDL are defined — likely requires an H1/C1 decision, not just an engine change.
 
     // Emit migration.started
@@ -213,7 +225,7 @@ export async function migrateInstance(
         actorId,
         payload: startedEventPayload,
       },
-      trx
+      trx,
     );
 
     // ONLY function allowed to write definition_version_id
@@ -222,7 +234,11 @@ export async function migrateInstance(
     for (const activeStepInst of activeStepInstances) {
       const newStepId = stepMapping[activeStepInst.id];
       if (newStepId) {
-        await deps.workflowRepository.updateStepInstance(activeStepInst.id, { stepId: newStepId }, trx);
+        await deps.workflowRepository.updateStepInstance(
+          activeStepInst.id,
+          { stepId: newStepId },
+          trx,
+        );
       }
     }
 
@@ -241,16 +257,16 @@ export async function migrateInstance(
           to_version_id: targetVersionId,
         },
       },
-      trx
+      trx,
     );
 
     // B4 invariant #12: defensive check.
     let isStuck = false;
     for (const activeStepInst of activeStepInstances) {
       const newStepId = stepMapping[activeStepInst.id];
-      const rules = targetVersionData.transitionRules.filter(r => r.fromStepId === newStepId);
+      const rules = targetVersionData.transitionRules.filter((r) => r.fromStepId === newStepId);
       for (const rule of rules) {
-        const targetStepExists = targetVersionData.steps.some(s => s.id === rule.toStepId);
+        const targetStepExists = targetVersionData.steps.some((s) => s.id === rule.toStepId);
         if (!targetStepExists) {
           isStuck = true;
           break;
@@ -272,7 +288,7 @@ export async function migrateInstance(
             reason: 'Migration resulted in stale transition references (invariant #12 violation).',
           },
         },
-        trx
+        trx,
       );
     }
 
@@ -286,7 +302,7 @@ export async function reverseMigration(
   actorId: string,
   reversalReason: string,
   originalMigrationEventId: string,
-  deps: AdminOperationsDeps
+  deps: AdminOperationsDeps,
 ): Promise<void> {
   if (!reversalReason || reversalReason.trim().length === 0) {
     throw new ValidationFailedError('reversal reason must not be empty');
@@ -294,11 +310,18 @@ export async function reverseMigration(
 
   await deps.db.transaction(async (trxParams) => {
     const trx = trxParams as any as AppDb;
-    // Because we do not have a dedicated method for getting by ID on workflowRepository, 
+    // Because we do not have a dedicated method for getting by ID on workflowRepository,
     // we use a cast or raw query if it doesn't exist.
-    let originalEvent: any = await (deps.workflowRepository as any).getWorkflowEventById?.(originalMigrationEventId, trx);
+    let originalEvent: any = await (deps.workflowRepository as any).getWorkflowEventById?.(
+      originalMigrationEventId,
+      trx,
+    );
     if (!originalEvent) {
-      const results = await trx.select().from(workflowEvents).where(eq(workflowEvents.id, originalMigrationEventId)).limit(1);
+      const results = await trx
+        .select()
+        .from(workflowEvents)
+        .where(eq(workflowEvents.id, originalMigrationEventId))
+        .limit(1);
       originalEvent = results[0];
     }
 
@@ -312,7 +335,11 @@ export async function reverseMigration(
     const targetVersionId = (originalEvent.payload as any).from_version_id;
 
     if (now > reversibleUntil) {
-      const approvalGrant = await deps.workflowRepository.getApprovalGrant(instanceId, targetVersionId, trx);
+      const approvalGrant = await deps.workflowRepository.getApprovalGrant(
+        instanceId,
+        targetVersionId,
+        trx,
+      );
       if (!approvalGrant) {
         throw new NoAdminApprovalError('No admin approval grant found for this reversal past 24h');
       }
@@ -326,26 +353,38 @@ export async function reverseMigration(
     if (!instance) throw new Error(`Instance ${instanceId} not found`);
 
     if (instance.status !== 'active') {
-      throw new InstanceNotActiveError(`Cannot reverse migration of instance that is not active (current: ${instance.status}).`);
+      throw new InstanceNotActiveError(
+        `Cannot reverse migration of instance that is not active (current: ${instance.status}).`,
+      );
     }
 
-    const activeStepInstances = await deps.workflowRepository.getActiveStepInstancesForInstance(instanceId, trx);
+    const activeStepInstances = await deps.workflowRepository.getActiveStepInstancesForInstance(
+      instanceId,
+      trx,
+    );
 
-    const targetVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(targetVersionId, trx as any);
+    const targetVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
+      targetVersionId,
+      trx as any,
+    );
     if (!targetVersionData) throw new Error(`Target version ${targetVersionId} not found`);
 
     const stepMapping: Record<string, string> = {};
     const missingKeys: string[] = [];
 
-    const currentVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(instance.definitionVersionId, trx as any);
-    if (!currentVersionData) throw new Error(`Current version ${instance.definitionVersionId} not found`);
-    const currentStepsById = new Map(currentVersionData.steps.map(s => [s.id, s]));
+    const currentVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
+      instance.definitionVersionId,
+      trx as any,
+    );
+    if (!currentVersionData)
+      throw new Error(`Current version ${instance.definitionVersionId} not found`);
+    const currentStepsById = new Map(currentVersionData.steps.map((s) => [s.id, s]));
 
     for (const activeStepInst of activeStepInstances) {
       const oldStep = currentStepsById.get(activeStepInst.stepId);
       if (!oldStep) throw new Error(`Step ${activeStepInst.stepId} not found in current version`);
 
-      const newStep = targetVersionData.steps.find(s => s.stepKey === oldStep.stepKey);
+      const newStep = targetVersionData.steps.find((s) => s.stepKey === oldStep.stepKey);
       if (!newStep) {
         missingKeys.push(oldStep.stepKey);
       } else {
@@ -362,7 +401,11 @@ export async function reverseMigration(
     for (const activeStepInst of activeStepInstances) {
       const newStepId = stepMapping[activeStepInst.id];
       if (newStepId) {
-        await deps.workflowRepository.updateStepInstance(activeStepInst.id, { stepId: newStepId }, trx);
+        await deps.workflowRepository.updateStepInstance(
+          activeStepInst.id,
+          { stepId: newStepId },
+          trx,
+        );
       }
     }
 
@@ -379,15 +422,15 @@ export async function reverseMigration(
           original_migration_event_id: originalMigrationEventId,
         },
       },
-      trx
+      trx,
     );
 
     let isStuck = false;
     for (const activeStepInst of activeStepInstances) {
       const newStepId = stepMapping[activeStepInst.id];
-      const rules = targetVersionData.transitionRules.filter(r => r.fromStepId === newStepId);
+      const rules = targetVersionData.transitionRules.filter((r) => r.fromStepId === newStepId);
       for (const rule of rules) {
-        const targetStepExists = targetVersionData.steps.some(s => s.id === rule.toStepId);
+        const targetStepExists = targetVersionData.steps.some((s) => s.id === rule.toStepId);
         if (!targetStepExists) {
           isStuck = true;
           break;
@@ -406,10 +449,11 @@ export async function reverseMigration(
           actorId: null,
           payload: {
             instance_id: instanceId,
-            reason: 'Migration reversal resulted in stale transition references (invariant #12 violation).',
+            reason:
+              'Migration reversal resulted in stale transition references (invariant #12 violation).',
           },
         },
-        trx
+        trx,
       );
     }
   });

@@ -4,7 +4,10 @@ import type { TrackingRepository } from '../tracking.repository.js';
 import type { QrCodeService } from '../tracking.qr-service.js';
 import type { FastifyBaseLogger } from 'fastify';
 import type { DomainEvent, EventPayloadMap } from '@batac/shared';
-import type { DocumentCreatedPayload, WorkflowStepCompletedPayload } from '@batac/shared/events/event-payload-map';
+import type {
+  DocumentCreatedPayload,
+  WorkflowStepCompletedPayload,
+} from '@batac/shared/events/event-payload-map';
 
 describe('TrackingEventConsumer', () => {
   let repository: import('vitest').Mocked<TrackingRepository>;
@@ -61,19 +64,25 @@ describe('TrackingEventConsumer', () => {
       await consumer.handleDocumentCreated(event);
 
       expect(qrService.generateAndStore).toHaveBeenCalledWith(documentId, actorId, undefined);
-      expect(repository.createTrackingRecord).toHaveBeenCalledWith({
-        documentId,
-        qrCodeId: 'qr-1',
-        currentCustodianOfficeId: officeId,
-        currentStatus: 'Received by SP Secretariat',
-      }, undefined);
-      expect(repository.appendRoutingEntry).toHaveBeenCalledWith({
-        trackingRecordId: 'tr-1',
-        fromOfficeId: null,
-        toOfficeId: officeId,
-        actorId,
-        actionDescription: 'Document logged and QR tracking number assigned',
-      }, undefined);
+      expect(repository.createTrackingRecord).toHaveBeenCalledWith(
+        {
+          documentId,
+          qrCodeId: 'qr-1',
+          currentCustodianOfficeId: officeId,
+          currentStatus: 'Received by SP Secretariat',
+        },
+        undefined,
+      );
+      expect(repository.appendRoutingEntry).toHaveBeenCalledWith(
+        {
+          trackingRecordId: 'tr-1',
+          fromOfficeId: null,
+          toOfficeId: officeId,
+          actorId,
+          actionDescription: 'Document logged and QR tracking number assigned',
+        },
+        undefined,
+      );
     });
 
     it('is idempotent on second call with same documentId', async () => {
@@ -86,7 +95,7 @@ describe('TrackingEventConsumer', () => {
       expect(repository.appendRoutingEntry).not.toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith(
         expect.objectContaining({ documentId }),
-        expect.stringContaining('duplicate')
+        expect.stringContaining('duplicate'),
       );
     });
 
@@ -124,26 +133,32 @@ describe('TrackingEventConsumer', () => {
 
       await consumer.handleWorkflowStepCompleted(event);
 
-      expect(repository.appendRoutingEntry).toHaveBeenCalledWith({
-        trackingRecordId: 'tr-1',
-        fromOfficeId: 'office-1',
-        toOfficeId: 'office-2',
-        actorId: 'actor-1',
-        actionDescription: 'Reviewed and forwarded',
-      }, undefined);
+      expect(repository.appendRoutingEntry).toHaveBeenCalledWith(
+        {
+          trackingRecordId: 'tr-1',
+          fromOfficeId: 'office-1',
+          toOfficeId: 'office-2',
+          actorId: 'actor-1',
+          actionDescription: 'Reviewed and forwarded',
+        },
+        undefined,
+      );
 
       expect(repository.updateTrackingRecordCustodian).toHaveBeenCalledWith(
         'tr-1',
         'office-2',
         expect.any(Date),
-        undefined
+        undefined,
       );
     });
 
     it('does not update custodian if toOfficeId is null', async () => {
       repository.findTrackingRecordByDocumentId.mockResolvedValue({ id: 'tr-1' } as any);
-      
-      const noOfficeEvent = { ...event, payload: { ...event.payload, toOfficeId: null } as WorkflowStepCompletedPayload };
+
+      const noOfficeEvent = {
+        ...event,
+        payload: { ...event.payload, toOfficeId: null } as WorkflowStepCompletedPayload,
+      };
       await consumer.handleWorkflowStepCompleted(noOfficeEvent);
 
       expect(repository.appendRoutingEntry).toHaveBeenCalled();
@@ -157,7 +172,7 @@ describe('TrackingEventConsumer', () => {
 
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ documentId }),
-        expect.stringContaining('no tracking record found')
+        expect.stringContaining('no tracking record found'),
       );
       expect(repository.appendRoutingEntry).not.toHaveBeenCalled();
     });
@@ -165,7 +180,9 @@ describe('TrackingEventConsumer', () => {
     it('propagates errors without swallowing', async () => {
       repository.findTrackingRecordByDocumentId.mockRejectedValue(new Error('DB connection lost'));
 
-      await expect(consumer.handleWorkflowStepCompleted(event)).rejects.toThrow('DB connection lost');
+      await expect(consumer.handleWorkflowStepCompleted(event)).rejects.toThrow(
+        'DB connection lost',
+      );
     });
   });
 });

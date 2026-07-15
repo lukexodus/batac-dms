@@ -1,6 +1,5 @@
 # ADR-AUTH-004: Refresh Token Hash Algorithm
 
-
 **Status:** Accepted
 
 **Context**

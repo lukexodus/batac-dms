@@ -8,7 +8,7 @@ describe('Certified Urgent Bypass Handler', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Default transaction mock that just executes the callback
     mockTrx = { _isMockTrx: true };
     const dbMock = {
@@ -52,7 +52,7 @@ describe('Certified Urgent Bypass Handler', () => {
         loggedBy: 'user-1',
         loggedAt: new Date().toISOString(),
       },
-      mockDeps
+      mockDeps,
     );
 
     // Should emit already_inactive
@@ -63,7 +63,7 @@ describe('Certified Urgent Bypass Handler', () => {
           instanceStatus: 'completed',
         }),
       }),
-      mockTrx
+      mockTrx,
     );
 
     // Should not update context or step
@@ -98,7 +98,7 @@ describe('Certified Urgent Bypass Handler', () => {
         loggedBy: 'user-1',
         loggedAt: new Date().toISOString(),
       },
-      mockDeps
+      mockDeps,
     );
 
     // Context updated
@@ -108,13 +108,13 @@ describe('Certified Urgent Bypass Handler', () => {
         certified_urgent: true,
         certified_urgent_document_id: 'doc-cert-1',
       },
-      mockTrx
+      mockTrx,
     );
 
     // context.updated event emitted
     expect(mockDeps.workflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'workflow.context.updated' }),
-      mockTrx
+      mockTrx,
     );
 
     // Step instance updated to bypassed
@@ -126,17 +126,17 @@ describe('Certified Urgent Bypass Handler', () => {
         bypassReason: 'CERTIFIED_URGENT',
         outcome: 'BYPASSED_CERTIFIED_URGENT',
       }),
-      mockTrx
+      mockTrx,
     );
 
     // Events emitted
     expect(mockDeps.workflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'workflow.step.bypassed' }),
-      mockTrx
+      mockTrx,
     );
     expect(mockDeps.workflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'workflow.certification_urgency.bypass_applied' }),
-      mockTrx
+      mockTrx,
     );
 
     // resolveNextStep called
@@ -145,7 +145,7 @@ describe('Certified Urgent Bypass Handler', () => {
       expect.objectContaining({ id: stepInstanceId }),
       'BYPASSED_CERTIFIED_URGENT',
       mockDeps,
-      mockTrx
+      mockTrx,
     );
   });
 
@@ -171,7 +171,7 @@ describe('Certified Urgent Bypass Handler', () => {
         loggedBy: 'user-1',
         loggedAt: new Date().toISOString(),
       },
-      mockDeps
+      mockDeps,
     );
 
     // Context updated
@@ -184,13 +184,13 @@ describe('Certified Urgent Bypass Handler', () => {
         stepKey: 'committee_referral',
         certificationDocumentId: 'doc-cert-1',
       },
-      mockTrx
+      mockTrx,
     );
 
     // deferred event emitted
     expect(mockDeps.workflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'workflow.certification_urgency.bypass_deferred' }),
-      mockTrx
+      mockTrx,
     );
 
     // Should NOT update step instance or call resolveNextStep
@@ -220,7 +220,7 @@ describe('Certified Urgent Bypass Handler', () => {
         loggedBy: 'user-1',
         loggedAt: new Date().toISOString(),
       },
-      mockDeps
+      mockDeps,
     );
 
     // Context updated
@@ -228,8 +228,10 @@ describe('Certified Urgent Bypass Handler', () => {
 
     // already_past_referral emitted
     expect(mockDeps.workflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'workflow.certification_urgency.already_past_referral' }),
-      mockTrx
+      expect.objectContaining({
+        eventType: 'workflow.certification_urgency.already_past_referral',
+      }),
+      mockTrx,
     );
 
     // No updates to step
@@ -237,9 +239,9 @@ describe('Certified Urgent Bypass Handler', () => {
   });
 
   it('processes each instance independently in its own transaction', async () => {
-    // We will provide 3 instance IDs. The second one will throw an error, 
+    // We will provide 3 instance IDs. The second one will throw an error,
     // the first and third should succeed.
-    
+
     mockDeps.workflowRepository.getInstanceById.mockImplementation(async (id: string) => {
       if (id === 'fail-inst') throw new Error('Simulated DB failure');
       return { id, status: 'active', context: {} };
@@ -261,7 +263,7 @@ describe('Certified Urgent Bypass Handler', () => {
         loggedBy: 'user-1',
         loggedAt: new Date().toISOString(),
       },
-      mockDeps
+      mockDeps,
     );
 
     // Transaction should have been opened 3 times
@@ -269,7 +271,15 @@ describe('Certified Urgent Bypass Handler', () => {
 
     // updateInstanceContext should have been called for inst-A and inst-B, but not fail-inst
     expect(mockDeps.workflowRepository.updateInstanceContext).toHaveBeenCalledTimes(2);
-    expect(mockDeps.workflowRepository.updateInstanceContext).toHaveBeenCalledWith('inst-A', expect.anything(), mockTrx);
-    expect(mockDeps.workflowRepository.updateInstanceContext).toHaveBeenCalledWith('inst-B', expect.anything(), mockTrx);
+    expect(mockDeps.workflowRepository.updateInstanceContext).toHaveBeenCalledWith(
+      'inst-A',
+      expect.anything(),
+      mockTrx,
+    );
+    expect(mockDeps.workflowRepository.updateInstanceContext).toHaveBeenCalledWith(
+      'inst-B',
+      expect.anything(),
+      mockTrx,
+    );
   });
 });

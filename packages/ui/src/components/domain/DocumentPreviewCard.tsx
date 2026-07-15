@@ -25,23 +25,17 @@ export function DocumentPreviewCard({
 }: DocumentPreviewCardProps) {
   if (isLoading) {
     return (
-      <Card
-        aria-busy="true"
-        className={cn(
-          "p-4 overflow-hidden",
-          className
-        )}
-      >
-        <Skeleton className="w-full aspect-[3/4] rounded mb-3" />
-        <div className="flex flex-wrap items-center gap-2 mb-1">
-          <Skeleton className="w-20 h-5" />
-          <Skeleton className="w-24 h-5" />
+      <Card aria-busy="true" className={cn('overflow-hidden p-4', className)}>
+        <Skeleton className="mb-3 aspect-[3/4] w-full rounded" />
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-5 w-24" />
         </div>
         <div className="mt-1 space-y-1">
-          <Skeleton className="w-full h-4" />
-          <Skeleton className="w-3/4 h-4" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
         </div>
-        <Skeleton className="w-28 h-3 mt-1" />
+        <Skeleton className="mt-1 h-3 w-28" />
       </Card>
     );
   }
@@ -60,38 +54,40 @@ export function DocumentPreviewCard({
   const showSLA = Boolean(
     slaDeadlineAt &&
     slaStartedAt &&
-    (documentState === 'PENDING_MAYOR' || documentState === 'PANLALAWIGAN_REVIEW')
+    (documentState === 'PENDING_MAYOR' || documentState === 'PANLALAWIGAN_REVIEW'),
   );
 
-  const interactiveProps = onClick ? {
-    role: "button",
-    tabIndex: 0,
-    onClick,
-    onKeyDown: (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault(); // prevent scroll on space
-        onClick();
+  const interactiveProps = onClick
+    ? {
+        role: 'button',
+        tabIndex: 0,
+        onClick,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault(); // prevent scroll on space
+            onClick();
+          }
+        },
       }
-    }
-  } : {};
+    : {};
 
   return (
     <Card
       {...interactiveProps}
       className={cn(
-        "p-4 overflow-hidden",
-        onClick && "cursor-pointer transition-shadow duration-300 hover:shadow-md",
-        className
+        'overflow-hidden p-4',
+        onClick && 'cursor-pointer transition-shadow duration-300 hover:shadow-md',
+        className,
       )}
     >
       {thumbnailUrl ? (
         <img
           src={thumbnailUrl}
           alt=""
-          className="w-full aspect-[3/4] bg-neutral-100 rounded object-cover mb-3"
+          className="mb-3 aspect-[3/4] w-full rounded bg-neutral-100 object-cover"
         />
       ) : (
-        <div className="w-full aspect-[3/4] bg-neutral-100 rounded mb-3 flex items-center justify-center text-neutral-400">
+        <div className="mb-3 flex aspect-[3/4] w-full items-center justify-center rounded bg-neutral-100 text-neutral-400">
           <span className="text-xs">No Preview</span>
         </div>
       )}
@@ -101,11 +97,11 @@ export function DocumentPreviewCard({
         <StatusBadge state={documentState} />
       </div>
 
-      <h3 className="text-sm font-medium text-text-primary line-clamp-2 mt-1" title={title}>
+      <h3 className="text-text-primary mt-1 line-clamp-2 text-sm font-medium" title={title}>
         {title}
       </h3>
 
-      <div className="text-xs text-text-muted mt-1">
+      <div className="text-text-muted mt-1 text-xs">
         {format(lastActionAt, DATE_FORMATS.display, { locale: phLocale })}
       </div>
 
@@ -114,7 +110,7 @@ export function DocumentPreviewCard({
           <SLATimer
             startedAt={slaStartedAt!}
             deadlineAt={slaDeadlineAt!}
-            label={documentState === 'PENDING_MAYOR' ? "Mayor's Review" : "Panlalawigan Review"}
+            label={documentState === 'PENDING_MAYOR' ? "Mayor's Review" : 'Panlalawigan Review'}
           />
         </div>
       )}

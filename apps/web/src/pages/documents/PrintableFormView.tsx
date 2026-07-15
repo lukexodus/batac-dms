@@ -1,12 +1,6 @@
 import React from 'react';
 
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Separator,
-} from '@batac/ui';
+import { Card, CardHeader, CardTitle, CardContent, Separator } from '@batac/ui';
 
 type PrintableFormData = {
   requestId: string;
@@ -56,12 +50,8 @@ export function PrintableFormView({ data }: PrintableFormViewProps) {
       <div className="print-area">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-lg">
-              Republic of the Philippines
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Sangguniang Panlungsod — Batac City
-            </p>
+            <CardTitle className="text-lg">Republic of the Philippines</CardTitle>
+            <p className="text-muted-foreground text-sm">Sangguniang Panlungsod — Batac City</p>
             <Separator className="my-2" />
             <CardTitle>Document Request Form</CardTitle>
           </CardHeader>
@@ -69,14 +59,12 @@ export function PrintableFormView({ data }: PrintableFormViewProps) {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="font-medium text-muted-foreground">Request ID:</span>
+                <span className="text-muted-foreground font-medium">Request ID:</span>
                 <span className="ml-2">{data.requestId.slice(0, 8)}…</span>
               </div>
               <div>
-                <span className="font-medium text-muted-foreground">Date Filed:</span>
-                <span className="ml-2">
-                  {new Date(data.createdAt).toLocaleDateString('en-PH')}
-                </span>
+                <span className="text-muted-foreground font-medium">Date Filed:</span>
+                <span className="ml-2">{new Date(data.createdAt).toLocaleDateString('en-PH')}</span>
               </div>
             </div>
 
@@ -111,10 +99,10 @@ export function PrintableFormView({ data }: PrintableFormViewProps) {
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b text-left">
-                    <th className="py-1 pr-4 text-muted-foreground">#</th>
-                    <th className="py-1 pr-4 text-muted-foreground">Document Title</th>
-                    <th className="py-1 pr-4 text-muted-foreground">Document No.</th>
-                    <th className="py-1 text-muted-foreground">Pages</th>
+                    <th className="text-muted-foreground py-1 pr-4">#</th>
+                    <th className="text-muted-foreground py-1 pr-4">Document Title</th>
+                    <th className="text-muted-foreground py-1 pr-4">Document No.</th>
+                    <th className="text-muted-foreground py-1">Pages</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -133,21 +121,21 @@ export function PrintableFormView({ data }: PrintableFormViewProps) {
             <Separator />
 
             <div className="text-sm">
-              <span className="font-medium text-muted-foreground">Purpose:</span>
+              <span className="text-muted-foreground font-medium">Purpose:</span>
               <p className="mt-1">{data.purpose ?? '—'}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="font-medium text-muted-foreground">Access Mode:</span>
+                <span className="text-muted-foreground font-medium">Access Mode:</span>
                 <span className="ml-2">
                   {data.accessMode === 'in_person_clerk'
                     ? 'In-Person (Clerk-Assisted)'
-                    : data.accessMode ?? '—'}
+                    : (data.accessMode ?? '—')}
                 </span>
               </div>
               <div>
-                <span className="font-medium text-muted-foreground">Payment:</span>
+                <span className="text-muted-foreground font-medium">Payment:</span>
                 <span className="ml-2">
                   {data.payment
                     ? `OR# ${data.payment.orNumber ?? '—'} — ₱${data.payment.amountPaid ?? 0}`
@@ -159,12 +147,12 @@ export function PrintableFormView({ data }: PrintableFormViewProps) {
             <div className="mt-8 grid grid-cols-2 gap-8 text-sm">
               <div className="border-t pt-2">
                 <p className="text-muted-foreground">Prepared by:</p>
-                <div className="mt-6 border-t border-dashed w-48" />
+                <div className="mt-6 w-48 border-t border-dashed" />
                 <p className="mt-1">SP Secretary</p>
               </div>
               <div className="border-t pt-2">
                 <p className="text-muted-foreground">Received by:</p>
-                <div className="mt-6 border-t border-dashed w-48" />
+                <div className="mt-6 w-48 border-t border-dashed" />
                 <p className="mt-1">Requester</p>
               </div>
             </div>

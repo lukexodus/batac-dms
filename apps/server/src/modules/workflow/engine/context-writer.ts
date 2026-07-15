@@ -9,7 +9,7 @@ export interface ContextWriterDeps {
 /**
  * Checks for timer trigger flags in step configuration and writes deadlines to instance context (H1-X-1).
  * Also emits a `workflow.context.updated` event if changes are made.
- * 
+ *
  * @param step The step that just completed.
  * @param instance The workflow instance.
  * @param actorId The user completing the step.
@@ -22,7 +22,7 @@ export async function writeTimerContextIfTriggered(
   actorId: string | null,
   actorType: 'user' | 'system',
   deps: ContextWriterDeps,
-  trx?: DbTransaction
+  trx?: DbTransaction,
 ): Promise<void> {
   const config = step.config as Record<string, any> | null;
   if (!config) return;
@@ -70,11 +70,14 @@ export async function writeTimerContextIfTriggered(
       payload: {
         instanceId: instance.id,
         updatedKeys,
-        previousValues: updatedKeys.reduce((acc, key) => ({ ...acc, [key]: previousValues[key] ?? null }), {}),
+        previousValues: updatedKeys.reduce(
+          (acc, key) => ({ ...acc, [key]: previousValues[key] ?? null }),
+          {},
+        ),
         newValues,
         actorId,
       },
     },
-    trx as any
+    trx as any,
   );
 }

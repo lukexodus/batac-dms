@@ -21,7 +21,7 @@ describe('TSA Export Job (Integration)', () => {
 
   const auditDb = createAuditDb(databaseUrlAudit);
   const repo = new AuditRepository(auditDb);
-  const env = { 
+  const env = {
     AUDIT_HMAC_SECRET: 'test_secret_key',
     AUDIT_CHAIN_VERIFY_ON_READ: false,
     AUDIT_TSA_ENABLED: false,
@@ -32,7 +32,7 @@ describe('TSA Export Job (Integration)', () => {
 
   it('compiles snapshot, hashes it, logs digest, inserts audit_log_exported row, and exits with no network call', async () => {
     const consoleWarnSpy = vi.spyOn(console, 'warn');
-    
+
     const bossMock = {
       createQueue: vi.fn().mockResolvedValue(undefined),
       schedule: vi.fn().mockResolvedValue(undefined),
@@ -53,7 +53,12 @@ describe('TSA Export Job (Integration)', () => {
       env: env as any,
     });
 
-    expect(bossMock.schedule).toHaveBeenCalledWith('audit:monthly-tsa-export', '0 0 1 * *', {}, { tz: 'UTC' });
+    expect(bossMock.schedule).toHaveBeenCalledWith(
+      'audit:monthly-tsa-export',
+      '0 0 1 * *',
+      {},
+      { tz: 'UTC' },
+    );
     expect(bossMock.work).toHaveBeenCalledWith('audit:monthly-tsa-export', expect.any(Function));
 
     // Verify DB
@@ -66,13 +71,13 @@ describe('TSA Export Job (Integration)', () => {
 
     expect(results.length).toBe(1);
     const row = results[0];
-    
+
     expect(row.payload.snapshotDigest).toBe(expectedDigest);
     expect(row.payload.snapshotDigest).toHaveLength(64);
-    
+
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       expect.stringContaining('[audit:tsa] TSA submission skipped'),
-      expectedDigest
+      expectedDigest,
     );
   });
 });

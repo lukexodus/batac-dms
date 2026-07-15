@@ -500,19 +500,12 @@ flowchart LR
 ## Notes
 
 1. **Phase 1B exclusions confirmed.** Letters Received (SPR), Letters Sent (SPS — except Transmittal Letters within the legislative workflow), Memos Incoming (MI), Memos Outgoing (MO), Notices of Committee Hearing (NCH), Notices of Special Session (NOSP), Designations (D), and Barangay Resolutions are all Phase 1B items and do not appear in any diagram. `[CONFIRMED]`
-    
 2. **Transmittal Letter exception.** "Generate Transmittal Letter to Mayor" appears in ACT-01 (SP Secretary) even though the general SPS document type is Phase 1B. The Transmittal Letter is explicitly included in the Phase 1 SP Resolution and Ordinance workflow specifications. `[CONFIRMED — Part 13 Phase 1 inclusions]`
-    
 3. **Councilor direct system access.** The IAM module is a Phase 1 core deliverable, implying Councilor accounts exist. However, Councilor-specific dashboards are not confirmed for Phase 1 — only the SP Secretary and Mayor dashboards are explicitly specified. Read-only access (Order of Business, document status) is the basis for including D1–D3 in ACT-02. `[Inference]`
-    
 4. **Certification of Urgency (Mayor).** The Mayor issues this as a physical written document; it is logged by the Secretariat. The dashed arrow in ACT-04 reflects this mediated system interaction. `[CONFIRMED — Part 4.17]`
-    
 5. **Records Officer personnel.** The Records Officer is confirmed as a system role with specific privileges (bulk operations, physical-to-digital verification). The specific staff member in the SP Secretariat org chart holding this role is not confirmed in current source documents. `[Inference]`
-    
 6. **System actor (automated actions) not included.** Several Phase 1 behaviors are system-triggered: the 30-day Panlalawigan timer, 10-day Mayor lapse transition, SLA alert escalation, and OCR on upload. These are System actor use cases and are not represented in the per-actor diagrams above.
-    
 7. **Designation workflow.** Designation issuance and delegation routing are Phase 1B. The session attendance record for the designated substitute (when VM is absent) is captured through the existing session attendance tracking use case in ACT-01.
-    
 
 ---
 

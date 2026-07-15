@@ -72,24 +72,24 @@ export interface CreateRoleAssignmentInput {
 }
 
 export type AuthContext = {
-  userId:             string;
-  sessionId:          string;
-  officeId:           string | null;
-  cityId:             string;
-  roles:              string[];
-  permissions:        string[];
-  committeeIds:       string[];
-  delegationGrantId:  string | null;
+  userId: string;
+  sessionId: string;
+  officeId: string | null;
+  cityId: string;
+  roles: string[];
+  permissions: string[];
+  committeeIds: string[];
+  delegationGrantId: string | null;
   effectiveOfficeIds: string[];
-  effectiveRoles:     string[];
-  isItAdmin:          boolean;
-  isPlatformAdmin:    boolean;
+  effectiveRoles: string[];
+  isItAdmin: boolean;
+  isPlatformAdmin: boolean;
 };
 
 export type Context = {
-  auth:      AuthContext | null;
-  db:        DbClient;
-  req:       FastifyRequest;
+  auth: AuthContext | null;
+  db: DbClient;
+  req: FastifyRequest;
   requestId: string;
 };
 
@@ -110,7 +110,7 @@ export interface IamPublicAPI {
       officeId?: string;
       documentId?: string;
       workflowStepAssigneeId?: string;
-    }
+    },
   ): Promise<boolean>;
 
   getUserById(userId: string): Promise<UserSummary | null>;
@@ -137,36 +137,40 @@ export interface IamService extends IamPublicAPI {
    * Source: TASK-IAM-006.
    */
   login(input: {
-    username:              string;
-    password:              string;
-    code_verifier:         string;
-    code_challenge:        string;
+    username: string;
+    password: string;
+    code_verifier: string;
+    code_challenge: string;
     code_challenge_method: 'S256';
-    ipAddress:             string | null;
-    userAgent:             string | null;
+    ipAddress: string | null;
+    userAgent: string | null;
   }): Promise<{
-    user:          UserRow;
-    sessionId:     string;
-    expiresAt:     Date;
-    roleCodes:     string[];
+    user: UserRow;
+    sessionId: string;
+    expiresAt: Date;
+    roleCodes: string[];
     officeScopeId: string | null;
-    officeCode:    string | null;
-    committeeIds:  string[];
+    officeCode: string | null;
+    committeeIds: string[];
   }>;
   logout(sessionId: string, userId: string): Promise<void>;
-  refresh(refreshToken: string, ipAddress: string | null, userAgent: string | null): Promise<{
-    user:          UserRow;
-    sessionId:     string;
-    expiresAt:     Date;
-    roleCodes:     string[];
+  refresh(
+    refreshToken: string,
+    ipAddress: string | null,
+    userAgent: string | null,
+  ): Promise<{
+    user: UserRow;
+    sessionId: string;
+    expiresAt: Date;
+    roleCodes: string[];
     officeScopeId: string | null;
-    officeCode:    string | null;
-    committeeIds:  string[];
+    officeCode: string | null;
+    committeeIds: string[];
     _cookies?: {
-      accessToken:              string;
-      refreshTokenCookieValue:  string;
-      accessMaxAge:             number;
-      refreshMaxAge:            number;
+      accessToken: string;
+      refreshTokenCookieValue: string;
+      accessMaxAge: number;
+      refreshMaxAge: number;
     };
   }>;
   verifyAccessToken(token: string): Promise<AuthContext>;
@@ -218,10 +222,10 @@ export interface IamService extends IamPublicAPI {
    * Source: TASK-IAM-010.
    */
   forceTerminateSession(input: {
-    actorId:         string;
+    actorId: string;
     targetSessionId: string;
-    reason:          string;
-    cityId:          string;
+    reason: string;
+    cityId: string;
   }): Promise<{ terminated: boolean }>;
   updateOwnProfile(input: {
     userId: string;
@@ -236,17 +240,13 @@ export interface IamService extends IamPublicAPI {
   }): Promise<void>;
 
   listSessionsByUserId(userId: string): Promise<SessionRow[]>;
-  
+
   listAllActiveSessions(
     cityId: string,
-    opts: { limit: number; offset: number }
+    opts: { limit: number; offset: number },
   ): Promise<SessionRow[]>;
 
-
-  lockSession(input: {
-    sessionId: string;
-    userId: string;
-  }): Promise<{ locked: boolean }>;
+  lockSession(input: { sessionId: string; userId: string }): Promise<{ locked: boolean }>;
 
   unlockSession(input: {
     sessionId: string;
@@ -267,7 +267,7 @@ export interface IamService extends IamPublicAPI {
 
   listUserDirectory(
     cityId: string,
-    opts: { limit: number; offset: number; officeId?: string; search?: string }
+    opts: { limit: number; offset: number; officeId?: string; search?: string },
   ): Promise<UserRow[]>;
 
   createUserAccount(input: {
@@ -299,7 +299,6 @@ export interface IamService extends IamPublicAPI {
   }): Promise<{ citizenUserId: string }>;
 }
 
-
 export interface IamRepository {
   // Users
   findUserById(id: string): Promise<UserRow | null>;
@@ -308,7 +307,10 @@ export interface IamRepository {
   createUser(input: CreateUserInput): Promise<UserRow>;
   updateUser(id: string, input: Partial<UpdateUserInput>): Promise<UserRow>;
   softDeleteUser(id: string, deletedBy: string): Promise<void>;
-  listUsers(cityId: string, opts: { limit: number; offset: number; search?: string }): Promise<UserRow[]>;
+  listUsers(
+    cityId: string,
+    opts: { limit: number; offset: number; search?: string },
+  ): Promise<UserRow[]>;
   updateLoginFailure(id: string, count: number, lockedUntil: Date | null): Promise<void>;
   resetLoginFailure(id: string): Promise<void>;
 
@@ -326,7 +328,10 @@ export interface IamRepository {
   updateLastActivity(id: string): Promise<void>;
   setSessionLocked(id: string, lockedAt: Date | null): Promise<void>;
   listSessionsByUserId(userId: string): Promise<SessionRow[]>;
-  listAllActiveSessions(cityId: string, opts: { limit: number; offset: number }): Promise<SessionRow[]>;
+  listAllActiveSessions(
+    cityId: string,
+    opts: { limit: number; offset: number },
+  ): Promise<SessionRow[]>;
 
   // Refresh tokens
   createRefreshToken(input: CreateRefreshTokenInput): Promise<RefreshTokenRow>;
@@ -342,7 +347,9 @@ export interface IamRepository {
   listActiveRoles(cityId: string): Promise<RoleRow[]>;
 
   // Role assignments
-  findActiveRoleAssignmentsByUserId(userId: string): Promise<(RoleAssignmentRow & { role: RoleRow })[]>;
+  findActiveRoleAssignmentsByUserId(
+    userId: string,
+  ): Promise<(RoleAssignmentRow & { role: RoleRow })[]>;
   createRoleAssignment(input: CreateRoleAssignmentInput): Promise<RoleAssignmentRow>;
   revokeRoleAssignment(id: string, revokedBy: string): Promise<void>;
   findAssignmentsByUserId(userId: string): Promise<RoleAssignmentRow[]>;
@@ -357,22 +364,22 @@ export interface IamRepository {
 
 declare module 'fastify' {
   interface FastifyInstance {
-    iamService:        IamService;
-    policyEvaluator:   PolicyEvaluator;
+    iamService: IamService;
+    policyEvaluator: PolicyEvaluator;
     /**
      * IAM repository — made available on the Fastify instance by the IAM
      * plugin so that preHandler hooks (which only receive `FastifyInstance`
      * via `this`) can reach the repository without importing it directly.
      * Populated by TASK-IAM-006's plugin registration.
      */
-    iamRepository:     IamRepository;
+    iamRepository: IamRepository;
     /**
      * Drizzle ORM database client for the `batac_app` PostgreSQL role.
      * Registered on the Fastify instance by the database plugin so all
      * hooks and plugins can reach it via `fastify.db`.
      * Populated before IAM middleware registration.
      */
-    db:                DbClient;
+    db: DbClient;
     /**
      * Static IAM tRPC sub-router, decorated for consistency with other
      * modules' `<module>TrpcRouter` decorations (see audit.plugin.ts's
@@ -384,7 +391,7 @@ declare module 'fastify' {
      * use it without an iam.plugin.ts change.
      * Populated by TASK-IAM-014's plugin registration.
      */
-    iamTrpcRouter:     typeof iamRouter;
+    iamTrpcRouter: typeof iamRouter;
   }
 
   interface FastifyRequest {

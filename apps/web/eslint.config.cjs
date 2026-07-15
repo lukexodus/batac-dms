@@ -7,7 +7,7 @@ module.exports = [
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     plugins: {
-      'react': reactPlugin,
+      react: reactPlugin,
       'react-hooks': reactHooksPlugin,
     },
     languageOptions: {
@@ -18,10 +18,10 @@ module.exports = [
       },
     },
     rules: {
-      'react/prop-types': 'off',                  // TypeScript handles this
-      'react/react-in-jsx-scope': 'off',          // React 17+ JSX transform
+      'react/prop-types': 'off', // TypeScript handles this
+      'react/react-in-jsx-scope': 'off', // React 17+ JSX transform
       'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',      // Warn, not error, for complex deps
+      'react-hooks/exhaustive-deps': 'warn', // Warn, not error, for complex deps
       '@typescript-eslint/no-misused-promises': [
         'error',
         { checksVoidReturn: { attributes: false } }, // Allow async onClick handlers

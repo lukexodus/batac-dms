@@ -26,23 +26,24 @@ export async function createInstance(
   documentId: string,
   definitionId: string,
   actorId: string,
-  deps: CreateInstanceDeps
+  deps: CreateInstanceDeps,
 ): Promise<InstanceRow> {
-  const versionDataResult = await deps.db.select({
-    id: definitionVersions.id,
-    isActive: definitions.isActive,
-  })
+  const versionDataResult = await deps.db
+    .select({
+      id: definitionVersions.id,
+      isActive: definitions.isActive,
+    })
     .from(definitionVersions)
     .innerJoin(definitions, eq(definitions.id, definitionVersions.definitionId))
     .where(
       and(
         eq(definitionVersions.definitionId, definitionId),
         eq(definitionVersions.isCurrent, true),
-        isNotNull(definitionVersions.publishedAt)
-      )
+        isNotNull(definitionVersions.publishedAt),
+      ),
     )
     .limit(1)
-    .then(res => res[0]);
+    .then((res) => res[0]);
 
   if (!versionDataResult || !versionDataResult.isActive) {
     throw new Error('NO_ACTIVE_VERSION');
@@ -86,13 +87,13 @@ export async function createInstance(
         },
         slaDeadline,
       },
-      trx
+      trx,
     );
 
     const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(versionId, trx);
     if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
-    const startSteps = versionData.steps.filter(s => s.isStart);
+    const startSteps = versionData.steps.filter((s) => s.isStart);
     if (startSteps.length !== 1) {
       throw new Error('INVALID_DEFINITION: Exactly one start step is required.');
     }
@@ -111,10 +112,10 @@ export async function createInstance(
             stepInstanceId: 'NONE',
             stepId: startStep.id,
             errorCode: 'STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1',
-            errorMessage: 'parallel_split and parallel_join are Phase 2 reserved step types'
-          }
+            errorMessage: 'parallel_split and parallel_join are Phase 2 reserved step types',
+          },
         },
-        trx
+        trx,
       );
       throw new Error('STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1');
     }
@@ -126,14 +127,22 @@ export async function createInstance(
         status: 'active',
         startedAt: now,
       },
-      trx
+      trx,
     );
 
     const config = (startStep.config as Record<string, any>) || {};
     let assignees = [];
     if (config['assignee']) {
-      assignees = await resolveAssignees(config['assignee'], instance.context as Record<string, any>, deps);
-      await deps.workflowRepository.updateStepInstance(stepInstance.id, { assignedTo: assignees }, trx);
+      assignees = await resolveAssignees(
+        config['assignee'],
+        instance.context as Record<string, any>,
+        deps,
+      );
+      await deps.workflowRepository.updateStepInstance(
+        stepInstance.id,
+        { assignedTo: assignees },
+        trx,
+      );
     }
 
     await deps.workflowRepository.createWorkflowEvent(
@@ -149,7 +158,7 @@ export async function createInstance(
           definitionVersionId: versionId,
         },
       },
-      trx
+      trx,
     );
 
     await deps.workflowRepository.createWorkflowEvent(
@@ -166,14 +175,14 @@ export async function createInstance(
           dueAt: null,
         },
       },
-      trx
+      trx,
     );
 
     if (startStep.stepType === 'decision' || startStep.stepType === 'notification') {
       await deps.workflowRepository.updateStepInstance(
         stepInstance.id,
         { status: 'completed', completedAt: new Date(), outcome: 'DECISION_MADE' },
-        trx
+        trx,
       );
       await resolveNextStep(instance, stepInstance, 'DECISION_MADE', deps, trx);
     }

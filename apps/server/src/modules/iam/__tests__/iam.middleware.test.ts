@@ -45,12 +45,12 @@ import jwt from 'jsonwebtoken';
 
 vi.mock('../../../config/env.js', () => ({
   env: {
-    AUTH_ACCESS_TOKEN_COOKIE_NAME:    '__Host-bat_at',
-    AUTH_REFRESH_TOKEN_COOKIE_NAME:   '__Host-bat_rt',
-    AUTH_JWT_ACCESS_SECRET:           'test-secret-at-least-32-characters-long!',
-    AUTH_JWT_ALGORITHM:               'HS256',
-    AUTH_COOKIE_SECURE:               false,
-    AUTH_COOKIE_SAMESITE:             'Strict',
+    AUTH_ACCESS_TOKEN_COOKIE_NAME: '__Host-bat_at',
+    AUTH_REFRESH_TOKEN_COOKIE_NAME: '__Host-bat_rt',
+    AUTH_JWT_ACCESS_SECRET: 'test-secret-at-least-32-characters-long!',
+    AUTH_JWT_ALGORITHM: 'HS256',
+    AUTH_COOKIE_SECURE: false,
+    AUTH_COOKIE_SAMESITE: 'Strict',
     AUTH_SESSION_INACTIVITY_TIMEOUT_MS: 1800000, // 30 min
   },
 }));
@@ -61,23 +61,23 @@ import type { AuthContext, SessionRow, IamRepository } from '../iam.types.js';
 // ─── Shared test secret (HS256 for test convenience) ─────────────────────────
 
 const TEST_SECRET = 'test-secret-at-least-32-characters-long!';
-const TEST_ALGO   = 'HS256';
+const TEST_ALGO = 'HS256';
 
 // ─── JWT factory ─────────────────────────────────────────────────────────────
 
 function makeToken(claims: Partial<Record<string, unknown>> = {}, expiresIn = '15m'): string {
   return jwt.sign(
     {
-      uid:    'user-001',
-      oid:    'office-001',
-      rid:    ['dept_encoder'],
-      perm:   ['document:create'],
-      cid:    [],
-      dg:     null,
-      city:   'city-batac',
-      sid:    'session-001',
+      uid: 'user-001',
+      oid: 'office-001',
+      rid: ['dept_encoder'],
+      perm: ['document:create'],
+      cid: [],
+      dg: null,
+      city: 'city-batac',
+      sid: 'session-001',
       is_ita: false,
-      is_pa:  false,
+      is_pa: false,
       ...claims,
     },
     TEST_SECRET,
@@ -90,51 +90,58 @@ function makeToken(claims: Partial<Record<string, unknown>> = {}, expiresIn = '1
 function makeSession(overrides: Partial<SessionRow> = {}): SessionRow {
   const now = new Date();
   return {
-    id:               'session-001',
-    userId:           'user-001',
+    id: 'session-001',
+    userId: 'user-001',
     sessionTokenHash: 'hash',
-    active:           true,
-    ipAddress:        '127.0.0.1',
-    userAgent:        'test',
-    cityId:           'city-batac',
-    locked_at:        null,
-    lastActivityAt:   new Date(now.getTime() - 5 * 60 * 1000), // 5 min ago — within timeout
-    createdAt:        new Date(now.getTime() - 10 * 60 * 1000),
-    terminatedAt:     null,
+    active: true,
+    ipAddress: '127.0.0.1',
+    userAgent: 'test',
+    cityId: 'city-batac',
+    locked_at: null,
+    lastActivityAt: new Date(now.getTime() - 5 * 60 * 1000), // 5 min ago — within timeout
+    createdAt: new Date(now.getTime() - 10 * 60 * 1000),
+    terminatedAt: null,
     terminationReason: null,
-    terminatedBy:     null,
-    deletedAt:        null,
-    deletedBy:        null,
+    terminatedBy: null,
+    deletedAt: null,
+    deletedBy: null,
     ...overrides,
   } as SessionRow;
 }
 
 // ─── Mock IAM repository ──────────────────────────────────────────────────────
 
-function makeMockRepository(sessionOverride?: Partial<SessionRow> | null): Partial<IamRepository> & {
-  findSessionById:                 ReturnType<typeof vi.fn>;
-  terminateSession:                ReturnType<typeof vi.fn>;
-  revokeRefreshTokensBySessionId:  ReturnType<typeof vi.fn>;
-  updateLastActivity:              ReturnType<typeof vi.fn>;
+function makeMockRepository(
+  sessionOverride?: Partial<SessionRow> | null,
+): Partial<IamRepository> & {
+  findSessionById: ReturnType<typeof vi.fn>;
+  terminateSession: ReturnType<typeof vi.fn>;
+  revokeRefreshTokensBySessionId: ReturnType<typeof vi.fn>;
+  updateLastActivity: ReturnType<typeof vi.fn>;
 } {
   return {
-    findSessionById:                vi.fn().mockResolvedValue(
-      sessionOverride === null ? null : makeSession(sessionOverride ?? {}),
-    ),
-    terminateSession:               vi.fn().mockResolvedValue(undefined),
+    findSessionById: vi
+      .fn()
+      .mockResolvedValue(sessionOverride === null ? null : makeSession(sessionOverride ?? {})),
+    terminateSession: vi.fn().mockResolvedValue(undefined),
     revokeRefreshTokensBySessionId: vi.fn().mockResolvedValue(undefined),
-    updateLastActivity:             vi.fn().mockResolvedValue(undefined),
+    updateLastActivity: vi.fn().mockResolvedValue(undefined),
   };
 }
 
 // ─── Mock db.execute ──────────────────────────────────────────────────────────
 
-function makeMockDb(): { execute: ReturnType<typeof vi.fn>; transaction: ReturnType<typeof vi.fn> } {
+function makeMockDb(): {
+  execute: ReturnType<typeof vi.fn>;
+  transaction: ReturnType<typeof vi.fn>;
+} {
   const execute = vi.fn().mockResolvedValue([]);
-  const transaction = vi.fn(async (callback: (tx: { execute: ReturnType<typeof vi.fn> }) => Promise<void>) => {
-    const tx = { execute };
-    await callback(tx);
-  });
+  const transaction = vi.fn(
+    async (callback: (tx: { execute: ReturnType<typeof vi.fn> }) => Promise<void>) => {
+      const tx = { execute };
+      await callback(tx);
+    },
+  );
   return { execute, transaction };
 }
 
@@ -150,19 +157,21 @@ function makeMockDb(): { execute: ReturnType<typeof vi.fn>; transaction: ReturnT
  */
 async function buildApp(
   opts: {
-    sessionOverride?:    Partial<SessionRow> | null;
-    iamServiceOverride?: Partial<{ resolveActiveDelegationGrant: (id: string) => Promise<unknown> }>;
+    sessionOverride?: Partial<SessionRow> | null;
+    iamServiceOverride?: Partial<{
+      resolveActiveDelegationGrant: (id: string) => Promise<unknown>;
+    }>;
   } = {},
 ): Promise<{
-  app:        FastifyInstance;
-  repo:       ReturnType<typeof makeMockRepository>;
-  db:         ReturnType<typeof makeMockDb>;
+  app: FastifyInstance;
+  repo: ReturnType<typeof makeMockRepository>;
+  db: ReturnType<typeof makeMockDb>;
   iamService: { resolveActiveDelegationGrant: ReturnType<typeof vi.fn> };
 }> {
   const app = fastify({ logger: false });
 
-  const repo       = makeMockRepository(opts.sessionOverride);
-  const db         = makeMockDb();
+  const repo = makeMockRepository(opts.sessionOverride);
+  const db = makeMockDb();
   const iamService = {
     resolveActiveDelegationGrant: vi.fn().mockResolvedValue(null),
     ...(opts.iamServiceOverride ?? {}),
@@ -228,8 +237,8 @@ describe('verifyAccessToken (Hook 1)', () => {
 
     const badToken = 'header.payload.badsignature';
     const res = await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: `__Host-bat_at=${badToken}` },
     });
 
@@ -243,8 +252,8 @@ describe('verifyAccessToken (Hook 1)', () => {
     const { app } = await buildApp();
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(expired) },
     });
 
@@ -256,8 +265,8 @@ describe('verifyAccessToken (Hook 1)', () => {
     const token = makeToken();
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -269,8 +278,8 @@ describe('verifyAccessToken (Hook 1)', () => {
     const token = makeToken();
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -284,8 +293,8 @@ describe('verifyAccessToken (Hook 1)', () => {
     const token = makeToken();
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -300,8 +309,8 @@ describe('verifyAccessToken (Hook 1)', () => {
     const token = makeToken({ sid: 'session-001' });
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/api/auth/unlock',
+      method: 'GET',
+      url: '/api/auth/unlock',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -320,8 +329,8 @@ describe('verifyAccessToken (Hook 1)', () => {
     const token = makeToken();
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -346,8 +355,8 @@ describe('verifyAccessToken (Hook 1)', () => {
     const token = makeToken();
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/auth-echo',
+      method: 'GET',
+      url: '/auth-echo',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -367,8 +376,8 @@ describe('verifyAccessToken (Hook 1)', () => {
     const token = makeToken({ oid: null });
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/auth-echo',
+      method: 'GET',
+      url: '/auth-echo',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -383,8 +392,8 @@ describe('verifyAccessToken (Hook 1)', () => {
     const token = makeToken({ oid: 'office-abc' });
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/auth-echo',
+      method: 'GET',
+      url: '/auth-echo',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -398,8 +407,8 @@ describe('verifyAccessToken (Hook 1)', () => {
     const token = makeToken();
 
     await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -416,8 +425,8 @@ describe('loadDelegationContext (Hook 2)', () => {
     const token = makeToken({ dg: null });
 
     await app.inject({
-      method:  'GET',
-      url:     '/auth-echo',
+      method: 'GET',
+      url: '/auth-echo',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -433,8 +442,8 @@ describe('loadDelegationContext (Hook 2)', () => {
     const token = makeToken({ dg: 'grant-001' });
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/auth-echo',
+      method: 'GET',
+      url: '/auth-echo',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -447,8 +456,8 @@ describe('loadDelegationContext (Hook 2)', () => {
     const grant = {
       scope: {
         officeIds: ['office-delegated'],
-        roles:     ['dept_approver'],
-        actions:   ['document:approve'],
+        roles: ['dept_approver'],
+        actions: ['document:approve'],
       },
     };
 
@@ -461,8 +470,8 @@ describe('loadDelegationContext (Hook 2)', () => {
     const token = makeToken({ dg: 'grant-001', oid: 'office-001' });
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/auth-echo',
+      method: 'GET',
+      url: '/auth-echo',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -477,8 +486,8 @@ describe('loadDelegationContext (Hook 2)', () => {
     const grant = {
       scope: {
         officeIds: ['office-delegated'],
-        roles:     ['dept_approver'],
-        actions:   [],
+        roles: ['dept_approver'],
+        actions: [],
       },
     };
 
@@ -492,8 +501,8 @@ describe('loadDelegationContext (Hook 2)', () => {
     const token = makeToken({ dg: 'grant-001', oid: null });
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/auth-echo',
+      method: 'GET',
+      url: '/auth-echo',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -512,8 +521,8 @@ describe('setDatabaseSessionVars (Hook 3)', () => {
     const token = makeToken({ oid: null });
 
     await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -527,8 +536,8 @@ describe('setDatabaseSessionVars (Hook 3)', () => {
     const token = makeToken({ is_ita: true });
 
     await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -542,8 +551,8 @@ describe('setDatabaseSessionVars (Hook 3)', () => {
     const token = makeToken({ rid: ['auditor'], is_ita: false });
 
     await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -555,8 +564,8 @@ describe('setDatabaseSessionVars (Hook 3)', () => {
     const token = makeToken({ rid: ['dept_encoder'], is_ita: false });
 
     await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -577,8 +586,8 @@ describe('updateLastActivity (Hook 4)', () => {
     );
 
     await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -612,8 +621,8 @@ describe('TASK-IAM-042 — split-wait lifecycle', () => {
     const token = makeToken();
 
     const res = await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -633,21 +642,23 @@ describe('TASK-IAM-042 — split-wait lifecycle', () => {
     let callbackOutcome: 'resolved' | 'rejected' = 'pending';
     const { app, db } = await buildApp();
 
-    db.transaction.mockImplementation(async (callback: (tx: { execute: ReturnType<typeof vi.fn> }) => Promise<void>) => {
-      const tx = { execute: db.execute };
-      try {
-        await callback(tx);
-        callbackOutcome = 'resolved';
-      } catch {
-        callbackOutcome = 'rejected';
-        throw new Error('rollback');
-      }
-    });
+    db.transaction.mockImplementation(
+      async (callback: (tx: { execute: ReturnType<typeof vi.fn> }) => Promise<void>) => {
+        const tx = { execute: db.execute };
+        try {
+          await callback(tx);
+          callbackOutcome = 'resolved';
+        } catch {
+          callbackOutcome = 'rejected';
+          throw new Error('rollback');
+        }
+      },
+    );
 
     const token = makeToken();
     const res = await app.inject({
-      method:  'GET',
-      url:     '/protected',
+      method: 'GET',
+      url: '/protected',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -660,8 +671,8 @@ describe('TASK-IAM-042 — split-wait lifecycle', () => {
     let callbackOutcome: 'resolved' | 'rejected' = 'pending';
     const app = fastify({ logger: false });
 
-    const repo       = makeMockRepository();
-    const db         = makeMockDb();
+    const repo = makeMockRepository();
+    const db = makeMockDb();
     const iamService = { resolveActiveDelegationGrant: vi.fn().mockResolvedValue(null) };
 
     const setupPlugin = fp(
@@ -680,25 +691,29 @@ describe('TASK-IAM-042 — split-wait lifecycle', () => {
     await app.register(authMiddlewarePlugin);
 
     // Route that throws → Fastify returns 500 → onResponse fires → bridge.reject()
-    app.get('/explode', async () => { throw new Error('handler explosion'); });
+    app.get('/explode', async () => {
+      throw new Error('handler explosion');
+    });
 
     await app.ready();
 
-    db.transaction.mockImplementation(async (callback: (tx: { execute: ReturnType<typeof vi.fn> }) => Promise<void>) => {
-      const tx = { execute: db.execute };
-      try {
-        await callback(tx);
-        callbackOutcome = 'resolved';
-      } catch {
-        callbackOutcome = 'rejected';
-        throw new Error('rollback');
-      }
-    });
+    db.transaction.mockImplementation(
+      async (callback: (tx: { execute: ReturnType<typeof vi.fn> }) => Promise<void>) => {
+        const tx = { execute: db.execute };
+        try {
+          await callback(tx);
+          callbackOutcome = 'resolved';
+        } catch {
+          callbackOutcome = 'rejected';
+          throw new Error('rollback');
+        }
+      },
+    );
 
     const token = makeToken();
     const res = await app.inject({
-      method:  'GET',
-      url:     '/explode',
+      method: 'GET',
+      url: '/explode',
       headers: { cookie: cookieHeader(token) },
     });
 
@@ -715,8 +730,8 @@ describe('TASK-IAM-042 — split-wait lifecycle', () => {
     let handlerDbCalled = false;
     const app = fastify({ logger: false });
 
-    const repo       = makeMockRepository();
-    const db         = makeMockDb();
+    const repo = makeMockRepository();
+    const db = makeMockDb();
     const iamService = { resolveActiveDelegationGrant: vi.fn().mockResolvedValue(null) };
 
     const setupPlugin = fp(
@@ -749,8 +764,8 @@ describe('TASK-IAM-042 — split-wait lifecycle', () => {
 
     const token = makeToken();
     const res = await app.inject({
-      method:  'GET',
-      url:     '/with-db',
+      method: 'GET',
+      url: '/with-db',
       headers: { cookie: cookieHeader(token) },
     });
 

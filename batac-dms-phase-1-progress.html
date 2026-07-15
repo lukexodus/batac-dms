@@ -1,1372 +1,2993 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Batac DMS — Phase 1 Progress Report</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-
-/* ============================================================
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Batac DMS — Phase 1 Progress Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ============================================================
    DESIGN SYSTEM — "Systems ledger": dark engineering console
    tone. Slate/graphite surface, single confident accent (cyan-
    teal), status colors reserved strictly for done/pending/risk
    semantics so they read as signal, not decoration.
    ============================================================ */
-:root {
-  --bg:            #0f1417;
-  --bg-alt:        #141a1e;
-  --surface:       #171e23;
-  --surface-raised:#1d252b;
+      :root {
+        --bg: #0f1417;
+        --bg-alt: #141a1e;
+        --surface: #171e23;
+        --surface-raised: #1d252b;
 
-  --border:        #2a343b;
-  --border-light:  #232b31;
+        --border: #2a343b;
+        --border-light: #232b31;
 
-  --text-primary:  #eef2f4;
-  --text-secondary:#a7b3ba;
-  --text-muted:    #6d7a82;
+        --text-primary: #eef2f4;
+        --text-secondary: #a7b3ba;
+        --text-muted: #6d7a82;
 
-  --accent:        #4dd0c4;
-  --accent-light:  rgba(77, 208, 196, 0.12);
-  --accent-dark:   #2e9c92;
+        --accent: #4dd0c4;
+        --accent-light: rgba(77, 208, 196, 0.12);
+        --accent-dark: #2e9c92;
 
-  --success:       #5fce8a;
-  --success-light: rgba(95, 206, 138, 0.10);
-  --warning:       #e8b959;
-  --warning-light: rgba(232, 185, 89, 0.10);
-  --danger:        #e28577;
-  --danger-light:  rgba(226, 133, 119, 0.10);
+        --success: #5fce8a;
+        --success-light: rgba(95, 206, 138, 0.1);
+        --warning: #e8b959;
+        --warning-light: rgba(232, 185, 89, 0.1);
+        --danger: #e28577;
+        --danger-light: rgba(226, 133, 119, 0.1);
 
-  --font-heading:  'Space Grotesk', sans-serif;
-  --font-body:     'IBM Plex Sans', sans-serif;
-  --font-mono:     'IBM Plex Mono', monospace;
+        --font-heading: 'Space Grotesk', sans-serif;
+        --font-body: 'IBM Plex Sans', sans-serif;
+        --font-mono: 'IBM Plex Mono', monospace;
 
-  --size-display:  clamp(1.9rem, 4.4vw, 3.1rem);
-  --size-h1:       clamp(1.5rem, 3.1vw, 2.25rem);
-  --size-h2:       clamp(1.15rem, 2.2vw, 1.55rem);
-  --size-h3:       clamp(0.98rem, 1.7vw, 1.2rem);
-  --size-body:     clamp(0.86rem, 1.25vw, 1rem);
-  --size-small:    clamp(0.73rem, 1vw, 0.83rem);
-  --size-code:     clamp(0.76rem, 1.05vw, 0.88rem);
+        --size-display: clamp(1.9rem, 4.4vw, 3.1rem);
+        --size-h1: clamp(1.5rem, 3.1vw, 2.25rem);
+        --size-h2: clamp(1.15rem, 2.2vw, 1.55rem);
+        --size-h3: clamp(0.98rem, 1.7vw, 1.2rem);
+        --size-body: clamp(0.86rem, 1.25vw, 1rem);
+        --size-small: clamp(0.73rem, 1vw, 0.83rem);
+        --size-code: clamp(0.76rem, 1.05vw, 0.88rem);
 
-  --weight-normal: 400;
-  --weight-medium: 500;
-  --weight-semi:   600;
-  --weight-bold:   700;
+        --weight-normal: 400;
+        --weight-medium: 500;
+        --weight-semi: 600;
+        --weight-bold: 700;
 
-  --leading-tight: 1.16;
-  --leading-body:  1.6;
+        --leading-tight: 1.16;
+        --leading-body: 1.6;
 
-  --space-1:  0.25rem;
-  --space-2:  0.5rem;
-  --space-3:  0.75rem;
-  --space-4:  1rem;
-  --space-5:  1.25rem;
-  --space-6:  1.5rem;
-  --space-8:  2rem;
-  --space-10: 2.5rem;
-  --space-12: 3rem;
-  --space-16: 4rem;
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-5: 1.25rem;
+        --space-6: 1.5rem;
+        --space-8: 2rem;
+        --space-10: 2.5rem;
+        --space-12: 3rem;
+        --space-16: 4rem;
 
-  --radius-sm:  4px;
-  --radius-md:  7px;
-  --radius-lg:  12px;
-  --radius-xl:  18px;
-  --radius-full: 9999px;
+        --radius-sm: 4px;
+        --radius-md: 7px;
+        --radius-lg: 12px;
+        --radius-xl: 18px;
+        --radius-full: 9999px;
 
-  --shadow-sm:  0 1px 3px rgba(0,0,0,0.35);
-  --shadow-md:  0 6px 18px rgba(0,0,0,0.38);
-  --shadow-lg:  0 14px 34px rgba(0,0,0,0.42);
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+        --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.38);
+        --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.42);
 
-  --accent-bar-width: 4px;
-  --topbar-h: 46px;
-  --footer-h: 0px;
+        --accent-bar-width: 4px;
+        --topbar-h: 46px;
+        --footer-h: 0px;
 
-  --transition-fast:   150ms ease;
-  --transition-normal: 250ms ease;
-  --transition-slow:   400ms cubic-bezier(0.4, 0, 0.2, 1);
+        --transition-fast: 150ms ease;
+        --transition-normal: 250ms ease;
+        --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  --badge-accent-border:  rgba(77, 208, 196, 0.28);
-  --badge-success-border: rgba(95, 206, 138, 0.28);
-  --badge-warning-border: rgba(232, 185, 89, 0.28);
-  --badge-danger-border:  rgba(226, 133, 119, 0.28);
+        --badge-accent-border: rgba(77, 208, 196, 0.28);
+        --badge-success-border: rgba(95, 206, 138, 0.28);
+        --badge-warning-border: rgba(232, 185, 89, 0.28);
+        --badge-danger-border: rgba(226, 133, 119, 0.28);
 
-  --callout-info-border:    rgba(77, 208, 196, 0.25);
-  --callout-warning-border: rgba(232, 185, 89, 0.3);
-  --callout-danger-border:  rgba(226, 133, 119, 0.3);
+        --callout-info-border: rgba(77, 208, 196, 0.25);
+        --callout-warning-border: rgba(232, 185, 89, 0.3);
+        --callout-danger-border: rgba(226, 133, 119, 0.3);
 
-  --topbar-bg:              rgba(15, 20, 23, 0.6);
+        --topbar-bg: rgba(15, 20, 23, 0.6);
 
-  --bg-gradient:
-    radial-gradient(circle at 15% 8%, rgba(77,208,196,0.05), transparent 40%),
-    radial-gradient(circle at 90% 90%, rgba(77,208,196,0.04), transparent 45%);
-}
+        --bg-gradient:
+          radial-gradient(circle at 15% 8%, rgba(77, 208, 196, 0.05), transparent 40%),
+          radial-gradient(circle at 90% 90%, rgba(77, 208, 196, 0.04), transparent 45%);
+      }
 
-* { box-sizing: border-box; }
-html, body {
-  margin: 0; padding: 0;
-  overflow: hidden;
-  height: 100%; width: 100%;
-  background: var(--bg);
-  font-family: var(--font-body);
-  color: var(--text-primary);
-}
-body {
-  background-image: var(--bg-gradient);
-}
-h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; line-height: var(--leading-tight); letter-spacing: -0.01em; }
-p { margin: 0; line-height: var(--leading-body); color: var(--text-secondary); }
-strong { color: var(--text-primary); font-weight: var(--weight-semi); }
-ul, ol { margin: 0; padding: 0; list-style: none; }
-code, pre { font-family: var(--font-mono); }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        height: 100%;
+        width: 100%;
+        background: var(--bg);
+        font-family: var(--font-body);
+        color: var(--text-primary);
+      }
+      body {
+        background-image: var(--bg-gradient);
+      }
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-family: var(--font-heading);
+        margin: 0;
+        line-height: var(--leading-tight);
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0;
+        line-height: var(--leading-body);
+        color: var(--text-secondary);
+      }
+      strong {
+        color: var(--text-primary);
+        font-weight: var(--weight-semi);
+      }
+      ul,
+      ol {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      code,
+      pre {
+        font-family: var(--font-mono);
+      }
 
-/* ---------- Slide frame ---------- */
-.slide {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column;
-  overflow: hidden;
-  opacity: 0; pointer-events: none;
-  transform: translateY(14px);
-  transition: opacity var(--transition-slow), transform var(--transition-slow);
-}
-.slide.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+      /* ---------- Slide frame ---------- */
+      .slide {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(14px);
+        transition:
+          opacity var(--transition-slow),
+          transform var(--transition-slow);
+      }
+      .slide.active {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+      }
 
-.accent-bar {
-  position: absolute; left: 0; top: 0; bottom: 0;
-  width: var(--accent-bar-width);
-  background: linear-gradient(180deg, var(--accent), var(--accent-dark));
-  z-index: 5;
-}
+      .accent-bar {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: var(--accent-bar-width);
+        background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+        z-index: 5;
+      }
 
-.topbar {
-  flex-shrink: 0;
-  height: var(--topbar-h);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 var(--space-8) 0 calc(var(--space-8) + var(--accent-bar-width));
-  border-bottom: 1px solid var(--border);
-  background: var(--topbar-bg);
-  backdrop-filter: blur(6px);
-  font-family: var(--font-mono);
-  font-size: var(--size-small);
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.topbar-left { display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); }
-.topbar-left .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-.topbar-right { color: var(--text-muted); }
+      .topbar {
+        flex-shrink: 0;
+        height: var(--topbar-h);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 var(--space-8) 0 calc(var(--space-8) + var(--accent-bar-width));
+        border-bottom: 1px solid var(--border);
+        background: var(--topbar-bg);
+        backdrop-filter: blur(6px);
+        font-family: var(--font-mono);
+        font-size: var(--size-small);
+        color: var(--text-muted);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        color: var(--text-secondary);
+      }
+      .topbar-left .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        flex-shrink: 0;
+      }
+      .topbar-right {
+        color: var(--text-muted);
+      }
 
-.slide-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: var(--space-10) var(--space-12) var(--space-12) calc(var(--space-12) + var(--accent-bar-width));
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-.slide-content::-webkit-scrollbar { width: 8px; }
-.slide-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--radius-full); }
-.slide-content::-webkit-scrollbar-track { background: transparent; }
+      .slide-content {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: var(--space-10) var(--space-12) var(--space-12)
+          calc(var(--space-12) + var(--accent-bar-width));
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-6);
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+      .slide-content::-webkit-scrollbar {
+        width: 8px;
+      }
+      .slide-content::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: var(--radius-full);
+      }
+      .slide-content::-webkit-scrollbar-track {
+        background: transparent;
+      }
 
-/* ---------- Typographic helpers ---------- */
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: var(--size-small);
-  color: var(--accent);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: var(--weight-medium);
-  display: flex; align-items: center; gap: var(--space-2);
-}
-.eyebrow::before { content: ''; width: 16px; height: 1px; background: var(--accent); display: inline-block; }
-h1.slide-title { font-size: var(--size-h1); font-weight: var(--weight-bold); color: var(--text-primary); }
-h2.slide-title { font-size: var(--size-h1); font-weight: var(--weight-bold); color: var(--text-primary); }
-.slide-subtitle { font-size: var(--size-body); color: var(--text-secondary); max-width: 62ch; }
+      /* ---------- Typographic helpers ---------- */
+      .eyebrow {
+        font-family: var(--font-mono);
+        font-size: var(--size-small);
+        color: var(--accent);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: var(--weight-medium);
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      .eyebrow::before {
+        content: '';
+        width: 16px;
+        height: 1px;
+        background: var(--accent);
+        display: inline-block;
+      }
+      h1.slide-title {
+        font-size: var(--size-h1);
+        font-weight: var(--weight-bold);
+        color: var(--text-primary);
+      }
+      h2.slide-title {
+        font-size: var(--size-h1);
+        font-weight: var(--weight-bold);
+        color: var(--text-primary);
+      }
+      .slide-subtitle {
+        font-size: var(--size-body);
+        color: var(--text-secondary);
+        max-width: 62ch;
+      }
 
-/* ---------- Reveal units ---------- */
-.reveal-unit {
-  opacity: 0;
-  transform: translateY(12px);
-  transition: opacity var(--transition-normal), transform var(--transition-normal);
-}
-.reveal-unit.revealed { opacity: 1; transform: translateY(0); }
+      /* ---------- Reveal units ---------- */
+      .reveal-unit {
+        opacity: 0;
+        transform: translateY(12px);
+        transition:
+          opacity var(--transition-normal),
+          transform var(--transition-normal);
+      }
+      .reveal-unit.revealed {
+        opacity: 1;
+        transform: translateY(0);
+      }
 
-/* ---------- Bullet lists ---------- */
-.bullet-list { display: flex; flex-direction: column; gap: var(--space-4); max-width: 78ch; }
-.bullet-item { display: flex; gap: var(--space-3); align-items: flex-start; }
-.bullet-item .marker {
-  flex-shrink: 0; width: 7px; height: 7px; border-radius: 2px;
-  background: var(--accent); margin-top: 0.5em;
-}
-.bullet-item p { font-size: var(--size-body); }
-.bullet-item.sub { padding-left: var(--space-6); }
-.bullet-item.sub .marker { background: var(--text-muted); width: 5px; height: 5px; }
+      /* ---------- Bullet lists ---------- */
+      .bullet-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        max-width: 78ch;
+      }
+      .bullet-item {
+        display: flex;
+        gap: var(--space-3);
+        align-items: flex-start;
+      }
+      .bullet-item .marker {
+        flex-shrink: 0;
+        width: 7px;
+        height: 7px;
+        border-radius: 2px;
+        background: var(--accent);
+        margin-top: 0.5em;
+      }
+      .bullet-item p {
+        font-size: var(--size-body);
+      }
+      .bullet-item.sub {
+        padding-left: var(--space-6);
+      }
+      .bullet-item.sub .marker {
+        background: var(--text-muted);
+        width: 5px;
+        height: 5px;
+      }
 
-/* ---------- Cards ---------- */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5) var(--space-6);
-  box-shadow: var(--shadow-sm);
-}
-.card-title {
-  font-family: var(--font-heading);
-  font-size: var(--size-h3);
-  font-weight: var(--weight-semi);
-  color: var(--text-primary);
-  margin-bottom: var(--space-2);
-  display: flex; align-items: center; gap: var(--space-2);
-}
-.card p { font-size: var(--size-small); }
-.card-grid { display: grid; gap: var(--space-5); }
-.card-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
-.card-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
-.card-num {
-  font-family: var(--font-mono); font-size: var(--size-small); color: var(--accent);
-  background: var(--accent-light); border-radius: var(--radius-sm);
-  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
+      /* ---------- Cards ---------- */
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: var(--space-5) var(--space-6);
+        box-shadow: var(--shadow-sm);
+      }
+      .card-title {
+        font-family: var(--font-heading);
+        font-size: var(--size-h3);
+        font-weight: var(--weight-semi);
+        color: var(--text-primary);
+        margin-bottom: var(--space-2);
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      .card p {
+        font-size: var(--size-small);
+      }
+      .card-grid {
+        display: grid;
+        gap: var(--space-5);
+      }
+      .card-grid.cols-2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .card-grid.cols-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .card-num {
+        font-family: var(--font-mono);
+        font-size: var(--size-small);
+        color: var(--accent);
+        background: var(--accent-light);
+        border-radius: var(--radius-sm);
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
 
-/* ---------- Badges ---------- */
-.badge {
-  display: inline-flex; align-items: center; gap: var(--space-1);
-  font-family: var(--font-mono); font-size: var(--size-small); font-weight: var(--weight-medium);
-  padding: 3px var(--space-2); border-radius: var(--radius-sm);
-  background: var(--surface-raised); color: var(--text-secondary); border: 1px solid var(--border);
-  white-space: nowrap;
-}
-.badge-accent { background: var(--accent-light); color: var(--accent); border-color: var(--badge-accent-border); }
-.badge-success { background: var(--success-light); color: var(--success); border-color: var(--badge-success-border); }
-.badge-warning { background: var(--warning-light); color: var(--warning); border-color: var(--badge-warning-border); }
-.badge-danger { background: var(--danger-light); color: var(--danger); border-color: var(--badge-danger-border); }
-.badge .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+      /* ---------- Badges ---------- */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        font-family: var(--font-mono);
+        font-size: var(--size-small);
+        font-weight: var(--weight-medium);
+        padding: 3px var(--space-2);
+        border-radius: var(--radius-sm);
+        background: var(--surface-raised);
+        color: var(--text-secondary);
+        border: 1px solid var(--border);
+        white-space: nowrap;
+      }
+      .badge-accent {
+        background: var(--accent-light);
+        color: var(--accent);
+        border-color: var(--badge-accent-border);
+      }
+      .badge-success {
+        background: var(--success-light);
+        color: var(--success);
+        border-color: var(--badge-success-border);
+      }
+      .badge-warning {
+        background: var(--warning-light);
+        color: var(--warning);
+        border-color: var(--badge-warning-border);
+      }
+      .badge-danger {
+        background: var(--danger-light);
+        color: var(--danger);
+        border-color: var(--badge-danger-border);
+      }
+      .badge .dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+      }
 
-/* ---------- Callouts ---------- */
-.callout {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  padding: var(--space-5) var(--space-6);
-  display: flex; flex-direction: column; gap: var(--space-2);
-  max-width: 80ch;
-}
-.callout strong { font-family: var(--font-heading); font-size: var(--size-h3); }
-.callout p { font-size: var(--size-body); }
-.callout-info { background: var(--accent-light); border-color: var(--callout-info-border); }
-.callout-warning { background: var(--warning-light); border-color: var(--callout-warning-border); }
-.callout-danger { background: var(--danger-light); border-color: var(--callout-danger-border); }
+      /* ---------- Callouts ---------- */
+      .callout {
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        padding: var(--space-5) var(--space-6);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        max-width: 80ch;
+      }
+      .callout strong {
+        font-family: var(--font-heading);
+        font-size: var(--size-h3);
+      }
+      .callout p {
+        font-size: var(--size-body);
+      }
+      .callout-info {
+        background: var(--accent-light);
+        border-color: var(--callout-info-border);
+      }
+      .callout-warning {
+        background: var(--warning-light);
+        border-color: var(--callout-warning-border);
+      }
+      .callout-danger {
+        background: var(--danger-light);
+        border-color: var(--callout-danger-border);
+      }
 
-/* ---------- Code block ---------- */
-.code-block {
-  background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: var(--space-4) var(--space-5); font-size: var(--size-code); color: var(--accent);
-  overflow-x: auto;
-}
+      /* ---------- Code block ---------- */
+      .code-block {
+        background: var(--bg-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: var(--space-4) var(--space-5);
+        font-size: var(--size-code);
+        color: var(--accent);
+        overflow-x: auto;
+      }
 
-/* ---------- Table ---------- */
-table.data-table { border-collapse: collapse; width: 100%; max-width: 84ch; font-size: var(--size-body); }
-table.data-table th {
-  text-align: left; font-family: var(--font-mono); font-size: var(--size-small);
-  text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);
-  padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--border);
-  font-weight: var(--weight-medium);
-}
-table.data-table td {
-  padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-light);
-  color: var(--text-secondary);
-}
-table.data-table tr:last-child td { border-bottom: none; }
-table.data-table td.status-done { color: var(--success); font-weight: var(--weight-medium); }
-table.data-table td.status-pending { color: var(--warning); font-weight: var(--weight-medium); }
-table.data-table .mono-cell { font-family: var(--font-mono); color: var(--text-primary); font-size: var(--size-small); }
+      /* ---------- Table ---------- */
+      table.data-table {
+        border-collapse: collapse;
+        width: 100%;
+        max-width: 84ch;
+        font-size: var(--size-body);
+      }
+      table.data-table th {
+        text-align: left;
+        font-family: var(--font-mono);
+        font-size: var(--size-small);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-muted);
+        padding: var(--space-2) var(--space-4);
+        border-bottom: 1px solid var(--border);
+        font-weight: var(--weight-medium);
+      }
+      table.data-table td {
+        padding: var(--space-3) var(--space-4);
+        border-bottom: 1px solid var(--border-light);
+        color: var(--text-secondary);
+      }
+      table.data-table tr:last-child td {
+        border-bottom: none;
+      }
+      table.data-table td.status-done {
+        color: var(--success);
+        font-weight: var(--weight-medium);
+      }
+      table.data-table td.status-pending {
+        color: var(--warning);
+        font-weight: var(--weight-medium);
+      }
+      table.data-table .mono-cell {
+        font-family: var(--font-mono);
+        color: var(--text-primary);
+        font-size: var(--size-small);
+      }
 
-/* ---------- Pipeline stage row ---------- */
-.pipeline-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.pipeline-stage {
-  font-family: var(--font-mono); font-size: var(--size-small);
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3); color: var(--text-primary); white-space: nowrap;
-}
-.pipeline-arrow { color: var(--text-muted); font-size: var(--size-small); }
+      /* ---------- Pipeline stage row ---------- */
+      .pipeline-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+      }
+      .pipeline-stage {
+        font-family: var(--font-mono);
+        font-size: var(--size-small);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: var(--space-2) var(--space-3);
+        color: var(--text-primary);
+        white-space: nowrap;
+      }
+      .pipeline-arrow {
+        color: var(--text-muted);
+        font-size: var(--size-small);
+      }
 
-/* ---------- Layout helpers ---------- */
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8); align-items: start; }
-.center-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: var(--space-6); }
-.svg-frame { display: flex; align-items: center; justify-content: center; flex: 1; min-height: 0; }
-.svg-frame svg { width: 100%; height: 100%; max-height: 62vh; }
-.section-label { font-family: var(--font-mono); font-size: var(--size-small); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: var(--space-1); }
+      /* ---------- Layout helpers ---------- */
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-8);
+        align-items: start;
+      }
+      .center-stage {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: var(--space-6);
+      }
+      .svg-frame {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        min-height: 0;
+      }
+      .svg-frame svg {
+        width: 100%;
+        height: 100%;
+        max-height: 62vh;
+      }
+      .section-label {
+        font-family: var(--font-mono);
+        font-size: var(--size-small);
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: var(--space-1);
+      }
 
-/* ---------- Progressive reveal indicator ---------- */
-.mode-indicator {
-  position: fixed; bottom: var(--space-6); right: var(--space-6);
-  background: var(--surface-raised); border: 1px solid var(--border);
-  color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--size-small);
-  padding: var(--space-2) var(--space-4); border-radius: var(--radius-md);
-  opacity: 0; pointer-events: none; transition: opacity 300ms ease; z-index: 100;
-  box-shadow: var(--shadow-md);
-}
-.mode-indicator.show { opacity: 1; }
+      /* ---------- Progressive reveal indicator ---------- */
+      .mode-indicator {
+        position: fixed;
+        bottom: var(--space-6);
+        right: var(--space-6);
+        background: var(--surface-raised);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        font-family: var(--font-mono);
+        font-size: var(--size-small);
+        padding: var(--space-2) var(--space-4);
+        border-radius: var(--radius-md);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 300ms ease;
+        z-index: 100;
+        box-shadow: var(--shadow-md);
+      }
+      .mode-indicator.show {
+        opacity: 1;
+      }
 
-/* ---------- Progress dots ---------- */
-.progress-track {
-  position: fixed; top: 0; left: 0; height: 2px; background: var(--accent);
-  transition: width var(--transition-normal); z-index: 50;
-}
+      /* ---------- Progress dots ---------- */
+      .progress-track {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 2px;
+        background: var(--accent);
+        transition: width var(--transition-normal);
+        z-index: 50;
+      }
 
-/* ============================================================
+      /* ============================================================
    LIGHT MODE & THEME TOGGLE
    ============================================================ */
-body.light-mode {
-  --bg:            #f5f7f8;
-  --bg-alt:        #edf0f2;
-  --surface:       #ffffff;
-  --surface-raised:#f0f3f5;
-
-  --border:        #cfd8dc;
-  --border-light:  #e2e8f0;
-
-  --text-primary:  #1e293b;
-  --text-secondary:#475569;
-  --text-muted:    #64748b;
-
-  --accent:        #0d9488;
-  --accent-light:  rgba(13, 148, 136, 0.08);
-  --accent-dark:   #0f766e;
-
-  --success:       #16a34a;
-  --success-light: rgba(22, 163, 74, 0.08);
-  --warning:       #ca8a04;
-  --warning-light: rgba(202, 138, 4, 0.08);
-  --danger:        #dc2626;
-  --danger-light:  rgba(220, 38, 38, 0.08);
-
-  --badge-accent-border:  rgba(13, 148, 136, 0.22);
-  --badge-success-border: rgba(22, 163, 74, 0.22);
-  --badge-warning-border: rgba(202, 138, 4, 0.22);
-  --badge-danger-border:  rgba(220, 38, 38, 0.22);
-
-  --callout-info-border:    rgba(13, 148, 136, 0.20);
-  --callout-warning-border: rgba(202, 138, 4, 0.20);
-  --callout-danger-border:  rgba(220, 38, 38, 0.20);
-
-  --topbar-bg:              rgba(245, 247, 248, 0.75);
-
-  --shadow-sm:  0 1px 3px rgba(0,0,0,0.06);
-  --shadow-md:  0 6px 18px rgba(0,0,0,0.06);
-  --shadow-lg:  0 14px 34px rgba(0,0,0,0.08);
-
-  --bg-gradient:
-    radial-gradient(circle at 15% 8%, rgba(13,148,136,0.04), transparent 40%),
-    radial-gradient(circle at 90% 90%, rgba(13,148,136,0.03), transparent 45%);
-}
-
-.theme-toggle {
-  position: fixed;
-  bottom: var(--space-6);
-  left: var(--space-6);
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 100;
-  box-shadow: var(--shadow-md);
-  transition: all var(--transition-fast);
-  padding: 0;
-  outline: none;
-}
-
-.theme-toggle:hover {
-  background: var(--accent-light);
-  color: var(--accent);
-  border-color: var(--accent);
-  transform: scale(1.05);
-}
-
-.theme-toggle:active {
-  transform: scale(0.95);
-}
-
-.theme-toggle .sun-icon {
-  display: none;
-}
-.theme-toggle .moon-icon {
-  display: block;
-}
-
-body.light-mode .theme-toggle .sun-icon {
-  display: block;
-}
-body.light-mode .theme-toggle .moon-icon {
-  display: none;
-}
-</style>
-</head>
-<body>
-
-<div class="progress-track" id="progressTrack"></div>
-<div class="mode-indicator" id="modeIndicator">Progressive: ON</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 1 — Title -->
-<!-- ============================================================ -->
-<div class="slide active" data-slide="1">
-  <div class="accent-bar"></div>
-  <div class="topbar">
-    <span class="topbar-left"><span class="dot"></span>Batac DMS</span>
-    <span class="topbar-right">Phase 1 Progress — 01 / 30</span>
-  </div>
-  <div class="slide-content">
-    <div class="center-stage">
-      <div class="eyebrow">Phase 1 Progress Report</div>
-      <h1 style="font-size: var(--size-display); font-weight: var(--weight-bold); max-width: 20ch;">Batac DMS</h1>
-      <p style="font-size: var(--size-h3); color: var(--text-secondary); max-width: 56ch;">
-        PostgreSQL · Drizzle · Fastify · tRPC — a government document management platform for Batac City Hall
-      </p>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 2 — Agenda -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="2">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Agenda — 02 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Agenda</div>
-    <h2 class="slide-title">What we'll cover</h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Where the project stands — <strong>7 of 11 modules complete</strong></p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>System architecture, and the reasoning behind it</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Module-by-module walkthrough of what's built</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>How the modules talk to each other</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Engineering practices — testing, CI/CD, documentation discipline</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>What's left, what's next, and the honest risk list</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 3 — Project context -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="3">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Context — 03 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Orientation</div>
-    <h2 class="slide-title">Project context</h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>A document management platform for city government — tracking documents from submission through review, routing, and approval.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Built with a small team in mind: <strong>five developers</strong>, minimal distributed-systems background.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Deployed on-premise, expected to run <strong>10+ years</strong> — a constraint that shapes several architecture decisions coming up.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Real users: City Hall staff across departments, Secretariat logging incoming documents, and eventually public document-status lookups via QR.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 4 — Phase 1 scope: the 11 modules -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="4">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Scope — 04 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Phase 1 scope</div>
-    <h2 class="slide-title">The 11 modules</h2>
-    <table class="data-table reveal-unit">
-      <thead><tr><th>Module</th><th>Status</th></tr></thead>
-      <tbody>
-        <tr><td>INFRA — infrastructure / cross-cutting</td><td class="status-done">Done</td></tr>
-        <tr><td>UI — component library</td><td class="status-done">Done</td></tr>
-        <tr><td>IAM — identity & access</td><td class="status-done">Done</td></tr>
-        <tr><td>AUDIT — audit logging</td><td class="status-done">Done</td></tr>
-        <tr><td>ORG — organization / office hierarchy</td><td class="status-done">Done</td></tr>
-        <tr><td>DOCS — documents</td><td class="status-done">Done</td></tr>
-        <tr><td>TRACK — tracking</td><td class="status-done">Done</td></tr>
-        <tr><td>WF — Workflow</td><td class="status-pending">Not yet — critical path</td></tr>
-        <tr><td>REC — Records</td><td class="status-pending">Not yet — blocked by WF</td></tr>
-        <tr><td>NOTIF — Notifications</td><td class="status-pending">Not yet — blocked by WF</td></tr>
-        <tr><td>PORTAL</td><td class="status-pending">Not yet — blocked by WF</td></tr>
-      </tbody>
-    </table>
-    <p class="reveal-unit" style="font-size: var(--size-body); max-width: 78ch;"><strong>7 of 11 complete.</strong> The remaining 4 aren't independent — Workflow blocks the other three, so it's the single next unblock.</p>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 5 — Progress at a glance (SVG: wave-dependency graph) -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="5">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Progress — 05 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Progress at a glance</div>
-    <h2 class="slide-title">7 done, 4 remain, 1 dependency</h2>
-    <div class="svg-frame">
-      <svg viewBox="0 0 900 380" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <marker id="arrow5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-muted)"/>
-          </marker>
-        </defs>
-        <!-- wave labels -->
-        <text x="70" y="30" font-family="var(--font-mono)" font-size="12" fill="var(--text-muted)" letter-spacing="1">WAVE A</text>
-        <text x="220" y="30" font-family="var(--font-mono)" font-size="12" fill="var(--text-muted)" letter-spacing="1">WAVE B</text>
-        <text x="370" y="30" font-family="var(--font-mono)" font-size="12" fill="var(--text-muted)" letter-spacing="1">WAVE C</text>
-        <text x="520" y="30" font-family="var(--font-mono)" font-size="12" fill="var(--text-muted)" letter-spacing="1">WAVE D</text>
-        <text x="670" y="30" font-family="var(--font-mono)" font-size="12" fill="var(--accent)" letter-spacing="1">WAVE E</text>
-        <text x="820" y="30" font-family="var(--font-mono)" font-size="12" fill="var(--text-muted)" letter-spacing="1">F / G</text>
-
-        <!-- finished nodes (filled/accent) -->
-        <g font-family="var(--font-heading)" font-size="13" font-weight="600">
-          <rect x="45" y="55" width="90" height="40" rx="7" fill="var(--accent-light)" stroke="var(--accent)" stroke-width="1.5"/>
-          <text x="90" y="80" text-anchor="middle" fill="var(--text-primary)">INFRA</text>
-
-          <rect x="195" y="55" width="90" height="40" rx="7" fill="var(--accent-light)" stroke="var(--accent)" stroke-width="1.5"/>
-          <text x="240" y="80" text-anchor="middle" fill="var(--text-primary)">UI</text>
-
-          <rect x="195" y="125" width="90" height="40" rx="7" fill="var(--accent-light)" stroke="var(--accent)" stroke-width="1.5"/>
-          <text x="240" y="150" text-anchor="middle" fill="var(--text-primary)">IAM</text>
-
-          <rect x="345" y="55" width="90" height="40" rx="7" fill="var(--accent-light)" stroke="var(--accent)" stroke-width="1.5"/>
-          <text x="390" y="80" text-anchor="middle" fill="var(--text-primary)">AUDIT</text>
-
-          <rect x="345" y="125" width="90" height="40" rx="7" fill="var(--accent-light)" stroke="var(--accent)" stroke-width="1.5"/>
-          <text x="390" y="150" text-anchor="middle" fill="var(--text-primary)">ORG</text>
-
-          <rect x="495" y="90" width="90" height="40" rx="7" fill="var(--accent-light)" stroke="var(--accent)" stroke-width="1.5"/>
-          <text x="540" y="115" text-anchor="middle" fill="var(--text-primary)">DOCS</text>
-
-          <rect x="645" y="90" width="90" height="40" rx="7" fill="var(--accent-light)" stroke="var(--accent)" stroke-width="1.5"/>
-          <text x="690" y="115" text-anchor="middle" fill="var(--text-primary)">TRACK</text>
-        </g>
-
-        <!-- WF node: the gate -->
-        <rect x="645" y="200" width="90" height="44" rx="7" fill="var(--warning-light)" stroke="var(--warning)" stroke-width="2"/>
-        <text x="690" y="227" text-anchor="middle" font-family="var(--font-heading)" font-size="14" font-weight="700" fill="var(--text-primary)">WF</text>
-
-        <!-- remaining nodes (muted/outline) -->
-        <g font-family="var(--font-heading)" font-size="13" font-weight="600" fill="var(--text-muted)">
-          <rect x="790" y="150" width="90" height="40" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="4 3"/>
-          <text x="835" y="175" text-anchor="middle">REC</text>
-
-          <rect x="790" y="205" width="90" height="40" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="4 3"/>
-          <text x="835" y="230" text-anchor="middle">NOTIF</text>
-
-          <rect x="790" y="260" width="90" height="40" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="4 3"/>
-          <text x="835" y="285" text-anchor="middle">PORTAL</text>
-        </g>
-
-        <!-- connectors -->
-        <g stroke="var(--border)" stroke-width="1.5" fill="none">
-          <path d="M135,75 L195,75" marker-end="url(#arrow5)"/>
-          <path d="M135,75 L165,145 L195,145" marker-end="url(#arrow5)"/>
-          <path d="M285,75 L345,75" marker-end="url(#arrow5)"/>
-          <path d="M285,145 L345,145" marker-end="url(#arrow5)"/>
-          <path d="M435,75 L465,75 L465,110 L495,110" marker-end="url(#arrow5)"/>
-          <path d="M435,145 L465,145 L465,110 L495,110" marker-end="url(#arrow5)"/>
-          <path d="M585,110 L645,110" marker-end="url(#arrow5)"/>
-          <path d="M690,130 L690,200" marker-end="url(#arrow5)"/>
-        </g>
-        <!-- WF fan-out to the three blocked modules -->
-        <g stroke="var(--warning)" stroke-width="1.75" fill="none" stroke-dasharray="5 4">
-          <path d="M735,212 L790,170" marker-end="url(#arrow5)"/>
-          <path d="M735,222 L790,222" marker-end="url(#arrow5)"/>
-          <path d="M735,235 L790,272" marker-end="url(#arrow5)"/>
-        </g>
-
-        <!-- legend -->
-        <g font-family="var(--font-mono)" font-size="11" fill="var(--text-muted)">
-          <rect x="45" y="330" width="14" height="14" rx="3" fill="var(--accent-light)" stroke="var(--accent)"/>
-          <text x="66" y="341">Complete (7)</text>
-          <rect x="185" y="330" width="14" height="14" rx="3" fill="var(--warning-light)" stroke="var(--warning)"/>
-          <text x="206" y="341">Critical path gate</text>
-          <rect x="360" y="330" width="14" height="14" rx="3" fill="none" stroke="var(--border)" stroke-dasharray="3 2"/>
-          <text x="381" y="341">Remaining, blocked (3)</text>
-        </g>
-      </svg>
-    </div>
-    <div class="bullet-list" style="gap: var(--space-2);">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p style="font-size: var(--size-small);">The dependency structure matters more than the raw count — finishing Workflow unlocks three modules at once.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 6 — System architecture, big picture (SVG: C4 container) -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="6">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Architecture — 06 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">System architecture</div>
-    <h2 class="slide-title">The big picture</h2>
-    <div class="bullet-list" style="gap: var(--space-2);">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p style="font-size: var(--size-small);">Modeled using a <strong>C4 architecture approach</strong> — context, container, component levels.</p></div>
-    </div>
-    <div class="svg-frame" style="max-height: 46vh;">
-      <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <marker id="arrow6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-muted)"/>
-          </marker>
-        </defs>
-        <g font-family="var(--font-heading)" font-weight="600" font-size="14">
-          <rect x="40" y="120" width="130" height="56" rx="8" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
-          <text x="105" y="153" text-anchor="middle" fill="var(--text-primary)">SPA (frontend)</text>
-
-          <rect x="240" y="120" width="130" height="56" rx="8" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
-          <text x="305" y="153" text-anchor="middle" fill="var(--text-primary)">Fastify server</text>
-
-          <rect x="440" y="30" width="130" height="56" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="505" y="63" text-anchor="middle" fill="var(--text-primary)">PostgreSQL</text>
-
-          <rect x="440" y="120" width="130" height="56" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="505" y="153" text-anchor="middle" fill="var(--text-primary)">S3-compatible storage</text>
-
-          <rect x="440" y="210" width="130" height="56" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="505" y="243" text-anchor="middle" fill="var(--text-primary)">pgboss</text>
-
-          <rect x="660" y="120" width="150" height="56" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="735" y="153" text-anchor="middle" fill="var(--text-primary)">SSE channel</text>
-        </g>
-        <g stroke="var(--text-muted)" stroke-width="1.5" fill="none">
-          <path d="M170,148 L240,148" marker-end="url(#arrow6)"/>
-          <path d="M370,140 L440,110 L440,80" marker-end="url(#arrow6)"/>
-          <path d="M370,148 L440,148" marker-end="url(#arrow6)"/>
-          <path d="M370,156 L440,200 L440,225" marker-end="url(#arrow6)"/>
-          <path d="M570,148 L660,148" marker-end="url(#arrow6)"/>
-          <path d="M810,148 L850,148 L850,90 L370,90 L370,120" marker-end="url(#arrow6)" stroke-dasharray="4 3"/>
-        </g>
-        <text x="850" y="82" text-anchor="end" font-family="var(--font-mono)" font-size="10.5" fill="var(--text-muted)">real-time push</text>
-      </svg>
-    </div>
-    <div class="bullet-list" style="gap: var(--space-2);">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p style="font-size: var(--size-small);"><strong>Claim boundary to hold onto:</strong> this deployable-units picture is a confirmed decision. Component-level breakdowns <em>within</em> each module are documented proposals subject to refinement during implementation — not yet-implemented fact.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 7 — Modular monolith -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="7">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Architecture pattern — 07 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Architectural pattern</div>
-    <h2 class="slide-title">Modular monolith</h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>One Fastify process</strong>, not microservices — a deliberate choice, not a default.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Rationale, from the project's own ADR: a five-person team with minimal distributed-systems expertise, on-premise, expected to run 10+ years. Microservices trade simplicity for operational overhead this team doesn't have capacity for.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Isolation is enforced at the <strong>code and data level</strong>, not the network level — schema-per-module ownership, and an event bus as the only sanctioned cross-module channel.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Coupling is checked with dedicated <strong>coupling tests</strong> — a modular monolith only stays modular if something enforces the boundaries.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 8 — Cross-cutting infrastructure concepts -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="8">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Infrastructure — 08 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Cross-cutting concepts</div>
-    <h2 class="slide-title">Infrastructure primitives</h2>
-    <div class="card-grid cols-3">
-      <div class="card reveal-unit">
-        <div class="card-title">Event bus</div>
-        <p>How modules communicate without direct dependency. A module emits an event, others subscribe — no module calls another module's code directly.</p>
-      </div>
-      <div class="card reveal-unit">
-        <div class="card-title">Drizzle-per-schema</div>
-        <p>Each module owns its own database schema. Data access goes through Drizzle repositories scoped to that schema.</p>
-      </div>
-      <div class="card reveal-unit">
-        <div class="card-title">pgboss for durable jobs</div>
-        <p>Background work — timers, SLA evaluation, retries — runs through pgboss, not in-process timers, so jobs survive a server restart.</p>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 9 — Tech stack overview -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="9">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Tech stack — 09 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Tech stack</div>
-    <h2 class="slide-title">The full stack</h2>
-    <table class="data-table reveal-unit">
-      <thead><tr><th>Layer</th><th>Choice</th></tr></thead>
-      <tbody>
-        <tr><td>Database</td><td class="mono-cell">PostgreSQL</td></tr>
-        <tr><td>ORM / migrations</td><td class="mono-cell">Drizzle</td></tr>
-        <tr><td>Server framework</td><td class="mono-cell">Fastify</td></tr>
-        <tr><td>API layer</td><td class="mono-cell">tRPC + REST hybrid</td></tr>
-        <tr><td>Object storage</td><td class="mono-cell">S3-compatible</td></tr>
-        <tr><td>Background jobs</td><td class="mono-cell">pgboss</td></tr>
-        <tr><td>Real-time updates</td><td class="mono-cell">Server-Sent Events</td></tr>
-        <tr><td>Audit crypto</td><td class="mono-cell">Node built-in crypto</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 10 — Monorepo & workspace structure -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="10">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Monorepo — 10 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Repo structure</div>
-    <h2 class="slide-title">Monorepo & workspaces</h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><code class="badge">apps/</code> vs <code class="badge">packages/</code> — deployable applications separate from shared, reusable packages.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Tooling: <strong>pnpm workspaces</strong> for dependency management, <strong>Turborepo</strong> for build orchestration and caching.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>This is what lets <code class="badge">packages/ui</code> and <code class="badge">packages/database</code> be shared cleanly across server and web apps without duplication.</p></div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ============================================================ -->
-<!-- SLIDE 11 — Directory Structure -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="11">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Directory Structure — 11 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Project Organization</div>
-    <h2 class="slide-title">Directory Structure & Inter-dependency</h2>
-    <div class="two-col">
-      <div class="code-block" style="white-space: pre; font-size: clamp(0.6rem, 0.8vw, 0.75rem); line-height: 1.4; padding: var(--space-3) var(--space-4);">
-├── apps/
-│   ├── portal/  <span style="color: var(--text-muted)"># Public facing Next.js app (Pending)</span>
-│   ├── server/  <span style="color: var(--text-muted)"># Fastify Modular Monolith Backend</span>
-│   └── web/     <span style="color: var(--text-muted)"># Internal Staff React SPA (Vite)</span>
-├── packages/
-│   ├── config/  <span style="color: var(--text-muted)"># Shared TS/ESLint configs</span>
-│   ├── database/<span style="color: var(--text-muted)"># Drizzle schemas & migrations</span>
-│   ├── shared/  <span style="color: var(--text-muted)"># Zod schemas, errors, domain events</span>
-│   └── ui/      <span style="color: var(--text-muted)"># Shared React Component Library</span>
-├── docs/        <span style="color: var(--text-muted)"># Architecture & Specs (Source of Truth)</span>
-└── tools/       <span style="color: var(--text-muted)"># DevOps scripts, DB init</span>
-      </div>
-      <div class="bullet-list" style="gap: var(--space-4);">
-        <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>Strict Dependency Flow:</strong> <code class="badge">apps/</code> can depend on <code class="badge">packages/</code>, but packages <strong>cannot</strong> depend on apps. Packages cannot circularly depend on each other.</p></div>
-        <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong><code class="badge">packages/database</code>:</strong> Centralizes the Drizzle schema and migrations. Used extensively by <code class="badge">apps/server</code>. Schema is divided per-module reflecting the modular monolith architecture.</p></div>
-        <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong><code class="badge">packages/shared</code>:</strong> The "glue" contract. Contains Zod schemas (API boundaries), domain events (cross-module communication), and custom errors. Used by both frontend and backend to ensure end-to-end type safety.</p></div>
-        <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong><code class="badge">docs/</code>:</strong> Not just a folder. Architecture documents here act as the highest source of truth for the system.</p></div>
-      </div>
-    </div>
-  </div>
-</div>
-<!-- ============================================================ -->
-<!-- SLIDE 12 — Module deep dive: INFRA -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="12">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Module: INFRA — 12 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Module deep dive</div>
-    <h2 class="slide-title">INFRA <span class="badge badge-success" style="vertical-align: middle; margin-left: var(--space-2);"><span class="dot"></span>Done</span></h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Cross-cutting infrastructure: lives at <code class="badge">apps/server/src/infra</code>, root-level Docker Compose files, nginx configuration — not a domain schema module like the others.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>The foundation the other modules build on: containerized services, reverse proxy, shared infrastructure primitives (event bus, job runner — slide 8).</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 13 — Module deep dive: UI foundation -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="13">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Module: UI — 13 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Module deep dive</div>
-    <h2 class="slide-title">UI foundation <span class="badge badge-success" style="vertical-align: middle; margin-left: var(--space-2);"><span class="dot"></span>Done</span></h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><code class="badge">packages/ui</code> — the shared component library used across the frontend.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Two-tier structure: <strong>Tier 1/2</strong> primitives (shadcn-based — buttons, inputs, dialogs) and <strong>Tier 3</strong> domain components (purpose-built for this application).</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Tier 1/2: <strong>23</strong> component files. Tier 3: <strong>16</strong>. <strong>39 total.</strong></p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Tier 3 components are name-matched to the frontend architecture spec (F5): <code class="badge">DocumentNumberBadge</code>, <code class="badge">WorkflowStepIndicator</code>, <code class="badge">SLATimer</code>, <code class="badge">RoutingHistoryTimeline</code>, <code class="badge">QRCodeDisplay</code>, and the <code class="badge">AppShell</code>/<code class="badge">Sidebar</code>/<code class="badge">Topbar</code> shell.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 14 — Module deep dive: UI test coverage (SVG: tier layering) -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="14">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Module: UI coverage — 14 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Module deep dive</div>
-    <h2 class="slide-title">UI test coverage</h2>
-    <div class="svg-frame" style="max-height: 40vh;">
-      <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
-        <g font-family="var(--font-heading)" font-weight="600" font-size="14">
-          <rect x="30" y="20" width="640" height="50" rx="8" fill="var(--accent-light)" stroke="var(--accent)" stroke-width="1.5"/>
-          <text x="50" y="50" fill="var(--text-primary)">Tier 1 — Base primitives</text>
-          <text x="650" y="50" text-anchor="end" font-family="var(--font-mono)" font-size="13" fill="var(--accent)">23</text>
-
-          <rect x="70" y="85" width="560" height="50" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="90" y="115" fill="var(--text-primary)">Tier 2 — Composed primitives</text>
-
-          <rect x="110" y="150" width="480" height="50" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="130" y="180" fill="var(--text-primary)">Tier 3 — Domain components</text>
-          <text x="610" y="180" text-anchor="end" font-family="var(--font-mono)" font-size="13" fill="var(--text-secondary)">16</text>
-        </g>
-        <text x="350" y="215" text-anchor="middle" font-family="var(--font-mono)" font-size="12" fill="var(--text-muted)">39 components total</text>
-      </svg>
-    </div>
-    <div class="bullet-list" style="gap: var(--space-2);">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Flat fact: <strong>zero test files</strong> across the entire package, all tiers, 39 components.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p style="font-size: var(--size-small);">The test-strategy doc doesn't establish frontend component-level coverage as in-scope either way — its explicit scope is backend-oriented, and its one relevant exclusion ("UI pixel precision") refers to visual/E2E layout testing, not component unit tests. Not a documented position that zero coverage is expected — a separate judgment call.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 15 — Module deep dive: IAM auth architecture -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="15">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Module: IAM — 15 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Module deep dive</div>
-    <h2 class="slide-title">IAM — auth architecture <span class="badge badge-success" style="vertical-align: middle; margin-left: var(--space-2);"><span class="dot"></span>Done</span></h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Identity and access management — authentication and authorization for all users of the system.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>Two-layer security model:</strong> Attribute-Based Access Control (ABAC) at the application logic layer, PostgreSQL Row-Level Security (RLS) as a database-enforced backstop.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Access control isn't just "trust the application code" — even if application logic has a bug, the database itself refuses to return rows a user isn't authorized to see.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 16 — Module deep dive: IAM security model (SVG: ABAC+RLS) -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="16">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Module: IAM security model — 16 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Module deep dive</div>
-    <h2 class="slide-title">IAM — security model</h2>
-    <div class="svg-frame" style="max-height: 34vh;">
-      <svg viewBox="0 0 700 190" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <marker id="arrow15" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-muted)"/>
-          </marker>
-        </defs>
-        <rect x="100" y="15" width="500" height="55" rx="8" fill="var(--accent-light)" stroke="var(--accent)" stroke-width="1.5"/>
-        <text x="350" y="48" text-anchor="middle" font-family="var(--font-heading)" font-weight="600" font-size="14" fill="var(--text-primary)">Application layer — ABAC policy checks</text>
-
-        <path d="M350,72 L350,105" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#arrow15)"/>
-
-        <rect x="100" y="112" width="500" height="55" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
-        <text x="350" y="145" text-anchor="middle" font-family="var(--font-heading)" font-weight="600" font-size="14" fill="var(--text-primary)">Database layer — PostgreSQL Row-Level Security</text>
-      </svg>
-    </div>
-    <div class="bullet-list" style="gap: var(--space-2);">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>RLS policies, concretely:</strong> 4 <code class="badge">CREATE POLICY</code> statements across IAM and Documents schemas — session ownership/admin access, office-based document isolation, and a policy excluding the IT-admin role from confidential document content even though IT-admin has broad system access otherwise.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p style="font-size: var(--size-small);">That last point is ABAC+RLS working together: an IT admin can manage the system without reading confidential document contents — enforced at the database level, not just an application-level check.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 17 — Module deep dive: AUDIT -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="17">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Module: AUDIT — 17 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Module deep dive</div>
-    <h2 class="slide-title">AUDIT <span class="badge badge-success" style="vertical-align: middle; margin-left: var(--space-2);"><span class="dot"></span>Done</span></h2>
-    <div class="card-grid cols-3">
-      <div class="card reveal-unit">
-        <div class="card-title">Hash chain</div>
-        <p>Each audit entry cryptographically linked to the previous via <code>createHash('sha256')</code> and <code>createHmac('sha256', secret)</code> — Node's built-in <code>crypto</code> only, no external library. <code>timingSafeEqual</code> used wherever signature/hash comparison happens.</p>
-      </div>
-      <div class="card reveal-unit">
-        <div class="card-title">Grants, DB-enforced</div>
-        <p>A dedicated <code>batac_audit</code> role has <code>UPDATE</code> and <code>DELETE</code> explicitly revoked on audit tables — entries can be inserted, never modified or deleted, enforced by grants, not just app logic. An over-permissive grant was caught and fixed (resolved 2026-06-24).</p>
-      </div>
-      <div class="card reveal-unit">
-        <div class="card-title">Coverage & export</div>
-        <p>Real test coverage exists here — worth noting alongside Workflow's zero (slide 21). Exports in RFC 3161 timestamp-authority format for independent verification.</p>
-      </div>
-    </div>
-    <div class="callout callout-warning reveal-unit">
-      <strong>Claim boundary, stated precisely</strong>
-      <p>Documented as <strong>"tamper-evident, not tamper-proof"</strong> — it provides evidence that tampering occurred, not prevention of tampering. Worth stating exactly this way rather than rounding up to "tamper-proof."</p>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 18 — Module deep dive: ORG -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="18">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Module: ORG — 18 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Module deep dive</div>
-    <h2 class="slide-title">ORG <span class="badge badge-success" style="vertical-align: middle; margin-left: var(--space-2);"><span class="dot"></span>Done</span></h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Manages office hierarchy and delegation of authority — e.g. an office head delegating signing authority while away.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>Delegation mechanism, precisely:</strong> grants are rows in a dedicated table, created when a Designation document is logged. One active designation per person is enforced via a database-level partial unique index — one of the project's named architectural invariants (<strong>Invariant #16</strong>).</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>The grant takes effect immediately on successful insert — no separate admin-confirmation step. Scope is time-bounded via an end-date field; "time-bounded scope" is the accurate description, not a named "auto-expiry" feature.</p></div>
-      <div class="bullet-item sub reveal-unit"><span class="marker"></span><p style="font-size: var(--size-small);"><em>Optional, if there's time:</em> one still-open, non-blocking design question — whether roles like "Acting Mayor" are literal seeded role assignments or need a different enforcement path based on delegation scope. Doesn't need resolving before current seed data, only before delegation grants for Mayor-equivalent authority go live.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 19 — Module deep dive: DOCS -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="19">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Module: DOCS — 19 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Module deep dive</div>
-    <h2 class="slide-title">DOCS <span class="badge badge-success" style="vertical-align: middle; margin-left: var(--space-2);"><span class="dot"></span>Done</span></h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>The core document lifecycle module — documents move through a defined state machine from submission to final disposition.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>Two-stage numbering:</strong> a preliminary series number is assigned at intake; the full mechanism is covered next (Tracking), where it connects to QR assignment.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Files upload <strong>direct-to-S3</strong> — not routed through the application server as a bottleneck — with an OCR pipeline for scanned documents.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Versioning is built in — revisions are tracked, not overwritten.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 20 — Module deep dive: TRACK -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="20">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Module: TRACK — 20 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Module deep dive</div>
-    <h2 class="slide-title">TRACK <span class="badge badge-success" style="vertical-align: middle; margin-left: var(--space-2);"><span class="dot"></span>Done</span></h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Public-facing document tracking — anyone can scan a QR code to check a document's status, no login needed.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>QR-before-numbering, precisely:</strong> per the project's ADR, the QR code — a UUID — is assigned first, during the Secretariat's initial logging transaction, <em>before</em> the preliminary series number. Once assigned, it's immutable and independent of whatever numbering happens afterward.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Routing history is <strong>append-only</strong> — every step a document takes through offices is recorded and never overwritten, giving a complete audit trail of where a document has been.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>Page-blurring rule</strong> for public lookups: first page visible via a pre-rendered image, subsequent pages blurred. "Get a copy" leads into the formal Document Request Form flow, which requires Vice Mayor and SP Secretary approval — public visibility is intentionally limited, full access goes through a real approval gate.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 21 — How modules talk to each other (SVG: event-flow chain) -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="21">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Event flow — 21 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Cross-module communication</div>
-    <h2 class="slide-title">How modules talk to each other</h2>
-    <div class="svg-frame" style="max-height: 42vh;">
-      <svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <marker id="arrow20" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
-          </marker>
-        </defs>
-        <rect x="20" y="105" width="170" height="55" rx="8" fill="var(--accent-light)" stroke="var(--accent)" stroke-width="1.5"/>
-        <text x="105" y="138" text-anchor="middle" font-family="var(--font-heading)" font-weight="600" font-size="14" fill="var(--text-primary)">Documents module</text>
-
-        <text x="290" y="128" font-family="var(--font-mono)" font-size="12" fill="var(--accent)">document.created</text>
-
-        <g stroke="var(--accent)" stroke-width="1.5" fill="none">
-          <path d="M190,120 L440,40" marker-end="url(#arrow20)"/>
-          <path d="M190,132 L440,132" marker-end="url(#arrow20)"/>
-          <path d="M190,144 L440,225" marker-end="url(#arrow20)"/>
-        </g>
-
-        <g font-family="var(--font-heading)" font-weight="600" font-size="13">
-          <rect x="450" y="12" width="330" height="55" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="470" y="34" fill="var(--text-primary)">Tracking</text>
-          <text x="470" y="53" font-family="var(--font-body)" font-weight="400" font-size="12" fill="var(--text-secondary)">generates QR</text>
-
-          <rect x="450" y="104" width="330" height="55" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="470" y="126" fill="var(--text-primary)">Workflow</text>
-          <text x="470" y="145" font-family="var(--font-body)" font-weight="400" font-size="12" fill="var(--text-secondary)">creates workflow instance</text>
-
-          <rect x="450" y="196" width="330" height="55" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="470" y="218" fill="var(--text-primary)">Audit</text>
-          <text x="470" y="237" font-family="var(--font-body)" font-weight="400" font-size="12" fill="var(--text-secondary)">logs the event</text>
-        </g>
-      </svg>
-    </div>
-    <div class="bullet-list" style="gap: var(--space-2);">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Concrete case: <code class="badge">document.created</code> fires from Documents, and <strong>three modules</strong> subscribe independently — Tracking, Workflow, Audit.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>This is the modular monolith pattern from slide 7, made concrete — Documents doesn't know Tracking or Workflow exist. It emits an event, and whoever's listening reacts.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 22 — Engineering practices: testing -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="22">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Testing — 22 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Engineering practices</div>
-    <h2 class="slide-title">Testing, quantified</h2>
-    <table class="data-table reveal-unit">
-      <thead><tr><th>Module</th><th>State</th></tr></thead>
-      <tbody>
-        <tr><td>Documents</td><td class="status-done">Real test coverage exists</td></tr>
-        <tr><td>Audit</td><td class="status-done">Real test coverage exists</td></tr>
-        <tr><td>Workflow</td><td class="status-pending">10 explicit <code>NotImplementedError</code> throw sites (3 plugin, 7 engine); zero test files</td></tr>
-        <tr><td>UI package</td><td class="status-pending">Zero test files across all 39 components</td></tr>
-      </tbody>
-    </table>
-    <p class="reveal-unit" style="font-size: var(--size-small); max-width: 78ch;">The Workflow row is the honest, current state of an in-progress module, not a hidden gap — consistent with it being actively under construction. The UI row is a plain fact per slide 13, not asserted as an accepted project position.</p>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 23 — Documentation-driven development -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="23">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Documentation — 23 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Engineering practices</div>
-    <h2 class="slide-title">Documentation-driven development</h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Runs on a substantial pre-development documentation set: architecture documents, Architecture Decision Records for major technical choices, and a routing file (<code class="badge">AGENTS.md</code>) directing contributors to the right document for a given question.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Findings and issues get logged in an <strong>append-only findings log</strong> as they're discovered — including the audit-grants over-permission issue caught and fixed (slide 16), documented rather than quietly patched.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>A big part of why a small team maintains architectural discipline without a dedicated architecture team — decisions are written down once and referenced, not re-litigated per pull request.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 24 — Database & schema discipline -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="24">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Database discipline — 24 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Engineering practices</div>
-    <h2 class="slide-title">Database & schema discipline</h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>Schema-per-module</strong> — each module owns its own PostgreSQL schema, enforcing the modular monolith boundary at the data layer (slide 7).</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>No cross-schema foreign keys</strong> — modules can't create hard database-level dependencies on each other's internals, only through the event bus.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>Migrations-only</strong> — schema changes go through versioned Drizzle migrations, not manual edits. <strong>7 migrations</strong> exist to date, including Workflow's schema migration (schema exists even though application logic doesn't yet — schema-first).</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>All migration SQL is under version control, reviewable like any other code change.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 25 — What's not yet done -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="25">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Remaining work — 25 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Status</div>
-    <h2 class="slide-title">What's not yet done</h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Four modules remain: <strong>Workflow, Records, Notifications, Portal.</strong></p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Not four independent tasks — a dependency chain. Workflow is the blocker: Records, Notifications, and Portal all depend on workflow state existing before they can function.</p></div>
-      <div class="bullet-item sub reveal-unit"><span class="marker"></span><p style="font-size: var(--size-small);">A record needs a completed workflow to record. A notification needs a workflow event to notify about. The public portal needs workflow status to display.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Finishing <strong>one module — Workflow —</strong> is what unlocks the other three.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 26 — What's next (SVG: dependency graph revisited) -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="26">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">What's next — 26 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">The critical path</div>
-    <h2 class="slide-title">What's next</h2>
-    <div class="svg-frame">
-      <svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <marker id="arrow25" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-muted)"/>
-          </marker>
-          <marker id="arrow25b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
-          </marker>
-        </defs>
-        <!-- WF as the highlighted "you are here" target -->
-        <circle cx="130" cy="170" r="46" fill="var(--accent-light)" stroke="var(--accent)" stroke-width="2.5"/>
-        <text x="130" y="164" text-anchor="middle" font-family="var(--font-heading)" font-weight="700" font-size="16" fill="var(--text-primary)">WF</text>
-        <text x="130" y="182" text-anchor="middle" font-family="var(--font-mono)" font-size="10" fill="var(--accent)">next target</text>
-        <circle cx="130" cy="170" r="58" fill="none" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 5" opacity="0.6"/>
-
-        <!-- three targets, muted -->
-        <g font-family="var(--font-heading)" font-weight="600" font-size="14" fill="var(--text-muted)">
-          <rect x="380" y="40" width="260" height="52" rx="8" fill="none" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="510" y="72" text-anchor="middle">Records</text>
-
-          <rect x="380" y="144" width="260" height="52" rx="8" fill="none" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="510" y="176" text-anchor="middle">Notifications</text>
-
-          <rect x="380" y="248" width="260" height="52" rx="8" fill="none" stroke="var(--border)" stroke-width="1.5"/>
-          <text x="510" y="280" text-anchor="middle">Portal</text>
-        </g>
-
-        <g stroke="var(--text-muted)" stroke-width="1.5" fill="none" stroke-dasharray="5 4">
-          <path d="M182,148 L380,66" marker-end="url(#arrow25)"/>
-          <path d="M188,170 L380,170" marker-end="url(#arrow25)"/>
-          <path d="M182,192 L380,270" marker-end="url(#arrow25)"/>
-        </g>
-
-        <text x="130" y="255" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text-muted)">becomes buildable once done</text>
-      </svg>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 27 — CI/CD -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="27">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">CI/CD — 27 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Engineering practices</div>
-    <h2 class="slide-title">CI/CD — a working pipeline</h2>
-    <div class="pipeline-row reveal-unit">
-      <span class="pipeline-stage">lint-typecheck</span><span class="pipeline-arrow">→</span>
-      <span class="pipeline-stage">unit-tests</span><span class="pipeline-arrow">→</span>
-      <span class="pipeline-stage">integration-tests</span><span class="pipeline-arrow">→</span>
-      <span class="pipeline-stage">build</span><span class="pipeline-arrow">→</span>
-      <span class="pipeline-stage">e2e-tests</span><span class="pipeline-arrow">→</span>
-      <span class="pipeline-stage">deploy-staging</span><span class="pipeline-arrow">→</span>
-      <span class="pipeline-stage">deploy-production</span>
-    </div>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>Integration tests</strong> run against real service containers — actual PostgreSQL and MinIO — not mocks, with real database roles bootstrapped and real migrations applied.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>Build</strong> produces real Docker images for both server and web apps.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>E2E tests</strong> run with Playwright against a live, fully composed stack, gated on pushes to main.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>Staging and production deploys</strong> are real SSH-based deploys, each gated behind the stage before it — nothing skips ahead.</p></div>
-    </div>
-    <p class="reveal-unit" style="font-size: var(--size-body); max-width: 78ch;"><strong>This is a working pipeline that already gates what ships</strong> — not a plan for one.</p>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 28 — Risks / open items -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="28">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Risks — 28 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Honest accounting</div>
-    <h2 class="slide-title">Risks & open items</h2>
-    <div class="callout callout-info reveal-unit">
-      <strong>Development-time unknown vs. documentation gap</strong>
-      <p>The project's own planning docs distinguish these explicitly. Several things genuinely cannot be pre-decided no matter how much documentation exists up front — and are listed as such, not as oversights.</p>
-    </div>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Examples: exact Drizzle/PostgreSQL edge-case behavior for complex constraints; SSE reconnection behavior under intermittent connectivity (relevant for lower-connectivity Barangay contexts); pgboss retry/dead-letter behavior for long-running timers; OCR quality calibration.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p style="font-size: var(--size-small);">All explicitly framed as legitimate decisions that can only be made once real implementation and real data exist — not gaps in planning.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Smaller open items: Phase 2 will need to enforce MFA more strictly — deferred by design for Phase 1, not forgotten. Known implementation gaps are actively tracked in the design documentation as found.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 29 — Summary -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="29">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Summary — 29 / 30</span></div>
-  <div class="slide-content">
-    <div class="eyebrow">Summary</div>
-    <h2 class="slide-title">Where things stand</h2>
-    <div class="bullet-list">
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p><strong>7 of 11 Phase 1 modules complete:</strong> INFRA, UI, IAM, AUDIT, ORG, DOCS, TRACK.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>A <strong>modular monolith</strong> architecture, chosen deliberately for this team and deployment context — enforced through schema ownership, an event bus, and coupling tests rather than network isolation.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Real security enforcement at the database level (RLS), a tamper-evident audit trail, and a working CI/CD pipeline already gating what ships.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>One clear next target — <strong>Workflow</strong> — which unlocks the three remaining modules once complete.</p></div>
-      <div class="bullet-item reveal-unit"><span class="marker"></span><p>Open items are known, documented, and distinguished from genuine planning gaps.</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!-- SLIDE 30 — Closing / Q&A -->
-<!-- ============================================================ -->
-<div class="slide" data-slide="30">
-  <div class="accent-bar"></div>
-  <div class="topbar"><span class="topbar-left"><span class="dot"></span>Batac DMS</span><span class="topbar-right">Q&A — 30 / 30</span></div>
-  <div class="slide-content">
-    <div class="center-stage">
-      <div class="eyebrow">Thank you</div>
-      <h1 style="font-size: var(--size-display); font-weight: var(--weight-bold);">Questions?</h1>
-      <p style="font-size: var(--size-h3); color: var(--text-secondary);">Batac DMS — Phase 1 Progress Report</p>
-    </div>
-  </div>
-</div>
-
-<button id="themeToggle" class="theme-toggle" aria-label="Toggle Theme">
-  <!-- Sun icon -->
-  <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
-  <!-- Moon icon -->
-  <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-</button>
-
-<script>
-(function() {
-  const slides = Array.from(document.querySelectorAll('.slide'));
-  const total = slides.length;
-  let currentSlide = 0;
-  let progressiveMode = true;
-  const revealedCounts = new Array(total).fill(0);
-  const modeIndicator = document.getElementById('modeIndicator');
-  const progressTrack = document.getElementById('progressTrack');
-  const themeToggle = document.getElementById('themeToggle');
-
-  // theme management
-  function initTheme() {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') {
-      document.body.classList.add('light-mode');
-    }
-  }
-  initTheme();
-
-  function toggleTheme() {
-    const isLight = document.body.classList.toggle('light-mode');
-    localStorage.setItem('theme', isLight ? 'light' : 'dark');
-  }
-
-  if (themeToggle) {
-    themeToggle.addEventListener('click', function(e) {
-      e.stopPropagation(); // prevent slide transitions
-      toggleTheme();
-    });
-  }
-
-  function revealUnitsFor(slideIndex) {
-    return Array.from(slides[slideIndex].querySelectorAll('.reveal-unit'));
-  }
-
-  function updateProgress() {
-    progressTrack.style.width = ((currentSlide + 1) / total * 100) + '%';
-  }
-
-  function showSlide(index, opts) {
-    opts = opts || {};
-    slides[currentSlide].classList.remove('active');
-    currentSlide = Math.max(0, Math.min(total - 1, index));
-    slides[currentSlide].classList.add('active');
-    updateProgress();
-    if (!opts.preserveReveal) {
-      // entering a slide fresh: if progressive mode is off, show everything immediately
-      if (!progressiveMode) {
-        revealAllOnCurrentSlide();
+      body.light-mode {
+        --bg: #f5f7f8;
+        --bg-alt: #edf0f2;
+        --surface: #ffffff;
+        --surface-raised: #f0f3f5;
+
+        --border: #cfd8dc;
+        --border-light: #e2e8f0;
+
+        --text-primary: #1e293b;
+        --text-secondary: #475569;
+        --text-muted: #64748b;
+
+        --accent: #0d9488;
+        --accent-light: rgba(13, 148, 136, 0.08);
+        --accent-dark: #0f766e;
+
+        --success: #16a34a;
+        --success-light: rgba(22, 163, 74, 0.08);
+        --warning: #ca8a04;
+        --warning-light: rgba(202, 138, 4, 0.08);
+        --danger: #dc2626;
+        --danger-light: rgba(220, 38, 38, 0.08);
+
+        --badge-accent-border: rgba(13, 148, 136, 0.22);
+        --badge-success-border: rgba(22, 163, 74, 0.22);
+        --badge-warning-border: rgba(202, 138, 4, 0.22);
+        --badge-danger-border: rgba(220, 38, 38, 0.22);
+
+        --callout-info-border: rgba(13, 148, 136, 0.2);
+        --callout-warning-border: rgba(202, 138, 4, 0.2);
+        --callout-danger-border: rgba(220, 38, 38, 0.2);
+
+        --topbar-bg: rgba(245, 247, 248, 0.75);
+
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+        --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.08);
+
+        --bg-gradient:
+          radial-gradient(circle at 15% 8%, rgba(13, 148, 136, 0.04), transparent 40%),
+          radial-gradient(circle at 90% 90%, rgba(13, 148, 136, 0.03), transparent 45%);
       }
-    }
-  }
 
-  function revealAllOnCurrentSlide() {
-    const units = revealUnitsFor(currentSlide);
-    units.forEach(u => u.classList.add('revealed'));
-    revealedCounts[currentSlide] = units.length;
-  }
-
-  function hideAllOnCurrentSlide() {
-    const units = revealUnitsFor(currentSlide);
-    units.forEach(u => u.classList.remove('revealed'));
-    revealedCounts[currentSlide] = 0;
-  }
-
-  function forwardStep() {
-    const units = revealUnitsFor(currentSlide);
-    if (progressiveMode && revealedCounts[currentSlide] < units.length) {
-      units[revealedCounts[currentSlide]].classList.add('revealed');
-      revealedCounts[currentSlide]++;
-    } else {
-      if (currentSlide < total - 1) {
-        showSlide(currentSlide + 1);
+      .theme-toggle {
+        position: fixed;
+        bottom: var(--space-6);
+        left: var(--space-6);
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: var(--surface-raised);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 100;
+        box-shadow: var(--shadow-md);
+        transition: all var(--transition-fast);
+        padding: 0;
+        outline: none;
       }
-    }
-  }
 
-  function backStep() {
-    if (progressiveMode && revealedCounts[currentSlide] > 0) {
-      revealedCounts[currentSlide]--;
-      const units = revealUnitsFor(currentSlide);
-      units[revealedCounts[currentSlide]].classList.remove('revealed');
-    } else {
-      if (currentSlide > 0) {
-        const prevIndex = currentSlide - 1;
-        slides[currentSlide].classList.remove('active');
-        currentSlide = prevIndex;
-        slides[currentSlide].classList.add('active');
-        updateProgress();
-        if (progressiveMode) {
-          // arriving via "back" shows the slide fully revealed, as if mid-way through
-          revealAllOnCurrentSlide();
-        } else {
-          revealAllOnCurrentSlide();
+      .theme-toggle:hover {
+        background: var(--accent-light);
+        color: var(--accent);
+        border-color: var(--accent);
+        transform: scale(1.05);
+      }
+
+      .theme-toggle:active {
+        transform: scale(0.95);
+      }
+
+      .theme-toggle .sun-icon {
+        display: none;
+      }
+      .theme-toggle .moon-icon {
+        display: block;
+      }
+
+      body.light-mode .theme-toggle .sun-icon {
+        display: block;
+      }
+      body.light-mode .theme-toggle .moon-icon {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progress-track" id="progressTrack"></div>
+    <div class="mode-indicator" id="modeIndicator">Progressive: ON</div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 1 — Title -->
+    <!-- ============================================================ -->
+    <div class="slide active" data-slide="1">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span>
+        <span class="topbar-right">Phase 1 Progress — 01 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="center-stage">
+          <div class="eyebrow">Phase 1 Progress Report</div>
+          <h1
+            style="font-size: var(--size-display); font-weight: var(--weight-bold); max-width: 20ch"
+          >
+            Batac DMS
+          </h1>
+          <p style="font-size: var(--size-h3); color: var(--text-secondary); max-width: 56ch">
+            PostgreSQL · Drizzle · Fastify · tRPC — a government document management platform for
+            Batac City Hall
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 2 — Agenda -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="2">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Agenda — 02 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Agenda</div>
+        <h2 class="slide-title">What we'll cover</h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>Where the project stands — <strong>7 of 11 modules complete</strong></p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>System architecture, and the reasoning behind it</p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>Module-by-module walkthrough of what's built</p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>How the modules talk to each other</p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>Engineering practices — testing, CI/CD, documentation discipline</p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>What's left, what's next, and the honest risk list</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 3 — Project context -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="3">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Context — 03 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Orientation</div>
+        <h2 class="slide-title">Project context</h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              A document management platform for city government — tracking documents from
+              submission through review, routing, and approval.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Built with a small team in mind: <strong>five developers</strong>, minimal
+              distributed-systems background.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Deployed on-premise, expected to run <strong>10+ years</strong> — a constraint that
+              shapes several architecture decisions coming up.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Real users: City Hall staff across departments, Secretariat logging incoming
+              documents, and eventually public document-status lookups via QR.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 4 — Phase 1 scope: the 11 modules -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="4">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Scope — 04 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Phase 1 scope</div>
+        <h2 class="slide-title">The 11 modules</h2>
+        <table class="data-table reveal-unit">
+          <thead>
+            <tr>
+              <th>Module</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>INFRA — infrastructure / cross-cutting</td>
+              <td class="status-done">Done</td>
+            </tr>
+            <tr>
+              <td>UI — component library</td>
+              <td class="status-done">Done</td>
+            </tr>
+            <tr>
+              <td>IAM — identity & access</td>
+              <td class="status-done">Done</td>
+            </tr>
+            <tr>
+              <td>AUDIT — audit logging</td>
+              <td class="status-done">Done</td>
+            </tr>
+            <tr>
+              <td>ORG — organization / office hierarchy</td>
+              <td class="status-done">Done</td>
+            </tr>
+            <tr>
+              <td>DOCS — documents</td>
+              <td class="status-done">Done</td>
+            </tr>
+            <tr>
+              <td>TRACK — tracking</td>
+              <td class="status-done">Done</td>
+            </tr>
+            <tr>
+              <td>WF — Workflow</td>
+              <td class="status-pending">Not yet — critical path</td>
+            </tr>
+            <tr>
+              <td>REC — Records</td>
+              <td class="status-pending">Not yet — blocked by WF</td>
+            </tr>
+            <tr>
+              <td>NOTIF — Notifications</td>
+              <td class="status-pending">Not yet — blocked by WF</td>
+            </tr>
+            <tr>
+              <td>PORTAL</td>
+              <td class="status-pending">Not yet — blocked by WF</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="reveal-unit" style="font-size: var(--size-body); max-width: 78ch">
+          <strong>7 of 11 complete.</strong> The remaining 4 aren't independent — Workflow blocks
+          the other three, so it's the single next unblock.
+        </p>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 5 — Progress at a glance (SVG: wave-dependency graph) -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="5">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Progress — 05 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Progress at a glance</div>
+        <h2 class="slide-title">7 done, 4 remain, 1 dependency</h2>
+        <div class="svg-frame">
+          <svg viewBox="0 0 900 380" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker
+                id="arrow5"
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="7"
+                markerHeight="7"
+                orient="auto-start-reverse"
+              >
+                <path d="M0,0 L10,5 L0,10 z" fill="var(--text-muted)" />
+              </marker>
+            </defs>
+            <!-- wave labels -->
+            <text
+              x="70"
+              y="30"
+              font-family="var(--font-mono)"
+              font-size="12"
+              fill="var(--text-muted)"
+              letter-spacing="1"
+            >
+              WAVE A
+            </text>
+            <text
+              x="220"
+              y="30"
+              font-family="var(--font-mono)"
+              font-size="12"
+              fill="var(--text-muted)"
+              letter-spacing="1"
+            >
+              WAVE B
+            </text>
+            <text
+              x="370"
+              y="30"
+              font-family="var(--font-mono)"
+              font-size="12"
+              fill="var(--text-muted)"
+              letter-spacing="1"
+            >
+              WAVE C
+            </text>
+            <text
+              x="520"
+              y="30"
+              font-family="var(--font-mono)"
+              font-size="12"
+              fill="var(--text-muted)"
+              letter-spacing="1"
+            >
+              WAVE D
+            </text>
+            <text
+              x="670"
+              y="30"
+              font-family="var(--font-mono)"
+              font-size="12"
+              fill="var(--accent)"
+              letter-spacing="1"
+            >
+              WAVE E
+            </text>
+            <text
+              x="820"
+              y="30"
+              font-family="var(--font-mono)"
+              font-size="12"
+              fill="var(--text-muted)"
+              letter-spacing="1"
+            >
+              F / G
+            </text>
+
+            <!-- finished nodes (filled/accent) -->
+            <g font-family="var(--font-heading)" font-size="13" font-weight="600">
+              <rect
+                x="45"
+                y="55"
+                width="90"
+                height="40"
+                rx="7"
+                fill="var(--accent-light)"
+                stroke="var(--accent)"
+                stroke-width="1.5"
+              />
+              <text x="90" y="80" text-anchor="middle" fill="var(--text-primary)">INFRA</text>
+
+              <rect
+                x="195"
+                y="55"
+                width="90"
+                height="40"
+                rx="7"
+                fill="var(--accent-light)"
+                stroke="var(--accent)"
+                stroke-width="1.5"
+              />
+              <text x="240" y="80" text-anchor="middle" fill="var(--text-primary)">UI</text>
+
+              <rect
+                x="195"
+                y="125"
+                width="90"
+                height="40"
+                rx="7"
+                fill="var(--accent-light)"
+                stroke="var(--accent)"
+                stroke-width="1.5"
+              />
+              <text x="240" y="150" text-anchor="middle" fill="var(--text-primary)">IAM</text>
+
+              <rect
+                x="345"
+                y="55"
+                width="90"
+                height="40"
+                rx="7"
+                fill="var(--accent-light)"
+                stroke="var(--accent)"
+                stroke-width="1.5"
+              />
+              <text x="390" y="80" text-anchor="middle" fill="var(--text-primary)">AUDIT</text>
+
+              <rect
+                x="345"
+                y="125"
+                width="90"
+                height="40"
+                rx="7"
+                fill="var(--accent-light)"
+                stroke="var(--accent)"
+                stroke-width="1.5"
+              />
+              <text x="390" y="150" text-anchor="middle" fill="var(--text-primary)">ORG</text>
+
+              <rect
+                x="495"
+                y="90"
+                width="90"
+                height="40"
+                rx="7"
+                fill="var(--accent-light)"
+                stroke="var(--accent)"
+                stroke-width="1.5"
+              />
+              <text x="540" y="115" text-anchor="middle" fill="var(--text-primary)">DOCS</text>
+
+              <rect
+                x="645"
+                y="90"
+                width="90"
+                height="40"
+                rx="7"
+                fill="var(--accent-light)"
+                stroke="var(--accent)"
+                stroke-width="1.5"
+              />
+              <text x="690" y="115" text-anchor="middle" fill="var(--text-primary)">TRACK</text>
+            </g>
+
+            <!-- WF node: the gate -->
+            <rect
+              x="645"
+              y="200"
+              width="90"
+              height="44"
+              rx="7"
+              fill="var(--warning-light)"
+              stroke="var(--warning)"
+              stroke-width="2"
+            />
+            <text
+              x="690"
+              y="227"
+              text-anchor="middle"
+              font-family="var(--font-heading)"
+              font-size="14"
+              font-weight="700"
+              fill="var(--text-primary)"
+            >
+              WF
+            </text>
+
+            <!-- remaining nodes (muted/outline) -->
+            <g
+              font-family="var(--font-heading)"
+              font-size="13"
+              font-weight="600"
+              fill="var(--text-muted)"
+            >
+              <rect
+                x="790"
+                y="150"
+                width="90"
+                height="40"
+                rx="7"
+                fill="none"
+                stroke="var(--border)"
+                stroke-width="1.5"
+                stroke-dasharray="4 3"
+              />
+              <text x="835" y="175" text-anchor="middle">REC</text>
+
+              <rect
+                x="790"
+                y="205"
+                width="90"
+                height="40"
+                rx="7"
+                fill="none"
+                stroke="var(--border)"
+                stroke-width="1.5"
+                stroke-dasharray="4 3"
+              />
+              <text x="835" y="230" text-anchor="middle">NOTIF</text>
+
+              <rect
+                x="790"
+                y="260"
+                width="90"
+                height="40"
+                rx="7"
+                fill="none"
+                stroke="var(--border)"
+                stroke-width="1.5"
+                stroke-dasharray="4 3"
+              />
+              <text x="835" y="285" text-anchor="middle">PORTAL</text>
+            </g>
+
+            <!-- connectors -->
+            <g stroke="var(--border)" stroke-width="1.5" fill="none">
+              <path d="M135,75 L195,75" marker-end="url(#arrow5)" />
+              <path d="M135,75 L165,145 L195,145" marker-end="url(#arrow5)" />
+              <path d="M285,75 L345,75" marker-end="url(#arrow5)" />
+              <path d="M285,145 L345,145" marker-end="url(#arrow5)" />
+              <path d="M435,75 L465,75 L465,110 L495,110" marker-end="url(#arrow5)" />
+              <path d="M435,145 L465,145 L465,110 L495,110" marker-end="url(#arrow5)" />
+              <path d="M585,110 L645,110" marker-end="url(#arrow5)" />
+              <path d="M690,130 L690,200" marker-end="url(#arrow5)" />
+            </g>
+            <!-- WF fan-out to the three blocked modules -->
+            <g stroke="var(--warning)" stroke-width="1.75" fill="none" stroke-dasharray="5 4">
+              <path d="M735,212 L790,170" marker-end="url(#arrow5)" />
+              <path d="M735,222 L790,222" marker-end="url(#arrow5)" />
+              <path d="M735,235 L790,272" marker-end="url(#arrow5)" />
+            </g>
+
+            <!-- legend -->
+            <g font-family="var(--font-mono)" font-size="11" fill="var(--text-muted)">
+              <rect
+                x="45"
+                y="330"
+                width="14"
+                height="14"
+                rx="3"
+                fill="var(--accent-light)"
+                stroke="var(--accent)"
+              />
+              <text x="66" y="341">Complete (7)</text>
+              <rect
+                x="185"
+                y="330"
+                width="14"
+                height="14"
+                rx="3"
+                fill="var(--warning-light)"
+                stroke="var(--warning)"
+              />
+              <text x="206" y="341">Critical path gate</text>
+              <rect
+                x="360"
+                y="330"
+                width="14"
+                height="14"
+                rx="3"
+                fill="none"
+                stroke="var(--border)"
+                stroke-dasharray="3 2"
+              />
+              <text x="381" y="341">Remaining, blocked (3)</text>
+            </g>
+          </svg>
+        </div>
+        <div class="bullet-list" style="gap: var(--space-2)">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p style="font-size: var(--size-small)">
+              The dependency structure matters more than the raw count — finishing Workflow unlocks
+              three modules at once.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 6 — System architecture, big picture (SVG: C4 container) -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="6">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Architecture — 06 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">System architecture</div>
+        <h2 class="slide-title">The big picture</h2>
+        <div class="bullet-list" style="gap: var(--space-2)">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p style="font-size: var(--size-small)">
+              Modeled using a <strong>C4 architecture approach</strong> — context, container,
+              component levels.
+            </p>
+          </div>
+        </div>
+        <div class="svg-frame" style="max-height: 46vh">
+          <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker
+                id="arrow6"
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M0,0 L10,5 L0,10 z" fill="var(--text-muted)" />
+              </marker>
+            </defs>
+            <g font-family="var(--font-heading)" font-weight="600" font-size="14">
+              <rect
+                x="40"
+                y="120"
+                width="130"
+                height="56"
+                rx="8"
+                fill="var(--surface)"
+                stroke="var(--accent)"
+                stroke-width="1.5"
+              />
+              <text x="105" y="153" text-anchor="middle" fill="var(--text-primary)">
+                SPA (frontend)
+              </text>
+
+              <rect
+                x="240"
+                y="120"
+                width="130"
+                height="56"
+                rx="8"
+                fill="var(--surface)"
+                stroke="var(--accent)"
+                stroke-width="1.5"
+              />
+              <text x="305" y="153" text-anchor="middle" fill="var(--text-primary)">
+                Fastify server
+              </text>
+
+              <rect
+                x="440"
+                y="30"
+                width="130"
+                height="56"
+                rx="8"
+                fill="var(--surface)"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="505" y="63" text-anchor="middle" fill="var(--text-primary)">PostgreSQL</text>
+
+              <rect
+                x="440"
+                y="120"
+                width="130"
+                height="56"
+                rx="8"
+                fill="var(--surface)"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="505" y="153" text-anchor="middle" fill="var(--text-primary)">
+                S3-compatible storage
+              </text>
+
+              <rect
+                x="440"
+                y="210"
+                width="130"
+                height="56"
+                rx="8"
+                fill="var(--surface)"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="505" y="243" text-anchor="middle" fill="var(--text-primary)">pgboss</text>
+
+              <rect
+                x="660"
+                y="120"
+                width="150"
+                height="56"
+                rx="8"
+                fill="var(--surface)"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="735" y="153" text-anchor="middle" fill="var(--text-primary)">
+                SSE channel
+              </text>
+            </g>
+            <g stroke="var(--text-muted)" stroke-width="1.5" fill="none">
+              <path d="M170,148 L240,148" marker-end="url(#arrow6)" />
+              <path d="M370,140 L440,110 L440,80" marker-end="url(#arrow6)" />
+              <path d="M370,148 L440,148" marker-end="url(#arrow6)" />
+              <path d="M370,156 L440,200 L440,225" marker-end="url(#arrow6)" />
+              <path d="M570,148 L660,148" marker-end="url(#arrow6)" />
+              <path
+                d="M810,148 L850,148 L850,90 L370,90 L370,120"
+                marker-end="url(#arrow6)"
+                stroke-dasharray="4 3"
+              />
+            </g>
+            <text
+              x="850"
+              y="82"
+              text-anchor="end"
+              font-family="var(--font-mono)"
+              font-size="10.5"
+              fill="var(--text-muted)"
+            >
+              real-time push
+            </text>
+          </svg>
+        </div>
+        <div class="bullet-list" style="gap: var(--space-2)">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p style="font-size: var(--size-small)">
+              <strong>Claim boundary to hold onto:</strong> this deployable-units picture is a
+              confirmed decision. Component-level breakdowns <em>within</em> each module are
+              documented proposals subject to refinement during implementation — not yet-implemented
+              fact.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 7 — Modular monolith -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="7">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Architecture pattern — 07 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Architectural pattern</div>
+        <h2 class="slide-title">Modular monolith</h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>One Fastify process</strong>, not microservices — a deliberate choice, not a
+              default.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Rationale, from the project's own ADR: a five-person team with minimal
+              distributed-systems expertise, on-premise, expected to run 10+ years. Microservices
+              trade simplicity for operational overhead this team doesn't have capacity for.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Isolation is enforced at the <strong>code and data level</strong>, not the network
+              level — schema-per-module ownership, and an event bus as the only sanctioned
+              cross-module channel.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Coupling is checked with dedicated <strong>coupling tests</strong> — a modular
+              monolith only stays modular if something enforces the boundaries.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 8 — Cross-cutting infrastructure concepts -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="8">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Infrastructure — 08 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Cross-cutting concepts</div>
+        <h2 class="slide-title">Infrastructure primitives</h2>
+        <div class="card-grid cols-3">
+          <div class="card reveal-unit">
+            <div class="card-title">Event bus</div>
+            <p>
+              How modules communicate without direct dependency. A module emits an event, others
+              subscribe — no module calls another module's code directly.
+            </p>
+          </div>
+          <div class="card reveal-unit">
+            <div class="card-title">Drizzle-per-schema</div>
+            <p>
+              Each module owns its own database schema. Data access goes through Drizzle
+              repositories scoped to that schema.
+            </p>
+          </div>
+          <div class="card reveal-unit">
+            <div class="card-title">pgboss for durable jobs</div>
+            <p>
+              Background work — timers, SLA evaluation, retries — runs through pgboss, not
+              in-process timers, so jobs survive a server restart.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 9 — Tech stack overview -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="9">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Tech stack — 09 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Tech stack</div>
+        <h2 class="slide-title">The full stack</h2>
+        <table class="data-table reveal-unit">
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Choice</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Database</td>
+              <td class="mono-cell">PostgreSQL</td>
+            </tr>
+            <tr>
+              <td>ORM / migrations</td>
+              <td class="mono-cell">Drizzle</td>
+            </tr>
+            <tr>
+              <td>Server framework</td>
+              <td class="mono-cell">Fastify</td>
+            </tr>
+            <tr>
+              <td>API layer</td>
+              <td class="mono-cell">tRPC + REST hybrid</td>
+            </tr>
+            <tr>
+              <td>Object storage</td>
+              <td class="mono-cell">S3-compatible</td>
+            </tr>
+            <tr>
+              <td>Background jobs</td>
+              <td class="mono-cell">pgboss</td>
+            </tr>
+            <tr>
+              <td>Real-time updates</td>
+              <td class="mono-cell">Server-Sent Events</td>
+            </tr>
+            <tr>
+              <td>Audit crypto</td>
+              <td class="mono-cell">Node built-in crypto</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 10 — Monorepo & workspace structure -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="10">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Monorepo — 10 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Repo structure</div>
+        <h2 class="slide-title">Monorepo & workspaces</h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <code class="badge">apps/</code> vs <code class="badge">packages/</code> — deployable
+              applications separate from shared, reusable packages.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Tooling: <strong>pnpm workspaces</strong> for dependency management,
+              <strong>Turborepo</strong> for build orchestration and caching.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              This is what lets <code class="badge">packages/ui</code> and
+              <code class="badge">packages/database</code> be shared cleanly across server and web
+              apps without duplication.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 11 — Directory Structure -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="11">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Directory Structure — 11 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Project Organization</div>
+        <h2 class="slide-title">Directory Structure & Inter-dependency</h2>
+        <div class="two-col">
+          <div
+            class="code-block"
+            style="
+              white-space: pre;
+              font-size: clamp(0.6rem, 0.8vw, 0.75rem);
+              line-height: 1.4;
+              padding: var(--space-3) var(--space-4);
+            "
+          >
+            ├── apps/ │ ├── portal/
+            <span style="color: var(--text-muted)"># Public facing Next.js app (Pending)</span> │
+            ├── server/
+            <span style="color: var(--text-muted)"># Fastify Modular Monolith Backend</span> │ └──
+            web/ <span style="color: var(--text-muted)"># Internal Staff React SPA (Vite)</span> ├──
+            packages/ │ ├── config/
+            <span style="color: var(--text-muted)"># Shared TS/ESLint configs</span> │ ├──
+            database/<span style="color: var(--text-muted)"># Drizzle schemas & migrations</span> │
+            ├── shared/
+            <span style="color: var(--text-muted)"># Zod schemas, errors, domain events</span> │ └──
+            ui/ <span style="color: var(--text-muted)"># Shared React Component Library</span> ├──
+            docs/
+            <span style="color: var(--text-muted)"># Architecture & Specs (Source of Truth)</span>
+            └── tools/ <span style="color: var(--text-muted)"># DevOps scripts, DB init</span>
+          </div>
+          <div class="bullet-list" style="gap: var(--space-4)">
+            <div class="bullet-item reveal-unit">
+              <span class="marker"></span>
+              <p>
+                <strong>Strict Dependency Flow:</strong> <code class="badge">apps/</code> can depend
+                on <code class="badge">packages/</code>, but packages <strong>cannot</strong> depend
+                on apps. Packages cannot circularly depend on each other.
+              </p>
+            </div>
+            <div class="bullet-item reveal-unit">
+              <span class="marker"></span>
+              <p>
+                <strong><code class="badge">packages/database</code>:</strong> Centralizes the
+                Drizzle schema and migrations. Used extensively by
+                <code class="badge">apps/server</code>. Schema is divided per-module reflecting the
+                modular monolith architecture.
+              </p>
+            </div>
+            <div class="bullet-item reveal-unit">
+              <span class="marker"></span>
+              <p>
+                <strong><code class="badge">packages/shared</code>:</strong> The "glue" contract.
+                Contains Zod schemas (API boundaries), domain events (cross-module communication),
+                and custom errors. Used by both frontend and backend to ensure end-to-end type
+                safety.
+              </p>
+            </div>
+            <div class="bullet-item reveal-unit">
+              <span class="marker"></span>
+              <p>
+                <strong><code class="badge">docs/</code>:</strong> Not just a folder. Architecture
+                documents here act as the highest source of truth for the system.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ============================================================ -->
+    <!-- SLIDE 12 — Module deep dive: INFRA -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="12">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Module: INFRA — 12 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Module deep dive</div>
+        <h2 class="slide-title">
+          INFRA
+          <span
+            class="badge badge-success"
+            style="vertical-align: middle; margin-left: var(--space-2)"
+            ><span class="dot"></span>Done</span
+          >
+        </h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Cross-cutting infrastructure: lives at
+              <code class="badge">apps/server/src/infra</code>, root-level Docker Compose files,
+              nginx configuration — not a domain schema module like the others.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              The foundation the other modules build on: containerized services, reverse proxy,
+              shared infrastructure primitives (event bus, job runner — slide 8).
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 13 — Module deep dive: UI foundation -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="13">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Module: UI — 13 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Module deep dive</div>
+        <h2 class="slide-title">
+          UI foundation
+          <span
+            class="badge badge-success"
+            style="vertical-align: middle; margin-left: var(--space-2)"
+            ><span class="dot"></span>Done</span
+          >
+        </h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <code class="badge">packages/ui</code> — the shared component library used across the
+              frontend.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Two-tier structure: <strong>Tier 1/2</strong> primitives (shadcn-based — buttons,
+              inputs, dialogs) and <strong>Tier 3</strong> domain components (purpose-built for this
+              application).
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Tier 1/2: <strong>23</strong> component files. Tier 3: <strong>16</strong>.
+              <strong>39 total.</strong>
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Tier 3 components are name-matched to the frontend architecture spec (F5):
+              <code class="badge">DocumentNumberBadge</code>,
+              <code class="badge">WorkflowStepIndicator</code>, <code class="badge">SLATimer</code>,
+              <code class="badge">RoutingHistoryTimeline</code>,
+              <code class="badge">QRCodeDisplay</code>, and the
+              <code class="badge">AppShell</code>/<code class="badge">Sidebar</code>/<code
+                class="badge"
+                >Topbar</code
+              >
+              shell.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 14 — Module deep dive: UI test coverage (SVG: tier layering) -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="14">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Module: UI coverage — 14 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Module deep dive</div>
+        <h2 class="slide-title">UI test coverage</h2>
+        <div class="svg-frame" style="max-height: 40vh">
+          <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+            <g font-family="var(--font-heading)" font-weight="600" font-size="14">
+              <rect
+                x="30"
+                y="20"
+                width="640"
+                height="50"
+                rx="8"
+                fill="var(--accent-light)"
+                stroke="var(--accent)"
+                stroke-width="1.5"
+              />
+              <text x="50" y="50" fill="var(--text-primary)">Tier 1 — Base primitives</text>
+              <text
+                x="650"
+                y="50"
+                text-anchor="end"
+                font-family="var(--font-mono)"
+                font-size="13"
+                fill="var(--accent)"
+              >
+                23
+              </text>
+
+              <rect
+                x="70"
+                y="85"
+                width="560"
+                height="50"
+                rx="8"
+                fill="var(--surface)"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="90" y="115" fill="var(--text-primary)">Tier 2 — Composed primitives</text>
+
+              <rect
+                x="110"
+                y="150"
+                width="480"
+                height="50"
+                rx="8"
+                fill="var(--surface)"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="130" y="180" fill="var(--text-primary)">Tier 3 — Domain components</text>
+              <text
+                x="610"
+                y="180"
+                text-anchor="end"
+                font-family="var(--font-mono)"
+                font-size="13"
+                fill="var(--text-secondary)"
+              >
+                16
+              </text>
+            </g>
+            <text
+              x="350"
+              y="215"
+              text-anchor="middle"
+              font-family="var(--font-mono)"
+              font-size="12"
+              fill="var(--text-muted)"
+            >
+              39 components total
+            </text>
+          </svg>
+        </div>
+        <div class="bullet-list" style="gap: var(--space-2)">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Flat fact: <strong>zero test files</strong> across the entire package, all tiers, 39
+              components.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p style="font-size: var(--size-small)">
+              The test-strategy doc doesn't establish frontend component-level coverage as in-scope
+              either way — its explicit scope is backend-oriented, and its one relevant exclusion
+              ("UI pixel precision") refers to visual/E2E layout testing, not component unit tests.
+              Not a documented position that zero coverage is expected — a separate judgment call.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 15 — Module deep dive: IAM auth architecture -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="15">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Module: IAM — 15 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Module deep dive</div>
+        <h2 class="slide-title">
+          IAM — auth architecture
+          <span
+            class="badge badge-success"
+            style="vertical-align: middle; margin-left: var(--space-2)"
+            ><span class="dot"></span>Done</span
+          >
+        </h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Identity and access management — authentication and authorization for all users of the
+              system.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>Two-layer security model:</strong> Attribute-Based Access Control (ABAC) at
+              the application logic layer, PostgreSQL Row-Level Security (RLS) as a
+              database-enforced backstop.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Access control isn't just "trust the application code" — even if application logic has
+              a bug, the database itself refuses to return rows a user isn't authorized to see.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 16 — Module deep dive: IAM security model (SVG: ABAC+RLS) -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="16">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Module: IAM security model — 16 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Module deep dive</div>
+        <h2 class="slide-title">IAM — security model</h2>
+        <div class="svg-frame" style="max-height: 34vh">
+          <svg viewBox="0 0 700 190" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker
+                id="arrow15"
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M0,0 L10,5 L0,10 z" fill="var(--text-muted)" />
+              </marker>
+            </defs>
+            <rect
+              x="100"
+              y="15"
+              width="500"
+              height="55"
+              rx="8"
+              fill="var(--accent-light)"
+              stroke="var(--accent)"
+              stroke-width="1.5"
+            />
+            <text
+              x="350"
+              y="48"
+              text-anchor="middle"
+              font-family="var(--font-heading)"
+              font-weight="600"
+              font-size="14"
+              fill="var(--text-primary)"
+            >
+              Application layer — ABAC policy checks
+            </text>
+
+            <path
+              d="M350,72 L350,105"
+              stroke="var(--text-muted)"
+              stroke-width="1.5"
+              marker-end="url(#arrow15)"
+            />
+
+            <rect
+              x="100"
+              y="112"
+              width="500"
+              height="55"
+              rx="8"
+              fill="var(--surface)"
+              stroke="var(--border)"
+              stroke-width="1.5"
+            />
+            <text
+              x="350"
+              y="145"
+              text-anchor="middle"
+              font-family="var(--font-heading)"
+              font-weight="600"
+              font-size="14"
+              fill="var(--text-primary)"
+            >
+              Database layer — PostgreSQL Row-Level Security
+            </text>
+          </svg>
+        </div>
+        <div class="bullet-list" style="gap: var(--space-2)">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>RLS policies, concretely:</strong> 4
+              <code class="badge">CREATE POLICY</code> statements across IAM and Documents schemas —
+              session ownership/admin access, office-based document isolation, and a policy
+              excluding the IT-admin role from confidential document content even though IT-admin
+              has broad system access otherwise.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p style="font-size: var(--size-small)">
+              That last point is ABAC+RLS working together: an IT admin can manage the system
+              without reading confidential document contents — enforced at the database level, not
+              just an application-level check.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 17 — Module deep dive: AUDIT -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="17">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Module: AUDIT — 17 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Module deep dive</div>
+        <h2 class="slide-title">
+          AUDIT
+          <span
+            class="badge badge-success"
+            style="vertical-align: middle; margin-left: var(--space-2)"
+            ><span class="dot"></span>Done</span
+          >
+        </h2>
+        <div class="card-grid cols-3">
+          <div class="card reveal-unit">
+            <div class="card-title">Hash chain</div>
+            <p>
+              Each audit entry cryptographically linked to the previous via
+              <code>createHash('sha256')</code> and <code>createHmac('sha256', secret)</code> —
+              Node's built-in <code>crypto</code> only, no external library.
+              <code>timingSafeEqual</code> used wherever signature/hash comparison happens.
+            </p>
+          </div>
+          <div class="card reveal-unit">
+            <div class="card-title">Grants, DB-enforced</div>
+            <p>
+              A dedicated <code>batac_audit</code> role has <code>UPDATE</code> and
+              <code>DELETE</code> explicitly revoked on audit tables — entries can be inserted,
+              never modified or deleted, enforced by grants, not just app logic. An over-permissive
+              grant was caught and fixed (resolved 2026-06-24).
+            </p>
+          </div>
+          <div class="card reveal-unit">
+            <div class="card-title">Coverage & export</div>
+            <p>
+              Real test coverage exists here — worth noting alongside Workflow's zero (slide 21).
+              Exports in RFC 3161 timestamp-authority format for independent verification.
+            </p>
+          </div>
+        </div>
+        <div class="callout callout-warning reveal-unit">
+          <strong>Claim boundary, stated precisely</strong>
+          <p>
+            Documented as <strong>"tamper-evident, not tamper-proof"</strong> — it provides evidence
+            that tampering occurred, not prevention of tampering. Worth stating exactly this way
+            rather than rounding up to "tamper-proof."
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 18 — Module deep dive: ORG -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="18">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Module: ORG — 18 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Module deep dive</div>
+        <h2 class="slide-title">
+          ORG
+          <span
+            class="badge badge-success"
+            style="vertical-align: middle; margin-left: var(--space-2)"
+            ><span class="dot"></span>Done</span
+          >
+        </h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Manages office hierarchy and delegation of authority — e.g. an office head delegating
+              signing authority while away.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>Delegation mechanism, precisely:</strong> grants are rows in a dedicated
+              table, created when a Designation document is logged. One active designation per
+              person is enforced via a database-level partial unique index — one of the project's
+              named architectural invariants (<strong>Invariant #16</strong>).
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              The grant takes effect immediately on successful insert — no separate
+              admin-confirmation step. Scope is time-bounded via an end-date field; "time-bounded
+              scope" is the accurate description, not a named "auto-expiry" feature.
+            </p>
+          </div>
+          <div class="bullet-item sub reveal-unit">
+            <span class="marker"></span>
+            <p style="font-size: var(--size-small)">
+              <em>Optional, if there's time:</em> one still-open, non-blocking design question —
+              whether roles like "Acting Mayor" are literal seeded role assignments or need a
+              different enforcement path based on delegation scope. Doesn't need resolving before
+              current seed data, only before delegation grants for Mayor-equivalent authority go
+              live.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 19 — Module deep dive: DOCS -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="19">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Module: DOCS — 19 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Module deep dive</div>
+        <h2 class="slide-title">
+          DOCS
+          <span
+            class="badge badge-success"
+            style="vertical-align: middle; margin-left: var(--space-2)"
+            ><span class="dot"></span>Done</span
+          >
+        </h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              The core document lifecycle module — documents move through a defined state machine
+              from submission to final disposition.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>Two-stage numbering:</strong> a preliminary series number is assigned at
+              intake; the full mechanism is covered next (Tracking), where it connects to QR
+              assignment.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Files upload <strong>direct-to-S3</strong> — not routed through the application server
+              as a bottleneck — with an OCR pipeline for scanned documents.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>Versioning is built in — revisions are tracked, not overwritten.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 20 — Module deep dive: TRACK -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="20">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Module: TRACK — 20 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Module deep dive</div>
+        <h2 class="slide-title">
+          TRACK
+          <span
+            class="badge badge-success"
+            style="vertical-align: middle; margin-left: var(--space-2)"
+            ><span class="dot"></span>Done</span
+          >
+        </h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Public-facing document tracking — anyone can scan a QR code to check a document's
+              status, no login needed.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>QR-before-numbering, precisely:</strong> per the project's ADR, the QR code —
+              a UUID — is assigned first, during the Secretariat's initial logging transaction,
+              <em>before</em> the preliminary series number. Once assigned, it's immutable and
+              independent of whatever numbering happens afterward.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Routing history is <strong>append-only</strong> — every step a document takes through
+              offices is recorded and never overwritten, giving a complete audit trail of where a
+              document has been.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>Page-blurring rule</strong> for public lookups: first page visible via a
+              pre-rendered image, subsequent pages blurred. "Get a copy" leads into the formal
+              Document Request Form flow, which requires Vice Mayor and SP Secretary approval —
+              public visibility is intentionally limited, full access goes through a real approval
+              gate.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 21 — How modules talk to each other (SVG: event-flow chain) -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="21">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Event flow — 21 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Cross-module communication</div>
+        <h2 class="slide-title">How modules talk to each other</h2>
+        <div class="svg-frame" style="max-height: 42vh">
+          <svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker
+                id="arrow20"
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)" />
+              </marker>
+            </defs>
+            <rect
+              x="20"
+              y="105"
+              width="170"
+              height="55"
+              rx="8"
+              fill="var(--accent-light)"
+              stroke="var(--accent)"
+              stroke-width="1.5"
+            />
+            <text
+              x="105"
+              y="138"
+              text-anchor="middle"
+              font-family="var(--font-heading)"
+              font-weight="600"
+              font-size="14"
+              fill="var(--text-primary)"
+            >
+              Documents module
+            </text>
+
+            <text
+              x="290"
+              y="128"
+              font-family="var(--font-mono)"
+              font-size="12"
+              fill="var(--accent)"
+            >
+              document.created
+            </text>
+
+            <g stroke="var(--accent)" stroke-width="1.5" fill="none">
+              <path d="M190,120 L440,40" marker-end="url(#arrow20)" />
+              <path d="M190,132 L440,132" marker-end="url(#arrow20)" />
+              <path d="M190,144 L440,225" marker-end="url(#arrow20)" />
+            </g>
+
+            <g font-family="var(--font-heading)" font-weight="600" font-size="13">
+              <rect
+                x="450"
+                y="12"
+                width="330"
+                height="55"
+                rx="8"
+                fill="var(--surface)"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="470" y="34" fill="var(--text-primary)">Tracking</text>
+              <text
+                x="470"
+                y="53"
+                font-family="var(--font-body)"
+                font-weight="400"
+                font-size="12"
+                fill="var(--text-secondary)"
+              >
+                generates QR
+              </text>
+
+              <rect
+                x="450"
+                y="104"
+                width="330"
+                height="55"
+                rx="8"
+                fill="var(--surface)"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="470" y="126" fill="var(--text-primary)">Workflow</text>
+              <text
+                x="470"
+                y="145"
+                font-family="var(--font-body)"
+                font-weight="400"
+                font-size="12"
+                fill="var(--text-secondary)"
+              >
+                creates workflow instance
+              </text>
+
+              <rect
+                x="450"
+                y="196"
+                width="330"
+                height="55"
+                rx="8"
+                fill="var(--surface)"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="470" y="218" fill="var(--text-primary)">Audit</text>
+              <text
+                x="470"
+                y="237"
+                font-family="var(--font-body)"
+                font-weight="400"
+                font-size="12"
+                fill="var(--text-secondary)"
+              >
+                logs the event
+              </text>
+            </g>
+          </svg>
+        </div>
+        <div class="bullet-list" style="gap: var(--space-2)">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Concrete case: <code class="badge">document.created</code> fires from Documents, and
+              <strong>three modules</strong> subscribe independently — Tracking, Workflow, Audit.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              This is the modular monolith pattern from slide 7, made concrete — Documents doesn't
+              know Tracking or Workflow exist. It emits an event, and whoever's listening reacts.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 22 — Engineering practices: testing -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="22">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Testing — 22 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Engineering practices</div>
+        <h2 class="slide-title">Testing, quantified</h2>
+        <table class="data-table reveal-unit">
+          <thead>
+            <tr>
+              <th>Module</th>
+              <th>State</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Documents</td>
+              <td class="status-done">Real test coverage exists</td>
+            </tr>
+            <tr>
+              <td>Audit</td>
+              <td class="status-done">Real test coverage exists</td>
+            </tr>
+            <tr>
+              <td>Workflow</td>
+              <td class="status-pending">
+                10 explicit <code>NotImplementedError</code> throw sites (3 plugin, 7 engine); zero
+                test files
+              </td>
+            </tr>
+            <tr>
+              <td>UI package</td>
+              <td class="status-pending">Zero test files across all 39 components</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="reveal-unit" style="font-size: var(--size-small); max-width: 78ch">
+          The Workflow row is the honest, current state of an in-progress module, not a hidden gap —
+          consistent with it being actively under construction. The UI row is a plain fact per slide
+          13, not asserted as an accepted project position.
+        </p>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 23 — Documentation-driven development -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="23">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Documentation — 23 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Engineering practices</div>
+        <h2 class="slide-title">Documentation-driven development</h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Runs on a substantial pre-development documentation set: architecture documents,
+              Architecture Decision Records for major technical choices, and a routing file (<code
+                class="badge"
+                >AGENTS.md</code
+              >) directing contributors to the right document for a given question.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Findings and issues get logged in an <strong>append-only findings log</strong> as
+              they're discovered — including the audit-grants over-permission issue caught and fixed
+              (slide 16), documented rather than quietly patched.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              A big part of why a small team maintains architectural discipline without a dedicated
+              architecture team — decisions are written down once and referenced, not re-litigated
+              per pull request.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 24 — Database & schema discipline -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="24">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Database discipline — 24 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Engineering practices</div>
+        <h2 class="slide-title">Database & schema discipline</h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>Schema-per-module</strong> — each module owns its own PostgreSQL schema,
+              enforcing the modular monolith boundary at the data layer (slide 7).
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>No cross-schema foreign keys</strong> — modules can't create hard
+              database-level dependencies on each other's internals, only through the event bus.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>Migrations-only</strong> — schema changes go through versioned Drizzle
+              migrations, not manual edits. <strong>7 migrations</strong> exist to date, including
+              Workflow's schema migration (schema exists even though application logic doesn't yet —
+              schema-first).
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              All migration SQL is under version control, reviewable like any other code change.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 25 — What's not yet done -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="25">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Remaining work — 25 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Status</div>
+        <h2 class="slide-title">What's not yet done</h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>Four modules remain: <strong>Workflow, Records, Notifications, Portal.</strong></p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Not four independent tasks — a dependency chain. Workflow is the blocker: Records,
+              Notifications, and Portal all depend on workflow state existing before they can
+              function.
+            </p>
+          </div>
+          <div class="bullet-item sub reveal-unit">
+            <span class="marker"></span>
+            <p style="font-size: var(--size-small)">
+              A record needs a completed workflow to record. A notification needs a workflow event
+              to notify about. The public portal needs workflow status to display.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Finishing <strong>one module — Workflow —</strong> is what unlocks the other three.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 26 — What's next (SVG: dependency graph revisited) -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="26">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">What's next — 26 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">The critical path</div>
+        <h2 class="slide-title">What's next</h2>
+        <div class="svg-frame">
+          <svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker
+                id="arrow25"
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M0,0 L10,5 L0,10 z" fill="var(--text-muted)" />
+              </marker>
+              <marker
+                id="arrow25b"
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)" />
+              </marker>
+            </defs>
+            <!-- WF as the highlighted "you are here" target -->
+            <circle
+              cx="130"
+              cy="170"
+              r="46"
+              fill="var(--accent-light)"
+              stroke="var(--accent)"
+              stroke-width="2.5"
+            />
+            <text
+              x="130"
+              y="164"
+              text-anchor="middle"
+              font-family="var(--font-heading)"
+              font-weight="700"
+              font-size="16"
+              fill="var(--text-primary)"
+            >
+              WF
+            </text>
+            <text
+              x="130"
+              y="182"
+              text-anchor="middle"
+              font-family="var(--font-mono)"
+              font-size="10"
+              fill="var(--accent)"
+            >
+              next target
+            </text>
+            <circle
+              cx="130"
+              cy="170"
+              r="58"
+              fill="none"
+              stroke="var(--accent)"
+              stroke-width="1"
+              stroke-dasharray="3 5"
+              opacity="0.6"
+            />
+
+            <!-- three targets, muted -->
+            <g
+              font-family="var(--font-heading)"
+              font-weight="600"
+              font-size="14"
+              fill="var(--text-muted)"
+            >
+              <rect
+                x="380"
+                y="40"
+                width="260"
+                height="52"
+                rx="8"
+                fill="none"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="510" y="72" text-anchor="middle">Records</text>
+
+              <rect
+                x="380"
+                y="144"
+                width="260"
+                height="52"
+                rx="8"
+                fill="none"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="510" y="176" text-anchor="middle">Notifications</text>
+
+              <rect
+                x="380"
+                y="248"
+                width="260"
+                height="52"
+                rx="8"
+                fill="none"
+                stroke="var(--border)"
+                stroke-width="1.5"
+              />
+              <text x="510" y="280" text-anchor="middle">Portal</text>
+            </g>
+
+            <g stroke="var(--text-muted)" stroke-width="1.5" fill="none" stroke-dasharray="5 4">
+              <path d="M182,148 L380,66" marker-end="url(#arrow25)" />
+              <path d="M188,170 L380,170" marker-end="url(#arrow25)" />
+              <path d="M182,192 L380,270" marker-end="url(#arrow25)" />
+            </g>
+
+            <text
+              x="130"
+              y="255"
+              text-anchor="middle"
+              font-family="var(--font-mono)"
+              font-size="11"
+              fill="var(--text-muted)"
+            >
+              becomes buildable once done
+            </text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 27 — CI/CD -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="27">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">CI/CD — 27 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Engineering practices</div>
+        <h2 class="slide-title">CI/CD — a working pipeline</h2>
+        <div class="pipeline-row reveal-unit">
+          <span class="pipeline-stage">lint-typecheck</span><span class="pipeline-arrow">→</span>
+          <span class="pipeline-stage">unit-tests</span><span class="pipeline-arrow">→</span>
+          <span class="pipeline-stage">integration-tests</span><span class="pipeline-arrow">→</span>
+          <span class="pipeline-stage">build</span><span class="pipeline-arrow">→</span>
+          <span class="pipeline-stage">e2e-tests</span><span class="pipeline-arrow">→</span>
+          <span class="pipeline-stage">deploy-staging</span><span class="pipeline-arrow">→</span>
+          <span class="pipeline-stage">deploy-production</span>
+        </div>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>Integration tests</strong> run against real service containers — actual
+              PostgreSQL and MinIO — not mocks, with real database roles bootstrapped and real
+              migrations applied.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p><strong>Build</strong> produces real Docker images for both server and web apps.</p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>E2E tests</strong> run with Playwright against a live, fully composed stack,
+              gated on pushes to main.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>Staging and production deploys</strong> are real SSH-based deploys, each gated
+              behind the stage before it — nothing skips ahead.
+            </p>
+          </div>
+        </div>
+        <p class="reveal-unit" style="font-size: var(--size-body); max-width: 78ch">
+          <strong>This is a working pipeline that already gates what ships</strong> — not a plan for
+          one.
+        </p>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 28 — Risks / open items -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="28">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Risks — 28 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Honest accounting</div>
+        <h2 class="slide-title">Risks & open items</h2>
+        <div class="callout callout-info reveal-unit">
+          <strong>Development-time unknown vs. documentation gap</strong>
+          <p>
+            The project's own planning docs distinguish these explicitly. Several things genuinely
+            cannot be pre-decided no matter how much documentation exists up front — and are listed
+            as such, not as oversights.
+          </p>
+        </div>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Examples: exact Drizzle/PostgreSQL edge-case behavior for complex constraints; SSE
+              reconnection behavior under intermittent connectivity (relevant for lower-connectivity
+              Barangay contexts); pgboss retry/dead-letter behavior for long-running timers; OCR
+              quality calibration.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p style="font-size: var(--size-small)">
+              All explicitly framed as legitimate decisions that can only be made once real
+              implementation and real data exist — not gaps in planning.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Smaller open items: Phase 2 will need to enforce MFA more strictly — deferred by
+              design for Phase 1, not forgotten. Known implementation gaps are actively tracked in
+              the design documentation as found.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 29 — Summary -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="29">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Summary — 29 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="eyebrow">Summary</div>
+        <h2 class="slide-title">Where things stand</h2>
+        <div class="bullet-list">
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              <strong>7 of 11 Phase 1 modules complete:</strong> INFRA, UI, IAM, AUDIT, ORG, DOCS,
+              TRACK.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              A <strong>modular monolith</strong> architecture, chosen deliberately for this team
+              and deployment context — enforced through schema ownership, an event bus, and coupling
+              tests rather than network isolation.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              Real security enforcement at the database level (RLS), a tamper-evident audit trail,
+              and a working CI/CD pipeline already gating what ships.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>
+              One clear next target — <strong>Workflow</strong> — which unlocks the three remaining
+              modules once complete.
+            </p>
+          </div>
+          <div class="bullet-item reveal-unit">
+            <span class="marker"></span>
+            <p>Open items are known, documented, and distinguished from genuine planning gaps.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SLIDE 30 — Closing / Q&A -->
+    <!-- ============================================================ -->
+    <div class="slide" data-slide="30">
+      <div class="accent-bar"></div>
+      <div class="topbar">
+        <span class="topbar-left"><span class="dot"></span>Batac DMS</span
+        ><span class="topbar-right">Q&A — 30 / 30</span>
+      </div>
+      <div class="slide-content">
+        <div class="center-stage">
+          <div class="eyebrow">Thank you</div>
+          <h1 style="font-size: var(--size-display); font-weight: var(--weight-bold)">
+            Questions?
+          </h1>
+          <p style="font-size: var(--size-h3); color: var(--text-secondary)">
+            Batac DMS — Phase 1 Progress Report
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <button id="themeToggle" class="theme-toggle" aria-label="Toggle Theme">
+      <!-- Sun icon -->
+      <svg
+        class="sun-icon"
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2" />
+        <path d="M12 20v2" />
+        <path d="m4.93 4.93 1.41 1.41" />
+        <path d="m17.66 17.66 1.41 1.41" />
+        <path d="M2 12h2" />
+        <path d="M20 12h2" />
+        <path d="m6.34 17.66-1.41 1.41" />
+        <path d="m19.07 4.93-1.41 1.41" />
+      </svg>
+      <!-- Moon icon -->
+      <svg
+        class="moon-icon"
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+      </svg>
+    </button>
+
+    <script>
+      (function () {
+        const slides = Array.from(document.querySelectorAll('.slide'));
+        const total = slides.length;
+        let currentSlide = 0;
+        let progressiveMode = true;
+        const revealedCounts = new Array(total).fill(0);
+        const modeIndicator = document.getElementById('modeIndicator');
+        const progressTrack = document.getElementById('progressTrack');
+        const themeToggle = document.getElementById('themeToggle');
+
+        // theme management
+        function initTheme() {
+          const savedTheme = localStorage.getItem('theme');
+          if (savedTheme === 'light') {
+            document.body.classList.add('light-mode');
+          }
         }
-      }
-    }
-  }
+        initTheme();
 
-  function toggleProgressive() {
-    progressiveMode = !progressiveMode;
-    if (!progressiveMode) {
-      revealAllOnCurrentSlide();
-    }
-    modeIndicator.textContent = 'Progressive: ' + (progressiveMode ? 'ON' : 'OFF');
-    modeIndicator.classList.add('show');
-    setTimeout(() => modeIndicator.classList.remove('show'), 2000);
-  }
+        function toggleTheme() {
+          const isLight = document.body.classList.toggle('light-mode');
+          localStorage.setItem('theme', isLight ? 'light' : 'dark');
+        }
 
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'ArrowRight') { forwardStep(); }
-    else if (e.key === 'ArrowLeft') { backStep(); }
-    else if (e.key === 'p' || e.key === 'P') { toggleProgressive(); }
-    else if (e.key === 't' || e.key === 'T') { toggleTheme(); }
-  });
+        if (themeToggle) {
+          themeToggle.addEventListener('click', function (e) {
+            e.stopPropagation(); // prevent slide transitions
+            toggleTheme();
+          });
+        }
 
-  document.addEventListener('click', function(e) {
-    const w = window.innerWidth;
-    if (e.clientX < w / 2) { backStep(); } else { forwardStep(); }
-  });
+        function revealUnitsFor(slideIndex) {
+          return Array.from(slides[slideIndex].querySelectorAll('.reveal-unit'));
+        }
 
-  // init: first slide starts with nothing revealed if progressive mode is on
-  updateProgress();
-})();
-</script>
-</body>
+        function updateProgress() {
+          progressTrack.style.width = ((currentSlide + 1) / total) * 100 + '%';
+        }
+
+        function showSlide(index, opts) {
+          opts = opts || {};
+          slides[currentSlide].classList.remove('active');
+          currentSlide = Math.max(0, Math.min(total - 1, index));
+          slides[currentSlide].classList.add('active');
+          updateProgress();
+          if (!opts.preserveReveal) {
+            // entering a slide fresh: if progressive mode is off, show everything immediately
+            if (!progressiveMode) {
+              revealAllOnCurrentSlide();
+            }
+          }
+        }
+
+        function revealAllOnCurrentSlide() {
+          const units = revealUnitsFor(currentSlide);
+          units.forEach((u) => u.classList.add('revealed'));
+          revealedCounts[currentSlide] = units.length;
+        }
+
+        function hideAllOnCurrentSlide() {
+          const units = revealUnitsFor(currentSlide);
+          units.forEach((u) => u.classList.remove('revealed'));
+          revealedCounts[currentSlide] = 0;
+        }
+
+        function forwardStep() {
+          const units = revealUnitsFor(currentSlide);
+          if (progressiveMode && revealedCounts[currentSlide] < units.length) {
+            units[revealedCounts[currentSlide]].classList.add('revealed');
+            revealedCounts[currentSlide]++;
+          } else {
+            if (currentSlide < total - 1) {
+              showSlide(currentSlide + 1);
+            }
+          }
+        }
+
+        function backStep() {
+          if (progressiveMode && revealedCounts[currentSlide] > 0) {
+            revealedCounts[currentSlide]--;
+            const units = revealUnitsFor(currentSlide);
+            units[revealedCounts[currentSlide]].classList.remove('revealed');
+          } else {
+            if (currentSlide > 0) {
+              const prevIndex = currentSlide - 1;
+              slides[currentSlide].classList.remove('active');
+              currentSlide = prevIndex;
+              slides[currentSlide].classList.add('active');
+              updateProgress();
+              if (progressiveMode) {
+                // arriving via "back" shows the slide fully revealed, as if mid-way through
+                revealAllOnCurrentSlide();
+              } else {
+                revealAllOnCurrentSlide();
+              }
+            }
+          }
+        }
+
+        function toggleProgressive() {
+          progressiveMode = !progressiveMode;
+          if (!progressiveMode) {
+            revealAllOnCurrentSlide();
+          }
+          modeIndicator.textContent = 'Progressive: ' + (progressiveMode ? 'ON' : 'OFF');
+          modeIndicator.classList.add('show');
+          setTimeout(() => modeIndicator.classList.remove('show'), 2000);
+        }
+
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'ArrowRight') {
+            forwardStep();
+          } else if (e.key === 'ArrowLeft') {
+            backStep();
+          } else if (e.key === 'p' || e.key === 'P') {
+            toggleProgressive();
+          } else if (e.key === 't' || e.key === 'T') {
+            toggleTheme();
+          }
+        });
+
+        document.addEventListener('click', function (e) {
+          const w = window.innerWidth;
+          if (e.clientX < w / 2) {
+            backStep();
+          } else {
+            forwardStep();
+          }
+        });
+
+        // init: first slide starts with nothing revealed if progressive mode is on
+        updateProgress();
+      })();
+    </script>
+  </body>
 </html>

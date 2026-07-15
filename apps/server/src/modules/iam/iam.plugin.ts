@@ -66,15 +66,13 @@ async function iamPlugin(fastify: FastifyInstance): Promise<void> {
     db: fastify.db,
     iamRepository,
     auditService: fastify.auditService, // decorated by the audit plugin (dependency)
-    eventBus: fastify.eventBus,         // decorated by the event-bus plugin (dependency)
+    eventBus: fastify.eventBus, // decorated by the event-bus plugin (dependency)
     policyEvaluator,
     // TASK-ORG-010: wire real org-context resolvers
     // (Previously: intentionally omitted, defaulting to safe no-ops — see TASK-IAM-006.)
-    getPrimaryOffice: (userId) =>
-      fastify.organizationService.getPrimaryOfficeForUser(userId),
+    getPrimaryOffice: (userId) => fastify.organizationService.getPrimaryOfficeForUser(userId),
 
-    getCommitteeIds: (userId) =>
-      fastify.organizationService.getCommitteeIdsForUser(userId),
+    getCommitteeIds: (userId) => fastify.organizationService.getCommitteeIdsForUser(userId),
 
     resolveActiveDelegationGrant: (delegationGrantId) =>
       fastify.delegationService.getDelegationGrantById(delegationGrantId),

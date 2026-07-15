@@ -4,7 +4,6 @@
 Status: Pre-Development Baseline | June 2026
 Audience: Development team — IAM configuration reference
 
-
 ## Table of Contents
 
 - [L36–L52] How to Read This Matrix — Key for symbols, office-scoping boundaries (ABAC), role precedence rules, and notes reference.
@@ -37,8 +36,8 @@ Audience: Development team — IAM configuration reference
 
 | Symbol | Meaning                                                                   |
 | ------ | ------------------------------------------------------------------------- |
-| ✅      | **Allow** — role may perform this action unconditionally                  |
-| ❌      | **Deny** — role may never perform this action                             |
+| ✅     | **Allow** — role may perform this action unconditionally                  |
+| ❌     | **Deny** — role may never perform this action                             |
 | 🔶     | **Conditional** — allowed subject to the stated condition (see footnotes) |
 | —      | **Not applicable** — the action category does not apply to this role      |
 
@@ -52,276 +51,276 @@ Audience: Development team — IAM configuration reference
 
 ## Roles Reference
 
-| # | Role | Primary Scope |
-|---|------|---------------|
-| 1 | System Administrator | Infrastructure; no document content access |
-| 2 | Platform Administrator | Configuration; no document processing |
-| 3 | Records Officer | Archiving, retention, disposition |
-| 4 | Department Encoder | Create and submit documents for their office |
-| 5 | Department Approver | Approve documents at their office level |
-| 6 | SP Secretary | Full SP legislative document lifecycle |
-| 7 | SP Member | Review, comment, vote on legislative documents |
-| 8 | SP Presiding Officer | Certify SP legislative output |
-| 9 | Mayor | Highest executive approval authority |
-| 10 | Barangay Encoder | Submit documents on behalf of a barangay |
-| 11 | Barangay Captain | Approve and sign barangay-originated documents |
-| 12 | Auditor | Read-only: finalized documents, audit logs, and own task inbox |
-| 13 | Citizen | Public portal; own submitted requests and complaints only |
+| #   | Role                   | Primary Scope                                                  |
+| --- | ---------------------- | -------------------------------------------------------------- |
+| 1   | System Administrator   | Infrastructure; no document content access                     |
+| 2   | Platform Administrator | Configuration; no document processing                          |
+| 3   | Records Officer        | Archiving, retention, disposition                              |
+| 4   | Department Encoder     | Create and submit documents for their office                   |
+| 5   | Department Approver    | Approve documents at their office level                        |
+| 6   | SP Secretary           | Full SP legislative document lifecycle                         |
+| 7   | SP Member              | Review, comment, vote on legislative documents                 |
+| 8   | SP Presiding Officer   | Certify SP legislative output                                  |
+| 9   | Mayor                  | Highest executive approval authority                           |
+| 10  | Barangay Encoder       | Submit documents on behalf of a barangay                       |
+| 11  | Barangay Captain       | Approve and sign barangay-originated documents                 |
+| 12  | Auditor                | Read-only: finalized documents, audit logs, and own task inbox |
+| 13  | Citizen                | Public portal; own submitted requests and complaints only      |
 
 ---
 
 ## Section 1 — Identity and Access Management (IAM)
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Create user accounts | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Edit user accounts (name, contact, office) | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Deactivate / reactivate user accounts | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Assign roles to users | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Revoke roles from users | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View user directory (name, office, role) | ✅ | ✅ | ✅ | 🔶¹ | 🔶¹ | ✅ | 🔶¹ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| View own profile | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Edit own profile (non-security fields) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Change own password | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Enroll / manage own MFA (Phase 2) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
-| Force-terminate any user session | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View active sessions (own) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| View active sessions (all users) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Register citizen account (self) | — | — | — | — | — | — | — | — | — | — | — | — | ✅ |
-| Register citizen account (clerk-assisted) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Permission                                 | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| ------------------------------------------ | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Create user accounts                       |    ✅     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Edit user accounts (name, contact, office) |    ✅     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Deactivate / reactivate user accounts      |    ✅     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Assign roles to users                      |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Revoke roles from users                    |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View user directory (name, office, role)   |    ✅     |     ✅     |     ✅      |     🔶¹      |      🔶¹      |      ✅      |    🔶¹    |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| View own profile                           |    ✅     |     ✅     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ✅    |
+| Edit own profile (non-security fields)     |    ✅     |     ✅     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ✅    |
+| Change own password                        |    ✅     |     ✅     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ✅    |
+| Enroll / manage own MFA (Phase 2)          |    ✅     |     ✅     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |    —    |
+| Force-terminate any user session           |    ✅     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View active sessions (own)                 |    ✅     |     ✅     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ✅    |
+| View active sessions (all users)           |    ✅     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Register citizen account (self)            |     —     |     —      |      —      |      —       |       —       |      —       |     —     |      —       |   —   |      —       |      —       |    —    |   ✅    |
+| Register citizen account (clerk-assisted)  |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
 
 ---
 
 ## Section 2 — Organization Structure
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Create / edit office records | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Deactivate office records | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Create / edit position records | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Create / edit employee records | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Assign employees to offices and positions | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View organization chart (all offices) | ✅ | ✅ | ✅ | 🔶² | 🔶² | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| Create designation grant | ❌ | ❌ | ❌ | ❌ | ❌ | 🔶³ | ❌ | ❌ | 🔶³ | ❌ | ❌ | ❌ | ❌ |
-| Revoke active designation grant early | ❌ | ❌ | ❌ | ❌ | ❌ | 🔶⁴ | ❌ | 🔶⁴ | 🔶⁴ | ❌ | ❌ | ❌ | ❌ |
-| View active designations | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| View designation history | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Permission                                | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| ----------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Create / edit office records              |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Deactivate office records                 |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Create / edit position records            |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Create / edit employee records            |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Assign employees to offices and positions |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View organization chart (all offices)     |    ✅     |     ✅     |     ✅      |     🔶²      |      🔶²      |      ✅      |    ✅     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| Create designation grant                  |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |     🔶³      |    ❌     |      ❌      |  🔶³  |      ❌      |      ❌      |   ❌    |   ❌    |
+| Revoke active designation grant early     |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |     🔶⁴      |    ❌     |     🔶⁴      |  🔶⁴  |      ❌      |      ❌      |   ❌    |   ❌    |
+| View active designations                  |    ✅     |     ✅     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| View designation history                  |    ✅     |     ✅     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
 
 ---
 
 ## Section 3 — Platform Configuration
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Create / edit document type definitions | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Publish / deprecate document type definitions | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Create / edit numbering series | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Create / edit workflow definitions | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Publish / deprecate workflow definitions | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Create / edit role definitions and permissions | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Create / edit SLA thresholds and escalation targets | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Create / edit notification templates | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Create / edit retention schedules | ❌ | ✅ | 🔶⁵ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Create / edit document type public visibility rules | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Create / edit standing committee definitions | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Access system health and infrastructure metrics | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Manage encryption keys and secrets | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Execute database schema migrations | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Trigger backup and restore operations | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Permission                                          | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| --------------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Create / edit document type definitions             |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Publish / deprecate document type definitions       |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Create / edit numbering series                      |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Create / edit workflow definitions                  |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Publish / deprecate workflow definitions            |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Create / edit role definitions and permissions      |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Create / edit SLA thresholds and escalation targets |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Create / edit notification templates                |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Create / edit retention schedules                   |    ❌     |     ✅     |     🔶⁵     |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Create / edit document type public visibility rules |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Create / edit standing committee definitions        |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Access system health and infrastructure metrics     |    ✅     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Manage encryption keys and secrets                  |    ✅     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Execute database schema migrations                  |    ✅     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Trigger backup and restore operations               |    ✅     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
 
 ---
 
 ## Section 4 — Document Creation and Submission
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Create new document (draft) — own office | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Edit document in Draft state — own office | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | 🔶⁶ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Delete document in Draft state (soft delete) — own office | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Submit document (Draft → Submitted) — own office | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Upload file attachment to document — own office | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | 🔶⁶ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Remove file attachment (soft delete) — own office | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Create document on behalf of another user (clerk-assisted) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Assign preliminary series number (Draft prefix) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Assign final series number (remove Draft prefix) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Cancel document (from any active state) — own office | ❌ | ❌ | ❌ | 🔶⁷ | ✅ | ✅ | ❌ | ✅ | ✅ | 🔶⁷ | ✅ | ❌ | ❌ |
-| Log Certification of Urgency (attach to measure) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Log Designation document (extract scope, enter in system) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Generate transmittal letter (SPS) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Generate Order of Business | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Permission                                                 | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| ---------------------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Create new document (draft) — own office                   |    ❌     |     ❌     |     ❌      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ❌    |   ❌    |
+| Edit document in Draft state — own office                  |    ❌     |     ❌     |     ❌      |      ✅      |      ✅       |      ✅      |    🔶⁶    |      ✅      |  ✅   |      ✅      |      ✅      |   ❌    |   ❌    |
+| Delete document in Draft state (soft delete) — own office  |    ❌     |     ❌     |     ❌      |      ✅      |      ✅       |      ✅      |    ❌     |      ✅      |  ✅   |      ✅      |      ✅      |   ❌    |   ❌    |
+| Submit document (Draft → Submitted) — own office           |    ❌     |     ❌     |     ❌      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ❌    |   ❌    |
+| Upload file attachment to document — own office            |    ❌     |     ❌     |     ❌      |      ✅      |      ✅       |      ✅      |    🔶⁶    |      ✅      |  ✅   |      ✅      |      ✅      |   ❌    |   ❌    |
+| Remove file attachment (soft delete) — own office          |    ❌     |     ❌     |     ❌      |      ✅      |      ✅       |      ✅      |    ❌     |      ✅      |  ✅   |      ✅      |      ✅      |   ❌    |   ❌    |
+| Create document on behalf of another user (clerk-assisted) |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Assign preliminary series number (Draft prefix)            |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Assign final series number (remove Draft prefix)           |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Cancel document (from any active state) — own office       |    ❌     |     ❌     |     ❌      |     🔶⁷      |      ✅       |      ✅      |    ❌     |      ✅      |  ✅   |     🔶⁷      |      ✅      |   ❌    |   ❌    |
+| Log Certification of Urgency (attach to measure)           |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Log Designation document (extract scope, enter in system)  |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Generate transmittal letter (SPS)                          |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Generate Order of Business                                 |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
 
 ---
 
 ## Section 5 — Document Viewing and Search
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| View document metadata — own office | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| View document metadata — all offices (Internal classification) | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| View document file content — own office (Internal classification) | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| View document file content — all offices (Internal classification) | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | 🔶⁸ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| View document file content — Confidential / Restricted | ❌ | ❌ | 🔶⁹ | ❌ | ❌ | 🔶⁹ | ❌ | ❌ | 🔶⁹ | ❌ | ❌ | ❌ | ❌ |
-| View document version history | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Download document file — own office | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Download document file — all offices (Internal) | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | 🔶⁸ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| Full-text search across documents | ❌ | ❌ | ✅ | 🔶¹⁰ | 🔶¹⁰ | ✅ | 🔶¹⁰ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| View Public-classification documents | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 🔶¹¹ |
+| Permission                                                         | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| ------------------------------------------------------------------ | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| View document metadata — own office                                |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ❌    |
+| View document metadata — all offices (Internal classification)     |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    ✅     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| View document file content — own office (Internal classification)  |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ❌    |
+| View document file content — all offices (Internal classification) |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    🔶⁸    |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| View document file content — Confidential / Restricted             |    ❌     |     ❌     |     🔶⁹     |      ❌      |      ❌       |     🔶⁹      |    ❌     |      ❌      |  🔶⁹  |      ❌      |      ❌      |   ❌    |   ❌    |
+| View document version history                                      |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ❌    |
+| Download document file — own office                                |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ❌    |
+| Download document file — all offices (Internal)                    |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    🔶⁸    |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| Full-text search across documents                                  |    ❌     |     ❌     |     ✅      |     🔶¹⁰     |     🔶¹⁰      |      ✅      |   🔶¹⁰    |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| View Public-classification documents                               |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |  🔶¹¹   |
 
 ---
 
 ## Section 6 — Workflow Execution
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Initiate a workflow instance | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Complete an assigned action step | ❌ | ❌ | ❌ | 🔶¹² | ✅ | ✅ | ✅ | ✅ | ✅ | 🔶¹² | ✅ | ❌ | ❌ |
-| Complete an assigned approval step (Approve) | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Complete an assigned approval step (Reject) | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Complete an assigned approval step (Return for revision) | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Log Secretariat decision (Approve / Reject / Amended) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Record First Reading referral to committee | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | 🔶¹³ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Submit committee report (multi-referral step) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | 🔶¹⁴ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Manually advance multi-referral step (override missing report) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Record SP session vote outcome | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Certify document (SP Presiding Officer step) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Sign / approve document (Mayor step) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Veto document (Mayor step) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Log 10-day Mayor lapse (system-triggered; manual confirmation) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Record veto override vote | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Log docketing step completion | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Record Panlalawigan review outcome | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Confirm Panlalawigan 30-day deemed-approved lapse | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Record newspaper publication date (penalty ordinances) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Migrate in-flight workflow instance to new definition version (Option B) | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View workflow instance status and routing history | ❌ | ✅ | ✅ | 🔶¹⁰ | 🔶¹⁰ | ✅ | 🔶¹⁰ | ✅ | ✅ | 🔶¹⁰ | 🔶¹⁰ | ✅ | ❌ |
+| Permission                                                               | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| ------------------------------------------------------------------------ | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Initiate a workflow instance                                             |    ❌     |     ❌     |     ❌      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ❌    |   ❌    |
+| Complete an assigned action step                                         |    ❌     |     ❌     |     ❌      |     🔶¹²     |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |     🔶¹²     |      ✅      |   ❌    |   ❌    |
+| Complete an assigned approval step (Approve)                             |    ❌     |     ❌     |     ❌      |      ❌      |      ✅       |      ✅      |    ❌     |      ❌      |  ✅   |      ❌      |      ✅      |   ❌    |   ❌    |
+| Complete an assigned approval step (Reject)                              |    ❌     |     ❌     |     ❌      |      ❌      |      ✅       |      ✅      |    ❌     |      ❌      |  ✅   |      ❌      |      ✅      |   ❌    |   ❌    |
+| Complete an assigned approval step (Return for revision)                 |    ❌     |     ❌     |     ❌      |      ❌      |      ✅       |      ✅      |    ❌     |      ❌      |  ✅   |      ❌      |      ✅      |   ❌    |   ❌    |
+| Log Secretariat decision (Approve / Reject / Amended)                    |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Record First Reading referral to committee                               |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |     🔶¹³     |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Submit committee report (multi-referral step)                            |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |   🔶¹⁴    |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Manually advance multi-referral step (override missing report)           |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Record SP session vote outcome                                           |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Certify document (SP Presiding Officer step)                             |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ✅      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Sign / approve document (Mayor step)                                     |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ✅   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Veto document (Mayor step)                                               |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ✅   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Log 10-day Mayor lapse (system-triggered; manual confirmation)           |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Record veto override vote                                                |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Log docketing step completion                                            |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Record Panlalawigan review outcome                                       |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Confirm Panlalawigan 30-day deemed-approved lapse                        |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Record newspaper publication date (penalty ordinances)                   |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Migrate in-flight workflow instance to new definition version (Option B) |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View workflow instance status and routing history                        |    ❌     |     ✅     |     ✅      |     🔶¹⁰     |     🔶¹⁰      |      ✅      |   🔶¹⁰    |      ✅      |  ✅   |     🔶¹⁰     |     🔶¹⁰     |   ✅    |   ❌    |
 
 ---
 
 ## Section 7 — Document Tracking (DTS)
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Generate QR code for document | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Print QR cover sheet | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Log physical routing entry (forward to / receive from) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Scan QR code (authenticated in-app scan) | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Scan QR code (public portal — unauthenticated) | — | — | — | — | — | — | — | — | — | — | — | — | ✅ |
-| View full routing history — own office | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| View full routing history — all offices | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| View physical custody status | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Lookup document by tracking number (public) | — | — | — | — | — | — | — | — | — | — | — | — | ✅ |
+| Permission                                             | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| ------------------------------------------------------ | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Generate QR code for document                          |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Print QR cover sheet                                   |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Log physical routing entry (forward to / receive from) |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Scan QR code (authenticated in-app scan)               |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ❌    |
+| Scan QR code (public portal — unauthenticated)         |     —     |     —      |      —      |      —       |       —       |      —       |     —     |      —       |   —   |      —       |      —       |    —    |   ✅    |
+| View full routing history — own office                 |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ❌    |
+| View full routing history — all offices                |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    ❌     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| View physical custody status                           |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ❌    |
+| Lookup document by tracking number (public)            |     —     |     —      |      —      |      —       |       —       |      —       |     —     |      —       |   —   |      —       |      —       |    —    |   ✅    |
 
 ---
 
 ## Section 8 — Session Attendance and Order of Business
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Create / manage session records | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Record session attendance (who is absent, reason) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View session attendance record | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| View Order of Business (current session) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| Schedule document for first reading (add to Order of Business) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Enter committee hearing date (from committee communication) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View attendance statistics and graphs | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Permission                                                     | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| -------------------------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Create / manage session records                                |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Record session attendance (who is absent, reason)              |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View session attendance record                                 |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ✅     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| View Order of Business (current session)                       |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ✅     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| Schedule document for first reading (add to Order of Business) |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Enter committee hearing date (from committee communication)    |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View attendance statistics and graphs                          |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ✅     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
 
 ---
 
 ## Section 9 — Signature Recording
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Upload scanned signature image for own document actions | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Flag scanned-back document for manual verification | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Accept scanned-back signed document as official copy | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View signature records for a document | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Permission                                              | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| ------------------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Upload scanned signature image for own document actions |    ❌     |     ❌     |     ❌      |      ❌      |      ✅       |      ✅      |    ❌     |      ✅      |  ✅   |      ❌      |      ✅      |   ❌    |   ❌    |
+| Flag scanned-back document for manual verification      |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Accept scanned-back signed document as official copy    |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View signature records for a document                   |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ❌    |
 
 ---
 
 ## Section 10 — Records Management (RMS)
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Promote document to official record status | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Apply / change retention schedule on a record | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Apply / change classification level on a record | ❌ | ❌ | ✅ | ❌ | ❌ | 🔶¹⁵ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Archive document (move to inactive → archived) | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Initiate authorized disposition of a record | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Place a record under legal hold | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Remove a legal hold from a record | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Bulk archive (Records Officers only, with confirmation + dry-run) | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Bulk search records | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Bulk export records (bounded by classification) | ❌ | ❌ | 🔶¹⁶ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View retention schedules list | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Process citizen RA 10173 PII erasure request | ❌ | ❌ | 🔶¹⁷ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Permission                                                        | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| ----------------------------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Promote document to official record status                        |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Apply / change retention schedule on a record                     |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Apply / change classification level on a record                   |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |     🔶¹⁵     |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Archive document (move to inactive → archived)                    |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Initiate authorized disposition of a record                       |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Place a record under legal hold                                   |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Remove a legal hold from a record                                 |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Bulk archive (Records Officers only, with confirmation + dry-run) |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Bulk search records                                               |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Bulk export records (bounded by classification)                   |    ❌     |     ❌     |    🔶¹⁶     |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View retention schedules list                                     |    ❌     |     ✅     |     ✅      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ✅    |   ❌    |
+| Process citizen RA 10173 PII erasure request                      |    ❌     |     ❌     |    🔶¹⁷     |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
 
 ---
 
 ## Section 11 — Notifications
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Receive in-app notifications (assigned steps, SLA alerts) | — | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Receive escalation notifications (SLA breach) | — | — | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | — | — |
-| Receive complaint respondent notification (email or phone) | — | — | — | — | — | — | — | — | — | — | — | — | 🔶¹⁸ |
-| Mark notifications as read (own) | — | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ |
-| Configure own notification preferences | — | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| View delivery logs (all notifications) | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Permission                                                 | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| ---------------------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Receive in-app notifications (assigned steps, SLA alerts)  |     —     |     —      |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |    —    |    —    |
+| Receive escalation notifications (SLA breach)              |     —     |     —      |     ✅      |      ❌      |      ✅       |      ✅      |    ❌     |      ✅      |  ✅   |      ❌      |      ✅      |    —    |    —    |
+| Receive complaint respondent notification (email or phone) |     —     |     —      |      —      |      —       |       —       |      —       |     —     |      —       |   —   |      —       |      —       |    —    |  🔶¹⁸   |
+| Mark notifications as read (own)                           |     —     |     —      |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |    —    |   ✅    |
+| Configure own notification preferences                     |     —     |     —      |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ✅    |
+| View delivery logs (all notifications)                     |    ✅     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
 
 ---
 
 ## Section 12 — Citizen Complaints
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Submit complaint (self) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Submit complaint (clerk-assisted, in-person) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Log and assign complaint to committee / VM | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Enter committee report on complaint | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | 🔶¹⁴ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Set complaint outcome state (Dismissed / Resolved) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View own submitted complaint and status | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| View all complaints (SP Secretariat only) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | 🔶¹⁴ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| View complaint as respondent | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 🔶¹⁸ |
+| Permission                                         | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| -------------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Submit complaint (self)                            |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ✅    |
+| Submit complaint (clerk-assisted, in-person)       |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Log and assign complaint to committee / VM         |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Enter committee report on complaint                |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |   🔶¹⁴    |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Set complaint outcome state (Dismissed / Resolved) |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View own submitted complaint and status            |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ✅    |
+| View all complaints (SP Secretariat only)          |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |   🔶¹⁴    |      ✅      |  ❌   |      ❌      |      ❌      |   ✅    |   ❌    |
+| View complaint as respondent                       |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |  🔶¹⁸   |
 
 ---
 
 ## Section 13 — Document and Records Request
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Submit document request (self, via portal) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Generate printable document request form | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Log / enter clerk-assisted document request | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Approve document request (Vice Mayor step) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Approve document request (SP Secretary step) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Release copy to requester (after payment) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View all document requests | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| View own document request status | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Permission                                   | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| -------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| Submit document request (self, via portal)   |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ✅    |
+| Generate printable document request form     |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ✅    |
+| Log / enter clerk-assisted document request  |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Approve document request (Vice Mayor step)   |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ✅      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Approve document request (SP Secretary step) |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Release copy to requester (after payment)    |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View all document requests                   |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ✅      |  ❌   |      ❌      |      ❌      |   ✅    |   ❌    |
+| View own document request status             |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ✅    |
 
 ---
 
 ## Section 14 — Public Portal Access
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| View published document title and first page (public) | — | — | — | — | — | — | — | — | — | — | — | — | ✅ |
-| Lookup document status by tracking number (public) | — | — | — | — | — | — | — | — | — | — | — | — | ✅ |
-| Publish document to public portal | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Unpublish document from public portal | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Post announcement on public portal | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Permission                                            | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| ----------------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| View published document title and first page (public) |     —     |     —      |      —      |      —       |       —       |      —       |     —     |      —       |   —   |      —       |      —       |    —    |   ✅    |
+| Lookup document status by tracking number (public)    |     —     |     —      |      —      |      —       |       —       |      —       |     —     |      —       |   —   |      —       |      —       |    —    |   ✅    |
+| Publish document to public portal                     |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Unpublish document from public portal                 |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Post announcement on public portal                    |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
 
 ---
 
 ## Section 15 — Audit Log
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| View audit log — own actions | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| View audit log — own office documents | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
-| View audit log — all entries (full log) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Validate audit log hash chain integrity | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Export audit log (bounded by classification) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Write to audit log directly | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Permission                                   | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| -------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| View audit log — own actions                 |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ❌    |
+| View audit log — own office documents        |    ❌     |     ❌     |     ✅      |      ❌      |      ✅       |      ✅      |    ❌     |      ✅      |  ✅   |      ❌      |      ✅      |   ✅    |   ❌    |
+| View audit log — all entries (full log)      |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ✅    |   ❌    |
+| Validate audit log hash chain integrity      |    ✅     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ✅    |   ❌    |
+| Export audit log (bounded by classification) |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ✅    |   ❌    |
+| Write to audit log directly                  |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
 
 **Note:** No role may write directly to the audit log. All audit writes are performed exclusively through the audit service (INSERT-only at DB permission level). This row is included as an explicit Deny-all to enforce the architectural invariant.
 
@@ -329,28 +328,28 @@ Audience: Development team — IAM configuration reference
 
 ## Section 16 — Reporting and Dashboards
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| View SP Secretary dashboard (queue, pending, session calendar) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View Mayor dashboard (pending signatures, overdue items) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| View own task inbox / assigned steps | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| View ARTA SLA compliance report | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| View Panlalawigan review tracking summary | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| View Index of Ordinances / Index of Resolutions | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| Create / edit report definitions (Phase 2) | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Run saved report | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| Export report output | ❌ | ✅ | 🔶¹⁶ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Permission                                                     | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| -------------------------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| View SP Secretary dashboard (queue, pending, session calendar) |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View Mayor dashboard (pending signatures, overdue items)       |    ❌     |     ❌     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ✅   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View own task inbox / assigned steps                           |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ❌    |
+| View ARTA SLA compliance report                                |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    ❌     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| View Panlalawigan review tracking summary                      |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    ✅     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| View Index of Ordinances / Index of Resolutions                |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    ✅     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| Create / edit report definitions (Phase 2)                     |    ❌     |     ✅     |     ❌      |      ❌      |      ❌       |      ❌      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| Run saved report                                               |    ❌     |     ✅     |     ✅      |      ❌      |      ❌       |      ✅      |    ❌     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
+| Export report output                                           |    ❌     |     ✅     |    🔶¹⁶     |      ❌      |      ❌       |      ✅      |    ❌     |      ✅      |  ✅   |      ❌      |      ❌      |   ✅    |   ❌    |
 
 ---
 
 ## Section 17 — OCR and File Processing
 
-| Permission | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| View OCR scan quality indicator for own upload | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Re-upload document after reviewing scan quality indicator | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Trigger manual re-OCR on existing file | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View OCR extracted text | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Permission                                                | Sys Admin | Plat Admin | Rec Officer | Dept Encoder | Dept Approver | SP Secretary | SP Member | SP Presiding | Mayor | Brgy Encoder | Brgy Captain | Auditor | Citizen |
+| --------------------------------------------------------- | :-------: | :--------: | :---------: | :----------: | :-----------: | :----------: | :-------: | :----------: | :---: | :----------: | :----------: | :-----: | :-----: |
+| View OCR scan quality indicator for own upload            |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ❌    |   ❌    |
+| Re-upload document after reviewing scan quality indicator |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ❌    |   ❌    |
+| Trigger manual re-OCR on existing file                    |    ❌     |     ❌     |     ✅      |      ❌      |      ❌       |      ✅      |    ❌     |      ❌      |  ❌   |      ❌      |      ❌      |   ❌    |   ❌    |
+| View OCR extracted text                                   |    ❌     |     ❌     |     ✅      |      ✅      |      ✅       |      ✅      |    ✅     |      ✅      |  ✅   |      ✅      |      ✅      |   ✅    |   ❌    |
 
 ---
 
@@ -398,14 +397,14 @@ Audience: Development team — IAM configuration reference
 
 The following invariants from Part 12 of the consolidated reference are directly reflected in the matrix and must be enforced at the database layer, application layer, and code review policy — not only in the UI.
 
-| Invariant | Matrix Enforcement |
-|---|---|
-| #3 — Audit log INSERT-only at DB role level | Section 15: "Write to audit log directly" is ❌ for all roles |
-| #10 — IT admin (System Administrator) has no document content access | Section 5: System Administrator is ❌ on all document file content and search rows |
-| #12 — Platform Administrator cannot be combined with operational roles | Enforced outside this matrix as a role assignment invariant; not expressible as a cell value |
-| #13 — Encoder and final approver of same document cannot be the same user | Enforced at workflow engine constraint level; not expressible as a cell value |
-| #16 — One active designation per person at any time | Conditional note ³; enforced via DB partial unique index on active `delegation_grants` per user |
+| Invariant                                                                 | Matrix Enforcement                                                                              |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| #3 — Audit log INSERT-only at DB role level                               | Section 15: "Write to audit log directly" is ❌ for all roles                                   |
+| #10 — IT admin (System Administrator) has no document content access      | Section 5: System Administrator is ❌ on all document file content and search rows              |
+| #12 — Platform Administrator cannot be combined with operational roles    | Enforced outside this matrix as a role assignment invariant; not expressible as a cell value    |
+| #13 — Encoder and final approver of same document cannot be the same user | Enforced at workflow engine constraint level; not expressible as a cell value                   |
+| #16 — One active designation per person at any time                       | Conditional note ³; enforced via DB partial unique index on active `delegation_grants` per user |
 
 ---
 
-*This matrix supersedes any implicit permission assumptions in prior architecture documents. Update this document whenever a new permission category is introduced or a role scope changes. Version this file alongside workflow definition changes.*
+_This matrix supersedes any implicit permission assumptions in prior architecture documents. Update this document whenever a new permission category is introduced or a role scope changes. Version this file alongside workflow definition changes._

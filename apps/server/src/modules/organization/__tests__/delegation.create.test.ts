@@ -10,37 +10,44 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createDelegationService } from '../delegation.service.js';
-import { PolicyDeniedError, ActiveDesignationExistsError } from '../../../errors/domain/organization.js';
-import type { DelegationServiceDeps, CreateDelegationGrantInput, DelegationSubject } from '../organization.types.js';
+import {
+  PolicyDeniedError,
+  ActiveDesignationExistsError,
+} from '../../../errors/domain/organization.js';
+import type {
+  DelegationServiceDeps,
+  CreateDelegationGrantInput,
+  DelegationSubject,
+} from '../organization.types.js';
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
 
 const validInput: CreateDelegationGrantInput = {
-  delegatingEmployeeId:  'emp-mayor-id',
+  delegatingEmployeeId: 'emp-mayor-id',
   delegatedToEmployeeId: 'emp-acting-id',
-  officeId:              'office-executive-id',
-  positionId:            'position-mayor-id',
+  officeId: 'office-executive-id',
+  positionId: 'position-mayor-id',
   designationDocumentId: 'doc-designation-uuid',
-  scopeDescription:      'Acting Mayor designation',
+  scopeDescription: 'Acting Mayor designation',
   scope: {
-    roles:     ['mayor'],
+    roles: ['mayor'],
     officeIds: ['office-executive-id'],
-    actions:   ['document:approve'],
+    actions: ['document:approve'],
   },
   startDate: '2026-07-01',
-  endDate:   '2026-07-15',
-  cityId:    'city-batac-uuid',
+  endDate: '2026-07-15',
+  cityId: 'city-batac-uuid',
 };
 
 const spSecretarySubject: DelegationSubject = {
   userId: 'user-sp-secretary-id',
-  roles:  ['sp_secretary'],
+  roles: ['sp_secretary'],
   cityId: 'city-batac-uuid',
 };
 
 const nonSecretarySubject: DelegationSubject = {
   userId: 'user-encoder-id',
-  roles:  ['encoder'],
+  roles: ['encoder'],
   cityId: 'city-batac-uuid',
 };
 
@@ -51,34 +58,35 @@ function makeMockDb(opts: {
   empRowResult?: { delegatingUserId: string; delegatedToUserId: string } | null;
 }) {
   const existingRows = opts.existingActiveDelegation ? [{ id: 'existing-grant-id' }] : [];
-  const empRow = opts.empRowResult !== undefined
-    ? opts.empRowResult
-      ? [opts.empRowResult]
-      : []
-    : [{ delegatingUserId: 'user-mayor-id', delegatedToUserId: 'user-acting-id' }];
+  const empRow =
+    opts.empRowResult !== undefined
+      ? opts.empRowResult
+        ? [opts.empRowResult]
+        : []
+      : [{ delegatingUserId: 'user-mayor-id', delegatedToUserId: 'user-acting-id' }];
 
   const mockSelect = vi.fn().mockReturnThis();
-  const mockFrom   = vi.fn().mockReturnThis();
+  const mockFrom = vi.fn().mockReturnThis();
   const mockInnerJoin = vi.fn().mockReturnThis();
-  const mockWhere  = vi.fn().mockReturnThis();
-  const mockLimit  = vi.fn();
+  const mockWhere = vi.fn().mockReturnThis();
+  const mockLimit = vi.fn();
 
   // First .limit() call → Invariant #16 pre-check
   // Second .limit() call → employee userId resolution
-  mockLimit
-    .mockResolvedValueOnce(existingRows)
-    .mockResolvedValueOnce(empRow);
+  mockLimit.mockResolvedValueOnce(existingRows).mockResolvedValueOnce(empRow);
 
   return {
-    select:    mockSelect,
-    from:      mockFrom,
+    select: mockSelect,
+    from: mockFrom,
     innerJoin: mockInnerJoin,
-    where:     mockWhere,
-    limit:     mockLimit,
+    where: mockWhere,
+    limit: mockLimit,
   };
 }
 
-function makeMockRepository(grantResult: any = { id: 'new-grant-id', ...validInput, isActive: true }) {
+function makeMockRepository(
+  grantResult: any = { id: 'new-grant-id', ...validInput, isActive: true },
+) {
   return {
     delegationGrants: {
       create: vi.fn().mockResolvedValue(grantResult),
@@ -103,7 +111,11 @@ function makeMockEventBus() {
 }
 
 function makeMockAuditService() {
-  return { writeEvent: vi.fn().mockResolvedValue(undefined), queryEvents: vi.fn(), _internal: {} as any };
+  return {
+    writeEvent: vi.fn().mockResolvedValue(undefined),
+    queryEvents: vi.fn(),
+    _internal: {} as any,
+  };
 }
 
 /**
@@ -113,9 +125,7 @@ function makeMockAuditService() {
  */
 function makeMockPolicyEvaluator(allowed: boolean, reason = '') {
   return {
-    evaluate: vi.fn().mockResolvedValue(
-      allowed ? { allowed: true } : { allowed: false, reason }
-    ),
+    evaluate: vi.fn().mockResolvedValue(allowed ? { allowed: true } : { allowed: false, reason }),
     registerResourceHandler: vi.fn(),
   };
 }
@@ -127,31 +137,34 @@ describe('createDelegationGrant', () => {
 
   it('throws PolicyDeniedError when PolicyEvaluator denies the action', async () => {
     const deps: DelegationServiceDeps = {
-      db:               makeMockDb({ existingActiveDelegation: false }) as any,
-      orgRepository:    makeMockRepository(),
-      eventBus:         makeMockEventBus() as any,
-      auditService:     makeMockAuditService() as any,
-      policyEvaluator:  makeMockPolicyEvaluator(false, 'delegation_grant_create_requires_sp_secretary') as any,
-      boss:             { send: vi.fn().mockResolvedValue(undefined) } as any,
+      db: makeMockDb({ existingActiveDelegation: false }) as any,
+      orgRepository: makeMockRepository(),
+      eventBus: makeMockEventBus() as any,
+      auditService: makeMockAuditService() as any,
+      policyEvaluator: makeMockPolicyEvaluator(
+        false,
+        'delegation_grant_create_requires_sp_secretary',
+      ) as any,
+      boss: { send: vi.fn().mockResolvedValue(undefined) } as any,
     };
 
     const service = createDelegationService(deps);
 
-    await expect(
-      service.createDelegationGrant(validInput, nonSecretarySubject),
-    ).rejects.toThrow(PolicyDeniedError);
+    await expect(service.createDelegationGrant(validInput, nonSecretarySubject)).rejects.toThrow(
+      PolicyDeniedError,
+    );
   });
 
   // ── designationDocumentId presence ──────────────────────────────────────
 
   it('throws PolicyDeniedError when designationDocumentId is empty', async () => {
     const deps: DelegationServiceDeps = {
-      db:              makeMockDb({ existingActiveDelegation: false }) as any,
-      orgRepository:   makeMockRepository(),
-      eventBus:        makeMockEventBus() as any,
-      auditService:    makeMockAuditService() as any,
+      db: makeMockDb({ existingActiveDelegation: false }) as any,
+      orgRepository: makeMockRepository(),
+      eventBus: makeMockEventBus() as any,
+      auditService: makeMockAuditService() as any,
       policyEvaluator: makeMockPolicyEvaluator(true) as any,
-      boss:            { send: vi.fn().mockResolvedValue(undefined) } as any,
+      boss: { send: vi.fn().mockResolvedValue(undefined) } as any,
     };
 
     const service = createDelegationService(deps);
@@ -166,44 +179,44 @@ describe('createDelegationGrant', () => {
 
   it('throws ActiveDesignationExistsError when delegatee already has an active grant', async () => {
     const deps: DelegationServiceDeps = {
-      db:              makeMockDb({ existingActiveDelegation: true }) as any,
-      orgRepository:   makeMockRepository(),
-      eventBus:        makeMockEventBus() as any,
-      auditService:    makeMockAuditService() as any,
+      db: makeMockDb({ existingActiveDelegation: true }) as any,
+      orgRepository: makeMockRepository(),
+      eventBus: makeMockEventBus() as any,
+      auditService: makeMockAuditService() as any,
       policyEvaluator: makeMockPolicyEvaluator(true) as any,
-      boss:            { send: vi.fn().mockResolvedValue(undefined) } as any,
+      boss: { send: vi.fn().mockResolvedValue(undefined) } as any,
     };
 
     const service = createDelegationService(deps);
 
-    await expect(
-      service.createDelegationGrant(validInput, spSecretarySubject),
-    ).rejects.toThrow(ActiveDesignationExistsError);
+    await expect(service.createDelegationGrant(validInput, spSecretarySubject)).rejects.toThrow(
+      ActiveDesignationExistsError,
+    );
   });
 
   // ── Happy path ──────────────────────────────────────────────────────────
 
   describe('successful create', () => {
     const grantRow = {
-      id:                    'new-grant-id',
-      cityId:                validInput.cityId,
-      delegatingEmployeeId:  validInput.delegatingEmployeeId,
+      id: 'new-grant-id',
+      cityId: validInput.cityId,
+      delegatingEmployeeId: validInput.delegatingEmployeeId,
       delegatedToEmployeeId: validInput.delegatedToEmployeeId,
-      officeId:              validInput.officeId,
-      positionId:            validInput.positionId,
+      officeId: validInput.officeId,
+      positionId: validInput.positionId,
       designationDocumentId: validInput.designationDocumentId,
-      scopeDescription:      validInput.scopeDescription,
-      scope:                 validInput.scope,
-      legalBasis:            null,
-      startDate:             validInput.startDate,
-      endDate:               validInput.endDate,
-      isActive:              true,
-      revokedBy:             null,
-      revokedAt:             null,
-      createdAt:             new Date(),
-      updatedAt:             new Date(),
-      deletedAt:             null,
-      deletedBy:             null,
+      scopeDescription: validInput.scopeDescription,
+      scope: validInput.scope,
+      legalBasis: null,
+      startDate: validInput.startDate,
+      endDate: validInput.endDate,
+      isActive: true,
+      revokedBy: null,
+      revokedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      deletedBy: null,
     };
 
     let mockEventBus: ReturnType<typeof makeMockEventBus>;
@@ -211,16 +224,16 @@ describe('createDelegationGrant', () => {
     let result: any;
 
     beforeEach(async () => {
-      mockEventBus    = makeMockEventBus();
+      mockEventBus = makeMockEventBus();
       mockAuditService = makeMockAuditService();
 
       const deps: DelegationServiceDeps = {
-        db:              makeMockDb({ existingActiveDelegation: false }) as any,
-        orgRepository:   makeMockRepository(grantRow),
-        eventBus:        mockEventBus as any,
-        auditService:    mockAuditService as any,
+        db: makeMockDb({ existingActiveDelegation: false }) as any,
+        orgRepository: makeMockRepository(grantRow),
+        eventBus: mockEventBus as any,
+        auditService: mockAuditService as any,
         policyEvaluator: makeMockPolicyEvaluator(true) as any,
-        boss:            { send: vi.fn().mockResolvedValue(undefined) } as any,
+        boss: { send: vi.fn().mockResolvedValue(undefined) } as any,
       };
 
       const service = createDelegationService(deps);
@@ -238,13 +251,13 @@ describe('createDelegationGrant', () => {
       expect(envelope.eventType).toBe('delegation.granted');
       expect(envelope.cityId).toBe(validInput.cityId);
       expect(envelope.payload).toMatchObject({
-        delegationId:          'new-grant-id',
+        delegationId: 'new-grant-id',
         designationDocumentId: validInput.designationDocumentId,
         scope: {
-          officeId:   validInput.officeId,
+          officeId: validInput.officeId,
           positionId: validInput.positionId,
         },
-        validFrom:  validInput.startDate,
+        validFrom: validInput.startDate,
         validUntil: validInput.endDate,
       });
     });

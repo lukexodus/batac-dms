@@ -7,7 +7,7 @@ import {
 } from '../index.js';
 
 vi.mock('../../../config/env.js', () => ({
-  env: {}
+  env: {},
 }));
 
 describe('Documents Module Scaffold', () => {
@@ -34,6 +34,4 @@ describe('Documents Module Scaffold', () => {
     expect(typeof documentsModule.assignFinalNumber).toBe('function');
     expect(typeof documentsModule.getAttachmentRefs).toBe('function');
   });
-
 });
-

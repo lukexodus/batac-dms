@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 if (!process.env['DATABASE_URL_MIGRATE']) {
   console.error(
     '[migrate] DATABASE_URL_MIGRATE is not set. ' +
-    'This variable is required for migrations and post-migrate grants.'
+      'This variable is required for migrations and post-migrate grants.',
   );
   process.exit(1);
 }

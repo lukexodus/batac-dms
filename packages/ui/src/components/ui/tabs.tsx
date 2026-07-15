@@ -17,76 +17,71 @@
  * Source: DESIGN.md §6.2
  */
 
-
-import * as React from "react";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@batac/ui/lib/utils";
+import * as React from 'react';
+import * as TabsPrimitive from '@radix-ui/react-tabs';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@batac/ui/lib/utils';
 
 /* ── TabsList ─────────────────────────────────────────────── */
 
-const tabsListVariants = cva(
-  "inline-flex items-center",
-  {
-    variants: {
-      variant: {
-        /** Default: pill background style (shadcn original) */
-        default:
-          "h-9 rounded-lg bg-neutral-100 p-1 text-text-secondary",
-        /** Underline: bottom border only, no background */
-        underline:
-          "h-auto border-b border-border-default bg-transparent gap-0 w-full",
-      },
+const tabsListVariants = cva('inline-flex items-center', {
+  variants: {
+    variant: {
+      /** Default: pill background style (shadcn original) */
+      default: 'h-9 rounded-lg bg-neutral-100 p-1 text-text-secondary',
+      /** Underline: bottom border only, no background */
+      underline: 'h-auto border-b border-border-default bg-transparent gap-0 w-full',
     },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-);
+  },
+  defaultVariants: {
+    variant: 'default',
+  },
+});
 
 export interface TabsListProps
-  extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>,
+  extends
+    React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>,
     VariantProps<typeof tabsListVariants> {}
 
-const TabsList = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.List>,
-  TabsListProps
->(({ className, variant, ...props }, ref) => (
-  <TabsPrimitive.List
-    ref={ref}
-    className={cn(tabsListVariants({ variant, className }))}
-    {...props}
-  />
-));
+const TabsList = React.forwardRef<React.ElementRef<typeof TabsPrimitive.List>, TabsListProps>(
+  ({ className, variant, ...props }, ref) => (
+    <TabsPrimitive.List
+      ref={ref}
+      className={cn(tabsListVariants({ variant, className }))}
+      {...props}
+    />
+  ),
+);
 TabsList.displayName = TabsPrimitive.List.displayName;
 
 /* ── TabsTrigger ──────────────────────────────────────────── */
 
 const tabsTriggerVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  'inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
         /** Default: pill/background style (shadcn original) */
         default:
-          "rounded-md px-3 py-1 text-text-secondary hover:text-text-primary data-[state=active]:bg-white data-[state=active]:text-text-primary data-[state=active]:shadow",
+          'rounded-md px-3 py-1 text-text-secondary hover:text-text-primary data-[state=active]:bg-white data-[state=active]:text-text-primary data-[state=active]:shadow',
         /**
          * Underline: bottom border indicator.
          * Active: primary-800 border + text.
          * DESIGN.md §6.2: "tabs use a persistent underline on active tab"
          */
         underline:
-          "rounded-none px-4 py-2.5 border-b-2 border-transparent text-text-secondary hover:text-text-primary hover:border-neutral-300 data-[state=active]:border-primary-800 data-[state=active]:text-primary-800 data-[state=active]:font-semibold",
+          'rounded-none px-4 py-2.5 border-b-2 border-transparent text-text-secondary hover:text-text-primary hover:border-neutral-300 data-[state=active]:border-primary-800 data-[state=active]:text-primary-800 data-[state=active]:font-semibold',
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: 'default',
     },
-  }
+  },
 );
 
 export interface TabsTriggerProps
-  extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>,
+  extends
+    React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>,
     VariantProps<typeof tabsTriggerVariants> {}
 
 const TabsTrigger = React.forwardRef<
@@ -110,8 +105,8 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      "mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      className
+      'focus-visible:ring-ring mt-2 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
+      className,
     )}
     {...props}
   />

@@ -1,22 +1,22 @@
 import { createHash } from 'node:crypto';
-import type PgBoss            from 'pg-boss';
+import type PgBoss from 'pg-boss';
 import type { AuditWriteService } from './audit.write-service.js';
-import type { AuditRepository }   from './audit.repository.js';
-import { StubTsaClient }          from './tsa.stub.js';
-import type { RfcTsaClient }      from './tsa.interface.js';
+import type { AuditRepository } from './audit.repository.js';
+import { StubTsaClient } from './tsa.stub.js';
+import type { RfcTsaClient } from './tsa.interface.js';
 
 export const TSA_JOB_NAME = 'audit:monthly-tsa-export';
-export const TSA_CRON     = '0 0 1 * *'; // first of each month, midnight UTC
+export const TSA_CRON = '0 0 1 * *'; // first of each month, midnight UTC
 
 export async function registerTsaExportJob(deps: {
-  boss:         PgBoss;
-  repo:         AuditRepository;
+  boss: PgBoss;
+  repo: AuditRepository;
   writeService: AuditWriteService;
   env: {
-    AUDIT_TSA_ENABLED:  boolean;
-    AUDIT_TSA_URL?:     string;
+    AUDIT_TSA_ENABLED: boolean;
+    AUDIT_TSA_URL?: string;
     AUDIT_EXPORT_ENABLED: boolean;
-    CITY_ID:            string;
+    CITY_ID: string;
   };
 }): Promise<void> {
   const { boss, repo, writeService, env } = deps;
@@ -47,14 +47,14 @@ export async function registerTsaExportJob(deps: {
     //    as an audit event, so the act of exporting becomes part of the
     //    chain it is meant to protect").
     await writeService.writeEvent({
-      eventType:  'audit_log_exported',
-      actorId:    null,   // system event
+      eventType: 'audit_log_exported',
+      actorId: null, // system event
       targetType: 'audit_snapshot',
       payload: {
-        snapshotDigest:  digest.toString('hex'),
+        snapshotDigest: digest.toString('hex'),
         tsaSerialNumber: token.serialNumber,
-        tsaUrl:          token.tsaUrl,
-        exportedAt:      new Date().toISOString(),
+        tsaUrl: token.tsaUrl,
+        exportedAt: new Date().toISOString(),
       },
       cityId: env.CITY_ID,
     });

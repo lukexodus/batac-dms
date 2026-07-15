@@ -11,18 +11,18 @@ import {
 /** Returns a minimal valid SubjectContext with overrides applied. */
 function makeSubject(overrides: Partial<SubjectContext> = {}): SubjectContext {
   return {
-    userId:             'user-001',
-    sessionId:          'session-001',
-    officeId:           'office-001',
-    cityId:             'city-batac',
-    roles:              ['dept_encoder'],
-    permissions:        [],
-    committeeIds:       [],
-    delegationGrantId:  null,
+    userId: 'user-001',
+    sessionId: 'session-001',
+    officeId: 'office-001',
+    cityId: 'city-batac',
+    roles: ['dept_encoder'],
+    permissions: [],
+    committeeIds: [],
+    delegationGrantId: null,
     effectiveOfficeIds: ['office-001'],
-    effectiveRoles:     ['dept_encoder'],
-    isItAdmin:          false,
-    isPlatformAdmin:    false,
+    effectiveRoles: ['dept_encoder'],
+    isItAdmin: false,
+    isPlatformAdmin: false,
     ...overrides,
   };
 }
@@ -30,8 +30,8 @@ function makeSubject(overrides: Partial<SubjectContext> = {}): SubjectContext {
 /** Returns a minimal valid ResourceDescriptor with overrides applied. */
 function makeResource(overrides: Partial<ResourceDescriptor> = {}): ResourceDescriptor {
   return {
-    type:   'document',
-    id:     'res-001',
+    type: 'document',
+    id: 'res-001',
     cityId: 'city-batac',
     ...overrides,
   };
@@ -53,11 +53,11 @@ describe('PolicyGuard', () => {
 
     it('denies regardless of other attributes (IT Admin, Platform Admin, all permissions)', () => {
       const subject = makeSubject({
-        cityId:         'city-batac',
-        isItAdmin:      true,
+        cityId: 'city-batac',
+        isItAdmin: true,
         isPlatformAdmin: true,
-        permissions:    ['document:read', 'session:read_all'],
-        roles:          ['sys_admin', 'platform_admin'],
+        permissions: ['document:read', 'session:read_all'],
+        roles: ['sys_admin', 'platform_admin'],
       });
       const resource = makeResource({ cityId: 'city-different' });
       const result = guard.checkGates(subject, resource, 'read');

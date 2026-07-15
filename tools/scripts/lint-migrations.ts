@@ -1,4 +1,13 @@
-import { parse, astVisitor, Statement, CreateTableStatement, CreateIndexStatement, AlterTableStatement, DeleteStatement, DropStatement } from 'pgsql-ast-parser';
+import {
+  parse,
+  astVisitor,
+  Statement,
+  CreateTableStatement,
+  CreateIndexStatement,
+  AlterTableStatement,
+  DeleteStatement,
+  DropStatement,
+} from 'pgsql-ast-parser';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -80,7 +89,7 @@ function checkSuppression(comments: string[], ruleName: string): SuppressionResu
       if (!reason) {
         return {
           suppressed: true,
-          error: `Suppression comment missing reason.`
+          error: `Suppression comment missing reason.`,
         };
       }
       return { suppressed: true };
@@ -96,8 +105,9 @@ function runLinter() {
     process.exit(0);
   }
 
-  const files = fs.readdirSync(migrationsDir)
-    .filter(f => f.endsWith('.sql'))
+  const files = fs
+    .readdirSync(migrationsDir)
+    .filter((f) => f.endsWith('.sql'))
     .sort();
 
   if (files.length === 0) {
@@ -158,38 +168,43 @@ function runLinter() {
         }
       }
       if (skippedChunks.length > 0) {
-        const locs = skippedChunks.map(c => `  line ~${c.line}: ${c.preview}`).join('\n');
-        console.warn(`[WARN] ${file}: ${skippedChunks.length} statement(s) skipped — unparseable by pgsql-ast-parser.\n${locs}\n  Linting rules were applied to parseable portions only.`);
+        const locs = skippedChunks.map((c) => `  line ~${c.line}: ${c.preview}`).join('\n');
+        console.warn(
+          `[WARN] ${file}: ${skippedChunks.length} statement(s) skipped — unparseable by pgsql-ast-parser.\n${locs}\n  Linting rules were applied to parseable portions only.`,
+        );
       }
       if (ast.length === 0) {
-        console.error(`[FAIL] ${file}: no parseable statements found — file contains only constructs the parser cannot handle.`);
+        console.error(
+          `[FAIL] ${file}: no parseable statements found — file contains only constructs the parser cannot handle.`,
+        );
         hasFailures = true;
         continue;
       }
     }
 
-    const visitor = astVisitor(v => ({
+    const visitor = astVisitor((v) => ({
       createTable: (node: CreateTableStatement) => {
         const offset = node._location?.start ?? 0;
         const lineNum = getLineNumber(content, offset);
         const precedingComments = getPrecedingComments(lines, lineNum);
-        
+
         const tableName = node.name.name;
         const tableSchema = node.name.schema;
         const fullTableName = tableSchema ? `${tableSchema}.${tableName}` : tableName;
-        
+
         createdTablesInFile.add(tableName);
         if (tableSchema) createdTablesInFile.add(fullTableName);
 
         // Check city_id for core schemas (iam, organization, documents, workflow, tracking, records)
         const coreSchemas = ['iam', 'organization', 'documents', 'workflow', 'tracking', 'records'];
         if (tableSchema && coreSchemas.includes(tableSchema.toLowerCase())) {
-          const hasCityId = node.columns.some(col => 
-            col.kind === 'column' && 
-            col.name.name.toLowerCase() === 'city_id' &&
-            col.dataType.kind === undefined &&
-            col.dataType.name.toLowerCase() === 'uuid' &&
-            col.constraints?.some(c => c.type === 'not null')
+          const hasCityId = node.columns.some(
+            (col) =>
+              col.kind === 'column' &&
+              col.name.name.toLowerCase() === 'city_id' &&
+              col.dataType.kind === undefined &&
+              col.dataType.name.toLowerCase() === 'uuid' &&
+              col.constraints?.some((c) => c.type === 'not null'),
           );
           if (!hasCityId) {
             const supp = checkSuppression(precedingComments, 'skip-city-id');
@@ -209,17 +224,20 @@ function runLinter() {
         }
 
         // Check soft-delete columns (deleted_at and deleted_by)
-        const hasDeletedAt = node.columns.some(col =>
-          col.kind === 'column' &&
-          col.name.name.toLowerCase() === 'deleted_at' &&
-          col.dataType.kind === undefined &&
-          (col.dataType.name.toLowerCase() === 'timestamptz' || col.dataType.name.toLowerCase().includes('timezone'))
+        const hasDeletedAt = node.columns.some(
+          (col) =>
+            col.kind === 'column' &&
+            col.name.name.toLowerCase() === 'deleted_at' &&
+            col.dataType.kind === undefined &&
+            (col.dataType.name.toLowerCase() === 'timestamptz' ||
+              col.dataType.name.toLowerCase().includes('timezone')),
         );
-        const hasDeletedBy = node.columns.some(col =>
-          col.kind === 'column' &&
-          col.name.name.toLowerCase() === 'deleted_by' &&
-          col.dataType.kind === undefined &&
-          col.dataType.name.toLowerCase() === 'uuid'
+        const hasDeletedBy = node.columns.some(
+          (col) =>
+            col.kind === 'column' &&
+            col.name.name.toLowerCase() === 'deleted_by' &&
+            col.dataType.kind === undefined &&
+            col.dataType.name.toLowerCase() === 'uuid',
         );
         if (!hasDeletedAt || !hasDeletedBy) {
           const supp = checkSuppression(precedingComments, 'skip-soft-delete');
@@ -241,21 +259,21 @@ function runLinter() {
         let tableHasPK = false;
         let pkColumns: string[] = [];
 
-        const tablePKConstraint = node.constraints?.find(c => c.type === 'primary key');
+        const tablePKConstraint = node.constraints?.find((c) => c.type === 'primary key');
         if (tablePKConstraint && tablePKConstraint.type === 'primary key') {
           tableHasPK = true;
-          pkColumns = tablePKConstraint.columns.map(col => col.name.toLowerCase());
+          pkColumns = tablePKConstraint.columns.map((col) => col.name.toLowerCase());
         }
 
         for (const col of node.columns) {
           if (col.kind !== 'column') continue;
           const colName = col.name.name.toLowerCase();
-          
+
           const colLineNum = getColumnLineNumber(lines, lineNum, col.name.name);
           const colPrecedingComments = getPrecedingComments(lines, colLineNum);
           const colLineText = lines[colLineNum - 1]?.trim() || '';
 
-          const isInlinePK = col.constraints?.some(c => c.type === 'primary key');
+          const isInlinePK = col.constraints?.some((c) => c.type === 'primary key');
           const isPartOfTablePK = pkColumns.includes(colName);
           const isPK = isInlinePK || isPartOfTablePK;
 
@@ -264,9 +282,14 @@ function runLinter() {
           }
 
           if (isPK) {
-            if (tablePKConstraint && tablePKConstraint.type === 'primary key' && tablePKConstraint.columns.length > 1) {
+            if (
+              tablePKConstraint &&
+              tablePKConstraint.type === 'primary key' &&
+              tablePKConstraint.columns.length > 1
+            ) {
               // Composite Primary Key (junction tables)
-              const isUuid = col.dataType.kind === undefined && col.dataType.name.toLowerCase() === 'uuid';
+              const isUuid =
+                col.dataType.kind === undefined && col.dataType.name.toLowerCase() === 'uuid';
               if (!isUuid) {
                 console.error(`[INVARIANT-06] Non-UUID primary key detected.
   File: ${file}
@@ -276,7 +299,8 @@ function runLinter() {
               }
             } else {
               // Single PK column
-              const isUuid = col.dataType.kind === undefined && col.dataType.name.toLowerCase() === 'uuid';
+              const isUuid =
+                col.dataType.kind === undefined && col.dataType.name.toLowerCase() === 'uuid';
               if (!isUuid) {
                 console.error(`[INVARIANT-06] Non-UUID primary key detected.
   File: ${file}
@@ -284,7 +308,7 @@ function runLinter() {
   All primary keys must be UUID v4: id UUID NOT NULL DEFAULT gen_random_uuid()`);
                 hasFailures = true;
               } else {
-                const defaultConstraint = col.constraints?.find(c => c.type === 'default');
+                const defaultConstraint = col.constraints?.find((c) => c.type === 'default');
                 if (!defaultConstraint || defaultConstraint.type !== 'default') {
                   console.error(`[INVARIANT-06] UUID primary key missing gen_random_uuid() default.
   File: ${file}
@@ -322,7 +346,11 @@ function runLinter() {
           // Check Invariant #7: TIMESTAMPTZ for timestamps (FAIL for TIMESTAMP, WARN for DATE)
           if (isTimestampName(col.name.name)) {
             const typeName = col.dataType.kind === undefined ? col.dataType.name.toLowerCase() : '';
-            const isTimestamptz = typeName === 'timestamptz' || typeName === 'timestamp with time zone' || typeName.includes('timezone') || typeName.includes('with time zone');
+            const isTimestamptz =
+              typeName === 'timestamptz' ||
+              typeName === 'timestamp with time zone' ||
+              typeName.includes('timezone') ||
+              typeName.includes('with time zone');
             if (!isTimestamptz) {
               if (typeName === 'date') {
                 const supp = checkSuppression(colPrecedingComments, 'allow-date');
@@ -349,7 +377,7 @@ function runLinter() {
           }
 
           // Check Invariant #1: No cross-schema foreign keys (inline REFERENCE)
-          const refConstraint = col.constraints?.find(c => c.type === 'reference');
+          const refConstraint = col.constraints?.find((c) => c.type === 'reference');
           if (refConstraint && refConstraint.type === 'reference') {
             const refSchema = refConstraint.foreignTable.schema;
             const owningSchemaForRef = tableSchema || 'public';
@@ -365,7 +393,7 @@ function runLinter() {
               } else if (!refSupp.suppressed) {
                 console.error(`[INVARIANT-01] Cross-schema foreign key detected.
   File: ${file}
-  Line ${colLineNum}: REFERENCES ${refSchema}.${refConstraint.foreignTable.name}(${refConstraint.foreignColumns.map(c => c.name).join(', ')})
+  Line ${colLineNum}: REFERENCES ${refSchema}.${refConstraint.foreignTable.name}(${refConstraint.foreignColumns.map((c) => c.name).join(', ')})
   Tables in schema '${owningSchemaForRef}' may not reference tables in schema '${refSchema}'.
   Cross-schema relationships must be resolved at the application layer:
   store the UUID and resolve in code, or communicate via the event bus.`);
@@ -394,7 +422,7 @@ function runLinter() {
                 } else if (!fkSupp.suppressed) {
                   console.error(`[INVARIANT-01] Cross-schema foreign key detected.
   File: ${file}
-  Line ${constrLineNum}: REFERENCES ${refSchema}.${constr.foreignTable.name}(${constr.foreignColumns.map(c => c.name).join(', ')})
+  Line ${constrLineNum}: REFERENCES ${refSchema}.${constr.foreignTable.name}(${constr.foreignColumns.map((c) => c.name).join(', ')})
   Tables in schema '${owningSchemaForRef}' may not reference tables in schema '${refSchema}'.
   Cross-schema relationships must be resolved at the application layer:
   store the UUID and resolve in code, or communicate via the event bus.`);
@@ -419,7 +447,7 @@ function runLinter() {
       alterTable: (node: AlterTableStatement) => {
         const offset = node._location?.start ?? 0;
         const lineNum = getLineNumber(content, offset);
-        
+
         const owningTable = node.table.name;
         const owningSchema = node.table.schema;
 
@@ -432,8 +460,13 @@ function runLinter() {
 
             // Check Invariant #7: TIMESTAMPTZ for timestamps (FAIL for TIMESTAMP, WARN for DATE)
             if (isTimestampName(col.name.name)) {
-              const typeName = col.dataType.kind === undefined ? col.dataType.name.toLowerCase() : '';
-              const isTimestamptz = typeName === 'timestamptz' || typeName === 'timestamp with time zone' || typeName.includes('timezone') || typeName.includes('with time zone');
+              const typeName =
+                col.dataType.kind === undefined ? col.dataType.name.toLowerCase() : '';
+              const isTimestamptz =
+                typeName === 'timestamptz' ||
+                typeName === 'timestamp with time zone' ||
+                typeName.includes('timezone') ||
+                typeName.includes('with time zone');
               if (!isTimestamptz) {
                 if (typeName === 'date') {
                   const supp = checkSuppression(colPrecedingComments, 'allow-date');
@@ -460,7 +493,7 @@ function runLinter() {
             }
 
             // Check Invariant #1: No cross-schema foreign keys (inline references)
-            const refConstraint = col.constraints?.find(c => c.type === 'reference');
+            const refConstraint = col.constraints?.find((c) => c.type === 'reference');
             if (refConstraint && refConstraint.type === 'reference') {
               const refSchema = refConstraint.foreignTable.schema;
               const owningSchemaForRef = owningSchema || 'public';
@@ -476,7 +509,7 @@ function runLinter() {
                 } else if (!refSupp.suppressed) {
                   console.error(`[INVARIANT-01] Cross-schema foreign key detected.
   File: ${file}
-  Line ${changeLineNum}: REFERENCES ${refSchema}.${refConstraint.foreignTable.name}(${refConstraint.foreignColumns.map(c => c.name).join(', ')})
+  Line ${changeLineNum}: REFERENCES ${refSchema}.${refConstraint.foreignTable.name}(${refConstraint.foreignColumns.map((c) => c.name).join(', ')})
   Tables in schema '${owningSchemaForRef}' may not reference tables in schema '${refSchema}'.
   Cross-schema relationships must be resolved at the application layer:
   store the UUID and resolve in code, or communicate via the event bus.`);
@@ -497,7 +530,10 @@ function runLinter() {
                 // is undefined in this pgsql-ast-parser version and lineNum is unreliable.
                 let alterTableLine = changeLineNum;
                 for (let i = 0; i < lines.length; i++) {
-                  if (lines[i].trim().startsWith('ALTER TABLE') && lines[i].includes(`"${constr.foreignTable.name}"`)) {
+                  if (
+                    lines[i].trim().startsWith('ALTER TABLE') &&
+                    lines[i].includes(`"${constr.foreignTable.name}"`)
+                  ) {
                     alterTableLine = i + 1;
                     break;
                   }
@@ -513,7 +549,7 @@ function runLinter() {
                 } else if (!fkSupp.suppressed) {
                   console.error(`[INVARIANT-01] Cross-schema foreign key detected.
   File: ${file}
-  Line ${changeLineNum}: REFERENCES ${refSchema}.${constr.foreignTable.name}(${constr.foreignColumns.map(c => c.name).join(', ')})
+  Line ${changeLineNum}: REFERENCES ${refSchema}.${constr.foreignTable.name}(${constr.foreignColumns.map((c) => c.name).join(', ')})
   Tables in schema '${owningSchemaForRef}' may not reference tables in schema '${refSchema}'.
   Cross-schema relationships must be resolved at the application layer:
   store the UUID and resolve in code, or communicate via the event bus.`);
@@ -527,7 +563,9 @@ function runLinter() {
             const changeLineNum = getColumnLineNumber(lines, lineNum, change.column.name);
             const precedingComments = getPrecedingComments(lines, changeLineNum);
             const changeLineText = lines[changeLineNum - 1]?.trim() || '';
-            const hasExpandContract = precedingComments.some(c => /--\s*expand-contract:\s*contract phase/.test(c));
+            const hasExpandContract = precedingComments.some((c) =>
+              /--\s*expand-contract:\s*contract phase/.test(c),
+            );
             if (!hasExpandContract) {
               console.warn(`[WARN] DROP COLUMN statement detected without expand-contract comment.
   File: ${file}
@@ -546,9 +584,14 @@ function runLinter() {
         const precedingComments = getPrecedingComments(lines, lineNum);
         const changeLineText = lines[lineNum - 1]?.trim() || '';
 
-        const isTableOrIndexOrTrigger = node.type.includes('table') || node.type.includes('index') || node.type.includes('trigger');
+        const isTableOrIndexOrTrigger =
+          node.type.includes('table') ||
+          node.type.includes('index') ||
+          node.type.includes('trigger');
         if (isTableOrIndexOrTrigger) {
-          const hasExpandContract = precedingComments.some(c => /--\s*expand-contract:\s*contract phase/.test(c));
+          const hasExpandContract = precedingComments.some((c) =>
+            /--\s*expand-contract:\s*contract phase/.test(c),
+          );
           if (!hasExpandContract) {
             console.warn(`[WARN] DROP statement detected without expand-contract comment.
   File: ${file}
@@ -581,7 +624,8 @@ function runLinter() {
         const fullTargetTable = targetSchema ? `${targetSchema}.${targetTable}` : targetTable;
 
         if (!node.concurrently) {
-          const wasCreatedInFile = createdTablesInFile.has(targetTable) || createdTablesInFile.has(fullTargetTable);
+          const wasCreatedInFile =
+            createdTablesInFile.has(targetTable) || createdTablesInFile.has(fullTargetTable);
           if (!wasCreatedInFile) {
             console.warn(`[WARN] CREATE INDEX without CONCURRENTLY on an existing table.
   File: ${file}
@@ -590,7 +634,7 @@ function runLinter() {
           }
         }
         v.super().createIndex(node);
-      }
+      },
     }));
 
     for (const statement of ast) {

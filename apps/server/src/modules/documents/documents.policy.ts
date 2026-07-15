@@ -50,26 +50,48 @@ const CLASSIFIED_LEVELS: ReadonlySet<ClassificationLevel> = new Set(['confidenti
 
 /** I1 §3.1 `document:create`. */
 const CREATE_ROLES: ReadonlySet<string> = new Set([
-  'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member',
-  'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain',
+  'dept_encoder',
+  'dept_approver',
+  'sp_secretary',
+  'sp_member',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_encoder',
+  'brgy_captain',
 ]);
 
 /** I1 §3.2 branch 1 / I1 §4.1 branch 1 — own-office metadata & content read. */
 const OWN_OFFICE_READ_ROLES: ReadonlySet<string> = new Set([
-  'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member',
-  'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain',
-  'records_officer', 'auditor',
+  'dept_encoder',
+  'dept_approver',
+  'sp_secretary',
+  'sp_member',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_encoder',
+  'brgy_captain',
+  'records_officer',
+  'auditor',
 ]);
 
 /** I1 §3.2 branch 2 / I1 §4.1 branch 2 — cross-office metadata & content read. */
 const CROSS_OFFICE_READ_ROLES: ReadonlySet<string> = new Set([
-  'records_officer', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'auditor',
+  'records_officer',
+  'sp_secretary',
+  'sp_presiding_officer',
+  'mayor',
+  'auditor',
 ]);
 
 /** I1 §3.3 `document:update` base role set (sp_member handled separately as an additional grant). */
 const UPDATE_ROLES: ReadonlySet<string> = new Set([
-  'dept_encoder', 'dept_approver', 'sp_secretary',
-  'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain',
+  'dept_encoder',
+  'dept_approver',
+  'sp_secretary',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_encoder',
+  'brgy_captain',
 ]);
 
 /**
@@ -84,36 +106,68 @@ const UPDATE_ROLES: ReadonlySet<string> = new Set([
  * is included here.
  */
 const SOFT_DELETE_ROLES: ReadonlySet<string> = new Set([
-  'dept_encoder', 'dept_approver', 'sp_secretary',
-  'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain',
+  'dept_encoder',
+  'dept_approver',
+  'sp_secretary',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_encoder',
+  'brgy_captain',
 ]);
 
 /** I1 §3.5 `document:submit`. */
 const SUBMIT_ROLES: ReadonlySet<string> = new Set([
-  'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member',
-  'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain',
+  'dept_encoder',
+  'dept_approver',
+  'sp_secretary',
+  'sp_member',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_encoder',
+  'brgy_captain',
 ]);
 
 /** I1 §3.6 `document:cancel` base role set (dept_encoder/brgy_encoder handled as conditional grants). */
 const CANCEL_BASE_ROLES: ReadonlySet<string> = new Set([
-  'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_captain',
+  'dept_approver',
+  'sp_secretary',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_captain',
 ]);
 
 /** I1 §4.2 `document_version:create` / `document_attachment:create`. */
 const VERSION_CREATE_ROLES: ReadonlySet<string> = new Set([
-  'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member',
-  'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain',
+  'dept_encoder',
+  'dept_approver',
+  'sp_secretary',
+  'sp_member',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_encoder',
+  'brgy_captain',
 ]);
 
 /** I1 §4.4 scan quality indicator access — no `auditor`, unlike other content reads. */
 const SCAN_QUALITY_ROLES: ReadonlySet<string> = new Set([
-  'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member',
-  'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain', 'records_officer',
+  'dept_encoder',
+  'dept_approver',
+  'sp_secretary',
+  'sp_member',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_encoder',
+  'brgy_captain',
+  'records_officer',
 ]);
 
 /** I1 §14.1 `number_series:read`. */
 const NUMBER_SERIES_READ_ROLES: ReadonlySet<string> = new Set([
-  'plat_admin', 'records_officer', 'sp_secretary', 'sys_admin', 'auditor',
+  'plat_admin',
+  'records_officer',
+  'sp_secretary',
+  'sys_admin',
+  'auditor',
 ]);
 
 // ─── State-Action Compatibility Matrix (I1 §17) ─────────────────────────────
@@ -172,7 +226,10 @@ function hasCommitteeOrSessionAccess(
   subject: SubjectContext,
   attrs: { documentCommitteeId?: string | null; isInSpSession?: boolean },
 ): boolean {
-  if (attrs.documentCommitteeId != null && subject.committeeIds.includes(attrs.documentCommitteeId)) {
+  if (
+    attrs.documentCommitteeId != null &&
+    subject.committeeIds.includes(attrs.documentCommitteeId)
+  ) {
     return true;
   }
   return attrs.isInSpSession === true;
@@ -376,7 +433,8 @@ export class DocumentPolicyGuard {
       (attrs.classificationLevel === 'public' || attrs.classificationLevel === 'internal') &&
       attrs.hasCrossOfficeGrant === true;
 
-    const spMemberScoped = subject.roles.includes('sp_member') && hasCommitteeOrSessionAccess(subject, attrs);
+    const spMemberScoped =
+      subject.roles.includes('sp_member') && hasCommitteeOrSessionAccess(subject, attrs);
 
     const isPublic = attrs.classificationLevel === 'public';
 
@@ -394,8 +452,14 @@ export class DocumentPolicyGuard {
    * so this narrowing is safe even though it goes beyond I1's literal text.
    * Logged in docs/development-findings-log.md.
    */
-  canReadMetadataAdmin(_subject: SubjectContext, resource: DocumentAdminReadResourceContext): boolean {
-    return resource.classificationLevel !== 'confidential' && resource.classificationLevel !== 'restricted';
+  canReadMetadataAdmin(
+    _subject: SubjectContext,
+    resource: DocumentAdminReadResourceContext,
+  ): boolean {
+    return (
+      resource.classificationLevel !== 'confidential' &&
+      resource.classificationLevel !== 'restricted'
+    );
   }
 
   /**
@@ -425,12 +489,14 @@ export class DocumentPolicyGuard {
    */
   getSearchScope(subject: SubjectContext): OfficeReadScope {
     const hasBypassRole = subject.roles.some((role) =>
-      ['records_officer', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'auditor'].includes(role)
+      ['records_officer', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'auditor'].includes(
+        role,
+      ),
     );
     if (hasBypassRole) return { kind: 'all' };
 
     const hasScopedRole = subject.roles.some((role) =>
-      ['dept_encoder', 'dept_approver', 'sp_member'].includes(role)
+      ['dept_encoder', 'dept_approver', 'sp_member'].includes(role),
     );
     if (hasScopedRole) return { kind: 'own', officeIds: subject.effectiveOfficeIds };
 
@@ -507,7 +573,11 @@ export class DocumentPolicyGuard {
 
   /** I1 §3.6 `document:cancel` (any active state → Cancelled). Every cancellation requires a mandatory audit-logged reason, enforced by the calling procedure, not this guard. */
   canCancel(subject: SubjectContext, attrs: CancelDocumentAttrs): boolean {
-    if (attrs.lifecycleState === 'archived' || attrs.lifecycleState === 'disposed' || attrs.lifecycleState === 'cancelled') {
+    if (
+      attrs.lifecycleState === 'archived' ||
+      attrs.lifecycleState === 'disposed' ||
+      attrs.lifecycleState === 'cancelled'
+    ) {
       return false;
     }
     if (!subject.effectiveOfficeIds.includes(attrs.ownedByOfficeId)) {
@@ -518,7 +588,8 @@ export class DocumentPolicyGuard {
     }
 
     const preWorkflow =
-      (attrs.lifecycleState === 'draft' || attrs.lifecycleState === 'submitted') && attrs.workflowInstanceId == null;
+      (attrs.lifecycleState === 'draft' || attrs.lifecycleState === 'submitted') &&
+      attrs.workflowInstanceId == null;
 
     if (subject.roles.includes('dept_encoder') && preWorkflow) {
       return true;
@@ -530,7 +601,10 @@ export class DocumentPolicyGuard {
   }
 
   /** I1 §3.7 `document:number_assign` (preliminary number, at secretariat logging). */
-  canAssignPreliminaryNumber(subject: SubjectContext, attrs: AssignPreliminaryNumberAttrs): boolean {
+  canAssignPreliminaryNumber(
+    subject: SubjectContext,
+    attrs: AssignPreliminaryNumberAttrs,
+  ): boolean {
     if (!SP_WORKFLOW_DOCUMENT_TYPE_CODES.has(attrs.documentTypeCode)) {
       return false;
     }
@@ -586,7 +660,8 @@ export class DocumentPolicyGuard {
     }
     const visibilityOk =
       attrs.classificationLevel === 'public' ||
-      (attrs.classificationLevel === 'internal' && attrs.publicVisibilityRule === TITLE_AND_FIRST_PAGE_PUBLIC_RULE);
+      (attrs.classificationLevel === 'internal' &&
+        attrs.publicVisibilityRule === TITLE_AND_FIRST_PAGE_PUBLIC_RULE);
     if (!visibilityOk) {
       return false;
     }
@@ -695,7 +770,8 @@ export class DocumentPolicyGuard {
       return false;
     }
     const ownAuthored = attrs.createdBy != null && attrs.createdBy === subject.userId;
-    const ownOffice = attrs.ownedByOfficeId != null && subject.effectiveOfficeIds.includes(attrs.ownedByOfficeId);
+    const ownOffice =
+      attrs.ownedByOfficeId != null && subject.effectiveOfficeIds.includes(attrs.ownedByOfficeId);
     return ownAuthored || ownOffice;
   }
 

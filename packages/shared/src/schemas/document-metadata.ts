@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { UuidSchema, TimestampSchema, DateSchema } from "./common.js";
+import { z } from 'zod';
+import { UuidSchema, TimestampSchema, DateSchema } from './common.js';
 
 // Shared Sub-schemas
 export const SponsorSchema = z.object({
@@ -20,14 +20,14 @@ export const ReadingRecordSchema = z.object({
 
 export const MayorActionSchema = z
   .object({
-    type: z.enum(["signed", "vetoed", "lapsed"]),
+    type: z.enum(['signed', 'vetoed', 'lapsed']),
     actionDate: DateSchema,
     notes: z.string().max(2048).optional(),
     vetoMessage: z.string().max(4096).optional(),
   })
-  .refine((v) => v.type !== "vetoed" || (v.vetoMessage && v.vetoMessage.length > 0), {
+  .refine((v) => v.type !== 'vetoed' || (v.vetoMessage && v.vetoMessage.length > 0), {
     message: "vetoMessage required when type is 'vetoed'",
-    path: ["vetoMessage"],
+    path: ['vetoMessage'],
   });
 
 export const VetoOverrideSchema = z.object({
@@ -53,7 +53,7 @@ export const NewspaperPublicationSchema = z.object({
 // Phase 1 Document Type Metadata Schemas
 
 const spResolutionBase = z.object({
-  sponsors: z.array(SponsorSchema).min(1, "At least one sponsor required"),
+  sponsors: z.array(SponsorSchema).min(1, 'At least one sponsor required'),
   firstReading: ReadingRecordSchema.optional(),
   certificationOfUrgencyDocumentId: UuidSchema.optional(),
   committeeReferralIds: z.array(UuidSchema).optional(),
@@ -67,7 +67,7 @@ const spResolutionBase = z.object({
 
 export const SpResolutionMetadataSchema = spResolutionBase.refine(
   (v) => !(v.certificationOfUrgencyDocumentId && v.committeeReferralIds?.length),
-  { message: "A certified urgent measure cannot also have committee referrals" }
+  { message: 'A certified urgent measure cannot also have committee referrals' },
 );
 export type SpResolutionMetadata = z.infer<typeof SpResolutionMetadataSchema>;
 
@@ -89,19 +89,19 @@ const spOrdinanceBase = z.object({
 
 export const SpOrdinanceMetadataSchema = spOrdinanceBase.refine(
   (v) => !(v.certificationOfUrgencyDocumentId && v.committeeReferralIds?.length),
-  { message: "A certified urgent measure cannot also have committee referrals" }
+  { message: 'A certified urgent measure cannot also have committee referrals' },
 );
 export type SpOrdinanceMetadata = z.infer<typeof SpOrdinanceMetadataSchema>;
 
 const appropriationOrdinanceBase = spOrdinanceBase.extend({
-  appropriationType: z.enum(["annual_budget", "supplemental"]).default("annual_budget"),
+  appropriationType: z.enum(['annual_budget', 'supplemental']).default('annual_budget'),
   fiscalYear: z.number().int().min(2000).max(2099),
   totalAmountPhp: z.number().positive().optional(),
 });
 
 export const AppropriationOrdinanceMetadataSchema = appropriationOrdinanceBase.refine(
   (v) => !(v.certificationOfUrgencyDocumentId && v.committeeReferralIds?.length),
-  { message: "A certified urgent measure cannot also have committee referrals" }
+  { message: 'A certified urgent measure cannot also have committee referrals' },
 );
 export type AppropriationOrdinanceMetadata = z.infer<typeof AppropriationOrdinanceMetadataSchema>;
 
@@ -109,7 +109,7 @@ const certificationOfUrgencyBase = z.object({
   issuedByEmployeeId: UuidSchema,
   issuedByDisplayName: z.string().min(1),
   issuanceDate: DateSchema,
-  associatedDocumentIds: z.array(UuidSchema).min(1, "At least one associated measure required"),
+  associatedDocumentIds: z.array(UuidSchema).min(1, 'At least one associated measure required'),
   justification: z.string().max(4096).optional(),
   sessionDate: DateSchema.optional(),
 });
@@ -117,15 +117,20 @@ const certificationOfUrgencyBase = z.object({
 export const CertificationOfUrgencyMetadataSchema = certificationOfUrgencyBase;
 export type CertificationOfUrgencyMetadata = z.infer<typeof CertificationOfUrgencyMetadataSchema>;
 
-export const ComplaintOutcomeStateSchema = z.enum(["pending_hearing", "received_seen", "dismissed", "resolved"]);
+export const ComplaintOutcomeStateSchema = z.enum([
+  'pending_hearing',
+  'received_seen',
+  'dismissed',
+  'resolved',
+]);
 export type ComplaintOutcomeState = z.infer<typeof ComplaintOutcomeStateSchema>;
 
 export const ComplaintViolationTypeSchema = z.enum([
-  "overcharging",
-  "trip_cutting",
-  "refused_to_convey",
-  "discourtesy",
-  "other",
+  'overcharging',
+  'trip_cutting',
+  'refused_to_convey',
+  'discourtesy',
+  'other',
 ]);
 
 const citizenComplaintBase = z.object({
@@ -150,12 +155,12 @@ const citizenComplaintBase = z.object({
       tricycleNumber: z.string().nullable(),
       contactNumber: z.string().nullable(),
       email: z.string().nullable(),
-      notificationChannel: z.enum(["contact_number", "email"]).nullable(),
+      notificationChannel: z.enum(['contact_number', 'email']).nullable(),
     })
     .nullable(),
-  accessMode: z.enum(["downloaded_form", "digital_form_printed", "in_person_clerk"]),
+  accessMode: z.enum(['downloaded_form', 'digital_form_printed', 'in_person_clerk']),
   routingDecision: z.string().nullable(),
-  outcomeState: ComplaintOutcomeStateSchema.default("pending_hearing"),
+  outcomeState: ComplaintOutcomeStateSchema.default('pending_hearing'),
 });
 
 export const CitizenComplaintMetadataSchema = citizenComplaintBase;
@@ -178,11 +183,11 @@ const documentRequestFormBase = z.object({
         documentTypeLabel: z.string().nullable(),
         documentNumber: z.string().nullable(),
         numberOfPages: z.number().int().positive().nullable(),
-      })
+      }),
     )
     .min(1),
   purpose: z.string().nullable(),
-  accessMode: z.enum(["downloaded_form", "digital_form_printed", "in_person_clerk"]),
+  accessMode: z.enum(['downloaded_form', 'digital_form_printed', 'in_person_clerk']),
   payment: z
     .object({
       orNumber: z.string().nullable(),
@@ -191,7 +196,7 @@ const documentRequestFormBase = z.object({
       paymentDate: DateSchema.nullable(),
     })
     .nullable(),
-  notificationChannel: z.enum(["contact_number", "email"]).nullable(),
+  notificationChannel: z.enum(['contact_number', 'email']).nullable(),
 });
 
 export const DocumentRequestFormMetadataSchema = documentRequestFormBase;
@@ -216,7 +221,7 @@ const letterSentBase = z.object({
   recipientEmail: z.string().email().optional(),
   dateSent: DateSchema,
   relatedDocumentId: UuidSchema.optional(),
-  letterType: z.enum(["transmittal", "invitation", "forwarding", "general"]).default("general"),
+  letterType: z.enum(['transmittal', 'invitation', 'forwarding', 'general']).default('general'),
 });
 
 export const LetterSentMetadataSchema = letterSentBase;
@@ -248,7 +253,10 @@ export type MemoIncomingMetadata = z.infer<typeof MemoIncomingMetadataSchema>;
 const noticeOfCommitteeHearingBase = z.object({
   committeeIds: z.array(UuidSchema).min(1),
   hearingDate: DateSchema.optional(),
-  hearingTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  hearingTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .optional(),
   hearingVenue: z.string().max(256).optional(),
   relatedDocumentIds: z.array(UuidSchema).min(1),
   recipientEmployeeIds: z.array(UuidSchema).min(1),
@@ -256,7 +264,9 @@ const noticeOfCommitteeHearingBase = z.object({
 });
 
 export const NoticeOfCommitteeHearingMetadataSchema = noticeOfCommitteeHearingBase;
-export type NoticeOfCommitteeHearingMetadata = z.infer<typeof NoticeOfCommitteeHearingMetadataSchema>;
+export type NoticeOfCommitteeHearingMetadata = z.infer<
+  typeof NoticeOfCommitteeHearingMetadataSchema
+>;
 
 const noticeOfSpecialSessionBase = z.object({
   sessionNumber: z.string().max(64),
@@ -285,53 +295,57 @@ const designationBase = z.object({
 
 export const DesignationMetadataSchema = designationBase
   .refine((v) => v.delegatingAuthorityEmployeeId !== v.designatedPersonEmployeeId, {
-    message: "Delegating authority and designated person must differ",
-    path: ["designatedPersonEmployeeId"],
+    message: 'Delegating authority and designated person must differ',
+    path: ['designatedPersonEmployeeId'],
   })
   .refine((v) => v.effectiveUntil >= v.effectiveFrom, {
-    message: "effectiveUntil must not be before effectiveFrom",
-    path: ["effectiveUntil"],
+    message: 'effectiveUntil must not be before effectiveFrom',
+    path: ['effectiveUntil'],
   });
 export type DesignationMetadata = z.infer<typeof DesignationMetadataSchema>;
 
 export const DocumentMetadataSchema = z
-  .discriminatedUnion("__type", [
-    spResolutionBase.extend({ __type: z.literal("SP_RESOLUTION") }),
-    spOrdinanceBase.extend({ __type: z.literal("SP_ORDINANCE") }),
-    appropriationOrdinanceBase.extend({ __type: z.literal("APPROPRIATION_ORDINANCE") }),
-    certificationOfUrgencyBase.extend({ __type: z.literal("CERTIFICATION_OF_URGENCY") }),
-    citizenComplaintBase.extend({ __type: z.literal("CITIZEN_COMPLAINT") }),
-    documentRequestFormBase.extend({ __type: z.literal("DOCUMENT_REQUEST_FORM") }),
-    letterReceivedBase.extend({ __type: z.literal("LETTER_RECEIVED") }),
-    letterSentBase.extend({ __type: z.literal("LETTER_SENT") }),
-    memoOutgoingBase.extend({ __type: z.literal("MEMO_OUTGOING") }),
-    memoIncomingBase.extend({ __type: z.literal("MEMO_INCOMING") }),
-    noticeOfCommitteeHearingBase.extend({ __type: z.literal("NOTICE_OF_COMMITTEE_HEARING") }),
-    noticeOfSpecialSessionBase.extend({ __type: z.literal("NOTICE_OF_SPECIAL_SESSION") }),
-    designationBase.extend({ __type: z.literal("DESIGNATION") }),
+  .discriminatedUnion('__type', [
+    spResolutionBase.extend({ __type: z.literal('SP_RESOLUTION') }),
+    spOrdinanceBase.extend({ __type: z.literal('SP_ORDINANCE') }),
+    appropriationOrdinanceBase.extend({ __type: z.literal('APPROPRIATION_ORDINANCE') }),
+    certificationOfUrgencyBase.extend({ __type: z.literal('CERTIFICATION_OF_URGENCY') }),
+    citizenComplaintBase.extend({ __type: z.literal('CITIZEN_COMPLAINT') }),
+    documentRequestFormBase.extend({ __type: z.literal('DOCUMENT_REQUEST_FORM') }),
+    letterReceivedBase.extend({ __type: z.literal('LETTER_RECEIVED') }),
+    letterSentBase.extend({ __type: z.literal('LETTER_SENT') }),
+    memoOutgoingBase.extend({ __type: z.literal('MEMO_OUTGOING') }),
+    memoIncomingBase.extend({ __type: z.literal('MEMO_INCOMING') }),
+    noticeOfCommitteeHearingBase.extend({ __type: z.literal('NOTICE_OF_COMMITTEE_HEARING') }),
+    noticeOfSpecialSessionBase.extend({ __type: z.literal('NOTICE_OF_SPECIAL_SESSION') }),
+    designationBase.extend({ __type: z.literal('DESIGNATION') }),
   ])
   .superRefine((val, ctx) => {
-    if (val.__type === "SP_RESOLUTION" || val.__type === "SP_ORDINANCE" || val.__type === "APPROPRIATION_ORDINANCE") {
+    if (
+      val.__type === 'SP_RESOLUTION' ||
+      val.__type === 'SP_ORDINANCE' ||
+      val.__type === 'APPROPRIATION_ORDINANCE'
+    ) {
       if (val.certificationOfUrgencyDocumentId && val.committeeReferralIds?.length) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "A certified urgent measure cannot also have committee referrals",
+          message: 'A certified urgent measure cannot also have committee referrals',
         });
       }
     }
-    if (val.__type === "DESIGNATION") {
+    if (val.__type === 'DESIGNATION') {
       if (val.delegatingAuthorityEmployeeId === val.designatedPersonEmployeeId) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Delegating authority and designated person must differ",
-          path: ["designatedPersonEmployeeId"],
+          message: 'Delegating authority and designated person must differ',
+          path: ['designatedPersonEmployeeId'],
         });
       }
       if (val.effectiveUntil < val.effectiveFrom) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "effectiveUntil must not be before effectiveFrom",
-          path: ["effectiveUntil"],
+          message: 'effectiveUntil must not be before effectiveFrom',
+          path: ['effectiveUntil'],
         });
       }
     }

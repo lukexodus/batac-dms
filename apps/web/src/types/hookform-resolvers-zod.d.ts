@@ -15,12 +15,12 @@ declare module '@hookform/resolvers/zod' {
   export function zodResolver<TSchema extends z.ZodType>(
     schema: TSchema,
     schemaOptions?: Record<string, unknown>,
-    resolverOptions?: { mode?: 'async' | 'sync'; raw?: false }
+    resolverOptions?: { mode?: 'async' | 'sync'; raw?: false },
   ): Resolver<z.input<TSchema> & FieldValues, unknown, z.output<TSchema>>;
 
   export function zodResolver<TSchema extends z.ZodType>(
     schema: TSchema,
     schemaOptions?: Record<string, unknown>,
-    resolverOptions: { mode?: 'async' | 'sync'; raw: true }
+    resolverOptions: { mode?: 'async' | 'sync'; raw: true },
   ): Resolver<z.input<TSchema> & FieldValues, unknown, z.input<TSchema> & FieldValues>;
 }

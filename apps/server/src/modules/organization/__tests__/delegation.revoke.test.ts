@@ -48,10 +48,7 @@ const nonSecretarySubject: DelegationSubject = {
 
 // ── Mock factory helpers ───────────────────────────────────────────────────────
 
-function makeMockDb(opts: {
-  grantFound?: boolean;
-  grantIsActive?: boolean;
-}) {
+function makeMockDb(opts: { grantFound?: boolean; grantIsActive?: boolean }) {
   const grantFound = opts.grantFound ?? true;
   const grantIsActive = opts.grantIsActive ?? true;
 
@@ -112,14 +109,16 @@ function makeMockEventBus() {
 }
 
 function makeMockAuditService() {
-  return { writeEvent: vi.fn().mockResolvedValue(undefined), queryEvents: vi.fn(), _internal: {} as any };
+  return {
+    writeEvent: vi.fn().mockResolvedValue(undefined),
+    queryEvents: vi.fn(),
+    _internal: {} as any,
+  };
 }
 
 function makeMockPolicyEvaluator(allowed: boolean, reason = '') {
   return {
-    evaluate: vi.fn().mockResolvedValue(
-      allowed ? { allowed: true } : { allowed: false, reason }
-    ),
+    evaluate: vi.fn().mockResolvedValue(allowed ? { allowed: true } : { allowed: false, reason }),
     registerResourceHandler: vi.fn(),
   };
 }
@@ -141,7 +140,7 @@ describe('revokeEarlyDelegationGrant', () => {
     const service = createDelegationService(deps);
 
     await expect(
-      service.revokeEarlyDelegationGrant(grantId, validInput, mayorSubject)
+      service.revokeEarlyDelegationGrant(grantId, validInput, mayorSubject),
     ).rejects.toThrow(DelegationGrantNotFoundError);
   });
 
@@ -157,7 +156,7 @@ describe('revokeEarlyDelegationGrant', () => {
     const service = createDelegationService(deps);
 
     await expect(
-      service.revokeEarlyDelegationGrant(grantId, validInput, mayorSubject)
+      service.revokeEarlyDelegationGrant(grantId, validInput, mayorSubject),
     ).rejects.toThrow(PolicyDeniedError);
   });
 
@@ -169,13 +168,16 @@ describe('revokeEarlyDelegationGrant', () => {
       orgRepository: makeMockRepository(),
       eventBus: makeMockEventBus() as any,
       auditService: makeMockAuditService() as any,
-      policyEvaluator: makeMockPolicyEvaluator(false, 'delegation_grant_revoke_not_permitted') as any,
+      policyEvaluator: makeMockPolicyEvaluator(
+        false,
+        'delegation_grant_revoke_not_permitted',
+      ) as any,
     };
 
     const service = createDelegationService(deps);
 
     await expect(
-      service.revokeEarlyDelegationGrant(grantId, validInput, nonSecretarySubject)
+      service.revokeEarlyDelegationGrant(grantId, validInput, nonSecretarySubject),
     ).rejects.toThrow(PolicyDeniedError);
   });
 
@@ -215,7 +217,7 @@ describe('revokeEarlyDelegationGrant', () => {
           isActive: false,
           revokedBy: mayorSubject.userId,
           revokedAt: expect.any(Date),
-        })
+        }),
       );
     });
 

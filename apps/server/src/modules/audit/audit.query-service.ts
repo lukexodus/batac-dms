@@ -1,11 +1,6 @@
 import { asc, gt, lt, eq, and, gte, lte, inArray } from 'drizzle-orm';
 import { auditEvents } from '@batac/database/schema/audit.schema.js';
-import {
-  canonicalizePayload,
-  computeChainHash,
-  verifyHmac,
-  GENESIS_HASH,
-} from './audit.crypto.js';
+import { canonicalizePayload, computeChainHash, verifyHmac, GENESIS_HASH } from './audit.crypto.js';
 import type { AuditRepository } from './audit.repository.js';
 import type { AuditQueryFilter, AuditQueryResult } from './index.js';
 
@@ -54,10 +49,7 @@ export class AuditQueryService {
   ) {}
 
   async queryEvents(filter: AuditQueryFilter): Promise<AuditQueryResult> {
-    const pageSize = Math.min(
-      filter.pageSize ?? DEFAULT_PAGE_SIZE,
-      MAX_PAGE_SIZE,
-    );
+    const pageSize = Math.min(filter.pageSize ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
 
     // Build WHERE conditions
     const conditions = [];

@@ -16,15 +16,14 @@ import {
 import { useSessionStore } from '@/stores';
 import { trpc } from '@/lib/trpc';
 
-
 // ─── Access denied ──────────────────────────────────────────────────────────
 function AccessDenied() {
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Card className="max-w-md w-full">
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Card className="w-full max-w-md">
         <CardContent className="pt-6 text-center">
-          <p className="text-lg font-semibold text-destructive">Access Denied</p>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-destructive text-lg font-semibold">Access Denied</p>
+          <p className="text-muted-foreground mt-2 text-sm">
             This page requires System Administrator privileges.
           </p>
         </CardContent>
@@ -48,7 +47,7 @@ function CreateUserForm() {
   // documented in the PR description).
   const employeesQuery = trpc.organization.listEmployeesForSysAdmin.useQuery(
     { search: employeeSearch || undefined, limit: 20 },
-    { enabled: employeeSearch.length >= 2 || false }
+    { enabled: employeeSearch.length >= 2 || false },
   );
 
   const createMutation = trpc.iam.createUserAccount.useMutation({
@@ -66,7 +65,8 @@ function CreateUserForm() {
 
   const usernameValid = username.length >= 3 && username.length <= 64;
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const canSubmit = usernameValid && emailValid && !!selectedEmployeeId && !createMutation.isPending;
+  const canSubmit =
+    usernameValid && emailValid && !!selectedEmployeeId && !createMutation.isPending;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +81,7 @@ function CreateUserForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="new-username">Username</Label>
               <Input
@@ -94,7 +94,7 @@ function CreateUserForm() {
                 className={username && !usernameValid ? 'border-destructive' : ''}
               />
               {username && !usernameValid && (
-                <p className="text-xs text-destructive">Username must be 3–64 characters.</p>
+                <p className="text-destructive text-xs">Username must be 3–64 characters.</p>
               )}
             </div>
             <div className="space-y-1">
@@ -112,10 +112,10 @@ function CreateUserForm() {
           {/* Employee picker */}
           <div className="space-y-1">
             <Label htmlFor="employee-search">Employee (required)</Label>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Type at least 2 characters to search employees.{' '}
               {selectedEmployeeName && (
-                <span className="font-medium text-foreground">
+                <span className="text-foreground font-medium">
                   Selected: {selectedEmployeeName}
                 </span>
               )}
@@ -132,15 +132,15 @@ function CreateUserForm() {
               placeholder="Search by first or last name…"
             />
             {employeesQuery.isPending && employeeSearch.length >= 2 && (
-              <p className="text-xs text-muted-foreground">Searching…</p>
+              <p className="text-muted-foreground text-xs">Searching…</p>
             )}
             {employeesQuery.data && employeesQuery.data.items.length > 0 && !selectedEmployeeId && (
-              <div className="border rounded-md divide-y max-h-48 overflow-y-auto bg-background shadow-sm">
+              <div className="bg-background max-h-48 divide-y overflow-y-auto rounded-md border shadow-sm">
                 {employeesQuery.data.items.map((emp) => (
                   <button
                     key={emp.employeeId}
                     type="button"
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                    className="hover:bg-muted/50 w-full px-3 py-2 text-left text-sm transition-colors"
                     onClick={() => {
                       setSelectedEmployeeId(emp.employeeId);
                       setSelectedEmployeeName(emp.displayName);
@@ -149,7 +149,7 @@ function CreateUserForm() {
                   >
                     <span className="font-medium">{emp.displayName}</span>
                     {emp.positionTitle && (
-                      <span className="ml-2 text-muted-foreground text-xs">
+                      <span className="text-muted-foreground ml-2 text-xs">
                         {emp.positionTitle}
                       </span>
                     )}
@@ -157,9 +157,14 @@ function CreateUserForm() {
                 ))}
               </div>
             )}
-            {employeesQuery.data && employeesQuery.data.items.length === 0 && employeeSearch.length >= 2 && !selectedEmployeeId && (
-              <p className="text-xs text-muted-foreground italic">No employees found for "{employeeSearch}".</p>
-            )}
+            {employeesQuery.data &&
+              employeesQuery.data.items.length === 0 &&
+              employeeSearch.length >= 2 &&
+              !selectedEmployeeId && (
+                <p className="text-muted-foreground text-xs italic">
+                  No employees found for "{employeeSearch}".
+                </p>
+              )}
           </div>
 
           <Button type="submit" disabled={!canSubmit}>
@@ -183,7 +188,7 @@ function EditUserForm({ userId, currentEmail, currentStatus, onDone }: EditFormP
   const utils = trpc.useUtils();
   const [email, setEmail] = useState(currentEmail);
   const [status, setStatus] = useState<'active' | 'deactivated'>(
-    currentStatus === 'deactivated' ? 'deactivated' : 'active'
+    currentStatus === 'deactivated' ? 'deactivated' : 'active',
   );
 
   const editMutation = trpc.iam.editUserAccount.useMutation({
@@ -196,17 +201,17 @@ function EditUserForm({ userId, currentEmail, currentStatus, onDone }: EditFormP
   });
 
   return (
-    <div className="flex flex-col sm:flex-row items-start gap-2 py-2">
+    <div className="flex flex-col items-start gap-2 py-2 sm:flex-row">
       <Input
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Email"
-        className="h-8 text-sm w-56"
+        className="h-8 w-56 text-sm"
       />
       <select
         value={status}
         onChange={(e) => setStatus(e.target.value as 'active' | 'deactivated')}
-        className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+        className="border-input bg-background h-8 rounded-md border px-2 text-sm"
       >
         <option value="active">Active</option>
         <option value="deactivated">Deactivated</option>
@@ -261,31 +266,26 @@ function UserRow({ userId, username, email, status }: UserRowProps) {
     status === 'active'
       ? 'bg-green-100 text-green-800 border-green-300'
       : status === 'deactivated'
-      ? 'bg-red-100 text-red-700 border-red-300'
-      : 'bg-gray-100 text-gray-600 border-gray-300';
+        ? 'bg-red-100 text-red-700 border-red-300'
+        : 'bg-gray-100 text-gray-600 border-gray-300';
 
   return (
-    <div className="border rounded-lg px-4 py-3 space-y-2">
-      <div className="flex items-center justify-between flex-wrap gap-2">
+    <div className="space-y-2 rounded-lg border px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary select-none">
+          <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold select-none">
             {username.charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-medium text-sm">{username}</p>
-            <p className="text-xs text-muted-foreground">{email}</p>
+            <p className="text-sm font-medium">{username}</p>
+            <p className="text-muted-foreground text-xs">{email}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${statusColor}`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusColor}`}>
             {status}
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setEditing((v) => !v)}
-            disabled={busy}
-          >
+          <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)} disabled={busy}>
             {editing ? 'Cancel Edit' : 'Edit'}
           </Button>
           {status !== 'deactivated' ? (
@@ -348,7 +348,7 @@ export function UserAccountManagementPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
       <PageHeader
         title="User Account Management"
         subtitle="Create, edit, deactivate, and reactivate user accounts."
@@ -370,7 +370,7 @@ export function UserAccountManagementPage() {
             onChange={handleSearchChange}
             className="max-w-sm"
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Showing first 20 results.
             {/* nextCursor is permanently null server-side — no real pagination yet. */}
           </p>
@@ -383,14 +383,14 @@ export function UserAccountManagementPage() {
             </div>
           )}
           {directoryQuery.isError && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3">
-              <p className="text-sm text-destructive">
+            <div className="border-destructive/30 bg-destructive/5 rounded-md border px-4 py-3">
+              <p className="text-destructive text-sm">
                 Failed to load users: {directoryQuery.error.message}
               </p>
             </div>
           )}
           {directoryQuery.data && directoryQuery.data.items.length === 0 && (
-            <p className="text-sm text-muted-foreground italic py-4 text-center">
+            <p className="text-muted-foreground py-4 text-center text-sm italic">
               No users found{debouncedSearch ? ` matching "${debouncedSearch}"` : ''}.
             </p>
           )}
@@ -411,11 +411,12 @@ export function UserAccountManagementPage() {
       </Card>
 
       {/* Notes */}
-      <div className="rounded-md border bg-muted/30 px-4 py-3 text-xs text-muted-foreground space-y-1">
+      <div className="bg-muted/30 text-muted-foreground space-y-1 rounded-md border px-4 py-3 text-xs">
         <p>
           <strong>editUserAccount</strong> gate: <code>isItAdmin || isPlatformAdmin || self</code> —
           this page is sysadmin-scoped by route; the broader gate is existing, correct backend
-          behavior (a regular user can edit their own account via this procedure; that's intentional).
+          behavior (a regular user can edit their own account via this procedure; that's
+          intentional).
         </p>
         <p>
           <strong>Deactivate/Reactivate</strong> status is read from the mutation's returned

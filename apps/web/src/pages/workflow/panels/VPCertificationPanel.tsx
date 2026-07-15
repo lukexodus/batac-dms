@@ -7,7 +7,11 @@ import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // certifyAsPresidingOfficer: input is { stepInstanceId } only — no comment field.
-export function VPCertificationPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
+export function VPCertificationPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 
@@ -27,9 +31,7 @@ export function VPCertificationPanel({ instance }: { instance: RouterOutputs['wo
       </CardHeader>
       <CardContent>
         <Button
-          onClick={() =>
-            certifyMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })
-          }
+          onClick={() => certifyMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })}
           disabled={certifyMutation.isPending}
         >
           {certifyMutation.isPending ? 'Certifying...' : 'Certify Document'}

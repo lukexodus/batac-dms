@@ -2,7 +2,6 @@
 
 **Document:** H2 **Platform:** Batac City LGU Platform **Status:** BLOCKING — `documents.document_types` seed must run before the `number_series` seed (H3) and before any workflow definition is published (B4). Workflow definitions resolve `document_type_id` at publish time; number series records reference `document_type_code` as a logical FK. **Last Updated:** June 2026 **Audience:** Backend development team **Source documents:** Consolidated Architecture & Requirements Reference (Iteration 3) — Parts 4, 5, 11.4, 11.7, 11.21; Numbering Series Configuration Specification (H3); Workflow Engine Specification (B4)
 
-
 ## Table of Contents
 
 - [L28–L39] Notation in This Document — Definitions for verification labels marking source-confirmed facts, logical inferences, and unverified parameters.
@@ -27,11 +26,11 @@
 
 ### Notation in This Document
 
-|Label|Meaning|
-|---|---|
-|[Confirmed — source]|Present in a cited part of the Consolidated Architecture & Requirements Reference|
-|[Inference]|Logically reasoned from confirmed facts; not stated verbatim in the reference document|
-|[Unverified]|No reliable source; confirm before implementing|
+| Label                | Meaning                                                                                |
+| -------------------- | -------------------------------------------------------------------------------------- |
+| [Confirmed — source] | Present in a cited part of the Consolidated Architecture & Requirements Reference      |
+| [Inference]          | Logically reasoned from confirmed facts; not stated verbatim in the reference document |
+| [Unverified]         | No reliable source; confirm before implementing                                        |
 
 Field names, enum values, slug identifiers, and JSON Schema structures that are not present verbatim in the source documents are spec decisions made in this document. They are authoritative for implementation unless explicitly revised.
 
@@ -41,38 +40,38 @@ Field names, enum values, slug identifiers, and JSON Schema structures that are 
 
 The following columns are present on **all** `documents.documents` rows regardless of document type. They are not redefined per type and must not appear inside `documents.metadata`.
 
-|Column|Type|Notes|
-|---|---|---|
-|`id`|UUID PK|`gen_random_uuid()` [Confirmed — Part 11.9]|
-|`document_type_id`|UUID NOT NULL|FK → `documents.document_types.id`|
-|`title`|TEXT NOT NULL|Full display title of the document|
-|`lifecycle_state`|TEXT NOT NULL|Draft → Submitted → In-Workflow → Pending Approval → Completed → Released → Archived → Disposed; Cancelled is a terminal state reachable from any active state [Confirmed — Part 11.4]|
-|`classification_level`|TEXT NOT NULL|PUBLIC \| INTERNAL \| CONFIDENTIAL \| RESTRICTED [Confirmed — Part 11.4]|
-|`qr_tracking_number`|UUID NOT NULL|Assigned at secretariat logging, before preliminary number. Immutable for document lifetime. [Confirmed — Part 11.6]|
-|`preliminary_number`|TEXT NULLABLE|Nullable and mutable. Only present for types with two-stage numbering. Removed when final number is assigned. [Confirmed — Part 5.2]|
-|`final_number`|TEXT NULLABLE|Immutable once assigned. [Confirmed — Part 5.2]|
-|`control_number`|TEXT NULLABLE|Secretariat's tracking reference. Nullable for types with deferred assignment (Letters Received). [Confirmed — Part 4.8; Part 5.2]|
-|`number_series_id`|UUID NULLABLE|FK → `documents.number_series.id`. NULL for document types with no standalone number.|
-|`originating_office_id`|UUID NOT NULL|FK → `organization.offices.id`. SP Secretariat for SP workflow documents; external sender office for SPR letters. [Confirmed — Q-B03]|
-|`owned_by_office_id`|UUID NOT NULL|FK → `organization.offices.id`|
-|`created_by`|UUID NOT NULL|FK → `iam.users.id`|
-|`workflow_instance_id`|UUID NULLABLE|FK → `workflow.instances.id`. NULL until a workflow is started.|
-|`retention_schedule_id`|UUID NOT NULL|FK → `records.retention_schedules.id`|
-|`version_number`|INTEGER NOT NULL|Increments on each new version; previous versions are retained [Confirmed — Part 11.4]|
-|`city_id`|UUID NOT NULL|Tenant isolation [Confirmed — Part 11.9]|
-|`deleted_at`|TIMESTAMPTZ NULLABLE|Soft delete [Confirmed — Part 11.9]|
-|`deleted_by`|UUID NULLABLE|FK → `iam.users.id`|
-|`created_at`|TIMESTAMPTZ NOT NULL||
-|`updated_at`|TIMESTAMPTZ NOT NULL||
+| Column                  | Type                 | Notes                                                                                                                                                                                  |
+| ----------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                    | UUID PK              | `gen_random_uuid()` [Confirmed — Part 11.9]                                                                                                                                            |
+| `document_type_id`      | UUID NOT NULL        | FK → `documents.document_types.id`                                                                                                                                                     |
+| `title`                 | TEXT NOT NULL        | Full display title of the document                                                                                                                                                     |
+| `lifecycle_state`       | TEXT NOT NULL        | Draft → Submitted → In-Workflow → Pending Approval → Completed → Released → Archived → Disposed; Cancelled is a terminal state reachable from any active state [Confirmed — Part 11.4] |
+| `classification_level`  | TEXT NOT NULL        | PUBLIC \| INTERNAL \| CONFIDENTIAL \| RESTRICTED [Confirmed — Part 11.4]                                                                                                               |
+| `qr_tracking_number`    | UUID NOT NULL        | Assigned at secretariat logging, before preliminary number. Immutable for document lifetime. [Confirmed — Part 11.6]                                                                   |
+| `preliminary_number`    | TEXT NULLABLE        | Nullable and mutable. Only present for types with two-stage numbering. Removed when final number is assigned. [Confirmed — Part 5.2]                                                   |
+| `final_number`          | TEXT NULLABLE        | Immutable once assigned. [Confirmed — Part 5.2]                                                                                                                                        |
+| `control_number`        | TEXT NULLABLE        | Secretariat's tracking reference. Nullable for types with deferred assignment (Letters Received). [Confirmed — Part 4.8; Part 5.2]                                                     |
+| `number_series_id`      | UUID NULLABLE        | FK → `documents.number_series.id`. NULL for document types with no standalone number.                                                                                                  |
+| `originating_office_id` | UUID NOT NULL        | FK → `organization.offices.id`. SP Secretariat for SP workflow documents; external sender office for SPR letters. [Confirmed — Q-B03]                                                  |
+| `owned_by_office_id`    | UUID NOT NULL        | FK → `organization.offices.id`                                                                                                                                                         |
+| `created_by`            | UUID NOT NULL        | FK → `iam.users.id`                                                                                                                                                                    |
+| `workflow_instance_id`  | UUID NULLABLE        | FK → `workflow.instances.id`. NULL until a workflow is started.                                                                                                                        |
+| `retention_schedule_id` | UUID NOT NULL        | FK → `records.retention_schedules.id`                                                                                                                                                  |
+| `version_number`        | INTEGER NOT NULL     | Increments on each new version; previous versions are retained [Confirmed — Part 11.4]                                                                                                 |
+| `city_id`               | UUID NOT NULL        | Tenant isolation [Confirmed — Part 11.9]                                                                                                                                               |
+| `deleted_at`            | TIMESTAMPTZ NULLABLE | Soft delete [Confirmed — Part 11.9]                                                                                                                                                    |
+| `deleted_by`            | UUID NULLABLE        | FK → `iam.users.id`                                                                                                                                                                    |
+| `created_at`            | TIMESTAMPTZ NOT NULL |                                                                                                                                                                                        |
+| `updated_at`            | TIMESTAMPTZ NOT NULL |                                                                                                                                                                                        |
 
 **Items managed in other schemas — not in document JSONB:**
 
-|Data|Schema|Notes|
-|---|---|---|
-|Workflow step data, committee assignment, submission tracking|`workflow.step_instances.metadata`|Defined in B4 §4.3 (`multi_referral` step metadata schema)|
-|Mayor action, Panlalawigan outcome, veto override, publication operational tracking|`workflow.instances.context`|Defined in B4 Appendix B|
-|Routing and custody history|`tracking` schema|Every movement: from, to, actor, timestamp, action|
-|File attachments|`documents.attachments`|Attachment records with UUID storage keys|
+| Data                                                                                | Schema                             | Notes                                                      |
+| ----------------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------- |
+| Workflow step data, committee assignment, submission tracking                       | `workflow.step_instances.metadata` | Defined in B4 §4.3 (`multi_referral` step metadata schema) |
+| Mayor action, Panlalawigan outcome, veto override, publication operational tracking | `workflow.instances.context`       | Defined in B4 Appendix B                                   |
+| Routing and custody history                                                         | `tracking` schema                  | Every movement: from, to, actor, timestamp, action         |
+| File attachments                                                                    | `documents.attachments`            | Attachment records with UUID storage keys                  |
 
 ---
 
@@ -80,16 +79,16 @@ The following columns are present on **all** `documents.documents` rows regardle
 
 `document_type_id` values are [Inference — proposed stable slugs]. Generate actual UUID v4 values once using `gen_random_uuid()` and pin them to the seed script. Do not regenerate. `number_series_id` slug references match the `series_id` values defined in H3 Table 1.
 
-|`document_type_id` slug|`name`|`code`|`owning_module`|`number_series_id` ref|`preliminary_numbering`|`control_number_deferred`|`retention_schedule_id` ref|`classification_default`|`public_visibility_rule`|
-|---|---|---|---|---|---|---|---|---|---|
-|`dt_sp_resolution`|SP Resolution|`SP_RESOLUTION`|`workflow`|`sp_resolution`|Yes|No|`retention_permanent`|`INTERNAL`|`TITLE_AND_FIRST_PAGE_PUBLIC`|
-|`dt_sp_ordinance`|SP Ordinance|`SP_ORDINANCE`|`workflow`|`sp_ordinance`|Yes|No|`retention_permanent`|`INTERNAL`|`TITLE_AND_FIRST_PAGE_PUBLIC` ¹|
-|`dt_appropriation_ordinance`|Appropriation Ordinance|`SP_APPROPRIATION_ORDINANCE`|`workflow`|`sp_appropriation_ordinance`|Yes|No|`retention_permanent`|`INTERNAL`|`TITLE_AND_FIRST_PAGE_PUBLIC`|
-|`dt_certification_urgency`|Certification of Urgency|`CERTIFICATION_OF_URGENCY`|`workflow`|NULL ²|No|No|`retention_permanent` ³|`INTERNAL`|`NOT_PUBLIC` ⁴|
-|`dt_citizen_complaint`|Citizen Complaint|`CITIZEN_COMPLAINT`|`portal` ⁵|NULL ⁶|No|No|`retention_citizens_correspondence` ⁷|`INTERNAL`|`COMPLAINANT_RESTRICTED`|
-|`dt_document_request`|Document Request Form|`DOCUMENT_REQUEST_FORM`|`portal` ⁵|NULL ⁶|No|No|`retention_citizens_correspondence` ⁷|`INTERNAL`|`REQUESTER_RESTRICTED`|
-|`dt_transmittal_letter`|Transmittal Letter|`TRANSMITTAL_LETTER`|`workflow`|`letters_sent` ⁸|No|No|`retention_permanent` ³|`INTERNAL`|`NOT_PUBLIC`|
-|`dt_designation`|Designation|`DESIGNATION`|`organization`|`designation`|No|No|`retention_permanent` ³|`INTERNAL`|`NOT_PUBLIC`|
+| `document_type_id` slug      | `name`                   | `code`                       | `owning_module` | `number_series_id` ref       | `preliminary_numbering` | `control_number_deferred` | `retention_schedule_id` ref           | `classification_default` | `public_visibility_rule`        |
+| ---------------------------- | ------------------------ | ---------------------------- | --------------- | ---------------------------- | ----------------------- | ------------------------- | ------------------------------------- | ------------------------ | ------------------------------- |
+| `dt_sp_resolution`           | SP Resolution            | `SP_RESOLUTION`              | `workflow`      | `sp_resolution`              | Yes                     | No                        | `retention_permanent`                 | `INTERNAL`               | `TITLE_AND_FIRST_PAGE_PUBLIC`   |
+| `dt_sp_ordinance`            | SP Ordinance             | `SP_ORDINANCE`               | `workflow`      | `sp_ordinance`               | Yes                     | No                        | `retention_permanent`                 | `INTERNAL`               | `TITLE_AND_FIRST_PAGE_PUBLIC` ¹ |
+| `dt_appropriation_ordinance` | Appropriation Ordinance  | `SP_APPROPRIATION_ORDINANCE` | `workflow`      | `sp_appropriation_ordinance` | Yes                     | No                        | `retention_permanent`                 | `INTERNAL`               | `TITLE_AND_FIRST_PAGE_PUBLIC`   |
+| `dt_certification_urgency`   | Certification of Urgency | `CERTIFICATION_OF_URGENCY`   | `workflow`      | NULL ²                       | No                      | No                        | `retention_permanent` ³               | `INTERNAL`               | `NOT_PUBLIC` ⁴                  |
+| `dt_citizen_complaint`       | Citizen Complaint        | `CITIZEN_COMPLAINT`          | `portal` ⁵      | NULL ⁶                       | No                      | No                        | `retention_citizens_correspondence` ⁷ | `INTERNAL`               | `COMPLAINANT_RESTRICTED`        |
+| `dt_document_request`        | Document Request Form    | `DOCUMENT_REQUEST_FORM`      | `portal` ⁵      | NULL ⁶                       | No                      | No                        | `retention_citizens_correspondence` ⁷ | `INTERNAL`               | `REQUESTER_RESTRICTED`          |
+| `dt_transmittal_letter`      | Transmittal Letter       | `TRANSMITTAL_LETTER`         | `workflow`      | `letters_sent` ⁸             | No                      | No                        | `retention_permanent` ³               | `INTERNAL`               | `NOT_PUBLIC`                    |
+| `dt_designation`             | Designation              | `DESIGNATION`                | `organization`  | `designation`                | No                      | No                        | `retention_permanent` ³               | `INTERNAL`               | `NOT_PUBLIC`                    |
 
 **Table footnotes:**
 
@@ -115,12 +114,12 @@ The following columns are present on **all** `documents.documents` rows regardle
 
 These are the four values that appear in the `public_visibility_rule` column of `document_types`. The Platform Administrator can configure which document types are publicly visible (Part 11.21). The seed values below represent the initial configuration at system launch.
 
-|Rule|Meaning|
-|---|---|
-|`TITLE_AND_FIRST_PAGE_PUBLIC`|Document title and first page visible to the public via the portal. All other pages are blurred. Full copy requires a paid Document Request. [Confirmed — Part 4.15; Part 11.4]|
-|`NOT_PUBLIC`|Not listed or accessible through the public portal. Internal access only.|
-|`COMPLAINANT_RESTRICTED`|Status visible only to the authenticated complainant via the portal. Not publicly listed. [Inference — consistent with Part 4.14 outcome states and citizen portal identity model in Part 11.18]|
-|`REQUESTER_RESTRICTED`|Status visible only to the authenticated requester via the portal. Not publicly listed. [Inference — consistent with Part 4.15]|
+| Rule                          | Meaning                                                                                                                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TITLE_AND_FIRST_PAGE_PUBLIC` | Document title and first page visible to the public via the portal. All other pages are blurred. Full copy requires a paid Document Request. [Confirmed — Part 4.15; Part 11.4]                  |
+| `NOT_PUBLIC`                  | Not listed or accessible through the public portal. Internal access only.                                                                                                                        |
+| `COMPLAINANT_RESTRICTED`      | Status visible only to the authenticated complainant via the portal. Not publicly listed. [Inference — consistent with Part 4.14 outcome states and citizen portal identity model in Part 11.18] |
+| `REQUESTER_RESTRICTED`        | Status visible only to the authenticated requester via the portal. Not publicly listed. [Inference — consistent with Part 4.15]                                                                  |
 
 ---
 
@@ -128,10 +127,10 @@ These are the four values that appear in the `public_visibility_rule` column of 
 
 These are the two retention schedule slugs referenced in the catalog. Actual UUID values must be generated and pinned when the `records.retention_schedules` table is seeded.
 
-|`retention_schedule_id` slug|Retention Period|Source|
-|---|---|---|
-|`retention_permanent`|Permanent — no disposition|[Confirmed — Part 11.7: "SP Resolutions, Ordinances: Permanent"]|
-|`retention_citizens_correspondence`|10–15 years|[Inference — Part 11.7: "Correspondence with citizens: 10–15 years"]|
+| `retention_schedule_id` slug        | Retention Period           | Source                                                               |
+| ----------------------------------- | -------------------------- | -------------------------------------------------------------------- |
+| `retention_permanent`               | Permanent — no disposition | [Confirmed — Part 11.7: "SP Resolutions, Ordinances: Permanent"]     |
+| `retention_citizens_correspondence` | 10–15 years                | [Inference — Part 11.7: "Correspondence with citizens: 10–15 years"] |
 
 ---
 
@@ -158,7 +157,6 @@ The JSONB captures document-level attributes required for the Index of Resolutio
   "required": ["sponsors", "subject_matter", "certified_urgent"],
   "additionalProperties": false,
   "properties": {
-
     "sponsors": {
       "type": "array",
       "description": "Councilors and Vice Mayor associated with this measure. Only councilors can formally sponsor; VM is included after the title. [Confirmed — Part 4.1]",
@@ -224,7 +222,6 @@ The JSONB captures document-level attributes required for the Index of Resolutio
       "type": ["string", "null"],
       "description": "[Inference] SP Secretariat free-text remarks field. Analogous to 'Remarks / Post Review Action of SP' in the Index of Ordinances (Part 5.3). Populated after Panlalawigan review or veto proceedings when follow-up notes are needed."
     }
-
   }
 }
 ```
@@ -250,7 +247,6 @@ SP Ordinance follows the same three-reading legislative workflow as SP Resolutio
   "required": ["sponsors", "subject_matter", "certified_urgent", "has_penalty_provision"],
   "additionalProperties": false,
   "properties": {
-
     "sponsors": {
       "type": "array",
       "description": "Same structure as SP Resolution sponsors. [Confirmed — Part 4.2; Part 5.3]",
@@ -323,7 +319,6 @@ SP Ordinance follows the same three-reading legislative workflow as SP Resolutio
       "type": ["string", "null"],
       "description": "[Inference] SP Secretariat remarks. Analogous to 'Remarks / Post Review Action of SP' in Part 5.3."
     }
-
   }
 }
 ```
@@ -346,10 +341,15 @@ The Panlalawigan outcome "Operative in its entirety" is specific to Appropriatio
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["sponsors", "subject_matter", "certified_urgent", "budget_period_year", "is_supplemental"],
+  "required": [
+    "sponsors",
+    "subject_matter",
+    "certified_urgent",
+    "budget_period_year",
+    "is_supplemental"
+  ],
   "additionalProperties": false,
   "properties": {
-
     "sponsors": {
       "type": "array",
       "description": "[Confirmed — Part 4.2]",
@@ -408,7 +408,6 @@ The Panlalawigan outcome "Operative in its entirety" is specific to Appropriatio
     "remarks": {
       "type": ["string", "null"]
     }
-
   }
 }
 ```
@@ -435,7 +434,6 @@ A separate `document_type` record is required so the system can classify the upl
   ],
   "additionalProperties": false,
   "properties": {
-
     "issuing_authority_user_id": {
       "type": "string",
       "format": "uuid",
@@ -467,7 +465,6 @@ A separate `document_type` record is required so the system can classify the upl
       "type": ["string", "null"],
       "description": "[Inference] Optional Secretariat notes at logging time."
     }
-
   }
 }
 ```
@@ -496,7 +493,6 @@ The four outcome states (`pending_hearing`, `received_seen`, `dismissed`, `resol
   "required": ["complainant", "subject_category", "access_mode", "outcome_state"],
   "additionalProperties": false,
   "properties": {
-
     "complainant": {
       "type": "object",
       "description": "Complainant details. [Confirmed — Part 4.14 confirmed form fields]",
@@ -609,7 +605,6 @@ The four outcome states (`pending_hearing`, `received_seen`, `dismissed`, `resol
       "description": "Current complaint resolution status. [Confirmed — Part 4.14; Q-B04: four confirmed outcome states] Distinct from documents.lifecycle_state (which tracks document processing lifecycle). 'pending_hearing': complaint received; committee referral in progress. 'received_seen': Vice Mayor and/or Committee has received or seen the complaint. 'dismissed': complaint dismissed. 'resolved': committee report issued; complainant notified; case closed.",
       "default": "pending_hearing"
     }
-
   }
 }
 ```
@@ -635,7 +630,6 @@ Payment system is deferred to stages later than currently planned phases (Q-D04)
   "required": ["requester", "documents_requested", "access_mode"],
   "additionalProperties": false,
   "properties": {
-
     "requester": {
       "type": "object",
       "description": "[Confirmed — Part 4.15: confirmed form fields]",
@@ -745,7 +739,6 @@ Payment system is deferred to stages later than currently planned phases (Q-D04)
       "enum": ["contact_number", "email", null],
       "description": "How the requester is notified after approval. [Confirmed — Part 4.15: 'person notified via contact number (primary channel)']"
     }
-
   }
 }
 ```
@@ -769,7 +762,6 @@ Part 4.9 lists Transmittal Letters to the Mayor as one of the confirmed content 
   "required": ["associated_measure_id", "recipient_office_label"],
   "additionalProperties": false,
   "properties": {
-
     "associated_measure_id": {
       "type": "string",
       "format": "uuid",
@@ -810,7 +802,6 @@ Part 4.9 lists Transmittal Letters to the Mayor as one of the confirmed content 
       "format": "date",
       "description": "[Inference] Date the letter was sent to the recipient. NULL until the transmittal action step is completed."
     }
-
   }
 }
 ```
@@ -847,7 +838,6 @@ One active designation per person is enforced by a DB partial unique index on ac
   ],
   "additionalProperties": false,
   "properties": {
-
     "delegating_authority_user_id": {
       "type": "string",
       "format": "uuid",
@@ -907,7 +897,6 @@ One active designation per person is enforced by a DB partial unique index on ac
       "format": "uuid",
       "description": "[Inference] Logical FK to the organization.delegation_grants record created when this Designation is logged. Set by the designation logging handler immediately upon document creation. NULL before the handler completes."
     }
-
   }
 }
 ```
@@ -931,13 +920,13 @@ One active designation per person is enforced by a DB partial unique index on ac
 
 Three fields in the document JSONB overlap with fields in `workflow.instances.context` (B4 Appendix B):
 
-|Document JSONB field|B4 context field|Source of truth|Direction|
-|---|---|---|---|
-|`certified_urgent`|`certified_urgent`|Document JSONB|Workflow engine reads from JSONB at instance creation and when bypass is applied|
-|`certified_urgent` → indirectly →|`certified_urgent_document_id`|Document JSONB|Same as above|
-|`has_penalty_provision` (ordinance)|`requires_publication`|Document JSONB|Decision step reads from document JSONB to set workflow context|
-|`publication.publication_date`|`publication_date`|Both written in same transaction|Publication action step handler writes to both simultaneously|
-|`publication.newspaper_name`|`publication_newspaper`|Both written in same transaction|Same as above|
+| Document JSONB field                | B4 context field               | Source of truth                  | Direction                                                                        |
+| ----------------------------------- | ------------------------------ | -------------------------------- | -------------------------------------------------------------------------------- |
+| `certified_urgent`                  | `certified_urgent`             | Document JSONB                   | Workflow engine reads from JSONB at instance creation and when bypass is applied |
+| `certified_urgent` → indirectly →   | `certified_urgent_document_id` | Document JSONB                   | Same as above                                                                    |
+| `has_penalty_provision` (ordinance) | `requires_publication`         | Document JSONB                   | Decision step reads from document JSONB to set workflow context                  |
+| `publication.publication_date`      | `publication_date`             | Both written in same transaction | Publication action step handler writes to both simultaneously                    |
+| `publication.newspaper_name`        | `publication_newspaper`        | Both written in same transaction | Same as above                                                                    |
 
 All other B4 context fields (`mayor_action*`, `panlalawigan_outcome*`, `veto_override_*`, `second_reading_eligible_date`) have **no corresponding field in document JSONB**. They are operational workflow state, derivable from `workflow.step_instances` and `workflow.workflow_events` for any reporting purpose. Do not add these to document JSONB.
 
@@ -957,11 +946,11 @@ All `display_name` fields in JSONB are intentionally denormalized at the time of
 
 GIN indexes on `documents.metadata` are required. Minimum targets before Phase 1 goes live:
 
-|Expression|Document type|Use case|
-|---|---|---|
-|`(metadata->>'certified_urgent')`|SP_RESOLUTION, SP_ORDINANCE, SP_APPROPRIATION_ORDINANCE|Certified Urgent queue; Order of Business filtering|
-|`(metadata->>'has_penalty_provision')`|SP_ORDINANCE|Publication workflow trigger; Index of Ordinances export|
-|`(metadata->>'outcome_state')`|CITIZEN_COMPLAINT|Complaint status dashboard|
+| Expression                             | Document type                                           | Use case                                                 |
+| -------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------- |
+| `(metadata->>'certified_urgent')`      | SP_RESOLUTION, SP_ORDINANCE, SP_APPROPRIATION_ORDINANCE | Certified Urgent queue; Order of Business filtering      |
+| `(metadata->>'has_penalty_provision')` | SP_ORDINANCE                                            | Publication workflow trigger; Index of Ordinances export |
+| `(metadata->>'outcome_state')`         | CITIZEN_COMPLAINT                                       | Complaint status dashboard                               |
 
 [Inference — specific index expressions must be confirmed against final query patterns]
 

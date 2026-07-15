@@ -37,21 +37,21 @@
 
 This DDL was synthesised from the following documents. Each claim below carries a source tag where non-obvious.
 
-| Doc | Role |
-|---|---|
-| B2 v1.1 | Module boundary, cross-schema invariant #1, shared types |
-| B3 | In-process domain event bus; confirmed no centralised dead-letter table |
-| B4 | Workflow engine specification; authoritative for `workflow` schema |
-| B5 | Authentication and authorization architecture; `iam.sessions` and `iam.refresh_tokens` schema confirmed |
-| C2 | ER diagrams; column names and cardinalities |
-| C5 | Migration strategy and conventions |
-| D3 | State machine diagrams; authoritative `lifecycle_state` value set (post-ADR-013/ADR-014) |
-| D4 | Domain class diagram; entity index; relationship notes; sponsorship FK target |
-| H2 | Document type catalog; JSONB metadata schemas; `documents.documents` global columns |
-| H3 | Numbering series configuration; sequence naming convention |
-| I2 | Role-permission matrix; basis for `decision`/`condition_reference` columns |
-| I3 | Confirmed DB role set |
-| L2 | Actual grant script; confirmed `batac_app` role name |
+| Doc     | Role                                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------------------- |
+| B2 v1.1 | Module boundary, cross-schema invariant #1, shared types                                                |
+| B3      | In-process domain event bus; confirmed no centralised dead-letter table                                 |
+| B4      | Workflow engine specification; authoritative for `workflow` schema                                      |
+| B5      | Authentication and authorization architecture; `iam.sessions` and `iam.refresh_tokens` schema confirmed |
+| C2      | ER diagrams; column names and cardinalities                                                             |
+| C5      | Migration strategy and conventions                                                                      |
+| D3      | State machine diagrams; authoritative `lifecycle_state` value set (post-ADR-013/ADR-014)                |
+| D4      | Domain class diagram; entity index; relationship notes; sponsorship FK target                           |
+| H2      | Document type catalog; JSONB metadata schemas; `documents.documents` global columns                     |
+| H3      | Numbering series configuration; sequence naming convention                                              |
+| I2      | Role-permission matrix; basis for `decision`/`condition_reference` columns                              |
+| I3      | Confirmed DB role set                                                                                   |
+| L2      | Actual grant script; confirmed `batac_app` role name                                                    |
 
 ### Notation Tags
 
@@ -108,6 +108,7 @@ The Batac City UUID sentinel used in this document: `'00000000-0000-4000-8000-00
 ### §1.4 Timestamps
 
 All temporal columns use `TIMESTAMPTZ` (time zone aware). Column naming:
+
 - `created_at TIMESTAMPTZ NOT NULL DEFAULT now()` — on every table.
 - `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` — on all mutable tables; managed by the `public.fn_set_updated_at()` trigger function.
 - **Omitted** on append-only / write-once tables: `tracking.routing_entries`, `workflow.workflow_events`, `notifications.delivery_log`, `audit.events`, `documents.numbers` (one-flag-flip only, not truly mutable).
@@ -141,6 +142,7 @@ $$;
 ```
 
 Every mutable table gets:
+
 ```sql
 CREATE TRIGGER trg_<tablename>_set_updated_at
     BEFORE UPDATE ON <schema>.<tablename>
@@ -2097,11 +2099,11 @@ CREATE POLICY sessions_own_or_admin ON iam.sessions
 
 The `search_meta`, `portal`, and `reporting` schemas were created in Part 2. No tables are created in any of the three in Phase 1 DDL.
 
-| Schema | Phase | Planned tables |
-|---|---|---|
-| `search_meta` | 2 | `index_metadata`, `index_jobs` |
-| `portal` | 3 | `public_documents`, `citizen_requests`, `complaints`, `announcements` |
-| `reporting` | 2 | `report_definitions`, `schedules`, `outputs` |
+| Schema        | Phase | Planned tables                                                        |
+| ------------- | ----- | --------------------------------------------------------------------- |
+| `search_meta` | 2     | `index_metadata`, `index_jobs`                                        |
+| `portal`      | 3     | `public_documents`, `citizen_requests`, `complaints`, `announcements` |
+| `reporting`   | 2     | `report_definitions`, `schedules`, `outputs`                          |
 
 ---
 
@@ -2142,22 +2144,22 @@ CREATE TABLE shared.event_bus_dead_letters (
 
 ## Part 14 — Invariant and Non-Negotiable Compliance Checklist
 
-| # | Invariant / Non-Negotiable | Mechanism in this DDL |
-|---|---|---|
-| 1 | No cross-schema FK constraints | All cross-schema references are plain UUID columns with inline comments; no `REFERENCES` clause crosses schema boundary |
-| 2 | No hard deletes | `DELETE` not granted to any application role (`batac_app`, `batac_audit`, `batac_it_admin`, `batac_readonly`) |
-| 3 | Audit log append-only | `batac_audit` granted `SELECT, INSERT` on `audit.events` (SELECT required for chain-hash reads); `REVOKE UPDATE, DELETE` on `audit.events` from all roles. `batac_app` has zero access to the `audit` schema (B2 P3). [CONFLICT 2 → RESOLVED 2026-06-24] |
-| 4 | Document lifecycle transitions enforced at DB | `documents.check_lifecycle_transition()` `BEFORE UPDATE` trigger |
-| 5 | S3 file keys are UUIDs, never original filenames | `versions.file_key UUID`, `attachments.file_key UUID`; no `original_filename` as a key column |
-| 6 | One active session per user | Partial unique index `idx_sessions_one_active_per_user` on `iam.sessions(user_id) WHERE active = true` |
-| 7 | Final numbers immutable | `documents.check_number_immutability()` trigger on `documents.numbers` |
-| 8 | Retention schedule required before document type activation | `ck_document_types_retention_before_activation` CHECK constraint |
-| 9 | One active delegation per user | Partial unique index `uq_delegation_one_active_per_delegatee` |
-| 10 | IT admin has no document file content access | `REVOKE ALL ON documents.versions, documents.attachments FROM batac_it_admin`; RLS policy blocks metadata for confidential/restricted |
-| 11 | Gapless document numbering | PostgreSQL sequences per series per year; `fn_get_next_sequence_value()` for safe consumption |
-| 12 | Append-only logs | `workflow.workflow_events`: no `deleted_at`, `REVOKE UPDATE, DELETE`; `audit.events`: no `deleted_at`/`updated_at`, INSERT-only grant |
-| 13 | `city_id` on every table | All 52 core entity tables include `city_id UUID NOT NULL DEFAULT '...'::uuid`. Exception: `shared.event_bus_dead_letters` is a system-global operational table (not a tenant entity); `city_id` is intentionally absent — documented in Part 13.5 and C5 §4.2 "system-global table" note. |
-| 14 | Required workflow step types stored | `documents.document_types.required_step_types TEXT[]` |
+| #   | Invariant / Non-Negotiable                                  | Mechanism in this DDL                                                                                                                                                                                                                                                                     |
+| --- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | No cross-schema FK constraints                              | All cross-schema references are plain UUID columns with inline comments; no `REFERENCES` clause crosses schema boundary                                                                                                                                                                   |
+| 2   | No hard deletes                                             | `DELETE` not granted to any application role (`batac_app`, `batac_audit`, `batac_it_admin`, `batac_readonly`)                                                                                                                                                                             |
+| 3   | Audit log append-only                                       | `batac_audit` granted `SELECT, INSERT` on `audit.events` (SELECT required for chain-hash reads); `REVOKE UPDATE, DELETE` on `audit.events` from all roles. `batac_app` has zero access to the `audit` schema (B2 P3). [CONFLICT 2 → RESOLVED 2026-06-24]                                  |
+| 4   | Document lifecycle transitions enforced at DB               | `documents.check_lifecycle_transition()` `BEFORE UPDATE` trigger                                                                                                                                                                                                                          |
+| 5   | S3 file keys are UUIDs, never original filenames            | `versions.file_key UUID`, `attachments.file_key UUID`; no `original_filename` as a key column                                                                                                                                                                                             |
+| 6   | One active session per user                                 | Partial unique index `idx_sessions_one_active_per_user` on `iam.sessions(user_id) WHERE active = true`                                                                                                                                                                                    |
+| 7   | Final numbers immutable                                     | `documents.check_number_immutability()` trigger on `documents.numbers`                                                                                                                                                                                                                    |
+| 8   | Retention schedule required before document type activation | `ck_document_types_retention_before_activation` CHECK constraint                                                                                                                                                                                                                          |
+| 9   | One active delegation per user                              | Partial unique index `uq_delegation_one_active_per_delegatee`                                                                                                                                                                                                                             |
+| 10  | IT admin has no document file content access                | `REVOKE ALL ON documents.versions, documents.attachments FROM batac_it_admin`; RLS policy blocks metadata for confidential/restricted                                                                                                                                                     |
+| 11  | Gapless document numbering                                  | PostgreSQL sequences per series per year; `fn_get_next_sequence_value()` for safe consumption                                                                                                                                                                                             |
+| 12  | Append-only logs                                            | `workflow.workflow_events`: no `deleted_at`, `REVOKE UPDATE, DELETE`; `audit.events`: no `deleted_at`/`updated_at`, INSERT-only grant                                                                                                                                                     |
+| 13  | `city_id` on every table                                    | All 52 core entity tables include `city_id UUID NOT NULL DEFAULT '...'::uuid`. Exception: `shared.event_bus_dead_letters` is a system-global operational table (not a tenant entity); `city_id` is intentionally absent — documented in Part 13.5 and C5 §4.2 "system-global table" note. |
+| 14  | Required workflow step types stored                         | `documents.document_types.required_step_types TEXT[]`                                                                                                                                                                                                                                     |
 
 ---
 
@@ -2165,14 +2167,14 @@ CREATE TABLE shared.event_bus_dead_letters (
 
 ### Resolved
 
-| Item | Resolution | Reference                                                                                              |
+| Item                                            | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Reference                                                                                              |
 | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `panlalawigan_review_log` entity classification | **Formalized as an internal tracking/log entity, not a public document type.** `documents.number_series.document_type_id = NULL` for this series is confirmed permanent, not provisional. `documents.panlalawigan_reviews` remains the authoritative table in the `documents` schema. Control numbers from this series do not appear in the standard document catalog, search, or listings — only as a field on the parent document. No DDL change required. | `ADR-DB-001` (`c1-full-database-schema-ddl-adrs/ADR-DB-001-panlalawigan-review-log-classification.md`) |
-| Migration-owning role name (`batac_migrate`) | **Confirmed as-is, with LOGIN correction.** Already defined and used consistently in this document (§3.16, DB roles list, `fn_get_next_sequence_value` `OWNER TO`). C5's addendum cited this document's §3.16 as defining `batac_migrate` as NOLOGIN, but `DATABASE_URL_MIGRATE` (L1) is a direct connection string, which requires a LOGIN role. **§3.16 updated (2026-06): `batac_migrate` is now `LOGIN`.** Password is not set in DDL; it is applied post-creation by `TASK-INFRA-005` via `ALTER ROLE batac_migrate PASSWORD '<from-DB_MIGRATE_PASSWORD-secret>'`. The C5 addendum's NOLOGIN reference is superseded by this correction. | `a1-tasks/infra.md` Conflict #1 (resolved); C5 addendum — "Migration-Owning Role Name"                 |
-| `RecordType` enum values | **Six-value enum defined**, ratifying the categories already present in Part 11.7 of the Consolidated Reference (Permanent-Legislative, Financial, Personnel, Correspondence, Internal Memo, Draft), plus a `document_type` → `RecordType` mapping. `records.records.record_type` should be updated from unconstrained `TEXT` to a `CHECK` constraint or native enum over the six values (see DDL change below). **Retention-period figures behind each category remain `[Unverified]` pending NAP/COA/DILG confirmation — this ADR resolves the enum only, not the legal retention durations.** | `ADR-WFL-005` (`c1-full-database-schema-ddl-adrs/ADR-WFL-005-recordtype-enum-values.md`)               |
+| `panlalawigan_review_log` entity classification | **Formalized as an internal tracking/log entity, not a public document type.** `documents.number_series.document_type_id = NULL` for this series is confirmed permanent, not provisional. `documents.panlalawigan_reviews` remains the authoritative table in the `documents` schema. Control numbers from this series do not appear in the standard document catalog, search, or listings — only as a field on the parent document. No DDL change required.                                                                                                                                                                                  | `ADR-DB-001` (`c1-full-database-schema-ddl-adrs/ADR-DB-001-panlalawigan-review-log-classification.md`) |
+| Migration-owning role name (`batac_migrate`)    | **Confirmed as-is, with LOGIN correction.** Already defined and used consistently in this document (§3.16, DB roles list, `fn_get_next_sequence_value` `OWNER TO`). C5's addendum cited this document's §3.16 as defining `batac_migrate` as NOLOGIN, but `DATABASE_URL_MIGRATE` (L1) is a direct connection string, which requires a LOGIN role. **§3.16 updated (2026-06): `batac_migrate` is now `LOGIN`.** Password is not set in DDL; it is applied post-creation by `TASK-INFRA-005` via `ALTER ROLE batac_migrate PASSWORD '<from-DB_MIGRATE_PASSWORD-secret>'`. The C5 addendum's NOLOGIN reference is superseded by this correction. | `a1-tasks/infra.md` Conflict #1 (resolved); C5 addendum — "Migration-Owning Role Name"                 |
+| `RecordType` enum values                        | **Six-value enum defined**, ratifying the categories already present in Part 11.7 of the Consolidated Reference (Permanent-Legislative, Financial, Personnel, Correspondence, Internal Memo, Draft), plus a `document_type` → `RecordType` mapping. `records.records.record_type` should be updated from unconstrained `TEXT` to a `CHECK` constraint or native enum over the six values (see DDL change below). **Retention-period figures behind each category remain `[Unverified]` pending NAP/COA/DILG confirmation — this ADR resolves the enum only, not the legal retention durations.**                                              | `ADR-WFL-005` (`c1-full-database-schema-ddl-adrs/ADR-WFL-005-recordtype-enum-values.md`)               |
 
 ### Still Open
 
-| Item | Gap | Recommended Next Step |
-|---|---|---|
+| Item                                                                 | Gap                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Recommended Next Step                                                                                                                                                                                                                                                                                    |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `organization.employees.employee_number NOT NULL` for barangay phase | `employee_number NOT NULL` was set under the assumption that `barangay`-office employee rows would eventually need it relaxed, since barangay officials may lack a formal employee number. `email NULL` was already chosen and needs no change. **In Phase 1, no `barangay`-office employee row can exist** (`office_type = 'barangay'` is reserved, not seeded), so this constraint is never exercised by real data yet. **`[Inference]`** Per the Consolidated Reference Part 4.4/4.5, barangay officials have no system access even once Barangay Resolution/Budget workflows activate — the SP Secretariat logs barangay submissions on the officials' behalf. This raises the possibility that barangay officials may never get their own `organization.employees` row at all (the Secretariat's own employee row would be the one attached to the workflow instance, with the barangay/official's identity stored as document/workflow metadata instead). If so, this open item resolves to "no schema change needed" rather than requiring a future migration — but that depends on how Barangay Resolution/Budget intake is actually modeled when designed in detail. | Confirm during Barangay Resolution/Budget detailed design (Phase 1B/2) whether a barangay official ever receives an `organization.employees` row. If yes, create a migration ADR relaxing `employee_number NOT NULL` for `office_type = 'barangay'`. If no, close this item with no DDL change required. |

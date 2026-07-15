@@ -10,10 +10,12 @@ import { seedPhase1WorkflowDefinitions } from '../../../../../packages/database/
 async function main() {
   const databaseUrl = process.env['DATABASE_URL_APP'] || process.env['DATABASE_URL_MIGRATE'];
   if (!databaseUrl) {
-    console.error('[seed:orchestrator] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
+    console.error(
+      '[seed:orchestrator] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.',
+    );
     process.exit(1);
   }
-  
+
   console.log('[seed:orchestrator] Connecting to database...');
   const client = postgres(databaseUrl, { max: 1 });
   const db = drizzle(client);

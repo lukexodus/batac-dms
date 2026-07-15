@@ -1,6 +1,5 @@
 # ADR-AUTH-008: External TSA Provider for Audit Log Timestamps
 
-
 **Status:** Blocked — cannot be resolved by this ADR set
 
 **Context**

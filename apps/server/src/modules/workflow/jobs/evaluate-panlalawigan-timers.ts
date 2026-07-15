@@ -5,13 +5,14 @@ export type EvaluatePanlalawiganTimersDeps = StepResolutionDeps;
 
 export async function evaluatePanlalawiganTimers(
   deps: EvaluatePanlalawiganTimersDeps,
-  options?: { now?: Date }
+  options?: { now?: Date },
 ): Promise<void> {
   const now = options?.now || new Date();
 
-  const instancesAndSteps = await deps.workflowRepository.getActiveInstancesByDefinitionAndStepConfig({
-    stepType: 'approval'
-  });
+  const instancesAndSteps =
+    await deps.workflowRepository.getActiveInstancesByDefinitionAndStepConfig({
+      stepType: 'approval',
+    });
 
   for (const { instance, stepInstance } of instancesAndSteps) {
     if (stepInstance.outcome !== null) {
@@ -19,11 +20,11 @@ export async function evaluatePanlalawiganTimers(
     }
 
     const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
-      instance.definitionVersionId
+      instance.definitionVersionId,
     );
     if (!versionData) continue;
 
-    const stepDef = versionData.steps.find(s => s.id === stepInstance.stepId);
+    const stepDef = versionData.steps.find((s) => s.id === stepInstance.stepId);
     if (!stepDef) continue;
 
     const config = (stepDef.config as Record<string, any>) || {};
@@ -47,7 +48,10 @@ export async function evaluatePanlalawiganTimers(
     // Deadline passed, execute lapse in a transaction
     await deps.workflowRepository.runInTransaction(async (tx) => {
       // 1. Lock the step instance
-      const lockedStepInstance = await deps.workflowRepository.lockStepInstanceForUpdate(stepInstance.id, tx);
+      const lockedStepInstance = await deps.workflowRepository.lockStepInstanceForUpdate(
+        stepInstance.id,
+        tx,
+      );
       if (!lockedStepInstance) return;
 
       // 2. Race condition check
@@ -61,10 +65,11 @@ export async function evaluatePanlalawiganTimers(
         {
           status: 'completed',
           outcome: 'DEEMED_APPROVED',
-          outcomeComment: 'Deemed approved per RA 7160 Section 56(d) — 30 calendar days elapsed with no action from the Sangguniang Panlalawigan.',
-          completedAt: deadline // CRITICAL: deadline, not NOW()
+          outcomeComment:
+            'Deemed approved per RA 7160 Section 56(d) — 30 calendar days elapsed with no action from the Sangguniang Panlalawigan.',
+          completedAt: deadline, // CRITICAL: deadline, not NOW()
         },
-        tx
+        tx,
       );
 
       // 4. Update instance context
@@ -72,9 +77,9 @@ export async function evaluatePanlalawiganTimers(
         instance.id,
         {
           panlalawigan_outcome: 'DEEMED_APPROVED',
-          panlalawigan_response_date: deadlineStr
+          panlalawigan_response_date: deadlineStr,
         },
-        tx
+        tx,
       );
 
       // 5. Emit event
@@ -88,10 +93,10 @@ export async function evaluatePanlalawiganTimers(
             stepInstanceId: stepInstance.id,
             legalBasis: 'RA 7160 Section 56(d)',
             transmissionDate: context['panlalawigan_transmission_date'],
-            deadlineWas: deadlineStr
-          }
+            deadlineWas: deadlineStr,
+          },
         },
-        tx
+        tx,
       );
 
       // Reload instance because context changed
@@ -104,7 +109,7 @@ export async function evaluatePanlalawiganTimers(
         updatedStepInstance,
         'DEEMED_APPROVED',
         deps,
-        tx as any
+        tx as any,
       );
     });
   }

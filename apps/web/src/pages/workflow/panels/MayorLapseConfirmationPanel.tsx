@@ -7,7 +7,11 @@ import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // logMayorLapseConfirmation: input is { stepInstanceId } only.
-export function MayorLapseConfirmationPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
+export function MayorLapseConfirmationPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 
@@ -26,14 +30,12 @@ export function MayorLapseConfirmationPanel({ instance }: { instance: RouterOutp
         <CardTitle>Confirm Mayor Action Lapse (RA 7160 §47)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          The 10-day review window has elapsed without action from the Mayor. Confirming will
-          record the lapse and advance the workflow.
+        <p className="text-muted-foreground text-sm">
+          The 10-day review window has elapsed without action from the Mayor. Confirming will record
+          the lapse and advance the workflow.
         </p>
         <Button
-          onClick={() =>
-            confirmMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })
-          }
+          onClick={() => confirmMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })}
           disabled={confirmMutation.isPending}
         >
           {confirmMutation.isPending ? 'Confirming...' : 'Confirm 10-Day Lapse'}

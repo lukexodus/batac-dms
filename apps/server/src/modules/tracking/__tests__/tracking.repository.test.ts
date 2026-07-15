@@ -40,11 +40,13 @@ describe('TrackingRepository', () => {
       const result = await repo.createQrCode(mockInput);
       expect(result).toEqual(mockRow);
       expect(mockDb.insert).toHaveBeenCalledWith(qrCodes);
-      expect(mockDb.values).toHaveBeenCalledWith(expect.objectContaining({
-        documentId: mockInput.documentId,
-        trackingId: mockInput.trackingId,
-        trackingNumber: mockInput.trackingNumber,
-      }));
+      expect(mockDb.values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          documentId: mockInput.documentId,
+          trackingId: mockInput.trackingId,
+          trackingNumber: mockInput.trackingNumber,
+        }),
+      );
     });
 
     it('duplicate tracking_id raises unique constraint', async () => {
@@ -55,7 +57,7 @@ describe('TrackingRepository', () => {
           trackingId: 'dup',
           trackingNumber: 'DTS-2026-0001',
           generatedBy: 'user-1',
-        })
+        }),
       ).rejects.toThrow('unique constraint on tracking_id');
     });
 
@@ -67,7 +69,7 @@ describe('TrackingRepository', () => {
           trackingId: 'track-2',
           trackingNumber: 'DTS-2026-0001', // dup
           generatedBy: 'user-1',
-        })
+        }),
       ).rejects.toThrow('unique constraint on tracking_number');
     });
   });

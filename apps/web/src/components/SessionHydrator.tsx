@@ -27,7 +27,10 @@ export function SessionHydrator() {
         });
 
         if (!response.ok) {
-          logger.error('session_hydration_failed', { status: response.status, reason: 'http_error' });
+          logger.error('session_hydration_failed', {
+            status: response.status,
+            reason: 'http_error',
+          });
           if (mounted) {
             useSessionStore.getState().clearIdentity();
             useSessionStore.getState().setHydrated();
@@ -35,7 +38,7 @@ export function SessionHydrator() {
           return;
         }
 
-        const data = await response.json() as AuthResponse;
+        const data = (await response.json()) as AuthResponse;
         if (mounted) {
           useSessionStore.getState().setIdentity({
             userId: data.user.id,
@@ -51,9 +54,9 @@ export function SessionHydrator() {
           useSessionStore.getState().setHydrated();
         }
       } catch (error) {
-        logger.error('session_hydration_failed', { 
-          reason: 'network_error', 
-          error: error instanceof Error ? error.message : String(error) 
+        logger.error('session_hydration_failed', {
+          reason: 'network_error',
+          error: error instanceof Error ? error.message : String(error),
         });
         if (mounted) {
           useSessionStore.getState().clearIdentity();

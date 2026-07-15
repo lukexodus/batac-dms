@@ -12,7 +12,7 @@ describe('Mayor Lapse Timer Scheduler Job', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     mockWorkflowRepository = {
       getActiveInstancesByDefinitionAndStepConfig: vi.fn(),
       getDefinitionVersionWithSteps: vi.fn(),
@@ -28,7 +28,7 @@ describe('Mayor Lapse Timer Scheduler Job', () => {
   const runJob = async (now: Date) => {
     return evaluateMayorLapseTimers(
       { workflowRepository: mockWorkflowRepository as WorkflowRepository } as any,
-      { now }
+      { now },
     );
   };
 
@@ -38,17 +38,22 @@ describe('Mayor Lapse Timer Scheduler Job', () => {
 
     (mockWorkflowRepository.getActiveInstancesByDefinitionAndStepConfig as any).mockResolvedValue([
       {
-        instance: { id: 'inst-1', definitionVersionId: 'ver-1', context: { mayor_action_deadline: deadline.toISOString() } },
-        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null }
-      }
+        instance: {
+          id: 'inst-1',
+          definitionVersionId: 'ver-1',
+          context: { mayor_action_deadline: deadline.toISOString() },
+        },
+        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null },
+      },
     ]);
 
     (mockWorkflowRepository.getDefinitionVersionWithSteps as any).mockResolvedValue({
-      steps: [{ id: 'step-1', config: { allowed_outcomes: ['APPROVED', 'VETOED', 'LAPSED'] } }]
+      steps: [{ id: 'step-1', config: { allowed_outcomes: ['APPROVED', 'VETOED', 'LAPSED'] } }],
     });
 
     (mockWorkflowRepository.lockStepInstanceForUpdate as any).mockResolvedValue({
-      id: 'step-inst-1', outcome: null
+      id: 'step-inst-1',
+      outcome: null,
     });
 
     (mockWorkflowRepository.getInstanceById as any).mockResolvedValue({ id: 'inst-1' });
@@ -56,31 +61,43 @@ describe('Mayor Lapse Timer Scheduler Job', () => {
     await runJob(now);
 
     // Assert updateStepInstance has specific LAPSED outcome & exact comment & completedAt
-    expect(mockWorkflowRepository.updateStepInstance).toHaveBeenCalledWith('step-inst-1', {
-      status: 'completed',
-      outcome: 'LAPSED',
-      outcomeComment: 'Mayor took no action within 10 calendar days. Lapsed into law per RA 7160 Section 47.',
-      completedAt: deadline // Crucial: NOT now
-    }, 'mock-tx');
+    expect(mockWorkflowRepository.updateStepInstance).toHaveBeenCalledWith(
+      'step-inst-1',
+      {
+        status: 'completed',
+        outcome: 'LAPSED',
+        outcomeComment:
+          'Mayor took no action within 10 calendar days. Lapsed into law per RA 7160 Section 47.',
+        completedAt: deadline, // Crucial: NOT now
+      },
+      'mock-tx',
+    );
 
     // Assert instance context updated
-    expect(mockWorkflowRepository.updateInstanceContext).toHaveBeenCalledWith('inst-1', {
-      mayor_action: 'LAPSED',
-      mayor_action_date: deadline.toISOString()
-    }, 'mock-tx');
+    expect(mockWorkflowRepository.updateInstanceContext).toHaveBeenCalledWith(
+      'inst-1',
+      {
+        mayor_action: 'LAPSED',
+        mayor_action_date: deadline.toISOString(),
+      },
+      'mock-tx',
+    );
 
     // Assert event emitted
-    expect(mockWorkflowRepository.createWorkflowEvent).toHaveBeenCalledWith({
-      instanceId: 'inst-1',
-      eventType: 'workflow.approval.lapsed',
-      actorType: 'scheduler',
-      actorId: null,
-      payload: {
-        stepInstanceId: 'step-inst-1',
-        legalBasis: 'RA 7160 Section 47',
-        deadlineWas: deadline.toISOString()
-      }
-    }, 'mock-tx');
+    expect(mockWorkflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
+      {
+        instanceId: 'inst-1',
+        eventType: 'workflow.approval.lapsed',
+        actorType: 'scheduler',
+        actorId: null,
+        payload: {
+          stepInstanceId: 'step-inst-1',
+          legalBasis: 'RA 7160 Section 47',
+          deadlineWas: deadline.toISOString(),
+        },
+      },
+      'mock-tx',
+    );
 
     // Assert step resolution called
     expect(resolveNextStep).toHaveBeenCalledWith(
@@ -88,7 +105,7 @@ describe('Mayor Lapse Timer Scheduler Job', () => {
       undefined, // `updatedStepInstance` mock return value (undefined because updateStepInstance mock wasn't set to return anything, which is fine for this check)
       'LAPSED',
       expect.anything(),
-      'mock-tx'
+      'mock-tx',
     );
   });
 
@@ -98,18 +115,23 @@ describe('Mayor Lapse Timer Scheduler Job', () => {
 
     (mockWorkflowRepository.getActiveInstancesByDefinitionAndStepConfig as any).mockResolvedValue([
       {
-        instance: { id: 'inst-1', definitionVersionId: 'ver-1', context: { mayor_action_deadline: deadline.toISOString() } },
-        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null }
-      }
+        instance: {
+          id: 'inst-1',
+          definitionVersionId: 'ver-1',
+          context: { mayor_action_deadline: deadline.toISOString() },
+        },
+        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null },
+      },
     ]);
 
     (mockWorkflowRepository.getDefinitionVersionWithSteps as any).mockResolvedValue({
-      steps: [{ id: 'step-1', config: { allowed_outcomes: ['APPROVED', 'VETOED', 'LAPSED'] } }]
+      steps: [{ id: 'step-1', config: { allowed_outcomes: ['APPROVED', 'VETOED', 'LAPSED'] } }],
     });
 
     // MOCK: When lock occurs, outcome is ALREADY SET to 'APPROVED' (Mayor beat the scheduler)
     (mockWorkflowRepository.lockStepInstanceForUpdate as any).mockResolvedValue({
-      id: 'step-inst-1', outcome: 'APPROVED'
+      id: 'step-inst-1',
+      outcome: 'APPROVED',
     });
 
     await runJob(now);
@@ -127,13 +149,17 @@ describe('Mayor Lapse Timer Scheduler Job', () => {
 
     (mockWorkflowRepository.getActiveInstancesByDefinitionAndStepConfig as any).mockResolvedValue([
       {
-        instance: { id: 'inst-1', definitionVersionId: 'ver-1', context: { mayor_action_deadline: deadline.toISOString() } },
-        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null }
-      }
+        instance: {
+          id: 'inst-1',
+          definitionVersionId: 'ver-1',
+          context: { mayor_action_deadline: deadline.toISOString() },
+        },
+        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null },
+      },
     ]);
 
     (mockWorkflowRepository.getDefinitionVersionWithSteps as any).mockResolvedValue({
-      steps: [{ id: 'step-1', config: { allowed_outcomes: ['APPROVED', 'VETOED', 'LAPSED'] } }]
+      steps: [{ id: 'step-1', config: { allowed_outcomes: ['APPROVED', 'VETOED', 'LAPSED'] } }],
     });
 
     await runJob(now);

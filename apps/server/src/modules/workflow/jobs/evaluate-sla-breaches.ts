@@ -10,13 +10,14 @@ export interface EvaluateSlaBreachesDeps {
 
 export async function evaluateSlaBreaches(
   deps: EvaluateSlaBreachesDeps,
-  options?: { now?: Date }
+  options?: { now?: Date },
 ): Promise<void> {
   const now = options?.now || new Date();
   const nowTime = now.getTime();
 
   // Fetch all active step instances (no specific stepType filter)
-  const instancesAndSteps = await deps.workflowRepository.getActiveInstancesByDefinitionAndStepConfig({});
+  const instancesAndSteps =
+    await deps.workflowRepository.getActiveInstancesByDefinitionAndStepConfig({});
 
   for (const { instance, stepInstance } of instancesAndSteps) {
     if (!stepInstance.slaDeadline || !stepInstance.startedAt) continue;
@@ -24,7 +25,7 @@ export async function evaluateSlaBreaches(
     const startedAtTime = stepInstance.startedAt.getTime();
     const deadlineTime = stepInstance.slaDeadline.getTime();
     const duration = deadlineTime - startedAtTime;
-    
+
     if (duration <= 0) continue; // Safety check
 
     const elapsed = nowTime - startedAtTime;
@@ -47,7 +48,10 @@ export async function evaluateSlaBreaches(
 
     // Process inside a transaction
     await deps.workflowRepository.runInTransaction(async (tx) => {
-      const lockedStep = await deps.workflowRepository.lockStepInstanceForUpdate(stepInstance.id, tx);
+      const lockedStep = await deps.workflowRepository.lockStepInstanceForUpdate(
+        stepInstance.id,
+        tx,
+      );
       if (!lockedStep) return; // Deleted or not found
 
       const lockedMeta = (lockedStep.metadata as Record<string, any>) || {};
@@ -59,45 +63,51 @@ export async function evaluateSlaBreaches(
         lockedMeta['sla_warning_sent_at'] = now.toISOString();
         applyUpdates.metadata = lockedMeta;
         shouldUpdate = true;
-        
-        await deps.workflowRepository.createWorkflowEvent({
-          instanceId: instance.id,
-          eventType: 'workflow.sla.warning',
-          actorType: 'scheduler',
-          actorId: null,
-          payload: {
-            stepInstanceId: lockedStep.id,
-            slaDeadline: stepInstance.slaDeadline!.toISOString(),
-            percentElapsed: 80
-          }
-        }, tx);
+
+        await deps.workflowRepository.createWorkflowEvent(
+          {
+            instanceId: instance.id,
+            eventType: 'workflow.sla.warning',
+            actorType: 'scheduler',
+            actorId: null,
+            payload: {
+              stepInstanceId: lockedStep.id,
+              slaDeadline: stepInstance.slaDeadline!.toISOString(),
+              percentElapsed: 80,
+            },
+          },
+          tx,
+        );
 
         emittedEvents.push({
           type: 'workflow.sla.warning',
           payload: {
             stepInstanceId: lockedStep.id,
             slaDeadline: stepInstance.slaDeadline!.toISOString(),
-            percentElapsed: 80
-          }
+            percentElapsed: 80,
+          },
         });
       }
 
       if (nowTime > deadlineTime && !lockedStep.slaBreachedAt) {
         applyUpdates.slaBreachedAt = stepInstance.slaDeadline;
         shouldUpdate = true;
-        
-        await deps.workflowRepository.createWorkflowEvent({
-          instanceId: instance.id,
-          eventType: 'workflow.sla.breached',
-          actorType: 'scheduler',
-          actorId: null,
-          payload: {
-            stepInstanceId: lockedStep.id,
-            slaDeadline: stepInstance.slaDeadline!.toISOString(),
-            breachDetectedAt: now.toISOString(),
-            breachedAt: stepInstance.slaDeadline!.toISOString()
-          }
-        }, tx);
+
+        await deps.workflowRepository.createWorkflowEvent(
+          {
+            instanceId: instance.id,
+            eventType: 'workflow.sla.breached',
+            actorType: 'scheduler',
+            actorId: null,
+            payload: {
+              stepInstanceId: lockedStep.id,
+              slaDeadline: stepInstance.slaDeadline!.toISOString(),
+              breachDetectedAt: now.toISOString(),
+              breachedAt: stepInstance.slaDeadline!.toISOString(),
+            },
+          },
+          tx,
+        );
 
         emittedEvents.push({
           type: 'workflow.sla.breached',
@@ -105,8 +115,8 @@ export async function evaluateSlaBreaches(
             stepInstanceId: lockedStep.id,
             slaDeadline: stepInstance.slaDeadline!.toISOString(),
             breachDetectedAt: now.toISOString(),
-            breachedAt: stepInstance.slaDeadline!.toISOString()
-          }
+            breachedAt: stepInstance.slaDeadline!.toISOString(),
+          },
         });
       }
 
@@ -115,32 +125,31 @@ export async function evaluateSlaBreaches(
         applyUpdates.metadata = lockedMeta;
         shouldUpdate = true;
 
-        await deps.workflowRepository.createWorkflowEvent({
-          instanceId: instance.id,
-          eventType: 'workflow.sla.critical',
-          actorType: 'scheduler',
-          actorId: null,
-          payload: {
-            stepInstanceId: lockedStep.id,
-            slaDeadline: stepInstance.slaDeadline!.toISOString()
-          }
-        }, tx);
+        await deps.workflowRepository.createWorkflowEvent(
+          {
+            instanceId: instance.id,
+            eventType: 'workflow.sla.critical',
+            actorType: 'scheduler',
+            actorId: null,
+            payload: {
+              stepInstanceId: lockedStep.id,
+              slaDeadline: stepInstance.slaDeadline!.toISOString(),
+            },
+          },
+          tx,
+        );
 
         emittedEvents.push({
           type: 'workflow.sla.critical',
           payload: {
             stepInstanceId: lockedStep.id,
-            slaDeadline: stepInstance.slaDeadline!.toISOString()
-          }
+            slaDeadline: stepInstance.slaDeadline!.toISOString(),
+          },
         });
       }
 
       if (shouldUpdate) {
-        await deps.workflowRepository.updateStepInstance(
-          lockedStep.id,
-          applyUpdates,
-          tx
-        );
+        await deps.workflowRepository.updateStepInstance(lockedStep.id, applyUpdates, tx);
       }
     });
 
@@ -197,23 +206,26 @@ export async function evaluateSlaBreaches(
         applyUpdates.slaWarningSentAt = now;
         shouldUpdate = true;
 
-        await deps.workflowRepository.createWorkflowEvent({
-          instanceId: instance.id,
-          eventType: 'workflow.instance.sla.warning',
-          actorType: 'scheduler',
-          actorId: null,
-          payload: {
-            slaDeadline: instance.slaDeadline!.toISOString(),
-            percentElapsed: 80
-          }
-        }, tx);
+        await deps.workflowRepository.createWorkflowEvent(
+          {
+            instanceId: instance.id,
+            eventType: 'workflow.instance.sla.warning',
+            actorType: 'scheduler',
+            actorId: null,
+            payload: {
+              slaDeadline: instance.slaDeadline!.toISOString(),
+              percentElapsed: 80,
+            },
+          },
+          tx,
+        );
 
         emittedEvents.push({
           type: 'workflow.instance.sla.warning',
           payload: {
             slaDeadline: instance.slaDeadline!.toISOString(),
-            percentElapsed: 80
-          }
+            percentElapsed: 80,
+          },
         });
       }
 
@@ -221,25 +233,28 @@ export async function evaluateSlaBreaches(
         applyUpdates.slaBreachedAt = instance.slaDeadline;
         shouldUpdate = true;
 
-        await deps.workflowRepository.createWorkflowEvent({
-          instanceId: instance.id,
-          eventType: 'workflow.instance.sla.breached',
-          actorType: 'scheduler',
-          actorId: null,
-          payload: {
-            slaDeadline: instance.slaDeadline!.toISOString(),
-            breachDetectedAt: now.toISOString(),
-            breachedAt: instance.slaDeadline!.toISOString()
-          }
-        }, tx);
+        await deps.workflowRepository.createWorkflowEvent(
+          {
+            instanceId: instance.id,
+            eventType: 'workflow.instance.sla.breached',
+            actorType: 'scheduler',
+            actorId: null,
+            payload: {
+              slaDeadline: instance.slaDeadline!.toISOString(),
+              breachDetectedAt: now.toISOString(),
+              breachedAt: instance.slaDeadline!.toISOString(),
+            },
+          },
+          tx,
+        );
 
         emittedEvents.push({
           type: 'workflow.instance.sla.breached',
           payload: {
             slaDeadline: instance.slaDeadline!.toISOString(),
             breachDetectedAt: now.toISOString(),
-            breachedAt: instance.slaDeadline!.toISOString()
-          }
+            breachedAt: instance.slaDeadline!.toISOString(),
+          },
         });
       }
 
@@ -247,30 +262,29 @@ export async function evaluateSlaBreaches(
         applyUpdates.slaCriticalSentAt = now;
         shouldUpdate = true;
 
-        await deps.workflowRepository.createWorkflowEvent({
-          instanceId: instance.id,
-          eventType: 'workflow.instance.sla.critical',
-          actorType: 'scheduler',
-          actorId: null,
-          payload: {
-            slaDeadline: instance.slaDeadline!.toISOString()
-          }
-        }, tx);
+        await deps.workflowRepository.createWorkflowEvent(
+          {
+            instanceId: instance.id,
+            eventType: 'workflow.instance.sla.critical',
+            actorType: 'scheduler',
+            actorId: null,
+            payload: {
+              slaDeadline: instance.slaDeadline!.toISOString(),
+            },
+          },
+          tx,
+        );
 
         emittedEvents.push({
           type: 'workflow.instance.sla.critical',
           payload: {
-            slaDeadline: instance.slaDeadline!.toISOString()
-          }
+            slaDeadline: instance.slaDeadline!.toISOString(),
+          },
         });
       }
 
       if (shouldUpdate) {
-        await deps.workflowRepository.updateInstance(
-          lockedInstance.id,
-          applyUpdates,
-          tx
-        );
+        await deps.workflowRepository.updateInstance(lockedInstance.id, applyUpdates, tx);
       }
     });
 
@@ -291,13 +305,17 @@ export async function evaluateSlaBreaches(
 
 export function registerSlaMonitorJob(deps: EvaluateSlaBreachesDeps) {
   // Run every 15 minutes
-  cron.schedule('*/15 * * * *', async () => {
-    try {
-      await evaluateSlaBreaches(deps);
-    } catch (err) {
-      console.error('[SLA Monitor] Failed to evaluate SLA breaches:', err);
-    }
-  }, {
-    timezone: 'Asia/Manila'
-  });
+  cron.schedule(
+    '*/15 * * * *',
+    async () => {
+      try {
+        await evaluateSlaBreaches(deps);
+      } catch (err) {
+        console.error('[SLA Monitor] Failed to evaluate SLA breaches:', err);
+      }
+    },
+    {
+      timezone: 'Asia/Manila',
+    },
+  );
 }

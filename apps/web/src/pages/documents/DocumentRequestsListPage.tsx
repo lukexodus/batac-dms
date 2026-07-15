@@ -1,4 +1,9 @@
-import { useReactTable, getCoreRowModel, flexRender, createColumnHelper } from '@tanstack/react-table';
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  createColumnHelper,
+} from '@tanstack/react-table';
 import { FileText, Loader2, ArrowRight, Check, X } from 'lucide-react';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -20,7 +25,6 @@ import { trpc } from '../../lib/trpc';
 
 import type { RouterOutputs } from '../../lib/trpc';
 
-
 type DocumentRequestRow = RouterOutputs['documents']['listAllDocumentRequests']['items'][0];
 
 const columnHelper = createColumnHelper<DocumentRequestRow>();
@@ -31,7 +35,7 @@ function ApprovalCheck({ label, approved }: { label: string; approved: boolean }
       {approved ? (
         <Check className="h-3.5 w-3.5 text-green-600" />
       ) : (
-        <X className="h-3.5 w-3.5 text-muted-foreground" />
+        <X className="text-muted-foreground h-3.5 w-3.5" />
       )}
       <span className="text-muted-foreground">{label}</span>
     </span>
@@ -41,9 +45,7 @@ function ApprovalCheck({ label, approved }: { label: string; approved: boolean }
 const columns = [
   columnHelper.accessor('title', {
     header: 'Title',
-    cell: (info) => (
-      <span className="font-medium">{info.getValue()}</span>
-    ),
+    cell: (info) => <span className="font-medium">{info.getValue()}</span>,
   }),
   columnHelper.accessor('requesterName', {
     header: 'Requester',
@@ -145,7 +147,7 @@ export function DocumentRequestsListPage() {
               setCursorHistory([]);
             }}
             placeholder="Search by name…"
-            className="h-9 w-[200px] rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+            className="focus:ring-ring h-9 w-[200px] rounded-md border bg-white px-3 text-sm outline-none focus:ring-2"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -158,7 +160,7 @@ export function DocumentRequestsListPage() {
               setCursorHistory([]);
             }}
             placeholder="Search by number…"
-            className="h-9 w-[200px] rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+            className="focus:ring-ring h-9 w-[200px] rounded-md border bg-white px-3 text-sm outline-none focus:ring-2"
           />
         </div>
         {(requesterName || documentNumber) && (
@@ -171,7 +173,7 @@ export function DocumentRequestsListPage() {
       <div className="rounded-md border bg-white">
         {isLoading && cursorHistory.length === 0 ? (
           <div className="flex h-[400px] items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
           </div>
         ) : !isLoading && data?.items.length === 0 && cursorHistory.length === 0 ? (
           <div className="py-8">
@@ -190,10 +192,7 @@ export function DocumentRequestsListPage() {
                     <TableHead key={header.id}>
                       {header.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                        : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -202,26 +201,17 @@ export function DocumentRequestsListPage() {
             <TableBody>
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                  >
+                  <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
                     No results.
                   </TableCell>
                 </TableRow>
@@ -232,20 +222,10 @@ export function DocumentRequestsListPage() {
       </div>
 
       <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handlePrev}
-          disabled={!hasPrevPage}
-        >
+        <Button variant="outline" size="sm" onClick={handlePrev} disabled={!hasPrevPage}>
           Previous
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleNext}
-          disabled={!hasNextPage}
-        >
+        <Button variant="outline" size="sm" onClick={handleNext} disabled={!hasNextPage}>
           Next
         </Button>
       </div>

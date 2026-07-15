@@ -1,6 +1,5 @@
 # ADR-GEN-011: No Existing Digital QR System Assumed for Letters and Memos
 
-
 **Status:** Accepted **Date:** June 2026 **Deciders:** Development team (developer decision, resolving Q-D06)
 
 ---

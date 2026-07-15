@@ -1,5 +1,5 @@
-import { enUS } from "date-fns/locale";
-import type { Locale } from "date-fns";
+import { enUS } from 'date-fns/locale';
+import type { Locale } from 'date-fns';
 
 /**
  * batac-dms custom date-fns locale.
@@ -31,7 +31,7 @@ export const phLocale: Locale = {
  * Asia/Manila timezone string — use with date-fns-tz's formatInTimeZone()
  * on the server, or for Intl.DateTimeFormat calls.
  */
-export const PH_TIMEZONE = "Asia/Manila" as const;
+export const PH_TIMEZONE = 'Asia/Manila' as const;
 
 /**
  * Standard display formats used throughout the app.
@@ -44,20 +44,20 @@ export const PH_TIMEZONE = "Asia/Manila" as const;
  */
 export const DATE_FORMATS = {
   /** "18 Jun 2026" — document timestamps, routing history */
-  display: "d MMM yyyy",
+  display: 'd MMM yyyy',
 
   /** "18 Jun 2026 · 09:15 AM" — full audit log entries */
-  displayWithTime: "d MMM yyyy · hh:mm a",
+  displayWithTime: 'd MMM yyyy · hh:mm a',
 
   /** "2026-06-18" — ISO date, DB storage, URL params */
-  iso: "yyyy-MM-dd",
+  iso: 'yyyy-MM-dd',
 
   /** "2026-06-18 09:15:32" — monospace timestamp per DESIGN.md §9 */
-  isoWithTime: "yyyy-MM-dd HH:mm:ss",
+  isoWithTime: 'yyyy-MM-dd HH:mm:ss',
 
   /** "Monday, 23 June 2026" — session headers */
-  sessionHeading: "EEEE, d MMMM yyyy",
+  sessionHeading: 'EEEE, d MMMM yyyy',
 
   /** "Jun 2026" — month navigation in Calendar */
-  monthYear: "MMM yyyy",
+  monthYear: 'MMM yyyy',
 } as const;

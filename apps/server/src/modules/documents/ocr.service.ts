@@ -5,7 +5,10 @@ import type { AppDb } from '../../db.js';
 import type { PreviewProvider } from './preview.provider.js';
 
 export interface OcrProvider {
-  extractTextFromS3Key(s3Key: string, mimeType: string): Promise<{
+  extractTextFromS3Key(
+    s3Key: string,
+    mimeType: string,
+  ): Promise<{
     text: string;
     confidenceScore: number;
   }>;
@@ -37,7 +40,7 @@ export class OcrService {
     private readonly previewProvider: PreviewProvider,
     private readonly s3: S3Client,
     private readonly bucket: string,
-    private readonly db: AppDb
+    private readonly db: AppDb,
   ) {
     this.GOOD_THRESHOLD = parseFloat(process.env['OCR_QUALITY_GOOD_THRESHOLD'] ?? '0.85');
     this.FAIR_THRESHOLD = parseFloat(process.env['OCR_QUALITY_FAIR_THRESHOLD'] ?? '0.50');
@@ -50,11 +53,15 @@ export class OcrService {
   }
 
   async enqueueOcrJob(versionId: string, s3Key: string, documentId: string): Promise<void> {
-    await this.pgBoss.send('ocr.process', { versionId, s3Key, documentId }, {
-      retryLimit: 3,
-      retryDelay: 30,
-      expireInHours: 24,
-    });
+    await this.pgBoss.send(
+      'ocr.process',
+      { versionId, s3Key, documentId },
+      {
+        retryLimit: 3,
+        retryDelay: 30,
+        expireInHours: 24,
+      },
+    );
   }
 
   async enqueueManualReOcrJob(versionId: string): Promise<void> {
@@ -77,7 +84,11 @@ export class OcrService {
     await this.enqueueOcrJob(versionId, s3Key, documentId);
   }
 
-  async generateFirstPagePreview(documentId: string, s3Key: string, mimeType: string): Promise<void> {
+  async generateFirstPagePreview(
+    documentId: string,
+    s3Key: string,
+    mimeType: string,
+  ): Promise<void> {
     const webpBuffer = await this.previewProvider.renderFirstPage(s3Key, mimeType);
     const previewKey = `documents/previews/${documentId}/page-1.webp`;
     await this.s3.putObject({
@@ -94,7 +105,7 @@ export class OcrService {
     scanQualityScore: number,
     documentId: string,
     mimeType: string,
-    s3Key?: string
+    s3Key?: string,
   ): Promise<void> {
     const category = this.categorize(scanQualityScore);
     const requiresManualVerification = category === 'poor';
@@ -118,10 +129,10 @@ export class OcrService {
         .where(eq(versions.id, versionId))
         .limit(1);
       if (versionRecord && versionRecord.length > 0) {
-      const firstVersion = versionRecord[0];
-      if (firstVersion) {
-        fileKey = firstVersion.s3Key;
-      }
+        const firstVersion = versionRecord[0];
+        if (firstVersion) {
+          fileKey = firstVersion.s3Key;
+        }
       }
     }
 

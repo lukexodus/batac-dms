@@ -8,6 +8,7 @@
     "db:lint": { "dependsOn": ["^typecheck"], "outputs": [] },
     "test:unit": { "dependsOn": ["^build"], "outputs": [] },
     "test:integration": { "dependsOn": ["^build"], "outputs": [] },
+    "format": { "cache": false },
     "dev": { "cache": false, "persistent": true }
   }
 }

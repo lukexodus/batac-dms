@@ -73,9 +73,7 @@ function renderNumber(
   const yearStr = String(year);
 
   if (template) {
-    return template
-      .replace('{YEAR}', yearStr)
-      .replace('{NN}', paddedNN);
+    return template.replace('{YEAR}', yearStr).replace('{NN}', paddedNN);
   }
 
   // Fallback — build from parts (should not occur for seeded series)
@@ -144,7 +142,12 @@ export class NumberingService {
       }
 
       // Step 2: render the formatted number
-      const numberValue = renderNumber(series, year, Number(sequenceValue), series.preliminaryFormat);
+      const numberValue = renderNumber(
+        series,
+        year,
+        Number(sequenceValue),
+        series.preliminaryFormat,
+      );
       const now = new Date();
 
       // Step 3a: insert documents.numbers ledger row
@@ -345,11 +348,7 @@ export class NumberingService {
    * @param actorId   Reserved for the caller's audit log; unused here (numbers
    *                  table is append-only with no updated_by column).
    */
-  async logCancellationGap(
-    numberId: string,
-    reason: string,
-    _actorId: string,
-  ): Promise<void> {
+  async logCancellationGap(numberId: string, reason: string, _actorId: string): Promise<void> {
     await this.db
       .update(numbers)
       .set({ cancellationReason: reason })

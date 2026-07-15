@@ -1,13 +1,13 @@
 import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
-import { createOrgRepository }    from './organization.repository.js';
-import { createOrgService }       from './organization.service.js';
+import { createOrgRepository } from './organization.repository.js';
+import { createOrgService } from './organization.service.js';
 import { createDelegationService } from './delegation.service.js';
 import { registerDelegationExpiryJob } from './delegation-expiry.job.js';
-import { createOrgRouter }        from './organization.router.js';
+import { createOrgRouter } from './organization.router.js';
 
 async function organizationPlugin(fastify: FastifyInstance): Promise<void> {
-  const orgRepository      = createOrgRepository(fastify.db);
+  const orgRepository = createOrgRepository(fastify.db);
   // [Confirmed — see docs/development-findings-log.md, Bug A] The object
   // literals below previously used the key `repository` where
   // OrgServiceDeps/DelegationServiceDeps declare `orgRepository`. Because
@@ -22,7 +22,7 @@ async function organizationPlugin(fastify: FastifyInstance): Promise<void> {
   // read properties of undefined` the first time a grant was actually
   // created. Fixed by using the correct key name in both calls.
   const organizationService = createOrgService({ db: fastify.db, orgRepository } as any);
-  const delegationService  = createDelegationService({
+  const delegationService = createDelegationService({
     db: fastify.db,
     orgRepository,
     auditService: fastify.auditService,
@@ -47,11 +47,14 @@ async function organizationPlugin(fastify: FastifyInstance): Promise<void> {
   fastify.decorate('organizationService', organizationService);
   fastify.decorate('delegationService', delegationService);
 
-  fastify.decorate('orgTrpcRouter', createOrgRouter({
-    policyEvaluator: fastify.policyEvaluator,
-    organizationService,
-    delegationService,
-  } as any));
+  fastify.decorate(
+    'orgTrpcRouter',
+    createOrgRouter({
+      policyEvaluator: fastify.policyEvaluator,
+      organizationService,
+      delegationService,
+    } as any),
+  );
 }
 
 export default fp(organizationPlugin, {

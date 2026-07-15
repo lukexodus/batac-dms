@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DesignationHandler, DesignationMetadataInvalidError } from '../designation.handler.js';
 import type { DocumentsRepository } from '../documents.repository.js';
-import type { DelegationService, DelegationSubject } from '../../organization/organization.types.js';
+import type {
+  DelegationService,
+  DelegationSubject,
+} from '../../organization/organization.types.js';
 
 describe('DesignationHandler', () => {
   let mockDocumentsRepo: any;
@@ -48,12 +51,17 @@ describe('DesignationHandler', () => {
       delete (invalidMetadata as any).delegatingAuthorityEmployeeId;
 
       await expect(
-        handler.handleDesignationLogged('doc-1', invalidMetadata, 'actor-1', subject)
+        handler.handleDesignationLogged('doc-1', invalidMetadata, 'actor-1', subject),
       ).rejects.toThrow(DesignationMetadataInvalidError);
     });
 
     it('creates a delegation grant and updates document metadata', async () => {
-      const result = await handler.handleDesignationLogged('doc-1', validMetadata, 'actor-1', subject);
+      const result = await handler.handleDesignationLogged(
+        'doc-1',
+        validMetadata,
+        'actor-1',
+        subject,
+      );
 
       expect(result).toEqual({ delegationGrantId: 'grant-1' });
 
@@ -71,7 +79,7 @@ describe('DesignationHandler', () => {
           cityId: 'city-1',
         }),
         subject,
-        expect.anything()
+        expect.anything(),
       );
 
       expect(mockDocumentsRepo.updateDocumentMetadata).toHaveBeenCalledWith('doc-1', {
@@ -88,7 +96,7 @@ describe('DesignationHandler', () => {
       expect(mockDelegationService.revokeEarlyDelegationGrant).toHaveBeenCalledWith(
         'grant-1',
         { writtenInstructionReference: 'Test reason' },
-        subject
+        subject,
       );
     });
   });

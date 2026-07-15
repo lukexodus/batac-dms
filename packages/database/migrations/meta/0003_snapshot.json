@@ -263,12 +263,8 @@
           "tableFrom": "credentials",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -278,9 +274,7 @@
         "uq_credentials_user": {
           "name": "uq_credentials_user",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "policies": {},
@@ -377,12 +371,8 @@
           "tableFrom": "mfa_records",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -392,10 +382,7 @@
         "uq_mfa_records_user_method": {
           "name": "uq_mfa_records_user_method",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "method"
-          ]
+          "columns": ["user_id", "method"]
         }
       },
       "policies": {},
@@ -477,11 +464,7 @@
         "uq_permissions_city_resource_action": {
           "name": "uq_permissions_city_resource_action",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "resource",
-            "action"
-          ]
+          "columns": ["city_id", "resource", "action"]
         }
       },
       "policies": {},
@@ -640,12 +623,8 @@
           "tableFrom": "refresh_tokens",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -654,12 +633,8 @@
           "tableFrom": "refresh_tokens",
           "tableTo": "sessions",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -668,12 +643,8 @@
           "tableFrom": "refresh_tokens",
           "tableTo": "refresh_tokens",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "replaced_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["replaced_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -683,9 +654,7 @@
         "uq_refresh_tokens_hash": {
           "name": "uq_refresh_tokens_hash",
           "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
+          "columns": ["token_hash"]
         }
       },
       "policies": {},
@@ -852,12 +821,8 @@
           "tableFrom": "role_assignments",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -866,12 +831,8 @@
           "tableFrom": "role_assignments",
           "tableTo": "roles",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["role_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -880,12 +841,8 @@
           "tableFrom": "role_assignments",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "assigned_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["assigned_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -894,12 +851,8 @@
           "tableFrom": "role_assignments",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "revoked_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["revoked_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -951,12 +904,8 @@
           "tableFrom": "role_permissions",
           "tableTo": "roles",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["role_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -965,12 +914,8 @@
           "tableFrom": "role_permissions",
           "tableTo": "permissions",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "permission_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["permission_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -978,10 +923,7 @@
       "compositePrimaryKeys": {
         "role_permissions_role_id_permission_id_pk": {
           "name": "role_permissions_role_id_permission_id_pk",
-          "columns": [
-            "role_id",
-            "permission_id"
-          ]
+          "columns": ["role_id", "permission_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1088,10 +1030,7 @@
         "uq_roles_city_code": {
           "name": "uq_roles_city_code",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "code"
-          ]
+          "columns": ["city_id", "code"]
         }
       },
       "policies": {},
@@ -1242,12 +1181,8 @@
           "tableFrom": "sessions",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1256,12 +1191,8 @@
           "tableFrom": "sessions",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "terminated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["terminated_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1271,9 +1202,7 @@
         "uq_sessions_token_hash": {
           "name": "uq_sessions_token_hash",
           "nullsNotDistinct": false,
-          "columns": [
-            "session_token_hash"
-          ]
+          "columns": ["session_token_hash"]
         }
       },
       "policies": {},
@@ -1380,18 +1309,12 @@
         "uq_users_city_username": {
           "name": "uq_users_city_username",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "username"
-          ]
+          "columns": ["city_id", "username"]
         },
         "uq_users_city_email": {
           "name": "uq_users_city_email",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "email"
-          ]
+          "columns": ["city_id", "email"]
         }
       },
       "policies": {},
@@ -1631,12 +1554,8 @@
           "tableFrom": "assignments",
           "tableTo": "employees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["employee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1645,12 +1564,8 @@
           "tableFrom": "assignments",
           "tableTo": "positions",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "position_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["position_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1659,12 +1574,8 @@
           "tableFrom": "assignments",
           "tableTo": "offices",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "office_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["office_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1807,12 +1718,8 @@
           "tableFrom": "committee_memberships",
           "tableTo": "committees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "committee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["committee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1821,12 +1728,8 @@
           "tableFrom": "committee_memberships",
           "tableTo": "employees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["employee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1918,12 +1821,8 @@
           "tableFrom": "committees",
           "tableTo": "employees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "chaired_by_employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["chaired_by_employee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1933,10 +1832,7 @@
         "uq_committees_city_code": {
           "name": "uq_committees_city_code",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "code"
-          ]
+          "columns": ["city_id", "code"]
         }
       },
       "policies": {},
@@ -1993,12 +1889,8 @@
           "tableFrom": "cross_office_grants",
           "tableTo": "roles",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["role_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2197,12 +2089,8 @@
           "tableFrom": "delegation_grants",
           "tableTo": "employees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "delegating_employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["delegating_employee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2211,12 +2099,8 @@
           "tableFrom": "delegation_grants",
           "tableTo": "employees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "delegated_to_employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["delegated_to_employee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2225,12 +2109,8 @@
           "tableFrom": "delegation_grants",
           "tableTo": "offices",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "office_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["office_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2239,12 +2119,8 @@
           "tableFrom": "delegation_grants",
           "tableTo": "positions",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "position_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["position_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2373,10 +2249,7 @@
         "uq_employees_city_number": {
           "name": "uq_employees_city_number",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "employee_number"
-          ]
+          "columns": ["city_id", "employee_number"]
         }
       },
       "policies": {},
@@ -2475,12 +2348,8 @@
           "tableFrom": "offices",
           "tableTo": "offices",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "parent_office_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["parent_office_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2490,10 +2359,7 @@
         "uq_offices_city_code": {
           "name": "uq_offices_city_code",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "code"
-          ]
+          "columns": ["city_id", "code"]
         }
       },
       "policies": {},
@@ -2601,12 +2467,8 @@
           "tableFrom": "positions",
           "tableTo": "offices",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "office_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["office_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2616,10 +2478,7 @@
         "uq_positions_city_code": {
           "name": "uq_positions_city_code",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "code"
-          ]
+          "columns": ["city_id", "code"]
         }
       },
       "policies": {},

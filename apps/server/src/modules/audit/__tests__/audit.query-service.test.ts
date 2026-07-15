@@ -30,14 +30,14 @@ describe('AuditQueryService (Integration)', () => {
   // Privileged DB connection for tampering tests (simulates superuser SQL tampering)
   // Falls back to auditDb if DATABASE_URL_MIGRATE is not set (tests requiring UPDATE
   // will then be skipped or fail gracefully).
-  const migrateDb = databaseUrlMigrate
-    ? drizzle(postgres(databaseUrlMigrate, { max: 1 }))
-    : null;
+  const migrateDb = databaseUrlMigrate ? drizzle(postgres(databaseUrlMigrate, { max: 1 })) : null;
 
   /**
    * Helper: write an audit event and wait for DB commit.
    */
-  async function writeEvent(overrides: Partial<AuditEventInput> & { actorId: string }): Promise<void> {
+  async function writeEvent(
+    overrides: Partial<AuditEventInput> & { actorId: string },
+  ): Promise<void> {
     const input: AuditEventInput = {
       eventType: 'test.event',
       targetId: randomUUID(),
@@ -68,7 +68,7 @@ describe('AuditQueryService (Integration)', () => {
 
     expect(result.chainValidationStatus).toBe('intact');
     expect(result.events).toHaveLength(3);
-    expect(result.events.map(e => e.eventType)).toEqual([
+    expect(result.events.map((e) => e.eventType)).toEqual([
       'test.chain.a',
       'test.chain.b',
       'test.chain.c',
@@ -88,7 +88,7 @@ describe('AuditQueryService (Integration)', () => {
 
     // Directly UPDATE a row's chain_hash using a privileged role (simulating DB-level tampering)
     await migrateDb.execute(
-      sql`UPDATE audit.events SET chain_hash = ${'a'.repeat(64)} WHERE actor_id = ${actorId}`
+      sql`UPDATE audit.events SET chain_hash = ${'a'.repeat(64)} WHERE actor_id = ${actorId}`,
     );
 
     const result = await queryService.queryEvents({ actorId });
@@ -109,7 +109,7 @@ describe('AuditQueryService (Integration)', () => {
 
     // Directly UPDATE the hmac using a privileged role
     await migrateDb.execute(
-      sql`UPDATE audit.events SET hmac = ${'b'.repeat(64)} WHERE actor_id = ${actorId}`
+      sql`UPDATE audit.events SET hmac = ${'b'.repeat(64)} WHERE actor_id = ${actorId}`,
     );
 
     const result = await queryService.queryEvents({ actorId });
@@ -160,7 +160,7 @@ describe('AuditQueryService (Integration)', () => {
     expect(page2.nextCursor).toBeUndefined();
 
     // All 3 unique events are returned across both pages
-    const allTypes = [...page1.events, ...page2.events].map(e => e.eventType);
+    const allTypes = [...page1.events, ...page2.events].map((e) => e.eventType);
     expect(allTypes).toContain('test.page.1');
     expect(allTypes).toContain('test.page.2');
     expect(allTypes).toContain('test.page.3');
@@ -179,7 +179,7 @@ describe('AuditQueryService (Integration)', () => {
 
     // Tamper with chain_hash using privileged role
     await migrateDb.execute(
-      sql`UPDATE audit.events SET chain_hash = ${'c'.repeat(64)} WHERE actor_id = ${actorId}`
+      sql`UPDATE audit.events SET chain_hash = ${'c'.repeat(64)} WHERE actor_id = ${actorId}`,
     );
 
     const bypassQueryService = new AuditQueryService(repo, {

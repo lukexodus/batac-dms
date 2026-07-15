@@ -41,9 +41,9 @@ const DEMO_PASSWORD = 'BatacDemo2026!';
 interface DemoAccountDef {
   username: string;
   email: string;
-  roleCode: string;         // must match a roles.code seeded by iam.seed.ts
-  officeCode: string;       // must match an offices.code seeded by organization.seed.ts
-  displayName: string;      // for console output only
+  roleCode: string; // must match a roles.code seeded by iam.seed.ts
+  officeCode: string; // must match an offices.code seeded by organization.seed.ts
+  displayName: string; // for console output only
   // Only set for people who need a NEW employees row (Mayor, Vice Mayor).
   // Leave undefined for people whose employee row already exists (the 12 councilors) —
   // for those, we UPDATE the existing row's userId instead of inserting.
@@ -64,7 +64,11 @@ const DEMO_ACCOUNTS: DemoAccountDef[] = [
     roleCode: 'mayor',
     officeCode: 'OOM',
     displayName: 'Hon. Mark Christian R. Chua (Mayor)',
-    newEmployee: { employeeNumber: 'OOM-CHUA-MRC', firstName: 'Mark Christian R.', lastName: 'Chua' },
+    newEmployee: {
+      employeeNumber: 'OOM-CHUA-MRC',
+      firstName: 'Mark Christian R.',
+      lastName: 'Chua',
+    },
   },
   {
     username: 'vicemayor.chua',
@@ -90,7 +94,8 @@ const DEMO_ACCOUNTS: DemoAccountDef[] = [
     email: 'mesina@batac.gov.ph',
     roleCode: 'records_officer',
     officeCode: 'SPS',
-    displayName: 'Mia Prima M. Mesina (Records Officer — Admin Officer II, Ordinances & Resolutions Section)',
+    displayName:
+      'Mia Prima M. Mesina (Records Officer — Admin Officer II, Ordinances & Resolutions Section)',
     // Not one of the 12 SP_MEMBERS councilors seeded by organization.seed.ts,
     // and not created by any other seed — needs a fresh employees row, same
     // as mayor.chua / vicemayor.chua / secretary.lagura above.
@@ -121,7 +126,9 @@ const DEMO_ACCOUNTS: DemoAccountDef[] = [
 async function main() {
   const databaseUrl = process.env['DATABASE_URL_APP'] || process.env['DATABASE_URL_MIGRATE'];
   if (!databaseUrl) {
-    console.error('[seed:demo-credentials] Error: DATABASE_URL_APP or DATABASE_URL_MIGRATE not set.');
+    console.error(
+      '[seed:demo-credentials] Error: DATABASE_URL_APP or DATABASE_URL_MIGRATE not set.',
+    );
     process.exit(1);
   }
 
@@ -153,7 +160,7 @@ async function main() {
 
         if (!office) {
           throw new Error(
-            `Office code "${account.officeCode}" not found. Run "pnpm db:seed" first.`
+            `Office code "${account.officeCode}" not found. Run "pnpm db:seed" first.`,
           );
         }
 
@@ -165,9 +172,7 @@ async function main() {
           .limit(1);
 
         if (!role) {
-          throw new Error(
-            `Role code "${account.roleCode}" not found. Run "pnpm db:seed" first.`
-          );
+          throw new Error(`Role code "${account.roleCode}" not found. Run "pnpm db:seed" first.`);
         }
 
         // ── Check if this username already exists (idempotency) ───────────
@@ -181,7 +186,10 @@ async function main() {
 
         if (existingUser) {
           userId = existingUser.id;
-          skipped.push({ username: account.username, reason: 'user already exists — left untouched' });
+          skipped.push({
+            username: account.username,
+            reason: 'user already exists — left untouched',
+          });
         } else {
           userId = randomUUID();
 
@@ -250,14 +258,14 @@ async function main() {
             .update(employees)
             .set({ userId, updatedAt: new Date() })
             .where(
-              sql`${employees.cityId} = ${CITY_ID} AND ${employees.employeeNumber} = ${account.existingEmployeeNumber}`
+              sql`${employees.cityId} = ${CITY_ID} AND ${employees.employeeNumber} = ${account.existingEmployeeNumber}`,
             )
             .returning({ id: employees.id });
 
           if (result.length === 0) {
             throw new Error(
               `Employee number "${account.existingEmployeeNumber}" not found — ` +
-              `expected it to exist from organization.seed.ts. Run "pnpm db:seed" first.`
+                `expected it to exist from organization.seed.ts. Run "pnpm db:seed" first.`,
             );
           }
         }

@@ -47,7 +47,8 @@ import {
   Input,
   Label,
   StatusBadge,
- cn } from '@batac/ui';
+  cn,
+} from '@batac/ui';
 
 import { useSessionStore } from '@/stores';
 import { hasRole } from '@/lib/auth-helpers';
@@ -57,21 +58,11 @@ import { trpc, type RouterOutputs } from '@/lib/trpc';
 // ─── Constants mirroring backend ─────────────────────────────────────────────
 
 /** Mirrors PRE_RELEASE_STATES in document-requests.router.ts line 60 */
-const PRE_RELEASE_STATES = new Set([
-  'draft',
-  'submitted',
-  'in_workflow',
-  'pending_mayor_action',
-]);
+const PRE_RELEASE_STATES = new Set(['draft', 'submitted', 'in_workflow', 'pending_mayor_action']);
 
 // ─── Role sets ────────────────────────────────────────────────────────────────
 
-const VIEW_ROLES = [
-  'sp_secretary',
-  'sp_presiding_officer',
-  'records_officer',
-  'auditor',
-] as const;
+const VIEW_ROLES = ['sp_secretary', 'sp_presiding_officer', 'records_officer', 'auditor'] as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,7 +76,7 @@ export function DocumentRequestDetailPage() {
 
   if (!hasRole(identity, ...VIEW_ROLES)) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-text-muted">
+      <div className="text-text-muted flex flex-col items-center justify-center p-8">
         You do not have permission to view this page.
       </div>
     );
@@ -104,18 +95,13 @@ function DocumentRequestDetailContent() {
   const isSecretary = hasRole(identity, 'sp_secretary');
   const isPresidingOfficer = hasRole(identity, 'sp_presiding_officer');
 
-  const { data, isLoading, isError, refetch } =
-    trpc.documents.getDocumentRequest.useQuery(
-      { requestId: requestId! },
-      { enabled: !!requestId }
-    );
+  const { data, isLoading, isError, refetch } = trpc.documents.getDocumentRequest.useQuery(
+    { requestId: requestId! },
+    { enabled: !!requestId },
+  );
 
   if (!requestId) {
-    return (
-      <div className="p-8 text-sm text-text-muted">
-        No request ID found in URL.
-      </div>
-    );
+    return <div className="text-text-muted p-8 text-sm">No request ID found in URL.</div>;
   }
 
   if (isLoading) {
@@ -124,12 +110,12 @@ function DocumentRequestDetailContent() {
 
   if (isError || !data) {
     return (
-      <div className="flex flex-col items-center gap-2 p-8 text-sm text-danger-600">
+      <div className="text-danger-600 flex flex-col items-center gap-2 p-8 text-sm">
         <AlertTriangle className="h-5 w-5" />
         Document request not found or you do not have access.
         <Link
           to="/document-requests"
-          className="mt-2 text-primary-600 hover:underline flex items-center gap-1 text-xs"
+          className="text-primary-600 mt-2 flex items-center gap-1 text-xs hover:underline"
         >
           <ArrowLeft className="h-3 w-3" /> Back to list
         </Link>
@@ -138,11 +124,11 @@ function DocumentRequestDetailContent() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto">
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
       {/* ─── Breadcrumb back link ─── */}
       <Link
         to="/document-requests"
-        className="text-xs text-text-muted hover:text-primary-600 flex items-center gap-1 w-fit"
+        className="text-text-muted hover:text-primary-600 flex w-fit items-center gap-1 text-xs"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Document Requests
@@ -150,12 +136,12 @@ function DocumentRequestDetailContent() {
 
       {/* ─── Page header ─── */}
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex flex-col gap-1 min-w-0">
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2 min-w-0">
-            <FileText className="h-6 w-6 text-primary-500 shrink-0" />
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="text-text-primary flex min-w-0 items-center gap-2 text-2xl font-bold">
+            <FileText className="text-primary-500 h-6 w-6 shrink-0" />
             <span className="truncate">{data.title}</span>
           </h1>
-          <p className="text-xs text-text-muted">Request ID: {data.requestId}</p>
+          <p className="text-text-muted text-xs">Request ID: {data.requestId}</p>
         </div>
         <StatusBadge state={mapLifecycleStateToDocumentState(data.lifecycleState)} />
       </div>
@@ -196,41 +182,35 @@ function ApprovalStatusStrip({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-4 rounded-lg border bg-neutral-50 px-4 py-3">
-      <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mr-2">
+      <p className="text-text-muted mr-2 text-xs font-semibold tracking-wide uppercase">
         Approvals
       </p>
 
       {/* Step 1 — Presiding Officer (Vice Mayor) */}
       <div className="flex items-center gap-1.5">
         {vmApproved ? (
-          <CheckCircle2 className="h-4 w-4 text-success-600" />
+          <CheckCircle2 className="text-success-600 h-4 w-4" />
         ) : (
           <Circle className="h-4 w-4 text-neutral-300" />
         )}
         <span
-          className={cn(
-            'text-xs font-medium',
-            vmApproved ? 'text-success-700' : 'text-text-muted'
-          )}
+          className={cn('text-xs font-medium', vmApproved ? 'text-success-700' : 'text-text-muted')}
         >
           Presiding Officer (VM)
         </span>
       </div>
 
-      <span className="text-neutral-300 text-xs">→</span>
+      <span className="text-xs text-neutral-300">→</span>
 
       {/* Step 2 — SP Secretary */}
       <div className="flex items-center gap-1.5">
         {spApproved ? (
-          <CheckCircle2 className="h-4 w-4 text-success-600" />
+          <CheckCircle2 className="text-success-600 h-4 w-4" />
         ) : (
           <Circle className="h-4 w-4 text-neutral-300" />
         )}
         <span
-          className={cn(
-            'text-xs font-medium',
-            spApproved ? 'text-success-700' : 'text-text-muted'
-          )}
+          className={cn('text-xs font-medium', spApproved ? 'text-success-700' : 'text-text-muted')}
         >
           SP Secretary
         </span>
@@ -245,20 +225,16 @@ function RequestDetailsCard({ data }: { data: RequestDetail }) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold text-text-primary flex items-center gap-2">
-          <User className="h-4 w-4 text-text-muted" />
+        <CardTitle className="text-text-primary flex items-center gap-2 text-sm font-semibold">
+          <User className="text-text-muted h-4 w-4" />
           Request Details
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+      <CardContent className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
         <DetailRow label="Requester" value={data.requesterName ?? '—'} />
         <DetailRow
           label="Access Mode"
-          value={
-            data.accessMode
-              ? String(data.accessMode).replace(/_/g, ' ')
-              : '—'
-          }
+          value={data.accessMode ? String(data.accessMode).replace(/_/g, ' ') : '—'}
         />
         <DetailRow
           label="Filed"
@@ -274,10 +250,7 @@ function RequestDetailsCard({ data }: { data: RequestDetail }) {
           </div>
         )}
         {data.notificationChannel && (
-          <DetailRow
-            label="Notification Channel"
-            value={String(data.notificationChannel)}
-          />
+          <DetailRow label="Notification Channel" value={String(data.notificationChannel)} />
         )}
       </CardContent>
     </Card>
@@ -299,8 +272,8 @@ function DocumentsRequestedCard({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold text-text-primary flex items-center gap-2">
-          <FileText className="h-4 w-4 text-text-muted" />
+        <CardTitle className="text-text-primary flex items-center gap-2 text-sm font-semibold">
+          <FileText className="text-text-muted h-4 w-4" />
           Documents Requested
         </CardTitle>
       </CardHeader>
@@ -308,19 +281,17 @@ function DocumentsRequestedCard({
         <ul className="divide-y divide-neutral-100">
           {items.map((item, idx) => (
             <li key={idx} className="flex items-center gap-3 px-4 py-3 text-sm">
-              <span className="font-mono text-xs text-text-muted w-5 shrink-0">
-                {idx + 1}.
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-text-primary truncate">
+              <span className="text-text-muted w-5 shrink-0 font-mono text-xs">{idx + 1}.</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-text-primary truncate font-medium">
                   {item.documentTitle ?? '—'}
                 </p>
                 {item.documentNumber && (
-                  <p className="text-xs text-text-muted">No. {item.documentNumber}</p>
+                  <p className="text-text-muted text-xs">No. {item.documentNumber}</p>
                 )}
               </div>
               {item.numberOfPages != null && (
-                <Badge variant="secondary" className="text-xs shrink-0">
+                <Badge variant="secondary" className="shrink-0 text-xs">
                   {item.numberOfPages}p
                 </Badge>
               )}
@@ -347,25 +318,19 @@ function PaymentInfoCard({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold text-text-primary flex items-center gap-2">
-          <Banknote className="h-4 w-4 text-text-muted" />
+        <CardTitle className="text-text-primary flex items-center gap-2 text-sm font-semibold">
+          <Banknote className="text-text-muted h-4 w-4" />
           Payment (Recorded)
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+      <CardContent className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
         <DetailRow label="OR Number" value={payment.orNumber ?? '—'} />
         <DetailRow label="Collecting Officer" value={payment.collectingOfficer ?? '—'} />
         <DetailRow
           label="Amount Paid"
-          value={
-            payment.amountPaid != null
-              ? `₱${payment.amountPaid.toFixed(2)}`
-              : '—'
-          }
+          value={payment.amountPaid != null ? `₱${payment.amountPaid.toFixed(2)}` : '—'}
         />
-        {payment.paymentDate && (
-          <DetailRow label="Payment Date" value={payment.paymentDate} />
-        )}
+        {payment.paymentDate && <DetailRow label="Payment Date" value={payment.paymentDate} />}
       </CardContent>
     </Card>
   );
@@ -394,8 +359,8 @@ function ActionsCard({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold text-text-primary flex items-center gap-2">
-          <Send className="h-4 w-4 text-text-muted" />
+        <CardTitle className="text-text-primary flex items-center gap-2 text-sm font-semibold">
+          <Send className="text-text-muted h-4 w-4" />
           Actions
         </CardTitle>
       </CardHeader>
@@ -413,7 +378,7 @@ function ActionsCard({
         {/* ── Step 2: Secretary approval ── */}
         {isSecretary && !isCompleted && !isReleased && (
           <>
-          <hr className="border-neutral-100 my-1" />
+            <hr className="my-1 border-neutral-100" />
             <SecretaryApproveButton
               requestId={data.requestId}
               vmApproved={data.vmApproved}
@@ -427,7 +392,7 @@ function ActionsCard({
         {/* ── Step 3: Release ── */}
         {isSecretary && (
           <>
-              <hr className="border-neutral-100 my-1" />
+            <hr className="my-1 border-neutral-100" />
             <ReleaseCopyPanel
               requestId={data.requestId}
               isCompleted={isCompleted}
@@ -471,15 +436,15 @@ function PresidingOfficerApproveButton({
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-0.5">
-          <p className="text-sm font-medium text-text-primary">
+          <p className="text-text-primary text-sm font-medium">
             Step 1 — Presiding Officer Approval
           </p>
-          <p className="text-xs text-text-muted">
+          <p className="text-text-muted text-xs">
             {alreadyApproved
               ? 'Already approved by presiding officer.'
               : inPreReleaseState
-              ? 'Approve this request as Presiding Officer (Vice Mayor).'
-              : 'Request has moved past the approval stage.'}
+                ? 'Approve this request as Presiding Officer (Vice Mayor).'
+                : 'Request has moved past the approval stage.'}
           </p>
         </div>
         <Button
@@ -494,7 +459,7 @@ function PresidingOfficerApproveButton({
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : alreadyApproved ? (
             <>
-              <CheckCircle2 className="h-4 w-4 mr-1.5 text-success-600" />
+              <CheckCircle2 className="text-success-600 mr-1.5 h-4 w-4" />
               Approved
             </>
           ) : (
@@ -538,8 +503,7 @@ function SecretaryApproveButton({
     },
   });
 
-  const disabled =
-    alreadyApproved || !vmApproved || !inPreReleaseState || mutation.isPending;
+  const disabled = alreadyApproved || !vmApproved || !inPreReleaseState || mutation.isPending;
 
   let hint: string;
   if (alreadyApproved) {
@@ -556,10 +520,8 @@ function SecretaryApproveButton({
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-0.5">
-          <p className="text-sm font-medium text-text-primary">
-            Step 2 — SP Secretary Approval
-          </p>
-          <p className="text-xs text-text-muted">{hint}</p>
+          <p className="text-text-primary text-sm font-medium">Step 2 — SP Secretary Approval</p>
+          <p className="text-text-muted text-xs">{hint}</p>
         </div>
         <Button
           id={`btn-sec-approve-${requestId}`}
@@ -573,7 +535,7 @@ function SecretaryApproveButton({
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : alreadyApproved ? (
             <>
-              <CheckCircle2 className="h-4 w-4 mr-1.5 text-success-600" />
+              <CheckCircle2 className="text-success-600 mr-1.5 h-4 w-4" />
               Approved
             </>
           ) : (
@@ -632,7 +594,7 @@ function ReleaseCopyPanel({
 
   if (isReleased) {
     return (
-      <div className="flex items-center gap-2 rounded-md bg-success-50 border border-success-200 px-4 py-3 text-sm text-success-700">
+      <div className="bg-success-50 border-success-200 text-success-700 flex items-center gap-2 rounded-md border px-4 py-3 text-sm">
         <CheckCircle2 className="h-4 w-4 shrink-0" />
         This request has been released.
       </div>
@@ -642,10 +604,8 @@ function ReleaseCopyPanel({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-0.5">
-        <p className="text-sm font-medium text-text-primary">
-          Step 3 — Release Copy to Requester
-        </p>
-        <p className="text-xs text-text-muted">
+        <p className="text-text-primary text-sm font-medium">Step 3 — Release Copy to Requester</p>
+        <p className="text-text-muted text-xs">
           {isCompleted
             ? 'Both approvals complete. Payment details are optional (Phase 1 — payment system deferred to Phase 2).'
             : 'Awaiting both approvals before release is available.'}
@@ -653,11 +613,10 @@ function ReleaseCopyPanel({
       </div>
 
       {/* Payment fields — optional, never block release */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`or-number-${requestId}`} className="text-xs">
-            OR Number{' '}
-            <span className="text-text-muted font-normal">(optional)</span>
+            OR Number <span className="text-text-muted font-normal">(optional)</span>
           </Label>
           <Input
             id={`or-number-${requestId}`}
@@ -670,8 +629,7 @@ function ReleaseCopyPanel({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`collecting-officer-${requestId}`} className="text-xs">
-            Collecting Officer{' '}
-            <span className="text-text-muted font-normal">(optional)</span>
+            Collecting Officer <span className="text-text-muted font-normal">(optional)</span>
           </Label>
           <Input
             id={`collecting-officer-${requestId}`}
@@ -684,8 +642,7 @@ function ReleaseCopyPanel({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`amount-paid-${requestId}`} className="text-xs">
-            Amount Paid (₱){' '}
-            <span className="text-text-muted font-normal">(optional)</span>
+            Amount Paid (₱) <span className="text-text-muted font-normal">(optional)</span>
           </Label>
           <Input
             id={`amount-paid-${requestId}`}
@@ -710,12 +667,12 @@ function ReleaseCopyPanel({
         >
           {mutation.isPending ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
               Releasing…
             </>
           ) : (
             <>
-              <Send className="h-4 w-4 mr-1.5" />
+              <Send className="mr-1.5 h-4 w-4" />
               Release Copy
             </>
           )}
@@ -729,7 +686,7 @@ function ReleaseCopyPanel({
 
 function DocumentRequestDetailSkeleton() {
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto">
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
       <Skeleton className="h-4 w-32" />
       <div className="flex flex-col gap-2">
         <Skeleton className="h-8 w-96" />
@@ -747,8 +704,8 @@ function DocumentRequestDetailSkeleton() {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <p className="text-xs text-text-muted">{label}</p>
-      <p className="text-sm text-text-primary">{value}</p>
+      <p className="text-text-muted text-xs">{label}</p>
+      <p className="text-text-primary text-sm">{value}</p>
     </div>
   );
 }

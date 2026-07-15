@@ -316,12 +316,8 @@
           "tableFrom": "attachments",
           "tableTo": "documents",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -330,12 +326,8 @@
           "tableFrom": "attachments",
           "tableTo": "documents",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "source_document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_document_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -434,12 +426,8 @@
           "tableFrom": "classification_allowlists",
           "tableTo": "document_types",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "document_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_type_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -449,11 +437,7 @@
         "uq_classification_allowlists_type_role": {
           "name": "uq_classification_allowlists_type_role",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_type_id",
-            "role_code",
-            "city_id"
-          ]
+          "columns": ["document_type_id", "role_code", "city_id"]
         }
       },
       "policies": {},
@@ -552,12 +536,8 @@
           "tableFrom": "document_sponsorships",
           "tableTo": "documents",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -567,11 +547,7 @@
         "uq_sponsorships": {
           "name": "uq_sponsorships",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_id",
-            "sponsor_employee_id",
-            "sponsorship_type"
-          ]
+          "columns": ["document_id", "sponsor_employee_id", "sponsorship_type"]
         }
       },
       "policies": {},
@@ -717,12 +693,8 @@
           "tableFrom": "document_types",
           "tableTo": "number_series",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "number_series_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["number_series_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -732,10 +704,7 @@
         "uq_document_types_city_code": {
           "name": "uq_document_types_city_code",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "code"
-          ]
+          "columns": ["city_id", "code"]
         }
       },
       "policies": {},
@@ -1076,12 +1045,8 @@
           "tableFrom": "documents",
           "tableTo": "document_types",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "document_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_type_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1090,12 +1055,8 @@
           "tableFrom": "documents",
           "tableTo": "number_series",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "number_series_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["number_series_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1104,12 +1065,8 @@
           "tableFrom": "documents",
           "tableTo": "documents",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "superseded_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["superseded_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1119,9 +1076,7 @@
         "uq_documents_qr_tracking_number": {
           "name": "uq_documents_qr_tracking_number",
           "nullsNotDistinct": false,
-          "columns": [
-            "qr_tracking_number"
-          ]
+          "columns": ["qr_tracking_number"]
         }
       },
       "policies": {},
@@ -1303,12 +1258,8 @@
           "tableFrom": "number_series",
           "tableTo": "document_types",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "document_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_type_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1318,10 +1269,7 @@
         "uq_number_series_city_key": {
           "name": "uq_number_series_city_key",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "series_key"
-          ]
+          "columns": ["city_id", "series_key"]
         }
       },
       "policies": {},
@@ -1488,12 +1436,8 @@
           "tableFrom": "numbers",
           "tableTo": "documents",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1502,12 +1446,8 @@
           "tableFrom": "numbers",
           "tableTo": "number_series",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "number_series_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["number_series_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1517,11 +1457,7 @@
         "uq_numbers_series_year_seq": {
           "name": "uq_numbers_series_year_seq",
           "nullsNotDistinct": false,
-          "columns": [
-            "number_series_id",
-            "sequence_year",
-            "sequence_number"
-          ]
+          "columns": ["number_series_id", "sequence_year", "sequence_number"]
         }
       },
       "policies": {},
@@ -1673,12 +1609,8 @@
           "tableFrom": "panlalawigan_reviews",
           "tableTo": "documents",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1687,12 +1619,8 @@
           "tableFrom": "panlalawigan_reviews",
           "tableTo": "number_series",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "number_series_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["number_series_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1702,9 +1630,7 @@
         "uq_panlalawigan_reviews_document": {
           "name": "uq_panlalawigan_reviews_document",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_id"
-          ]
+          "columns": ["document_id"]
         }
       },
       "policies": {},
@@ -1820,12 +1746,8 @@
           "tableFrom": "signatures",
           "tableTo": "documents",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2000,12 +1922,8 @@
           "tableFrom": "versions",
           "tableTo": "documents",
           "schemaTo": "documents",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2015,10 +1933,7 @@
         "uq_versions_document_number": {
           "name": "uq_versions_document_number",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_id",
-            "version_number"
-          ]
+          "columns": ["document_id", "version_number"]
         }
       },
       "policies": {},
@@ -2105,12 +2020,8 @@
           "tableFrom": "credentials",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2120,9 +2031,7 @@
         "uq_credentials_user": {
           "name": "uq_credentials_user",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "policies": {},
@@ -2219,12 +2128,8 @@
           "tableFrom": "mfa_records",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2234,10 +2139,7 @@
         "uq_mfa_records_user_method": {
           "name": "uq_mfa_records_user_method",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "method"
-          ]
+          "columns": ["user_id", "method"]
         }
       },
       "policies": {},
@@ -2319,11 +2221,7 @@
         "uq_permissions_city_resource_action": {
           "name": "uq_permissions_city_resource_action",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "resource",
-            "action"
-          ]
+          "columns": ["city_id", "resource", "action"]
         }
       },
       "policies": {},
@@ -2482,12 +2380,8 @@
           "tableFrom": "refresh_tokens",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2496,12 +2390,8 @@
           "tableFrom": "refresh_tokens",
           "tableTo": "sessions",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2510,12 +2400,8 @@
           "tableFrom": "refresh_tokens",
           "tableTo": "refresh_tokens",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "replaced_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["replaced_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2525,9 +2411,7 @@
         "uq_refresh_tokens_hash": {
           "name": "uq_refresh_tokens_hash",
           "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
+          "columns": ["token_hash"]
         }
       },
       "policies": {},
@@ -2694,12 +2578,8 @@
           "tableFrom": "role_assignments",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2708,12 +2588,8 @@
           "tableFrom": "role_assignments",
           "tableTo": "roles",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["role_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2722,12 +2598,8 @@
           "tableFrom": "role_assignments",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "assigned_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["assigned_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2736,12 +2608,8 @@
           "tableFrom": "role_assignments",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "revoked_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["revoked_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2793,12 +2661,8 @@
           "tableFrom": "role_permissions",
           "tableTo": "roles",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["role_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2807,12 +2671,8 @@
           "tableFrom": "role_permissions",
           "tableTo": "permissions",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "permission_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["permission_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2820,10 +2680,7 @@
       "compositePrimaryKeys": {
         "role_permissions_role_id_permission_id_pk": {
           "name": "role_permissions_role_id_permission_id_pk",
-          "columns": [
-            "role_id",
-            "permission_id"
-          ]
+          "columns": ["role_id", "permission_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2930,10 +2787,7 @@
         "uq_roles_city_code": {
           "name": "uq_roles_city_code",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "code"
-          ]
+          "columns": ["city_id", "code"]
         }
       },
       "policies": {},
@@ -3084,12 +2938,8 @@
           "tableFrom": "sessions",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3098,12 +2948,8 @@
           "tableFrom": "sessions",
           "tableTo": "users",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "terminated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["terminated_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3113,9 +2959,7 @@
         "uq_sessions_token_hash": {
           "name": "uq_sessions_token_hash",
           "nullsNotDistinct": false,
-          "columns": [
-            "session_token_hash"
-          ]
+          "columns": ["session_token_hash"]
         }
       },
       "policies": {},
@@ -3222,18 +3066,12 @@
         "uq_users_city_username": {
           "name": "uq_users_city_username",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "username"
-          ]
+          "columns": ["city_id", "username"]
         },
         "uq_users_city_email": {
           "name": "uq_users_city_email",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "email"
-          ]
+          "columns": ["city_id", "email"]
         }
       },
       "policies": {},
@@ -3473,12 +3311,8 @@
           "tableFrom": "assignments",
           "tableTo": "employees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["employee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3487,12 +3321,8 @@
           "tableFrom": "assignments",
           "tableTo": "positions",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "position_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["position_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3501,12 +3331,8 @@
           "tableFrom": "assignments",
           "tableTo": "offices",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "office_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["office_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3649,12 +3475,8 @@
           "tableFrom": "committee_memberships",
           "tableTo": "committees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "committee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["committee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3663,12 +3485,8 @@
           "tableFrom": "committee_memberships",
           "tableTo": "employees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["employee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3760,12 +3578,8 @@
           "tableFrom": "committees",
           "tableTo": "employees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "chaired_by_employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["chaired_by_employee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3775,10 +3589,7 @@
         "uq_committees_city_code": {
           "name": "uq_committees_city_code",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "code"
-          ]
+          "columns": ["city_id", "code"]
         }
       },
       "policies": {},
@@ -3835,12 +3646,8 @@
           "tableFrom": "cross_office_grants",
           "tableTo": "roles",
           "schemaTo": "iam",
-          "columnsFrom": [
-            "role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["role_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4039,12 +3846,8 @@
           "tableFrom": "delegation_grants",
           "tableTo": "employees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "delegating_employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["delegating_employee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4053,12 +3856,8 @@
           "tableFrom": "delegation_grants",
           "tableTo": "employees",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "delegated_to_employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["delegated_to_employee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4067,12 +3866,8 @@
           "tableFrom": "delegation_grants",
           "tableTo": "offices",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "office_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["office_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4081,12 +3876,8 @@
           "tableFrom": "delegation_grants",
           "tableTo": "positions",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "position_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["position_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4215,10 +4006,7 @@
         "uq_employees_city_number": {
           "name": "uq_employees_city_number",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "employee_number"
-          ]
+          "columns": ["city_id", "employee_number"]
         }
       },
       "policies": {},
@@ -4317,12 +4105,8 @@
           "tableFrom": "offices",
           "tableTo": "offices",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "parent_office_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["parent_office_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4332,10 +4116,7 @@
         "uq_offices_city_code": {
           "name": "uq_offices_city_code",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "code"
-          ]
+          "columns": ["city_id", "code"]
         }
       },
       "policies": {},
@@ -4443,12 +4224,8 @@
           "tableFrom": "positions",
           "tableTo": "offices",
           "schemaTo": "organization",
-          "columnsFrom": [
-            "office_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["office_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4458,10 +4235,7 @@
         "uq_positions_city_code": {
           "name": "uq_positions_city_code",
           "nullsNotDistinct": false,
-          "columns": [
-            "city_id",
-            "code"
-          ]
+          "columns": ["city_id", "code"]
         }
       },
       "policies": {},
@@ -4555,23 +4329,17 @@
         "uq_qr_codes_tracking_id": {
           "name": "uq_qr_codes_tracking_id",
           "nullsNotDistinct": false,
-          "columns": [
-            "tracking_id"
-          ]
+          "columns": ["tracking_id"]
         },
         "uq_qr_codes_document": {
           "name": "uq_qr_codes_document",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_id"
-          ]
+          "columns": ["document_id"]
         },
         "uq_qr_codes_tracking_number": {
           "name": "uq_qr_codes_tracking_number",
           "nullsNotDistinct": false,
-          "columns": [
-            "tracking_number"
-          ]
+          "columns": ["tracking_number"]
         }
       },
       "policies": {},
@@ -4691,12 +4459,8 @@
           "tableFrom": "routing_entries",
           "tableTo": "tracking_records",
           "schemaTo": "tracking",
-          "columnsFrom": [
-            "tracking_record_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tracking_record_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4804,12 +4568,8 @@
           "tableFrom": "tracking_records",
           "tableTo": "qr_codes",
           "schemaTo": "tracking",
-          "columnsFrom": [
-            "qr_code_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["qr_code_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4819,9 +4579,7 @@
         "uq_tracking_records_document": {
           "name": "uq_tracking_records_document",
           "nullsNotDistinct": false,
-          "columns": [
-            "document_id"
-          ]
+          "columns": ["document_id"]
         }
       },
       "policies": {},

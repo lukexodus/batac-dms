@@ -1,7 +1,6 @@
 name: batac-prod
 
 services:
-
   postgres-primary:
     image: bitnami/postgresql:16
     restart: unless-stopped
@@ -19,14 +18,14 @@ services:
       - postgres_primary_data:/bitnami/postgresql
       - ./tools/db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME:-batac_lgu}"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d ${DB_NAME:-batac_lgu}']
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     deploy:
       resources:
-        limits: { cpus: "2", memory: 4G }
+        limits: { cpus: '2', memory: 4G }
 
   postgres-standby:
     image: bitnami/postgresql:16
@@ -48,7 +47,7 @@ services:
       - postgres_standby_data:/bitnami/postgresql
     deploy:
       resources:
-        limits: { cpus: "2", memory: 4G }
+        limits: { cpus: '2', memory: 4G }
 
   server:
     image: ${REGISTRY:-ghcr.io/batac}/server:${IMAGE_TAG:-latest}
@@ -69,23 +68,30 @@ services:
       - smtp_password
       - backup_encryption_key
     ports:
-      - "127.0.0.1:3000:3000"
+      - '127.0.0.1:3000:3000'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:3000${HEALTH_CHECK_PATH:-/health}"]
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--spider',
+          'http://localhost:3000${HEALTH_CHECK_PATH:-/health}',
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
     deploy:
       resources:
-        limits: { cpus: "2", memory: 2G }
+        limits: { cpus: '2', memory: 2G }
 
   web-build:
     image: ${REGISTRY:-ghcr.io/batac}/web:${IMAGE_TAG:-latest}
-    restart: "no"
+    restart: 'no'
     volumes:
       - web_static:/app/dist
-    command: ["sh", "-c", "cp -r /app/dist/* /shared/ 2>/dev/null || true"]
+    command: ['sh', '-c', 'cp -r /app/dist/* /shared/ 2>/dev/null || true']
 
   nginx:
     image: nginx:1.27-alpine
@@ -102,12 +108,12 @@ services:
       - ./nginx/entrypoint.sh:/entrypoint.sh:ro
       - web_static:/usr/share/nginx/html:ro
       - tls_certs:/etc/nginx/certs:ro
-    entrypoint: ["/entrypoint.sh"]
+    entrypoint: ['/entrypoint.sh']
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost/health"]
+      test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://localhost/health']
       interval: 15s
       timeout: 5s
       retries: 5
@@ -126,8 +132,8 @@ services:
       - s3_access_key
       - s3_secret_key
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
+      - '127.0.0.1:9000:9000'
+      - '127.0.0.1:9001:9001'
     volumes:
       - minio_prod_data:/data
 
@@ -138,7 +144,7 @@ services:
       - search
     environment:
       MEILI_MASTER_KEY_FILE: /run/secrets/meilisearch_master_key
-      MEILI_NO_ANALYTICS: "true"
+      MEILI_NO_ANALYTICS: 'true'
       MEILI_ENV: production
       TZ: Asia/Manila
     secrets:
@@ -148,22 +154,22 @@ services:
 
 secrets:
   db_replication_password: { file: ./secrets/db_replication_password.txt }
-  db_superuser_password:   { file: ./secrets/db_superuser_password.txt }
-  jwt_access_secret:       { file: ./secrets/jwt_access_secret.txt }
-  jwt_refresh_secret:      { file: ./secrets/jwt_refresh_secret.txt }
-  audit_hmac_secret:       { file: ./secrets/audit_hmac_secret.txt }
-  database_url_app:        { file: ./secrets/database_url_app.txt }
-  database_url_audit:      { file: ./secrets/database_url_audit.txt }
-  s3_access_key:           { file: ./secrets/s3_access_key.txt }
-  s3_secret_key:           { file: ./secrets/s3_secret_key.txt }
-  smtp_password:           { file: ./secrets/smtp_password.txt }
-  backup_encryption_key:   { file: ./secrets/backup_encryption_key.txt }
-  meilisearch_master_key:  { file: ./secrets/meilisearch_master_key.txt }
+  db_superuser_password: { file: ./secrets/db_superuser_password.txt }
+  jwt_access_secret: { file: ./secrets/jwt_access_secret.txt }
+  jwt_refresh_secret: { file: ./secrets/jwt_refresh_secret.txt }
+  audit_hmac_secret: { file: ./secrets/audit_hmac_secret.txt }
+  database_url_app: { file: ./secrets/database_url_app.txt }
+  database_url_audit: { file: ./secrets/database_url_audit.txt }
+  s3_access_key: { file: ./secrets/s3_access_key.txt }
+  s3_secret_key: { file: ./secrets/s3_secret_key.txt }
+  smtp_password: { file: ./secrets/smtp_password.txt }
+  backup_encryption_key: { file: ./secrets/backup_encryption_key.txt }
+  meilisearch_master_key: { file: ./secrets/meilisearch_master_key.txt }
 
 volumes:
   postgres_primary_data: { driver: local }
   postgres_standby_data: { driver: local }
-  web_static:            { driver: local }
-  tls_certs:             { driver: local }
-  minio_prod_data:       { driver: local }
+  web_static: { driver: local }
+  tls_certs: { driver: local }
+  minio_prod_data: { driver: local }
   meilisearch_prod_data: { driver: local }

@@ -15,16 +15,16 @@ D4 declares `Record.recordType: RecordType` as a typed field but never enumerate
 
 The Consolidated Architecture & Requirements Reference, Part 11.7 ("Records Management"), gives a **retention table** grouped by category, explicitly marked `[Inference]`/configurable and flagged for confirmation:
 
-| Category | Retention |
-|---|---|
-| SP Resolutions, Ordinances | Permanent `[CONFIRMED]` |
-| Signed contracts, financial records | Permanent |
-| Personnel records | 10–15 years |
-| Correspondence with citizens | 10–15 years |
-| Internal memos | 5 years |
-| Draft versions (final approved kept) | 1 year |
+| Category                             | Retention               |
+| ------------------------------------ | ----------------------- |
+| SP Resolutions, Ordinances           | Permanent `[CONFIRMED]` |
+| Signed contracts, financial records  | Permanent               |
+| Personnel records                    | 10–15 years             |
+| Correspondence with citizens         | 10–15 years             |
+| Internal memos                       | 5 years                 |
+| Draft versions (final approved kept) | 1 year                  |
 
-Part 11.7 itself flags these as **"Retention defaults (configurable; to be confirmed with COA/DILG)"** — i.e., the source document already treats the retention *periods* as provisional, separate from whatever category labels are used to organize them.
+Part 11.7 itself flags these as **"Retention defaults (configurable; to be confirmed with COA/DILG)"** — i.e., the source document already treats the retention _periods_ as provisional, separate from whatever category labels are used to organize them.
 
 Additionally, a site-visit observation of the SP Secretariat's physical filing practice (Consolidated Reference, Part 7.6) recorded the categories actually used to organize paper records today (by SP term and by document/activity type — Proposed Ordinances, Memo Incoming/Outgoing, Committee Reports, Vouchers, etc.). That observation is **not itself a disposition framework** — confirmed in interview that no NAP-approved Records Disposition Schedule (RDS) exists for the Batac SP, and no disposition action has ever occurred.
 
@@ -34,7 +34,7 @@ From the retrieved GRDS table itself (items 14–82 visible in the retrieved exc
 
 A separate document was provided during this project's research, presenting itself as an excerpt of "NAP GC No. 3 (2011)" with specific quoted retention values for Sanggunian-specific series (e.g., "Approved Resolutions/Ordinances — Decision is permanent," "Drafts of Minutes — 1 year after transcribed," "Committee Report – Performance of Sanggunian Member — Permanent"). **This document's specific quoted line items could not be corroborated against the retrieved primary source** `[Unverified]` — none of its quoted phrases appear in the GRDS table actually retrieved from the Official Gazette reproduction, and its citation (GC3, 2011) conflicts with the confirmed fact that the GRDS is attached to GC1 (2009). This document is therefore **not relied upon as a source** in this ADR. It may still be a useful lead for locating the Sanggunian-specific items elsewhere in the full GRDS, but its specific figures must not be treated as confirmed until independently verified against a primary NAP document.
 
-D4's existing relationship design is relevant context: `DocumentType "1" --> "1" RetentionSchedule : governs` — i.e., **retention scheduling is already modeled as keyed off `document_type`, not off `RecordType` directly.** `RecordType` is a property of the `Record` entity itself (alongside `recordNumber`, `physicalLocation`, `formalizedAt`), describing what kind of record it is, while a *separate* `RetentionSchedule` entity (governed by `DocumentType`) carries the actual retention period and disposition rule.
+D4's existing relationship design is relevant context: `DocumentType "1" --> "1" RetentionSchedule : governs` — i.e., **retention scheduling is already modeled as keyed off `document_type`, not off `RecordType` directly.** `RecordType` is a property of the `Record` entity itself (alongside `recordNumber`, `physicalLocation`, `formalizedAt`), describing what kind of record it is, while a _separate_ `RetentionSchedule` entity (governed by `DocumentType`) carries the actual retention period and disposition rule.
 
 ## Decision
 
@@ -52,13 +52,13 @@ RecordType:
 
 This is a **grouping enum**, coarser than `document_type` — multiple `document_types` map to a single `RecordType` (e.g., `SP_RESOLUTION`, `SP_ORDINANCE`, and `SP_APPROPRIATION_ORDINANCE` all map to `LEGISLATIVE_PERMANENT`). The mapping from `document_type` → `RecordType` is itself a new piece of configuration data, not previously specified, and is enumerated below for traceability:
 
-| `document_type_code` (H2/H3) | `RecordType` |
-|---|---|
-| `SP_RESOLUTION`, `SP_ORDINANCE`, `SP_APPROPRIATION_ORDINANCE` | `LEGISLATIVE_PERMANENT` |
-| `MEMO_OUTGOING`, `MEMO_INCOMING` | `INTERNAL_MEMO` |
-| `LETTER_RECEIVED`, `LETTER_SENT` | `CORRESPONDENCE` |
-| `NOTICE_COMMITTEE_HEARING`, `NOTICE_SPECIAL_SESSION`, `DESIGNATION` | `LEGISLATIVE_PERMANENT` `[Inference — proposed]` |
-| `PANLALAWIGAN_REVIEW_LOG` | N/A — per ADR-DB-001, not a `document_types` row; not formalized as a `Record` |
+| `document_type_code` (H2/H3)                                        | `RecordType`                                                                   |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `SP_RESOLUTION`, `SP_ORDINANCE`, `SP_APPROPRIATION_ORDINANCE`       | `LEGISLATIVE_PERMANENT`                                                        |
+| `MEMO_OUTGOING`, `MEMO_INCOMING`                                    | `INTERNAL_MEMO`                                                                |
+| `LETTER_RECEIVED`, `LETTER_SENT`                                    | `CORRESPONDENCE`                                                               |
+| `NOTICE_COMMITTEE_HEARING`, `NOTICE_SPECIAL_SESSION`, `DESIGNATION` | `LEGISLATIVE_PERMANENT` `[Inference — proposed]`                               |
+| `PANLALAWIGAN_REVIEW_LOG`                                           | N/A — per ADR-DB-001, not a `document_types` row; not formalized as a `Record` |
 
 `[Inference — proposed]`: NCH, Notice of Special Session, and Designation are mapped to `LEGISLATIVE_PERMANENT` because Part 11.7 has no dedicated row for them and they are procedurally tied to the legislative process; this specific mapping choice is new and was not directly stated in any source document. It should be reviewed alongside the retention-period confirmation below rather than treated as settled fact.
 
@@ -72,7 +72,7 @@ This is a **grouping enum**, coarser than `document_type` — multiple `document
 
 ## Deferred — Not Resolved by This ADR
 
-**The retention *periods* attached to each `RecordType` (Permanent / 10–15 years / 5 years / 1 year, per Part 11.7) remain `[Unverified]` against actual NAP requirements, specifically for the legislative/Sanggunian-specific record series.** This ADR fixes the category *names* and the `document_type` → `RecordType` mapping; it does **not** certify that the retention durations in Part 11.7 are legally correct. Part 11.7 itself already flagged this ("to be confirmed with COA/DILG") before this ADR existed, and that flag is **not lifted** by this decision.
+**The retention _periods_ attached to each `RecordType` (Permanent / 10–15 years / 5 years / 1 year, per Part 11.7) remain `[Unverified]` against actual NAP requirements, specifically for the legislative/Sanggunian-specific record series.** This ADR fixes the category _names_ and the `document_type` → `RecordType` mapping; it does **not** certify that the retention durations in Part 11.7 are legally correct. Part 11.7 itself already flagged this ("to be confirmed with COA/DILG") before this ADR existed, and that flag is **not lifted** by this decision.
 
 Direct retrieval of NAP General Circular No. 1's attached GRDS (Official Gazette, March 23, 2009) confirmed the existence and general structure of the schedule, and confirmed several non-Sanggunian-specific retention periods (see "External regulatory context" above). It did **not** surface confirmed retention periods for the Sanggunian-specific series this project actually needs (SP Resolutions, SP Ordinances, committee reports, session minutes, attendance, designations, letters, memos) — those item numbers were not present in the retrieved excerpt. A secondhand document claiming to quote exactly these Sanggunian-specific figures was evaluated and found uncorroborated against the primary source; it is not used as a basis for any retention period in this project.
 
@@ -81,6 +81,6 @@ Direct retrieval of NAP General Circular No. 1's attached GRDS (Official Gazette
 ## Consequences
 
 - **D4:** `RecordType` enum values are defined as listed above. No structural change to the class diagram is required — `Record.recordType` already exists as a typed field.
-- **C1:** `records.record_type` (or equivalent column, once the `records` schema migration is written) can now be constrained with a `CHECK` constraint or native enum type using the six values above, rather than left as unconstrained `TEXT`. C1 Part 15's open item for `RecordType` values is closed by this ADR for the *enum* question; the retention-period sub-question is tracked separately per "Deferred" above.
+- **C1:** `records.record_type` (or equivalent column, once the `records` schema migration is written) can now be constrained with a `CHECK` constraint or native enum type using the six values above, rather than left as unconstrained `TEXT`. C1 Part 15's open item for `RecordType` values is closed by this ADR for the _enum_ question; the retention-period sub-question is tracked separately per "Deferred" above.
 - **H2/Records module:** The `document_type` → `RecordType` mapping table above becomes seed data for the Records module once it is implemented (Phase 2, per Part 10.2's module list).
-- **Audit/compliance:** Before go-live of any actual disposition workflow, retention periods must be confirmed against NAP/COA/DILG guidance. This is a prerequisite for *exercising* disposition, not for shipping the schema.
+- **Audit/compliance:** Before go-live of any actual disposition workflow, retention periods must be confirmed against NAP/COA/DILG guidance. This is a prerequisite for _exercising_ disposition, not for shipping the schema.

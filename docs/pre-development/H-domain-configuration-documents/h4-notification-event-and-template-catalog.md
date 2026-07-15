@@ -4,6 +4,7 @@
 **Status:** Pre-Development Baseline | June 2026
 **Audience:** Development team — `notifications` module implementation reference
 **Source Documents:**
+
 - `b3-internal-domain-event-catalog.md` (B3) — canonical domain event catalog
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` — requirements and architecture reference
 - `i2-role-permission-matrix.md` (I2) — role-based notification permissions
@@ -19,7 +20,6 @@
 > `[Inference]` — logically required from the architecture or module responsibilities but not explicitly stated.
 >
 > `[B3 Gap]` — a notification requirement found in the consolidated reference or role-permission matrix that is not currently registered in B3 as a domain event with a `notifications` consumer. Each gap requires a follow-up action documented in Section 8.
-
 
 ## Table of Contents
 
@@ -84,18 +84,22 @@ This document is the implementation reference for the `notifications` module. It
 ### 2.2 Scope
 
 **Phase 1 (in scope — must be implemented):**
+
 - In-app notifications delivered via Server-Sent Events (SSE) for all operational roles
 - Complaint respondent notification via email (where available) or phone contact — Phase 1 exception to the general Phase 2 email rollout
 - All notification events sourced from Phase 1 domain events in B3 §8 (Master Event Registry) that list `notifications` as a consumer
 
 **Phase 2 (reserved — architecture must not preclude):**
+
 - Email delivery for the general in-app notification system (all operational roles)
 - Email templates implemented with `@react-email/components`
 
 **Phase 3 (reserved):**
+
 - SMS gateway for citizen-facing and barangay official notifications
 
 **Out of scope for this document:**
+
 - Specific notification message body text — templates are **administrator-configurable** per the platform's extensibility tiers (consolidated ref Part 11.21); this catalog defines template structure and available variables only
 - Phase 2 Reporting module (no notification subscriptions defined in B3)
 
@@ -103,11 +107,11 @@ This document is the implementation reference for the `notifications` module. It
 
 The `notifications` module owns the following tables in the `notifications` PostgreSQL schema (consolidated ref Part 11.9):
 
-| Table | Purpose |
-|---|---|
-| `notifications.templates` | Administrator-managed message templates; referenced by `template_key` string |
+| Table                               | Purpose                                                                        |
+| ----------------------------------- | ------------------------------------------------------------------------------ |
+| `notifications.templates`           | Administrator-managed message templates; referenced by `template_key` string   |
 | `notifications.notification_events` | Log of every notification event generated (distinct from the domain event bus) |
-| `notifications.delivery_log` | Record of every delivery attempt, channel used, and result |
+| `notifications.delivery_log`        | Record of every delivery attempt, channel used, and result                     |
 
 Delivery logs are accessible only to **System Administrators** and **Platform Administrators** (I2, Section 11).
 
@@ -119,11 +123,11 @@ Delivery logs are accessible only to **System Administrators** and **Platform Ad
 
 Real-time in-app notifications are delivered using **Server-Sent Events (SSE)** — a one-directional server-push mechanism that requires no WebSocket infrastructure (tech-stack.md). This is the sole delivery channel for all internal-user notifications in Phase 1.
 
-| Component | Technology |
-|---|---|
-| Real-time push | Server-Sent Events (SSE) |
-| Durable timer scheduling | `pgboss` |
-| Simple scheduling | `node-cron` |
+| Component                | Technology               |
+| ------------------------ | ------------------------ |
+| Real-time push           | Server-Sent Events (SSE) |
+| Durable timer scheduling | `pgboss`                 |
+| Simple scheduling        | `node-cron`              |
 
 ### 3.2 Phase 2 — Email
 
@@ -137,11 +141,11 @@ An SMS gateway is added in Phase 3, enabling notifications to citizens and baran
 
 ### 3.4 Channel Identifier Reference
 
-| Channel Identifier | Description | Phase Available |
-|---|---|---|
-| `in_app` | In-app notification via SSE; default for all workflow steps | Phase 1 |
-| `email` | Email delivery | Phase 2 (Phase 1 exception: complaint respondent only) |
-| `sms` | SMS gateway | Phase 3 |
+| Channel Identifier | Description                                                 | Phase Available                                        |
+| ------------------ | ----------------------------------------------------------- | ------------------------------------------------------ |
+| `in_app`           | In-app notification via SSE; default for all workflow steps | Phase 1                                                |
+| `email`            | Email delivery                                              | Phase 2 (Phase 1 exception: complaint respondent only) |
+| `sms`              | SMS gateway                                                 | Phase 3                                                |
 
 ---
 
@@ -153,13 +157,13 @@ This section catalogs every notification event the `notifications` module must h
 
 ### 4.1 Step Assignment Notification
 
-| Field | Value |
-|---|---|
-| **Notification Event Name** | Step Assignment |
-| **Triggering Domain Event** | `workflow.step.started` |
-| **Emitter Module** | `workflow` |
-| **Phase** | 1 |
-| **B3 Reference** | §7.11; Master Event Registry row 24 |
+| Field                       | Value                               |
+| --------------------------- | ----------------------------------- |
+| **Notification Event Name** | Step Assignment                     |
+| **Triggering Domain Event** | `workflow.step.started`             |
+| **Emitter Module**          | `workflow`                          |
+| **Phase**                   | 1                                   |
+| **B3 Reference**            | §7.11; Master Event Registry row 24 |
 
 **Description:** Notifies the step assignee that a workflow step has been routed to them and requires action. Delegation resolution has already been applied by the workflow engine before this event fires — the `assignedTo` field in the payload already reflects the designated person if a Designation grant is active.
 
@@ -177,13 +181,13 @@ This section catalogs every notification event the `notifications` module must h
 
 ### 4.2 Document State Change Notification
 
-| Field | Value |
-|---|---|
-| **Notification Event Name** | Document State Change |
-| **Triggering Domain Event** | `document.state_changed` |
-| **Emitter Module** | `documents` |
-| **Phase** | 1 |
-| **B3 Reference** | §6.2; Master Event Registry row 10 |
+| Field                       | Value                              |
+| --------------------------- | ---------------------------------- |
+| **Notification Event Name** | Document State Change              |
+| **Triggering Domain Event** | `document.state_changed`           |
+| **Emitter Module**          | `documents`                        |
+| **Phase**                   | 1                                  |
+| **B3 Reference**            | §6.2; Master Event Registry row 10 |
 
 **Description:** Notifies affected parties when a document's lifecycle state advances to a new state (e.g., `Draft → Submitted`, `In-Workflow → Released`, `Released → Archived`, any state → `Cancelled`).
 
@@ -199,13 +203,13 @@ This section catalogs every notification event the `notifications` module must h
 
 ### 4.3 SLA Warning Notification
 
-| Field | Value |
-|---|---|
-| **Notification Event Name** | SLA Warning (80%) |
-| **Triggering Domain Event** | `workflow.sla.warning` |
-| **Emitter Module** | `workflow` |
-| **Phase** | 1 |
-| **B3 Reference** | §7.27; Master Event Registry row 40 |
+| Field                       | Value                               |
+| --------------------------- | ----------------------------------- |
+| **Notification Event Name** | SLA Warning (80%)                   |
+| **Triggering Domain Event** | `workflow.sla.warning`              |
+| **Emitter Module**          | `workflow`                          |
+| **Phase**                   | 1                                   |
+| **B3 Reference**            | §7.27; Master Event Registry row 40 |
 
 **Description:** Warns the step assignee that 80% of the configured ARTA SLA time for the current workflow step has elapsed. Provides an advance alert before the SLA deadline is breached, allowing the assignee to act before the matter escalates.
 
@@ -223,13 +227,13 @@ This section catalogs every notification event the `notifications` module must h
 
 ### 4.4 SLA Breach Escalation Notification
 
-| Field | Value |
-|---|---|
-| **Notification Event Name** | SLA Breach Escalation |
-| **Triggering Domain Event** | `workflow.sla.breached` |
-| **Emitter Module** | `workflow` |
-| **Phase** | 1 |
-| **B3 Reference** | §7.28; Master Event Registry row 41; B2 equivalent: `workflow.escalated` |
+| Field                       | Value                                                                    |
+| --------------------------- | ------------------------------------------------------------------------ |
+| **Notification Event Name** | SLA Breach Escalation                                                    |
+| **Triggering Domain Event** | `workflow.sla.breached`                                                  |
+| **Emitter Module**          | `workflow`                                                               |
+| **Phase**                   | 1                                                                        |
+| **B3 Reference**            | §7.28; Master Event Registry row 41; B2 equivalent: `workflow.escalated` |
 
 **Description:** Notifies the assignee's supervisor and the Records Officer that the ARTA SLA deadline has passed without the step being completed. This is an automatic escalation required by RA 11032 (ARTA).
 
@@ -245,13 +249,13 @@ This section catalogs every notification event the `notifications` module must h
 
 ### 4.5 SLA Critical Escalation Notification
 
-| Field | Value |
-|---|---|
-| **Notification Event Name** | SLA Critical Escalation (150%) |
-| **Triggering Domain Event** | `workflow.sla.critical` |
-| **Emitter Module** | `workflow` |
-| **Phase** | 1 |
-| **B3 Reference** | §7.29; Master Event Registry row 42 |
+| Field                       | Value                               |
+| --------------------------- | ----------------------------------- |
+| **Notification Event Name** | SLA Critical Escalation (150%)      |
+| **Triggering Domain Event** | `workflow.sla.critical`             |
+| **Emitter Module**          | `workflow`                          |
+| **Phase**                   | 1                                   |
+| **B3 Reference**            | §7.29; Master Event Registry row 42 |
 
 **Description:** Second-tier escalation for severely overdue documents. 150% of the ARTA SLA time has elapsed. Notifies the breach escalation audience (supervisor + Records Officer) plus the Department Head, a wider audience reflecting heightened urgency.
 
@@ -269,13 +273,13 @@ This section catalogs every notification event the `notifications` module must h
 
 ### 4.6 Mayor 10-Day Lapse-Into-Law Notification
 
-| Field | Value |
-|---|---|
-| **Notification Event Name** | Mayor 10-Day Lapse |
-| **Triggering Domain Event** | `workflow.approval.lapsed` |
-| **Emitter Module** | `workflow` |
-| **Phase** | 1 |
-| **B3 Reference** | §7.21; Master Event Registry row 34; B2 equivalent: `workflow.lapsed` with `lapseType: 'mayor_10_day_lapsed'` |
+| Field                       | Value                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Notification Event Name** | Mayor 10-Day Lapse                                                                                            |
+| **Triggering Domain Event** | `workflow.approval.lapsed`                                                                                    |
+| **Emitter Module**          | `workflow`                                                                                                    |
+| **Phase**                   | 1                                                                                                             |
+| **B3 Reference**            | §7.21; Master Event Registry row 34; B2 equivalent: `workflow.lapsed` with `lapseType: 'mayor_10_day_lapsed'` |
 
 **Description:** Notifies the SP Secretary that the Mayor's 10-calendar-day review window has elapsed with no action, and the measure has lapsed into law per RA 7160 Section 47. The SP Secretary must confirm the lapse in the system to advance the workflow to docketing.
 
@@ -293,13 +297,13 @@ This section catalogs every notification event the `notifications` module must h
 
 ### 4.7 Panlalawigan 30-Day Deemed Approval Notification
 
-| Field | Value |
-|---|---|
-| **Notification Event Name** | Panlalawigan 30-Day Deemed Approval |
-| **Triggering Domain Event** | `workflow.panlalawigan.deemed_approved` |
-| **Emitter Module** | `workflow` |
-| **Phase** | 1 |
-| **B3 Reference** | §7.22; Master Event Registry row 35; B2 equivalent: `workflow.lapsed` with `lapseType: 'panlalawigan_30_day_deemed'`; B3 Context Reference equivalent: `panlalawigan_timer.expired` |
+| Field                       | Value                                                                                                                                                                               |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Notification Event Name** | Panlalawigan 30-Day Deemed Approval                                                                                                                                                 |
+| **Triggering Domain Event** | `workflow.panlalawigan.deemed_approved`                                                                                                                                             |
+| **Emitter Module**          | `workflow`                                                                                                                                                                          |
+| **Phase**                   | 1                                                                                                                                                                                   |
+| **B3 Reference**            | §7.22; Master Event Registry row 35; B2 equivalent: `workflow.lapsed` with `lapseType: 'panlalawigan_30_day_deemed'`; B3 Context Reference equivalent: `panlalawigan_timer.expired` |
 
 **Description:** Notifies the SP Secretary that the Sangguniang Panlalawigan took no action within 30 calendar days of receiving the transmitted measure. The measure is therefore deemed approved per RA 7160 Section 56(d). The SP Secretary must confirm this status; the Remarks field is to be populated with "Lapsed 30 days."
 
@@ -317,13 +321,13 @@ This section catalogs every notification event the `notifications` module must h
 
 ### 4.8 Complaint Respondent Notification `[B3 Gap — routing resolved by ADR-B2-4]`
 
-| Field | Value |
-|---|---|
-| **Notification Event Name** | Complaint Respondent Alert |
+| Field                       | Value                                                                                                                                                                                                     |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Notification Event Name** | Complaint Respondent Alert                                                                                                                                                                                |
 | **Triggering Domain Event** | Not currently registered in B3 as a domain event with a `notifications` consumer. Triggered by the complaint workflow within the platform. See Section 8.4 for the follow-up action still required in B3. |
-| **Emitter Module** | `portal` (Respondent Notice Service — routing confirmed via `Notifications.sendNotification()` per ADR-B2-4) |
-| **Phase** | 1 |
-| **Source** | Consolidated ref Part 4.14; I2 Section 11, Conditional note ¹⁸; I2 Section 12; ADR-B2-4 — Respondent Notice Channel (June 2026) |
+| **Emitter Module**          | `portal` (Respondent Notice Service — routing confirmed via `Notifications.sendNotification()` per ADR-B2-4)                                                                                              |
+| **Phase**                   | 1                                                                                                                                                                                                         |
+| **Source**                  | Consolidated ref Part 4.14; I2 Section 11, Conditional note ¹⁸; I2 Section 12; ADR-B2-4 — Respondent Notice Channel (June 2026)                                                                           |
 
 **Description:** Notifies the named respondent in a citizen complaint that a formal written notice has been issued and requires their attention. Delivery method depends entirely on what contact information is available for the respondent.
 
@@ -333,9 +337,9 @@ This section catalogs every notification event the `notifications` module must h
 
 **Delivery Channel(s):** Two paths, determined by available contact information:
 
-| Respondent Contact Available | Delivery Method |
-|---|---|
-| Email address | Notification AND the formal written notice delivered by email |
+| Respondent Contact Available   | Delivery Method                                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Email address                  | Notification AND the formal written notice delivered by email                                                |
 | Contact number only (no email) | Notification sent by phone contact; respondent must claim the formal written notice **in person** at the LGU |
 
 **Priority:** High
@@ -346,13 +350,13 @@ This section catalogs every notification event the `notifications` module must h
 
 ### 4.9 Session Security Notification `[B3 Gap]`
 
-| Field | Value |
-|---|---|
-| **Notification Event Name** | Session Displaced — New Device Login |
+| Field                       | Value                                                                                                                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Notification Event Name** | Session Displaced — New Device Login                                                                                                                                                                                           |
 | **Triggering Domain Event** | `session.terminated` (B3 §4.3) — note: B3 currently lists only `audit` as a consumer of this event. The `notifications` consumer is required per consolidated ref Part 11.17 but is not yet registered in B3. See Section 8.3. |
-| **Emitter Module** | `iam` |
-| **Phase** | 1 |
-| **Source** | Consolidated ref Part 11.17; B3 §4.3 |
+| **Emitter Module**          | `iam`                                                                                                                                                                                                                          |
+| **Phase**                   | 1                                                                                                                                                                                                                              |
+| **Source**                  | Consolidated ref Part 11.17; B3 §4.3                                                                                                                                                                                           |
 
 **Description:** Notifies a user that their active session has been terminated because a new login was detected from a different device. Alerts the user to investigate if the login was not initiated by them.
 
@@ -376,13 +380,13 @@ This catalog does not define specific message body text. It defines the **templa
 
 Each template record has the following structure. This structure is derived from the `NotificationStepConfig` interface defined in H1 §3 and the `notifications` schema in the consolidated reference:
 
-| Field | Description |
-|---|---|
+| Field          | Description                                                                                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `template_key` | Unique string identifier used by workflow `notification` step configs and the notifications module's event subscription handlers to look up the correct template |
-| `channel` | Delivery channel: `in_app`, `email`, or `sms` |
-| `subject` | Subject line (email channel only; not applicable for `in_app` or `sms`) |
-| `body` | Message body; includes placeholder variables (e.g., `{{variableName}}`) resolved from the event payload context at delivery time |
-| `is_active` | Whether the template is currently active |
+| `channel`      | Delivery channel: `in_app`, `email`, or `sms`                                                                                                                    |
+| `subject`      | Subject line (email channel only; not applicable for `in_app` or `sms`)                                                                                          |
+| `body`         | Message body; includes placeholder variables (e.g., `{{variableName}}`) resolved from the event payload context at delivery time                                 |
+| `is_active`    | Whether the template is currently active                                                                                                                         |
 
 Multiple templates can exist for the same notification type across different channels (e.g., one `in_app` template and one `email` template for the same event, each with a distinct `template_key`).
 
@@ -392,26 +396,26 @@ Multiple templates can exist for the same notification type across different cha
 
 ### 5.2 Template T-01: Step Assignment — In-App
 
-| Field | Value |
-|---|---|
-| **Template Key** | `notif.workflow.step_assignment.in_app` |
-| **Associated Notification Event** | Step Assignment (Section 4.1) |
-| **Triggering Domain Event** | `workflow.step.started` |
-| **Channel** | `in_app` |
-| **Subject** | N/A |
-| **Phase** | 1 |
+| Field                             | Value                                   |
+| --------------------------------- | --------------------------------------- |
+| **Template Key**                  | `notif.workflow.step_assignment.in_app` |
+| **Associated Notification Event** | Step Assignment (Section 4.1)           |
+| **Triggering Domain Event**       | `workflow.step.started`                 |
+| **Channel**                       | `in_app`                                |
+| **Subject**                       | N/A                                     |
+| **Phase**                         | 1                                       |
 
 **Available Payload Variables (sourced from B3 §7.11 payload schema):**
 
-| Variable | Source Field | Type | Description |
-|---|---|---|---|
-| `{{instanceId}}` | `instanceId` | UUID | Workflow instance UUID |
-| `{{stepInstanceId}}` | `stepInstanceId` | UUID | Step instance UUID |
-| `{{stepType}}` | `stepType` | enum | Step type (`action`, `approval`, `multi_referral`, etc.) |
-| `{{stepKey}}` | `stepKey` | string | Step key within the definition (e.g., `second_reading_vote`) |
-| `{{assignedTo}}` | `assignedTo` | UUID (nullable) | UUID of the assignee; null for system-executed steps |
-| `{{documentId}}` | `documentId` | UUID | Associated document UUID — required to compose message body |
-| `{{dueAt}}` | `dueAt` | datetime (nullable) | Step due date/time; null for step types with no due date |
+| Variable             | Source Field     | Type                | Description                                                  |
+| -------------------- | ---------------- | ------------------- | ------------------------------------------------------------ |
+| `{{instanceId}}`     | `instanceId`     | UUID                | Workflow instance UUID                                       |
+| `{{stepInstanceId}}` | `stepInstanceId` | UUID                | Step instance UUID                                           |
+| `{{stepType}}`       | `stepType`       | enum                | Step type (`action`, `approval`, `multi_referral`, etc.)     |
+| `{{stepKey}}`        | `stepKey`        | string              | Step key within the definition (e.g., `second_reading_vote`) |
+| `{{assignedTo}}`     | `assignedTo`     | UUID (nullable)     | UUID of the assignee; null for system-executed steps         |
+| `{{documentId}}`     | `documentId`     | UUID                | Associated document UUID — required to compose message body  |
+| `{{dueAt}}`          | `dueAt`          | datetime (nullable) | Step due date/time; null for step types with no due date     |
 
 **Implementation Notes:** `documentId` is a required field in the payload (B3 §7.11, OI-5 resolution). The Notifications module must resolve human-readable document details (series number, type, title) from `documentId` at delivery time — it cannot produce a useful notification body using UUIDs alone. No notification should be sent when `assignedTo` is null.
 
@@ -419,14 +423,14 @@ Multiple templates can exist for the same notification type across different cha
 
 ### 5.3 Template T-02: Step Assignment — Email (Phase 2)
 
-| Field | Value |
-|---|---|
-| **Template Key** | `notif.workflow.step_assignment.email` |
-| **Associated Notification Event** | Step Assignment (Section 4.1) |
-| **Triggering Domain Event** | `workflow.step.started` |
-| **Channel** | `email` |
-| **Subject** | Administrator-configurable; should include document number and step label |
-| **Phase** | 2 |
+| Field                             | Value                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------- |
+| **Template Key**                  | `notif.workflow.step_assignment.email`                                    |
+| **Associated Notification Event** | Step Assignment (Section 4.1)                                             |
+| **Triggering Domain Event**       | `workflow.step.started`                                                   |
+| **Channel**                       | `email`                                                                   |
+| **Subject**                       | Administrator-configurable; should include document number and step label |
+| **Phase**                         | 2                                                                         |
 
 **Available Payload Variables:** Identical to T-01.
 
@@ -436,24 +440,24 @@ Multiple templates can exist for the same notification type across different cha
 
 ### 5.4 Template T-03: Document State Change — In-App
 
-| Field | Value |
-|---|---|
-| **Template Key** | `notif.document.state_changed.in_app` |
-| **Associated Notification Event** | Document State Change (Section 4.2) |
-| **Triggering Domain Event** | `document.state_changed` |
-| **Channel** | `in_app` |
-| **Subject** | N/A |
-| **Phase** | 1 |
+| Field                             | Value                                 |
+| --------------------------------- | ------------------------------------- |
+| **Template Key**                  | `notif.document.state_changed.in_app` |
+| **Associated Notification Event** | Document State Change (Section 4.2)   |
+| **Triggering Domain Event**       | `document.state_changed`              |
+| **Channel**                       | `in_app`                              |
+| **Subject**                       | N/A                                   |
+| **Phase**                         | 1                                     |
 
 **Available Payload Variables (sourced from B3 §6.2 payload schema):**
 
-| Variable | Source Field | Type | Description |
-|---|---|---|---|
-| `{{documentId}}` | `documentId` | UUID | Document UUID |
-| `{{fromState}}` | `fromState` | enum | Previous lifecycle state |
-| `{{toState}}` | `toState` | enum | New lifecycle state |
-| `{{actorId}}` | `actorId` | UUID | UUID of user who triggered the state change |
-| `{{reason}}` | `reason` | string (optional) | Reason for the state change; may be absent |
+| Variable         | Source Field | Type              | Description                                 |
+| ---------------- | ------------ | ----------------- | ------------------------------------------- |
+| `{{documentId}}` | `documentId` | UUID              | Document UUID                               |
+| `{{fromState}}`  | `fromState`  | enum              | Previous lifecycle state                    |
+| `{{toState}}`    | `toState`    | enum              | New lifecycle state                         |
+| `{{actorId}}`    | `actorId`    | UUID              | UUID of user who triggered the state change |
+| `{{reason}}`     | `reason`     | string (optional) | Reason for the state change; may be absent  |
 
 **Implementation Notes:** Recipient logic varies significantly by transition type and is template-configurable. The `reason` field is optional — the template body must handle cases where it is absent.
 
@@ -461,23 +465,23 @@ Multiple templates can exist for the same notification type across different cha
 
 ### 5.5 Template T-04: SLA Warning — In-App
 
-| Field | Value |
-|---|---|
-| **Template Key** | `notif.workflow.sla_warning.in_app` |
-| **Associated Notification Event** | SLA Warning 80% (Section 4.3) |
-| **Triggering Domain Event** | `workflow.sla.warning` |
-| **Channel** | `in_app` |
-| **Subject** | N/A |
-| **Phase** | 1 |
+| Field                             | Value                               |
+| --------------------------------- | ----------------------------------- |
+| **Template Key**                  | `notif.workflow.sla_warning.in_app` |
+| **Associated Notification Event** | SLA Warning 80% (Section 4.3)       |
+| **Triggering Domain Event**       | `workflow.sla.warning`              |
+| **Channel**                       | `in_app`                            |
+| **Subject**                       | N/A                                 |
+| **Phase**                         | 1                                   |
 
 **Available Payload Variables (sourced from B3 §7.27 payload schema):**
 
-| Variable | Source Field | Type | Description |
-|---|---|---|---|
-| `{{instanceId}}` | `instanceId` | UUID | Workflow instance UUID |
-| `{{stepInstanceId}}` | `stepInstanceId` | UUID | Step instance UUID |
-| `{{slaDeadline}}` | `slaDeadline` | datetime | The ARTA SLA deadline timestamp |
-| `{{percentElapsed}}` | `percentElapsed` | literal `80` | Always `80` for this event |
+| Variable             | Source Field     | Type         | Description                     |
+| -------------------- | ---------------- | ------------ | ------------------------------- |
+| `{{instanceId}}`     | `instanceId`     | UUID         | Workflow instance UUID          |
+| `{{stepInstanceId}}` | `stepInstanceId` | UUID         | Step instance UUID              |
+| `{{slaDeadline}}`    | `slaDeadline`    | datetime     | The ARTA SLA deadline timestamp |
+| `{{percentElapsed}}` | `percentElapsed` | literal `80` | Always `80` for this event      |
 
 **Implementation Notes:** The template tone should communicate urgency without triggering alarm — this is a warning, not a breach notification. The message should display the deadline date/time and provide a direct link or reference to the relevant workflow step so the assignee can take action immediately.
 
@@ -485,23 +489,23 @@ Multiple templates can exist for the same notification type across different cha
 
 ### 5.6 Template T-05: SLA Breach Escalation — In-App
 
-| Field | Value |
-|---|---|
-| **Template Key** | `notif.workflow.sla_breach.in_app` |
+| Field                             | Value                               |
+| --------------------------------- | ----------------------------------- |
+| **Template Key**                  | `notif.workflow.sla_breach.in_app`  |
 | **Associated Notification Event** | SLA Breach Escalation (Section 4.4) |
-| **Triggering Domain Event** | `workflow.sla.breached` |
-| **Channel** | `in_app` |
-| **Subject** | N/A |
-| **Phase** | 1 |
+| **Triggering Domain Event**       | `workflow.sla.breached`             |
+| **Channel**                       | `in_app`                            |
+| **Subject**                       | N/A                                 |
+| **Phase**                         | 1                                   |
 
 **Available Payload Variables (sourced from B3 §7.28 payload schema):**
 
-| Variable | Source Field | Type | Description |
-|---|---|---|---|
-| `{{instanceId}}` | `instanceId` | UUID | Workflow instance UUID |
-| `{{stepInstanceId}}` | `stepInstanceId` | UUID | Step instance UUID |
-| `{{slaDeadline}}` | `slaDeadline` | datetime | The SLA deadline that was missed (= `breachedAt`) |
-| `{{breachedAt}}` | `breachedAt` | datetime | Moment of breach; equals `slaDeadline` per B3 §7.28 |
+| Variable               | Source Field       | Type     | Description                                                             |
+| ---------------------- | ------------------ | -------- | ----------------------------------------------------------------------- |
+| `{{instanceId}}`       | `instanceId`       | UUID     | Workflow instance UUID                                                  |
+| `{{stepInstanceId}}`   | `stepInstanceId`   | UUID     | Step instance UUID                                                      |
+| `{{slaDeadline}}`      | `slaDeadline`      | datetime | The SLA deadline that was missed (= `breachedAt`)                       |
+| `{{breachedAt}}`       | `breachedAt`       | datetime | Moment of breach; equals `slaDeadline` per B3 §7.28                     |
 | `{{breachDetectedAt}}` | `breachDetectedAt` | datetime | When the `pgboss` job detected the breach; may differ from `breachedAt` |
 
 **Implementation Notes:** Recipients (supervisor and Records Officer) are resolved from administrator-configurable escalation configuration at notification time — they are not in the event payload. The message should clearly communicate that an ARTA SLA deadline (RA 11032) has been missed, identify the document and step, and indicate the appropriate escalation contacts.
@@ -510,23 +514,23 @@ Multiple templates can exist for the same notification type across different cha
 
 ### 5.7 Template T-06: SLA Critical Escalation — In-App
 
-| Field | Value |
-|---|---|
-| **Template Key** | `notif.workflow.sla_critical.in_app` |
+| Field                             | Value                                      |
+| --------------------------------- | ------------------------------------------ |
+| **Template Key**                  | `notif.workflow.sla_critical.in_app`       |
 | **Associated Notification Event** | SLA Critical Escalation 150% (Section 4.5) |
-| **Triggering Domain Event** | `workflow.sla.critical` |
-| **Channel** | `in_app` |
-| **Subject** | N/A |
-| **Phase** | 1 |
+| **Triggering Domain Event**       | `workflow.sla.critical`                    |
+| **Channel**                       | `in_app`                                   |
+| **Subject**                       | N/A                                        |
+| **Phase**                         | 1                                          |
 
 **Available Payload Variables (sourced from B3 §7.29 payload schema):**
 
-| Variable | Source Field | Type | Description |
-|---|---|---|---|
-| `{{instanceId}}` | `instanceId` | UUID | Workflow instance UUID |
-| `{{stepInstanceId}}` | `stepInstanceId` | UUID | Step instance UUID |
-| `{{slaDeadline}}` | `slaDeadline` | datetime | The original ARTA SLA deadline |
-| `{{percentElapsed}}` | `percentElapsed` | literal `150` | Always `150` for this event |
+| Variable             | Source Field     | Type          | Description                    |
+| -------------------- | ---------------- | ------------- | ------------------------------ |
+| `{{instanceId}}`     | `instanceId`     | UUID          | Workflow instance UUID         |
+| `{{stepInstanceId}}` | `stepInstanceId` | UUID          | Step instance UUID             |
+| `{{slaDeadline}}`    | `slaDeadline`    | datetime      | The original ARTA SLA deadline |
+| `{{percentElapsed}}` | `percentElapsed` | literal `150` | Always `150` for this event    |
 
 **Implementation Notes:** Recipients (supervisor, Records Officer, Department Head) resolved at notification time. The message should convey critical urgency and cite ARTA non-compliance risk explicitly, distinguishing it clearly from the breach-level (T-05) notification.
 
@@ -534,22 +538,22 @@ Multiple templates can exist for the same notification type across different cha
 
 ### 5.8 Template T-07: Mayor 10-Day Lapse — In-App
 
-| Field | Value |
-|---|---|
-| **Template Key** | `notif.workflow.mayor_lapse.in_app` |
-| **Associated Notification Event** | Mayor 10-Day Lapse (Section 4.6) |
-| **Triggering Domain Event** | `workflow.approval.lapsed` |
-| **Channel** | `in_app` |
-| **Subject** | N/A |
-| **Phase** | 1 |
+| Field                             | Value                               |
+| --------------------------------- | ----------------------------------- |
+| **Template Key**                  | `notif.workflow.mayor_lapse.in_app` |
+| **Associated Notification Event** | Mayor 10-Day Lapse (Section 4.6)    |
+| **Triggering Domain Event**       | `workflow.approval.lapsed`          |
+| **Channel**                       | `in_app`                            |
+| **Subject**                       | N/A                                 |
+| **Phase**                         | 1                                   |
 
 **Available Payload Variables (sourced from B3 §7.21 payload schema):**
 
-| Variable | Source Field | Type | Description |
-|---|---|---|---|
-| `{{stepInstanceId}}` | `stepInstanceId` | UUID | Step instance UUID |
-| `{{legalBasis}}` | `legalBasis` | literal string | Verbatim: `"RA 7160 Section 47"` — must not be altered |
-| `{{deadlineWas}}` | `deadlineWas` | datetime | The 10-day deadline timestamp |
+| Variable             | Source Field     | Type           | Description                                            |
+| -------------------- | ---------------- | -------------- | ------------------------------------------------------ |
+| `{{stepInstanceId}}` | `stepInstanceId` | UUID           | Step instance UUID                                     |
+| `{{legalBasis}}`     | `legalBasis`     | literal string | Verbatim: `"RA 7160 Section 47"` — must not be altered |
+| `{{deadlineWas}}`    | `deadlineWas`    | datetime       | The 10-day deadline timestamp                          |
 
 **Implementation Notes:** Recipient is the SP Secretary only. The legal basis phrase `"RA 7160 Section 47"` is carried verbatim in the payload and **must be included verbatim** in the notification — it is the legally mandated basis phrase recorded in system documents. The message must prompt the SP Secretary to confirm the lapse in the system to advance the workflow to docketing. The Notifications module should resolve the document's series number from `stepInstanceId` → `instanceId` → `documentId` for display.
 
@@ -557,23 +561,23 @@ Multiple templates can exist for the same notification type across different cha
 
 ### 5.9 Template T-08: Panlalawigan 30-Day Deemed Approval — In-App
 
-| Field | Value |
-|---|---|
-| **Template Key** | `notif.workflow.panlalawigan_deemed_approved.in_app` |
-| **Associated Notification Event** | Panlalawigan 30-Day Deemed Approval (Section 4.7) |
-| **Triggering Domain Event** | `workflow.panlalawigan.deemed_approved` |
-| **Channel** | `in_app` |
-| **Subject** | N/A |
-| **Phase** | 1 |
+| Field                             | Value                                                |
+| --------------------------------- | ---------------------------------------------------- |
+| **Template Key**                  | `notif.workflow.panlalawigan_deemed_approved.in_app` |
+| **Associated Notification Event** | Panlalawigan 30-Day Deemed Approval (Section 4.7)    |
+| **Triggering Domain Event**       | `workflow.panlalawigan.deemed_approved`              |
+| **Channel**                       | `in_app`                                             |
+| **Subject**                       | N/A                                                  |
+| **Phase**                         | 1                                                    |
 
 **Available Payload Variables (sourced from B3 §7.22 payload schema):**
 
-| Variable | Source Field | Type | Description |
-|---|---|---|---|
-| `{{stepInstanceId}}` | `stepInstanceId` | UUID | Step instance UUID |
-| `{{legalBasis}}` | `legalBasis` | literal string | Verbatim: `"RA 7160 Section 56(d)"` — must not be altered |
-| `{{transmissionDate}}` | `transmissionDate` | datetime | Date the measure was transmitted to the Panlalawigan |
-| `{{deadlineWas}}` | `deadlineWas` | datetime | The 30-day deadline timestamp |
+| Variable               | Source Field       | Type           | Description                                               |
+| ---------------------- | ------------------ | -------------- | --------------------------------------------------------- |
+| `{{stepInstanceId}}`   | `stepInstanceId`   | UUID           | Step instance UUID                                        |
+| `{{legalBasis}}`       | `legalBasis`       | literal string | Verbatim: `"RA 7160 Section 56(d)"` — must not be altered |
+| `{{transmissionDate}}` | `transmissionDate` | datetime       | Date the measure was transmitted to the Panlalawigan      |
+| `{{deadlineWas}}`      | `deadlineWas`      | datetime       | The 30-day deadline timestamp                             |
 
 **Implementation Notes:** Recipient is the SP Secretary only. The legal basis phrase `"RA 7160 Section 56(d)"` **must be included verbatim**. Both `transmissionDate` and `deadlineWas` should appear in the notification for the SP Secretary's records. The message must prompt the SP Secretary to confirm the deemed-approval status and populate the Remarks field with "Lapsed 30 days" (consolidated ref Part 4.3).
 
@@ -581,23 +585,23 @@ Multiple templates can exist for the same notification type across different cha
 
 ### 5.10 Template T-09: Complaint Respondent Notification — Email
 
-| Field | Value |
-|---|---|
-| **Template Key** | `notif.complaint.respondent_notice.email` |
-| **Associated Notification Event** | Complaint Respondent Alert (Section 4.8) |
-| **Triggering Domain Event** | Complaint workflow (B3 gap — see Section 8.4) |
-| **Channel** | `email` |
-| **Subject** | Administrator-configurable; should include complaint reference number and the LGU name |
-| **Phase** | 1 (Phase 1 exception to the general Phase 2 email timeline) |
+| Field                             | Value                                                                                  |
+| --------------------------------- | -------------------------------------------------------------------------------------- |
+| **Template Key**                  | `notif.complaint.respondent_notice.email`                                              |
+| **Associated Notification Event** | Complaint Respondent Alert (Section 4.8)                                               |
+| **Triggering Domain Event**       | Complaint workflow (B3 gap — see Section 8.4)                                          |
+| **Channel**                       | `email`                                                                                |
+| **Subject**                       | Administrator-configurable; should include complaint reference number and the LGU name |
+| **Phase**                         | 1 (Phase 1 exception to the general Phase 2 email timeline)                            |
 
 **Available Variables:**
 
-| Variable | Description |
-|---|---|
-| `{{respondentName}}` | Full name of the respondent |
-| `{{complaintReference}}` | Complaint reference/tracking number |
-| `{{complaintSubject}}` | Subject matter of the complaint |
-| `{{lguOffice}}` | Issuing office name (e.g., "Sangguniang Panlungsod, Batac City") |
+| Variable                     | Description                                                               |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `{{respondentName}}`         | Full name of the respondent                                               |
+| `{{complaintReference}}`     | Complaint reference/tracking number                                       |
+| `{{complaintSubject}}`       | Subject matter of the complaint                                           |
+| `{{lguOffice}}`              | Issuing office name (e.g., "Sangguniang Panlungsod, Batac City")          |
 | `{{secretariatContactInfo}}` | Contact information for the SP Secretariat for the respondent's follow-up |
 
 **Implementation Notes:** This template is used only when the respondent has a known email address. Per the consolidated reference (Part 4.14): "If respondent has an email address: notification AND the formal written notice sent by email." When only a phone number is available, notification is made by phone contact and no email template is used; the respondent claims the formal written notice in person. The email constitutes both the notification and delivery of the formal written notice.
@@ -606,22 +610,22 @@ Multiple templates can exist for the same notification type across different cha
 
 ### 5.11 Template T-10: Session Displaced — In-App
 
-| Field | Value |
-|---|---|
-| **Template Key** | `notif.iam.session_displaced.in_app` |
+| Field                             | Value                                              |
+| --------------------------------- | -------------------------------------------------- |
+| **Template Key**                  | `notif.iam.session_displaced.in_app`               |
 | **Associated Notification Event** | Session Displaced — New Device Login (Section 4.9) |
-| **Triggering Domain Event** | `session.terminated` (B3 gap — see Section 8.3) |
-| **Channel** | `in_app` |
-| **Subject** | N/A |
-| **Phase** | 1 |
+| **Triggering Domain Event**       | `session.terminated` (B3 gap — see Section 8.3)    |
+| **Channel**                       | `in_app`                                           |
+| **Subject**                       | N/A                                                |
+| **Phase**                         | 1                                                  |
 
 **Available Variables (sourced from B3 §4.3 payload schema):**
 
-| Variable | Source Field | Type | Description |
-|---|---|---|---|
-| `{{sessionId}}` | `sessionId` | UUID | The terminated session UUID |
-| `{{userId}}` | `userId` | UUID | The affected user's UUID |
-| `{{reason}}` | `reason` | enum | `'forced'` for new-device displacement (vs. timeout) |
+| Variable        | Source Field | Type | Description                                          |
+| --------------- | ------------ | ---- | ---------------------------------------------------- |
+| `{{sessionId}}` | `sessionId`  | UUID | The terminated session UUID                          |
+| `{{userId}}`    | `userId`     | UUID | The affected user's UUID                             |
+| `{{reason}}`    | `reason`     | enum | `'forced'` for new-device displacement (vs. timeout) |
 
 **Implementation Notes:** This notification is delivered to the displaced user upon their next in-app login or active SSE connection. The message should advise the user to contact the IT Admin if the login from the new device was not initiated by them (consolidated ref Part 11.17).
 
@@ -629,18 +633,18 @@ Multiple templates can exist for the same notification type across different cha
 
 ## 6. Mapping of Notification Events to Templates
 
-| # | Notification Event | Triggering Domain Event | Template Key(s) | Channel | Phase |
-|---|---|---|---|---|---|
-| 1 | Step Assignment | `workflow.step.started` | `notif.workflow.step_assignment.in_app` | `in_app` | 1 |
-| 1a | Step Assignment | `workflow.step.started` | `notif.workflow.step_assignment.email` | `email` | 2 |
-| 2 | Document State Change | `document.state_changed` | `notif.document.state_changed.in_app` | `in_app` | 1 |
-| 3 | SLA Warning (80%) | `workflow.sla.warning` | `notif.workflow.sla_warning.in_app` | `in_app` | 1 |
-| 4 | SLA Breach Escalation | `workflow.sla.breached` | `notif.workflow.sla_breach.in_app` | `in_app` | 1 |
-| 5 | SLA Critical Escalation (150%) | `workflow.sla.critical` | `notif.workflow.sla_critical.in_app` | `in_app` | 1 |
-| 6 | Mayor 10-Day Lapse | `workflow.approval.lapsed` | `notif.workflow.mayor_lapse.in_app` | `in_app` | 1 |
-| 7 | Panlalawigan 30-Day Deemed Approval | `workflow.panlalawigan.deemed_approved` | `notif.workflow.panlalawigan_deemed_approved.in_app` | `in_app` | 1 |
-| 8 | Complaint Respondent Alert | *(B3 gap — see §8.4)* | `notif.complaint.respondent_notice.email` | `email` | 1 |
-| 9 | Session Displaced | `session.terminated` *(B3 gap — see §8.3)* | `notif.iam.session_displaced.in_app` | `in_app` | 1 |
+| #   | Notification Event                  | Triggering Domain Event                    | Template Key(s)                                      | Channel  | Phase |
+| --- | ----------------------------------- | ------------------------------------------ | ---------------------------------------------------- | -------- | ----- |
+| 1   | Step Assignment                     | `workflow.step.started`                    | `notif.workflow.step_assignment.in_app`              | `in_app` | 1     |
+| 1a  | Step Assignment                     | `workflow.step.started`                    | `notif.workflow.step_assignment.email`               | `email`  | 2     |
+| 2   | Document State Change               | `document.state_changed`                   | `notif.document.state_changed.in_app`                | `in_app` | 1     |
+| 3   | SLA Warning (80%)                   | `workflow.sla.warning`                     | `notif.workflow.sla_warning.in_app`                  | `in_app` | 1     |
+| 4   | SLA Breach Escalation               | `workflow.sla.breached`                    | `notif.workflow.sla_breach.in_app`                   | `in_app` | 1     |
+| 5   | SLA Critical Escalation (150%)      | `workflow.sla.critical`                    | `notif.workflow.sla_critical.in_app`                 | `in_app` | 1     |
+| 6   | Mayor 10-Day Lapse                  | `workflow.approval.lapsed`                 | `notif.workflow.mayor_lapse.in_app`                  | `in_app` | 1     |
+| 7   | Panlalawigan 30-Day Deemed Approval | `workflow.panlalawigan.deemed_approved`    | `notif.workflow.panlalawigan_deemed_approved.in_app` | `in_app` | 1     |
+| 8   | Complaint Respondent Alert          | _(B3 gap — see §8.4)_                      | `notif.complaint.respondent_notice.email`            | `email`  | 1     |
+| 9   | Session Displaced                   | `session.terminated` _(B3 gap — see §8.3)_ | `notif.iam.session_displaced.in_app`                 | `in_app` | 1     |
 
 ---
 
@@ -652,23 +656,23 @@ The following tables are sourced entirely from I2, Section 11.
 
 Roles permitted to receive in-app notifications for workflow step assignments and SLA alerts:
 
-| Role | Receives Step Assignment Notifications | Receives SLA Escalation Notifications (Breach) |
-|---|:---:|:---:|
-| System Administrator | — | — |
-| Platform Administrator | — | — |
-| Records Officer | ✅ | ✅ |
-| Department Encoder | ✅ | ❌ |
-| Department Approver | ✅ | ✅ |
-| SP Secretary | ✅ | ✅ |
-| SP Member | ✅ | ❌ |
-| SP Presiding Officer (Vice Mayor) | ✅ | ✅ |
-| Mayor | ✅ | ✅ |
-| Barangay Encoder | ✅ | ❌ |
-| Barangay Captain | ✅ | ✅ |
-| Auditor | — | — |
-| Citizen | — | — |
+| Role                              | Receives Step Assignment Notifications | Receives SLA Escalation Notifications (Breach) |
+| --------------------------------- | :------------------------------------: | :--------------------------------------------: |
+| System Administrator              |                   —                    |                       —                        |
+| Platform Administrator            |                   —                    |                       —                        |
+| Records Officer                   |                   ✅                   |                       ✅                       |
+| Department Encoder                |                   ✅                   |                       ❌                       |
+| Department Approver               |                   ✅                   |                       ✅                       |
+| SP Secretary                      |                   ✅                   |                       ✅                       |
+| SP Member                         |                   ✅                   |                       ❌                       |
+| SP Presiding Officer (Vice Mayor) |                   ✅                   |                       ✅                       |
+| Mayor                             |                   ✅                   |                       ✅                       |
+| Barangay Encoder                  |                   ✅                   |                       ❌                       |
+| Barangay Captain                  |                   ✅                   |                       ✅                       |
+| Auditor                           |                   —                    |                       —                        |
+| Citizen                           |                   —                    |                       —                        |
 
-> **Note:** The "Receive escalation notifications (SLA breach)" permission indicates which roles are *eligible* to receive escalation notifications. The actual recipients for a given breach are resolved at notification time from the escalation configuration for the specific step's office (B3 §7.28, OI-7 resolution). Not every role in the "receives" column will receive every breach notification.
+> **Note:** The "Receive escalation notifications (SLA breach)" permission indicates which roles are _eligible_ to receive escalation notifications. The actual recipients for a given breach are resolved at notification time from the escalation configuration for the specific step's office (B3 §7.28, OI-7 resolution). Not every role in the "receives" column will receive every breach notification.
 
 ### 7.2 Complaint Respondent Notification
 
@@ -677,6 +681,7 @@ A Citizen who is the **named respondent** in a complaint receives formal written
 ### 7.3 Notification Self-Service Permissions
 
 All operational roles — including Citizens for their own notifications — may:
+
 - Mark their own notifications as read (I2 Section 11)
 - Configure their own notification preferences (I2 Section 11)
 
@@ -710,7 +715,7 @@ The complaint respondent notification (Section 4.8) is not currently represented
 
 **Remaining open item (still a B3 action):** Whether this call path is accompanied by a formal domain event (e.g., `complaint.respondent_notice.issued`) or is purely a direct Published API call is still the team's choice when implementing the complaint module. If a domain event is introduced, a new entry must be added to B3's Master Event Registry in the same PR that introduces it on the bus.
 
-**Phase 1/2 behavior for phone-only respondents:** When only a contact number is available, `Notifications.sendNotification()` with `channel: 'sms'` logs a `delivery_log` entry of type `phone_call_required` in Phase 1/2 (the SMS gateway is reserved for Phase 3). The actual phone call and in-person notice handoff remain manual Secretariat actions. This ensures every respondent notice *attempt* is logged centrally regardless of delivery channel.
+**Phase 1/2 behavior for phone-only respondents:** When only a contact number is available, `Notifications.sendNotification()` with `channel: 'sms'` logs a `delivery_log` entry of type `phone_call_required` in Phase 1/2 (the SMS gateway is reserved for Phase 3). The actual phone call and in-person notice handoff remain manual Secretariat actions. This ensures every respondent notice _attempt_ is logged centrally regardless of delivery channel.
 
 ### 8.5 Escalation Target Resolution — Not in Event Payload
 
@@ -732,7 +737,7 @@ H1 §3 defines a `notification` step type with a `NotificationStepConfig` interf
 interface NotificationStepConfig {
   template_key: string;
   recipients: string[];
-  channels?: string[];       // default ["in_app"]
+  channels?: string[]; // default ["in_app"]
   payload_context_keys?: string[];
 }
 ```
@@ -754,19 +759,20 @@ The 150% SLA threshold that triggers `workflow.sla.critical` is sourced only fro
 This catalog defines nine notification events and ten associated templates required for Phase 1 of the Batac City LGU Platform's `notifications` module. The notification system operates on a fully event-driven model: the `notifications` module subscribes to domain events on the internal in-process event bus (B3) and dispatches notifications to the appropriate recipients via the channel available for the active phase.
 
 **Phase 1 delivery summary:**
+
 - All internal operational-role notifications: **in-app only via SSE**
 - Complaint respondent notification: **email** (where available) or **phone contact** — the sole Phase 1 exception to the general Phase 2 email timeline
 
 **Key implementation decisions required before work begins:**
 
-| # | Decision | Section | Status |
-|---|---|---|---|
-| 1 | Add `notifications` as a consumer of `session.terminated` in B3 | §8.3 | **Open** |
-| 2 | Complaint respondent notification routing: **resolved** — Portal's Respondent Notice Service calls `Notifications.sendNotification()`; B1 direct-SMTP diagram superseded (ADR-B2-4) | §8.4 | **Resolved — ADR-B2-4** |
-| 3 | Confirm the 150% SLA critical threshold with stakeholders before configuring `pgboss` timers | §8.10 | **Open** |
+| #   | Decision                                                                                                                                                                            | Section | Status                  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----------------------- |
+| 1   | Add `notifications` as a consumer of `session.terminated` in B3                                                                                                                     | §8.3    | **Open**                |
+| 2   | Complaint respondent notification routing: **resolved** — Portal's Respondent Notice Service calls `Notifications.sendNotification()`; B1 direct-SMTP diagram superseded (ADR-B2-4) | §8.4    | **Resolved — ADR-B2-4** |
+| 3   | Confirm the 150% SLA critical threshold with stakeholders before configuring `pgboss` timers                                                                                        | §8.10   | **Open**                |
 
 **Ongoing maintenance:** This document must be updated whenever a new notification event is introduced, an existing event's recipient logic changes, or a delivery channel is added. Changes to template message content do not require a revision to this document — that content is managed by the Platform Administrator in the admin interface.
 
 ---
 
-*This document is the primary reference for `notifications` module implementation. It does not supersede B3 (Internal Domain Event Catalog), which remains the canonical source for domain event schemas and consumer registrations. Discrepancies between this catalog and B3 must be resolved by updating B3 in the same PR that implements the feature.*
+_This document is the primary reference for `notifications` module implementation. It does not supersede B3 (Internal Domain Event Catalog), which remains the canonical source for domain event schemas and consumer registrations. Discrepancies between this catalog and B3 must be resolved by updating B3 in the same PR that implements the feature._

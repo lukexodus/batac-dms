@@ -1,6 +1,5 @@
 # ADR-GEN-006: Parallel Split/Join Engine Deferred to Phase 2
 
-
 **Status:** Accepted **Date:** June 2026 **Deciders:** Development team
 
 ---

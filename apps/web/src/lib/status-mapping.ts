@@ -1,9 +1,7 @@
 import type { LifecycleState } from '@batac/shared';
 import type { DocumentState } from '@batac/ui';
 
-export function mapLifecycleStateToDocumentState(
-  lifecycleState: LifecycleState,
-): DocumentState {
+export function mapLifecycleStateToDocumentState(lifecycleState: LifecycleState): DocumentState {
   switch (lifecycleState) {
     case 'draft':
       return 'DRAFT';

@@ -13,20 +13,25 @@ This document outlines the **manual** failover sequence for the Batac City LGU P
 
 2. **Promote the standby**  
    On the standby host, run the following to promote the `postgres-standby` node:
+
    ```bash
    docker compose -f compose.prod.yml exec -T postgres-standby pg_ctl promote
    ```
-   *(Note: The `bitnami/postgresql` image supports `pg_ctl promote` for this action.)*
+
+   _(Note: The `bitnami/postgresql` image supports `pg_ctl promote` for this action.)_
 
 3. **Confirm promotion**  
    Verify that the node is no longer in recovery mode:
+
    ```bash
    docker compose -f compose.prod.yml exec -T postgres-standby psql -U postgres -t -A -c "SELECT pg_is_in_recovery();"
    ```
+
    This must return `f` on the promoted node.
 
 4. **Update connection strings**  
    Update `DATABASE_URL_APP`, `DATABASE_URL_AUDIT`, and `DATABASE_URL_MIGRATE` (wherever they are stored — e.g., the `./secrets/` files referenced in `compose.prod.yml`) to point at the promoted node's host. Then restart the `server` service so it picks up the new connection strings:
+
    ```bash
    docker compose -f compose.prod.yml restart server
    ```

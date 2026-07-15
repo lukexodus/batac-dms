@@ -6,7 +6,11 @@ import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@bat
 
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
-export function GenericApprovalPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
+export function GenericApprovalPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const [comment, setComment] = useState('');
@@ -47,7 +51,7 @@ export function GenericApprovalPanel({ instance }: { instance: RouterOutputs['wo
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label className="mb-1 block text-sm font-medium">
             Comment <span className="text-muted-foreground">(required for reject/return)</span>
           </label>
           <Textarea
@@ -71,7 +75,10 @@ export function GenericApprovalPanel({ instance }: { instance: RouterOutputs['wo
           <Button
             variant="destructive"
             onClick={() => {
-              if (!comment) { toast.error('A comment is required for rejection'); return; }
+              if (!comment) {
+                toast.error('A comment is required for rejection');
+                return;
+              }
               rejectMutation.mutate({ stepInstanceId: instance.currentStepInstanceId, comment });
             }}
             disabled={busy}
@@ -81,7 +88,10 @@ export function GenericApprovalPanel({ instance }: { instance: RouterOutputs['wo
           <Button
             variant="outline"
             onClick={() => {
-              if (!comment) { toast.error('A comment is required when returning for revision'); return; }
+              if (!comment) {
+                toast.error('A comment is required when returning for revision');
+                return;
+              }
               returnMutation.mutate({ stepInstanceId: instance.currentStepInstanceId, comment });
             }}
             disabled={busy}

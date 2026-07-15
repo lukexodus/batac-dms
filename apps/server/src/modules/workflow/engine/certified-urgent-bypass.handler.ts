@@ -21,7 +21,7 @@ interface CertificationUrgencyPayload {
 
 export async function processCertificationUrgencyEvent(
   payload: CertificationUrgencyPayload,
-  deps: CertifiedUrgentBypassDeps
+  deps: CertifiedUrgentBypassDeps,
 ): Promise<void> {
   const { certificationDocumentId, associatedInstanceIds, loggedBy } = payload;
 
@@ -46,7 +46,7 @@ export async function processCertificationUrgencyEvent(
                 certificationDocumentId,
               },
             },
-            trx as any
+            trx as any,
           );
           return;
         }
@@ -75,14 +75,20 @@ export async function processCertificationUrgencyEvent(
               actorId: loggedBy,
             },
           },
-          trx as any
+          trx as any,
         );
 
         // We must re-fetch instance to pass the updated one to resolveNextStep, if Case A fires
-        const updatedInstance = await deps.workflowRepository.getInstanceById(instanceId, trx as any);
+        const updatedInstance = await deps.workflowRepository.getInstanceById(
+          instanceId,
+          trx as any,
+        );
         if (!updatedInstance) throw new Error('Failed to retrieve updated instance');
 
-        const stepInstance = await deps.workflowRepository.getMultiReferralStepInstanceForInstance(instanceId, trx as any);
+        const stepInstance = await deps.workflowRepository.getMultiReferralStepInstanceForInstance(
+          instanceId,
+          trx as any,
+        );
         if (!stepInstance) {
           throw new Error(`No multi_referral step found for instance ${instanceId}`);
         }
@@ -99,7 +105,7 @@ export async function processCertificationUrgencyEvent(
               bypassReason: 'CERTIFIED_URGENT',
               outcome: 'BYPASSED_CERTIFIED_URGENT',
             },
-            trx as any
+            trx as any,
           );
 
           await deps.workflowRepository.createWorkflowEvent(
@@ -115,7 +121,7 @@ export async function processCertificationUrgencyEvent(
                 bypassedBy: null,
               },
             },
-            trx as any
+            trx as any,
           );
 
           await deps.workflowRepository.createWorkflowEvent(
@@ -130,14 +136,22 @@ export async function processCertificationUrgencyEvent(
                 certificationDocumentId,
               },
             },
-            trx as any
+            trx as any,
           );
 
-          const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(stepInstance.id, trx as any);
+          const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
+            stepInstance.id,
+            trx as any,
+          );
           if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 
-          await resolveNextStep(updatedInstance, updatedStepInstance, 'BYPASSED_CERTIFIED_URGENT', deps, trx as any);
-
+          await resolveNextStep(
+            updatedInstance,
+            updatedStepInstance,
+            'BYPASSED_CERTIFIED_URGENT',
+            deps,
+            trx as any,
+          );
         } else if (stepInstance.status === 'pending') {
           // CASE B
           await deps.workflowRepository.createPendingBypass(
@@ -146,7 +160,7 @@ export async function processCertificationUrgencyEvent(
               stepKey: 'committee_referral',
               certificationDocumentId,
             },
-            trx as any
+            trx as any,
           );
 
           await deps.workflowRepository.createWorkflowEvent(
@@ -160,10 +174,13 @@ export async function processCertificationUrgencyEvent(
                 certificationDocumentId,
               },
             },
-            trx as any
+            trx as any,
           );
-
-        } else if (stepInstance.status === 'completed' || stepInstance.status === 'bypassed' || stepInstance.status === 'cancelled') {
+        } else if (
+          stepInstance.status === 'completed' ||
+          stepInstance.status === 'bypassed' ||
+          stepInstance.status === 'cancelled'
+        ) {
           // CASE C
           await deps.workflowRepository.createWorkflowEvent(
             {
@@ -176,7 +193,7 @@ export async function processCertificationUrgencyEvent(
                 certificationDocumentId,
               },
             },
-            trx as any
+            trx as any,
           );
         }
       });

@@ -5,7 +5,7 @@ edited only by a human.
 
 ## Purpose
 
-This log captures things discovered *during* Master Phased Task List (A1)
+This log captures things discovered _during_ Master Phased Task List (A1)
 execution that no pre-development document could have specified in advance —
 either because they're implementation-detail decisions (e.g., a retry strategy
 that turned out to need a specific shape) or because they're the items
@@ -132,6 +132,7 @@ in its sample script. This syntax is not valid in PostgreSQL 16 (verified agains
 `ERROR: syntax error at or near "NOT"` when the prompt's exact syntax was used).
 
 The idiomatic PostgreSQL pattern for conditional role creation is a DO block:
+
 ```sql
 IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_migrate') THEN
   CREATE ROLE batac_migrate WITH LOGIN;
@@ -181,7 +182,6 @@ The project standard tsconfig configures `"skipLibCheck": false`. However, build
 
 [Inference]: To allow compilation to succeed and to enable Turborepo tasks to run, the `@batac/database` package's `tsconfig.json` overrides the base configuration to set `"skipLibCheck": true`. This has no impact on application safety because only third-party package definitions are skipped; the workspace schema code and migration runner themselves are still type-checked.
 
-
 ### [LOG-0006] Tailwind CSS v4 workspace package component class scanning gap
 
 - date: 2026-06-26
@@ -195,10 +195,12 @@ Tailwind CSS v4's `@tailwindcss/vite` plugin in `apps/web` by default scans only
 As a result, utility classes like `justify-between`, `items-start`, `bg-primary-800`, `text-white`, `h-10`, `pb-4`, `gap-3`, etc., used inside components like `PageHeader.tsx` or `button.tsx`, were omitted from the compiled CSS bundle (`apps/web/dist/assets/index-*.css`), rendering these components completely unstyled.
 
 [Tested]: Resolved by adding Tailwind v4 `@source` directives targeting both the `packages/ui` components directory and the `apps/web` pages directory directly inside `packages/ui/src/styles/globals.css`:
+
 ```css
-@source "../components/**/*.{ts,tsx}";
-@source "../../../apps/web/src/**/*.{ts,tsx}";
+@source '../components/**/*.{ts,tsx}';
+@source '../../../apps/web/src/**/*.{ts,tsx}';
 ```
+
 This forces the Tailwind compiler to scan these folders and generate the necessary CSS rules in the output stylesheet. Verified that adding this resolved the styling on both the PageHeader page and the main design components preview page.
 
 ### [LOG-0023] Tooltip popovers clipped by overflow-hidden containers; wrapped content in Radix Portal
@@ -208,7 +210,7 @@ This forces the Tailwind compiler to scan these folders and generate the necessa
 - status: confirmed
 - affects: tooltip.tsx (Tier 1), Sidebar.tsx (Tier 3)
 
-During visual verification of the collapsed `Sidebar` component (which is styled with `overflow-hidden` per DESIGN.md §6.1 to prevent layout layout shifts during transitions), the tooltips associated with the icon-only navigation links were completely invisible on hover. 
+During visual verification of the collapsed `Sidebar` component (which is styled with `overflow-hidden` per DESIGN.md §6.1 to prevent layout layout shifts during transitions), the tooltips associated with the icon-only navigation links were completely invisible on hover.
 
 Upon inspection of the Tier 1 `packages/ui/src/components/ui/tooltip.tsx` component, it was discovered that `TooltipContent` did not wrap the underlying `TooltipPrimitive.Content` inside `TooltipPrimitive.Portal`. Consequently, the tooltip popover was rendered inline in the DOM tree, causing it to be clipped by the parent element's `overflow: hidden` styling.
 
@@ -333,6 +335,7 @@ extensions (required by Node16 ESM module resolution). The test files
 `.js` extensions in relative imports.
 
 Additionally, `apps/server/tsconfig.json` was updated with:
+
 - `"skipLibCheck": true` — same drizzle-orm internal type errors as LOG-0005
 - `"exactOptionalPropertyTypes": false` — override required because drizzle-orm
   query builder types do not satisfy `exactOptionalPropertyTypes: true` when
@@ -386,14 +389,15 @@ executed once as postgres superuser. Verified that migrations 0002 and 0003 then
 applied cleanly and `pnpm db:migrate` is idempotent.
 
 A human should decide whether the fix belongs in:
-  (a) the Docker init scripts (`init.sql` or `01-create-roles.sh`) in TASK-INFRA-005/006
-  (b) the Compose file's `POSTGRES_*` env for the postgres user
-  (c) a migration 0000 preamble that runs as superuser before Drizzle takes over
+(a) the Docker init scripts (`init.sql` or `01-create-roles.sh`) in TASK-INFRA-005/006
+(b) the Compose file's `POSTGRES_*` env for the postgres user
+(c) a migration 0000 preamble that runs as superuser before Drizzle takes over
 
 [Inference]: The missing grant is an init-script omission. The public schema,
 introduced in PostgreSQL 15, revoked CREATE from PUBLIC by default; prior Postgres
 versions allowed it automatically. The project spec does not enumerate this grant
 explicitly, which is why it was missed.
+
 ### [LOG-0013] `argon2` package was not in apps/server/package.json — added for TASK-IAM-006
 
 - date: 2026-06-30
@@ -431,9 +435,10 @@ is signed (because the session ID is a JWT claim), but the JWT `jti` is only
 known after signing.
 
 Implemented as a two-phase approach:
-  1. INSERT session row with `session_token_hash = 'pending'` inside the transaction.
-  2. After the transaction commits and the JWT is signed, UPDATE the session row
-     with `session_token_hash = SHA-256(jti)` outside the transaction.
+
+1. INSERT session row with `session_token_hash = 'pending'` inside the transaction.
+2. After the transaction commits and the JWT is signed, UPDATE the session row
+   with `session_token_hash = SHA-256(jti)` outside the transaction.
 
 The UPDATE is best-effort (outside the atomic transaction). If the server crashes
 between step 1 and step 2, the session row has hash='pending'. Hook 1's
@@ -536,7 +541,7 @@ API).
 
 `event-bus.plugin.ts`'s instantiation is similarly copied verbatim from
 `packages/shared/src/event-bus.ts`'s class doc comment (`new
-EventBus(logger, deadLetterRepo)`), using the *real* `EventBus` class in
+EventBus(logger, deadLetterRepo)`), using the _real_ `EventBus` class in
 `packages/shared` (confirmed against this file directly, and against
 LOG-0010's "EventBus imports IDeadLetterRepository interface" entry) rather
 than the `TypedEventBus` / `apps/server/src/infrastructure/event-bus.ts` /
@@ -568,35 +573,36 @@ plugin-registration errors.
 - affects: none (implementation detail; the AI Prompt sample code is not an architecture document)
 
 TASK-IAM-014's AI Prompt sample `iam.plugin.ts` assumes:
-  1. `createIamRouter(fastify)` is a factory function returning a router.
-  2. `registerIamRoutes(scope, iamService, policyEvaluator, { public: boolean })`
-     takes the service/evaluator as explicit parameters and a `public` flag,
-     called twice — once per scope — under an external
-     `fastify.register(..., { prefix: '/api' })` wrapper.
+
+1. `createIamRouter(fastify)` is a factory function returning a router.
+2. `registerIamRoutes(scope, iamService, policyEvaluator, { public: boolean })`
+   takes the service/evaluator as explicit parameters and a `public` flag,
+   called twice — once per scope — under an external
+   `fastify.register(..., { prefix: '/api' })` wrapper.
 
 Neither matches what TASK-IAM-006 through TASK-IAM-013 actually built:
-  1. `iam.router.ts` exports a single pre-built `iamRouter` constant (built
-     via `router({...})` from `trpc/trpc.ts`'s `t`). Each procedure calls a
-     local `getService(ctx)` helper that reads `ctx.req.server.iamService`
-     at request time. There is no `createIamRouter` export of any kind.
-  2. `registerIamRoutes(fastify: FastifyInstance): Promise<void>` takes only
-     the Fastify instance. It hardcodes the full `/api/auth/login`,
-     `/api/auth/refresh`, `/api/auth/unlock`, `/api/auth/logout`,
-     `/api/auth/lock`, and `/api/admin/sessions/:id/terminate` paths
-     directly (no external prefix expected), and already performs its own
-     internal public/protected split: public routes are registered directly
-     on the passed-in instance, while protected routes are registered
-     inside `registerIamRoutes`'s own nested
-     `fastify.register(async (protectedApp) => { await
-     protectedApp.register(authMiddlewarePlugin); ... })` block. There is no
-     `public` option parameter of any kind.
+
+1. `iam.router.ts` exports a single pre-built `iamRouter` constant (built
+   via `router({...})` from `trpc/trpc.ts`'s `t`). Each procedure calls a
+   local `getService(ctx)` helper that reads `ctx.req.server.iamService`
+   at request time. There is no `createIamRouter` export of any kind.
+2. `registerIamRoutes(fastify: FastifyInstance): Promise<void>` takes only
+   the Fastify instance. It hardcodes the full `/api/auth/login`,
+   `/api/auth/refresh`, `/api/auth/unlock`, `/api/auth/logout`,
+   `/api/auth/lock`, and `/api/admin/sessions/:id/terminate` paths
+   directly (no external prefix expected), and already performs its own
+   internal public/protected split: public routes are registered directly
+   on the passed-in instance, while protected routes are registered
+   inside `registerIamRoutes`'s own nested
+   `fastify.register(async (protectedApp) => { await
+protectedApp.register(authMiddlewarePlugin); ... })` block. There is no
+   `public` option parameter of any kind.
 
 Following the AI Prompt's sample structure literally would have produced
 either a compile error (passing 4 arguments to a 1-argument function) or, if
 adapted naively by re-wrapping in an external `{ prefix: '/api' }` scope, a
 silently-double-prefixed path (`/api/api/auth/login`) that would make
-acceptance criterion 4 ("POST /api/auth/login is reachable") fail with a
-404.
+acceptance criterion 4 ("POST /api/auth/login is reachable") fail with a 404.
 
 `iam.plugin.ts` was written against the actual exported signatures instead:
 `fastify.decorate('iamTrpcRouter', iamRouter)` (direct decoration, no
@@ -611,7 +617,7 @@ and that a route registered specifically to not exist still correctly
 returns `404` (ruling out an accidental catch-all). The same test confirmed
 `GET /api/trpc/iam.getCurrentUser` returns `401 UNAUTHORIZED` (reachable and
 executing tRPC middleware, not `404`), and that a dummy plugin registered
-*after* `iamPlugin` could read `fastify.iamService`, `fastify.policyEvaluator`,
+_after_ `iamPlugin` could read `fastify.iamService`, `fastify.policyEvaluator`,
 and `fastify.iamRepository` successfully. This could not include an actual
 successful login (no live Postgres instance was available in the
 environment this was tested in), so acceptance criterion 6 (full login
@@ -681,7 +687,6 @@ The prompt instructions requested using `policyEvaluator.evaluate()` for all mut
 
 [Unverified]: Direct checks on `ctx.auth.isPlatformAdmin` (matching the pattern used throughout `iam.router.ts`) were implemented instead, while keeping `policyEvaluator` in `createOrgRouter` deps for type compliance.
 
-
 ### [LOG-0025] Null `officeId` produces fail-closed RLS exclusion via SQL NULL GUC, not an error
 
 - date: 2026-06-30
@@ -719,8 +724,6 @@ the session-variable-setting mechanism in general terms only. [Unverified]: whet
 this path (a null-`officeId` user querying an office-scoped table) is covered by
 an automated test — I did not locate one, but did not exhaustively search the full
 test suite for it either.
-
-
 
 ### [LOG-0026] TASK-DOCS-009's deliverable (DocumentPolicyGuard) was an unimplemented stub at TASK-DOCS-011 time
 
@@ -807,13 +810,13 @@ match already-implemented types:
   naming, so the drift happened during IAM implementation, not in this
   task's prompt specifically.
 - Sample calls `ctx.documentsRepository.findDocumentById(input.documentId,
-  ctx.subject.cityId)` (two args). The actual method is
+ctx.subject.cityId)` (two args). The actual method is
   `findDocumentById(id: string): Promise<DocumentRow | null>` (one arg, no
   cityId filter — city scoping for this table is expected to come from RLS
   plus an explicit `document.cityId !== subject.cityId` check at the call
   site instead).
 - Sample calls `ctx.documentsRepository.hasClassificationAllowlistEntry(...,
-  ctx.subject.roles[0], ...)` — using only the first role. Gate 4's own text
+ctx.subject.roles[0], ...)` — using only the first role. Gate 4's own text
   (I1) is `role_code = ANY(subject.roles)`, i.e. any of the subject's roles,
   not just the first. Implemented as a check across all of `subject.roles`
   (`hasAnyAllowlistEntry` in documents.router.ts), which is strictly more
@@ -889,19 +892,19 @@ explicitly.
 Three sources give different answers for whether sys_admin can read document
 metadata:
 
-1. I1 §3.2's ALLOW block never lists sys_admin in any of its role sets, but a
+1. I1 §3.2's ALLOW block never lists sys*admin in any of its role sets, but a
    footnote directly under Gate 2 reads "IT Admin may read metadata (title,
    status, number) of Confidential/Restricted documents but not content
-   (Gate 2 covers content)" — implying sys_admin *can* read metadata,
+   (Gate 2 covers content)" — implying sys_admin \_can* read metadata,
    including for Confidential/Restricted docs, just not file content.
 2. I2 §5's table shows Sys Admin = deny on every "View document metadata"
    row (own office, all offices/Internal) with no footnote exception.
 3. TASK-DOCS-011's own acceptance criteria require `documents.get` with a
-   sys_admin caller and classification='confidential' to throw FORBIDDEN,
+   sys*admin caller and classification='confidential' to throw FORBIDDEN,
    and its AI Prompt for `documents.getMetadataForAdmin` says Gate 2
    "extends to metadata admin view -- DENY if classificationLevel IN
    (confidential,restricted) even for sys_admin" — stricter than I1's
-   footnote for the classified case, though it does imply a *general*
+   footnote for the classified case, though it does imply a \_general*
    sys_admin metadata channel should exist (documents.getMetadataForAdmin
    itself) for public/internal docs.
 
@@ -914,7 +917,7 @@ instruction and going further than I1's footnote (additional restriction
 can only remove access the base policy implied, never grant more, so this is
 a safe narrowing even though it's stricter than I1's literal text).
 
-[Inference]: I1's footnote is read here as describing the *intent* behind
+[Inference]: I1's footnote is read here as describing the _intent_ behind
 what became the separate, narrow `getMetadataForAdmin` procedure rather than
 the general `document:read` permission I2 §5 governs — this reconciles I1 and
 I2 without contradiction, but is an interpretation, not a confirmed reading.
@@ -954,7 +957,7 @@ documents.router.ts:
    own "no cross-schema joins" contract). No such method existed
    (`getOfficeById` needs an id you don't have yet; `getOfficeHierarchy`'s
    `OfficeSummary` doesn't expose `code`). `OrgService.getOfficeByCode(code,
-   cityId)` was added (organization.types.ts + organization.service.ts) to
+cityId)` was added (organization.types.ts + organization.service.ts) to
    fill this gap, since it was required for documents.create to function at
    all and is a small, additive, same-pattern-as-getOfficeById method.
 
@@ -1044,8 +1047,8 @@ documents.router.ts's cancel procedure does not call
 `auditService.writeEvent` directly — apps/server/src/modules/audit/index.ts
 documents that direct `writeEvent` callers are limited to two confirmed call
 sites (Records bulk-op handler and disposition service, per B2 Module 8);
-Documents is not one of them. [Inference]: "DOCUMENT_CANCELLED" in the task
-brief is read as describing the *product requirement* (every cancellation
+Documents is not one of them. [Inference]: "DOCUMENT*CANCELLED" in the task
+brief is read as describing the \_product requirement* (every cancellation
 must be audit-logged with its reason) rather than naming a literal, separate
 event-type string, since no such string exists anywhere else in the
 codebase, and the existing `document.state_changed` pipeline already
@@ -1072,7 +1075,7 @@ ADR-EVT-001 (June 2026) states that the dual approval requirement (Vice Mayor +
 SP Secretary) for Document Request Forms is modelled as two sequential `approval`
 step_instances in the Workflow Engine (B4 §4.2), and that `approval_status`,
 `approved_by_vm`, and `approved_by_sp_secretary` JSONB fields were **removed**
-from the H2 §6 schema.  However, the Workflow Engine module (TASK-WF-NNN) is not
+from the H2 §6 schema. However, the Workflow Engine module (TASK-WF-NNN) is not
 yet live in Phase 1.
 
 **What was implemented:**
@@ -1100,10 +1103,10 @@ and to avoid future confusion when the WF integration removes them.
 **C1-over-E1 conflict:**
 
 E1 Module 11's `listAll` procedure references `portal.citizen_requests` and an
-`approval_status` column.  C1 Part 13 explicitly states `portal.citizen_requests`
-does not exist in Phase 1.  `document-requests.router.ts` follows C1 — all
+`approval_status` column. C1 Part 13 explicitly states `portal.citizen_requests`
+does not exist in Phase 1. `document-requests.router.ts` follows C1 — all
 requests are stored in `documents.documents` with metadata JSONB, and the
-`listAll` output is shaped from that metadata.  This was the correct resolution
+`listAll` output is shaped from that metadata. This was the correct resolution
 per AGENTS.md §1 (C1 ranks above E1 in the source-of-truth hierarchy).
 
 A human should confirm: (a) the stub JSONB field names are acceptable for Phase
@@ -1111,7 +1114,6 @@ A human should confirm: (a) the stub JSONB field names are acceptable for Phase
 closely); (b) whether the TODO comments are sufficient as the migration marker,
 or whether a separate tracking ticket for TASK-WF-NNN integration should be
 created.
-
 
 ### [LOG-0037] DESIGNATION doc logging trigger wired to `documents.submit` rather than document registration
 
@@ -1121,7 +1123,7 @@ created.
 - affects: H2 (§8), consolidated reference Part 4.12
 - resolved_in: none
 
-H2 §8 and consolidated reference Part 4.12 specify that the delegation grant lifecycle is triggered when a DESIGNATION document is *logged* (registered). However, DESIGNATION document contents (metadata) are draft-editable and not guaranteed to be finalized until the document passes through the `submit` step. Wiring grant creation to document creation would create grants for draft, incomplete, or later-discarded designations.
+H2 §8 and consolidated reference Part 4.12 specify that the delegation grant lifecycle is triggered when a DESIGNATION document is _logged_ (registered). However, DESIGNATION document contents (metadata) are draft-editable and not guaranteed to be finalized until the document passes through the `submit` step. Wiring grant creation to document creation would create grants for draft, incomplete, or later-discarded designations.
 
 [Inference]: Per human instruction, the trigger was wired into `documents.submit` (and correspondingly, revocation into `documents.cancel`), explicitly prioritizing the semantic state-machine boundary over the literal text of H2 §8.
 
@@ -1145,7 +1147,7 @@ During TASK-DOCS-018, it was discovered that `organization.plugin.ts` was passin
 - affects: none
 - resolved_in: none
 
-`organization.plugin.ts` attempted to construct `createDelegationService` synchronously during the plugin body execution, expecting `fastify.boss` to be available. However, in `index.ts`, `pgboss` is decorated onto `fastify` *after* `organizationPlugin` is registered, resulting in `boss` being undefined.
+`organization.plugin.ts` attempted to construct `createDelegationService` synchronously during the plugin body execution, expecting `fastify.boss` to be available. However, in `index.ts`, `pgboss` is decorated onto `fastify` _after_ `organizationPlugin` is registered, resulting in `boss` being undefined.
 
 [Tested]: Fixed by deferring the service instantiation inside `fastify.after(...)` in `organization.plugin.ts` to guarantee all prior registrations (including `pgboss`) are complete.
 
@@ -1157,9 +1159,10 @@ During TASK-DOCS-018, it was discovered that `organization.plugin.ts` was passin
 - affects: none
 - resolved_in: none
 
-To achieve atomic delegation grant creation during `documents.submit`, `createDelegationGrant` and `transitionState` were updated to accept an optional `DbTransaction` parameter. However, `createDelegationGrant` and `revokeEarlyDelegationGrant` emit domain events and write audit logs *before* the SQL transaction concludes.
+To achieve atomic delegation grant creation during `documents.submit`, `createDelegationGrant` and `transitionState` were updated to accept an optional `DbTransaction` parameter. However, `createDelegationGrant` and `revokeEarlyDelegationGrant` emit domain events and write audit logs _before_ the SQL transaction concludes.
 
 [Inference]: This means that if the SQL transaction rolls back (e.g., due to a failure in `transitionState` inside the shared transaction), the domain events and audit logs will have already been fired and will not roll back. This is a pre-existing design property of the service methods.
+
 ### [LOG-0041] tracking_record ABAC enforced inline rather than via PolicyEvaluator
 
 - date: 2026-07-07
@@ -1242,6 +1245,7 @@ C1 Part 6 DDL (`workflow.definitions`, `workflow.instances`, `workflow.step_inst
 **What was implemented:**
 
 The C1 Part 6 DDL was followed literally — no `updated_at` on these three tables. The rationale that can be inferred from the spec:
+
 - `workflow.definitions`: mutations are limited to `is_active`, `name`, `description`, and soft-delete; versioned content lives in `definition_versions`, making timestamp tracking on the root definition row minimally useful.
 - `workflow.instances` and `workflow.step_instances`: state mutations are captured via the append-only `workflow_events` table (B4), which provides a full timestamped audit trail. Adding `updated_at` would be redundant and potentially misleading.
 
@@ -1297,13 +1301,13 @@ Additionally, `eslint-plugin-react` and `eslint-plugin-react-hooks` were referen
 **What was found:**
 
 During the implementation of `WorkflowPolicyGuard` (TASK-WF-017), two scope constraints were identified relative to the broader documents module:
+
 1. `canCancelInstance`: The Workflow-level cancellation is restricted to `plat_admin` and `records_officer` (for own-office), as these are the roles identified as having access to administrative workflow procedures in the prompt and I1/I2. Operational cancellation (by `dept_approver`, `sp_secretary`, etc.) is governed by the `DocumentPolicyGuard` at the `documents.router` layer (TASK-DOCS-009). The WF module's `cancelInstance` acts purely as the admin-surface endpoint.
 2. `canReadInstance` (for SP Member): I1 §5.1 lists `sp_member` under own-office read, but I2 Conditional Note ¹⁰ restricts SP Members to documents in their assigned committees or SP sessions. This additional committee-scoping is omitted from the base `WorkflowPolicyGuard` to keep the context payload simple; the calling procedure must apply any SP Member–specific document/committee filters.
 
 **What was implemented:**
 
-The `WorkflowPolicyGuard` strictly follows the core ABAC rules in I1 §5/§6. It does not re-implement Document-level restrictions like SP Member committee visibility for reads, nor does it replicate the broad operational cancellation list. 
-
+The `WorkflowPolicyGuard` strictly follows the core ABAC rules in I1 §5/§6. It does not re-implement Document-level restrictions like SP Member committee visibility for reads, nor does it replicate the broad operational cancellation list.
 
 [Inference]: The separation of concerns assumes that `WorkflowPolicyGuard` handles workflow-engine primitives (bypassing, advancing, role gating), while document-centric business logic (like who can see a specific document or cancel a document's journey) remains in the procedure layer or the DocumentPolicyGuard.
 
@@ -1359,13 +1363,15 @@ Each of the four new mutation procedures (`completeActionStep`, `approveStep`, `
 - affects: B4 (§7.3, Appendix A), D3 (§2.2), engine/admin-operations.ts
 
 **What was found:**
+
 1. **Missing Notification Scope**: B4 §7.3 step 10 requires notifying the SP Secretary and users with active assignments upon migration. The ticket omitted this entirely.
-2. **Missing Schema `admin_approval_grants`**: The ticket prompts querying `workflow.admin_approval_grants`, but this table does not exist anywhere in the codebase or proposed DDL. 
+2. **Missing Schema `admin_approval_grants`**: The ticket prompts querying `workflow.admin_approval_grants`, but this table does not exist anywhere in the codebase or proposed DDL.
 3. **Context Compatibility NO-OP**: B4 §7.3 step 4 requires verifying required context keys, but there is no mechanism in `steps.config` to declare them.
 4. **Document Status on Cancel**: D3 indicates a cancelled instance transitions the document lifecycle to `Cancelled`. The ticket omits this and omits `documentsService` from dependencies.
 5. **Bypass Outcome Code for Branching Steps**: The ticket's `bypassStep` does not provide an `outcomeCode`, leaving it ambiguous how `resolveNextStep` should route a bypassed `approval` step.
 
 **What was implemented:**
+
 1. **Notifications Deferred**: Deferred implementing B4 §7.3 step 10. This looks like it belongs to a notification-specific task per AGENTS.md's own routing split, and B4's scope note confirms the engine only enqueues rather than delivers. Flagging in case a task for this doesn't exist yet, since right now nothing on the board owns 'wire this specific migration-completion enqueue'.
 2. **Approval Grants Dep Injection**: Did not create DDL. Instead, injected `getApprovalGrant` and `markApprovalGrantUsed` into `AdminOperationsDeps`. This defers the schema gap cleanly, allowing the function to be tested and designed against B4's documented approval-record fields and K2's two-distinct-error-code requirement, without guessing at DDL that belongs to C1/C5.
 3. **Context Compatibility NO-OP**: [Inference] No mechanism exists in `steps.config` or elsewhere to declare required context keys per step; B4 §7.3 step 4 assumes one exists without specifying it. This check is a NO-OP passing vacuously until such a mechanism and its DDL are defined — likely requires an H1/C1 decision, not just an engine change.
@@ -1373,10 +1379,10 @@ Each of the four new mutation procedures (`completeActionStep`, `approveStep`, `
 5. **Bypass Outcome Code**: Modified `bypassStep` signature to require an explicit `outcomeCode` parameter. We validate it and pass it to `resolveNextStep`. If the code doesn't match an outgoing transition rule for the step (for example, if they try to bypass an approval step without picking a defined branch), `resolveNextStep` handles that by marking the instance `stuck` (Invariant #12) with a clear cause. This trusts the caller and avoids hiding failures.
 
 **Other alignment notes:**
+
 - `cancelInstance` cancels both `active` and `pending` step instances per D3 §2.2, deviating from the ticket's literal SQL (`active` only) — citing D3 as the higher-authority source.
 - `cancellation_reason`/`cancelled_by` are written to the `workflow.instance.cancelled` event payload, not to new `instances` columns, consistent with LOG-0045's reasoning and B4 Appendix A's documented event schema.
 - Event emission for admin-operations follows LOG-0050's established pattern (writes only to `workflow_events` and relies on the caller to hit the `eventBus`), even though B4 Appendix A describes both as one "emit" in the engine.
-
 
 ### LOG-0052: `bypassStep` TRPC input schema requires `outcomeCode`
 
@@ -1460,6 +1466,7 @@ To prevent logic errors from halting workflow execution, `decision.handler.ts` w
 - affects: evaluate-mayor-lapse-timers.ts, evaluate-panlalawigan-timers.ts, approval.handler.ts
 
 **What was found:**
+
 1. Scheduler jobs (`evaluate-mayor-lapse-timers.ts` and `evaluate-panlalawigan-timers.ts`) write event records into the `workflow.workflow_events` database log with specialized event names (`workflow.approval.lapsed` and `workflow.panlalawigan.deemed_approved`).
 2. In contrast, the normal `approval.handler.ts` completion path writes the generic `workflow.step.completed` event name.
 3. Furthermore, unlike the tRPC mutations, these background scheduler jobs do not emit any events to the `EventBus`, which means they entirely bypass the audit consumer subsystem.
@@ -1480,6 +1487,7 @@ No immediate code changes were implemented since the scheduler jobs are not yet 
 
 **What was found:**
 There are currently three different, disjoint patterns in use to write events to the audit trail:
+
 1. **Pattern A (TRPC Duplicate Emit)**: TRPC mutations call the engine, then separately emit events to the `EventBus` (`workflow.router.ts`). The `audit.event-consumer.ts` listens to these events.
 2. **Pattern B (Direct Audit Write)**: Background jobs or schedulers call `auditService.writeEvent()` directly (`delegation-expiry.job.ts`), bypassing the EventBus.
 3. **Pattern C (Engine DB-Only Events)**: Engine handlers call `createWorkflowEvent` to write straight to `workflow.workflow_events` in the database, without publishing to the EventBus or calling `auditService` directly.
@@ -1499,6 +1507,7 @@ No changes to code structure were made as this is a broad monorepo design patter
 - affects: I2, wf.md
 
 **What was found:**
+
 1. The task prompt in `docs/pre-development/A-project-planning/a1-tasks/wf.md` (line 1707) listed `sp_presiding_officer` as an allowed role for generic `approveStep`, `rejectStep`, and `returnStepForRevision` workflow actions.
 2. However, the `i2-role-permission-matrix.md` (Section 6) explicitly restricts the `sp_presiding_officer` from completing assigned approval steps (Approve, Reject, Return for revision) with `❌` entries, while granting the separate `Certify document` permission.
 3. Verification of the codebase (`workflow.policy.ts` and `iam.seed.ts`) showed that the enforced code rules already correctly side with `I2` and exclude `sp_presiding_officer` from generic approvals.
@@ -1640,9 +1649,10 @@ Cleaned up these redundant dynamic imports, relying instead on the static import
 A discrepancy was identified between the actual server router implementation (`apps/server/src/modules/workflow/workflow.router.ts` at `workflow.listMyAssignedSteps`) and three pre-development architecture documents (F1, E1, I2). The actual code permits 10 roles, including the `auditor` role, whereas the documents only listed 9 roles, omitting `auditor`.
 
 **What was implemented:**
-The human project owner directly decided that the `auditor` role should have read visibility into the task inbox. This is a confirmed project decision, not an agent inference. 
+The human project owner directly decided that the `auditor` role should have read visibility into the task inbox. This is a confirmed project decision, not an agent inference.
 
 To align the documentation with the correct codebase implementation, the following updates were made:
+
 1. Added "Auditor" to the role list for `MyAssignedStepsPage` in `f1-application-route-map-v2.md` and updated the citation to target `workflow.router.ts`.
 2. Added `auditor` to the `Callable by` list for `workflow.listMyAssignedSteps` in `e1-trpc-router-and-procedure-catalog.md`.
 3. Granted the permission to "View own task inbox / assigned steps" to the Auditor column (12th role column) in the `i2-role-permission-matrix.md` permission matrix.
@@ -1658,6 +1668,7 @@ To align the documentation with the correct codebase implementation, the followi
 - affects: apps/web/src/lib/status-mapping.ts, apps/web/src/lib/status-mapping.test.ts
 
 **What was found:**
+
 1. `apps/web/src/lib/status-mapping.ts` declared its own duplicate, local, 8-member version of `DocumentState` instead of importing the canonical 26-member `DocumentState` defined in `packages/ui/src/types/domain.ts`.
 2. The mapping function `mapLifecycleStateToDocumentState` only handled 9 of the 11 database/backend `LifecycleState` values. The remaining 2 values (`pending_mayor_action` and `pending_panlalawigan_review`) fell through to a silent `default` mapping of `DRAFT`. This caused documents in these review states to be rendered in the UI with a "DRAFT" badge.
 3. Checking `docs/pre-development/D-uml-and-diagrams/d3-state-machine-diagrams.md` confirmed that:
@@ -1666,6 +1677,7 @@ To align the documentation with the correct codebase implementation, the followi
 4. The `superseded` lifecycle state has no corresponding `DocumentState` in `@batac/ui`. Pre-development task specification `a1-tasks/docs.md` (lines 2274 and 2861) indicates that `superseded` should map to `ARCHIVED` as a temporary fallback pending a future design decision.
 
 **What was implemented:**
+
 1. Updated `apps/web/src/lib/status-mapping.ts` to import `DocumentState` directly from `@batac/ui` and deleted the local, duplicate definition.
 2. Expanded the `mapLifecycleStateToDocumentState` switch statement to handle all 11 `LifecycleState` values explicitly:
    - `pending_mayor_action` maps to `PENDING_MAYOR`.
@@ -1694,15 +1706,15 @@ gap, not an oversight resolvable by looking harder.
 **What was implemented:**
 [Inference] The following label mapping was chosen for `apps/web/src/pages/workflow/columns.tsx`:
 
-| DB value        | Display label   | Rationale                                                     |
-|-----------------|-----------------|---------------------------------------------------------------|
-| `action`        | Action          | Direct English equivalent, unambiguous                        |
-| `approval`      | Approval        | Direct English equivalent, matches LGU workflow terminology   |
-| `multi_referral`| Multi-Referral  | Hyphenated title-case preserves the compound nature visually  |
-| `decision`      | Decision        | Direct English equivalent, unambiguous                        |
-| `notification`  | Notification    | Direct English equivalent, unambiguous                        |
-| `termination`   | Termination     | Direct English equivalent; kept as-is vs "End/Close" pending |
-|                 |                 | human guidance on whether end-user-facing copy should differ  |
+| DB value         | Display label  | Rationale                                                    |
+| ---------------- | -------------- | ------------------------------------------------------------ |
+| `action`         | Action         | Direct English equivalent, unambiguous                       |
+| `approval`       | Approval       | Direct English equivalent, matches LGU workflow terminology  |
+| `multi_referral` | Multi-Referral | Hyphenated title-case preserves the compound nature visually |
+| `decision`       | Decision       | Direct English equivalent, unambiguous                       |
+| `notification`   | Notification   | Direct English equivalent, unambiguous                       |
+| `termination`    | Termination    | Direct English equivalent; kept as-is vs "End/Close" pending |
+|                  |                | human guidance on whether end-user-facing copy should differ |
 
 The badge styling uses token-based colour-coded pill badges (blue=action,
 green=approval, purple=multi-referral, amber=decision, slate=notification,
@@ -1732,10 +1744,12 @@ Tier 3 component for reuse in future dashboard widgets.
 - resolved_in: docs/pre-development/F-frontend-architecture/f1-application-route-map-v2.md (lines 354, 355, 359, 360)
 
 **What was found:**
+
 1. The literal value for the Docketing Panel's step key in the route map was marked as `[Inference]` because it was not confirmed in design documents. However, this has been confirmed as `docketing` in the database seed data (`packages/database/src/seeds/workflow/phase1-legislative.ts`, line 145: `step_key: "docketing"`).
 2. The property name referred to as `step.name` in F1 route map's panel table (§8.2) does not exist in the database schema; the correct field is `steps.stepKey` as defined in `packages/database/schema/workflow.schema.ts` (line 209).
 
 **What was implemented:**
+
 1. Replaced the `[Inference]` tag for the Docketing Panel row in `f1-application-route-map-v2.md` with a confirmed tag referencing the database seed file.
 2. Performed a find-and-replace terminology correction across the entire panel table in §8.2, replacing all occurrences of `step.name` with `step.stepKey` (affecting the VP Certification, Mayor Decision, Docketing, and Panlalawigan Outcome panels).
 
@@ -1850,11 +1864,11 @@ The procedures were named `getComplaint` and `getDocumentRequest` respectively, 
 - tagged_documents: org.md, F1 §9, ADR-UI-007
 
 **What was found:**
-In `session.router.ts`, `recordAttendance` previously implemented automatic substitute-officer resolution when the Vice Mayor was absent by looking up active designations in the `delegationGrants` table. The `recordAttendance` input schema had no option for manually selecting a substitute. 
+In `session.router.ts`, `recordAttendance` previously implemented automatic substitute-officer resolution when the Vice Mayor was absent by looking up active designations in the `delegationGrants` table. The `recordAttendance` input schema had no option for manually selecting a substitute.
 This conflicted with F1 §9's mention of a "Designation-document linkage" UI field where users could manually log/select designations or substitute officers.
 
 **What was decided:**
-The decision authority (Luke) selected the option to **"Implement a manual override selection UI (requiring schema/router input changes)"**. 
+The decision authority (Luke) selected the option to **"Implement a manual override selection UI (requiring schema/router input changes)"**.
 This means instead of relying solely on automatic server-side lookup, the attendance recording/editing process on the frontend `/sessions/:sessionDate` page should support a manual override selection of the presiding officer, requiring matching schema, input, and backend router updates to accept and store the manual override.
 
 ---
@@ -1892,6 +1906,7 @@ LOG-0016 documented two issues: (1) `pgsql-ast-parser` cannot parse several DDL/
 **Parser gap fix** (`tools/scripts/lint-migrations.ts`): When `parse(content)` fails on a whole file, the linter now falls back to splitting the file on Drizzle's `--> statement-breakpoint` markers and parsing each chunk individually. Unparseable chunks (CREATE TRIGGER, CREATE POLICY, SECURITY DEFINER functions, GRANT/REVOKE variants, etc.) are skipped with a `[WARN]` message listing the skipped statements and their approximate line numbers. Parseable chunks still receive all invariant checks. Files that parse cleanly are unaffected — the fallback only activates on primary parse failure.
 
 **Additional fixes applied during resolution:**
+
 - `isTimestampName()`: removed the word-based substring matching (`includes`) that false-positived on column names like `is_present` (contains "sent"), `assigned_to` (contains "signed"), and `signed_by_display_name` (starts with "signed"). Now uses suffix-only matching (`_at`, `_on`, `_timestamp`), which is sufficient for all project timestamp columns.
 - INVARIANT-01 suppression: added `-- linter: allow-cross-schema-fk reason="..."` suppression support across all four check locations (CREATE TABLE inline refs, CREATE TABLE table-level FKs, ALTER TABLE add-column inline refs, ALTER TABLE add-constraint FKs). Applied to `0003_glamorous_scream.sql` for the pre-existing `organization.cross_office_grants → iam.roles` cross-schema FK.
 - Line number resolution for ALTER TABLE add-constraint: since `pgsql-ast-parser` v12 does not set `_location` on AST nodes, the INVARIANT-01 check now searches the lines array directly for the matching ALTER TABLE statement instead of relying on the unreliable `lineNum`.
@@ -1971,7 +1986,7 @@ Nothing yet — this entry is being logged ahead of the actual interface-fix pro
 **What was found:**
 While investigating `OrgRepository`'s interface typing (unrelated original purpose), `organization.plugin.ts` was read in full and found to construct `createOrgRouter(deps)` (lines 50–54) with an object containing only `policyEvaluator`, `organizationService`, and `delegationService` — no `orgRepository` key at all — cast away with `as any`. `createOrgRouter`'s own `getDeps(ctx)` helper (`organization.router.ts`, lines 184–194) has fallback logic: `if (deps) return deps;` before falling back to reading `server.orgRepository`/etc. directly off the Fastify instance. Because this check only tests truthiness of the whole `deps` object, not the presence of individual keys, and the object passed in at plugin-construction time is truthy (it has 3 of the 4 expected keys), `getDeps()` returns the incomplete object as-is rather than falling back — meaning `orgRepository` would resolve to `undefined` inside every procedure that calls `getDeps(ctx).orgRepository`, when the procedure is invoked through this plugin-constructed router instance specifically.
 
-This is structurally similar to LOG-0038 (`repository`/`orgRepository` key-name mismatch in the same file, already logged, already fixed per that entry's own text) but is a distinct occurrence: LOG-0038 was about `createDelegationService`'s dependency object using the wrong key *name*; this is about `createOrgRouter`'s dependency object *missing* the key entirely. Both share the same root mechanism — an `as any` cast at the construction call site suppressing what would otherwise be a structural type-check failure, which is the same mechanism LOG-0038's own text identifies as the reason its bug went uncaught by `pnpm typecheck`.
+This is structurally similar to LOG-0038 (`repository`/`orgRepository` key-name mismatch in the same file, already logged, already fixed per that entry's own text) but is a distinct occurrence: LOG-0038 was about `createDelegationService`'s dependency object using the wrong key _name_; this is about `createOrgRouter`'s dependency object _missing_ the key entirely. Both share the same root mechanism — an `as any` cast at the construction call site suppressing what would otherwise be a structural type-check failure, which is the same mechanism LOG-0038's own text identifies as the reason its bug went uncaught by `pnpm typecheck`.
 
 **What was implemented:**
 Nothing — this was found incidentally while reading the file for unrelated context (confirming how `OrgRepository` is instantiated and wired) during a lint-remediation investigation, not while working a task that touches this file's actual construction logic. Not chased further or reproduced against a running server; this is a static-read finding about the object literal's shape, not a confirmed runtime reproduction.
@@ -2064,13 +2079,13 @@ The same drift is separately visible in a code comment: `apps/web/src/pages/work
 
 **What was found:** `apps/server/src/modules/workflow/session.router.ts`'s `scheduleDocumentForFirstReading` procedure, in its session-creation branch (confirmed lines 823–847 as of this session, specifically the `else` branch that only runs when no `spSessions` row yet exists for the target date), inserts a new session row with `presentCount: 12` and `quorumAchieved: true` hardcoded as literal constants (lines 841–842) — with no roster lookup, no computation, and no attempt to reflect actual attendance, because at the time this procedure runs (scheduling a document ahead of a future session date), attendance for that session has not happened yet and cannot be known.
 
-This is a distinct defect from the one already recorded in LOG-0091 point 3 and separately fixed in `recordAttendance` (via TASK-WF-BE-001, confirmed landed and correct as of this session's review). LOG-0091 point 3 concerned a *formula* that was wrong for non-12-member rosters but was at least computed from real submitted attendance data. This finding concerns a different procedure that writes fabricated placeholder values with no computation at all, for a session that hasn't occurred yet. Confirmed via direct read that `scheduleDocumentForFirstReading`'s other branch (`if (session) { sessionId = session.id; }`, when a row already exists) does not touch `presentCount`/`quorumAchieved` at all — the fabrication is scoped specifically to first-ever row creation via this path.
+This is a distinct defect from the one already recorded in LOG-0091 point 3 and separately fixed in `recordAttendance` (via TASK-WF-BE-001, confirmed landed and correct as of this session's review). LOG-0091 point 3 concerned a _formula_ that was wrong for non-12-member rosters but was at least computed from real submitted attendance data. This finding concerns a different procedure that writes fabricated placeholder values with no computation at all, for a session that hasn't occurred yet. Confirmed via direct read that `scheduleDocumentForFirstReading`'s other branch (`if (session) { sessionId = session.id; }`, when a row already exists) does not touch `presentCount`/`quorumAchieved` at all — the fabrication is scoped specifically to first-ever row creation via this path.
 
 **Why this is reachable, not theoretical:** confirmed via grep that `scheduleDocumentForFirstReading` is called exclusively from `apps/web/src/pages/workflow/OrderOfBusinessPage.tsx` and `recordAttendance` is called exclusively from `apps/web/src/pages/workflow/SessionAttendanceDetailPage.tsx` — two independent user actions on two different pages, with nothing in the code enforcing that one happens before or after the other. A secretary scheduling a document for an upcoming session date creates a session row with fabricated `presentCount: 12, quorumAchieved: true` before that session has occurred; if attendance for that date is never separately recorded via `recordAttendance` (or is recorded some time after the fact), the row carries fabricated values indefinitely, indistinguishable from a genuinely-recorded session with 12 members present, since the schema has no separate flag for "attendance not yet recorded." This directly affects `getAttendanceStatistics`, which reads `presentCount` for every row in a date range with no filter distinguishing recorded-vs-fabricated rows.
 
 **What was decided and implemented:** human decision, given directly in conversation. `scheduleDocumentForFirstReading`'s session-creation branch now inserts `presentCount: null, quorumAchieved: null` instead of the fabricated constants — both columns were already nullable in the schema (`packages/database/schema/workflow.schema.ts` lines 551–552, confirmed no `.notNull()` on either), so this required no migration. `getAttendanceStatistics`'s row-mapping, which previously coerced a `null` `presentCount` to `0` via `r.presentCount ?? 0` (confirmed line 197 pre-change) and then computed a fabricated `absentCount` from that `0` — itself a second, independent instance of the same "unknown treated as a specific wrong number" pattern — now passes through `null` explicitly rather than coercing it, and the frontend (`SessionAttendanceOverviewPage.tsx`) renders a distinct "Not Yet Recorded" state for these rows instead of numeric 0s. See TASK-WF-BE-002's standalone prompt for the exact implementation.
 
-The alternative considered — populating `presentCount` at `scheduleDocumentForFirstReading`'s session-creation time via a real roster-size lookup — was rejected: a roster-size lookup at that point could honestly report how many people are *on* the SP roster, but has no way to know how many will actually *attend* a session that hasn't happened yet, so using it to populate `presentCount` would still be fabricating an attendance outcome, just with a computed-looking number instead of an obviously-fake constant. The `null`-placeholder approach was chosen because it's the only one of the two that doesn't assert a false attendance fact.
+The alternative considered — populating `presentCount` at `scheduleDocumentForFirstReading`'s session-creation time via a real roster-size lookup — was rejected: a roster-size lookup at that point could honestly report how many people are _on_ the SP roster, but has no way to know how many will actually _attend_ a session that hasn't happened yet, so using it to populate `presentCount` would still be fabricating an attendance outcome, just with a computed-looking number instead of an obviously-fake constant. The `null`-placeholder approach was chosen because it's the only one of the two that doesn't assert a false attendance fact.
 
 ---
 
@@ -2097,6 +2112,7 @@ The alternative considered — populating `presentCount` at `scheduleDocumentFor
 **What was found:** ADR-UI-012 mandates a `useSessionStore` Zustand store with an `isHydrated` flag to prevent route guards from flashing incorrect redirects. However, the actual implementation uses React Context (`auth-context.tsx`) and lacks this hydration tracking, causing route guards to briefly flash a redirect to `/login` on page reload for authenticated users before the silent refresh resolves.
 
 **What was implemented:** A minimal, in-scope fix was applied: an `isLoading` boolean was added to `auth-context.tsx` to track the initial silent refresh. This prevents the route guard (`RequireAuth`) from flashing a redirect without requiring a full migration to Zustand. The larger architectural reconciliation (whether to migrate `auth-context.tsx` to Zustand per ADR-UI-012) is deferred for a human decision.
+
 ### [LOG-0096] Resolution of auth-context vs useSessionStore divergence
 
 - date: 2026-07-13
@@ -2106,6 +2122,7 @@ The alternative considered — populating `presentCount` at `scheduleDocumentFor
 - supersedes: LOG-0095
 
 The React Context (`auth-context.tsx`) was successfully migrated to `useSessionStore` globally.
+
 1. The `getUserById` stub in `iam.service.ts` was implemented to return `UserSummary` by calling `iamRepo.findUserById(id)`.
 2. A known bug was found in `updateOwnProfile` (`iam.service.ts`), which is currently a no-op (fetches user but does not update DB). This was left as-is per instructions to flag but not fix unrelated issues.
 3. `committeeIds` was explicitly added to `ActiveUserIdentity` as a documented deviation from the F2 spec to prevent regressing LOG-0085.
@@ -2181,6 +2198,7 @@ was the direct motivation — adding the output schema formally locks that
 decision into the type contract.
 
 **What was implemented:**
+
 - Defined `RecordAttendanceOutputSchema` as a named constant at the top of
   session.router.ts (after the existing `dateRangeInput` constant),
   following `documents.router.ts`'s convention of naming all output
@@ -2294,6 +2312,7 @@ pooling:
    NULL evaluates to FALSE, so RLS policies block all access.
 
 **Empirical verification:**
+
 - `SELECT set_config('app.test_var', 'hello', true)` followed by
   `SELECT current_setting('app.test_var', true)` in a separate psql
   statement returns empty/NULL — confirming SET LOCAL is lost after the
@@ -2387,6 +2406,7 @@ open for the request's entire lifetime.
 
 The initial implementation `await`ed the full `db.transaction(callback)` inside
 Hook 3. This caused a deadlock because:
+
 - `db.transaction()` only commits when its callback returns
 - The callback blocks on `await txOpen` (waiting for `onResponse`)
 - `onResponse` cannot fire until the route handler completes
@@ -2423,6 +2443,7 @@ callback, not `db.execute()` directly. The shared mock reference means existing
 `expect(db.execute).toHaveBeenCalledOnce()` assertions still pass.
 
 **Verification:**
+
 - `pnpm typecheck` passes with no errors
 - All 800 unit tests pass (0 failures), including all 21 iam.middleware tests
 - The fix is structurally verified but not yet tested against a real PostgreSQL
@@ -2431,6 +2452,7 @@ callback, not `db.execute()` directly. The shared mock reference means existing
   actual document rows.
 
 **Open items for human review:**
+
 - The split-wait pattern means the connection is held from the pool for the
   full request duration. Under high concurrency this could exhaust the pool.
   Connection pool sizing should be reviewed once the system is load-tested.
@@ -2441,7 +2463,7 @@ callback, not `db.execute()` directly. The shared mock reference means existing
   rollback + connection release happen asynchronously. If this is concerning,
   the `onResponse` hook could be extended to handle error cases explicitly.
 
-### [LOG-0102] TASK-IAM-042: AsyncLocalStorage design justified, _rlsTx typing fixed, error-rollback flaw corrected
+### [LOG-0102] TASK-IAM-042: AsyncLocalStorage design justified, \_rlsTx typing fixed, error-rollback flaw corrected
 
 - date: 2026-07-13
 - task_id: TASK-IAM-042
@@ -2490,15 +2512,18 @@ meant a 500 error would COMMIT partial writes instead ofROLLBACK. Fixed in Step 
 
 **Step 2 — Typing fix and error-rollback correction:**
 
-*iam.types.ts:*
+_iam.types.ts:_
+
 - Replaced `_rlsTx?: DbTransaction` (never read/written) and untyped
   `_resolveRlsTx` (accessed via `as any` casts) with a single typed property:
   `_rlsTx?: { resolve: () => void; reject: (err: unknown) => void }`
 
-*iam.middleware.ts Hook 3:*
+_iam.middleware.ts Hook 3:_
+
 - Stores `{ resolve: resolveTx, reject: rejectTx }` pair instead of just `resolveTx`
 
-*iam.middleware.ts `onResponse` hook:*
+_iam.middleware.ts `onResponse` hook:_
+
 - Status-based commit/rollback: `reply.statusCode >= 400` → `bridge.reject()`
   (drizzle ROLLBACK) vs `bridge.resolve()` (drizzle COMMIT). All `as any` casts
   removed from the hook.
@@ -2531,6 +2556,7 @@ Four new tests added under `TASK-IAM-042 — split-wait lifecycle`:
 
 **Step 3d — Real-database GUC visibility test:**
 Ran against real PostgreSQL (port 5435, `batac_app` role):
+
 - Within same transaction (separate queries): `set_config(..., true)` then
   `current_setting(...)` returns the value ✅
 - After COMMIT (new connection): `current_setting(...)` returns NULL ✅
@@ -2542,13 +2568,14 @@ not across transactions.
 ---
 
 **Open items for human review:**
+
 - The split-wait pattern holds a connection for the full request duration.
   Pool sizing should be reviewed under load.
 - The error-rollback path (`bridge.reject()`) triggers drizzle ROLLBACK. If
   drizzle's rollback itself fails (e.g., connection dropped), the error is
   absorbed by the `.catch()` handler. This is acceptable — the connection is
   released by the pool regardless.
-  
+
 ### [LOG-0103] Frontend retry loop mitigation for locked sessions (status 423)
 
 - date: 2026-07-13
@@ -2560,6 +2587,7 @@ not across transactions.
 A locked session returned a flat JSON 423 response from the backend (not a tRPC envelope). The frontend trpc.ts fetch handler was letting this pass through unmodified. Because it was not a valid tRPC envelope, tRPC could not parse it and the query-client retry policy interpreted it as a generic failure, retrying up to 3 times by default.
 
 [Tested]: The custom fetch handler in apps/web/src/lib/trpc.ts was modified to intercept 423 responses. It now synchronously locks the useSessionStore state and returns a synthetic tRPC error response shaped exactly as a server-side UNAUTHORIZED tRPC error:
+
 ```json
 {
   "error": {
@@ -2643,6 +2671,7 @@ A human reviewer should determine whether this is in-scope for the current
 Phase 1 round (in which case it likely needs a new task, e.g. under IAM) or
 correctly deferred, and whether the consolidated reference needs an explicit
 statement of the intended flow either way.
+
 ### [LOG-0105] performSilentRefresh() synchronous rejection prevents HAR capture during token expiration redirect
 
 - date: 2026-07-13
@@ -2652,7 +2681,7 @@ statement of the intended flow either way.
 
 When an access token expires naturally via `Max-Age` and the browser deletes the `batac_at` cookie, the next tRPC fetch (e.g. `documents.list`) returns `401`. `trpc.ts` intercepts this and attempts `performSilentRefresh()`. If the refresh fetch fails synchronously (or resolves to false almost instantaneously, e.g. because `batac_rt` is also missing or the browser aborts it due to an incoming redirect), `trpc.ts` immediately assigns `window.location.href = '/login'`.
 
-This assignment causes the browser to aggressively tear down the document context, cancelling any in-flight background telemetry for DevTools. Consequently, the `POST /api/auth/refresh` fetch is not recorded in the HAR export, despite the `401` handler having attempted it. 
+This assignment causes the browser to aggressively tear down the document context, cancelling any in-flight background telemetry for DevTools. Consequently, the `POST /api/auth/refresh` fetch is not recorded in the HAR export, despite the `401` handler having attempted it.
 
 Additionally, the `Referer` discrepancy (where `documents.list` reports `/` instead of `/documents` in the HAR) is not an artifact. It is caused by the browser's default `strict-origin-when-cross-origin` policy. Since the frontend (`localhost:5173`) to backend (`localhost:3000`) is cross-origin, the browser deliberately strips the path (`/documents`) and sends only the base origin (`/`) for `documents.list`, while keeping the full path for same-origin requests like `/login` or `batac-seal.png`.
 
@@ -2665,7 +2694,8 @@ Additionally, the `Referer` discrepancy (where `documents.list` reports `/` inst
 - status: proposed
 - affects: iam.routes.ts, SessionHydrator.tsx
 
-The "immediate 401 redirect" when clicking "Documents" right after login *may* be caused by a race condition (pending verification against HAR/server logs):
+The "immediate 401 redirect" when clicking "Documents" right after login _may_ be caused by a race condition (pending verification against HAR/server logs):
+
 1. `SessionHydrator` mounts on `/login` and calls `POST /api/auth/refresh` sending any old/expired `batac_rt` cookie.
 2. The user types quickly and clicks "Login". `POST /api/auth/login` creates a new session, sets valid `batac_at` and `batac_rt` cookies, and redirects to the dashboard.
 3. The dashboard loads successfully.
@@ -2714,7 +2744,7 @@ This runs against `tech-stack.md`'s own stated intent that the shared package's 
 
 **Content discrepancy between the two documents that do cover it:** I3 §11.6 (tagged `[CONFIRMED — Stack Context]` for the base set) specifies `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Strict-Transport-Security` (§12.3 gives the specific values: `max-age=31536000; includeSubDomains`), and `Referrer-Policy: no-referrer`; `Content-Security-Policy` is separately tagged `[RECOMMENDED]` (the document's own weaker tag) rather than confirmed, despite I3's own §15.4 threat register (T-15, XSS Attack) naming CSP-via-helmet as the actual control that keeps that threat's residual risk at "Low." E2's "Security Headers" section instead lists `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Strict-Transport-Security`, and `X-XSS-Protection` — omitting `Content-Security-Policy` and `Referrer-Policy` entirely, and adding `X-XSS-Protection`, which appears nowhere in I3 or anywhere else in the docs corpus. Neither the consolidated reference nor `tech-stack.md` (both higher-authority than either I3 or E2 per AGENTS.md Section 1) specifies individual headers — both have only a bare `@fastify/helmet` stack-table entry with an empty notes column — so the hierarchy does not resolve the discrepancy between these two same-tier documents.
 
-**Resolution for this task:** the human was asked directly and chose to anchor on I3 as the primary source, let `@fastify/helmet`'s own defaults handle `Content-Security-Policy` and `X-Content-Type-Options`, explicitly configure `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and the specific HSTS values from I3 §12.3, and omit any `X-XSS-Protection`/`xssFilter` configuration. [Tested against the installed `helmet@8.3.0` package source (`node_modules/helmet/index.cjs`), not merely inferred from README prose]: `Content-Security-Policy` and `X-Content-Type-Options` both run by default when left unconfigured (the option-resolution switch treats `undefined` and `true` identically); `Referrer-Policy: no-referrer` and `Strict-Transport-Security: max-age=31536000; includeSubDomains` are *also* already the current library defaults — so the explicit configuration of these two per the human's decision is intentionally redundant with defaults, kept for self-documentation rather than because the defaults were wrong. Omitting `X-XSS-Protection` configuration does not mean the header is absent: the same source check confirms `xXssProtection` also runs by default and sets `X-XSS-Protection: 0` (the current safe value, telling browsers to disable their legacy XSS auditor) — not the dangerous legacy value the header name might suggest to someone reading E2's mention of it in isolation. This entry does not resolve which document is "correct" — that remains a human decision about I3 vs. E2 — it records the discrepancy and the task-level choice made pending that decision.
+**Resolution for this task:** the human was asked directly and chose to anchor on I3 as the primary source, let `@fastify/helmet`'s own defaults handle `Content-Security-Policy` and `X-Content-Type-Options`, explicitly configure `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and the specific HSTS values from I3 §12.3, and omit any `X-XSS-Protection`/`xssFilter` configuration. [Tested against the installed `helmet@8.3.0` package source (`node_modules/helmet/index.cjs`), not merely inferred from README prose]: `Content-Security-Policy` and `X-Content-Type-Options` both run by default when left unconfigured (the option-resolution switch treats `undefined` and `true` identically); `Referrer-Policy: no-referrer` and `Strict-Transport-Security: max-age=31536000; includeSubDomains` are _also_ already the current library defaults — so the explicit configuration of these two per the human's decision is intentionally redundant with defaults, kept for self-documentation rather than because the defaults were wrong. Omitting `X-XSS-Protection` configuration does not mean the header is absent: the same source check confirms `xXssProtection` also runs by default and sets `X-XSS-Protection: 0` (the current safe value, telling browsers to disable their legacy XSS auditor) — not the dangerous legacy value the header name might suggest to someone reading E2's mention of it in isolation. This entry does not resolve which document is "correct" — that remains a human decision about I3 vs. E2 — it records the discrepancy and the task-level choice made pending that decision.
 
 **Not implemented as part of resolving this finding:** no edit was made to AGENTS.md, document-list.md, i3-security-design-document.md, or e2-rest-api-specification-openapi3.md. Per Section 4.5, agents never edit these directly as a result of an A1-execution-time discovery.
 

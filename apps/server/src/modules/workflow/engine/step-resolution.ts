@@ -26,11 +26,11 @@ export async function resolveNextStep(
   currentStepInstance: StepInstanceRow,
   outcome: string | null,
   deps: StepResolutionDeps,
-  trx?: DbTransaction
+  trx?: DbTransaction,
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any
+    trx as any,
   );
 
   if (!versionData) {
@@ -38,14 +38,14 @@ export async function resolveNextStep(
   }
 
   const { steps, transitionRules } = versionData;
-  const currentStep = steps.find(s => s.id === currentStepInstance.stepId);
+  const currentStep = steps.find((s) => s.id === currentStepInstance.stepId);
   if (!currentStep) {
     throw new Error(`Step ${currentStepInstance.stepId} not found in definition version.`);
   }
 
-  const rulesForCurrentStep = transitionRules.filter(r => r.fromStepId === currentStep.id);
+  const rulesForCurrentStep = transitionRules.filter((r) => r.fromStepId === currentStep.id);
   const context = (instance.context as Record<string, any>) || {};
-  
+
   const nextStepId = evaluateTransitionRules(rulesForCurrentStep, outcome, context);
 
   if (!nextStepId) {
@@ -63,18 +63,18 @@ export async function resolveNextStep(
           contextSnapshot: context,
         },
       },
-      trx as any
+      trx as any,
     );
     return;
   }
 
-  const nextStep = steps.find(s => s.id === nextStepId);
+  const nextStep = steps.find((s) => s.id === nextStepId);
   if (!nextStep) {
     throw new Error(`Target step ${nextStepId} not found in definition version.`);
   }
 
   if (nextStep.stepType === 'termination') {
-    // Termination execution is scoped to TASK-WF-006. 
+    // Termination execution is scoped to TASK-WF-006.
   }
 
   if (nextStep.stepType === 'parallel_split' || nextStep.stepType === 'parallel_join') {
@@ -90,10 +90,10 @@ export async function resolveNextStep(
           stepInstanceId: 'NONE',
           stepId: nextStep.id,
           errorCode: 'STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1',
-          errorMessage: 'parallel_split and parallel_join are Phase 2 reserved step types'
-        }
+          errorMessage: 'parallel_split and parallel_join are Phase 2 reserved step types',
+        },
       },
-      trx as any
+      trx as any,
     );
     throw new Error('STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1');
   }
@@ -105,7 +105,7 @@ export async function resolveNextStep(
       status: 'active',
       startedAt: new Date(),
     },
-    trx as any
+    trx as any,
   );
 
   const config = (nextStep.config as Record<string, any>) || {};
@@ -115,7 +115,7 @@ export async function resolveNextStep(
     await deps.workflowRepository.updateStepInstance(
       newStepInstance.id,
       { assignedTo: assignees },
-      trx as any
+      trx as any,
     );
   }
 
@@ -133,18 +133,22 @@ export async function resolveNextStep(
         dueAt: null,
       },
     },
-    trx as any
+    trx as any,
   );
 
   if (nextStep.stepType === 'multi_referral') {
     const pendingBypass = await deps.workflowRepository.getPendingBypassForInstance(
       instance.id,
       nextStep.stepKey,
-      trx as any
+      trx as any,
     );
     if (pendingBypass && !pendingBypass.appliedAt) {
-      await deps.workflowRepository.markBypassApplied(pendingBypass.id, newStepInstance.id, trx as any);
-      
+      await deps.workflowRepository.markBypassApplied(
+        pendingBypass.id,
+        newStepInstance.id,
+        trx as any,
+      );
+
       await deps.workflowRepository.updateStepInstance(
         newStepInstance.id,
         {
@@ -152,9 +156,9 @@ export async function resolveNextStep(
           bypassedAt: new Date(),
           bypassedBy: null,
           bypassReason: 'CERTIFIED_URGENT',
-          outcome: 'BYPASSED_CERTIFIED_URGENT'
+          outcome: 'BYPASSED_CERTIFIED_URGENT',
         },
-        trx as any
+        trx as any,
       );
 
       await deps.workflowRepository.createWorkflowEvent(
@@ -170,7 +174,7 @@ export async function resolveNextStep(
             bypassedBy: null,
           },
         },
-        trx as any
+        trx as any,
       );
 
       await deps.workflowRepository.createWorkflowEvent(
@@ -185,10 +189,13 @@ export async function resolveNextStep(
             certificationDocumentId: pendingBypass.certificationDocumentId,
           },
         },
-        trx as any
+        trx as any,
       );
 
-      const bypassedStepInstance = await deps.workflowRepository.getStepInstanceById(newStepInstance.id, trx as any);
+      const bypassedStepInstance = await deps.workflowRepository.getStepInstanceById(
+        newStepInstance.id,
+        trx as any,
+      );
       if (!bypassedStepInstance) throw new Error('Failed to retrieve bypassed step instance');
 
       await resolveNextStep(instance, bypassedStepInstance, 'BYPASSED_CERTIFIED_URGENT', deps, trx);
@@ -196,7 +203,12 @@ export async function resolveNextStep(
     }
   }
 
-  if (nextStep.stepType === 'decision' || nextStep.stepType === 'notification' || nextStep.stepType === 'termination' || config['auto_complete'] === true) {
+  if (
+    nextStep.stepType === 'decision' ||
+    nextStep.stepType === 'notification' ||
+    nextStep.stepType === 'termination' ||
+    config['auto_complete'] === true
+  ) {
     if (nextStep.stepType === 'decision') {
       const { executeDecisionStep } = await import('./step-handlers/decision.handler.js');
       await executeDecisionStep(instance, newStepInstance, deps, trx);
@@ -207,7 +219,7 @@ export async function resolveNextStep(
       const { executeTerminationStep } = await import('./step-handlers/termination.handler.js');
       // Termination needs db from deps? StepResolutionDeps does not have db or documentsService.
       // I will need to update StepResolutionDeps and inject them from the top.
-      // Wait, let's just pass deps as any to executeTerminationStep for now, 
+      // Wait, let's just pass deps as any to executeTerminationStep for now,
       // but I need to make sure those services are on deps.
       await executeTerminationStep(instance, newStepInstance, deps as any, trx);
     } else if (config['auto_complete'] === true) {

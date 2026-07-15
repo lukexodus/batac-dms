@@ -18,19 +18,22 @@ export function useDocumentFilters() {
     } as Partial<ListDocumentsInput>;
   }, [searchParams]);
 
-  const setFilters = useCallback((newFilters: Partial<ListDocumentsInput>) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      Object.entries(newFilters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          next.set(key, String(value));
-        } else {
-          next.delete(key);
-        }
+  const setFilters = useCallback(
+    (newFilters: Partial<ListDocumentsInput>) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        Object.entries(newFilters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            next.set(key, String(value));
+          } else {
+            next.delete(key);
+          }
+        });
+        return next;
       });
-      return next;
-    });
-  }, [setSearchParams]);
+    },
+    [setSearchParams],
+  );
 
   return { filters, setFilters };
 }

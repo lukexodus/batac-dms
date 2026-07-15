@@ -6,7 +6,9 @@ function makeBuilder(resolvedRows: any[]) {
     from: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
-    then: function(resolve: any) { resolve(resolvedRows); }
+    then: function (resolve: any) {
+      resolve(resolvedRows);
+    },
   };
   return chain;
 }

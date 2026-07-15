@@ -8,7 +8,8 @@ const item: OrderOfBusinessItem = {
   agendaNumber: 1,
   documentNumber: '7SP 2026-001',
   numberVariant: 'final',
-  title: 'An Ordinance Providing for the Comprehensive Solid Waste Management Program of the City of Batac',
+  title:
+    'An Ordinance Providing for the Comprehensive Solid Waste Management Program of the City of Batac',
   documentState: 'PANLALAWIGAN_REVIEW',
   committeeReferrals: [
     {
@@ -45,34 +46,32 @@ export function OrderOfBusinessRowPage() {
   const [clickedLog, setClickedLog] = React.useState<string[]>([]);
 
   const handleRowClick = (label: string) => {
-    setClickedLog((prev) => [...prev, `Row clicked: ${label} at ${new Date().toLocaleTimeString()}`]);
+    setClickedLog((prev) => [
+      ...prev,
+      `Row clicked: ${label} at ${new Date().toLocaleTimeString()}`,
+    ]);
   };
 
   return (
-    <div className="p-8 space-y-12 max-w-5xl mx-auto">
+    <div className="mx-auto max-w-5xl space-y-12 p-8">
       <div className="space-y-4">
         <h2 className="text-xl font-bold">Standard Row (Missing Report, bg-danger-50)</h2>
         <p className="text-sm text-neutral-500">
           `isMissingReport` is true. `onClick` is provided (interactive).
         </p>
-        <div className="border border-neutral-200 rounded-lg p-2 bg-neutral-50">
-          <OrderOfBusinessRow 
-            item={item} 
-            onClick={() => handleRowClick('Item 1 (Standard)')}
-          />
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2">
+          <OrderOfBusinessRow item={item} onClick={() => handleRowClick('Item 1 (Standard)')} />
         </div>
       </div>
 
       <div className="space-y-4">
         <h2 className="text-xl font-bold">Urgent Row (Certified Urgent, FIRST Reading)</h2>
         <p className="text-sm text-neutral-500">
-          `isCertifiedUrgent` is true. `isMissingReport` is false (white bg). `onClick` is provided (interactive).
+          `isCertifiedUrgent` is true. `isMissingReport` is false (white bg). `onClick` is provided
+          (interactive).
         </p>
-        <div className="border border-neutral-200 rounded-lg p-2 bg-neutral-50">
-          <OrderOfBusinessRow 
-            item={urgentItem} 
-            onClick={() => handleRowClick('Item 2 (Urgent)')}
-          />
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2">
+          <OrderOfBusinessRow item={urgentItem} onClick={() => handleRowClick('Item 2 (Urgent)')} />
         </div>
       </div>
 
@@ -81,22 +80,25 @@ export function OrderOfBusinessRowPage() {
         <p className="text-sm text-neutral-500">
           `onClick` is omitted. Hover state should not trigger, and row should not be focusable.
         </p>
-        <div className="border border-neutral-200 rounded-lg p-2 bg-neutral-50">
-          <OrderOfBusinessRow 
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2">
+          <OrderOfBusinessRow
             item={{
               ...item,
               agendaNumber: 3,
               isMissingReport: false,
-            }} 
+            }}
           />
         </div>
       </div>
 
       <div className="space-y-4">
         <h2 className="text-xl font-bold">Interaction Log</h2>
-        <div className="p-4 bg-neutral-900 text-neutral-100 rounded-lg font-mono text-xs h-32 overflow-y-auto">
+        <div className="h-32 overflow-y-auto rounded-lg bg-neutral-900 p-4 font-mono text-xs text-neutral-100">
           {clickedLog.length === 0 ? (
-            <span className="text-neutral-500">Click interactive rows to log events. Tooltip triggers should NOT fire these log entries.</span>
+            <span className="text-neutral-500">
+              Click interactive rows to log events. Tooltip triggers should NOT fire these log
+              entries.
+            </span>
           ) : (
             clickedLog.map((log, idx) => <div key={idx}>{log}</div>)
           )}

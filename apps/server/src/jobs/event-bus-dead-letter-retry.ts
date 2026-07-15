@@ -54,10 +54,7 @@ export async function registerDeadLetterRetryJob(deps: {
     const rows = await deadLetterRepo.fetchPending({ maxRetries: MAX_RETRIES });
 
     if (rows.length > 0) {
-      logger.info(
-        { count: rows.length },
-        '[dead-letter-retry] processing pending rows',
-      );
+      logger.info({ count: rows.length }, '[dead-letter-retry] processing pending rows');
     }
 
     for (const row of rows) {

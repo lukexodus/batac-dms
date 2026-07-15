@@ -7,7 +7,9 @@ vi.mock('../engine/step-resolution.js', () => ({
 }));
 
 vi.mock('../engine/assignee-resolution.js', () => ({
-  resolveAssignees: vi.fn().mockResolvedValue([{ user_id: 'user-mayor', resolved_via: 'static:user-mayor' }]),
+  resolveAssignees: vi
+    .fn()
+    .mockResolvedValue([{ user_id: 'user-mayor', resolved_via: 'static:user-mayor' }]),
 }));
 
 describe('Create Instance (CI)', () => {
@@ -103,11 +105,11 @@ describe('Create Instance (CI)', () => {
           certified_urgent: false,
         }),
       }),
-      mockTrx
+      mockTrx,
     );
     expect(mockRepo.createWorkflowEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'workflow.instance.created' }),
-      mockTrx
+      mockTrx,
     );
   });
 
@@ -115,7 +117,7 @@ describe('Create Instance (CI)', () => {
     await createInstance('doc-1', 'def-1', 'user-encoder', mockDeps);
     expect(mockRepo.createWorkflowEvent).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'workflow.step.started' }),
-      mockTrx
+      mockTrx,
     );
   });
 
@@ -127,7 +129,7 @@ describe('Create Instance (CI)', () => {
         stepId: 'step-mayor',
         status: 'active',
       }),
-      mockTrx
+      mockTrx,
     );
   });
 
@@ -145,9 +147,9 @@ describe('Create Instance (CI)', () => {
       }),
     });
 
-    await expect(
-      createInstance('doc-1', 'def-1', 'user-encoder', mockDeps)
-    ).rejects.toThrow('NO_ACTIVE_VERSION');
+    await expect(createInstance('doc-1', 'def-1', 'user-encoder', mockDeps)).rejects.toThrow(
+      'NO_ACTIVE_VERSION',
+    );
   });
 
   it('CI-05: slaDeadline is set 9 days from creation', async () => {

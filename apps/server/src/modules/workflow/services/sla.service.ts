@@ -22,21 +22,21 @@ export class SlaService {
    */
   async computeSlaDeadline(startDate: Date, workingDays: number): Promise<Date> {
     const holidays = await this.getHolidays();
-    const holidayStrings = new Set(holidays.map(d => d.toISOString().split('T')[0]));
-    
+    const holidayStrings = new Set(holidays.map((d) => d.toISOString().split('T')[0]));
+
     const deadline = new Date(startDate);
     let daysToAdd = workingDays;
 
     while (daysToAdd > 0) {
       deadline.setDate(deadline.getDate() + 1);
-      
+
       const dayOfWeek = deadline.getDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
-      
+
       // Use local YYYY-MM-DD for simpler checking
       const localDateStr = `${deadline.getFullYear()}-${String(deadline.getMonth() + 1).padStart(2, '0')}-${String(deadline.getDate()).padStart(2, '0')}`;
       const isHoliday = holidayStrings.has(localDateStr);
-      
+
       if (!isWeekend && !isHoliday) {
         daysToAdd--;
       }
@@ -50,11 +50,11 @@ export class SlaService {
    */
   async elapsedWorkingDays(startDate: Date, now: Date): Promise<number> {
     const holidays = await this.getHolidays();
-    const holidayStrings = new Set(holidays.map(d => d.toISOString().split('T')[0]));
+    const holidayStrings = new Set(holidays.map((d) => d.toISOString().split('T')[0]));
 
     let count = 0;
     const current = new Date(startDate);
-    
+
     // Normalize times to midnight for date-only comparison
     current.setHours(0, 0, 0, 0);
     const end = new Date(now);
@@ -62,13 +62,13 @@ export class SlaService {
 
     while (current < end) {
       current.setDate(current.getDate() + 1);
-      
+
       const dayOfWeek = current.getDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      
+
       const localDateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
       const isHoliday = holidayStrings.has(localDateStr);
-      
+
       if (!isWeekend && !isHoliday) {
         count++;
       }

@@ -1,6 +1,6 @@
 // packages/ui/src/components/domain/AppShell.tsx
-import type { ReactNode } from "react";
-import { cn } from "@batac/ui/lib/utils";
+import type { ReactNode } from 'react';
+import { cn } from '@batac/ui/lib/utils';
 
 export interface AppShellProps {
   children: ReactNode;
@@ -20,11 +20,9 @@ export function AppShell({
   topbarContent,
 }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-surface-raised">
+    <div className="bg-surface-raised min-h-screen">
       {/* Sidebar navigation slot */}
-      <nav aria-label="Main navigation">
-        {sidebarContent}
-      </nav>
+      <nav aria-label="Main navigation">{sidebarContent}</nav>
 
       {/* Topbar slot */}
       {topbarContent}
@@ -32,8 +30,8 @@ export function AppShell({
       {/* Main scrollable content area */}
       <main
         className={cn(
-          "overflow-y-auto min-h-screen bg-surface-raised transition-[margin-left] duration-base ease-default mt-14",
-          sidebarCollapsed ? "ml-14" : "ml-60"
+          'bg-surface-raised duration-base ease-default mt-14 min-h-screen overflow-y-auto transition-[margin-left]',
+          sidebarCollapsed ? 'ml-14' : 'ml-60',
         )}
       >
         {children}

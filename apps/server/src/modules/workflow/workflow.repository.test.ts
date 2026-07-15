@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WorkflowRepository } from './workflow.repository.js';
 import type { AppDb } from '../../db.js';
 import { InvalidWorkflowTransitionError } from '../../errors/domain/workflow.js';
-import { instances, definitionVersions, workflowEvents, stepInstances } from '@batac/database/schema/workflow.schema.js';
+import {
+  instances,
+  definitionVersions,
+  workflowEvents,
+  stepInstances,
+} from '@batac/database/schema/workflow.schema.js';
 import { sql } from 'drizzle-orm';
 
 describe('WorkflowRepository', () => {
@@ -50,16 +55,16 @@ describe('WorkflowRepository', () => {
         expect(err).toBeInstanceOf(InvalidWorkflowTransitionError);
         expect(err.trpcCode).toBe('CONFLICT');
       }
-      
+
       expect(mockDb.update).not.toHaveBeenCalled();
     });
 
     it('throws CONFLICT if current status is cancelled', async () => {
       mockDb.where.mockResolvedValue([{ status: 'cancelled' }]);
 
-      await expect(
-        repo.updateInstanceStatus('inst-1', 'active')
-      ).rejects.toThrowError(InvalidWorkflowTransitionError);
+      await expect(repo.updateInstanceStatus('inst-1', 'active')).rejects.toThrowError(
+        InvalidWorkflowTransitionError,
+      );
       expect(mockDb.update).not.toHaveBeenCalled();
     });
   });
@@ -69,7 +74,7 @@ describe('WorkflowRepository', () => {
       await repo.updateInstanceContext('inst-1', { foo: 'bar' });
 
       expect(mockDb.update).toHaveBeenCalledWith(instances);
-      
+
       const setArg = mockDb.set.mock.calls[0][0];
       expect(setArg).toHaveProperty('context');
       // Safely stringify the SQL object to verify it contains the merge operator
@@ -99,11 +104,11 @@ describe('WorkflowRepository', () => {
         actorType: 'system' as const,
         payload: { test: true },
       };
-      
+
       mockDb.returning.mockResolvedValueOnce([{ ...mockEvent, id: 'event-1' }]);
 
       const result = await repo.createWorkflowEvent(mockEvent);
-      
+
       expect(result.id).toBe('event-1');
       expect(mockDb.insert).toHaveBeenCalledWith(workflowEvents);
       expect(mockDb.values).toHaveBeenCalledWith(mockEvent);
@@ -119,18 +124,20 @@ describe('WorkflowRepository', () => {
       await repo.migrateInstanceVersion('inst-1', 'version-2');
 
       expect(mockDb.update).toHaveBeenCalledWith(instances);
-      expect(mockDb.set).toHaveBeenCalledWith(expect.objectContaining({
-        definitionVersionId: 'version-2'
-      }));
+      expect(mockDb.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          definitionVersionId: 'version-2',
+        }),
+      );
     });
   });
 
   describe('lockStepInstanceForUpdate', () => {
     it('uses FOR UPDATE in Drizzle', async () => {
       mockDb.for.mockResolvedValueOnce([{ id: 'step-1' }]);
-      
+
       const result = await repo.lockStepInstanceForUpdate('step-1', mockDb);
-      
+
       expect(mockDb.select).toHaveBeenCalled();
       expect(mockDb.from).toHaveBeenCalledWith(stepInstances);
       expect(mockDb.for).toHaveBeenCalledWith('update');
@@ -143,8 +150,8 @@ describe('WorkflowRepository', () => {
       const mockRows = [
         {
           instance: { id: 'inst-1', status: 'stuck', deletedAt: null },
-          stepInstance: { id: 'step-inst-1', slaDeadline: new Date(), startedAt: new Date() }
-        }
+          stepInstance: { id: 'step-inst-1', slaDeadline: new Date(), startedAt: new Date() },
+        },
       ];
       mockDb.where.mockReturnThis();
       mockDb.$dynamic.mockResolvedValueOnce(mockRows);
@@ -162,9 +169,9 @@ describe('WorkflowRepository', () => {
   describe('lockInstanceForUpdate', () => {
     it('uses FOR UPDATE in Drizzle', async () => {
       mockDb.for.mockResolvedValueOnce([{ id: 'inst-1' }]);
-      
+
       const result = await repo.lockInstanceForUpdate('inst-1', mockDb);
-      
+
       expect(mockDb.select).toHaveBeenCalled();
       expect(mockDb.from).toHaveBeenCalledWith(instances);
       expect(mockDb.for).toHaveBeenCalledWith('update');
@@ -175,7 +182,7 @@ describe('WorkflowRepository', () => {
   describe('getActiveInstancesWithSla', () => {
     it('queries for active, suspended, and stuck instances with slaDeadline', async () => {
       const mockRows = [
-        { id: 'inst-1', status: 'active', slaDeadline: new Date(), deletedAt: null }
+        { id: 'inst-1', status: 'active', slaDeadline: new Date(), deletedAt: null },
       ];
       mockDb.where.mockResolvedValueOnce(mockRows);
 

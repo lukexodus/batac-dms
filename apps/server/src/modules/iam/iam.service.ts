@@ -1,7 +1,13 @@
 import { randomUUID, createHash, randomBytes } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import argon2 from 'argon2';
-import type { IamService, IamServiceDeps, RoleAssignmentRow, UserRow, SessionRow } from './iam.types.js';
+import type {
+  IamService,
+  IamServiceDeps,
+  RoleAssignmentRow,
+  UserRow,
+  SessionRow,
+} from './iam.types.js';
 import { RoleCombinationForbiddenError } from './iam.errors.js';
 import { NotFoundError } from '../../errors/domain/not-found.js';
 import { IAM_EVENTS } from './iam.events.js';
@@ -87,7 +93,7 @@ function sha256Base64url(input: string): string {
  */
 function computeLockoutUntil(newFailureCount: number): Date | null {
   let delaySec: number | null = null;
-  if (newFailureCount === 6)  delaySec = 30;
+  if (newFailureCount === 6) delaySec = 30;
   else if (newFailureCount === 7) delaySec = 60;
   else if (newFailureCount === 8) delaySec = 120;
   else if (newFailureCount === 9) delaySec = 300;
@@ -114,14 +120,14 @@ function toUserSelectSchema(user: UserRow): {
   updatedAt: Date;
 } {
   return {
-    id:         user.id,
-    username:   user.username,
-    email:      user.email,
-    cityId:     user.cityId,
-    status:     user.status,
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    cityId: user.cityId,
+    status: user.status,
     mfaEnabled: user.mfaEnabled,
-    createdAt:  user.createdAt,
-    updatedAt:  user.updatedAt,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
   };
 }
 
@@ -135,9 +141,8 @@ export function createIamService(deps: IamServiceDeps): IamService {
   // (TASK-IAM-014) without modifying this file.
   // Source: TASK-IAM-006 AI Prompt "Org-context resolver design" [RESOLVED].
   const getPrimaryOffice = deps.getPrimaryOffice ?? (async () => null);
-  const getCommitteeIds  = deps.getCommitteeIds  ?? (async () => []);
-  const resolveActiveDelegationGrantDep =
-    deps.resolveActiveDelegationGrant ?? (async () => null);
+  const getCommitteeIds = deps.getCommitteeIds ?? (async () => []);
+  const resolveActiveDelegationGrantDep = deps.resolveActiveDelegationGrant ?? (async () => null);
 
   // ─── buildAccessTokenClaims ─────────────────────────────────────────────────
   /**
@@ -155,7 +160,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
    */
   async function buildAccessTokenClaims(userId: string, sessionId: string) {
     const activeRoles = await iamRepo.findActiveRoleAssignmentsByUserId(userId);
-    const roleCodes    = activeRoles.map((ra) => ra.role.code);
+    const roleCodes = activeRoles.map((ra) => ra.role.code);
 
     const [office, committeeIds] = await Promise.all([
       getPrimaryOffice(userId),
@@ -163,7 +168,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
     ]);
 
     const permissions = await iamRepo.findPermissionsByRoleIds(activeRoles.map((ra) => ra.roleId));
-    const permCodes   = permissions.map((p) => `${p.resource}:${p.action}`);
+    const permCodes = permissions.map((p) => `${p.resource}:${p.action}`);
 
     return {
       registered: {
@@ -172,28 +177,30 @@ export function createIamService(deps: IamServiceDeps): IamService {
         jti: randomUUID(),
       },
       private: {
-        uid:    userId,
-        oid:    office?.officeId ?? null,
-        rid:    roleCodes,
-        perm:   permCodes,
-        cid:    committeeIds,
-        dg:     null, // login always starts dg null; picked up at next refresh if active
-        city:   BATAC_CITY_ID,
-        sid:    sessionId,
+        uid: userId,
+        oid: office?.officeId ?? null,
+        rid: roleCodes,
+        perm: permCodes,
+        cid: committeeIds,
+        dg: null, // login always starts dg null; picked up at next refresh if active
+        city: BATAC_CITY_ID,
+        sid: sessionId,
         is_ita: activeRoles.some((ra) => ra.role.code === 'sys_admin'),
-        is_pa:  activeRoles.some((ra) => (ra.role as any).is_platform_admin === true),
+        is_pa: activeRoles.some((ra) => (ra.role as any).is_platform_admin === true),
       },
       display: {
         roleCodes,
-        officeScopeId: office?.officeId     ?? null,
-        officeCode:    office?.officeCode    ?? null,
+        officeScopeId: office?.officeId ?? null,
+        officeCode: office?.officeCode ?? null,
         committeeIds,
       },
     };
   }
 
   return {
-    evaluatePolicy: () => { throw new Error('not implemented'); },
+    evaluatePolicy: () => {
+      throw new Error('not implemented');
+    },
     getUserById: async (id: string) => {
       const u = await iamRepo.findUserById(id);
       if (!u) return null;
@@ -234,7 +241,9 @@ export function createIamService(deps: IamServiceDeps): IamService {
       });
     },
 
-    verifyAccessToken: () => { throw new Error('not implemented'); },
+    verifyAccessToken: () => {
+      throw new Error('not implemented');
+    },
     resolveActiveDelegationGrant: (id) => resolveActiveDelegationGrantDep(id ?? ''),
 
     // ─── login ───────────────────────────────────────────────────────────────
@@ -261,14 +270,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
      * Source: TASK-IAM-006 AI Prompt, "Login flow" section.
      */
     async login(input) {
-      const {
-        username,
-        password,
-        code_verifier,
-        code_challenge,
-        ipAddress,
-        userAgent,
-      } = input;
+      const { username, password, code_verifier, code_challenge, ipAddress, userAgent } = input;
 
       // ── Step 2: PKCE S256 verification ────────────────────────────────────
       // (Rate limiting is enforced at the Fastify route level via @fastify/rate-limit)
@@ -277,7 +279,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
       const expectedChallenge = sha256Base64url(code_verifier);
       if (expectedChallenge !== code_challenge) {
         throw Object.assign(new Error('PKCE code_verifier does not match code_challenge'), {
-          code:       'PKCE_MISMATCH',
+          code: 'PKCE_MISMATCH',
           statusCode: 400,
         });
       }
@@ -286,7 +288,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
       const user = await iamRepo.findUserByUsername(BATAC_CITY_ID, username);
       if (!user) {
         throw Object.assign(new Error('Invalid credentials'), {
-          code:       'INVALID_CREDENTIALS',
+          code: 'INVALID_CREDENTIALS',
           statusCode: 401,
         });
       }
@@ -294,20 +296,18 @@ export function createIamService(deps: IamServiceDeps): IamService {
       // ── Step 4: Status check ──────────────────────────────────────────────
       if (user.status === 'inactive' || user.status === 'deactivated') {
         throw Object.assign(new Error('Invalid credentials'), {
-          code:       'INVALID_CREDENTIALS',
+          code: 'INVALID_CREDENTIALS',
           statusCode: 401,
         });
       }
 
       // ── Step 5: Lockout check ─────────────────────────────────────────────
       if (user.loginLockedUntil !== null && new Date() < user.loginLockedUntil) {
-        const retryAfterSec = Math.ceil(
-          (user.loginLockedUntil.getTime() - Date.now()) / 1000,
-        );
+        const retryAfterSec = Math.ceil((user.loginLockedUntil.getTime() - Date.now()) / 1000);
         throw Object.assign(new Error('Account temporarily locked'), {
-          code:        'ACCOUNT_LOCKED',
-          statusCode:  429,
-          retryAfter:  retryAfterSec,
+          code: 'ACCOUNT_LOCKED',
+          statusCode: 429,
+          retryAfter: retryAfterSec,
         });
       }
 
@@ -317,17 +317,17 @@ export function createIamService(deps: IamServiceDeps): IamService {
         // No credential record — treat as wrong password
         await auditService.writeEvent({
           eventType: 'login_failed',
-          actorId:   null,
-          cityId:    BATAC_CITY_ID,
+          actorId: null,
+          cityId: BATAC_CITY_ID,
           payload: {
             attempted_identifier_hash: sha256Hex(username),
-            ip_address:  ipAddress,
-            user_agent:  userAgent,
+            ip_address: ipAddress,
+            user_agent: userAgent,
             failure_reason: 'no_credential',
           },
         });
         throw Object.assign(new Error('Invalid credentials'), {
-          code:       'INVALID_CREDENTIALS',
+          code: 'INVALID_CREDENTIALS',
           statusCode: 401,
         });
       }
@@ -348,18 +348,18 @@ export function createIamService(deps: IamServiceDeps): IamService {
 
         await auditService.writeEvent({
           eventType: 'login_failed',
-          actorId:   null,
-          cityId:    BATAC_CITY_ID,
+          actorId: null,
+          cityId: BATAC_CITY_ID,
           payload: {
             attempted_identifier_hash: sha256Hex(username),
-            ip_address:  ipAddress,
-            user_agent:  userAgent,
+            ip_address: ipAddress,
+            user_agent: userAgent,
             failure_reason: 'wrong_password',
           },
         });
 
         throw Object.assign(new Error('Invalid credentials'), {
-          code:       'INVALID_CREDENTIALS',
+          code: 'INVALID_CREDENTIALS',
           statusCode: 401,
         });
       }
@@ -403,11 +403,11 @@ export function createIamService(deps: IamServiceDeps): IamService {
         //    after building the JWT jti. Use an empty placeholder so NOT NULL is
         //    satisfied; updated in step 9 once jti is known.
         const newSession = await txRepo.createSession({
-          userId:           user.id,
+          userId: user.id,
           sessionTokenHash: 'pending', // overwritten in step 9
           ipAddress,
           userAgent,
-          cityId:           BATAC_CITY_ID,
+          cityId: BATAC_CITY_ID,
         });
         newSessionId = newSession.id;
 
@@ -416,12 +416,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
           // Out-of-transaction best-effort write.
           void auditService.writeEvent({
             eventType: 'session_replaced',
-            actorId:   user.id,
-            targetId:  user.id,
+            actorId: user.id,
+            targetId: user.id,
             targetType: 'session',
-            cityId:    BATAC_CITY_ID,
+            cityId: BATAC_CITY_ID,
             payload: {
-              user_id:        user.id,
+              user_id: user.id,
               old_session_id: oldSession.id,
               new_session_id: newSessionId,
               new_ip_address: ipAddress,
@@ -434,14 +434,10 @@ export function createIamService(deps: IamServiceDeps): IamService {
       const claims = await buildAccessTokenClaims(user.id, newSessionId);
 
       const jwtPayload = { ...claims.registered, ...claims.private };
-      const accessToken = jwt.sign(
-        jwtPayload,
-        env.AUTH_JWT_ACCESS_SECRET,
-        {
-          algorithm: env.AUTH_JWT_ALGORITHM as jwt.Algorithm,
-          expiresIn: JWT_ACCESS_TTL_SECONDS,
-        },
-      );
+      const accessToken = jwt.sign(jwtPayload, env.AUTH_JWT_ACCESS_SECRET, {
+        algorithm: env.AUTH_JWT_ALGORITHM as jwt.Algorithm,
+        expiresIn: JWT_ACCESS_TTL_SECONDS,
+      });
 
       // Update session_token_hash to SHA-256(jti) now that jti is known.
       const jti = claims.registered.jti;
@@ -457,33 +453,31 @@ export function createIamService(deps: IamServiceDeps): IamService {
       // would add updateSessionTokenHash to IamRepository — see findings log.
       const { sessions } = await import('@batac/database/schema/iam.schema.js');
       const { eq } = await import('drizzle-orm');
-      await db.update(sessions)
-        .set({ sessionTokenHash })
-        .where(eq(sessions.id, newSessionId));
+      await db.update(sessions).set({ sessionTokenHash }).where(eq(sessions.id, newSessionId));
 
       // ── Step 10: Issue refresh token ──────────────────────────────────────
       // raw = crypto.randomBytes(32) → base64url
       // salt = crypto.randomBytes(16) → base64url
       // token_hash = SHA256(raw + salt)
       // Cookie value: `${token_id}.${raw}`
-      const rawBytes  = randomBytes(32);
+      const rawBytes = randomBytes(32);
       const saltBytes = randomBytes(16);
-      const rawBase64url  = rawBytes.toString('base64url');
+      const rawBase64url = rawBytes.toString('base64url');
       const saltBase64url = saltBytes.toString('base64url');
       const tokenHash = sha256Hex(rawBase64url + saltBase64url);
-      const tokenId   = randomUUID();
-      const familyId  = randomUUID();
+      const tokenId = randomUUID();
+      const familyId = randomUUID();
       const expiresAt = new Date(Date.now() + JWT_REFRESH_TTL_SECONDS * 1000);
 
       await iamRepo.createRefreshToken({
-        id:        tokenId,
-        userId:    user.id,
+        id: tokenId,
+        userId: user.id,
         sessionId: newSessionId,
         tokenHash,
-        salt:      saltBase64url,
+        salt: saltBase64url,
         familyId,
         expiresAt,
-        cityId:    BATAC_CITY_ID,
+        cityId: BATAC_CITY_ID,
       } as any);
 
       // ── Step 11: Reset lockout counter ────────────────────────────────────
@@ -492,12 +486,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
       // ── Step 12: Audit event: login_success ───────────────────────────────
       await auditService.writeEvent({
         eventType: 'login_success',
-        actorId:   user.id,
-        targetId:  user.id,
+        actorId: user.id,
+        targetId: user.id,
         targetType: 'session',
-        cityId:    BATAC_CITY_ID,
+        cityId: BATAC_CITY_ID,
         payload: {
-          user_id:    user.id,
+          user_id: user.id,
           session_id: newSessionId,
           ip_address: ipAddress,
           user_agent: userAgent,
@@ -512,19 +506,19 @@ export function createIamService(deps: IamServiceDeps): IamService {
       // We surface the refresh token cookie value as a property so the route
       // handler can set the cookie without knowing the cookie assembly logic.
       const loginResult = {
-        user:                toUserSelectSchema(user) as unknown as UserRow,
-        sessionId:           newSessionId,
-        expiresAt:           new Date(Date.now() + JWT_ACCESS_TTL_SECONDS * 1000),
-        roleCodes:           claims.display.roleCodes,
-        officeScopeId:       claims.display.officeScopeId,
-        officeCode:          claims.display.officeCode,
-        committeeIds:        claims.display.committeeIds,
+        user: toUserSelectSchema(user) as unknown as UserRow,
+        sessionId: newSessionId,
+        expiresAt: new Date(Date.now() + JWT_ACCESS_TTL_SECONDS * 1000),
+        roleCodes: claims.display.roleCodes,
+        officeScopeId: claims.display.officeScopeId,
+        officeCode: claims.display.officeCode,
+        committeeIds: claims.display.committeeIds,
         // Private: used by route handler to set cookies; NOT part of AuthResponse body
         _cookies: {
           accessToken,
           refreshTokenCookieValue: `${tokenId}.${rawBase64url}`,
-          accessMaxAge:   JWT_ACCESS_TTL_SECONDS,
-          refreshMaxAge:  JWT_REFRESH_TTL_SECONDS,
+          accessMaxAge: JWT_ACCESS_TTL_SECONDS,
+          refreshMaxAge: JWT_REFRESH_TTL_SECONDS,
         },
       };
 
@@ -545,14 +539,14 @@ export function createIamService(deps: IamServiceDeps): IamService {
       const parts = refreshTokenValue.split('.');
       if (parts.length !== 2) {
         throw Object.assign(new Error('Invalid refresh token format'), {
-          code:       'UNAUTHORIZED',
+          code: 'UNAUTHORIZED',
           statusCode: 401,
         });
       }
       const [tokenId, rawBase64url] = parts;
       if (!tokenId || !rawBase64url) {
         throw Object.assign(new Error('Invalid refresh token format'), {
-          code:       'UNAUTHORIZED',
+          code: 'UNAUTHORIZED',
           statusCode: 401,
         });
       }
@@ -561,7 +555,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
       const tokenRow = await iamRepo.findRefreshTokenById(tokenId);
       if (!tokenRow) {
         throw Object.assign(new Error('Invalid refresh token'), {
-          code:       'UNAUTHORIZED',
+          code: 'UNAUTHORIZED',
           statusCode: 401,
         });
       }
@@ -570,7 +564,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
       const computedHash = sha256Hex(rawBase64url + tokenRow.salt);
       if (computedHash !== tokenRow.tokenHash) {
         throw Object.assign(new Error('Invalid refresh token signature'), {
-          code:       'UNAUTHORIZED',
+          code: 'UNAUTHORIZED',
           statusCode: 401,
         });
       }
@@ -579,7 +573,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
       if (tokenRow.usedAt !== null) {
         await db.transaction(async (tx) => {
           const { createIamRepository } = await import('./iam.repository.js');
-        const txRepo = createIamRepository(tx);
+          const txRepo = createIamRepository(tx);
           await txRepo.revokeRefreshTokenFamily(tokenRow.familyId, 'reuse_detected');
           const session = await txRepo.findSessionById(tokenRow.sessionId);
           if (session && session.active) {
@@ -589,20 +583,20 @@ export function createIamService(deps: IamServiceDeps): IamService {
 
         void auditService.writeEvent({
           eventType: 'token_reuse_detected',
-          actorId:   tokenRow.userId,
-          targetId:  tokenRow.familyId,
+          actorId: tokenRow.userId,
+          targetId: tokenRow.familyId,
           targetType: 'refresh_token_family',
-          cityId:    BATAC_CITY_ID,
+          cityId: BATAC_CITY_ID,
           payload: {
-            user_id:      tokenRow.userId,
-            family_id:    tokenRow.familyId,
-            ip_address:   ipAddress,
+            user_id: tokenRow.userId,
+            family_id: tokenRow.familyId,
+            ip_address: ipAddress,
             action_taken: 'session_terminated_and_family_revoked',
           },
         });
 
         throw Object.assign(new Error('Session security event detected'), {
-          code:       'UNAUTHORIZED',
+          code: 'UNAUTHORIZED',
           statusCode: 401,
         });
       }
@@ -610,13 +604,13 @@ export function createIamService(deps: IamServiceDeps): IamService {
       // 5. Validity Checks
       if (tokenRow.revokedAt !== null) {
         throw Object.assign(new Error('Refresh token has been revoked'), {
-          code:       'UNAUTHORIZED',
+          code: 'UNAUTHORIZED',
           statusCode: 401,
         });
       }
       if (tokenRow.expiresAt < new Date()) {
         throw Object.assign(new Error('Refresh token has expired'), {
-          code:       'UNAUTHORIZED',
+          code: 'UNAUTHORIZED',
           statusCode: 401,
         });
       }
@@ -625,14 +619,14 @@ export function createIamService(deps: IamServiceDeps): IamService {
       const session = await iamRepo.findSessionById(tokenRow.sessionId);
       if (!session || !session.active) {
         throw Object.assign(new Error('Session is inactive or terminated'), {
-          code:       'UNAUTHORIZED',
+          code: 'UNAUTHORIZED',
           statusCode: 401,
         });
       }
       const user = await iamRepo.findUserById(tokenRow.userId);
       if (!user || user.status === 'inactive' || user.status === 'deactivated') {
         throw Object.assign(new Error('User account is inactive'), {
-          code:       'UNAUTHORIZED',
+          code: 'UNAUTHORIZED',
           statusCode: 401,
         });
       }
@@ -645,7 +639,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
         const { createIamRepository } = await import('./iam.repository.js');
         const txRepo = createIamRepository(tx);
 
-        const rawBytes  = randomBytes(32);
+        const rawBytes = randomBytes(32);
         const saltBytes = randomBytes(16);
         newRawBase64url = rawBytes.toString('base64url');
         const saltBase64url = saltBytes.toString('base64url');
@@ -668,20 +662,20 @@ export function createIamService(deps: IamServiceDeps): IamService {
           // Note: audit event intentionally omitted from this branch.
           // Add follow-up audit write here if coverage for this race path is needed.
           throw Object.assign(new Error('Session security event detected'), {
-            code:       'UNAUTHORIZED',
+            code: 'UNAUTHORIZED',
             statusCode: 401,
           });
         }
 
         await txRepo.createRefreshToken({
-          id:        newTokenId,
-          userId:    user.id,
+          id: newTokenId,
+          userId: user.id,
           sessionId: session.id,
           tokenHash,
-          salt:      saltBase64url,
-          familyId:  tokenRow.familyId,
+          salt: saltBase64url,
+          familyId: tokenRow.familyId,
           expiresAt,
-          cityId:    BATAC_CITY_ID,
+          cityId: BATAC_CITY_ID,
         } as any);
 
         await txRepo.updateLastActivity(session.id);
@@ -690,37 +684,31 @@ export function createIamService(deps: IamServiceDeps): IamService {
       // 8. Build claims and issue JWT
       const newClaims = await buildAccessTokenClaims(user.id, session.id);
       const jwtPayload = { ...newClaims.registered, ...newClaims.private };
-      const newAccessToken = jwt.sign(
-        jwtPayload,
-        env.AUTH_JWT_ACCESS_SECRET,
-        {
-          algorithm: env.AUTH_JWT_ALGORITHM as jwt.Algorithm,
-          expiresIn: JWT_ACCESS_TTL_SECONDS,
-        },
-      );
+      const newAccessToken = jwt.sign(jwtPayload, env.AUTH_JWT_ACCESS_SECRET, {
+        algorithm: env.AUTH_JWT_ALGORITHM as jwt.Algorithm,
+        expiresIn: JWT_ACCESS_TTL_SECONDS,
+      });
 
       // Update session_token_hash best-effort
       const jti = newClaims.registered.jti;
       const sessionTokenHash = sha256Hex(jti);
       const { sessions } = await import('@batac/database/schema/iam.schema.js');
       const { eq } = await import('drizzle-orm');
-      await db.update(sessions)
-        .set({ sessionTokenHash })
-        .where(eq(sessions.id, session.id));
+      await db.update(sessions).set({ sessionTokenHash }).where(eq(sessions.id, session.id));
 
       const refreshResult = {
-        user:                toUserSelectSchema(user) as unknown as UserRow,
-        sessionId:           session.id,
-        expiresAt:           new Date(Date.now() + JWT_ACCESS_TTL_SECONDS * 1000),
-        roleCodes:           newClaims.display.roleCodes,
-        officeScopeId:       newClaims.display.officeScopeId,
-        officeCode:          newClaims.display.officeCode,
-        committeeIds:        newClaims.display.committeeIds,
+        user: toUserSelectSchema(user) as unknown as UserRow,
+        sessionId: session.id,
+        expiresAt: new Date(Date.now() + JWT_ACCESS_TTL_SECONDS * 1000),
+        roleCodes: newClaims.display.roleCodes,
+        officeScopeId: newClaims.display.officeScopeId,
+        officeCode: newClaims.display.officeCode,
+        committeeIds: newClaims.display.committeeIds,
         _cookies: {
-          accessToken:              newAccessToken,
-          refreshTokenCookieValue:  `${newTokenId}.${newRawBase64url}`,
-          accessMaxAge:             JWT_ACCESS_TTL_SECONDS,
-          refreshMaxAge:            JWT_REFRESH_TTL_SECONDS,
+          accessToken: newAccessToken,
+          refreshTokenCookieValue: `${newTokenId}.${newRawBase64url}`,
+          accessMaxAge: JWT_ACCESS_TTL_SECONDS,
+          refreshMaxAge: JWT_REFRESH_TTL_SECONDS,
         },
       };
 
@@ -799,10 +787,10 @@ export function createIamService(deps: IamServiceDeps): IamService {
 
       // ── Step 5: Emit role.assigned domain event ───────────────────────────
       eventBus.emit(IAM_EVENTS.ROLE_ASSIGNED, {
-        eventId:       randomUUID(),
-        eventType:     IAM_EVENTS.ROLE_ASSIGNED,
-        occurredAt:    new Date().toISOString(),
-        cityId:        targetUser.cityId,
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.ROLE_ASSIGNED,
+        occurredAt: new Date().toISOString(),
+        cityId: targetUser.cityId,
         schemaVersion: 1,
         payload: {
           actorId,
@@ -859,9 +847,9 @@ export function createIamService(deps: IamServiceDeps): IamService {
 
       // ── Step 5: Emit role.revoked domain event ────────────────────────────
       eventBus.emit(IAM_EVENTS.ROLE_REVOKED, {
-        eventId:       randomUUID(),
-        eventType:     IAM_EVENTS.ROLE_REVOKED,
-        occurredAt:    new Date().toISOString(),
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.ROLE_REVOKED,
+        occurredAt: new Date().toISOString(),
         cityId,
         schemaVersion: 1,
         payload: {
@@ -893,10 +881,10 @@ export function createIamService(deps: IamServiceDeps): IamService {
      * Source: TASK-IAM-010 AI Prompt.
      */
     async forceTerminateSession(input: {
-      actorId:         string;
+      actorId: string;
       targetSessionId: string;
-      reason:          string;
-      cityId:          string;
+      reason: string;
+      cityId: string;
     }): Promise<{ terminated: boolean }> {
       const { actorId, targetSessionId, reason, cityId } = input;
 
@@ -923,14 +911,14 @@ export function createIamService(deps: IamServiceDeps): IamService {
       // Step 4: Emit forced_logout audit event — fire-and-forget, outside transaction.
       // Pattern matches logout() — best-effort; failure here does not roll back session.
       void auditService.writeEvent({
-        eventType:  'forced_logout',
+        eventType: 'forced_logout',
         actorId,
-        targetId:   targetSessionId,
+        targetId: targetSessionId,
         targetType: 'session',
         cityId,
         payload: {
-          actor_id:          actorId,
-          target_user_id:    session.userId,
+          actor_id: actorId,
+          target_user_id: session.userId,
           target_session_id: targetSessionId,
           reason,
         },
@@ -938,14 +926,22 @@ export function createIamService(deps: IamServiceDeps): IamService {
 
       return { terminated: true };
     },
-    
-    async updateOwnProfile(input: { userId: string; displayName?: string; phoneNumber?: string }): Promise<UserRow> {
+
+    async updateOwnProfile(input: {
+      userId: string;
+      displayName?: string;
+      phoneNumber?: string;
+    }): Promise<UserRow> {
       const user = await iamRepo.findUserById(input.userId);
       if (!user) throw new NotFoundError('User', input.userId);
       return user;
     },
 
-    async changeOwnPassword(input: { userId: string; currentPassword: string; newPassword: string }): Promise<void> {
+    async changeOwnPassword(input: {
+      userId: string;
+      currentPassword: string;
+      newPassword: string;
+    }): Promise<void> {
       const cred = await iamRepo.findCredentialByUserId(input.userId);
       if (!cred) throw new Error('UNAUTHORIZED');
 
@@ -979,14 +975,17 @@ export function createIamService(deps: IamServiceDeps): IamService {
       return iamRepo.listSessionsByUserId(userId);
     },
 
-    async listAllActiveSessions(cityId: string, opts: { limit: number; offset: number }): Promise<SessionRow[]> {
+    async listAllActiveSessions(
+      cityId: string,
+      opts: { limit: number; offset: number },
+    ): Promise<SessionRow[]> {
       return iamRepo.listAllActiveSessions(cityId, opts);
     },
 
     async lockSession(input: { sessionId: string; userId: string }): Promise<{ locked: boolean }> {
       const { sessionId, userId } = input;
       await iamRepo.setSessionLocked(sessionId, new Date());
-      
+
       void auditService.writeEvent({
         eventType: 'session_locked',
         actorId: userId,
@@ -1009,8 +1008,9 @@ export function createIamService(deps: IamServiceDeps): IamService {
       ipAddress: string | null;
       userAgent: string | null;
     }) {
-      const { sessionId, userId, passwordPlain, isAccessTokenExpired, ipAddress, userAgent } = input;
-      
+      const { sessionId, userId, passwordPlain, isAccessTokenExpired, ipAddress, userAgent } =
+        input;
+
       const session = await iamRepo.findSessionById(sessionId);
       if (!session || !session.active) {
         throw Object.assign(new Error('Session is inactive or terminated'), {
@@ -1064,7 +1064,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
           const { createIamRepository } = await import('./iam.repository.js');
           const txRepo = createIamRepository(tx);
 
-          const rawBytes  = randomBytes(32);
+          const rawBytes = randomBytes(32);
           const saltBytes = randomBytes(16);
           newRawBase64url = rawBytes.toString('base64url');
           const saltBase64url = saltBytes.toString('base64url');
@@ -1084,20 +1084,20 @@ export function createIamService(deps: IamServiceDeps): IamService {
             // Note: audit event intentionally omitted from this branch.
             // Add follow-up audit write here if coverage for this race path is needed.
             throw Object.assign(new Error('Session security event detected'), {
-              code:       'UNAUTHORIZED',
+              code: 'UNAUTHORIZED',
               statusCode: 401,
             });
           }
 
           await txRepo.createRefreshToken({
-            id:        newTokenId,
-            userId:    userId,
+            id: newTokenId,
+            userId: userId,
             sessionId: sessionId,
             tokenHash,
-            salt:      saltBase64url,
-            familyId:  latestRt.familyId,
+            salt: saltBase64url,
+            familyId: latestRt.familyId,
             expiresAt,
-            cityId:    BATAC_CITY_ID,
+            cityId: BATAC_CITY_ID,
           } as any);
 
           await txRepo.updateLastActivity(sessionId);
@@ -1105,22 +1105,16 @@ export function createIamService(deps: IamServiceDeps): IamService {
 
         const newClaims = await buildAccessTokenClaims(userId, sessionId);
         const jwtPayload = { ...newClaims.registered, ...newClaims.private };
-        const newAccessToken = jwt.sign(
-          jwtPayload,
-          env.AUTH_JWT_ACCESS_SECRET,
-          {
-            algorithm: env.AUTH_JWT_ALGORITHM as jwt.Algorithm,
-            expiresIn: JWT_ACCESS_TTL_SECONDS,
-          },
-        );
+        const newAccessToken = jwt.sign(jwtPayload, env.AUTH_JWT_ACCESS_SECRET, {
+          algorithm: env.AUTH_JWT_ALGORITHM as jwt.Algorithm,
+          expiresIn: JWT_ACCESS_TTL_SECONDS,
+        });
 
         const jti = newClaims.registered.jti;
         const sessionTokenHash = sha256Hex(jti);
         const { sessions } = await import('@batac/database/schema/iam.schema.js');
         const { eq } = await import('drizzle-orm');
-        await db.update(sessions)
-          .set({ sessionTokenHash })
-          .where(eq(sessions.id, sessionId));
+        await db.update(sessions).set({ sessionTokenHash }).where(eq(sessions.id, sessionId));
 
         cookies = {
           accessToken: newAccessToken,
@@ -1150,11 +1144,20 @@ export function createIamService(deps: IamServiceDeps): IamService {
       };
     },
 
-    async listUserDirectory(cityId: string, opts: { limit: number; offset: number; officeId?: string; search?: string }): Promise<UserRow[]> {
+    async listUserDirectory(
+      cityId: string,
+      opts: { limit: number; offset: number; officeId?: string; search?: string },
+    ): Promise<UserRow[]> {
       return iamRepo.listUsers(cityId, opts);
     },
 
-    async createUserAccount(input: { username: string; email: string; employeeId: string; cityId: string; actorId: string }): Promise<UserRow> {
+    async createUserAccount(input: {
+      username: string;
+      email: string;
+      employeeId: string;
+      cityId: string;
+      actorId: string;
+    }): Promise<UserRow> {
       const user = await iamRepo.createUser({
         username: input.username,
         email: input.email,
@@ -1180,7 +1183,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
       return user;
     },
 
-    async updateUserAccount(input: { userId: string; email?: string; status?: string; officeId?: string }): Promise<UserRow> {
+    async updateUserAccount(input: {
+      userId: string;
+      email?: string;
+      status?: string;
+      officeId?: string;
+    }): Promise<UserRow> {
       const user = await iamRepo.updateUser(input.userId, {
         email: input.email,
         status: input.status,
@@ -1196,7 +1204,15 @@ export function createIamService(deps: IamServiceDeps): IamService {
       await iamRepo.updateUser(userId, { status: 'active' });
     },
 
-    async registerCitizenAccountClerkAssisted(input: { fullName: string; birthdate: Date; phone: string; email: string; idType: string; idReference?: string; actorId: string }): Promise<{ citizenUserId: string }> {
+    async registerCitizenAccountClerkAssisted(input: {
+      fullName: string;
+      birthdate: Date;
+      phone: string;
+      email: string;
+      idType: string;
+      idReference?: string;
+      actorId: string;
+    }): Promise<{ citizenUserId: string }> {
       return { citizenUserId: randomUUID() };
     },
   };

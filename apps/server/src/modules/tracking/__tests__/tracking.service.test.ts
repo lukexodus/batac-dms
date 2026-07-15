@@ -41,9 +41,9 @@ describe('TrackingService', () => {
         actorId: 'actor-1',
         actionDescription: 'Routed',
         timestamp: new Date(),
-      }
+      },
     ];
-    
+
     const repository = {
       getRoutingHistory: vi.fn().mockResolvedValue(mockHistory),
     } as unknown as TrackingRepository;

@@ -92,7 +92,6 @@ Only infrastructure services are defined here. Application servers start on the 
 name: batac-dev
 
 services:
-
   # ────────────────────────────────────────────────────────────────────────────
   # PostgreSQL 16 — single instance; no standby in local dev
   # Production primary + standby topology is in compose.prod.yml
@@ -110,17 +109,16 @@ services:
       DB_MIGRATE_PASSWORD: ${DB_MIGRATE_PASSWORD:-migrate_devpassword}
       TZ: Asia/Manila
     ports:
-      - "${DB_PORT_EXPOSED:-5432}:5432"
+      - '${DB_PORT_EXPOSED:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./tools/db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME:-batac_lgu}"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d ${DB_NAME:-batac_lgu}']
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 15s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # MinIO — S3-compatible object storage replacing Cloudflare R2 in local dev
@@ -136,17 +134,16 @@ services:
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minio123456}
       TZ: Asia/Manila
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '9000:9000'
+      - '9001:9001'
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # MinIO init — creates required buckets on first run, then exits
@@ -175,7 +172,6 @@ services:
         echo '[minio-init] Buckets ready.'
       "
 
-
   # ────────────────────────────────────────────────────────────────────────────
   # Mailpit — local SMTP server and web UI for email preview
   # SMTP:    localhost:1025   (set SMTP_HOST=localhost, SMTP_PORT=1025)
@@ -186,15 +182,14 @@ services:
     image: axllent/mailpit:latest
     restart: unless-stopped
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - '1025:1025'
+      - '8025:8025'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:8025"]
+      test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://localhost:8025']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 5s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # Meilisearch — Phase 2 reserved slot; not required for Phase 1
@@ -208,20 +203,19 @@ services:
       - search
     environment:
       MEILI_MASTER_KEY: ${SEARCH_MEILISEARCH_MASTER_KEY:-meilisearch-dev-key-changeme}
-      MEILI_NO_ANALYTICS: "true"
+      MEILI_NO_ANALYTICS: 'true'
       MEILI_ENV: development
       TZ: Asia/Manila
     ports:
-      - "7700:7700"
+      - '7700:7700'
     volumes:
       - meilisearch_data:/meili_data
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:7700/health"]
+      test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://localhost:7700/health']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
-
 
 volumes:
   postgres_data:
@@ -403,7 +397,6 @@ This file describes the full containerized stack. Notable differences from local
 name: batac-prod
 
 services:
-
   # ────────────────────────────────────────────────────────────────────────────
   # web-build — copies the compiled SPA bundle into the web_static shared volume
   # Runs once at deploy time then exits. Nginx reads from the same volume.
@@ -419,7 +412,6 @@ services:
         echo '[web-build] Bundle copied to web_static volume.'
       "
 
-
   # ────────────────────────────────────────────────────────────────────────────
   # Nginx — TLS termination, static bundle serving, /api/* reverse proxy
   # Starts only after the server passes its health check.
@@ -434,8 +426,8 @@ services:
       web-build:
         condition: service_completed_successfully
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       - web_static:/usr/share/nginx/html:ro
       - ./nginx/batac.conf:/etc/nginx/conf.d/batac.conf:ro
@@ -444,12 +436,11 @@ services:
     environment:
       TZ: Asia/Manila
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost/health"]
+      test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://localhost/health']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # Fastify server — tRPC + REST + SSE + pgboss + node-cron + OCR + QR + PDF
@@ -466,24 +457,29 @@ services:
       # Override DB_HOST to use Docker internal network hostname.
       # DATABASE_URL_APP in .env.production should use this hostname.
       DB_HOST: postgres-primary
-      APP_HOST: "0.0.0.0"
-      TRUST_PROXY: "true"
-      LOG_PRETTY: "false"
+      APP_HOST: '0.0.0.0'
+      TRUST_PROXY: 'true'
+      LOG_PRETTY: 'false'
       TZ: Asia/Manila
       APP_INSTANCE_ID: server-01
     # Port 3000 is accessible inside the Docker network.
     # Nginx is the only external entry point; this mapping is for debugging only.
     # [Inference] Remove this port mapping in a hardened production deployment.
     ports:
-      - "127.0.0.1:3000:3000"
+      - '127.0.0.1:3000:3000'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider",
-             "http://localhost:3000${HEALTH_CHECK_PATH:-/health}"]
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--spider',
+          'http://localhost:3000${HEALTH_CHECK_PATH:-/health}',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 40s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # PostgreSQL Primary — streaming replication enabled
@@ -507,12 +503,11 @@ services:
       # init scripts go in /docker-entrypoint-initdb.d as with the official image
       - ./tools/db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U batac_app -d ${DB_NAME:-batac_lgu}"]
+      test: ['CMD-SHELL', 'pg_isready -U batac_app -d ${DB_NAME:-batac_lgu}']
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 20s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # PostgreSQL Standby — hot standby; WAL streaming replication
@@ -528,7 +523,7 @@ services:
     environment:
       POSTGRESQL_REPLICATION_MODE: slave
       POSTGRESQL_MASTER_HOST: postgres-primary
-      POSTGRESQL_MASTER_PORT_NUMBER: "5432"
+      POSTGRESQL_MASTER_PORT_NUMBER: '5432'
       POSTGRESQL_REPLICATION_USER: replicator
       POSTGRESQL_REPLICATION_PASSWORD: ${DB_REPLICATION_PASSWORD}
       POSTGRESQL_USERNAME: batac_app
@@ -537,12 +532,11 @@ services:
     volumes:
       - postgres_standby_data:/bitnami/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U batac_app"]
+      test: ['CMD-SHELL', 'pg_isready -U batac_app']
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # MinIO — on-premise S3 storage path
@@ -562,12 +556,11 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # Meilisearch — Phase 2 reserved slot
@@ -581,18 +574,17 @@ services:
       - search
     environment:
       MEILI_MASTER_KEY: ${SEARCH_MEILISEARCH_MASTER_KEY}
-      MEILI_NO_ANALYTICS: "true"
+      MEILI_NO_ANALYTICS: 'true'
       MEILI_ENV: production
       TZ: Asia/Manila
     volumes:
       - meilisearch_data:/meili_data
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:7700/health"]
+      test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://localhost:7700/health']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
-
 
 volumes:
   web_static:
@@ -616,6 +608,7 @@ volumes:
 The `compose.prod.yml` above runs all services on a **single host** — correct for **staging** (L5 §6). For **production**, the confirmed two-Droplet topology (L5 §6.1, ADR rationale in that section) requires `postgres-primary` and `postgres-standby` to run on separate hosts. A single Docker Compose file cannot span two hosts, so two compose files are required:
 
 **Droplet A (app host) — `compose.prod.app.yml`**
+
 - Services: `web-build`, `nginx`, `server`, `postgres-primary` (and optionally `minio`/`meilisearch` profiles)
 - `postgres-primary` must expose port 5432 bound **only to its VPC private interface** — never the public interface — so the standby on Droplet B can reach it:
 
@@ -627,10 +620,11 @@ postgres-primary:
     # Bind ONLY to the VPC private IP; never to 0.0.0.0 or the public IP.
     # DB_PRIMARY_VPC_IP = Droplet A's private VPC address (from Pulumi output,
     # e.g. appHost.ipv4AddressPrivate → stored in .env.production on each host)
-    - "${DB_PRIMARY_VPC_IP}:5432:5432"
+    - '${DB_PRIMARY_VPC_IP}:5432:5432'
 ```
 
 **Droplet B (standby host) — `compose.prod.standby.yml`**
+
 - Services: `postgres-standby` only
 - `POSTGRESQL_MASTER_HOST` must be set to Droplet A's **private VPC IP** (not the Docker service hostname `postgres-primary`, which is only resolvable within a single host's Docker network):
 
@@ -646,7 +640,7 @@ services:
       POSTGRESQL_REPLICATION_MODE: slave
       # Must be the private VPC IP of Droplet A, NOT "postgres-primary"
       POSTGRESQL_MASTER_HOST: ${DB_PRIMARY_VPC_IP}
-      POSTGRESQL_MASTER_PORT_NUMBER: "5432"
+      POSTGRESQL_MASTER_PORT_NUMBER: '5432'
       POSTGRESQL_REPLICATION_USER: replicator
       POSTGRESQL_REPLICATION_PASSWORD: ${DB_REPLICATION_PASSWORD}
       POSTGRESQL_USERNAME: batac_app
@@ -655,7 +649,7 @@ services:
     volumes:
       - postgres_standby_data:/bitnami/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U batac_app"]
+      test: ['CMD-SHELL', 'pg_isready -U batac_app']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -1014,16 +1008,16 @@ exec nginx -g 'daemon off;'
 
 ## Part 7 — Health Check Reference
 
-|Service|Probe command|Interval|Start period|Retries|Notes|
-|---|---|---|---|---|---|
-|`postgres` (dev)|`pg_isready -U postgres -d batac_lgu`|5s|15s|10|PostgreSQL initializes slowly on first start (empty volume)|
-|`postgres-primary` (prod)|`pg_isready -U batac_app -d batac_lgu`|5s|20s|10|Bitnami image; longer init for WAL setup|
-|`postgres-standby` (prod)|`pg_isready -U batac_app`|10s|30s|10|Standby waits for primary; allow extra time|
-|`minio`|`curl -f http://localhost:9000/minio/health/live`|10s|15s|5|MinIO live endpoint returns HTTP 200 when ready|
-|`meilisearch`|`wget --spider http://localhost:7700/health`|10s|20s|5|Phase 2 only; activate with `--profile search`|
-|`mailpit`|`wget --spider http://localhost:8025`|10s|5s|5|Dev only; fast startup|
-|`server` (Fastify)|`wget --spider http://localhost:3000/health`|10s|40s|5|Allows 40s for migrations to complete on restart|
-|`nginx` (prod)|`wget --spider http://localhost/health`|10s|10s|5|Proxies to server; server must be healthy first|
+| Service                   | Probe command                                     | Interval | Start period | Retries | Notes                                                       |
+| ------------------------- | ------------------------------------------------- | -------- | ------------ | ------- | ----------------------------------------------------------- |
+| `postgres` (dev)          | `pg_isready -U postgres -d batac_lgu`             | 5s       | 15s          | 10      | PostgreSQL initializes slowly on first start (empty volume) |
+| `postgres-primary` (prod) | `pg_isready -U batac_app -d batac_lgu`            | 5s       | 20s          | 10      | Bitnami image; longer init for WAL setup                    |
+| `postgres-standby` (prod) | `pg_isready -U batac_app`                         | 10s      | 30s          | 10      | Standby waits for primary; allow extra time                 |
+| `minio`                   | `curl -f http://localhost:9000/minio/health/live` | 10s      | 15s          | 5       | MinIO live endpoint returns HTTP 200 when ready             |
+| `meilisearch`             | `wget --spider http://localhost:7700/health`      | 10s      | 20s          | 5       | Phase 2 only; activate with `--profile search`              |
+| `mailpit`                 | `wget --spider http://localhost:8025`             | 10s      | 5s           | 5       | Dev only; fast startup                                      |
+| `server` (Fastify)        | `wget --spider http://localhost:3000/health`      | 10s      | 40s          | 5       | Allows 40s for migrations to complete on restart            |
+| `nginx` (prod)            | `wget --spider http://localhost/health`           | 10s      | 10s          | 5       | Proxies to server; server must be healthy first             |
 
 **The `/health` endpoint** (path configured via `HEALTH_CHECK_PATH` in L1 §13.3, default `/health`) must be implemented in Fastify as a lightweight liveness probe returning `HTTP 200` with `{ "status": "ok", "version": "...", "uptime": ... }`. It must not query the database on every call — that conflates liveness with readiness. A separate `/ready` endpoint that checks database connectivity may be added later for Kubernetes-style deployments but is not required for Docker Compose.
 
@@ -1035,22 +1029,22 @@ The 40-second `start_period` for the server service accommodates migration execu
 
 ### Named volumes
 
-|Volume|Used by|Contents|Safe to wipe?|
-|---|---|---|---|
-|`postgres_data`|`postgres` (dev)|PostgreSQL data directory|Yes in dev only; wipe clears all data and triggers re-init|
-|`postgres_primary_data`|`postgres-primary` (prod)|PostgreSQL primary data|Never wipe in production|
-|`postgres_standby_data`|`postgres-standby` (prod)|WAL replica data|Can be rebuilt from primary; never wipe while primary is live|
-|`minio_data`|`minio`|Document files and backup archives|Never wipe; treat as production data|
-|`meilisearch_data`|`meilisearch`|Search index|Safe to wipe; index can be rebuilt from PostgreSQL|
-|`web_static`|`web-build`, `nginx`|Compiled Vite SPA bundle|Safe to wipe; repopulated on every deployment by `web-build`|
+| Volume                  | Used by                   | Contents                           | Safe to wipe?                                                 |
+| ----------------------- | ------------------------- | ---------------------------------- | ------------------------------------------------------------- |
+| `postgres_data`         | `postgres` (dev)          | PostgreSQL data directory          | Yes in dev only; wipe clears all data and triggers re-init    |
+| `postgres_primary_data` | `postgres-primary` (prod) | PostgreSQL primary data            | Never wipe in production                                      |
+| `postgres_standby_data` | `postgres-standby` (prod) | WAL replica data                   | Can be rebuilt from primary; never wipe while primary is live |
+| `minio_data`            | `minio`                   | Document files and backup archives | Never wipe; treat as production data                          |
+| `meilisearch_data`      | `meilisearch`             | Search index                       | Safe to wipe; index can be rebuilt from PostgreSQL            |
+| `web_static`            | `web-build`, `nginx`      | Compiled Vite SPA bundle           | Safe to wipe; repopulated on every deployment by `web-build`  |
 
 ### Bind mounts
 
 Bind mounts in `compose.yml` (local dev):
 
-|Host path|Container path|Mode|Purpose|
-|---|---|---|---|
-|`./tools/db/init`|`/docker-entrypoint-initdb.d`|read-only|PostgreSQL role creation scripts|
+| Host path         | Container path                | Mode      | Purpose                          |
+| ----------------- | ----------------------------- | --------- | -------------------------------- |
+| `./tools/db/init` | `/docker-entrypoint-initdb.d` | read-only | PostgreSQL role creation scripts |
 
 In `compose.prod.yml`, bind mounts cover TLS certificates and the Nginx config file only. All application data uses named volumes.
 
@@ -1070,12 +1064,12 @@ pnpm --filter @batac/database migrate   # re-apply Drizzle migrations from the h
 
 ### File hierarchy
 
-|File|Committed|Purpose|
-|---|---|---|
-|`.env.example`|Yes|Template with all variables, documentation, and safe placeholder values. The only env file in version control.|
-|`.env`|No|Developer's local values. Docker Compose loads this automatically from the directory where `docker compose` is invoked.|
-|`.env.staging`|No|Staging values. Injected by CI/CD. Not committed.|
-|`.env.production`|No|Production values. Injected by CI/CD or secrets manager. Not committed.|
+| File              | Committed | Purpose                                                                                                                 |
+| ----------------- | --------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `.env.example`    | Yes       | Template with all variables, documentation, and safe placeholder values. The only env file in version control.          |
+| `.env`            | No        | Developer's local values. Docker Compose loads this automatically from the directory where `docker compose` is invoked. |
+| `.env.staging`    | No        | Staging values. Injected by CI/CD. Not committed.                                                                       |
+| `.env.production` | No        | Production values. Injected by CI/CD or secrets manager. Not committed.                                                 |
 
 ### How variables reach containers
 
@@ -1093,11 +1087,11 @@ For the server container in production, `env_file: - .env.production` passes all
 
 ### Build-time vs. runtime
 
-|Class|Injection method|Examples|
-|---|---|---|
-|Server runtime|`env_file:` or `environment:` in compose|`DATABASE_URL_APP`, `AUTH_JWT_ACCESS_SECRET`, `TZ`|
-|Vite build-time (`VITE_*`)|`--build-arg` at `docker build` time|`VITE_API_URL`, `VITE_APP_URL` (L1 §21.4)|
-|Next.js build-time (`NEXT_PUBLIC_*`)|`--build-arg` at build time|Phase 3 only|
+| Class                                | Injection method                         | Examples                                           |
+| ------------------------------------ | ---------------------------------------- | -------------------------------------------------- |
+| Server runtime                       | `env_file:` or `environment:` in compose | `DATABASE_URL_APP`, `AUTH_JWT_ACCESS_SECRET`, `TZ` |
+| Vite build-time (`VITE_*`)           | `--build-arg` at `docker build` time     | `VITE_API_URL`, `VITE_APP_URL` (L1 §21.4)          |
+| Next.js build-time (`NEXT_PUBLIC_*`) | `--build-arg` at build time              | Phase 3 only                                       |
 
 `VITE_*` variables are consumed by Vite at build time and embedded in the JavaScript bundle. They are not available at container runtime. This is expected behavior — the bundle is a static artifact. A changed `VITE_API_URL` requires a new image build, not a container restart.
 
@@ -1128,7 +1122,7 @@ Variables classified `SEC` in L1 must not appear in `.env` files committed to ve
 
 - CI/CD pipelines inject them as environment variables at container start time
 - Docker Secrets (`secrets:` in compose) provide file-based injection for environments that support it
-> **Phase 1 secrets approach — resolved ([ADR-L2-06](l2-docker-and-docker-compose-specification-adrs/ADR-INF-006-production-secrets-management.md)):** Production `SEC`-classified string variables are injected via `.env.production` (not committed; managed by LGU IT Office on the production host, `root:root 600`). File-format secrets (TLS cert and key) use Docker `secrets:` mounts. No external secrets manager is used in Phase 1. Rotation of string secrets requires a container restart — accepted as a known constraint. Re-evaluate at Phase 2 planning. See [ADR-L2-06](l2-docker-and-docker-compose-specification-adrs/ADR-INF-006-production-secrets-management.md).
+  > **Phase 1 secrets approach — resolved ([ADR-L2-06](l2-docker-and-docker-compose-specification-adrs/ADR-INF-006-production-secrets-management.md)):** Production `SEC`-classified string variables are injected via `.env.production` (not committed; managed by LGU IT Office on the production host, `root:root 600`). File-format secrets (TLS cert and key) use Docker `secrets:` mounts. No external secrets manager is used in Phase 1. Rotation of string secrets requires a container restart — accepted as a known constraint. Re-evaluate at Phase 2 planning. See [ADR-L2-06](l2-docker-and-docker-compose-specification-adrs/ADR-INF-006-production-secrets-management.md).
 
 ### New `.env.example` entries
 
@@ -1215,14 +1209,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 if (!process.env.DATABASE_URL_MIGRATE) {
   console.error(
     '[migrate] DATABASE_URL_MIGRATE is not set. ' +
-    'This variable is required for migrations and post-migrate grants.'
+      'This variable is required for migrations and post-migrate grants.',
   );
   process.exit(1);
 }
 
 const client = postgres(process.env.DATABASE_URL_MIGRATE, {
   max: 1,
-  onnotice: () => {},  // suppress advisory notice output
+  onnotice: () => {}, // suppress advisory notice output
 });
 
 const db = drizzle(client);
@@ -1233,10 +1227,7 @@ await migrate(db, {
 });
 
 console.log('[migrate] Applying post-migrate grants...');
-const grantsSQL = readFileSync(
-  join(__dirname, './post-migrate-grants.sql'),
-  'utf-8'
-);
+const grantsSQL = readFileSync(join(__dirname, './post-migrate-grants.sql'), 'utf-8');
 await client.unsafe(grantsSQL);
 await client.end();
 
@@ -1307,17 +1298,17 @@ Nginx is the last service to become active. Until the server passes its health c
 
 All items resolved June 2026. Companion ADRs contain full rationale and implementation details.
 
-| ID    | Item                                                  | Status    | ADR           | Resolution summary |
-| ----- | ----------------------------------------------------- | --------- | ------------- | ------------------ |
-| L2-01 | `argon2` vs. `@node-rs/argon2`                        | Resolved  | [ADR-L2-01](l2-docker-and-docker-compose-specification-adrs/ADR-INF-001-argon2-package-selection.md) | Use `@node-rs/argon2`. Ships prebuilt `linux-x64-musl` binary; no build toolchain required. Remove `apk add python3 make g++` from `deps` stage. |
-| L2-02 | Bitnami vs. official PostgreSQL image for replication | Resolved  | [ADR-L2-02](l2-docker-and-docker-compose-specification-adrs/ADR-INF-002-postgresql-docker-image-bitnami-vs-official.md) | Confirm `bitnami/postgresql:16` for production primary and standby. Official `postgres:16-alpine` retained for local dev (single instance, no replication). Pin to minor version tag before first production deployment. |
-| L2-03 | OCR language pack bundling                            | Resolved  | [ADR-L2-03](l2-docker-and-docker-compose-specification-adrs/ADR-INF-003-ocr-language-pack-building-strategy.md) | Bundle `eng` and `fil` language packs unconditionally in all production builds. Both cloud and on-premise deployment targets served from a single image. `TESSDATA_PREFIX` path is `[Inference]` — confirm against `tesseract.js` OcrService before OCR feature is implemented. |
-| L2-04 | Nginx domain name injection                           | Resolved  | [ADR-L2-04](l2-docker-and-docker-compose-specification-adrs/ADR-INF-004-nginx-domain-name-injection.md) | `envsubst` in a custom Nginx entrypoint (`nginx/entrypoint.sh`). `nginx/batac.conf` renamed to `nginx/batac.conf.template`. `${APP_DOMAIN}` substituted at container start. `APP_DOMAIN` injected from `.env.production`. |
-| L2-05 | TLS certificate provisioning                          | Resolved  | [ADR-L2-05](l2-docker-and-docker-compose-specification-adrs/ADR-INF-005-tls-certificate-provisioning.md) | Pre-provisioned wildcard cert mounted via Docker secrets to fixed paths `/etc/nginx/certs/`. Certbot and Let's Encrypt not used — ACME requires outbound internet, incompatible with on-premise deployment. Manual renewal runbook with 60-day advance reminder. |
-| L2-06 | Production secrets manager                            | Resolved (Phase 1) | [ADR-L2-06](l2-docker-and-docker-compose-specification-adrs/ADR-INF-006-production-secrets-management.md) | Docker secrets (file-format) + `.env.production` (string-format), managed by LGU IT Office. No external secrets manager in Phase 1. Rotation requires container restart — accepted. Revisit at Phase 2. |
-| L2-07 | Node.js version                                       | Resolved  | [ADR-L2-07](l2-docker-and-docker-compose-specification-adrs/ADR-INF-007-nodejs-runtime-version.md) | Node.js 22 LTS (`node:22-alpine`). Node 20 entered Maintenance LTS April 2026. All Dockerfile stages updated. |
-| L2-08 | `pnpm` version pinning                                | Resolved  | [ADR-L2-08](l2-docker-and-docker-compose-specification-adrs/ADR-INF-008-pnpm-version-pinning-via-corepack.md) | `packageManager` field required in root `package.json` (e.g., `"packageManager": "pnpm@9.15.4"`). Set via `corepack use pnpm@<version>`. Update atomically with lockfile on intentional upgrades. |
-| L2-09 | `BACKUP_RESTORE_TEST_ENABLED` container               | Resolved (Phase 1 dormant) | [ADR-L2-09](l2-docker-and-docker-compose-specification-adrs/ADR-INF-009-backup-restore-test-container.md) | Flag remains `false` in Phase 1. Scratch PostgreSQL container not added to `compose.prod.yml`. Infrastructure gap documented in [ADR-L2-09](l2-docker-and-docker-compose-specification-adrs/ADR-INF-009-backup-restore-test-container.md) with a full activation checklist. |
+| ID    | Item                                                  | Status                     | ADR                                                                                                                     | Resolution summary                                                                                                                                                                                                                                                              |
+| ----- | ----------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L2-01 | `argon2` vs. `@node-rs/argon2`                        | Resolved                   | [ADR-L2-01](l2-docker-and-docker-compose-specification-adrs/ADR-INF-001-argon2-package-selection.md)                    | Use `@node-rs/argon2`. Ships prebuilt `linux-x64-musl` binary; no build toolchain required. Remove `apk add python3 make g++` from `deps` stage.                                                                                                                                |
+| L2-02 | Bitnami vs. official PostgreSQL image for replication | Resolved                   | [ADR-L2-02](l2-docker-and-docker-compose-specification-adrs/ADR-INF-002-postgresql-docker-image-bitnami-vs-official.md) | Confirm `bitnami/postgresql:16` for production primary and standby. Official `postgres:16-alpine` retained for local dev (single instance, no replication). Pin to minor version tag before first production deployment.                                                        |
+| L2-03 | OCR language pack bundling                            | Resolved                   | [ADR-L2-03](l2-docker-and-docker-compose-specification-adrs/ADR-INF-003-ocr-language-pack-building-strategy.md)         | Bundle `eng` and `fil` language packs unconditionally in all production builds. Both cloud and on-premise deployment targets served from a single image. `TESSDATA_PREFIX` path is `[Inference]` — confirm against `tesseract.js` OcrService before OCR feature is implemented. |
+| L2-04 | Nginx domain name injection                           | Resolved                   | [ADR-L2-04](l2-docker-and-docker-compose-specification-adrs/ADR-INF-004-nginx-domain-name-injection.md)                 | `envsubst` in a custom Nginx entrypoint (`nginx/entrypoint.sh`). `nginx/batac.conf` renamed to `nginx/batac.conf.template`. `${APP_DOMAIN}` substituted at container start. `APP_DOMAIN` injected from `.env.production`.                                                       |
+| L2-05 | TLS certificate provisioning                          | Resolved                   | [ADR-L2-05](l2-docker-and-docker-compose-specification-adrs/ADR-INF-005-tls-certificate-provisioning.md)                | Pre-provisioned wildcard cert mounted via Docker secrets to fixed paths `/etc/nginx/certs/`. Certbot and Let's Encrypt not used — ACME requires outbound internet, incompatible with on-premise deployment. Manual renewal runbook with 60-day advance reminder.                |
+| L2-06 | Production secrets manager                            | Resolved (Phase 1)         | [ADR-L2-06](l2-docker-and-docker-compose-specification-adrs/ADR-INF-006-production-secrets-management.md)               | Docker secrets (file-format) + `.env.production` (string-format), managed by LGU IT Office. No external secrets manager in Phase 1. Rotation requires container restart — accepted. Revisit at Phase 2.                                                                         |
+| L2-07 | Node.js version                                       | Resolved                   | [ADR-L2-07](l2-docker-and-docker-compose-specification-adrs/ADR-INF-007-nodejs-runtime-version.md)                      | Node.js 22 LTS (`node:22-alpine`). Node 20 entered Maintenance LTS April 2026. All Dockerfile stages updated.                                                                                                                                                                   |
+| L2-08 | `pnpm` version pinning                                | Resolved                   | [ADR-L2-08](l2-docker-and-docker-compose-specification-adrs/ADR-INF-008-pnpm-version-pinning-via-corepack.md)           | `packageManager` field required in root `package.json` (e.g., `"packageManager": "pnpm@9.15.4"`). Set via `corepack use pnpm@<version>`. Update atomically with lockfile on intentional upgrades.                                                                               |
+| L2-09 | `BACKUP_RESTORE_TEST_ENABLED` container               | Resolved (Phase 1 dormant) | [ADR-L2-09](l2-docker-and-docker-compose-specification-adrs/ADR-INF-009-backup-restore-test-container.md)               | Flag remains `false` in Phase 1. Scratch PostgreSQL container not added to `compose.prod.yml`. Infrastructure gap documented in [ADR-L2-09](l2-docker-and-docker-compose-specification-adrs/ADR-INF-009-backup-restore-test-container.md) with a full activation checklist.     |
 
 Full ADRs: `./l2-docker-and-docker-compose-specification-adrs/*`
 

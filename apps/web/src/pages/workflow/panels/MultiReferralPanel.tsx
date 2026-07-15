@@ -3,8 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import {
-  Card, CardHeader, CardTitle, CardContent, Button, Textarea,
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Textarea,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Input,
 } from '@batac/ui';
 
 import { useSessionStore } from '@/stores';
@@ -18,7 +28,11 @@ import { trpc, type RouterOutputs } from '@/lib/trpc';
 //
 // Per-action gating is intentional (not page-level) to avoid sp_member
 // seeing sp_secretary-only controls.
-export function MultiReferralPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
+export function MultiReferralPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const identity = useSessionStore((s) => s.identity);
@@ -72,16 +86,19 @@ export function MultiReferralPanel({ instance }: { instance: RouterOutputs['work
         <CardTitle>Multi-Referral</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-
         {/* Submit Committee Report — sp_secretary or sp_member */}
         {(isSpSecretary || isSpMember) && (
-          <div className="space-y-3 border p-4 rounded-md">
-            <h3 className="font-medium text-sm">Submit Committee Report</h3>
+          <div className="space-y-3 rounded-md border p-4">
+            <h3 className="text-sm font-medium">Submit Committee Report</h3>
             <Select value={committeeId} onValueChange={setCommitteeId}>
-              <SelectTrigger><SelectValue placeholder="Select committee…" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Select committee…" />
+              </SelectTrigger>
               <SelectContent>
                 {(committees ?? []).map((c: { committeeId: string; name: string }) => (
-                  <SelectItem key={c.committeeId} value={c.committeeId}>{c.name}</SelectItem>
+                  <SelectItem key={c.committeeId} value={c.committeeId}>
+                    {c.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -92,8 +109,14 @@ export function MultiReferralPanel({ instance }: { instance: RouterOutputs['work
             />
             <Button
               onClick={() => {
-                if (!committeeId) { toast.error('Select a committee'); return; }
-                if (!reportText) { toast.error('Report text is required'); return; }
+                if (!committeeId) {
+                  toast.error('Select a committee');
+                  return;
+                }
+                if (!reportText) {
+                  toast.error('Report text is required');
+                  return;
+                }
                 submitReportMutation.mutate({
                   stepInstanceId: instance.currentStepInstanceId,
                   committeeId,
@@ -109,8 +132,8 @@ export function MultiReferralPanel({ instance }: { instance: RouterOutputs['work
 
         {/* Enter Hearing Date — sp_secretary only */}
         {isSpSecretary && (
-          <div className="space-y-3 border p-4 rounded-md">
-            <h3 className="font-medium text-sm">Enter Committee Hearing Date</h3>
+          <div className="space-y-3 rounded-md border p-4">
+            <h3 className="text-sm font-medium">Enter Committee Hearing Date</h3>
             <Input
               type="date"
               value={hearingDate}
@@ -118,7 +141,10 @@ export function MultiReferralPanel({ instance }: { instance: RouterOutputs['work
             />
             <Button
               onClick={() => {
-                if (!hearingDate) { toast.error('Date is required'); return; }
+                if (!hearingDate) {
+                  toast.error('Date is required');
+                  return;
+                }
                 // hearingDate is a string from the date input; z.coerce.date() on the server handles it.
                 hearingDateMutation.mutate({
                   stepInstanceId: instance.currentStepInstanceId,
@@ -134,9 +160,9 @@ export function MultiReferralPanel({ instance }: { instance: RouterOutputs['work
 
         {/* Manually Advance — sp_secretary only */}
         {isSpSecretary && (
-          <div className="space-y-3 border p-4 rounded-md">
-            <h3 className="font-medium text-sm">Manually Advance Step</h3>
-            <p className="text-xs text-muted-foreground">
+          <div className="space-y-3 rounded-md border p-4">
+            <h3 className="text-sm font-medium">Manually Advance Step</h3>
+            <p className="text-muted-foreground text-xs">
               Use only when all committee reports have been received outside the system.
             </p>
             <Textarea
@@ -147,7 +173,10 @@ export function MultiReferralPanel({ instance }: { instance: RouterOutputs['work
             <Button
               variant="destructive"
               onClick={() => {
-                if (!mandatoryComment) { toast.error('A reason is required'); return; }
+                if (!mandatoryComment) {
+                  toast.error('A reason is required');
+                  return;
+                }
                 advanceMutation.mutate({
                   stepInstanceId: instance.currentStepInstanceId,
                   mandatoryComment,

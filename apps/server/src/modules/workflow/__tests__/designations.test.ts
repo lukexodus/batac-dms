@@ -42,7 +42,11 @@ describe('Assignee Resolution & Designations (DESIG)', () => {
 
     it('DESIG-05: actor_from_context:referred_committee_chair_id resolves to the chair user_id in context', async () => {
       const context = { referred_committee_chair_id: 'user-chair-001' };
-      const result = await resolveAssignees('actor_from_context:referred_committee_chair_id', context, mockDeps);
+      const result = await resolveAssignees(
+        'actor_from_context:referred_committee_chair_id',
+        context,
+        mockDeps,
+      );
       expect(result[0].user_id).toBe('user-chair-001');
     });
 
@@ -65,9 +69,9 @@ describe('Assignee Resolution & Designations (DESIG)', () => {
     });
 
     it('role: prefix throws NotImplemented in current implementation', async () => {
-      await expect(
-        resolveAssignees('role:sp_secretary', {}, mockDeps)
-      ).rejects.toThrow('NotImplemented');
+      await expect(resolveAssignees('role:sp_secretary', {}, mockDeps)).rejects.toThrow(
+        'NotImplemented',
+      );
     });
   });
 
@@ -81,7 +85,7 @@ describe('Assignee Resolution & Designations (DESIG)', () => {
 
     it('office_role: prefix throws NotImplemented in current implementation', async () => {
       await expect(
-        resolveAssignees('office_role:city_administrator', {}, mockDeps)
+        resolveAssignees('office_role:city_administrator', {}, mockDeps),
       ).rejects.toThrow('NotImplemented');
     });
   });
@@ -96,9 +100,9 @@ describe('Assignee Resolution & Designations (DESIG)', () => {
     });
 
     it('delegation_aware: prefix throws NotImplemented in current implementation', async () => {
-      await expect(
-        resolveAssignees('delegation_aware:sp_secretary', {}, mockDeps)
-      ).rejects.toThrow('NotImplemented');
+      await expect(resolveAssignees('delegation_aware:sp_secretary', {}, mockDeps)).rejects.toThrow(
+        'NotImplemented',
+      );
     });
   });
 
@@ -106,9 +110,9 @@ describe('Assignee Resolution & Designations (DESIG)', () => {
 
   describe('Unknown expression format', () => {
     it('DESIG-UNK-01: unsupported prefix throws descriptive error', async () => {
-      await expect(
-        resolveAssignees('unknown:something', {}, mockDeps)
-      ).rejects.toThrow('Unsupported assignee expression format');
+      await expect(resolveAssignees('unknown:something', {}, mockDeps)).rejects.toThrow(
+        'Unsupported assignee expression format',
+      );
     });
   });
 

@@ -53,9 +53,7 @@ export function MyAssignedStepsPage() {
   if (!hasRole(identity, ...PAGE_ALLOWED_ROLES)) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">
-          You do not have permission to view this page.
-        </p>
+        <p className="text-muted-foreground">You do not have permission to view this page.</p>
       </div>
     );
   }
@@ -100,7 +98,7 @@ function MyAssignedStepsContent() {
   if (isLoading && cursorHistory.length === 0) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -133,10 +131,7 @@ function MyAssignedStepsContent() {
                   <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                      : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -145,26 +140,17 @@ function MyAssignedStepsContent() {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   No results.
                 </TableCell>
               </TableRow>
@@ -174,20 +160,10 @@ function MyAssignedStepsContent() {
       </div>
 
       <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handlePrev}
-          disabled={!hasPrevPage}
-        >
+        <Button variant="outline" size="sm" onClick={handlePrev} disabled={!hasPrevPage}>
           Previous
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleNext}
-          disabled={!hasNextPage}
-        >
+        <Button variant="outline" size="sm" onClick={handleNext} disabled={!hasNextPage}>
           Next
         </Button>
       </div>

@@ -43,24 +43,15 @@ export const offices = organizationSchema.table(
     code: text('code').notNull(),
     officeType: text('office_type').notNull(),
     /** Self-referencing FK for hierarchy. Same-schema FK is permitted. */
-    parentOfficeId: uuid('parent_office_id').references(
-      (): AnyPgColumn => offices.id,
-    ),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    parentOfficeId: uuid('parent_office_id').references((): AnyPgColumn => offices.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
   (table) => [
     unique('uq_offices_city_code').on(table.cityId, table.code),
-    check(
-      'ck_offices_not_self_parent',
-      sql`${table.id} <> ${table.parentOfficeId}`,
-    ),
+    check('ck_offices_not_self_parent', sql`${table.id} <> ${table.parentOfficeId}`),
     check(
       'ck_offices_office_type',
       sql`${table.officeType} IN ('executive','legislative','department','barangay','external')`,
@@ -86,12 +77,8 @@ export const positions = organizationSchema.table(
     title: text('title').notNull(),
     code: text('code').notNull(),
     authorityLevel: text('authority_level').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -123,12 +110,8 @@ export const employees = organizationSchema.table(
     lastName: text('last_name').notNull(),
     email: text('email'),
     phoneNumber: text('phone_number'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -167,12 +150,8 @@ export const assignments = organizationSchema.table(
     endDate: date('end_date'),
     isActive: boolean('is_active').notNull().default(true),
     isPrimary: boolean('is_primary').notNull().default(false),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -187,9 +166,7 @@ export const assignments = organizationSchema.table(
     // DB-level safety net for one-primary-per-employee invariant.
     uniqueIndex('uq_assignments_one_primary_per_employee')
       .on(table.employeeId)
-      .where(
-        sql`is_primary = true AND is_active = true AND deleted_at IS NULL`,
-      ),
+      .where(sql`is_primary = true AND is_active = true AND deleted_at IS NULL`),
   ],
 );
 
@@ -234,20 +211,13 @@ export const delegationGrants = organizationSchema.table(
     isActive: boolean('is_active').notNull().default(true),
     revokedBy: uuid('revoked_by'), // logical FK → iam.users.id (cross-schema)
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
   (table) => [
-    check(
-      'ck_delegation_dates',
-      sql`${table.endDate} > ${table.startDate}`,
-    ),
+    check('ck_delegation_dates', sql`${table.endDate} > ${table.startDate}`),
     check(
       'ck_delegation_not_self',
       sql`${table.delegatingEmployeeId} <> ${table.delegatedToEmployeeId}`,
@@ -282,18 +252,12 @@ export const committees = organizationSchema.table(
     chairedByEmployeeId: uuid('chaired_by_employee_id')
       .notNull()
       .references(() => employees.id),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
-  (table) => [
-    unique('uq_committees_city_code').on(table.cityId, table.code),
-  ],
+  (table) => [unique('uq_committees_city_code').on(table.cityId, table.code)],
 );
 
 // ---------------------------------------------------------------------------
@@ -317,12 +281,8 @@ export const committeeMemberships = organizationSchema.table(
     startDate: date('start_date').notNull(),
     endDate: date('end_date'),
     isActive: boolean('is_active').notNull().default(true),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -359,15 +319,10 @@ export const crossOfficeGrants = organizationSchema.table(
     officeScope: text('office_scope').notNull(),
     accessLevel: text('access_level').notNull(),
     resourceTypes: text('resource_types').array().notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    check(
-      'ck_cross_office_grants_office_scope',
-      sql`${table.officeScope} IN ('all')`,
-    ),
+    check('ck_cross_office_grants_office_scope', sql`${table.officeScope} IN ('all')`),
     check(
       'ck_cross_office_grants_access_level',
       sql`${table.accessLevel} IN ('metadata_only', 'full')`,

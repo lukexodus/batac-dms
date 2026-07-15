@@ -1,6 +1,5 @@
 # ADR-AUTH-007: Account Lockout Policy on Repeated Login Failures
 
-
 **Status:** Accepted, with one item explicitly deferred to Phase 2
 
 **Context**
@@ -11,14 +10,14 @@ D-AUTH-07 asks whether a per-account lockout should supplement the existing per-
 
 Add **progressive per-account delays**, not a hard lockout:
 
-|Failures (this account, any IP)|Response|
-|---|---|
-|1–5|Normal response time|
-|6|30-second delay before response|
-|7|60-second delay|
-|8|2-minute delay|
-|9|5-minute delay|
-|10+|15-minute delay (repeats, does not escalate further)|
+| Failures (this account, any IP) | Response                                             |
+| ------------------------------- | ---------------------------------------------------- |
+| 1–5                             | Normal response time                                 |
+| 6                               | 30-second delay before response                      |
+| 7                               | 60-second delay                                      |
+| 8                               | 2-minute delay                                       |
+| 9                               | 5-minute delay                                       |
+| 10+                             | 15-minute delay (repeats, does not escalate further) |
 
 The account is never fully locked — a legitimate user can always eventually authenticate, just with increasing delay. This works alongside, not instead of, the existing per-IP rate limiting in Section 10.4.
 

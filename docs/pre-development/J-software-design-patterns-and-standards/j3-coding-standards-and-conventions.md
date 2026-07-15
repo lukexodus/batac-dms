@@ -107,16 +107,16 @@ A single base config lives in `/packages/config/tsconfig.base.json`. Every works
 
 `"strict": true` enables the following flags. They are each in effect. Do not disable any of them.
 
-|Flag|What it enforces|
-|---|---|
-|`strictNullChecks`|`null` and `undefined` are not assignable to other types without explicit handling|
-|`strictFunctionTypes`|Function parameter types are checked contravariantly|
-|`strictBindCallApply`|`bind`, `call`, and `apply` are type-checked|
-|`strictPropertyInitialization`|Class properties must be initialised in the constructor|
-|`noImplicitAny`|Variables cannot implicitly receive the `any` type|
-|`noImplicitThis`|`this` in non-class contexts must be typed|
-|`alwaysStrict`|`"use strict"` emitted in every output file|
-|`useUnknownInCatchVariables`|`catch (e)` binds `e` as `unknown`, not `any`|
+| Flag                           | What it enforces                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------------------- |
+| `strictNullChecks`             | `null` and `undefined` are not assignable to other types without explicit handling |
+| `strictFunctionTypes`          | Function parameter types are checked contravariantly                               |
+| `strictBindCallApply`          | `bind`, `call`, and `apply` are type-checked                                       |
+| `strictPropertyInitialization` | Class properties must be initialised in the constructor                            |
+| `noImplicitAny`                | Variables cannot implicitly receive the `any` type                                 |
+| `noImplicitThis`               | `this` in non-class contexts must be typed                                         |
+| `alwaysStrict`                 | `"use strict"` emitted in every output file                                        |
+| `useUnknownInCatchVariables`   | `catch (e)` binds `e` as `unknown`, not `any`                                      |
 
 The two extra flags beyond `strict` (`exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`) address common sources of runtime errors not covered by the base strict mode:
 
@@ -136,7 +136,9 @@ The two extra flags beyond `strict` (`exactOptionalPropertyTypes` and `noUncheck
 const raw: unknown = await response.json();
 
 // For generic containers:
-function identity<T>(value: T): T { return value; }
+function identity<T>(value: T): T {
+  return value;
+}
 
 // For dynamic keys with a known value shape:
 const lookup: Record<string, DocumentType> = {};
@@ -189,11 +191,7 @@ export function formatDocumentNumber(series: string, year: number, seq: number) 
 }
 
 // RIGHT
-export function formatDocumentNumber(
-  series: string,
-  year: number,
-  seq: number,
-): string {
+export function formatDocumentNumber(series: string, year: number, seq: number): string {
   return `${series} ${year}-${String(seq).padStart(2, '0')}`;
 }
 
@@ -202,9 +200,11 @@ export async function findDocumentByTrackingId(
   db: Database,
   trackingId: string,
 ): Promise<Document | null> {
-  return db.query.documents.findFirst({
-    where: eq(documents.trackingId, trackingId),
-  }) ?? null;
+  return (
+    db.query.documents.findFirst({
+      where: eq(documents.trackingId, trackingId),
+    }) ?? null
+  );
 }
 
 // ACCEPTABLE for internal helpers — inference is clear
@@ -291,12 +291,12 @@ Use `SCREAMING_SNAKE_CASE` for values that are:
 
 export const MAYOR_REVIEW_WINDOW_DAYS = 10;
 export const PANLALAWIGAN_REVIEW_WINDOW_DAYS = 30;
-export const QUORUM_THRESHOLD = 7;           // of 12 members
-export const VETO_OVERRIDE_THRESHOLD = 8;    // of 12 members
-export const SESSION_DAY_OF_WEEK = 2;        // Tuesday (0 = Sunday)
+export const QUORUM_THRESHOLD = 7; // of 12 members
+export const VETO_OVERRIDE_THRESHOLD = 8; // of 12 members
+export const SESSION_DAY_OF_WEEK = 2; // Tuesday (0 = Sunday)
 export const ORDER_OF_BUSINESS_CUTOFF_DAY = 4; // Thursday
 export const QR_TRACKING_PREFIX = 'DTS';
-export const SP_ORDINAL = 7;                 // 7th Sangguniang Panlungsod
+export const SP_ORDINAL = 7; // 7th Sangguniang Panlungsod
 
 // NOT a true constant — derived at runtime
 const currentYear = new Date().getFullYear(); // stays camelCase
@@ -323,30 +323,30 @@ const bucket = env.S3_BUCKET;
 
 All file and directory names in `/packages` and `/apps` use **kebab-case**, regardless of what the file exports.
 
-|What the file exports|File name|
-|---|---|
-|`DocumentList` component|`document-list.tsx`|
-|`WorkflowEngine` class|`workflow-engine.ts`|
-|`formatDocumentNumber` function|`format-document-number.ts`|
-|`DocumentRecordSchema` Zod schema|`document-record.schema.ts`|
-|`useDocumentSearch` hook|`use-document-search.ts`|
-|Tests for `document-list.tsx`|`document-list.test.tsx`|
+| What the file exports             | File name                   |
+| --------------------------------- | --------------------------- |
+| `DocumentList` component          | `document-list.tsx`         |
+| `WorkflowEngine` class            | `workflow-engine.ts`        |
+| `formatDocumentNumber` function   | `format-document-number.ts` |
+| `DocumentRecordSchema` Zod schema | `document-record.schema.ts` |
+| `useDocumentSearch` hook          | `use-document-search.ts`    |
+| Tests for `document-list.tsx`     | `document-list.test.tsx`    |
 
 **Suffix conventions:**
 
-|Suffix|Use|
-|---|---|
-|`.schema.ts`|Zod schema definitions (in `/packages/shared`)|
-|`.types.ts`|Type-only files where they need to be isolated|
-|`.test.ts` / `.test.tsx`|Vitest unit and integration tests|
-|`.spec.ts`|Playwright E2E spec files|
-|`.config.ts`|Configuration objects|
-|`.constants.ts`|Module-level constants|
-|`.router.ts`|tRPC router definitions|
-|`.handler.ts`|Fastify route handler functions|
-|`.service.ts`|Domain service modules|
-|`.repository.ts`|Database query modules|
-|`.events.ts`|Internal event type definitions|
+| Suffix                   | Use                                            |
+| ------------------------ | ---------------------------------------------- |
+| `.schema.ts`             | Zod schema definitions (in `/packages/shared`) |
+| `.types.ts`              | Type-only files where they need to be isolated |
+| `.test.ts` / `.test.tsx` | Vitest unit and integration tests              |
+| `.spec.ts`               | Playwright E2E spec files                      |
+| `.config.ts`             | Configuration objects                          |
+| `.constants.ts`          | Module-level constants                         |
+| `.router.ts`             | tRPC router definitions                        |
+| `.handler.ts`            | Fastify route handler functions                |
+| `.service.ts`            | Domain service modules                         |
+| `.repository.ts`         | Database query modules                         |
+| `.events.ts`             | Internal event type definitions                |
 
 **Index files (`index.ts`)** are used at the top of each package to define the public API. Consumers import from the package, not from internal paths.
 
@@ -365,18 +365,18 @@ Drizzle schema definitions use **snake_case** for table names and column names, 
 ```typescript
 // /packages/database/src/schema/documents.schema.ts
 export const documents = pgTable('documents', {
-  id:                  uuid('id').primaryKey().defaultRandom(),
-  cityId:              uuid('city_id').notNull(),
-  documentTypeId:      uuid('document_type_id').notNull(),
+  id: uuid('id').primaryKey().defaultRandom(),
+  cityId: uuid('city_id').notNull(),
+  documentTypeId: uuid('document_type_id').notNull(),
   originatingOfficeId: uuid('originating_office_id').notNull(),
-  trackingId:          varchar('tracking_id', { length: 64 }).notNull().unique(),
-  preliminaryNumber:   varchar('preliminary_number', { length: 64 }),
-  finalNumber:         varchar('final_number', { length: 64 }),
-  status:              documentStatusEnum('status').notNull().default('draft'),
-  createdAt:           timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt:           timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  deletedAt:           timestamp('deleted_at', { withTimezone: true }),
-  deletedBy:           uuid('deleted_by'),
+  trackingId: varchar('tracking_id', { length: 64 }).notNull().unique(),
+  preliminaryNumber: varchar('preliminary_number', { length: 64 }),
+  finalNumber: varchar('final_number', { length: 64 }),
+  status: documentStatusEnum('status').notNull().default('draft'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  deletedBy: uuid('deleted_by'),
 });
 ```
 
@@ -406,13 +406,13 @@ tRPC procedures use **camelCase** and must reflect an action on a resource:
 
 ```typescript
 // Pattern: {verb}{Resource} or {resource}.{verb}
-documentRouter.getById
-documentRouter.create
-documentRouter.promoteToFinalNumber
-workflowRouter.advanceStep
-workflowRouter.getInstanceStatus
-sessionRouter.record
-sessionRouter.getAttendance
+documentRouter.getById;
+documentRouter.create;
+documentRouter.promoteToFinalNumber;
+workflowRouter.advanceStep;
+workflowRouter.getInstanceStatus;
+sessionRouter.record;
+sessionRouter.getAttendance;
 ```
 
 Avoid generic names like `get`, `update`, `handle`. Be specific about what is being fetched or mutated.
@@ -603,13 +603,13 @@ export function formatControlNumber(series: string, year: number, seq: number): 
 
 **Tag requirements:**
 
-|Tag|Required when|
-|---|---|
-|`@param`|Function has parameters|
-|`@returns`|Function returns a non-void value|
-|`@throws`|Function throws a known error class|
-|`@example`|The usage is non-obvious or the function has edge cases|
-|`@deprecated`|Function is deprecated; include migration path in body|
+| Tag           | Required when                                           |
+| ------------- | ------------------------------------------------------- |
+| `@param`      | Function has parameters                                 |
+| `@returns`    | Function returns a non-void value                       |
+| `@throws`     | Function throws a known error class                     |
+| `@example`    | The usage is non-obvious or the function has edge cases |
+| `@deprecated` | Function is deprecated; include migration path in body  |
 
 **JSDoc on types and interfaces in `/packages/shared`:**
 
@@ -654,9 +654,7 @@ if (document.finalNumber !== null) {
 // Drizzle does not expose a native `FOR UPDATE SKIP LOCKED` shortcut;
 // using sql`` template tag to get advisory lock on the sequence row.
 // This prevents duplicate sequence numbers under concurrent requests.
-await db.execute(
-  sql`SELECT pg_advisory_xact_lock(${SEQUENCE_LOCK_KEY})`
-);
+await db.execute(sql`SELECT pg_advisory_xact_lock(${SEQUENCE_LOCK_KEY})`);
 ```
 
 **Section separator comments in large files:**
@@ -713,12 +711,12 @@ Prettier runs on all TypeScript, JavaScript, JSON, Markdown, and CSS files. The 
 
 **Rationale for key settings:**
 
-|Setting|Value|Reason|
-|---|---|---|
-|`printWidth`|`100`|TypeScript generics and JSDoc annotations frequently exceed 80 characters|
-|`trailingComma`|`"all"`|Cleaner git diffs when adding new array items or function parameters|
-|`singleQuote`|`true`|Consistent with the majority TypeScript convention; avoids HTML/JSX conflicts|
-|`semi`|`true`|Avoids ASI edge cases; explicit termination|
+| Setting         | Value   | Reason                                                                        |
+| --------------- | ------- | ----------------------------------------------------------------------------- |
+| `printWidth`    | `100`   | TypeScript generics and JSDoc annotations frequently exceed 80 characters     |
+| `trailingComma` | `"all"` | Cleaner git diffs when adding new array items or function parameters          |
+| `singleQuote`   | `true`  | Consistent with the majority TypeScript convention; avoids HTML/JSX conflicts |
+| `semi`          | `true`  | Avoids ASI edge cases; explicit termination                                   |
 
 ### 6.2 `.prettierignore`
 
@@ -755,19 +753,19 @@ All team members must configure their editor to format on save using the workspa
 
 ### 7.2 Core Plugins
 
-|Plugin|Purpose|
-|---|---|
-|`@typescript-eslint`|TypeScript-aware lint rules|
-|`eslint-plugin-import`|Import ordering and resolution|
-|`eslint-plugin-boundaries`|Module boundary enforcement|
-|`jsdoc`|JSDoc completeness on exports in `/packages/shared`|
-|`eslint-plugin-react`|React-specific rules (web app only)|
-|`eslint-plugin-react-hooks`|Hook dependency arrays (web app only)|
-|`eslint-plugin-no-restricted-imports`|Blocks direct `process.env` access, cross-schema imports|
+| Plugin                                | Purpose                                                  |
+| ------------------------------------- | -------------------------------------------------------- |
+| `@typescript-eslint`                  | TypeScript-aware lint rules                              |
+| `eslint-plugin-import`                | Import ordering and resolution                           |
+| `eslint-plugin-boundaries`            | Module boundary enforcement                              |
+| `jsdoc`                               | JSDoc completeness on exports in `/packages/shared`      |
+| `eslint-plugin-react`                 | React-specific rules (web app only)                      |
+| `eslint-plugin-react-hooks`           | Hook dependency arrays (web app only)                    |
+| `eslint-plugin-no-restricted-imports` | Blocks direct `process.env` access, cross-schema imports |
 
 ### 7.3 Key Rule Decisions
 
-```js
+````js
 // /packages/config/eslint.base.js (excerpt)
 module.exports = {
   rules: {
@@ -843,8 +841,9 @@ overrides: [
     rules: { 'no-restricted-syntax': 'off' },
   },
 ],
-```
-```
+````
+
+````
 
 ### 7.4 `no-console` Enforcement
 
@@ -859,7 +858,7 @@ console.error('Failed to assign number:', err);
 import { logger } from '@batac/server/logger';
 logger.info({ documentId }, 'Document logged by secretariat');
 logger.error({ err, documentId }, 'Failed to assign preliminary number');
-```
+````
 
 The logger is structured JSON (Pino). All log calls must include a context object as the first argument and a message string as the second. Never concatenate data into the message string — put it in the context object.
 
@@ -1156,33 +1155,33 @@ throw new TRPCError({ code: 'CONFLICT', message: 'Person already has an active d
 
 ## 11. Quick-Reference Cheat Sheet
 
-|Category|Rule|Example|
-|---|---|---|
-|TypeScript|`strict: true` + `exactOptionalPropertyTypes` + `noUncheckedIndexedAccess`|See §1.1|
-|TypeScript|No `any` — use `unknown`|`const raw: unknown = res.json()`|
-|TypeScript|Explicit return types on all exports in `/packages`|`export function foo(): string`|
-|TypeScript|`import type` for type-only imports|`import type { User } from '...'`|
-|Naming|Types, interfaces, components → PascalCase|`DocumentRecord`, `DocumentList`|
-|Naming|Functions, variables → camelCase|`formatControlNumber`, `currentYear`|
-|Naming|Module-level fixed values → SCREAMING_SNAKE_CASE|`MAYOR_REVIEW_WINDOW_DAYS`|
-|Naming|Files and directories → kebab-case|`document-list.tsx`|
-|Naming|DB columns → snake_case|`originating_office_id`|
-|Naming|Zod schemas → `{Entity}Schema`|`DocumentRecordSchema`|
-|Naming|Event names → `MODULE_NOUN_PAST_VERB`|`WORKFLOW_STEP_COMPLETED`|
-|Imports|Group order: Node → External → `@batac/*` → `@/` → Relative → Types|See §3|
-|Imports|One blank line between groups|See §3.2|
-|Modules|No cross-schema imports|See §4.1|
-|Modules|Communicate via event bus or published module API only|See §4.2|
-|Comments|JSDoc required on all exports in `/packages/shared`|See §5.1|
-|Comments|Comments explain _why_, not _what_|See §5.2|
-|Comments|TODOs must include username and GH issue before merge|`// TODO(rosales): GH #42`|
-|Prettier|`printWidth: 100`, `singleQuote: true`, `trailingComma: 'all'`|See §6.1|
-|ESLint|`no-console: error` — use Pino logger|See §7.4|
-|Zod|Schema is source of truth — derive types with `z.infer`|See §9.2|
-|Zod|`.parse()` for internal data, `.safeParse()` for user input|See §9.3|
-|Errors|Never throw strings — always throw `Error` subclasses|See §10.1|
-|Errors|`catch (e)` is `unknown` — narrow before use|See §10.2|
-|Errors|No floating promises — `await`, `return`, or `.catch()`|See §10.3|
+| Category   | Rule                                                                       | Example                              |
+| ---------- | -------------------------------------------------------------------------- | ------------------------------------ |
+| TypeScript | `strict: true` + `exactOptionalPropertyTypes` + `noUncheckedIndexedAccess` | See §1.1                             |
+| TypeScript | No `any` — use `unknown`                                                   | `const raw: unknown = res.json()`    |
+| TypeScript | Explicit return types on all exports in `/packages`                        | `export function foo(): string`      |
+| TypeScript | `import type` for type-only imports                                        | `import type { User } from '...'`    |
+| Naming     | Types, interfaces, components → PascalCase                                 | `DocumentRecord`, `DocumentList`     |
+| Naming     | Functions, variables → camelCase                                           | `formatControlNumber`, `currentYear` |
+| Naming     | Module-level fixed values → SCREAMING_SNAKE_CASE                           | `MAYOR_REVIEW_WINDOW_DAYS`           |
+| Naming     | Files and directories → kebab-case                                         | `document-list.tsx`                  |
+| Naming     | DB columns → snake_case                                                    | `originating_office_id`              |
+| Naming     | Zod schemas → `{Entity}Schema`                                             | `DocumentRecordSchema`               |
+| Naming     | Event names → `MODULE_NOUN_PAST_VERB`                                      | `WORKFLOW_STEP_COMPLETED`            |
+| Imports    | Group order: Node → External → `@batac/*` → `@/` → Relative → Types        | See §3                               |
+| Imports    | One blank line between groups                                              | See §3.2                             |
+| Modules    | No cross-schema imports                                                    | See §4.1                             |
+| Modules    | Communicate via event bus or published module API only                     | See §4.2                             |
+| Comments   | JSDoc required on all exports in `/packages/shared`                        | See §5.1                             |
+| Comments   | Comments explain _why_, not _what_                                         | See §5.2                             |
+| Comments   | TODOs must include username and GH issue before merge                      | `// TODO(rosales): GH #42`           |
+| Prettier   | `printWidth: 100`, `singleQuote: true`, `trailingComma: 'all'`             | See §6.1                             |
+| ESLint     | `no-console: error` — use Pino logger                                      | See §7.4                             |
+| Zod        | Schema is source of truth — derive types with `z.infer`                    | See §9.2                             |
+| Zod        | `.parse()` for internal data, `.safeParse()` for user input                | See §9.3                             |
+| Errors     | Never throw strings — always throw `Error` subclasses                      | See §10.1                            |
+| Errors     | `catch (e)` is `unknown` — narrow before use                               | See §10.2                            |
+| Errors     | No floating promises — `await`, `return`, or `.catch()`                    | See §10.3                            |
 
 ---
 

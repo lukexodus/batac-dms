@@ -56,7 +56,8 @@ const INACTIVITY_TIMEOUT_MS = env.AUTH_SESSION_INACTIVITY_TIMEOUT_MS;
  * Source: TASK-IAM-005 Hook 1 step 5.
  */
 export function clearAuthCookies(reply: FastifyReply): void {
-  const base = 'Path=/; HttpOnly; SameSite=Strict; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  const base =
+    'Path=/; HttpOnly; SameSite=Strict; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
   const secure = env.AUTH_COOKIE_SECURE ? '; Secure' : '';
   reply.header('Set-Cookie', [
     `${env.AUTH_ACCESS_TOKEN_COOKIE_NAME}=; ${base}${secure}`,
@@ -71,16 +72,16 @@ export function clearAuthCookies(reply: FastifyReply): void {
  * Source: B5 §1.1 JWT Payload — Private Claims.
  */
 interface JwtPrivateClaims {
-  uid:    string;
-  oid:    string | null;
-  rid:    string[];
-  perm:   string[];
-  cid:    string[];
-  dg:     string | null;
-  city:   string;
-  sid:    string;
+  uid: string;
+  oid: string | null;
+  rid: string[];
+  perm: string[];
+  cid: string[];
+  dg: string | null;
+  city: string;
+  sid: string;
   is_ita: boolean;
-  is_pa:  boolean;
+  is_pa: boolean;
 }
 
 // ─── JWT verification ────────────────────────────────────────────────────────
@@ -102,16 +103,16 @@ function verifyJwt(token: string): JwtPrivateClaims {
   }) as jwt.JwtPayload;
 
   return {
-    uid:    String(decoded['uid'] ?? ''),
-    oid:    (decoded['oid'] ?? null) as string | null,
-    rid:    Array.isArray(decoded['rid']) ? (decoded['rid'] as string[]) : [],
-    perm:   Array.isArray(decoded['perm']) ? (decoded['perm'] as string[]) : [],
-    cid:    Array.isArray(decoded['cid']) ? (decoded['cid'] as string[]) : [],
-    dg:     (decoded['dg'] ?? null) as string | null,
-    city:   String(decoded['city'] ?? ''),
-    sid:    String(decoded['sid'] ?? ''),
+    uid: String(decoded['uid'] ?? ''),
+    oid: (decoded['oid'] ?? null) as string | null,
+    rid: Array.isArray(decoded['rid']) ? (decoded['rid'] as string[]) : [],
+    perm: Array.isArray(decoded['perm']) ? (decoded['perm'] as string[]) : [],
+    cid: Array.isArray(decoded['cid']) ? (decoded['cid'] as string[]) : [],
+    dg: (decoded['dg'] ?? null) as string | null,
+    city: String(decoded['city'] ?? ''),
+    sid: String(decoded['sid'] ?? ''),
     is_ita: Boolean(decoded['is_ita']),
-    is_pa:  Boolean(decoded['is_pa']),
+    is_pa: Boolean(decoded['is_pa']),
   };
 }
 
@@ -156,7 +157,9 @@ async function verifyAccessToken(
   try {
     claims = verifyJwt(token);
   } catch {
-    return reply.code(401).send({ code: 'UNAUTHORIZED', message: 'Invalid or expired access token' });
+    return reply
+      .code(401)
+      .send({ code: 'UNAUTHORIZED', message: 'Invalid or expired access token' });
   }
 
   // Step 3 — load session
@@ -200,18 +203,18 @@ async function verifyAccessToken(
   // effectiveOfficeIds is always string[] (never contains null).
   // Source: TASK-IAM-005 Hook 2 note on effectiveOfficeIds type safety.
   const auth: AuthContext = {
-    userId:             claims.uid,
-    sessionId:          claims.sid,
-    officeId:           claims.oid,
-    cityId:             claims.city,
-    roles:              claims.rid,
-    permissions:        claims.perm,
-    committeeIds:       claims.cid,
-    delegationGrantId:  claims.dg,
+    userId: claims.uid,
+    sessionId: claims.sid,
+    officeId: claims.oid,
+    cityId: claims.city,
+    roles: claims.rid,
+    permissions: claims.perm,
+    committeeIds: claims.cid,
+    delegationGrantId: claims.dg,
     effectiveOfficeIds: claims.oid !== null ? [claims.oid] : [],
-    effectiveRoles:     [...claims.rid],
-    isItAdmin:          claims.is_ita,
-    isPlatformAdmin:    claims.is_pa,
+    effectiveRoles: [...claims.rid],
+    isItAdmin: claims.is_ita,
+    isPlatformAdmin: claims.is_pa,
   };
 
   request.auth = auth;
@@ -263,10 +266,9 @@ async function loadDelegationContext(
   }
 
   // Expand effective scope with delegation grant
-  auth.effectiveOfficeIds = [
-    auth.officeId,
-    ...grant.scope.officeIds,
-  ].filter((id): id is string => id !== null);
+  auth.effectiveOfficeIds = [auth.officeId, ...grant.scope.officeIds].filter(
+    (id): id is string => id !== null,
+  );
 
   auth.effectiveRoles = [...auth.roles, ...grant.scope.roles];
 }
@@ -346,7 +348,10 @@ async function setDatabaseSessionVars(
   //   the request lifecycle (Hook 4, route handler, `onResponse`) can proceed.
   let resolveTx!: () => void;
   let rejectTx!: (err: unknown) => void;
-  const txOpen = new Promise<void>((resolve, reject) => { resolveTx = resolve; rejectTx = reject; });
+  const txOpen = new Promise<void>((resolve, reject) => {
+    resolveTx = resolve;
+    rejectTx = reject;
+  });
 
   let resolveGucs!: () => void;
   let rejectGucs!: (err: unknown) => void;
@@ -359,10 +364,11 @@ async function setDatabaseSessionVars(
   // it only resolves when the transaction commits (triggered by `onResponse`).
   // Instead, `.catch()` propagates early failures (e.g., connection errors) to
   // Hook 3 via `rejectGucs`, and we `await gucsReady` to ensure GUCs are set.
-  this.db.transaction(async (tx) => {
-    // set_config(name, value, is_local). is_local=true → SET LOCAL semantics.
-    // Passing null as value sets the GUC to SQL NULL — not the string 'null'.
-    await tx.execute(sql`
+  this.db
+    .transaction(async (tx) => {
+      // set_config(name, value, is_local). is_local=true → SET LOCAL semantics.
+      // Passing null as value sets the GUC to SQL NULL — not the string 'null'.
+      await tx.execute(sql`
       SELECT
         set_config('app.current_user_id',   ${auth.userId},   true),
         set_config('app.current_office_id', ${auth.officeId}, true),
@@ -372,23 +378,24 @@ async function setDatabaseSessionVars(
         set_config('app.is_pa',             ${String(auth.isPlatformAdmin)}, true)
     `);
 
-    // Store the transaction handle in AsyncLocalStorage so the proxy on
-    // fastify.db can access it for all downstream queries in this request.
-    // The ALS scope lives for the duration of the run() callback, which
-    // stays suspended until the onResponse hook resolves txOpen.
-    await rlsStore.run({ tx }, async () => {
-      // Signal that GUCs are set — Hook 3 can return and let the request
-      // lifecycle continue. The transaction remains open (awaiting txOpen).
-      resolveGucs();
-      await txOpen;
+      // Store the transaction handle in AsyncLocalStorage so the proxy on
+      // fastify.db can access it for all downstream queries in this request.
+      // The ALS scope lives for the duration of the run() callback, which
+      // stays suspended until the onResponse hook resolves txOpen.
+      await rlsStore.run({ tx }, async () => {
+        // Signal that GUCs are set — Hook 3 can return and let the request
+        // lifecycle continue. The transaction remains open (awaiting txOpen).
+        resolveGucs();
+        await txOpen;
+      });
+    })
+    .catch((err) => {
+      // If the transaction fails to start or GUC setup fails, propagate the
+      // error to Hook 3 so Fastify can return a 500. If GUCs were already set,
+      // rejectGucs is a no-op (promise already resolved) and the error is
+      // silently absorbed — the route handler has already run by this point.
+      rejectGucs(err);
     });
-  }).catch((err) => {
-    // If the transaction fails to start or GUC setup fails, propagate the
-    // error to Hook 3 so Fastify can return a 500. If GUCs were already set,
-    // rejectGucs is a no-op (promise already resolved) and the error is
-    // silently absorbed — the route handler has already run by this point.
-    rejectGucs(err);
-  });
 
   // Wait for GUCs to be set (or transaction setup to fail). Once GUCs are set,
   // Hook 3 returns so Hook 4 and the route handler can proceed. The PostgreSQL

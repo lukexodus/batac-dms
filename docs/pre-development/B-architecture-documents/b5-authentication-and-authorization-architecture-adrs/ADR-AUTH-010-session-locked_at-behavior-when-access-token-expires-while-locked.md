@@ -1,6 +1,5 @@
 # ADR-AUTH-010: Session `locked_at` Behavior When Access Token Expires While Locked
 
-
 **Status:** Accepted, with one item explicitly deferred to Phase 2
 
 **Context**

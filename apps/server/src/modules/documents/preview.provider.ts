@@ -13,8 +13,8 @@ export class StubPreviewProvider implements PreviewProvider {
     // 1×1 transparent WebP placeholder (valid minimal WebP header)
     return Buffer.from(
       'UklGRlYAAABXRUJQVlA4IEoAAADQAQCdASoBAAEAAkA4JYgCdAEO/gHOAAD++' +
-      'P3f///////z3/f1f/3//////9H/////////v/////////a//////////8A',
-      'base64'
+        'P3f///////z3/f1f/3//////9H/////////v/////////a//////////8A',
+      'base64',
     );
   }
 }

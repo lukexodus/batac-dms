@@ -48,21 +48,47 @@ const OTHER_USER_ID = '00000000-0000-4000-8000-000000000007';
 function makeDeps(): OrgRouterDeps {
   const orgRepository = {
     offices: {
-      findById: vi.fn().mockResolvedValue({ id: OFFICE_ID, name: 'Existing', code: 'EX', officeType: 'department', parentOfficeId: null }),
+      findById: vi.fn().mockResolvedValue({
+        id: OFFICE_ID,
+        name: 'Existing',
+        code: 'EX',
+        officeType: 'department',
+        parentOfficeId: null,
+      }),
       findAll: vi.fn().mockResolvedValue([]),
-      create: vi.fn().mockResolvedValue({ id: OFFICE_ID, name: 'New Office', code: 'NEW', officeType: 'department', parentOfficeId: null }),
-      update: vi.fn().mockResolvedValue({ id: OFFICE_ID, name: 'Updated', code: 'EX', officeType: 'department', parentOfficeId: null }),
+      create: vi.fn().mockResolvedValue({
+        id: OFFICE_ID,
+        name: 'New Office',
+        code: 'NEW',
+        officeType: 'department',
+        parentOfficeId: null,
+      }),
+      update: vi.fn().mockResolvedValue({
+        id: OFFICE_ID,
+        name: 'Updated',
+        code: 'EX',
+        officeType: 'department',
+        parentOfficeId: null,
+      }),
       softDelete: vi.fn().mockResolvedValue(undefined),
     },
     positions: {
-      findById: vi.fn().mockResolvedValue({ id: POSITION_ID, title: 'Councilor', officeId: OFFICE_ID, code: 'CNC', authorityLevel: 'staff' }),
+      findById: vi.fn().mockResolvedValue({
+        id: POSITION_ID,
+        title: 'Councilor',
+        officeId: OFFICE_ID,
+        code: 'CNC',
+        authorityLevel: 'staff',
+      }),
       findAll: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue({ id: POSITION_ID, title: 'New Position' }),
       update: vi.fn().mockResolvedValue({ id: POSITION_ID, title: 'Updated Position' }),
       softDelete: vi.fn().mockResolvedValue(undefined),
     },
     employees: {
-      findById: vi.fn().mockResolvedValue({ id: EMPLOYEE_ID, firstName: 'Juan', lastName: 'Dela Cruz' }),
+      findById: vi
+        .fn()
+        .mockResolvedValue({ id: EMPLOYEE_ID, firstName: 'Juan', lastName: 'Dela Cruz' }),
       findByUserId: vi.fn().mockResolvedValue(null),
       findAll: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue({ id: EMPLOYEE_ID }),
@@ -87,7 +113,12 @@ function makeDeps(): OrgRouterDeps {
       findByIdAndActive: vi.fn().mockResolvedValue(null),
     },
     committees: {
-      findById: vi.fn().mockResolvedValue({ id: COMMITTEE_ID, name: 'Existing Committee', code: 'EC', chairedByEmployeeId: EMPLOYEE_ID }),
+      findById: vi.fn().mockResolvedValue({
+        id: COMMITTEE_ID,
+        name: 'Existing Committee',
+        code: 'EC',
+        chairedByEmployeeId: EMPLOYEE_ID,
+      }),
       findAll: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue({ id: COMMITTEE_ID }),
       update: vi.fn().mockResolvedValue({ id: COMMITTEE_ID }),
@@ -107,7 +138,14 @@ function makeDeps(): OrgRouterDeps {
     resolveCurrentHolder: vi.fn(),
     getOfficeById: vi.fn(),
     getOfficeHierarchy: vi.fn().mockResolvedValue({
-      offices: [{ officeId: OFFICE_ID, name: 'Office of the Mayor', parentOfficeId: null, type: 'executive' }],
+      offices: [
+        {
+          officeId: OFFICE_ID,
+          name: 'Office of the Mayor',
+          parentOfficeId: null,
+          type: 'executive',
+        },
+      ],
     }),
     getEmployeeByUserId: vi.fn(),
     getPrimaryOfficeForUser: vi.fn(),
@@ -117,8 +155,12 @@ function makeDeps(): OrgRouterDeps {
   const delegationService = {
     getActiveDelegationForUser: vi.fn(),
     getDelegationGrantById: vi.fn(),
-    createDelegationGrant: vi.fn().mockResolvedValue({ id: '00000000-0000-4000-8000-0000000000d1' }),
-    revokeEarlyDelegationGrant: vi.fn().mockResolvedValue({ id: '00000000-0000-4000-8000-0000000000d1' }),
+    createDelegationGrant: vi
+      .fn()
+      .mockResolvedValue({ id: '00000000-0000-4000-8000-0000000000d1' }),
+    revokeEarlyDelegationGrant: vi
+      .fn()
+      .mockResolvedValue({ id: '00000000-0000-4000-8000-0000000000d1' }),
     listActiveDesignations: vi.fn().mockResolvedValue([
       {
         delegationId: '00000000-0000-4000-8000-0000000000c1',
@@ -134,16 +176,19 @@ function makeDeps(): OrgRouterDeps {
       },
     ]),
     listDesignationHistory: vi.fn().mockResolvedValue([]),
-    listActiveDesignationParties: vi.fn().mockResolvedValue([
-      { delegatingUserId: USER_ID, delegatedToUserId: OTHER_USER_ID },
-    ]),
+    listActiveDesignationParties: vi
+      .fn()
+      .mockResolvedValue([{ delegatingUserId: USER_ID, delegatedToUserId: OTHER_USER_ID }]),
   };
 
   return {
     orgRepository: orgRepository as unknown as OrgRouterDeps['orgRepository'],
     orgService: orgService as unknown as OrgRouterDeps['orgService'],
     delegationService: delegationService as unknown as OrgRouterDeps['delegationService'],
-    policyEvaluator: { evaluate: vi.fn(), registerResourceHandler: vi.fn() } as unknown as OrgRouterDeps['policyEvaluator'],
+    policyEvaluator: {
+      evaluate: vi.fn(),
+      registerResourceHandler: vi.fn(),
+    } as unknown as OrgRouterDeps['policyEvaluator'],
   };
 }
 
@@ -199,41 +244,61 @@ describe('organization router — plat_admin-only mutations', () => {
     ['createOffice', { name: 'New', code: 'NEW', officeType: 'department' as const }],
     ['updateOffice', { officeId: OFFICE_ID, name: 'Renamed' }],
     ['deactivateOffice', { officeId: OFFICE_ID }],
-    ['createPosition', { officeId: OFFICE_ID, title: 'Clerk', code: 'CLK', authorityLevel: 'staff' as const }],
+    [
+      'createPosition',
+      { officeId: OFFICE_ID, title: 'Clerk', code: 'CLK', authorityLevel: 'staff' as const },
+    ],
     ['updatePosition', { positionId: POSITION_ID, title: 'Senior Clerk' }],
     ['createEmployee', { firstName: 'Juan', lastName: 'Cruz', employeeNumber: 'EMP-1' }],
     ['updateEmployee', { employeeId: EMPLOYEE_ID, firstName: 'Juana' }],
     [
       'assignEmployeeToPosition',
-      { employeeId: EMPLOYEE_ID, positionId: POSITION_ID, officeId: OFFICE_ID, startDate: new Date('2026-01-01') },
+      {
+        employeeId: EMPLOYEE_ID,
+        positionId: POSITION_ID,
+        officeId: OFFICE_ID,
+        startDate: new Date('2026-01-01'),
+      },
     ],
-  ] as const)('%s rejects a non-plat_admin role with UNAUTHORIZED and does not touch the repository', async (procedure, input) => {
-    const caller = buildCaller(makeCtx([NON_ADMIN_ROLE]), deps);
+  ] as const)(
+    '%s rejects a non-plat_admin role with UNAUTHORIZED and does not touch the repository',
+    async (procedure, input) => {
+      const caller = buildCaller(makeCtx([NON_ADMIN_ROLE]), deps);
 
-    await expect((caller.organization as any)[procedure](input)).rejects.toThrowError(TRPCError);
-    try {
-      await (caller.organization as any)[procedure](input);
-    } catch (err) {
-      expect(err).toBeInstanceOf(TRPCError);
-      expect((err as TRPCError).code).toBe('UNAUTHORIZED');
-    }
+      await expect((caller.organization as any)[procedure](input)).rejects.toThrowError(TRPCError);
+      try {
+        await (caller.organization as any)[procedure](input);
+      } catch (err) {
+        expect(err).toBeInstanceOf(TRPCError);
+        expect((err as TRPCError).code).toBe('UNAUTHORIZED');
+      }
 
-    expect(deps.orgRepository.offices.create).not.toHaveBeenCalled();
-    expect(deps.orgRepository.offices.update).not.toHaveBeenCalled();
-    expect(deps.orgRepository.offices.softDelete).not.toHaveBeenCalled();
-    expect(deps.orgRepository.positions.create).not.toHaveBeenCalled();
-    expect(deps.orgRepository.positions.update).not.toHaveBeenCalled();
-    expect(deps.orgRepository.employees.create).not.toHaveBeenCalled();
-    expect(deps.orgRepository.employees.update).not.toHaveBeenCalled();
-    expect(deps.orgRepository.assignments.create).not.toHaveBeenCalled();
-  });
+      expect(deps.orgRepository.offices.create).not.toHaveBeenCalled();
+      expect(deps.orgRepository.offices.update).not.toHaveBeenCalled();
+      expect(deps.orgRepository.offices.softDelete).not.toHaveBeenCalled();
+      expect(deps.orgRepository.positions.create).not.toHaveBeenCalled();
+      expect(deps.orgRepository.positions.update).not.toHaveBeenCalled();
+      expect(deps.orgRepository.employees.create).not.toHaveBeenCalled();
+      expect(deps.orgRepository.employees.update).not.toHaveBeenCalled();
+      expect(deps.orgRepository.assignments.create).not.toHaveBeenCalled();
+    },
+  );
 
   it('createOffice succeeds for plat_admin (proves the gate is not rejecting everyone)', async () => {
     const caller = buildCaller(makeCtx(['plat_admin']), deps);
 
-    const result = await caller.organization.createOffice({ name: 'New Office', code: 'NEW', officeType: 'department' });
+    const result = await caller.organization.createOffice({
+      name: 'New Office',
+      code: 'NEW',
+      officeType: 'department',
+    });
 
-    expect(result).toEqual({ officeId: OFFICE_ID, name: 'New Office', parentOfficeId: null, type: 'department' });
+    expect(result).toEqual({
+      officeId: OFFICE_ID,
+      name: 'New Office',
+      parentOfficeId: null,
+      type: 'department',
+    });
     expect(deps.orgRepository.offices.create).toHaveBeenCalledOnce();
   });
 
@@ -264,7 +329,11 @@ describe('organization router — committees (I2 §3, plat_admin only)', () => {
     const caller = buildCaller(makeCtx(['dept_encoder']), deps);
 
     await expect(
-      caller.organization.createCommittee({ name: 'New Committee', code: 'NC', chairedByEmployeeId: EMPLOYEE_ID }),
+      caller.organization.createCommittee({
+        name: 'New Committee',
+        code: 'NC',
+        chairedByEmployeeId: EMPLOYEE_ID,
+      }),
     ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
     expect(deps.orgRepository.committees.create).not.toHaveBeenCalled();
   });
@@ -300,7 +369,14 @@ describe('organization.getActiveDesignations — I1 §11.3 read policy', () => {
     deps = makeDeps();
   });
 
-  const ALLOWED_ROLES = ['sys_admin', 'plat_admin', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'auditor'];
+  const ALLOWED_ROLES = [
+    'sys_admin',
+    'plat_admin',
+    'sp_secretary',
+    'sp_presiding_officer',
+    'mayor',
+    'auditor',
+  ];
 
   it.each(ALLOWED_ROLES)('returns the active designation list for role=%s', async (role) => {
     const caller = buildCaller(makeCtx([role], { userId: 'someone-else-entirely' }), deps);
@@ -311,7 +387,9 @@ describe('organization.getActiveDesignations — I1 §11.3 read policy', () => {
 
   it('a subject whose role is not allowed AND who is not a party to any listed grant returns UNAUTHORIZED', async () => {
     const caller = buildCaller(makeCtx(['dept_encoder'], { userId: 'not-a-party-user' }), deps);
-    await expect(caller.organization.getActiveDesignations()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    await expect(caller.organization.getActiveDesignations()).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
     expect(deps.delegationService.listActiveDesignations).not.toHaveBeenCalled();
   });
 
@@ -330,7 +408,9 @@ describe('organization.getActiveDesignations — I1 §11.3 read policy', () => {
 
   it('unauthenticated caller gets UNAUTHORIZED before any party check is made', async () => {
     const caller = buildCaller(makeUnauthCtx(), deps);
-    await expect(caller.organization.getActiveDesignations()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    await expect(caller.organization.getActiveDesignations()).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
   });
 });
 
@@ -343,14 +423,22 @@ describe('organization.getDesignationHistory', () => {
 
   it('rejects a role outside the I1 §11.3 list with UNAUTHORIZED', async () => {
     const caller = buildCaller(makeCtx(['dept_approver']), deps);
-    await expect(caller.organization.getDesignationHistory({})).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    await expect(caller.organization.getDesignationHistory({})).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
     expect(deps.delegationService.listDesignationHistory).not.toHaveBeenCalled();
   });
 
   it('forwards pageSize and employeeId to the service and returns nextCursor: null', async () => {
     const caller = buildCaller(makeCtx(['auditor']), deps);
-    const result = await caller.organization.getDesignationHistory({ pageSize: 5, employeeId: EMPLOYEE_ID });
-    expect(deps.delegationService.listDesignationHistory).toHaveBeenCalledWith({ limit: 5, employeeId: EMPLOYEE_ID });
+    const result = await caller.organization.getDesignationHistory({
+      pageSize: 5,
+      employeeId: EMPLOYEE_ID,
+    });
+    expect(deps.delegationService.listDesignationHistory).toHaveBeenCalledWith({
+      limit: 5,
+      employeeId: EMPLOYEE_ID,
+    });
     expect(result.nextCursor).toBeNull();
   });
 });
@@ -363,23 +451,34 @@ describe('organization.getOfficeHierarchy — I2 §2 view permissions, "ABAC: no
   });
 
   it.each([
-    'sys_admin', 'plat_admin', 'records_officer', 'sp_secretary', 'sp_member',
-    'sp_presiding_officer', 'mayor', 'auditor',
+    'sys_admin',
+    'plat_admin',
+    'records_officer',
+    'sp_secretary',
+    'sp_member',
+    'sp_presiding_officer',
+    'mayor',
+    'auditor',
   ])('full-tree role %s can call getOfficeHierarchy', async (role) => {
     const caller = buildCaller(makeCtx([role]), deps);
     const result = await caller.organization.getOfficeHierarchy();
     expect(result.offices).toHaveLength(1);
   });
 
-  it.each(['dept_encoder', 'dept_approver'])('read-only role %s can call getOfficeHierarchy', async (role) => {
-    const caller = buildCaller(makeCtx([role]), deps);
-    const result = await caller.organization.getOfficeHierarchy();
-    expect(result.offices).toHaveLength(1);
-  });
+  it.each(['dept_encoder', 'dept_approver'])(
+    'read-only role %s can call getOfficeHierarchy',
+    async (role) => {
+      const caller = buildCaller(makeCtx([role]), deps);
+      const result = await caller.organization.getOfficeHierarchy();
+      expect(result.offices).toHaveLength(1);
+    },
+  );
 
   it('a role outside the I2 §2 list (e.g. citizen) is rejected with UNAUTHORIZED', async () => {
     const caller = buildCaller(makeCtx(['citizen']), deps);
-    await expect(caller.organization.getOfficeHierarchy()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    await expect(caller.organization.getOfficeHierarchy()).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
     expect(deps.orgService.getOfficeHierarchy).not.toHaveBeenCalled();
   });
 });
@@ -392,10 +491,12 @@ describe('organization.assignEmployeeToPosition — singular vs. plural position
   });
 
   it('rejects a second active holder for a singular position (Mayor) with CONFLICT', async () => {
-    deps.orgRepository.positions.findById = vi.fn().mockResolvedValue({ id: POSITION_ID, title: 'Mayor' });
-    deps.orgRepository.assignments.findAll = vi.fn().mockResolvedValue([
-      { positionId: POSITION_ID, isActive: true },
-    ]);
+    deps.orgRepository.positions.findById = vi
+      .fn()
+      .mockResolvedValue({ id: POSITION_ID, title: 'Mayor' });
+    deps.orgRepository.assignments.findAll = vi
+      .fn()
+      .mockResolvedValue([{ positionId: POSITION_ID, isActive: true }]);
     const caller = buildCaller(makeCtx(['plat_admin']), deps);
 
     await expect(
@@ -410,10 +511,12 @@ describe('organization.assignEmployeeToPosition — singular vs. plural position
   });
 
   it('allows a second active holder for a plural position (Councilor)', async () => {
-    deps.orgRepository.positions.findById = vi.fn().mockResolvedValue({ id: POSITION_ID, title: 'Councilor' });
-    deps.orgRepository.assignments.findAll = vi.fn().mockResolvedValue([
-      { positionId: POSITION_ID, isActive: true },
-    ]);
+    deps.orgRepository.positions.findById = vi
+      .fn()
+      .mockResolvedValue({ id: POSITION_ID, title: 'Councilor' });
+    deps.orgRepository.assignments.findAll = vi
+      .fn()
+      .mockResolvedValue([{ positionId: POSITION_ID, isActive: true }]);
     const caller = buildCaller(makeCtx(['plat_admin']), deps);
 
     const result = await caller.organization.assignEmployeeToPosition({
@@ -427,7 +530,9 @@ describe('organization.assignEmployeeToPosition — singular vs. plural position
   });
 
   it('allows the first holder of a singular position (no conflict when none exists yet)', async () => {
-    deps.orgRepository.positions.findById = vi.fn().mockResolvedValue({ id: POSITION_ID, title: 'SP Secretary' });
+    deps.orgRepository.positions.findById = vi
+      .fn()
+      .mockResolvedValue({ id: POSITION_ID, title: 'SP Secretary' });
     deps.orgRepository.assignments.findAll = vi.fn().mockResolvedValue([]);
     const caller = buildCaller(makeCtx(['plat_admin']), deps);
 
@@ -482,14 +587,16 @@ describe('organization router — designation creation and revocation mutations'
         userId: USER_ID,
         roles: ['sp_secretary'],
         cityId: 'city-001',
-      }
+      },
     );
   });
 
   it('createDesignationGrant maps PolicyDeniedError to UNAUTHORIZED', async () => {
-    deps.delegationService.createDelegationGrant = vi.fn().mockRejectedValue(
-      new PolicyDeniedError({ reason: 'not_allowed', action: 'delegation_grant:create' })
-    );
+    deps.delegationService.createDelegationGrant = vi
+      .fn()
+      .mockRejectedValue(
+        new PolicyDeniedError({ reason: 'not_allowed', action: 'delegation_grant:create' }),
+      );
     const caller = buildCaller(makeCtx(['citizen']), deps);
     const input = {
       designationDocumentId: '00000000-0000-4000-8000-0000000000c2',
@@ -509,7 +616,9 @@ describe('organization router — designation creation and revocation mutations'
 
   it('createDesignationGrant maps ActiveDesignationExistsError to CONFLICT', async () => {
     deps.delegationService.createDelegationGrant = vi.fn().mockRejectedValue(
-      new ActiveDesignationExistsError({ delegatedToEmployeeId: '00000000-0000-4000-8000-000000000009' })
+      new ActiveDesignationExistsError({
+        delegatedToEmployeeId: '00000000-0000-4000-8000-000000000009',
+      }),
     );
     const caller = buildCaller(makeCtx(['sp_secretary']), deps);
     const input = {
@@ -547,14 +656,16 @@ describe('organization router — designation creation and revocation mutations'
         userId: USER_ID,
         roles: ['mayor'],
         cityId: 'city-001',
-      }
+      },
     );
   });
 
   it('revokeDesignationGrantEarly maps PolicyDeniedError to UNAUTHORIZED', async () => {
-    deps.delegationService.revokeEarlyDelegationGrant = vi.fn().mockRejectedValue(
-      new PolicyDeniedError({ reason: 'not_owner', action: 'delegation_grant:revoke_early' })
-    );
+    deps.delegationService.revokeEarlyDelegationGrant = vi
+      .fn()
+      .mockRejectedValue(
+        new PolicyDeniedError({ reason: 'not_owner', action: 'delegation_grant:revoke_early' }),
+      );
     const caller = buildCaller(makeCtx(['mayor']), deps);
     const input = {
       delegationId: '00000000-0000-4000-8000-0000000000d1',
@@ -566,9 +677,11 @@ describe('organization router — designation creation and revocation mutations'
   });
 
   it('revokeDesignationGrantEarly maps DelegationGrantNotFoundError to NOT_FOUND', async () => {
-    deps.delegationService.revokeEarlyDelegationGrant = vi.fn().mockRejectedValue(
-      new DelegationGrantNotFoundError({ grantId: '00000000-0000-4000-8000-0000000000d1' })
-    );
+    deps.delegationService.revokeEarlyDelegationGrant = vi
+      .fn()
+      .mockRejectedValue(
+        new DelegationGrantNotFoundError({ grantId: '00000000-0000-4000-8000-0000000000d1' }),
+      );
     const caller = buildCaller(makeCtx(['mayor']), deps);
     const input = {
       delegationId: '00000000-0000-4000-8000-0000000000d1',
@@ -590,11 +703,23 @@ describe('organization.listCommittees', () => {
   it.each(['plat_admin', 'sp_secretary', 'sp_member'])('succeeds for role %s', async (role) => {
     const caller = buildCaller(makeCtx([role]), deps);
     deps.orgRepository.committees.findAll = vi.fn().mockResolvedValue([
-      { id: COMMITTEE_ID, name: 'Committee A', code: 'CA', description: 'Desc A', deletedAt: null },
+      {
+        id: COMMITTEE_ID,
+        name: 'Committee A',
+        code: 'CA',
+        description: 'Desc A',
+        deletedAt: null,
+      },
     ]);
     const result = await caller.organization.listCommittees();
     expect(result).toEqual([
-      { committeeId: COMMITTEE_ID, name: 'Committee A', code: 'CA', description: 'Desc A', deletedAt: null },
+      {
+        committeeId: COMMITTEE_ID,
+        name: 'Committee A',
+        code: 'CA',
+        description: 'Desc A',
+        deletedAt: null,
+      },
     ]);
     expect(deps.orgRepository.committees.findAll).toHaveBeenCalledOnce();
   });
@@ -607,4 +732,3 @@ describe('organization.listCommittees', () => {
     expect(deps.orgRepository.committees.findAll).not.toHaveBeenCalled();
   });
 });
-

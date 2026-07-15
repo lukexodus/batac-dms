@@ -34,17 +34,17 @@
 
 The C1 DDL provided covers **three of eight** Phase 1 schemas in full. ERD fidelity varies by schema:
 
-|Schema|Tables|ERD Basis|Confidence|
-|---|---|---|---|
-|`public`|0|Dropped (C1 v3)|N/A|
-|`iam`|9|C1 DDL Part 2|Confirmed|
-|`organization`|7|C1 DDL Part 3|Confirmed|
-|`documents`|9|C1 DDL Part 4|Confirmed|
-|`workflow`|7|Architecture ref Part 11.3; C1 §1.7, §1.9; B4 spec (cited in C1)|[Inference]|
-|`tracking`|3|Architecture ref Parts 11.6, 4.5; C1 §1.6|[Inference]|
-|`records`|5|Architecture ref Parts 11.7, 10.2|[Inference]|
-|`notifications`|3|Architecture ref Parts 10.2, 11.3|[Inference]|
-|`audit`|1|Architecture ref Part 11.11; C1 §1.5, §0.2|[Inference]|
+| Schema          | Tables | ERD Basis                                                        | Confidence  |
+| --------------- | ------ | ---------------------------------------------------------------- | ----------- |
+| `public`        | 0      | Dropped (C1 v3)                                                  | N/A         |
+| `iam`           | 9      | C1 DDL Part 2                                                    | Confirmed   |
+| `organization`  | 7      | C1 DDL Part 3                                                    | Confirmed   |
+| `documents`     | 9      | C1 DDL Part 4                                                    | Confirmed   |
+| `workflow`      | 7      | Architecture ref Part 11.3; C1 §1.7, §1.9; B4 spec (cited in C1) | [Inference] |
+| `tracking`      | 3      | Architecture ref Parts 11.6, 4.5; C1 §1.6                        | [Inference] |
+| `records`       | 5      | Architecture ref Parts 11.7, 10.2                                | [Inference] |
+| `notifications` | 3      | Architecture ref Parts 10.2, 11.3                                | [Inference] |
+| `audit`         | 1      | Architecture ref Part 11.11; C1 §1.5, §0.2                       | [Inference] |
 
 Every column, relationship, and cardinality claim in `workflow`, `tracking`, `records`, `notifications`, and `audit` is labeled **[Inference]** and must be validated against confirmed DDL before implementation. The `[Inference]` label on a section heading covers all content within that section; individual claims are not re-tagged line-by-line.
 
@@ -54,22 +54,22 @@ Every column, relationship, and cardinality claim in `workflow`, `tracking`, `re
 
 ### Relationship Cardinality
 
-|Symbol|Reads as|
-|---|---|
-|`\|`|Exactly one|
-|`o\|`|Zero or one|
-|`o{`|Zero or many|
-|`\|{`|One or many|
+| Symbol | Reads as     |
+| ------ | ------------ |
+| `\|`   | Exactly one  |
+| `o\|`  | Zero or one  |
+| `o{`   | Zero or many |
+| `\|{`  | One or many  |
 
 Combined on a line: `A \|\|--o{ B` = "one A has zero or many B."
 
 ### Column Key Tags
 
-|Tag|Meaning|
-|---|---|
-|`PK`|Primary key (`id UUID DEFAULT gen_random_uuid()` on every table)|
-|`FK`|Real, named `FOREIGN KEY` constraint exists (same-schema only, per Architectural Invariant #1)|
-|_(no tag)_|Plain data column — **or** a logical cross-schema reference (no DB constraint). Logical FKs are identified in the Logical FK Index table below each diagram.|
+| Tag        | Meaning                                                                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PK`       | Primary key (`id UUID DEFAULT gen_random_uuid()` on every table)                                                                                             |
+| `FK`       | Real, named `FOREIGN KEY` constraint exists (same-schema only, per Architectural Invariant #1)                                                               |
+| _(no tag)_ | Plain data column — **or** a logical cross-schema reference (no DB constraint). Logical FKs are identified in the Logical FK Index table below each diagram. |
 
 ### Columns Omitted from Every Entity Box
 
@@ -205,26 +205,26 @@ erDiagram
 
 ### Logical FK Index — `iam`
 
-|Column|Table|Target (cross-schema)|Notes|
-|---|---|---|---|
-|`office_scope_id`|`role_assignments`|`organization.offices.id`|NULL = city-wide, unscoped assignment; NULL is coalesced to a sentinel UUID in the partial unique index|
+| Column            | Table              | Target (cross-schema)     | Notes                                                                                                   |
+| ----------------- | ------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `office_scope_id` | `role_assignments` | `organization.offices.id` | NULL = city-wide, unscoped assignment; NULL is coalesced to a sentinel UUID in the partial unique index |
 
 ### Join Table Annotations — `iam`
 
 **`iam.role_permissions`** — Annotated columns:
 
-|Column|Type|Semantics|
-|---|---|---|
-|`decision`|`TEXT CHECK(decision IN ('allow','deny'))`|`allow` grants the permission; `deny` explicitly blocks it. C1 v3 defines two values only.|
-|`condition_reference`|`TEXT NULL`|Key into the I1 ABAC policy table. When non-NULL, the ABAC engine evaluates the referenced policy expression at request time.|
+| Column                | Type                                       | Semantics                                                                                                                     |
+| --------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `decision`            | `TEXT CHECK(decision IN ('allow','deny'))` | `allow` grants the permission; `deny` explicitly blocks it. C1 v3 defines two values only.                                    |
+| `condition_reference` | `TEXT NULL`                                | Key into the I1 ABAC policy table. When non-NULL, the ABAC engine evaluates the referenced policy expression at request time. |
 
 **`iam.role_assignments`** — Annotated columns:
 
-|Column|Type|Semantics|
-|---|---|---|
-|`office_scope_id`|`UUID NULL`|Scopes a role to a specific office. NULL = city-wide assignment. Partial unique index: `(user_id, role_id, COALESCE(office_scope_id, '00000000...'))` WHERE `is_active = true AND deleted_at IS NULL`. The NULL-to-sentinel coalesce prevents two unscoped assignments of the same role to the same user from slipping past Postgres's "NULLs are always distinct" unique-index behaviour.|
-|`assigned_by`|`UUID NOT NULL FK`|NOT NULL — every role assignment must record who made it. Real FK to `iam.users`. Bootstrap seed assignments use a designated system user.|
-|`is_active`|`BOOLEAN`|`false` + `revoked_at IS NOT NULL` = revoked assignment. CHECK constraint `ck_role_assignments_revocation_consistency` enforces this pair. No `updated_at` — the revocation fields are themselves the timestamped record of the only state change this row undergoes.|
+| Column            | Type               | Semantics                                                                                                                                                                                                                                                                                                                                                                                  |
+| ----------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `office_scope_id` | `UUID NULL`        | Scopes a role to a specific office. NULL = city-wide assignment. Partial unique index: `(user_id, role_id, COALESCE(office_scope_id, '00000000...'))` WHERE `is_active = true AND deleted_at IS NULL`. The NULL-to-sentinel coalesce prevents two unscoped assignments of the same role to the same user from slipping past Postgres's "NULLs are always distinct" unique-index behaviour. |
+| `assigned_by`     | `UUID NOT NULL FK` | NOT NULL — every role assignment must record who made it. Real FK to `iam.users`. Bootstrap seed assignments use a designated system user.                                                                                                                                                                                                                                                 |
+| `is_active`       | `BOOLEAN`          | `false` + `revoked_at IS NOT NULL` = revoked assignment. CHECK constraint `ck_role_assignments_revocation_consistency` enforces this pair. No `updated_at` — the revocation fields are themselves the timestamped record of the only state change this row undergoes.                                                                                                                      |
 
 **`iam.sessions`** — Dual-FK note: `user_id` (owner) and `terminated_by` both reference `iam.users.id`. Only the ownership line is drawn in the diagram above; `terminated_by` is a same-schema real FK used specifically when `termination_reason = 'forced'` (IT/security admin force-terminates). The CHECK constraint `ck_sessions_termination_consistency` enforces `terminated_at IS NULL ↔ termination_reason IS NULL`.
 
@@ -329,30 +329,30 @@ erDiagram
 
 ### Logical FK Index — `organization`
 
-|Column|Table|Target (cross-schema)|Notes|
-|---|---|---|---|
-|`user_id`|`employees`|`iam.users.id`|NULL for Barangay officials (no system access in Phase 1, architecture ref Part 4.4). UNIQUE constraint prevents one `iam.users` row from mapping to two `employees` rows.|
-|`designation_document_id`|`delegation_grants`|`documents.documents.id`|The `D {YEAR}-{NN}` document evidencing this grant. Cross-schema; no DB constraint.|
-|`revoked_by`|`delegation_grants`|`iam.users.id`|The user (IT admin or delegating authority) who revoked the grant early.|
+| Column                    | Table               | Target (cross-schema)    | Notes                                                                                                                                                                      |
+| ------------------------- | ------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `user_id`                 | `employees`         | `iam.users.id`           | NULL for Barangay officials (no system access in Phase 1, architecture ref Part 4.4). UNIQUE constraint prevents one `iam.users` row from mapping to two `employees` rows. |
+| `designation_document_id` | `delegation_grants` | `documents.documents.id` | The `D {YEAR}-{NN}` document evidencing this grant. Cross-schema; no DB constraint.                                                                                        |
+| `revoked_by`              | `delegation_grants` | `iam.users.id`           | The user (IT admin or delegating authority) who revoked the grant early.                                                                                                   |
 
 ### Join Table Annotations — `organization`
 
 **`organization.delegation_grants`** — Annotated columns:
 
-|Column|Type|Semantics|
-|---|---|---|
-|`delegating_employee_id`|`UUID NOT NULL FK`|The authority who issued the Designation (Mayor or Vice Mayor, depending on scope). Real FK to `organization.employees`. D4 models parties as `Employee`, not `User`; this document follows D4 since `employees` is the table in this schema.|
-|`delegated_to_employee_id`|`UUID NOT NULL FK`|The person receiving the designation. Cannot equal `delegating_employee_id` (`ck_delegation_grants_distinct_parties`).|
-|`end_date`|`DATE NOT NULL`|`NOT NULL` by design — open-ended delegations are prohibited (C1 v3). Workflow routing returns to the original authority automatically at midnight on `end_date`.|
-|`is_active`|`BOOLEAN`|**Partial unique index:** `(delegated_to_employee_id)` WHERE `is_active = true AND deleted_at IS NULL`. This directly implements Architectural Invariant #16: at most one active delegation per person at any time.|
-|`revoked_at`|`TIMESTAMPTZ NULL`|Populated by early revocation only. Normal expiry is handled by the scheduler checking `valid_until`; `revoked_at` is only set when a delegation is cancelled mid-period by the delegating authority.|
+| Column                     | Type               | Semantics                                                                                                                                                                                                                                     |
+| -------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `delegating_employee_id`   | `UUID NOT NULL FK` | The authority who issued the Designation (Mayor or Vice Mayor, depending on scope). Real FK to `organization.employees`. D4 models parties as `Employee`, not `User`; this document follows D4 since `employees` is the table in this schema. |
+| `delegated_to_employee_id` | `UUID NOT NULL FK` | The person receiving the designation. Cannot equal `delegating_employee_id` (`ck_delegation_grants_distinct_parties`).                                                                                                                        |
+| `end_date`                 | `DATE NOT NULL`    | `NOT NULL` by design — open-ended delegations are prohibited (C1 v3). Workflow routing returns to the original authority automatically at midnight on `end_date`.                                                                             |
+| `is_active`                | `BOOLEAN`          | **Partial unique index:** `(delegated_to_employee_id)` WHERE `is_active = true AND deleted_at IS NULL`. This directly implements Architectural Invariant #16: at most one active delegation per person at any time.                           |
+| `revoked_at`               | `TIMESTAMPTZ NULL` | Populated by early revocation only. Normal expiry is handled by the scheduler checking `valid_until`; `revoked_at` is only set when a delegation is cancelled mid-period by the delegating authority.                                         |
 
 **`organization.committee_memberships`** — Annotated columns:
 
-|Column|Type|Semantics|
-|---|---|---|
-|`committee_role`|`committee_role_enum`|`chairman`, `vice_chairman`, or `member`. A person's role on a committee can change over time (e.g., Member → Vice Chairman) — each change produces a new row (`is_active` on the old row set to false, new row inserted).|
-|`is_active`|`BOOLEAN`|**Partial unique index:** `(committee_id, employee_id)` WHERE `is_active = true AND deleted_at IS NULL`. Exactly one active membership row per person per committee at any time.|
+| Column           | Type                  | Semantics                                                                                                                                                                                                                  |
+| ---------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `committee_role` | `committee_role_enum` | `chairman`, `vice_chairman`, or `member`. A person's role on a committee can change over time (e.g., Member → Vice Chairman) — each change produces a new row (`is_active` on the old row set to false, new row inserted). |
+| `is_active`      | `BOOLEAN`             | **Partial unique index:** `(committee_id, employee_id)` WHERE `is_active = true AND deleted_at IS NULL`. Exactly one active membership row per person per committee at any time.                                           |
 
 **`organization.assignments`** — Singular positions (Mayor, Vice Mayor, SP Secretary) have no "only one active holder" DB constraint. `positions` has no `is_singular` flag, and a blanket unique index would incorrectly block the 12 simultaneous Councilor assignments. The "exactly one active holder" invariant for singular positions is an application-level concern enforced by `Organization.resolveCurrentHolder()` (B2 Published API), not a DB constraint. `[Inference — C1 §3.5 note]`
 
@@ -518,20 +518,20 @@ erDiagram
 
 ### Logical FK Index — `documents`
 
-|Column|Table|Target (cross-schema)|Notes|
-|---|---|---|---|
-|`retention_schedule_id`|`document_types`|`records.retention_schedules.id`|NULL until activation (Architectural Invariant #11). Application enforces non-NULL before `is_active = true`.|
-|`authority_office_id`|`number_series`|`organization.offices.id`|SP Secretariat for all 11 Phase 1 series (H3 Global Field Values).|
-|`originating_office_id`|`documents`|`organization.offices.id`|SP Secretariat for SP workflow docs; sender's office for SPR letters received. NOT NULL.|
-|`owned_by_office_id`|`documents`|`organization.offices.id`|Office currently responsible for the document. NOT NULL.|
-|`created_by`|`documents`|`iam.users.id`|NOT NULL.|
-|`workflow_instance_id`|`documents`|`workflow.instances.id`|NULL for document types with no associated workflow.|
-|`retention_schedule_id`|`documents`|`records.retention_schedules.id`|NOT NULL — every document is governed by a schedule from creation.|
-|`uploaded_by`|`versions`|`iam.users.id`|NOT NULL.|
-|`uploaded_by`|`attachments`|`iam.users.id`|NOT NULL.|
-|`assigned_by`|`numbers`|`iam.users.id`|NOT NULL — Secretariat actor who triggered number assignment.|
-|`signed_by_employee_id`|`signatures`|`organization.employees.id`|NOT NULL. Follows D4's `Employee` (not `User`) reference, since employees may sign without having a platform login (e.g., Mayor who exists as employee before account activation).|
-|`sponsor_employee_id`|`document_sponsorships`|`organization.employees.id`|NOT NULL. Logical FK — cross-schema reference to the sponsoring employee.|
+| Column                  | Table                   | Target (cross-schema)            | Notes                                                                                                                                                                              |
+| ----------------------- | ----------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `retention_schedule_id` | `document_types`        | `records.retention_schedules.id` | NULL until activation (Architectural Invariant #11). Application enforces non-NULL before `is_active = true`.                                                                      |
+| `authority_office_id`   | `number_series`         | `organization.offices.id`        | SP Secretariat for all 11 Phase 1 series (H3 Global Field Values).                                                                                                                 |
+| `originating_office_id` | `documents`             | `organization.offices.id`        | SP Secretariat for SP workflow docs; sender's office for SPR letters received. NOT NULL.                                                                                           |
+| `owned_by_office_id`    | `documents`             | `organization.offices.id`        | Office currently responsible for the document. NOT NULL.                                                                                                                           |
+| `created_by`            | `documents`             | `iam.users.id`                   | NOT NULL.                                                                                                                                                                          |
+| `workflow_instance_id`  | `documents`             | `workflow.instances.id`          | NULL for document types with no associated workflow.                                                                                                                               |
+| `retention_schedule_id` | `documents`             | `records.retention_schedules.id` | NOT NULL — every document is governed by a schedule from creation.                                                                                                                 |
+| `uploaded_by`           | `versions`              | `iam.users.id`                   | NOT NULL.                                                                                                                                                                          |
+| `uploaded_by`           | `attachments`           | `iam.users.id`                   | NOT NULL.                                                                                                                                                                          |
+| `assigned_by`           | `numbers`               | `iam.users.id`                   | NOT NULL — Secretariat actor who triggered number assignment.                                                                                                                      |
+| `signed_by_employee_id` | `signatures`            | `organization.employees.id`      | NOT NULL. Follows D4's `Employee` (not `User`) reference, since employees may sign without having a platform login (e.g., Mayor who exists as employee before account activation). |
+| `sponsor_employee_id`   | `document_sponsorships` | `organization.employees.id`      | NOT NULL. Logical FK — cross-schema reference to the sponsoring employee.                                                                                                          |
 
 ### Bidirectional Optional Link: `document_types` ↔ `number_series`
 
@@ -546,33 +546,33 @@ The FK for `document_types.number_series_id` is added via `ALTER TABLE` **after*
 
 **`documents.numbers`** — Number history log (append-with-one-flag-flip semantics):
 
-|Column|Type|Semantics|
-|---|---|---|
-|`number_type`|`number_type_enum`|`preliminary` or `final`. A document cycles through `preliminary` rows first, then exactly one `final` row.|
-|`number_value`|`TEXT`|Rendered format string, e.g., `Draft 7SP 2026-02` or `7SP 2026-01`.|
-|`sequence_year`|`SMALLINT`|The calendar year component, used as part of the uniqueness constraint.|
-|`sequence_number`|`INTEGER`|The raw integer from the PostgreSQL sequence. UNIQUE constraint scoped to `(series_id, sequence_year, sequence_number)` — not to `number_value` alone, since two series can legitimately render the same text.|
-|`is_current`|`BOOLEAN`|**Partial unique index:** `(document_id, number_type)` WHERE `is_current = true AND deleted_at IS NULL`. At most one current preliminary and one current final per document. Superseded preliminary numbers have `is_current = false` and `superseded_at` set.|
-|`cancellation_reason`|`TEXT NULL`|Non-NULL only for cancelled numbers. Gaps in sequences are permitted only for cancelled documents; the reason is mandatory and logged here.|
+| Column                | Type               | Semantics                                                                                                                                                                                                                                                      |
+| --------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `number_type`         | `number_type_enum` | `preliminary` or `final`. A document cycles through `preliminary` rows first, then exactly one `final` row.                                                                                                                                                    |
+| `number_value`        | `TEXT`             | Rendered format string, e.g., `Draft 7SP 2026-02` or `7SP 2026-01`.                                                                                                                                                                                            |
+| `sequence_year`       | `SMALLINT`         | The calendar year component, used as part of the uniqueness constraint.                                                                                                                                                                                        |
+| `sequence_number`     | `INTEGER`          | The raw integer from the PostgreSQL sequence. UNIQUE constraint scoped to `(series_id, sequence_year, sequence_number)` — not to `number_value` alone, since two series can legitimately render the same text.                                                 |
+| `is_current`          | `BOOLEAN`          | **Partial unique index:** `(document_id, number_type)` WHERE `is_current = true AND deleted_at IS NULL`. At most one current preliminary and one current final per document. Superseded preliminary numbers have `is_current = false` and `superseded_at` set. |
+| `cancellation_reason` | `TEXT NULL`        | Non-NULL only for cancelled numbers. Gaps in sequences are permitted only for cancelled documents; the reason is mandatory and logged here.                                                                                                                    |
 
 No `updated_at` — rows are written once and transition `is_current = true → false` via `superseded_at` (itself the timestamped record of that change). Treated as append-only-with-one-flag-flip.
 
 **`documents.panlalawigan_reviews`** — Dedicated table in `documents` schema. One row per document (UNIQUE on `document_id`):
 
-|Column|Type|Semantics|
-|---|---|---|
-|`control_number`|`TEXT NULL`|**Not unique** — the Panlalawigan frequently acts on multiple SP documents under one shared batch reference (architecture ref Part 4.3). Nullable: assigned by SP Secretariat when the document is transmitted, not at document creation.|
-|`resolution_number`|`TEXT NULL`|The Panlalawigan's resolution number for this review (column name is `resolution_number`, not `resolution_no`).|
-|`outcome`|`TEXT CHECK(outcome IN ('valid','valid_in_part','returned','operative_in_its_entirety','deemed_approved')) NULL`|NULL until the Panlalawigan acts or 30 days elapse. The scheduler sets this to `deemed_approved` at day 30 with no response; SP Secretary confirms.|
-|`days_elapsed`|`INTEGER NULL`|Computed by application on outcome receipt. Used for reporting and for the 30-day timer display on the SP Secretary dashboard.|
+| Column              | Type                                                                                                             | Semantics                                                                                                                                                                                                                                 |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `control_number`    | `TEXT NULL`                                                                                                      | **Not unique** — the Panlalawigan frequently acts on multiple SP documents under one shared batch reference (architecture ref Part 4.3). Nullable: assigned by SP Secretariat when the document is transmitted, not at document creation. |
+| `resolution_number` | `TEXT NULL`                                                                                                      | The Panlalawigan's resolution number for this review (column name is `resolution_number`, not `resolution_no`).                                                                                                                           |
+| `outcome`           | `TEXT CHECK(outcome IN ('valid','valid_in_part','returned','operative_in_its_entirety','deemed_approved')) NULL` | NULL until the Panlalawigan acts or 30 days elapse. The scheduler sets this to `deemed_approved` at day 30 with no response; SP Secretary confirms.                                                                                       |
+| `days_elapsed`      | `INTEGER NULL`                                                                                                   | Computed by application on outcome receipt. Used for reporting and for the 30-day timer display on the SP Secretary dashboard.                                                                                                            |
 
 **`documents.document_sponsorships`** — Dedicated table linking documents to their sponsoring employees:
 
-|Column|Type|Semantics|
-|---|---|---|
-|`document_id`|`UUID NOT NULL FK`|The document being sponsored. Real FK to `documents.documents`.|
-|`sponsor_employee_id`|`UUID NOT NULL`|Logical FK → `organization.employees.id`. The sponsoring council member or official.|
-|`display_order`|`INTEGER NULL`|Optional ordering for display of multiple sponsors on a single document.|
+| Column                | Type               | Semantics                                                                            |
+| --------------------- | ------------------ | ------------------------------------------------------------------------------------ |
+| `document_id`         | `UUID NOT NULL FK` | The document being sponsored. Real FK to `documents.documents`.                      |
+| `sponsor_employee_id` | `UUID NOT NULL`    | Logical FK → `organization.employees.id`. The sponsoring council member or official. |
+| `display_order`       | `INTEGER NULL`     | Optional ordering for display of multiple sponsors on a single document.             |
 
 **`documents.document_types`** — `required_step_types JSONB NULL` is a `[Gap-fill]` addition: B2's `DocumentTypeSummary.requiredStepTypes` is returned by the Published API, and B4's "legally mandated minimum steps" (Architectural Invariant #14) needs concrete storage. This column gives the workflow-editor validation logic somewhere to read from. The eight Phase 1 document types and their values are defined in H2. `is_active DEFAULT false` — document types must be explicitly activated; they are not active by default.
 
@@ -683,24 +683,24 @@ erDiagram
 
 ### Logical FK Index — `workflow`
 
-|Column|Table|Target (cross-schema)|Notes|
-|---|---|---|---|
-|`document_type_id`|`definitions`|`documents.document_types.id`|Links a workflow definition to the document type it governs.|
-|`document_id`|`instances`|`documents.documents.id`|Confirmed cross-schema reference: `documents.documents.workflow_instance_id` is the inverse logical FK. NOT NULL — every instance is attached to a document.|
-|`cancelled_by`|`instances`|`iam.users.id`|NULL unless cancelled.|
-|`actor_id`|`workflow_events`|`iam.users.id`|The user whose action generated the event. NULL for system-generated events (timer expiry, SLA breach).|
-|`bypassed_by`|`step_instances`|`iam.users.id`|SP Secretary override — NULL unless the step was manually advanced past a missing committee report. When non-NULL, `bypass_comment` must also be non-NULL.|
+| Column             | Table             | Target (cross-schema)         | Notes                                                                                                                                                        |
+| ------------------ | ----------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `document_type_id` | `definitions`     | `documents.document_types.id` | Links a workflow definition to the document type it governs.                                                                                                 |
+| `document_id`      | `instances`       | `documents.documents.id`      | Confirmed cross-schema reference: `documents.documents.workflow_instance_id` is the inverse logical FK. NOT NULL — every instance is attached to a document. |
+| `cancelled_by`     | `instances`       | `iam.users.id`                | NULL unless cancelled.                                                                                                                                       |
+| `actor_id`         | `workflow_events` | `iam.users.id`                | The user whose action generated the event. NULL for system-generated events (timer expiry, SLA breach).                                                      |
+| `bypassed_by`      | `step_instances`  | `iam.users.id`                | SP Secretary override — NULL unless the step was manually advanced past a missing committee report. When non-NULL, `bypass_comment` must also be non-NULL.   |
 
 ### Step Type Annotations — `workflow`
 
 **`workflow.steps.assignee_config JSONB`** — Configuration varies by `step_type`. Confirmed structural implications:
 
-|`step_type`|Expected `assignee_config` shape|
-|---|---|
-|`action` / `approval`|`{ "role_code": "sp_secretary" }` or similar|
-|`multi_referral`|`{ "committee_ids": ["uuid", "uuid", ...], "all_must_contribute": true }` — all assigned committees must sign the unified report before the step completes (architecture ref Part 8.3)|
-|`decision`|`{ "condition_key": "mayor_10_day_lapse" }` or similar|
-|`notification`|`{ "template_code": "step_assigned", "recipient_role": "..." }`|
+| `step_type`           | Expected `assignee_config` shape                                                                                                                                                       |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `action` / `approval` | `{ "role_code": "sp_secretary" }` or similar                                                                                                                                           |
+| `multi_referral`      | `{ "committee_ids": ["uuid", "uuid", ...], "all_must_contribute": true }` — all assigned committees must sign the unified report before the step completes (architecture ref Part 8.3) |
+| `decision`            | `{ "condition_key": "mayor_10_day_lapse" }` or similar                                                                                                                                 |
+| `notification`        | `{ "template_code": "step_assigned", "recipient_role": "..." }`                                                                                                                        |
 
 **`workflow.step_instances.assigned_to JSONB`** — Confirmed as a JSONB array by C1 §1.6 (`assigned_to[].user_id`). For `multi_referral` steps, each element tracks both a committee and whether that committee has contributed to the unified report. Shape [Inference]: `[{ "committee_id": "uuid", "user_id": "uuid", "contributed": false, "contributed_at": null }]`.
 
@@ -755,15 +755,15 @@ erDiagram
 
 ### Logical FK Index — `tracking`
 
-|Column|Table|Target (cross-schema)|Notes|
-|---|---|---|---|
-|`document_id`|`qr_codes`|`documents.documents.id`|Cross-schema anchor. `documents.documents.qr_tracking_number` (UUID, UNIQUE) contains the QR payload; `qr_codes.tracking_number` (TEXT, formatted `DTS-{YEAR}-{SEQUENCE}`) is the display reference. These are distinct: one is the UUID in the QR image, the other is the human-readable label.|
-|`document_id`|`tracking_records`|`documents.documents.id`|One tracking record per document (UNIQUE on `document_id`).|
-|`current_custodian_office_id`|`tracking_records`|`organization.offices.id`|Updated on every routing event. NULL if document is with an external party.|
-|`generated_by`|`qr_codes`|`iam.users.id`|Secretariat staff member who triggered QR generation at logging.|
-|`from_office_id`|`routing_entries`|`organization.offices.id`|Origin of this routing step. NULL at the first entry (initial receipt).|
-|`to_office_id`|`routing_entries`|`organization.offices.id`|Destination. NULL when document leaves to an external party.|
-|`actor_id`|`routing_entries`|`iam.users.id`|Staff member who performed the routing action.|
+| Column                        | Table              | Target (cross-schema)     | Notes                                                                                                                                                                                                                                                                                            |
+| ----------------------------- | ------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `document_id`                 | `qr_codes`         | `documents.documents.id`  | Cross-schema anchor. `documents.documents.qr_tracking_number` (UUID, UNIQUE) contains the QR payload; `qr_codes.tracking_number` (TEXT, formatted `DTS-{YEAR}-{SEQUENCE}`) is the display reference. These are distinct: one is the UUID in the QR image, the other is the human-readable label. |
+| `document_id`                 | `tracking_records` | `documents.documents.id`  | One tracking record per document (UNIQUE on `document_id`).                                                                                                                                                                                                                                      |
+| `current_custodian_office_id` | `tracking_records` | `organization.offices.id` | Updated on every routing event. NULL if document is with an external party.                                                                                                                                                                                                                      |
+| `generated_by`                | `qr_codes`         | `iam.users.id`            | Secretariat staff member who triggered QR generation at logging.                                                                                                                                                                                                                                 |
+| `from_office_id`              | `routing_entries`  | `organization.offices.id` | Origin of this routing step. NULL at the first entry (initial receipt).                                                                                                                                                                                                                          |
+| `to_office_id`                | `routing_entries`  | `organization.offices.id` | Destination. NULL when document leaves to an external party.                                                                                                                                                                                                                                     |
+| `actor_id`                    | `routing_entries`  | `iam.users.id`            | Staff member who performed the routing action.                                                                                                                                                                                                                                                   |
 
 ### Annotations — `tracking`
 
@@ -841,12 +841,12 @@ erDiagram
 
 ### Logical FK Index — `records`
 
-|Column|Table|Target (cross-schema)|Notes|
-|---|---|---|---|
-|`document_id`|`records`|`documents.documents.id`|The digital record corresponding to a document. One record per document (UNIQUE on `document_id`).|
-|`archived_by`|`archive_entries`|`iam.users.id`|Records Officer who performed the archival action.|
-|`disposed_by`|`dispositions`|`iam.users.id`|Records Officer who initiated the disposition. Explicit Records Officer action required; no automated disposal.|
-|`approved_by`|`dispositions`|`iam.users.id`|Supervisor who approved the disposition. May equal `disposed_by` depending on role configuration.|
+| Column        | Table             | Target (cross-schema)    | Notes                                                                                                           |
+| ------------- | ----------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `document_id` | `records`         | `documents.documents.id` | The digital record corresponding to a document. One record per document (UNIQUE on `document_id`).              |
+| `archived_by` | `archive_entries` | `iam.users.id`           | Records Officer who performed the archival action.                                                              |
+| `disposed_by` | `dispositions`    | `iam.users.id`           | Records Officer who initiated the disposition. Explicit Records Officer action required; no automated disposal. |
+| `approved_by` | `dispositions`    | `iam.users.id`           | Supervisor who approved the disposition. May equal `disposed_by` depending on role configuration.               |
 
 ### Annotations — `records`
 
@@ -905,10 +905,10 @@ erDiagram
 
 ### Logical FK Index — `notifications`
 
-|Column|Table|Target (cross-schema)|Notes|
-|---|---|---|---|
-|`recipient_user_id`|`notification_events`|`iam.users.id`|The platform user who should receive this notification. NULL for system broadcast events.|
-|`resource_id`|`notification_events`|Varies by `resource_type`|Polymorphic reference — e.g., `resource_type = 'document'` means `resource_id` references `documents.documents.id`. No DB constraint possible; resolved by application.|
+| Column              | Table                 | Target (cross-schema)     | Notes                                                                                                                                                                   |
+| ------------------- | --------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `recipient_user_id` | `notification_events` | `iam.users.id`            | The platform user who should receive this notification. NULL for system broadcast events.                                                                               |
+| `resource_id`       | `notification_events` | Varies by `resource_type` | Polymorphic reference — e.g., `resource_type = 'document'` means `resource_id` references `documents.documents.id`. No DB constraint possible; resolved by application. |
 
 ### Annotations — `notifications`
 
@@ -949,11 +949,11 @@ No relationships are drawn — `audit.events` intentionally has no FK constraint
 
 ### Logical FK Index — `audit`
 
-|Column|Table|Target (cross-schema)|Notes|
-|---|---|---|---|
-|`actor_id`|`events`|`iam.users.id`|NULL for system-generated events (scheduler actions, automated timer expiry).|
-|`resource_id`|`events`|Varies by `resource_type`|Polymorphic. No DB constraint.|
-|`previous_event_id`|`events`|`audit.events.id` (self)|The UUID of the preceding event in the chain. NULL for the genesis record. Stored alongside `chain_hash` for chain traversal — `chain_hash` itself encodes `SHA-256(previous_chain_hash + current_payload)`, so the UUID is a convenience pointer, not the integrity mechanism itself.|
+| Column              | Table    | Target (cross-schema)     | Notes                                                                                                                                                                                                                                                                                  |
+| ------------------- | -------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `actor_id`          | `events` | `iam.users.id`            | NULL for system-generated events (scheduler actions, automated timer expiry).                                                                                                                                                                                                          |
+| `resource_id`       | `events` | Varies by `resource_type` | Polymorphic. No DB constraint.                                                                                                                                                                                                                                                         |
+| `previous_event_id` | `events` | `audit.events.id` (self)  | The UUID of the preceding event in the chain. NULL for the genesis record. Stored alongside `chain_hash` for chain traversal — `chain_hash` itself encodes `SHA-256(previous_chain_hash + current_payload)`, so the UUID is a convenience pointer, not the integrity mechanism itself. |
 
 ### Annotations — `audit`
 
@@ -973,75 +973,75 @@ All logical FK columns across all eight schemas, consolidated. Grouped by target
 
 ### Targeting `iam.users`
 
-|Column|Source Table|Notes|
-|---|---|---|
-|`assigned_by`|`iam.role_assignments`|NOT NULL (C1 v3)|
-|`revoked_by`|`iam.role_assignments`|Nullable|
-|`created_by`|`documents.documents`|NOT NULL|
-|`uploaded_by`|`documents.versions`|NOT NULL|
-|`uploaded_by`|`documents.attachments`|NOT NULL|
-|`assigned_by`|`documents.numbers`|NOT NULL|
-|`revoked_by`|`organization.delegation_grants`|Nullable|
-|`published_by`|`workflow.definition_versions`|[Inference]|
-|`cancelled_by`|`workflow.instances`|[Inference], nullable|
-|`actor_id`|`workflow.workflow_events`|[Inference], nullable (system events)|
-|`bypassed_by`|`workflow.step_instances`|[Inference], nullable|
-|`generated_by`|`tracking.qr_codes`|[Inference]|
-|`actor_id`|`tracking.routing_entries`|[Inference]|
-|`archived_by`|`records.archive_entries`|[Inference]|
-|`disposed_by`|`records.dispositions`|[Inference]|
-|`approved_by`|`records.dispositions`|[Inference]|
-|`recipient_user_id`|`notifications.notification_events`|[Inference], nullable|
-|`actor_id`|`audit.events`|[Inference], nullable|
-|`deleted_by`|all 49 tables|Blanket convention per C1 §1.6|
+| Column              | Source Table                        | Notes                                 |
+| ------------------- | ----------------------------------- | ------------------------------------- |
+| `assigned_by`       | `iam.role_assignments`              | NOT NULL (C1 v3)                      |
+| `revoked_by`        | `iam.role_assignments`              | Nullable                              |
+| `created_by`        | `documents.documents`               | NOT NULL                              |
+| `uploaded_by`       | `documents.versions`                | NOT NULL                              |
+| `uploaded_by`       | `documents.attachments`             | NOT NULL                              |
+| `assigned_by`       | `documents.numbers`                 | NOT NULL                              |
+| `revoked_by`        | `organization.delegation_grants`    | Nullable                              |
+| `published_by`      | `workflow.definition_versions`      | [Inference]                           |
+| `cancelled_by`      | `workflow.instances`                | [Inference], nullable                 |
+| `actor_id`          | `workflow.workflow_events`          | [Inference], nullable (system events) |
+| `bypassed_by`       | `workflow.step_instances`           | [Inference], nullable                 |
+| `generated_by`      | `tracking.qr_codes`                 | [Inference]                           |
+| `actor_id`          | `tracking.routing_entries`          | [Inference]                           |
+| `archived_by`       | `records.archive_entries`           | [Inference]                           |
+| `disposed_by`       | `records.dispositions`              | [Inference]                           |
+| `approved_by`       | `records.dispositions`              | [Inference]                           |
+| `recipient_user_id` | `notifications.notification_events` | [Inference], nullable                 |
+| `actor_id`          | `audit.events`                      | [Inference], nullable                 |
+| `deleted_by`        | all 49 tables                       | Blanket convention per C1 §1.6        |
 
 ### Targeting `organization.offices`
 
-|Column|Source Table|Notes|
-|---|---|---|
-|`office_scope_id`|`iam.role_assignments`|Nullable; NULL = city-wide|
-|`originating_office_id`|`documents.documents`|NOT NULL|
-|`owned_by_office_id`|`documents.documents`|NOT NULL|
-|`authority_office_id`|`documents.number_series`|NOT NULL|
-|`current_custodian_office_id`|`tracking.tracking_records`|[Inference], nullable|
-|`from_office_id`|`tracking.routing_entries`|[Inference], nullable|
-|`to_office_id`|`tracking.routing_entries`|[Inference], nullable|
+| Column                        | Source Table                | Notes                      |
+| ----------------------------- | --------------------------- | -------------------------- |
+| `office_scope_id`             | `iam.role_assignments`      | Nullable; NULL = city-wide |
+| `originating_office_id`       | `documents.documents`       | NOT NULL                   |
+| `owned_by_office_id`          | `documents.documents`       | NOT NULL                   |
+| `authority_office_id`         | `documents.number_series`   | NOT NULL                   |
+| `current_custodian_office_id` | `tracking.tracking_records` | [Inference], nullable      |
+| `from_office_id`              | `tracking.routing_entries`  | [Inference], nullable      |
+| `to_office_id`                | `tracking.routing_entries`  | [Inference], nullable      |
 
 ### Targeting `organization.employees`
 
-|Column|Source Table|Notes|
-|---|---|---|
-|`signed_by_employee_id`|`documents.signatures`|NOT NULL|
-|`sponsor_employee_id`|`documents.document_sponsorships`|NOT NULL — logical FK|
+| Column                  | Source Table                      | Notes                 |
+| ----------------------- | --------------------------------- | --------------------- |
+| `signed_by_employee_id` | `documents.signatures`            | NOT NULL              |
+| `sponsor_employee_id`   | `documents.document_sponsorships` | NOT NULL — logical FK |
 
 ### Targeting `documents.documents`
 
-|Column|Source Table|Notes|
-|---|---|---|
-|`designation_document_id`|`organization.delegation_grants`|NOT NULL — the evidencing Designation document|
-|`workflow_instance_id`|`documents.documents`|Nullable — NULL for doc types with no workflow|
-|`document_id`|`tracking.qr_codes`|[Inference]|
-|`document_id`|`tracking.tracking_records`|[Inference]|
-|`document_id`|`records.records`|[Inference]|
+| Column                    | Source Table                     | Notes                                          |
+| ------------------------- | -------------------------------- | ---------------------------------------------- |
+| `designation_document_id` | `organization.delegation_grants` | NOT NULL — the evidencing Designation document |
+| `workflow_instance_id`    | `documents.documents`            | Nullable — NULL for doc types with no workflow |
+| `document_id`             | `tracking.qr_codes`              | [Inference]                                    |
+| `document_id`             | `tracking.tracking_records`      | [Inference]                                    |
+| `document_id`             | `records.records`                | [Inference]                                    |
 
 ### Targeting `documents.document_types`
 
-|Column|Source Table|Notes|
-|---|---|---|
-|`document_type_id`|`workflow.definitions`|[Inference]|
+| Column             | Source Table           | Notes       |
+| ------------------ | ---------------------- | ----------- |
+| `document_type_id` | `workflow.definitions` | [Inference] |
 
 ### Targeting `records.retention_schedules`
 
-|Column|Source Table|Notes|
-|---|---|---|
-|`retention_schedule_id`|`documents.document_types`|Nullable until activation; Invariant #11|
-|`retention_schedule_id`|`documents.documents`|NOT NULL|
+| Column                  | Source Table               | Notes                                    |
+| ----------------------- | -------------------------- | ---------------------------------------- |
+| `retention_schedule_id` | `documents.document_types` | Nullable until activation; Invariant #11 |
+| `retention_schedule_id` | `documents.documents`      | NOT NULL                                 |
 
 ### Targeting `workflow.instances`
 
-|Column|Source Table|Notes|
-|---|---|---|
-|`workflow_instance_id`|`documents.documents`|Nullable; the inverse logical FK|
+| Column                 | Source Table          | Notes                            |
+| ---------------------- | --------------------- | -------------------------------- |
+| `workflow_instance_id` | `documents.documents` | Nullable; the inverse logical FK |
 
 ---
 

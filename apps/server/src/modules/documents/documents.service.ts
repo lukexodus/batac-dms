@@ -28,17 +28,17 @@ export interface DocumentsServiceDeps {
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  'draft':                       ['submitted','cancelled'],
-  'submitted':                   ['in_workflow','cancelled'],
-  'in_workflow':                 ['pending_mayor_action','pending_panlalawigan_review','completed','cancelled'],
-  'pending_mayor_action':        ['in_workflow','completed','cancelled'],
-  'pending_panlalawigan_review': ['completed','superseded','cancelled'],
-  'completed':                   ['released','cancelled'],
-  'released':                    ['archived','cancelled'],
-  'archived':                    ['disposed'],
-  'disposed':                    [],
-  'cancelled':                   [],
-  'superseded':                  [],
+  draft: ['submitted', 'cancelled'],
+  submitted: ['in_workflow', 'cancelled'],
+  in_workflow: ['pending_mayor_action', 'pending_panlalawigan_review', 'completed', 'cancelled'],
+  pending_mayor_action: ['in_workflow', 'completed', 'cancelled'],
+  pending_panlalawigan_review: ['completed', 'superseded', 'cancelled'],
+  completed: ['released', 'cancelled'],
+  released: ['archived', 'cancelled'],
+  archived: ['disposed'],
+  disposed: [],
+  cancelled: [],
+  superseded: [],
 };
 
 /**
@@ -56,9 +56,9 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
       if (!doc) {
         return null;
       }
-      
+
       const type = await deps.documentsRepository.findDocumentTypeById(doc.documentTypeId);
-      
+
       return {
         documentId: doc.id,
         title: doc.title,
@@ -80,7 +80,7 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
       if (!type) {
         return null;
       }
-      
+
       return {
         documentTypeId: type.id,
         name: type.name,
@@ -120,7 +120,7 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
       toState: DocumentLifecycleState,
       actorId: string,
       reason?: string,
-      trx?: DbTransaction
+      trx?: DbTransaction,
     ): Promise<void> {
       const runInTransaction = async (tx: DbTransaction): Promise<void> => {
         // We instantiate a repository with the transaction client to ensure atomic operations
@@ -154,7 +154,7 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
             reason,
             cityId: doc.cityId,
             timestamp: now,
-          }
+          },
         });
       };
 
@@ -178,22 +178,24 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
       if (!doc) {
         throw new Error(`Document not found: ${documentId}`);
       }
-      
+
       const type = await deps.documentsRepository.findDocumentTypeById(doc.documentTypeId);
       if (!type) {
         throw new Error(`Document type not found for document: ${documentId}`);
       }
-      
-      const numberSeries = await deps.documentsRepository.findNumberSeriesById(type.numberSeriesId!);
+
+      const numberSeries = await deps.documentsRepository.findNumberSeriesById(
+        type.numberSeriesId!,
+      );
       if (!numberSeries) {
         throw new Error(`Number series not found for document type: ${type.id}`);
       }
 
       const result = await deps.numberingService.assignFinalNumber(
-        documentId, 
-        numberSeries.seriesKey, 
-        doc.cityId, 
-        actorId
+        documentId,
+        numberSeries.seriesKey,
+        doc.cityId,
+        actorId,
       );
 
       deps.eventBus.emit('document.number_assigned', {
@@ -210,7 +212,7 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
           assignedBy: actorId,
           cityId: doc.cityId,
           timestamp: result.assignedAt,
-        }
+        },
       });
 
       return {
@@ -226,9 +228,9 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
     async getAttachmentRefs(documentId: string, actorId: string): Promise<AttachmentRef[]> {
       const versions = await deps.documentsRepository.findVersionsByDocument(documentId);
       const attachments = await deps.documentsRepository.findAttachmentsByDocument(documentId);
-      
+
       const expiry = deps.env.S3_SIGNED_URL_EXPIRES_S || 900;
-      
+
       const refs: AttachmentRef[] = [];
 
       for (const version of versions) {
@@ -244,7 +246,8 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
           presignedUrl: url,
           mediaType: version.mimeType,
           ocrText: version.ocrText ?? null,
-          scanQualityScore: version.scanQualityScore !== null ? Number(version.scanQualityScore) : null,
+          scanQualityScore:
+            version.scanQualityScore !== null ? Number(version.scanQualityScore) : null,
           pageCount: version.pageCount ?? 0,
         });
       }

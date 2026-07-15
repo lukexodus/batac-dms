@@ -3,9 +3,6 @@ import { AuditWriteService } from './audit.write-service.js';
 import { AuditQueryService } from './audit.query-service.js';
 import type { createAuditDb } from './audit.db.js';
 
-
-
-
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
 /**
@@ -31,15 +28,15 @@ export interface AuditEventInput {
  * Filter parameters for querying audit events (B2 Module 8).
  */
 export interface AuditQueryFilter {
-  actorId?:           string;
-  targetId?:          string;
-  eventTypes?:        string[];
-  from?:              Date;
-  to?:                Date;
-  pageSize?:          number;    // default 50; max 200
-  cursor?:            string;    // opaque cursor = base64(String(sequence_number))
-  cityId?:            string;    // tenant isolation — always set by the router
-  resourceOfficeIds?: string[];  // for listOwnOfficeDocumentActions (I1 §8.3)
+  actorId?: string;
+  targetId?: string;
+  eventTypes?: string[];
+  from?: Date;
+  to?: Date;
+  pageSize?: number; // default 50; max 200
+  cursor?: string; // opaque cursor = base64(String(sequence_number))
+  cityId?: string; // tenant isolation — always set by the router
+  resourceOfficeIds?: string[]; // for listOwnOfficeDocumentActions (I1 §8.3)
 }
 
 /**
@@ -47,24 +44,24 @@ export interface AuditQueryFilter {
  */
 export interface AuditEvent {
   auditEventId: string;
-  eventType:    string;
-  actorId:      string | null;
-  targetId:     string | null;
-  targetType:   string | null;
-  payload:      Record<string, unknown>;
-  cityId:       string;
-  occurredAt:   Date;
-  chainHash:    string;
-  hmac:         string;
+  eventType: string;
+  actorId: string | null;
+  targetId: string | null;
+  targetType: string | null;
+  payload: Record<string, unknown>;
+  cityId: string;
+  occurredAt: Date;
+  chainHash: string;
+  hmac: string;
 }
 
 /**
  * Result of a queryEvents call with chain validation status.
  */
 export interface AuditQueryResult {
-  events:                AuditEvent[];
+  events: AuditEvent[];
   chainValidationStatus: 'intact' | 'broken';
-  nextCursor?:           string;
+  nextCursor?: string;
 }
 
 // ─── Public API Interface ─────────────────────────────────────────────────────
@@ -114,7 +111,7 @@ export function createAuditModule(deps: {
   const queryService = new AuditQueryService(repo, deps.env);
 
   return {
-    writeEvent:  (e) => writeService.writeEvent(e),
+    writeEvent: (e) => writeService.writeEvent(e),
     queryEvents: (f) => queryService.queryEvents(f),
     _internal: {
       repo,

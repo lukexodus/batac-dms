@@ -78,12 +78,12 @@
 
 ### Notation
 
-|Label|Meaning|
-|---|---|
-|[Confirmed — source]|Present in a cited part of the Consolidated Architecture & Requirements Reference or stack documents|
-|[Inference]|Logically derived from confirmed facts; not stated verbatim in the source. Requires team review before implementation.|
-|[Unresolved]|Must be decided before the IAM module's first migration or relevant feature implementation. Tracked in Section 19.|
-|[Resolved — D-XXX-NN] / [Decision — D-XXX-NN]|Formally decided in this revision for a previously [Unresolved] item. Recorded against the item's ID in Section 18. Where the decision required organizational/product judgment rather than pure schema design, it was confirmed with the development team lead before being recorded here, not assumed unilaterally.|
+| Label                                         | Meaning                                                                                                                                                                                                                                                                                                               |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Confirmed — source]                          | Present in a cited part of the Consolidated Architecture & Requirements Reference or stack documents                                                                                                                                                                                                                  |
+| [Inference]                                   | Logically derived from confirmed facts; not stated verbatim in the source. Requires team review before implementation.                                                                                                                                                                                                |
+| [Unresolved]                                  | Must be decided before the IAM module's first migration or relevant feature implementation. Tracked in Section 19.                                                                                                                                                                                                    |
+| [Resolved — D-XXX-NN] / [Decision — D-XXX-NN] | Formally decided in this revision for a previously [Unresolved] item. Recorded against the item's ID in Section 18. Where the decision required organizational/product judgment rather than pure schema design, it was confirmed with the development team lead before being recorded here, not assumed unilaterally. |
 
 Policy condition expressions use a pseudo-code format intended to be language-agnostic. The implementer translates these into the TypeScript `PolicyEvaluator` service described in B5 §10.1–10.2. Exact attribute names follow the column names in the database schema where known; where the schema is not yet finalised, logical names are used and marked [Inference].
 
@@ -103,20 +103,20 @@ This document does **not** redefine the cascade structure from B5 §5.5. It assu
 
 Every policy evaluation receives a `SubjectContext` object populated by the `verifyAccessToken` and `loadDelegationContext` hooks (B5 §10.1). All policies below reference these attributes by name.
 
-|Attribute|Type|Source|Notes|
-|---|---|---|---|
-|`subject.user_id`|UUID|JWT `uid` claim|Internal `iam.users.id`|
-|`subject.office_id`|UUID|JWT `oid` claim|Primary office from `organization.assignments`|
-|`subject.roles`|string[]|JWT `rid` claim (role codes)|Active role assignments at token issue time|
-|`subject.permissions`|string[]|JWT `perm` claim|Resolved permission codes at token issue time|
-|`subject.city_id`|UUID|JWT `city` claim|Always Batac City UUID in Phase 1|
-|`subject.session_id`|UUID|JWT `sid` claim|Active `iam.sessions.id`|
-|`subject.is_ita`|boolean|JWT `is_ita` claim|True when holding System Administrator role|
-|`subject.is_pa`|boolean|JWT `is_pa` claim|True when holding Platform Administrator role|
-|`subject.delegation_grant_id`|UUID \| null|JWT `dg` claim|Active `organization.delegation_grants.id`; null if none|
-|`subject.effective_office_ids`|UUID[]|Loaded by `loadDelegationContext`|Includes delegation-extended offices; always includes `subject.office_id`|
-|`subject.effective_roles`|string[]|Loaded by `loadDelegationContext`|Includes delegation-extended roles|
-|`subject.committee_ids`|UUID[]|JWT `cid` claim|Active `organization.committee_memberships` rows for the subject at token issue time. **[Resolved — D-ABAC-06]**|
+| Attribute                      | Type         | Source                            | Notes                                                                                                            |
+| ------------------------------ | ------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `subject.user_id`              | UUID         | JWT `uid` claim                   | Internal `iam.users.id`                                                                                          |
+| `subject.office_id`            | UUID         | JWT `oid` claim                   | Primary office from `organization.assignments`                                                                   |
+| `subject.roles`                | string[]     | JWT `rid` claim (role codes)      | Active role assignments at token issue time                                                                      |
+| `subject.permissions`          | string[]     | JWT `perm` claim                  | Resolved permission codes at token issue time                                                                    |
+| `subject.city_id`              | UUID         | JWT `city` claim                  | Always Batac City UUID in Phase 1                                                                                |
+| `subject.session_id`           | UUID         | JWT `sid` claim                   | Active `iam.sessions.id`                                                                                         |
+| `subject.is_ita`               | boolean      | JWT `is_ita` claim                | True when holding System Administrator role                                                                      |
+| `subject.is_pa`                | boolean      | JWT `is_pa` claim                 | True when holding Platform Administrator role                                                                    |
+| `subject.delegation_grant_id`  | UUID \| null | JWT `dg` claim                    | Active `organization.delegation_grants.id`; null if none                                                         |
+| `subject.effective_office_ids` | UUID[]       | Loaded by `loadDelegationContext` | Includes delegation-extended offices; always includes `subject.office_id`                                        |
+| `subject.effective_roles`      | string[]     | Loaded by `loadDelegationContext` | Includes delegation-extended roles                                                                               |
+| `subject.committee_ids`        | UUID[]       | JWT `cid` claim                   | Active `organization.committee_memberships` rows for the subject at token issue time. **[Resolved — D-ABAC-06]** |
 
 **Timing note:** `roles` and `permissions` are resolved at token issue time. Role changes during an active token's lifetime do not take effect until next refresh. Emergency revocations require forced session termination (B5 §4.5). [Confirmed — B5 §1.1]
 
@@ -1688,17 +1688,17 @@ the Mayor could not do either.
 
 This matrix defines which actions are valid for a document in a given `lifecycle_state`. An action attempted against a document in an incompatible state is denied at Gate 5 / Step 7c of the cascade.
 
-|`lifecycle_state`|`create`|`read`|`update`|`submit`|`approve`|`reject`|`cancel`|`archive`|`dispose`|`number_assign`|`number_promote`|
-|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-|Draft|✅|✅|✅|✅|❌|❌|✅|❌|❌|❌|❌|
-|Submitted|—|✅|❌|❌|❌|❌|✅|❌|❌|✅|❌|
-|In-Workflow|—|✅|❌¹|❌|✅|✅|✅|❌|❌|✅|❌|
-|Pending-Approval|—|✅|❌¹|❌|✅|✅|✅|❌|❌|❌|✅²|
-|Completed|—|✅|❌|❌|❌|❌|✅|✅|❌|❌|❌|
-|Released|—|✅|❌|❌|❌|❌|✅|✅|❌|❌|❌|
-|Archived|—|✅|❌|❌|❌|❌|❌|❌|✅|❌|❌|
-|Disposed|—|✅³|❌|❌|❌|❌|❌|❌|❌|❌|❌|
-|Cancelled|—|✅|❌|❌|❌|❌|❌|❌|❌|❌|❌|
+| `lifecycle_state` | `create` | `read` | `update` | `submit` | `approve` | `reject` | `cancel` | `archive` | `dispose` | `number_assign` | `number_promote` |
+| ----------------- | :------: | :----: | :------: | :------: | :-------: | :------: | :------: | :-------: | :-------: | :-------------: | :--------------: |
+| Draft             |    ✅    |   ✅   |    ✅    |    ✅    |    ❌     |    ❌    |    ✅    |    ❌     |    ❌     |       ❌        |        ❌        |
+| Submitted         |    —     |   ✅   |    ❌    |    ❌    |    ❌     |    ❌    |    ✅    |    ❌     |    ❌     |       ✅        |        ❌        |
+| In-Workflow       |    —     |   ✅   |   ❌¹    |    ❌    |    ✅     |    ✅    |    ✅    |    ❌     |    ❌     |       ✅        |        ❌        |
+| Pending-Approval  |    —     |   ✅   |   ❌¹    |    ❌    |    ✅     |    ✅    |    ✅    |    ❌     |    ❌     |       ❌        |       ✅²        |
+| Completed         |    —     |   ✅   |    ❌    |    ❌    |    ❌     |    ❌    |    ✅    |    ✅     |    ❌     |       ❌        |        ❌        |
+| Released          |    —     |   ✅   |    ❌    |    ❌    |    ❌     |    ❌    |    ✅    |    ✅     |    ❌     |       ❌        |        ❌        |
+| Archived          |    —     |   ✅   |    ❌    |    ❌    |    ❌     |    ❌    |    ❌    |    ❌     |    ✅     |       ❌        |        ❌        |
+| Disposed          |    —     |  ✅³   |    ❌    |    ❌    |    ❌     |    ❌    |    ❌    |    ❌     |    ❌     |       ❌        |        ❌        |
+| Cancelled         |    —     |   ✅   |    ❌    |    ❌    |    ❌     |    ❌    |    ❌    |    ❌     |    ❌     |       ❌        |        ❌        |
 
 **Notes:**
 
@@ -1714,14 +1714,14 @@ This matrix defines which actions are valid for a document in a given `lifecycle
 
 **Status as of this revision: 6 of 6 items in this section resolved; 1 (D-ABAC-01) carries a narrower follow-up that doesn't block the IAM module's first migration, mirroring how B5 treated its own D-AUTH-05.** Resolutions are recorded in the relevant body sections above, cross-referenced below. The fully-resolved items are listed here rather than left mixed with open items, for the same reason B5's Section 11 gave: this table's job is tracking what's been decided, and that's clearer when it isn't mixed with what's still open.
 
-|ID|Item|Resolution|Recorded In|
-|---|---|---|---|
-|D-ABAC-01|Full list of `document_processor` role type codes for Invariant #12 trigger|**Resolved for direct role assignment:** `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain` seeded with `type_code = 'document_processor'`; `records_officer`, `auditor`, `sys_admin`, `citizen` seeded otherwise. **Delegated Acting-Mayor/OIC scenarios not resolved** — carried forward; see Section 19.|Section 15, Invariant #12|
-|D-ABAC-02|Explicit allowlist structure for Confidential/Restricted document types|**Resolved:** `documents.classification_allowlists` table, one row per (`document_type_id`, `role_code`), queried via indexed `EXISTS` from Gate 4.|Section 2, Gate 4|
-|D-ABAC-03|`has_cross_office_read_grant()` function definition|**Resolved:** SQL function signature defined, built on top of B5's `organization.cross_office_grants` table (D-AUTH-09, as reported). B5's two carried-forward limitations on that underlying table (non-"all" office scoping; `access_level` not enforced) are inherited here unchanged, not re-resolved.|Section 3.2|
-|D-ABAC-04|Audit event `resource_office_id` field|**Resolved:** denormalized `resource_office_id UUID NULL` column on `audit.events`, populated by the audit service at write time (not a live join), nullable for resource types with no single owning office.|Section 8.3|
-|D-ABAC-05|Definition of "final approval step" in workflow definition|**Resolved:** `is_final_approval_step BOOLEAN` declared on `workflow.steps` by the definition author, validated at publish time, rather than computed at runtime from lifecycle-state transitions.|Section 6.3; Section 15, Invariant #13|
-|D-ABAC-06|SP Member committee membership lookup at policy evaluation time|**Resolved: JWT-cached.** `subject.committee_ids` added as a new claim (`cid`), following the same token-issue-time / refresh-gated staleness model already used for `roles` and `permissions`.|Section 1; Sections 3.2, 6.6, 10.6|
+| ID        | Item                                                                        | Resolution                                                                                                                                                                                                                                                                                                                                                                             | Recorded In                            |
+| --------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| D-ABAC-01 | Full list of `document_processor` role type codes for Invariant #12 trigger | **Resolved for direct role assignment:** `dept_encoder`, `dept_approver`, `sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain` seeded with `type_code = 'document_processor'`; `records_officer`, `auditor`, `sys_admin`, `citizen` seeded otherwise. **Delegated Acting-Mayor/OIC scenarios not resolved** — carried forward; see Section 19. | Section 15, Invariant #12              |
+| D-ABAC-02 | Explicit allowlist structure for Confidential/Restricted document types     | **Resolved:** `documents.classification_allowlists` table, one row per (`document_type_id`, `role_code`), queried via indexed `EXISTS` from Gate 4.                                                                                                                                                                                                                                    | Section 2, Gate 4                      |
+| D-ABAC-03 | `has_cross_office_read_grant()` function definition                         | **Resolved:** SQL function signature defined, built on top of B5's `organization.cross_office_grants` table (D-AUTH-09, as reported). B5's two carried-forward limitations on that underlying table (non-"all" office scoping; `access_level` not enforced) are inherited here unchanged, not re-resolved.                                                                             | Section 3.2                            |
+| D-ABAC-04 | Audit event `resource_office_id` field                                      | **Resolved:** denormalized `resource_office_id UUID NULL` column on `audit.events`, populated by the audit service at write time (not a live join), nullable for resource types with no single owning office.                                                                                                                                                                          | Section 8.3                            |
+| D-ABAC-05 | Definition of "final approval step" in workflow definition                  | **Resolved:** `is_final_approval_step BOOLEAN` declared on `workflow.steps` by the definition author, validated at publish time, rather than computed at runtime from lifecycle-state transitions.                                                                                                                                                                                     | Section 6.3; Section 15, Invariant #13 |
+| D-ABAC-06 | SP Member committee membership lookup at policy evaluation time             | **Resolved: JWT-cached.** `subject.committee_ids` added as a new claim (`cid`), following the same token-issue-time / refresh-gated staleness model already used for `roles` and `permissions`.                                                                                                                                                                                        | Section 1; Sections 3.2, 6.6, 10.6     |
 
 **Note on D-AUTH-06:** This document also referenced B5's [D-AUTH-06](../B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-006-delegation_grant.scope-field-schema.md) (`delegation_grant.scope` schema) at Section 11 as `[Unresolved]`. That reference has been corrected to reflect B5's actual resolution (`JSONB`, shape `{ roles: [], office_ids: [], actions: [] }`) — see Section 11. This was a stale cross-reference fix, not a decision made independently in this document.
 
@@ -1731,9 +1731,9 @@ This matrix defines which actions are valid for a document in a given `lifecycle
 
 One item carries a narrower follow-up, identical in shape and severity to how B5 handled its own equivalent ambiguity. It does not block the IAM module's first migration, for the reason stated.
 
-|Item|What's Open|Why It Doesn't Block the IAM Migration|Required Before|
-|---|---|---|---|
-|D-ABAC-01 follow-up|"Acting Mayor" and "OIC (any)" reached via `organization.delegation_grants` are not covered by `trg_enforce_platform_admin_exclusion`, which operates on `iam.role_assignments` rows only. Whether delegated acting-capacity should be caught by this same trigger (requiring a delegation-aware enforcement path) or is intentionally out of its scope (relying instead on Section 16.2's existing statement that delegation cannot grant Platform Administrator operational access) has not been decided. This mirrors B5's D-AUTH-05 follow-up exactly — same ambiguity, carried forward rather than guessed at twice.|The seed list for direct role assignment (the eight roles above) is unaffected by how this gets resolved, and the trigger as defined functions correctly against `iam.role_assignments` regardless.|Before delegation grants for Mayor-equivalent authority go live in production|
+| Item                | What's Open                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Why It Doesn't Block the IAM Migration                                                                                                                                                              | Required Before                                                               |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| D-ABAC-01 follow-up | "Acting Mayor" and "OIC (any)" reached via `organization.delegation_grants` are not covered by `trg_enforce_platform_admin_exclusion`, which operates on `iam.role_assignments` rows only. Whether delegated acting-capacity should be caught by this same trigger (requiring a delegation-aware enforcement path) or is intentionally out of its scope (relying instead on Section 16.2's existing statement that delegation cannot grant Platform Administrator operational access) has not been decided. This mirrors B5's D-AUTH-05 follow-up exactly — same ambiguity, carried forward rather than guessed at twice. | The seed list for direct role assignment (the eight roles above) is unaffected by how this gets resolved, and the trigger as defined functions correctly against `iam.role_assignments` regardless. | Before delegation grants for Mayor-equivalent authority go live in production |
 
 ---
 

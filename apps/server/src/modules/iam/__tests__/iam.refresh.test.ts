@@ -23,15 +23,15 @@ import type {
 
 vi.mock('../../../config/env.js', () => ({
   env: {
-    CITY_ID:                     '00000000-0000-4000-8000-000000000001',
-    AUTH_JWT_ACCESS_SECRET:      'test-secret-at-least-32-characters-long!!',
-    AUTH_JWT_REFRESH_SECRET:     'refresh-secret-at-least-32-characters!',
-    AUTH_JWT_ALGORITHM:          'HS256',
-    AUTH_JWT_ACCESS_EXPIRES_IN:  '15m',
+    CITY_ID: '00000000-0000-4000-8000-000000000001',
+    AUTH_JWT_ACCESS_SECRET: 'test-secret-at-least-32-characters-long!!',
+    AUTH_JWT_REFRESH_SECRET: 'refresh-secret-at-least-32-characters!',
+    AUTH_JWT_ALGORITHM: 'HS256',
+    AUTH_JWT_ACCESS_EXPIRES_IN: '15m',
     AUTH_JWT_REFRESH_EXPIRES_IN: '30d',
-    AUTH_COOKIE_SECURE:          false,
-    AUTH_COOKIE_SAMESITE:        'Strict',
-    AUTH_ACCESS_TOKEN_COOKIE_NAME:  'batac_at',
+    AUTH_COOKIE_SECURE: false,
+    AUTH_COOKIE_SAMESITE: 'Strict',
+    AUTH_ACCESS_TOKEN_COOKIE_NAME: 'batac_at',
     AUTH_REFRESH_TOKEN_COOKIE_NAME: 'batac_rt',
     AUTH_SESSION_INACTIVITY_TIMEOUT_MS: 1800000,
   },
@@ -39,9 +39,9 @@ vi.mock('../../../config/env.js', () => ({
 
 import { createIamService } from '../iam.service.js';
 
-const CITY_ID     = '00000000-0000-4000-8000-000000000001';
-const USER_ID     = randomUUID();
-const SESSION_ID  = randomUUID();
+const CITY_ID = '00000000-0000-4000-8000-000000000001';
+const USER_ID = randomUUID();
+const SESSION_ID = randomUUID();
 
 function makeUser(): UserRow {
   return {
@@ -117,15 +117,15 @@ vi.mock('drizzle-orm', async (importOriginal) => {
 });
 
 vi.mock('@batac/database/schema/iam.schema.js', () => ({
-  sessions:      { id: 'sessions.id' },
-  credentials:   {},
-  users:         {},
+  sessions: { id: 'sessions.id' },
+  credentials: {},
+  users: {},
   refreshTokens: {},
-  roles:         {},
-  permissions:   {},
+  roles: {},
+  permissions: {},
   rolePermissions: {},
   roleAssignments: {},
-  mfaRecords:    {},
+  mfaRecords: {},
 }));
 
 describe('IamService - refresh', () => {
@@ -188,7 +188,9 @@ describe('IamService - refresh', () => {
     const saltBytes = randomBytes(16);
     const rawBase64url = rawBytes.toString('base64url');
     const saltBase64url = saltBytes.toString('base64url');
-    const tokenHash = createHash('sha256').update(rawBase64url + saltBase64url, 'utf8').digest('hex');
+    const tokenHash = createHash('sha256')
+      .update(rawBase64url + saltBase64url, 'utf8')
+      .digest('hex');
     const tokenId = randomUUID();
 
     const tokenRow = makeRefreshToken({
@@ -214,7 +216,9 @@ describe('IamService - refresh', () => {
     const saltBytes = randomBytes(16);
     const rawBase64url = rawBytes.toString('base64url');
     const saltBase64url = saltBytes.toString('base64url');
-    const tokenHash = createHash('sha256').update(rawBase64url + saltBase64url, 'utf8').digest('hex');
+    const tokenHash = createHash('sha256')
+      .update(rawBase64url + saltBase64url, 'utf8')
+      .digest('hex');
     const tokenId = randomUUID();
 
     const tokenRow = makeRefreshToken({
@@ -226,12 +230,16 @@ describe('IamService - refresh', () => {
 
     iamRepoStub.findRefreshTokenById.mockResolvedValue(tokenRow);
 
-    await expect(sut.refresh(`${tokenId}.${rawBase64url}`, '127.0.0.1', 'test-agent'))
-      .rejects.toThrow('Session security event detected');
+    await expect(
+      sut.refresh(`${tokenId}.${rawBase64url}`, '127.0.0.1', 'test-agent'),
+    ).rejects.toThrow('Session security event detected');
 
-    expect(txRepoStub.revokeRefreshTokenFamily).toHaveBeenCalledWith(tokenRow.familyId, 'reuse_detected');
+    expect(txRepoStub.revokeRefreshTokenFamily).toHaveBeenCalledWith(
+      tokenRow.familyId,
+      'reuse_detected',
+    );
     expect(auditServiceStub.writeEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'token_reuse_detected' })
+      expect.objectContaining({ eventType: 'token_reuse_detected' }),
     );
   });
 
@@ -240,7 +248,9 @@ describe('IamService - refresh', () => {
     const saltBytes = randomBytes(16);
     const rawBase64url = rawBytes.toString('base64url');
     const saltBase64url = saltBytes.toString('base64url');
-    const tokenHash = createHash('sha256').update(rawBase64url + saltBase64url, 'utf8').digest('hex');
+    const tokenHash = createHash('sha256')
+      .update(rawBase64url + saltBase64url, 'utf8')
+      .digest('hex');
     const tokenId = randomUUID();
 
     const tokenRow = makeRefreshToken({
@@ -253,10 +263,14 @@ describe('IamService - refresh', () => {
     iamRepoStub.findRefreshTokenById.mockResolvedValue(tokenRow);
     txRepoStub.markRefreshTokenUsed.mockResolvedValueOnce(false);
 
-    await expect(sut.refresh(`${tokenId}.${rawBase64url}`, '127.0.0.1', 'test-agent'))
-      .rejects.toThrow('Session security event detected');
+    await expect(
+      sut.refresh(`${tokenId}.${rawBase64url}`, '127.0.0.1', 'test-agent'),
+    ).rejects.toThrow('Session security event detected');
 
-    expect(txRepoStub.revokeRefreshTokenFamily).toHaveBeenCalledWith(tokenRow.familyId, 'reuse_detected');
+    expect(txRepoStub.revokeRefreshTokenFamily).toHaveBeenCalledWith(
+      tokenRow.familyId,
+      'reuse_detected',
+    );
     expect(txRepoStub.terminateSession).toHaveBeenCalledWith(SESSION_ID, 'reuse_detected', null);
     expect(txRepoStub.createRefreshToken).not.toHaveBeenCalled();
     expect(txRepoStub.updateLastActivity).not.toHaveBeenCalled();
@@ -267,7 +281,9 @@ describe('IamService - refresh', () => {
     const saltBytes = randomBytes(16);
     const rawBase64url = rawBytes.toString('base64url');
     const saltBase64url = saltBytes.toString('base64url');
-    const tokenHash = createHash('sha256').update(rawBase64url + saltBase64url, 'utf8').digest('hex');
+    const tokenHash = createHash('sha256')
+      .update(rawBase64url + saltBase64url, 'utf8')
+      .digest('hex');
     const tokenId = randomUUID();
 
     const tokenRow = makeRefreshToken({
@@ -279,8 +295,9 @@ describe('IamService - refresh', () => {
 
     iamRepoStub.findRefreshTokenById.mockResolvedValue(tokenRow);
 
-    await expect(sut.refresh(`${tokenId}.${rawBase64url}`, '127.0.0.1', 'test-agent'))
-      .rejects.toThrow('Refresh token has expired');
+    await expect(
+      sut.refresh(`${tokenId}.${rawBase64url}`, '127.0.0.1', 'test-agent'),
+    ).rejects.toThrow('Refresh token has expired');
   });
 
   it('rejects revoked token', async () => {
@@ -288,7 +305,9 @@ describe('IamService - refresh', () => {
     const saltBytes = randomBytes(16);
     const rawBase64url = rawBytes.toString('base64url');
     const saltBase64url = saltBytes.toString('base64url');
-    const tokenHash = createHash('sha256').update(rawBase64url + saltBase64url, 'utf8').digest('hex');
+    const tokenHash = createHash('sha256')
+      .update(rawBase64url + saltBase64url, 'utf8')
+      .digest('hex');
     const tokenId = randomUUID();
 
     const tokenRow = makeRefreshToken({
@@ -300,7 +319,8 @@ describe('IamService - refresh', () => {
 
     iamRepoStub.findRefreshTokenById.mockResolvedValue(tokenRow);
 
-    await expect(sut.refresh(`${tokenId}.${rawBase64url}`, '127.0.0.1', 'test-agent'))
-      .rejects.toThrow('Refresh token has been revoked');
+    await expect(
+      sut.refresh(`${tokenId}.${rawBase64url}`, '127.0.0.1', 'test-agent'),
+    ).rejects.toThrow('Refresh token has been revoked');
   });
 });

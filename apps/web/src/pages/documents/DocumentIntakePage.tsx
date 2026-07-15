@@ -5,26 +5,24 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { AllowedMimeTypeSchema } from '@batac/shared';
-import { 
-  Button, 
-  Input, 
-  Label, 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
   SelectValue,
   Card,
   CardHeader,
   CardTitle,
   CardContent,
-  CardFooter
+  CardFooter,
 } from '@batac/ui';
 
 import { IntakeFormSchema, type IntakeFormValues } from '@/lib/intake-schema';
 import { trpc } from '@/lib/trpc';
-
-
 
 export default function DocumentIntakePage() {
   const navigate = useNavigate();
@@ -137,7 +135,7 @@ export default function DocumentIntakePage() {
   };
 
   return (
-    <div className="container max-w-2xl mx-auto py-8">
+    <div className="container mx-auto max-w-2xl py-8">
       <Card>
         <CardHeader>
           <CardTitle>Intake New Document</CardTitle>
@@ -165,20 +163,14 @@ export default function DocumentIntakePage() {
                 )}
               />
               {errors.documentTypeId && (
-                <p className="text-sm text-destructive">{errors.documentTypeId.message}</p>
+                <p className="text-destructive text-sm">{errors.documentTypeId.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                {...register('title')}
-                placeholder="Enter document title"
-              />
-              {errors.title && (
-                <p className="text-sm text-destructive">{errors.title.message}</p>
-              )}
+              <Input id="title" {...register('title')} placeholder="Enter document title" />
+              {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
             </div>
 
             <div className="space-y-2">
@@ -190,9 +182,7 @@ export default function DocumentIntakePage() {
                 onChange={handleFileChange}
                 className="cursor-pointer"
               />
-              {fileError && (
-                <p className="text-sm text-destructive">{fileError}</p>
-              )}
+              {fileError && <p className="text-destructive text-sm">{fileError}</p>}
             </div>
           </CardContent>
           <CardFooter className="flex justify-end gap-2">

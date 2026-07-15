@@ -114,22 +114,22 @@ PostgreSQL Primary ─── WAL streaming (TCP) ──────────�
 
 **Three database roles (C1 §0.2):**
 
-| Role | Env var | Purpose | Notes |
-|---|---|---|---|
-| `migrate_user` | `DATABASE_URL_MIGRATE` | DDL; schema migrations | Never used at application runtime |
-| `app_user` | `DATABASE_URL_APP` | DML; SELECT/INSERT/UPDATE/DELETE | No access to `audit` schema |
-| `audit_user` | `DATABASE_URL_AUDIT` | INSERT + SELECT on `audit` schema only | UPDATE/DELETE revoked explicitly |
+| Role           | Env var                | Purpose                                | Notes                             |
+| -------------- | ---------------------- | -------------------------------------- | --------------------------------- |
+| `migrate_user` | `DATABASE_URL_MIGRATE` | DDL; schema migrations                 | Never used at application runtime |
+| `app_user`     | `DATABASE_URL_APP`     | DML; SELECT/INSERT/UPDATE/DELETE       | No access to `audit` schema       |
+| `audit_user`   | `DATABASE_URL_AUDIT`   | INSERT + SELECT on `audit` schema only | UPDATE/DELETE revoked explicitly  |
 
 **Object storage environment variables:**
 
-| Variable | Used by |
-|---|---|
-| `S3_ENDPOINT` | Application, backups; R2 Phase 1 → MinIO on-premise |
-| `S3_BUCKET` | Application document file store |
-| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | Application + backup scripts |
-| `S3_BACKUP_BUCKET` | WAL archive + `pg_dump` (separate bucket; object versioning enabled) |
-| `S3_COLD_BUCKET` | Monthly dumps retained 1 year; write-once object lock (COMPLIANCE mode) |
-| `BACKUP_ENCRYPTION_KEY` | AES-256-CBC key for `pg_dump` encryption; held in secrets vault + break-glass envelope |
+| Variable                          | Used by                                                                                |
+| --------------------------------- | -------------------------------------------------------------------------------------- |
+| `S3_ENDPOINT`                     | Application, backups; R2 Phase 1 → MinIO on-premise                                    |
+| `S3_BUCKET`                       | Application document file store                                                        |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | Application + backup scripts                                                           |
+| `S3_BACKUP_BUCKET`                | WAL archive + `pg_dump` (separate bucket; object versioning enabled)                   |
+| `S3_COLD_BUCKET`                  | Monthly dumps retained 1 year; write-once object lock (COMPLIANCE mode)                |
+| `BACKUP_ENCRYPTION_KEY`           | AES-256-CBC key for `pg_dump` encryption; held in secrets vault + break-glass envelope |
 
 ---
 
@@ -141,11 +141,11 @@ Continuous Write-Ahead Log archiving to S3-compatible storage enables Point-in-T
 
 ### 1.2 Tools Required
 
-| Tool | Purpose | Installed on |
-|---|---|---|
-| `wal-g` v2.x or later | WAL push/fetch, base backup, S3 upload, encryption | PostgreSQL Primary container |
-| `aws` CLI v2 | Bucket setup and verification only | PostgreSQL host or ops workstation |
-| `psql` | Verification queries; matches PostgreSQL server version | Any network-accessible host |
+| Tool                  | Purpose                                                 | Installed on                       |
+| --------------------- | ------------------------------------------------------- | ---------------------------------- |
+| `wal-g` v2.x or later | WAL push/fetch, base backup, S3 upload, encryption      | PostgreSQL Primary container       |
+| `aws` CLI v2          | Bucket setup and verification only                      | PostgreSQL host or ops workstation |
+| `psql`                | Verification queries; matches PostgreSQL server version | Any network-accessible host        |
 
 Verify `wal-g` is installed:
 
@@ -767,20 +767,20 @@ docker exec -it batac_postgres_standby \
 
 ### 3.7 Failover Checklist
 
-| # | Action | Actor | Completed at |
-|---|---|---|---|
-| 1 | Primary unreachable from ≥ 2 independent sources | IT Admin | |
-| 2 | Primary process stopped or confirmed dead | IT Admin | |
-| 3 | Standby replay lag at promotion recorded | IT Admin | |
-| 4 | Lag at promotion < 1 hour (RPO satisfied) | IT Admin | |
-| 5 | `pg_ctl promote` executed on standby | IT Admin | |
-| 6 | `pg_is_in_recovery()` returns `f` | IT Admin | |
-| 7 | DNS updated to promoted host IP | IT Admin | |
-| 8 | `batac_fastify` restarted | IT Admin | |
-| 9 | Application health check passes | Developer on call | |
-| 10 | SP Secretary and Platform Admin notified of service restoration | IT Admin | |
-| 11 | Audit log entry confirmed for failover event | Developer on call | |
-| 12 | Rebuild of new standby started (Runbook 3.3) | IT Admin | |
+| #   | Action                                                          | Actor             | Completed at |
+| --- | --------------------------------------------------------------- | ----------------- | ------------ |
+| 1   | Primary unreachable from ≥ 2 independent sources                | IT Admin          |              |
+| 2   | Primary process stopped or confirmed dead                       | IT Admin          |              |
+| 3   | Standby replay lag at promotion recorded                        | IT Admin          |              |
+| 4   | Lag at promotion < 1 hour (RPO satisfied)                       | IT Admin          |              |
+| 5   | `pg_ctl promote` executed on standby                            | IT Admin          |              |
+| 6   | `pg_is_in_recovery()` returns `f`                               | IT Admin          |              |
+| 7   | DNS updated to promoted host IP                                 | IT Admin          |              |
+| 8   | `batac_fastify` restarted                                       | IT Admin          |              |
+| 9   | Application health check passes                                 | Developer on call |              |
+| 10  | SP Secretary and Platform Admin notified of service restoration | IT Admin          |              |
+| 11  | Audit log entry confirmed for failover event                    | Developer on call |              |
+| 12  | Rebuild of new standby started (Runbook 3.3)                    | IT Admin          |              |
 
 ---
 
@@ -797,13 +797,13 @@ A backup that has not been tested is not a backup. This procedure verifies that 
 
 ### 4.2 Pre-Test Checklist
 
-| Check | Owner |
-|---|---|
+| Check                                                                             | Owner     |
+| --------------------------------------------------------------------------------- | --------- |
 | Restoration test environment is available and its database is empty or expendable | Developer |
-| `BACKUP_ENCRYPTION_KEY` is available in the test environment's secrets vault | IT Admin |
-| The target daily dump was confirmed uploaded (check S3 listing) | Developer |
-| No production maintenance window conflicts | IT Admin |
-| Two team members are available for the full duration | Both |
+| `BACKUP_ENCRYPTION_KEY` is available in the test environment's secrets vault      | IT Admin  |
+| The target daily dump was confirmed uploaded (check S3 listing)                   | Developer |
+| No production maintenance window conflicts                                        | IT Admin  |
+| Two team members are available for the full duration                              | Both      |
 
 ### 4.3 Identify the Backup to Test
 
@@ -925,27 +925,27 @@ Complete a new entry in `docs/ops/restoration-test-log.md` in the repository. Bo
 ```markdown
 ## Restoration Test — YYYY-MM-DD
 
-| Field | Value |
-|---|---|
-| Date | |
-| Backup tested (S3 prefix) | `daily-dumps/YYYYMMDDTHHMMSSZ/` |
-| Backup nominal production timestamp | |
-| Download completed at | |
-| Checksum verified | YES / NO |
-| Decryption succeeded | YES / NO |
-| Restore completed without pg_restore errors | YES / NO |
-| Schema count | _ / 8 |
-| `iam.users` count | |
-| `documents.documents` count | |
-| `audit.events` count | |
-| Most recent document `created_at` | |
-| Age of most recent document at restore time | |
-| Audit chain spot check | PASSED / FAILED / NOT RUN |
-| Total elapsed time (download → verification complete) | |
-| Conducted by | |
-| Witnessed by | |
-| Issues noted | |
-| Follow-up action items | |
+| Field                                                 | Value                           |
+| ----------------------------------------------------- | ------------------------------- |
+| Date                                                  |                                 |
+| Backup tested (S3 prefix)                             | `daily-dumps/YYYYMMDDTHHMMSSZ/` |
+| Backup nominal production timestamp                   |                                 |
+| Download completed at                                 |                                 |
+| Checksum verified                                     | YES / NO                        |
+| Decryption succeeded                                  | YES / NO                        |
+| Restore completed without pg_restore errors           | YES / NO                        |
+| Schema count                                          | \_ / 8                          |
+| `iam.users` count                                     |                                 |
+| `documents.documents` count                           |                                 |
+| `audit.events` count                                  |                                 |
+| Most recent document `created_at`                     |                                 |
+| Age of most recent document at restore time           |                                 |
+| Audit chain spot check                                | PASSED / FAILED / NOT RUN       |
+| Total elapsed time (download → verification complete) |                                 |
+| Conducted by                                          |                                 |
+| Witnessed by                                          |                                 |
+| Issues noted                                          |                                 |
+| Follow-up action items                                |                                 |
 ```
 
 If any item is FAILED or the row count differs from the previous test by more than 10% without a known cause, raise an incident with IT Admin and IT Director before the next business day.
@@ -965,16 +965,16 @@ The quarterly DR drill validates the full end-to-end recovery path: primary fail
 
 ### 5.2 Pre-Drill Checklist
 
-| Check | Owner | Due |
-|---|---|---|
-| Stakeholder notification sent (SP Secretary, Mayor's Office, Platform Admin) | IT Admin | D-5 working days |
-| Maintenance window confirmed with SP Secretary | IT Admin | D-3 working days |
-| Standby replication lag is < 60 s at drill start | IT Admin | Drill morning |
-| Most recent `wal-g` base backup is < 26 hours old | Developer | Drill morning |
-| Most recent daily `pg_dump` is < 26 hours old | Developer | Drill morning |
-| Break-glass envelope is in the IT Office safe and seal is intact (do not open) | IT Admin | Drill morning |
-| Drill participant phones exchanged (in case of split locations) | Both | Drill morning |
-| `docs/ops/dr-drill-log.md` open and ready for recording | Both | 08:00 |
+| Check                                                                          | Owner     | Due              |
+| ------------------------------------------------------------------------------ | --------- | ---------------- |
+| Stakeholder notification sent (SP Secretary, Mayor's Office, Platform Admin)   | IT Admin  | D-5 working days |
+| Maintenance window confirmed with SP Secretary                                 | IT Admin  | D-3 working days |
+| Standby replication lag is < 60 s at drill start                               | IT Admin  | Drill morning    |
+| Most recent `wal-g` base backup is < 26 hours old                              | Developer | Drill morning    |
+| Most recent daily `pg_dump` is < 26 hours old                                  | Developer | Drill morning    |
+| Break-glass envelope is in the IT Office safe and seal is intact (do not open) | IT Admin  | Drill morning    |
+| Drill participant phones exchanged (in case of split locations)                | Both      | Drill morning    |
+| `docs/ops/dr-drill-log.md` open and ready for recording                        | Both      | 08:00            |
 
 ### 5.3 Drill Phases and Steps
 
@@ -1080,17 +1080,17 @@ Confirm all systems are in steady state, record the drill log entry, and shred a
 
 ### 5.4 Timing Targets and Pass/Fail
 
-| Milestone | Target from T+0 | Status |
-|---|---|---|
-| Primary confirmed unreachable | T+5 min | |
-| Standby promoted | T+15 min | |
-| Lag at promotion < 60 min (RPO) | At promotion time | |
-| DNS updated | T+25 min | |
-| Health check passes | T+40 min | |
-| SP Secretary dashboard accessible | T+60 min | |
-| PITR spot check passes | T+90 min | |
-| New standby synchronized (lag < 60 s) | T+150 min | |
-| Full RTO (all services operational) | T+240 min max | |
+| Milestone                             | Target from T+0   | Status |
+| ------------------------------------- | ----------------- | ------ |
+| Primary confirmed unreachable         | T+5 min           |        |
+| Standby promoted                      | T+15 min          |        |
+| Lag at promotion < 60 min (RPO)       | At promotion time |        |
+| DNS updated                           | T+25 min          |        |
+| Health check passes                   | T+40 min          |        |
+| SP Secretary dashboard accessible     | T+60 min          |        |
+| PITR spot check passes                | T+90 min          |        |
+| New standby synchronized (lag < 60 s) | T+150 min         |        |
+| Full RTO (all services operational)   | T+240 min max     |        |
 
 If RTO exceeds 4 hours during any drill, halt and file a P1 incident report before the next business day. Do not mark the drill as passed. The root cause must be resolved and documented before the following quarter's drill.
 
@@ -1101,30 +1101,30 @@ Complete in `docs/ops/dr-drill-log.md`. Both participants must sign.
 ```markdown
 ## DR Drill — YYYY-MM-DD
 
-| Field | Value |
-|---|---|
-| Date | |
-| Quarter | Q1 / Q2 / Q3 / Q4 |
-| Participants | Developer: ___  IT Admin: ___ |
-| T+0 (drill start) | |
-| Standby lag at T+0 | |
-| Primary stopped at | |
-| Standby promoted at | |
-| Lag at promotion | |
-| RPO satisfied (< 1 h) | YES / NO |
-| DNS updated at | |
-| Health check passed at | |
-| Dashboard accessible at | |
-| PITR spot check passed | YES / NO |
-| New standby synced at | |
-| Drill end (all steady) | |
-| Total elapsed | |
-| RTO met (≤ 4 hours) | YES / NO |
-| Break-glass envelope seal confirmed intact | YES / NO |
-| Issues observed | |
-| Action items and owners | |
-| Signed by (Developer) | |
-| Signed by (IT Admin) | |
+| Field                                      | Value                        |
+| ------------------------------------------ | ---------------------------- |
+| Date                                       |                              |
+| Quarter                                    | Q1 / Q2 / Q3 / Q4            |
+| Participants                               | Developer: **_ IT Admin: _** |
+| T+0 (drill start)                          |                              |
+| Standby lag at T+0                         |                              |
+| Primary stopped at                         |                              |
+| Standby promoted at                        |                              |
+| Lag at promotion                           |                              |
+| RPO satisfied (< 1 h)                      | YES / NO                     |
+| DNS updated at                             |                              |
+| Health check passed at                     |                              |
+| Dashboard accessible at                    |                              |
+| PITR spot check passed                     | YES / NO                     |
+| New standby synced at                      |                              |
+| Drill end (all steady)                     |                              |
+| Total elapsed                              |                              |
+| RTO met (≤ 4 hours)                        | YES / NO                     |
+| Break-glass envelope seal confirmed intact | YES / NO                     |
+| Issues observed                            |                              |
+| Action items and owners                    |                              |
+| Signed by (Developer)                      |                              |
+| Signed by (IT Admin)                       |                              |
 ```
 
 ---
@@ -1141,22 +1141,22 @@ The break-glass envelope is the last-resort access mechanism for the production 
 
 The sealed envelope contains one printed sheet only. The printed document lists the following items:
 
-| Item | Description |
-|---|---|
-| `DATABASE_URL_MIGRATE` | Full production connection string for `migrate_user` (DDL; emergency schema access) |
-| `DATABASE_URL_APP` | Full production connection string for `app_user` (application runtime role) |
-| `DATABASE_URL_AUDIT` | Full production connection string for `audit_user` (audit schema access) |
-| `replicator` password | PostgreSQL streaming replication credential |
-| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | Cloudflare R2 (Phase 1) or MinIO production credentials |
-| `S3_ENDPOINT` | Production S3 endpoint URL |
-| `S3_BUCKET` | Application document file bucket name |
-| `S3_BACKUP_BUCKET` | Backup and WAL archive bucket name |
-| `S3_COLD_BUCKET` | Cold-retention (object lock) bucket name |
-| `BACKUP_ENCRYPTION_KEY` | AES-256-CBC key for `pg_dump` decryption |
-| `WALG_LIBSODIUM_KEY` | `wal-g` encryption key for PITR archive |
-| Docker host SSH key or sudo password | For direct server access to the PostgreSQL and Fastify hosts |
-| Emergency contact list | City IT Director phone + personal; SP Secretary phone; on-call developer phone |
-| Sealed date | Date the envelope was last sealed and the name of the person who sealed it |
+| Item                                 | Description                                                                         |
+| ------------------------------------ | ----------------------------------------------------------------------------------- |
+| `DATABASE_URL_MIGRATE`               | Full production connection string for `migrate_user` (DDL; emergency schema access) |
+| `DATABASE_URL_APP`                   | Full production connection string for `app_user` (application runtime role)         |
+| `DATABASE_URL_AUDIT`                 | Full production connection string for `audit_user` (audit schema access)            |
+| `replicator` password                | PostgreSQL streaming replication credential                                         |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY`    | Cloudflare R2 (Phase 1) or MinIO production credentials                             |
+| `S3_ENDPOINT`                        | Production S3 endpoint URL                                                          |
+| `S3_BUCKET`                          | Application document file bucket name                                               |
+| `S3_BACKUP_BUCKET`                   | Backup and WAL archive bucket name                                                  |
+| `S3_COLD_BUCKET`                     | Cold-retention (object lock) bucket name                                            |
+| `BACKUP_ENCRYPTION_KEY`              | AES-256-CBC key for `pg_dump` decryption                                            |
+| `WALG_LIBSODIUM_KEY`                 | `wal-g` encryption key for PITR archive                                             |
+| Docker host SSH key or sudo password | For direct server access to the PostgreSQL and Fastify hosts                        |
+| Emergency contact list               | City IT Director phone + personal; SP Secretary phone; on-call developer phone      |
+| Sealed date                          | Date the envelope was last sealed and the name of the person who sealed it          |
 
 The contents are printed — not stored on any digital medium at the time of sealing. The envelope is sealed with tamper-evident security tape. The sealed envelope is stored in the LGU IT Office safe.
 
@@ -1164,11 +1164,11 @@ The contents are printed — not stored on any digital medium at the time of sea
 
 Opening requires verbal or written authorization from at least **one** of:
 
-| Role | Name (update at Production Rollout) | Contact |
-|---|---|---|
-| City IT Director | [Confirmed at Production Rollout] | [Phone] |
-| SP Secretary | Gladys R. Lagura | [Phone from staff directory] |
-| Platform Administrator | [Designated at Production Rollout] | [Phone] |
+| Role                   | Name (update at Production Rollout) | Contact                      |
+| ---------------------- | ----------------------------------- | ---------------------------- |
+| City IT Director       | [Confirmed at Production Rollout]   | [Phone]                      |
+| SP Secretary           | Gladys R. Lagura                    | [Phone from staff directory] |
+| Platform Administrator | [Designated at Production Rollout]  | [Phone]                      |
 
 If none of the above are reachable within 30 minutes of a critical emergency, the Mayor or Vice Mayor may authorize opening as a last resort. This must be documented in the log entry.
 
@@ -1305,17 +1305,18 @@ Step 8.  Clear terminal history, clipboard, and any temporary files used
 
 ### 6.7 Envelope Replacement Schedule
 
-| Trigger | Action | Deadline |
-|---|---|---|
-| After any break-glass opening | Rotate all credentials; print and seal new envelope | Within 24 hours of resolution |
-| After any secrets vault credential rotation | Print and seal new envelope | Within 24 hours |
-| Quarterly DR drill (Runbook 5) | Visually verify seal integrity; do not open | During drill pre-check |
-| Personnel change — IT Director or Platform Admin leaves | Rotate credentials; print and seal new envelope | Before departing person's last day |
-| Annual credential rotation (January) | Full credential rotation + new envelope | January 15 |
+| Trigger                                                 | Action                                              | Deadline                           |
+| ------------------------------------------------------- | --------------------------------------------------- | ---------------------------------- |
+| After any break-glass opening                           | Rotate all credentials; print and seal new envelope | Within 24 hours of resolution      |
+| After any secrets vault credential rotation             | Print and seal new envelope                         | Within 24 hours                    |
+| Quarterly DR drill (Runbook 5)                          | Visually verify seal integrity; do not open         | During drill pre-check             |
+| Personnel change — IT Director or Platform Admin leaves | Rotate credentials; print and seal new envelope     | Before departing person's last day |
+| Annual credential rotation (January)                    | Full credential rotation + new envelope             | January 15                         |
 
 ### 6.8 Quarterly Seal Verification (Without Opening)
 
 During the quarterly DR drill pre-check, one authorized role physically confirms:
+
 - The envelope is present in the safe
 - The tamper-evident seal is intact and unmarked
 - The date on the outer label is consistent with the last known sealing event
@@ -1326,44 +1327,44 @@ Record in the drill log: "Break-glass envelope seal confirmed intact: YES/NO —
 
 ## Appendix A — Alert Summary
 
-| Alert | Trigger | Recipient | Channels |
-|---|---|---|---|
-| Replication lag exceeded | `replay_lag > 60 s` on primary | IT Admin, Platform Admin | Pino error log, Sentry warning, SSE notification |
-| Replication lag critical | `replay_lag > 300 s` (5 min) | IT Admin | Sentry error + phone call |
-| Daily dump missing | No successful dump in S3 for > 26 h | IT Admin | Pino error log, Sentry error |
-| WAL archive stale | `wal-g backup-list` most recent > 26 h | IT Admin | Pino error log, Sentry error |
-| Primary heartbeat loss | No TCP response for 60 s | IT Admin | Infrastructure monitoring alert + phone |
-| Break-glass envelope opened | `break_glass.opened` audit event | IT Director, SP Secretary, Platform Admin | Audit log SSE notification |
-| Checksum mismatch (monthly restore) | `sha256sum -c` fails during Runbook 4 | IT Director, Developer | Immediate phone call |
-| PITR base backup > 26 h old | wal-g health check job | IT Admin, Developer | Pino error log, Sentry error |
+| Alert                               | Trigger                                | Recipient                                 | Channels                                         |
+| ----------------------------------- | -------------------------------------- | ----------------------------------------- | ------------------------------------------------ |
+| Replication lag exceeded            | `replay_lag > 60 s` on primary         | IT Admin, Platform Admin                  | Pino error log, Sentry warning, SSE notification |
+| Replication lag critical            | `replay_lag > 300 s` (5 min)           | IT Admin                                  | Sentry error + phone call                        |
+| Daily dump missing                  | No successful dump in S3 for > 26 h    | IT Admin                                  | Pino error log, Sentry error                     |
+| WAL archive stale                   | `wal-g backup-list` most recent > 26 h | IT Admin                                  | Pino error log, Sentry error                     |
+| Primary heartbeat loss              | No TCP response for 60 s               | IT Admin                                  | Infrastructure monitoring alert + phone          |
+| Break-glass envelope opened         | `break_glass.opened` audit event       | IT Director, SP Secretary, Platform Admin | Audit log SSE notification                       |
+| Checksum mismatch (monthly restore) | `sha256sum -c` fails during Runbook 4  | IT Director, Developer                    | Immediate phone call                             |
+| PITR base backup > 26 h old         | wal-g health check job                 | IT Admin, Developer                       | Pino error log, Sentry error                     |
 
 ---
 
 ## Appendix B — Key Contacts
 
-| Role | Responsibility | Name / Contact |
-|---|---|---|
-| City IT Director | Break-glass authorizer; DR drill co-signer; post-incident review within 5 working days | [Confirmed at Production Rollout] |
-| LGU IT Admin (on-call) | Executes all runbooks in production; holds physical break-glass envelope access | [Confirmed at Production Rollout] |
-| SP Secretary | Break-glass authorizer; stakeholder notification on service disruption | Gladys R. Lagura |
-| Platform Administrator | Break-glass authorizer; receives in-app alerts | [Designated at Production Rollout] |
-| Developer (on-call) | Remote assistance for runbook execution; application-layer recovery; runbook authorship | [Development team contact] |
+| Role                   | Responsibility                                                                          | Name / Contact                     |
+| ---------------------- | --------------------------------------------------------------------------------------- | ---------------------------------- |
+| City IT Director       | Break-glass authorizer; DR drill co-signer; post-incident review within 5 working days  | [Confirmed at Production Rollout]  |
+| LGU IT Admin (on-call) | Executes all runbooks in production; holds physical break-glass envelope access         | [Confirmed at Production Rollout]  |
+| SP Secretary           | Break-glass authorizer; stakeholder notification on service disruption                  | Gladys R. Lagura                   |
+| Platform Administrator | Break-glass authorizer; receives in-app alerts                                          | [Designated at Production Rollout] |
+| Developer (on-call)    | Remote assistance for runbook execution; application-layer recovery; runbook authorship | [Development team contact]         |
 
 ---
 
 ## Appendix C — Operational Calendar
 
-| Task | Frequency | Months / Trigger | Owner |
-|---|---|---|---|
-| Monthly restoration test | Monthly | First working Tuesday after the 1st | IT Admin + Developer |
-| Quarterly DR drill | Quarterly | March, June, September, December | IT Admin + Developer |
-| Break-glass seal verification | Quarterly | Same week as DR drill | IT Admin |
-| `wal-g` delete (hot retention prune) | Weekly | Sunday 03:00 Asia/Manila | Cron (automated) |
-| Monthly cold copy to write-once bucket | Monthly | 2nd of each month | Cron (automated) |
-| Annual credential rotation | Annually | January 15 | IT Director + IT Admin |
-| Cold storage verification (confirm objects readable) | Annually | January | IT Admin |
-| Year-boundary sequence pre-provisioning (`documents.fn_get_next_sequence_value`) | Annually | December 15 (before year rollover) | Developer |
-| DR runbook review and update | After any drill, incident, or infrastructure change | As triggered | Developer + IT Admin |
+| Task                                                                             | Frequency                                           | Months / Trigger                    | Owner                  |
+| -------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------- | ---------------------- |
+| Monthly restoration test                                                         | Monthly                                             | First working Tuesday after the 1st | IT Admin + Developer   |
+| Quarterly DR drill                                                               | Quarterly                                           | March, June, September, December    | IT Admin + Developer   |
+| Break-glass seal verification                                                    | Quarterly                                           | Same week as DR drill               | IT Admin               |
+| `wal-g` delete (hot retention prune)                                             | Weekly                                              | Sunday 03:00 Asia/Manila            | Cron (automated)       |
+| Monthly cold copy to write-once bucket                                           | Monthly                                             | 2nd of each month                   | Cron (automated)       |
+| Annual credential rotation                                                       | Annually                                            | January 15                          | IT Director + IT Admin |
+| Cold storage verification (confirm objects readable)                             | Annually                                            | January                             | IT Admin               |
+| Year-boundary sequence pre-provisioning (`documents.fn_get_next_sequence_value`) | Annually                                            | December 15 (before year rollover)  | Developer              |
+| DR runbook review and update                                                     | After any drill, incident, or infrastructure change | As triggered                        | Developer + IT Admin   |
 
 ---
 
@@ -1380,4 +1381,4 @@ The printed, signed copy in the IT Office constitutes the offline operational ve
 
 ---
 
-*This document is part of the L-series pre-development reference set. Version-controlled in the repository at `docs/ops/l4-backup-dr-runbooks.md`. Must exist and be tested before any production data is written.*
+_This document is part of the L-series pre-development reference set. Version-controlled in the repository at `docs/ops/l4-backup-dr-runbooks.md`. Must exist and be tested before any production data is written._

@@ -14,27 +14,28 @@ export async function executeNotificationStep(
   instance: InstanceRow,
   stepInstance: StepInstanceRow,
   deps: NotificationHandlerDeps,
-  trx?: DbTransaction
+  trx?: DbTransaction,
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any
+    trx as any,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
-  const stepDef = versionData.steps.find(s => s.id === stepInstance.stepId);
+  const stepDef = versionData.steps.find((s) => s.id === stepInstance.stepId);
   if (!stepDef) throw new Error('Step definition not found');
 
   const config = (stepDef.config as Record<string, any>) || {};
   const context = (instance.context as Record<string, any>) || {};
-  
+
   // 1. Resolve recipients
   let recipients: Array<{ user_id: string }> = [];
   if (config['recipients']) {
     try {
       recipients = await resolveAssignees(config['recipients'], context, deps);
     } catch (err) {
-      if (deps.logger) deps.logger.warn({ err, stepId: stepDef.id }, 'Failed to resolve notification recipients');
+      if (deps.logger)
+        deps.logger.warn({ err, stepId: stepDef.id }, 'Failed to resolve notification recipients');
       else console.warn('Failed to resolve notification recipients', err);
     }
   }
@@ -47,14 +48,14 @@ export async function executeNotificationStep(
       const payload = {
         instanceId: instance.id,
         documentId: instance.documentId,
-        ...context
+        ...context,
       };
 
       await deps.notificationService.enqueue({
         templateKey,
-        recipients: recipients.map(r => r.user_id),
+        recipients: recipients.map((r) => r.user_id),
         channels,
-        payload
+        payload,
       });
     } else {
       if (deps.logger) deps.logger.debug('Notification service not available. Skipping dispatch.');
@@ -73,7 +74,7 @@ export async function executeNotificationStep(
   await deps.workflowRepository.updateStepInstance(
     stepInstance.id,
     { status: 'completed', completedAt: now, outcome },
-    trx as any
+    trx as any,
   );
 
   await deps.workflowRepository.createWorkflowEvent(
@@ -89,12 +90,15 @@ export async function executeNotificationStep(
         stepType: stepDef.stepType,
         outcome,
         comment: null,
-      }
+      },
     },
-    trx as any
+    trx as any,
   );
 
-  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(stepInstance.id, trx as any);
+  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
+    stepInstance.id,
+    trx as any,
+  );
   if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 
   // 6. Run step resolution

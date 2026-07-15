@@ -125,7 +125,7 @@ ENTRYPOINT ["/docker-entrypoint.sh"]
 nginx:
   image: nginx:1.27-alpine
   environment:
-    APP_DOMAIN: ${APP_DOMAIN}   # passed from .env.production
+    APP_DOMAIN: ${APP_DOMAIN} # passed from .env.production
   # ... rest of service definition unchanged
 ```
 

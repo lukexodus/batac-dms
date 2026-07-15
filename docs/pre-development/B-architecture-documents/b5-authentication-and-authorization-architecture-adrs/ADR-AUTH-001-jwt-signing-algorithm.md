@@ -1,6 +1,5 @@
 # ADR-AUTH-001: JWT Signing Algorithm
 
-
 **Status:** Accepted
 
 **Context**

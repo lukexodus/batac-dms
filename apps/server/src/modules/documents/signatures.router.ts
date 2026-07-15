@@ -2,14 +2,8 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import type { Context } from '../iam/iam.types.js';
-import {
-  type LifecycleState,
-  type ClassificationLevel,
-} from '@batac/shared';
-import {
-  LogSignatureInputSchema,
-  SignatureSelectSchema,
-} from '@batac/shared/schemas/documents';
+import { type LifecycleState, type ClassificationLevel } from '@batac/shared';
+import { LogSignatureInputSchema, SignatureSelectSchema } from '@batac/shared/schemas/documents';
 import type { DocumentsRepository } from './documents.repository.js';
 import type { DocumentsPublicAPI } from './documents.types.js';
 import { DocumentPolicyGuard } from './documents.policy.js';
@@ -40,7 +34,10 @@ export function createSignatureProcedures() {
 
         // 1. Verify caller role
         if (!guard.canLogSignature(subject)) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Forbidden: Insufficient roles to log signature' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Forbidden: Insufficient roles to log signature',
+          });
         }
 
         // 2. Find parent document
@@ -100,7 +97,9 @@ export function createSignatureProcedures() {
         }
 
         // 3. Verify ABAC
-        if (!guard.canUploadSignatureImage(subject, { ownedByOfficeId: document.ownedByOfficeId })) {
+        if (
+          !guard.canUploadSignatureImage(subject, { ownedByOfficeId: document.ownedByOfficeId })
+        ) {
           throw new TRPCError({
             code: 'FORBIDDEN',
             message: 'Forbidden: Insufficient privileges to upload signature image',
@@ -127,7 +126,10 @@ export function createSignatureProcedures() {
 
         // 1. Verify caller role
         if (!guard.canGetSignatureRecords(subject)) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Forbidden: Insufficient roles to view signatures' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Forbidden: Insufficient roles to view signatures',
+          });
         }
 
         // 2. Fetch parent document

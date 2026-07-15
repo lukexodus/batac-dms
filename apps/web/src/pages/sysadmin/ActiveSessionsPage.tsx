@@ -1,27 +1,19 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 
-import {
-  PageHeader,
-  Card,
-  CardContent,
-  Button,
-  Input,
-  Skeleton,
-} from '@batac/ui';
+import { PageHeader, Card, CardContent, Button, Input, Skeleton } from '@batac/ui';
 
 import { useSessionStore } from '@/stores';
 import { trpc } from '@/lib/trpc';
 
-
 // ─── Access denied ──────────────────────────────────────────────────────────
 function AccessDenied() {
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Card className="max-w-md w-full">
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Card className="w-full max-w-md">
         <CardContent className="pt-6 text-center">
-          <p className="text-lg font-semibold text-destructive">Access Denied</p>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-destructive text-lg font-semibold">Access Denied</p>
+          <p className="text-muted-foreground mt-2 text-sm">
             This page requires System Administrator privileges.
           </p>
         </CardContent>
@@ -35,11 +27,11 @@ function AccessDenied() {
 // cannot be used for session active: boolean. Using an inline implementation.
 function ActiveBadge({ active }: { active: boolean }) {
   return active ? (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-300">
+    <span className="inline-flex items-center rounded-full border border-green-300 bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
       Active
     </span>
   ) : (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-300">
+    <span className="inline-flex items-center rounded-full border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
       Inactive
     </span>
   );
@@ -69,11 +61,7 @@ function TerminateRow({ sessionId, onDone }: TerminateRowProps) {
 
   if (!open) {
     return (
-      <Button
-        variant="destructive"
-        size="sm"
-        onClick={() => setOpen(true)}
-      >
+      <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
         Terminate
       </Button>
     );
@@ -86,7 +74,7 @@ function TerminateRow({ sessionId, onDone }: TerminateRowProps) {
         placeholder="Reason (required)"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        className="h-8 text-sm w-48"
+        className="h-8 w-48 text-sm"
         autoFocus
       />
       <Button
@@ -96,9 +84,7 @@ function TerminateRow({ sessionId, onDone }: TerminateRowProps) {
         // Server-side also rejects empty reason (z.string().min(1)) — this is
         // the UX layer, not the only guard.
         disabled={!reason.trim() || terminateMutation.isPending}
-        onClick={() =>
-          terminateMutation.mutate({ sessionId, reason: reason.trim() })
-        }
+        onClick={() => terminateMutation.mutate({ sessionId, reason: reason.trim() })}
       >
         Confirm
       </Button>
@@ -131,13 +117,13 @@ export function ActiveSessionsPage() {
   const sessionsQuery = trpc.iam.listAllActiveSessions.useQuery({ pageSize: 20 });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
       <PageHeader
         title="Active Sessions"
         subtitle="View and force-terminate active user sessions."
       />
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-muted-foreground text-xs">
         Showing first 20 active sessions.{' '}
         {/* nextCursor is permanently null server-side in the current implementation. */}
         Pagination beyond this page is not yet functional.
@@ -152,40 +138,40 @@ export function ActiveSessionsPage() {
       )}
 
       {sessionsQuery.isError && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3">
-          <p className="text-sm text-destructive">
+        <div className="border-destructive/30 bg-destructive/5 rounded-md border px-4 py-3">
+          <p className="text-destructive text-sm">
             Failed to load sessions: {sessionsQuery.error.message}
           </p>
         </div>
       )}
 
       {sessionsQuery.data && sessionsQuery.data.items.length === 0 && (
-        <p className="text-sm text-muted-foreground italic text-center py-8">
+        <p className="text-muted-foreground py-8 text-center text-sm italic">
           No active sessions found.
         </p>
       )}
 
       {sessionsQuery.data && sessionsQuery.data.items.length > 0 && (
-        <div className="rounded-lg border overflow-hidden">
+        <div className="overflow-hidden rounded-lg border">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wide uppercase">
                   User ID
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wide uppercase">
                   IP Address
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wide uppercase">
                   User Agent
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wide uppercase">
                   Last Activity
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wide uppercase">
                   Status
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                <th className="text-muted-foreground px-4 py-3 text-right text-xs font-semibold tracking-wide uppercase">
                   Action
                 </th>
               </tr>
@@ -193,13 +179,13 @@ export function ActiveSessionsPage() {
             <tbody className="divide-y">
               {sessionsQuery.data.items.map((s) => (
                 <tr key={s.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground truncate max-w-[120px]">
+                  <td className="text-muted-foreground max-w-[120px] truncate px-4 py-3 font-mono text-xs">
                     {s.userId}
                   </td>
-                  <td className="px-4 py-3 text-xs font-mono">
+                  <td className="px-4 py-3 font-mono text-xs">
                     {s.ipAddress ?? <span className="text-muted-foreground italic">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground truncate max-w-[200px]">
+                  <td className="text-muted-foreground max-w-[200px] truncate px-4 py-3 text-xs">
                     {s.userAgent ?? <span className="italic">—</span>}
                   </td>
                   <td className="px-4 py-3 text-xs">
@@ -211,12 +197,11 @@ export function ActiveSessionsPage() {
                   <td className="px-4 py-3 text-right">
                     {/* Only offer terminate for currently active sessions */}
                     {s.active ? (
-                      <TerminateRow
-                        sessionId={s.id}
-                        onDone={() => sessionsQuery.refetch()}
-                      />
+                      <TerminateRow sessionId={s.id} onDone={() => sessionsQuery.refetch()} />
                     ) : (
-                      <span className="text-xs text-muted-foreground italic">Already terminated</span>
+                      <span className="text-muted-foreground text-xs italic">
+                        Already terminated
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -226,15 +211,15 @@ export function ActiveSessionsPage() {
         </div>
       )}
 
-      <div className="rounded-md border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+      <div className="bg-muted/30 text-muted-foreground rounded-md border px-4 py-3 text-xs">
         <p>
           <strong>Note:</strong> Session token hashes are never displayed here — they are
           credential-adjacent values with no human-readable utility.
         </p>
         <p className="mt-1">
           Termination requires a non-empty reason, enforced both client-side (button remains
-          disabled until a reason is entered) and server-side (Zod validation rejects empty
-          strings before the role check runs).
+          disabled until a reason is entered) and server-side (Zod validation rejects empty strings
+          before the role check runs).
         </p>
       </div>
     </div>

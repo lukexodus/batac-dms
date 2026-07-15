@@ -59,7 +59,7 @@ Write the output to docs/pre-development/A-project-planning/a1-skeleton.md.
 
 **Step 2 — Wave A** (no module prerequisites; both passes can run in parallel)
 
-*INFRA*
+_INFRA_
 
 ```
 Read docs/pre-development/A1-AGENTS.md — Section 2 Pass Types table and
@@ -83,7 +83,7 @@ only the sections relevant to INFRA tasks:
 Write the output to docs/pre-development/A-project-planning/a1-tasks/infra.md.
 ```
 
-*UI*
+_UI_
 
 ```
 Read docs/pre-development/A1-AGENTS.md — Section 2 Pass Types table and
@@ -113,7 +113,7 @@ Write the output to docs/pre-development/A-project-planning/a1-tasks/ui.md.
 
 **Step 2 — Wave B** (requires Wave A to be complete; both passes can run in parallel)
 
-*IAM*
+_IAM_
 
 ```
 Read docs/pre-development/A1-AGENTS.md — Section 2 Pass Types table and
@@ -138,7 +138,7 @@ be referenced in Prerequisites fields.
 Write the output to docs/pre-development/A-project-planning/a1-tasks/iam.md.
 ```
 
-*AUDIT*
+_AUDIT_
 
 ```
 Read docs/pre-development/A1-AGENTS.md — Section 2 Pass Types table and
@@ -162,7 +162,7 @@ Write the output to docs/pre-development/A-project-planning/a1-tasks/audit.md.
 
 **Step 2 — Wave C** (requires Wave B to be complete)
 
-*ORG*
+_ORG_
 
 ```
 Read docs/pre-development/A1-AGENTS.md — Section 2 Pass Types table and
@@ -188,7 +188,7 @@ Write the output to docs/pre-development/A-project-planning/a1-tasks/org.md.
 
 **Step 2 — Wave D** (requires Wave C to be complete)
 
-*DOCS*
+_DOCS_
 
 ```
 Read docs/pre-development/A1-AGENTS.md — Section 2 Pass Types table and
@@ -217,7 +217,7 @@ Write the output to docs/pre-development/A-project-planning/a1-tasks/docs.md.
 
 **Step 2 — Wave E** (requires Wave D to be complete; both passes can run in parallel)
 
-*WF*
+_WF_
 
 ```
 Read docs/pre-development/A1-AGENTS.md — Section 2 Pass Types table and
@@ -244,7 +244,7 @@ be referenced in Prerequisites fields.
 Write the output to docs/pre-development/A-project-planning/a1-tasks/wf.md.
 ```
 
-*TRACK*
+_TRACK_
 
 ```
 Read docs/pre-development/A1-AGENTS.md — Section 2 Pass Types table and
@@ -269,7 +269,7 @@ Write the output to docs/pre-development/A-project-planning/a1-tasks/track.md.
 
 **Step 2 — Wave F** (requires Wave E to be complete; both passes can run in parallel)
 
-*REC*
+_REC_
 
 ```
 Read docs/pre-development/A1-AGENTS.md — Section 2 Pass Types table and
@@ -292,7 +292,7 @@ TASK-WF and TASK-TRACK IDs can be referenced in Prerequisites fields.
 Write the output to docs/pre-development/A-project-planning/a1-tasks/rec.md.
 ```
 
-*NOTIF*
+_NOTIF_
 
 ```
 Read docs/pre-development/A1-AGENTS.md — Section 2 Pass Types table and
@@ -318,7 +318,7 @@ Write the output to docs/pre-development/A-project-planning/a1-tasks/notif.md.
 
 **Step 2 — Wave G** (requires all of Wave F to be complete)
 
-*PORTAL*
+_PORTAL_
 
 ```
 Read docs/pre-development/A1-AGENTS.md — Section 2 Pass Types table and

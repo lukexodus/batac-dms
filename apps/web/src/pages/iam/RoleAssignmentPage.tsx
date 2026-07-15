@@ -15,7 +15,6 @@ import {
 import { useSessionStore } from '@/stores';
 import { trpc } from '@/lib/trpc';
 
-
 // ─── Role code constants ────────────────────────────────────────────────────
 // Sourced from iam.schemas.ts roleCodeEnum — 13 values, confirmed current.
 const ROLE_CODES = [
@@ -56,11 +55,11 @@ const ROLE_LABELS: Record<RoleCode, string> = {
 // ─── Access denied ──────────────────────────────────────────────────────────
 function AccessDenied() {
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Card className="max-w-md w-full">
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Card className="w-full max-w-md">
         <CardContent className="pt-6 text-center">
-          <p className="text-lg font-semibold text-destructive">Access Denied</p>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-destructive text-lg font-semibold">Access Denied</p>
+          <p className="text-muted-foreground mt-2 text-sm">
             This page requires Platform Administrator privileges.
           </p>
         </CardContent>
@@ -86,7 +85,7 @@ function UserRoleRow({ userId, username, email, status }: UserRoleRowProps) {
   // Lazy: only fetch when the row is expanded
   const assignmentsQuery = trpc.iam.listRoleAssignmentsByUser.useQuery(
     { userId },
-    { enabled: expanded }
+    { enabled: expanded },
   );
 
   const assignRoleMutation = trpc.iam.assignRole.useMutation({
@@ -125,25 +124,25 @@ function UserRoleRow({ userId, username, email, status }: UserRoleRowProps) {
       : 'bg-gray-100 text-gray-600 border-gray-300';
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="overflow-hidden rounded-lg border">
       {/* Row header — always visible */}
       <button
         type="button"
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+        className="hover:bg-muted/50 flex w-full items-center justify-between px-4 py-3 text-left transition-colors"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
       >
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary select-none">
+          <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold select-none">
             {username.charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-medium text-sm">{username}</p>
-            <p className="text-xs text-muted-foreground">{email}</p>
+            <p className="text-sm font-medium">{username}</p>
+            <p className="text-muted-foreground text-xs">{email}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${statusColor}`}>
+          <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusColor}`}>
             {status}
           </span>
           <span className="text-muted-foreground text-xs">{expanded ? '▲' : '▼'}</span>
@@ -152,10 +151,10 @@ function UserRoleRow({ userId, username, email, status }: UserRoleRowProps) {
 
       {/* Expanded panel */}
       {expanded && (
-        <div className="border-t bg-muted/20 px-4 py-4 space-y-4">
+        <div className="bg-muted/20 space-y-4 border-t px-4 py-4">
           {/* Current assignments */}
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
               Current Role Assignments
             </p>
             {assignmentsQuery.isPending && (
@@ -165,25 +164,25 @@ function UserRoleRow({ userId, username, email, status }: UserRoleRowProps) {
               </div>
             )}
             {assignmentsQuery.isError && (
-              <p className="text-xs text-destructive">Failed to load assignments.</p>
+              <p className="text-destructive text-xs">Failed to load assignments.</p>
             )}
             {assignmentsQuery.data && assignmentsQuery.data.length === 0 && (
-              <p className="text-xs text-muted-foreground italic">No active role assignments.</p>
+              <p className="text-muted-foreground text-xs italic">No active role assignments.</p>
             )}
             {assignmentsQuery.data && assignmentsQuery.data.length > 0 && (
               <div className="space-y-2">
                 {assignmentsQuery.data.map((assignment) => (
                   <div
                     key={assignment.id}
-                    className="flex items-center justify-between bg-background rounded border px-3 py-2"
+                    className="bg-background flex items-center justify-between rounded border px-3 py-2"
                   >
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="font-mono text-xs">
                         {assignment.roleCode}
                       </Badge>
-                      <span className="text-sm text-muted-foreground">{assignment.roleName}</span>
+                      <span className="text-muted-foreground text-sm">{assignment.roleName}</span>
                       {assignment.officeScopeId && (
-                        <span className="text-xs text-muted-foreground italic">
+                        <span className="text-muted-foreground text-xs italic">
                           scope: {assignment.officeScopeId}
                         </span>
                       )}
@@ -192,9 +191,7 @@ function UserRoleRow({ userId, username, email, status }: UserRoleRowProps) {
                       variant="destructive"
                       size="sm"
                       disabled={busy}
-                      onClick={() =>
-                        revokeRoleMutation.mutate({ roleAssignmentId: assignment.id })
-                      }
+                      onClick={() => revokeRoleMutation.mutate({ roleAssignmentId: assignment.id })}
                     >
                       Revoke
                     </Button>
@@ -206,15 +203,15 @@ function UserRoleRow({ userId, username, email, status }: UserRoleRowProps) {
 
           {/* Assign new role */}
           <div className="border-t pt-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            <p className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
               Assign New Role
             </p>
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <select
                 id={`role-select-${userId}`}
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value as RoleCode)}
-                className="flex-1 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                className="border-input bg-background focus:ring-ring h-9 flex-1 rounded-md border px-3 py-1 text-sm shadow-sm focus:ring-1 focus:outline-none"
                 disabled={busy}
               >
                 {ROLE_CODES.map((code) => (
@@ -228,14 +225,10 @@ function UserRoleRow({ userId, username, email, status }: UserRoleRowProps) {
                 placeholder="Office scope UUID (optional)"
                 value={officeScopeId}
                 onChange={(e) => setOfficeScopeId(e.target.value)}
-                className="flex-1 h-9 text-sm font-mono"
+                className="h-9 flex-1 font-mono text-sm"
                 disabled={busy}
               />
-              <Button
-                onClick={handleAssign}
-                disabled={busy}
-                className="whitespace-nowrap"
-              >
+              <Button onClick={handleAssign} disabled={busy} className="whitespace-nowrap">
                 Assign Role
               </Button>
             </div>
@@ -277,14 +270,13 @@ export function RoleAssignmentPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Role Assignment</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Assign or revoke roles for users in this city instance. Changes take
-          effect on the user's next login (session token is refreshed on next
-          request).
+          Assign or revoke roles for users in this city instance. Changes take effect on the user's
+          next login (session token is refreshed on next request).
         </p>
       </div>
 
@@ -301,10 +293,12 @@ export function RoleAssignmentPage() {
             onChange={handleSearchChange}
             className="max-w-sm"
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Showing first 20 results.{' '}
             {debouncedSearch ? (
-              <>Filtered by: <span className="font-mono">{debouncedSearch}</span></>
+              <>
+                Filtered by: <span className="font-mono">{debouncedSearch}</span>
+              </>
             ) : (
               'Use the search box to narrow results.'
             )}
@@ -321,14 +315,14 @@ export function RoleAssignmentPage() {
             </div>
           )}
           {directoryQuery.isError && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3">
-              <p className="text-sm text-destructive">
+            <div className="border-destructive/30 bg-destructive/5 rounded-md border px-4 py-3">
+              <p className="text-destructive text-sm">
                 Failed to load user directory: {directoryQuery.error.message}
               </p>
             </div>
           )}
           {directoryQuery.data && directoryQuery.data.items.length === 0 && (
-            <p className="text-sm text-muted-foreground italic py-4 text-center">
+            <p className="text-muted-foreground py-4 text-center text-sm italic">
               No users found{debouncedSearch ? ` matching "${debouncedSearch}"` : ''}.
             </p>
           )}
@@ -349,15 +343,15 @@ export function RoleAssignmentPage() {
       </Card>
 
       {/* Notes */}
-      <div className="rounded-md border bg-muted/30 px-4 py-3 text-xs text-muted-foreground space-y-1">
+      <div className="bg-muted/30 text-muted-foreground space-y-1 rounded-md border px-4 py-3 text-xs">
         <p>
           <strong>Role assignment</strong> calls <code>iam.assignRole</code>. The server enforces
           role combination rules; if a combination is disallowed, the exact error message will be
           shown.
         </p>
         <p>
-          <strong>Role revocation</strong> calls <code>iam.revokeRole</code> with the assignment
-          ID. The assignment becomes inactive immediately server-side.
+          <strong>Role revocation</strong> calls <code>iam.revokeRole</code> with the assignment ID.
+          The assignment becomes inactive immediately server-side.
         </p>
         <p>
           <strong>Role definition</strong> (creating new roles or permission sets) is not available

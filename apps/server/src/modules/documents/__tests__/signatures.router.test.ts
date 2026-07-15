@@ -219,8 +219,12 @@ describe('Signatures Router tRPC Procedures', () => {
         s3Key: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
       });
 
-      expect(repository.findSignatureById).toHaveBeenCalledWith('99999999-9999-9999-9999-999999999999');
-      expect(repository.findDocumentById).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111');
+      expect(repository.findSignatureById).toHaveBeenCalledWith(
+        '99999999-9999-9999-9999-999999999999',
+      );
+      expect(repository.findDocumentById).toHaveBeenCalledWith(
+        '11111111-1111-1111-1111-111111111111',
+      );
       expect(repository.updateSignatureImageKey).toHaveBeenCalledWith(
         '99999999-9999-9999-9999-999999999999',
         'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',

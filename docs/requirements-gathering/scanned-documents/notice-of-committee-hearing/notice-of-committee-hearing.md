@@ -6,6 +6,7 @@ office: Sangguniang Panlungsod (SP)
 ---
 
 # NOTICE OF COMMITTEE HEARING
+
 ## (2025 – 7SP)
 
 | Control No.     | Date Sent      | Recipient                                                                                                                                               | Subject                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |

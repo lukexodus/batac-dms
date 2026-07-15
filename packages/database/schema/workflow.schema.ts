@@ -68,31 +68,36 @@ export const workflowSchema = pgSchema('workflow');
  * parallel_split and parallel_join are Phase 2 step types — reserved here but
  * not instantiated in Phase 1 workflow definitions (C1 Part 6 comment).
  */
-export const workflowStepTypeEnum = workflowSchema.enum(
-  'workflow_step_type_enum',
-  [
-    'action',
-    'approval',
-    'multi_referral',
-    'decision',
-    'notification',
-    'termination',
-    'parallel_split',
-    'parallel_join',
-  ],
-);
+export const workflowStepTypeEnum = workflowSchema.enum('workflow_step_type_enum', [
+  'action',
+  'approval',
+  'multi_referral',
+  'decision',
+  'notification',
+  'termination',
+  'parallel_split',
+  'parallel_join',
+]);
 
 /** Overall lifecycle status of a running workflow instance. */
-export const workflowInstanceStatusEnum = workflowSchema.enum(
-  'workflow_instance_status_enum',
-  ['active', 'suspended', 'stuck', 'completed', 'cancelled'],
-);
+export const workflowInstanceStatusEnum = workflowSchema.enum('workflow_instance_status_enum', [
+  'active',
+  'suspended',
+  'stuck',
+  'completed',
+  'cancelled',
+]);
 
 /** Per-step execution status within a running workflow instance. */
-export const workflowStepStatusEnum = workflowSchema.enum(
-  'workflow_step_status_enum',
-  ['pending', 'active', 'completed', 'bypassed', 'cancelled', 'failed', 'returned'],
-);
+export const workflowStepStatusEnum = workflowSchema.enum('workflow_step_status_enum', [
+  'pending',
+  'active',
+  'completed',
+  'bypassed',
+  'cancelled',
+  'failed',
+  'returned',
+]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // workflow.definitions
@@ -116,9 +121,7 @@ export const definitions = workflowSchema.table(
     isActive: boolean('is_active').notNull().default(false),
     /** logical FK → iam.users.id (cross-schema) */
     createdBy: uuid('created_by').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -170,9 +173,7 @@ export const definitionVersions = workflowSchema.table(
             ELSE 'Draft'
           END`,
     ),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -181,10 +182,7 @@ export const definitionVersions = workflowSchema.table(
     uniqueIndex('uq_definition_versions_one_current')
       .on(table.definitionId)
       .where(sql`${table.isCurrent} = true`),
-    unique('uq_definition_versions_def_number').on(
-      table.definitionId,
-      table.versionNumber,
-    ),
+    unique('uq_definition_versions_def_number').on(table.definitionId, table.versionNumber),
     index('idx_definition_versions_definition').on(table.definitionId),
   ],
 );
@@ -213,9 +211,7 @@ export const steps = workflowSchema.table(
     position: integer('position').notNull().default(0),
     isStart: boolean('is_start').notNull().default(false),
     legallyMandated: boolean('legally_mandated').notNull().default(false),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -223,9 +219,7 @@ export const steps = workflowSchema.table(
     // B4 Engine Invariant: exactly one start step per definition version.
     uniqueIndex('uq_steps_one_start_per_version')
       .on(table.definitionVersionId)
-      .where(
-        sql`${table.isStart} = true AND ${table.deletedAt} IS NULL`,
-      ),
+      .where(sql`${table.isStart} = true AND ${table.deletedAt} IS NULL`),
     unique('uq_steps_version_key').on(table.definitionVersionId, table.stepKey),
     index('idx_steps_definition_version').on(table.definitionVersionId),
   ],
@@ -260,17 +254,13 @@ export const transitionRules = workflowSchema.table(
     outcomeFilter: text('outcome_filter'),
     priority: integer('priority').notNull().default(0),
     label: text('label'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
   (table) => [
     index('idx_transition_rules_from_step').on(table.fromStepId),
-    index('idx_transition_rules_definition_version').on(
-      table.definitionVersionId,
-    ),
+    index('idx_transition_rules_definition_version').on(table.definitionVersionId),
   ],
 );
 
@@ -298,20 +288,18 @@ export const instances = workflowSchema.table(
     /** logical FK → documents.documents.id (cross-schema) */
     documentId: uuid('document_id').notNull(),
     status: workflowInstanceStatusEnum('status').notNull().default('active'),
-    context: jsonb('context').notNull().default(sql`'{}'::jsonb`),
+    context: jsonb('context')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     slaDeadline: timestamp('sla_deadline', { withTimezone: true }),
     slaBreachedAt: timestamp('sla_breached_at', { withTimezone: true }),
     slaWarningSentAt: timestamp('sla_warning_sent_at', { withTimezone: true }),
     slaCriticalSentAt: timestamp('sla_critical_sent_at', { withTimezone: true }),
-    startedAt: timestamp('started_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     /** logical FK → iam.users.id (cross-schema) */
     createdBy: uuid('created_by').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -363,9 +351,7 @@ export const stepInstances = workflowSchema.table(
     /** logical FK → iam.users.id (cross-schema); null = system-triggered */
     bypassedBy: uuid('bypassed_by'),
     bypassReason: text('bypass_reason'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -373,10 +359,7 @@ export const stepInstances = workflowSchema.table(
     index('idx_step_instances_instance').on(table.instanceId),
     index('idx_step_instances_step').on(table.stepId),
     // GIN index on metadata for JSONB queries (e.g. multi_referral submissions lookup).
-    index('idx_step_instances_metadata_gin').using(
-      'gin',
-      table.metadata,
-    ),
+    index('idx_step_instances_metadata_gin').using('gin', table.metadata),
   ],
 );
 
@@ -398,17 +381,13 @@ export const workflowEvents = workflowSchema.table(
     instanceId: uuid('instance_id')
       .notNull()
       .references(() => instances.id),
-    stepInstanceId: uuid('step_instance_id').references(
-      () => stepInstances.id,
-    ),
+    stepInstanceId: uuid('step_instance_id').references(() => stepInstances.id),
     eventType: text('event_type').notNull(),
     /** logical FK → iam.users.id (cross-schema); null for system events */
     actorId: uuid('actor_id'),
     actorType: text('actor_type').notNull(),
     payload: jsonb('payload').notNull(),
-    occurredAt: timestamp('occurred_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     check(
@@ -441,19 +420,13 @@ export const pendingCertifiedUrgentBypasses = workflowSchema.table(
     stepKey: text('step_key').notNull().default('committee_referral'),
     /** logical FK → documents.documents.id (cross-schema) */
     certificationDocumentId: uuid('certification_document_id').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     appliedAt: timestamp('applied_at', { withTimezone: true }),
-    appliedToStepInstanceId: uuid('applied_to_step_instance_id').references(
-      () => stepInstances.id,
-    ),
+    appliedToStepInstanceId: uuid('applied_to_step_instance_id').references(() => stepInstances.id),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
-  (table) => [
-    index('idx_pending_bypasses_instance').on(table.instanceId),
-  ],
+  (table) => [index('idx_pending_bypasses_instance').on(table.instanceId)],
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -481,18 +454,12 @@ export const committeeReports = workflowSchema.table(
     content: text('content'),
     /** logical FK → documents.documents.id (cross-schema) */
     documentId: uuid('document_id'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
-  (table) => [
-    unique('uq_committee_reports_step_instance').on(table.stepInstanceId),
-  ],
+  (table) => [unique('uq_committee_reports_step_instance').on(table.stepInstanceId)],
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -515,17 +482,12 @@ export const committeeReportSignatures = workflowSchema.table(
     /** logical FK → organization.employees.id (cross-schema) */
     signedByEmployeeId: uuid('signed_by_employee_id'),
     signedAt: timestamp('signed_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
   (table) => [
-    unique('uq_committee_report_signatures').on(
-      table.committeeReportId,
-      table.committeeId,
-    ),
+    unique('uq_committee_report_signatures').on(table.committeeReportId, table.committeeId),
   ],
 );
 
@@ -550,21 +512,14 @@ export const spSessions = workflowSchema.table(
     presidedByEmployeeId: uuid('presided_by_employee_id').notNull(),
     presentCount: integer('present_count'),
     quorumAchieved: boolean('quorum_achieved'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
   (table) => [
     unique('uq_sp_sessions_city_number').on(table.cityId, table.sessionNumber),
-    check(
-      'sp_sessions_session_type_check',
-      sql`${table.sessionType} IN ('regular','special')`,
-    ),
+    check('sp_sessions_session_type_check', sql`${table.sessionType} IN ('regular','special')`),
   ],
 );
 
@@ -590,12 +545,8 @@ export const sessionAttendances = workflowSchema.table(
     employeeId: uuid('employee_id').notNull(),
     isPresent: boolean('is_present').notNull(),
     absenceReason: text('absence_reason'),
-    recordedAt: timestamp('recorded_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -629,19 +580,13 @@ export const orderOfBusiness = workflowSchema.table(
     spSessionId: uuid('sp_session_id')
       .notNull()
       .references(() => spSessions.id),
-    generatedAt: timestamp('generated_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
     cutoffDate: text('cutoff_date').notNull(), // DATE stored as text; see sp_sessions.session_date note
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
-  (table) => [
-    unique('uq_order_of_business_session').on(table.spSessionId),
-  ],
+  (table) => [unique('uq_order_of_business_session').on(table.spSessionId)],
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -667,9 +612,7 @@ export const orderOfBusinessItems = workflowSchema.table(
     itemOrder: integer('item_order').notNull(),
     itemType: text('item_type').notNull(),
     isRedFlagged: boolean('is_red_flagged').notNull().default(false),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -699,14 +642,9 @@ export const adminApprovalGrants = workflowSchema.table(
       .references(() => definitionVersions.id),
     /** logical FK → iam.users.id (cross-schema) */
     approvedBy: uuid('approved_by').notNull(),
-    approvedAt: timestamp('approved_at', { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    expiresAt: timestamp('expires_at', { withTimezone: true })
-      .notNull(),
+    approvedAt: timestamp('approved_at', { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     usedAt: timestamp('used_at', { withTimezone: true }),
   },
-  (table) => [
-    index('idx_approval_grants_instance_id').on(table.instanceId),
-  ],
+  (table) => [index('idx_approval_grants_instance_id').on(table.instanceId)],
 );

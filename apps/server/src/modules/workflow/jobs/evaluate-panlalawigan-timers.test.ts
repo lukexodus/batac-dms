@@ -12,7 +12,7 @@ describe('Panlalawigan Timer Scheduler Job', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     mockWorkflowRepository = {
       getActiveInstancesByDefinitionAndStepConfig: vi.fn(),
       getDefinitionVersionWithSteps: vi.fn(),
@@ -28,7 +28,7 @@ describe('Panlalawigan Timer Scheduler Job', () => {
   const runJob = async (now: Date) => {
     return evaluatePanlalawiganTimers(
       { workflowRepository: mockWorkflowRepository as WorkflowRepository } as any,
-      { now }
+      { now },
     );
   };
 
@@ -39,24 +39,25 @@ describe('Panlalawigan Timer Scheduler Job', () => {
 
     (mockWorkflowRepository.getActiveInstancesByDefinitionAndStepConfig as any).mockResolvedValue([
       {
-        instance: { 
-          id: 'inst-1', 
-          definitionVersionId: 'ver-1', 
-          context: { 
+        instance: {
+          id: 'inst-1',
+          definitionVersionId: 'ver-1',
+          context: {
             panlalawigan_action_deadline: deadline.toISOString(),
             panlalawigan_transmission_date: transmissionDate.toISOString(),
-          } 
+          },
         },
-        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null }
-      }
+        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null },
+      },
     ]);
 
     (mockWorkflowRepository.getDefinitionVersionWithSteps as any).mockResolvedValue({
-      steps: [{ id: 'step-1', config: { allowed_outcomes: ['VALID', 'DEEMED_APPROVED'] } }]
+      steps: [{ id: 'step-1', config: { allowed_outcomes: ['VALID', 'DEEMED_APPROVED'] } }],
     });
 
     (mockWorkflowRepository.lockStepInstanceForUpdate as any).mockResolvedValue({
-      id: 'step-inst-1', outcome: null
+      id: 'step-inst-1',
+      outcome: null,
     });
 
     (mockWorkflowRepository.getInstanceById as any).mockResolvedValue({ id: 'inst-1' });
@@ -64,40 +65,52 @@ describe('Panlalawigan Timer Scheduler Job', () => {
     await runJob(now);
 
     // Assert updateStepInstance has specific DEEMED_APPROVED outcome & exact comment & completedAt
-    expect(mockWorkflowRepository.updateStepInstance).toHaveBeenCalledWith('step-inst-1', {
-      status: 'completed',
-      outcome: 'DEEMED_APPROVED',
-      outcomeComment: 'Deemed approved per RA 7160 Section 56(d) — 30 calendar days elapsed with no action from the Sangguniang Panlalawigan.',
-      completedAt: deadline // Crucial: NOT now
-    }, 'mock-tx');
+    expect(mockWorkflowRepository.updateStepInstance).toHaveBeenCalledWith(
+      'step-inst-1',
+      {
+        status: 'completed',
+        outcome: 'DEEMED_APPROVED',
+        outcomeComment:
+          'Deemed approved per RA 7160 Section 56(d) — 30 calendar days elapsed with no action from the Sangguniang Panlalawigan.',
+        completedAt: deadline, // Crucial: NOT now
+      },
+      'mock-tx',
+    );
 
     // Assert instance context updated
-    expect(mockWorkflowRepository.updateInstanceContext).toHaveBeenCalledWith('inst-1', {
-      panlalawigan_outcome: 'DEEMED_APPROVED',
-      panlalawigan_response_date: deadline.toISOString()
-    }, 'mock-tx');
+    expect(mockWorkflowRepository.updateInstanceContext).toHaveBeenCalledWith(
+      'inst-1',
+      {
+        panlalawigan_outcome: 'DEEMED_APPROVED',
+        panlalawigan_response_date: deadline.toISOString(),
+      },
+      'mock-tx',
+    );
 
     // Assert event emitted
-    expect(mockWorkflowRepository.createWorkflowEvent).toHaveBeenCalledWith({
-      instanceId: 'inst-1',
-      eventType: 'workflow.panlalawigan.deemed_approved',
-      actorType: 'scheduler',
-      actorId: null,
-      payload: {
-        stepInstanceId: 'step-inst-1',
-        legalBasis: 'RA 7160 Section 56(d)',
-        transmissionDate: transmissionDate.toISOString(),
-        deadlineWas: deadline.toISOString()
-      }
-    }, 'mock-tx');
+    expect(mockWorkflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
+      {
+        instanceId: 'inst-1',
+        eventType: 'workflow.panlalawigan.deemed_approved',
+        actorType: 'scheduler',
+        actorId: null,
+        payload: {
+          stepInstanceId: 'step-inst-1',
+          legalBasis: 'RA 7160 Section 56(d)',
+          transmissionDate: transmissionDate.toISOString(),
+          deadlineWas: deadline.toISOString(),
+        },
+      },
+      'mock-tx',
+    );
 
     // Assert step resolution called
     expect(resolveNextStep).toHaveBeenCalledWith(
       { id: 'inst-1' },
-      undefined, 
+      undefined,
       'DEEMED_APPROVED',
       expect.anything(),
-      'mock-tx'
+      'mock-tx',
     );
   });
 
@@ -107,18 +120,23 @@ describe('Panlalawigan Timer Scheduler Job', () => {
 
     (mockWorkflowRepository.getActiveInstancesByDefinitionAndStepConfig as any).mockResolvedValue([
       {
-        instance: { id: 'inst-1', definitionVersionId: 'ver-1', context: { panlalawigan_action_deadline: deadline.toISOString() } },
-        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null }
-      }
+        instance: {
+          id: 'inst-1',
+          definitionVersionId: 'ver-1',
+          context: { panlalawigan_action_deadline: deadline.toISOString() },
+        },
+        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null },
+      },
     ]);
 
     (mockWorkflowRepository.getDefinitionVersionWithSteps as any).mockResolvedValue({
-      steps: [{ id: 'step-1', config: { allowed_outcomes: ['VALID', 'DEEMED_APPROVED'] } }]
+      steps: [{ id: 'step-1', config: { allowed_outcomes: ['VALID', 'DEEMED_APPROVED'] } }],
     });
 
     // MOCK: When lock occurs, outcome is ALREADY SET to 'VALID' (Secretariat beat the scheduler)
     (mockWorkflowRepository.lockStepInstanceForUpdate as any).mockResolvedValue({
-      id: 'step-inst-1', outcome: 'VALID'
+      id: 'step-inst-1',
+      outcome: 'VALID',
     });
 
     await runJob(now);
@@ -136,13 +154,17 @@ describe('Panlalawigan Timer Scheduler Job', () => {
 
     (mockWorkflowRepository.getActiveInstancesByDefinitionAndStepConfig as any).mockResolvedValue([
       {
-        instance: { id: 'inst-1', definitionVersionId: 'ver-1', context: { panlalawigan_action_deadline: deadline.toISOString() } },
-        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null }
-      }
+        instance: {
+          id: 'inst-1',
+          definitionVersionId: 'ver-1',
+          context: { panlalawigan_action_deadline: deadline.toISOString() },
+        },
+        stepInstance: { id: 'step-inst-1', stepId: 'step-1', outcome: null },
+      },
     ]);
 
     (mockWorkflowRepository.getDefinitionVersionWithSteps as any).mockResolvedValue({
-      steps: [{ id: 'step-1', config: { allowed_outcomes: ['VALID', 'DEEMED_APPROVED'] } }]
+      steps: [{ id: 'step-1', config: { allowed_outcomes: ['VALID', 'DEEMED_APPROVED'] } }],
     });
 
     await runJob(now);

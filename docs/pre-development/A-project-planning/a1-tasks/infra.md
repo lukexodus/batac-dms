@@ -20,6 +20,7 @@ per `A1-AGENTS.md` §8.
 
 **Sourcing & confidence legend** (matching the convention established in
 `a1-skeleton.md` v2):
+
 - Unmarked statements are taken directly from one of the nine loaded documents.
 - `[Inference]` — a reasoned synthesis not stated verbatim in a loaded document.
 - `[SPEC GAP]` — something a source requires but no loaded document specifies
@@ -103,34 +104,36 @@ Deferred Capabilities list, per `A1-AGENTS.md` §5.
 
 ## TASK-INFRA-001
 
-Phase:          1
-Module:         INFRA
-Title:          Bootstrap monorepo workspace and shared tooling configuration
-Prerequisites:  [NONE]
+Phase: 1
+Module: INFRA
+Title: Bootstrap monorepo workspace and shared tooling configuration
+Prerequisites: [NONE]
 Deliverables:
-  - /package.json — root workspace manifest; `private: true`; `packageManager` field pinned via Corepack
-  - /pnpm-workspace.yaml — workspace globs: `apps/*`, `packages/*`, `tools/*`
-  - /turbo.json — initial task graph stub (`build`, `lint`, `typecheck`, `dev`); extended by later tasks
-  - /.gitignore — `node_modules`, `dist`, `.turbo`, `.env`, `.env.local`, `coverage`, `build`, `.next`
-  - /packages/config/package.json — `@batac/config` workspace package manifest
-  - /packages/config/tsconfig.base.json — shared base TypeScript compiler options
-  - /packages/config/eslint.base.js — shared ESLint rule set
-  - /packages/config/.prettierrc.json — Prettier configuration
-  - /packages/config/.prettierignore — Prettier ignore list
-  - /tools/scripts/package.json — `@batac/scripts` workspace package manifest (stub; populated by TASK-INFRA-007)
-  - /.vscode/settings.json — committed format-on-save editor configuration
-Acceptance Criteria:
-  - [ ] `pnpm install --frozen-lockfile` completes with exit code 0 on a clean checkout
-  - [ ] `pnpm -v` on a clean checkout matches the version pinned in the root `package.json` `packageManager` field (verifies Corepack activation per ADR-INF-008)
-  - [ ] `pnpm turbo run lint` and `pnpm turbo run typecheck` both resolve as valid Turborepo tasks (zero affected packages is an acceptable result at this stage; a "task not found" error is not)
-  - [ ] Manual: opening any `.ts` file in VS Code on a fresh checkout shows the Prettier extension as the active default formatter with no per-developer settings changes required
-AI Prompt:
+
+- /package.json — root workspace manifest; `private: true`; `packageManager` field pinned via Corepack
+- /pnpm-workspace.yaml — workspace globs: `apps/*`, `packages/*`, `tools/*`
+- /turbo.json — initial task graph stub (`build`, `lint`, `typecheck`, `dev`); extended by later tasks
+- /.gitignore — `node_modules`, `dist`, `.turbo`, `.env`, `.env.local`, `coverage`, `build`, `.next`
+- /packages/config/package.json — `@batac/config` workspace package manifest
+- /packages/config/tsconfig.base.json — shared base TypeScript compiler options
+- /packages/config/eslint.base.js — shared ESLint rule set
+- /packages/config/.prettierrc.json — Prettier configuration
+- /packages/config/.prettierignore — Prettier ignore list
+- /tools/scripts/package.json — `@batac/scripts` workspace package manifest (stub; populated by TASK-INFRA-007)
+- /.vscode/settings.json — committed format-on-save editor configuration
+  Acceptance Criteria:
+- [ ] `pnpm install --frozen-lockfile` completes with exit code 0 on a clean checkout
+- [ ] `pnpm -v` on a clean checkout matches the version pinned in the root `package.json` `packageManager` field (verifies Corepack activation per ADR-INF-008)
+- [ ] `pnpm turbo run lint` and `pnpm turbo run typecheck` both resolve as valid Turborepo tasks (zero affected packages is an acceptable result at this stage; a "task not found" error is not)
+- [ ] Manual: opening any `.ts` file in VS Code on a fresh checkout shows the Prettier extension as the active default formatter with no per-developer settings changes required
+      AI Prompt:
   > Scaffold the root-level monorepo tooling for a pnpm + Turborepo workspace.
   > You have no pre-development documents available — all required values are
   > below.
   >
   > **Workspace layout** (create directories now if absent; do not populate
   > app/package source files — that is out of scope for this task):
+  >
   > ```
   > /apps/web        /apps/server        /apps/portal
   > /packages/shared /packages/ui        /packages/config   /packages/database
@@ -138,6 +141,7 @@ AI Prompt:
   > ```
   >
   > **`/package.json`** (root):
+  >
   > ```json
   > {
   >   "name": "batac-dms",
@@ -159,20 +163,23 @@ AI Prompt:
   >   }
   > }
   > ```
+  >
   > Run `corepack use pnpm@9.15.4` after creating the file so Corepack records
   > the pin consistently — do not hand-edit the version string afterward
   > without re-running that command (ADR-INF-008).
   >
   > **`/pnpm-workspace.yaml`:**
+  >
   > ```yaml
   > packages:
-  >   - "apps/*"
-  >   - "packages/*"
-  >   - "tools/*"
+  >   - 'apps/*'
+  >   - 'packages/*'
+  >   - 'tools/*'
   > ```
   >
   > **`/turbo.json`** (minimum stub; later tasks add `test:integration` service
   > requirements and `db:lint`):
+  >
   > ```json
   > {
   >   "$schema": "https://turbo.build/schema.json",
@@ -191,12 +198,14 @@ AI Prompt:
   > `build`, `.next`, `*.log`.
   >
   > **`/packages/config/package.json`:**
+  >
   > ```json
   > { "name": "@batac/config", "private": true, "version": "0.0.0" }
   > ```
   >
   > **`/packages/config/tsconfig.base.json`** — every workspace package and app
   > extends this; do not define these options locally elsewhere:
+  >
   > ```json
   > {
   >   "compilerOptions": {
@@ -224,6 +233,7 @@ AI Prompt:
   >
   > **`/packages/config/eslint.base.js`** (excerpt — full rule rationale is in
   > J3 §7.3; reproduce these rules exactly, they are not illustrative):
+  >
   > ```js
   > module.exports = {
   >   rules: {
@@ -233,8 +243,14 @@ AI Prompt:
   >     '@typescript-eslint/no-unsafe-member-access': 'error',
   >     '@typescript-eslint/no-unsafe-return': 'error',
   >     '@typescript-eslint/explicit-module-boundary-types': 'error',
-  >     '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports', fixStyle: 'inline-type-imports' }],
-  >     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+  >     '@typescript-eslint/consistent-type-imports': [
+  >       'error',
+  >       { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+  >     ],
+  >     '@typescript-eslint/no-unused-vars': [
+  >       'error',
+  >       { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+  >     ],
   >     '@typescript-eslint/no-floating-promises': 'error',
   >     '@typescript-eslint/await-thenable': 'error',
   >     '@typescript-eslint/no-misused-promises': 'error',
@@ -257,12 +273,14 @@ AI Prompt:
   >       'error',
   >       {
   >         selector: 'MemberExpression[object.name="process"][property.name="env"]',
-  >         message: 'Access env variables through the package config/env module, not process.env directly.',
+  >         message:
+  >           'Access env variables through the package config/env module, not process.env directly.',
   >       },
   >     ],
   >   },
   > };
   > ```
+  >
   > `[CONFLICT]` J3 §7.3's original rule message names `@batac/config/env` as the
   > approved access point, but L1 §21.1 places the env validation modules at
   > `/apps/server/src/config/env.server.ts` and `/apps/web/src/config/env.client.ts`
@@ -277,6 +295,7 @@ AI Prompt:
   > `eslint-plugin-boundaries`, `eslint-plugin-jsdoc`.
   >
   > **`/packages/config/.prettierrc.json`:**
+  >
   > ```json
   > {
   >   "semi": true,
@@ -294,6 +313,7 @@ AI Prompt:
   > ```
   >
   > **`/packages/config/.prettierignore`:**
+  >
   > ```
   > .turbo
   > dist
@@ -303,10 +323,12 @@ AI Prompt:
   > *.sql
   > coverage
   > ```
+  >
   > The `*.sql` exclusion is deliberate — Drizzle-generated migrations are
   > reviewed as-is and must not be reformatted (J3 §6.2).
   >
   > **`/.vscode/settings.json`:**
+  >
   > ```json
   > {
   >   "editor.formatOnSave": true,
@@ -318,35 +340,38 @@ AI Prompt:
   >
   > **`/tools/scripts/package.json`** (stub; TASK-INFRA-007 adds the
   > `lint:migrations` script):
+  >
   > ```json
   > { "name": "@batac/scripts", "private": true, "version": "0.0.0" }
   > ```
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `pnpm install --frozen-lockfile` completes with exit code 0 on a clean checkout
   > - [ ] `pnpm -v` on a clean checkout matches the version pinned in the root `package.json` `packageManager` field
   > - [ ] `pnpm turbo run lint` and `pnpm turbo run typecheck` both resolve as valid Turborepo tasks
   > - [ ] A developer opening any `.ts` file in VS Code on a fresh checkout sees Prettier as the active formatter with no manual settings changes
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-002
 
-Phase:          1
-Module:         INFRA
-Title:          Add server and web environment variable validation schemas
-Prerequisites:  [TASK-INFRA-001]
+Phase: 1
+Module: INFRA
+Title: Add server and web environment variable validation schemas
+Prerequisites: [TASK-INFRA-001]
 Deliverables:
-  - /apps/server/src/config/env.server.ts — Zod schema validating all server-side environment variables
-  - /apps/server/src/config/env.ts — startup entry point; exits the process on invalid configuration
-  - /apps/web/src/config/env.client.ts — Zod schema and parsed export for Vite client-side variables
-Acceptance Criteria:
-  - [ ] `pnpm --filter server typecheck` and `pnpm --filter web typecheck` both pass
-  - [ ] Running `node -r dotenv/config -e "require('./apps/server/dist/config/env')"` with `AUTH_JWT_ACCESS_SECRET` unset prints `[FATAL] Environment variable validation failed at startup:` to stderr and exits with code 1
-  - [ ] The same command with every `REQ`-classified variable set (per TASK-INFRA-003's `.env.example`) exits 0 from the validation step
-  - [ ] Manual: a reviewer confirms `env.client.ts` only reads `import.meta.env.VITE_*` keys, never `process.env`
-AI Prompt:
+
+- /apps/server/src/config/env.server.ts — Zod schema validating all server-side environment variables
+- /apps/server/src/config/env.ts — startup entry point; exits the process on invalid configuration
+- /apps/web/src/config/env.client.ts — Zod schema and parsed export for Vite client-side variables
+  Acceptance Criteria:
+- [ ] `pnpm --filter server typecheck` and `pnpm --filter web typecheck` both pass
+- [ ] Running `node -r dotenv/config -e "require('./apps/server/dist/config/env')"` with `AUTH_JWT_ACCESS_SECRET` unset prints `[FATAL] Environment variable validation failed at startup:` to stderr and exits with code 1
+- [ ] The same command with every `REQ`-classified variable set (per TASK-INFRA-003's `.env.example`) exits 0 from the validation step
+- [ ] Manual: a reviewer confirms `env.client.ts` only reads `import.meta.env.VITE_*` keys, never `process.env`
+      AI Prompt:
   > Implement the environment-variable validation layer for `/apps/server` and
   > `/apps/web`. This project validates all configuration at startup using Zod
   > and fails fast — the process must never start in an undefined configuration
@@ -354,6 +379,7 @@ AI Prompt:
   >
   > **`/apps/server/src/config/env.server.ts`** — reproduce this schema exactly
   > (it is the confirmed specification, not an example):
+  >
   > ```typescript
   > import { z } from 'zod';
   >
@@ -368,242 +394,281 @@ AI Prompt:
   > const SearchProvider = z.enum(['postgres', 'meilisearch']);
   > const OcrEngine = z.enum(['tesseract', 'service']);
   >
-  > export const serverEnvSchema = z.object({
-  >   // ─── Core ─────────────────────────────────────────────────────────────
-  >   NODE_ENV: NodeEnv,
-  >   APP_ENV: AppEnv,
-  >   APP_NAME: z.string().min(1).default('Batac City LGU Platform'),
-  >   APP_VERSION: z.string().default('0.0.0'),
-  >   APP_URL: z.string().url(),
-  >   API_URL: z.string().url(),
-  >   APP_PORT: z.coerce.number().int().min(1024).max(65535).default(3000),
-  >   APP_HOST: z.string().default('0.0.0.0'),
-  >   LOG_LEVEL: LogLevel.default('info'),
-  >   LOG_PRETTY: booleanFromString.default('false'),
-  >   LOG_REDACT_PATHS: z.string()
-  >     .default('["req.headers.authorization","req.headers.cookie","*.password","*.secret"]')
-  >     .transform((s) => JSON.parse(s) as string[]),
-  >   LOG_DESTINATION: z.string().default('stdout'),
-  >   HEALTH_CHECK_PATH: z.string().default('/health'),
-  >   CORS_ALLOWED_ORIGINS: z.string().transform((s) => s.split(',').map((o) => o.trim()).filter(Boolean)),
-  >   CITY_ID: z.string().uuid(),
-  >   TRUST_PROXY: booleanFromString.default('false'),
-  >   APP_INSTANCE_ID: z.string().min(1).default(() => crypto.randomUUID()),
+  > export const serverEnvSchema = z
+  >   .object({
+  >     // ─── Core ─────────────────────────────────────────────────────────────
+  >     NODE_ENV: NodeEnv,
+  >     APP_ENV: AppEnv,
+  >     APP_NAME: z.string().min(1).default('Batac City LGU Platform'),
+  >     APP_VERSION: z.string().default('0.0.0'),
+  >     APP_URL: z.string().url(),
+  >     API_URL: z.string().url(),
+  >     APP_PORT: z.coerce.number().int().min(1024).max(65535).default(3000),
+  >     APP_HOST: z.string().default('0.0.0.0'),
+  >     LOG_LEVEL: LogLevel.default('info'),
+  >     LOG_PRETTY: booleanFromString.default('false'),
+  >     LOG_REDACT_PATHS: z
+  >       .string()
+  >       .default('["req.headers.authorization","req.headers.cookie","*.password","*.secret"]')
+  >       .transform((s) => JSON.parse(s) as string[]),
+  >     LOG_DESTINATION: z.string().default('stdout'),
+  >     HEALTH_CHECK_PATH: z.string().default('/health'),
+  >     CORS_ALLOWED_ORIGINS: z.string().transform((s) =>
+  >       s
+  >         .split(',')
+  >         .map((o) => o.trim())
+  >         .filter(Boolean),
+  >     ),
+  >     CITY_ID: z.string().uuid(),
+  >     TRUST_PROXY: booleanFromString.default('false'),
+  >     APP_INSTANCE_ID: z
+  >       .string()
+  >       .min(1)
+  >       .default(() => crypto.randomUUID()),
   >
-  >   // ─── Database ────────────────────────────────────────────────────────
-  >   DATABASE_URL_APP: z.string().url(),
-  >   DATABASE_URL_AUDIT: z.string().url(),
-  >   DATABASE_URL_MIGRATE: z.string().url().optional(),
-  >   DB_POOL_MIN: nonNegativeInt.default(2),
-  >   DB_POOL_MAX: positiveInt.default(10),
-  >   DB_POOL_IDLE_TIMEOUT_MS: positiveInt.default(30000),
-  >   DB_POOL_ACQUIRE_TIMEOUT_MS: positiveInt.default(10000),
-  >   DB_POOL_CONNECTION_TIMEOUT_MS: positiveInt.default(5000),
-  >   DB_STATEMENT_TIMEOUT_MS: positiveInt.default(30000),
-  >   DRIZZLE_VERBOSE: booleanFromString.default('false'),
+  >     // ─── Database ────────────────────────────────────────────────────────
+  >     DATABASE_URL_APP: z.string().url(),
+  >     DATABASE_URL_AUDIT: z.string().url(),
+  >     DATABASE_URL_MIGRATE: z.string().url().optional(),
+  >     DB_POOL_MIN: nonNegativeInt.default(2),
+  >     DB_POOL_MAX: positiveInt.default(10),
+  >     DB_POOL_IDLE_TIMEOUT_MS: positiveInt.default(30000),
+  >     DB_POOL_ACQUIRE_TIMEOUT_MS: positiveInt.default(10000),
+  >     DB_POOL_CONNECTION_TIMEOUT_MS: positiveInt.default(5000),
+  >     DB_STATEMENT_TIMEOUT_MS: positiveInt.default(30000),
+  >     DRIZZLE_VERBOSE: booleanFromString.default('false'),
   >
-  >   // ─── Authentication ───────────────────────────────────────────────────
-  >   AUTH_JWT_ACCESS_SECRET: z.string().min(32),
-  >   AUTH_JWT_REFRESH_SECRET: z.string().min(32),
-  >   AUTH_JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
-  >   AUTH_JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
-  >   AUTH_JWT_ALGORITHM: z.enum(['HS256', 'RS256', 'ES256']).default('HS256'),
-  >   AUTH_COOKIE_SECURE: booleanFromString.default('true'),
-  >   AUTH_COOKIE_SAMESITE: z.enum(['Strict', 'Lax', 'None']).default('Strict'),
-  >   AUTH_COOKIE_DOMAIN: z.string().optional(),
-  >   AUTH_ACCESS_TOKEN_COOKIE_NAME: z.string().default('__Host-bat_at'),
-  >   AUTH_REFRESH_TOKEN_COOKIE_NAME: z.string().default('__Host-bat_rt'),
-  >   AUTH_SESSION_INACTIVITY_TIMEOUT_MS: positiveInt.default(1800000),
-  >   AUTH_SESSION_WARNING_THRESHOLD_MS: positiveInt.default(1500000),
-  >   AUTH_MAX_CONCURRENT_SESSIONS: positiveInt.default(1),
-  >   AUTH_MFA_TOTP_ENABLED: booleanFromString.default('false'),
-  >   AUTH_MFA_TOTP_ISSUER: z.string().default('Batac City LGU'),
-  >   AUTH_MFA_TOTP_WINDOW: nonNegativeInt.default(1),
+  >     // ─── Authentication ───────────────────────────────────────────────────
+  >     AUTH_JWT_ACCESS_SECRET: z.string().min(32),
+  >     AUTH_JWT_REFRESH_SECRET: z.string().min(32),
+  >     AUTH_JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+  >     AUTH_JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
+  >     AUTH_JWT_ALGORITHM: z.enum(['HS256', 'RS256', 'ES256']).default('HS256'),
+  >     AUTH_COOKIE_SECURE: booleanFromString.default('true'),
+  >     AUTH_COOKIE_SAMESITE: z.enum(['Strict', 'Lax', 'None']).default('Strict'),
+  >     AUTH_COOKIE_DOMAIN: z.string().optional(),
+  >     AUTH_ACCESS_TOKEN_COOKIE_NAME: z.string().default('__Host-bat_at'),
+  >     AUTH_REFRESH_TOKEN_COOKIE_NAME: z.string().default('__Host-bat_rt'),
+  >     AUTH_SESSION_INACTIVITY_TIMEOUT_MS: positiveInt.default(1800000),
+  >     AUTH_SESSION_WARNING_THRESHOLD_MS: positiveInt.default(1500000),
+  >     AUTH_MAX_CONCURRENT_SESSIONS: positiveInt.default(1),
+  >     AUTH_MFA_TOTP_ENABLED: booleanFromString.default('false'),
+  >     AUTH_MFA_TOTP_ISSUER: z.string().default('Batac City LGU'),
+  >     AUTH_MFA_TOTP_WINDOW: nonNegativeInt.default(1),
   >
-  >   // ─── Argon2id ─────────────────────────────────────────────────────────
-  >   ARGON2_MEMORY_COST: positiveInt.default(65536),
-  >   ARGON2_TIME_COST: positiveInt.default(3),
-  >   ARGON2_PARALLELISM: positiveInt.default(1),
-  >   ARGON2_HASH_LENGTH: positiveInt.default(32),
+  >     // ─── Argon2id ─────────────────────────────────────────────────────────
+  >     ARGON2_MEMORY_COST: positiveInt.default(65536),
+  >     ARGON2_TIME_COST: positiveInt.default(3),
+  >     ARGON2_PARALLELISM: positiveInt.default(1),
+  >     ARGON2_HASH_LENGTH: positiveInt.default(32),
   >
-  >   // ─── Audit Log ────────────────────────────────────────────────────────
-  >   AUDIT_HMAC_SECRET: z.string().min(32),
-  >   AUDIT_GENESIS_HASH: z.string().length(64).default('0'.repeat(64)),
-  >   AUDIT_CHAIN_VERIFY_ON_READ: booleanFromString.default('true'),
-  >   AUDIT_RETENTION_DAYS: positiveInt.default(3650),
-  >   AUDIT_TSA_ENABLED: booleanFromString.default('false'),
-  >   AUDIT_TSA_URL: z.string().url().optional(),
-  >   AUDIT_EXPORT_ENABLED: booleanFromString.default('false'),
-  >   AUDIT_EXPORT_DESTINATION: z.enum(['s3']).default('s3'),
+  >     // ─── Audit Log ────────────────────────────────────────────────────────
+  >     AUDIT_HMAC_SECRET: z.string().min(32),
+  >     AUDIT_GENESIS_HASH: z.string().length(64).default('0'.repeat(64)),
+  >     AUDIT_CHAIN_VERIFY_ON_READ: booleanFromString.default('true'),
+  >     AUDIT_RETENTION_DAYS: positiveInt.default(3650),
+  >     AUDIT_TSA_ENABLED: booleanFromString.default('false'),
+  >     AUDIT_TSA_URL: z.string().url().optional(),
+  >     AUDIT_EXPORT_ENABLED: booleanFromString.default('false'),
+  >     AUDIT_EXPORT_DESTINATION: z.enum(['s3']).default('s3'),
   >
-  >   // ─── S3-Compatible Storage ────────────────────────────────────────────
-  >   S3_ENDPOINT: z.string().url(),
-  >   S3_BUCKET: z.string().min(1),
-  >   S3_ACCESS_KEY: z.string().min(1),
-  >   S3_SECRET_KEY: z.string().min(1),
-  >   S3_REGION: z.string().default('auto'),
-  >   S3_FORCE_PATH_STYLE: booleanFromString.default('false'),
-  >   S3_UPLOAD_MAX_SIZE_MB: positiveInt.default(25),
-  >   S3_SIGNED_URL_EXPIRES_S: positiveInt.default(300),
-  >   S3_UPLOAD_PRESIGN_EXPIRES_S: positiveInt.default(600),
-  >   S3_ALLOWED_MIME_TYPES: z.string()
-  >     .default('application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/png,image/jpeg')
-  >     .transform((s) => s.split(',').map((m) => m.trim())),
-  >   S3_BACKUP_BUCKET: z.string().optional(),
-  >   S3_BACKUP_ACCESS_KEY: z.string().optional(),
-  >   S3_BACKUP_SECRET_KEY: z.string().optional(),
-  >   S3_BACKUP_ENDPOINT: z.string().url().optional(),
+  >     // ─── S3-Compatible Storage ────────────────────────────────────────────
+  >     S3_ENDPOINT: z.string().url(),
+  >     S3_BUCKET: z.string().min(1),
+  >     S3_ACCESS_KEY: z.string().min(1),
+  >     S3_SECRET_KEY: z.string().min(1),
+  >     S3_REGION: z.string().default('auto'),
+  >     S3_FORCE_PATH_STYLE: booleanFromString.default('false'),
+  >     S3_UPLOAD_MAX_SIZE_MB: positiveInt.default(25),
+  >     S3_SIGNED_URL_EXPIRES_S: positiveInt.default(300),
+  >     S3_UPLOAD_PRESIGN_EXPIRES_S: positiveInt.default(600),
+  >     S3_ALLOWED_MIME_TYPES: z
+  >       .string()
+  >       .default(
+  >         'application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/png,image/jpeg',
+  >       )
+  >       .transform((s) => s.split(',').map((m) => m.trim())),
+  >     S3_BACKUP_BUCKET: z.string().optional(),
+  >     S3_BACKUP_ACCESS_KEY: z.string().optional(),
+  >     S3_BACKUP_SECRET_KEY: z.string().optional(),
+  >     S3_BACKUP_ENDPOINT: z.string().url().optional(),
   >
-  >   // ─── SMTP ─────────────────────────────────────────────────────────────
-  >   SMTP_HOST: z.string().min(1),
-  >   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
-  >   SMTP_SECURE: booleanFromString.default('false'),
-  >   SMTP_USER: z.string().min(1),
-  >   SMTP_PASSWORD: z.string().min(1),
-  >   SMTP_FROM: z.string().email(),
-  >   SMTP_FROM_NAME: z.string().default('Batac City LGU'),
-  >   SMTP_REJECT_UNAUTHORIZED: booleanFromString.default('true'),
-  >   SMTP_POOL: booleanFromString.default('true'),
-  >   SMTP_MAX_CONNECTIONS: positiveInt.default(5),
-  >   SMTP_MAX_MESSAGES: positiveInt.default(100),
-  >   SMTP_DEBUG: booleanFromString.default('false'),
+  >     // ─── SMTP ─────────────────────────────────────────────────────────────
+  >     SMTP_HOST: z.string().min(1),
+  >     SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  >     SMTP_SECURE: booleanFromString.default('false'),
+  >     SMTP_USER: z.string().min(1),
+  >     SMTP_PASSWORD: z.string().min(1),
+  >     SMTP_FROM: z.string().email(),
+  >     SMTP_FROM_NAME: z.string().default('Batac City LGU'),
+  >     SMTP_REJECT_UNAUTHORIZED: booleanFromString.default('true'),
+  >     SMTP_POOL: booleanFromString.default('true'),
+  >     SMTP_MAX_CONNECTIONS: positiveInt.default(5),
+  >     SMTP_MAX_MESSAGES: positiveInt.default(100),
+  >     SMTP_DEBUG: booleanFromString.default('false'),
   >
-  >   // ─── OCR ──────────────────────────────────────────────────────────────
-  >   OCR_ENGINE: OcrEngine.default('tesseract'),
-  >   OCR_SERVICE_URL: z.string().url().optional(),
-  >   OCR_SERVICE_API_KEY: z.string().optional(),
-  >   OCR_LANGUAGE_PACKS: z.string().default('eng+fil'),
-  >   OCR_WORKER_COUNT: positiveInt.default(2),
-  >   OCR_TIMEOUT_MS: positiveInt.default(60000),
-  >   OCR_MAX_FILE_SIZE_MB: positiveInt.default(25),
-  >   OCR_QUALITY_THRESHOLD: floatBetween0and1.default(0.6),
-  >   OCR_QUEUE_CONCURRENCY: positiveInt.default(3),
-  >   OCR_MIGRATION_ENABLED: booleanFromString.default('false'),
-  >   OCR_MIGRATION_BATCH_SIZE: positiveInt.default(50),
+  >     // ─── OCR ──────────────────────────────────────────────────────────────
+  >     OCR_ENGINE: OcrEngine.default('tesseract'),
+  >     OCR_SERVICE_URL: z.string().url().optional(),
+  >     OCR_SERVICE_API_KEY: z.string().optional(),
+  >     OCR_LANGUAGE_PACKS: z.string().default('eng+fil'),
+  >     OCR_WORKER_COUNT: positiveInt.default(2),
+  >     OCR_TIMEOUT_MS: positiveInt.default(60000),
+  >     OCR_MAX_FILE_SIZE_MB: positiveInt.default(25),
+  >     OCR_QUALITY_THRESHOLD: floatBetween0and1.default(0.6),
+  >     OCR_QUEUE_CONCURRENCY: positiveInt.default(3),
+  >     OCR_MIGRATION_ENABLED: booleanFromString.default('false'),
+  >     OCR_MIGRATION_BATCH_SIZE: positiveInt.default(50),
   >
-  >   // ─── Search (Phase 1 = postgres; Phase 2 fields optional now) ────────
-  >   SEARCH_PROVIDER: SearchProvider.default('postgres'),
-  >   SEARCH_FTS_LANGUAGE: z.string().default('english'),
-  >   SEARCH_MEILISEARCH_URL: z.string().url().optional(),
-  >   SEARCH_MEILISEARCH_MASTER_KEY: z.string().optional(),
-  >   SEARCH_MEILISEARCH_INDEX_PREFIX: z.string().default('batac_'),
-  >   SEARCH_SYNC_BATCH_SIZE: positiveInt.default(100),
-  >   SEARCH_SYNC_INTERVAL_MS: positiveInt.default(5000),
-  >   SEARCH_SYNC_ON_STARTUP: booleanFromString.default('false'),
+  >     // ─── Search (Phase 1 = postgres; Phase 2 fields optional now) ────────
+  >     SEARCH_PROVIDER: SearchProvider.default('postgres'),
+  >     SEARCH_FTS_LANGUAGE: z.string().default('english'),
+  >     SEARCH_MEILISEARCH_URL: z.string().url().optional(),
+  >     SEARCH_MEILISEARCH_MASTER_KEY: z.string().optional(),
+  >     SEARCH_MEILISEARCH_INDEX_PREFIX: z.string().default('batac_'),
+  >     SEARCH_SYNC_BATCH_SIZE: positiveInt.default(100),
+  >     SEARCH_SYNC_INTERVAL_MS: positiveInt.default(5000),
+  >     SEARCH_SYNC_ON_STARTUP: booleanFromString.default('false'),
   >
-  >   // ─── SSE & Notifications ──────────────────────────────────────────────
-  >   SSE_HEARTBEAT_INTERVAL_MS: positiveInt.default(30000),
-  >   SSE_CONNECTION_TIMEOUT_MS: positiveInt.default(3600000),
-  >   SSE_MAX_CONNECTIONS_PER_USER: positiveInt.default(3),
-  >   SSE_RETRY_MS: positiveInt.default(3000),
-  >   NOTIF_RETENTION_DAYS: positiveInt.default(30),
-  >   NOTIF_MAX_UNREAD_PER_USER: positiveInt.default(200),
+  >     // ─── SSE & Notifications ──────────────────────────────────────────────
+  >     SSE_HEARTBEAT_INTERVAL_MS: positiveInt.default(30000),
+  >     SSE_CONNECTION_TIMEOUT_MS: positiveInt.default(3600000),
+  >     SSE_MAX_CONNECTIONS_PER_USER: positiveInt.default(3),
+  >     SSE_RETRY_MS: positiveInt.default(3000),
+  >     NOTIF_RETENTION_DAYS: positiveInt.default(30),
+  >     NOTIF_MAX_UNREAD_PER_USER: positiveInt.default(200),
   >
-  >   // ─── Sentry ───────────────────────────────────────────────────────────
-  >   SENTRY_DSN: z.string().url().optional(),
-  >   SENTRY_ENVIRONMENT: z.string().optional(),
-  >   SENTRY_RELEASE: z.string().optional(),
-  >   SENTRY_TRACES_SAMPLE_RATE: floatBetween0and1.default(0.1),
-  >   SENTRY_PROFILES_SAMPLE_RATE: floatBetween0and1.default(0.0),
+  >     // ─── Sentry ───────────────────────────────────────────────────────────
+  >     SENTRY_DSN: z.string().url().optional(),
+  >     SENTRY_ENVIRONMENT: z.string().optional(),
+  >     SENTRY_RELEASE: z.string().optional(),
+  >     SENTRY_TRACES_SAMPLE_RATE: floatBetween0and1.default(0.1),
+  >     SENTRY_PROFILES_SAMPLE_RATE: floatBetween0and1.default(0.0),
   >
-  >   // ─── Background Jobs ──────────────────────────────────────────────────
-  >   PGBOSS_SCHEMA: z.string().default('pgboss'),
-  >   PGBOSS_ARCHIVE_COMPLETED_AFTER_SECONDS: positiveInt.default(86400),
-  >   PGBOSS_DELETE_AFTER_DAYS: positiveInt.default(7),
-  >   JOB_WORKER_CONCURRENCY: positiveInt.default(5),
-  >   JOB_RETRY_LIMIT: nonNegativeInt.default(3),
-  >   JOB_RETRY_DELAY_S: nonNegativeInt.default(60),
-  >   JOB_EXPIRY_SECONDS: positiveInt.default(3600),
+  >     // ─── Background Jobs ──────────────────────────────────────────────────
+  >     PGBOSS_SCHEMA: z.string().default('pgboss'),
+  >     PGBOSS_ARCHIVE_COMPLETED_AFTER_SECONDS: positiveInt.default(86400),
+  >     PGBOSS_DELETE_AFTER_DAYS: positiveInt.default(7),
+  >     JOB_WORKER_CONCURRENCY: positiveInt.default(5),
+  >     JOB_RETRY_LIMIT: nonNegativeInt.default(3),
+  >     JOB_RETRY_DELAY_S: nonNegativeInt.default(60),
+  >     JOB_EXPIRY_SECONDS: positiveInt.default(3600),
   >
-  >   // ─── Cron Expressions ─────────────────────────────────────────────────
-  >   CRON_SLA_CHECK: z.string().default('*/15 * * * *'),
-  >   CRON_MAYOR_LAPSE_CHECK: z.string().default('0 6 * * *'),
-  >   CRON_PANLALAWIGAN_TIMER_CHECK: z.string().default('0 7 * * *'),
-  >   CRON_SESSION_CLEANUP: z.string().default('0 3 * * *'),
-  >   CRON_NOTIFICATION_CLEANUP: z.string().default('0 2 * * *'),
-  >   CRON_AUDIT_EXPORT: z.string().default('0 1 1 * *'),
-  >   CRON_DELEGATION_EXPIRY_CHECK: z.string().default('*/5 * * * *'),
-  >   CRON_BACKUP_DATABASE: z.string().default('0 0 * * *'),
-  >   CRON_ORDER_OF_BUSINESS_ALERT: z.string().default('0 9 * * 4'),
+  >     // ─── Cron Expressions ─────────────────────────────────────────────────
+  >     CRON_SLA_CHECK: z.string().default('*/15 * * * *'),
+  >     CRON_MAYOR_LAPSE_CHECK: z.string().default('0 6 * * *'),
+  >     CRON_PANLALAWIGAN_TIMER_CHECK: z.string().default('0 7 * * *'),
+  >     CRON_SESSION_CLEANUP: z.string().default('0 3 * * *'),
+  >     CRON_NOTIFICATION_CLEANUP: z.string().default('0 2 * * *'),
+  >     CRON_AUDIT_EXPORT: z.string().default('0 1 1 * *'),
+  >     CRON_DELEGATION_EXPIRY_CHECK: z.string().default('*/5 * * * *'),
+  >     CRON_BACKUP_DATABASE: z.string().default('0 0 * * *'),
+  >     CRON_ORDER_OF_BUSINESS_ALERT: z.string().default('0 9 * * 4'),
   >
-  >   // ─── Rate Limiting ────────────────────────────────────────────────────
-  >   RATE_AUTH_MAX: positiveInt.default(10),
-  >   RATE_AUTH_WINDOW_MS: positiveInt.default(900000),
-  >   RATE_API_MAX: positiveInt.default(200),
-  >   RATE_API_WINDOW_MS: positiveInt.default(60000),
-  >   RATE_PORTAL_MAX: positiveInt.default(60),
-  >   RATE_PORTAL_WINDOW_MS: positiveInt.default(60000),
-  >   RATE_UPLOAD_MAX: positiveInt.default(20),
-  >   RATE_UPLOAD_WINDOW_MS: positiveInt.default(60000),
+  >     // ─── Rate Limiting ────────────────────────────────────────────────────
+  >     RATE_AUTH_MAX: positiveInt.default(10),
+  >     RATE_AUTH_WINDOW_MS: positiveInt.default(900000),
+  >     RATE_API_MAX: positiveInt.default(200),
+  >     RATE_API_WINDOW_MS: positiveInt.default(60000),
+  >     RATE_PORTAL_MAX: positiveInt.default(60),
+  >     RATE_PORTAL_WINDOW_MS: positiveInt.default(60000),
+  >     RATE_UPLOAD_MAX: positiveInt.default(20),
+  >     RATE_UPLOAD_WINDOW_MS: positiveInt.default(60000),
   >
-  >   // ─── QR & Document Numbering ──────────────────────────────────────────
-  >   QR_BASE_URL: z.string().url(),
-  >   QR_ERROR_CORRECTION_LEVEL: z.enum(['L', 'M', 'Q', 'H']).default('M'),
-  >   QR_MODULE_SIZE: positiveInt.default(4),
-  >   QR_COVER_SHEETS_PER_PAGE: positiveInt.default(4),
-  >   DOC_SP_ORDINAL: z.coerce.number().int().min(1).max(99),
-  >   DOC_NUMBER_CITY_ID: z.string().uuid().optional(),
-  >   DOC_TRACKING_NUMBER_PREFIX: z.string().default('DTS'),
+  >     // ─── QR & Document Numbering ──────────────────────────────────────────
+  >     QR_BASE_URL: z.string().url(),
+  >     QR_ERROR_CORRECTION_LEVEL: z.enum(['L', 'M', 'Q', 'H']).default('M'),
+  >     QR_MODULE_SIZE: positiveInt.default(4),
+  >     QR_COVER_SHEETS_PER_PAGE: positiveInt.default(4),
+  >     DOC_SP_ORDINAL: z.coerce.number().int().min(1).max(99),
+  >     DOC_NUMBER_CITY_ID: z.string().uuid().optional(),
+  >     DOC_TRACKING_NUMBER_PREFIX: z.string().default('DTS'),
   >
-  >   // ─── i18n ─────────────────────────────────────────────────────────────
-  >   I18N_DEFAULT_LOCALE: z.string().default('en'),
-  >   I18N_SUPPORTED_LOCALES: z.string().default('en,fil,ilo').transform((s) => s.split(',').map((l) => l.trim())),
-  >   I18N_FALLBACK_LOCALE: z.string().default('en'),
+  >     // ─── i18n ─────────────────────────────────────────────────────────────
+  >     I18N_DEFAULT_LOCALE: z.string().default('en'),
+  >     I18N_SUPPORTED_LOCALES: z
+  >       .string()
+  >       .default('en,fil,ilo')
+  >       .transform((s) => s.split(',').map((l) => l.trim())),
+  >     I18N_FALLBACK_LOCALE: z.string().default('en'),
   >
-  >   // ─── Feature Flags ────────────────────────────────────────────────────
-  >   FEATURE_MFA_ENABLED: booleanFromString.default('false'),
-  >   FEATURE_OCR_ENABLED: booleanFromString.default('true'),
-  >   FEATURE_MEILISEARCH_ENABLED: booleanFromString.default('false'),
-  >   FEATURE_CITIZEN_PORTAL_ENABLED: booleanFromString.default('false'),
-  >   FEATURE_SMS_ENABLED: booleanFromString.default('false'),
-  >   FEATURE_PHILSYS_ENABLED: booleanFromString.default('false'),
-  >   FEATURE_RECORDS_MANAGEMENT_ENABLED: booleanFromString.default('false'),
-  >   FEATURE_EMAIL_NOTIFICATIONS_ENABLED: booleanFromString.default('true'),
-  >   FEATURE_SSE_ENABLED: booleanFromString.default('true'),
+  >     // ─── Feature Flags ────────────────────────────────────────────────────
+  >     FEATURE_MFA_ENABLED: booleanFromString.default('false'),
+  >     FEATURE_OCR_ENABLED: booleanFromString.default('true'),
+  >     FEATURE_MEILISEARCH_ENABLED: booleanFromString.default('false'),
+  >     FEATURE_CITIZEN_PORTAL_ENABLED: booleanFromString.default('false'),
+  >     FEATURE_SMS_ENABLED: booleanFromString.default('false'),
+  >     FEATURE_PHILSYS_ENABLED: booleanFromString.default('false'),
+  >     FEATURE_RECORDS_MANAGEMENT_ENABLED: booleanFromString.default('false'),
+  >     FEATURE_EMAIL_NOTIFICATIONS_ENABLED: booleanFromString.default('true'),
+  >     FEATURE_SSE_ENABLED: booleanFromString.default('true'),
   >
-  >   // ─── Disaster Recovery ────────────────────────────────────────────────
-  >   DR_HOT_STANDBY_ENABLED: booleanFromString.default('false'),
-  >   DR_HOT_STANDBY_URL: z.string().url().optional(),
-  >   DR_MAX_REPLICATION_LAG_S: positiveInt.default(60),
+  >     // ─── Disaster Recovery ────────────────────────────────────────────────
+  >     DR_HOT_STANDBY_ENABLED: booleanFromString.default('false'),
+  >     DR_HOT_STANDBY_URL: z.string().url().optional(),
+  >     DR_MAX_REPLICATION_LAG_S: positiveInt.default(60),
   >
-  >   // ─── Backup ───────────────────────────────────────────────────────────
-  >   BACKUP_ENABLED: booleanFromString.default('false'),
-  >   BACKUP_ENCRYPTION_KEY: z.string().min(32).optional(),
-  >   BACKUP_RETENTION_DAYS_HOT: positiveInt.default(30),
-  >   BACKUP_RETENTION_DAYS_COLD: positiveInt.default(365),
+  >     // ─── Backup ───────────────────────────────────────────────────────────
+  >     BACKUP_ENABLED: booleanFromString.default('false'),
+  >     BACKUP_ENCRYPTION_KEY: z.string().min(32).optional(),
+  >     BACKUP_RETENTION_DAYS_HOT: positiveInt.default(30),
+  >     BACKUP_RETENTION_DAYS_COLD: positiveInt.default(365),
   >
-  >   // ─── Portal (Phase 3 — fields declared now so the schema does not break later) ──
-  >   PORTAL_URL: z.string().url().optional(),
-  >   PORTAL_API_URL: z.string().url().optional(),
-  >   PORTAL_CDN_URL: z.string().url().optional(),
-  >   PORTAL_CITIZEN_OTP_EXPIRY_S: positiveInt.default(300),
-  >   PORTAL_CITIZEN_OTP_LENGTH: positiveInt.default(6),
-  >   PORTAL_CITIZEN_REVERIFY_DAYS: positiveInt.default(365),
+  >     // ─── Portal (Phase 3 — fields declared now so the schema does not break later) ──
+  >     PORTAL_URL: z.string().url().optional(),
+  >     PORTAL_API_URL: z.string().url().optional(),
+  >     PORTAL_CDN_URL: z.string().url().optional(),
+  >     PORTAL_CITIZEN_OTP_EXPIRY_S: positiveInt.default(300),
+  >     PORTAL_CITIZEN_OTP_LENGTH: positiveInt.default(6),
+  >     PORTAL_CITIZEN_REVERIFY_DAYS: positiveInt.default(365),
   >
-  >   // ─── SMS (Phase 3) ────────────────────────────────────────────────────
-  >   SMS_PROVIDER: z.string().optional(),
-  >   SMS_API_KEY: z.string().optional(),
-  >   SMS_SENDER_ID: z.string().max(11).default('BATAC'),
-  > }).superRefine((data, ctx) => {
-  >   if (data.FEATURE_MEILISEARCH_ENABLED && !data.SEARCH_MEILISEARCH_URL) {
-  >     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['SEARCH_MEILISEARCH_URL'], message: 'SEARCH_MEILISEARCH_URL is required when FEATURE_MEILISEARCH_ENABLED is true' });
-  >   }
-  >   if (data.AUDIT_TSA_ENABLED && !data.AUDIT_TSA_URL) {
-  >     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['AUDIT_TSA_URL'], message: 'AUDIT_TSA_URL is required when AUDIT_TSA_ENABLED is true' });
-  >   }
-  >   if (data.BACKUP_ENABLED && !data.BACKUP_ENCRYPTION_KEY) {
-  >     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['BACKUP_ENCRYPTION_KEY'], message: 'BACKUP_ENCRYPTION_KEY is required when BACKUP_ENABLED is true' });
-  >   }
-  >   if (data.DR_HOT_STANDBY_ENABLED && !data.DR_HOT_STANDBY_URL) {
-  >     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['DR_HOT_STANDBY_URL'], message: 'DR_HOT_STANDBY_URL is required when DR_HOT_STANDBY_ENABLED is true' });
-  >   }
-  >   if (data.AUTH_SESSION_WARNING_THRESHOLD_MS >= data.AUTH_SESSION_INACTIVITY_TIMEOUT_MS) {
-  >     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['AUTH_SESSION_WARNING_THRESHOLD_MS'], message: 'AUTH_SESSION_WARNING_THRESHOLD_MS must be less than AUTH_SESSION_INACTIVITY_TIMEOUT_MS' });
-  >   }
-  > });
+  >     // ─── SMS (Phase 3) ────────────────────────────────────────────────────
+  >     SMS_PROVIDER: z.string().optional(),
+  >     SMS_API_KEY: z.string().optional(),
+  >     SMS_SENDER_ID: z.string().max(11).default('BATAC'),
+  >   })
+  >   .superRefine((data, ctx) => {
+  >     if (data.FEATURE_MEILISEARCH_ENABLED && !data.SEARCH_MEILISEARCH_URL) {
+  >       ctx.addIssue({
+  >         code: z.ZodIssueCode.custom,
+  >         path: ['SEARCH_MEILISEARCH_URL'],
+  >         message: 'SEARCH_MEILISEARCH_URL is required when FEATURE_MEILISEARCH_ENABLED is true',
+  >       });
+  >     }
+  >     if (data.AUDIT_TSA_ENABLED && !data.AUDIT_TSA_URL) {
+  >       ctx.addIssue({
+  >         code: z.ZodIssueCode.custom,
+  >         path: ['AUDIT_TSA_URL'],
+  >         message: 'AUDIT_TSA_URL is required when AUDIT_TSA_ENABLED is true',
+  >       });
+  >     }
+  >     if (data.BACKUP_ENABLED && !data.BACKUP_ENCRYPTION_KEY) {
+  >       ctx.addIssue({
+  >         code: z.ZodIssueCode.custom,
+  >         path: ['BACKUP_ENCRYPTION_KEY'],
+  >         message: 'BACKUP_ENCRYPTION_KEY is required when BACKUP_ENABLED is true',
+  >       });
+  >     }
+  >     if (data.DR_HOT_STANDBY_ENABLED && !data.DR_HOT_STANDBY_URL) {
+  >       ctx.addIssue({
+  >         code: z.ZodIssueCode.custom,
+  >         path: ['DR_HOT_STANDBY_URL'],
+  >         message: 'DR_HOT_STANDBY_URL is required when DR_HOT_STANDBY_ENABLED is true',
+  >       });
+  >     }
+  >     if (data.AUTH_SESSION_WARNING_THRESHOLD_MS >= data.AUTH_SESSION_INACTIVITY_TIMEOUT_MS) {
+  >       ctx.addIssue({
+  >         code: z.ZodIssueCode.custom,
+  >         path: ['AUTH_SESSION_WARNING_THRESHOLD_MS'],
+  >         message:
+  >           'AUTH_SESSION_WARNING_THRESHOLD_MS must be less than AUTH_SESSION_INACTIVITY_TIMEOUT_MS',
+  >       });
+  >     }
+  >   });
   >
   > export type ServerEnv = z.infer<typeof serverEnvSchema>;
   > ```
+  >
   > `[Inference]` Two fields above (`LOG_DESTINATION`, `HEALTH_CHECK_PATH`) are
   > documented in L1 §13.2 and §13.3 respectively, with an unambiguous name,
   > type, and default, but were absent from L1 §21.2's own schema code listing.
@@ -612,6 +677,7 @@ AI Prompt:
   > internal inconsistency in L1 for human reconciliation.
   >
   > **`/apps/server/src/config/env.ts`** — the startup validation entry point:
+  >
   > ```typescript
   > import 'dotenv/config';
   > import { serverEnvSchema } from './env.server';
@@ -629,6 +695,7 @@ AI Prompt:
   > ```
   >
   > **`/apps/web/src/config/env.client.ts`:**
+  >
   > ```typescript
   > import { z } from 'zod';
   >
@@ -648,6 +715,7 @@ AI Prompt:
   >   VITE_SENTRY_ENVIRONMENT: import.meta.env.VITE_SENTRY_ENVIRONMENT,
   > });
   > ```
+  >
   > Vite exposes only `VITE_`-prefixed variables to the browser bundle — never
   > prefix a secret with `VITE_` (L1 §21.4).
   >
@@ -656,29 +724,31 @@ AI Prompt:
   > (`PORTAL` module); do not create this file as part of Phase 1 INFRA work.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `pnpm --filter server typecheck` and `pnpm --filter web typecheck` both pass
   > - [ ] Validation fails fast with `[FATAL] Environment variable validation failed at startup:` when `AUTH_JWT_ACCESS_SECRET` is unset
   > - [ ] Validation passes (exit 0) when every `REQ`-classified variable is set
   > - [ ] `env.client.ts` reads only `import.meta.env.VITE_*`, never `process.env`
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-003
 
-Phase:          1
-Module:         INFRA
-Title:          Create environment variable template and Docker secrets loader
-Prerequisites:  [TASK-INFRA-002]
+Phase: 1
+Module: INFRA
+Title: Create environment variable template and Docker secrets loader
+Prerequisites: [TASK-INFRA-002]
 Deliverables:
-  - /.env.example — committed template at monorepo root with every variable and a safe placeholder
-  - /apps/server/src/config/load-docker-secrets.ts — reads `/run/secrets/*` files into `process.env` before validation runs
-Acceptance Criteria:
-  - [ ] Copying `.env.example` to `.env` and running the env-validation entry point from TASK-INFRA-002 exits 0 with zero edits to the copied file
-  - [ ] `.env.example` contains a non-empty placeholder for every variable marked `REQ` anywhere in L1
-  - [ ] A unit test confirms `loadDockerSecrets()` does NOT overwrite a variable already present in `process.env` — the secrets file is a fallback, never an override
-  - [ ] Manual: a reviewer greps `.env.example` for the secret-classified variables listed in L1 §23.1 and confirms every value is an obvious placeholder, not a realistic-looking credential
-AI Prompt:
+
+- /.env.example — committed template at monorepo root with every variable and a safe placeholder
+- /apps/server/src/config/load-docker-secrets.ts — reads `/run/secrets/*` files into `process.env` before validation runs
+  Acceptance Criteria:
+- [ ] Copying `.env.example` to `.env` and running the env-validation entry point from TASK-INFRA-002 exits 0 with zero edits to the copied file
+- [ ] `.env.example` contains a non-empty placeholder for every variable marked `REQ` anywhere in L1
+- [ ] A unit test confirms `loadDockerSecrets()` does NOT overwrite a variable already present in `process.env` — the secrets file is a fallback, never an override
+- [ ] Manual: a reviewer greps `.env.example` for the secret-classified variables listed in L1 §23.1 and confirms every value is an obvious placeholder, not a realistic-looking credential
+      AI Prompt:
   > Create the root `.env.example` template and the Docker-secrets-to-env-var
   > loader used in containerized deployments.
   >
@@ -686,6 +756,7 @@ AI Prompt:
   > (this is the Phase 1 subset; exclude `PORTAL_*`/`SMS_*`/`NEXT_PUBLIC_*`
   > Phase 3 variables from the "required" framing — they may appear commented
   > out for forward reference only):
+  >
   > ```dotenv
   > # ╔═══════════════════════════════════════════════════════════════════════╗
   > # ║  Batac City LGU Platform — Environment Variable Template              ║
@@ -745,12 +816,14 @@ AI Prompt:
   > # ─── Nginx / Deployment (production/staging only) ─────────────────────────
   > APP_DOMAIN=dms.batac.gov.ph
   > ```
+  >
   > Add every other variable named in L1 with its documented default where one
   > exists; omit defaulted-optional variables only if their absence does not
   > break local startup (the schema in TASK-INFRA-002 supplies the default at
   > runtime).
   >
   > **`/apps/server/src/config/load-docker-secrets.ts`:**
+  >
   > ```typescript
   > import { readFileSync, existsSync } from 'fs';
   >
@@ -774,7 +847,8 @@ AI Prompt:
   >   }
   > }
   > ```
-  > This must be called and its import completed *before* `env.ts` (TASK-INFRA-002)
+  >
+  > This must be called and its import completed _before_ `env.ts` (TASK-INFRA-002)
   > runs its `safeParse`, so that secrets mounted as files are present in
   > `process.env` ahead of validation (L1 §23.3).
   >
@@ -789,35 +863,37 @@ AI Prompt:
   > `.env.example` for these must be an obvious placeholder.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] Copying `.env.example` to `.env` and running the validation entry point exits 0
   > - [ ] Every `REQ`-classified variable in L1 has a non-empty placeholder in `.env.example`
   > - [ ] `loadDockerSecrets()` never overwrites an already-set `process.env` value
   > - [ ] No secret-classified variable in `.env.example` looks like a real credential
-  > A reviewer will verify each one independently.
-
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-004
 
-Phase:          1
-Module:         INFRA
-Title:          Define local development Docker Compose infrastructure stack
-Prerequisites:  [TASK-INFRA-001]
+Phase: 1
+Module: INFRA
+Title: Define local development Docker Compose infrastructure stack
+Prerequisites: [TASK-INFRA-001]
 Deliverables:
-  - /compose.yml — local development infrastructure: PostgreSQL, MinIO, MinIO bucket init, Mailpit, and a reserved Meilisearch profile
-Acceptance Criteria:
-  - [ ] `docker compose config` validates the file with zero errors
-  - [ ] `docker compose up -d` brings `postgres`, `minio`, and `mailpit` to a healthy state within 30 seconds (`docker compose ps` shows `healthy`)
-  - [ ] `docker compose --profile search up -d meilisearch` starts Meilisearch only when explicitly requested; it does not start on a plain `docker compose up -d`
-  - [ ] Manual: `http://localhost:9001` (MinIO console) and `http://localhost:8025` (Mailpit UI) both load in a browser after `docker compose up -d`
-AI Prompt:
+
+- /compose.yml — local development infrastructure: PostgreSQL, MinIO, MinIO bucket init, Mailpit, and a reserved Meilisearch profile
+  Acceptance Criteria:
+- [ ] `docker compose config` validates the file with zero errors
+- [ ] `docker compose up -d` brings `postgres`, `minio`, and `mailpit` to a healthy state within 30 seconds (`docker compose ps` shows `healthy`)
+- [ ] `docker compose --profile search up -d meilisearch` starts Meilisearch only when explicitly requested; it does not start on a plain `docker compose up -d`
+- [ ] Manual: `http://localhost:9001` (MinIO console) and `http://localhost:8025` (Mailpit UI) both load in a browser after `docker compose up -d`
+      AI Prompt:
   > Write the local development Docker Compose file. Only infrastructure
   > services run in Docker for local development — `/apps/server` and
   > `/apps/web` run on the host via `pnpm dev` for hot-reload support, and are
   > out of scope for this file.
   >
   > **`/compose.yml`:**
+  >
   > ```yaml
   > # compose.yml — local development infrastructure
   > # Start all services:    docker compose up -d
@@ -827,7 +903,6 @@ AI Prompt:
   > name: batac-dev
   >
   > services:
-  >
   >   postgres:
   >     image: postgres:16-alpine
   >     restart: unless-stopped
@@ -840,12 +915,12 @@ AI Prompt:
   >       DB_MIGRATE_PASSWORD: ${DB_MIGRATE_PASSWORD:-migrate_devpassword}
   >       TZ: Asia/Manila
   >     ports:
-  >       - "${DB_PORT_EXPOSED:-5432}:5432"
+  >       - '${DB_PORT_EXPOSED:-5432}:5432'
   >     volumes:
   >       - postgres_data:/var/lib/postgresql/data
   >       - ./tools/db/init:/docker-entrypoint-initdb.d:ro
   >     healthcheck:
-  >       test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME:-batac_lgu}"]
+  >       test: ['CMD-SHELL', 'pg_isready -U postgres -d ${DB_NAME:-batac_lgu}']
   >       interval: 5s
   >       timeout: 5s
   >       retries: 10
@@ -860,12 +935,12 @@ AI Prompt:
   >       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minio123456}
   >       TZ: Asia/Manila
   >     ports:
-  >       - "9000:9000"
-  >       - "9001:9001"
+  >       - '9000:9000'
+  >       - '9001:9001'
   >     volumes:
   >       - minio_data:/data
   >     healthcheck:
-  >       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+  >       test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
   >       interval: 10s
   >       timeout: 5s
   >       retries: 5
@@ -896,10 +971,10 @@ AI Prompt:
   >     image: axllent/mailpit:latest
   >     restart: unless-stopped
   >     ports:
-  >       - "1025:1025"
-  >       - "8025:8025"
+  >       - '1025:1025'
+  >       - '8025:8025'
   >     healthcheck:
-  >       test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:8025"]
+  >       test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://localhost:8025']
   >       interval: 10s
   >       timeout: 5s
   >       retries: 5
@@ -912,15 +987,15 @@ AI Prompt:
   >       - search
   >     environment:
   >       MEILI_MASTER_KEY: ${SEARCH_MEILISEARCH_MASTER_KEY:-meilisearch-dev-key-changeme}
-  >       MEILI_NO_ANALYTICS: "true"
+  >       MEILI_NO_ANALYTICS: 'true'
   >       MEILI_ENV: development
   >       TZ: Asia/Manila
   >     ports:
-  >       - "7700:7700"
+  >       - '7700:7700'
   >     volumes:
   >       - meilisearch_data:/meili_data
   >     healthcheck:
-  >       test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:7700/health"]
+  >       test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://localhost:7700/health']
   >       interval: 10s
   >       timeout: 5s
   >       retries: 5
@@ -934,36 +1009,39 @@ AI Prompt:
   >   meilisearch_data:
   >     driver: local
   > ```
+  >
   > The `./tools/db/init` bind mount is created by this task as an empty
   > directory if it does not already exist; TASK-INFRA-005 populates it.
   > `meilisearch` is Phase 2 — it must never start without `--profile search`
   > being passed explicitly.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `docker compose config` validates with zero errors
   > - [ ] `postgres`, `minio`, and `mailpit` reach `healthy` within 30 seconds of `docker compose up -d`
   > - [ ] `meilisearch` does not start without `--profile search`
   > - [ ] The MinIO console and Mailpit UI both load in a browser
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-005
 
-Phase:          1
-Module:         INFRA
-Title:          Create PostgreSQL role bootstrap script and post-migration grants
-Prerequisites:  [TASK-INFRA-004]
+Phase: 1
+Module: INFRA
+Title: Create PostgreSQL role bootstrap script and post-migration grants
+Prerequisites: [TASK-INFRA-004]
 Deliverables:
-  - /tools/db/init/01-create-roles.sh — creates the three application database roles on first container start
-  - /packages/database/scripts/post-migrate-grants.sql — idempotent grants applied after every Drizzle migration run
-Acceptance Criteria:
-  - [ ] `docker compose down -v && docker compose up -d`, then `docker compose exec postgres psql -U postgres -d batac_lgu -c "\du"` lists `batac_migrate`, `batac_app`, `batac_audit`, `batac_it_admin`, and `batac_readonly`
-  - [ ] Running `post-migrate-grants.sql` twice in a row against the same database produces no errors on the second run (idempotency)
-  - [ ] As `batac_audit`: `SELECT` on `audit.events` succeeds; `INSERT` on `audit.events` succeeds; `UPDATE` or `DELETE` against `audit.events` fails with a permission-denied error
-  - [ ] As `batac_app`: any `SELECT`, `INSERT`, `UPDATE`, or `DELETE` against any table in the `audit` schema fails with a permission-denied error (B2 Prohibited Pattern P3; [CONFLICT 2 → RESOLVED])
-  - [ ] Manual: a reviewer confirms `01-create-roles.sh` sources every password from an environment variable (`${DB_MIGRATE_PASSWORD}`, `${DB_APP_PASSWORD}`, `${DB_AUDIT_PASSWORD}`) and never hardcodes a credential
-AI Prompt:
+
+- /tools/db/init/01-create-roles.sh — creates the three application database roles on first container start
+- /packages/database/scripts/post-migrate-grants.sql — idempotent grants applied after every Drizzle migration run
+  Acceptance Criteria:
+- [ ] `docker compose down -v && docker compose up -d`, then `docker compose exec postgres psql -U postgres -d batac_lgu -c "\du"` lists `batac_migrate`, `batac_app`, `batac_audit`, `batac_it_admin`, and `batac_readonly`
+- [ ] Running `post-migrate-grants.sql` twice in a row against the same database produces no errors on the second run (idempotency)
+- [ ] As `batac_audit`: `SELECT` on `audit.events` succeeds; `INSERT` on `audit.events` succeeds; `UPDATE` or `DELETE` against `audit.events` fails with a permission-denied error
+- [ ] As `batac_app`: any `SELECT`, `INSERT`, `UPDATE`, or `DELETE` against any table in the `audit` schema fails with a permission-denied error (B2 Prohibited Pattern P3; [CONFLICT 2 → RESOLVED])
+- [ ] Manual: a reviewer confirms `01-create-roles.sh` sources every password from an environment variable (`${DB_MIGRATE_PASSWORD}`, `${DB_APP_PASSWORD}`, `${DB_AUDIT_PASSWORD}`) and never hardcodes a credential
+      AI Prompt:
   > Implement the two scripts that establish the platform's three-role
   > least-privilege database access model.
   >
@@ -977,6 +1055,7 @@ AI Prompt:
   > **`/tools/db/init/01-create-roles.sh`** — runs once, automatically, the
   > first time the PostgreSQL container starts against an empty
   > `postgres_data` volume:
+  >
   > ```bash
   > #!/bin/bash
   > # tools/db/init/01-create-roles.sh
@@ -1004,6 +1083,7 @@ AI Prompt:
   >
   > echo "[01-create-roles] Roles batac_migrate, batac_app, batac_audit created."
   > ```
+  >
   > `[RESOLVED CONFLICT]` C5's addendum ("Migration-Owning Role Name") has been
   > updated to match C1 §3.16. `batac_migrate` is a `LOGIN` role. The script
   > above creates it as a `LOGIN` role with a password (`CREATE USER` is shorthand
@@ -1018,6 +1098,7 @@ AI Prompt:
   > **`/packages/database/scripts/post-migrate-grants.sql`** — applied after
   > every Drizzle migration run, from `migrate.ts` (TASK-INFRA-006), using the
   > `batac_migrate` connection. Idempotent:
+  >
   > ```sql
   > -- packages/database/scripts/post-migrate-grants.sql
   > DO $$
@@ -1063,6 +1144,7 @@ AI Prompt:
   > END
   > $$;
   > ```
+  >
   > Note: schema-level grants are not applied in `01-create-roles.sh` because
   > the schemas do not exist yet at that point — they are created later by
   > Drizzle migrations (owned by each domain module), and this SQL file is what
@@ -1070,31 +1152,33 @@ AI Prompt:
   > `shared.event_bus_dead_letters` table created by TASK-INFRA-023.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `\du` after a fresh `docker compose up -d` lists all three roles
   > - [ ] Re-running `post-migrate-grants.sql` twice produces no errors
   > - [ ] `batac_audit` can `SELECT` and `INSERT` but not `UPDATE`/`DELETE` in the `audit` schema
   > - [ ] `batac_app` has zero access to the `audit` schema (SELECT, INSERT, UPDATE, DELETE all denied) — B2 Prohibited Pattern P3
   > - [ ] Every password in `01-create-roles.sh` is sourced from an environment variable, never hardcoded
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-006
 
-Phase:          1
-Module:         INFRA
-Title:          Implement Drizzle migration runner and package scripts
-Prerequisites:  [TASK-INFRA-002, TASK-INFRA-005]
+Phase: 1
+Module: INFRA
+Title: Implement Drizzle migration runner and package scripts
+Prerequisites: [TASK-INFRA-002, TASK-INFRA-005]
 Deliverables:
-  - /packages/database/package.json — `@batac/database` workspace package with `db:generate` and `db:migrate` scripts
-  - /packages/database/drizzle.config.ts — Drizzle Kit configuration
-  - /packages/database/scripts/migrate.ts — applies pending migrations, then runs `post-migrate-grants.sql`
-Acceptance Criteria:
-  - [ ] `pnpm --filter @batac/database db:generate` runs without error against an (initially empty) `/packages/database/schema/` directory
-  - [ ] `pnpm --filter @batac/database db:migrate` against a freshly bootstrapped `compose.yml` Postgres instance applies zero pending migrations cleanly, then runs `post-migrate-grants.sql` without error
-  - [ ] Running `db:migrate` twice in a row is idempotent — the second run reports zero migrations to apply and grants re-apply cleanly
-  - [ ] Manual: a reviewer confirms `migrate.ts` never shells out to `psql` and uses only the `postgres` npm package, per L2 Part 10
-AI Prompt:
+
+- /packages/database/package.json — `@batac/database` workspace package with `db:generate` and `db:migrate` scripts
+- /packages/database/drizzle.config.ts — Drizzle Kit configuration
+- /packages/database/scripts/migrate.ts — applies pending migrations, then runs `post-migrate-grants.sql`
+  Acceptance Criteria:
+- [ ] `pnpm --filter @batac/database db:generate` runs without error against an (initially empty) `/packages/database/schema/` directory
+- [ ] `pnpm --filter @batac/database db:migrate` against a freshly bootstrapped `compose.yml` Postgres instance applies zero pending migrations cleanly, then runs `post-migrate-grants.sql` without error
+- [ ] Running `db:migrate` twice in a row is idempotent — the second run reports zero migrations to apply and grants re-apply cleanly
+- [ ] Manual: a reviewer confirms `migrate.ts` never shells out to `psql` and uses only the `postgres` npm package, per L2 Part 10
+      AI Prompt:
   > Implement the Drizzle Kit migration tooling for `/packages/database`.
   >
   > **Directory convention** (C5 §2.1): Drizzle schema files live under
@@ -1105,6 +1189,7 @@ AI Prompt:
   > diff engine.
   >
   > **`/packages/database/package.json`** (scripts section; C5 §2.2–§2.3):
+  >
   > ```json
   > {
   >   "name": "@batac/database",
@@ -1123,6 +1208,7 @@ AI Prompt:
   > content is not given verbatim in any loaded document; the directory
   > locations and the `DATABASE_URL_MIGRATE` connection role are confirmed
   > (C5 §2.1; L1 §5.1):
+  >
   > ```typescript
   > import { defineConfig } from 'drizzle-kit';
   >
@@ -1137,6 +1223,7 @@ AI Prompt:
   > ```
   >
   > **`/packages/database/scripts/migrate.ts`** — reproduce exactly (L2 Part 10):
+  >
   > ```typescript
   > import { drizzle } from 'drizzle-orm/postgres-js';
   > import { migrate } from 'drizzle-orm/postgres-js/migrator';
@@ -1150,7 +1237,7 @@ AI Prompt:
   > if (!process.env.DATABASE_URL_MIGRATE) {
   >   console.error(
   >     '[migrate] DATABASE_URL_MIGRATE is not set. ' +
-  >     'This variable is required for migrations and post-migrate grants.'
+  >       'This variable is required for migrations and post-migrate grants.',
   >   );
   >   process.exit(1);
   > }
@@ -1172,6 +1259,7 @@ AI Prompt:
   >
   > console.log('[migrate] Done.');
   > ```
+  >
   > `DATABASE_URL_MIGRATE` is declared `.optional()` in the Zod schema
   > (TASK-INFRA-002) because the running Fastify server does not need it at
   > runtime — but this script explicitly validates its own presence and exits
@@ -1185,30 +1273,32 @@ AI Prompt:
   > CI's ephemeral test database may use it (C5 §6).
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `db:generate` runs without error against an empty schema directory
   > - [ ] `db:migrate` against a fresh local Postgres applies cleanly and idempotently
   > - [ ] `migrate.ts` contains no `psql` shell invocation
   > - [ ] `DATABASE_URL_MIGRATE` absence produces the documented error message, not a stack trace
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-007
 
-Phase:          1
-Module:         INFRA
-Title:          Build automated migration invariant linter for CI
-Prerequisites:  [TASK-INFRA-001]
+Phase: 1
+Module: INFRA
+Title: Build automated migration invariant linter for CI
+Prerequisites: [TASK-INFRA-001]
 Deliverables:
-  - /tools/scripts/lint-migrations.ts — parses every SQL file in `/packages/database/migrations/` and enforces the three designated invariants plus supplementary convention checks
-  - /tools/scripts/package.json (updated) — `lint:migrations` script
-  - /turbo.json (updated) — `db:lint` task wired to depend on the database package's typecheck output
-Acceptance Criteria:
-  - [ ] `pnpm --filter @batac/scripts lint:migrations` exits 0 against an empty migrations directory
-  - [ ] A fixture migration file containing `id SERIAL PRIMARY KEY` makes the linter exit non-zero with an `[INVARIANT-06]` message naming the file and line
-  - [ ] A fixture migration file containing `REFERENCES iam.users(id)` inside a `CREATE TABLE` for the `documents` schema makes the linter exit non-zero with an `[INVARIANT-01]` message
-  - [ ] A fixture migration file with an undecorated `DATE` column produces a WARN (not a FAIL) and the process still exits 0 when no FAIL-severity finding is present
-AI Prompt:
+
+- /tools/scripts/lint-migrations.ts — parses every SQL file in `/packages/database/migrations/` and enforces the three designated invariants plus supplementary convention checks
+- /tools/scripts/package.json (updated) — `lint:migrations` script
+- /turbo.json (updated) — `db:lint` task wired to depend on the database package's typecheck output
+  Acceptance Criteria:
+- [ ] `pnpm --filter @batac/scripts lint:migrations` exits 0 against an empty migrations directory
+- [ ] A fixture migration file containing `id SERIAL PRIMARY KEY` makes the linter exit non-zero with an `[INVARIANT-06]` message naming the file and line
+- [ ] A fixture migration file containing `REFERENCES iam.users(id)` inside a `CREATE TABLE` for the `documents` schema makes the linter exit non-zero with an `[INVARIANT-01]` message
+- [ ] A fixture migration file with an undecorated `DATE` column produces a WARN (not a FAIL) and the process still exits 0 when no FAIL-severity finding is present
+      AI Prompt:
   > `[Inference]` C5 §7.1 states the source documents designate three
   > invariants for automated linting but do not specify the implementation —
   > the script below is the designed approach, consistent with the confirmed
@@ -1232,6 +1322,7 @@ AI Prompt:
   > within the same schema. The `audit.events` table's `actor_id`/`entity_id`
   > plain-`UUID` columns carry no `REFERENCES` clause by design — the linter
   > produces no output for them; no special-case code is needed. Output format:
+  >
   > ```
   > [INVARIANT-01] Cross-schema foreign key detected.
   >   File: {filename}
@@ -1287,35 +1378,37 @@ AI Prompt:
   > exists, including a suppression comment missing its required reason.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] Empty migrations directory → exit 0
   > - [ ] `SERIAL PRIMARY KEY` fixture → `[INVARIANT-06]` FAIL, non-zero exit
   > - [ ] Cross-schema `REFERENCES` fixture → `[INVARIANT-01]` FAIL, non-zero exit
   > - [ ] Undecorated `DATE` column fixture → WARN only, exit 0
-  > A reviewer will verify each one independently.
-
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-008
 
-Phase:          1
-Module:         INFRA
-Title:          Write Fastify server production Dockerfile and entrypoint
-Prerequisites:  [TASK-INFRA-006, TASK-INFRA-023]
+Phase: 1
+Module: INFRA
+Title: Write Fastify server production Dockerfile and entrypoint
+Prerequisites: [TASK-INFRA-006, TASK-INFRA-023]
 Deliverables:
-  - /apps/server/Dockerfile — multi-stage production build (pruner → deps → builder → production)
-  - /apps/server/entrypoint.sh — migrate → seed (dev/staging only) → start Fastify
-Acceptance Criteria:
-  - [ ] `docker build -f apps/server/Dockerfile -t batac-server:test .` completes successfully from the monorepo root
-  - [ ] `docker run --rm batac-server:test sh -c "id -un"` reports `node`, not `root`
-  - [ ] `docker run --rm batac-server:test ls /app/tessdata` lists decompressed `eng.traineddata` and `fil.traineddata`
-  - [ ] Manual: a reviewer confirms `ENTRYPOINT` is `dumb-init` (PID 1) and `CMD` invokes `./entrypoint.sh`
-AI Prompt:
+
+- /apps/server/Dockerfile — multi-stage production build (pruner → deps → builder → production)
+- /apps/server/entrypoint.sh — migrate → seed (dev/staging only) → start Fastify
+  Acceptance Criteria:
+- [ ] `docker build -f apps/server/Dockerfile -t batac-server:test .` completes successfully from the monorepo root
+- [ ] `docker run --rm batac-server:test sh -c "id -un"` reports `node`, not `root`
+- [ ] `docker run --rm batac-server:test ls /app/tessdata` lists decompressed `eng.traineddata` and `fil.traineddata`
+- [ ] Manual: a reviewer confirms `ENTRYPOINT` is `dumb-init` (PID 1) and `CMD` invokes `./entrypoint.sh`
+      AI Prompt:
   > Write the production Dockerfile and container entrypoint for
   > `/apps/server` (Fastify — tRPC, REST/OpenAPI, SSE, pgboss workers,
   > node-cron, OCR, QR/PDF generation, Nodemailer, all in one process).
   >
   > **`/apps/server/Dockerfile`** (L2 Part 4):
+  >
   > ```dockerfile
   > # apps/server/Dockerfile
   >
@@ -1372,6 +1465,7 @@ AI Prompt:
   > ENTRYPOINT ["/usr/bin/dumb-init", "--"]
   > CMD ["./entrypoint.sh"]
   > ```
+  >
   > `[Inference]` `turbo prune --scope=server --docker` is the standard
   > Turborepo monorepo-Docker-build command — verify it matches the exact
   > Turborepo version pinned in TASK-INFRA-001 before the first real build.
@@ -1390,6 +1484,7 @@ AI Prompt:
   > confirmed here.
   >
   > **`/apps/server/entrypoint.sh`** (L2 Part 10):
+  >
   > ```bash
   > #!/bin/sh
   > # apps/server/entrypoint.sh
@@ -1413,6 +1508,7 @@ AI Prompt:
   > echo "[entrypoint] Starting server on port ${APP_PORT:-3000}..."
   > exec node ./apps/server/dist/index.js
   > ```
+  >
   > Migrations are idempotent (Drizzle tracks applied state in
   > `__drizzle_migrations`); seeds must be written as idempotent
   > `INSERT ... ON CONFLICT DO NOTHING` operations, since this runs on every
@@ -1422,33 +1518,36 @@ AI Prompt:
   > created; this task only wires the invocation point.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `docker build` from monorepo root completes successfully
   > - [ ] The running container's effective user is `node`, not `root`
   > - [ ] `/app/tessdata` contains decompressed `eng.traineddata` and `fil.traineddata`
   > - [ ] `ENTRYPOINT` is `dumb-init`; `CMD` is `./entrypoint.sh`
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-009
 
-Phase:          1
-Module:         INFRA
-Title:          Write web SPA production Dockerfile
-Prerequisites:  [TASK-INFRA-001, TASK-UI-001, TASK-INFRA-023]
+Phase: 1
+Module: INFRA
+Title: Write web SPA production Dockerfile
+Prerequisites: [TASK-INFRA-001, TASK-UI-001, TASK-INFRA-023]
 Deliverables:
-  - /apps/web/Dockerfile — multi-stage build producing only the compiled `/app/dist` Vite output
-Acceptance Criteria:
-  - [ ] `docker build -f apps/web/Dockerfile -t batac-web:test --build-arg VITE_API_URL=https://api.example.test --build-arg VITE_APP_URL=https://example.test .` completes from the monorepo root without error
-  - [ ] `docker run --rm batac-web:test ls /app` shows only a `dist` directory — no `node_modules`, no source files
-  - [ ] Manual: a reviewer confirms no `VITE_`-prefixed build `ARG` in the Dockerfile carries a secret value, per L1 §21.4's warning
-  - [ ] Manual: a reviewer confirms `VITE_API_URL` is documented as the public-facing URL, not an internal Docker hostname
-AI Prompt:
+
+- /apps/web/Dockerfile — multi-stage build producing only the compiled `/app/dist` Vite output
+  Acceptance Criteria:
+- [ ] `docker build -f apps/web/Dockerfile -t batac-web:test --build-arg VITE_API_URL=https://api.example.test --build-arg VITE_APP_URL=https://example.test .` completes from the monorepo root without error
+- [ ] `docker run --rm batac-web:test ls /app` shows only a `dist` directory — no `node_modules`, no source files
+- [ ] Manual: a reviewer confirms no `VITE_`-prefixed build `ARG` in the Dockerfile carries a secret value, per L1 §21.4's warning
+- [ ] Manual: a reviewer confirms `VITE_API_URL` is documented as the public-facing URL, not an internal Docker hostname
+      AI Prompt:
   > Write the production Dockerfile for the `/apps/web` Vite SPA. The output
   > image's sole purpose is to seed the `web_static` Docker volume that Nginx
   > serves from (TASK-INFRA-010, TASK-INFRA-012) — it is not a running service.
   >
   > **`/apps/web/Dockerfile`** (L2 Part 5):
+  >
   > ```dockerfile
   > # apps/web/Dockerfile
   >
@@ -1487,6 +1586,7 @@ AI Prompt:
   > FROM alpine:3.20 AS production
   > COPY --from=builder /app/apps/web/dist /app/dist
   > ```
+  >
   > `VITE_*` variables are baked into the bundle at build time and cannot be
   > changed at runtime — a changed `VITE_API_URL` requires a new image build,
   > not a container restart. `VITE_API_URL` must be the public-facing URL
@@ -1497,35 +1597,38 @@ AI Prompt:
   > the browser bundle.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `docker build` with the listed `--build-arg`s completes successfully
   > - [ ] The production image contains only `/app/dist`
   > - [ ] No `VITE_*` build arg carries a secret value
   > - [ ] `VITE_API_URL` is documented as the public-facing URL
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-010
 
-Phase:          1
-Module:         INFRA
-Title:          Configure Nginx reverse proxy and container entrypoint
-Prerequisites:  [TASK-INFRA-008, TASK-INFRA-009]
+Phase: 1
+Module: INFRA
+Title: Configure Nginx reverse proxy and container entrypoint
+Prerequisites: [TASK-INFRA-008, TASK-INFRA-009]
 Deliverables:
-  - /nginx/batac.conf.template — reverse proxy, static bundle serving, SSE-safe API proxy config
-  - /nginx/entrypoint.sh — runs `envsubst` on the template at container start
-Acceptance Criteria:
-  - [ ] `envsubst '${APP_DOMAIN}' < nginx/batac.conf.template` with `APP_DOMAIN=test.example.com` set leaves no unresolved `${APP_DOMAIN}` token, and leaves Nginx's own `$host`/`$request_uri`/`$scheme` references untouched
-  - [ ] The substituted config passes `nginx -t` syntax validation inside a temporary `nginx:1.27-alpine` container
-  - [ ] Manual: a reviewer confirms the `/api/` location block sets `proxy_buffering off` and `proxy_read_timeout 3600s` (required for SSE)
-  - [ ] Manual: a reviewer confirms the hashed-asset location block sets `immutable` caching while the `.html` block sets `no-cache`
-AI Prompt:
+
+- /nginx/batac.conf.template — reverse proxy, static bundle serving, SSE-safe API proxy config
+- /nginx/entrypoint.sh — runs `envsubst` on the template at container start
+  Acceptance Criteria:
+- [ ] `envsubst '${APP_DOMAIN}' < nginx/batac.conf.template` with `APP_DOMAIN=test.example.com` set leaves no unresolved `${APP_DOMAIN}` token, and leaves Nginx's own `$host`/`$request_uri`/`$scheme` references untouched
+- [ ] The substituted config passes `nginx -t` syntax validation inside a temporary `nginx:1.27-alpine` container
+- [ ] Manual: a reviewer confirms the `/api/` location block sets `proxy_buffering off` and `proxy_read_timeout 3600s` (required for SSE)
+- [ ] Manual: a reviewer confirms the hashed-asset location block sets `immutable` caching while the `.html` block sets `no-cache`
+      AI Prompt:
   > Write the Nginx configuration that serves the static SPA bundle and
   > reverse-proxies `/api/*` to Fastify, including the SSE-specific settings
   > the notification feed depends on.
   >
   > **`/nginx/batac.conf.template`** (L2 Part 6; mounted at
   > `/etc/nginx/templates/batac.conf.template` inside the container):
+  >
   > ```nginx
   > server {
   >     listen 80;
@@ -1595,6 +1698,7 @@ AI Prompt:
   >         application/json application/x-javascript image/svg+xml;
   > }
   > ```
+  >
   > SSE requires `proxy_buffering off` and a long `proxy_read_timeout` — without
   > these, Nginx buffers SSE chunks and the browser's notification feed stalls.
   > `proxy_set_header Connection ''` clears any `Connection: upgrade` header
@@ -1606,6 +1710,7 @@ AI Prompt:
   > **Domain injection** (ADR-INF-004): Nginx does not natively support
   > environment-variable substitution in config files, so a custom entrypoint
   > runs `envsubst` at container start:
+  >
   > ```sh
   > #!/bin/sh
   > # nginx/entrypoint.sh
@@ -1614,6 +1719,7 @@ AI Prompt:
   >   > /etc/nginx/conf.d/batac.conf
   > exec nginx -g 'daemon off;'
   > ```
+  >
   > The explicit variable list (`'${APP_DOMAIN}'`) prevents `envsubst` from
   > also expanding Nginx's own `$host`, `$request_uri`, `$scheme` references.
   >
@@ -1625,28 +1731,30 @@ AI Prompt:
   > to automate that reminder.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `envsubst` resolves `${APP_DOMAIN}` and leaves Nginx's own `$`-variables untouched
   > - [ ] `nginx -t` reports syntax OK on the substituted config
   > - [ ] The `/api/` block disables buffering and sets a ≥3600s read timeout
   > - [ ] Hashed assets get `immutable` caching; `.html` gets `no-cache`
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-011
 
-Phase:          1
-Module:         INFRA
-Title:          Implement Fastify liveness health-check endpoint
-Prerequisites:  [TASK-INFRA-002]
+Phase: 1
+Module: INFRA
+Title: Implement Fastify liveness health-check endpoint
+Prerequisites: [TASK-INFRA-002]
 Deliverables:
-  - /apps/server/src/routes/health.route.ts — lightweight liveness probe; registers `GET {HEALTH_CHECK_PATH}`
-Acceptance Criteria:
-  - [ ] `curl -s http://localhost:3000${HEALTH_CHECK_PATH:-/health}` returns HTTP 200 with a JSON body containing `status`, `version`, and `uptime` keys
-  - [ ] Code review confirms the route handler contains no database query and no import of any repository/Drizzle module
-  - [ ] A unit test asserts the route responds without throwing when called directly (no live server required)
-  - [ ] Manual: stopping the `postgres` container while the server process keeps running, then curling the health path, still returns HTTP 200 — this is a liveness probe, not a readiness probe
-AI Prompt:
+
+- /apps/server/src/routes/health.route.ts — lightweight liveness probe; registers `GET {HEALTH_CHECK_PATH}`
+  Acceptance Criteria:
+- [ ] `curl -s http://localhost:3000${HEALTH_CHECK_PATH:-/health}` returns HTTP 200 with a JSON body containing `status`, `version`, and `uptime` keys
+- [ ] Code review confirms the route handler contains no database query and no import of any repository/Drizzle module
+- [ ] A unit test asserts the route responds without throwing when called directly (no live server required)
+- [ ] Manual: stopping the `postgres` container while the server process keeps running, then curling the health path, still returns HTTP 200 — this is a liveness probe, not a readiness probe
+      AI Prompt:
   > Implement the minimal liveness endpoint every infrastructure health check
   > in this project depends on: Docker Compose healthchecks (TASK-INFRA-004,
   > TASK-INFRA-012), Nginx's `/health` proxy (TASK-INFRA-010), and the CI E2E
@@ -1662,6 +1770,7 @@ AI Prompt:
   >
   > The path itself is read from the validated env object (TASK-INFRA-002),
   > not from `process.env` directly:
+  >
   > ```typescript
   > import type { FastifyInstance } from 'fastify';
   > import { env } from '../config/env';
@@ -1678,6 +1787,7 @@ AI Prompt:
   >   });
   > }
   > ```
+  >
   > `env.HEALTH_CHECK_PATH` is available because TASK-INFRA-002 added it to
   > `serverEnvSchema` to close the gap between L1 §13.3 (which documents the
   > variable) and L1 §21.2's schema code excerpt (which omitted it) — see that
@@ -1686,40 +1796,41 @@ AI Prompt:
   > respond even if a domain module's plugin fails to register.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `curl` against `HEALTH_CHECK_PATH` returns 200 with `status`/`version`/`uptime`
   > - [ ] The route file imports no database or repository module
   > - [ ] A unit test calls the handler directly without a live server
   > - [ ] The endpoint returns 200 even when the database is unreachable
-  > A reviewer will verify each one independently.
-
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-012
 
-Phase:          1
-Module:         INFRA
-Title:          Define production and staging Docker Compose stack
-Prerequisites:  [TASK-INFRA-008, TASK-INFRA-009, TASK-INFRA-010]
+Phase: 1
+Module: INFRA
+Title: Define production and staging Docker Compose stack
+Prerequisites: [TASK-INFRA-008, TASK-INFRA-009, TASK-INFRA-010]
 Deliverables:
-  - /compose.prod.yml — production/staging stack: nginx, server, web-build, postgres-primary, postgres-standby, optional MinIO (on-premise profile), optional Meilisearch (search profile)
-Acceptance Criteria:
-  - [ ] `docker compose -f compose.prod.yml config` validates without error given a populated `.env.production`
-  - [ ] `docker compose -f compose.prod.yml --profile onpremise config` additionally resolves the `minio` service when that profile is active
-  - [ ] Manual: a reviewer confirms `nginx` declares `depends_on: server: condition: service_healthy` and `depends_on: web-build: condition: service_completed_successfully`
-  - [ ] Manual: a reviewer confirms the `server` service's port mapping is `127.0.0.1:3000:3000`, not publicly exposed
-AI Prompt:
+
+- /compose.prod.yml — production/staging stack: nginx, server, web-build, postgres-primary, postgres-standby, optional MinIO (on-premise profile), optional Meilisearch (search profile)
+  Acceptance Criteria:
+- [ ] `docker compose -f compose.prod.yml config` validates without error given a populated `.env.production`
+- [ ] `docker compose -f compose.prod.yml --profile onpremise config` additionally resolves the `minio` service when that profile is active
+- [ ] Manual: a reviewer confirms `nginx` declares `depends_on: server: condition: service_healthy` and `depends_on: web-build: condition: service_completed_successfully`
+- [ ] Manual: a reviewer confirms the `server` service's port mapping is `127.0.0.1:3000:3000`, not publicly exposed
+      AI Prompt:
   > Write the production/staging Docker Compose file. This is the deployment
   > target both the staging and production environments use; the difference
   > between them is the `.env.staging` / `.env.production` file supplied, not
   > the compose file itself.
   >
   > **`/compose.prod.yml`** (L2 Part 3):
+  >
   > ```yaml
   > name: batac-prod
   >
   > services:
-  >
   >   postgres-primary:
   >     image: bitnami/postgresql:16
   >     restart: unless-stopped
@@ -1737,14 +1848,14 @@ AI Prompt:
   >       - postgres_primary_data:/bitnami/postgresql
   >       - ./tools/db/init:/docker-entrypoint-initdb.d:ro
   >     healthcheck:
-  >       test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME:-batac_lgu}"]
+  >       test: ['CMD-SHELL', 'pg_isready -U postgres -d ${DB_NAME:-batac_lgu}']
   >       interval: 10s
   >       timeout: 5s
   >       retries: 10
   >       start_period: 30s
   >     deploy:
   >       resources:
-  >         limits: { cpus: "2", memory: 4G }
+  >         limits: { cpus: '2', memory: 4G }
   >
   >   postgres-standby:
   >     image: bitnami/postgresql:16
@@ -1766,7 +1877,7 @@ AI Prompt:
   >       - postgres_standby_data:/bitnami/postgresql
   >     deploy:
   >       resources:
-  >         limits: { cpus: "2", memory: 4G }
+  >         limits: { cpus: '2', memory: 4G }
   >
   >   server:
   >     image: ${REGISTRY:-ghcr.io/batac}/server:${IMAGE_TAG:-latest}
@@ -1787,23 +1898,30 @@ AI Prompt:
   >       - smtp_password
   >       - backup_encryption_key
   >     ports:
-  >       - "127.0.0.1:3000:3000"
+  >       - '127.0.0.1:3000:3000'
   >     healthcheck:
-  >       test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:3000${HEALTH_CHECK_PATH:-/health}"]
+  >       test:
+  >         [
+  >           'CMD',
+  >           'wget',
+  >           '--no-verbose',
+  >           '--spider',
+  >           'http://localhost:3000${HEALTH_CHECK_PATH:-/health}',
+  >         ]
   >       interval: 15s
   >       timeout: 5s
   >       retries: 5
   >       start_period: 30s
   >     deploy:
   >       resources:
-  >         limits: { cpus: "2", memory: 2G }
+  >         limits: { cpus: '2', memory: 2G }
   >
   >   web-build:
   >     image: ${REGISTRY:-ghcr.io/batac}/web:${IMAGE_TAG:-latest}
-  >     restart: "no"
+  >     restart: 'no'
   >     volumes:
   >       - web_static:/app/dist
-  >     command: ["sh", "-c", "cp -r /app/dist/* /shared/ 2>/dev/null || true"]
+  >     command: ['sh', '-c', 'cp -r /app/dist/* /shared/ 2>/dev/null || true']
   >
   >   nginx:
   >     image: nginx:1.27-alpine
@@ -1820,12 +1938,12 @@ AI Prompt:
   >       - ./nginx/entrypoint.sh:/entrypoint.sh:ro
   >       - web_static:/usr/share/nginx/html:ro
   >       - tls_certs:/etc/nginx/certs:ro
-  >     entrypoint: ["/entrypoint.sh"]
+  >     entrypoint: ['/entrypoint.sh']
   >     ports:
-  >       - "80:80"
-  >       - "443:443"
+  >       - '80:80'
+  >       - '443:443'
   >     healthcheck:
-  >       test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost/health"]
+  >       test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://localhost/health']
   >       interval: 15s
   >       timeout: 5s
   >       retries: 5
@@ -1844,8 +1962,8 @@ AI Prompt:
   >       - s3_access_key
   >       - s3_secret_key
   >     ports:
-  >       - "127.0.0.1:9000:9000"
-  >       - "127.0.0.1:9001:9001"
+  >       - '127.0.0.1:9000:9000'
+  >       - '127.0.0.1:9001:9001'
   >     volumes:
   >       - minio_prod_data:/data
   >
@@ -1856,7 +1974,7 @@ AI Prompt:
   >       - search
   >     environment:
   >       MEILI_MASTER_KEY_FILE: /run/secrets/meilisearch_master_key
-  >       MEILI_NO_ANALYTICS: "true"
+  >       MEILI_NO_ANALYTICS: 'true'
   >       MEILI_ENV: production
   >       TZ: Asia/Manila
   >     secrets:
@@ -1866,26 +1984,27 @@ AI Prompt:
   >
   > secrets:
   >   db_replication_password: { file: ./secrets/db_replication_password.txt }
-  >   db_superuser_password:   { file: ./secrets/db_superuser_password.txt }
-  >   jwt_access_secret:       { file: ./secrets/jwt_access_secret.txt }
-  >   jwt_refresh_secret:      { file: ./secrets/jwt_refresh_secret.txt }
-  >   audit_hmac_secret:       { file: ./secrets/audit_hmac_secret.txt }
-  >   database_url_app:        { file: ./secrets/database_url_app.txt }
-  >   database_url_audit:      { file: ./secrets/database_url_audit.txt }
-  >   s3_access_key:           { file: ./secrets/s3_access_key.txt }
-  >   s3_secret_key:           { file: ./secrets/s3_secret_key.txt }
-  >   smtp_password:           { file: ./secrets/smtp_password.txt }
-  >   backup_encryption_key:   { file: ./secrets/backup_encryption_key.txt }
-  >   meilisearch_master_key:  { file: ./secrets/meilisearch_master_key.txt }
+  >   db_superuser_password: { file: ./secrets/db_superuser_password.txt }
+  >   jwt_access_secret: { file: ./secrets/jwt_access_secret.txt }
+  >   jwt_refresh_secret: { file: ./secrets/jwt_refresh_secret.txt }
+  >   audit_hmac_secret: { file: ./secrets/audit_hmac_secret.txt }
+  >   database_url_app: { file: ./secrets/database_url_app.txt }
+  >   database_url_audit: { file: ./secrets/database_url_audit.txt }
+  >   s3_access_key: { file: ./secrets/s3_access_key.txt }
+  >   s3_secret_key: { file: ./secrets/s3_secret_key.txt }
+  >   smtp_password: { file: ./secrets/smtp_password.txt }
+  >   backup_encryption_key: { file: ./secrets/backup_encryption_key.txt }
+  >   meilisearch_master_key: { file: ./secrets/meilisearch_master_key.txt }
   >
   > volumes:
   >   postgres_primary_data: { driver: local }
   >   postgres_standby_data: { driver: local }
-  >   web_static:            { driver: local }
-  >   tls_certs:             { driver: local }
-  >   minio_prod_data:       { driver: local }
+  >   web_static: { driver: local }
+  >   tls_certs: { driver: local }
+  >   minio_prod_data: { driver: local }
   >   meilisearch_prod_data: { driver: local }
   > ```
+  >
   > **Secrets** (ADR-INF-006, resolved): production secrets are plain files
   > under `./secrets/`, listed in `.gitignore`, populated manually by the LGU
   > IT Office during deployment and referenced via Docker's native `secrets:`
@@ -1919,29 +2038,31 @@ AI Prompt:
   > Flagged in the Module Summary.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `docker compose -f compose.prod.yml config` validates given a populated `.env.production`
   > - [ ] `--profile onpremise config` additionally resolves `minio`
   > - [ ] `nginx`'s `depends_on` conditions match exactly as specified
   > - [ ] `server`'s port mapping is loopback-only (`127.0.0.1:3000:3000`)
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-013
 
-Phase:          1
-Module:         INFRA
-Title:          Build CI pull-request merge-gate workflow
-Prerequisites:  [TASK-INFRA-001, TASK-INFRA-005, TASK-INFRA-006, TASK-INFRA-008, TASK-INFRA-009]
+Phase: 1
+Module: INFRA
+Title: Build CI pull-request merge-gate workflow
+Prerequisites: [TASK-INFRA-001, TASK-INFRA-005, TASK-INFRA-006, TASK-INFRA-008, TASK-INFRA-009]
 Deliverables:
-  - /.github/workflows/ci.yml — Jobs A (lint+typecheck), B (unit tests), C (integration tests with service containers), D (build); pnpm/Turborepo caching
-  - /turbo.json (updated) — `test:unit`, `test:integration` task definitions added to TASK-INFRA-001's stub
-Acceptance Criteria:
-  - [ ] Opening a PR with a trivial change triggers Jobs A–D and they appear as GitHub status checks on the PR
-  - [ ] Job C's service-container bootstrap (role-creation script → migrate → seed) completes against an empty fixture set in well under the 5-minute integration-test budget (L3 §9)
-  - [ ] The workflow includes an `actions/cache` (or equivalent) step for both the pnpm store and `.turbo`, keyed on the `pnpm-lock.yaml` hash
-  - [ ] Manual: a reviewer confirms no coverage-percentage gate exists anywhere in the unit-test job, per L3 §12 constraint #1
-AI Prompt:
+
+- /.github/workflows/ci.yml — Jobs A (lint+typecheck), B (unit tests), C (integration tests with service containers), D (build); pnpm/Turborepo caching
+- /turbo.json (updated) — `test:unit`, `test:integration` task definitions added to TASK-INFRA-001's stub
+  Acceptance Criteria:
+- [ ] Opening a PR with a trivial change triggers Jobs A–D and they appear as GitHub status checks on the PR
+- [ ] Job C's service-container bootstrap (role-creation script → migrate → seed) completes against an empty fixture set in well under the 5-minute integration-test budget (L3 §9)
+- [ ] The workflow includes an `actions/cache` (or equivalent) step for both the pnpm store and `.turbo`, keyed on the `pnpm-lock.yaml` hash
+- [ ] Manual: a reviewer confirms no coverage-percentage gate exists anywhere in the unit-test job, per L3 §12 constraint #1
+      AI Prompt:
   > Build the pull-request merge-gate GitHub Actions workflow. This is the
   > pipeline every PR must pass before merge; the main-branch
   > deployment-pipeline jobs are added separately in TASK-INFRA-014.
@@ -1955,6 +2076,7 @@ AI Prompt:
   >
   > **Pipeline topology** (L3 §2.1, §3.1–§3.5): four jobs run in parallel where
   > possible —
+  >
   > - **Job A — Lint & Typecheck**: `pnpm turbo run lint typecheck`. Budget: 3
   >   minutes.
   > - **Job B — Unit Tests**: `pnpm turbo run test:unit`, no service
@@ -2016,7 +2138,7 @@ AI Prompt:
   >         env:
   >           POSTGRES_DB: batac_lgu_test
   >           POSTGRES_PASSWORD: postgres
-  >         ports: ["5432:5432"]
+  >         ports: ['5432:5432']
   >         options: >-
   >           --health-cmd "pg_isready -U postgres"
   >           --health-interval 5s --health-timeout 5s --health-retries 10
@@ -2025,7 +2147,7 @@ AI Prompt:
   >         env:
   >           MINIO_ROOT_USER: minio
   >           MINIO_ROOT_PASSWORD: minio123456
-  >         ports: ["9000:9000"]
+  >         ports: ['9000:9000']
   >     env:
   >       NODE_ENV: test
   >       APP_ENV: development
@@ -2059,6 +2181,7 @@ AI Prompt:
   >       - run: docker build -f apps/server/Dockerfile -t batac-server:ci .
   >       - run: docker build -f apps/web/Dockerfile -t batac-web:ci --build-arg VITE_API_URL=https://ci.placeholder --build-arg VITE_APP_URL=https://ci.placeholder .
   > ```
+  >
   > `[Inference]` `tools/db/init/01-create-roles.sh` is written as a `psql`
   > entrypoint script for the Postgres container (TASK-INFRA-005) and is
   > re-used here directly with `psql ... -f` against the CI service
@@ -2084,33 +2207,36 @@ AI Prompt:
   > constraint #1, coverage is reported but does not block merge.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] All four jobs appear as PR status checks
   > - [ ] Job C's bootstrap-and-migrate sequence completes well under 5 minutes on an empty fixture set
   > - [ ] pnpm store and `.turbo` are both cached, keyed on the lockfile hash
   > - [ ] No coverage-percentage gate exists in the unit-test job
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-014
 
-Phase:          1
-Module:         INFRA
-Title:          Build CI main-branch E2E and deployment gate workflow
-Prerequisites:  [TASK-INFRA-013, TASK-INFRA-012]
+Phase: 1
+Module: INFRA
+Title: Build CI main-branch E2E and deployment gate workflow
+Prerequisites: [TASK-INFRA-013, TASK-INFRA-012]
 Deliverables:
-  - /.github/workflows/ci.yml (extended) — Job E (E2E against a docker-compose stack), Job F (deploy to staging), Job G (manual-approval production deployment gate)
-Acceptance Criteria:
-  - [ ] Merging a PR to `main` triggers Jobs A–D again, followed automatically by Job E, with no manual step required to reach E2E
-  - [ ] A failing Job E prevents Job G from running, verified by inspecting the `needs:` graph in the workflow YAML rather than only observing one passing run
-  - [ ] Manual: the `production` GitHub Environment has a required-reviewers rule configured in repository settings (this is a one-time manual setting, not a file in this repository)
-  - [ ] Manual: a reviewer confirms staging-only and production-only secrets are scoped to their respective GitHub Environments, so a PR-triggered job cannot read `secrets.PRODUCTION_*`
-AI Prompt:
+
+- /.github/workflows/ci.yml (extended) — Job E (E2E against a docker-compose stack), Job F (deploy to staging), Job G (manual-approval production deployment gate)
+  Acceptance Criteria:
+- [ ] Merging a PR to `main` triggers Jobs A–D again, followed automatically by Job E, with no manual step required to reach E2E
+- [ ] A failing Job E prevents Job G from running, verified by inspecting the `needs:` graph in the workflow YAML rather than only observing one passing run
+- [ ] Manual: the `production` GitHub Environment has a required-reviewers rule configured in repository settings (this is a one-time manual setting, not a file in this repository)
+- [ ] Manual: a reviewer confirms staging-only and production-only secrets are scoped to their respective GitHub Environments, so a PR-triggered job cannot read `secrets.PRODUCTION_*`
+      AI Prompt:
   > Extend `/.github/workflows/ci.yml` from TASK-INFRA-013 with the
   > main-branch-only jobs: end-to-end tests, staging deployment, and a
   > human-gated production deployment.
   >
   > **Pipeline topology** (L3 §2.2, §3.6–§3.8):
+  >
   > - **Job E — E2E Tests**: triggered only on push to `main` (post-merge), not
   >   on every PR — full Playwright suite against a `compose.yml`-equivalent
   >   stack with the just-built images. Budget: 15 minutes.
@@ -2181,6 +2307,7 @@ AI Prompt:
   >             docker compose -f compose.prod.yml pull && \
   >             docker compose -f compose.prod.yml up -d
   > ```
+  >
   > `environment: production` is what causes GitHub to pause `deploy-production`
   > for the configured required reviewers — that pause is enforced by the
   > GitHub Environment's protection rule, not by anything in this YAML, so the
@@ -2199,32 +2326,33 @@ AI Prompt:
   > step, do not invent a YAML file for it.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] Merging to `main` triggers Job E automatically, with no manual step
   > - [ ] The `needs:` graph shows Job G blocked behind a passing Job E (via Job F)
   > - [ ] The `production` Environment has required reviewers configured
   > - [ ] Staging and production secrets are scoped to their own Environments
-  > A reviewer will verify each one independently.
-
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-015
 
-Phase:          1
-Module:         INFRA
-Title:          Commit operational backup and DR runbook references
-Prerequisites:  [TASK-INFRA-003]
+Phase: 1
+Module: INFRA
+Title: Commit operational backup and DR runbook references
+Prerequisites: [TASK-INFRA-003]
 Deliverables:
-  - /docs/ops/l4-backup-dr-runbooks.md — the live, version-controlled copy of L4, authoritative for operational use going forward
-  - /docs/ops/pitr-log.md — empty log template for PITR base-backup verification entries
-  - /docs/ops/staging-test-log.md — empty log template for staging failover-drill entries
-  - /docs/ops/restoration-test-log.md — empty log template for monthly restoration-test entries
-  - /docs/ops/dr-drill-log.md — empty log template for quarterly DR-drill entries
-Acceptance Criteria:
-  - [ ] `/docs/ops/l4-backup-dr-runbooks.md` exists and its content matches the pre-development L4 document at the commit this task was authored against
-  - [ ] Each of the four log templates contains a header row matching the column set its corresponding runbook section specifies, and zero data rows
-  - [ ] Manual: a reviewer confirms none of the five files contain a real credential, hostname, or IP address — templates only
-AI Prompt:
+
+- /docs/ops/l4-backup-dr-runbooks.md — the live, version-controlled copy of L4, authoritative for operational use going forward
+- /docs/ops/pitr-log.md — empty log template for PITR base-backup verification entries
+- /docs/ops/staging-test-log.md — empty log template for staging failover-drill entries
+- /docs/ops/restoration-test-log.md — empty log template for monthly restoration-test entries
+- /docs/ops/dr-drill-log.md — empty log template for quarterly DR-drill entries
+  Acceptance Criteria:
+- [ ] `/docs/ops/l4-backup-dr-runbooks.md` exists and its content matches the pre-development L4 document at the commit this task was authored against
+- [ ] Each of the four log templates contains a header row matching the column set its corresponding runbook section specifies, and zero data rows
+- [ ] Manual: a reviewer confirms none of the five files contain a real credential, hostname, or IP address — templates only
+      AI Prompt:
   > Establish the operational documentation home for the backup/DR runbook
   > set before any individual runbook's automation is built. L4 itself states,
   > in its closing line, that it is "version-controlled in the repository at
@@ -2242,67 +2370,79 @@ AI Prompt:
   > table with a header row only:
   >
   > **`/docs/ops/pitr-log.md`** (L4 Runbook 1 §1.6):
+  >
   > ```markdown
   > # WAL-Based PITR — Verification Log
+  >
   > | Date | Performed By | Base Backup Verified | WAL Archiving Confirmed | Notes |
-  > |---|---|---|---|---|
+  > | ---- | ------------ | -------------------- | ----------------------- | ----- |
   > ```
   >
   > **`/docs/ops/staging-test-log.md`** (L4 Runbook 3 §3.5):
+  >
   > ```markdown
   > # Streaming Replication — Staging Failover Test Log
+  >
   > | Date | Performed By | Replication Lag at Test Start | Failover Duration | Issues Found | Sign-off |
-  > |---|---|---|---|---|---|
+  > | ---- | ------------ | ----------------------------- | ----------------- | ------------ | -------- |
   > ```
   >
   > **`/docs/ops/restoration-test-log.md`** (L4 Runbook 4 §4.5):
+  >
   > ```markdown
   > # Monthly Restoration Test Log
+  >
   > | Date | Performed By | Backup File Tested | Row-Count Spot Check Passed | RTO Achieved | Issues Found | Sign-off |
-  > |---|---|---|---|---|---|---|
+  > | ---- | ------------ | ------------------ | --------------------------- | ------------ | ------------ | -------- |
   > ```
   >
   > **`/docs/ops/dr-drill-log.md`** (L4 Runbook 5 §5.5):
+  >
   > ```markdown
   > # Quarterly DR Drill Log
+  >
   > | Date | Drill Type | Participants | RTO Achieved | RPO Achieved | Issues Found | Sign-off |
-  > |---|---|---|---|---|---|---|
+  > | ---- | ---------- | ------------ | ------------ | ------------ | ------------ | -------- |
   > ```
+  >
   > These four files start empty by design — they accumulate real entries only
   > once the corresponding runbook (TASK-INFRA-016 through TASK-INFRA-020) is
   > actually exercised in a real environment, which happens after Phase 1
   > development, not during it.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `/docs/ops/l4-backup-dr-runbooks.md` matches the source L4 document's content
   > - [ ] Each log template's header row matches its runbook section's column set
   > - [ ] No file contains a real credential, hostname, or IP address
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-016
 
-Phase:          1
-Module:         INFRA
-Title:          Automate WAL-based PITR archiving configuration
-Prerequisites:  [TASK-INFRA-012, TASK-INFRA-015]
+Phase: 1
+Module: INFRA
+Title: Automate WAL-based PITR archiving configuration
+Prerequisites: [TASK-INFRA-012, TASK-INFRA-015]
 Deliverables:
-  - /tools/scripts/ops/wal-g-env.template — wal-g environment-variable template for S3 archive storage
-  - /tools/scripts/ops/postgresql-pitr.conf.snippet — the `archive_mode`/`archive_command`/`wal_level` configuration block
-  - /tools/scripts/ops/base-backup-cron.sh — weekly full base backup + nightly WAL-G verification, intended for the production host's crontab
-Acceptance Criteria:
-  - [ ] `wal-g backup-push $PGDATA` (run manually against a local test Postgres data directory with the template's variables populated) completes and lists the new backup via `wal-g backup-list`
-  - [ ] The `postgresql-pitr.conf.snippet` values, when applied to a running `postgres-primary` container, survive a `docker compose restart postgres-primary` without reverting
-  - [ ] `base-backup-cron.sh` exits non-zero and writes a line to `/docs/ops/pitr-log.md` style output if `wal-g backup-push` fails, rather than failing silently
-  - [ ] Manual: a reviewer confirms the cron schedule comment in `base-backup-cron.sh` matches "weekly full base backup," not daily or monthly
-AI Prompt:
+
+- /tools/scripts/ops/wal-g-env.template — wal-g environment-variable template for S3 archive storage
+- /tools/scripts/ops/postgresql-pitr.conf.snippet — the `archive_mode`/`archive_command`/`wal_level` configuration block
+- /tools/scripts/ops/base-backup-cron.sh — weekly full base backup + nightly WAL-G verification, intended for the production host's crontab
+  Acceptance Criteria:
+- [ ] `wal-g backup-push $PGDATA` (run manually against a local test Postgres data directory with the template's variables populated) completes and lists the new backup via `wal-g backup-list`
+- [ ] The `postgresql-pitr.conf.snippet` values, when applied to a running `postgres-primary` container, survive a `docker compose restart postgres-primary` without reverting
+- [ ] `base-backup-cron.sh` exits non-zero and writes a line to `/docs/ops/pitr-log.md` style output if `wal-g backup-push` fails, rather than failing silently
+- [ ] Manual: a reviewer confirms the cron schedule comment in `base-backup-cron.sh` matches "weekly full base backup," not daily or monthly
+      AI Prompt:
   > Implement Runbook 1 (L4 §1) — WAL-based point-in-time-recovery archiving,
   > which underlies the consolidated reference's 1-hour RPO commitment
   > (consolidated ref §11.14).
   >
   > **`postgresql.conf` changes** — append to the `postgres-primary` service's
   > configuration (L4 §1.2):
+  >
   > ```ini
   > # tools/scripts/ops/postgresql-pitr.conf.snippet
   > wal_level = replica
@@ -2315,6 +2455,7 @@ AI Prompt:
   >
   > **wal-g environment** (L4 §1.3) — populated from secrets at deploy time,
   > never committed with real values:
+  >
   > ```dotenv
   > # tools/scripts/ops/wal-g-env.template
   > WALG_S3_PREFIX=s3://${S3_BACKUP_BUCKET}/wal-g
@@ -2328,6 +2469,7 @@ AI Prompt:
   >
   > **Base backup schedule** (L4 §1.4) — a full base backup weekly, with
   > continuous WAL archiving covering the gaps between base backups:
+  >
   > ```bash
   > #!/bin/bash
   > # tools/scripts/ops/base-backup-cron.sh
@@ -2349,6 +2491,7 @@ AI Prompt:
   > echo "[$(date -Iseconds)] Pruning backups older than retention window..."
   > wal-g delete retain FULL 4 --confirm
   > ```
+  >
   > `[Inference]` This script is committed in the repository at
   > `/tools/scripts/ops/` and deployed (copied) to `/opt/batac/scripts/` on
   > the production host as part of host setup — the exact deployment
@@ -2371,33 +2514,36 @@ AI Prompt:
   > ADR-IAC-003 §Application-side pruning for the expected log behavior.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `wal-g backup-push` against a local test data directory completes and is listed by `wal-g backup-list`
   > - [ ] The `postgresql.conf` snippet's settings survive a container restart
   > - [ ] `base-backup-cron.sh` exits non-zero on a failed `backup-push`, with a clearly-alarming log line
   > - [ ] The cron comment correctly states a weekly (not daily/monthly) schedule
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-017
 
-Phase:          1
-Module:         INFRA
-Title:          Automate daily encrypted pg_dump backup to S3
-Prerequisites:  [TASK-INFRA-012, TASK-INFRA-015]
+Phase: 1
+Module: INFRA
+Title: Automate daily encrypted pg_dump backup to S3
+Prerequisites: [TASK-INFRA-012, TASK-INFRA-015]
 Deliverables:
-  - /tools/scripts/ops/pg_dump_backup.sh — nightly encrypted custom-format dump, uploaded to S3-compatible storage, with retention pruning
-Acceptance Criteria:
-  - [ ] Running the script manually against the local `compose.yml` Postgres produces a `.dump.gpg` file and uploads it to the local MinIO `batac-backups` bucket
-  - [ ] Decrypting the uploaded file with the matching key and restoring it with `pg_restore --list` shows the expected table list with no corruption errors
-  - [ ] The script exits non-zero and logs a clear failure line if `pg_dump` exits non-zero, rather than uploading a partial/empty file
-  - [ ] Manual: a reviewer confirms the encryption key is read from an environment variable, never hardcoded in the script
-AI Prompt:
+
+- /tools/scripts/ops/pg_dump_backup.sh — nightly encrypted custom-format dump, uploaded to S3-compatible storage, with retention pruning
+  Acceptance Criteria:
+- [ ] Running the script manually against the local `compose.yml` Postgres produces a `.dump.gpg` file and uploads it to the local MinIO `batac-backups` bucket
+- [ ] Decrypting the uploaded file with the matching key and restoring it with `pg_restore --list` shows the expected table list with no corruption errors
+- [ ] The script exits non-zero and logs a clear failure line if `pg_dump` exits non-zero, rather than uploading a partial/empty file
+- [ ] Manual: a reviewer confirms the encryption key is read from an environment variable, never hardcoded in the script
+      AI Prompt:
   > Implement Runbook 2 (L4 §2) — the daily encrypted `pg_dump` backup that
   > provides the cold, restorable copy independent of streaming replication.
   >
   > **`/tools/scripts/ops/pg_dump_backup.sh`** (L4 §2.2–§2.4; crontab entry
   > per `CRON_BACKUP_DATABASE` default `0 0 * * *`, midnight Asia/Manila):
+  >
   > ```bash
   > #!/bin/bash
   > # tools/scripts/ops/pg_dump_backup.sh
@@ -2444,6 +2590,7 @@ AI Prompt:
   >
   > echo "[$(date -Iseconds)] Backup complete: ${TIMESTAMP}"
   > ```
+  >
   > `BACKUP_ENCRYPTION_KEY` and `S3_BACKUP_*` come from the same env-var set
   > validated in TASK-INFRA-002 (`superRefine` already requires
   > `BACKUP_ENCRYPTION_KEY` when `BACKUP_ENABLED` is true). `-F custom` (not
@@ -2469,29 +2616,31 @@ AI Prompt:
   > error message for "Object Lock" or "OBJECT_LOCK".
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] A manual run against local `compose.yml` produces an encrypted dump and uploads it to MinIO
   > - [ ] The uploaded dump decrypts and `pg_restore --list`s cleanly
   > - [ ] A forced `pg_dump` failure produces a non-zero exit and an `[ALERT]` log line, with no partial file uploaded
   > - [ ] The encryption key is read only from an environment variable
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-018
 
-Phase:          1
-Module:         INFRA
-Title:          Set up streaming replication, lag monitoring, and failover
-Prerequisites:  [TASK-INFRA-012, TASK-INFRA-015]
+Phase: 1
+Module: INFRA
+Title: Set up streaming replication, lag monitoring, and failover
+Prerequisites: [TASK-INFRA-012, TASK-INFRA-015]
 Deliverables:
-  - /tools/scripts/ops/check-replication-lag.sh — queries replication lag; used by monitoring and by the DR drill
-  - /docs/ops/l4-runbook-3-failover-procedure.md — the manual failover sequence, extracted as a standalone quick-reference from the Runbook 1 copy in TASK-INFRA-015
-Acceptance Criteria:
-  - [ ] `check-replication-lag.sh` against the local `compose.prod.yml` primary/standby pair returns a numeric lag in seconds and exits non-zero if lag exceeds 60 seconds
-  - [ ] Manually killing `postgres-primary` and following the documented failover sequence against `postgres-standby` results in `pg_is_in_recovery()` returning `false` on the promoted node
-  - [ ] After promotion, the `server` container (pointed at the new primary via a manually updated `DATABASE_URL_APP` host) successfully serves the health-check endpoint from TASK-INFRA-011
-  - [ ] Manual: a reviewer confirms the failover document explicitly states every step is human-executed — no automated promotion or DNS-update script is implied where none exists
-AI Prompt:
+
+- /tools/scripts/ops/check-replication-lag.sh — queries replication lag; used by monitoring and by the DR drill
+- /docs/ops/l4-runbook-3-failover-procedure.md — the manual failover sequence, extracted as a standalone quick-reference from the Runbook 1 copy in TASK-INFRA-015
+  Acceptance Criteria:
+- [ ] `check-replication-lag.sh` against the local `compose.prod.yml` primary/standby pair returns a numeric lag in seconds and exits non-zero if lag exceeds 60 seconds
+- [ ] Manually killing `postgres-primary` and following the documented failover sequence against `postgres-standby` results in `pg_is_in_recovery()` returning `false` on the promoted node
+- [ ] After promotion, the `server` container (pointed at the new primary via a manually updated `DATABASE_URL_APP` host) successfully serves the health-check endpoint from TASK-INFRA-011
+- [ ] Manual: a reviewer confirms the failover document explicitly states every step is human-executed — no automated promotion or DNS-update script is implied where none exists
+      AI Prompt:
   > Implement Runbook 3 (L4 §3) — streaming replication setup, lag
   > monitoring, and the manual failover procedure. `postgres-primary` and
   > `postgres-standby` are already defined in `compose.prod.yml`
@@ -2501,6 +2650,7 @@ AI Prompt:
   > documented procedure on top of that base.
   >
   > **Lag monitoring** (L4 §3.3):
+  >
   > ```bash
   > #!/bin/bash
   > # tools/scripts/ops/check-replication-lag.sh
@@ -2520,6 +2670,7 @@ AI Prompt:
   > fi
   > exit 0
   > ```
+  >
   > `DR_MAX_REPLICATION_LAG_S` (default 60, TASK-INFRA-002) is the same
   > threshold used here — wire this script into a cron entry or an external
   > monitor that alerts the on-call IT staff if it ever exits non-zero,
@@ -2529,6 +2680,7 @@ AI Prompt:
   > **`/docs/ops/l4-runbook-3-failover-procedure.md`** — a standalone
   > quick-reference extracted from the full L4 copy (TASK-INFRA-015), covering
   > only the failover sequence (L4 §3.6):
+  >
   > 1. Confirm the primary is genuinely down — a transient network blip is not
   >    grounds for failover (check from at least two independent vantage
   >    points before proceeding).
@@ -2565,35 +2717,37 @@ AI Prompt:
   > source to ground it.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] The lag-check script returns a numeric value and exits non-zero above the threshold
   > - [ ] Manually killing the primary and following the documented steps results in a successfully promoted standby
   > - [ ] The application serves traffic again after the documented connection-string update and restart
   > - [ ] The failover document does not imply any automated step that does not actually exist
-  > A reviewer will verify each one independently.
-
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-019
 
-Phase:          1
-Module:         INFRA
-Title:          Define monthly backup restoration test procedure
-Prerequisites:  [TASK-INFRA-017]
+Phase: 1
+Module: INFRA
+Title: Define monthly backup restoration test procedure
+Prerequisites: [TASK-INFRA-017]
 Deliverables:
-  - /tools/scripts/ops/monthly-restoration-test.sh — restores the latest daily `pg_dump` into a scratch database and runs the row-count spot check
-  - /docs/ops/l4-runbook-4-restoration-checklist.md — the human checklist accompanying the script's output
-Acceptance Criteria:
-  - [ ] Running the script against the most recent local MinIO backup produces a scratch database (`batac_lgu_restoretest`) with no errors in `pg_restore`'s output
-  - [ ] The script's row-count spot check correctly reports a mismatch when run against a deliberately truncated fixture table
-  - [ ] The scratch database is dropped automatically at the end of a successful run, leaving no lingering restore artifact
-  - [ ] Manual: a reviewer confirms the script never targets `postgres-primary` or `postgres-standby` directly — only a disposable scratch database
-AI Prompt:
+
+- /tools/scripts/ops/monthly-restoration-test.sh — restores the latest daily `pg_dump` into a scratch database and runs the row-count spot check
+- /docs/ops/l4-runbook-4-restoration-checklist.md — the human checklist accompanying the script's output
+  Acceptance Criteria:
+- [ ] Running the script against the most recent local MinIO backup produces a scratch database (`batac_lgu_restoretest`) with no errors in `pg_restore`'s output
+- [ ] The script's row-count spot check correctly reports a mismatch when run against a deliberately truncated fixture table
+- [ ] The scratch database is dropped automatically at the end of a successful run, leaving no lingering restore artifact
+- [ ] Manual: a reviewer confirms the script never targets `postgres-primary` or `postgres-standby` directly — only a disposable scratch database
+      AI Prompt:
   > Implement Runbook 4 (L4 §4) — the monthly test that proves the daily
   > `pg_dump` backups (TASK-INFRA-017) are actually restorable, not merely
   > present in S3.
   >
   > **`/tools/scripts/ops/monthly-restoration-test.sh`** (L4 §4.2–§4.4):
+  >
   > ```bash
   > #!/bin/bash
   > # tools/scripts/ops/monthly-restoration-test.sh
@@ -2639,6 +2793,7 @@ AI Prompt:
   > rm -f "/tmp/${LATEST}" "/tmp/restoretest.dump"
   > echo "[$(date -Iseconds)] Restoration test complete. Add this run to /docs/ops/restoration-test-log.md."
   > ```
+  >
   > `[Inference]` The exact row/schema-count check above is a representative,
   > minimal spot check (count of non-system schemas) — L4 §4 calls for "a
   > row-count spot check" without naming the exact query; a more thorough
@@ -2650,45 +2805,49 @@ AI Prompt:
   >
   > **`/docs/ops/l4-runbook-4-restoration-checklist.md`** — the human-facing
   > checklist accompanying each run, per L4 §4.5:
+  >
   > - [ ] Script completed with exit code 0
   > - [ ] Row-count spot check passed
   > - [ ] Elapsed time recorded and compared against the 4-hour RTO ceiling
-  >   (consolidated ref §11.14)
+  >       (consolidated ref §11.14)
   > - [ ] Entry added to `/docs/ops/restoration-test-log.md` (TASK-INFRA-015)
-  >   with date, performed-by, backup file tested, and sign-off
+  >       with date, performed-by, backup file tested, and sign-off
   > - [ ] If the script failed: escalate immediately — this means the most
-  >   recent daily backup is not restorable, and the previous day's backup
-  >   should be checked next, not assumed to be fine
+  >       recent daily backup is not restorable, and the previous day's backup
+  >       should be checked next, not assumed to be fine
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] A run against the most recent local backup restores cleanly with no `pg_restore` errors
   > - [ ] A deliberately truncated fixture table causes the script to report a mismatch
   > - [ ] The scratch database is dropped automatically after a successful run
   > - [ ] The script never targets `postgres-primary` or `postgres-standby` directly
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-020
 
-Phase:          1
-Module:         INFRA
-Title:          Define quarterly disaster-recovery drill procedure
-Prerequisites:  [TASK-INFRA-018, TASK-INFRA-016]
+Phase: 1
+Module: INFRA
+Title: Define quarterly disaster-recovery drill procedure
+Prerequisites: [TASK-INFRA-018, TASK-INFRA-016]
 Deliverables:
-  - /docs/ops/l4-runbook-5-dr-drill-checklist.md — the quarterly drill checklist, combining a failover exercise and a PITR spot check
-Acceptance Criteria:
-  - [ ] The checklist explicitly requires both a standby-promotion exercise (TASK-INFRA-018) and a point-in-time-recovery spot check (TASK-INFRA-016) within the same drill, not just one or the other
-  - [ ] The checklist requires a minimum of two participating team members, matching consolidated ref §11.14's "tested by minimum two team members" requirement for DR runbooks
-  - [ ] The checklist requires recording both achieved RTO and achieved RPO against the 4-hour / 1-hour ceilings
-  - [ ] Manual: a reviewer confirms the checklist explicitly instructs restoring the drilled environment back to its pre-drill state afterward, so the drill does not leave staging in a degraded configuration
-AI Prompt:
+
+- /docs/ops/l4-runbook-5-dr-drill-checklist.md — the quarterly drill checklist, combining a failover exercise and a PITR spot check
+  Acceptance Criteria:
+- [ ] The checklist explicitly requires both a standby-promotion exercise (TASK-INFRA-018) and a point-in-time-recovery spot check (TASK-INFRA-016) within the same drill, not just one or the other
+- [ ] The checklist requires a minimum of two participating team members, matching consolidated ref §11.14's "tested by minimum two team members" requirement for DR runbooks
+- [ ] The checklist requires recording both achieved RTO and achieved RPO against the 4-hour / 1-hour ceilings
+- [ ] Manual: a reviewer confirms the checklist explicitly instructs restoring the drilled environment back to its pre-drill state afterward, so the drill does not leave staging in a degraded configuration
+      AI Prompt:
   > Define Runbook 5 (L4 §5) — the quarterly disaster-recovery drill that
   > exercises both the replication-failover procedure and the PITR
   > restoration capability together, against the staging environment (never
   > production).
   >
   > **`/docs/ops/l4-runbook-5-dr-drill-checklist.md`:**
+  >
   > ```markdown
   > # Quarterly DR Drill Checklist
   >
@@ -2697,12 +2856,14 @@ AI Prompt:
   > scheduled Sangguniang Panlalawigan session.
   >
   > ## Pre-Drill
+  >
   > - [ ] Confirm staging is currently healthy (TASK-INFRA-011 health check green)
   > - [ ] Confirm at least one recent successful PITR base backup exists (`/docs/ops/pitr-log.md`)
   > - [ ] Confirm at least one recent successful daily `pg_dump` exists
   > - [ ] Note the staging environment's current state, so it can be restored afterward
   >
   > ## Drill Part A — Failover Exercise
+  >
   > - [ ] Start a timer
   > - [ ] Simulate primary failure (stop the `postgres-primary` container)
   > - [ ] Execute the failover procedure from `/docs/ops/l4-runbook-3-failover-procedure.md` (TASK-INFRA-018)
@@ -2710,12 +2871,14 @@ AI Prompt:
   > - [ ] Record elapsed time as the achieved RTO for this drill
   >
   > ## Drill Part B — Point-in-Time Recovery Spot Check
+  >
   > - [ ] Pick a timestamp from within the last base-backup-to-now window
   > - [ ] Restore to that timestamp into a disposable scratch environment using `wal-g backup-fetch` + WAL replay (per L4 §1.5)
   > - [ ] Confirm the restored data's latest timestamp is at or before the chosen recovery point, and no more than 1 hour earlier
   > - [ ] Record the achieved RPO for this drill
   >
   > ## Post-Drill
+  >
   > - [ ] Restore staging to its pre-drill configuration (re-establish the original primary/standby roles; do not leave the promoted-during-the-drill node as the permanent primary unless that was an intentional outcome)
   > - [ ] Record any issues found, with enough detail for a follow-up task to be filed if needed
   > - [ ] Add an entry to `/docs/ops/dr-drill-log.md` (TASK-INFRA-015) with date, drill type, participants, achieved RTO, achieved RPO, issues found, and sign-off from both participants
@@ -2723,33 +2886,36 @@ AI Prompt:
   > ```
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] The checklist requires both a failover exercise and a PITR spot check in the same drill
   > - [ ] The checklist requires a minimum of two participants
   > - [ ] The checklist requires recording achieved RTO and RPO against their ceilings
   > - [ ] The checklist instructs restoring staging to its pre-drill state afterward
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-021
 
-Phase:          1
-Module:         INFRA
-Title:          Define break-glass procedure and credential rotation script
-Prerequisites:  [TASK-INFRA-017, TASK-INFRA-018]
+Phase: 1
+Module: INFRA
+Title: Define break-glass procedure and credential rotation script
+Prerequisites: [TASK-INFRA-017, TASK-INFRA-018]
 Deliverables:
-  - /docs/ops/l4-runbook-6-break-glass-checklist.md — the physical envelope procedure and opening checklist
-  - /tools/scripts/ops/rotate-credentials-after-breakglass.sh — semi-automated credential rotation helper for the mandatory post-opening rotation step
-Acceptance Criteria:
-  - [ ] The checklist explicitly states the break-glass credentials are for emergency direct database access only, and lists the two-person-authorization requirement before the envelope may be opened
-  - [ ] `rotate-credentials-after-breakglass.sh` successfully rotates the `batac_app`, `batac_audit`, and `batac_migrate` passwords against a local test database, and the old passwords no longer authenticate afterward
-  - [ ] The checklist requires an audit-system log entry within 1 hour of the application coming back online if it was offline at the time of opening, matching L4 §6's stated grace period
-  - [ ] Manual: a reviewer confirms the script never prints the new passwords to a log file or anywhere persisted — only to the operator's terminal, for one-time secure transcription into the secrets store
-AI Prompt:
+
+- /docs/ops/l4-runbook-6-break-glass-checklist.md — the physical envelope procedure and opening checklist
+- /tools/scripts/ops/rotate-credentials-after-breakglass.sh — semi-automated credential rotation helper for the mandatory post-opening rotation step
+  Acceptance Criteria:
+- [ ] The checklist explicitly states the break-glass credentials are for emergency direct database access only, and lists the two-person-authorization requirement before the envelope may be opened
+- [ ] `rotate-credentials-after-breakglass.sh` successfully rotates the `batac_app`, `batac_audit`, and `batac_migrate` passwords against a local test database, and the old passwords no longer authenticate afterward
+- [ ] The checklist requires an audit-system log entry within 1 hour of the application coming back online if it was offline at the time of opening, matching L4 §6's stated grace period
+- [ ] Manual: a reviewer confirms the script never prints the new passwords to a log file or anywhere persisted — only to the operator's terminal, for one-time secure transcription into the secrets store
+      AI Prompt:
   > Define Runbook 6 (L4 §6) — the break-glass procedure for emergency direct
   > database access when the normal application path is unavailable.
   >
   > **`/docs/ops/l4-runbook-6-break-glass-checklist.md`:**
+  >
   > ```markdown
   > # Break-Glass Procedure
   >
@@ -2760,34 +2926,38 @@ AI Prompt:
   > a convenience shortcut.
   >
   > ## Authorization (required before opening)
+  >
   > - [ ] Two-person authorization obtained — one technical lead and one
-  >   designated approver from the LGU IT Office, both confirming the
-  >   emergency by name
+  >       designated approver from the LGU IT Office, both confirming the
+  >       emergency by name
   > - [ ] The specific reason for needing direct database access is written
-  >   down before the envelope is opened, not reconstructed afterward
+  >       down before the envelope is opened, not reconstructed afterward
   >
   > ## Opening
+  >
   > - [ ] Physically open the sealed envelope; photograph the broken seal with
-  >   a timestamp
+  >       a timestamp
   > - [ ] Record date, time, both authorizers' names, and the stated reason in
-  >   the physical incident log
+  >       the physical incident log
   > - [ ] Use the credentials for only the specific corrective action
-  >   identified — do not use the session for unrelated exploration
+  >       identified — do not use the session for unrelated exploration
   >
   > ## Mandatory Follow-Up (within the same incident window)
+  >
   > - [ ] Run `rotate-credentials-after-breakglass.sh` to rotate `batac_app`,
-  >   `batac_audit`, and `batac_migrate` passwords — the opened credentials
-  >   must never be reused for a subsequent incident
+  >       `batac_audit`, and `batac_migrate` passwords — the opened credentials
+  >       must never be reused for a subsequent incident
   > - [ ] Reseal a new envelope with the newly rotated credentials, store it
-  >   per the same physical-security procedure as the original
+  >       per the same physical-security procedure as the original
   > - [ ] Write an audit-log entry in the application's audit system with
-  >   `event_type = 'break_glass.opened'`, the recorded reason, and both
-  >   authorizers' names. If the application is offline at the time of
-  >   opening, write this entry within 1 hour of it coming back online (L4 §6)
+  >       `event_type = 'break_glass.opened'`, the recorded reason, and both
+  >       authorizers' names. If the application is offline at the time of
+  >       opening, write this entry within 1 hour of it coming back online (L4 §6)
   > - [ ] File a post-incident review within 5 business days
   > ```
   >
   > **`/tools/scripts/ops/rotate-credentials-after-breakglass.sh`** (L4 §6.5):
+  >
   > ```bash
   > #!/bin/bash
   > # tools/scripts/ops/rotate-credentials-after-breakglass.sh
@@ -2815,6 +2985,7 @@ AI Prompt:
   > echo "After updating the secrets store, restart the server service so it"
   > echo "picks up the new DATABASE_URL_APP / DATABASE_URL_AUDIT values."
   > ```
+  >
   > This script prints the new credentials to the terminal only, for one-time
   > manual transcription into the `./secrets/` files (TASK-INFRA-012) — it
   > must never write them to a log file, a committed file, or any persistent
@@ -2822,54 +2993,57 @@ AI Prompt:
   > mechanism defeats the purpose of rotating it.
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] The checklist states the two-person-authorization requirement before opening
   > - [ ] The rotation script successfully changes all three passwords against a local test database, invalidating the old ones
   > - [ ] The checklist requires an audit-system entry within 1 hour of the application coming back online
   > - [ ] The script prints new passwords to the terminal only — never to a log or persisted file
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
 
 ## TASK-INFRA-023
 
-Phase:          1
-Module:         INFRA
-Title:          [MIGRATION] Implement shared EventBus, DomainEvent types, event_bus_dead_letters table, and dead-letter retry job
-Prerequisites:  [TASK-INFRA-005, TASK-INFRA-006, TASK-INFRA-007]
+Phase: 1
+Module: INFRA
+Title: [MIGRATION] Implement shared EventBus, DomainEvent types, event_bus_dead_letters table, and dead-letter retry job
+Prerequisites: [TASK-INFRA-005, TASK-INFRA-006, TASK-INFRA-007]
 Deliverables:
-  - /packages/shared/src/events/domain-event.ts — `DomainEvent<T>` envelope type
-  - /packages/shared/src/events/event-payload-map.ts — `EventPayloadMap` interface with 18 typed entries (B2 Master Event Bus Registry Phase 1)
-  - /packages/shared/src/event-bus.ts — typed `EventBus` class wrapping Node's built-in `EventEmitter`; per-handler isolation; dead-letter routing
-  - /packages/database/schema/shared.schema.ts — Drizzle schema for `shared` schema and `shared.event_bus_dead_letters` table
-  - /packages/database/migrations/<timestamp>_create_shared_event_bus_dead_letters.sql — generated migration
-  - /apps/server/src/infra/dead-letter.repository.ts — `DeadLetterRepository` wrapping the Drizzle `shared` schema
-  - /apps/server/src/jobs/event-bus-dead-letter-retry.ts — pgboss job: retries dead-lettered events with exponential backoff; max 5 attempts (ADR-API-001 §4)
-Acceptance Criteria:
-  - [ ] `pnpm typecheck` passes with all source files in place
-  - [ ] `bus.emit('nonexistent.event', ...)` is a TypeScript compile error, not a runtime error
-  - [ ] `bus.on('user.login', (e) => { e.payload.someField })` accepts only fields declared in `UserLoginPayload`; wrong field is a compile error
-  - [ ] Integration test: a handler registered via `bus.on(...)` that throws does NOT propagate the error to the `bus.emit(...)` caller; emitter call resolves successfully
-  - [ ] Integration test: a failed handler invocation creates one row in `shared.event_bus_dead_letters` with non-null `event_id`, `event_type`, `failed_module`, `error_message`
-  - [ ] Integration test: the dead-letter retry job retries a failed row up to 5 times, then marks it with `exhausted_at` set and stops retrying
-  - [ ] `pnpm --filter @batac/database db:generate` produces a migration containing `CREATE SCHEMA IF NOT EXISTS shared` and `CREATE TABLE shared.event_bus_dead_letters (...)`
-  - [ ] `pnpm --filter @batac/database db:migrate` applies the migration without error; second run is idempotent
-  - [ ] `pnpm --filter @batac/scripts lint:migrations` passes for the generated migration
-  - [ ] Manual: reviewer confirms `EventBus.emit()` iterates handlers individually with per-handler try/catch; Pino error logged per failing handler
-  - [ ] Manual: reviewer confirms the Audit module handler failure path calls `Sentry.captureException` (ADR-API-001 §4) — even if Sentry SDK is a stub in Phase 1
-AI Prompt:
+
+- /packages/shared/src/events/domain-event.ts — `DomainEvent<T>` envelope type
+- /packages/shared/src/events/event-payload-map.ts — `EventPayloadMap` interface with 18 typed entries (B2 Master Event Bus Registry Phase 1)
+- /packages/shared/src/event-bus.ts — typed `EventBus` class wrapping Node's built-in `EventEmitter`; per-handler isolation; dead-letter routing
+- /packages/database/schema/shared.schema.ts — Drizzle schema for `shared` schema and `shared.event_bus_dead_letters` table
+- /packages/database/migrations/<timestamp>\_create_shared_event_bus_dead_letters.sql — generated migration
+- /apps/server/src/infra/dead-letter.repository.ts — `DeadLetterRepository` wrapping the Drizzle `shared` schema
+- /apps/server/src/jobs/event-bus-dead-letter-retry.ts — pgboss job: retries dead-lettered events with exponential backoff; max 5 attempts (ADR-API-001 §4)
+  Acceptance Criteria:
+- [ ] `pnpm typecheck` passes with all source files in place
+- [ ] `bus.emit('nonexistent.event', ...)` is a TypeScript compile error, not a runtime error
+- [ ] `bus.on('user.login', (e) => { e.payload.someField })` accepts only fields declared in `UserLoginPayload`; wrong field is a compile error
+- [ ] Integration test: a handler registered via `bus.on(...)` that throws does NOT propagate the error to the `bus.emit(...)` caller; emitter call resolves successfully
+- [ ] Integration test: a failed handler invocation creates one row in `shared.event_bus_dead_letters` with non-null `event_id`, `event_type`, `failed_module`, `error_message`
+- [ ] Integration test: the dead-letter retry job retries a failed row up to 5 times, then marks it with `exhausted_at` set and stops retrying
+- [ ] `pnpm --filter @batac/database db:generate` produces a migration containing `CREATE SCHEMA IF NOT EXISTS shared` and `CREATE TABLE shared.event_bus_dead_letters (...)`
+- [ ] `pnpm --filter @batac/database db:migrate` applies the migration without error; second run is idempotent
+- [ ] `pnpm --filter @batac/scripts lint:migrations` passes for the generated migration
+- [ ] Manual: reviewer confirms `EventBus.emit()` iterates handlers individually with per-handler try/catch; Pino error logged per failing handler
+- [ ] Manual: reviewer confirms the Audit module handler failure path calls `Sentry.captureException` (ADR-API-001 §4) — even if Sentry SDK is a stub in Phase 1
+      AI Prompt:
   > Implement the shared EventBus infrastructure owned by INFRA (not by any
   > domain module) per ADR-API-001. All domain modules depend on this to
   > emit and consume typed in-process events. Prerequisite for TASK-AUDIT-004
   > and for every module task that emits domain events (IAM, Organization,
   > Documents, Workflow). [SPEC GAP → RESOLVED 2026-06-24; was tentatively
-  > TASK-INFRA-022 in audit.md — renumbered to TASK-INFRA-023 because
-  > TASK-INFRA-022 is reserved for the Pulumi /infra/ program; see infra.md
-  > Module Summary.]
+  >
+  > > TASK-INFRA-022 in audit.md — renumbered to TASK-INFRA-023 because
+  > > TASK-INFRA-022 is reserved for the Pulumi /infra/ program; see infra.md
+  > > Module Summary.]
   >
   > Sources: ADR-API-001 (canonical); B2 §"Common Event Envelope";
   > B2 §"Master Event Bus Registry".
   >
-  > ---
+  > ***
   >
   > ## 1 — DomainEvent envelope
   >
@@ -2877,16 +3051,16 @@ AI Prompt:
   >
   > ```typescript
   > export interface DomainEvent<TPayload = unknown> {
-  >   eventId:       string;   // UUID v4 — unique per event instance
-  >   eventType:     string;   // namespaced string, e.g. 'document.created'
-  >   occurredAt:    string;   // ISO 8601 / TIMESTAMPTZ precision
-  >   cityId:        string;   // UUID — tenant isolation; Batac City UUID in Phase 1
-  >   schemaVersion: number;   // starts at 1; increment on breaking payload change
-  >   payload:       TPayload;
+  >   eventId: string; // UUID v4 — unique per event instance
+  >   eventType: string; // namespaced string, e.g. 'document.created'
+  >   occurredAt: string; // ISO 8601 / TIMESTAMPTZ precision
+  >   cityId: string; // UUID — tenant isolation; Batac City UUID in Phase 1
+  >   schemaVersion: number; // starts at 1; increment on breaking payload change
+  >   payload: TPayload;
   > }
   > ```
   >
-  > ---
+  > ***
   >
   > ## 2 — EventPayloadMap
   >
@@ -2902,24 +3076,24 @@ AI Prompt:
   > type Stub = Record<string, unknown>;
   >
   > export interface EventPayloadMap {
-  >   'user.login':                        Stub;
-  >   'user.logout':                       Stub;
-  >   'session.terminated':                Stub;
-  >   'role.assigned':                     Stub;
-  >   'role.revoked':                      Stub;
-  >   'delegation.granted':                Stub;
-  >   'delegation.expired':                Stub;
-  >   'delegation.revoked':                Stub;
-  >   'document.created':                  Stub;
-  >   'document.state_changed':            Stub;
-  >   'document.number_assigned':          Stub;
-  >   'workflow.step_assigned':            Stub;
-  >   'workflow.step_completed':           Stub;
-  >   'workflow.lapsed':                   Stub;
-  >   'workflow.escalated':                Stub;
+  >   'user.login': Stub;
+  >   'user.logout': Stub;
+  >   'session.terminated': Stub;
+  >   'role.assigned': Stub;
+  >   'role.revoked': Stub;
+  >   'delegation.granted': Stub;
+  >   'delegation.expired': Stub;
+  >   'delegation.revoked': Stub;
+  >   'document.created': Stub;
+  >   'document.state_changed': Stub;
+  >   'document.number_assigned': Stub;
+  >   'workflow.step_assigned': Stub;
+  >   'workflow.step_completed': Stub;
+  >   'workflow.lapsed': Stub;
+  >   'workflow.escalated': Stub;
   >   'workflow.certified_urgent_applied': Stub;
-  >   'workflow.manually_advanced':        Stub;
-  >   'workflow.completed':                Stub;
+  >   'workflow.manually_advanced': Stub;
+  >   'workflow.completed': Stub;
   > }
   > ```
   >
@@ -2927,7 +3101,7 @@ AI Prompt:
   > in this interface. Any new domain event added to B2 must also be added
   > here in the same PR or the build fails (ADR-API-001 §6 follow-on).
   >
-  > ---
+  > ***
   >
   > ## 3 — EventBus class
   >
@@ -2935,9 +3109,9 @@ AI Prompt:
   >
   > ```typescript
   > import EventEmitter from 'node:events';
-  > import type { Logger }               from 'pino';
-  > import type { EventPayloadMap }      from './events/event-payload-map';
-  > import type { DomainEvent }          from './events/domain-event';
+  > import type { Logger } from 'pino';
+  > import type { EventPayloadMap } from './events/event-payload-map';
+  > import type { DomainEvent } from './events/domain-event';
   > import type { DeadLetterRepository } from '../../apps/server/src/infra/dead-letter.repository';
   >
   > type AnyHandler = (envelope: DomainEvent<unknown>) => void | Promise<void>;
@@ -2954,9 +3128,9 @@ AI Prompt:
   >   }
   >
   >   on<K extends keyof EventPayloadMap>(
-  >     eventType:  K,
-  >     handler:    (envelope: DomainEvent<EventPayloadMap[K]>) => void | Promise<void>,
-  >     moduleName: string,   // 'audit', 'notifications', etc.
+  >     eventType: K,
+  >     handler: (envelope: DomainEvent<EventPayloadMap[K]>) => void | Promise<void>,
+  >     moduleName: string, // 'audit', 'notifications', etc.
   >   ): void {
   >     this.moduleNames.set(handler as AnyHandler, moduleName);
   >     this.emitter.on(eventType as string, handler as AnyHandler);
@@ -2965,7 +3139,7 @@ AI Prompt:
   >   /** ADR-API-001 §3: iterate handlers individually; never propagate exceptions. */
   >   emit<K extends keyof EventPayloadMap>(
   >     eventType: K,
-  >     envelope:  DomainEvent<EventPayloadMap[K]>,
+  >     envelope: DomainEvent<EventPayloadMap[K]>,
   >   ): void {
   >     const listeners = this.emitter.rawListeners(eventType as string) as AnyHandler[];
   >     for (const handler of listeners) {
@@ -2982,9 +3156,9 @@ AI Prompt:
   >   }
   >
   >   private onHandlerFailure(
-  >     envelope:   DomainEvent<unknown>,
+  >     envelope: DomainEvent<unknown>,
   >     moduleName: string,
-  >     err:        unknown,
+  >     err: unknown,
   >   ): void {
   >     this.logger.error(
   >       { err, eventId: envelope.eventId, eventType: envelope.eventType, moduleName },
@@ -2995,48 +3169,51 @@ AI Prompt:
   >       // Sentry.captureException(err, { extra: { envelope, moduleName } });
   >     }
   >     // Fire-and-forget; if the dead-letter write itself fails, log and move on.
-  >     void this.deadLetterRepo.insert({
-  >       eventId:      envelope.eventId,
-  >       eventType:    envelope.eventType,
-  >       payload:      envelope.payload as Record<string, unknown>,
-  >       failedModule: moduleName,
-  >       errorMessage: err instanceof Error ? err.message : String(err),
-  >     }).catch((dlErr: unknown) =>
-  >       this.logger.error({ dlErr, envelope }, '[event-bus] dead-letter write also failed'));
+  >     void this.deadLetterRepo
+  >       .insert({
+  >         eventId: envelope.eventId,
+  >         eventType: envelope.eventType,
+  >         payload: envelope.payload as Record<string, unknown>,
+  >         failedModule: moduleName,
+  >         errorMessage: err instanceof Error ? err.message : String(err),
+  >       })
+  >       .catch((dlErr: unknown) =>
+  >         this.logger.error({ dlErr, envelope }, '[event-bus] dead-letter write also failed'),
+  >       );
   >   }
   > }
   > ```
   >
   > Instantiate ONE `EventBus` at Fastify server startup:
+  >
   > ```typescript
   > const bus = new EventBus(logger, deadLetterRepo);
   > ```
+  >
   > Pass it into each module's factory function. Never create a second instance.
   > (ADR-API-001 §1: "Single bus instance.")
   >
-  > ---
+  > ***
   >
   > ## 4 — Drizzle schema and migration
   >
   > **`/packages/database/schema/shared.schema.ts`**
   >
   > ```typescript
-  > import {
-  >   pgSchema, uuid, text, jsonb, integer, timestamp
-  > } from 'drizzle-orm/pg-core';
+  > import { pgSchema, uuid, text, jsonb, integer, timestamp } from 'drizzle-orm/pg-core';
   >
   > export const sharedSchema = pgSchema('shared');
   >
   > export const eventBusDeadLetters = sharedSchema.table('event_bus_dead_letters', {
-  >   id:           uuid('id').primaryKey().defaultRandom(),
-  >   eventId:      uuid('event_id').notNull(),
-  >   eventType:    text('event_type').notNull(),
-  >   payload:      jsonb('payload').notNull().$type<Record<string, unknown>>(),
+  >   id: uuid('id').primaryKey().defaultRandom(),
+  >   eventId: uuid('event_id').notNull(),
+  >   eventType: text('event_type').notNull(),
+  >   payload: jsonb('payload').notNull().$type<Record<string, unknown>>(),
   >   failedModule: text('failed_module').notNull(),
   >   errorMessage: text('error_message').notNull(),
-  >   failedAt:     timestamp('failed_at', { withTimezone: true }).notNull().defaultNow(),
-  >   retryCount:   integer('retry_count').notNull().default(0),
-  >   exhaustedAt:  timestamp('exhausted_at', { withTimezone: true }),
+  >   failedAt: timestamp('failed_at', { withTimezone: true }).notNull().defaultNow(),
+  >   retryCount: integer('retry_count').notNull().default(0),
+  >   exhaustedAt: timestamp('exhausted_at', { withTimezone: true }),
   > });
   > ```
   >
@@ -3048,7 +3225,7 @@ AI Prompt:
   > `post-migrate-grants.sql` (TASK-INFRA-005 updated to include `'shared'`
   > in the `app_schemas` array). No additional grant work needed here.
   >
-  > ---
+  > ***
   >
   > ## 5 — DeadLetterRepository
   >
@@ -3063,8 +3240,11 @@ AI Prompt:
   >   constructor(private readonly db: AppDb) {}
   >
   >   async insert(row: {
-  >     eventId: string; eventType: string;
-  >     payload: Record<string, unknown>; failedModule: string; errorMessage: string;
+  >     eventId: string;
+  >     eventType: string;
+  >     payload: Record<string, unknown>;
+  >     failedModule: string;
+  >     errorMessage: string;
   >   }): Promise<void> {
   >     await this.db.insert(eventBusDeadLetters).values(row);
   >   }
@@ -3073,16 +3253,19 @@ AI Prompt:
   >     return this.db
   >       .select()
   >       .from(eventBusDeadLetters)
-  >       .where(and(
-  >         lt(eventBusDeadLetters.retryCount, opts.maxRetries),
-  >         isNull(eventBusDeadLetters.exhaustedAt),
-  >       ))
+  >       .where(
+  >         and(
+  >           lt(eventBusDeadLetters.retryCount, opts.maxRetries),
+  >           isNull(eventBusDeadLetters.exhaustedAt),
+  >         ),
+  >       )
   >       .orderBy(asc(eventBusDeadLetters.failedAt))
   >       .limit(100);
   >   }
   >
   >   async markRetried(id: string): Promise<void> {
-  >     await this.db.delete(eventBusDeadLetters)
+  >     await this.db
+  >       .delete(eventBusDeadLetters)
   >       .where(/* eq(eventBusDeadLetters.id, id) */ undefined as never);
   >     // Use Drizzle eq() here — omitted for brevity
   >   }
@@ -3093,7 +3276,7 @@ AI Prompt:
   >              SET retry_count = retry_count + 1,
   >                  failed_at   = NOW() + (${backoffSeconds} * interval '1 second')
   >              WHERE id = ${id}` */
-  >       undefined as never
+  >       undefined as never,
   >     );
   >   }
   >
@@ -3108,7 +3291,7 @@ AI Prompt:
   > by TASK-INFRA-006. The pseudocode above shows intent; the implementation
   > must use the actual Drizzle query builders.
   >
-  > ---
+  > ***
   >
   > ## 6 — Dead-letter retry job
   >
@@ -3117,18 +3300,18 @@ AI Prompt:
   > ```typescript
   > import type PgBoss from 'pg-boss';
   > import type { DeadLetterRepository } from '../infra/dead-letter.repository';
-  > import type { EventBus }             from '@batac/shared/event-bus';
-  > import type { Logger }               from 'pino';
+  > import type { EventBus } from '@batac/shared/event-bus';
+  > import type { Logger } from 'pino';
   >
-  > const JOB_NAME    = 'infra:dead-letter-retry';
+  > const JOB_NAME = 'infra:dead-letter-retry';
   > const MAX_RETRIES = 5; // ADR-API-001 §4 default
   > const backoff = (attempt: number) => 30 * Math.pow(2, attempt); // seconds
   >
   > export async function registerDeadLetterRetryJob(deps: {
-  >   boss:           PgBoss;
+  >   boss: PgBoss;
   >   deadLetterRepo: DeadLetterRepository;
-  >   bus:            EventBus;
-  >   logger:         Logger;
+  >   bus: EventBus;
+  >   logger: Logger;
   > }): Promise<void> {
   >   const { boss, deadLetterRepo, bus, logger } = deps;
   >   await boss.schedule(JOB_NAME, '*/5 * * * *');
@@ -3136,9 +3319,12 @@ AI Prompt:
   >     const rows = await deadLetterRepo.fetchPending({ maxRetries: MAX_RETRIES });
   >     for (const row of rows) {
   >       const envelope = {
-  >         eventId: row.eventId, eventType: row.eventType,
+  >         eventId: row.eventId,
+  >         eventType: row.eventType,
   >         occurredAt: row.failedAt.toISOString(),
-  >         cityId: 'retry', schemaVersion: 1, payload: row.payload,
+  >         cityId: 'retry',
+  >         schemaVersion: 1,
+  >         payload: row.payload,
   >       };
   >       try {
   >         bus.emit(
@@ -3151,8 +3337,10 @@ AI Prompt:
   >         const next = row.retryCount + 1;
   >         if (next >= MAX_RETRIES) {
   >           await deadLetterRepo.markExhausted(row.id);
-  >           logger.error({ id: row.id, eventType: row.eventType, err },
-  >             '[dead-letter] exhausted — manual review required');
+  >           logger.error(
+  >             { id: row.id, eventType: row.eventType, err },
+  >             '[dead-letter] exhausted — manual review required',
+  >           );
   >         } else {
   >           await deadLetterRepo.incrementRetry(row.id, backoff(next));
   >         }
@@ -3166,18 +3354,18 @@ AI Prompt:
   > pg-boss is started (same startup sequence as `registerTsaExportJob` in
   > TASK-AUDIT-007).
   >
-  > ---
+  > ***
   >
   > Before submitting this PR, confirm each item:
+  >
   > - [ ] `pnpm typecheck` passes; `bus.emit('unlisted.event', ...)` is a compile error
   > - [ ] A throwing handler does not propagate to the `bus.emit()` caller
   > - [ ] A failed handler produces one dead-letter row in `shared.event_bus_dead_letters`
   > - [ ] Retry job marks row exhausted after 5 attempts; row is never auto-deleted
   > - [ ] Migration includes `CREATE SCHEMA IF NOT EXISTS shared` and the table DDL
-  > A reviewer will verify each one independently.
+  >       A reviewer will verify each one independently.
 
 ---
-
 
 ## Module Summary — INFRA
 
@@ -3188,11 +3376,13 @@ AI Prompt:
 **Special tags used:** `[MIGRATION]` — TASK-INFRA-023 (creates the `shared` schema and `event_bus_dead_letters` table). All other INFRA tasks produce runbooks, scripts, config files, or Dockerfiles — no `[ABAC]` or `[AUDIT]` tags are used in this module.
 
 **Spec gaps — all resolved:**
+
 - `[SPEC GAP → CLOSED]` No IaC document existed. **Closed:** `L5 — Infrastructure as Code Specification` was authored post-generation to fill this gap. It covers the two-Droplet production topology, VPC/Firewall, DNS (`dms.batac.gov.ph`), object storage (DigitalOcean Spaces + Backblaze B2), block storage, and the Pulumi TypeScript project structure. Three accompanying ADRs (`ADR-IAC-001`, `ADR-IAC-002`, `ADR-IAC-003`) record the tool, cloud provider, and immutable backup provider decisions. `TASK-INFRA-022` for implementing the `/infra/` Pulumi program is still pending its own A1 pass with L5 as source document.
 - `[SPEC GAP → CLOSED]` S3 bucket lifecycle/object-lock configuration for the 1-year cold retention and write-once storage requirements. **Closed:** `ADR-IAC-003` specifies the Backblaze B2 bucket with Object Lock Compliance mode, 365-day default retention. TASK-INFRA-016 and TASK-INFRA-017 AI Prompts updated in-line above to reference this resolution.
 - `[SPEC GAP → CLOSED — 2026-06-24]` EventBus shared infrastructure was missing from the INFRA task list. **Closed:** `TASK-INFRA-023` written above covers the typed EventBus wrapper, `EventPayloadMap` interface, `DomainEvent<T>` envelope, `shared.event_bus_dead_letters` Drizzle migration, `DeadLetterRepository`, and the pgboss dead-letter retry job. `TASK-INFRA-023` is a prerequisite for `TASK-AUDIT-004` and for every module task that emits domain events (IAM, Organization, Documents, Workflow). Note: this gap was tentatively numbered `TASK-INFRA-022` in `audit.md`'s Module Summary; the task is renumbered `TASK-INFRA-023` because `TASK-INFRA-022` is reserved for the Pulumi program. `audit.md` updated to reference `TASK-INFRA-023`.
 
 **Deferred capabilities:**
+
 - `[DEFERRED — Phase 2: Meilisearch activation]` The `meilisearch` service is
   defined but profile-gated inactive in `TASK-INFRA-004` and `TASK-INFRA-012`;
   activating it is a Phase 2 `SEARCH` module concern.
@@ -3207,6 +3397,7 @@ AI Prompt:
   `onpremise` profile.
 
 **Document conflicts — all resolved:**
+
 1. `[CONFLICT — RESOLVED: C1 UPDATED TO LOGIN]` C5's addendum cited C1 §3.16
    as defining `batac_migrate` as NOLOGIN. On review, `DATABASE_URL_MIGRATE`
    is a direct connection string — NOLOGIN roles cannot authenticate directly.
@@ -3264,6 +3455,7 @@ AI Prompt:
    updated accordingly.
 
 **Developer answers (all questions resolved — no further input required):**
+
 - **Q1 (`batac_migrate` LOGIN):** C1 §3.16 updated to `LOGIN`. TASK-INFRA-005
   and DATABASE_URL_MIGRATE are correct as-written. ✓
 - **Q2 (SSH CIDRs):** Lead developers populate `sshAllowedCidrs` with their

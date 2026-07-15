@@ -7,7 +7,11 @@ import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // logDocketingCompletion: input is { stepInstanceId } only.
-export function DocketingPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
+export function DocketingPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 
@@ -26,13 +30,11 @@ export function DocketingPanel({ instance }: { instance: RouterOutputs['workflow
         <CardTitle>Log Docketing Completion</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Confirm that the document has been docketed (QR cover page printed, filed, and logged).
         </p>
         <Button
-          onClick={() =>
-            logMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })
-          }
+          onClick={() => logMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })}
           disabled={logMutation.isPending}
         >
           {logMutation.isPending ? 'Logging...' : 'Complete Docketing'}

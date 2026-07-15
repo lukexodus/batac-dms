@@ -25,11 +25,7 @@ const REFERRAL_STATUS_CLASSES = {
   ABSENT_NOT_HEARD: 'bg-neutral-100 text-neutral-700 border-transparent',
 } as const;
 
-export function OrderOfBusinessRow({
-  item,
-  onClick,
-  className,
-}: OrderOfBusinessRowProps) {
+export function OrderOfBusinessRow({ item, onClick, className }: OrderOfBusinessRowProps) {
   const {
     agendaNumber,
     documentNumber,
@@ -42,38 +38,38 @@ export function OrderOfBusinessRow({
     scheduledReadingType,
   } = item;
 
-  const interactiveProps = onClick ? {
-    role: "button",
-    tabIndex: 0,
-    onClick,
-    onKeyDown: (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault(); // prevent scroll
-        onClick();
+  const interactiveProps = onClick
+    ? {
+        role: 'button',
+        tabIndex: 0,
+        onClick,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault(); // prevent scroll
+            onClick();
+          }
+        },
       }
-    }
-  } : {};
+    : {};
 
   return (
     <TooltipProvider>
       <div
         {...interactiveProps}
         className={cn(
-          "flex items-center gap-3 p-3 rounded-md transition-colors duration-200",
-          isMissingReport ? "bg-danger-50" : "bg-white",
-          onClick && "cursor-pointer hover:bg-neutral-50",
-          className
+          'flex items-center gap-3 rounded-md p-3 transition-colors duration-200',
+          isMissingReport ? 'bg-danger-50' : 'bg-white',
+          onClick && 'cursor-pointer hover:bg-neutral-50',
+          className,
         )}
       >
         {/* 1. Agenda number */}
-        <div className="font-mono text-sm text-text-muted w-8 shrink-0">
-          {agendaNumber}.
-        </div>
+        <div className="text-text-muted w-8 shrink-0 font-mono text-sm">{agendaNumber}.</div>
 
         {/* 2. Certified urgent chip */}
         {isCertifiedUrgent && (
-          <span 
-            className="bg-warning-100 text-warning-900 text-xs font-semibold px-2 py-0.5 rounded-sm touch-exempt shrink-0"
+          <span
+            className="bg-warning-100 text-warning-900 touch-exempt shrink-0 rounded-sm px-2 py-0.5 text-xs font-semibold"
             aria-label="Certified Urgent"
           >
             Urgent
@@ -86,22 +82,19 @@ export function OrderOfBusinessRow({
         </div>
 
         {/* 4. Title */}
-        <div 
-          className="text-sm text-text-primary flex-1 truncate" 
-          title={title}
-        >
+        <div className="text-text-primary flex-1 truncate text-sm" title={title}>
           {title}
         </div>
 
         {/* 5. Committee referral chips */}
         {committeeReferrals.length > 0 && (
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex shrink-0 items-center gap-1.5">
             {committeeReferrals.map((ref) => (
               <Badge
                 key={ref.id}
                 className={cn(
-                  "text-xs px-2 py-0.5 rounded-full font-medium border",
-                  REFERRAL_STATUS_CLASSES[ref.status]
+                  'rounded-full border px-2 py-0.5 text-xs font-medium',
+                  REFERRAL_STATUS_CLASSES[ref.status],
                 )}
                 title={`${ref.committeeName} (${ref.status})`}
               >
@@ -125,26 +118,24 @@ export function OrderOfBusinessRow({
 
         {/* 8. Flag icon */}
         {isMissingReport && (
-          <div className="shrink-0 flex items-center">
+          <div className="flex shrink-0 items-center">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   tabIndex={0}
-                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-500 focus-visible:ring-offset-2 rounded-sm p-0.5"
+                  className="focus-visible:ring-danger-500 rounded-sm p-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 >
                   <Flag
-                    className="h-4 w-4 text-danger-500"
+                    className="text-danger-500 h-4 w-4"
                     role="img"
                     aria-label="Missing committee report"
                   />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>
-                Missing committee report
-              </TooltipContent>
+              <TooltipContent>Missing committee report</TooltipContent>
             </Tooltip>
           </div>
         )}

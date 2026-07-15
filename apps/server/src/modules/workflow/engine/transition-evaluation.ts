@@ -3,7 +3,7 @@ import type { TransitionRuleRow } from './types.js';
 
 /**
  * Evaluates transition rules to determine the next step in the workflow (B4 §3.4).
- * 
+ *
  * @param rules Array of TransitionRuleRow matching the current step and definition version.
  * @param outcome The outcome string from the current step's execution.
  * @param context The current workflow instance context.
@@ -12,10 +12,10 @@ import type { TransitionRuleRow } from './types.js';
 export function evaluateTransitionRules(
   rules: TransitionRuleRow[],
   outcome: string | null,
-  context: Record<string, any>
+  context: Record<string, any>,
 ): string | null {
   // 1. Filter: remove rules where outcome_filter is set but doesn't match
-  const candidateRules = rules.filter(rule => {
+  const candidateRules = rules.filter((rule) => {
     if (rule.outcomeFilter !== null && rule.outcomeFilter !== outcome) {
       return false;
     }

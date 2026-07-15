@@ -25,10 +25,10 @@ a row below.
 When documents conflict, this is the resolution order, highest first:
 
 1. `docs/requirements-gathering/consolidated-architecture-and-requirements-reference-iteration-3.md`
-   — stakeholder-confirmed facts. This is the ground truth for *what the system
-   must do*. Architecture documents (Group B–L) are downstream interpretations of
+   — stakeholder-confirmed facts. This is the ground truth for _what the system
+   must do_. Architecture documents (Group B–L) are downstream interpretations of
    this document and can be wrong; this document is the thing they're implementing.
-2. `docs/pre-development/tech-stack.md` — confirmed for *how* it's built
+2. `docs/pre-development/tech-stack.md` — confirmed for _how_ it's built
    (stack, libraries, conventions). Marked "open" items in this file (currently:
    OCR library choice) are not yet decided — do not treat them as decided.
 3. Any document under `docs/pre-development/` — these implement #1 and #2. If one

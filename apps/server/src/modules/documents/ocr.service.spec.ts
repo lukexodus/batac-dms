@@ -32,7 +32,7 @@ describe('OcrService', () => {
 
     const mockQueryBuilder = {
       where: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue([{ s3Key: 'test-s3-key', documentId: 'doc-1' }])
+      limit: vi.fn().mockResolvedValue([{ s3Key: 'test-s3-key', documentId: 'doc-1' }]),
     };
 
     dbMock = {
@@ -52,7 +52,7 @@ describe('OcrService', () => {
       previewProviderMock as PreviewProvider,
       s3ClientMock as S3Client,
       'test-bucket',
-      dbMock as unknown as AppDb
+      dbMock as unknown as AppDb,
     );
   });
 
@@ -62,7 +62,7 @@ describe('OcrService', () => {
       expect(pgBossMock.send).toHaveBeenCalledWith(
         'ocr.process',
         { versionId: 'ver-1', s3Key: 's3-key-1', documentId: 'doc-1' },
-        { retryLimit: 3, retryDelay: 30, expireInHours: 24 }
+        { retryLimit: 3, retryDelay: 30, expireInHours: 24 },
       );
     });
   });
@@ -80,7 +80,10 @@ describe('OcrService', () => {
         requiresManualVerification: false,
       });
 
-      expect(previewProviderMock.renderFirstPage).toHaveBeenCalledWith('test-s3-key', 'application/pdf');
+      expect(previewProviderMock.renderFirstPage).toHaveBeenCalledWith(
+        'test-s3-key',
+        'application/pdf',
+      );
       expect(s3ClientMock.putObject).toHaveBeenCalledWith({
         Bucket: 'test-bucket',
         Key: 'documents/previews/doc-1/page-1.webp',

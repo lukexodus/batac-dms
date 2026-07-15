@@ -14,7 +14,7 @@ export async function submitCommitteeReport(
   actorId: string,
   contributionDocId: string,
   deps: MultiReferralHandlerDeps,
-  trx?: DbTransaction
+  trx?: DbTransaction,
 ): Promise<void> {
   if (stepInstance.status !== 'active') {
     throw new Error('CONFLICT: step is not active');
@@ -22,25 +22,26 @@ export async function submitCommitteeReport(
 
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any
+    trx as any,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
-  
-  const stepDef = versionData.steps.find(s => s.id === stepInstance.stepId);
+
+  const stepDef = versionData.steps.find((s) => s.id === stepInstance.stepId);
   if (!stepDef || stepDef.stepType !== 'multi_referral') {
     throw new Error('CONFLICT: step is not a multi_referral step');
   }
 
   const metadata = (stepInstance.metadata as Record<string, any>) || {};
-  const assignedCommittees = (metadata['assigned_committees'] as Array<{ committee_id: string }>) || [];
-  
-  const isAssigned = assignedCommittees.some(c => c.committee_id === committeeId);
+  const assignedCommittees =
+    (metadata['assigned_committees'] as Array<{ committee_id: string }>) || [];
+
+  const isAssigned = assignedCommittees.some((c) => c.committee_id === committeeId);
   if (!isAssigned) {
     throw new Error('FORBIDDEN: committee is not assigned to this step');
   }
 
   const submissions = (metadata['submissions'] as Array<any>) || [];
-  const alreadySubmitted = submissions.some(s => s.committee_id === committeeId);
+  const alreadySubmitted = submissions.some((s) => s.committee_id === committeeId);
   if (alreadySubmitted) {
     throw new Error('CONFLICT: committee has already submitted');
   }
@@ -56,18 +57,14 @@ export async function submitCommitteeReport(
   };
 
   submissions.push(newSubmission);
-  
+
   const isLast = submissions.length >= assignedCommittees.length;
   if (isLast) {
     metadata['all_submitted_at'] = now.toISOString();
   }
   metadata['submissions'] = submissions;
 
-  await deps.workflowRepository.updateStepInstance(
-    stepInstance.id,
-    { metadata },
-    trx as any
-  );
+  await deps.workflowRepository.updateStepInstance(stepInstance.id, { metadata }, trx as any);
 
   await deps.workflowRepository.createWorkflowEvent(
     {
@@ -82,7 +79,7 @@ export async function submitCommitteeReport(
         contributionDocumentId: contributionDocId,
       },
     },
-    trx as any
+    trx as any,
   );
 
   if (isLast) {
@@ -98,7 +95,7 @@ export async function submitCommitteeReport(
           allSubmittedAt: metadata['all_submitted_at'],
         },
       },
-      trx as any
+      trx as any,
     );
   }
 }
@@ -111,7 +108,7 @@ export async function submitStepMultiReferral(
   outcome: string,
   comment: string | null,
   deps: MultiReferralHandlerDeps,
-  trx?: DbTransaction
+  trx?: DbTransaction,
 ): Promise<void> {
   if (stepInstance.status !== 'active') {
     throw new Error('CONFLICT: step is not active');
@@ -119,11 +116,11 @@ export async function submitStepMultiReferral(
 
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any
+    trx as any,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
-  const stepDef = versionData.steps.find(s => s.id === stepInstance.stepId);
+  const stepDef = versionData.steps.find((s) => s.id === stepInstance.stepId);
   if (!stepDef) throw new Error('Step definition not found');
 
   if (outcome === 'BYPASSED_CERTIFIED_URGENT' && actorType === 'user') {
@@ -132,16 +129,19 @@ export async function submitStepMultiReferral(
 
   const metadata = (stepInstance.metadata as Record<string, any>) || {};
   const config = (stepDef.config as Record<string, any>) || {};
-  const assignedCommittees = (metadata['assigned_committees'] as Array<{ committee_id: string }>) || [];
+  const assignedCommittees =
+    (metadata['assigned_committees'] as Array<{ committee_id: string }>) || [];
   const submissions = (metadata['submissions'] as Array<any>) || [];
 
   const now = new Date();
-  
+
   if (outcome === 'REPORT_ACCEPTED') {
     // Requires ALL committees to have submitted (or manual_advance)
     if (metadata['manual_advance'] !== true) {
       if (submissions.length < assignedCommittees.length) {
-        const err: any = new Error('CONFLICT: all assigned committees must submit before report acceptance');
+        const err: any = new Error(
+          'CONFLICT: all assigned committees must submit before report acceptance',
+        );
         err.cause = 'REQUIRE_ALL_COMMITTEE_SIGNATURES_VIOLATED';
         throw err;
       }
@@ -165,11 +165,10 @@ export async function submitStepMultiReferral(
         outcome,
         outcomeComment: comment,
         completedAt: now,
-        metadata
+        metadata,
       },
-      trx as any
+      trx as any,
     );
-
   } else if (outcome === 'SECRETARY_ADVANCED') {
     if (config['allow_secretary_advance'] !== true) {
       throw new Error('CONFLICT: secretary advance not allowed');
@@ -180,7 +179,7 @@ export async function submitStepMultiReferral(
 
     const missingCommitteeIds = [];
     for (const ac of assignedCommittees) {
-      if (!submissions.some(s => s.committee_id === ac.committee_id)) {
+      if (!submissions.some((s) => s.committee_id === ac.committee_id)) {
         missingCommitteeIds.push(ac.committee_id);
         submissions.push({
           committee_id: ac.committee_id,
@@ -204,9 +203,9 @@ export async function submitStepMultiReferral(
         outcome,
         outcomeComment: comment,
         completedAt: now,
-        metadata
+        metadata,
       },
-      trx as any
+      trx as any,
     );
 
     await deps.workflowRepository.createWorkflowEvent(
@@ -221,11 +220,10 @@ export async function submitStepMultiReferral(
           comment,
           missingCommitteeIds,
           metadataSnapshot: metadata,
-        }
+        },
       },
-      trx as any
+      trx as any,
     );
-
   } else if (outcome === 'BYPASSED_CERTIFIED_URGENT') {
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
@@ -235,10 +233,12 @@ export async function submitStepMultiReferral(
         outcomeComment: comment,
         completedAt: now,
       },
-      trx as any
+      trx as any,
     );
   } else {
-    throw new Error(`VALIDATION_FAILED: outcome ${outcome} is not a valid multi_referral completion outcome`);
+    throw new Error(
+      `VALIDATION_FAILED: outcome ${outcome} is not a valid multi_referral completion outcome`,
+    );
   }
 
   await deps.workflowRepository.createWorkflowEvent(
@@ -256,10 +256,13 @@ export async function submitStepMultiReferral(
         comment,
       },
     },
-    trx as any
+    trx as any,
   );
 
-  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(stepInstance.id, trx as any);
+  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
+    stepInstance.id,
+    trx as any,
+  );
   if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 
   await resolveNextStep(instance, updatedStepInstance, outcome, deps, trx);
@@ -271,11 +274,11 @@ export async function updateAssignedCommittees(
   isBypass: boolean,
   comment: string | null,
   deps: MultiReferralHandlerDeps,
-  trx?: DbTransaction
+  trx?: DbTransaction,
 ): Promise<void> {
   const metadata = (stepInstance.metadata as Record<string, any>) || {};
   const submissions = (metadata['submissions'] as Array<any>) || [];
-  
+
   if (submissions.length > 0 && !isBypass) {
     const err: any = new Error('CONFLICT: committee list is locked after first submission');
     err.cause = 'COMMITTEE_LIST_LOCKED';
@@ -287,10 +290,6 @@ export async function updateAssignedCommittees(
   }
 
   metadata['assigned_committees'] = newAssignedCommittees;
-  
-  await deps.workflowRepository.updateStepInstance(
-    stepInstance.id,
-    { metadata },
-    trx as any
-  );
+
+  await deps.workflowRepository.updateStepInstance(stepInstance.id, { metadata }, trx as any);
 }

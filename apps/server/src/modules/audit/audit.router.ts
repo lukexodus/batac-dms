@@ -12,15 +12,27 @@ import type { AuditPublicAPI, AuditQueryResult, AuditEvent } from './index.js';
 
 /** §8.2: Roles allowed to read own actions. */
 const OWN_ACTIONS_ROLES = [
-  'records_officer', 'dept_encoder', 'dept_approver', 'sp_secretary',
-  'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder',
-  'brgy_captain', 'auditor',
+  'records_officer',
+  'dept_encoder',
+  'dept_approver',
+  'sp_secretary',
+  'sp_member',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_encoder',
+  'brgy_captain',
+  'auditor',
 ] as const;
 
 /** §8.3: Roles allowed to read own-office document events. */
 const OWN_OFFICE_ROLES = [
-  'records_officer', 'dept_approver', 'sp_secretary',
-  'sp_presiding_officer', 'mayor', 'brgy_captain', 'auditor',
+  'records_officer',
+  'dept_approver',
+  'sp_secretary',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_captain',
+  'auditor',
 ] as const;
 
 /** §8.5: Roles allowed to validate chain integrity. */
@@ -30,12 +42,12 @@ const CHAIN_VALIDATE_ROLES = ['sys_admin', 'auditor'] as const;
 
 const paginationInput = z.object({
   pageSize: z.number().int().min(1).max(200).optional(),
-  cursor:   z.string().optional(),
+  cursor: z.string().optional(),
 });
 
 const dateRangeInput = z.object({
   from: z.coerce.date().optional(),
-  to:   z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
 });
 
 /**
@@ -73,16 +85,16 @@ function omitUndefined<T extends Record<string, unknown>>(
  */
 const auditEventOutput = z.object({
   auditEventId: z.string().uuid(),
-  eventType:    z.string(),
-  actorId:      z.string().uuid().nullable(),
-  targetId:     z.string().uuid().nullable(),
-  targetType:   z.string().nullable(),
-  occurredAt:   z.coerce.date(),
-  payload:      z.record(z.unknown()),
+  eventType: z.string(),
+  actorId: z.string().uuid().nullable(),
+  targetId: z.string().uuid().nullable(),
+  targetType: z.string().nullable(),
+  occurredAt: z.coerce.date(),
+  payload: z.record(z.unknown()),
 });
 
 const listOutput = z.object({
-  items:      z.array(auditEventOutput),
+  items: z.array(auditEventOutput),
   nextCursor: z.string().nullable(),
 });
 
@@ -104,25 +116,25 @@ function enforceRole(roles: string[], allowed: readonly string[], message?: stri
 function mapToOutput(events: AuditEvent[]): z.infer<typeof auditEventOutput>[] {
   return events.map((e) => ({
     auditEventId: e.auditEventId,
-    eventType:    e.eventType,
-    actorId:      e.actorId,
-    targetId:     e.targetId,
-    targetType:   e.targetType,
-    occurredAt:   e.occurredAt,
-    payload:      e.payload,
+    eventType: e.eventType,
+    actorId: e.actorId,
+    targetId: e.targetId,
+    targetType: e.targetType,
+    occurredAt: e.occurredAt,
+    payload: e.payload,
   }));
 }
 
 // ─── Input schema for the legacy queryEvents procedure ────────────────────────
 
 const auditQueryEventsInput = z.object({
-  actorId:    z.string().uuid().optional(),
-  targetId:   z.string().uuid().optional(),
+  actorId: z.string().uuid().optional(),
+  targetId: z.string().uuid().optional(),
   eventTypes: z.array(z.string().min(1)).optional(),
-  from:       z.coerce.date().optional(),
-  to:         z.coerce.date().optional(),
-  pageSize:   z.number().int().min(1).max(200).optional(),
-  cursor:     z.string().optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  pageSize: z.number().int().min(1).max(200).optional(),
+  cursor: z.string().optional(),
 });
 
 export type AuditQueryEventsInput = z.infer<typeof auditQueryEventsInput>;
@@ -168,13 +180,13 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
 
         const service = auditService ?? (ctx.req.server as any).auditService;
         return service.queryEvents({
-          actorId:    input.actorId,
-          targetId:   input.targetId,
+          actorId: input.actorId,
+          targetId: input.targetId,
           eventTypes: input.eventTypes,
-          from:       input.from,
-          to:         input.to,
-          pageSize:   input.pageSize,
-          cursor:     input.cursor,
+          from: input.from,
+          to: input.to,
+          pageSize: input.pageSize,
+          cursor: input.cursor,
         });
       }),
 
@@ -192,18 +204,20 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
       .query(async ({ ctx, input }) => {
         enforceRole(ctx.auth.roles, OWN_ACTIONS_ROLES);
 
-        const service = auditService ?? (ctx.req.server as any).auditService as AuditPublicAPI;
-        const result = await service.queryEvents(omitUndefined({
-          actorId:  ctx.auth.userId,      // forced — I1 §8.2
-          cityId:   ctx.auth.cityId,      // tenant isolation
-          pageSize: input.pageSize,
-          cursor:   input.cursor,
-          from:     input.from,
-          to:       input.to,
-        }));
+        const service = auditService ?? ((ctx.req.server as any).auditService as AuditPublicAPI);
+        const result = await service.queryEvents(
+          omitUndefined({
+            actorId: ctx.auth.userId, // forced — I1 §8.2
+            cityId: ctx.auth.cityId, // tenant isolation
+            pageSize: input.pageSize,
+            cursor: input.cursor,
+            from: input.from,
+            to: input.to,
+          }),
+        );
 
         return {
-          items:      mapToOutput(result.events),
+          items: mapToOutput(result.events),
           nextCursor: result.nextCursor ?? null,
         };
       }),
@@ -221,7 +235,7 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
       .input(
         paginationInput.merge(dateRangeInput).extend({
           officeId: z.string().uuid().optional(),
-        })
+        }),
       )
       .output(listOutput)
       .query(async ({ ctx, input }) => {
@@ -250,18 +264,20 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
           return { items: [], nextCursor: null };
         }
 
-        const service = auditService ?? (ctx.req.server as any).auditService as AuditPublicAPI;
-        const result = await service.queryEvents(omitUndefined({
-          resourceOfficeIds,              // I1 §8.3 / D-ABAC-04
-          cityId:   ctx.auth.cityId,      // tenant isolation
-          pageSize: input.pageSize,
-          cursor:   input.cursor,
-          from:     input.from,
-          to:       input.to,
-        }));
+        const service = auditService ?? ((ctx.req.server as any).auditService as AuditPublicAPI);
+        const result = await service.queryEvents(
+          omitUndefined({
+            resourceOfficeIds, // I1 §8.3 / D-ABAC-04
+            cityId: ctx.auth.cityId, // tenant isolation
+            pageSize: input.pageSize,
+            cursor: input.cursor,
+            from: input.from,
+            to: input.to,
+          }),
+        );
 
         return {
-          items:      mapToOutput(result.events),
+          items: mapToOutput(result.events),
           nextCursor: result.nextCursor ?? null,
         };
       }),
@@ -276,14 +292,14 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
     listFullLog: protectedProcedure
       .input(
         paginationInput.merge(dateRangeInput).extend({
-          actorId:    z.string().uuid().optional(),
+          actorId: z.string().uuid().optional(),
           eventTypes: z.array(z.string().min(1)).optional(),
-        })
+        }),
       )
       .output(
         listOutput.extend({
           chainValidationStatus: z.enum(['intact', 'broken']),
-        })
+        }),
       )
       .query(async ({ ctx, input }) => {
         // Auditor ONLY — sys_admin is explicitly ❌ per I2 §15
@@ -294,20 +310,22 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
           });
         }
 
-        const service = auditService ?? (ctx.req.server as any).auditService as AuditPublicAPI;
-        const result = await service.queryEvents(omitUndefined({
-          actorId:    input.actorId,
-          eventTypes: input.eventTypes,
-          cityId:     ctx.auth.cityId,    // tenant isolation
-          pageSize:   input.pageSize,
-          cursor:     input.cursor,
-          from:       input.from,
-          to:         input.to,
-        }));
+        const service = auditService ?? ((ctx.req.server as any).auditService as AuditPublicAPI);
+        const result = await service.queryEvents(
+          omitUndefined({
+            actorId: input.actorId,
+            eventTypes: input.eventTypes,
+            cityId: ctx.auth.cityId, // tenant isolation
+            pageSize: input.pageSize,
+            cursor: input.cursor,
+            from: input.from,
+            to: input.to,
+          }),
+        );
 
         return {
-          items:                 mapToOutput(result.events),
-          nextCursor:            result.nextCursor ?? null,
+          items: mapToOutput(result.events),
+          nextCursor: result.nextCursor ?? null,
           chainValidationStatus: result.chainValidationStatus,
         };
       }),
@@ -325,21 +343,22 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
       .input(
         z.object({
           fromEventId: z.string().uuid().optional(),
-        })
+        }),
       )
       .output(
         z.object({
-          status:          z.enum(['intact', 'broken']),
+          status: z.enum(['intact', 'broken']),
           brokenAtEventId: z.string().uuid().nullable(),
-        })
+        }),
       )
       .query(async ({ ctx, input }) => {
         enforceRole(ctx.auth.roles, CHAIN_VALIDATE_ROLES);
 
-        const service = auditService ?? (ctx.req.server as any).auditService as AuditPublicAPI;
+        const service = auditService ?? ((ctx.req.server as any).auditService as AuditPublicAPI);
         const repo = service._internal.repo;
-        const env  = (ctx.req.server as any).auditEnv as { AUDIT_HMAC_SECRET: string };
-        const hmacSecret = env?.AUDIT_HMAC_SECRET ?? (ctx.req.server as any).config?.AUDIT_HMAC_SECRET;
+        const env = (ctx.req.server as any).auditEnv as { AUDIT_HMAC_SECRET: string };
+        const hmacSecret =
+          env?.AUDIT_HMAC_SECRET ?? (ctx.req.server as any).config?.AUDIT_HMAC_SECRET;
 
         // Fetch all events in order (full chain walk — no pagination)
         // Using repo.db directly since AuditQueryService is paginated.
@@ -362,7 +381,7 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
               and(
                 eq(auditEvents.cityId, ctx.auth.cityId),
                 gte(auditEvents.sequenceNumber, startSeq),
-              )
+              ),
             )
             .orderBy(asc(auditEvents.sequenceNumber));
         } else {
@@ -392,14 +411,14 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
         // Walk the chain
         for (const row of rows) {
           const canonical = canonicalizePayload({
-            eventType:        row.eventType,
-            actorId:          row.actorId,
-            targetId:         row.targetId,
-            targetType:       row.targetType,
+            eventType: row.eventType,
+            actorId: row.actorId,
+            targetId: row.targetId,
+            targetType: row.targetType,
             resourceOfficeId: row.resourceOfficeId,
-            payload:          row.payload,
-            cityId:           row.cityId,
-            occurredAt:       row.occurredAt.toISOString(),
+            payload: row.payload,
+            cityId: row.cityId,
+            occurredAt: row.occurredAt.toISOString(),
           });
 
           const hmacValid = verifyHmac(canonical, hmacSecret, row.hmac);
@@ -439,14 +458,14 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
       .input(
         dateRangeInput.extend({
           eventTypes: z.array(z.string().min(1)).optional(),
-        })
+        }),
       )
       .output(
         z.object({
-          exportData:  z.string(),  // base64-encoded NDJSON (see LOG-0083)
+          exportData: z.string(), // base64-encoded NDJSON (see LOG-0083)
           contentType: z.literal('application/x-ndjson'),
-          eventCount:  z.number().int(),
-        })
+          eventCount: z.number().int(),
+        }),
       )
       .mutation(async ({ ctx, input }) => {
         // Auditor ONLY — I1 §8.6
@@ -457,7 +476,7 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
           });
         }
 
-        const service = auditService ?? (ctx.req.server as any).auditService as AuditPublicAPI;
+        const service = auditService ?? ((ctx.req.server as any).auditService as AuditPublicAPI);
         const repo = service._internal.repo;
 
         // Use compileMonthlySnapshot for the base export data.
@@ -470,12 +489,13 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
 
         const exportData = buffer.toString('base64');
         // Count events by counting newlines + 1 (NDJSON lines)
-        const lineCount = buffer.length === 0 ? 0 : buffer.toString('utf-8').split('\n').filter(Boolean).length;
+        const lineCount =
+          buffer.length === 0 ? 0 : buffer.toString('utf-8').split('\n').filter(Boolean).length;
 
         return {
           exportData,
           contentType: 'application/x-ndjson' as const,
-          eventCount:  lineCount,
+          eventCount: lineCount,
         };
       }),
   });

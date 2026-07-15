@@ -94,7 +94,7 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
   });
 
   const ocrS3Client = {
-    putObject: (params: any) => s3Client.send(new PutObjectCommand(params))
+    putObject: (params: any) => s3Client.send(new PutObjectCommand(params)),
   };
 
   const ocrService = new OcrService(
@@ -103,7 +103,7 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
     new StubPreviewProvider(),
     ocrS3Client,
     env.S3_BUCKET || 'batac-dms-assets',
-    db
+    db,
   );
 
   fastify.decorate('documentsRepository', repository);
@@ -117,9 +117,14 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
   if ((fastify as any).boss) {
     const SYSTEM_ACTOR_ID = '00000000-0000-4000-8000-000000000000';
     const boss = (fastify as any).boss; // pg-boss instance
-    
+
     await boss.createQueue('panlalawigan.checkDeemedApproved');
-    await boss.schedule('panlalawigan.checkDeemedApproved', '0 6 * * *', {}, { timezone: 'Asia/Manila' });
+    await boss.schedule(
+      'panlalawigan.checkDeemedApproved',
+      '0 6 * * *',
+      {},
+      { timezone: 'Asia/Manila' },
+    );
     await boss.work('panlalawigan.checkDeemedApproved', async () => {
       const overdueReviews = await repository.findOverduePanlalawiganReviews();
       for (const review of overdueReviews) {
@@ -127,27 +132,27 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
           outcome: 'deemed_approved',
           responseDate: new Date(),
         });
-        
+
         await service.transitionState(
-          review.documentId, 
-          'completed', 
+          review.documentId,
+          'completed',
           SYSTEM_ACTOR_ID,
-          'Deemed approved by operation of law -- 30-day review period elapsed without Panlalawigan response'
+          'Deemed approved by operation of law -- 30-day review period elapsed without Panlalawigan response',
         );
-        
+
         if (fastify.eventBus) {
           const now = new Date();
-          fastify.eventBus.emit('document.panlalawigan.deemed_approved', { 
+          fastify.eventBus.emit('document.panlalawigan.deemed_approved', {
             eventId: crypto.randomUUID(),
             eventType: 'document.panlalawigan.deemed_approved',
             occurredAt: now.toISOString(),
             cityId: review.cityId,
             schemaVersion: 1,
             payload: {
-              documentId: review.documentId, 
-              transmittedAt: review.transmittedAt!, 
-              cityId: review.cityId 
-            }
+              documentId: review.documentId,
+              transmittedAt: review.transmittedAt!,
+              cityId: review.cityId,
+            },
           });
         }
       }
@@ -155,7 +160,7 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
   }
 
   // TODO(WF-INTEGRATION): fastify.eventBus.subscribe('workflow.step.completed', ...)
-  
+
   fastify.log.info('documents.module.ready');
 }
 

@@ -65,9 +65,7 @@ function makeAuditService(overrides?: Partial<AuditPublicAPI>): AuditPublicAPI {
 function buildCaller(ctx: Context, auditService: AuditPublicAPI) {
   const auditRouter = createAuditTrpcRouter(auditService);
   const t = initTRPC.context<Context>().create();
-  const callerFactory = t.createCallerFactory(
-    t.router({ audit: auditRouter }),
-  );
+  const callerFactory = t.createCallerFactory(t.router({ audit: auditRouter }));
   return callerFactory(ctx);
 }
 
@@ -84,7 +82,10 @@ function makeCtx(roles: string[], overrides?: Partial<Context['auth']>): Context
       permissions: [],
       committeeIds: [],
       delegationGrantId: null,
-      effectiveOfficeIds: ['00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-0000000000bb'],
+      effectiveOfficeIds: [
+        '00000000-0000-0000-0000-0000000000aa',
+        '00000000-0000-0000-0000-0000000000bb',
+      ],
       effectiveRoles: roles,
       isItAdmin: roles.includes('sys_admin'),
       isPlatformAdmin: false,
@@ -175,9 +176,16 @@ describe('audit.queryEvents', () => {
 
 describe('audit.listOwnActions', () => {
   const ALLOWED_ROLES = [
-    'records_officer', 'dept_encoder', 'dept_approver', 'sp_secretary',
-    'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder',
-    'brgy_captain', 'auditor',
+    'records_officer',
+    'dept_encoder',
+    'dept_approver',
+    'sp_secretary',
+    'sp_member',
+    'sp_presiding_officer',
+    'mayor',
+    'brgy_encoder',
+    'brgy_captain',
+    'auditor',
   ];
 
   for (const role of ALLOWED_ROLES) {
@@ -288,8 +296,13 @@ describe('audit.listOwnActions', () => {
 
 describe('audit.listOwnOfficeDocumentActions', () => {
   const ALLOWED_ROLES = [
-    'records_officer', 'dept_approver', 'sp_secretary',
-    'sp_presiding_officer', 'mayor', 'brgy_captain', 'auditor',
+    'records_officer',
+    'dept_approver',
+    'sp_secretary',
+    'sp_presiding_officer',
+    'mayor',
+    'brgy_captain',
+    'auditor',
   ];
 
   const DENIED_ROLES = ['dept_encoder', 'sp_member', 'brgy_encoder'];
@@ -318,15 +331,24 @@ describe('audit.listOwnOfficeDocumentActions', () => {
 
   it('queries all effectiveOfficeIds when no officeId supplied', async () => {
     const service = makeAuditService();
-    const caller = buildCaller(makeCtx(['records_officer'], {
-      effectiveOfficeIds: ['00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-0000000000bb'],
-    }), service);
+    const caller = buildCaller(
+      makeCtx(['records_officer'], {
+        effectiveOfficeIds: [
+          '00000000-0000-0000-0000-0000000000aa',
+          '00000000-0000-0000-0000-0000000000bb',
+        ],
+      }),
+      service,
+    );
 
     await caller.audit.listOwnOfficeDocumentActions({});
 
     expect(service.queryEvents).toHaveBeenCalledWith(
       expect.objectContaining({
-        resourceOfficeIds: ['00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-0000000000bb'],
+        resourceOfficeIds: [
+          '00000000-0000-0000-0000-0000000000aa',
+          '00000000-0000-0000-0000-0000000000bb',
+        ],
         cityId: CITY_ID,
       }),
     );
@@ -334,12 +356,17 @@ describe('audit.listOwnOfficeDocumentActions', () => {
 
   it('validates officeId against effectiveOfficeIds', async () => {
     const service = makeAuditService();
-    const caller = buildCaller(makeCtx(['records_officer'], {
-      effectiveOfficeIds: ['00000000-0000-0000-0000-0000000000aa'],
-    }), service);
+    const caller = buildCaller(
+      makeCtx(['records_officer'], {
+        effectiveOfficeIds: ['00000000-0000-0000-0000-0000000000aa'],
+      }),
+      service,
+    );
 
     await expect(
-      caller.audit.listOwnOfficeDocumentActions({ officeId: '00000000-0000-0000-0000-0000000000ff' }),
+      caller.audit.listOwnOfficeDocumentActions({
+        officeId: '00000000-0000-0000-0000-0000000000ff',
+      }),
     ).rejects.toThrowError(TRPCError);
 
     expect(service.queryEvents).not.toHaveBeenCalled();
@@ -347,11 +374,19 @@ describe('audit.listOwnOfficeDocumentActions', () => {
 
   it('allows a valid officeId within effectiveOfficeIds', async () => {
     const service = makeAuditService();
-    const caller = buildCaller(makeCtx(['mayor'], {
-      effectiveOfficeIds: ['00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-0000000000bb'],
-    }), service);
+    const caller = buildCaller(
+      makeCtx(['mayor'], {
+        effectiveOfficeIds: [
+          '00000000-0000-0000-0000-0000000000aa',
+          '00000000-0000-0000-0000-0000000000bb',
+        ],
+      }),
+      service,
+    );
 
-    await caller.audit.listOwnOfficeDocumentActions({ officeId: '00000000-0000-0000-0000-0000000000bb' });
+    await caller.audit.listOwnOfficeDocumentActions({
+      officeId: '00000000-0000-0000-0000-0000000000bb',
+    });
 
     expect(service.queryEvents).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -362,9 +397,12 @@ describe('audit.listOwnOfficeDocumentActions', () => {
 
   it('returns empty when effectiveOfficeIds is empty', async () => {
     const service = makeAuditService();
-    const caller = buildCaller(makeCtx(['records_officer'], {
-      effectiveOfficeIds: [],
-    }), service);
+    const caller = buildCaller(
+      makeCtx(['records_officer'], {
+        effectiveOfficeIds: [],
+      }),
+      service,
+    );
 
     const result = await caller.audit.listOwnOfficeDocumentActions({});
 
@@ -489,14 +527,14 @@ describe('audit.validateChainIntegrity', () => {
     occurredAt: Date;
   }): string {
     return canonicalizePayload({
-      eventType:        row.eventType,
-      actorId:          row.actorId,
-      targetId:         row.targetId,
-      targetType:       row.targetType,
+      eventType: row.eventType,
+      actorId: row.actorId,
+      targetId: row.targetId,
+      targetType: row.targetType,
       resourceOfficeId: row.resourceOfficeId,
-      payload:          row.payload,
-      cityId:           row.cityId,
-      occurredAt:       row.occurredAt.toISOString(),
+      payload: row.payload,
+      cityId: row.cityId,
+      occurredAt: row.occurredAt.toISOString(),
     });
   }
 
@@ -577,9 +615,11 @@ describe('audit.validateChainIntegrity', () => {
             return {
               from: vi.fn().mockReturnThis(),
               where: vi.fn().mockReturnThis(),
-              limit: vi.fn().mockResolvedValue(
-                opts?.fromEventNotFound ? [] : [{ seq: rows[0]?.sequenceNumber ?? 1n }],
-              ),
+              limit: vi
+                .fn()
+                .mockResolvedValue(
+                  opts?.fromEventNotFound ? [] : [{ seq: rows[0]?.sequenceNumber ?? 1n }],
+                ),
             };
           }
 
@@ -594,7 +634,7 @@ describe('audit.validateChainIntegrity', () => {
       auth: {
         userId: USER_ID,
         sessionId: 'sess-001',
-      officeId: '00000000-0000-0000-0000-0000000000aa',
+        officeId: '00000000-0000-0000-0000-0000000000aa',
         cityId: CITY_ID,
         roles,
         permissions: [],
@@ -788,9 +828,9 @@ function createDrizzleMock(rows: any[]) {
       if (selection && selection.seq) {
         // Pattern 1: fromEventId lookup → returns [{ seq }]
         builder.where = vi.fn().mockReturnValue(builder);
-        builder.limit = vi.fn().mockResolvedValue(
-          rows.length > 0 ? [{ seq: rows[0].sequenceNumber }] : [],
-        );
+        builder.limit = vi
+          .fn()
+          .mockResolvedValue(rows.length > 0 ? [{ seq: rows[0].sequenceNumber }] : []);
         return builder;
       }
 
@@ -801,11 +841,11 @@ function createDrizzleMock(rows: any[]) {
         // Return the chainHash of the row before the first row (or empty for genesis)
         const firstSeq = rows[0]?.sequenceNumber ?? 1n;
         const prevRows = rows.filter((r) => r.sequenceNumber < firstSeq);
-        builder.limit = vi.fn().mockResolvedValue(
-          prevRows.length > 0
-            ? [{ chainHash: prevRows[prevRows.length - 1].chainHash }]
-            : [],
-        );
+        builder.limit = vi
+          .fn()
+          .mockResolvedValue(
+            prevRows.length > 0 ? [{ chainHash: prevRows[prevRows.length - 1].chainHash }] : [],
+          );
         return builder;
       }
 

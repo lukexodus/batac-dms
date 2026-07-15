@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { evaluateThursdayCutoffs, getLatestThursdayCutoffPHT } from '../jobs/evaluate-thursday-cutoffs.js';
+import {
+  evaluateThursdayCutoffs,
+  getLatestThursdayCutoffPHT,
+} from '../jobs/evaluate-thursday-cutoffs.js';
 import { buildMockRepo } from './fixtures/workflow-test-helpers.js';
 
 describe('Thursday Cutoff Scheduler (THU)', () => {
@@ -7,17 +10,23 @@ describe('Thursday Cutoff Scheduler (THU)', () => {
     it('THU-11a: Thursday 23:59:59 PHT exactly returns itself', () => {
       // Nov 9 2023 is a Thursday. 23:59:59 PHT = 15:59:59 UTC.
       const exactCutoff = new Date('2023-11-09T15:59:59Z');
-      expect(getLatestThursdayCutoffPHT(exactCutoff).toISOString()).toBe('2023-11-09T15:59:59.000Z');
+      expect(getLatestThursdayCutoffPHT(exactCutoff).toISOString()).toBe(
+        '2023-11-09T15:59:59.000Z',
+      );
     });
 
     it('THU-11b: Friday 00:00:05 PHT returns the previous Thursday cutoff', () => {
       const slightlyAfter = new Date('2023-11-09T16:00:05Z');
-      expect(getLatestThursdayCutoffPHT(slightlyAfter).toISOString()).toBe('2023-11-09T15:59:59.000Z');
+      expect(getLatestThursdayCutoffPHT(slightlyAfter).toISOString()).toBe(
+        '2023-11-09T15:59:59.000Z',
+      );
     });
 
     it('THU-11c: Thursday 23:59:58 PHT (one second before cutoff) returns prior week', () => {
       const slightlyBefore = new Date('2023-11-09T15:59:58Z');
-      expect(getLatestThursdayCutoffPHT(slightlyBefore).toISOString()).toBe('2023-11-02T15:59:59.000Z');
+      expect(getLatestThursdayCutoffPHT(slightlyBefore).toISOString()).toBe(
+        '2023-11-02T15:59:59.000Z',
+      );
     });
 
     it('THU-11d: Monday PHT returns the previous Thursday', () => {
@@ -58,7 +67,7 @@ describe('Thursday Cutoff Scheduler (THU)', () => {
             second_reading_eligible_date: '2023-11-14',
             last_cutoff_evaluated_at: fixedCutoff.toISOString(),
           }),
-        })
+        }),
       );
       expect(mockRepo.updateInstanceContext).toHaveBeenCalledWith('inst-1', {
         second_reading_eligible_date: '2023-11-14',
@@ -67,7 +76,7 @@ describe('Thursday Cutoff Scheduler (THU)', () => {
         expect.objectContaining({
           eventType: 'workflow.multi_referral.second_reading_eligible',
           payload: expect.objectContaining({ eligibleDate: '2023-11-14' }),
-        })
+        }),
       );
     });
 
@@ -81,7 +90,7 @@ describe('Thursday Cutoff Scheduler (THU)', () => {
         'step-inst-1',
         expect.objectContaining({
           metadata: expect.objectContaining({ second_reading_eligible_date: '2023-11-14' }),
-        })
+        }),
       );
     });
 
@@ -98,13 +107,13 @@ describe('Thursday Cutoff Scheduler (THU)', () => {
             thursday_cutoffs_missed: 2,
             last_cutoff_evaluated_at: fixedCutoff.toISOString(),
           }),
-        })
+        }),
       );
       expect(mockRepo.createWorkflowEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: 'workflow.multi_referral.cutoff_missed',
           payload: expect.objectContaining({ missingCommitteeIds: ['C2'], cutoffNumber: 2 }),
-        })
+        }),
       );
     });
 
@@ -114,7 +123,7 @@ describe('Thursday Cutoff Scheduler (THU)', () => {
         submissions: [],
       });
       expect(mockRepo.createWorkflowEvent).toHaveBeenCalledWith(
-        expect.objectContaining({ eventType: 'workflow.multi_referral.cutoff_missed' })
+        expect.objectContaining({ eventType: 'workflow.multi_referral.cutoff_missed' }),
       );
     });
 

@@ -22,7 +22,6 @@ import type { EventPayloadMap } from './events/event-payload-map.js';
 import type { DomainEvent } from './events/domain-event.js';
 import type { IDeadLetterRepository } from './dead-letter-repository.interface.js';
 
-
 // Internal handler type — erased to allow the Map to hold mixed-typed handlers.
 type AnyHandler = (envelope: DomainEvent<unknown>) => void | Promise<void>;
 
@@ -76,9 +75,7 @@ export class EventBus {
     eventType: K,
     envelope: DomainEvent<EventPayloadMap[K]>,
   ): void {
-    const listeners = this.emitter.rawListeners(
-      eventType as string,
-    ) as AnyHandler[];
+    const listeners = this.emitter.rawListeners(eventType as string) as AnyHandler[];
 
     for (const handler of listeners) {
       const mod = this.moduleNames.get(handler) ?? 'unknown';
@@ -106,11 +103,7 @@ export class EventBus {
 
   // ── Private ─────────────────────────────────────────────────────────────────
 
-  private onHandlerFailure(
-    envelope: DomainEvent<unknown>,
-    moduleName: string,
-    err: unknown,
-  ): void {
+  private onHandlerFailure(envelope: DomainEvent<unknown>, moduleName: string, err: unknown): void {
     this.logger.error(
       { err, eventId: envelope.eventId, eventType: envelope.eventType, moduleName },
       '[event-bus] subscriber failure — routing to dead-letter table',

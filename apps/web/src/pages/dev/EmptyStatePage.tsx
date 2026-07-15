@@ -1,25 +1,28 @@
-import { FileText, Search } from "lucide-react";
+import { FileText, Search } from 'lucide-react';
 
-import { EmptyState } from "@batac/ui";
+import { EmptyState } from '@batac/ui';
 
 export default function EmptyStatePage() {
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-12">
+    <div className="mx-auto max-w-4xl space-y-12 p-8">
       <section>
-        <h2 className="text-xl font-bold mb-4">With Action</h2>
-        <div className="p-8 border border-border/50 rounded-md bg-background">
+        <h2 className="mb-4 text-xl font-bold">With Action</h2>
+        <div className="border-border/50 bg-background rounded-md border p-8">
           <EmptyState
             icon={FileText}
             heading="No documents in queue"
             body="Upload a resolution or ordinance to begin the SP workflow."
-            action={{ label: "Upload Document", onClick: () => console.log("Upload Document clicked") }}
+            action={{
+              label: 'Upload Document',
+              onClick: () => console.log('Upload Document clicked'),
+            }}
           />
         </div>
       </section>
 
       <section>
-        <h2 className="text-xl font-bold mb-4">Without Action</h2>
-        <div className="p-8 border border-border/50 rounded-md bg-background">
+        <h2 className="mb-4 text-xl font-bold">Without Action</h2>
+        <div className="border-border/50 bg-background rounded-md border p-8">
           <EmptyState
             icon={Search}
             heading="No results match your filters"

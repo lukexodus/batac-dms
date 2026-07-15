@@ -6,7 +6,6 @@
 name: batac-dev
 
 services:
-
   # ────────────────────────────────────────────────────────────────────────────
   # PostgreSQL 16 — single instance; no standby in local dev
   # Production primary + standby topology is in compose.prod.yml
@@ -24,17 +23,16 @@ services:
       DB_MIGRATE_PASSWORD: ${DB_MIGRATE_PASSWORD:-migrate_devpassword}
       TZ: Asia/Manila
     ports:
-      - "${DB_PORT_EXPOSED:-5432}:5432"
+      - '${DB_PORT_EXPOSED:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./tools/db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME:-batac_lgu}"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d ${DB_NAME:-batac_lgu}']
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 15s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # MinIO — S3-compatible object storage replacing Cloudflare R2 in local dev
@@ -50,17 +48,16 @@ services:
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minio123456}
       TZ: Asia/Manila
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '9000:9000'
+      - '9001:9001'
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # MinIO init — creates required buckets on first run, then exits
@@ -89,7 +86,6 @@ services:
         echo '[minio-init] Buckets ready.'
       "
 
-
   # ────────────────────────────────────────────────────────────────────────────
   # Mailpit — local SMTP server and web UI for email preview
   # SMTP:    localhost:1025   (set SMTP_HOST=localhost, SMTP_PORT=1025)
@@ -100,15 +96,14 @@ services:
     image: axllent/mailpit:latest
     restart: unless-stopped
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - '1025:1025'
+      - '8025:8025'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:8025"]
+      test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://localhost:8025']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 5s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # Meilisearch — Phase 2 reserved slot; not required for Phase 1
@@ -122,20 +117,19 @@ services:
       - search
     environment:
       MEILI_MASTER_KEY: ${SEARCH_MEILISEARCH_MASTER_KEY:-meilisearch-dev-key-changeme}
-      MEILI_NO_ANALYTICS: "true"
+      MEILI_NO_ANALYTICS: 'true'
       MEILI_ENV: development
       TZ: Asia/Manila
     ports:
-      - "7700:7700"
+      - '7700:7700'
     volumes:
       - meilisearch_data:/meili_data
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:7700/health"]
+      test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://localhost:7700/health']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
-
 
   # ────────────────────────────────────────────────────────────────────────────
   # OpenObserve — local observability stack (logs, metrics, traces, RUM)
@@ -145,7 +139,7 @@ services:
     image: public.ecr.aws/zinclabs/openobserve:latest
     restart: unless-stopped
     ports:
-      - "5080:5080"
+      - '5080:5080'
     environment:
       # Default credentials for local dev
       ZO_ROOT_USER_EMAIL: admin@batac.gov.ph
@@ -153,7 +147,7 @@ services:
     volumes:
       - openobserve_data:/data
     healthcheck:
-      test: ["CMD", "/openobserve", "node", "status"]
+      test: ['CMD', '/openobserve', 'node', 'status']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -168,4 +162,3 @@ volumes:
     driver: local
   openobserve_data:
     driver: local
-

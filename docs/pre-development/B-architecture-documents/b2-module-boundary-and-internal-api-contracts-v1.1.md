@@ -48,15 +48,15 @@
 
 All seven Required ADRs identified in Version 1.0 of this document have been resolved and are recorded as standalone decision records (ADR-B2-1 through ADR-B2-7). Four of those decisions change this document's content directly; this revision incorporates them. The remaining three (ADR-B2-1, ADR-B2-2, ADR-B2-7) formalize detail that was already correctly stated here and required no content change — they are noted in the table below for traceability only.
 
-|ADR|Change to this document|
-|---|---|
-|ADR-B2-1 (Event Bus Implementation)|No content change. Confirms the event bus described throughout this document is a typed `EventEmitter` wrapper. Subscriber-isolation and dead-letter behavior (a throwing subscriber must not fail the emitter) are now formally specified in the ADR rather than left as an unstated assumption.|
-|ADR-B2-2 (Audit Log Design)|No content change. Formalizes the hash chain, HMAC, key rotation, and TSA detail already present in Module 8 below.|
-|ADR-B2-3 (Secretariat Decision Entry Point)|**Content change.** The Secretariat's Approve / Reject / Amended action now enters through the **Workflow Router**, calling `Documents.transitionState()` synchronously. The `document.secretariat_decision` event is **removed**. Module 3, Module 4, the Master Event Bus Registry, the Module Dependency Map, and the Audit Events Consumed table are all updated accordingly.|
-|ADR-B2-4 (Respondent Notice Channel)|**Confirms existing content.** This document's proposal — routing Portal's Respondent Notice Service through `Notifications.sendNotification()` rather than calling SMTP directly — is now the confirmed design. B1's direct-SMTP diagram is superseded. The `[Inference]` flag on this row of the API Call Matrix is removed.|
-|ADR-B2-5 (Phase 1 FTS Column Ownership)|**Content change.** Search Meta now ships a thin Phase 1 pass-through implementation rather than zero Phase 1 footprint. Module 9 is updated to Phase 1 + Phase 2, with an explicitly scoped Law #2 exception for its Phase 1 cross-schema read of `documents.tsvector`.|
-|ADR-B2-6 (Published API Versioning)|**Content addition.** A new "Published API Versioning Policy" subsection is added to the Enforcement Model. No existing Published API method signature changes as a result — this ADR governs *future* breaking changes, not a present one.|
-|ADR-B2-7 (Phase 1 Classification Source)|No content change. Formalizes the Phase 1→2 classification migration plan; the Phase 1 behavior already stated in Module 6 is unchanged.|
+| ADR                                         | Change to this document                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ADR-B2-1 (Event Bus Implementation)         | No content change. Confirms the event bus described throughout this document is a typed `EventEmitter` wrapper. Subscriber-isolation and dead-letter behavior (a throwing subscriber must not fail the emitter) are now formally specified in the ADR rather than left as an unstated assumption.                                                                                 |
+| ADR-B2-2 (Audit Log Design)                 | No content change. Formalizes the hash chain, HMAC, key rotation, and TSA detail already present in Module 8 below.                                                                                                                                                                                                                                                               |
+| ADR-B2-3 (Secretariat Decision Entry Point) | **Content change.** The Secretariat's Approve / Reject / Amended action now enters through the **Workflow Router**, calling `Documents.transitionState()` synchronously. The `document.secretariat_decision` event is **removed**. Module 3, Module 4, the Master Event Bus Registry, the Module Dependency Map, and the Audit Events Consumed table are all updated accordingly. |
+| ADR-B2-4 (Respondent Notice Channel)        | **Confirms existing content.** This document's proposal — routing Portal's Respondent Notice Service through `Notifications.sendNotification()` rather than calling SMTP directly — is now the confirmed design. B1's direct-SMTP diagram is superseded. The `[Inference]` flag on this row of the API Call Matrix is removed.                                                    |
+| ADR-B2-5 (Phase 1 FTS Column Ownership)     | **Content change.** Search Meta now ships a thin Phase 1 pass-through implementation rather than zero Phase 1 footprint. Module 9 is updated to Phase 1 + Phase 2, with an explicitly scoped Law #2 exception for its Phase 1 cross-schema read of `documents.tsvector`.                                                                                                          |
+| ADR-B2-6 (Published API Versioning)         | **Content addition.** A new "Published API Versioning Policy" subsection is added to the Enforcement Model. No existing Published API method signature changes as a result — this ADR governs _future_ breaking changes, not a present one.                                                                                                                                       |
+| ADR-B2-7 (Phase 1 Classification Source)    | No content change. Formalizes the Phase 1→2 classification migration plan; the Phase 1 behavior already stated in Module 6 is unchanged.                                                                                                                                                                                                                                          |
 
 **Not an ADR — supplementary addition, 2026-06-25:** three Organization Published API methods
 (`getPrimaryOfficeForUser`, `getCommitteeIdsForUser`, `getDelegationGrantById`) added, and IAM
@@ -91,11 +91,11 @@ Any cross-module interaction not listed here is a violation. This document must 
 
 ## Notation
 
-|Label|Meaning|
-|---|---|
-|_(unlabelled)_|Confirmed in B1 or Consolidated Reference (Iteration 3)|
-|`[Inference]`|Architectural design logically required by Law #2 or module responsibilities; not explicitly stated in source documents. Not guaranteed behaviour.|
-|Phase N|Available starting in that phase; schema may be reserved earlier|
+| Label          | Meaning                                                                                                                                            |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _(unlabelled)_ | Confirmed in B1 or Consolidated Reference (Iteration 3)                                                                                            |
+| `[Inference]`  | Architectural design logically required by Law #2 or module responsibilities; not explicitly stated in source documents. Not guaranteed behaviour. |
+| Phase N        | Available starting in that phase; schema may be reserved earlier                                                                                   |
 
 ---
 
@@ -118,12 +118,12 @@ Any cross-module interaction not listed here is a violation. This document must 
 
 ### Synchronous vs. Asynchronous — Decision Rule `[Inference]`
 
-|Use the Published API (sync) when…|Use the Event Bus (async) when…|
-|---|---|
-|The caller needs a return value to proceed|The interaction is a side effect|
-|Consistency is required within the same logical operation|Eventual consistency is acceptable|
-|The action must complete or fail atomically with the caller's transaction|The consuming module's failure must not fail the emitting module's operation|
-|Example: ABAC check before a write; delegation resolution before step routing; document state transition driven by workflow|Example: audit logging; search indexing; notification delivery; routing history append; public portal visibility update|
+| Use the Published API (sync) when…                                                                                          | Use the Event Bus (async) when…                                                                                         |
+| --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| The caller needs a return value to proceed                                                                                  | The interaction is a side effect                                                                                        |
+| Consistency is required within the same logical operation                                                                   | Eventual consistency is acceptable                                                                                      |
+| The action must complete or fail atomically with the caller's transaction                                                   | The consuming module's failure must not fail the emitting module's operation                                            |
+| Example: ABAC check before a write; delegation resolution before step routing; document state transition driven by workflow | Example: audit logging; search indexing; notification delivery; routing history append; public portal visibility update |
 
 ### Common Event Envelope `[Inference]`
 
@@ -131,11 +131,11 @@ All events published to the in-process event bus carry this envelope. Individual
 
 ```typescript
 interface DomainEvent<TPayload = unknown> {
-  eventId: string;        // UUID v4 — unique per event instance
-  eventType: string;      // namespaced string, e.g. 'document.created'
-  occurredAt: string;     // ISO 8601 — TIMESTAMPTZ precision
-  cityId: string;         // UUID — tenant isolation; Batac City UUID in Phase 1
-  schemaVersion: number;  // starts at 1; increment on breaking payload change
+  eventId: string; // UUID v4 — unique per event instance
+  eventType: string; // namespaced string, e.g. 'document.created'
+  occurredAt: string; // ISO 8601 — TIMESTAMPTZ precision
+  cityId: string; // UUID — tenant isolation; Batac City UUID in Phase 1
+  schemaVersion: number; // starts at 1; increment on breaking payload change
   payload: TPayload;
 }
 ```
@@ -162,7 +162,6 @@ This policy applies uniformly to every module's Published API. It would need to 
 // /modules/iam/index.ts — [Inference] method signatures proposed
 
 interface IAMPublicAPI {
-
   /**
    * Evaluate an ABAC policy for a user attempting a specific action on a
    * resource. Called by every module's service layer before any
@@ -186,7 +185,7 @@ interface IAMPublicAPI {
       officeId?: string;
       documentId?: string;
       workflowStepAssigneeId?: string;
-    }
+    },
   ): Promise<boolean>;
 
   /**
@@ -211,13 +210,13 @@ interface UserSummary {
 
 ### Events Emitted
 
-|Event|Trigger|Key Payload Fields|
-|---|---|---|
-|`user.login`|Successful authentication|`userId`, `sessionId`, `ipAddress`, `userAgent`|
-|`user.logout`|User-initiated sign-out|`userId`, `sessionId`, `reason: 'user_action'`|
-|`session.terminated`|IT Admin forced logout or inactivity timeout|`sessionId`, `userId`, `terminatedBy`, `reason: 'forced' \| 'timeout'`|
-|`role.assigned`|Role granted to a user|`userId`, `roleId`, `roleName`, `assignedBy`, `officeScope?`|
-|`role.revoked`|Role removed from a user|`userId`, `roleId`, `roleName`, `revokedBy`|
+| Event                | Trigger                                      | Key Payload Fields                                                     |
+| -------------------- | -------------------------------------------- | ---------------------------------------------------------------------- |
+| `user.login`         | Successful authentication                    | `userId`, `sessionId`, `ipAddress`, `userAgent`                        |
+| `user.logout`        | User-initiated sign-out                      | `userId`, `sessionId`, `reason: 'user_action'`                         |
+| `session.terminated` | IT Admin forced logout or inactivity timeout | `sessionId`, `userId`, `terminatedBy`, `reason: 'forced' \| 'timeout'` |
+| `role.assigned`      | Role granted to a user                       | `userId`, `roleId`, `roleName`, `assignedBy`, `officeScope?`           |
+| `role.revoked`       | Role removed from a user                     | `userId`, `roleId`, `roleName`, `revokedBy`                            |
 
 All five events consumed by: **Audit**.
 
@@ -237,7 +236,6 @@ None. IAM is the identity foundation. It does not react to other modules' domain
 // /modules/organization/index.ts — [Inference] method signatures proposed
 
 interface OrganizationPublicAPI {
-
   /**
    * Resolve who currently holds a given position, accounting for any
    * active delegation at the given point in time.
@@ -250,10 +248,7 @@ interface OrganizationPublicAPI {
    * Returns null if no active assignment and no active delegation.
    * [Inference]
    */
-  resolveCurrentHolder(
-    positionId: string,
-    asOf?: Date
-  ): Promise<UserSummary | null>;
+  resolveCurrentHolder(positionId: string, asOf?: Date): Promise<UserSummary | null>;
 
   /**
    * Get the active delegation for a specific user, if any.
@@ -262,9 +257,7 @@ interface OrganizationPublicAPI {
    * Returns null if no active delegation.
    * [Inference]
    */
-  getActiveDelegationForUser(
-    userId: string
-  ): Promise<DelegationSummary | null>;
+  getActiveDelegationForUser(userId: string): Promise<DelegationSummary | null>;
 
   /**
    * Get office details by ID.
@@ -337,7 +330,7 @@ interface OrganizationPublicAPI {
 
 interface DelegationSummary {
   delegationId: string;
-  designationDocumentId: string;  // D YEAR-NN control number reference
+  designationDocumentId: string; // D YEAR-NN control number reference
   delegatingUserId: string;
   delegatedToUserId: string;
   scope: {
@@ -372,11 +365,11 @@ interface OfficeTree {
 
 ### Events Emitted
 
-|Event|Trigger|Key Payload Fields|
-|---|---|---|
-|`delegation.granted`|Secretariat logs a Designation document; `delegation_grant` record created with immediate effect|`delegationId`, `designationDocumentId`, `delegatingUserId`, `delegatedToUserId`, `scope: { officeId, positionId }`, `validFrom`, `validUntil`|
-|`delegation.expired`|pgboss job fires at `validUntil`; authority auto-returns to original holder|`delegationId`, `delegatingUserId`, `delegatedToUserId`, `expiredAt`|
-|`delegation.revoked`|Delegating authority manually revokes before end date|`delegationId`, `delegatingUserId`, `delegatedToUserId`, `revokedBy`, `revokedAt`|
+| Event                | Trigger                                                                                          | Key Payload Fields                                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `delegation.granted` | Secretariat logs a Designation document; `delegation_grant` record created with immediate effect | `delegationId`, `designationDocumentId`, `delegatingUserId`, `delegatedToUserId`, `scope: { officeId, positionId }`, `validFrom`, `validUntil` |
+| `delegation.expired` | pgboss job fires at `validUntil`; authority auto-returns to original holder                      | `delegationId`, `delegatingUserId`, `delegatedToUserId`, `expiredAt`                                                                           |
+| `delegation.revoked` | Delegating authority manually revokes before end date                                            | `delegationId`, `delegatingUserId`, `delegatedToUserId`, `revokedBy`, `revokedAt`                                                              |
 
 Consumed by: **Workflow** (all three — triggers immediate step re-routing); **Audit** (all three).
 
@@ -400,7 +393,6 @@ None. The Organization module is updated only through its own Router (admin acti
 // /modules/documents/index.ts — [Inference] method signatures proposed
 
 interface DocumentsPublicAPI {
-
   /**
    * Get a document summary by ID.
    * Called by Workflow for routing context and step precondition checks;
@@ -448,7 +440,7 @@ interface DocumentsPublicAPI {
     documentId: string,
     toState: DocumentLifecycleState,
     actorId: string,
-    reason?: string
+    reason?: string,
   ): Promise<void>;
 
   /**
@@ -465,10 +457,7 @@ interface DocumentsPublicAPI {
    * Emits `document.number_assigned` with numberType 'final' on success.
    * [Inference]
    */
-  assignFinalNumber(
-    documentId: string,
-    actorId: string
-  ): Promise<DocumentNumberResult>;
+  assignFinalNumber(documentId: string, actorId: string): Promise<DocumentNumberResult>;
 
   /**
    * Get attachment references for a document, including presigned S3 URLs
@@ -482,10 +471,7 @@ interface DocumentsPublicAPI {
    * before calling this method.
    * [Inference]
    */
-  getAttachmentRefs(
-    documentId: string,
-    actorId: string
-  ): Promise<AttachmentRef[]>;
+  getAttachmentRefs(documentId: string, actorId: string): Promise<AttachmentRef[]>;
 }
 
 type DocumentLifecycleState =
@@ -507,8 +493,8 @@ interface DocumentSummary {
   currentState: DocumentLifecycleState;
   originatingOfficeId: string;
   cityId: string;
-  preliminaryNumber: string | null;  // e.g. 'Draft 7SP 2026-02'; null before assignment
-  finalNumber: string | null;        // e.g. '7SP 2026-02'; null before final assignment
+  preliminaryNumber: string | null; // e.g. 'Draft 7SP 2026-02'; null before assignment
+  finalNumber: string | null; // e.g. '7SP 2026-02'; null before final assignment
   classificationLevel: 'Public' | 'Internal' | 'Confidential' | 'Restricted';
   createdAt: Date;
 }
@@ -516,24 +502,24 @@ interface DocumentSummary {
 interface DocumentTypeSummary {
   documentTypeId: string;
   name: string;
-  workflowTemplateId: string;          // reference to Workflow definition
-  retentionScheduleId: string | null;  // must exist before type can be activated
+  workflowTemplateId: string; // reference to Workflow definition
+  retentionScheduleId: string | null; // must exist before type can be activated
   publicVisibilityRule: string;
-  requiredStepTypes: string[];         // legally mandated minimum steps; checked by Workflow engine
+  requiredStepTypes: string[]; // legally mandated minimum steps; checked by Workflow engine
 }
 
 interface DocumentNumberResult {
-  finalNumber: string;  // e.g. '7SP 2026-01'
+  finalNumber: string; // e.g. '7SP 2026-01'
   assignedAt: Date;
 }
 
 interface AttachmentRef {
   attachmentId: string;
-  s3Key: string;          // UUID key only — never original filename
+  s3Key: string; // UUID key only — never original filename
   presignedUrl: string;
   mediaType: string;
   ocrText: string | null;
-  scanQualityScore: number | null;  // used for quality indicator display [Inference]
+  scanQualityScore: number | null; // used for quality indicator display [Inference]
   pageCount: number;
 }
 ```
@@ -542,11 +528,11 @@ interface AttachmentRef {
 
 ### Events Emitted
 
-|Event|Trigger|Key Payload Fields|
-|---|---|---|
-|`document.created`|Secretariat logs a new document; system record created|`documentId`, `documentTypeId`, `documentTypeName`, `originatingOfficeId`, `createdBy`, `cityId`|
-|`document.state_changed`|Document lifecycle state machine advances|`documentId`, `fromState`, `toState`, `actorId`, `reason?`|
-|`document.number_assigned`|Preliminary or final series number assigned|`documentId`, `numberType: 'preliminary' \| 'final'`, `numberValue`, `series`, `assignedBy`|
+| Event                      | Trigger                                                | Key Payload Fields                                                                               |
+| -------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `document.created`         | Secretariat logs a new document; system record created | `documentId`, `documentTypeId`, `documentTypeName`, `originatingOfficeId`, `createdBy`, `cityId` |
+| `document.state_changed`   | Document lifecycle state machine advances              | `documentId`, `fromState`, `toState`, `actorId`, `reason?`                                       |
+| `document.number_assigned` | Preliminary or final series number assigned            | `documentId`, `numberType: 'preliminary' \| 'final'`, `numberValue`, `series`, `assignedBy`      |
 
 `document.secretariat_decision` is **removed** as of ADR-B2-3. The Approve / Reject / Amended decision is now recorded by the Workflow module via a synchronous call to `Documents.transitionState()`, which still emits `document.state_changed` as listed above — no new event type was needed.
 
@@ -559,7 +545,6 @@ Consumers by event:
 ### Events Consumed
 
 None. Documents is an upstream source module. Its state is driven by user actions through its own Router and by synchronous calls from the Workflow module via the Published API above (including `transitionState()` calls originating from Secretariat decisions per ADR-B2-3). It does not subscribe to other modules' events.
-
 
 ---
 
@@ -583,7 +568,6 @@ None. Documents is an upstream source module. Its state is driven by user action
 // /modules/workflow/index.ts — [Inference] method signatures proposed
 
 interface WorkflowPublicAPI {
-
   /**
    * Get the current state of a workflow instance.
    * Used by Portal (Phase 3) to display legislative measure progress;
@@ -591,9 +575,7 @@ interface WorkflowPublicAPI {
    * Returns null if not found.
    * [Inference]
    */
-  getInstanceById(
-    instanceId: string
-  ): Promise<WorkflowInstanceSummary | null>;
+  getInstanceById(instanceId: string): Promise<WorkflowInstanceSummary | null>;
 
   /**
    * Get the active workflow instance for a document.
@@ -602,9 +584,7 @@ interface WorkflowPublicAPI {
    * Returns null if no active instance exists for this document.
    * [Inference]
    */
-  getActiveInstanceForDocument(
-    documentId: string
-  ): Promise<WorkflowInstanceSummary | null>;
+  getActiveInstanceForDocument(documentId: string): Promise<WorkflowInstanceSummary | null>;
 
   /**
    * Get SLA tracking data for ARTA compliance report generation.
@@ -618,16 +598,14 @@ interface WorkflowPublicAPI {
    * escalation data"
    * [Inference — method signature proposed]
    */
-  getWorkflowSLAData(
-    filter: WorkflowSLAFilter
-  ): Promise<WorkflowSLAData[]>;
+  getWorkflowSLAData(filter: WorkflowSLAFilter): Promise<WorkflowSLAData[]>;
 }
 
 interface WorkflowInstanceSummary {
   instanceId: string;
   documentId: string;
   definitionId: string;
-  definitionVersionId: string;        // pinned at creation; never changes
+  definitionVersionId: string; // pinned at creation; never changes
   currentStepType: WorkflowStepType;
   currentStepInstanceId: string;
   currentAssigneeUserId: string | null;
@@ -644,12 +622,12 @@ type WorkflowStepType =
   | 'decision'
   | 'notification'
   | 'termination'
-  | 'parallel_split'   // Phase 2; reserved in schema Phase 1
-  | 'parallel_join';   // Phase 2; reserved in schema Phase 1
+  | 'parallel_split' // Phase 2; reserved in schema Phase 1
+  | 'parallel_join'; // Phase 2; reserved in schema Phase 1
 
 type LapseStatus =
-  | 'mayor_10_day_lapsed'           // RA 7160 Section 47
-  | 'panlalawigan_30_day_deemed';   // RA 7160 Section 56(d)
+  | 'mayor_10_day_lapsed' // RA 7160 Section 47
+  | 'panlalawigan_30_day_deemed'; // RA 7160 Section 56(d)
 
 interface WorkflowSLAFilter {
   officeId?: string;
@@ -663,7 +641,7 @@ interface WorkflowSLAData {
   instanceId: string;
   documentId: string;
   documentTypeId: string;
-  slaClassification: 'simple' | 'complex' | 'highly_technical';  // per RA 11032 ARTA
+  slaClassification: 'simple' | 'complex' | 'highly_technical'; // per RA 11032 ARTA
   slaThresholdDays: number;
   elapsedWorkingDays: number;
   isBreached: boolean;
@@ -674,15 +652,15 @@ interface WorkflowSLAData {
 
 ### Events Emitted
 
-|Event|Trigger|Key Payload Fields|
-|---|---|---|
-|`workflow.step_assigned`|Step routed to an assignee; delegation resolution applied|`instanceId`, `stepInstanceId`, `stepType`, `assigneeUserId`, `documentId`, `dueAt?`|
-|`workflow.step.completed`|User or system action completes a step|`instanceId`, `stepInstanceId`, `stepType`, `completedBy`, `outcome`, `documentId`|
-|`workflow.lapsed`|Mayor 10-day or Panlalawigan 30-day timer fires with no action|`instanceId`, `lapseType`, `documentId`, `lapsedAt`, `legalBasis: 'RA7160_S47' \| 'RA7160_S56D'`|
-|`workflow.escalated`|ARTA SLA breach; supervisor and Records Officer to be notified|`instanceId`, `stepInstanceId`, `documentId`, `slaType`, `escalatedToUserIds: string[]`, `breachedAt`|
-|`workflow.certified_urgent_applied`|Secretariat logs a Certification of Urgency; `multi_referral` step bypassed on each associated measure|`certificationDocumentId`, `affectedDocumentIds: string[]`, `bypassedStepType: 'multi_referral'`, `actorId`|
-|`workflow.manually_advanced`|SP Secretary overrides a blocked `multi_referral` step|`instanceId`, `stepInstanceId`, `documentId`, `advancedBy`, `mandatoryComment`, `fromStep`, `toStep`|
-|`workflow.completed`|Workflow reaches terminal step|`instanceId`, `documentId`, `documentTypeId`, `finalOutcome`, `completedAt`|
+| Event                               | Trigger                                                                                                | Key Payload Fields                                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `workflow.step_assigned`            | Step routed to an assignee; delegation resolution applied                                              | `instanceId`, `stepInstanceId`, `stepType`, `assigneeUserId`, `documentId`, `dueAt?`                        |
+| `workflow.step.completed`           | User or system action completes a step                                                                 | `instanceId`, `stepInstanceId`, `stepType`, `completedBy`, `outcome`, `documentId`                          |
+| `workflow.lapsed`                   | Mayor 10-day or Panlalawigan 30-day timer fires with no action                                         | `instanceId`, `lapseType`, `documentId`, `lapsedAt`, `legalBasis: 'RA7160_S47' \| 'RA7160_S56D'`            |
+| `workflow.escalated`                | ARTA SLA breach; supervisor and Records Officer to be notified                                         | `instanceId`, `stepInstanceId`, `documentId`, `slaType`, `escalatedToUserIds: string[]`, `breachedAt`       |
+| `workflow.certified_urgent_applied` | Secretariat logs a Certification of Urgency; `multi_referral` step bypassed on each associated measure | `certificationDocumentId`, `affectedDocumentIds: string[]`, `bypassedStepType: 'multi_referral'`, `actorId` |
+| `workflow.manually_advanced`        | SP Secretary overrides a blocked `multi_referral` step                                                 | `instanceId`, `stepInstanceId`, `documentId`, `advancedBy`, `mandatoryComment`, `fromStep`, `toStep`        |
+| `workflow.completed`                | Workflow reaches terminal step                                                                         | `instanceId`, `documentId`, `documentTypeId`, `finalOutcome`, `completedAt`                                 |
 
 Consumers by event:
 
@@ -696,12 +674,12 @@ Consumers by event:
 
 ### Events Consumed
 
-|Event|Source|Action Taken|
-|---|---|---|
-|`document.created`|Documents|Creates a workflow instance for the document using the document type's `workflowTemplateId`. Pins the instance to the current active `definition_version_id`. Registers the instance with the ARTA SLA monitor.|
-|`delegation.granted`|Organization|Immediately re-routes any active step instances currently assigned to the original authority to the newly designated person. Takes effect without delay or additional confirmation.|
-|`delegation.expired`|Organization|Re-routes any active step instances assigned to the designated person back to the original authority.|
-|`delegation.revoked`|Organization|Same effect as `delegation.expired`; triggered by explicit early revocation rather than scheduled end date.|
+| Event                | Source       | Action Taken                                                                                                                                                                                                    |
+| -------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `document.created`   | Documents    | Creates a workflow instance for the document using the document type's `workflowTemplateId`. Pins the instance to the current active `definition_version_id`. Registers the instance with the ARTA SLA monitor. |
+| `delegation.granted` | Organization | Immediately re-routes any active step instances currently assigned to the original authority to the newly designated person. Takes effect without delay or additional confirmation.                             |
+| `delegation.expired` | Organization | Re-routes any active step instances assigned to the designated person back to the original authority.                                                                                                           |
+| `delegation.revoked` | Organization | Same effect as `delegation.expired`; triggered by explicit early revocation rather than scheduled end date.                                                                                                     |
 
 **Note `[RESOLVED — ADR-B2-3]`:** The Secretariat's Approve / Reject / Amended decision is **not** received as a consumed event. It is submitted directly to the **Workflow Router** (see Module 4's Published API context above and ADR-B2-3), which synchronously calls `Documents.transitionState()`. This row previously listed `document.secretariat_decision` as a consumed event; that event no longer exists.
 
@@ -719,7 +697,6 @@ Consumers by event:
 // /modules/tracking/index.ts — [Inference] method signatures proposed
 
 interface TrackingPublicAPI {
-
   /**
    * Get the QR tracking record for a document.
    * Used by the Documents module's Cover Sheet Generator to include
@@ -727,9 +704,7 @@ interface TrackingPublicAPI {
    * Returns null if no tracking record exists yet.
    * [Inference]
    */
-  getTrackingRecordForDocument(
-    documentId: string
-  ): Promise<TrackingRecordSummary | null>;
+  getTrackingRecordForDocument(documentId: string): Promise<TrackingRecordSummary | null>;
 
   /**
    * Get the full routing history for a document.
@@ -740,17 +715,14 @@ interface TrackingPublicAPI {
    * Caller must be authorized before calling.
    * [Inference]
    */
-  getRoutingHistory(
-    documentId: string,
-    actorId: string
-  ): Promise<RoutingEntry[]>;
+  getRoutingHistory(documentId: string, actorId: string): Promise<RoutingEntry[]>;
 }
 
 interface TrackingRecordSummary {
-  trackingId: string;           // System UUID — immutable for document lifetime
+  trackingId: string; // System UUID — immutable for document lifetime
   documentId: string;
-  trackingNumber: string;       // Human-readable label e.g. 'DTS-2026-0001' [RESOLVED — SPEC-GAP-TRACK-01, 2026-06-30]
-  qrCodeS3Key: string;          // UUID key for QR code image in object storage
+  trackingNumber: string; // Human-readable label e.g. 'DTS-2026-0001' [RESOLVED — SPEC-GAP-TRACK-01, 2026-06-30]
+  qrCodeS3Key: string; // UUID key for QR code image in object storage
   assignedAt: Date;
   physicalLocation: string | null;
 }
@@ -772,10 +744,10 @@ None. Tracking is a consumer module. It writes to its own schema in response to 
 
 ### Events Consumed
 
-|Event|Source|Action Taken|
-|---|---|---|
-|`document.created`|Documents|Generates a UUID tracking number and QR code image; creates `tracking_record` and `qr_code` entries. This occurs before the preliminary document number is assigned.|
-|`workflow.step.completed`|Workflow|Appends a `routing_entry` recording the step completion: from/to office, actor, timestamp, and action type derived from the step type and outcome.|
+| Event                     | Source    | Action Taken                                                                                                                                                         |
+| ------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `document.created`        | Documents | Generates a UUID tracking number and QR code image; creates `tracking_record` and `qr_code` entries. This occurs before the preliminary document number is assigned. |
+| `workflow.step.completed` | Workflow  | Appends a `routing_entry` recording the step completion: from/to office, actor, timestamp, and action type derived from the step type and outcome.                   |
 
 ---
 
@@ -791,7 +763,6 @@ None. Tracking is a consumer module. It writes to its own schema in response to 
 // /modules/records/index.ts — [Inference] method signatures proposed
 
 interface RecordsPublicAPI {
-
   /**
    * Get the classification level for a specific document.
    * Used by the IAM ABAC engine to evaluate classification-gated
@@ -804,7 +775,7 @@ interface RecordsPublicAPI {
    * [Inference]
    */
   getClassificationForDocument(
-    documentId: string
+    documentId: string,
   ): Promise<'Public' | 'Internal' | 'Confidential' | 'Restricted' | null>;
 
   /**
@@ -824,15 +795,13 @@ interface RecordsPublicAPI {
    * Returns null if no schedule is configured.
    * [Inference]
    */
-  getRetentionSchedule(
-    documentTypeId: string
-  ): Promise<RetentionSchedule | null>;
+  getRetentionSchedule(documentTypeId: string): Promise<RetentionSchedule | null>;
 }
 
 interface RetentionSchedule {
   scheduleId: string;
   documentTypeId: string;
-  retentionPeriod: 'Permanent' | number;  // number = years; SP Resolutions/Ordinances = 'Permanent'
+  retentionPeriod: 'Permanent' | number; // number = years; SP Resolutions/Ordinances = 'Permanent'
   legalBasis: string;
   configuredBy: string;
 }
@@ -844,9 +813,9 @@ None. Records does not publish domain events. It writes to its own schema in res
 
 ### Events Consumed
 
-|Event|Source|Action Taken|
-|---|---|---|
-|`workflow.completed`|Workflow|Creates a `record` entry and initial `archive_entry` for the completed document. Calls `Documents.getDocumentById()` to retrieve document metadata for the record. Calls `Documents.getDocumentType()` to retrieve the retention schedule linkage for the archive entry.|
+| Event                | Source   | Action Taken                                                                                                                                                                                                                                                             |
+| -------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `workflow.completed` | Workflow | Creates a `record` entry and initial `archive_entry` for the completed document. Calls `Documents.getDocumentById()` to retrieve document metadata for the record. Calls `Documents.getDocumentType()` to retrieve the retention schedule linkage for the archive entry. |
 
 ---
 
@@ -860,7 +829,6 @@ None. Records does not publish domain events. It writes to its own schema in res
 // /modules/notifications/index.ts — [Inference] method signatures proposed
 
 interface NotificationsPublicAPI {
-
   /**
    * Send a notification programmatically from outside the event bus flow.
    *
@@ -886,11 +854,11 @@ interface NotificationsPublicAPI {
 }
 
 interface NotificationInput {
-  recipientUserId?: string;       // for authenticated internal system users
-  recipientEmail?: string;        // for external recipients (e.g. complaint respondents)
-  recipientPhone?: string;        // Phase 3 — SMS gateway
+  recipientUserId?: string; // for authenticated internal system users
+  recipientEmail?: string; // for external recipients (e.g. complaint respondents)
+  recipientPhone?: string; // Phase 3 — SMS gateway
   templateId: string;
-  templateData: Record<string, string>;  // variable substitutions for the template
+  templateData: Record<string, string>; // variable substitutions for the template
   channel: 'in_app' | 'email' | 'sms';
 }
 ```
@@ -901,12 +869,12 @@ None. Notifications is a sink module for notification triggers.
 
 ### Events Consumed
 
-|Event|Source|Action Taken|
-|---|---|---|
-|`workflow.step_assigned`|Workflow|Selects the step-assignment template; delivers in-app and email notification to the step assignee.|
-|`workflow.lapsed`|Workflow|Delivers lapse notification to the SP Secretary; includes legal basis and document reference.|
-|`workflow.escalated`|Workflow|Delivers ARTA SLA breach notification to the designated supervisor and Records Officer.|
-|`document.state_changed`|Documents|Delivers status-change notification to relevant parties as configured in the template for the new state. `[Inference]`|
+| Event                    | Source    | Action Taken                                                                                                           |
+| ------------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `workflow.step_assigned` | Workflow  | Selects the step-assignment template; delivers in-app and email notification to the step assignee.                     |
+| `workflow.lapsed`        | Workflow  | Delivers lapse notification to the SP Secretary; includes legal basis and document reference.                          |
+| `workflow.escalated`     | Workflow  | Delivers ARTA SLA breach notification to the designated supervisor and Records Officer.                                |
+| `document.state_changed` | Documents | Delivers status-change notification to relevant parties as configured in the template for the new state. `[Inference]` |
 
 ---
 
@@ -922,7 +890,6 @@ None. Notifications is a sink module for notification triggers.
 // /modules/audit/index.ts — [Inference] method signatures proposed
 
 interface AuditPublicAPI {
-
   /**
    * Write an audit event synchronously.
    *
@@ -958,7 +925,7 @@ interface AuditEventInput {
   eventType: string;
   actorId: string;
   targetId?: string;
-  targetType?: string;  // e.g. 'document', 'user', 'delegation', 'disposition'
+  targetType?: string; // e.g. 'document', 'user', 'delegation', 'disposition'
   payload: Record<string, unknown>;
   cityId: string;
 }
@@ -995,26 +962,26 @@ None. Audit is a terminal sink module.
 
 The Audit module subscribes to **all** domain events from all other modules via its `auditEventConsumer`. The following are all confirmed subscriptions from B1 Appendix A plus inferences for completeness.
 
-|Event|Source|Notes|
-|---|---|---|
-|`user.login`|IAM||
-|`user.logout`|IAM||
-|`session.terminated`|IAM|Includes forced logout by IT Admin|
-|`role.assigned`|IAM||
-|`role.revoked`|IAM||
-|`delegation.granted`|Organization||
-|`delegation.expired`|Organization||
-|`delegation.revoked`|Organization||
-|`document.created`|Documents||
-|`document.state_changed`|Documents||
-|`document.number_assigned`|Documents|Both preliminary and final assignment events|
-|`workflow.step_assigned`|Workflow||
-|`workflow.step.completed`|Workflow|`[UPDATED — ADR-B2-3]` Now also carries Approve / Reject / Amended outcomes for Secretariat decisions, in its `outcome` field. `document.secretariat_decision` no longer exists as a separate event — see ADR-B2-3.|
-|`workflow.lapsed`|Workflow||
-|`workflow.escalated`|Workflow||
-|`workflow.certified_urgent_applied`|Workflow||
-|`workflow.manually_advanced`|Workflow||
-|`workflow.completed`|Workflow||
+| Event                               | Source       | Notes                                                                                                                                                                                                               |
+| ----------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `user.login`                        | IAM          |                                                                                                                                                                                                                     |
+| `user.logout`                       | IAM          |                                                                                                                                                                                                                     |
+| `session.terminated`                | IAM          | Includes forced logout by IT Admin                                                                                                                                                                                  |
+| `role.assigned`                     | IAM          |                                                                                                                                                                                                                     |
+| `role.revoked`                      | IAM          |                                                                                                                                                                                                                     |
+| `delegation.granted`                | Organization |                                                                                                                                                                                                                     |
+| `delegation.expired`                | Organization |                                                                                                                                                                                                                     |
+| `delegation.revoked`                | Organization |                                                                                                                                                                                                                     |
+| `document.created`                  | Documents    |                                                                                                                                                                                                                     |
+| `document.state_changed`            | Documents    |                                                                                                                                                                                                                     |
+| `document.number_assigned`          | Documents    | Both preliminary and final assignment events                                                                                                                                                                        |
+| `workflow.step_assigned`            | Workflow     |                                                                                                                                                                                                                     |
+| `workflow.step.completed`           | Workflow     | `[UPDATED — ADR-B2-3]` Now also carries Approve / Reject / Amended outcomes for Secretariat decisions, in its `outcome` field. `document.secretariat_decision` no longer exists as a separate event — see ADR-B2-3. |
+| `workflow.lapsed`                   | Workflow     |                                                                                                                                                                                                                     |
+| `workflow.escalated`                | Workflow     |                                                                                                                                                                                                                     |
+| `workflow.certified_urgent_applied` | Workflow     |                                                                                                                                                                                                                     |
+| `workflow.manually_advanced`        | Workflow     |                                                                                                                                                                                                                     |
+| `workflow.completed`                | Workflow     |                                                                                                                                                                                                                     |
 
 **Rule:** Any new domain event added to the bus **must** be registered with the Audit Event Consumer in the same PR that introduces the event. No event may ship without an Audit subscription. `[Inference — required by Law #2 spirit; not stated verbatim in source]`
 
@@ -1024,7 +991,7 @@ The Audit module subscribes to **all** domain events from all other modules via 
 
 **Schema:** `search_meta` **Phase:** 1 (thin pass-through implementation) + 2 (Meilisearch) `[RESOLVED — ADR-B2-5]` **Tables:** `index_metadata`, `index_jobs` (Phase 2 — see note below) **Responsibility:** Provider-agnostic search abstraction. Phase 1: thin pass-through to PostgreSQL `tsvector`/`tsquery`. Phase 2: Meilisearch (self-hosted Docker). All call sites reference the abstraction only — provider swap is a configuration and deployment change, not a code change, **including the Phase 1→2 transition**. Typo tolerance required for Filipino proper names.
 
-**Phase 1 implementation `[RESOLVED — ADR-B2-5]`:** Search Meta ships in Phase 1 with a thin pass-through `search()` implementation. The `tsvector` column itself still lives in the `documents` schema, maintained by a DB trigger — schema ownership of the column and trigger remains with Documents, unchanged from the prior design. What changes is the *call path*: internal callers (the Documents Router, and later the Portal REST Router in Phase 3) call `SearchMeta.search()` from Phase 1 onward, never querying `tsvector` directly themselves. Search Meta's Phase 1 `search()` internally executes the `tsvector`/`tsquery` SQL and returns results in the same shape Phase 2's Meilisearch-backed implementation will return.
+**Phase 1 implementation `[RESOLVED — ADR-B2-5]`:** Search Meta ships in Phase 1 with a thin pass-through `search()` implementation. The `tsvector` column itself still lives in the `documents` schema, maintained by a DB trigger — schema ownership of the column and trigger remains with Documents, unchanged from the prior design. What changes is the _call path_: internal callers (the Documents Router, and later the Portal REST Router in Phase 3) call `SearchMeta.search()` from Phase 1 onward, never querying `tsvector` directly themselves. Search Meta's Phase 1 `search()` internally executes the `tsvector`/`tsquery` SQL and returns results in the same shape Phase 2's Meilisearch-backed implementation will return.
 
 **Explicitly scoped Law #2 exception `[RESOLVED — ADR-B2-5]`:** Search Meta's Phase 1 `search()` implementation reads the `documents` schema's `tsvector` column directly — a cross-schema read that would otherwise be Prohibited Pattern P1. This is accepted as a narrow, named, and temporary exception specific to this one read path, not a general precedent. It is expected to be retired in Phase 2: once Meilisearch is introduced and the `search_meta` schema's own synced index becomes the read target, this cross-schema read is removed. The Phase 2 rollout checklist must include removing this exception as a named task. See ADR-B2-5 for full rationale, including why the alternative (relocating the same coupling into a Documents-owned search method) does not solve the underlying problem.
 
@@ -1036,7 +1003,6 @@ The Audit module subscribes to **all** domain events from all other modules via 
 // /modules/search_meta/index.ts — [Inference] method signatures proposed
 
 interface SearchMetaPublicAPI {
-
   /**
    * Execute a full-text search query via the provider abstraction.
    *
@@ -1072,8 +1038,8 @@ interface SearchResult {
   documentTypeName: string;
   finalNumber: string | null;
   currentState: DocumentLifecycleState;
-  relevanceScore?: number;       // available when Meilisearch is active (Phase 2)
-  highlightedExcerpt?: string;   // available when Meilisearch is active (Phase 2)
+  relevanceScore?: number; // available when Meilisearch is active (Phase 2)
+  highlightedExcerpt?: string; // available when Meilisearch is active (Phase 2)
 }
 ```
 
@@ -1083,10 +1049,10 @@ None.
 
 ### Events Consumed
 
-|Event|Source|Action Taken|
-|---|---|---|
-|`document.created`|Documents|Phase 1: no action — the FTS trigger in the `documents` schema maintains the `tsvector` column independently of the event bus. Phase 2: additionally enqueues initial Meilisearch indexing job via pgboss. `[Inference]`|
-|`document.state_changed`|Documents|Phase 1: no action (PostgreSQL FTS reflects current state via DB triggers on the `documents` schema). Phase 2: additionally enqueues a Meilisearch sync job via pgboss to update the document's index entry with the new state. `[Inference]`|
+| Event                    | Source    | Action Taken                                                                                                                                                                                                                                  |
+| ------------------------ | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `document.created`       | Documents | Phase 1: no action — the FTS trigger in the `documents` schema maintains the `tsvector` column independently of the event bus. Phase 2: additionally enqueues initial Meilisearch indexing job via pgboss. `[Inference]`                      |
+| `document.state_changed` | Documents | Phase 1: no action (PostgreSQL FTS reflects current state via DB triggers on the `documents` schema). Phase 2: additionally enqueues a Meilisearch sync job via pgboss to update the document's index entry with the new state. `[Inference]` |
 
 ---
 
@@ -1118,10 +1084,10 @@ None.
 
 ### Events Consumed
 
-|Event|Source|Action Taken|
-|---|---|---|
-|`workflow.completed`|Workflow|Updates `public_documents` visibility: when an approved legislative document reaches the publication step, the document becomes publicly listed with title and first-page reference.|
-|`document.state_changed`|Documents|Synchronizes relevant state changes to the `public_documents` table (e.g. a released document becoming listed; a cancelled document being delisted). `[Inference]`|
+| Event                    | Source    | Action Taken                                                                                                                                                                         |
+| ------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `workflow.completed`     | Workflow  | Updates `public_documents` visibility: when an approved legislative document reaches the publication step, the document becomes publicly listed with title and first-page reference. |
+| `document.state_changed` | Documents | Synchronizes relevant state changes to the `public_documents` table (e.g. a released document becoming listed; a cancelled document being delisted). `[Inference]`                   |
 
 ---
 
@@ -1161,26 +1127,26 @@ All domain events that travel the internal in-process event bus. Every row is co
 
 Every new event must be added to this table before implementation. Audit subscription is mandatory for every event.
 
-|Event|Emitter|Consumers|Source|
-|---|---|---|---|
-|`user.login`|IAM|Audit|B1 Appendix A|
-|`user.logout`|IAM|Audit|B1 Appendix A|
-|`session.terminated`|IAM|Audit|B1 Appendix A|
-|`role.assigned`|IAM|Audit|B1 Appendix A|
-|`role.revoked`|IAM|Audit|B1 Appendix A|
-|`delegation.granted`|Organization|Workflow, Audit|B1 Appendix A|
-|`delegation.expired`|Organization|Workflow, Audit|B1 Appendix A|
-|`delegation.revoked`|Organization|Workflow, Audit|B1 Appendix A|
-|`document.created`|Documents|Tracking, Workflow, Search Meta [Ph1 no-op; Ph2 indexing], Audit|B1 Appendix A; Search Meta row updated `[ADR-B2-5]`|
-|`document.state_changed`|Documents|Tracking, Notifications, Search Meta [Ph1 no-op; Ph2 sync], Portal [Ph3], Audit|B1 Appendix A; Search Meta row updated `[ADR-B2-5]`|
-|`document.number_assigned`|Documents|Audit|B1 Appendix A|
-|`workflow.step_assigned`|Workflow|Notifications, Audit|B1 Appendix A|
-|`workflow.step.completed`|Workflow|Tracking, Audit|B1 Appendix A — also now carries Secretariat Approve/Reject/Amended outcomes; `document.secretariat_decision` removed `[ADR-B2-3]`|
-|`workflow.lapsed`|Workflow|Notifications, Audit|B1 Appendix A|
-|`workflow.escalated`|Workflow|Notifications, Audit|B1 Appendix A|
-|`workflow.certified_urgent_applied`|Workflow|Audit|B1 Appendix A|
-|`workflow.manually_advanced`|Workflow|Audit|B1 Appendix A|
-|`workflow.completed`|Workflow|Records [Ph2], Portal [Ph3], Audit|B1 Appendix A|
+| Event                               | Emitter      | Consumers                                                                       | Source                                                                                                                             |
+| ----------------------------------- | ------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `user.login`                        | IAM          | Audit                                                                           | B1 Appendix A                                                                                                                      |
+| `user.logout`                       | IAM          | Audit                                                                           | B1 Appendix A                                                                                                                      |
+| `session.terminated`                | IAM          | Audit                                                                           | B1 Appendix A                                                                                                                      |
+| `role.assigned`                     | IAM          | Audit                                                                           | B1 Appendix A                                                                                                                      |
+| `role.revoked`                      | IAM          | Audit                                                                           | B1 Appendix A                                                                                                                      |
+| `delegation.granted`                | Organization | Workflow, Audit                                                                 | B1 Appendix A                                                                                                                      |
+| `delegation.expired`                | Organization | Workflow, Audit                                                                 | B1 Appendix A                                                                                                                      |
+| `delegation.revoked`                | Organization | Workflow, Audit                                                                 | B1 Appendix A                                                                                                                      |
+| `document.created`                  | Documents    | Tracking, Workflow, Search Meta [Ph1 no-op; Ph2 indexing], Audit                | B1 Appendix A; Search Meta row updated `[ADR-B2-5]`                                                                                |
+| `document.state_changed`            | Documents    | Tracking, Notifications, Search Meta [Ph1 no-op; Ph2 sync], Portal [Ph3], Audit | B1 Appendix A; Search Meta row updated `[ADR-B2-5]`                                                                                |
+| `document.number_assigned`          | Documents    | Audit                                                                           | B1 Appendix A                                                                                                                      |
+| `workflow.step_assigned`            | Workflow     | Notifications, Audit                                                            | B1 Appendix A                                                                                                                      |
+| `workflow.step.completed`           | Workflow     | Tracking, Audit                                                                 | B1 Appendix A — also now carries Secretariat Approve/Reject/Amended outcomes; `document.secretariat_decision` removed `[ADR-B2-3]` |
+| `workflow.lapsed`                   | Workflow     | Notifications, Audit                                                            | B1 Appendix A                                                                                                                      |
+| `workflow.escalated`                | Workflow     | Notifications, Audit                                                            | B1 Appendix A                                                                                                                      |
+| `workflow.certified_urgent_applied` | Workflow     | Audit                                                                           | B1 Appendix A                                                                                                                      |
+| `workflow.manually_advanced`        | Workflow     | Audit                                                                           | B1 Appendix A                                                                                                                      |
+| `workflow.completed`                | Workflow     | Records [Ph2], Portal [Ph3], Audit                                              | B1 Appendix A                                                                                                                      |
 
 ---
 
@@ -1188,34 +1154,34 @@ Every new event must be added to this table before implementation. Audit subscri
 
 All legal synchronous cross-module calls. Any call not in this table is a violation of Law #2.
 
-|Caller|Callee Module|Method|Trigger Context|Source|
-|---|---|---|---|---|
-|Every module (service layer)|IAM|`evaluatePolicy()`|Before any access-controlled operation|`[Inference]`|
-|Every module (service layer)|IAM|`getUserById()`|Display name resolution for routing and addressing|`[Inference]`|
-|IAM (ABAC engine)|Organization|`getOfficeHierarchy()`|Office-scoped permission policy evaluation|B1: "Hierarchy consumed by ABAC engine"|
-|IAM (ABAC engine)|Organization|`getOfficeById()`|Office context for a specific ABAC check|`[Inference]`|
-|IAM (ABAC engine)|Records|`getClassificationForDocument()`|Classification-gated access control [Phase 2]|`[Inference]`|
-|IAM (login/refresh service)|Organization|`getPrimaryOfficeForUser()`|Resolving the `oid` JWT claim and the login response's `officeScopeId`/`officeCode`|`[RESOLVED — IAM/ORG cross-module wiring resolution, 2026-06-25; see iam.md Module Summary]`|
-|IAM (login/refresh service)|Organization|`getCommitteeIdsForUser()`|Resolving the `cid` JWT claim|`[RESOLVED — IAM/ORG cross-module wiring resolution, 2026-06-25]`|
-|IAM (auth preHandler chain)|Organization|`getDelegationGrantById()`|Loading the active delegation grant referenced by the JWT's cached `dg` claim, at request time|`[RESOLVED — IAM/ORG cross-module wiring resolution, 2026-06-25; previously direct cross-schema SQL, a Law #2 violation]`|
-|Workflow (engine)|Organization|`resolveCurrentHolder()`|Routing a step to the current holder of a position|B1: "Resolves current assignee accounting for active delegations"|
-|Workflow (engine)|Organization|`getActiveDelegationForUser()`|Checking whether a user's authority is delegated|`[Inference]`|
-|Workflow (engine)|Documents|`getDocumentById()`|Retrieving document context for routing decisions|`[Inference]`|
-|Workflow (engine)|Documents|`getDocumentType()`|Retrieving workflow template reference on instance creation|`[Inference]`|
-|Workflow (engine)|Documents|`transitionState()`|Advancing document lifecycle state on step completion or lapse|`[Inference]`|
-|Workflow (engine)|Documents|`assignFinalNumber()`|Triggering final number assignment at the correct step|`[Inference]`|
-|Records (event consumer)|Documents|`getDocumentById()`|Retrieving document metadata for archive entry creation|`[Inference]`|
-|Records (event consumer)|Documents|`getDocumentType()`|Retrieving retention schedule linkage for archive entry|`[Inference]`|
-|Records (disposition service)|Audit|`writeEvent()`|Synchronous audit entry per disposition action|B1: "dispositionSvc → auditMod: Disposition audit records"|
-|Records (bulk op handler)|Audit|`writeEvent()`|Synchronous audit entry per individual item in a bulk operation|B1: "bulkOpHandler → auditMod: Individual audit log entry per bulk item"|
-|Documents (type registry)|Records|`getRetentionSchedule()`|Validating retention schedule exists before type activation|`[Inference]`|
-|Documents (state service)|Records|`isUnderLegalHold()`|Validating no legal hold before state transition to 'Disposed'|`[Inference]`|
-|Documents (cover sheet generator)|Tracking|`getTrackingRecordForDocument()`|Including QR code and tracking number on the printed cover sheet|`[Inference]`|
-|Documents Router|Tracking|`getRoutingHistory()`|Authenticated internal routing history view|`[Inference]`|
-|Tracking (public scan handler)|Documents|`getDocumentById()`|Get document type and remarks for public QR scan result display|`[RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30; TASK-TRACK-008]`|
-|Tracking (tRPC printQrCoverSheet)|Documents|`getDocumentById()`|Get preliminary_number for cover sheet Series Number field|`[RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30; TASK-TRACK-007]`|
-|Reporting (ARTA reporter)|Workflow|`getWorkflowSLAData()`|ARTA compliance report generation|B1: "artaReporter → wfMod: Reads SLA tracking and escalation data"|
-|Portal (respondent notice service)|Notifications|`sendNotification()`|Formal written notice to complaint respondent|`[RESOLVED — ADR-B2-4]`; supersedes B1's direct-SMTP component diagram|
+| Caller                             | Callee Module | Method                           | Trigger Context                                                                                | Source                                                                                                                    |
+| ---------------------------------- | ------------- | -------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Every module (service layer)       | IAM           | `evaluatePolicy()`               | Before any access-controlled operation                                                         | `[Inference]`                                                                                                             |
+| Every module (service layer)       | IAM           | `getUserById()`                  | Display name resolution for routing and addressing                                             | `[Inference]`                                                                                                             |
+| IAM (ABAC engine)                  | Organization  | `getOfficeHierarchy()`           | Office-scoped permission policy evaluation                                                     | B1: "Hierarchy consumed by ABAC engine"                                                                                   |
+| IAM (ABAC engine)                  | Organization  | `getOfficeById()`                | Office context for a specific ABAC check                                                       | `[Inference]`                                                                                                             |
+| IAM (ABAC engine)                  | Records       | `getClassificationForDocument()` | Classification-gated access control [Phase 2]                                                  | `[Inference]`                                                                                                             |
+| IAM (login/refresh service)        | Organization  | `getPrimaryOfficeForUser()`      | Resolving the `oid` JWT claim and the login response's `officeScopeId`/`officeCode`            | `[RESOLVED — IAM/ORG cross-module wiring resolution, 2026-06-25; see iam.md Module Summary]`                              |
+| IAM (login/refresh service)        | Organization  | `getCommitteeIdsForUser()`       | Resolving the `cid` JWT claim                                                                  | `[RESOLVED — IAM/ORG cross-module wiring resolution, 2026-06-25]`                                                         |
+| IAM (auth preHandler chain)        | Organization  | `getDelegationGrantById()`       | Loading the active delegation grant referenced by the JWT's cached `dg` claim, at request time | `[RESOLVED — IAM/ORG cross-module wiring resolution, 2026-06-25; previously direct cross-schema SQL, a Law #2 violation]` |
+| Workflow (engine)                  | Organization  | `resolveCurrentHolder()`         | Routing a step to the current holder of a position                                             | B1: "Resolves current assignee accounting for active delegations"                                                         |
+| Workflow (engine)                  | Organization  | `getActiveDelegationForUser()`   | Checking whether a user's authority is delegated                                               | `[Inference]`                                                                                                             |
+| Workflow (engine)                  | Documents     | `getDocumentById()`              | Retrieving document context for routing decisions                                              | `[Inference]`                                                                                                             |
+| Workflow (engine)                  | Documents     | `getDocumentType()`              | Retrieving workflow template reference on instance creation                                    | `[Inference]`                                                                                                             |
+| Workflow (engine)                  | Documents     | `transitionState()`              | Advancing document lifecycle state on step completion or lapse                                 | `[Inference]`                                                                                                             |
+| Workflow (engine)                  | Documents     | `assignFinalNumber()`            | Triggering final number assignment at the correct step                                         | `[Inference]`                                                                                                             |
+| Records (event consumer)           | Documents     | `getDocumentById()`              | Retrieving document metadata for archive entry creation                                        | `[Inference]`                                                                                                             |
+| Records (event consumer)           | Documents     | `getDocumentType()`              | Retrieving retention schedule linkage for archive entry                                        | `[Inference]`                                                                                                             |
+| Records (disposition service)      | Audit         | `writeEvent()`                   | Synchronous audit entry per disposition action                                                 | B1: "dispositionSvc → auditMod: Disposition audit records"                                                                |
+| Records (bulk op handler)          | Audit         | `writeEvent()`                   | Synchronous audit entry per individual item in a bulk operation                                | B1: "bulkOpHandler → auditMod: Individual audit log entry per bulk item"                                                  |
+| Documents (type registry)          | Records       | `getRetentionSchedule()`         | Validating retention schedule exists before type activation                                    | `[Inference]`                                                                                                             |
+| Documents (state service)          | Records       | `isUnderLegalHold()`             | Validating no legal hold before state transition to 'Disposed'                                 | `[Inference]`                                                                                                             |
+| Documents (cover sheet generator)  | Tracking      | `getTrackingRecordForDocument()` | Including QR code and tracking number on the printed cover sheet                               | `[Inference]`                                                                                                             |
+| Documents Router                   | Tracking      | `getRoutingHistory()`            | Authenticated internal routing history view                                                    | `[Inference]`                                                                                                             |
+| Tracking (public scan handler)     | Documents     | `getDocumentById()`              | Get document type and remarks for public QR scan result display                                | `[RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30; TASK-TRACK-008]`                                                              |
+| Tracking (tRPC printQrCoverSheet)  | Documents     | `getDocumentById()`              | Get preliminary_number for cover sheet Series Number field                                     | `[RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30; TASK-TRACK-007]`                                                              |
+| Reporting (ARTA reporter)          | Workflow      | `getWorkflowSLAData()`           | ARTA compliance report generation                                                              | B1: "artaReporter → wfMod: Reads SLA tracking and escalation data"                                                        |
+| Portal (respondent notice service) | Notifications | `sendNotification()`             | Formal written notice to complaint respondent                                                  | `[RESOLVED — ADR-B2-4]`; supersedes B1's direct-SMTP component diagram                                                    |
 
 ---
 
@@ -1318,7 +1284,7 @@ The following are violations of Law #2. The automated coupling test suite and mi
 
 **P1 — Direct cross-schema SQL query** Any Drizzle query in module A that references a table in module B's PostgreSQL schema. Example violation: the `workflow` module querying `documents.document_types` directly. Permitted form: call `Documents.getDocumentType()` from the Published API.
 
-**Explicit, named exception to P1 `[RESOLVED — ADR-B2-5]`:** Search Meta's Phase 1 `search()` implementation reads the `documents` schema's `tsvector` column directly. This is the **only** sanctioned exception to P1 in this document. It does not extend to any other module or any other column. It is scoped to be retired at the Phase 2 cutover, when Search Meta's own `search_meta` schema (synced from Documents via the event bus) becomes the read target instead. The automated coupling test suite must be configured with a single, named allowlist entry for this one read path — not a general carve-out for the Search Meta module — so that any *other* cross-schema read Search Meta might attempt is still caught as a P1 violation.
+**Explicit, named exception to P1 `[RESOLVED — ADR-B2-5]`:** Search Meta's Phase 1 `search()` implementation reads the `documents` schema's `tsvector` column directly. This is the **only** sanctioned exception to P1 in this document. It does not extend to any other module or any other column. It is scoped to be retired at the Phase 2 cutover, when Search Meta's own `search_meta` schema (synced from Documents via the event bus) becomes the read target instead. The automated coupling test suite must be configured with a single, named allowlist entry for this one read path — not a general carve-out for the Search Meta module — so that any _other_ cross-schema read Search Meta might attempt is still caught as a P1 violation.
 
 **P2 — Cross-module internal import** Any import of `modules/B/src/...` in `modules/A/src/...` (where B ≠ A), where the import path goes below the barrel file. Only imports from `modules/B/index.ts` are permitted. Example violation: `import { DocumentRepository } from '../documents/src/repository'`.
 
@@ -1338,15 +1304,15 @@ The following are violations of Law #2. The automated coupling test suite and mi
 
 The following architectural decision points were identified in Version 1.0 of this document as requiring a dedicated ADR before the affected feature could be implemented. All seven have now been resolved. The original "Decision Required" text is preserved below for historical traceability — per this team's practice of flagging gaps explicitly rather than silently removing them once resolved. Each row's "Resolution" column summarizes the outcome; the standalone ADR file is the authoritative record.
 
-| #        | Topic                                    | Decision Required (original, Version 1.0)                                                                                                                                                                                                                                                                                | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | ADR File                                                                                          |
-| -------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| ADR-B2-1 | Event Bus Implementation                 | In-process synchronous pub/sub mechanism: typed EventEmitter wrapper, or a minimal typed bus library. Define typed event registration, subscriber isolation, error handling (subscriber throws must not fail the emitter), and dead-letter strategy.                                                                     | **Typed wrapper around Node's built-in `EventEmitter`.** No third-party bus library. Subscriber failures are caught individually, logged, and routed to a dead-letter table with retry; the emitting module's call always resolves regardless of subscriber outcome. Decided by development team (delegated technical decision).                                                                                                                                                                                 | `[ADR-API-001-event-bus-implementation.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-001-event-bus-implementation.md)`         |
-| ADR-B2-2 | Audit Log Design                         | Hash chain algorithm details, HMAC key storage and rotation, tamper-evident vs. tamper-proof boundary statement, TSA provider selection and export schedule. The "tamper-evident, not tamper-proof" claim must be stated verbatim in the ADR.                                                                            | SHA-256 chain via Node `crypto` only; HMAC-SHA-256 with key in environment variable, annual rotation via documented runbook with `hmacKeyVersion` tracking; verbatim tamper-evident/tamper-proof boundary stated; TSA provider selection criteria fixed (RFC 3161-compliant, no raw data transmitted, independently verifiable), vendor selection itself remains an open follow-up not blocking Phase 1. Decided by development team (ratifying detail already specified in source documents).                   | `[ADR-API-002-audit-log-design.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-002-audit-log-design.md)`                 |
+| #        | Topic                                    | Decision Required (original, Version 1.0)                                                                                                                                                                                                                                                                                | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | ADR File                                                                                                                                                |
+| -------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ADR-B2-1 | Event Bus Implementation                 | In-process synchronous pub/sub mechanism: typed EventEmitter wrapper, or a minimal typed bus library. Define typed event registration, subscriber isolation, error handling (subscriber throws must not fail the emitter), and dead-letter strategy.                                                                     | **Typed wrapper around Node's built-in `EventEmitter`.** No third-party bus library. Subscriber failures are caught individually, logged, and routed to a dead-letter table with retry; the emitting module's call always resolves regardless of subscriber outcome. Decided by development team (delegated technical decision).                                                                                                                                                                                 | `[ADR-API-001-event-bus-implementation.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-001-event-bus-implementation.md)`                 |
+| ADR-B2-2 | Audit Log Design                         | Hash chain algorithm details, HMAC key storage and rotation, tamper-evident vs. tamper-proof boundary statement, TSA provider selection and export schedule. The "tamper-evident, not tamper-proof" claim must be stated verbatim in the ADR.                                                                            | SHA-256 chain via Node `crypto` only; HMAC-SHA-256 with key in environment variable, annual rotation via documented runbook with `hmacKeyVersion` tracking; verbatim tamper-evident/tamper-proof boundary stated; TSA provider selection criteria fixed (RFC 3161-compliant, no raw data transmitted, independently verifiable), vendor selection itself remains an open follow-up not blocking Phase 1. Decided by development team (ratifying detail already specified in source documents).                   | `[ADR-API-002-audit-log-design.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-002-audit-log-design.md)`                                 |
 | ADR-B2-3 | Secretariat Decision Entry Point         | Confirm whether "Approve / Reject / Amended" enters through the Document Router (emitting `document.secretariat_decision` consumed by Workflow — this document's current design) or through the Workflow Router (calling Documents API directly). Must be resolved before either module's router is implemented.         | **Workflow Router.** The decision enters through Workflow, which synchronously calls `Documents.transitionState()` as part of the same operation — matching this document's own stated sync/async decision rule for atomicity-sensitive actions. `document.secretariat_decision` is removed; `workflow.step.completed` now carries the outcome. Decided by Luke (stakeholder/architect decision).                                                                                                                | `[ADR-API-003-secretariat-decision-entry-point.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-003-secretariat-decision-entry-point.md)` |
-| ADR-B2-4 | Respondent Notice Channel                | Confirm whether Portal's Respondent Notice Service calls SMTP directly (as shown in B1's component diagram) or routes through `Notifications.sendNotification()` (as proposed in this document for unified delivery logging). B1 shows a direct SMTP call; this document proposes routing through Notifications.         | **Routes through `Notifications.sendNotification()`.** This document's original proposal is confirmed; B1's direct-SMTP component diagram is superseded. Every notification delivery attempt in the system, including respondent notices, now lands in one `delivery_log`. Decided by Luke (stakeholder/architect decision).                                                                                                                                                                                     | `[ADR-API-004-respondent-notice-channel.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-004-respondent-notice-channel.md)`        |
-| ADR-B2-5 | Phase 1 FTS Column Ownership             | Confirm whether the `tsvector` FTS column lives in the `documents` schema (maintained by DB trigger, no Search Meta involvement in Phase 1) or requires a Phase 1 Search Meta coordination layer. Affects whether Search Meta module needs any Phase 1 implementation at all.                                            | **Thin Phase 1 Search Meta pass-through layer.** The `tsvector` column remains in the `documents` schema as originally stated, but Search Meta ships a thin Phase 1 `search()` implementation so call sites never change across the Phase 1→2 boundary. One explicitly named, scoped exception to Law #2 (Prohibited Pattern P1) is introduced for this read path and is retired at Phase 2 cutover. Decided by Luke (stakeholder/architect decision — chose migration cleanliness over minimal Phase 1 effort). | `[ADR-API-005-phase1-fts-column-ownership.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-005-phase1-fts-column-ownership.md)`      |
-| ADR-B2-6 | Published API Versioning and Deprecation | Define how breaking changes to a Published API method are handled before the first inter-module API is deployed to production. Specifically: how is an old method signature deprecated, and how long must it coexist with the new signature.                                                                             | **Break in the same PR; no versioned coexistence.** No `V2`-suffixed methods, no deprecation window. The compiler and coupling test suite catch every affected caller atomically in the same PR that introduces the breaking change, reflecting this team's single-process, single-deployment reality. Revisit only if a module is ever extracted to an independently deployable service. Decided by Luke (stakeholder/architect decision).                                                                      | `[ADR-API-006-published-api-versioning.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-006-published-api-versioning.md)`         |
-| ADR-B2-7 | Phase 1 Classification Source            | Confirm that in Phase 1 (before the Records module is active), the IAM ABAC engine reads `classificationLevel` from `Documents.getDocumentById()`. Confirm this field transitions to `Records.getClassificationForDocument()` as the canonical source in Phase 2. Requires a deliberate migration plan at Phase 2 start. | **Confirmed as stated**, plus a deliberate Phase 2 migration plan: one-time scripted copy of `classificationLevel` into Records' schema at Phase 2 deployment, a 100%-match reconciliation gate before cutover is considered complete, and the Documents-schema copy frozen (not removed) as a historical snapshot rather than kept live post-cutover. Decided by development team (ratifying detail already specified in source documents; formalizing the migration plan).                                     | `[ADR-API-007-phase1-classification-source.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-007-phase1-classification-source.md)`     |
+| ADR-B2-4 | Respondent Notice Channel                | Confirm whether Portal's Respondent Notice Service calls SMTP directly (as shown in B1's component diagram) or routes through `Notifications.sendNotification()` (as proposed in this document for unified delivery logging). B1 shows a direct SMTP call; this document proposes routing through Notifications.         | **Routes through `Notifications.sendNotification()`.** This document's original proposal is confirmed; B1's direct-SMTP component diagram is superseded. Every notification delivery attempt in the system, including respondent notices, now lands in one `delivery_log`. Decided by Luke (stakeholder/architect decision).                                                                                                                                                                                     | `[ADR-API-004-respondent-notice-channel.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-004-respondent-notice-channel.md)`               |
+| ADR-B2-5 | Phase 1 FTS Column Ownership             | Confirm whether the `tsvector` FTS column lives in the `documents` schema (maintained by DB trigger, no Search Meta involvement in Phase 1) or requires a Phase 1 Search Meta coordination layer. Affects whether Search Meta module needs any Phase 1 implementation at all.                                            | **Thin Phase 1 Search Meta pass-through layer.** The `tsvector` column remains in the `documents` schema as originally stated, but Search Meta ships a thin Phase 1 `search()` implementation so call sites never change across the Phase 1→2 boundary. One explicitly named, scoped exception to Law #2 (Prohibited Pattern P1) is introduced for this read path and is retired at Phase 2 cutover. Decided by Luke (stakeholder/architect decision — chose migration cleanliness over minimal Phase 1 effort). | `[ADR-API-005-phase1-fts-column-ownership.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-005-phase1-fts-column-ownership.md)`           |
+| ADR-B2-6 | Published API Versioning and Deprecation | Define how breaking changes to a Published API method are handled before the first inter-module API is deployed to production. Specifically: how is an old method signature deprecated, and how long must it coexist with the new signature.                                                                             | **Break in the same PR; no versioned coexistence.** No `V2`-suffixed methods, no deprecation window. The compiler and coupling test suite catch every affected caller atomically in the same PR that introduces the breaking change, reflecting this team's single-process, single-deployment reality. Revisit only if a module is ever extracted to an independently deployable service. Decided by Luke (stakeholder/architect decision).                                                                      | `[ADR-API-006-published-api-versioning.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-006-published-api-versioning.md)`                 |
+| ADR-B2-7 | Phase 1 Classification Source            | Confirm that in Phase 1 (before the Records module is active), the IAM ABAC engine reads `classificationLevel` from `Documents.getDocumentById()`. Confirm this field transitions to `Records.getClassificationForDocument()` as the canonical source in Phase 2. Requires a deliberate migration plan at Phase 2 start. | **Confirmed as stated**, plus a deliberate Phase 2 migration plan: one-time scripted copy of `classificationLevel` into Records' schema at Phase 2 deployment, a 100%-match reconciliation gate before cutover is considered complete, and the Documents-schema copy frozen (not removed) as a historical snapshot rather than kept live post-cutover. Decided by development team (ratifying detail already specified in source documents; formalizing the migration plan).                                     | `[ADR-API-007-phase1-classification-source.md](b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-007-phase1-classification-source.md)`         |
 
 ---
 

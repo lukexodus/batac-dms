@@ -1,6 +1,5 @@
 # ADR-GEN-001: Modular Monolith over Microservices
 
-
 **Status:** Accepted **Date:** June 2026 **Deciders:** Development team
 
 ---

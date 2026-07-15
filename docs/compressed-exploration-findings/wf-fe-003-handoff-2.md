@@ -32,6 +32,7 @@
 ## Documentation Convention: Task Prompt Authoring
 
 Two valid conventions exist in this repo, and the one to use depends on which module/file is being extended:
+
 - **fe.md convention (frontend tasks)**: prose-block style with "CONTEXT — READ THIS FIRST" fenced sections, "GOOD NEWS"/"VERIFIED GAP" framing, `[Inference]` labels.
 - **wf.md convention (backend tasks)**: `Deliverables:` / `Acceptance Criteria:` (checkbox-style) / `AI Prompt:` structured format.
 - **Rule**: match the convention of the specific file being appended to, not a different module's file, even if that other file's convention is otherwise well-established. A new frontend task appended to fe.md should follow fe.md's own convention, matching its two existing predecessor tasks, not wf.md's.
@@ -39,10 +40,12 @@ Two valid conventions exist in this repo, and the one to use depends on which mo
 ## Findings Log Entries
 
 ### LOG-0078 (secretariat_decision inference entry)
+
 - Documents the FE-002 implementing agent's decision to use `config.assignee` as "the most stable proxy" for detecting `secretariat_decision`-type steps.
 - Does **not** mention the consolidated reference or D3 — confirming the cross-reference instruction in fe.md was skipped.
 
 ### LOG-0079 (documentation correction entry)
+
 - Dated the same day as this analysis; titled a "correction."
 - **Problem**: despite being tagged `status: proposed` (correctly), its body **asserts ADR-B2-3 (ADR-API-003) as settled fact** — stating the old procedure "was superseded by ADR-B2-3... routes through the Workflow Router's step-completion mechanism" — and describes an edit to F1 already made in that framing.
 - This is flagged as the exact anti-pattern `AGENTS.md` §4.5 prohibits: treating one same-tier pre-dev document (an ADR) as dispositive over another same-tier document (F1) and over the actual shipped code, without a human confirming the ADR should win. The `proposed` status tag is correct, but the body's confident framing pre-empts that human decision.
@@ -116,15 +119,15 @@ Two valid conventions exist in this repo, and the one to use depends on which mo
 
 ## Discrepancies Found and Their Resolutions
 
-| # | Claim | Resolution |
-|---|---|---|
-| 1 | "wf.md's TASK-WF-006 through TASK-WF-009 are done" seems inconsistent with wf.md going up to TASK-WF-025 | **Not a real discrepancy.** The claim is a correctly scoped statement about the step-handler layer specifically (WF-006–009), not about all of wf.md's 25 tasks. |
-| 2 | A prior document claims "no standalone ADR-B2-3 document exists," but later in the same document quotes that exact file | **Resolved**: the file exists at `ADR-API-003-secretariat-decision-entry-point.md`. It is real, decided directly by the project owner, and B2 v1.1 fully and consistently reflects it. |
-| 3 | Event name written as `workflow.step_completed` (underscore) in ADR-API-003/B2/E1 prose | **Resolved**: Corrected all documentation occurrences to use the literal dotted string `workflow.step.completed` to match the shipped code. |
-| 4 | "Zero test files exist for any of this frontend work" | **True for workflow specifically**, but one frontend unit test (`status-mapping.test.ts`, Vitest) exists elsewhere in `apps/web`. Vitest is installed but has no `"test"` script wired into `package.json`. No Playwright dependency exists anywhere. |
-| 5 | `submitStepAction`'s outcome handling was assumed to be a simple pass-through | **New finding**: hardcodes `'DONE'` in three places; not a drop-in reuse. Requires either a signature change to the shared primitive (with regression risk to two existing callers) or a new adjacent handler. |
-| 6 | A prior document's "Resolution" section declared "no further input from Luke is needed to proceed" and treated ADR-API-003 as dispositive over the shipped code | **Process objection, not a factual one.** Per `AGENTS.md`'s three-tier hierarchy and §4.5, ADR-API-003 is a same-tier pre-dev document, not the consolidated reference — it does not automatically outrank shipped code or another same-tier document. An agent does not have the authority to declare this settled; that decision is reserved for a human. |
-| 7 | LOG-0079 is tagged a "correction" | The `status: proposed` tag is correct, but the body's language asserts the ADR as settled fact and describes an F1 edit already made in that framing — this is the exact "just fix it because I'm confident" pattern `AGENTS.md` §4.5 warns against, even with the correct status tag. |
+| #   | Claim                                                                                                                                                           | Resolution                                                                                                                                                                                                                                                                                                                                                  |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | "wf.md's TASK-WF-006 through TASK-WF-009 are done" seems inconsistent with wf.md going up to TASK-WF-025                                                        | **Not a real discrepancy.** The claim is a correctly scoped statement about the step-handler layer specifically (WF-006–009), not about all of wf.md's 25 tasks.                                                                                                                                                                                            |
+| 2   | A prior document claims "no standalone ADR-B2-3 document exists," but later in the same document quotes that exact file                                         | **Resolved**: the file exists at `ADR-API-003-secretariat-decision-entry-point.md`. It is real, decided directly by the project owner, and B2 v1.1 fully and consistently reflects it.                                                                                                                                                                      |
+| 3   | Event name written as `workflow.step_completed` (underscore) in ADR-API-003/B2/E1 prose                                                                         | **Resolved**: Corrected all documentation occurrences to use the literal dotted string `workflow.step.completed` to match the shipped code.                                                                                                                                                                                                                 |
+| 4   | "Zero test files exist for any of this frontend work"                                                                                                           | **True for workflow specifically**, but one frontend unit test (`status-mapping.test.ts`, Vitest) exists elsewhere in `apps/web`. Vitest is installed but has no `"test"` script wired into `package.json`. No Playwright dependency exists anywhere.                                                                                                       |
+| 5   | `submitStepAction`'s outcome handling was assumed to be a simple pass-through                                                                                   | **New finding**: hardcodes `'DONE'` in three places; not a drop-in reuse. Requires either a signature change to the shared primitive (with regression risk to two existing callers) or a new adjacent handler.                                                                                                                                              |
+| 6   | A prior document's "Resolution" section declared "no further input from Luke is needed to proceed" and treated ADR-API-003 as dispositive over the shipped code | **Process objection, not a factual one.** Per `AGENTS.md`'s three-tier hierarchy and §4.5, ADR-API-003 is a same-tier pre-dev document, not the consolidated reference — it does not automatically outrank shipped code or another same-tier document. An agent does not have the authority to declare this settled; that decision is reserved for a human. |
+| 7   | LOG-0079 is tagged a "correction"                                                                                                                               | The `status: proposed` tag is correct, but the body's language asserts the ADR as settled fact and describes an F1 edit already made in that framing — this is the exact "just fix it because I'm confident" pattern `AGENTS.md` §4.5 warns against, even with the correct status tag.                                                                      |
 
 ## Recommended Next Task: TASK-WF-FE-003 Scope
 
@@ -136,6 +139,7 @@ Two live, well-evidenced, non-domain-ambiguous gaps were identified as candidate
 **Recommendation: (A) should be TASK-WF-FE-003, not (B).**
 
 Rationale:
+
 - (A) is the only item in this analysis with an **actual defect in production behavior right now** — false-success toasts fire on every Secretariat decision, because the mutation path being called is structurally unreachable/a no-op for the relevant step type, yet the UI presumably reports success.
 - (A) has an **existing architectural answer already decided and documented** (ADR-API-003) sitting unused in the code.
 - Bundling a test-coverage task with a routing rewrite is worse than sequencing them, since it would mean writing tests against a mutation path that is about to be deleted/replaced.

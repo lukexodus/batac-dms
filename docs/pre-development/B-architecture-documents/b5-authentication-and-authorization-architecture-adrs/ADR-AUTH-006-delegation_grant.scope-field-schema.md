@@ -1,6 +1,5 @@
 # ADR-AUTH-006: delegation_grant.scope` Field Schema
 
-
 **Status:** Accepted
 
 **Context**

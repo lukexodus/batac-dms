@@ -134,10 +134,7 @@ function getS3Client(): S3Client {
  */
 function hasAnyRole(ctx: Context, roleSet: Set<string>): boolean {
   const auth = ctx.auth!;
-  return (
-    auth.effectiveRoles.some((r) => roleSet.has(r)) ||
-    auth.roles.some((r) => roleSet.has(r))
-  );
+  return auth.effectiveRoles.some((r) => roleSet.has(r)) || auth.roles.some((r) => roleSet.has(r));
 }
 
 /**
@@ -242,13 +239,18 @@ export function createTrackingRouter() {
         const classificationLevel: string = docRow?.classificationLevel ?? doc.classificationLevel;
 
         if (!canReadTrackingRecord(ctx, officeId, classificationLevel)) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'You are not authorised to view this tracking record.' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You are not authorised to view this tracking record.',
+          });
         }
-
 
         const record = await trackingService.getTrackingRecordForDocument(input.documentId);
         if (!record) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No tracking record found for this document.' });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'No tracking record found for this document.',
+          });
         }
 
         return {
@@ -271,7 +273,7 @@ export function createTrackingRouter() {
         z.object({
           documentIds: z.array(z.string().uuid()).min(1),
           layout: z.enum(['single', 'multi_per_page']).default('multi_per_page'),
-        })
+        }),
       )
       .output(z.object({ pdfPresignedUrl: z.string().url() }))
       .query(async ({ ctx, input }) => {
@@ -281,7 +283,10 @@ export function createTrackingRouter() {
         const isSpSecretary =
           auth.roles.includes('sp_secretary') || auth.effectiveRoles.includes('sp_secretary');
         if (!isSpSecretary) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only the SP Secretary may print QR cover sheets.' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Only the SP Secretary may print QR cover sheets.',
+          });
         }
 
         // Resolve SP Secretariat office
@@ -299,7 +304,10 @@ export function createTrackingRouter() {
         for (const documentId of input.documentIds) {
           const docRow = docsRepo ? await docsRepo.findById(documentId) : null;
           if (!docRow) {
-            throw new TRPCError({ code: 'NOT_FOUND', message: `Document ${documentId} not found.` });
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message: `Document ${documentId} not found.`,
+            });
           }
           const docOfficeId = docRow.originatingOfficeId ?? docRow.ownedByOfficeId;
           if (docOfficeId !== spOffice.officeId) {
@@ -314,7 +322,7 @@ export function createTrackingRouter() {
         const pdfBuffer = await qrCodeService.generateCoverSheetPdf(
           input.documentIds,
           input.layout,
-          docsRepo ?? undefined
+          docsRepo ?? undefined,
         );
 
         // Upload PDF to S3 and return a presigned URL
@@ -328,14 +336,14 @@ export function createTrackingRouter() {
             Key: pdfKey,
             Body: pdfBuffer,
             ContentType: 'application/pdf',
-          })
+          }),
         );
 
         const expirySeconds = parseInt(String(env.S3_SIGNED_URL_EXPIRES_S ?? 3600), 10);
         const pdfPresignedUrl = await getSignedUrl(
           s3Client,
           new GetObjectCommand({ Bucket: s3Bucket, Key: pdfKey }),
-          { expiresIn: expirySeconds }
+          { expiresIn: expirySeconds },
         );
 
         return { pdfPresignedUrl };
@@ -360,7 +368,10 @@ export function createTrackingRouter() {
         const classificationLevel: string = docRow.classificationLevel ?? 'internal';
 
         if (!canReadTrackingRecord(ctx, officeId, classificationLevel)) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'You are not authorised to view this routing history.' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You are not authorised to view this routing history.',
+          });
         }
 
         const trackingService = getTrackingService(ctx);
@@ -378,7 +389,7 @@ export function createTrackingRouter() {
             actorDisplayName: await resolveActorDisplayName(ctx, entry.actorId),
             actionDescription: entry.actionDescription,
             timestamp: entry.timestamp,
-          }))
+          })),
         );
 
         return resolved;
@@ -395,7 +406,7 @@ export function createTrackingRouter() {
           documentId: z.string().uuid(),
           toOfficeId: z.string().uuid().nullable(),
           actionDescription: z.string().min(1),
-        })
+        }),
       )
       .output(z.object({ entryId: z.string().uuid() }))
       .mutation(async ({ ctx, input }) => {
@@ -405,7 +416,10 @@ export function createTrackingRouter() {
         const isSpSecretary =
           auth.roles.includes('sp_secretary') || auth.effectiveRoles.includes('sp_secretary');
         if (!isSpSecretary) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only the SP Secretary may log physical routing entries.' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Only the SP Secretary may log physical routing entries.',
+          });
         }
 
         // Resolve SP Secretariat office for ownership check
@@ -428,13 +442,16 @@ export function createTrackingRouter() {
         if (docOfficeId !== spOffice.officeId) {
           throw new TRPCError({
             code: 'FORBIDDEN',
-            message: 'Physical routing entries can only be logged for SP Secretariat documents in Phase 1.',
+            message:
+              'Physical routing entries can only be logged for SP Secretariat documents in Phase 1.',
           });
         }
 
         // Get current custodian office from the tracking record row (raw)
         const trackingRepo = getTrackingRepository(ctx);
-        const trackingRecordRow = await trackingRepo.findTrackingRecordRowByDocumentId(input.documentId);
+        const trackingRecordRow = await trackingRepo.findTrackingRecordRowByDocumentId(
+          input.documentId,
+        );
         if (!trackingRecordRow) {
           throw new TRPCError({
             code: 'NOT_FOUND',
@@ -456,7 +473,7 @@ export function createTrackingRouter() {
           await trackingRepo.updateTrackingRecordCustodian(
             trackingRecordRow.id,
             input.toOfficeId,
-            new Date()
+            new Date(),
           );
         }
 
@@ -479,11 +496,11 @@ export function createTrackingRouter() {
               actionDescription: z.string(),
               actorDisplayName: z.string(),
               timestamp: z.coerce.date(),
-            })
+            }),
           ),
           firstPageImageUrl: z.string().url(),
           getCopyAvailable: z.literal(true),
-        })
+        }),
       )
       .query(async ({ ctx, input }) => {
         const auth = ctx.auth!;
@@ -493,7 +510,10 @@ export function createTrackingRouter() {
           auth.roles.some((r) => AUTHENTICATED_SCAN_ROLES.has(r)) ||
           auth.effectiveRoles.some((r) => AUTHENTICATED_SCAN_ROLES.has(r));
         if (!hasPermission) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Your role is not permitted to perform an authenticated QR scan.' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Your role is not permitted to perform an authenticated QR scan.',
+          });
         }
 
         const trackingRepo = getTrackingRepository(ctx);
@@ -517,7 +537,7 @@ export function createTrackingRouter() {
             actionDescription: entry.actionDescription,
             actorDisplayName: await resolveActorDisplayName(ctx, entry.actorId),
             timestamp: entry.timestamp,
-          }))
+          })),
         );
 
         // First page preview: canonical key set by TASK-DOCS-010's generateFirstPagePreview.
@@ -529,7 +549,7 @@ export function createTrackingRouter() {
         const firstPageImageUrl = await getSignedUrl(
           s3Client,
           new GetObjectCommand({ Bucket: s3Bucket, Key: previewKey }),
-          { expiresIn: expirySeconds }
+          { expiresIn: expirySeconds },
         );
 
         // [Inference] `remarks` is not exposed on DocumentSummary in Phase 1.

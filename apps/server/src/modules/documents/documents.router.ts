@@ -3,10 +3,7 @@ import { TRPCError } from '@trpc/server';
 import crypto from 'node:crypto';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import type { Context } from '../iam/iam.types.js';
-import {
-  type LifecycleState,
-  type ClassificationLevel,
-} from '@batac/shared';
+import { type LifecycleState, type ClassificationLevel } from '@batac/shared';
 import {
   CreateDocumentInputSchema,
   CreateDocumentOutputSchema,
@@ -111,7 +108,11 @@ function getDesignationHandler(ctx: Context) {
 const SuccessOutputSchema = z.object({ success: z.literal(true) });
 
 /** I1's SP-office-attribution rule applies to exactly these three document types. */
-const SP_DOCUMENT_TYPE_CODES = new Set(['SP_RESOLUTION', 'SP_ORDINANCE', 'SP_APPROPRIATION_ORDINANCE']);
+const SP_DOCUMENT_TYPE_CODES = new Set([
+  'SP_RESOLUTION',
+  'SP_ORDINANCE',
+  'SP_APPROPRIATION_ORDINANCE',
+]);
 /** Office code looked up via OrgService.getOfficeByCode, matching the
  * pattern already used in apps/server/src/database/seeds/number-series.seed.ts. */
 const SP_SECRETARIAT_OFFICE_CODE = 'SPS';
@@ -139,7 +140,7 @@ function getOcrService(ctx: Context): OcrService {
     new StubPreviewProvider(),
     getS3Client() as any, // satisfies S3Client interface needed by OcrService
     env.S3_BUCKET || 'batac-dms',
-    ctx.req.server.db as any
+    ctx.req.server.db as any,
   );
 }
 
@@ -169,7 +170,12 @@ function matchesJsonType(value: unknown, type: string): boolean {
   return actual === type;
 }
 
-function validateMetadataNode(value: unknown, schema: unknown, path: string, errors: string[]): void {
+function validateMetadataNode(
+  value: unknown,
+  schema: unknown,
+  path: string,
+  errors: string[],
+): void {
   if (schema == null || typeof schema !== 'object') return;
   const s = schema as any;
 
@@ -181,7 +187,10 @@ function validateMetadataNode(value: unknown, schema: unknown, path: string, err
     }
   }
 
-  if (Array.isArray(s.enum) && !s.enum.some((e: any) => JSON.stringify(e) === JSON.stringify(value))) {
+  if (
+    Array.isArray(s.enum) &&
+    !s.enum.some((e: any) => JSON.stringify(e) === JSON.stringify(value))
+  ) {
     errors.push(`${path}: value not permitted by enum`);
   }
 
@@ -200,13 +209,16 @@ function validateMetadataNode(value: unknown, schema: unknown, path: string, err
     if (s.additionalProperties === false && s.properties && typeof s.properties === 'object') {
       const allowed = new Set(Object.keys(s.properties as Record<string, unknown>));
       for (const key of Object.keys(obj)) {
-        if (!allowed.has(key)) errors.push(`${path}.${key}: additional property not allowed by schema`);
+        if (!allowed.has(key))
+          errors.push(`${path}.${key}: additional property not allowed by schema`);
       }
     }
   }
 
   if (jsonTypeOf(value) === 'array' && s.items) {
-    (value as unknown[]).forEach((item, i) => validateMetadataNode(item, s.items, `${path}[${i}]`, errors));
+    (value as unknown[]).forEach((item, i) =>
+      validateMetadataNode(item, s.items, `${path}[${i}]`, errors),
+    );
   }
 }
 
@@ -307,7 +319,7 @@ export function createDocumentsRouter() {
   return router({
     ...createPanlalawiganProcedures(),
     ...createSignatureProcedures(),
-    
+
     // -----------------------------------------------------------------
     // documents.documentTypes
     // -----------------------------------------------------------------
@@ -334,14 +346,20 @@ export function createDocumentsRouter() {
 
         const documentType = await repo.findDocumentTypeById(input.documentTypeId);
         if (!documentType || !documentType.isActive) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Document type not found or inactive.' });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Document type not found or inactive.',
+          });
         }
 
         if (!guard.canCreate(subject, { documentTypeCode: documentType.code })) {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Your role cannot create documents.' });
         }
 
-        const metadataErrors = validateMetadataAgainstSchema(input.metadata, documentType.metadataSchema as Record<string, unknown>);
+        const metadataErrors = validateMetadataAgainstSchema(
+          input.metadata,
+          documentType.metadataSchema as Record<string, unknown>,
+        );
         if (metadataErrors.length > 0) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
@@ -366,7 +384,10 @@ export function createDocumentsRouter() {
         let originatingOfficeId: string;
         let ownedByOfficeId: string;
         if (SP_DOCUMENT_TYPE_CODES.has(documentType.code)) {
-          const spOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, subject.cityId);
+          const spOffice = await getOrgService(ctx).getOfficeByCode(
+            SP_SECRETARIAT_OFFICE_CODE,
+            subject.cityId,
+          );
           if (!spOffice) {
             throw new TRPCError({
               code: 'INTERNAL_SERVER_ERROR',
@@ -377,7 +398,10 @@ export function createDocumentsRouter() {
           ownedByOfficeId = spOffice.officeId;
         } else {
           if (!subject.officeId) {
-            throw new TRPCError({ code: 'BAD_REQUEST', message: 'Your account has no office assigned.' });
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Your account has no office assigned.',
+            });
           }
           originatingOfficeId = subject.officeId;
           ownedByOfficeId = subject.officeId;
@@ -438,7 +462,8 @@ export function createDocumentsRouter() {
         if (subject.roles.includes('sys_admin')) {
           throw new TRPCError({
             code: 'FORBIDDEN',
-            message: 'sys_admin cannot call documents.get; use documents.getMetadataForAdmin instead.',
+            message:
+              'sys_admin cannot call documents.get; use documents.getMetadataForAdmin instead.',
           });
         }
 
@@ -488,7 +513,10 @@ export function createDocumentsRouter() {
       .query(async ({ ctx, input }) => {
         const subject = ctx.auth;
         if (!subject.roles.includes('sys_admin')) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'documents.getMetadataForAdmin is sys_admin only.' });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'documents.getMetadataForAdmin is sys_admin only.',
+          });
         }
 
         const repo = getRepository(ctx);
@@ -505,7 +533,8 @@ export function createDocumentsRouter() {
         if (!allowed) {
           throw new TRPCError({
             code: 'FORBIDDEN',
-            message: 'Confidential and Restricted documents are not visible in the admin metadata view (Gate 2).',
+            message:
+              'Confidential and Restricted documents are not visible in the admin metadata view (Gate 2).',
           });
         }
 
@@ -558,7 +587,9 @@ export function createDocumentsRouter() {
         for (const t of types) if (t) typeCodeById.set(t.id, t.code);
 
         return {
-          items: page.map((row) => toDocumentSummary(row, typeCodeById.get(row.documentTypeId) ?? '')),
+          items: page.map((row) =>
+            toDocumentSummary(row, typeCodeById.get(row.documentTypeId) ?? ''),
+          ),
           nextCursor: hasMore && page.length > 0 ? page[page.length - 1]!.id : null,
         };
       }),
@@ -582,7 +613,9 @@ export function createDocumentsRouter() {
           callerRoles: subject.roles,
           queryText: input.queryText,
           ...(input.documentTypeIds !== undefined && { documentTypeIds: input.documentTypeIds }),
-          ...(input.classificationLevels !== undefined && { classificationLevels: input.classificationLevels }),
+          ...(input.classificationLevels !== undefined && {
+            classificationLevels: input.classificationLevels,
+          }),
           ...(input.dateFrom !== undefined && { dateFrom: input.dateFrom }),
           ...(input.dateTo !== undefined && { dateTo: input.dateTo }),
           ...(input.cursor !== undefined && { cursor: input.cursor }),
@@ -616,7 +649,10 @@ export function createDocumentsRouter() {
         const guard = getPolicyGuard(ctx);
 
         if (input.title === undefined && input.metadata === undefined) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Provide at least one of title or metadata.' });
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Provide at least one of title or metadata.',
+          });
         }
 
         const document = await repo.findDocumentById(input.documentId);
@@ -743,7 +779,12 @@ export function createDocumentsRouter() {
         // 8); Documents is not one of them, so the event-bus path is the
         // correct, already-covered mechanism here.
         try {
-          await service.transitionState(input.documentId, 'cancelled', subject.userId, input.reason);
+          await service.transitionState(
+            input.documentId,
+            'cancelled',
+            subject.userId,
+            input.reason,
+          );
         } catch (err) {
           if (err instanceof Error && err.message.startsWith('Document not found')) {
             throw new TRPCError({ code: 'NOT_FOUND' });
@@ -755,11 +796,15 @@ export function createDocumentsRouter() {
         }
 
         const docType = await repo.findDocumentTypeById(document.documentTypeId);
-        if (docType?.code === 'DESIGNATION' && document.metadata && (document.metadata as any).delegationGrantId) {
+        if (
+          docType?.code === 'DESIGNATION' &&
+          document.metadata &&
+          (document.metadata as any).delegationGrantId
+        ) {
           await getDesignationHandler(ctx).handleDesignationCancelled(
             (document.metadata as any).delegationGrantId,
             input.reason,
-            { userId: subject.userId, roles: subject.roles, cityId: subject.cityId }
+            { userId: subject.userId, roles: subject.roles, cityId: subject.cityId },
           );
         }
 
@@ -795,7 +840,9 @@ export function createDocumentsRouter() {
           ContentType: input.mimeType,
         });
 
-        const uploadUrl = await getSignedUrl(getS3Client(), command, { expiresIn: env.S3_SIGNED_URL_EXPIRES_S || 900 });
+        const uploadUrl = await getSignedUrl(getS3Client(), command, {
+          expiresIn: env.S3_SIGNED_URL_EXPIRES_S || 900,
+        });
 
         return {
           s3Key,
@@ -1052,7 +1099,11 @@ export function createDocumentsRouter() {
           ownedByOfficeId: document.ownedByOfficeId,
           createdBy: document.createdBy,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN', message: 'You must have update rights to trigger Re-OCR.' });
+        if (!allowed)
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You must have update rights to trigger Re-OCR.',
+          });
 
         const ocrService = getOcrService(ctx);
         await ocrService.enqueueManualReOcrJob(input.versionId);
@@ -1159,8 +1210,14 @@ export function createDocumentsRouter() {
         const docType = await repo.findDocumentTypeById(document.documentTypeId);
         if (!docType) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
 
-        if (guard.requiresSpSecretaryForSubmit(docType.code) && !subject.roles.includes('sp_secretary')) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'SP Secretary required to submit SP measures' });
+        if (
+          guard.requiresSpSecretaryForSubmit(docType.code) &&
+          !subject.roles.includes('sp_secretary')
+        ) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'SP Secretary required to submit SP measures',
+          });
         }
 
         const qrTrackingNumber = crypto.randomUUID();
@@ -1177,14 +1234,19 @@ export function createDocumentsRouter() {
               document.id,
               series.seriesKey,
               document.cityId,
-              subject.userId
+              subject.userId,
             );
             preliminaryNumber = result.numberValue;
           }
         }
 
         // 3. Transition to 'submitted'
-        await service.transitionState(document.id, 'submitted', subject.userId, 'Document submitted');
+        await service.transitionState(
+          document.id,
+          'submitted',
+          subject.userId,
+          'Document submitted',
+        );
 
         /**
          * [Confirmed] Wired into documents.submit per explicit human
@@ -1235,7 +1297,7 @@ export function createDocumentsRouter() {
             ownedByOfficeId: document.ownedByOfficeId,
             actorId: subject.userId,
             cityId: document.cityId,
-          }
+          },
         });
 
         return {
@@ -1273,7 +1335,10 @@ export function createDocumentsRouter() {
         if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
 
         if (!docType.numberSeriesId) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Document type has no number series' });
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Document type has no number series',
+          });
         }
         const series = await repo.findNumberSeriesById(docType.numberSeriesId);
         if (!series) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
@@ -1282,7 +1347,7 @@ export function createDocumentsRouter() {
           document.id,
           series.seriesKey,
           document.cityId,
-          subject.userId
+          subject.userId,
         );
 
         return {
@@ -1355,7 +1420,10 @@ export function createDocumentsRouter() {
             throw new TRPCError({ code: 'NOT_FOUND', message: `Measure ${measureId} not found` });
           }
           if (measure.lifecycleState !== 'in_workflow') {
-            throw new TRPCError({ code: 'BAD_REQUEST', message: `Measure ${measureId} is not in_workflow` });
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: `Measure ${measureId} is not in_workflow`,
+            });
           }
         }
 
@@ -1387,7 +1455,7 @@ export function createDocumentsRouter() {
             associatedInstanceIds,
             loggedBy: subject.userId,
             loggedAt: new Date().toISOString(),
-          }
+          },
         });
 
         return {
@@ -1487,7 +1555,10 @@ export function createDocumentsRouter() {
           throw new TRPCError({ code: 'NOT_FOUND' });
         }
 
-        const spsOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, subject.cityId);
+        const spsOffice = await getOrgService(ctx).getOfficeByCode(
+          SP_SECRETARIAT_OFFICE_CODE,
+          subject.cityId,
+        );
         const isSp = spsOffice ? subject.effectiveOfficeIds.includes(spsOffice.officeId) : false;
 
         const allowed = guard.canArchive(subject, {
@@ -1503,6 +1574,5 @@ export function createDocumentsRouter() {
       }),
 
     // -----------------------------------------------------------------
-
   });
 }

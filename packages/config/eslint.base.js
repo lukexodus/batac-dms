@@ -21,9 +21,9 @@ module.exports = [
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
-      'import': importPlugin,
-      'boundaries': boundariesPlugin,
-      'jsdoc': jsdocPlugin,
+      import: importPlugin,
+      boundaries: boundariesPlugin,
+      jsdoc: jsdocPlugin,
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
@@ -32,8 +32,14 @@ module.exports = [
       '@typescript-eslint/no-unsafe-member-access': 'error',
       '@typescript-eslint/no-unsafe-return': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
-      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports', fixStyle: 'inline-type-imports' }],
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+      ],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/await-thenable': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
@@ -56,9 +62,10 @@ module.exports = [
         'error',
         {
           selector: 'MemberExpression[object.name="process"][property.name="env"]',
-          message: 'Access env variables through the package config/env module, not process.env directly.',
+          message:
+            'Access env variables through the package config/env module, not process.env directly.',
         },
       ],
     },
-  }
+  },
 ];

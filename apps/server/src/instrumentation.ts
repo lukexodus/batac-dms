@@ -12,7 +12,7 @@ if (env.OTEL_EXPORTER_OTLP_HEADERS) {
   }
 }
 
-// OTLPTraceExporter expects the full endpoint for traces. 
+// OTLPTraceExporter expects the full endpoint for traces.
 // We append /v1/traces to the base endpoint as required by OpenObserve.
 const traceExporter = new OTLPTraceExporter({
   url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,

@@ -1,6 +1,5 @@
 # Stack Context — Government Platform
 
-
 ## Table of Contents
 
 - [L24–L46] Monorepo Structure — App and package directories under pnpm workspaces, utilizing Turborepo for build orchestration and caching.
@@ -64,8 +63,8 @@
 | File storage            | S3-compatible (streamed) — Cloudflare R2 (Phase 1); MinIO (on-premise path)                                  | Files never touch disk; app stays stateless; migration = endpoint URL change only; no provider-specific SDK imports permitted |
 | OCR                     | **Open decision** — `tesseract.js` (preferred) or self-hosted cloud OCR alternative — see OCR Strategy below | Must be self-hostable; no cloud-vendor dependency; on-premise constraint applies; required Phase 1                            |
 | Audit log crypto        | Node built-in `crypto` (SHA-256 hash chain + HMAC per entry)                                                 | No external library; runs server-side only; see Audit Log Integrity below                                                     |
-| Logging                 | Pino (built into Fastify) + OpenTelemetry → OpenObserve (self-hosted, OSS)   | Structured JSON; natively ingested via OTLP; full trace correlation                                                           |
-| Error tracking          | **Open decision** — OpenObserve RUM (active choice) or Sentry (future)       | OpenObserve unified with logs/traces; Sentry remains an option if specific issue-grouping UX is later needed                  |
+| Logging                 | Pino (built into Fastify) + OpenTelemetry → OpenObserve (self-hosted, OSS)                                   | Structured JSON; natively ingested via OTLP; full trace correlation                                                           |
+| Error tracking          | **Open decision** — OpenObserve RUM (active choice) or Sentry (future)                                       | OpenObserve unified with logs/traces; Sentry remains an option if specific issue-grouping UX is later needed                  |
 | Testing                 | Vitest (unit/integration) + Playwright (E2E)                                                                 |                                                                                                                               |
 | Email                   | Nodemailer + @react-email/components                                                                         | Works with any SMTP provider including LGU mail server                                                                        |
 | Auth pattern            | Short-lived JWT + server-side refresh tokens + HTTP-only cookies                                             | Never localStorage; structured for future SSO migration                                                                       |
@@ -133,10 +132,10 @@ These features are the reason MySQL is excluded. Do not work around them.
 
 ## Search Strategy
 
-|Phase|Tool|Reason|
-|---|---|---|
-|Phase 1|PostgreSQL FTS (`tsvector`/`tsquery`)|Zero extra infra; sufficient for initial document volume|
-|Phase 2+|Meilisearch (Docker, self-hosted)|Typo tolerance for Filipino names; faceted filtering; synced from PostgreSQL|
+| Phase    | Tool                                  | Reason                                                                       |
+| -------- | ------------------------------------- | ---------------------------------------------------------------------------- |
+| Phase 1  | PostgreSQL FTS (`tsvector`/`tsquery`) | Zero extra infra; sufficient for initial document volume                     |
+| Phase 2+ | Meilisearch (Docker, self-hosted)     | Typo tolerance for Filipino names; faceted filtering; synced from PostgreSQL |
 
 Design the search interface as an abstraction layer in the application from day one so the underlying provider is swappable without touching call sites.
 
@@ -144,10 +143,10 @@ Design the search interface as an abstraction layer in the application from day 
 
 ## File Storage Strategy
 
-|Phase|Provider|Reason|
-|---|---|---|
-|Phase 1 (cloud)|Cloudflare R2|No egress fees; S3-compatible API; straightforward setup|
-|On-premise / future|MinIO|Full S3-compatible API; self-hostable; migration = endpoint URL change only|
+| Phase               | Provider      | Reason                                                                      |
+| ------------------- | ------------- | --------------------------------------------------------------------------- |
+| Phase 1 (cloud)     | Cloudflare R2 | No egress fees; S3-compatible API; straightforward setup                    |
+| On-premise / future | MinIO         | Full S3-compatible API; self-hostable; migration = endpoint URL change only |
 
 **Non-negotiable rules:**
 

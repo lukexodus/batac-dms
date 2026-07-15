@@ -18,16 +18,19 @@ export async function registerDelegationExpiryJob(deps: {
   await boss.work('delegation.expire', async ([job]) => {
     if (!job) return;
     const { delegationGrantId } = job.data as { delegationGrantId: string };
-    
+
     await db.transaction(async (trx) => {
       // 1. Deactivate the row
-      const result = await trx.update(delegationGrants)
+      const result = await trx
+        .update(delegationGrants)
         .set({ isActive: false, updatedAt: new Date() })
-        .where(and(
-          eq(delegationGrants.id, delegationGrantId),
-          eq(delegationGrants.isActive, true),
-          isNull(delegationGrants.deletedAt)
-        ))
+        .where(
+          and(
+            eq(delegationGrants.id, delegationGrantId),
+            eq(delegationGrants.isActive, true),
+            isNull(delegationGrants.deletedAt),
+          ),
+        )
         .returning();
 
       if (result.length === 0) {
@@ -44,17 +47,15 @@ export async function registerDelegationExpiryJob(deps: {
 
       const [empRow] = await trx
         .select({
-          delegatingUserId:  delegatorEmp.userId,
+          delegatingUserId: delegatorEmp.userId,
           delegatedToUserId: delegateeEmp.userId,
         })
         .from(delegatorEmp)
-        .innerJoin(delegateeEmp, eq(
-          delegateeEmp.id, grant.delegatedToEmployeeId
-        ))
+        .innerJoin(delegateeEmp, eq(delegateeEmp.id, grant.delegatedToEmployeeId))
         .where(eq(delegatorEmp.id, grant.delegatingEmployeeId))
         .limit(1);
 
-      const delegatingUserId  = empRow?.delegatingUserId  ?? '';
+      const delegatingUserId = empRow?.delegatingUserId ?? '';
       const delegatedToUserId = empRow?.delegatedToUserId ?? '';
 
       // 3. Emit delegation.expired domain event

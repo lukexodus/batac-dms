@@ -100,8 +100,23 @@ function makeDrfRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
     workflowInstanceId: null,
     versionNumber: 1,
     metadata: {
-      requester: { name: 'Juan dela Cruz', contactNumber: '09171234567', agencyOrOrganization: null, email: null, idTypePresented: null, citizenUserId: null },
-      documentsRequested: [{ documentTitle: 'SP Resolution No. 001-2026', documentId: null, documentTypeLabel: null, documentNumber: 'SP-2026-001', numberOfPages: null }],
+      requester: {
+        name: 'Juan dela Cruz',
+        contactNumber: '09171234567',
+        agencyOrOrganization: null,
+        email: null,
+        idTypePresented: null,
+        citizenUserId: null,
+      },
+      documentsRequested: [
+        {
+          documentTitle: 'SP Resolution No. 001-2026',
+          documentId: null,
+          documentTypeLabel: null,
+          documentNumber: 'SP-2026-001',
+          numberOfPages: null,
+        },
+      ],
       purpose: 'Personal reference',
       accessMode: 'in_person_clerk',
       payment: null,
@@ -146,9 +161,9 @@ function makeMockRepository(rowOverrides: Partial<DocumentRow> | null = {}) {
   const row = rowOverrides === null ? null : makeDrfRow(rowOverrides);
   return {
     findDocumentById: vi.fn().mockResolvedValue(row),
-    insertDocument: vi.fn().mockImplementation(async (input: any) =>
-      makeDrfRow({ ...input, id: DOC_ID })
-    ),
+    insertDocument: vi
+      .fn()
+      .mockImplementation(async (input: any) => makeDrfRow({ ...input, id: DOC_ID })),
     updateDocumentMetadata: vi.fn().mockResolvedValue(row),
     listDocuments: vi.fn().mockResolvedValue([]),
   };
@@ -166,7 +181,7 @@ function makeCtx(
     repository?: ReturnType<typeof makeMockRepository>;
     documentsService?: ReturnType<typeof makeMockDocumentsService>;
     db?: any;
-  } = {}
+  } = {},
 ): Context {
   const repository = overrides.repository ?? makeMockRepository();
   const documentsService = overrides.documentsService ?? makeMockDocumentsService();
@@ -189,7 +204,7 @@ function makeCtx(
 
 const t = initTRPC.context<Context>().create();
 const callerFactory = t.createCallerFactory(
-  t.router({ documentRequests: createDocumentRequestsRouter() })
+  t.router({ documentRequests: createDocumentRequestsRouter() }),
 );
 
 function callerFor(ctx: Context) {
@@ -212,7 +227,9 @@ describe('documentRequests.createDocumentRequestClerkAssisted', () => {
     const result = await caller.createDocumentRequestClerkAssisted({
       requesterName: 'Juan dela Cruz',
       requesterContact: '09171234567',
-      documentsRequested: [{ documentTitle: 'SP Resolution No. 001-2026', documentNumber: 'SP-2026-001' }],
+      documentsRequested: [
+        { documentTitle: 'SP Resolution No. 001-2026', documentNumber: 'SP-2026-001' },
+      ],
       purpose: 'Personal reference',
     });
 
@@ -225,18 +242,26 @@ describe('documentRequests.createDocumentRequestClerkAssisted', () => {
     expect(insertArg.metadata.requester.name).toBe('Juan dela Cruz');
     expect(insertArg.metadata.requester.contactNumber).toBe('09171234567');
     expect(insertArg.metadata.documentsRequested).toHaveLength(1);
-    expect(insertArg.metadata.documentsRequested[0].documentTitle).toBe('SP Resolution No. 001-2026');
+    expect(insertArg.metadata.documentsRequested[0].documentTitle).toBe(
+      'SP Resolution No. 001-2026',
+    );
   });
 
   it('throws FORBIDDEN for any role other than sp_secretary', async () => {
-    for (const role of ['sp_presiding_officer', 'auditor', 'records_officer', 'dept_encoder', 'sp_member']) {
+    for (const role of [
+      'sp_presiding_officer',
+      'auditor',
+      'records_officer',
+      'dept_encoder',
+      'sp_member',
+    ]) {
       const subject = makeSubject({ roles: [role] });
       const caller = callerFor(makeCtx(subject));
       await expect(
         caller.createDocumentRequestClerkAssisted({
           requesterName: 'Test',
           documentsRequested: [{ documentTitle: 'Test Doc' }],
-        })
+        }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     }
   });
@@ -282,33 +307,33 @@ describe('documentRequests.approveAsPresidingOfficer', () => {
   it('AC2: throws FORBIDDEN for sp_secretary', async () => {
     const subject = makeSubject({ roles: ['sp_secretary'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(
-      caller.approveAsPresidingOfficer({ requestId: DOC_ID })
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.approveAsPresidingOfficer({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('AC2: throws FORBIDDEN for auditor', async () => {
     const subject = makeSubject({ roles: ['auditor'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(
-      caller.approveAsPresidingOfficer({ requestId: DOC_ID })
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.approveAsPresidingOfficer({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('AC2: throws FORBIDDEN for records_officer', async () => {
     const subject = makeSubject({ roles: ['records_officer'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(
-      caller.approveAsPresidingOfficer({ requestId: DOC_ID })
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.approveAsPresidingOfficer({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('AC2: throws FORBIDDEN for dept_encoder', async () => {
     const subject = makeSubject({ roles: ['dept_encoder'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(
-      caller.approveAsPresidingOfficer({ requestId: DOC_ID })
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.approveAsPresidingOfficer({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('throws BAD_REQUEST when document is already released', async () => {
@@ -317,9 +342,9 @@ describe('documentRequests.approveAsPresidingOfficer', () => {
     const db = makeMockDb();
     const caller = callerFor(makeCtx(subject, { repository, db }));
 
-    await expect(
-      caller.approveAsPresidingOfficer({ requestId: DOC_ID })
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(caller.approveAsPresidingOfficer({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
   });
 });
 
@@ -334,8 +359,23 @@ describe('documentRequests.approveAsSecretary', () => {
     const repository = makeMockRepository({
       lifecycleState: 'draft',
       metadata: {
-        requester: { name: 'Juan', contactNumber: null, agencyOrOrganization: null, email: null, idTypePresented: null, citizenUserId: null },
-        documentsRequested: [{ documentTitle: 'Test', documentId: null, documentTypeLabel: null, documentNumber: null, numberOfPages: null }],
+        requester: {
+          name: 'Juan',
+          contactNumber: null,
+          agencyOrOrganization: null,
+          email: null,
+          idTypePresented: null,
+          citizenUserId: null,
+        },
+        documentsRequested: [
+          {
+            documentTitle: 'Test',
+            documentId: null,
+            documentTypeLabel: null,
+            documentNumber: null,
+            numberOfPages: null,
+          },
+        ],
         purpose: null,
         accessMode: 'in_person_clerk',
         payment: null,
@@ -346,9 +386,9 @@ describe('documentRequests.approveAsSecretary', () => {
     const db = makeMockDb();
     const caller = callerFor(makeCtx(subject, { repository, db }));
 
-    await expect(
-      caller.approveAsSecretary({ requestId: DOC_ID })
-    ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+    await expect(caller.approveAsSecretary({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'PRECONDITION_FAILED',
+    });
   });
 
   it('AC3: succeeds and transitions to completed when vm_approved=true', async () => {
@@ -356,8 +396,23 @@ describe('documentRequests.approveAsSecretary', () => {
     const repository = makeMockRepository({
       lifecycleState: 'draft',
       metadata: {
-        requester: { name: 'Juan', contactNumber: null, agencyOrOrganization: null, email: null, idTypePresented: null, citizenUserId: null },
-        documentsRequested: [{ documentTitle: 'Test', documentId: null, documentTypeLabel: null, documentNumber: null, numberOfPages: null }],
+        requester: {
+          name: 'Juan',
+          contactNumber: null,
+          agencyOrOrganization: null,
+          email: null,
+          idTypePresented: null,
+          citizenUserId: null,
+        },
+        documentsRequested: [
+          {
+            documentTitle: 'Test',
+            documentId: null,
+            documentTypeLabel: null,
+            documentNumber: null,
+            numberOfPages: null,
+          },
+        ],
         purpose: null,
         accessMode: 'in_person_clerk',
         payment: null,
@@ -385,16 +440,16 @@ describe('documentRequests.approveAsSecretary', () => {
       DOC_ID,
       'completed',
       subject.userId,
-      expect.any(String)
+      expect.any(String),
     );
   });
 
   it('throws FORBIDDEN for sp_presiding_officer', async () => {
     const subject = makeSubject({ roles: ['sp_presiding_officer'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(
-      caller.approveAsSecretary({ requestId: DOC_ID })
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.approveAsSecretary({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 });
 
@@ -418,7 +473,7 @@ describe('documentRequests.releaseCopy', () => {
       DOC_ID,
       'released',
       subject.userId,
-      expect.any(String)
+      expect.any(String),
     );
   });
 
@@ -449,17 +504,17 @@ describe('documentRequests.releaseCopy', () => {
     const db = makeMockDb();
     const caller = callerFor(makeCtx(subject, { repository, db }));
 
-    await expect(
-      caller.releaseCopy({ requestId: DOC_ID })
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(caller.releaseCopy({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
   });
 
   it('throws FORBIDDEN for sp_presiding_officer', async () => {
     const subject = makeSubject({ roles: ['sp_presiding_officer'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(
-      caller.releaseCopy({ requestId: DOC_ID })
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.releaseCopy({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 });
 
@@ -572,13 +627,17 @@ describe('documentRequests.listAll', () => {
   it('AC5: dept_encoder is FORBIDDEN', async () => {
     const subject = makeSubject({ roles: ['dept_encoder'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(caller.listAllDocumentRequests({ limit: 25 })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.listAllDocumentRequests({ limit: 25 })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('AC5: sp_member is FORBIDDEN', async () => {
     const subject = makeSubject({ roles: ['sp_member'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(caller.listAllDocumentRequests({ limit: 25 })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.listAllDocumentRequests({ limit: 25 })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 });
 
@@ -605,9 +664,9 @@ describe('documentRequests.generatePrintableForm', () => {
   it('throws FORBIDDEN for sp_presiding_officer', async () => {
     const subject = makeSubject({ roles: ['sp_presiding_officer'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(
-      caller.generatePrintableForm({ requestId: DOC_ID })
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.generatePrintableForm({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 });
 
@@ -669,13 +728,17 @@ describe('documentRequests.getDocumentRequest', () => {
   it('AC-DR2: sp_member throws FORBIDDEN', async () => {
     const subject = makeSubject({ roles: ['sp_member'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('AC-DR2: dept_encoder throws FORBIDDEN', async () => {
     const subject = makeSubject({ roles: ['dept_encoder'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   // AC-DR3 — NOT_FOUND
@@ -683,7 +746,9 @@ describe('documentRequests.getDocumentRequest', () => {
     const subject = makeSubject({ roles: ['sp_secretary'] });
     const repository = makeMockRepository(null);
     const caller = callerFor(makeCtx(subject, { repository }));
-    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 
   it('AC-DR3: throws NOT_FOUND when cityId does not match', async () => {
@@ -691,7 +756,9 @@ describe('documentRequests.getDocumentRequest', () => {
     const repository = makeMockRepository(makeDrfRow({ cityId: WRONG_CITY }));
     const db = makeMockDb();
     const caller = callerFor(makeCtx(subject, { repository, db }));
-    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(caller.getDocumentRequest({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 
   // AC-DR4 — return shape
@@ -727,4 +794,3 @@ describe('documentRequests.getDocumentRequest', () => {
     expect(result.notificationChannel).toBeNull();
   });
 });
-

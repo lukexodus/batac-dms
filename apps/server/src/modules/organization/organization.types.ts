@@ -57,7 +57,7 @@ export interface EmployeeSummary {
 
 export interface DelegationSummary {
   delegationId: string;
-  designationDocumentId: string;   // D YEAR-NN control number reference
+  designationDocumentId: string; // D YEAR-NN control number reference
   delegatingUserId: string;
   delegatedToUserId: string;
   scope: {
@@ -104,7 +104,7 @@ export interface CreateDelegationGrantInput {
 }
 
 export interface RevokeEarlyDelegationGrantInput {
-  /** 
+  /**
    * Reference to the formal written instruction from the delegating authority.
    * Required if the subject is sp_secretary and not the delegating authority.
    */
@@ -172,7 +172,12 @@ export interface OrgService {
   getPrimaryOfficeForUser(userId: string): Promise<{ officeId: string; officeCode: string } | null>;
   getCommitteeIdsForUser(userId: string): Promise<string[]>;
   getCommitteeChair(committeeId: string): Promise<UserSummary | null>;
-  listEmployees(cityId: string, limit: number, cursor?: string | null, search?: string): Promise<{ items: EmployeeSummary[]; nextCursor: string | null }>;
+  listEmployees(
+    cityId: string,
+    limit: number,
+    cursor?: string | null,
+    search?: string,
+  ): Promise<{ items: EmployeeSummary[]; nextCursor: string | null }>;
 }
 
 export interface DesignationView {
@@ -207,7 +212,9 @@ export interface DesignationParty {
 
 export interface DelegationService {
   getActiveDelegationForUser(userId: string): Promise<DelegationSummary | null>;
-  getDelegationGrantById(delegationGrantId: string): Promise<{ scope: { roles: string[]; officeIds: string[]; actions: string[] } } | null>;
+  getDelegationGrantById(
+    delegationGrantId: string,
+  ): Promise<{ scope: { roles: string[]; officeIds: string[]; actions: string[] } } | null>;
 
   /**
    * Create a delegation grant.

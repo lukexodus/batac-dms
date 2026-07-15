@@ -53,7 +53,9 @@ describe('publicLookupHandler', () => {
   };
 
   it('should return 400 for invalid UUID', async () => {
-    const req = { params: { trackingId: 'not-a-uuid' } } as unknown as FastifyRequest<{ Params: { trackingId: string } }>;
+    const req = { params: { trackingId: 'not-a-uuid' } } as unknown as FastifyRequest<{
+      Params: { trackingId: string };
+    }>;
     const reply = createMockReply();
 
     await handler(req, reply);
@@ -63,9 +65,11 @@ describe('publicLookupHandler', () => {
   });
 
   it('should return 404 for unknown UUID', async () => {
-    const req = { params: { trackingId: '123e4567-e89b-12d3-a456-426614174000' } } as unknown as FastifyRequest<{ Params: { trackingId: string } }>;
+    const req = {
+      params: { trackingId: '123e4567-e89b-12d3-a456-426614174000' },
+    } as unknown as FastifyRequest<{ Params: { trackingId: string } }>;
     const reply = createMockReply();
-    
+
     vi.mocked(mockRepo.findQrCodeByTrackingId!).mockResolvedValue(null);
 
     await handler(req, reply);
@@ -77,18 +81,20 @@ describe('publicLookupHandler', () => {
   it('should return 200 with correct shape for valid UUID', async () => {
     const trackingId = '123e4567-e89b-12d3-a456-426614174000';
     const documentId = 'doc-123';
-    const req = { params: { trackingId } } as unknown as FastifyRequest<{ Params: { trackingId: string } }>;
+    const req = { params: { trackingId } } as unknown as FastifyRequest<{
+      Params: { trackingId: string };
+    }>;
     const reply = createMockReply();
 
     vi.mocked(mockRepo.findQrCodeByTrackingId!).mockResolvedValue({ documentId } as any);
-    
+
     vi.mocked(mockDocumentsService.getDocumentById!).mockResolvedValue({
       documentTypeCode: 'SP Resolution',
       remarks: 'Test remarks',
     } as any);
 
     vi.mocked(mockTrackingService.getRoutingHistory!).mockResolvedValue([
-      { actionDescription: 'Draft created', timestamp: new Date('2026-07-02T10:00:00Z') } as any
+      { actionDescription: 'Draft created', timestamp: new Date('2026-07-02T10:00:00Z') } as any,
     ]);
 
     const mockPresignedUrl = 'https://s3.example.com/presigned';
@@ -103,7 +109,7 @@ describe('publicLookupHandler', () => {
         {
           actionDescription: 'Draft created',
           timestamp: '2026-07-02T10:00:00.000Z',
-        }
+        },
       ],
       firstPageImageUrl: mockPresignedUrl,
       getCopyUrl: 'http://localhost:3000/request-copy?documentId=doc-123',

@@ -70,9 +70,7 @@ export const auditEvents = auditSchema.table(
     /** Version of the key used to generate the HMAC. */
     hmacKeyVersion: integer('hmac_key_version').notNull().default(1),
     /** Wall-clock timestamp of when the event occurred. */
-    occurredAt: timestamp('occurred_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     // Unique Index
@@ -88,5 +86,5 @@ export const auditEvents = auditSchema.table(
     // Check Constraints
     check('chain_hash_check', sql`${table.chainHash} ~ '^[a-f0-9]{64}$'`),
     check('hmac_check', sql`${table.hmac} ~ '^[a-f0-9]{64}$'`),
-  ]
+  ],
 );

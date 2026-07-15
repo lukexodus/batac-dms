@@ -77,7 +77,13 @@ function makeComplaintRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
       outcomeState: 'pending_hearing',
       assignedOfficeId: COMMITTEE_ID,
       committeeReport: null,
-      respondent: { name: 'Pedro Reyes', contactNumber: null, email: null, tricycleNumber: null, notificationChannel: null },
+      respondent: {
+        name: 'Pedro Reyes',
+        contactNumber: null,
+        email: null,
+        tricycleNumber: null,
+        notificationChannel: null,
+      },
       incidentDetails: { date: null, time: null, place: null, narrative: 'Narrative text here' },
       routingDecision: null,
       accessMode: 'in_person_clerk',
@@ -110,7 +116,7 @@ function makeMockRepository(rowOverride?: DocumentRow | null) {
 
 function makeCtx(
   subject: AuthContext,
-  repository?: ReturnType<typeof makeMockRepository>
+  repository?: ReturnType<typeof makeMockRepository>,
 ): Context {
   const repo = repository ?? makeMockRepository();
   return {
@@ -129,9 +135,7 @@ function makeCtx(
 }
 
 const t = initTRPC.context<Context>().create();
-const callerFactory = t.createCallerFactory(
-  t.router({ complaints: createComplaintsRouter() })
-);
+const callerFactory = t.createCallerFactory(t.router({ complaints: createComplaintsRouter() }));
 
 function callerFor(ctx: Context) {
   return callerFactory(ctx).complaints;
@@ -178,26 +182,34 @@ describe('complaints.get', () => {
   it('AC-C3: sp_member not assigned to this committee throws FORBIDDEN', async () => {
     const subject = makeSubject({ roles: ['sp_member'], committeeIds: [OTHER_COMMITTEE_ID] });
     const caller = callerFor(makeCtx(subject));
-    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('AC-C3: sp_member with empty committeeIds throws FORBIDDEN', async () => {
     const subject = makeSubject({ roles: ['sp_member'], committeeIds: [] });
     const caller = callerFor(makeCtx(subject));
-    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   // AC-C4 — other roles
   it('AC-C4: records_officer throws FORBIDDEN', async () => {
     const subject = makeSubject({ roles: ['records_officer'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('AC-C4: dept_encoder throws FORBIDDEN', async () => {
     const subject = makeSubject({ roles: ['dept_encoder'] });
     const caller = callerFor(makeCtx(subject));
-    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   // AC-C5 — NOT_FOUND
@@ -205,7 +217,9 @@ describe('complaints.get', () => {
     const subject = makeSubject({ roles: ['sp_secretary'] });
     const repo = makeMockRepository(null);
     const caller = callerFor(makeCtx(subject, repo));
-    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 
   it('AC-C5: throws NOT_FOUND when cityId does not match', async () => {
@@ -213,7 +227,9 @@ describe('complaints.get', () => {
     const row = makeComplaintRow({ cityId: OTHER_CITY_ID });
     const repo = makeMockRepository(row);
     const caller = callerFor(makeCtx(subject, repo));
-    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(caller.getComplaint({ complaintId: DOC_ID })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 
   // AC-C6 — return shape

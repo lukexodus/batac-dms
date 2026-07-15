@@ -91,51 +91,51 @@ All tables follow platform-wide conventions: `UUID` primary keys (`gen_random_uu
 
 The admin-authored workflow template. A definition belongs to one document type. At most one definition per document type may be active at any time (enforced by a DB partial unique index on `document_type_id WHERE is_active = true`).
 
-|Column|Type|Notes|
-|---|---|---|
-|`id`|`UUID`|PK|
-|`city_id`|`UUID`|Multi-tenant anchor|
-|`document_type_id`|`UUID`|Logical FK → `documents.document_types.id`|
-|`name`|`TEXT`|Human label (e.g., "SP Resolution — 7th SP")|
-|`description`|`TEXT`|Nullable|
-|`is_active`|`BOOLEAN`|Partial unique index: at most one active per `document_type_id`|
-|`created_by`|`UUID`|Logical FK → `iam.users.id`|
-|`created_at`|`TIMESTAMPTZ`|—|
-|`deleted_at`|`TIMESTAMPTZ`|Nullable; soft delete|
-|`deleted_by`|`UUID`|Nullable|
+| Column             | Type          | Notes                                                           |
+| ------------------ | ------------- | --------------------------------------------------------------- |
+| `id`               | `UUID`        | PK                                                              |
+| `city_id`          | `UUID`        | Multi-tenant anchor                                             |
+| `document_type_id` | `UUID`        | Logical FK → `documents.document_types.id`                      |
+| `name`             | `TEXT`        | Human label (e.g., "SP Resolution — 7th SP")                    |
+| `description`      | `TEXT`        | Nullable                                                        |
+| `is_active`        | `BOOLEAN`     | Partial unique index: at most one active per `document_type_id` |
+| `created_by`       | `UUID`        | Logical FK → `iam.users.id`                                     |
+| `created_at`       | `TIMESTAMPTZ` | —                                                               |
+| `deleted_at`       | `TIMESTAMPTZ` | Nullable; soft delete                                           |
+| `deleted_by`       | `UUID`        | Nullable                                                        |
 
 ### 2.2 `workflow.definition_versions`
 
 An immutable published snapshot of a definition. Once published, a version cannot be modified; editing a definition creates a new version. Drafts (`published_at IS NULL`) are mutable. At most one version per definition may have `is_current = true` (DB partial unique index).
 
-|Column|Type|Notes|
-|---|---|---|
-|`id`|`UUID`|PK|
-|`city_id`|`UUID`|—|
-|`definition_id`|`UUID`|FK → `workflow.definitions.id`|
-|`version_number`|`INTEGER`|Monotonically increasing per definition|
-|`snapshot`|`JSONB`|Complete definition snapshot at publish time: all steps and transition rules. Authoritative on conflict with denormalized rows.|
-|`published_at`|`TIMESTAMPTZ`|Nullable; non-null = published and immutable|
-|`published_by`|`UUID`|Nullable; logical FK → `iam.users.id`|
-|`deprecated_at`|`TIMESTAMPTZ`|Nullable; set when a newer version is published|
-|`is_current`|`BOOLEAN`|Partial unique index: one current per `definition_id WHERE is_current = true`|
-|`created_at`|`TIMESTAMPTZ`|—|
+| Column           | Type          | Notes                                                                                                                           |
+| ---------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `id`             | `UUID`        | PK                                                                                                                              |
+| `city_id`        | `UUID`        | —                                                                                                                               |
+| `definition_id`  | `UUID`        | FK → `workflow.definitions.id`                                                                                                  |
+| `version_number` | `INTEGER`     | Monotonically increasing per definition                                                                                         |
+| `snapshot`       | `JSONB`       | Complete definition snapshot at publish time: all steps and transition rules. Authoritative on conflict with denormalized rows. |
+| `published_at`   | `TIMESTAMPTZ` | Nullable; non-null = published and immutable                                                                                    |
+| `published_by`   | `UUID`        | Nullable; logical FK → `iam.users.id`                                                                                           |
+| `deprecated_at`  | `TIMESTAMPTZ` | Nullable; set when a newer version is published                                                                                 |
+| `is_current`     | `BOOLEAN`     | Partial unique index: one current per `definition_id WHERE is_current = true`                                                   |
+| `created_at`     | `TIMESTAMPTZ` | —                                                                                                                               |
 
 ### 2.3 `workflow.steps`
 
 Step definitions belonging to a specific definition version. These rows are denormalized from `snapshot` for efficient querying. The `snapshot` column on `definition_versions` is authoritative; these rows are derived and must be regenerated if they diverge.
 
-|Column|Type|Notes|
-|---|---|---|
-|`id`|`UUID`|PK|
-|`city_id`|`UUID`|—|
-|`definition_version_id`|`UUID`|FK → `workflow.definition_versions.id`|
-|`step_key`|`TEXT`|Stable domain identifier within the definition (e.g., `first_reading`, `committee_referral`, `second_reading`). Used for step mapping in Option B migration.|
-|`step_type`|`workflow_step_type_enum`|See Section 3|
-|`label`|`TEXT`|Human-readable display name|
-|`config`|`JSONB`|Step-type-specific configuration; see Section 3 per type|
-|`position`|`INTEGER`|Display ordering only; does not control execution sequence|
-|`is_start`|`BOOLEAN`|Exactly one step per definition version must have `is_start = true`. Validated at publish time.|
+| Column                  | Type                      | Notes                                                                                                                                                        |
+| ----------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                    | `UUID`                    | PK                                                                                                                                                           |
+| `city_id`               | `UUID`                    | —                                                                                                                                                            |
+| `definition_version_id` | `UUID`                    | FK → `workflow.definition_versions.id`                                                                                                                       |
+| `step_key`              | `TEXT`                    | Stable domain identifier within the definition (e.g., `first_reading`, `committee_referral`, `second_reading`). Used for step mapping in Option B migration. |
+| `step_type`             | `workflow_step_type_enum` | See Section 3                                                                                                                                                |
+| `label`                 | `TEXT`                    | Human-readable display name                                                                                                                                  |
+| `config`                | `JSONB`                   | Step-type-specific configuration; see Section 3 per type                                                                                                     |
+| `position`              | `INTEGER`                 | Display ordering only; does not control execution sequence                                                                                                   |
+| `is_start`              | `BOOLEAN`                 | Exactly one step per definition version must have `is_start = true`. Validated at publish time.                                                              |
 
 **`workflow_step_type_enum` values:** `action`, `approval`, `multi_referral`, `decision`, `notification`, `termination`, `parallel_split` (reserved), `parallel_join` (reserved).
 
@@ -143,101 +143,101 @@ Step definitions belonging to a specific definition version. These rows are deno
 
 Directed edges between steps. Evaluated after a step instance reaches a terminal status.
 
-|Column|Type|Notes|
-|---|---|---|
-|`id`|`UUID`|PK|
-|`city_id`|`UUID`|—|
-|`definition_version_id`|`UUID`|FK → `workflow.definition_versions.id`|
-|`from_step_id`|`UUID`|FK → `workflow.steps.id`|
-|`to_step_id`|`UUID`|FK → `workflow.steps.id`|
-|`condition_expression`|`TEXT`|Nullable; JSONLogic expression evaluated against instance context. `null` = unconditional (fires for any outcome).|
-|`outcome_filter`|`TEXT`|Nullable; if set, rule only fires when the completed step instance's `outcome` exactly matches this value|
-|`priority`|`INTEGER`|Lower value = evaluated first when multiple rules exit the same step|
-|`label`|`TEXT`|Nullable; display label for the transition edge|
+| Column                  | Type      | Notes                                                                                                              |
+| ----------------------- | --------- | ------------------------------------------------------------------------------------------------------------------ |
+| `id`                    | `UUID`    | PK                                                                                                                 |
+| `city_id`               | `UUID`    | —                                                                                                                  |
+| `definition_version_id` | `UUID`    | FK → `workflow.definition_versions.id`                                                                             |
+| `from_step_id`          | `UUID`    | FK → `workflow.steps.id`                                                                                           |
+| `to_step_id`            | `UUID`    | FK → `workflow.steps.id`                                                                                           |
+| `condition_expression`  | `TEXT`    | Nullable; JSONLogic expression evaluated against instance context. `null` = unconditional (fires for any outcome). |
+| `outcome_filter`        | `TEXT`    | Nullable; if set, rule only fires when the completed step instance's `outcome` exactly matches this value          |
+| `priority`              | `INTEGER` | Lower value = evaluated first when multiple rules exit the same step                                               |
+| `label`                 | `TEXT`    | Nullable; display label for the transition edge                                                                    |
 
 ### 2.5 `workflow.instances`
 
 A running workflow for a specific document.
 
-|Column|Type|Notes|
-|---|---|---|
-|`id`|`UUID`|PK|
-|`city_id`|`UUID`|—|
-|`definition_version_id`|`UUID`|FK → `workflow.definition_versions.id`. **Pinned at creation. Never updated except by Option B migration.**|
-|`document_id`|`UUID`|Logical FK → `documents.documents.id`|
-|`status`|`workflow_instance_status_enum`|See Section 2.7|
-|`context`|`JSONB`|Mutable key-value state store; see Appendix B|
-|`sla_deadline`|`TIMESTAMPTZ`|Nullable; computed at creation from document type SLA configuration|
-|`sla_breached_at`|`TIMESTAMPTZ`|Nullable; set by the SLA monitor when breach is detected. Set to `sla_deadline`, not to detection time.|
-|`started_at`|`TIMESTAMPTZ`|Timestamp when the instance was created and the start step activated|
-|`completed_at`|`TIMESTAMPTZ`|Nullable; set when a termination step is reached|
-|`created_by`|`UUID`|Logical FK → `iam.users.id`|
-|`created_at`|`TIMESTAMPTZ`|—|
-|`deleted_at`|`TIMESTAMPTZ`|Nullable|
-|`deleted_by`|`UUID`|Nullable|
+| Column                  | Type                            | Notes                                                                                                       |
+| ----------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `id`                    | `UUID`                          | PK                                                                                                          |
+| `city_id`               | `UUID`                          | —                                                                                                           |
+| `definition_version_id` | `UUID`                          | FK → `workflow.definition_versions.id`. **Pinned at creation. Never updated except by Option B migration.** |
+| `document_id`           | `UUID`                          | Logical FK → `documents.documents.id`                                                                       |
+| `status`                | `workflow_instance_status_enum` | See Section 2.7                                                                                             |
+| `context`               | `JSONB`                         | Mutable key-value state store; see Appendix B                                                               |
+| `sla_deadline`          | `TIMESTAMPTZ`                   | Nullable; computed at creation from document type SLA configuration                                         |
+| `sla_breached_at`       | `TIMESTAMPTZ`                   | Nullable; set by the SLA monitor when breach is detected. Set to `sla_deadline`, not to detection time.     |
+| `started_at`            | `TIMESTAMPTZ`                   | Timestamp when the instance was created and the start step activated                                        |
+| `completed_at`          | `TIMESTAMPTZ`                   | Nullable; set when a termination step is reached                                                            |
+| `created_by`            | `UUID`                          | Logical FK → `iam.users.id`                                                                                 |
+| `created_at`            | `TIMESTAMPTZ`                   | —                                                                                                           |
+| `deleted_at`            | `TIMESTAMPTZ`                   | Nullable                                                                                                    |
+| `deleted_by`            | `UUID`                          | Nullable                                                                                                    |
 
 ### 2.6 `workflow.step_instances`
 
 A running step within a workflow instance.
 
-|Column|Type|Notes|
-|---|---|---|
-|`id`|`UUID`|PK|
-|`city_id`|`UUID`|—|
-|`instance_id`|`UUID`|FK → `workflow.instances.id`|
-|`step_id`|`UUID`|FK → `workflow.steps.id`. Always from the pinned definition version.|
-|`status`|`workflow_step_status_enum`|See Section 2.7|
-|`assigned_to`|`JSONB`|Nullable; resolved assignee(s) at activation time. Format varies by step type; see Section 3.|
-|`started_at`|`TIMESTAMPTZ`|Nullable; when the step became `active`|
-|`completed_at`|`TIMESTAMPTZ`|Nullable; when the step reached a terminal status|
-|`outcome`|`TEXT`|Nullable; step-type-specific outcome code|
-|`outcome_comment`|`TEXT`|Nullable; actor-supplied reason or comment|
-|`metadata`|`JSONB`|Nullable; step-type-specific mutable data. See Section 3 per type.|
-|`sla_deadline`|`TIMESTAMPTZ`|Nullable; step-level SLA deadline if configured in step `config`|
-|`sla_breached_at`|`TIMESTAMPTZ`|Nullable|
-|`bypassed_at`|`TIMESTAMPTZ`|Nullable; set if step was bypassed (e.g., Certified Urgent)|
-|`bypassed_by`|`UUID`|Nullable; actor UUID or null for system-triggered bypasses|
-|`bypass_reason`|`TEXT`|Nullable; reason code|
-|`created_at`|`TIMESTAMPTZ`|—|
+| Column            | Type                        | Notes                                                                                         |
+| ----------------- | --------------------------- | --------------------------------------------------------------------------------------------- |
+| `id`              | `UUID`                      | PK                                                                                            |
+| `city_id`         | `UUID`                      | —                                                                                             |
+| `instance_id`     | `UUID`                      | FK → `workflow.instances.id`                                                                  |
+| `step_id`         | `UUID`                      | FK → `workflow.steps.id`. Always from the pinned definition version.                          |
+| `status`          | `workflow_step_status_enum` | See Section 2.7                                                                               |
+| `assigned_to`     | `JSONB`                     | Nullable; resolved assignee(s) at activation time. Format varies by step type; see Section 3. |
+| `started_at`      | `TIMESTAMPTZ`               | Nullable; when the step became `active`                                                       |
+| `completed_at`    | `TIMESTAMPTZ`               | Nullable; when the step reached a terminal status                                             |
+| `outcome`         | `TEXT`                      | Nullable; step-type-specific outcome code                                                     |
+| `outcome_comment` | `TEXT`                      | Nullable; actor-supplied reason or comment                                                    |
+| `metadata`        | `JSONB`                     | Nullable; step-type-specific mutable data. See Section 3 per type.                            |
+| `sla_deadline`    | `TIMESTAMPTZ`               | Nullable; step-level SLA deadline if configured in step `config`                              |
+| `sla_breached_at` | `TIMESTAMPTZ`               | Nullable                                                                                      |
+| `bypassed_at`     | `TIMESTAMPTZ`               | Nullable; set if step was bypassed (e.g., Certified Urgent)                                   |
+| `bypassed_by`     | `UUID`                      | Nullable; actor UUID or null for system-triggered bypasses                                    |
+| `bypass_reason`   | `TEXT`                      | Nullable; reason code                                                                         |
+| `created_at`      | `TIMESTAMPTZ`               | —                                                                                             |
 
 ### 2.7 `workflow.workflow_events`
 
 Immutable event log for each workflow instance. Append-only within the workflow schema. Rows are written as part of the database transaction that causes each state change; no event is emitted without a committed row here.
 
-|Column|Type|Notes|
-|---|---|---|
-|`id`|`UUID`|PK|
-|`city_id`|`UUID`|—|
-|`instance_id`|`UUID`|FK → `workflow.instances.id`|
-|`step_instance_id`|`UUID`|Nullable; FK → `workflow.step_instances.id`|
-|`event_type`|`TEXT`|See Appendix A|
-|`actor_id`|`UUID`|Nullable; null for system-generated events|
-|`actor_type`|`TEXT`|`user` \| `system` \| `scheduler`|
-|`payload`|`JSONB`|Event-specific data|
-|`occurred_at`|`TIMESTAMPTZ`|Wall-clock time at emission, within the committing transaction|
+| Column             | Type          | Notes                                                          |
+| ------------------ | ------------- | -------------------------------------------------------------- |
+| `id`               | `UUID`        | PK                                                             |
+| `city_id`          | `UUID`        | —                                                              |
+| `instance_id`      | `UUID`        | FK → `workflow.instances.id`                                   |
+| `step_instance_id` | `UUID`        | Nullable; FK → `workflow.step_instances.id`                    |
+| `event_type`       | `TEXT`        | See Appendix A                                                 |
+| `actor_id`         | `UUID`        | Nullable; null for system-generated events                     |
+| `actor_type`       | `TEXT`        | `user` \| `system` \| `scheduler`                              |
+| `payload`          | `JSONB`       | Event-specific data                                            |
+| `occurred_at`      | `TIMESTAMPTZ` | Wall-clock time at emission, within the committing transaction |
 
 ### 2.8 Lifecycle State Enums
 
 **`workflow_instance_status_enum`:**
 
-|Value|Description|
-|---|---|
-|`active`|One or more step instances are currently in progress|
-|`suspended`|All active steps are paused by authorized admin action|
-|`stuck`|Transition evaluation found no matching rule and no default is configured|
-|`completed`|A termination step was reached|
-|`cancelled`|Cancelled by an authorized actor before completion|
+| Value       | Description                                                               |
+| ----------- | ------------------------------------------------------------------------- |
+| `active`    | One or more step instances are currently in progress                      |
+| `suspended` | All active steps are paused by authorized admin action                    |
+| `stuck`     | Transition evaluation found no matching rule and no default is configured |
+| `completed` | A termination step was reached                                            |
+| `cancelled` | Cancelled by an authorized actor before completion                        |
 
 **`workflow_step_status_enum`:**
 
-|Value|Description|
-|---|---|
-|`pending`|Created but not yet activated (step is queued for future activation)|
-|`active`|Assigned to an actor and awaiting completion|
-|`completed`|Finished normally; `outcome` and `completed_at` are set|
-|`bypassed`|Skipped; `bypassed_at`, `bypassed_by`, and `bypass_reason` are set|
-|`cancelled`|Cancelled as part of instance cancellation|
-|`failed`|Internal engine error during step execution; triggers immediate alerting|
+| Value       | Description                                                              |
+| ----------- | ------------------------------------------------------------------------ |
+| `pending`   | Created but not yet activated (step is queued for future activation)     |
+| `active`    | Assigned to an actor and awaiting completion                             |
+| `completed` | Finished normally; `outcome` and `completed_at` are set                  |
+| `bypassed`  | Skipped; `bypassed_at`, `bypassed_by`, and `bypass_reason` are set       |
+| `cancelled` | Cancelled as part of instance cancellation                               |
+| `failed`    | Internal engine error during step execution; triggers immediate alerting |
 
 ---
 
@@ -247,15 +247,15 @@ Immutable event log for each workflow instance. Append-only within the workflow 
 
 The engine is a service inside `/apps/server`. It exposes no public API surface. Interaction is via tRPC procedures (for `/apps/web`) and internal module interfaces (for event bus consumers). The following are the authoritative engine entry points:
 
-|Method|Description|
-|---|---|
-|`engine.createInstance(documentId, definitionId)`|Creates and starts a new workflow instance|
-|`engine.submitStepAction(stepInstanceId, actorId, outcome, comment, payload)`|Completes a step as an actor|
-|`engine.bypassStep(stepInstanceId, actorId, bypassReason, comment)`|Bypasses a step via admin action; always audit-logged|
-|`engine.cancelInstance(instanceId, actorId, reason)`|Cancels a running instance; reason is mandatory|
-|`engine.migrateInstance(instanceId, targetVersionId, actorId, reason)`|Option B in-flight migration; see Section 8.3|
-|`engine.evaluateTimers()`|Called by the scheduler; processes all time-based transitions|
-|`engine.evaluateSlaBreaches()`|Called by the scheduler and on startup; detects SLA warnings and breaches|
+| Method                                                                        | Description                                                               |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `engine.createInstance(documentId, definitionId)`                             | Creates and starts a new workflow instance                                |
+| `engine.submitStepAction(stepInstanceId, actorId, outcome, comment, payload)` | Completes a step as an actor                                              |
+| `engine.bypassStep(stepInstanceId, actorId, bypassReason, comment)`           | Bypasses a step via admin action; always audit-logged                     |
+| `engine.cancelInstance(instanceId, actorId, reason)`                          | Cancels a running instance; reason is mandatory                           |
+| `engine.migrateInstance(instanceId, targetVersionId, actorId, reason)`        | Option B in-flight migration; see Section 8.3                             |
+| `engine.evaluateTimers()`                                                     | Called by the scheduler; processes all time-based transitions             |
+| `engine.evaluateSlaBreaches()`                                                | Called by the scheduler and on startup; detects SLA warnings and breaches |
 
 All entry points execute within a PostgreSQL transaction. If any write fails, the entire operation is rolled back. Events are persisted within the same transaction; downstream consumers receive them after commit.
 
@@ -296,10 +296,10 @@ Called after a step instance reaches a terminal status:
 4. For each candidate: evaluate `condition_expression` (JSONLogic) against the instance `context`. A rule with `condition_expression IS NULL` always matches.
 5. The first matching rule fires. Its `to_step_id` is the next step.
 6. **If no rule matches:**
-    - Set `instance.status = stuck`.
-    - Emit `workflow.instance.stuck` with the current step instance ID and the list of evaluated rules.
-    - Notify the Platform Administrator and the assigned Records Officer.
-    - Stop. Do not create a new step instance.
+   - Set `instance.status = stuck`.
+   - Emit `workflow.instance.stuck` with the current step instance ID and the list of evaluated rules.
+   - Notify the Platform Administrator and the assigned Records Officer.
+   - Stop. Do not create a new step instance.
 
 The transition evaluation is pure and sandboxed: the JSONLogic evaluator has read-only access to `instance.context`. It has no access to the database, no I/O, and no side effects. Expressions referencing undefined context keys evaluate to `null`, which is falsy in JSONLogic.
 
@@ -307,13 +307,13 @@ The transition evaluation is pure and sandboxed: the JSONLogic evaluator has rea
 
 Each step's `config.assignee` is a string expression that resolves to one or more users at the moment the step is activated. Resolution happens at activation time, not at definition authoring time, so delegation and role reassignments are reflected immediately.
 
-|Expression Format|Resolution Behavior|
-|---|---|
-|`role:<role_key>`|All users currently holding this role|
-|`office_role:<office_key>:<role_key>`|The user holding this role in this specific office|
-|`delegation_aware:<role_key>`|Resolves `role:<role_key>`, then for each resolved user checks if there is a currently active delegation grant for that user. If yes, routes to the designated person instead of the original.|
-|`actor_from_context:<context_key>`|The user whose ID is stored in `instance.context[context_key]`. Used for steps that must return to a specific earlier actor.|
-|`static:<user_id>`|A specific user UUID. Use sparingly; prefer role-based resolution.|
+| Expression Format                     | Resolution Behavior                                                                                                                                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `role:<role_key>`                     | All users currently holding this role                                                                                                                                                          |
+| `office_role:<office_key>:<role_key>` | The user holding this role in this specific office                                                                                                                                             |
+| `delegation_aware:<role_key>`         | Resolves `role:<role_key>`, then for each resolved user checks if there is a currently active delegation grant for that user. If yes, routes to the designated person instead of the original. |
+| `actor_from_context:<context_key>`    | The user whose ID is stored in `instance.context[context_key]`. Used for steps that must return to a specific earlier actor.                                                                   |
+| `static:<user_id>`                    | A specific user UUID. Use sparingly; prefer role-based resolution.                                                                                                                             |
 
 Resolved assignees are written to `step_instances.assigned_to` as a JSONB array of `{ "user_id": "...", "resolved_via": "..." }` objects. This snapshot is the authoritative list for permission checks during the step's lifetime; subsequent delegation changes do not affect an already-active step.
 
@@ -333,14 +333,14 @@ Events are never emitted speculatively. An event is always evidence of something
 
 **Config fields:**
 
-|Field|Type|Required|Notes|
-|---|---|---|---|
-|`assignee`|`string`|Yes|Assignee resolution expression|
-|`form_key`|`string`|No|Identifies the UI form presented to the actor|
-|`require_comment`|`boolean`|No|Default `false`. If `true`, submission without a non-empty `outcome_comment` is rejected.|
-|`allow_comment`|`boolean`|No|Default `true`|
-|`auto_complete`|`boolean`|No|Default `false`. If `true`, the step completes immediately on activation with `actor_type = system` and no user input required. Used for system-driven logging steps.|
-|`deadline_hours`|`integer`|No|If set, `step_instances.sla_deadline = started_at + deadline_hours`|
+| Field             | Type      | Required | Notes                                                                                                                                                                 |
+| ----------------- | --------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `assignee`        | `string`  | Yes      | Assignee resolution expression                                                                                                                                        |
+| `form_key`        | `string`  | No       | Identifies the UI form presented to the actor                                                                                                                         |
+| `require_comment` | `boolean` | No       | Default `false`. If `true`, submission without a non-empty `outcome_comment` is rejected.                                                                             |
+| `allow_comment`   | `boolean` | No       | Default `true`                                                                                                                                                        |
+| `auto_complete`   | `boolean` | No       | Default `false`. If `true`, the step completes immediately on activation with `actor_type = system` and no user input required. Used for system-driven logging steps. |
+| `deadline_hours`  | `integer` | No       | If set, `step_instances.sla_deadline = started_at + deadline_hours`                                                                                                   |
 
 **`step_instances.assigned_to`:** Array of resolved user objects.
 
@@ -362,12 +362,12 @@ Events are never emitted speculatively. An event is always evidence of something
 
 **Config fields:**
 
-|Field|Type|Required|Notes|
-|---|---|---|---|
-|`assignee`|`string`|Yes|Assignee resolution expression|
-|`allowed_outcomes`|`string[]`|Yes|Subset of valid outcome codes listed below|
-|`require_comment_on`|`string[]`|No|Default `['REJECTED', 'RETURNED_FOR_REVISION']`. Outcomes in this list require a non-empty `outcome_comment`.|
-|`deadline_hours`|`integer`|No|Step-level SLA deadline|
+| Field                | Type       | Required | Notes                                                                                                         |
+| -------------------- | ---------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `assignee`           | `string`   | Yes      | Assignee resolution expression                                                                                |
+| `allowed_outcomes`   | `string[]` | Yes      | Subset of valid outcome codes listed below                                                                    |
+| `require_comment_on` | `string[]` | No       | Default `['REJECTED', 'RETURNED_FOR_REVISION']`. Outcomes in this list require a non-empty `outcome_comment`. |
+| `deadline_hours`     | `integer`  | No       | Step-level SLA deadline                                                                                       |
 
 **Valid outcome codes (the config `allowed_outcomes` must be a subset of these):**
 
@@ -402,14 +402,14 @@ Events are never emitted speculatively. An event is always evidence of something
 
 **Config fields:**
 
-|Field|Type|Required|Notes|
-|---|---|---|---|
-|`default_committee_roles`|`string[]`|Yes|Default list of role keys for assigned committees. May be overridden per instance before any submission is received.|
-|`report_acceptor_role`|`string`|Yes|Role key for the actor who accepts the unified report (SP Secretary)|
-|`thursday_cutoff_enabled`|`boolean`|Yes|Must be `true` for all SP Resolution and Ordinance referral steps|
-|`cutoff_time_pht`|`string`|Yes|Time in PHT (UTC+08:00) at which Thursday cutoff fires. Recommended value: `"23:59:59"`|
-|`require_all_committee_signatures`|`boolean`|Yes|Must be `true`; all committees must contribute|
-|`allow_secretary_advance`|`boolean`|Yes|Permits SP Secretary to manually advance the step; always requires a non-empty comment and is always audit-logged|
+| Field                              | Type       | Required | Notes                                                                                                                |
+| ---------------------------------- | ---------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
+| `default_committee_roles`          | `string[]` | Yes      | Default list of role keys for assigned committees. May be overridden per instance before any submission is received. |
+| `report_acceptor_role`             | `string`   | Yes      | Role key for the actor who accepts the unified report (SP Secretary)                                                 |
+| `thursday_cutoff_enabled`          | `boolean`  | Yes      | Must be `true` for all SP Resolution and Ordinance referral steps                                                    |
+| `cutoff_time_pht`                  | `string`   | Yes      | Time in PHT (UTC+08:00) at which Thursday cutoff fires. Recommended value: `"23:59:59"`                              |
+| `require_all_committee_signatures` | `boolean`  | Yes      | Must be `true`; all committees must contribute                                                                       |
+| `allow_secretary_advance`          | `boolean`  | Yes      | Permits SP Secretary to manually advance the step; always requires a non-empty comment and is always audit-logged    |
 
 **Step instance metadata schema (`step_instances.metadata`):**
 
@@ -467,11 +467,11 @@ When `allow_secretary_advance = true` and the SP Secretary invokes manual advanc
 
 **Outcome codes:**
 
-|Code|Meaning|
-|---|---|
-|`COMMITTEE_SUBMITTED`|Intermediate outcome for each committee's individual submission (not the step's final outcome)|
-|`REPORT_ACCEPTED`|SP Secretary accepted the unified report; step completes normally|
-|`SECRETARY_ADVANCED`|SP Secretary manually advanced; some committees may not have submitted|
+| Code                  | Meaning                                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------------------- |
+| `COMMITTEE_SUBMITTED` | Intermediate outcome for each committee's individual submission (not the step's final outcome) |
+| `REPORT_ACCEPTED`     | SP Secretary accepted the unified report; step completes normally                              |
+| `SECRETARY_ADVANCED`  | SP Secretary manually advanced; some committees may not have submitted                         |
 
 ---
 
@@ -481,11 +481,11 @@ When `allow_secretary_advance = true` and the SP Secretary invokes manual advanc
 
 **Config fields:**
 
-|Field|Type|Required|Notes|
-|---|---|---|---|
-|`condition_expression`|`string`|Yes|JSONLogic expression evaluated against `instance.context`. Must return a truthy or falsy value.|
-|`true_outcome`|`string`|No|Default `"TRUE"`. `outcome` value when expression is truthy.|
-|`false_outcome`|`string`|No|Default `"FALSE"`. `outcome` value when expression is falsy.|
+| Field                  | Type     | Required | Notes                                                                                           |
+| ---------------------- | -------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `condition_expression` | `string` | Yes      | JSONLogic expression evaluated against `instance.context`. Must return a truthy or falsy value. |
+| `true_outcome`         | `string` | No       | Default `"TRUE"`. `outcome` value when expression is truthy.                                    |
+| `false_outcome`        | `string` | No       | Default `"FALSE"`. `outcome` value when expression is falsy.                                    |
 
 **`auto_complete`** is always `true` for `decision` steps; this is enforced by the engine and cannot be disabled by configuration.
 
@@ -510,12 +510,12 @@ When `allow_secretary_advance = true` and the SP Secretary invokes manual advanc
 
 **Config fields:**
 
-|Field|Type|Required|Notes|
-|---|---|---|---|
-|`template_key`|`string`|Yes|Key of the notification template (`notifications.templates`)|
-|`recipients`|`string[]`|Yes|List of recipient expressions using the same format as assignee resolution, plus `context:<context_key>` to include a user ID stored in context|
-|`channels`|`string[]`|No|Default `["in_app"]`. Valid values: `"in_app"`, `"email"`, `"sms"` (SMS Phase 2+)|
-|`payload_context_keys`|`string[]`|No|Context keys whose values are passed as template variables to the notification template|
+| Field                  | Type       | Required | Notes                                                                                                                                           |
+| ---------------------- | ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `template_key`         | `string`   | Yes      | Key of the notification template (`notifications.templates`)                                                                                    |
+| `recipients`           | `string[]` | Yes      | List of recipient expressions using the same format as assignee resolution, plus `context:<context_key>` to include a user ID stored in context |
+| `channels`             | `string[]` | No       | Default `["in_app"]`. Valid values: `"in_app"`, `"email"`, `"sms"` (SMS Phase 2+)                                                               |
+| `payload_context_keys` | `string[]` | No       | Context keys whose values are passed as template variables to the notification template                                                         |
 
 **Completion:** Engine enqueues the notification in the `notifications` module's queue. Sets `status = completed`, `outcome = DISPATCHED`, `actor_type = system`, `completed_at = NOW()`. Transition evaluation fires immediately.
 
@@ -527,25 +527,25 @@ When `allow_secretary_advance = true` and the SP Secretary invokes manual advanc
 
 **Config fields:**
 
-|Field|Type|Required|Notes|
-|---|---|---|---|
-|`outcome_code`|`string`|Yes|Semantic outcome of the workflow (see valid codes below)|
-|`final_document_status`|`string`|Yes|Document lifecycle status to apply: `RELEASED`, `ARCHIVED`, `CANCELLED`|
-|`emit_event`|`string`|No|Additional domain event key to emit on the event bus for other modules to consume|
+| Field                   | Type     | Required | Notes                                                                             |
+| ----------------------- | -------- | -------- | --------------------------------------------------------------------------------- |
+| `outcome_code`          | `string` | Yes      | Semantic outcome of the workflow (see valid codes below)                          |
+| `final_document_status` | `string` | Yes      | Document lifecycle status to apply: `RELEASED`, `ARCHIVED`, `CANCELLED`           |
+| `emit_event`            | `string` | No       | Additional domain event key to emit on the event bus for other modules to consume |
 
 **Valid `outcome_code` values:**
 
-|Code|Meaning|
-|---|---|
-|`APPROVED_AND_RELEASED`|Full legislative lifecycle completed; document released|
-|`LAPSED_INTO_LAW`|Mayor took no action within 10 calendar days|
-|`DEEMED_APPROVED_PANLALAWIGAN`|Panlalawigan took no action within 30 days|
-|`VETOED_OVERRIDE_FAILED`|Mayor vetoed; SP could not muster 2/3 override|
-|`REJECTED_AT_VOTE`|Voted down at a reading session|
-|`ARCHIVED_NO_ACTION`|Committee deferred; document archived|
-|`CANCELLED`|Manually cancelled by authorized actor|
-|`VALID_IN_PART_RESOLVED`|Panlalawigan returned VALID-IN-PART; Secretariat resolved without repass|
-|`REPASSED`|Document returned to draft for amendment and repass (see special handling below)|
+| Code                           | Meaning                                                                          |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| `APPROVED_AND_RELEASED`        | Full legislative lifecycle completed; document released                          |
+| `LAPSED_INTO_LAW`              | Mayor took no action within 10 calendar days                                     |
+| `DEEMED_APPROVED_PANLALAWIGAN` | Panlalawigan took no action within 30 days                                       |
+| `VETOED_OVERRIDE_FAILED`       | Mayor vetoed; SP could not muster 2/3 override                                   |
+| `REJECTED_AT_VOTE`             | Voted down at a reading session                                                  |
+| `ARCHIVED_NO_ACTION`           | Committee deferred; document archived                                            |
+| `CANCELLED`                    | Manually cancelled by authorized actor                                           |
+| `VALID_IN_PART_RESOLVED`       | Panlalawigan returned VALID-IN-PART; Secretariat resolved without repass         |
+| `REPASSED`                     | Document returned to draft for amendment and repass (see special handling below) |
 
 **On `outcome_code = REPASSED`:** The instance is NOT set to `completed`. It is set to `active` and a new step is NOT created. The engine emits `workflow.instance.repassed` containing the original `instance_id` and `document_id`. The documents module subscribes to this event and handles creation of the amended document version and a new workflow instance linked to it. This keeps the original instance's history intact and links the new instance back to the original.
 
@@ -593,27 +593,24 @@ The workflow engine subscribes to this event and executes the bypass sequence fo
 **Bypass sequence per instance:**
 
 1. Load the instance. Verify `instance.status = active`. If the instance is not active (completed, cancelled, stuck), emit `workflow.certification_urgency.already_inactive` and skip.
-    
 2. Set `instance.context.certified_urgent = true` and `instance.context.certified_urgent_document_id = certification_document_id` within a database transaction.
-    
 3. Find the `multi_referral` step instance for this workflow instance.
-    
-    **Case A — `multi_referral` step is `active`:** Execute bypass immediately. Within the same transaction:
-    
-    - Set `step_instances.status = bypassed`.
-    - Set `step_instances.bypassed_at = NOW()`.
-    - Set `step_instances.bypassed_by = null` (system-triggered, no human actor for this specific action).
-    - Set `step_instances.bypass_reason = 'CERTIFIED_URGENT'`.
-    - Set `step_instances.outcome = 'BYPASSED_CERTIFIED_URGENT'`.
-    - Emit `workflow.step.bypassed` with `bypass_reason = 'CERTIFIED_URGENT'` and `certification_document_id`.
-    - Run transition evaluation from the bypassed step. The workflow definition **must** have a transition rule with `outcome_filter = 'BYPASSED_CERTIFIED_URGENT'` pointing to the Second Reading step; the admin UI enforces this at definition publish time.
-    
-    **Case B — `multi_referral` step is `pending` (not yet activated):** Set a deferred bypass flag: write a record to a `pending_certified_urgent_bypasses` table (or an equivalent mechanism) keyed on `(instance_id, step_key = 'committee_referral')`. When the `multi_referral` step would normally be activated, the engine checks for a pending bypass flag and executes Case A logic instead of activating the step.
-    
-    **Case C — `multi_referral` step is already `completed` or `bypassed`:** The workflow has already passed the committee referral stage. Emit `workflow.certification_urgency.already_past_referral` with `instance_id` and `certification_document_id`. No workflow change. Log at warning level.
-    
+
+   **Case A — `multi_referral` step is `active`:** Execute bypass immediately. Within the same transaction:
+
+   - Set `step_instances.status = bypassed`.
+   - Set `step_instances.bypassed_at = NOW()`.
+   - Set `step_instances.bypassed_by = null` (system-triggered, no human actor for this specific action).
+   - Set `step_instances.bypass_reason = 'CERTIFIED_URGENT'`.
+   - Set `step_instances.outcome = 'BYPASSED_CERTIFIED_URGENT'`.
+   - Emit `workflow.step.bypassed` with `bypass_reason = 'CERTIFIED_URGENT'` and `certification_document_id`.
+   - Run transition evaluation from the bypassed step. The workflow definition **must** have a transition rule with `outcome_filter = 'BYPASSED_CERTIFIED_URGENT'` pointing to the Second Reading step; the admin UI enforces this at definition publish time.
+
+   **Case B — `multi_referral` step is `pending` (not yet activated):** Set a deferred bypass flag: write a record to a `pending_certified_urgent_bypasses` table (or an equivalent mechanism) keyed on `(instance_id, step_key = 'committee_referral')`. When the `multi_referral` step would normally be activated, the engine checks for a pending bypass flag and executes Case A logic instead of activating the step.
+
+   **Case C — `multi_referral` step is already `completed` or `bypassed`:** The workflow has already passed the committee referral stage. Emit `workflow.certification_urgency.already_past_referral` with `instance_id` and `certification_document_id`. No workflow change. Log at warning level.
+
 4. Emit `workflow.certification_urgency.bypass_applied` (for Case A and Case B completions) with `instance_id`, `step_instance_id`, and `certification_document_id`.
-    
 
 **Audit:** The `workflow.step.bypassed` event is consumed by the audit service, which writes a dedicated audit entry noting the bypass reason and the certification document reference.
 
@@ -669,13 +666,13 @@ FOR each active multi_referral step_instance WHERE thursday_cutoff_enabled = tru
 
 **`computeSecondReadingEligibleDate` — worked examples:**
 
-|Last Submission|Cutoff Evaluation|Eligible Tuesday|
-|---|---|---|
-|Monday 08:00 Week N|Thursday Week N 23:59:59|Tuesday Week N+1|
-|Thursday 15:00 Week N|Thursday Week N 23:59:59|Tuesday Week N+1|
-|Thursday 23:59:58 Week N|Thursday Week N 23:59:59|Tuesday Week N+1|
-|Thursday 23:59:59 Week N (exact cutoff)|Not before cutoff|Evaluated Thursday Week N+1; Tuesday Week N+2|
-|Friday 09:00 Week N|Thursday Week N already passed; evaluated Thursday Week N+1|Tuesday Week N+2|
+| Last Submission                         | Cutoff Evaluation                                           | Eligible Tuesday                              |
+| --------------------------------------- | ----------------------------------------------------------- | --------------------------------------------- |
+| Monday 08:00 Week N                     | Thursday Week N 23:59:59                                    | Tuesday Week N+1                              |
+| Thursday 15:00 Week N                   | Thursday Week N 23:59:59                                    | Tuesday Week N+1                              |
+| Thursday 23:59:58 Week N                | Thursday Week N 23:59:59                                    | Tuesday Week N+1                              |
+| Thursday 23:59:59 Week N (exact cutoff) | Not before cutoff                                           | Evaluated Thursday Week N+1; Tuesday Week N+2 |
+| Friday 09:00 Week N                     | Thursday Week N already passed; evaluated Thursday Week N+1 | Tuesday Week N+2                              |
 
 **Effect on workflow:** The `multi_referral` step remains `active` until all committees have submitted AND the SP Secretary accepts the unified report. `second_reading_eligible_date` is set by the job and written to `instance.context`. The next step (Second Reading, an `approval` step) is only activated when the `multi_referral` step completes.
 
@@ -709,11 +706,11 @@ FOR each active approval step_instance WHERE:
     AND NOW() > instance.context.mayor_action_deadline:
 
   Acquire a pessimistic row lock on the step_instance row (SELECT FOR UPDATE)
-  
+
   IF step_instance.outcome IS NOT NULL:
     // Actor submitted between job check and lock acquisition; skip this instance
     RELEASE lock; CONTINUE
-  
+
   SET step_instance.status = completed
   SET step_instance.outcome = 'LAPSED'
   SET step_instance.outcome_comment = 'Mayor took no action within 10 calendar days. Lapsed into law per RA 7160 Section 47.'
@@ -721,13 +718,13 @@ FOR each active approval step_instance WHERE:
   SET step_instance.actor_type = system
   SET instance.context.mayor_action = 'LAPSED'
   SET instance.context.mayor_action_date = instance.context.mayor_action_deadline
-  
+
   EMIT workflow.approval.lapsed {
     step_instance_id,
     legal_basis: 'RA 7160 Section 47',
     deadline_was: instance.context.mayor_action_deadline
   }
-  
+
   RUN transition evaluation
   // Rule with outcome_filter = 'LAPSED' routes to Docketing step
 ```
@@ -773,10 +770,10 @@ FOR each active approval step_instance WHERE:
     AND NOW() > instance.context.panlalawigan_action_deadline:
 
   Acquire pessimistic row lock (SELECT FOR UPDATE)
-  
+
   IF instance.context.panlalawigan_outcome IS NOT NULL:
     RELEASE lock; CONTINUE
-  
+
   SET step_instance.status = completed
   SET step_instance.outcome = 'DEEMED_APPROVED'
   SET step_instance.outcome_comment = 'Deemed approved per RA 7160 Section 56(d) — 30 calendar days elapsed with no action from the Sangguniang Panlalawigan.'
@@ -784,14 +781,14 @@ FOR each active approval step_instance WHERE:
   SET step_instance.actor_type = system
   SET instance.context.panlalawigan_outcome = 'DEEMED_APPROVED'
   SET instance.context.panlalawigan_response_date = instance.context.panlalawigan_action_deadline
-  
+
   EMIT workflow.panlalawigan.deemed_approved {
     step_instance_id,
     legal_basis: 'RA 7160 Section 56(d)',
     transmission_date: instance.context.panlalawigan_transmission_date,
     deadline_was: instance.context.panlalawigan_action_deadline
   }
-  
+
   RUN transition evaluation
   // Rule with outcome_filter = 'DEEMED_APPROVED' routes to Publication check or Archive
 ```
@@ -800,22 +797,22 @@ FOR each active approval step_instance WHERE:
 
 **Outcome handling:**
 
-|Outcome|Transition Target|
-|---|---|
-|`VALID`|Publication decision step (routes to newspaper publication if penalty ordinance, else archive)|
-|`OPERATIVE_IN_ITS_ENTIRETY`|Same as `VALID` (Appropriation Ordinance specific)|
-|`DEEMED_APPROVED`|Same as `VALID`|
-|`VALID_IN_PART`|`action` step: SP Secretary chooses resolution path (see below)|
-|`RETURNED`|High-priority `action` step: Secretariat decides whether to modify/repass or implement directly|
+| Outcome                     | Transition Target                                                                               |
+| --------------------------- | ----------------------------------------------------------------------------------------------- |
+| `VALID`                     | Publication decision step (routes to newspaper publication if penalty ordinance, else archive)  |
+| `OPERATIVE_IN_ITS_ENTIRETY` | Same as `VALID` (Appropriation Ordinance specific)                                              |
+| `DEEMED_APPROVED`           | Same as `VALID`                                                                                 |
+| `VALID_IN_PART`             | `action` step: SP Secretary chooses resolution path (see below)                                 |
+| `RETURNED`                  | High-priority `action` step: Secretariat decides whether to modify/repass or implement directly |
 
 **`VALID_IN_PART` resolution path:** The transition from `VALID_IN_PART` routes to an `action` step assigned to the SP Secretary with a form presenting four options (enforced as `allowed_outcomes` on the follow-on `approval` step):
 
-|Option|Outcome Code|Behavior|
-|---|---|---|
-|Resolve as-is with comment|`RESOLVED_IN_PLACE`|Mandatory comment; document marked with annotation|
-|Route to Legal Office|`ROUTED_TO_LEGAL`|Routes to Legal Office `action` step|
-|Route to concerned Committee|`ROUTED_TO_COMMITTEE`|Routes to committee `action` step|
-|Implement revisions directly|`REVISED_DIRECTLY`|Mandatory comment; Secretariat implements changes; workflow terminates with `VALID_IN_PART_RESOLVED`|
+| Option                       | Outcome Code          | Behavior                                                                                             |
+| ---------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------- |
+| Resolve as-is with comment   | `RESOLVED_IN_PLACE`   | Mandatory comment; document marked with annotation                                                   |
+| Route to Legal Office        | `ROUTED_TO_LEGAL`     | Routes to Legal Office `action` step                                                                 |
+| Route to concerned Committee | `ROUTED_TO_COMMITTEE` | Routes to committee `action` step                                                                    |
+| Implement revisions directly | `REVISED_DIRECTLY`    | Mandatory comment; Secretariat implements changes; workflow terminates with `VALID_IN_PART_RESOLVED` |
 
 All choices produce a mandatory comment and are audit-logged. None of these choices is a default; the SP Secretary must explicitly select one.
 
@@ -881,11 +878,11 @@ The SLA clock is wall-clock time recorded as `TIMESTAMPTZ`. It is not measured i
 
 `instances.sla_deadline = instances.started_at + SLA_threshold`. The threshold is configured per document type by the Platform Administrator. Defaults from RA 11032 (ARTA):
 
-|Transaction Category|Threshold|
-|---|---|
-|Simple|3 working days|
-|Complex|7 working days|
-|Highly technical|20 working days|
+| Transaction Category | Threshold       |
+| -------------------- | --------------- |
+| Simple               | 3 working days  |
+| Complex              | 7 working days  |
+| Highly technical     | 20 working days |
 
 Working days exclude Saturdays, Sundays, and declared national and local public holidays. The holidays calendar is maintained by the Platform Administrator. The calendar must be seeded with at least the current year's holidays before any SLA computation is relied upon in production. SP Resolutions and SP Ordinances are classified as complex transactions by default; this is configurable.
 
@@ -906,11 +903,11 @@ Working days exclude Saturdays, Sundays, and declared national and local public 
 
 The `evaluateSlaBreaches` job runs every 15 minutes via `node-cron`. It checks all active instances and step instances.
 
-|Threshold|Trigger|Action|
-|---|---|---|
-|80% of SLA elapsed|`NOW() >= started_at + (sla_deadline - started_at) * 0.8`|Emit `workflow.sla.warning`; in-app notification to step assignee and direct supervisor|
-|100% (breach)|`NOW() > sla_deadline`|Emit `workflow.sla.breached`; in-app notification to assignee, supervisor, and Records Officer. If step-level breach, also notify SP Secretary. If instance-level breach, also notify Mayor dashboard.|
-|150% of SLA elapsed|`NOW() >= started_at + (sla_deadline - started_at) * 1.5`|Emit `workflow.sla.critical`; add to SP Secretary critical queue; log in ARTA compliance report|
+| Threshold           | Trigger                                                   | Action                                                                                                                                                                                                 |
+| ------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 80% of SLA elapsed  | `NOW() >= started_at + (sla_deadline - started_at) * 0.8` | Emit `workflow.sla.warning`; in-app notification to step assignee and direct supervisor                                                                                                                |
+| 100% (breach)       | `NOW() > sla_deadline`                                    | Emit `workflow.sla.breached`; in-app notification to assignee, supervisor, and Records Officer. If step-level breach, also notify SP Secretary. If instance-level breach, also notify Mayor dashboard. |
+| 150% of SLA elapsed | `NOW() >= started_at + (sla_deadline - started_at) * 1.5` | Emit `workflow.sla.critical`; add to SP Secretary critical queue; log in ARTA compliance report                                                                                                        |
 
 The SLA warning level emits at most once per step instance. If the step is still active at the breach threshold, the breach event replaces the warning (no duplicate warning). The critical threshold event emits only if the step is still active at 150%.
 
@@ -922,21 +919,21 @@ Escalation targets (supervisor role keys, Records Officer role key) are configur
 
 The following constraints are enforced by the engine at runtime and, where feasible, by database constraints and migration linting. Violations cause the relevant operation to be rejected with a typed error; they are never silently ignored or logged-and-continued.
 
-|#|Invariant|Enforcement Mechanism|
-|---|---|---|
-|1|`instances.definition_version_id` is written once at creation and never updated except via `engine.migrateInstance`|No SQL update path exists outside `engine.migrateInstance`; application-level guard on all other update paths|
-|2|A `multi_referral` step with `require_all_committee_signatures = true` cannot complete with `outcome = REPORT_ACCEPTED` unless all committees have submissions OR `manual_advance = true`|Enforced in the `multi_referral` completion handler before setting `status = completed`|
-|3|`outcome = LAPSED` and `outcome = DEEMED_APPROVED` may only be submitted with `actor_type = system`|Enforced in `engine.submitStepAction` before any state change is written|
-|4|Every `approval` step whose `allowed_outcomes` includes `LAPSED` must have an outgoing transition rule with `outcome_filter = 'LAPSED'`|Validated at definition version publish time; publication fails with `MISSING_LAPSE_TRANSITION`|
-|5|No definition version may include `parallel_split` or `parallel_join` step types in Phase 1|Validated at definition version publish time; validated again on step instance activation at runtime|
-|6|An instance with `status = completed` or `status = cancelled` cannot have any step instance activated|Enforced in `engine.createInstance`, `engine.submitStepAction`, and all timer jobs at the start of each operation|
-|7|SP Secretary manual advance of a `multi_referral` step requires a non-empty `outcome_comment`|Enforced in `engine.submitStepAction` before the step proceeds to completion|
-|8|Option B migration requires a valid, unexpired City Administrator approval record|Checked transactionally in `engine.migrateInstance`; the approval record is consumed (marked used) atomically with the migration|
-|9|A `termination` step with `outcome_code = REPASSED` must not set `instances.status = completed`|Enforced in the termination execution handler; `instances.status` remains `active` and `workflow.instance.repassed` is emitted instead|
-|10|All engine operations that accept a `reason` or `comment` parameter must reject the call if that value is empty or whitespace-only when the spec marks it as mandatory|Enforced by input validation in each entry point before any database write|
-|11|The encoder (document creator) and the final approver of the same document cannot be the same user|Enforced in the `approval` step completion handler for steps marked as `is_final_approval = true` in their config; checked against `instance.context.created_by`|
-|12|No outgoing transition rule may reference a `to_step_id` from a different `definition_version_id` than the instance's pinned version|Validated during transition evaluation; invalid transitions trigger `workflow.instance.stuck`|
-|13|`workflow.workflow_events` rows may only be inserted; no update or delete path exists|DB-level permission: `REVOKE UPDATE, DELETE ON workflow.workflow_events FROM workflow_app_user` in the schema migration|
+| #   | Invariant                                                                                                                                                                                 | Enforcement Mechanism                                                                                                                                            |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `instances.definition_version_id` is written once at creation and never updated except via `engine.migrateInstance`                                                                       | No SQL update path exists outside `engine.migrateInstance`; application-level guard on all other update paths                                                    |
+| 2   | A `multi_referral` step with `require_all_committee_signatures = true` cannot complete with `outcome = REPORT_ACCEPTED` unless all committees have submissions OR `manual_advance = true` | Enforced in the `multi_referral` completion handler before setting `status = completed`                                                                          |
+| 3   | `outcome = LAPSED` and `outcome = DEEMED_APPROVED` may only be submitted with `actor_type = system`                                                                                       | Enforced in `engine.submitStepAction` before any state change is written                                                                                         |
+| 4   | Every `approval` step whose `allowed_outcomes` includes `LAPSED` must have an outgoing transition rule with `outcome_filter = 'LAPSED'`                                                   | Validated at definition version publish time; publication fails with `MISSING_LAPSE_TRANSITION`                                                                  |
+| 5   | No definition version may include `parallel_split` or `parallel_join` step types in Phase 1                                                                                               | Validated at definition version publish time; validated again on step instance activation at runtime                                                             |
+| 6   | An instance with `status = completed` or `status = cancelled` cannot have any step instance activated                                                                                     | Enforced in `engine.createInstance`, `engine.submitStepAction`, and all timer jobs at the start of each operation                                                |
+| 7   | SP Secretary manual advance of a `multi_referral` step requires a non-empty `outcome_comment`                                                                                             | Enforced in `engine.submitStepAction` before the step proceeds to completion                                                                                     |
+| 8   | Option B migration requires a valid, unexpired City Administrator approval record                                                                                                         | Checked transactionally in `engine.migrateInstance`; the approval record is consumed (marked used) atomically with the migration                                 |
+| 9   | A `termination` step with `outcome_code = REPASSED` must not set `instances.status = completed`                                                                                           | Enforced in the termination execution handler; `instances.status` remains `active` and `workflow.instance.repassed` is emitted instead                           |
+| 10  | All engine operations that accept a `reason` or `comment` parameter must reject the call if that value is empty or whitespace-only when the spec marks it as mandatory                    | Enforced by input validation in each entry point before any database write                                                                                       |
+| 11  | The encoder (document creator) and the final approver of the same document cannot be the same user                                                                                        | Enforced in the `approval` step completion handler for steps marked as `is_final_approval = true` in their config; checked against `instance.context.created_by` |
+| 12  | No outgoing transition rule may reference a `to_step_id` from a different `definition_version_id` than the instance's pinned version                                                      | Validated during transition evaluation; invalid transitions trigger `workflow.instance.stuck`                                                                    |
+| 13  | `workflow.workflow_events` rows may only be inserted; no update or delete path exists                                                                                                     | DB-level permission: `REVOKE UPDATE, DELETE ON workflow.workflow_events FROM workflow_app_user` in the schema migration                                          |
 
 ---
 
@@ -944,37 +941,37 @@ The following constraints are enforced by the engine at runtime and, where feasi
 
 All events are persisted to `workflow.workflow_events` within the committing transaction and published to the in-process event bus after commit. Events consumed by the audit service are marked **(Audit)**.
 
-|Event Type|Trigger|Key Payload Fields|
-|---|---|---|
-|`workflow.instance.created`|New instance started|`instance_id`, `definition_version_id`, `document_id`, `document_type`, `sla_deadline`|
-|`workflow.instance.completed`|Termination step reached|`instance_id`, `outcome_code`, `final_document_status`|
-|`workflow.instance.cancelled`|Instance cancelled **(Audit)**|`instance_id`, `cancelled_by`, `cancellation_reason`|
-|`workflow.instance.stuck`|No matching transition found|`instance_id`, `step_instance_id`, `evaluated_rules`, `context_snapshot`|
-|`workflow.instance.repassed`|Termination with REPASSED outcome|`instance_id`, `document_id`|
-|`workflow.instance.suspended`|Admin suspended instance **(Audit)**|`instance_id`, `suspended_by`, `reason`|
-|`workflow.instance.resumed`|Admin resumed suspended instance **(Audit)**|`instance_id`, `resumed_by`|
-|`workflow.instance.migration.started`|Option B migration initiated **(Audit)**|`instance_id`, `from_version_id`, `to_version_id`, `actor_id`, `reason`, `step_mapping`|
-|`workflow.instance.migration.completed`|Option B migration completed **(Audit)**|`instance_id`, `from_version_id`, `to_version_id`|
-|`workflow.instance.migration.reversed`|Option B migration reversed **(Audit)**|`instance_id`, `actor_id`, `reversal_reason`, `original_migration_event_id`|
-|`workflow.step.started`|Step instance activated|`instance_id`, `step_instance_id`, `step_type`, `step_key`, `assigned_to`|
-|`workflow.step.completed`|Step instance completed **(Audit for approval/multi_referral)**|`instance_id`, `step_instance_id`, `outcome`, `actor_id`, `actor_type`|
-|`workflow.step.bypassed`|Step bypassed **(Audit)**|`instance_id`, `step_instance_id`, `bypass_reason`, `bypassed_by`|
-|`workflow.step.failed`|Engine error during step|`instance_id`, `step_instance_id`, `error_code`, `error_message`|
-|`workflow.context.updated`|Context key(s) modified|`instance_id`, `updated_keys`, `previous_values`, `new_values`, `actor_id`|
-|`workflow.multi_referral.committee_submitted`|Committee submitted contribution|`step_instance_id`, `committee_id`, `submitted_by`, `contribution_document_id`|
-|`workflow.multi_referral.all_submitted`|Last unsubmitted committee submitted|`step_instance_id`, `all_submitted_at`|
-|`workflow.multi_referral.cutoff_missed`|Thursday cutoff passed; not all submitted|`step_instance_id`, `cutoff_timestamp`, `missing_committee_ids`, `cutoff_number`|
-|`workflow.multi_referral.second_reading_eligible`|Eligible Tuesday computed|`step_instance_id`, `eligible_date`, `cutoff_timestamp_cleared`|
-|`workflow.multi_referral.secretary_advanced`|SP Secretary manual advance **(Audit)**|`step_instance_id`, `actor_id`, `comment`, `missing_committee_ids`, `metadata_snapshot`|
-|`workflow.approval.lapsed`|10-day Mayor lapse fired|`step_instance_id`, `legal_basis`, `deadline_was`|
-|`workflow.panlalawigan.deemed_approved`|30-day Panlalawigan timer fired|`step_instance_id`, `legal_basis`, `transmission_date`, `deadline_was`|
-|`workflow.certification_urgency.bypass_applied`|Certified Urgent bypass executed **(Audit)**|`instance_id`, `step_instance_id`, `certification_document_id`|
-|`workflow.certification_urgency.bypass_deferred`|Certified Urgent bypass recorded for pending step|`instance_id`, `certification_document_id`|
-|`workflow.certification_urgency.already_past_referral`|Certified Urgent received after referral step already passed|`instance_id`, `certification_document_id`|
-|`workflow.certification_urgency.already_inactive`|Certified Urgent received for a non-active instance|`instance_id`, `instance_status`, `certification_document_id`|
-|`workflow.sla.warning`|80% of SLA time elapsed|`instance_id`, `step_instance_id`, `sla_deadline`, `percent_elapsed: 80`|
-|`workflow.sla.breached`|SLA deadline passed|`instance_id`, `step_instance_id`, `sla_deadline`, `breach_detected_at`, `breached_at: sla_deadline`|
-|`workflow.sla.critical`|150% of SLA time elapsed|`instance_id`, `step_instance_id`, `sla_deadline`|
+| Event Type                                             | Trigger                                                         | Key Payload Fields                                                                                   |
+| ------------------------------------------------------ | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `workflow.instance.created`                            | New instance started                                            | `instance_id`, `definition_version_id`, `document_id`, `document_type`, `sla_deadline`               |
+| `workflow.instance.completed`                          | Termination step reached                                        | `instance_id`, `outcome_code`, `final_document_status`                                               |
+| `workflow.instance.cancelled`                          | Instance cancelled **(Audit)**                                  | `instance_id`, `cancelled_by`, `cancellation_reason`                                                 |
+| `workflow.instance.stuck`                              | No matching transition found                                    | `instance_id`, `step_instance_id`, `evaluated_rules`, `context_snapshot`                             |
+| `workflow.instance.repassed`                           | Termination with REPASSED outcome                               | `instance_id`, `document_id`                                                                         |
+| `workflow.instance.suspended`                          | Admin suspended instance **(Audit)**                            | `instance_id`, `suspended_by`, `reason`                                                              |
+| `workflow.instance.resumed`                            | Admin resumed suspended instance **(Audit)**                    | `instance_id`, `resumed_by`                                                                          |
+| `workflow.instance.migration.started`                  | Option B migration initiated **(Audit)**                        | `instance_id`, `from_version_id`, `to_version_id`, `actor_id`, `reason`, `step_mapping`              |
+| `workflow.instance.migration.completed`                | Option B migration completed **(Audit)**                        | `instance_id`, `from_version_id`, `to_version_id`                                                    |
+| `workflow.instance.migration.reversed`                 | Option B migration reversed **(Audit)**                         | `instance_id`, `actor_id`, `reversal_reason`, `original_migration_event_id`                          |
+| `workflow.step.started`                                | Step instance activated                                         | `instance_id`, `step_instance_id`, `step_type`, `step_key`, `assigned_to`                            |
+| `workflow.step.completed`                              | Step instance completed **(Audit for approval/multi_referral)** | `instance_id`, `step_instance_id`, `outcome`, `actor_id`, `actor_type`                               |
+| `workflow.step.bypassed`                               | Step bypassed **(Audit)**                                       | `instance_id`, `step_instance_id`, `bypass_reason`, `bypassed_by`                                    |
+| `workflow.step.failed`                                 | Engine error during step                                        | `instance_id`, `step_instance_id`, `error_code`, `error_message`                                     |
+| `workflow.context.updated`                             | Context key(s) modified                                         | `instance_id`, `updated_keys`, `previous_values`, `new_values`, `actor_id`                           |
+| `workflow.multi_referral.committee_submitted`          | Committee submitted contribution                                | `step_instance_id`, `committee_id`, `submitted_by`, `contribution_document_id`                       |
+| `workflow.multi_referral.all_submitted`                | Last unsubmitted committee submitted                            | `step_instance_id`, `all_submitted_at`                                                               |
+| `workflow.multi_referral.cutoff_missed`                | Thursday cutoff passed; not all submitted                       | `step_instance_id`, `cutoff_timestamp`, `missing_committee_ids`, `cutoff_number`                     |
+| `workflow.multi_referral.second_reading_eligible`      | Eligible Tuesday computed                                       | `step_instance_id`, `eligible_date`, `cutoff_timestamp_cleared`                                      |
+| `workflow.multi_referral.secretary_advanced`           | SP Secretary manual advance **(Audit)**                         | `step_instance_id`, `actor_id`, `comment`, `missing_committee_ids`, `metadata_snapshot`              |
+| `workflow.approval.lapsed`                             | 10-day Mayor lapse fired                                        | `step_instance_id`, `legal_basis`, `deadline_was`                                                    |
+| `workflow.panlalawigan.deemed_approved`                | 30-day Panlalawigan timer fired                                 | `step_instance_id`, `legal_basis`, `transmission_date`, `deadline_was`                               |
+| `workflow.certification_urgency.bypass_applied`        | Certified Urgent bypass executed **(Audit)**                    | `instance_id`, `step_instance_id`, `certification_document_id`                                       |
+| `workflow.certification_urgency.bypass_deferred`       | Certified Urgent bypass recorded for pending step               | `instance_id`, `certification_document_id`                                                           |
+| `workflow.certification_urgency.already_past_referral` | Certified Urgent received after referral step already passed    | `instance_id`, `certification_document_id`                                                           |
+| `workflow.certification_urgency.already_inactive`      | Certified Urgent received for a non-active instance             | `instance_id`, `instance_status`, `certification_document_id`                                        |
+| `workflow.sla.warning`                                 | 80% of SLA time elapsed                                         | `instance_id`, `step_instance_id`, `sla_deadline`, `percent_elapsed: 80`                             |
+| `workflow.sla.breached`                                | SLA deadline passed                                             | `instance_id`, `step_instance_id`, `sla_deadline`, `breach_detected_at`, `breached_at: sla_deadline` |
+| `workflow.sla.critical`                                | 150% of SLA time elapsed                                        | `instance_id`, `step_instance_id`, `sla_deadline`                                                    |
 
 ---
 
@@ -1017,13 +1014,12 @@ The `instances.context JSONB` column is the mutable state store for a workflow i
   "panlalawigan_transmission_date": "TIMESTAMPTZ | null",
   "panlalawigan_action_deadline": "TIMESTAMPTZ | null",
   // Set when Secretariat records outcome or 30-day timer fires
-  "panlalawigan_outcome":
-    "VALID | VALID_IN_PART | RETURNED | DEEMED_APPROVED | OPERATIVE_IN_ITS_ENTIRETY | null",
+  "panlalawigan_outcome": "VALID | VALID_IN_PART | RETURNED | DEEMED_APPROVED | OPERATIVE_IN_ITS_ENTIRETY | null",
   "panlalawigan_response_date": "TIMESTAMPTZ | null",
   "panlalawigan_resolution_number": "string | null",
 
   // ── Publication (set by decision and action steps for newspaper publication)
-  "requires_publication": "boolean",   // set by decision step evaluating penalty clause
+  "requires_publication": "boolean", // set by decision step evaluating penalty clause
   "publication_date": "ISO date string YYYY-MM-DD | null",
   "publication_newspaper": "string | null",
 
@@ -1032,7 +1028,7 @@ The `instances.context JSONB` column is the mutable state store for a workflow i
 
   // ── SLA control ───────────────────────────────────────────────────────────
   // Always false in Phase 1; reserved for future use
-  "sla_paused": false
+  "sla_paused": false,
 }
 ```
 

@@ -1,6 +1,5 @@
 # ADR-GEN-005: Multi-Referral Step Type for Committee Referral (Option B)
 
-
 **Status:** Accepted **Date:** June 2026 **Deciders:** Development team (confirmed against Interview 1 and Interview 2 findings)
 
 ---

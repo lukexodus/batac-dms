@@ -16,6 +16,7 @@ belongs in its source document and this entry should just point there.
 ## Domain terms
 
 ### Certified Urgent
+
 A path triggered by the Mayor issuing a formal document certifying urgency
 on a Resolution or Ordinance. Its effect: **First and Second Reading occur
 in the same session**, and the measure **skips committee review and report
@@ -27,8 +28,9 @@ D2 §2 and §5 (sequence diagrams for the Certified Urgent path,
 Resolution and Ordinance respectively).
 
 ### Panlalawigan (Sangguniang Panlalawigan)
+
 The Provincial Board — the reviewing body that both Resolutions and
-Ordinances are transmitted to *after* Mayor action (signature or lapse).
+Ordinances are transmitted to _after_ Mayor action (signature or lapse).
 Panlalawigan review has its own automated **30-day timer**: see
 [Lapse timer](#lapse-timer) below for how this differs from the Mayor's
 10-day timer.
@@ -36,6 +38,7 @@ Panlalawigan review has its own automated **30-day timer**: see
 log fields, outcome actions); D2 §7 (all four outcome paths).
 
 ### Lapse timer
+
 Not one timer — **two**, for two different actors, and it's easy to
 conflate them:
 
@@ -54,9 +57,11 @@ engine (`evaluateMayorLapseTimers`, `evaluatePanlalawiganTimers` — see
 Part 4.3 (Panlalawigan lapse); Part 11.3 (engine-level timer handling).
 
 ### Multi-referral (`multi_referral`)
+
 A workflow step type — distinct from a simple single-committee referral —
 used when a measure is referred to **more than one committee at once**.
 Key behaviors, not just "more than one committee reviews it":
+
 - **All** assigned committees must sign/contribute to the unified report
   (not just one of them).
 - A committee missing the Thursday cutoff **delays Second Reading**.
@@ -75,6 +80,7 @@ engine spec) for the step-type implementation; D2 relevant sequence
 diagrams for where multi-referral appears in a given document type's flow.
 
 ### Thursday cutoff
+
 The weekly deadline, tied to committee report submission, that determines
 whether a multi-referral measure can proceed to Second Reading on
 schedule. Missing it doesn't fail the measure — it delays it and triggers
@@ -84,6 +90,7 @@ the red-flag/manual-advance behavior described under
 → Spec: consolidated reference, Part 7.2 (Session Patterns and Scheduling).
 
 ### Two-stage numbering (preliminary / final)
+
 Every Resolution, Ordinance, and Appropriation Ordinance gets a
 **preliminary "Draft" number** at Secretariat logging, and a separate
 **final number** assigned after the last reading's vote (before VP and
@@ -93,6 +100,7 @@ sequential assignments, and the gap between them is deliberate, not a bug.
 H3 (numbering-series configuration spec).
 
 ### ARTA / RA 11032
+
 The Anti-Red Tape Act — the legal basis for SLA (service-level agreement)
 tracking on legislative processing. When you see "ARTA SLA" in code or
 docs, it refers to deadline/escalation tracking required by this law, not
@@ -109,17 +117,17 @@ These prefixes appear in task IDs (`TASK-WF-025`), commit messages
 (`feat(wf): ...`), and directory names. All six implemented-as-code
 modules live under `apps/server/src/modules/`.
 
-| Abbreviation | Full name | Code path | What it owns |
-|---|---|---|---|
-| **WF** | Workflow | `apps/server/src/modules/workflow/` | Workflow definitions, instances, step instances, transitions, timers, events |
-| **DOCS** | Documents | `apps/server/src/modules/documents/` | Document types, documents, versions, attachments, numbering, signatures |
-| **TRACK** | Tracking | `apps/server/src/modules/tracking/` | QR codes, tracking records, routing history |
-| **ORG** | Organization | `apps/server/src/modules/organization/` | Offices, positions, employees, assignments, delegations/designations |
-| **IAM** | Identity and Access Management | `apps/server/src/modules/iam/` | Users, credentials, sessions, roles, permissions, ABAC policy evaluation |
-| **AUDIT** | Audit (Log) | `apps/server/src/modules/audit/` | Append-only, hash-chained audit events |
-| **INFRA** | Infrastructure | *(cross-cutting — not a single module dir)* | Monorepo tooling, env config, Docker/Compose, CI, event bus, backups |
-| **UI** | User Interface (component library) | `packages/ui/` | Shared React component library (shadcn/ui + Radix on Tailwind) |
-| **FE** | Frontend (application) | `apps/web/` | The actual pages/routes built on top of `UI` and the module tRPC routers |
+| Abbreviation | Full name                          | Code path                                   | What it owns                                                                 |
+| ------------ | ---------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------- |
+| **WF**       | Workflow                           | `apps/server/src/modules/workflow/`         | Workflow definitions, instances, step instances, transitions, timers, events |
+| **DOCS**     | Documents                          | `apps/server/src/modules/documents/`        | Document types, documents, versions, attachments, numbering, signatures      |
+| **TRACK**    | Tracking                           | `apps/server/src/modules/tracking/`         | QR codes, tracking records, routing history                                  |
+| **ORG**      | Organization                       | `apps/server/src/modules/organization/`     | Offices, positions, employees, assignments, delegations/designations         |
+| **IAM**      | Identity and Access Management     | `apps/server/src/modules/iam/`              | Users, credentials, sessions, roles, permissions, ABAC policy evaluation     |
+| **AUDIT**    | Audit (Log)                        | `apps/server/src/modules/audit/`            | Append-only, hash-chained audit events                                       |
+| **INFRA**    | Infrastructure                     | _(cross-cutting — not a single module dir)_ | Monorepo tooling, env config, Docker/Compose, CI, event bus, backups         |
+| **UI**       | User Interface (component library) | `packages/ui/`                              | Shared React component library (shadcn/ui + Radix on Tailwind)               |
+| **FE**       | Frontend (application)             | `apps/web/`                                 | The actual pages/routes built on top of `UI` and the module tRPC routers     |
 
 Note the distinction between **UI** (the shared component library — Tier
 1/2/3 components) and **FE** (the actual application pages that consume
@@ -142,22 +150,22 @@ planned, not missing.
 
 You'll see documents referred to by a letter-number ID (`B4`, `D2`, `K2`,
 `H1`) rather than by full filename. The letter identifies the document
-*group*:
+_group_:
 
-| Group | Covers |
-|---|---|
-| A | Project planning |
-| B | Architecture documents |
-| C | Database |
-| D | UML and diagrams |
-| E | API design |
-| F | Frontend architecture |
-| G | End-to-end type safety |
-| H | Domain configuration |
-| I | Security and authorization |
-| J | Software design patterns and standards |
-| K | Testing |
-| L | Infrastructure and DevOps |
+| Group | Covers                                 |
+| ----- | -------------------------------------- |
+| A     | Project planning                       |
+| B     | Architecture documents                 |
+| C     | Database                               |
+| D     | UML and diagrams                       |
+| E     | API design                             |
+| F     | Frontend architecture                  |
+| G     | End-to-end type safety                 |
+| H     | Domain configuration                   |
+| I     | Security and authorization             |
+| J     | Software design patterns and standards |
+| K     | Testing                                |
+| L     | Infrastructure and DevOps              |
 
 The number distinguishes documents within a group (e.g., B1 = System
 Architecture, B4 = Workflow Engine Specification). ADRs (Architecture

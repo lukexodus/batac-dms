@@ -46,17 +46,13 @@ export class QrCodeService {
     private readonly repository: TrackingRepository,
     private readonly s3Client: S3Client,
     private readonly env: ServerEnv,
-    private readonly db?: AppDb
+    private readonly db?: AppDb,
   ) {}
 
-  async generateAndStore(
-    documentId: string,
-    actorId: string,
-    db?: AppDb
-  ): Promise<QrCodeRow> {
+  async generateAndStore(documentId: string, actorId: string, db?: AppDb): Promise<QrCodeRow> {
     const currentYear = new Date().getFullYear();
     const trackingId = randomUUID();
-    
+
     // Get the next tracking number (e.g. DTS-2026-0001)
     const trackingNumber = await this.repository.getNextTrackingNumber(currentYear, db);
 
@@ -76,7 +72,7 @@ export class QrCodeService {
       Body: qrBuffer,
       ContentType: 'image/png',
     });
-    
+
     await this.s3Client.send(command);
 
     // Save to DB
@@ -87,7 +83,7 @@ export class QrCodeService {
         trackingNumber,
         generatedBy: actorId,
       },
-      db
+      db,
     );
 
     await this.repository.updateQrImageKey(qrCodeRow.id, qrImageFileKey, db);
@@ -117,7 +113,11 @@ export class QrCodeService {
   async generateCoverSheetPdf(
     documentIds: string[],
     layout: 'single' | 'multi_per_page' = 'multi_per_page',
-    documentsRepo?: { findById(id: string): Promise<{ preliminaryNumber?: string | null; finalNumber?: string | null } | null> }
+    documentsRepo?: {
+      findById(
+        id: string,
+      ): Promise<{ preliminaryNumber?: string | null; finalNumber?: string | null } | null>;
+    },
   ): Promise<Buffer> {
     // Dynamically import pdf-lib so the module doesn't hard-fail if pdf-lib
     // is not yet installed (dev startup without the dep present).
@@ -128,9 +128,7 @@ export class QrCodeService {
       PDFDocument = pdfLib.PDFDocument;
       rgb = pdfLib.rgb;
     } catch {
-      throw new Error(
-        'pdf-lib is not installed. Run: pnpm add pdf-lib --filter server'
-      );
+      throw new Error('pdf-lib is not installed. Run: pnpm add pdf-lib --filter server');
     }
 
     // Collect cover sheet data for each document
@@ -156,7 +154,7 @@ export class QrCodeService {
               new GetObjectCommand({
                 Bucket: this.env.S3_BUCKET,
                 Key: qrCode.qrImageFileKey,
-              })
+              }),
             );
             if (Body) {
               const chunks: Uint8Array[] = [];
@@ -220,7 +218,7 @@ export class QrCodeService {
             MARGIN_PT,
             y,
             COVER_WIDTH_PT,
-            COVER_HEIGHT_PT
+            COVER_HEIGHT_PT,
           );
         }
       }
@@ -243,7 +241,7 @@ async function drawCoverSheet(
   x: number,
   y: number,
   width: number,
-  height: number
+  height: number,
 ): Promise<void> {
   const padding = 8;
   const qrSize = height - padding * 2;

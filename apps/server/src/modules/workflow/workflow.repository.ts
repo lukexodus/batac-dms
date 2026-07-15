@@ -52,7 +52,7 @@ export class WorkflowRepository {
 
   async getActiveDefinitionForDocumentType(
     documentTypeId: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<{ definition: DefinitionRow; currentVersion: DefinitionVersionRow } | null> {
     const result = await tx
       .select({
@@ -64,15 +64,15 @@ export class WorkflowRepository {
         definitionVersions,
         and(
           eq(definitionVersions.definitionId, definitions.id),
-          eq(definitionVersions.isCurrent, true)
-        )
+          eq(definitionVersions.isCurrent, true),
+        ),
       )
       .where(
         and(
           eq(definitions.documentTypeId, documentTypeId),
           eq(definitions.isActive, true),
-          isNull(definitions.deletedAt)
-        )
+          isNull(definitions.deletedAt),
+        ),
       )
       .limit(1);
 
@@ -82,7 +82,7 @@ export class WorkflowRepository {
 
   async createDefinition(
     data: InferInsertModel<typeof definitions>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<DefinitionRow> {
     const [row] = await tx.insert(definitions).values(data).returning();
     return row!;
@@ -90,7 +90,7 @@ export class WorkflowRepository {
 
   async createDefinitionVersion(
     data: InferInsertModel<typeof definitionVersions>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<DefinitionVersionRow> {
     const [row] = await tx.insert(definitionVersions).values(data).returning();
     return row!;
@@ -98,7 +98,7 @@ export class WorkflowRepository {
 
   async getDefinitionVersionWithSteps(
     versionId: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<{
     version: DefinitionVersionRow;
     steps: StepRow[];
@@ -126,7 +126,7 @@ export class WorkflowRepository {
 
   async getStepsAndRulesForValidation(
     versionId: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<{ steps: StepRow[]; transitionRules: TransitionRuleRow[] }> {
     const versionSteps = await tx
       .select()
@@ -144,9 +144,11 @@ export class WorkflowRepository {
   async publishDefinitionVersion(
     versionId: string,
     publishedBy: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<void> {
-    const validationResult = await validateDefinitionForPublish(versionId, { workflowRepository: this });
+    const validationResult = await validateDefinitionForPublish(versionId, {
+      workflowRepository: this,
+    });
     if (!validationResult.valid) {
       throw new DefinitionPublishValidationError(validationResult.errors);
     }
@@ -169,7 +171,7 @@ export class WorkflowRepository {
 
   async createInstance(
     data: InferInsertModel<typeof instances>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<InstanceRow> {
     const [row] = await tx.insert(instances).values(data).returning();
     return row!;
@@ -186,7 +188,7 @@ export class WorkflowRepository {
   async getDefinitionVersionByVersion(
     definitionId: string,
     versionNumber: number,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<DefinitionVersionRow | null> {
     const [row] = await tx
       .select()
@@ -194,8 +196,8 @@ export class WorkflowRepository {
       .where(
         and(
           eq(definitionVersions.definitionId, definitionId),
-          eq(definitionVersions.versionNumber, versionNumber)
-        )
+          eq(definitionVersions.versionNumber, versionNumber),
+        ),
       )
       .limit(1);
     return row || null;
@@ -208,7 +210,7 @@ export class WorkflowRepository {
   async getApprovalGrant(
     instanceId: string,
     newDefinitionVersionId: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<AdminApprovalGrantRow | null> {
     const now = new Date().toISOString();
     const [row] = await tx
@@ -219,8 +221,8 @@ export class WorkflowRepository {
           eq(adminApprovalGrants.instanceId, instanceId),
           eq(adminApprovalGrants.newDefinitionVersionId, newDefinitionVersionId),
           isNull(adminApprovalGrants.usedAt),
-          sql`${adminApprovalGrants.expiresAt} > ${now}::timestamp with time zone`
-        )
+          sql`${adminApprovalGrants.expiresAt} > ${now}::timestamp with time zone`,
+        ),
       )
       .orderBy(desc(adminApprovalGrants.approvedAt)) // Get most recent if multiple
       .limit(1);
@@ -228,10 +230,7 @@ export class WorkflowRepository {
     return row || null;
   }
 
-  async markApprovalGrantUsed(
-    grantId: string,
-    tx: AppDb = this.db
-  ): Promise<void> {
+  async markApprovalGrantUsed(grantId: string, tx: AppDb = this.db): Promise<void> {
     await tx
       .update(adminApprovalGrants)
       .set({ usedAt: new Date() })
@@ -240,7 +239,7 @@ export class WorkflowRepository {
 
   async getActiveInstanceForDocument(
     documentId: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<InstanceRow | null> {
     const [row] = await tx
       .select()
@@ -249,8 +248,8 @@ export class WorkflowRepository {
         and(
           eq(instances.documentId, documentId),
           eq(instances.status, 'active'),
-          isNull(instances.deletedAt)
-        )
+          isNull(instances.deletedAt),
+        ),
       )
       .orderBy(desc(instances.createdAt))
       .limit(1);
@@ -261,7 +260,7 @@ export class WorkflowRepository {
     id: string,
     status: 'active' | 'suspended' | 'stuck' | 'completed' | 'cancelled',
     completedAt?: Date,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<void> {
     // B4 Invariant #6: Guard against updates if current status is terminal
     const [current] = await tx
@@ -272,20 +271,17 @@ export class WorkflowRepository {
     if (!current) return;
     if (current.status === 'completed' || current.status === 'cancelled') {
       throw new InvalidWorkflowTransitionError(
-        `Cannot update status of a ${current.status} workflow instance.`
+        `Cannot update status of a ${current.status} workflow instance.`,
       );
     }
 
-    await tx
-      .update(instances)
-      .set({ status, completedAt })
-      .where(eq(instances.id, id));
+    await tx.update(instances).set({ status, completedAt }).where(eq(instances.id, id));
   }
 
   async updateInstanceContext(
     id: string,
     patch: Record<string, unknown>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<void> {
     // JSONB merge operator (||) is used rather than full payload replacement
     await tx
@@ -299,20 +295,16 @@ export class WorkflowRepository {
   async updateInstance(
     id: string,
     data: Partial<InferInsertModel<typeof instances>>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<InstanceRow> {
-    const [row] = await tx
-      .update(instances)
-      .set(data)
-      .where(eq(instances.id, id))
-      .returning();
+    const [row] = await tx.update(instances).set(data).where(eq(instances.id, id)).returning();
     return row!;
   }
 
   async migrateInstanceVersion(
     id: string,
     targetVersionId: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<void> {
     // This is the ONLY function permitted to update definition_version_id
     await tx
@@ -322,8 +314,20 @@ export class WorkflowRepository {
   }
 
   async getActiveInstancesByDefinitionAndStepConfig(
-    config: { stepType?: 'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination' | 'parallel_split' | 'parallel_join'; configKey?: string; configValue?: string },
-    tx: AppDb = this.db
+    config: {
+      stepType?:
+        | 'action'
+        | 'approval'
+        | 'multi_referral'
+        | 'decision'
+        | 'notification'
+        | 'termination'
+        | 'parallel_split'
+        | 'parallel_join';
+      configKey?: string;
+      configValue?: string;
+    },
+    tx: AppDb = this.db,
   ): Promise<Array<{ instance: InstanceRow; stepInstance: StepInstanceRow }>> {
     // Used by scheduler jobs
     let baseQuery = tx
@@ -334,16 +338,15 @@ export class WorkflowRepository {
       .from(instances)
       .innerJoin(
         stepInstances,
-        and(
-          eq(stepInstances.instanceId, instances.id),
-          eq(stepInstances.status, 'active')
-        )
+        and(eq(stepInstances.instanceId, instances.id), eq(stepInstances.status, 'active')),
       )
       .innerJoin(steps, eq(stepInstances.stepId, steps.id))
-      .where(and(
-        inArray(instances.status, ['active', 'suspended', 'stuck']),
-        isNull(instances.deletedAt)
-      ))
+      .where(
+        and(
+          inArray(instances.status, ['active', 'suspended', 'stuck']),
+          isNull(instances.deletedAt),
+        ),
+      )
       .$dynamic();
 
     if (config.stepType) {
@@ -351,12 +354,10 @@ export class WorkflowRepository {
     }
     if (config.configKey && config.configValue) {
       baseQuery = baseQuery.where(
-        sql`${steps.config}->>${config.configKey} = ${config.configValue}`
+        sql`${steps.config}->>${config.configKey} = ${config.configValue}`,
       );
     } else if (config.configKey) {
-      baseQuery = baseQuery.where(
-        sql`${steps.config} ? ${config.configKey}`
-      );
+      baseQuery = baseQuery.where(sql`${steps.config} ? ${config.configKey}`);
     }
 
     return await baseQuery;
@@ -370,8 +371,8 @@ export class WorkflowRepository {
         and(
           inArray(instances.status, ['active', 'suspended', 'stuck']),
           isNotNull(instances.slaDeadline),
-          isNull(instances.deletedAt)
-        )
+          isNull(instances.deletedAt),
+        ),
       );
   }
 
@@ -381,7 +382,7 @@ export class WorkflowRepository {
 
   async createStepInstance(
     data: InferInsertModel<typeof stepInstances>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<StepInstanceRow> {
     const [row] = await tx.insert(stepInstances).values(data).returning();
     return row!;
@@ -397,7 +398,7 @@ export class WorkflowRepository {
 
   async getMultiReferralStepInstanceForInstance(
     instanceId: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<StepInstanceRow | null> {
     const [row] = await tx
       .select({ stepInstance: stepInstances })
@@ -407,8 +408,8 @@ export class WorkflowRepository {
         and(
           eq(stepInstances.instanceId, instanceId),
           eq(steps.stepType, 'multi_referral'),
-          isNull(stepInstances.deletedAt)
-        )
+          isNull(stepInstances.deletedAt),
+        ),
       )
       .limit(1);
     return row ? row.stepInstance : null;
@@ -417,7 +418,7 @@ export class WorkflowRepository {
   async updateStepInstance(
     id: string,
     data: Partial<InferInsertModel<typeof stepInstances>>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<StepInstanceRow> {
     const [row] = await tx
       .update(stepInstances)
@@ -429,7 +430,7 @@ export class WorkflowRepository {
 
   async getActiveStepInstancesForInstance(
     instanceId: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<StepInstanceRow[]> {
     return await tx
       .select()
@@ -438,14 +439,14 @@ export class WorkflowRepository {
         and(
           eq(stepInstances.instanceId, instanceId),
           eq(stepInstances.status, 'active'),
-          isNull(stepInstances.deletedAt)
-        )
+          isNull(stepInstances.deletedAt),
+        ),
       );
   }
 
   async cancelActiveAndPendingStepInstancesForInstance(
     instanceId: string,
-    tx: AppDb // required — must run in the same transaction as the instance status update
+    tx: AppDb, // required — must run in the same transaction as the instance status update
   ): Promise<void> {
     await tx
       .update(stepInstances)
@@ -454,14 +455,14 @@ export class WorkflowRepository {
         and(
           eq(stepInstances.instanceId, instanceId),
           or(eq(stepInstances.status, 'active'), eq(stepInstances.status, 'pending')),
-          isNull(stepInstances.deletedAt)
-        )
+          isNull(stepInstances.deletedAt),
+        ),
       );
   }
 
   async lockStepInstanceForUpdate(
     id: string,
-    tx: AppDb // tx is required for FOR UPDATE
+    tx: AppDb, // tx is required for FOR UPDATE
   ): Promise<StepInstanceRow | null> {
     const [row] = await tx
       .select()
@@ -473,7 +474,7 @@ export class WorkflowRepository {
 
   async lockInstanceForUpdate(
     id: string,
-    tx: AppDb // tx is required for FOR UPDATE
+    tx: AppDb, // tx is required for FOR UPDATE
   ): Promise<InstanceRow | null> {
     const [row] = await tx
       .select()
@@ -489,7 +490,7 @@ export class WorkflowRepository {
 
   async createWorkflowEvent(
     data: InferInsertModel<typeof workflowEvents>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<WorkflowEventRow> {
     const [row] = await tx.insert(workflowEvents).values(data).returning();
     return row!;
@@ -509,7 +510,7 @@ export class WorkflowRepository {
 
   async createPendingBypass(
     data: InferInsertModel<typeof pendingCertifiedUrgentBypasses>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<PendingBypassRow> {
     const [row] = await tx.insert(pendingCertifiedUrgentBypasses).values(data).returning();
     return row!;
@@ -518,7 +519,7 @@ export class WorkflowRepository {
   async getPendingBypassForInstance(
     instanceId: string,
     stepKey: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<PendingBypassRow | null> {
     const [row] = await tx
       .select()
@@ -528,8 +529,8 @@ export class WorkflowRepository {
           eq(pendingCertifiedUrgentBypasses.instanceId, instanceId),
           eq(pendingCertifiedUrgentBypasses.stepKey, stepKey),
           isNull(pendingCertifiedUrgentBypasses.appliedAt),
-          isNull(pendingCertifiedUrgentBypasses.deletedAt)
-        )
+          isNull(pendingCertifiedUrgentBypasses.deletedAt),
+        ),
       )
       .limit(1);
     return row || null;
@@ -538,7 +539,7 @@ export class WorkflowRepository {
   async markBypassApplied(
     bypassId: string,
     stepInstanceId: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<void> {
     await tx
       .update(pendingCertifiedUrgentBypasses)
@@ -555,7 +556,7 @@ export class WorkflowRepository {
 
   async createOrGetCommitteeReport(
     stepInstanceId: string,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<CommitteeReportRow> {
     // Attempt to get first
     const [existing] = await tx
@@ -564,22 +565,19 @@ export class WorkflowRepository {
       .where(
         and(
           eq(committeeReports.stepInstanceId, stepInstanceId),
-          isNull(committeeReports.deletedAt)
-        )
+          isNull(committeeReports.deletedAt),
+        ),
       );
     if (existing) return existing;
 
-    const [row] = await tx
-      .insert(committeeReports)
-      .values({ stepInstanceId })
-      .returning();
+    const [row] = await tx.insert(committeeReports).values({ stepInstanceId }).returning();
     return row!;
   }
 
   async updateCommitteeReport(
     id: string,
     data: Partial<InferInsertModel<typeof committeeReports>>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<CommitteeReportRow> {
     const [row] = await tx
       .update(committeeReports)
@@ -595,7 +593,7 @@ export class WorkflowRepository {
 
   async createSpSession(
     data: InferInsertModel<typeof spSessions>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<SpSessionRow> {
     const [row] = await tx.insert(spSessions).values(data).returning();
     return row!;
@@ -603,7 +601,7 @@ export class WorkflowRepository {
 
   async upsertSessionAttendance(
     data: InferInsertModel<typeof sessionAttendances>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<void> {
     await tx
       .insert(sessionAttendances)
@@ -620,24 +618,19 @@ export class WorkflowRepository {
 
   async createOrderOfBusiness(
     data: InferInsertModel<typeof orderOfBusiness>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<OrderOfBusinessRow> {
     const [row] = await tx.insert(orderOfBusiness).values(data).returning();
     return row!;
   }
 
   async getOrderOfBusinessWithItems(
-    spSessionId: string
+    spSessionId: string,
   ): Promise<{ oob: OrderOfBusinessRow; items: OrderOfBusinessItemRow[] } | null> {
     const [oob] = await this.db
       .select()
       .from(orderOfBusiness)
-      .where(
-        and(
-          eq(orderOfBusiness.spSessionId, spSessionId),
-          isNull(orderOfBusiness.deletedAt)
-        )
-      );
+      .where(and(eq(orderOfBusiness.spSessionId, spSessionId), isNull(orderOfBusiness.deletedAt)));
 
     if (!oob) return null;
 
@@ -647,8 +640,8 @@ export class WorkflowRepository {
       .where(
         and(
           eq(orderOfBusinessItems.orderOfBusinessId, oob.id),
-          isNull(orderOfBusinessItems.deletedAt)
-        )
+          isNull(orderOfBusinessItems.deletedAt),
+        ),
       );
 
     return { oob, items };
@@ -656,7 +649,7 @@ export class WorkflowRepository {
 
   async upsertOrderOfBusinessItem(
     data: InferInsertModel<typeof orderOfBusinessItems>,
-    tx: AppDb = this.db
+    tx: AppDb = this.db,
   ): Promise<void> {
     await tx
       .insert(orderOfBusinessItems)

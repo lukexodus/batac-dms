@@ -8,7 +8,11 @@ import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // mayorSign: { stepInstanceId } only.
 // mayorVeto: { stepInstanceId, objectionsText: string (required) }.
-export function MayorDecisionPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
+export function MayorDecisionPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const [objectionsText, setObjectionsText] = useState('');
@@ -40,7 +44,7 @@ export function MayorDecisionPanel({ instance }: { instance: RouterOutputs['work
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label className="mb-1 block text-sm font-medium">
             Objections <span className="text-muted-foreground">(required for veto)</span>
           </label>
           <Textarea
@@ -59,7 +63,10 @@ export function MayorDecisionPanel({ instance }: { instance: RouterOutputs['work
           <Button
             variant="destructive"
             onClick={() => {
-              if (!objectionsText) { toast.error('Objections text is required to veto'); return; }
+              if (!objectionsText) {
+                toast.error('Objections text is required to veto');
+                return;
+              }
               vetoMutation.mutate({
                 stepInstanceId: instance.currentStepInstanceId,
                 objectionsText,

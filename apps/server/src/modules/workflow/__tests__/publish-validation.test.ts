@@ -40,12 +40,17 @@ describe('Publish Validation (PUBVAL)', () => {
 
   it('PUBVAL-MULT-START: two start steps → MULTIPLE_START_STEPS error', async () => {
     const result = await runValidator(
-      [{ id: 's1', isStart: true }, { id: 's2', isStart: true }],
-      []
+      [
+        { id: 's1', isStart: true },
+        { id: 's2', isStart: true },
+      ],
+      [],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
-      expect(result.errors).toContainEqual(expect.objectContaining({ code: 'MULTIPLE_START_STEPS' }));
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({ code: 'MULTIPLE_START_STEPS' }),
+      );
     }
   });
 
@@ -55,7 +60,7 @@ describe('Publish Validation (PUBVAL)', () => {
         { id: 's1', isStart: true, stepType: 'parallel_split' },
         { id: 's2', isStart: false, stepType: 'parallel_join' },
       ],
-      []
+      [],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
@@ -68,21 +73,24 @@ describe('Publish Validation (PUBVAL)', () => {
     const result = await runValidator(
       [
         {
-          id: 's1', isStart: true, stepKey: 'mayor_review', stepType: 'approval',
+          id: 's1',
+          isStart: true,
+          stepKey: 'mayor_review',
+          stepType: 'approval',
           config: { allowed_outcomes: ['APPROVED', 'LAPSED'] },
         },
         { id: 's2', isStart: false },
       ],
-      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' }]
+      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' }],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
       expect(result.errors).toContainEqual(
-        expect.objectContaining({ code: 'MISSING_LAPSE_TRANSITION', step_key: 'mayor_review' })
+        expect.objectContaining({ code: 'MISSING_LAPSE_TRANSITION', step_key: 'mayor_review' }),
       );
       // PUBVAL-02c: LAPSED should NOT also raise MISSING_OUTCOME_TRANSITION
       const hasOutcomeError = result.errors.some(
-        (e) => e.code === 'MISSING_OUTCOME_TRANSITION' && e.missing_outcome_code === 'LAPSED'
+        (e) => e.code === 'MISSING_OUTCOME_TRANSITION' && e.missing_outcome_code === 'LAPSED',
       );
       expect(hasOutcomeError).toBe(false);
     }
@@ -92,7 +100,10 @@ describe('Publish Validation (PUBVAL)', () => {
     const result = await runValidator(
       [
         {
-          id: 's1', isStart: true, stepKey: 'mayor_review', stepType: 'approval',
+          id: 's1',
+          isStart: true,
+          stepKey: 'mayor_review',
+          stepType: 'approval',
           config: { allowed_outcomes: ['APPROVED', 'LAPSED'] },
         },
         { id: 's2', isStart: false },
@@ -100,7 +111,7 @@ describe('Publish Validation (PUBVAL)', () => {
       [
         { fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' },
         { fromStepId: 's1', toStepId: 's2', outcomeFilter: 'LAPSED' },
-      ]
+      ],
     );
     expect(result.valid).toBe(true);
   });
@@ -109,17 +120,20 @@ describe('Publish Validation (PUBVAL)', () => {
     const result = await runValidator(
       [
         {
-          id: 's1', isStart: true, stepKey: 'panlalawigan_review', stepType: 'approval',
+          id: 's1',
+          isStart: true,
+          stepKey: 'panlalawigan_review',
+          stepType: 'approval',
           config: { allowed_outcomes: ['VALID', 'DEEMED_APPROVED'] },
         },
         { id: 's2', isStart: false },
       ],
-      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: 'VALID' }]
+      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: 'VALID' }],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
       expect(result.errors).toContainEqual(
-        expect.objectContaining({ code: 'MISSING_DEEMED_APPROVED_TRANSITION' })
+        expect.objectContaining({ code: 'MISSING_DEEMED_APPROVED_TRANSITION' }),
       );
     }
   });
@@ -128,12 +142,15 @@ describe('Publish Validation (PUBVAL)', () => {
     const result = await runValidator(
       [
         {
-          id: 's1', isStart: true, stepKey: 'second_reading_vote', stepType: 'approval',
+          id: 's1',
+          isStart: true,
+          stepKey: 'second_reading_vote',
+          stepType: 'approval',
           config: { allowed_outcomes: ['APPROVED', 'REJECTED'] },
         },
         { id: 's2', isStart: false },
       ],
-      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' }]
+      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: 'APPROVED' }],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
@@ -142,7 +159,7 @@ describe('Publish Validation (PUBVAL)', () => {
           code: 'MISSING_OUTCOME_TRANSITION',
           step_key: 'second_reading_vote',
           missing_outcome_code: 'REJECTED',
-        })
+        }),
       );
     }
   });
@@ -151,12 +168,15 @@ describe('Publish Validation (PUBVAL)', () => {
     const result = await runValidator(
       [
         {
-          id: 's1', isStart: true, stepKey: 'vote_step', stepType: 'approval',
+          id: 's1',
+          isStart: true,
+          stepKey: 'vote_step',
+          stepType: 'approval',
           config: { allowed_outcomes: ['APPROVED', 'REJECTED', 'RETURNED_FOR_REVISION'] },
         },
         { id: 's2', isStart: false },
       ],
-      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: null }] // wildcard covers all
+      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: null }], // wildcard covers all
     );
     expect(result.valid).toBe(true);
   });
@@ -165,17 +185,23 @@ describe('Publish Validation (PUBVAL)', () => {
     const result = await runValidator(
       [
         {
-          id: 's1', isStart: true, stepKey: 'committee_referral', stepType: 'multi_referral',
+          id: 's1',
+          isStart: true,
+          stepKey: 'committee_referral',
+          stepType: 'multi_referral',
           config: { thursday_cutoff_enabled: true, require_all_committee_signatures: true },
         },
         { id: 's2', isStart: false },
       ],
-      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: 'REPORT_ACCEPTED' }]
+      [{ fromStepId: 's1', toStepId: 's2', outcomeFilter: 'REPORT_ACCEPTED' }],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
       expect(result.errors).toContainEqual(
-        expect.objectContaining({ code: 'MISSING_CERTIFIED_URGENT_TRANSITION', step_key: 'committee_referral' })
+        expect.objectContaining({
+          code: 'MISSING_CERTIFIED_URGENT_TRANSITION',
+          step_key: 'committee_referral',
+        }),
       );
     }
   });
@@ -184,7 +210,10 @@ describe('Publish Validation (PUBVAL)', () => {
     const result = await runValidator(
       [
         {
-          id: 's1', isStart: true, stepKey: 'committee_referral', stepType: 'multi_referral',
+          id: 's1',
+          isStart: true,
+          stepKey: 'committee_referral',
+          stepType: 'multi_referral',
           config: { thursday_cutoff_enabled: false }, // missing require_all_committee_signatures
         },
         { id: 's2', isStart: false },
@@ -192,12 +221,12 @@ describe('Publish Validation (PUBVAL)', () => {
       [
         { fromStepId: 's1', toStepId: 's2', outcomeFilter: 'REPORT_ACCEPTED' },
         { fromStepId: 's1', toStepId: 's2', outcomeFilter: 'BYPASSED_CERTIFIED_URGENT' },
-      ]
+      ],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
       expect(result.errors).toContainEqual(
-        expect.objectContaining({ code: 'MULTI_REFERRAL_INVALID_CONFIG' })
+        expect.objectContaining({ code: 'MULTI_REFERRAL_INVALID_CONFIG' }),
       );
     }
   });
@@ -205,13 +234,13 @@ describe('Publish Validation (PUBVAL)', () => {
   it('PUBVAL-CROSS: cross-version transition rule → CROSS_VERSION_TRANSITION_REFERENCE', async () => {
     const result = await runValidator(
       [{ id: 's1', isStart: true, stepType: 'action' }],
-      [{ fromStepId: 's1', toStepId: 'foreign-step-id', outcomeFilter: null }]
+      [{ fromStepId: 's1', toStepId: 'foreign-step-id', outcomeFilter: null }],
       // foreign-step-id is not in the version's steps
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {
       expect(result.errors).toContainEqual(
-        expect.objectContaining({ code: 'CROSS_VERSION_TRANSITION_REFERENCE' })
+        expect.objectContaining({ code: 'CROSS_VERSION_TRANSITION_REFERENCE' }),
       );
     }
   });
@@ -232,7 +261,7 @@ describe('Publish Validation (PUBVAL)', () => {
           config: { thursday_cutoff_enabled: false },
         },
       ],
-      []
+      [],
     );
     expect(result.valid).toBe(false);
     if (!result.valid) {

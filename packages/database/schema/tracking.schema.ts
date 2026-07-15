@@ -1,11 +1,4 @@
-import {
-  pgSchema,
-  uuid,
-  text,
-  timestamp,
-  index,
-  unique,
-} from 'drizzle-orm/pg-core';
+import { pgSchema, uuid, text, timestamp, index, unique } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 /**
@@ -71,13 +64,9 @@ export const qrCodes = trackingSchema.table(
      */
     trackingNumber: text('tracking_number').notNull(),
     qrImageFileKey: uuid('qr_image_file_key'),
-    assignedAt: timestamp('assigned_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
     generatedBy: uuid('generated_by'), // logical FK → iam.users.id (cross-schema)
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -109,9 +98,7 @@ export const trackingRecords = trackingSchema.table(
     currentCustodianOfficeId: uuid('current_custodian_office_id'), // logical FK → organization.offices.id (cross-schema)
     physicalLocation: text('physical_location'),
     lastMovedAt: timestamp('last_moved_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },
@@ -145,12 +132,8 @@ export const routingEntries = trackingSchema.table(
     /** NULL = system action. */
     actorId: uuid('actor_id'), // logical FK → iam.users.id (cross-schema)
     actionDescription: text('action_description').notNull(),
-    occurredAt: timestamp('occurred_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK → iam.users.id (cross-schema)
   },

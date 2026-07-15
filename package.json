@@ -9,12 +9,14 @@
     "test:unit": "turbo run test:unit",
     "test:integration": "turbo run test:integration",
     "db:seed": "pnpm --filter server db:seed",
-    "dev": "turbo run dev"
+    "dev": "turbo run dev",
+    "format": "prettier --write --config packages/config/.prettierrc.json --ignore-path packages/config/.prettierignore ."
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.1",
     "eslint": "^9.0.0",
     "prettier": "^3.3.0",
+    "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4.3.1",
     "turbo": "^2.0.0",
     "typescript": "^5.5.0"

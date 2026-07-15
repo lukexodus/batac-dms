@@ -6,10 +6,12 @@ import { seedPhase1WorkflowDefinitions } from './workflow/phase1-legislative.js'
 async function main() {
   const databaseUrl = process.env['DATABASE_URL_APP'];
   if (!databaseUrl) {
-    console.error('[seed] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
+    console.error(
+      '[seed] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.',
+    );
     process.exit(1);
   }
-  
+
   console.log('[seed] Connecting to database...');
   const client = postgres(databaseUrl, { max: 1 });
   const db = drizzle(client);

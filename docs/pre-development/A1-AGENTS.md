@@ -51,22 +51,22 @@ conflict and which document you followed in the Module Summary.
 
 ## Section 2: Pass Types
 
-| Pass | What you produce | Load (in order) |
-|---|---|---|
-| **Step 1 — Skeleton** | Structural contract: task ID convention, module list with wave order, phase scope table, cross-module dependency rules, special tags, Phase 1 task count estimates | `docs/document-list.md` → `tech-stack.md` → consolidated ref §10.2, §13 |
-| **Step 2 — Module: INFRA** | TASK-INFRA-001…NNN | Skeleton → `tech-stack.md` → L1 → L2 → L3 → L4 → D5 → C5 → J3 |
-| **Step 2 — Module: UI** | TASK-UI-001…NNN | Skeleton → F5 → J6 → F6 → F4 → F1 → DESIGN.md → globals.css → F7 (Frontend Foundation Plans 0, 1, 2) |
-| **Step 2 — Module: IAM** | TASK-IAM-001…NNN | Skeleton → TASK-INFRA list → B5 → I2 → I1 → C1 §iam → J1 → J2 → J3 → J4 |
-| **Step 2 — Module: AUDIT** | TASK-AUDIT-001…NNN | Skeleton → TASK-INFRA list → C1 §audit → `tech-stack.md` §"Audit Log Integrity" → I3 |
-| **Step 2 — Module: ORG** | TASK-ORG-001…NNN | Skeleton → TASK-IAM list → TASK-AUDIT list → C1 §organization → B2 → I1 → I2 |
-| **Step 2 — Module: DOCS** | TASK-DOCS-001…NNN | Skeleton → TASK-ORG list → C1 §documents → H2 → H3 → E1 §documents → E3 → B2 → I1 → I2 |
-| **Step 2 — Module: WF** | TASK-WF-001…NNN | Skeleton → TASK-DOCS list → B4 → C1 §workflow → H1 → D3 → K2 → E1 §workflow → B2 |
-| **Step 2 — Module: TRACK** | TASK-TRACK-001…NNN | Skeleton → TASK-DOCS list → C1 §tracking → consolidated ref §11.6 → E1 §tracking → B2 |
-| **Step 2 — Module: REC** | TASK-REC-001…NNN | Skeleton → TASK-WF list → TASK-TRACK list → C1 §records → E1 §records → B2 → I1 → I2 |
-| **Step 2 — Module: NOTIF** | TASK-NOTIF-001…NNN | Skeleton → TASK-WF list → H4 → C1 §notifications → E1 §notifications → B2 → B3 |
-| **Step 2 — Module: PORTAL** | TASK-PORTAL-001…NNN | Skeleton → all module task lists → E2 → F1 §portal → consolidated ref §13 Phase 3 |
-| **Step 3 — Outline** | Phase 1B full spec; Phases 2–5 titles + module assignments only | Skeleton → all Phase 1 module task lists → consolidated ref §13 |
-| **Step 4 — Integration** | Final assembled A1 document | Skeleton → all module task lists → Step 3 outline |
+| Pass                        | What you produce                                                                                                                                                   | Load (in order)                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| **Step 1 — Skeleton**       | Structural contract: task ID convention, module list with wave order, phase scope table, cross-module dependency rules, special tags, Phase 1 task count estimates | `docs/document-list.md` → `tech-stack.md` → consolidated ref §10.2, §13                              |
+| **Step 2 — Module: INFRA**  | TASK-INFRA-001…NNN                                                                                                                                                 | Skeleton → `tech-stack.md` → L1 → L2 → L3 → L4 → D5 → C5 → J3                                        |
+| **Step 2 — Module: UI**     | TASK-UI-001…NNN                                                                                                                                                    | Skeleton → F5 → J6 → F6 → F4 → F1 → DESIGN.md → globals.css → F7 (Frontend Foundation Plans 0, 1, 2) |
+| **Step 2 — Module: IAM**    | TASK-IAM-001…NNN                                                                                                                                                   | Skeleton → TASK-INFRA list → B5 → I2 → I1 → C1 §iam → J1 → J2 → J3 → J4                              |
+| **Step 2 — Module: AUDIT**  | TASK-AUDIT-001…NNN                                                                                                                                                 | Skeleton → TASK-INFRA list → C1 §audit → `tech-stack.md` §"Audit Log Integrity" → I3                 |
+| **Step 2 — Module: ORG**    | TASK-ORG-001…NNN                                                                                                                                                   | Skeleton → TASK-IAM list → TASK-AUDIT list → C1 §organization → B2 → I1 → I2                         |
+| **Step 2 — Module: DOCS**   | TASK-DOCS-001…NNN                                                                                                                                                  | Skeleton → TASK-ORG list → C1 §documents → H2 → H3 → E1 §documents → E3 → B2 → I1 → I2               |
+| **Step 2 — Module: WF**     | TASK-WF-001…NNN                                                                                                                                                    | Skeleton → TASK-DOCS list → B4 → C1 §workflow → H1 → D3 → K2 → E1 §workflow → B2                     |
+| **Step 2 — Module: TRACK**  | TASK-TRACK-001…NNN                                                                                                                                                 | Skeleton → TASK-DOCS list → C1 §tracking → consolidated ref §11.6 → E1 §tracking → B2                |
+| **Step 2 — Module: REC**    | TASK-REC-001…NNN                                                                                                                                                   | Skeleton → TASK-WF list → TASK-TRACK list → C1 §records → E1 §records → B2 → I1 → I2                 |
+| **Step 2 — Module: NOTIF**  | TASK-NOTIF-001…NNN                                                                                                                                                 | Skeleton → TASK-WF list → H4 → C1 §notifications → E1 §notifications → B2 → B3                       |
+| **Step 2 — Module: PORTAL** | TASK-PORTAL-001…NNN                                                                                                                                                | Skeleton → all module task lists → E2 → F1 §portal → consolidated ref §13 Phase 3                    |
+| **Step 3 — Outline**        | Phase 1B full spec; Phases 2–5 titles + module assignments only                                                                                                    | Skeleton → all Phase 1 module task lists → consolidated ref §13                                      |
+| **Step 4 — Integration**    | Final assembled A1 document                                                                                                                                        | Skeleton → all module task lists → Step 3 outline                                                    |
 
 ### Deferred Phase 2 module passes (not part of this A1 Phase 1 round)
 
@@ -79,9 +79,9 @@ Phase 1 A1 generation effort. These rows exist solely so the Module field
 enum (Section 3) is complete for the Phase 2/4 title-only entries the Step 3
 Outline pass will write against them.
 
-| Pass | What you produce | Load (in order, once this pass actually runs) |
-|---|---|---|
-| **Step 2 — Module: SEARCH** `[Phase 2 — deferred]` | TASK-SEARCH-001…NNN (Phase 2 only) | Skeleton → TASK-DOCS list → `[Phase 2 search/Meilisearch source documents — not yet authored]` |
+| Pass                                                 | What you produce                     | Load (in order, once this pass actually runs)                                                                                            |
+| ---------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **Step 2 — Module: SEARCH** `[Phase 2 — deferred]`   | TASK-SEARCH-001…NNN (Phase 2 only)   | Skeleton → TASK-DOCS list → `[Phase 2 search/Meilisearch source documents — not yet authored]`                                           |
 | **Step 2 — Module: REPORT** `[Phase 2/4 — deferred]` | TASK-REPORT-001…NNN (Phase 2/4 only) | Skeleton → TASK-WF list → TASK-DOCS list → TASK-TRACK list → TASK-ORG list → `[Phase 2/4 reporting source documents — not yet authored]` |
 
 ### Wave order for Step 2
@@ -185,11 +185,11 @@ task during this round.
 
 Add these to the Title field when applicable. A task may carry more than one.
 
-| Tag | Apply when |
-|---|---|
-| `[MIGRATION]` | Task produces a database migration file |
-| `[ABAC]` | Task implements or modifies an ABAC policy check |
-| `[AUDIT]` | Task writes to the audit schema or emits an audit event |
+| Tag           | Apply when                                              |
+| ------------- | ------------------------------------------------------- |
+| `[MIGRATION]` | Task produces a database migration file                 |
+| `[ABAC]`      | Task implements or modifies an ABAC policy check        |
+| `[AUDIT]`     | Task writes to the audit schema or emits an audit event |
 
 Example: `Title: [MIGRATION][AUDIT] Create append-only audit events table`
 
@@ -364,6 +364,7 @@ or whose prerequisites are all outside A1. These are the tasks an agent can star
 immediately after the monorepo is initialized.
 
 **6. Assembly.** Produce the final A1 document in this order:
+
 - Table of contents (with task ID ranges per module, e.g. TASK-INFRA-001–024)
 - Skeleton (Step 1 output, verbatim)
 - Module sections in wave order: INFRA → UI → IAM → AUDIT → ORG → DOCS → WF →
@@ -390,13 +391,13 @@ incorrect implementation.
 
 **Paste inline for every task that touches the relevant layer:**
 
-| Layer | What to paste |
-|---|---|
-| Database | The exact table definition(s) from C1 that this task reads or writes — not the whole schema, only the relevant tables and columns |
-| tRPC | The specific procedure definition from E1 — input schema, output schema, the procedure name |
-| ABAC | The exact policy rule from I1/I2 that governs this operation — not the whole policy spec |
+| Layer          | What to paste                                                                                                                     |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Database       | The exact table definition(s) from C1 that this task reads or writes — not the whole schema, only the relevant tables and columns |
+| tRPC           | The specific procedure definition from E1 — input schema, output schema, the procedure name                                       |
+| ABAC           | The exact policy rule from I1/I2 that governs this operation — not the whole policy spec                                          |
 | Business rules | The specific Part(s) from the consolidated reference that govern this capability — copy the relevant paragraphs, do not summarize |
-| State machine | The specific state transitions from D3 that this task implements or depends on |
+| State machine  | The specific state transitions from D3 that this task implements or depends on                                                    |
 
 **End every AI Prompt with this block:**
 
@@ -409,6 +410,7 @@ A reviewer will verify each one independently.
 ```
 
 **What not to paste:**
+
 - The entire C1 DDL (only the tables this task touches)
 - Other module task lists (the executing agent doesn't need them)
 - AGENTS.md (the executing agent reads it independently before starting)

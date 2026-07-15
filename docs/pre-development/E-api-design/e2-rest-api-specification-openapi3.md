@@ -59,14 +59,14 @@ The following are explicitly not in this document:
 
 ### Relationship to Other Documents
 
-| Dependency | Direction | Notes |
-|---|---|---|
-| `tech-stack.md` | Source | Stack choices: Fastify, `@fastify/swagger`, `fastify-type-provider-zod`, `@fastify/rate-limit`, `@fastify/cors`, `@fastify/helmet` |
-| `b2-module-boundary-and-internal-api-contracts.md` | Source | Module 5 Tracking `publicLookupHandler`; Module 10 Portal endpoint responsibilities |
-| `c1-full-database-schema-ddl.md` | Source | Enums, column names, constraint rules used to derive schema definitions here |
-| `C3` (RLS Policies) | Downstream | RLS policies must permit the `app_user` role to SELECT from `documents`, `tracking`, and `portal` schemas for the rows these endpoints expose |
-| `H2` (Document Type Catalog) | Source | Document type codes and public visibility rules; first-page-only visibility rule for SP_RESOLUTION, SP_ORDINANCE, APPROPRIATION_ORDINANCE |
-| `I1` (ABAC Policy Catalog) | Downstream | ABAC policy for "unauthenticated public read" must exist for public-visibility-eligible documents before public endpoints go live |
+| Dependency                                         | Direction  | Notes                                                                                                                                         |
+| -------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tech-stack.md`                                    | Source     | Stack choices: Fastify, `@fastify/swagger`, `fastify-type-provider-zod`, `@fastify/rate-limit`, `@fastify/cors`, `@fastify/helmet`            |
+| `b2-module-boundary-and-internal-api-contracts.md` | Source     | Module 5 Tracking `publicLookupHandler`; Module 10 Portal endpoint responsibilities                                                           |
+| `c1-full-database-schema-ddl.md`                   | Source     | Enums, column names, constraint rules used to derive schema definitions here                                                                  |
+| `C3` (RLS Policies)                                | Downstream | RLS policies must permit the `app_user` role to SELECT from `documents`, `tracking`, and `portal` schemas for the rows these endpoints expose |
+| `H2` (Document Type Catalog)                       | Source     | Document type codes and public visibility rules; first-page-only visibility rule for SP_RESOLUTION, SP_ORDINANCE, APPROPRIATION_ORDINANCE     |
+| `I1` (ABAC Policy Catalog)                         | Downstream | ABAC policy for "unauthenticated public read" must exist for public-visibility-eligible documents before public endpoints go live             |
 
 ### A Note on `@fastify/swagger` and This Document
 
@@ -103,14 +103,14 @@ Error responses do **not** use the `data` envelope; they follow the `ErrorRespon
 
 All error responses follow the `ErrorResponse` or `ValidationErrorResponse` schema (see components). HTTP status codes map as follows:
 
-| Code | Meaning | When used |
-|---|---|---|
-| `400 Bad Request` | Schema validation failure | Missing required field; wrong type; pattern mismatch; out-of-range value |
-| `404 Not Found` | Resource not found | Tracking number or document ID does not exist; document not publicly visible |
-| `422 Unprocessable Entity` | Business rule violation | Document type cannot accept complaint submissions; etc. |
-| `429 Too Many Requests` | Rate limit exceeded | See rate limiting section |
-| `500 Internal Server Error` | Unexpected server error | Unhandled exception (Sentry notified automatically) |
-| `503 Service Unavailable` | Dependency unavailable | PostgreSQL unavailable at health check |
+| Code                        | Meaning                   | When used                                                                    |
+| --------------------------- | ------------------------- | ---------------------------------------------------------------------------- |
+| `400 Bad Request`           | Schema validation failure | Missing required field; wrong type; pattern mismatch; out-of-range value     |
+| `404 Not Found`             | Resource not found        | Tracking number or document ID does not exist; document not publicly visible |
+| `422 Unprocessable Entity`  | Business rule violation   | Document type cannot accept complaint submissions; etc.                      |
+| `429 Too Many Requests`     | Rate limit exceeded       | See rate limiting section                                                    |
+| `500 Internal Server Error` | Unexpected server error   | Unhandled exception (Sentry notified automatically)                          |
+| `503 Service Unavailable`   | Dependency unavailable    | PostgreSQL unavailable at health check                                       |
 
 Validation errors (400) always include a `details` array with per-field error entries.
 
@@ -154,14 +154,14 @@ The `@fastify/cors` plugin enforces a strict origin allowlist. Allowed origins a
 
 ## Phase 1 Endpoint Summary
 
-| Method | Path | Auth | Module | Description |
-|---|---|---|---|---|
-| `GET` | `/v1/health` | None | — | Service health check |
-| `GET` | `/v1/public/tracking/{trackingNumber}` | None | Tracking | Document lookup by QR UUID; routing history |
-| `GET` | `/v1/public/documents` | None | Portal / Documents | Paginated list of published legislative documents |
-| `GET` | `/v1/public/documents/{documentId}` | None | Portal / Documents | Single published document detail |
-| `POST` | `/v1/public/complaints` | None | Portal | Citizen complaint submission |
-| `POST` | `/v1/public/document-requests` | None | Portal | Document copy request form |
+| Method | Path                                   | Auth | Module             | Description                                       |
+| ------ | -------------------------------------- | ---- | ------------------ | ------------------------------------------------- |
+| `GET`  | `/v1/health`                           | None | —                  | Service health check                              |
+| `GET`  | `/v1/public/tracking/{trackingNumber}` | None | Tracking           | Document lookup by QR UUID; routing history       |
+| `GET`  | `/v1/public/documents`                 | None | Portal / Documents | Paginated list of published legislative documents |
+| `GET`  | `/v1/public/documents/{documentId}`    | None | Portal / Documents | Single published document detail                  |
+| `POST` | `/v1/public/complaints`                | None | Portal             | Citizen complaint submission                      |
+| `POST` | `/v1/public/document-requests`         | None | Portal             | Document copy request form                        |
 
 **Module routing note (from B2):** The Tracking module owns the `publicLookupHandler` REST endpoint (`/v1/public/tracking/{trackingNumber}`). Portal module owns the `/v1/public/documents`, `/v1/public/complaints`, and `/v1/public/document-requests` endpoints. From the API consumer's perspective this is invisible — all endpoints live under the same Fastify process. The distinction matters only for the internal Fastify plugin scope where these routes are registered.
 
@@ -232,7 +232,6 @@ tags:
 # ─────────────────────────────────────────────────────────────────────────────
 
 paths:
-
   # ---------------------------------------------------------------------------
   # Health
   # ---------------------------------------------------------------------------
@@ -849,13 +848,11 @@ paths:
 # ─────────────────────────────────────────────────────────────────────────────
 
 components:
-
   # ---------------------------------------------------------------------------
   # Parameters
   # ---------------------------------------------------------------------------
 
   parameters:
-
     trackingNumber:
       name: 'trackingNumber'
       in: 'path'
@@ -889,7 +886,6 @@ components:
   # ---------------------------------------------------------------------------
 
   responses:
-
     TooManyRequests:
       description: 'Rate limit exceeded. Retry after the indicated duration.'
       headers:
@@ -929,7 +925,6 @@ components:
   # ---------------------------------------------------------------------------
 
   headers:
-
     X-Request-ID:
       description: |
         UUID generated per request. Include in support tickets for
@@ -968,7 +963,6 @@ components:
   # ---------------------------------------------------------------------------
 
   schemas:
-
     # ──────────────────────────────────────────────────────────────────────────
     # Shared / primitive types
     # ──────────────────────────────────────────────────────────────────────────
@@ -1887,9 +1881,7 @@ export default fp(async (fastify) => {
         title: 'Batac City LGU Platform — Public REST API',
         version: '1.0.0',
       },
-      servers: [
-        { url: process.env.API_BASE_URL ?? 'http://localhost:3000/v1' },
-      ],
+      servers: [{ url: process.env.API_BASE_URL ?? 'http://localhost:3000/v1' }],
       tags: [
         { name: 'health' },
         { name: 'tracking' },
@@ -1920,10 +1912,7 @@ Each route must declare its `schema` using Zod schemas imported from `/packages/
 ```typescript
 // /apps/server/src/modules/tracking/routes/public-lookup.ts
 import { z } from 'zod';
-import {
-  TrackingLookupResponseSchema,
-  ErrorResponseSchema,
-} from '@batac-lgu/shared';
+import { TrackingLookupResponseSchema, ErrorResponseSchema } from '@batac-lgu/shared';
 
 export default async function publicLookupRoute(fastify: FastifyInstance) {
   fastify.get(
@@ -1945,7 +1934,7 @@ export default async function publicLookupRoute(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       // handler implementation
-    }
+    },
   );
 }
 ```
@@ -1957,14 +1946,9 @@ The server entry point must configure Fastify to use the Zod type provider:
 ```typescript
 // /apps/server/src/app.ts
 import Fastify from 'fastify';
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider,
-} from 'fastify-type-provider-zod';
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
 
-const app = Fastify({ logger: true })
-  .withTypeProvider<ZodTypeProvider>();
+const app = Fastify({ logger: true }).withTypeProvider<ZodTypeProvider>();
 
 app.setValidatorCompiler(validatorCompiler);
 app.setSerializerCompiler(serializerCompiler);
@@ -2001,14 +1985,14 @@ A contract test using `openapi-typescript` or a similar tool should validate the
 
 `@fastify/rate-limit` configuration for Phase 1 public endpoints. All limits are per-IP. Key name is the IP address (or `X-Forwarded-For` first hop, trusted from the Nginx/Caddy proxy).
 
-| Endpoint | Method | Limit | Window | Rationale |
-|---|---|---|---|---|
-| `/v1/health` | GET | No limit | — | Load balancer health checks must never be blocked |
-| `/v1/public/tracking/{trackingNumber}` | GET | 120 req | 1 min | QR scanning is interactive; generous limit for legitimate use |
-| `/v1/public/documents` | GET | 120 req | 1 min | Public browsing; generous limit |
-| `/v1/public/documents/{documentId}` | GET | 120 req | 1 min | Same as above |
-| `/v1/public/complaints` | POST | 20 req | 1 hour | Anti-spam; a human submitting complaints would rarely need more |
-| `/v1/public/document-requests` | POST | 20 req | 1 hour | Same rationale |
+| Endpoint                               | Method | Limit    | Window | Rationale                                                       |
+| -------------------------------------- | ------ | -------- | ------ | --------------------------------------------------------------- |
+| `/v1/health`                           | GET    | No limit | —      | Load balancer health checks must never be blocked               |
+| `/v1/public/tracking/{trackingNumber}` | GET    | 120 req  | 1 min  | QR scanning is interactive; generous limit for legitimate use   |
+| `/v1/public/documents`                 | GET    | 120 req  | 1 min  | Public browsing; generous limit                                 |
+| `/v1/public/documents/{documentId}`    | GET    | 120 req  | 1 min  | Same as above                                                   |
+| `/v1/public/complaints`                | POST   | 20 req   | 1 hour | Anti-spam; a human submitting complaints would rarely need more |
+| `/v1/public/document-requests`         | POST   | 20 req   | 1 hour | Same rationale                                                  |
 
 All rate-limited endpoints return `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset` headers on every response, and `Retry-After` when the limit is exceeded (HTTP 429).
 
@@ -2020,10 +2004,10 @@ Rate limit configuration values are managed via environment variables (`RATE_LIM
 
 `@fastify/cors` is configured with a strict origin allowlist. The initial production allowlist is in `CORS_ALLOWED_ORIGINS` (env catalog L1). Phase 1 allowlist:
 
-| Origin | Reason |
-|---|---|
-| `https://sp.batac.gov.ph` | Existing SP website (subscription renewed; coexists with new platform) |
-| `https://portal.batac.gov.ph` | Phase 3 citizen portal (pre-registered for DNS readiness) |
+| Origin                        | Reason                                                                 |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| `https://sp.batac.gov.ph`     | Existing SP website (subscription renewed; coexists with new platform) |
+| `https://portal.batac.gov.ph` | Phase 3 citizen portal (pre-registered for DNS readiness)              |
 
 `credentials: false` — Phase 1 public endpoints are unauthenticated; no cookies are sent or received. Set `credentials: true` only when citizen auth (Phase 3) is introduced.
 

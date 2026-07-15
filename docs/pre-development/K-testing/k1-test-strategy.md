@@ -7,7 +7,6 @@
 **Audience:** Development team  
 **Source Documents:** `tech-stack.md`; `consolidated-architecture-and-requirements-reference-iteration-3.md` (Iteration 3); `b4-workflow-engine-specification.md`
 
-
 ## Table of Contents
 
 - [L42–L49] 1. Purpose — Scope, layer boundaries, and priorities governing all test authoring decisions.
@@ -63,13 +62,13 @@ It does not define individual test cases. It defines the scope, layer boundaries
 
 ## 3. Testing Stack
 
-|Tool|Role|
-|---|---|
-|Vitest|Unit tests and integration tests (single runner; test type distinguished by file location and setup)|
-|Playwright|E2E tests (see K3)|
-|`@fastify/inject` (built-in)|HTTP-layer integration tests for all ABAC-protected Fastify routes without a network|
-|`pg` / test container or dedicated test DB|Live PostgreSQL instance for integration tests|
-|`pgboss` test mode or time-mocked jobs|Scheduler job unit testing|
+| Tool                                       | Role                                                                                                 |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Vitest                                     | Unit tests and integration tests (single runner; test type distinguished by file location and setup) |
+| Playwright                                 | E2E tests (see K3)                                                                                   |
+| `@fastify/inject` (built-in)               | HTTP-layer integration tests for all ABAC-protected Fastify routes without a network                 |
+| `pg` / test container or dedicated test DB | Live PostgreSQL instance for integration tests                                                       |
+| `pgboss` test mode or time-mocked jobs     | Scheduler job unit testing                                                                           |
 
 **No mocking of the PostgreSQL layer in integration tests.** Integration tests run against a real PostgreSQL instance seeded with known fixture data. Mocking the database in integration tests produces tests that verify the mock, not the system.
 
@@ -210,13 +209,13 @@ The `evaluateThursdayCutoffs` job and the `computeSecondReadingEligibleDate` fun
 - `metadata.last_cutoff_evaluated_at` equals the current cutoff timestamp → job skips this step instance; idempotency.
 - Worked examples from B4 Section 6.2 are each a required test case:
 
-|Scenario|Expected `second_reading_eligible_date`|
-|---|---|
-|All submitted Monday Week N 08:00|Tuesday Week N+1|
-|All submitted Thursday Week N 15:00|Tuesday Week N+1|
-|All submitted Thursday Week N 23:59:58|Tuesday Week N+1|
-|All submitted Thursday Week N 23:59:59 (exact cutoff)|Tuesday Week N+2|
-|All submitted Friday Week N 09:00|Tuesday Week N+2|
+| Scenario                                              | Expected `second_reading_eligible_date` |
+| ----------------------------------------------------- | --------------------------------------- |
+| All submitted Monday Week N 08:00                     | Tuesday Week N+1                        |
+| All submitted Thursday Week N 15:00                   | Tuesday Week N+1                        |
+| All submitted Thursday Week N 23:59:58                | Tuesday Week N+1                        |
+| All submitted Thursday Week N 23:59:59 (exact cutoff) | Tuesday Week N+2                        |
+| All submitted Friday Week N 09:00                     | Tuesday Week N+2                        |
 
 #### 5.3.3 10-Day Mayor Lapse Timer (B4 Section 6.3)
 
@@ -243,14 +242,14 @@ Mirrors the Mayor lapse tests. The `evaluatePanlalawiganTimers` job:
 
 Each of the thirteen invariants from B4 Section 9 must have a unit or integration test proving the rejection. The following are suitable for unit tests (no database required):
 
-|Invariant|Test|
-|---|---|
-|2|`multi_referral` with `require_all_committee_signatures = true` cannot produce `REPORT_ACCEPTED` unless all committees have submissions or `manual_advance = true`|
-|3|`LAPSED` and `DEEMED_APPROVED` outcomes rejected when `actor_type ≠ system`|
-|7|`SECRETARY_ADVANCED` outcome rejected when `outcome_comment` is empty or whitespace|
-|9|`outcome_code = REPASSED` on a termination step must not set `instances.status = completed`|
-|10|All entry points accepting a `reason` or `comment` reject the call when the value is empty or whitespace|
-|11|Final approver cannot be the document's creator; same-user check rejects before any DB write|
+| Invariant | Test                                                                                                                                                               |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2         | `multi_referral` with `require_all_committee_signatures = true` cannot produce `REPORT_ACCEPTED` unless all committees have submissions or `manual_advance = true` |
+| 3         | `LAPSED` and `DEEMED_APPROVED` outcomes rejected when `actor_type ≠ system`                                                                                        |
+| 7         | `SECRETARY_ADVANCED` outcome rejected when `outcome_comment` is empty or whitespace                                                                                |
+| 9         | `outcome_code = REPASSED` on a termination step must not set `instances.status = completed`                                                                        |
+| 10        | All entry points accepting a `reason` or `comment` reject the call when the value is empty or whitespace                                                           |
+| 11        | Final approver cannot be the document's creator; same-user check rejects before any DB write                                                                       |
 
 The remaining invariants (1, 4, 5, 6, 8, 12, 13) require database state to verify meaningfully and belong in integration tests (Section 6.5).
 
@@ -433,15 +432,15 @@ Mirrors the Mayor lapse integration test. Verify `legal_basis = 'RA 7160 Section
 
 These tests verify that the database itself enforces invariants — not just the application layer.
 
-|Invariant|Database Test|
-|---|---|
-|1|Attempt a direct SQL UPDATE on `instances.definition_version_id` from the application DB user → fails with a permission or constraint error|
-|4|Publish a definition version where an `approval` step has `LAPSED` in `allowed_outcomes` but no outgoing transition with `outcome_filter = 'LAPSED'` → fails with `MISSING_LAPSE_TRANSITION`|
-|5|Publish a definition version with a `parallel_split` step → fails with `STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1`|
-|6|Attempt to activate a step instance when `instances.status = completed` or `cancelled` → rejected|
-|8|Attempt `engine.migrateInstance` without a valid, unexpired City Administrator approval → rejected|
-|12|Verify that `workflow.workflow_events` has no `UPDATE` or `DELETE` grants for the application DB user; an attempted direct SQL DELETE from the app user role → permission error|
-|13|A transition rule's `to_step_id` from a different `definition_version_id` → rejected during transition evaluation with `INVALID_TRANSITION_TARGET`|
+| Invariant | Database Test                                                                                                                                                                                |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1         | Attempt a direct SQL UPDATE on `instances.definition_version_id` from the application DB user → fails with a permission or constraint error                                                  |
+| 4         | Publish a definition version where an `approval` step has `LAPSED` in `allowed_outcomes` but no outgoing transition with `outcome_filter = 'LAPSED'` → fails with `MISSING_LAPSE_TRANSITION` |
+| 5         | Publish a definition version with a `parallel_split` step → fails with `STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1`                                                                                  |
+| 6         | Attempt to activate a step instance when `instances.status = completed` or `cancelled` → rejected                                                                                            |
+| 8         | Attempt `engine.migrateInstance` without a valid, unexpired City Administrator approval → rejected                                                                                           |
+| 12        | Verify that `workflow.workflow_events` has no `UPDATE` or `DELETE` grants for the application DB user; an attempted direct SQL DELETE from the app user role → permission error              |
+| 13        | A transition rule's `to_step_id` from a different `definition_version_id` → rejected during transition evaluation with `INVALID_TRANSITION_TARGET`                                           |
 
 The partial unique index `(document_type_id WHERE is_active = true)` on `workflow.definitions` must have a test: attempt to set two definitions for the same document type to `is_active = true` simultaneously → constraint violation.
 

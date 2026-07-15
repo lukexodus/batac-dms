@@ -55,10 +55,10 @@ export interface DocumentNumberAssignedEvent {
 }
 
 export interface DocumentCreatedPayload {
-  documentId: string;         // documents.documents.id
-  documentTypeId: string;     // documents.document_types.id
-  ownedByOfficeId: string;    // the SP Secretariat office — initial custodian
-  actorId: string;            // the SP Secretary who logged the document
+  documentId: string; // documents.documents.id
+  documentTypeId: string; // documents.document_types.id
+  ownedByOfficeId: string; // the SP Secretariat office — initial custodian
+  actorId: string; // the SP Secretary who logged the document
   cityId: string;
 }
 
@@ -128,31 +128,63 @@ export interface EventPayloadMap {
   'delegation.expired': DelegationExpiredEvent;
   'delegation.revoked': DelegationRevokedEvent;
 
-
   // ── Documents module ───────────────────────────────────────────────────────
   'document.created': DocumentCreatedPayload;
   'document.state_changed': DocumentStateChangedEvent;
   'document.number_assigned': DocumentNumberAssignedEvent;
   'document.certification_urgency.logged': DocumentCertificationUrgencyLoggedPayload;
-  'document.panlalawigan.deemed_approved': { documentId: string; transmittedAt: Date; cityId: string; };
-  'audit.document.panlalawigan_transmitted': { documentId: string; actorId: string; cityId: string; timestamp: Date; };
-  'audit.document.panlalawigan_outcome_logged': { documentId: string; outcome: string; actorId: string; cityId: string; timestamp: Date; };
+  'document.panlalawigan.deemed_approved': {
+    documentId: string;
+    transmittedAt: Date;
+    cityId: string;
+  };
+  'audit.document.panlalawigan_transmitted': {
+    documentId: string;
+    actorId: string;
+    cityId: string;
+    timestamp: Date;
+  };
+  'audit.document.panlalawigan_outcome_logged': {
+    documentId: string;
+    outcome: string;
+    actorId: string;
+    cityId: string;
+    timestamp: Date;
+  };
 
   // ── Workflow module ────────────────────────────────────────────────────────
   'workflow.instance.created': WorkflowInstanceCreatedPayload;
   'workflow.step.started': WorkflowStepStartedPayload;
   'workflow.instance.stuck': WorkflowInstanceStuckPayload;
   'workflow.context.updated': WorkflowContextUpdatedPayload;
-  
+
   'workflow.step_assigned': Stub;
   'workflow.step_completed': WorkflowStepCompletedPayload;
-  'workflow.step.completed': { instanceId: string; stepInstanceId: string; stepId: string; stepType: string; outcome: string; comment: string | null; };
-  'workflow.step.failed': { instanceId: string; stepInstanceId: string; stepId: string; errorCode: string; errorMessage: string; };
+  'workflow.step.completed': {
+    instanceId: string;
+    stepInstanceId: string;
+    stepId: string;
+    stepType: string;
+    outcome: string;
+    comment: string | null;
+  };
+  'workflow.step.failed': {
+    instanceId: string;
+    stepInstanceId: string;
+    stepId: string;
+    errorCode: string;
+    errorMessage: string;
+  };
   'workflow.lapsed': Stub;
   'workflow.escalated': Stub;
   'workflow.certified_urgent_applied': Stub;
   'workflow.manually_advanced': Stub;
   'workflow.completed': Stub;
-  'workflow.instance.completed': { instanceId: string; documentId: string; outcomeCode: string; finalDocumentStatus: string | null; };
-  'workflow.instance.repassed': { instanceId: string; documentId: string; };
+  'workflow.instance.completed': {
+    instanceId: string;
+    documentId: string;
+    outcomeCode: string;
+    finalDocumentStatus: string | null;
+  };
+  'workflow.instance.repassed': { instanceId: string; documentId: string };
 }

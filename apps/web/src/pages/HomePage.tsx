@@ -12,7 +12,7 @@ export function HomePage() {
   }
 
   const roles = identity.roleCodes;
-  
+
   // Priority: mayor > sp_secretary > sys_admin
   if (roles.includes('mayor')) {
     return <Navigate to="/mayor" replace />;
@@ -29,13 +29,17 @@ export function HomePage() {
     <div className="flex-1 space-y-4 p-8 pt-6">
       <PageHeader title="Batac DMS" />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {(roles.includes('records_officer') || roles.includes('dept_encoder') || roles.includes('brgy_encoder')) && (
+        {(roles.includes('records_officer') ||
+          roles.includes('dept_encoder') ||
+          roles.includes('brgy_encoder')) && (
           <Card>
             <CardHeader>
               <CardTitle>Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              <Link to="/documents" className="text-primary hover:underline">View Documents</Link>
+              <Link to="/documents" className="text-primary hover:underline">
+                View Documents
+              </Link>
             </CardContent>
           </Card>
         )}
@@ -45,7 +49,9 @@ export function HomePage() {
               <CardTitle>Workflow</CardTitle>
             </CardHeader>
             <CardContent>
-              <Link to="/workflow/steps" className="text-primary hover:underline">My Assigned Steps</Link>
+              <Link to="/workflow/steps" className="text-primary hover:underline">
+                My Assigned Steps
+              </Link>
             </CardContent>
           </Card>
         )}
@@ -55,7 +61,9 @@ export function HomePage() {
               <CardTitle>Sessions</CardTitle>
             </CardHeader>
             <CardContent>
-              <Link to="/sessions" className="text-primary hover:underline">Session Overview</Link>
+              <Link to="/sessions" className="text-primary hover:underline">
+                Session Overview
+              </Link>
             </CardContent>
           </Card>
         )}
@@ -64,7 +72,9 @@ export function HomePage() {
             <CardTitle>Welcome</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">Select an option from the navigation to continue.</p>
+            <p className="text-muted-foreground text-sm">
+              Select an option from the navigation to continue.
+            </p>
           </CardContent>
         </Card>
       </div>

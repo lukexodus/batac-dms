@@ -37,5 +37,4 @@ export const DOMAIN_ERROR_CODES = {
   STEP_KEY_NOT_FOUND_IN_TARGET_VERSION: 'STEP_KEY_NOT_FOUND_IN_TARGET_VERSION',
 } as const;
 
-export type DomainErrorCode =
-  (typeof DOMAIN_ERROR_CODES)[keyof typeof DOMAIN_ERROR_CODES];
+export type DomainErrorCode = (typeof DOMAIN_ERROR_CODES)[keyof typeof DOMAIN_ERROR_CODES];

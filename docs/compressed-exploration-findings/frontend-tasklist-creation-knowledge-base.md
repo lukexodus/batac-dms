@@ -6,7 +6,7 @@
 
 ## Module Status (as of this reference)
 
-**Finished** (task list generated *and* development complete): INFRA, UI, IAM, AUDIT, ORG, DOCS, WF, TRACK.
+**Finished** (task list generated _and_ development complete): INFRA, UI, IAM, AUDIT, ORG, DOCS, WF, TRACK.
 
 **Not started** (neither task list nor development begun): REC, NOTIF, PORTAL.
 
@@ -14,21 +14,21 @@ SEARCH and REPORT are Phase 2/4-deferred entirely — they receive only title-on
 
 ## Wave / Dependency Order
 
-| Wave | Modules | Prerequisite |
-|---|---|---|
-| A | INFRA, UI | None (parallel) |
-| B | IAM, AUDIT | INFRA |
-| C | ORG | IAM + AUDIT |
-| D | DOCS | ORG |
-| E | WF, TRACK | DOCS |
-| F | REC, NOTIF | WF + TRACK |
-| G | PORTAL | All prior modules |
+| Wave | Modules    | Prerequisite      |
+| ---- | ---------- | ----------------- |
+| A    | INFRA, UI  | None (parallel)   |
+| B    | IAM, AUDIT | INFRA             |
+| C    | ORG        | IAM + AUDIT       |
+| D    | DOCS       | ORG               |
+| E    | WF, TRACK  | DOCS              |
+| F    | REC, NOTIF | WF + TRACK        |
+| G    | PORTAL     | All prior modules |
 
 Given the finished/not-started split above, waves A–E form one unbroken completed prefix, and waves F–G form the remaining unstarted suffix (REC, NOTIF, PORTAL) — a clean, non-overlapping boundary.
 
 ## Governing Documents and Their Scope
 
-- **`AGENTS.md`** (root, 221 lines): the **execution-phase** routing file. Governs how code gets *built* from an already-generated task list. Not the file that governs A1 (task-list) generation itself — read for orientation/context only during generation work, not as a compliance document.
+- **`AGENTS.md`** (root, 221 lines): the **execution-phase** routing file. Governs how code gets _built_ from an already-generated task list. Not the file that governs A1 (task-list) generation itself — read for orientation/context only during generation work, not as a compliance document.
 - **`docs/pre-development/A1-AGENTS.md`** (468 lines): the actual governing file for A1 generation (task-list creation). This is the authoritative document for anyone generating or updating task lists.
 - **`docs/pre-development/A-project-planning/a1-skeleton.md`** (417 lines): the structural contract — module list, dependency chain, phase scope, and cross-module dependency rules that every generated task must satisfy.
 - **`docs/design/DESIGN.md`** — lives at `docs/design/DESIGN.md`, **not** under `docs/pre-development/`. It is a separate design-system reference doc, distinct from the lettered pre-dev corpus (F1–F7, etc.). Currently at v1.2.
@@ -51,14 +51,14 @@ Conflicts between these levels must be stated explicitly — never silently aver
 
 ## Task → Document Routing Table (from `AGENTS.md`, lines 53–80)
 
-| Kind of code | Documents to read, in order |
-|---|---|
-| Tier 1+2 UI foundation | F5 → DESIGN.md → globals.css → F7 |
-| Tier 3 domain component | F5 → J6 → F6 → DESIGN.md → F7 |
-| Frontend page/view | F4 → F1 → F5 → J6 → I2 → E1 |
-| Zustand store | F2 → F1 → E3 |
-| TanStack Query hook | F3 → E1 |
-| tRPC procedure (backend-adjacent) | E1 → I1 → I2 |
+| Kind of code                      | Documents to read, in order       |
+| --------------------------------- | --------------------------------- |
+| Tier 1+2 UI foundation            | F5 → DESIGN.md → globals.css → F7 |
+| Tier 3 domain component           | F5 → J6 → F6 → DESIGN.md → F7     |
+| Frontend page/view                | F4 → F1 → F5 → J6 → I2 → E1       |
+| Zustand store                     | F2 → F1 → E3                      |
+| TanStack Query hook               | F3 → E1                           |
+| tRPC procedure (backend-adjacent) | E1 → I1 → I2                      |
 
 If a task type is not covered by this table, check `document-list.md`'s full prerequisite table (IDs A1–L5) directly. If found there, follow it and flag that the routing table above is missing a row. If not found anywhere, say so explicitly and ask the human rather than inferring scope from adjacent documents.
 
@@ -70,7 +70,7 @@ If a task type is not covered by this table, check `document-list.md`'s full pre
 
 Consequences:
 
-- "Creating the frontend" is **not** a single UI-module task list. It is: (a) the UI module's component-library tasks, **plus** (b) a frontend-page/feature slice embedded inside *each* feature-owning domain module's own task list.
+- "Creating the frontend" is **not** a single UI-module task list. It is: (a) the UI module's component-library tasks, **plus** (b) a frontend-page/feature slice embedded inside _each_ feature-owning domain module's own task list.
 - IAM's login page lives in IAM's task list. ORG's org-management pages live in ORG's list. DOCS' document views live in DOCS' list. And so on.
 - Every frontend page task therefore lives inside IAM, AUDIT, ORG, DOCS, WF, or TRACK's own task list — never in a separate "frontend" module.
 - Each such page task requires a genuine **two-part prerequisite lookup**, not a placeholder:
@@ -96,12 +96,12 @@ Sourced from F7 ("Frontend Foundation Plans"):
 
 ### Tier 3 component ordering groups
 
-| Group | Components | Dependency notes |
-|---|---|---|
-| A | PageHeader, Sidebar, Topbar, AppShell | AppShell depends on Sidebar + Topbar |
-| B | Standalone display components | No Tier 3 deps; can run parallel with Group A |
-| C | CommitteeReferralBlock, StatusBadge, WorkflowStepIndicator | Require J6-generated types; must list the J6-generation task as a prerequisite |
-| D | DocumentPreviewCard, OrderOfBusinessRow | Depend on *specific* Group B/C components — must be encoded individually per-component, not as "Group B done" |
+| Group | Components                                                 | Dependency notes                                                                                              |
+| ----- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| A     | PageHeader, Sidebar, Topbar, AppShell                      | AppShell depends on Sidebar + Topbar                                                                          |
+| B     | Standalone display components                              | No Tier 3 deps; can run parallel with Group A                                                                 |
+| C     | CommitteeReferralBlock, StatusBadge, WorkflowStepIndicator | Require J6-generated types; must list the J6-generation task as a prerequisite                                |
+| D     | DocumentPreviewCard, OrderOfBusinessRow                    | Depend on _specific_ Group B/C components — must be encoded individually per-component, not as "Group B done" |
 
 ### Confirmed component counts
 
@@ -129,6 +129,7 @@ For every Tier 3 component task, a `/dev/{component-name}` dev route is **not op
 ### What must be pasted inline into every AI Prompt (`A1-AGENTS.md` §7, lines 381–417)
 
 Per layer:
+
 - **DB** → exact table definition(s) from C1 (only relevant tables/columns).
 - **tRPC** → exact procedure definition from E1 (input/output schema + name).
 - **ABAC** → exact policy rule from I1/I2 (not the whole spec).
@@ -160,13 +161,13 @@ A generation-phase agent must **NOT**:
 - Generate Phase 2+ tasks, even if a pre-dev doc describes them in detail — flag disagreement as a spec gap only.
 - Invent content to resolve a `[SPEC GAP]`.
 
-Findings-log distinction: some questions are genuinely undocumented by design (resolved only once code runs); `document-list.md` names these under "What Can Only Be Determined During Development." During A1 *execution* (not generation), when such a question is hit: don't over-search, don't present a guess as settled, implement the most conservative default, and log it to the findings log. **This logging only applies during A1 execution, not A1 generation.**
+Findings-log distinction: some questions are genuinely undocumented by design (resolved only once code runs); `document-list.md` names these under "What Can Only Be Determined During Development." During A1 _execution_ (not generation), when such a question is hit: don't over-search, don't present a guess as settled, implement the most conservative default, and log it to the findings log. **This logging only applies during A1 execution, not A1 generation.**
 
 The findings log itself is append-only. Agents may append but only with `status: proposed` — never edit `AGENTS.md`/`A1-AGENTS.md`/`document-list.md`/any Group B–L doc based on findings. Must check for `confirmed` entries tagged to the relevant module before starting execution work.
 
 ### Precedent pattern: how spec gaps get resolved after a module pass runs
 
-Observed in `iam.md`'s Module Summary section: a project owner grants explicit, one-time authority to edit pre-dev docs/`A1-AGENTS.md` for a *specific* named resolution. Changes then ripple across B5/I3/B2/E3/C1/C2/ADR files, ToCs get corrected, and cross-document consistency is re-verified. This is a documented one-time exception for that specific resolution — it is **not** a standing permission inherited by other agents or other resolutions.
+Observed in `iam.md`'s Module Summary section: a project owner grants explicit, one-time authority to edit pre-dev docs/`A1-AGENTS.md` for a _specific_ named resolution. Changes then ripple across B5/I3/B2/E3/C1/C2/ADR files, ToCs get corrected, and cross-document consistency is re-verified. This is a documented one-time exception for that specific resolution — it is **not** a standing permission inherited by other agents or other resolutions.
 
 ## Phase Scope
 
@@ -202,21 +203,21 @@ Four pre-existing, unresolved gaps, all still open as of the document's last edi
 
 `docs/pre-development/A-project-planning/a1-tasks/` file sizes at time of check:
 
-| File | Size | Status |
-|---|---|---|
-| `infra.md` | 164K | Non-empty (finished) |
-| `ui.md` | 156K | Non-empty (finished) |
-| `iam.md` | 120K | Non-empty (finished) |
-| `audit.md` | 68K | Non-empty (finished) |
-| `org.md` | 92K | Non-empty (finished) |
-| `docs.md` | 200K | Non-empty (finished) |
-| `wf.md` | 208K | Non-empty (finished) |
-| `track.md` | 96K | Non-empty (finished) |
-| `rec.md` | 0 bytes | Empty (not started) |
-| `notif.md` | 0 bytes | Empty (not started) |
-| `portal.md` | 0 bytes | Empty (not started) |
-| `a1-master-phased-task-list.md` | empty | Assembly/integration pass has not run |
-| `a1-outline-phases.md` | empty | Step-3 outline has not run |
+| File                            | Size    | Status                                |
+| ------------------------------- | ------- | ------------------------------------- |
+| `infra.md`                      | 164K    | Non-empty (finished)                  |
+| `ui.md`                         | 156K    | Non-empty (finished)                  |
+| `iam.md`                        | 120K    | Non-empty (finished)                  |
+| `audit.md`                      | 68K     | Non-empty (finished)                  |
+| `org.md`                        | 92K     | Non-empty (finished)                  |
+| `docs.md`                       | 200K    | Non-empty (finished)                  |
+| `wf.md`                         | 208K    | Non-empty (finished)                  |
+| `track.md`                      | 96K     | Non-empty (finished)                  |
+| `rec.md`                        | 0 bytes | Empty (not started)                   |
+| `notif.md`                      | 0 bytes | Empty (not started)                   |
+| `portal.md`                     | 0 bytes | Empty (not started)                   |
+| `a1-master-phased-task-list.md` | empty   | Assembly/integration pass has not run |
+| `a1-outline-phases.md`          | empty   | Step-3 outline has not run            |
 
 ## Summary: What "Create the Frontend Task List" Actually Means
 
@@ -229,7 +230,7 @@ Given the above, "creating the frontend" for the finished modules (INFRA, UI, IA
    - Compose specific backend task IDs (looked up via E1's procedure catalog) as prerequisites for the tRPC calls they make.
    - Never merge cross-module data into a single query.
    - Follow the full task schema (ID format, self-contained AI Prompt, inline-pasted layer-specific spec excerpts, verifiable acceptance criteria).
-1. REC, NOTIF, and PORTAL are excluded from this round: REC has no Phase 1 frontend surface at all; NOTIF and PORTAL do have Phase 1 frontend surface but their backend/task-list work has not started, so their frontend cannot yet be scoped against real backend task IDs.
+3. REC, NOTIF, and PORTAL are excluded from this round: REC has no Phase 1 frontend surface at all; NOTIF and PORTAL do have Phase 1 frontend surface but their backend/task-list work has not started, so their frontend cannot yet be scoped against real backend task IDs.
 
 I have already read the full content of this file in my prior turn (both the initial view and the truncated-section follow-up view together cover all 124 lines). Let me verify there's nothing beyond line 124 before extracting.Confirmed — full file content accounted for (123/124 lines, same trailing-newline counting behavior as the first file). This is a continuation session that builds directly on the first document's findings. I'll extract the new durable knowledge, discarding narrated reasoning, in-progress deliberation that got superseded, and conversational framing — while preserving everything that changes or extends the reference document from the prior extraction.
 
@@ -237,7 +238,7 @@ I have already read the full content of this file in my prior turn (both the ini
 
 # `batac-dms` — Frontend Task Generation: Governance & Architecture Reference (Update 2)
 
-*This update extends and corrects the prior reference document. Corrections to earlier findings are marked as such; new findings are additive.*
+_This update extends and corrects the prior reference document. Corrections to earlier findings are marked as such; new findings are additive._
 
 ## Corrections to Prior Reference
 
@@ -250,47 +251,47 @@ I have already read the full content of this file in my prior turn (both the ini
 
 ## Verified File Locations
 
-| Artifact | Confirmed path |
-|---|---|
-| STATUS_META constant | `packages/ui/src/lib/status-meta.ts` |
-| Domain types | `packages/ui/src/types/domain.ts` |
-| Barrel export | `packages/ui/src/index.ts` (or equivalent — one real consumer confirmed downstream) |
-| Real consumer of STATUS_META | `StatusBadge.tsx` (Group C Tier-3 component, requires J6-generated types) |
-| `date-fns-tz` install line | `INSTALL.sh`, line 18 |
-| App-wide tRPC client | `/apps/web/src/lib/trpc.ts` |
-| Auth/session layer | `pkce.ts`, `auth-context.tsx` (`AuthProvider` / `useAuth()`) |
-| Query client + 401 refresh-retry-redirect logic | `query-client.ts` |
-| Provider tree root | `main.tsx` |
-| Lifecycle-state mapping function | `status-mapping.ts` → `mapLifecycleStateToDocumentState()` |
-| F1's route-map ADR directory | `f1-application-route-map-adrs/` (separate from the main route-map file) |
-| F1 route map source file | `docs/pre-development/F-frontend-architecture/f1-application-route-map-v2.md` (v2 is live; `.bak` is superseded, per the never-read-`.bak` rule) |
-| E1 trpc router/procedure catalog | `docs/pre-development/E-api-design/e1-trpc-router-and-procedure-catalog.md` |
+| Artifact                                        | Confirmed path                                                                                                                                   |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| STATUS_META constant                            | `packages/ui/src/lib/status-meta.ts`                                                                                                             |
+| Domain types                                    | `packages/ui/src/types/domain.ts`                                                                                                                |
+| Barrel export                                   | `packages/ui/src/index.ts` (or equivalent — one real consumer confirmed downstream)                                                              |
+| Real consumer of STATUS_META                    | `StatusBadge.tsx` (Group C Tier-3 component, requires J6-generated types)                                                                        |
+| `date-fns-tz` install line                      | `INSTALL.sh`, line 18                                                                                                                            |
+| App-wide tRPC client                            | `/apps/web/src/lib/trpc.ts`                                                                                                                      |
+| Auth/session layer                              | `pkce.ts`, `auth-context.tsx` (`AuthProvider` / `useAuth()`)                                                                                     |
+| Query client + 401 refresh-retry-redirect logic | `query-client.ts`                                                                                                                                |
+| Provider tree root                              | `main.tsx`                                                                                                                                       |
+| Lifecycle-state mapping function                | `status-mapping.ts` → `mapLifecycleStateToDocumentState()`                                                                                       |
+| F1's route-map ADR directory                    | `f1-application-route-map-adrs/` (separate from the main route-map file)                                                                         |
+| F1 route map source file                        | `docs/pre-development/F-frontend-architecture/f1-application-route-map-v2.md` (v2 is live; `.bak` is superseded, per the never-read-`.bak` rule) |
+| E1 trpc router/procedure catalog                | `docs/pre-development/E-api-design/e1-trpc-router-and-procedure-catalog.md`                                                                      |
 
 ## UI Module — Confirmed Task IDs (`docs/pre-development/A-project-planning/a1-tasks/ui.md`)
 
 Matches the previously predicted count exactly: **19 tasks**, structured Foundation(001) + J6-gen(002) + Groups A/B/C/D(003–018) + integration(019).
 
-| Task ID | Component / Content |
-|---|---|
-| TASK-UI-001 | Foundation PR (Tier 1 install, Tier 2 overrides, token system, `/dev/components` route) |
-| TASK-UI-002 | Generate J6 shared domain types and STATUS_META constant (this is the task that produced `status-meta.ts`) |
-| TASK-UI-003 | PageHeader (Group A) |
-| TASK-UI-004 | Sidebar (Group A) — implements F6 §3.5's accessible-name required action |
-| TASK-UI-005 | Topbar (Group A) |
-| TASK-UI-006 | AppShell (Group A) |
-| TASK-UI-007 | DocumentNumberBadge (Group B) |
-| TASK-UI-008 | StatCard (Group B) |
-| TASK-UI-009 | EmptyState (Group B) |
-| TASK-UI-010 | ScanQualityIndicator (Group B) |
-| TASK-UI-011 | SLATimer (Group B) |
-| TASK-UI-012 | RoutingHistoryTimeline (Group B) |
-| TASK-UI-013 | QRCodeDisplay (Group B) — F7's open item resolved 2026-06-23; F7/J6 now agree |
-| TASK-UI-014 | CommitteeReferralBlock (Group C) |
-| TASK-UI-015 | StatusBadge (Group C) |
-| TASK-UI-016 | WorkflowStepIndicator (Group C) |
-| TASK-UI-017 | DocumentPreviewCard (Group D) |
+| Task ID     | Component / Content                                                                                             |
+| ----------- | --------------------------------------------------------------------------------------------------------------- |
+| TASK-UI-001 | Foundation PR (Tier 1 install, Tier 2 overrides, token system, `/dev/components` route)                         |
+| TASK-UI-002 | Generate J6 shared domain types and STATUS_META constant (this is the task that produced `status-meta.ts`)      |
+| TASK-UI-003 | PageHeader (Group A)                                                                                            |
+| TASK-UI-004 | Sidebar (Group A) — implements F6 §3.5's accessible-name required action                                        |
+| TASK-UI-005 | Topbar (Group A)                                                                                                |
+| TASK-UI-006 | AppShell (Group A)                                                                                              |
+| TASK-UI-007 | DocumentNumberBadge (Group B)                                                                                   |
+| TASK-UI-008 | StatCard (Group B)                                                                                              |
+| TASK-UI-009 | EmptyState (Group B)                                                                                            |
+| TASK-UI-010 | ScanQualityIndicator (Group B)                                                                                  |
+| TASK-UI-011 | SLATimer (Group B)                                                                                              |
+| TASK-UI-012 | RoutingHistoryTimeline (Group B)                                                                                |
+| TASK-UI-013 | QRCodeDisplay (Group B) — F7's open item resolved 2026-06-23; F7/J6 now agree                                   |
+| TASK-UI-014 | CommitteeReferralBlock (Group C)                                                                                |
+| TASK-UI-015 | StatusBadge (Group C)                                                                                           |
+| TASK-UI-016 | WorkflowStepIndicator (Group C)                                                                                 |
+| TASK-UI-017 | DocumentPreviewCard (Group D)                                                                                   |
 | TASK-UI-018 | OrderOfBusinessRow (Group D) — F7 corrected 2026-06-23 to match J6; does **not** compose CommitteeReferralBlock |
-| TASK-UI-019 | Plan 2 integration, `/dev/all-components` |
+| TASK-UI-019 | Plan 2 integration, `/dev/all-components`                                                                       |
 
 This table is the complete Tier-3-component-task half of the two-part prerequisite lookup rule (component task ID + backend procedure-implementing task ID) for all 16 components plus Foundation/J6-gen/integration.
 
@@ -307,6 +308,7 @@ This table is the complete Tier-3-component-task half of the two-part prerequisi
 Direct confirmation, scanning IAM/AUDIT/ORG/DOCS/WF/TRACK's task lists for existing frontend-page tasks:
 
 **There are no frontend tasks in any domain module except:**
+
 - The UI module (component-library tasks only, as catalogued above).
 - **DOCS**, tasks 020–022 (the only domain module with any frontend slice started so far).
 
@@ -327,10 +329,10 @@ This task is **not DOCS-specific** — it is the app-wide frontend foundation, s
 **What it establishes, app-wide, permanently:**
 
 1. **The tRPC client itself** (`/apps/web/src/lib/trpc.ts`) — required by every frontend task in every module that calls any procedure.
-2. **The whole auth/session layer** (`pkce.ts`, `auth-context.tsx`, `AuthProvider`/`useAuth()`) — the concrete implementation of the `useSessionStore`-shaped session from `ADR-UI-012` (see prior reference doc). Confirmed fields: `user`, `sessionId`, `expiresAt`, `roleCodes`, `officeScopeId` (confirmed nullable), `officeCode`. **Any IAM-owned login/session page task must depend on this task, not duplicate it** — DOCS-020 already built the auth machinery; an IAM frontend task should be a thin page that *uses* `useAuth()`, not a second implementation of session handling.
+2. **The whole auth/session layer** (`pkce.ts`, `auth-context.tsx`, `AuthProvider`/`useAuth()`) — the concrete implementation of the `useSessionStore`-shaped session from `ADR-UI-012` (see prior reference doc). Confirmed fields: `user`, `sessionId`, `expiresAt`, `roleCodes`, `officeScopeId` (confirmed nullable), `officeCode`. **Any IAM-owned login/session page task must depend on this task, not duplicate it** — DOCS-020 already built the auth machinery; an IAM frontend task should be a thin page that _uses_ `useAuth()`, not a second implementation of session handling.
 3. **Query client + 401 refresh-retry-redirect logic** (`query-client.ts`) — global, not DOCS-specific.
 4. **`main.tsx` provider tree wiring** — the app root; can only be done once.
-5. **`status-mapping.ts`'s `mapLifecycleStateToDocumentState()`** — this piece *is* DOCS-scoped (projects DOCS's backend `LifecycleState` enum into the shared 26-member `DocumentState` union). Other modules with their own lifecycle-ish states (WF's workflow steps, TRACK's tracking states) may need equivalent mapping functions of their own — not this same function, but the same pattern.
+5. **`status-mapping.ts`'s `mapLifecycleStateToDocumentState()`** — this piece _is_ DOCS-scoped (projects DOCS's backend `LifecycleState` enum into the shared 26-member `DocumentState` union). Other modules with their own lifecycle-ish states (WF's workflow steps, TRACK's tracking states) may need equivalent mapping functions of their own — not this same function, but the same pattern.
 6. **Two real backend bugs fixed as declared prerequisites**:
    - `root.ts` was missing `organization` and `audit` routers in the tRPC merge — the ORG and AUDIT routers exist and are Fastify-registered, but were not merged into the app-wide tRPC root. **Caution**: "finished" (per the project's own definition) did not guarantee every router was merged into the app-wide root — this is a real gap between "module development finished" and "fully wired."
    - CORS was never registered at all, despite `CORS_ALLOWED_ORIGINS` existing unused in the env schema.
@@ -396,15 +398,15 @@ There is a separate, dedicated ADR directory for this document: `f1-application-
 
 ### Seven procedure groups (presented as confirmed groupings, not individually re-tagged `[Inference]`)
 
-| Group | Procedures / Scope | Owning module |
-|---|---|---|
-| Read | (base document read) | DOCS |
-| Lifecycle | Nine lifecycle actions | DOCS |
-| Portal visibility | (visibility controls) | DOCS |
-| File & OCR | Six file/OCR actions | DOCS |
-| Tracking | Four procedures: `getTrackingRecord`, `printQrCoverSheet`, `getRoutingHistory`, `logRoutingEntry` (`tracking.*` namespace) | **TRACK** |
-| Workflow link-out | `workflow.getActiveInstanceForDocument`, linking to `/workflow/steps/:instanceId` (itself specified in F1 §8.2) | **WF** |
-| Records | Five `records.*` procedures — see resolution below | See resolution below |
+| Group             | Procedures / Scope                                                                                                         | Owning module        |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| Read              | (base document read)                                                                                                       | DOCS                 |
+| Lifecycle         | Nine lifecycle actions                                                                                                     | DOCS                 |
+| Portal visibility | (visibility controls)                                                                                                      | DOCS                 |
+| File & OCR        | Six file/OCR actions                                                                                                       | DOCS                 |
+| Tracking          | Four procedures: `getTrackingRecord`, `printQrCoverSheet`, `getRoutingHistory`, `logRoutingEntry` (`tracking.*` namespace) | **TRACK**            |
+| Workflow link-out | `workflow.getActiveInstanceForDocument`, linking to `/workflow/steps/:instanceId` (itself specified in F1 §8.2)            | **WF**               |
+| Records           | Five `records.*` procedures — see resolution below                                                                         | See resolution below |
 
 This confirms Detail genuinely requires cross-module data — not merely suspected, but confirmed via the Tracking, Workflow link-out, and Records groups above.
 
@@ -421,7 +423,7 @@ This confirms Detail genuinely requires cross-module data — not merely suspect
 
 - The five `records.*` procedures F1 §7.3 lists **are specified and Phase 1 in scope** — they are not deferred to a REC module task list that doesn't exist.
 - **Critical mechanism**: in Phase 1, `records.placeLegalHold`/`removeLegalHold` write to `documents.documents.metadata` (a JSONB flag on the DOCS schema), **not** to the reserved-but-unpopulated `records.records` table. This means these procedures are Phase-1-implementable without RECORDS' actual schema/tables existing — they are deliberately designed as forward-compatible placeholders living inside DOCS' own schema.
-- **Phase split, confirmed at line 1552**: the *real* RMS bulk/disposition procedures (`bulkArchive`, `initiateDisposition`, `processPiiErasure`) are genuinely Phase 2 and excluded. The Phase 1 subset — described as procedures "the Documents/Workflow modules call synchronously" — comprises: `getRetentionSchedule`, `applyRetentionSchedule`, `applyClassification`, `placeLegalHold`/`removeLegalHold` (treated as one paired unit), `isUnderLegalHold`. (Five procedure names; E1's own ToC groups hold/unhold together, referring to this set as "four procedures.")
+- **Phase split, confirmed at line 1552**: the _real_ RMS bulk/disposition procedures (`bulkArchive`, `initiateDisposition`, `processPiiErasure`) are genuinely Phase 2 and excluded. The Phase 1 subset — described as procedures "the Documents/Workflow modules call synchronously" — comprises: `getRetentionSchedule`, `applyRetentionSchedule`, `applyClassification`, `placeLegalHold`/`removeLegalHold` (treated as one paired unit), `isUnderLegalHold`. (Five procedure names; E1's own ToC groups hold/unhold together, referring to this set as "four procedures.")
 
 **Conclusion**: this is **not** a genuine RECORDS-module cross-reference in the blocking sense initially assumed. These are `records`-namespaced procedures that are functionally part of Phase 1 DOCS/WF scope. The real open question is narrower: **which task actually implements the `recordsRouter`'s Phase 1 procedures at the backend, and does a task ID for it already exist?**
 
@@ -443,7 +445,7 @@ I need to see the truncated middle section (lines 80-164) which contains the act
 
 # `batac-dms` — Frontend Task Generation: Governance & Architecture Reference (Update 3)
 
-*This update extends and corrects the prior two reference documents. A material correction is noted below and should override all earlier "four procedures" references.*
+_This update extends and corrects the prior two reference documents. A material correction is noted below and should override all earlier "four procedures" references._
 
 ## Critical Correction: Records Group Has Five Procedures, Not Four
 
@@ -457,20 +459,20 @@ I need to see the truncated middle section (lines 80-164) which contains the act
 
 `applyRetentionSchedule` is confirmed as a real, documented, `[Confirmed]` E1 procedure at line 1231 — distinct from the other four, which are documented at E1 lines 1247–1267. It was independently verified to have **no implementing task or code anywhere**, exactly the same as the other four (confirmed via two separate, non-short-circuited searches: one grep across all `a1-tasks/*.md` files, one recursive codebase search — both returned clean/no-match exit codes).
 
-**`applyRetentionSchedule`'s own spec detail**: takes `scheduleId: z.string().uuid()`, referencing an *already-existing* schedule — it does not create one. Its own `[Confirmed]` note states that schedule *creation/activation* is Phase-2 Platform Admin configuration, out of scope for this procedure.
+**`applyRetentionSchedule`'s own spec detail**: takes `scheduleId: z.string().uuid()`, referencing an _already-existing_ schedule — it does not create one. Its own `[Confirmed]` note states that schedule _creation/activation_ is Phase-2 Platform Admin configuration, out of scope for this procedure.
 
 ### Distinguishing this gap from `SPEC-GAP-DOCS-03`
 
 `SPEC-GAP-DOCS-03` (found in DOCS's own Module Summary) is a **different, pre-existing gap** and must not be conflated with the Records-procedure gap above:
 
-- **`SPEC-GAP-DOCS-03`**: about *seeding* `document_types.retention_schedule_id` with placeholder UUIDs at the type-catalog level, in `TASK-DOCS-007`. This is a seed-data dependency on the `records.retention_schedules` table, at the type-catalog level.
-- **The Records-group gap (this document)**: about the complete absence of *any* `records.*` router or procedure implementation — a document-level runtime action, not a catalog seed.
+- **`SPEC-GAP-DOCS-03`**: about _seeding_ `document_types.retention_schedule_id` with placeholder UUIDs at the type-catalog level, in `TASK-DOCS-007`. This is a seed-data dependency on the `records.retention_schedules` table, at the type-catalog level.
+- **The Records-group gap (this document)**: about the complete absence of _any_ `records.*` router or procedure implementation — a document-level runtime action, not a catalog seed.
 
 Both ultimately depend on a REC module that doesn't exist yet in Phase 1, but they are not the same gap and should be flagged as two distinct spec-gap notes, never merged into one.
 
 ### E1's own qualifier on `placeLegalHold` — narrow scope, does not extend to the other four
 
-E1 line 1262 carries an `[Inference]` qualifier specifically on `placeLegalHold`, worded precisely as: *"since records.records rows are not yet created by ordinary Phase 1 document flow per B2 Module 6's Phase 2 delivery note."*
+E1 line 1262 carries an `[Inference]` qualifier specifically on `placeLegalHold`, worded precisely as: _"since records.records rows are not yet created by ordinary Phase 1 document flow per B2 Module 6's Phase 2 delivery note."_
 
 This qualifier suggests the absence of `records.records` rows may be **intentional/expected at the spec level** for `placeLegalHold` specifically — not merely an oversight. **This inference does not extend to the other four procedures** (`applyClassification`, `removeLegalHold`, `isUnderLegalHold`, `applyRetentionSchedule`), which carry no comparable qualifier in E1 and are stated as `[Confirmed]` outright. Do not read this note as covering the whole Records group.
 
@@ -482,15 +484,15 @@ This qualifier suggests the absence of `records.records` rows may be **intention
 
 ## Backend Task Assignments for Detail's Cross-Module Procedure Groups (Confirmed)
 
-| Procedure group | Procedures | Implementing task | Verification detail |
-|---|---|---|---|
-| Tracking | `getTrackingRecord`, `printQrCoverSheet`, `getRoutingHistory`, `logRoutingEntry` | **TASK-TRACK-007** (line 936) | Implements `trackingRouter` with full implementations of all five E1 Module 5 procedures, using real Zod input/output schemas and ABAC enforcement. |
-| Workflow link-out | `workflow.getActiveInstanceForDocument` | **TASK-WF-018** (line 1759, referenced at line 40 in ToC) | One of four read-side query procedures implemented on `workflow.router.ts`. |
-| Records | Five `records.*` procedures (see above) | **None — confirmed gap** | No implementing task exists in any finished module's task list; no code exists in the codebase. |
+| Procedure group   | Procedures                                                                       | Implementing task                                         | Verification detail                                                                                                                                 |
+| ----------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tracking          | `getTrackingRecord`, `printQrCoverSheet`, `getRoutingHistory`, `logRoutingEntry` | **TASK-TRACK-007** (line 936)                             | Implements `trackingRouter` with full implementations of all five E1 Module 5 procedures, using real Zod input/output schemas and ABAC enforcement. |
+| Workflow link-out | `workflow.getActiveInstanceForDocument`                                          | **TASK-WF-018** (line 1759, referenced at line 40 in ToC) | One of four read-side query procedures implemented on `workflow.router.ts`.                                                                         |
+| Records           | Five `records.*` procedures (see above)                                          | **None — confirmed gap**                                  | No implementing task exists in any finished module's task list; no code exists in the codebase.                                                     |
 
 ## `wf.md` — Standing Citation Instruction
 
-**`wf.md`'s Module Summary (around line 2624) contains a standing developer instruction**: *"I'll do the ToC line numbers myself, so don't do them"* — and a note that `[L#–L#]` ranges throughout that file are now stale.
+**`wf.md`'s Module Summary (around line 2624) contains a standing developer instruction**: _"I'll do the ToC line numbers myself, so don't do them"_ — and a note that `[L#–L#]` ranges throughout that file are now stale.
 
 **Practical consequence**: any citation to `wf.md` must reference the task ID and its content, never a line-range that would be invented or that is already known-stale in that specific file.
 
@@ -503,7 +505,7 @@ The 10 callable-by roles for `documents.get`, confirmed verbatim from E1 directl
 - `sys_admin` is confirmed excluded exactly as stated in `[Resolved — ADR-UI-008]` — reachable only via the separate `documents.getMetadataForAdmin` procedure, from its own System Administrator area (F1 §13).
 - **Naming note**: F1 §7.3 (line 311) calls this role "System Administrator" (a label); E1 uses the enum/procedure-gate value `sys_admin`. This is a label-vs-enum-value difference, not a real conflict — use `sys_admin` consistently, since that is the actual gate value.
 - **ABAC conditions in E1 are substantially more detailed than a paraphrase would suggest** — cite the governing text precisely rather than paraphrasing loosely when referencing this in a task.
-- **F1 line 325 — governing instruction for per-action gating**: F1 itself does not re-derive every individual action's ABAC gate at the page level. It states the page-level 10-role group is the *broadest* set, and explicitly defers to E1 directly for each individual procedure's specific callable-by list. This must be followed literally in any executing task: check each action button's own E1 entry (e.g., `documents.archive` is Records Officer/SP Secretary only) rather than gating every button by the same blanket 10-role list.
+- **F1 line 325 — governing instruction for per-action gating**: F1 itself does not re-derive every individual action's ABAC gate at the page level. It states the page-level 10-role group is the _broadest_ set, and explicitly defers to E1 directly for each individual procedure's specific callable-by list. This must be followed literally in any executing task: check each action button's own E1 entry (e.g., `documents.archive` is Records Officer/SP Secretary only) rather than gating every button by the same blanket 10-role list.
 
 ## `getScanQualityIndicator` — Exact Confirmed Spec (E1 line 826)
 
@@ -515,7 +517,7 @@ The 10 callable-by roles for `documents.get`, confirmed verbatim from E1 directl
 
 **Source**: `TASK-DOCS-022`, lines 2790–2793, direct file read (not paraphrase).
 
-**Exact text**: *"Detail is the page designed to poll/refresh for [scan quality feedback] once it exists; Intake's job ends at a successful redirect."*
+**Exact text**: _"Detail is the page designed to poll/refresh for [scan quality feedback] once it exists; Intake's job ends at a successful redirect."_
 
 - OCR runs asynchronously via a background job enqueued inside `confirmUpload` — the `confirmUpload` response itself carries no scan-quality data.
 - **Consequence**: Detail cannot render `getScanQualityIndicator`'s result as a one-time static fetch. It must poll until the async job completes.
@@ -525,6 +527,7 @@ The 10 callable-by roles for `documents.get`, confirmed verbatim from E1 directl
 ## Remaining File & OCR Group Procedures (E1 detail)
 
 Two procedures beyond the ones already covered:
+
 - Both operate on `versionId`.
 - Both are Records Officer-gated, with `acceptScannedBackAsOfficial` additionally allowing SP Secretary.
 - Both are straightforward mutations with no ABAC conditions beyond role.
@@ -534,12 +537,12 @@ Two procedures beyond the ones already covered:
 
 All four Tier-3 component tasks Detail composes were verified directly by reading their title lines:
 
-| Task ID | Component |
-|---|---|
+| Task ID     | Component              |
+| ----------- | ---------------------- |
 | TASK-UI-012 | RoutingHistoryTimeline |
-| TASK-UI-013 | QRCodeDisplay |
-| TASK-UI-015 | StatusBadge |
-| TASK-UI-016 | WorkflowStepIndicator |
+| TASK-UI-013 | QRCodeDisplay          |
+| TASK-UI-015 | StatusBadge            |
+| TASK-UI-016 | WorkflowStepIndicator  |
 
 **Note**: UI-013 and UI-016 have their own prior open-item resolution notes (see Update 2's finding on TASK-UI-013/018) — these are already settled at the component level, so DOCS-023 simply consumes them as-is without repeating their resolution history.
 

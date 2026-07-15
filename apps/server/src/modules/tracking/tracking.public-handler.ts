@@ -16,7 +16,7 @@ export function createPublicLookupHandler(deps: {
 }) {
   return async function publicLookupHandler(
     request: FastifyRequest<{ Params: { trackingId: string } }>,
-    reply: FastifyReply
+    reply: FastifyReply,
   ) {
     const { trackingId } = request.params;
 
@@ -38,7 +38,7 @@ export function createPublicLookupHandler(deps: {
     // Canonical S3 key set by TASK-DOCS-010's generateFirstPagePreview.
     const previewKey = `documents/previews/${qrCode.documentId}/page-1.webp`;
     const expirySeconds = parseInt(deps.config.PREVIEW_URL_EXPIRY_SECONDS ?? '3600', 10);
-    
+
     const command = new GetObjectCommand({
       Bucket: deps.s3Bucket,
       Key: previewKey,

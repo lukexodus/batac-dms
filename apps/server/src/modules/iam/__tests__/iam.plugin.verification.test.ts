@@ -8,7 +8,7 @@ describe.skip('IAM Plugin Integration & Verification', () => {
     let downstreamEvaluatorAccessible = false;
 
     // Build the real Fastify app
-    const buildApp = async () => ({} as FastifyInstance);
+    const buildApp = async () => ({}) as FastifyInstance;
     const app = await buildApp();
 
     // Register a downstream dummy plugin to confirm decorations are accessible in downstream plugins

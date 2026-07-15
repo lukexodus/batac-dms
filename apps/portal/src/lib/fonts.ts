@@ -9,7 +9,7 @@
  *
  * Source: DESIGN.md §3 (typography tokens)
  */
-import { Inter, JetBrains_Mono, Lora } from "next/font/google";
+import { Inter, JetBrains_Mono, Lora } from 'next/font/google';
 
 /**
  * Inter — primary UI font.
@@ -17,11 +17,11 @@ import { Inter, JetBrains_Mono, Lora } from "next/font/google";
  * Variable: --font-sans (matches token in globals.css)
  */
 export const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-sans",
-  display: "swap",
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  style: ['normal', 'italic'],
+  variable: '--font-sans',
+  display: 'swap',
 });
 
 /**
@@ -30,11 +30,11 @@ export const inter = Inter({
  * Variable: --font-mono
  */
 export const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  style: ["normal"],
-  variable: "--font-mono",
-  display: "swap",
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  style: ['normal'],
+  variable: '--font-mono',
+  display: 'swap',
 });
 
 /**
@@ -45,9 +45,9 @@ export const jetbrainsMono = JetBrains_Mono({
  * Variable: --font-serif
  */
 export const lora = Lora({
-  subsets: ["latin"],
-  weight: ["400"],
-  style: ["normal"],
-  variable: "--font-serif",
-  display: "swap",
+  subsets: ['latin'],
+  weight: ['400'],
+  style: ['normal'],
+  variable: '--font-serif',
+  display: 'swap',
 });

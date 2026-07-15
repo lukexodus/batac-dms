@@ -14,25 +14,25 @@ export async function submitStepAction(
   actorId: string,
   comment: string | null,
   deps: ActionHandlerDeps,
-  trx?: DbTransaction
+  trx?: DbTransaction,
 ): Promise<void> {
   if (stepInstance.status !== 'active') {
     throw new Error('CONFLICT: step is not active');
   }
 
   const assignedUsers = (stepInstance.assignedTo as Array<{ user_id: string }>) || [];
-  const isAssigned = assignedUsers.some(a => a.user_id === actorId);
+  const isAssigned = assignedUsers.some((a) => a.user_id === actorId);
   if (!isAssigned) {
     throw new Error('FORBIDDEN: actor is not assigned to this step');
   }
 
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any
+    trx as any,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
-  const stepDef = versionData.steps.find(s => s.id === stepInstance.stepId);
+  const stepDef = versionData.steps.find((s) => s.id === stepInstance.stepId);
   if (!stepDef) throw new Error('Step definition not found');
 
   const config = (stepDef.config as Record<string, any>) || {};
@@ -48,7 +48,7 @@ export async function submitStepAction(
   await deps.workflowRepository.updateStepInstance(
     stepInstance.id,
     { status: 'completed', completedAt: now, outcome: 'DONE' },
-    trx as any
+    trx as any,
   );
 
   // Invoke context writer (for timer flags, etc.)
@@ -67,13 +67,16 @@ export async function submitStepAction(
         stepType: stepDef.stepType,
         outcome: 'DONE',
         comment,
-      }
+      },
     },
-    trx as any
+    trx as any,
   );
 
   // Refresh stepInstance state before resolving next step
-  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(stepInstance.id, trx as any);
+  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
+    stepInstance.id,
+    trx as any,
+  );
   if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 
   await resolveNextStep(instance, updatedStepInstance, 'DONE', deps, trx);
@@ -83,15 +86,15 @@ export async function autoCompleteActionStep(
   instance: InstanceRow,
   stepInstance: StepInstanceRow,
   deps: ActionHandlerDeps,
-  trx?: DbTransaction
+  trx?: DbTransaction,
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any
+    trx as any,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
-  const stepDef = versionData.steps.find(s => s.id === stepInstance.stepId);
+  const stepDef = versionData.steps.find((s) => s.id === stepInstance.stepId);
   if (!stepDef) throw new Error('Step definition not found');
 
   const now = new Date();
@@ -99,7 +102,7 @@ export async function autoCompleteActionStep(
   await deps.workflowRepository.updateStepInstance(
     stepInstance.id,
     { status: 'completed', completedAt: now, outcome: 'DONE' },
-    trx as any
+    trx as any,
   );
 
   // Invoke context writer (for timer flags, etc.), actorId is null for system
@@ -118,12 +121,15 @@ export async function autoCompleteActionStep(
         stepType: stepDef.stepType,
         outcome: 'DONE',
         comment: null,
-      }
+      },
     },
-    trx as any
+    trx as any,
   );
 
-  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(stepInstance.id, trx as any);
+  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
+    stepInstance.id,
+    trx as any,
+  );
   if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 
   await resolveNextStep(instance, updatedStepInstance, 'DONE', deps, trx);

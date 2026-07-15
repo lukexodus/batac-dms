@@ -6,11 +6,11 @@ import { z } from 'zod';
  * Source: TASK-IAM-006 AI Prompt (PKCE section).
  */
 export const LoginInputSchema = z.object({
-  username:               z.string().min(1),
-  password:               z.string().min(1),
-  code_verifier:          z.string().min(43).max(128),
-  code_challenge:         z.string().min(43).max(128),
-  code_challenge_method:  z.literal('S256'),
+  username: z.string().min(1),
+  password: z.string().min(1),
+  code_verifier: z.string().min(43).max(128),
+  code_challenge: z.string().min(43).max(128),
+  code_challenge_method: z.literal('S256'),
 });
 
 export type LoginInput = z.infer<typeof LoginInputSchema>;
@@ -28,21 +28,21 @@ export const UnlockInputSchema = z.object({
  */
 export const AuthResponseSchema = z.object({
   user: z.object({
-    id:         z.string().uuid(),
-    username:   z.string(),
-    email:      z.string().email(),
-    cityId:     z.string(),
-    status:     z.string(),
+    id: z.string().uuid(),
+    username: z.string(),
+    email: z.string().email(),
+    cityId: z.string(),
+    status: z.string(),
     mfaEnabled: z.boolean(),
-    createdAt:  z.date(),
-    updatedAt:  z.date(),
+    createdAt: z.date(),
+    updatedAt: z.date(),
   }),
-  sessionId:     z.string().uuid(),
-  expiresAt:     z.date(),
-  roleCodes:     z.array(z.string()),
+  sessionId: z.string().uuid(),
+  expiresAt: z.date(),
+  roleCodes: z.array(z.string()),
   officeScopeId: z.string().uuid().nullable(),
-  officeCode:    z.string().nullable(),
-  committeeIds:  z.array(z.string()),
+  officeCode: z.string().nullable(),
+  committeeIds: z.array(z.string()),
 });
 
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
@@ -77,9 +77,19 @@ export const userSummaryOutput = z.object({
 });
 
 export const roleCodeEnum = z.enum([
-  'sys_admin', 'plat_admin', 'records_officer', 'dept_encoder', 'dept_approver',
-  'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder',
-  'brgy_captain', 'auditor', 'citizen'
+  'sys_admin',
+  'plat_admin',
+  'records_officer',
+  'dept_encoder',
+  'dept_approver',
+  'sp_secretary',
+  'sp_member',
+  'sp_presiding_officer',
+  'mayor',
+  'brgy_encoder',
+  'brgy_captain',
+  'auditor',
+  'citizen',
 ]);
 
 export const GetProfileInput = z.object({

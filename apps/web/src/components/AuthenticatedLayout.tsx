@@ -11,7 +11,7 @@ import {
   Settings,
   Shield,
   Building,
-  Users
+  Users,
 } from 'lucide-react';
 
 import { AppShell, Sidebar, Topbar } from '@batac/ui';
@@ -76,7 +76,7 @@ export function AuthenticatedLayout() {
         return ROLE_LABELS[role] || role;
       }
     }
-    return roleCodes[0] ? (ROLE_LABELS[roleCodes[0]] || roleCodes[0]) : 'User';
+    return roleCodes[0] ? ROLE_LABELS[roleCodes[0]] || roleCodes[0] : 'User';
   }, [roleCodes]);
 
   const currentUser = {
@@ -89,18 +89,50 @@ export function AuthenticatedLayout() {
     const items = [];
 
     // Documents
-    if (hasRole(identity, 'records_officer', 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain')) {
+    if (
+      hasRole(
+        identity,
+        'records_officer',
+        'dept_encoder',
+        'dept_approver',
+        'sp_secretary',
+        'sp_member',
+        'sp_presiding_officer',
+        'mayor',
+        'brgy_encoder',
+        'brgy_captain',
+      )
+    ) {
       items.push({ id: 'documents', icon: FileText, label: 'Documents', href: '/documents' });
     }
 
     // Workflow Steps
-    if (hasRole(identity, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain')) {
+    if (
+      hasRole(
+        identity,
+        'dept_encoder',
+        'dept_approver',
+        'sp_secretary',
+        'sp_member',
+        'sp_presiding_officer',
+        'mayor',
+        'brgy_encoder',
+        'brgy_captain',
+      )
+    ) {
       items.push({ id: 'workflow', icon: CheckSquare, label: 'My Tasks', href: '/workflow/steps' });
     }
 
     // Order of Business
-    if (hasRole(identity, 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'auditor')) {
-      items.push({ id: 'order-of-business', icon: List, label: 'Order of Business', href: '/order-of-business' });
+    if (
+      hasRole(identity, 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'auditor')
+    ) {
+      items.push({
+        id: 'order-of-business',
+        icon: List,
+        label: 'Order of Business',
+        href: '/order-of-business',
+      });
     }
 
     // Sessions
@@ -114,8 +146,22 @@ export function AuthenticatedLayout() {
     }
 
     // Document Requests
-    if (hasRole(identity, 'sp_secretary', 'mayor', 'sp_presiding_officer', 'sp_member', 'records_officer')) {
-      items.push({ id: 'document-requests', icon: Inbox, label: 'Document Requests', href: '/document-requests' });
+    if (
+      hasRole(
+        identity,
+        'sp_secretary',
+        'mayor',
+        'sp_presiding_officer',
+        'sp_member',
+        'records_officer',
+      )
+    ) {
+      items.push({
+        id: 'document-requests',
+        icon: Inbox,
+        label: 'Document Requests',
+        href: '/document-requests',
+      });
     }
 
     // Organization
@@ -125,21 +171,51 @@ export function AuthenticatedLayout() {
 
     // Role-specific Dashboards
     if (hasRole(identity, 'sp_secretary')) {
-      items.push({ id: 'secretary-dashboard', icon: LayoutDashboard, label: 'Secretary Dashboard', href: '/secretary' });
+      items.push({
+        id: 'secretary-dashboard',
+        icon: LayoutDashboard,
+        label: 'Secretary Dashboard',
+        href: '/secretary',
+      });
     }
     if (hasRole(identity, 'mayor')) {
-      items.push({ id: 'mayor-dashboard', icon: LayoutDashboard, label: 'Mayor Dashboard', href: '/mayor' });
+      items.push({
+        id: 'mayor-dashboard',
+        icon: LayoutDashboard,
+        label: 'Mayor Dashboard',
+        href: '/mayor',
+      });
     }
 
     // System/Platform Admin
     if (hasRole(identity, 'sys_admin')) {
       items.push({ id: 'sysadmin', icon: Settings, label: 'System Admin', href: '/sysadmin' });
-      items.push({ id: 'sysadmin-sessions', icon: Settings, label: 'Active Sessions', href: '/sysadmin/sessions' });
-      items.push({ id: 'sysadmin-users', icon: Users, label: 'User Accounts', href: '/sysadmin/users' });
+      items.push({
+        id: 'sysadmin-sessions',
+        icon: Settings,
+        label: 'Active Sessions',
+        href: '/sysadmin/sessions',
+      });
+      items.push({
+        id: 'sysadmin-users',
+        icon: Users,
+        label: 'User Accounts',
+        href: '/sysadmin/users',
+      });
     }
     if (hasRole(identity, 'plat_admin')) {
-      items.push({ id: 'admin-roles', icon: Shield, label: 'Role Assignment', href: '/admin/roles' });
-      items.push({ id: 'admin-committees', icon: Building, label: 'Committees', href: '/admin/committees' });
+      items.push({
+        id: 'admin-roles',
+        icon: Shield,
+        label: 'Role Assignment',
+        href: '/admin/roles',
+      });
+      items.push({
+        id: 'admin-committees',
+        icon: Building,
+        label: 'Committees',
+        href: '/admin/committees',
+      });
     }
 
     return items;
@@ -157,39 +233,59 @@ export function AuthenticatedLayout() {
   // Consider Option B (route-context based) if this grows too large.
   const breadcrumbs = useMemo<BreadcrumbItem[]>(() => {
     const p = location.pathname;
-    
-    if (p.startsWith('/admin/committees')) return [{ label: 'Admin', href: '/admin' }, { label: 'Committees', href: '/admin/committees' }];
-    if (p.startsWith('/admin/roles')) return [{ label: 'Admin', href: '/admin' }, { label: 'Role Assignment', href: '/admin/roles' }];
+
+    if (p.startsWith('/admin/committees'))
+      return [
+        { label: 'Admin', href: '/admin' },
+        { label: 'Committees', href: '/admin/committees' },
+      ];
+    if (p.startsWith('/admin/roles'))
+      return [
+        { label: 'Admin', href: '/admin' },
+        { label: 'Role Assignment', href: '/admin/roles' },
+      ];
     if (p === '/admin') return [{ label: 'Admin', href: '/admin' }];
-    
-    if (p.startsWith('/sysadmin/sessions')) return [{ label: 'System Admin', href: '/sysadmin' }, { label: 'Active Sessions' }];
-    if (p.startsWith('/sysadmin/users')) return [{ label: 'System Admin', href: '/sysadmin' }, { label: 'User Accounts' }];
+
+    if (p.startsWith('/sysadmin/sessions'))
+      return [{ label: 'System Admin', href: '/sysadmin' }, { label: 'Active Sessions' }];
+    if (p.startsWith('/sysadmin/users'))
+      return [{ label: 'System Admin', href: '/sysadmin' }, { label: 'User Accounts' }];
     if (p.startsWith('/sysadmin')) return [{ label: 'System Admin', href: '/sysadmin' }];
-    
+
     if (p.startsWith('/organization')) return [{ label: 'Organization', href: '/organization' }];
-    
+
     if (p.startsWith('/secretary')) return [{ label: 'Secretary Dashboard', href: '/secretary' }];
     if (p.startsWith('/mayor')) return [{ label: 'Mayor Dashboard', href: '/mayor' }];
-    
-    if (p.startsWith('/workflow/steps/')) return [{ label: 'My Tasks', href: '/workflow/steps' }, { label: 'Step Action' }];
+
+    if (p.startsWith('/workflow/steps/'))
+      return [{ label: 'My Tasks', href: '/workflow/steps' }, { label: 'Step Action' }];
     if (p.startsWith('/workflow/steps')) return [{ label: 'My Tasks', href: '/workflow/steps' }];
-    
-    if (p.startsWith('/sessions/')) return [{ label: 'Sessions', href: '/sessions' }, { label: 'Attendance Details' }];
+
+    if (p.startsWith('/sessions/'))
+      return [{ label: 'Sessions', href: '/sessions' }, { label: 'Attendance Details' }];
     if (p.startsWith('/sessions')) return [{ label: 'Sessions', href: '/sessions' }];
-    
-    if (p.startsWith('/order-of-business')) return [{ label: 'Order of Business', href: '/order-of-business' }];
-    
-    if (p.startsWith('/documents/new')) return [{ label: 'Documents', href: '/documents' }, { label: 'New Document' }];
-    if (p.startsWith('/documents/')) return [{ label: 'Documents', href: '/documents' }, { label: 'Document Details' }];
+
+    if (p.startsWith('/order-of-business'))
+      return [{ label: 'Order of Business', href: '/order-of-business' }];
+
+    if (p.startsWith('/documents/new'))
+      return [{ label: 'Documents', href: '/documents' }, { label: 'New Document' }];
+    if (p.startsWith('/documents/'))
+      return [{ label: 'Documents', href: '/documents' }, { label: 'Document Details' }];
     if (p.startsWith('/documents')) return [{ label: 'Documents', href: '/documents' }];
-    
-    if (p.startsWith('/complaints/new')) return [{ label: 'Complaints', href: '/complaints' }, { label: 'New Complaint' }];
-    if (p.startsWith('/complaints/')) return [{ label: 'Complaints', href: '/complaints' }, { label: 'Complaint Details' }];
+
+    if (p.startsWith('/complaints/new'))
+      return [{ label: 'Complaints', href: '/complaints' }, { label: 'New Complaint' }];
+    if (p.startsWith('/complaints/'))
+      return [{ label: 'Complaints', href: '/complaints' }, { label: 'Complaint Details' }];
     if (p.startsWith('/complaints')) return [{ label: 'Complaints', href: '/complaints' }];
-    
-    if (p.startsWith('/document-requests/new')) return [{ label: 'Requests', href: '/document-requests' }, { label: 'New Request' }];
-    if (p.startsWith('/document-requests/')) return [{ label: 'Requests', href: '/document-requests' }, { label: 'Request Details' }];
-    if (p.startsWith('/document-requests')) return [{ label: 'Requests', href: '/document-requests' }];
+
+    if (p.startsWith('/document-requests/new'))
+      return [{ label: 'Requests', href: '/document-requests' }, { label: 'New Request' }];
+    if (p.startsWith('/document-requests/'))
+      return [{ label: 'Requests', href: '/document-requests' }, { label: 'Request Details' }];
+    if (p.startsWith('/document-requests'))
+      return [{ label: 'Requests', href: '/document-requests' }];
 
     return [{ label: 'Home', href: '/' }];
   }, [location.pathname]);

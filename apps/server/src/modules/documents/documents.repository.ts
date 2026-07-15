@@ -87,34 +87,22 @@ export class DocumentsRepository {
     return this.db
       .select()
       .from(documents)
-      .where(
-        and(eq(documents.ownedByOfficeId, officeId), isNull(documents.deletedAt)),
-      );
+      .where(and(eq(documents.ownedByOfficeId, officeId), isNull(documents.deletedAt)));
   }
 
   /**
    * Find all non-deleted documents in a given lifecycle state.
    */
-  async findDocumentsByLifecycleState(
-    lifecycleState: string,
-  ): Promise<DocumentRow[]> {
+  async findDocumentsByLifecycleState(lifecycleState: string): Promise<DocumentRow[]> {
     return this.db
       .select()
       .from(documents)
-      .where(
-        and(
-          eq(documents.lifecycleState, lifecycleState),
-          isNull(documents.deletedAt),
-        ),
-      );
+      .where(and(eq(documents.lifecycleState, lifecycleState), isNull(documents.deletedAt)));
   }
 
   /** Insert a new document row and return the created row. */
   async insertDocument(input: InsertDocument): Promise<DocumentRow> {
-    const [row] = await this.db
-      .insert(documents)
-      .values(input)
-      .returning();
+    const [row] = await this.db.insert(documents).values(input).returning();
     return row!;
   }
 
@@ -159,10 +147,7 @@ export class DocumentsRepository {
    * `documents.numbers` ledger INSERT, keeping both consistent within a
    * transaction.
    */
-  async updateDocumentNumbering(
-    id: string,
-    update: NumberingUpdate,
-  ): Promise<DocumentRow | null> {
+  async updateDocumentNumbering(id: string, update: NumberingUpdate): Promise<DocumentRow | null> {
     const [row] = await this.db
       .update(documents)
       .set({ ...update, updatedAt: new Date() })
@@ -191,10 +176,7 @@ export class DocumentsRepository {
    * enforced in DB).
    */
   async insertNumber(input: InsertNumber): Promise<NumberRow> {
-    const [row] = await this.db
-      .insert(numbers)
-      .values(input)
-      .returning();
+    const [row] = await this.db.insert(numbers).values(input).returning();
     return row!;
   }
 
@@ -202,10 +184,7 @@ export class DocumentsRepository {
    * Return the single current number row for a given document + number_type.
    * Returns null when no current row exists (e.g. no preliminary assigned yet).
    */
-  async findCurrentNumber(
-    documentId: string,
-    numberType: string,
-  ): Promise<NumberRow | null> {
+  async findCurrentNumber(documentId: string, numberType: string): Promise<NumberRow | null> {
     const [row] = await this.db
       .select()
       .from(numbers)
@@ -226,10 +205,7 @@ export class DocumentsRepository {
    * preliminary number row for a document.  Called atomically (within a
    * transaction) before inserting a replacement preliminary row.
    */
-  async supersedePreliminaryNumber(
-    documentId: string,
-    supersededAt: Date,
-  ): Promise<void> {
+  async supersedePreliminaryNumber(documentId: string, supersededAt: Date): Promise<void> {
     await this.db
       .update(numbers)
       .set({ isCurrent: false, supersededAt })
@@ -243,13 +219,13 @@ export class DocumentsRepository {
       );
   }
 
-// -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
   // documents.number_series
   // Read-only from this repository: series rows are seed/config data
   // (TASK-DOCS-008) consumed by the numbering service (TASK-DOCS-005) to
   // resolve the prefix/delimiter/padding/format template for a series key.
   // -------------------------------------------------------------------------
- 
+
   /** Find a single non-deleted number series by its PK. */
   async findNumberSeriesById(id: string): Promise<NumberSeriesRow | null> {
     const [row] = await this.db
@@ -271,7 +247,7 @@ export class DocumentsRepository {
       .where(and(eq(documentTypes.id, id), isNull(documentTypes.deletedAt)));
     return row ?? null;
   }
-  
+
   /**
    * List all active document types.
    */
@@ -288,16 +264,13 @@ export class DocumentsRepository {
       .where(and(isNull(documentTypes.deletedAt), eq(documentTypes.isActive, true)))
       .orderBy(asc(documentTypes.name));
   }
-  
+
   /**
    * Find a single non-deleted number series by its (city_id, series_key)
    * pair. `series_key` is unique per city (uq_number_series_city_key), so
    * this returns at most one row.
    */
-  async findNumberSeriesByKey(
-    seriesKey: string,
-    cityId: string,
-  ): Promise<NumberSeriesRow | null> {
+  async findNumberSeriesByKey(seriesKey: string, cityId: string): Promise<NumberSeriesRow | null> {
     const [row] = await this.db
       .select()
       .from(numberSeries)
@@ -317,10 +290,7 @@ export class DocumentsRepository {
 
   /** Insert a new version row and return the created row. */
   async insertVersion(input: InsertVersion): Promise<VersionRow> {
-    const [row] = await this.db
-      .insert(versions)
-      .values(input)
-      .returning();
+    const [row] = await this.db.insert(versions).values(input).returning();
     return row!;
   }
 
@@ -329,9 +299,7 @@ export class DocumentsRepository {
     return this.db
       .select()
       .from(versions)
-      .where(
-        and(eq(versions.documentId, documentId), isNull(versions.deletedAt)),
-      );
+      .where(and(eq(versions.documentId, documentId), isNull(versions.deletedAt)));
   }
 
   /** Find a single non-deleted version by its PK. */
@@ -407,10 +375,7 @@ export class DocumentsRepository {
 
   /** Insert a new attachment row and return the created row. */
   async insertAttachment(input: InsertAttachment): Promise<AttachmentRow> {
-    const [row] = await this.db
-      .insert(attachments)
-      .values(input)
-      .returning();
+    const [row] = await this.db.insert(attachments).values(input).returning();
     return row!;
   }
 
@@ -419,12 +384,7 @@ export class DocumentsRepository {
     return this.db
       .select()
       .from(attachments)
-      .where(
-        and(
-          eq(attachments.documentId, documentId),
-          isNull(attachments.deletedAt),
-        ),
-      );
+      .where(and(eq(attachments.documentId, documentId), isNull(attachments.deletedAt)));
   }
 
   // -------------------------------------------------------------------------
@@ -433,10 +393,7 @@ export class DocumentsRepository {
 
   /** Insert a new signature row and return the created row. */
   async insertSignature(input: InsertSignature): Promise<SignatureRow> {
-    const [row] = await this.db
-      .insert(signatures)
-      .values(input)
-      .returning();
+    const [row] = await this.db.insert(signatures).values(input).returning();
     return row!;
   }
 
@@ -445,12 +402,7 @@ export class DocumentsRepository {
     return this.db
       .select()
       .from(signatures)
-      .where(
-        and(
-          eq(signatures.documentId, documentId),
-          isNull(signatures.deletedAt),
-        ),
-      )
+      .where(and(eq(signatures.documentId, documentId), isNull(signatures.deletedAt)))
       .orderBy(asc(signatures.signedAt));
   }
 
@@ -459,12 +411,7 @@ export class DocumentsRepository {
     const [row] = await this.db
       .select()
       .from(signatures)
-      .where(
-        and(
-          eq(signatures.id, id),
-          isNull(signatures.deletedAt),
-        ),
-      );
+      .where(and(eq(signatures.id, id), isNull(signatures.deletedAt)));
     return row || null;
   }
 
@@ -482,10 +429,7 @@ export class DocumentsRepository {
 
   /** Insert a new sponsorship row and return the created row. */
   async insertSponsorship(input: InsertSponsorship): Promise<SponsorshipRow> {
-    const [row] = await this.db
-      .insert(documentSponsorships)
-      .values(input)
-      .returning();
+    const [row] = await this.db.insert(documentSponsorships).values(input).returning();
     return row!;
   }
 
@@ -507,13 +451,8 @@ export class DocumentsRepository {
   // -------------------------------------------------------------------------
 
   /** Insert a new panlalawigan_review row and return the created row. */
-  async insertPanlalawiganReview(
-    input: InsertPanlalawiganReview,
-  ): Promise<PanlalawiganReviewRow> {
-    const [row] = await this.db
-      .insert(panlalawiganReviews)
-      .values(input)
-      .returning();
+  async insertPanlalawiganReview(input: InsertPanlalawiganReview): Promise<PanlalawiganReviewRow> {
+    const [row] = await this.db.insert(panlalawiganReviews).values(input).returning();
     return row!;
   }
 
@@ -528,10 +467,7 @@ export class DocumentsRepository {
       .select()
       .from(panlalawiganReviews)
       .where(
-        and(
-          eq(panlalawiganReviews.documentId, documentId),
-          isNull(panlalawiganReviews.deletedAt),
-        ),
+        and(eq(panlalawiganReviews.documentId, documentId), isNull(panlalawiganReviews.deletedAt)),
       );
     return row ?? null;
   }
@@ -561,9 +497,7 @@ export class DocumentsRepository {
     const [row] = await this.db
       .update(panlalawiganReviews)
       .set({ ...update, updatedAt: new Date() })
-      .where(
-        and(eq(panlalawiganReviews.id, id), isNull(panlalawiganReviews.deletedAt)),
-      )
+      .where(and(eq(panlalawiganReviews.id, id), isNull(panlalawiganReviews.deletedAt)))
       .returning();
     return row ?? null;
   }
@@ -576,10 +510,7 @@ export class DocumentsRepository {
   async insertClassificationAllowlistEntry(
     input: InsertClassificationAllowlist,
   ): Promise<ClassificationAllowlistRow> {
-    const [row] = await this.db
-      .insert(classificationAllowlists)
-      .values(input)
-      .returning();
+    const [row] = await this.db.insert(classificationAllowlists).values(input).returning();
     return row!;
   }
 
@@ -647,7 +578,8 @@ export class DocumentsRepository {
     fields: { requiresManualVerification?: boolean },
   ): Promise<VersionRow | null> {
     const patch: Record<string, unknown> = {};
-    if (fields.requiresManualVerification !== undefined) patch['requiresManualVerification'] = fields.requiresManualVerification;
+    if (fields.requiresManualVerification !== undefined)
+      patch['requiresManualVerification'] = fields.requiresManualVerification;
     const [row] = await this.db
       .update(versions)
       .set(patch)
@@ -714,8 +646,10 @@ export class DocumentsRepository {
     if (filter.officeId) conditions.push(eq(documents.ownedByOfficeId, filter.officeId));
     if (filter.documentTypeId) conditions.push(eq(documents.documentTypeId, filter.documentTypeId));
     if (filter.lifecycleState) conditions.push(eq(documents.lifecycleState, filter.lifecycleState));
-    if (filter.dateFrom) conditions.push(gte(documents.createdAt, new Date(`${filter.dateFrom}T00:00:00.000Z`)));
-    if (filter.dateTo) conditions.push(lte(documents.createdAt, new Date(`${filter.dateTo}T23:59:59.999Z`)));
+    if (filter.dateFrom)
+      conditions.push(gte(documents.createdAt, new Date(`${filter.dateFrom}T00:00:00.000Z`)));
+    if (filter.dateTo)
+      conditions.push(lte(documents.createdAt, new Date(`${filter.dateTo}T23:59:59.999Z`)));
     conditions.push(this.classificationAllowlistCondition(filter.callerRoles, filter.cityId));
 
     if (filter.cursor) {
@@ -781,12 +715,15 @@ export class DocumentsRepository {
     if (filter.scope.kind === 'own') {
       conditions.push(inArray(documents.ownedByOfficeId, filter.scope.officeIds));
     }
-    if (filter.documentTypeIds?.length) conditions.push(inArray(documents.documentTypeId, filter.documentTypeIds));
+    if (filter.documentTypeIds?.length)
+      conditions.push(inArray(documents.documentTypeId, filter.documentTypeIds));
     if (filter.classificationLevels?.length) {
       conditions.push(inArray(documents.classificationLevel, filter.classificationLevels));
     }
-    if (filter.dateFrom) conditions.push(gte(documents.createdAt, new Date(`${filter.dateFrom}T00:00:00.000Z`)));
-    if (filter.dateTo) conditions.push(lte(documents.createdAt, new Date(`${filter.dateTo}T23:59:59.999Z`)));
+    if (filter.dateFrom)
+      conditions.push(gte(documents.createdAt, new Date(`${filter.dateFrom}T00:00:00.000Z`)));
+    if (filter.dateTo)
+      conditions.push(lte(documents.createdAt, new Date(`${filter.dateTo}T23:59:59.999Z`)));
     conditions.push(this.classificationAllowlistCondition(filter.callerRoles, filter.cityId));
 
     if (filter.cursor) {
@@ -857,8 +794,8 @@ export class DocumentsRepository {
         and(
           isNull(panlalawiganReviews.outcome),
           lte(panlalawiganReviews.transmittedAt, thirtyDaysAgo),
-          isNull(panlalawiganReviews.deletedAt)
-        )
+          isNull(panlalawiganReviews.deletedAt),
+        ),
       );
   }
 
@@ -878,11 +815,7 @@ export class DocumentsRepository {
   }
 
   /** @deprecated Use updateDocumentLifecycleState */
-  async updateState(
-    id: string,
-    state: string,
-    _actorId: string,
-  ): Promise<void> {
+  async updateState(id: string, state: string, _actorId: string): Promise<void> {
     await this.updateDocumentLifecycleState(id, state);
   }
 
@@ -897,10 +830,7 @@ export class DocumentsRepository {
   }
 
   /** @deprecated Use updateDocumentMetadata or updateDocumentLifecycleState */
-  async update(
-    id: string,
-    input: Record<string, unknown>,
-  ): Promise<DocumentRow | null> {
+  async update(id: string, input: Record<string, unknown>): Promise<DocumentRow | null> {
     const [row] = await this.db
       .update(documents)
       .set({ ...input, updatedAt: new Date() })

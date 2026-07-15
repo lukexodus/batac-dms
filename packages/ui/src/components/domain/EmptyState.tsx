@@ -17,19 +17,13 @@ export interface EmptyStateProps {
   className?: string;
 }
 
-export function EmptyState({
-  icon: Icon,
-  heading,
-  body,
-  action,
-  className
-}: EmptyStateProps) {
+export function EmptyState({ icon: Icon, heading, body, action, className }: EmptyStateProps) {
   return (
-    <div className={cn("flex flex-col items-center text-center gap-4", className)}>
+    <div className={cn('flex flex-col items-center gap-4 text-center', className)}>
       <Icon className="h-12 w-12 text-neutral-300" aria-hidden="true" />
       <div className="flex flex-col items-center gap-1">
-        <h3 className="text-lg font-semibold text-text-secondary">{heading}</h3>
-        <p className="text-sm text-text-muted">{body}</p>
+        <h3 className="text-text-secondary text-lg font-semibold">{heading}</h3>
+        <p className="text-text-muted text-sm">{body}</p>
       </div>
       {action && (
         <Button variant="default" className="mt-2" onClick={action.onClick}>

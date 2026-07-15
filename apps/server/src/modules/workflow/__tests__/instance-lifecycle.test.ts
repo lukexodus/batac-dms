@@ -59,17 +59,17 @@ describe('Instance Lifecycle (INST)', () => {
   describe('INST-I: B4 Invariant #6 — no writes to terminal instances', () => {
     it('INST-I-01 (INV6): writing to completed instance throws InvalidWorkflowTransitionError', async () => {
       mockDb.where.mockResolvedValue([{ status: 'completed' }]);
-      await expect(
-        repo.updateInstanceStatus('inst-1', 'active')
-      ).rejects.toThrow(InvalidWorkflowTransitionError);
+      await expect(repo.updateInstanceStatus('inst-1', 'active')).rejects.toThrow(
+        InvalidWorkflowTransitionError,
+      );
       expect(mockDb.update).not.toHaveBeenCalled();
     });
 
     it('INST-I-02 (INV6): writing to cancelled instance throws InvalidWorkflowTransitionError', async () => {
       mockDb.where.mockResolvedValue([{ status: 'cancelled' }]);
-      await expect(
-        repo.updateInstanceStatus('inst-1', 'active')
-      ).rejects.toThrow(InvalidWorkflowTransitionError);
+      await expect(repo.updateInstanceStatus('inst-1', 'active')).rejects.toThrow(
+        InvalidWorkflowTransitionError,
+      );
       expect(mockDb.update).not.toHaveBeenCalled();
     });
 

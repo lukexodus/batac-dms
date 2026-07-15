@@ -41,21 +41,21 @@
 
 ### Source Fidelity
 
-|Label|Meaning|
-|---|---|
-|_(unlabelled)_|Confirmed in source documents (Consolidated Reference or Stack Context)|
-|`[Inference]`|Logically derived from confirmed elements; not explicitly stated. All internal component names and decompositions within modules are proposed design — not confirmed implementation.|
-|`[Phase N]`|Scoped to that delivery phase. Schema may be reserved in Phase 1 even if the module is Phase 2 or 3.|
+| Label          | Meaning                                                                                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| _(unlabelled)_ | Confirmed in source documents (Consolidated Reference or Stack Context)                                                                                                              |
+| `[Inference]`  | Logically derived from confirmed elements; not explicitly stated. All internal component names and decompositions within modules are proposed design — not confirmed implementation. |
+| `[Phase N]`    | Scoped to that delivery phase. Schema may be reserved in Phase 1 even if the module is Phase 2 or 3.                                                                                 |
 
 ### Phase Summary
 
-|Phase|Primary Scope|
-|---|---|
-|1|SP Resolutions, Ordinances, Appropriation Ordinances, Citizen Complaints, core IAM and infrastructure|
-|1B|Administrative documents: Letters (SPR/SPS), Memos (MI/MO), NCH, NOSP, Designations, Barangay Resolutions|
-|2|Executive branch, MFA enforcement, Meilisearch, Records Management, email notifications, parallel workflow engine (Barangay Budget)|
-|3|Full Next.js citizen portal, Barangay offline access, SMS gateway|
-|4+|Advanced OCR, configurable report builder, electronic signature PKI|
+| Phase | Primary Scope                                                                                                                       |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | SP Resolutions, Ordinances, Appropriation Ordinances, Citizen Complaints, core IAM and infrastructure                               |
+| 1B    | Administrative documents: Letters (SPR/SPS), Memos (MI/MO), NCH, NOSP, Designations, Barangay Resolutions                           |
+| 2     | Executive branch, MFA enforcement, Meilisearch, Records Management, email notifications, parallel workflow engine (Barangay Budget) |
+| 3     | Full Next.js citizen portal, Barangay offline access, SMS gateway                                                                   |
+| 4+    | Advanced OCR, configurable report builder, electronic signature PKI                                                                 |
 
 ---
 
@@ -164,11 +164,11 @@ Internal structure of the Application Server container, organized by the 11 doma
 
 ### Cross-Cutting Infrastructure (referenced throughout)
 
-|Element|Description|
-|---|---|
-|**Internal Event Bus**|In-process. Decouples modules without distributed messaging overhead. Publishers emit typed domain events; subscribers in other modules consume them. Modules must never access another module's schema directly — only via the event bus or a published module API.|
-|**Drizzle ORM**|Each module has its own Repository component wrapping Drizzle queries for that module's schema only. No cross-schema foreign key constraints permitted anywhere.|
-|**pgboss client**|Available to any module requiring durable delayed or scheduled background jobs. Job state persisted in PostgreSQL in the pgboss schema.|
+| Element                | Description                                                                                                                                                                                                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Internal Event Bus** | In-process. Decouples modules without distributed messaging overhead. Publishers emit typed domain events; subscribers in other modules consume them. Modules must never access another module's schema directly — only via the event bus or a published module API. |
+| **Drizzle ORM**        | Each module has its own Repository component wrapping Drizzle queries for that module's schema only. No cross-schema foreign key constraints permitted anywhere.                                                                                                     |
+| **pgboss client**      | Available to any module requiring durable delayed or scheduled background jobs. Job state persisted in PostgreSQL in the pgboss schema.                                                                                                                              |
 
 ---
 
@@ -630,27 +630,27 @@ C4Component
 
 All events travel via the in-process event bus. Event names and subscriptions listed here are proposed design and subject to refinement during implementation.
 
-|Event|Emitting Module|Consuming Modules|Notes|
-|---|---|---|---|
-|`user.login`|IAM|Audit||
-|`user.logout`|IAM|Audit||
-|`session.terminated`|IAM|Audit|Includes forced-logout by IT admin|
-|`role.assigned`|IAM|Audit||
-|`role.revoked`|IAM|Audit||
-|`delegation.granted`|Organization|Workflow, Audit|Triggers immediate step re-routing to designated person|
-|`delegation.expired`|Organization|Workflow, Audit|Auto-return of authority at end date|
-|`delegation.revoked`|Organization|Workflow, Audit|Early revocation by delegating authority|
-|`document.created`|Documents|Tracking, Workflow, Audit|QR generation and workflow instance creation|
-|`document.state_changed`|Documents|Tracking, Notifications, Search Meta, Portal, Audit||
-|`document.number_assigned`|Documents|Audit|Both preliminary and final assignment events|
-|`document.secretariat_decision`|Documents|Workflow, Audit|Approve, Reject, or Amended actions|
-|`workflow.step_assigned`|Workflow|Notifications, Audit|Triggers notification to new assignee|
-|`workflow.step_completed`|Workflow|Tracking, Audit|Appends routing entry to routing history|
-|`workflow.lapsed`|Workflow|Notifications, Audit|Mayor 10-day or Panlalawigan 30-day timer expired|
-|`workflow.escalated`|Workflow|Notifications, Audit|ARTA SLA breach escalation|
-|`workflow.certified_urgent_applied`|Workflow|Audit|Committee step bypassed on associated measures|
-|`workflow.manually_advanced`|Workflow|Audit|SP Secretary override — mandatory comment logged|
-|`workflow.completed`|Workflow|Records, Portal, Audit|Triggers record creation and public visibility update|
+| Event                               | Emitting Module | Consuming Modules                                   | Notes                                                   |
+| ----------------------------------- | --------------- | --------------------------------------------------- | ------------------------------------------------------- |
+| `user.login`                        | IAM             | Audit                                               |                                                         |
+| `user.logout`                       | IAM             | Audit                                               |                                                         |
+| `session.terminated`                | IAM             | Audit                                               | Includes forced-logout by IT admin                      |
+| `role.assigned`                     | IAM             | Audit                                               |                                                         |
+| `role.revoked`                      | IAM             | Audit                                               |                                                         |
+| `delegation.granted`                | Organization    | Workflow, Audit                                     | Triggers immediate step re-routing to designated person |
+| `delegation.expired`                | Organization    | Workflow, Audit                                     | Auto-return of authority at end date                    |
+| `delegation.revoked`                | Organization    | Workflow, Audit                                     | Early revocation by delegating authority                |
+| `document.created`                  | Documents       | Tracking, Workflow, Audit                           | QR generation and workflow instance creation            |
+| `document.state_changed`            | Documents       | Tracking, Notifications, Search Meta, Portal, Audit |                                                         |
+| `document.number_assigned`          | Documents       | Audit                                               | Both preliminary and final assignment events            |
+| `document.secretariat_decision`     | Documents       | Workflow, Audit                                     | Approve, Reject, or Amended actions                     |
+| `workflow.step_assigned`            | Workflow        | Notifications, Audit                                | Triggers notification to new assignee                   |
+| `workflow.step_completed`           | Workflow        | Tracking, Audit                                     | Appends routing entry to routing history                |
+| `workflow.lapsed`                   | Workflow        | Notifications, Audit                                | Mayor 10-day or Panlalawigan 30-day timer expired       |
+| `workflow.escalated`                | Workflow        | Notifications, Audit                                | ARTA SLA breach escalation                              |
+| `workflow.certified_urgent_applied` | Workflow        | Audit                                               | Committee step bypassed on associated measures          |
+| `workflow.manually_advanced`        | Workflow        | Audit                                               | SP Secretary override — mandatory comment logged        |
+| `workflow.completed`                | Workflow        | Records, Portal, Audit                              | Triggers record creation and public visibility update   |
 
 ---
 
@@ -658,17 +658,17 @@ All events travel via the in-process event bus. Event names and subscriptions li
 
 Invariants from Part 12 of the Consolidated Reference that directly constrain the component boundaries shown above.
 
-|#|Invariant|How It Appears in the Diagrams|
-|---|---|---|
-|1|Schema-per-module; no cross-schema FK constraints|Each module has its own Repository; no Drizzle query reaches into another module's schema|
-|2|Modules communicate only via event bus or published APIs|All cross-module arrows are event bus subscriptions or explicit API calls — never direct schema access|
-|3|Audit log INSERT-only at PostgreSQL DB role level|Audit Repository shown as INSERT-only; all writes route through Audit Service exclusively — no module has a direct DB arrow to audit schema|
-|4|Workflow instance pins to definition version at creation|Workflow Definition Manager stores `definition_version_id` on instance at creation; all resolution uses the pinned version|
-|5|S3-compatible API only; UUID file keys; no provider SDK imports|Attachment Service calls only the S3-compatible API; UUID key generation is in the service layer before the S3 call|
-|6|No hard deletes by any user or role|Archive Service and all Repository components enforce soft-delete (deleted_at and deleted_by columns)|
-|7|IT Admin has no document content access|Enforced by ABAC Policy Engine in IAM module and by PostgreSQL RLS — both layers required|
-|8|Platform Admin cannot combine with operational roles|Role and Permission Resolver in IAM enforces this invariant at role assignment time|
-|9|One active delegation per person at any time|Delegation Service enforces via DB partial unique index on active delegation_grants per user and application-level validation|
-|10|Final document numbers immutable after Draft prefix removed|Number Series Service applies immutability check; DB constraint as second enforcement layer|
-|11|Audit writes through Audit Service only|No module diagram has a direct DB arrow to the audit schema — all route through the Audit Service component|
-|12|Audit log is tamper-evident, not tamper-proof|Hash Chain Manager and HMAC Signer combined provide evidence of tampering, not prevention; this distinction must be documented in the ADR|
+| #   | Invariant                                                       | How It Appears in the Diagrams                                                                                                              |
+| --- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Schema-per-module; no cross-schema FK constraints               | Each module has its own Repository; no Drizzle query reaches into another module's schema                                                   |
+| 2   | Modules communicate only via event bus or published APIs        | All cross-module arrows are event bus subscriptions or explicit API calls — never direct schema access                                      |
+| 3   | Audit log INSERT-only at PostgreSQL DB role level               | Audit Repository shown as INSERT-only; all writes route through Audit Service exclusively — no module has a direct DB arrow to audit schema |
+| 4   | Workflow instance pins to definition version at creation        | Workflow Definition Manager stores `definition_version_id` on instance at creation; all resolution uses the pinned version                  |
+| 5   | S3-compatible API only; UUID file keys; no provider SDK imports | Attachment Service calls only the S3-compatible API; UUID key generation is in the service layer before the S3 call                         |
+| 6   | No hard deletes by any user or role                             | Archive Service and all Repository components enforce soft-delete (deleted_at and deleted_by columns)                                       |
+| 7   | IT Admin has no document content access                         | Enforced by ABAC Policy Engine in IAM module and by PostgreSQL RLS — both layers required                                                   |
+| 8   | Platform Admin cannot combine with operational roles            | Role and Permission Resolver in IAM enforces this invariant at role assignment time                                                         |
+| 9   | One active delegation per person at any time                    | Delegation Service enforces via DB partial unique index on active delegation_grants per user and application-level validation               |
+| 10  | Final document numbers immutable after Draft prefix removed     | Number Series Service applies immutability check; DB constraint as second enforcement layer                                                 |
+| 11  | Audit writes through Audit Service only                         | No module diagram has a direct DB arrow to the audit schema — all route through the Audit Service component                                 |
+| 12  | Audit log is tamper-evident, not tamper-proof                   | Hash Chain Manager and HMAC Signer combined provide evidence of tampering, not prevention; this distinction must be documented in the ADR   |

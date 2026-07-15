@@ -7,7 +7,6 @@
 **Audience:** Development team — internal reference
 **Source Documents:** `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2); `b4-workflow-engine-specification.md` (B4); `b2-module-boundary-and-internal-api-contracts.md` (B2); `h1-phase-1-workflow-definitions-structured-data.md` (H1)
 
-
 ## Table of Contents
 
 - [L35–L91] About This Document — Actor and component keys, notation conventions, and the canonical B2-to-B3 event reconciliation mapping table.
@@ -38,36 +37,36 @@ One sequence diagram per workflow or feature showing the exact message sequence 
 
 **Actor key used across all diagrams:**
 
-| Label | Who |
-|---|---|
-| `Councilor` | Authoring city councilor or SP staff |
-| `SecStaff` | SP Secretariat staff (Administrative Officer II / Clerk III) |
-| `SPSec` | SP Secretary (Gladys R. Lagura) |
-| `ViceMayor` | Vice Mayor / Presiding Officer (or Acting VM via delegation) |
-| `Mayor` | Mayor (or Acting Mayor via delegation) |
-| `LegalOfficer` | City Legal Office legal officer |
-| `CommitteeChair` | Chair of the referred subject-matter committee |
-| `RecordsOfficer` | Records Officer |
-| `Citizen` | Member of the public |
-| `Clerk` | Secretariat clerk (for in-person citizen-assisted flows) |
+| Label            | Who                                                          |
+| ---------------- | ------------------------------------------------------------ |
+| `Councilor`      | Authoring city councilor or SP staff                         |
+| `SecStaff`       | SP Secretariat staff (Administrative Officer II / Clerk III) |
+| `SPSec`          | SP Secretary (Gladys R. Lagura)                              |
+| `ViceMayor`      | Vice Mayor / Presiding Officer (or Acting VM via delegation) |
+| `Mayor`          | Mayor (or Acting Mayor via delegation)                       |
+| `LegalOfficer`   | City Legal Office legal officer                              |
+| `CommitteeChair` | Chair of the referred subject-matter committee               |
+| `RecordsOfficer` | Records Officer                                              |
+| `Citizen`        | Member of the public                                         |
+| `Clerk`          | Secretariat clerk (for in-person citizen-assisted flows)     |
 
 **System component key:**
 
-| Label | Component |
-|---|---|
-| `Web` | `/apps/web` — Vite + React SPA (internal authenticated app) |
-| `Server` | `/apps/server` — Fastify backend (tRPC + REST) |
-| `WF` | Workflow Engine (within Server) |
-| `DocMod` | Documents module |
-| `TrackMod` | Tracking module |
-| `OrgMod` | Organization module |
-| `IAMMod` | IAM module |
-| `NotifMod` | Notifications module |
-| `AuditMod` | Audit module |
-| `EventBus` | In-process event bus |
-| `Scheduler` | pgboss + node-cron scheduler |
-| `S3` | S3-compatible object storage (Cloudflare R2 / MinIO) |
-| `DB` | PostgreSQL database |
+| Label       | Component                                                   |
+| ----------- | ----------------------------------------------------------- |
+| `Web`       | `/apps/web` — Vite + React SPA (internal authenticated app) |
+| `Server`    | `/apps/server` — Fastify backend (tRPC + REST)              |
+| `WF`        | Workflow Engine (within Server)                             |
+| `DocMod`    | Documents module                                            |
+| `TrackMod`  | Tracking module                                             |
+| `OrgMod`    | Organization module                                         |
+| `IAMMod`    | IAM module                                                  |
+| `NotifMod`  | Notifications module                                        |
+| `AuditMod`  | Audit module                                                |
+| `EventBus`  | In-process event bus                                        |
+| `Scheduler` | pgboss + node-cron scheduler                                |
+| `S3`        | S3-compatible object storage (Cloudflare R2 / MinIO)        |
+| `DB`        | PostgreSQL database                                         |
 
 **Notation conventions:**
 
@@ -79,13 +78,13 @@ One sequence diagram per workflow or feature showing the exact message sequence 
 
 > **Event naming note `[B3 Reconciliation — ADR-B2-3 / B3 §0.2]`:** This document was authored using B2's draft event naming conventions. B3 (`b3-internal-domain-event-catalog.md`) ratified the canonical event names. The table below maps each D2 usage to the B3 canonical name. The diagrams themselves are not revised (to preserve mermaid structural integrity and readability) — implementors should use the B3 canonical names in code. One event is **removed** and not merely renamed (ADR-B2-3).
 >
-> | D2 usage (diagram labels) | B3 Canonical Name | Notes |
-> |---|---|---|
-> | `workflow.step_assigned` | `workflow.step.started` | B3 §7.11; B4 name ratified over B2 equivalent |
-> | `workflow.step_completed` | `workflow.step.completed` | B3 §7.12 |
-> | `workflow.completed(...)` | `workflow.instance.completed` | B3 §7.2; outcome code now in `outcomeCode` payload field |
-> | `documents.certification_urgency.logged` | `document.certification_urgency.logged` | B3 OI-3 — singular prefix; also corrected in Diagrams 2 and 5 below |
-> | `document.secretariat_decision` | ~~removed~~ | **ADR-B2-3** — this event no longer exists. The secretariat's Approve/Reject/Amended action now enters via the Workflow Router, which atomically calls `Documents.transitionState()` and emits `workflow.step.completed`. No sequence diagram in D2 shows this specific event — D2 correctly omitted it because the step was already modeled as a workflow step action (see §2 tRPC calls `submitStepAction`). |
+> | D2 usage (diagram labels)                | B3 Canonical Name                       | Notes                                                                                                                                                                                                                                                                                                                                                                                                          |
+> | ---------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+> | `workflow.step_assigned`                 | `workflow.step.started`                 | B3 §7.11; B4 name ratified over B2 equivalent                                                                                                                                                                                                                                                                                                                                                                  |
+> | `workflow.step_completed`                | `workflow.step.completed`               | B3 §7.12                                                                                                                                                                                                                                                                                                                                                                                                       |
+> | `workflow.completed(...)`                | `workflow.instance.completed`           | B3 §7.2; outcome code now in `outcomeCode` payload field                                                                                                                                                                                                                                                                                                                                                       |
+> | `documents.certification_urgency.logged` | `document.certification_urgency.logged` | B3 OI-3 — singular prefix; also corrected in Diagrams 2 and 5 below                                                                                                                                                                                                                                                                                                                                            |
+> | `document.secretariat_decision`          | ~~removed~~                             | **ADR-B2-3** — this event no longer exists. The secretariat's Approve/Reject/Amended action now enters via the Workflow Router, which atomically calls `Documents.transitionState()` and emits `workflow.step.completed`. No sequence diagram in D2 shows this specific event — D2 correctly omitted it because the step was already modeled as a workflow step action (see §2 tRPC calls `submitStepAction`). |
 
 ---
 
@@ -185,12 +184,12 @@ sequenceDiagram
 
     %% ── COMMITTEE REFERRAL (multi_referral) ─────────────────────────────────
     Note over SPSec: Committees conduct joint hearing; Thursday cutoff applies
-    
+
     rect rgb(255, 248, 220)
         Note over Scheduler: Thursday 23:59:59 PHT — cutoff evaluation
         Scheduler->>WF: engine.evaluateThursdayCutoffs()
         WF->>DB: SELECT active multi_referral step_instances WHERE thursday_cutoff_enabled=true
-        
+
         alt All committees submitted before cutoff
             WF->>DB: UPDATE metadata.second_reading_eligible_date = next Tuesday
             WF->>DB: UPDATE instance.context.second_reading_eligible_date
@@ -487,13 +486,13 @@ sequenceDiagram
 
     %% ── MAYOR LAPSE VARIANT (shown here for completeness) ───────────────────
     Note over Scheduler: Alternatively — Mayor takes NO action within 10 calendar days
-    
+
     rect rgb(240, 248, 255)
         Note over Scheduler: evaluateMayorLapseTimers() runs hourly
         Scheduler->>WF: engine.evaluateTimers()
         WF->>DB: SELECT active mayor_review step_instances WHERE NOW() > mayor_action_deadline AND outcome IS NULL
         WF->>DB: SELECT FOR UPDATE step_instances (pessimistic lock)
-        
+
         alt Step outcome is still NULL (Mayor has not acted)
             WF->>DB: UPDATE step_instances[mayor_review] status=completed, outcome=LAPSED
             Note over DB: completed_at = mayor_action_deadline (not detection time)
@@ -566,9 +565,9 @@ sequenceDiagram
     WF->>EventBus: emit workflow.step_assigned (both committee chairs)
     EventBus->>NotifMod: notify both committee chairs
 
-    %% ── COMMITTEE REFERRAL (condensed — identical mechanism to SP Resolution) 
+    %% ── COMMITTEE REFERRAL (condensed — identical mechanism to SP Resolution)
     Note over SPSec: Committees conduct joint hearing; both submit contributions before Thursday cutoff
-    
+
     Note over SecStaff,SPSec: Both committees submit contributions; SP Secretary accepts unified report
     SPSec->>Web: Accepts unified committee report
     Web->>Server: tRPC acceptCommitteeReport(step_instance_id, report_file)
@@ -646,7 +645,7 @@ sequenceDiagram
 
     %% ── PUBLICATION CHECK ────────────────────────────────────────────────────
     WF->>WF: Evaluate JSONLogic: instance.context.requires_publication == true
-    
+
     rect rgb(255, 240, 240)
         Note over WF: requires_publication=TRUE — ordinance has penalty clause
         WF->>DB: step_instances[publication_check] → completed, outcome=TRUE
@@ -742,6 +741,7 @@ sequenceDiagram
 ## 6. Appropriation Ordinance — Full Lifecycle
 
 The Appropriation Ordinance workflow is identical to SP Ordinance with two differences:
+
 1. No `publication_check` or `newspaper_publication` steps — `requires_publication` is always `false`
 2. `panlalawigan_review` allows `OPERATIVE_IN_ITS_ENTIRETY` outcome (treated identically to VALID)
 
@@ -1176,7 +1176,7 @@ sequenceDiagram
         %% ── IMMEDIATE STEP RE-ROUTING ─────────────────────────────────────────
         EventBus->>WF: consume delegation.granted
         WF->>DB: SELECT active step_instances WHERE assigned_to contains delegatingUserId AND step_type IN [action, approval, multi_referral]
-        
+
         loop For each active step assigned to the original authority
             WF->>OrgMod: resolveCurrentHolder(positionId) — re-resolves accounting for new delegation
             OrgMod-->>WF: assignee = delegatedToUserId (designated person)
@@ -1214,7 +1214,7 @@ sequenceDiagram
     %% ── ROUTING RESTORED TO ORIGINAL AUTHORITY ──────────────────────────────
     EventBus->>WF: consume delegation.expired
     WF->>DB: SELECT active step_instances WHERE assigned_to contains delegatedToUserId
-    
+
     loop For each active step still assigned to the designated person
         WF->>OrgMod: resolveCurrentHolder(positionId) — re-resolves; delegation gone; returns original authority
         OrgMod-->>WF: assignee = delegatingUserId (original authority restored)

@@ -97,30 +97,38 @@ describe('delegation-expiry.job', () => {
     await jobHandler([{ data: { delegationGrantId: 'test-grant-id' } }]);
 
     expect(mockDb._trx.update).toHaveBeenCalled();
-    expect(mockDb._updateChain.set).toHaveBeenCalledWith({ isActive: false, updatedAt: expect.any(Date) });
+    expect(mockDb._updateChain.set).toHaveBeenCalledWith({
+      isActive: false,
+      updatedAt: expect.any(Date),
+    });
 
     expect(mockEventBus.emit).toHaveBeenCalledTimes(1);
-    expect(mockEventBus.emit).toHaveBeenCalledWith('delegation.expired', expect.objectContaining({
-      eventType: 'delegation.expired',
-      cityId: 'city-1',
-      payload: expect.objectContaining({
-        delegationId: 'test-grant-id',
-        delegatingUserId: 'user-1',
-        delegatedToUserId: 'user-2',
-        expiredAt: expect.any(String),
+    expect(mockEventBus.emit).toHaveBeenCalledWith(
+      'delegation.expired',
+      expect.objectContaining({
+        eventType: 'delegation.expired',
+        cityId: 'city-1',
+        payload: expect.objectContaining({
+          delegationId: 'test-grant-id',
+          delegatingUserId: 'user-1',
+          delegatedToUserId: 'user-2',
+          expiredAt: expect.any(String),
+        }),
       }),
-    }));
+    );
 
     expect(mockAuditService.writeEvent).toHaveBeenCalledTimes(1);
-    expect(mockAuditService.writeEvent).toHaveBeenCalledWith(expect.objectContaining({
-      eventType: 'delegation_grant.expired',
-      actorId: null,
-      targetId: 'test-grant-id',
-      targetType: 'delegation_grant',
-      payload: expect.objectContaining({
-        delegationId: 'test-grant-id',
-        designationDocumentId: 'doc-1',
+    expect(mockAuditService.writeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'delegation_grant.expired',
+        actorId: null,
+        targetId: 'test-grant-id',
+        targetType: 'delegation_grant',
+        payload: expect.objectContaining({
+          delegationId: 'test-grant-id',
+          designationDocumentId: 'doc-1',
+        }),
       }),
-    }));
+    );
   });
 });

@@ -9,7 +9,7 @@ import QRCode from 'qrcode';
 vi.mock('qrcode', () => ({
   default: {
     toBuffer: vi.fn().mockResolvedValue(Buffer.from('mock-qr-buffer')),
-  }
+  },
 }));
 
 describe('QrCodeService', () => {
@@ -54,11 +54,14 @@ describe('QrCodeService', () => {
       const result = await service.generateAndStore(documentId, actorId);
 
       // Verify DB sequence was requested
-      expect(mockRepo.getNextTrackingNumber).toHaveBeenCalledWith(new Date().getFullYear(), undefined);
+      expect(mockRepo.getNextTrackingNumber).toHaveBeenCalledWith(
+        new Date().getFullYear(),
+        undefined,
+      );
 
       // Verify QR Code generation
       expect(QRCode.toBuffer).toHaveBeenCalled();
-      
+
       // Verify S3 upload
       expect(mockS3Client.send).toHaveBeenCalled();
       const commandArgs = mockS3Client.send.mock.calls[0][0];
@@ -77,11 +80,15 @@ describe('QrCodeService', () => {
           trackingNumber: 'DTS-2026-0001',
           generatedBy: 'actor-1',
         }),
-        undefined
+        undefined,
       );
 
       // Verify DB update
-      expect(mockRepo.updateQrImageKey).toHaveBeenCalledWith('mock-qr-id', commandArgs.input.Key, undefined);
+      expect(mockRepo.updateQrImageKey).toHaveBeenCalledWith(
+        'mock-qr-id',
+        commandArgs.input.Key,
+        undefined,
+      );
 
       expect(result).toMatchObject({
         id: 'mock-qr-id',

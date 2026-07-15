@@ -29,14 +29,14 @@ describe('health route liveness probe', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    
+
     const body = JSON.parse(response.body);
     expect(body).toEqual({
       status: 'ok',
       version: '1.0.0-test',
       uptime: expect.any(Number),
     });
-    
+
     expect(body.uptime).toBeGreaterThanOrEqual(0);
   });
 });

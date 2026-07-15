@@ -10,10 +10,5 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": [
-    "drizzle.config.ts",
-    "schema/**/*.ts",
-    "scripts/**/*.ts",
-    "src/**/*.ts"
-  ]
+  "include": ["drizzle.config.ts", "schema/**/*.ts", "scripts/**/*.ts", "src/**/*.ts"]
 }

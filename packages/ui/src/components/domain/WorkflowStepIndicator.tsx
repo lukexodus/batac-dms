@@ -13,13 +13,18 @@ interface WorkflowStepIndicatorProps {
 }
 
 function getRingClasses(state: WorkflowStep['state']) {
-  const base = "border-2";
+  const base = 'border-2';
   switch (state) {
-    case 'completed': return `${base} border-transparent bg-success-500 text-white`;
-    case 'active': return `${base} border-transparent bg-primary-800 text-white`;
-    case 'pending': return `${base} border-transparent bg-neutral-200 text-neutral-500`;
-    case 'skipped': return `${base} border-dashed border-neutral-200 bg-neutral-100 text-neutral-400`;
-    case 'error': return `${base} border-transparent bg-danger-500 text-white`;
+    case 'completed':
+      return `${base} border-transparent bg-success-500 text-white`;
+    case 'active':
+      return `${base} border-transparent bg-primary-800 text-white`;
+    case 'pending':
+      return `${base} border-transparent bg-neutral-200 text-neutral-500`;
+    case 'skipped':
+      return `${base} border-dashed border-neutral-200 bg-neutral-100 text-neutral-400`;
+    case 'error':
+      return `${base} border-transparent bg-danger-500 text-white`;
   }
 }
 
@@ -34,18 +39,20 @@ export function WorkflowStepIndicator({
       <ol
         aria-label="Document workflow steps"
         className={cn(
-          "flex w-full",
-          orientation === 'horizontal' ? "flex-col md:flex-row" : "flex-col",
-          className
+          'flex w-full',
+          orientation === 'horizontal' ? 'flex-col md:flex-row' : 'flex-col',
+          className,
         )}
       >
         {steps.map((step, index) => {
           const isLast = index === steps.length - 1;
-          const tooltipContent = step.tooltip ?? `${step.label}${
-            step.completedAt
-              ? ` — completed ${format(step.completedAt, DATE_FORMATS.display, { locale: phLocale })}`
-              : ''
-          }`;
+          const tooltipContent =
+            step.tooltip ??
+            `${step.label}${
+              step.completedAt
+                ? ` — completed ${format(step.completedAt, DATE_FORMATS.display, { locale: phLocale })}`
+                : ''
+            }`;
 
           return (
             <li
@@ -53,26 +60,30 @@ export function WorkflowStepIndicator({
               aria-current={step.id === currentStepId ? 'step' : undefined}
               aria-disabled={step.state === 'skipped' ? true : undefined}
               aria-label={
-                step.state === 'completed' ? `${step.label} — completed` :
-                step.state === 'error' ? `${step.label} — error` :
-                undefined
+                step.state === 'completed'
+                  ? `${step.label} — completed`
+                  : step.state === 'error'
+                    ? `${step.label} — error`
+                    : undefined
               }
               className={cn(
-                "relative flex",
-                "flex-row items-start gap-4 pb-8", // default vertical spacing
-                orientation === 'horizontal' && "md:flex-col md:items-center md:gap-2 md:pb-0 md:flex-1",
-                isLast && "pb-0 md:pb-0" // remove bottom padding on the last item
+                'relative flex',
+                'flex-row items-start gap-4 pb-8', // default vertical spacing
+                orientation === 'horizontal' &&
+                  'md:flex-1 md:flex-col md:items-center md:gap-2 md:pb-0',
+                isLast && 'pb-0 md:pb-0', // remove bottom padding on the last item
               )}
             >
               {!isLast && (
                 <div
                   className={cn(
-                    "absolute z-0",
+                    'absolute z-0',
                     // Vertical mode positioning (behind the ring, going down):
-                    "left-[15px] top-8 bottom-0 w-[2px]", 
+                    'top-8 bottom-0 left-[15px] w-[2px]',
                     // Horizontal mode override (connecting to the next ring's center):
-                    orientation === 'horizontal' && "md:left-[50%] md:right-[-50%] md:top-[15px] md:bottom-auto md:w-auto md:h-[2px]",
-                    step.state === 'completed' ? 'bg-success-500' : 'bg-neutral-200'
+                    orientation === 'horizontal' &&
+                      'md:top-[15px] md:right-[-50%] md:bottom-auto md:left-[50%] md:h-[2px] md:w-auto',
+                    step.state === 'completed' ? 'bg-success-500' : 'bg-neutral-200',
                   )}
                 />
               )}
@@ -82,46 +93,46 @@ export function WorkflowStepIndicator({
                   <div
                     tabIndex={0}
                     className={cn(
-                      "group relative z-10 flex cursor-default outline-none",
-                      "flex-row items-start gap-4 text-left w-full",
-                      orientation === 'horizontal' && "md:flex-col md:items-center md:gap-2 md:text-center",
-                      "focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-sm"
+                      'group relative z-10 flex cursor-default outline-none',
+                      'w-full flex-row items-start gap-4 text-left',
+                      orientation === 'horizontal' &&
+                        'md:flex-col md:items-center md:gap-2 md:text-center',
+                      'focus-visible:ring-primary-500 rounded-sm focus-visible:ring-2 focus-visible:ring-offset-2',
                     )}
                   >
                     <div
                       className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium",
-                        getRingClasses(step.state)
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium',
+                        getRingClasses(step.state),
                       )}
                     >
                       {index + 1}
                     </div>
                     <div
                       className={cn(
-                        "flex flex-col pt-1.5",
-                        orientation === 'horizontal' && "md:pt-0"
+                        'flex flex-col pt-1.5',
+                        orientation === 'horizontal' && 'md:pt-0',
                       )}
                     >
                       <span
                         className={cn(
-                          "text-sm",
-                          step.state === 'active' ? "font-semibold text-text-primary" :
-                          step.state === 'completed' ? "text-text-primary" : "text-text-muted"
+                          'text-sm',
+                          step.state === 'active'
+                            ? 'text-text-primary font-semibold'
+                            : step.state === 'completed'
+                              ? 'text-text-primary'
+                              : 'text-text-muted',
                         )}
                       >
                         {step.label}
                       </span>
                       {step.assigneeName && step.state === 'active' && (
-                        <span className="text-xs text-text-muted mt-0.5">
-                          {step.assigneeName}
-                        </span>
+                        <span className="text-text-muted mt-0.5 text-xs">{step.assigneeName}</span>
                       )}
                     </div>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent>
-                  {tooltipContent}
-                </TooltipContent>
+                <TooltipContent>{tooltipContent}</TooltipContent>
               </Tooltip>
             </li>
           );

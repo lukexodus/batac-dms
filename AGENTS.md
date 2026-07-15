@@ -25,10 +25,10 @@ a row below.
 When documents conflict, this is the resolution order, highest first:
 
 1. `docs/requirements-gathering/consolidated-architecture-and-requirements-reference-iteration-3.md`
-   — stakeholder-confirmed facts. This is the ground truth for *what the system
-   must do*. Architecture documents (Group B–L) are downstream interpretations of
+   — stakeholder-confirmed facts. This is the ground truth for _what the system
+   must do_. Architecture documents (Group B–L) are downstream interpretations of
    this document and can be wrong; this document is the thing they're implementing.
-2. `docs/pre-development/tech-stack.md` — confirmed for *how* it's built
+2. `docs/pre-development/tech-stack.md` — confirmed for _how_ it's built
    (stack, libraries, conventions). Marked "open" items in this file (currently:
    OCR library choice) are not yet decided — do not treat them as decided.
 3. Any document under `docs/pre-development/` — these implement #1 and #2. If one
@@ -50,35 +50,35 @@ State the conflict and which document you followed and why.
   table has a transcription error. Agents never edit this table.
 -->
 
-| Task type                                                                           | Read (in order)                                                                                                                             |
-| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Write/modify the workflow engine (step types, transitions, timers)                  | B4 → D3 → H1                                                                                                                                |
-| Write/modify any DB migration or schema file                                        | C1 → C5                                                                                                                                     |
-| Write a tRPC procedure or router                                                    | E1 → I1 → I2                                                                                                                                |
-| Write a REST/public endpoint                                                        | E2 → B2 → I1                                                                                                                                |
-| Write/modify a Zod schema in `/packages/shared`                                     | E3 → C1                                                                                                                                     |
-| Write a Zustand store                                                               | F2 → F1 → E3                                                                                                                                |
-| Write a TanStack Query hook / cache key                                             | F3 → E1                                                                                                                                     |
-| Build the `packages/ui` foundation (Tier 1 + Tier 2)                                | F5 → DESIGN.md → globals.css → F7                                                                                                           |
-| Build a Tier 3 domain component in `packages/ui`                                    | F5 → J6 → F6 → DESIGN.md → F7                                                                                                               |
-| Build a frontend page or view in `/apps/web`                                        | F4 → F1 → F5 → J6 → I2 → E1                                                                                                                 |
-| Implement the workflow definitions for Resolution/Ordinance/Appropriation Ordinance | H1 → B4 → D3                                                                                                                                |
-| Implement a new document type or its JSONB metadata                                 | H2 → B4 → H3                                                                                                                                |
-| Implement or modify numbering-series logic                                          | H3 → §4.1, §5.1–5.2 of consolidated ref directly                                                                                            |
-| Implement an ABAC policy or permission check                                        | I1 → I2 → B5                                                                                                                                |
-| Implement RLS policies                                                              | C3 → C1 → I1                                                                                                                                |
-| Implement audit logging for a new event type                                        | B3 → I3 → ADR-B2-2                                                                                                                          |
-| Implement a notification                                                            | H4 → B3 → I2                                                                                                                                |
-| Write/modify Docker/Compose/CI config                                               | L1 → L2 → L3                                                                                                                                |
-| Write/modify Infrastructure as Code (IaC) configuration                             | L1 → L2 → L4 → L5                                                                                                                           |
-| Write a backup/DR procedure                                                         | L4 → C1 → D5                                                                                                                                |
-| Write any unit/integration test                                                     | K1 → (whichever row above matches the code under test)                                                                                      |
-| Write a workflow-engine test specifically                                           | K2 → B4 → D3 → H1                                                                                                                           |
-| Write a Playwright E2E test                                                         | K3 → F1 → H1                                                                                                                                |
-| Write or amend an ADR                                                               | J5 → the relevant document above for the decision's domain                                                                                  |
-| Execute an A1 task (development phase)                                              | AGENTS.md (this file) + the row matching the task type above + `docs/development-findings-log.md` confirmed entries for the relevant module |
-| Generate or update A1 itself (A1-generation phase)                                  | See `docs/pre-development/A1-AGENTS.md` — a separate routing file governs A1 generation                                                     |
-| Continue a Mechanism-2 (post-closure forensic) task in fe.md or equivalent | fe.md's own task text (self-contained by design) → fe-handoff.md's "Office-Scoping Pattern" and "Workflow Engine — Outcome Handling" sections only if the task touches office-gated mutations or step-completion primitives |
+| Task type                                                                           | Read (in order)                                                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Write/modify the workflow engine (step types, transitions, timers)                  | B4 → D3 → H1                                                                                                                                                                                                                |
+| Write/modify any DB migration or schema file                                        | C1 → C5                                                                                                                                                                                                                     |
+| Write a tRPC procedure or router                                                    | E1 → I1 → I2                                                                                                                                                                                                                |
+| Write a REST/public endpoint                                                        | E2 → B2 → I1                                                                                                                                                                                                                |
+| Write/modify a Zod schema in `/packages/shared`                                     | E3 → C1                                                                                                                                                                                                                     |
+| Write a Zustand store                                                               | F2 → F1 → E3                                                                                                                                                                                                                |
+| Write a TanStack Query hook / cache key                                             | F3 → E1                                                                                                                                                                                                                     |
+| Build the `packages/ui` foundation (Tier 1 + Tier 2)                                | F5 → DESIGN.md → globals.css → F7                                                                                                                                                                                           |
+| Build a Tier 3 domain component in `packages/ui`                                    | F5 → J6 → F6 → DESIGN.md → F7                                                                                                                                                                                               |
+| Build a frontend page or view in `/apps/web`                                        | F4 → F1 → F5 → J6 → I2 → E1                                                                                                                                                                                                 |
+| Implement the workflow definitions for Resolution/Ordinance/Appropriation Ordinance | H1 → B4 → D3                                                                                                                                                                                                                |
+| Implement a new document type or its JSONB metadata                                 | H2 → B4 → H3                                                                                                                                                                                                                |
+| Implement or modify numbering-series logic                                          | H3 → §4.1, §5.1–5.2 of consolidated ref directly                                                                                                                                                                            |
+| Implement an ABAC policy or permission check                                        | I1 → I2 → B5                                                                                                                                                                                                                |
+| Implement RLS policies                                                              | C3 → C1 → I1                                                                                                                                                                                                                |
+| Implement audit logging for a new event type                                        | B3 → I3 → ADR-B2-2                                                                                                                                                                                                          |
+| Implement a notification                                                            | H4 → B3 → I2                                                                                                                                                                                                                |
+| Write/modify Docker/Compose/CI config                                               | L1 → L2 → L3                                                                                                                                                                                                                |
+| Write/modify Infrastructure as Code (IaC) configuration                             | L1 → L2 → L4 → L5                                                                                                                                                                                                           |
+| Write a backup/DR procedure                                                         | L4 → C1 → D5                                                                                                                                                                                                                |
+| Write any unit/integration test                                                     | K1 → (whichever row above matches the code under test)                                                                                                                                                                      |
+| Write a workflow-engine test specifically                                           | K2 → B4 → D3 → H1                                                                                                                                                                                                           |
+| Write a Playwright E2E test                                                         | K3 → F1 → H1                                                                                                                                                                                                                |
+| Write or amend an ADR                                                               | J5 → the relevant document above for the decision's domain                                                                                                                                                                  |
+| Execute an A1 task (development phase)                                              | AGENTS.md (this file) + the row matching the task type above + `docs/development-findings-log.md` confirmed entries for the relevant module                                                                                 |
+| Generate or update A1 itself (A1-generation phase)                                  | See `docs/pre-development/A1-AGENTS.md` — a separate routing file governs A1 generation                                                                                                                                     |
+| Continue a Mechanism-2 (post-closure forensic) task in fe.md or equivalent          | fe.md's own task text (self-contained by design) → fe-handoff.md's "Office-Scoping Pattern" and "Workflow Engine — Outcome Handling" sections only if the task touches office-gated mutations or step-completion primitives |
 
 **Note on Tier 3 component tasks:** Every Tier 3 component PR includes a
 `/dev/{component-name}` dev route as a mandatory deliverable — not a separate
@@ -92,7 +92,6 @@ its frontend form"), read the union of both rows' documents, not just one.
 ---
 
 ## Section 3: Unlisted tasks
-
 
 If your task isn't in the table above:
 

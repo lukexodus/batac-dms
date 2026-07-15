@@ -33,17 +33,15 @@ describe('seedPhase1WorkflowDefinitions validation rollback', () => {
     // Mock validateDefinitionForPublish to return invalid
     vi.mocked(validatorMod.validateDefinitionForPublish).mockResolvedValue({
       valid: false,
-      errors: [{ code: 'custom', message: 'invalid step', path: ['step'] }] as any
+      errors: [{ code: 'custom', message: 'invalid step', path: ['step'] }] as any,
     });
 
     // Run the seed function — it should throw
-    await expect(
-      seedPhase1WorkflowDefinitions(mockDb)
-    ).rejects.toThrow(/Validation failed for/);
+    await expect(seedPhase1WorkflowDefinitions(mockDb)).rejects.toThrow(/Validation failed for/);
 
     // Verify that we inserted definitions and definitionVersions with inactive/null state
     expect(mockDb.insert).toHaveBeenCalled();
-    
+
     // Check insert values
     const insertCalls = mockDb.values.mock.calls;
     const definitionsInsert = insertCalls.find((call: any) => call[0].isActive === false);

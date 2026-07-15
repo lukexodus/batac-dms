@@ -29,11 +29,13 @@ describe('Organization Published API', () => {
   describe('resolveCurrentHolder', () => {
     it('returns delegated-to employee summary when active delegation grant exists', async () => {
       // Mock delegationGrants join returning a user
-      mockDb.limit.mockResolvedValueOnce([{
-        userId: 'delegatee-user-id',
-        firstName: 'John',
-        lastName: 'Doe',
-      }]);
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          userId: 'delegatee-user-id',
+          firstName: 'John',
+          lastName: 'Doe',
+        },
+      ]);
 
       const result = await resolveCurrentHolder('position-id');
       expect(result).toEqual({
@@ -47,11 +49,14 @@ describe('Organization Published API', () => {
       // Mock delegation query returning empty, assignment query returning a user
       mockDb.limit
         .mockResolvedValueOnce([]) // Delegation query empty
-        .mockResolvedValueOnce([{ // Assignment query finds holder
-          userId: 'assigned-user-id',
-          firstName: 'Jane',
-          lastName: 'Smith',
-        }]);
+        .mockResolvedValueOnce([
+          {
+            // Assignment query finds holder
+            userId: 'assigned-user-id',
+            firstName: 'Jane',
+            lastName: 'Smith',
+          },
+        ]);
 
       const result = await resolveCurrentHolder('position-id');
       expect(result).toEqual({
@@ -61,9 +66,7 @@ describe('Organization Published API', () => {
     });
 
     it('returns null if neither delegation nor assignment is found', async () => {
-      mockDb.limit
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      mockDb.limit.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
       const result = await resolveCurrentHolder('position-id');
       expect(result).toBeNull();
@@ -72,10 +75,12 @@ describe('Organization Published API', () => {
 
   describe('getPrimaryOfficeForUser', () => {
     it('returns office details when user has active primary assignment', async () => {
-      mockDb.limit.mockResolvedValueOnce([{
-        officeId: 'office-id',
-        officeCode: 'CODE',
-      }]);
+      mockDb.limit.mockResolvedValueOnce([
+        {
+          officeId: 'office-id',
+          officeCode: 'CODE',
+        },
+      ]);
 
       const result = await getPrimaryOfficeForUser('user-id');
       expect(result).toEqual({
@@ -94,10 +99,7 @@ describe('Organization Published API', () => {
 
   describe('getCommitteeIdsForUser', () => {
     it('returns committee ids when memberships are found', async () => {
-      mockDb.where.mockResolvedValueOnce([
-        { committeeId: 'comm-1' },
-        { committeeId: 'comm-2' },
-      ]);
+      mockDb.where.mockResolvedValueOnce([{ committeeId: 'comm-1' }, { committeeId: 'comm-2' }]);
 
       const result = await getCommitteeIdsForUser('user-id');
       expect(result).toEqual(['comm-1', 'comm-2']);
@@ -113,17 +115,19 @@ describe('Organization Published API', () => {
 
   describe('getDelegationGrantById', () => {
     it('returns scope object when active grant is found', async () => {
-      mockDb.where.mockResolvedValueOnce([{
-        scope: { roles: ['r1'], officeIds: ['o1'], actions: ['a1'] }
-      }]);
+      mockDb.where.mockResolvedValueOnce([
+        {
+          scope: { roles: ['r1'], officeIds: ['o1'], actions: ['a1'] },
+        },
+      ]);
 
       const result = await getDelegationGrantById('grant-id');
       expect(result).toEqual({
         scope: {
           roles: ['r1'],
           officeIds: ['o1'],
-          actions: ['a1']
-        }
+          actions: ['a1'],
+        },
       });
     });
 

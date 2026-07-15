@@ -88,7 +88,9 @@ async function main(): Promise<void> {
       port: env.APP_PORT,
       host: env.APP_HOST,
     });
-    console.log(`Server listening on http://${env.APP_HOST}:${env.APP_PORT}${env.HEALTH_CHECK_PATH}`);
+    console.log(
+      `Server listening on http://${env.APP_HOST}:${env.APP_PORT}${env.HEALTH_CHECK_PATH}`,
+    );
   } catch (err) {
     app.log.error(err);
     process.exit(1);

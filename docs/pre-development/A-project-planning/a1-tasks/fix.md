@@ -25,21 +25,27 @@ alphabetize: { order: 'asc', caseInsensitive: true },
 Three groups matter here: `external` (all `node_modules` packages, alphabetized together), the combined `internal`/`parent`/`sibling`/`index` group (this pulls in `@batac/**` imports and all relative `./` imports into **one single alphabetized block**, not separate blocks), and `type`. Everything within a group is alphabetized ascending, case-insensitive, by the import source string.
 
 **Task**: Run
+
 ```
 pnpm --filter @batac/web exec eslint src/main.tsx --fix
 ```
+
 This command is known to complete reliably when scoped to this single file (typed-linting on this file's cross-package type surface is slow — expect roughly 15-55 seconds — but it does complete; do not interrupt it early and do not treat a long wait as a hang).
 
 **What the fix should produce** (for your own verification after running `--fix` — do not hand-edit to match this, just confirm the tool's output matches this shape): `@tanstack/react-query` sorts to the top of the `external` block, before `react`, `react-dom/client`, `react-router-dom` (because `@` sorts before letters). All the relative `./pages/...` route-component imports collapse into one alphabetized block sorted by full path, not grouped by their prior subdirectory ordering (dev pages, then documents, then workflow, etc. — that manual grouping goes away; alphabetical-by-path replaces it).
 
 **Verify**:
+
 ```
 pnpm --filter @batac/web exec eslint src/main.tsx
 ```
+
 must report zero errors. Then confirm this didn't touch anything semantic:
+
 ```
 pnpm --filter @batac/web typecheck
 ```
+
 must be clean (an import reorder cannot change runtime behavior since none of these are side-effecting imports besides the already-present `@batac/ui/styles/globals.css`, which must remain exactly where it is, immediately after the `@batac/ui` named import — confirm it wasn't moved).
 
 **What NOT to touch**: nothing else in this file. Do not reorder or touch the `router` array, the route paths, or the render tree at the bottom of the file.
@@ -57,14 +63,29 @@ Three separate, unrelated dead declarations, each confirmed to have zero usage a
 **2b.** Line 71: `const SP_ROLES = ['sp_secretary', 'sp_member', 'sp_presiding_officer'];` — delete the entire line.
 
 **2c.** Lines 73-78:
+
 ```tsx
 /** documents.update: callable-by dept_encoder, dept_approver, sp_secretary,
  *  sp_presiding_officer, mayor, brgy_encoder, brgy_captain, sp_member */
 function canUpdate(roles: string[], lifecycleState: string): boolean {
-  if (!hasRole(roles, 'dept_encoder', 'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'brgy_encoder', 'brgy_captain', 'sp_member')) return false;
+  if (
+    !hasRole(
+      roles,
+      'dept_encoder',
+      'dept_approver',
+      'sp_secretary',
+      'sp_presiding_officer',
+      'mayor',
+      'brgy_encoder',
+      'brgy_captain',
+      'sp_member',
+    )
+  )
+    return false;
   return lifecycleState === 'draft';
 }
 ```
+
 Delete this entire function including its doc comment. Do not delete any of the other similarly-shaped ABAC helper functions before or after it in the file (there are several — this task removes only `canUpdate`, because it alone is unused; the others are called elsewhere in the file and must stay untouched).
 
 **Verify**: after 2a-2c, `pnpm --filter @batac/web exec eslint src/pages/documents/DocumentDetailPage.tsx` must show zero remaining `@typescript-eslint/no-unused-vars` errors for `Separator`, `SP_ROLES`, or `canUpdate` specifically (other errors will still be present until Units 3-5 below are also done — that's expected, don't treat it as a failure).
@@ -76,29 +97,30 @@ Delete this entire function including its doc comment. Do not delete any of the 
 **File**: `apps/web/src/pages/documents/DocumentDetailPage.tsx`, currently at lines 399-411:
 
 ```tsx
-  // ── Routing history → RoutingHistoryTimeline entries ──────────────────────
-  // The tracking.getRoutingHistory output uses snake_case / different shape from
-  // RoutingEntry (the UI type). Map defensively.
-  const routingEntries: RoutingEntry[] = (routingHistory ?? []).map((e: any) => ({
-    id: e.entryId,
-    actorName: e.actorDisplayName ?? e.actorId,
-    actorOfficeName: e.fromOfficeName ?? '',
-    action: 'Logged' as const, // actionDescription is free text; map to nearest RoutingAction
-    timestamp: new Date(e.timestamp),
-    notes: e.actionDescription,
-    ...(e.fromOfficeName && { fromOfficeName: e.fromOfficeName }),
-    ...(e.toOfficeName && { toOfficeName: e.toOfficeName }),
-  }));
+// ── Routing history → RoutingHistoryTimeline entries ──────────────────────
+// The tracking.getRoutingHistory output uses snake_case / different shape from
+// RoutingEntry (the UI type). Map defensively.
+const routingEntries: RoutingEntry[] = (routingHistory ?? []).map((e: any) => ({
+  id: e.entryId,
+  actorName: e.actorDisplayName ?? e.actorId,
+  actorOfficeName: e.fromOfficeName ?? '',
+  action: 'Logged' as const, // actionDescription is free text; map to nearest RoutingAction
+  timestamp: new Date(e.timestamp),
+  notes: e.actionDescription,
+  ...(e.fromOfficeName && { fromOfficeName: e.fromOfficeName }),
+  ...(e.toOfficeName && { toOfficeName: e.toOfficeName }),
+}));
 ```
 
-**Root cause**: the map callback's parameter `e` is explicitly typed `any`. This is the sole source of all 19 `no-unsafe-*`/`no-explicit-any` errors on these 11 lines. This is a genuine type mismatch, not a leftover — the comment above the block is correct that `RoutingEntry` (the UI type) and this query's real output shape differ, so the mapping itself must stay a mapping. The fix is to type `e` as the *actual* source type, not to make the two types match.
+**Root cause**: the map callback's parameter `e` is explicitly typed `any`. This is the sole source of all 19 `no-unsafe-*`/`no-explicit-any` errors on these 11 lines. This is a genuine type mismatch, not a leftover — the comment above the block is correct that `RoutingEntry` (the UI type) and this query's real output shape differ, so the mapping itself must stay a mapping. The fix is to type `e` as the _actual_ source type, not to make the two types match.
 
 **The real source type**, confirmed against `apps/server/src/modules/tracking/tracking.router.ts`, the `RoutingEntryOutputSchema` backing `tracking.getRoutingHistory`'s `.output()`:
+
 ```ts
 {
-  entryId: string;              // uuid, non-nullable
-  fromOfficeId: string | null;  // uuid
-  toOfficeId: string | null;    // uuid
+  entryId: string; // uuid, non-nullable
+  fromOfficeId: string | null; // uuid
+  toOfficeId: string | null; // uuid
   fromOfficeName: string | null;
   toOfficeName: string | null;
   actorId: string;
@@ -107,11 +129,13 @@ Delete this entire function including its doc comment. Do not delete any of the 
   timestamp: Date;
 }
 ```
+
 (Note: `fromOfficeName`/`toOfficeName` now exist on this schema — a prior office-ID/office-name resolution fix already landed server-side. This task is unrelated to that fix and must not touch it.)
 
 **Find where `routingHistory` itself comes from** in this file (the query that produces the array being mapped) and use tRPC's inferred output type directly rather than hand-writing a duplicate interface — check the file for how `routingHistory` is declared (likely a `trpc.tracking.getRoutingHistory.useQuery(...)` call, with `data: routingHistory` destructured) and derive `e`'s type from that query's inferred element type (e.g. via `RouterOutputs['tracking']['getRoutingHistory'][number]`, following the same `RouterOutputs` pattern already used elsewhere in this codebase for other panel components — check `apps/web/src/lib/trpc.ts` for how `RouterOutputs` is exported, and follow that exact existing pattern; do not invent a new mechanism for exposing router output types).
 
 **What NOT to touch in this block**:
+
 - The `action: 'Logged' as const` line and its comment — a separate, already-understood, deliberate simplification, out of scope.
 - The `notes: e.actionDescription` mapping.
 - `timestamp: new Date(e.timestamp)`.
@@ -127,50 +151,62 @@ Delete this entire function including its doc comment. Do not delete any of the 
 **File**: `apps/web/src/pages/documents/DocumentDetailPage.tsx`
 
 **Two separate locations, same root cause.** First, the existing runtime check at lines 439-446:
+
 ```tsx
-    const VALID = ['application/pdf', 'image/jpeg', 'image/png',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
-    if (!VALID.includes(selected.type)) {
-      setUploadFileError('Unsupported file type');
-      setUploadFile(null);
-      return;
-    }
+const VALID = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+if (!VALID.includes(selected.type)) {
+  setUploadFileError('Unsupported file type');
+  setUploadFile(null);
+  return;
+}
 ```
+
 Second, the two casts at lines 455 and 467, inside `handleUpload`:
+
 ```tsx
-  const handleUpload = async () => {
-    if (!uploadFile || !documentId) return;
-    const { uploadUrl, s3Key } = await requestUploadUrlMutation.mutateAsync({
-      documentId,
-      mimeType: uploadFile.type as any,
-    });
-    const res = await fetch(uploadUrl, {
-      method: 'PUT',
-      body: uploadFile,
-      headers: { 'Content-Type': uploadFile.type },
-    });
-    if (!res.ok) { toast.error('File upload to storage failed'); return; }
-    await confirmUploadMutation.mutateAsync({
-      documentId,
-      s3Key,
-      originalFilename: uploadFile.name,
-      mimeType: uploadFile.type as any,
-      fileSizeBytes: uploadFile.size,
-    });
-  };
+const handleUpload = async () => {
+  if (!uploadFile || !documentId) return;
+  const { uploadUrl, s3Key } = await requestUploadUrlMutation.mutateAsync({
+    documentId,
+    mimeType: uploadFile.type as any,
+  });
+  const res = await fetch(uploadUrl, {
+    method: 'PUT',
+    body: uploadFile,
+    headers: { 'Content-Type': uploadFile.type },
+  });
+  if (!res.ok) {
+    toast.error('File upload to storage failed');
+    return;
+  }
+  await confirmUploadMutation.mutateAsync({
+    documentId,
+    s3Key,
+    originalFilename: uploadFile.name,
+    mimeType: uploadFile.type as any,
+    fileSizeBytes: uploadFile.size,
+  });
+};
 ```
 
 **Root cause, confirmed**: `uploadFile` is `useState<File | null>`. The native DOM `File.type` property is typed `string`. Both `requestUploadUrlMutation` (`trpc.documents.requestUploadUrl`) and `confirmUploadMutation` (`trpc.documents.confirmUpload`) have `mimeType` typed via `AllowedMimeTypeSchema` server-side (`packages/shared/src/schemas/common.ts`):
+
 ```ts
 export const AllowedMimeTypeSchema = z.enum([
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "image/png",
-  "image/jpeg",
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/png',
+  'image/jpeg',
 ]);
 ```
+
 — a 5-value literal union, exactly matching the `VALID` array above. A plain `string` is not assignable to this literal-union type, hence the casts.
 
 **Important, already-verified constraint**: simply changing `VALID`'s declaration to a `readonly`/`as const` tuple (which would make `.includes()` narrow correctly at line 442) is **not sufficient by itself** to remove the two `as any` casts in `handleUpload`. This was tested directly: the narrowing performed inside `handleFileChange` does not survive being written into `uploadFile` (component state) and read back in a different function (`handleUpload`) later. TypeScript's control-flow narrowing does not persist across that kind of state round-trip. The fix must re-assert the narrowing at the point of use in `handleUpload`, not only at the point of the original check in `handleFileChange`.
@@ -179,51 +215,62 @@ export const AllowedMimeTypeSchema = z.enum([
 
 ```ts
 export const AllowedMimeTypeSchema = z.enum([
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "image/png",
-  "image/jpeg",
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/png',
+  'image/jpeg',
 ]);
 export type AllowedMimeType = z.infer<typeof AllowedMimeTypeSchema>;
 ```
+
 `AllowedMimeTypeSchema` is already re-exported from the package root (`packages/shared/src/index.ts` does `export * from './schemas/common.js';`), so this new type will be immediately importable as `import type { AllowedMimeType } from '@batac/shared';` — no other change needed in `packages/shared` or its `index.ts`.
 
 **In `DocumentDetailPage.tsx`**, add the import (alongside the existing `import type { LifecycleState } from '@batac/shared';` at line 57 — extend that same import statement, don't add a second `@batac/shared` import line) and add a type-predicate function near `handleFileChange`/`handleUpload` (module scope, not inside either function, so both can use it):
 
 ```tsx
 function isAllowedMimeType(value: string): value is AllowedMimeType {
-  return (['application/pdf', 'image/jpeg', 'image/png',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'] as const satisfies readonly AllowedMimeType[]).includes(value as AllowedMimeType);
+  return (
+    [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ] as const satisfies readonly AllowedMimeType[]
+  ).includes(value as AllowedMimeType);
 }
 ```
+
 (The `as AllowedMimeType` cast inside this one function is acceptable and expected — this is the single, narrow, well-contained place where the unsafe-to-safe boundary conversion has to happen; J3 §1.3's carve-out for assertions "followed immediately by a comment explaining why the narrowing is safe" applies here specifically. Add a one-line comment above the function explaining this, e.g. `// Runtime type guard bridging File.type (string) to the AllowedMimeType literal union.`)
 
 Then:
+
 - Replace the inline `VALID` array at line 439-441 with a call to `isAllowedMimeType(selected.type)`, replacing line 442's `if (!VALID.includes(selected.type))` with `if (!isAllowedMimeType(selected.type))`. Delete the now-unused `VALID` declaration.
 - In `handleUpload`, before either mutation call, add a narrowing check:
+
 ```tsx
-  const handleUpload = async () => {
-    if (!uploadFile || !documentId) return;
-    if (!isAllowedMimeType(uploadFile.type)) {
-      toast.error('Unsupported file type');
-      return;
-    }
-    const { uploadUrl, s3Key } = await requestUploadUrlMutation.mutateAsync({
-      documentId,
-      mimeType: uploadFile.type, // now narrowed to AllowedMimeType, no cast
-    });
-    // ... rest unchanged ...
-    await confirmUploadMutation.mutateAsync({
-      documentId,
-      s3Key,
-      originalFilename: uploadFile.name,
-      mimeType: uploadFile.type, // now narrowed to AllowedMimeType, no cast
-      fileSizeBytes: uploadFile.size,
-    });
-  };
+const handleUpload = async () => {
+  if (!uploadFile || !documentId) return;
+  if (!isAllowedMimeType(uploadFile.type)) {
+    toast.error('Unsupported file type');
+    return;
+  }
+  const { uploadUrl, s3Key } = await requestUploadUrlMutation.mutateAsync({
+    documentId,
+    mimeType: uploadFile.type, // now narrowed to AllowedMimeType, no cast
+  });
+  // ... rest unchanged ...
+  await confirmUploadMutation.mutateAsync({
+    documentId,
+    s3Key,
+    originalFilename: uploadFile.name,
+    mimeType: uploadFile.type, // now narrowed to AllowedMimeType, no cast
+    fileSizeBytes: uploadFile.size,
+  });
+};
 ```
+
 This second check is technically redundant given `handleFileChange` already validated the file before it ever reached state — but it's what makes the type genuinely safe at the point of use without a cast, and it's a legitimate defensive check (state could theoretically be stale between the two functions in edge cases). Do not skip it and reach for a cast instead.
 
 **What NOT to touch**: the 25 MiB size check (`MAX`/`selected.size > MAX`) immediately above, the `fetch(uploadUrl, ...)` PUT call and its own `headers: { 'Content-Type': uploadFile.type }` (this one stays as plain `string` — it's calling the browser `fetch` API directly, not a typed tRPC procedure, so there's no type mismatch there and nothing to fix).
@@ -255,6 +302,7 @@ This second check is technically redundant given `handleFileChange` already vali
 **Confirmed via direct removal-and-typecheck test**: both casts here are unnecessary. `utils.tracking.printQrCoverSheet.fetch(...)` is already correctly typed by tRPC's own inference (the procedure has `.output(z.object({ pdfPresignedUrl: z.string().url() }))` server-side) — `result.pdfPresignedUrl` works with no cast. The `catch (e: any)` doesn't need `any` either.
 
 Change to:
+
 ```tsx
                 onClick={async () => {
                   // printQrCoverSheet is typed as a query but issues a side-effecting
@@ -270,6 +318,7 @@ Change to:
                   }
                 }}
 ```
+
 Keep the existing explanatory comment exactly as-is — it documents real, still-relevant context about why `.fetch()` is used instead of a normal query hook.
 
 **What NOT to touch**: `documentIds: [documentId]`, `layout: 'single'`, the surrounding `Button` JSX, the `canPrintQrCoverSheet(roles)` conditional wrapping this whole block.
@@ -306,9 +355,10 @@ Keep the existing explanatory comment exactly as-is — it documents real, still
 
 **Confirmed via direct removal-and-typecheck test**: all five casts here are unnecessary. `trackingRecord` comes from `trpc.tracking.getTrackingRecord.useQuery(...)` (confirmed at this file's line 208), which is already correctly typed via that procedure's `.output(TrackingRecordOutputSchema)` server-side (`apps/server/src/modules/tracking/tracking.router.ts`). Removing every `as any` here compiles clean with no other changes needed.
 
-**Separate finding to note but not act on differently**: `qrCodeS3Key ?? trackingId` at the first line — `qrCodeS3Key` is typed `z.string()` server-side with no `.nullable()`/`.optional()`, so this `??` fallback can structurally never fire in a schema-conformant response. This is the same *category* of dead-fallback pattern found and removed elsewhere in this file previously (`entryId ?? id`), but it is NOT identical: here, both `qrCodeS3Key` and `trackingId` are real, valid fields on the schema (unlike the earlier case, where the fallback referenced a field that didn't exist on the schema at all). Do not delete the `?? trackingRecord.trackingId` fallback as part of this task — leave the logic exactly as-is, only remove the `as any` casts around it. This dead-fallback observation is informational; resolving it is out of scope here and would need its own decision about which value should be considered primary.
+**Separate finding to note but not act on differently**: `qrCodeS3Key ?? trackingId` at the first line — `qrCodeS3Key` is typed `z.string()` server-side with no `.nullable()`/`.optional()`, so this `??` fallback can structurally never fire in a schema-conformant response. This is the same _category_ of dead-fallback pattern found and removed elsewhere in this file previously (`entryId ?? id`), but it is NOT identical: here, both `qrCodeS3Key` and `trackingId` are real, valid fields on the schema (unlike the earlier case, where the fallback referenced a field that didn't exist on the schema at all). Do not delete the `?? trackingRecord.trackingId` fallback as part of this task — leave the logic exactly as-is, only remove the `as any` casts around it. This dead-fallback observation is informational; resolving it is out of scope here and would need its own decision about which value should be considered primary.
 
 Change to:
+
 ```tsx
             <div className="w-40 shrink-0">
               <QRCodeDisplay
@@ -346,7 +396,6 @@ Change to:
 5. `pnpm --filter @batac/web lint` (full project) — report the new total and full category breakdown (rule name + count for every distinct rule still firing, not just the aggregate number). Confirmed pre-task total was **164 problems** (12 `import/order`, all in `main.tsx`, plus 152 elsewhere: 59 `no-unsafe-member-access`, 42 `no-unsafe-assignment`, 30 `no-explicit-any`, 13 `no-unused-vars`, 5 `no-unsafe-call`, 1 `react-hooks/exhaustive-deps`, 1 `no-console`, 1 `no-unsafe-return`). Expected post-task: `import/order` at 0 (Unit 1), and the `DocumentDetailPage.tsx`-attributable share of the remaining categories reduced by exactly what Units 2-6 removed — report the actual resulting numbers rather than assuming they match this prediction exactly, since other files' errors are untouched by this task and remain in the total.
 6. Confirm no category outside what these 6 units target changed at all — if any rule's count moved in a file this task didn't touch, stop and report it rather than treating it as a side effect of this task.
 
-
 # TASK-ORG-LINT-001
 
 ## Context (self-contained — no reference to any prior conversation needed)
@@ -378,6 +427,7 @@ Apply this uniformly across all 7 sub-objects and all their methods, using this 
 - `softDelete(id: string, deletedBy: string): Promise<any>` → `softDelete(id: string, deletedBy: string): Promise<void>` (every implementation body already resolves `void` — none of them have a `return` statement — this is a correction to match actual behavior, not a behavior change)
 
 Additional sub-object-specific methods, same treatment:
+
 - `employees.findByUserId(userId: string): Promise<any>` → `Promise<EmployeeRow | null>`
 - `assignments.setPrimaryAssignment(...): Promise<void>` — already correctly typed, no change needed, but confirm it still reads this way after your edit (it should be unaffected by the changes around it)
 - `delegationGrants.findActiveByUserId(userId: string): Promise<any>` → `Promise<DelegationGrantRow[]>` (the implementation does `return rows.map(r => r.grant)` — an array, not a nullable single value; do not type this as `DelegationGrantRow | null`)
@@ -404,7 +454,7 @@ After editing the interface, you also need to import the row types into `organiz
 
 This part is independent of Part 1 in the sense that it does not require Part 1 to be done first or in the same commit — but do Part 1 first anyway, in this same session, since Part 2's `employeesData`-related fixes assume `trpc.organization.listEmployees` is already correctly typed (which it already is, independent of Part 1 — see note below), and it's cleaner to verify both together.
 
-**Important scoping note:** `trpc.organization.listEmployees` is **already correctly typed today**, independent of Part 1. It flows through `OrgService.listEmployees` (declared in `organization.types.ts`, implemented in `organization.service.ts` with its own direct, correctly-typed Drizzle query), not through `OrgRepository.employees.findAll`. This was directly verified during investigation — do not assume Part 1's fix is what makes Part 2 possible; the two are unrelated fixes that happen to touch overlapping files. If you find `listEmployees` is *not* cleanly typed when you get to this file, stop and report it — that would mean something changed since this prompt was written.
+**Important scoping note:** `trpc.organization.listEmployees` is **already correctly typed today**, independent of Part 1. It flows through `OrgService.listEmployees` (declared in `organization.types.ts`, implemented in `organization.service.ts` with its own direct, correctly-typed Drizzle query), not through `OrgRepository.employees.findAll`. This was directly verified during investigation — do not assume Part 1's fix is what makes Part 2 possible; the two are unrelated fixes that happen to touch overlapping files. If you find `listEmployees` is _not_ cleanly typed when you get to this file, stop and report it — that would mean something changed since this prompt was written.
 
 ### File: `apps/web/src/pages/organization/CommitteeManagementPage.tsx`
 
@@ -417,7 +467,7 @@ Five separate issues, all confirmed present as of the investigation. Re-verify e
 
 2. **`employeesData`-sourced `any`, unrelated to Part 1 (lines 243, 278 as of investigation):** `const { data: employeesData } = trpc.organization.listEmployees.useQuery(...)` (line 85) is already correctly typed as `{ items: EmployeeSummary[]; nextCursor: string | null } | undefined` — `EmployeeSummary` has fields `employeeId: string; userId: string; displayName: string; positionId: string | null; positionTitle: string | null; officeId: string | null;` (declared in `apps/server/src/modules/organization/organization.types.ts`, not currently imported into this frontend file, and there is no shared-package export of this shape — `packages/shared/src/schemas/organization.ts` only exports `OfficeSummary`, nothing employee-shaped). Despite this, both `.map()` callbacks that iterate `employeesData?.items` (lines 243 and 278) have an explicit, unnecessary `(emp: any) =>` annotation. Remove both explicit `any` annotations and let TypeScript infer the parameter type from `employeesData.items`'s already-correct type; do not add an explicit type here at all, since inference from the already-typed array should work without one. If it doesn't (unexpected — report if this happens), fall back to declaring a small local interface with exactly the three fields actually read in this file's JSX (`employeeId`, `displayName`, `positionTitle` — confirm these are still the only fields read at both sites before doing this, do not add fields speculatively).
 
-3. **`committeeRole: assignData.committeeRole as any` (line 133):** This is a different kind of issue from the other four — it's a type *assertion* (bypassing the type system for one expression), not a variable/parameter *annotation*. It exists because `assignData` is initialized via `useState({ ..., committeeRole: 'member', ... })` (lines 51–55), which TypeScript infers as `{ ...; committeeRole: string; ... }` — a plain `string`, not narrowed to the literal union — while `assignCommitteeMembership`'s mutation input expects `committeeRole: z.enum(['chairman','vice_chairman','member'])`. Fix this by typing `assignData`'s state explicitly to narrow `committeeRole` to the literal union, rather than removing the assertion and leaving the mismatch unresolved. Concretely: change the `useState` call to `useState<{ employeeId: string; committeeRole: 'chairman' | 'vice_chairman' | 'member'; startDate: string }>({ employeeId: '', committeeRole: 'member', startDate: new Date().toISOString().split('T')[0]! })` (or equivalent — the goal is `assignData.committeeRole`'s declared type being the literal union, not `string`), then remove the `as any` at line 133 entirely, since it should no longer be needed once the state itself is correctly typed. Confirm the `<Select onValueChange={(val) => setAssignData({ ...assignData, committeeRole: val })}>` at line ~290 still compiles after this change — `onValueChange`'s `val` parameter is typed `string` by the underlying `Select` component (from `@batac/ui`), so assigning it into a field now typed as the narrower literal union may itself produce a new type error; if it does, cast `val` at that specific call site (`committeeRole: val as 'chairman' | 'vice_chairman' | 'member'`) rather than reverting the state's type — narrowing the assertion to this one, more precise site is preferable to the current broad `as any` on the whole object, but only do this if actually needed; check first.
+3. **`committeeRole: assignData.committeeRole as any` (line 133):** This is a different kind of issue from the other four — it's a type _assertion_ (bypassing the type system for one expression), not a variable/parameter _annotation_. It exists because `assignData` is initialized via `useState({ ..., committeeRole: 'member', ... })` (lines 51–55), which TypeScript infers as `{ ...; committeeRole: string; ... }` — a plain `string`, not narrowed to the literal union — while `assignCommitteeMembership`'s mutation input expects `committeeRole: z.enum(['chairman','vice_chairman','member'])`. Fix this by typing `assignData`'s state explicitly to narrow `committeeRole` to the literal union, rather than removing the assertion and leaving the mismatch unresolved. Concretely: change the `useState` call to `useState<{ employeeId: string; committeeRole: 'chairman' | 'vice_chairman' | 'member'; startDate: string }>({ employeeId: '', committeeRole: 'member', startDate: new Date().toISOString().split('T')[0]! })` (or equivalent — the goal is `assignData.committeeRole`'s declared type being the literal union, not `string`), then remove the `as any` at line 133 entirely, since it should no longer be needed once the state itself is correctly typed. Confirm the `<Select onValueChange={(val) => setAssignData({ ...assignData, committeeRole: val })}>` at line ~290 still compiles after this change — `onValueChange`'s `val` parameter is typed `string` by the underlying `Select` component (from `@batac/ui`), so assigning it into a field now typed as the narrower literal union may itself produce a new type error; if it does, cast `val` at that specific call site (`committeeRole: val as 'chairman' | 'vice_chairman' | 'member'`) rather than reverting the state's type — narrowing the assertion to this one, more precise site is preferable to the current broad `as any` on the whole object, but only do this if actually needed; check first.
 
 4. **Unused import `Users` (line 2):** `import { Users, Plus, Edit, UserPlus } from 'lucide-react';` — `Users` does not appear anywhere else in the file (confirmed via full-file search during investigation). Remove `Users` from this import, keep `Plus, Edit, UserPlus` (all three are genuinely used in JSX).
 
@@ -444,8 +494,7 @@ Same general pattern as `CommitteeManagementPage.tsx`'s issue #2 above — four 
 1. Run `pnpm --filter @batac/web typecheck`. Must pass clean.
 2. Run `pnpm --filter @batac/web lint`. Report the new total error count and a fresh per-file breakdown for at least `CommitteeManagementPage.tsx` and `OrganizationPage.tsx` — do not assume it matches any number implied elsewhere in this prompt. This prompt's investigation explicitly could not run the real linter (no working `node_modules`/lint environment was available), so every fix above was derived from manual code tracing, not from watching an error disappear — the actual post-fix lint numbers are the first real confirmation either way.
 3. **Specifically expect `OrganizationPage.tsx` to still have a substantial number of lint errors remaining after this fix.** This prompt's fixes account for what was traced and confirmed as independent, mechanical issues in that file (4 `any` sites + 1 unused import) — investigation explicitly could not account for the rest of that file's previously-reported 30-error total (only ~4–7 errors were traceable to confirmed causes, by hand, without a real linter to confirm exact per-line error counts). **Do not treat a smaller-than-expected reduction in `OrganizationPage.tsx`'s count as a sign this prompt's fixes are wrong** — it was already known and stated, going into this prompt, that this file has unresolved errors beyond what's listed here. Report the actual new count plainly; if there's a large remaining error count in this file, that confirms the known gap rather than indicating a problem with this specific fix, and is expected follow-up work, not a regression.
-4. If any fix in this prompt produces a *new* lint error that wasn't there before (as opposed to just failing to remove an existing one), treat that as a real problem with this prompt and report it specifically — that would be a genuine regression, distinct from the "known remaining errors" case in point 3.
-
+4. If any fix in this prompt produces a _new_ lint error that wasn't there before (as opposed to just failing to remove an existing one), treat that as a real problem with this prompt and report it specifically — that would be a genuine regression, distinct from the "known remaining errors" case in point 3.
 
 # TASK-ORG-LINT-002
 
@@ -509,23 +558,31 @@ listCommittees: protectedProcedure
 Two `as string` casts were added during `TASK-ORG-LINT-001` at call sites that were verified (via direct testing against this project's pinned `drizzle-orm@0.45.2` and `zod@4.4.3`, using the actual schema and input shapes) to not need a cast — TypeScript's control-flow narrowing already handles both cases correctly without one. These are safe as written (they're narrowing casts to the type TS already infers, not `any`-related), but they're unnecessary. Remove them:
 
 1. In `createEmployee`, find:
+
 ```typescript
 employeeNumber: input.employeeNumber as string,
 ```
+
 and change to:
+
 ```typescript
 employeeNumber: input.employeeNumber,
 ```
+
 This works because of the preceding guard `if (!input.employeeNumber) { throw ... }`, which narrows `input.employeeNumber` (declared as `string | null | undefined` via `z.string().nullish()`) down to `string` for the rest of the function.
 
 2. In `createCommittee`, find:
+
 ```typescript
 chairedByEmployeeId: input.chairedByEmployeeId as string,
 ```
+
 and change to:
+
 ```typescript
 chairedByEmployeeId: input.chairedByEmployeeId,
 ```
+
 Same mechanism — the preceding guard `if (!input.chairedByEmployeeId) { throw ... }` already narrows it to `string`.
 
 **What NOT to touch**: do not touch `updateEmployee`'s or `updateCommittee`'s `Parameters<typeof orgRepository.X.update>[1]` assertions, or the `as string` casts inside their conditional-spread blocks (e.g. `{ employeeNumber: rest.employeeNumber as string }`). Those exist for a different, confirmed-necessary reason — the conditional-spread pattern they're part of does not preserve TypeScript's narrowing the way a direct guard-then-object-literal assignment does, so removing those would likely produce a real compile error. Only the two casts named above in `createEmployee`/`createCommittee` are affected by this part of the task.
@@ -567,7 +624,6 @@ That's the standalone prompt. A few things I want to flag directly to you, separ
 - I did not re-run any of this through a real linter or the real TypeScript compiler in the actual monorepo context — everything above rests on manual tracing plus the isolated, faithful-but-narrow compiler repros I ran (pinned versions, real schema/input shapes copied verbatim). That's the same caveat that's applied throughout this project's manual-verification approach, but it's worth restating here specifically because this prompt makes claims ("no frontend changes should be needed") with real confidence behind them that I still want the executor to independently check rather than take on faith.
 - This prompt doesn't touch `OrganizationPage.tsx`'s ~23 untraced errors or any of the other unstarted files — that's still open and unscoped, exactly as before. When you're ready to sequence that, it's a fresh investigation, not a continuation of this prompt.
 
-
 # TASK-DOCS-LINT-004
 
 ## Context
@@ -579,6 +635,7 @@ This is a fresh, standalone investigation of two previously-untouched files from
 **Finding 1 & 2: Two `as any` casts on `mimeType`, lines 97 and 118**
 
 Current code:
+
 ```typescript
 // line 97, inside requestUploadUrl.mutateAsync(...)
 mimeType: file.type as any,
@@ -604,13 +661,14 @@ if (!mimeTypeCheck.success) {
 
 Then replace both `file.type as any` occurrences with `mimeTypeCheck.data`.
 
-**Placement note**: place this new check *before* the existing `setIsUploading(true)` call (i.e., right after the `if (!file)` guard, before the `try` block), not inside the `try` block, so that a mimetype failure doesn't need to reset `isUploading` back to `false` in a `finally` — it simply returns before that state is ever set. This was verified structurally sound against the file's current control flow, but re-read the current `onSubmit` function before applying this to confirm the guard ordering still matches this description.
+**Placement note**: place this new check _before_ the existing `setIsUploading(true)` call (i.e., right after the `if (!file)` guard, before the `try` block), not inside the `try` block, so that a mimetype failure doesn't need to reset `isUploading` back to `false` in a `finally` — it simply returns before that state is ever set. This was verified structurally sound against the file's current control flow, but re-read the current `onSubmit` function before applying this to confirm the guard ordering still matches this description.
 
 **Known, deliberately out-of-scope observation**: `handleFileChange`'s `validTypes` array (line 67) only lists 3 of the 5 MIME types `AllowedMimeTypeSchema` actually accepts (missing the two Office document types: `.docx`/`.xlsx`). This means a user attempting to upload a Word or Excel document — which the backend is built to accept — would currently be blocked by this earlier, stricter client-side check before ever reaching the new check added above. Do not change `validTypes` as part of this task; whether the intake form should accept Office documents is a product decision outside a lint-remediation task's scope. Leave a `// TODO:` comment at the `validTypes` declaration noting the discrepancy, but do not otherwise touch it.
 
 **Finding 3: `catch (err: any)`, line 124**
 
 Current code:
+
 ```typescript
 } catch (err: any) {
   toast.error(err.message || 'An error occurred during upload');
@@ -632,6 +690,7 @@ Current code:
 **Finding 1: `catch (err: any)`, line 86**
 
 Identical pattern and identical fix to Part 1's Finding 3:
+
 ```typescript
 // current
 } catch (err: any) {
@@ -647,19 +706,21 @@ Identical pattern and identical fix to Part 1's Finding 3:
 **Finding 2: `data={printableFormData.data as any}`, line 111**
 
 Current code:
+
 ```tsx
-{printableFormData.data && (
-  <PrintableFormView data={printableFormData.data as any} />
-)}
+{
+  printableFormData.data && <PrintableFormView data={printableFormData.data as any} />;
+}
 ```
 
 This cast was checked against the real backend and frontend types and confirmed unnecessary — `documentRequests.generatePrintableForm` (the procedure backing `printableFormData`) already has a real `.output(PrintableFormOutputSchema)` schema whose field shape matches `PrintableFormView`'s `PrintableFormData` prop type closely enough (one extra field on the server side, `requester.citizenUserId`, which does not block the assignment) that no cast should be needed.
 
 **Fix**: remove the cast:
+
 ```tsx
-{printableFormData.data && (
-  <PrintableFormView data={printableFormData.data} />
-)}
+{
+  printableFormData.data && <PrintableFormView data={printableFormData.data} />;
+}
 ```
 
 **Verification required, not just assumed**: after making this change, run `pnpm --filter @batac/web typecheck`. This specific removal was verified via an isolated compiler test using hand-copied schema definitions, not by running this project's actual build — if it produces a real error, stop and report the exact error rather than restoring the cast silently, since that would mean something about the real, fully-resolved types (as opposed to the isolated test's approximation) differs from what was checked.
@@ -681,25 +742,27 @@ Fix the two lint errors below. Do not touch anything else in this file, includin
 **Finding 1 — `catch (err: any)` at lines 70–71:**
 
 Current code (lines 59–73):
-```typescript
-  const onSubmit = async (data: ComplaintIntakeValues) => {
-    try {
-      const payload = {
-        ...data,
-        respondentEmail: data.respondentEmail || undefined, // send undefined if empty string
-      };
 
-      const result = await createComplaint.mutateAsync(payload);
-      
-      toast.success('Complaint logged successfully');
-      navigate(`/complaints/${result.complaintId}`);
-    } catch (err: any) {
-      toast.error(err.message || 'An error occurred while logging the complaint');
-    }
-  };
+```typescript
+const onSubmit = async (data: ComplaintIntakeValues) => {
+  try {
+    const payload = {
+      ...data,
+      respondentEmail: data.respondentEmail || undefined, // send undefined if empty string
+    };
+
+    const result = await createComplaint.mutateAsync(payload);
+
+    toast.success('Complaint logged successfully');
+    navigate(`/complaints/${result.complaintId}`);
+  } catch (err: any) {
+    toast.error(err.message || 'An error occurred while logging the complaint');
+  }
+};
 ```
 
 Replace the `catch` block:
+
 ```typescript
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'An error occurred while logging the complaint');
@@ -719,19 +782,20 @@ This resolves both `@typescript-eslint/no-explicit-any` (line 70) and `@typescri
 **Finding**: line 75 has a `console.log` inside the empty-state's "New Document" button `onClick` handler, currently the button's only behavior — clicking it does nothing visible. This is a `no-console` ESLint error (configured as `'error'` in `packages/config/eslint.base.js`).
 
 Current code (lines 66–78):
+
 ```tsx
-        <EmptyState
-          icon={FileText}
-          heading="No documents available"
-          body="There are no documents to display at this time. This could be due to your current access permissions or active filters."
-          action={{
-            label: "New Document",
-            onClick: () => {
-              // Placeholder action for New Document
-              console.log("New Document clicked");
-            }
-          }}
-        />
+<EmptyState
+  icon={FileText}
+  heading="No documents available"
+  body="There are no documents to display at this time. This could be due to your current access permissions or active filters."
+  action={{
+    label: 'New Document',
+    onClick: () => {
+      // Placeholder action for New Document
+      console.log('New Document clicked');
+    },
+  }}
+/>
 ```
 
 This file already has a working `<Link to="/documents/new">` pattern used elsewhere for the same semantic action (creating a new document) — locate it in this same file and use the identical navigation target. Replace the `onClick` handler so the button actually navigates to `/documents/new`, matching whatever component/pattern (`Link`, `useNavigate`, etc.) this file already uses elsewhere for that same destination. Do not introduce a new navigation pattern if one already exists in this file — match the existing one.
@@ -749,6 +813,7 @@ This file already has a working `<Link to="/documents/new">` pattern used elsewh
 **Finding**: line 22 imports a type-only `DocumentState` that is never used anywhere in this file.
 
 Current import block (lines 18–22):
+
 ```typescript
 import { mapLifecycleStateToDocumentState } from '../../lib/status-mapping';
 import { trpc } from '../../lib/trpc';
@@ -772,6 +837,7 @@ Delete the line `import type { DocumentState } from '@batac/ui/types/domain';` e
 **Finding**: line 41 declares a local `EmployeeSummary` interface (3 fields: `employeeId`, `displayName`, `positionTitle`) that is never used anywhere in this file — confirmed via full-file search, only the declaration exists.
 
 Current code (lines 32–45):
+
 ```typescript
 interface CommitteeSummary {
   committeeId: string;
@@ -804,15 +870,17 @@ Delete the entire `EmployeeSummary` interface block (lines 41–45, including th
 **Finding**: lines 216–217 have an `react-hooks/exhaustive-deps` warning. The `useMemo` at line 217 correctly lists `offices` as a dependency, but `offices` itself (line 216) is not a stable reference across renders — `hierarchy?.offices ?? []` creates a brand-new empty-array literal on every render where `hierarchy.offices` is falsy, defeating the memoization.
 
 Current code (lines 216–217):
+
 ```tsx
-  const offices = hierarchy?.offices ?? [];
-  const tree = useMemo(() => buildTree(offices), [offices]);
+const offices = hierarchy?.offices ?? [];
+const tree = useMemo(() => buildTree(offices), [offices]);
 ```
 
 Replace with:
+
 ```tsx
-  const offices = useMemo(() => hierarchy?.offices ?? [], [hierarchy]);
-  const tree = useMemo(() => buildTree(offices), [offices]);
+const offices = useMemo(() => hierarchy?.offices ?? [], [hierarchy]);
+const tree = useMemo(() => buildTree(offices), [offices]);
 ```
 
 This wraps `offices`'s own initialization in a `useMemo` keyed on `hierarchy` (the tRPC query result, a stable dependency), so `offices` only produces a new array reference when `hierarchy` itself actually changes. `hierarchy` comes from `trpc.organization.getOfficeHierarchy.useQuery()` a few lines above this block — do not change that query call. `buildTree` is a module-level function declared earlier in this file and does not need to appear in any dependency array.
@@ -840,6 +908,7 @@ Confirmed genuinely unused throughout the file via full-file search. Locate the 
 Current state, three locations:
 
 Location A — the `UserRowProps` interface (around line 230–236):
+
 ```typescript
 interface UserRowProps {
   userId: string;
@@ -849,37 +918,44 @@ interface UserRowProps {
   onRefresh: () => void;
 }
 ```
+
 Remove the `onRefresh: () => void;` line from this interface.
 
 Location B — the destructured function parameter (around line 238):
+
 ```typescript
 function UserRow({ userId, username, email, status, onRefresh }: UserRowProps) {
 ```
+
 Remove `onRefresh` from the destructuring, leaving:
+
 ```typescript
 function UserRow({ userId, username, email, status }: UserRowProps) {
 ```
 
 Location C — the call site (around line 402–409):
+
 ```tsx
-                <UserRow
-                  key={user.id}
-                  userId={user.id}
-                  username={user.username}
-                  email={user.email}
-                  status={user.status}
-                  onRefresh={() => directoryQuery.refetch()}
-                />
+<UserRow
+  key={user.id}
+  userId={user.id}
+  username={user.username}
+  email={user.email}
+  status={user.status}
+  onRefresh={() => directoryQuery.refetch()}
+/>
 ```
+
 Remove the `onRefresh={() => directoryQuery.refetch()}` line, leaving:
+
 ```tsx
-                <UserRow
-                  key={user.id}
-                  userId={user.id}
-                  username={user.username}
-                  email={user.email}
-                  status={user.status}
-                />
+<UserRow
+  key={user.id}
+  userId={user.id}
+  username={user.username}
+  email={user.email}
+  status={user.status}
+/>
 ```
 
 **All three locations must be changed together.** Removing `onRefresh` from only the lint-reported site (the destructured parameter) while leaving it in the interface or call site would leave the codebase in a worse, inconsistent state. `directoryQuery` (referenced at the call site) is a separate variable elsewhere in this file that is used for other purposes — do not remove or alter `directoryQuery` itself, only the specific `onRefresh={...}` prop line that references it.
@@ -899,9 +975,10 @@ Two independent findings in this file. Fix both. Read the whole prompt before st
 **Finding 1 — dead `isAllSubmitted` variable (line 257):**
 
 Inside the `OobItemRow` component:
+
 ```tsx
-  const isRedFlagged = item.committeeReportStatus === 'red_flagged';
-  const isAllSubmitted = item.committeeReportStatus === 'all_submitted';
+const isRedFlagged = item.committeeReportStatus === 'red_flagged';
+const isAllSubmitted = item.committeeReportStatus === 'all_submitted';
 ```
 
 `isAllSubmitted` is never referenced anywhere else in `OobItemRow`'s body — confirmed via full-component search. (The visual "all submitted" state is already independently handled by the `CommitteeStatusBadge` component a few lines later via its own internal status check; `isAllSubmitted` is unconnected leftover.) Delete the `const isAllSubmitted = item.committeeReportStatus === 'all_submitted';` line entirely. Do not touch the `isRedFlagged` line above it — that variable IS used elsewhere in this component and must remain.
@@ -915,6 +992,7 @@ Inside the `OobItemRow` component:
 The four locations to change, all in the dead chain:
 
 Location A — `OobItemRowProps` interface (around line 239–245):
+
 ```typescript
 interface OobItemRowProps {
   item: OobItem;
@@ -924,9 +1002,11 @@ interface OobItemRowProps {
   onMutationSuccess: () => void;
 }
 ```
+
 Remove the `sessionDate: Date;` line.
 
 Location B — `OobItemRow`'s destructured parameters (around line 247–253):
+
 ```typescript
 function OobItemRow({
   item,
@@ -936,19 +1016,19 @@ function OobItemRow({
   onMutationSuccess,
 }: OobItemRowProps) {
 ```
+
 Remove `sessionDate,` from the destructuring.
 
 Location C — the forward-call to `SecretaryItemActions` inside `OobItemRow`'s body (around line 342–346):
+
 ```tsx
-            <SecretaryItemActions
-              item={item}
-              sessionDate={sessionDate}
-              onSuccess={onMutationSuccess}
-            />
+<SecretaryItemActions item={item} sessionDate={sessionDate} onSuccess={onMutationSuccess} />
 ```
+
 Remove the `sessionDate={sessionDate}` line.
 
 Location D — `SecretaryItemActions`'s own signature (around line 396–404):
+
 ```typescript
 function SecretaryItemActions({
   item,
@@ -960,7 +1040,9 @@ function SecretaryItemActions({
   onSuccess: () => void;
 }) {
 ```
+
 Remove `sessionDate,` from the destructuring AND remove `sessionDate: Date;` from the inline type. Result:
+
 ```typescript
 function SecretaryItemActions({
   item,
@@ -972,18 +1054,22 @@ function SecretaryItemActions({
 ```
 
 Location E (the top-level pass-in that supplies `sessionDate` to `OobItemRow` in the first place, around line 211–219):
+
 ```tsx
-              {data.items.map((item, idx) => (
-                <OobItemRow
-                  key={item.documentId}
-                  item={item}
-                  agendaNumber={idx + 1}
-                  isSecretary={isSecretary}
-                  sessionDate={new Date(data.sessionDate)}
-                  onMutationSuccess={() => void refetch()}
-                />
-              ))}
+{
+  data.items.map((item, idx) => (
+    <OobItemRow
+      key={item.documentId}
+      item={item}
+      agendaNumber={idx + 1}
+      isSecretary={isSecretary}
+      sessionDate={new Date(data.sessionDate)}
+      onMutationSuccess={() => void refetch()}
+    />
+  ));
+}
 ```
+
 Remove the `sessionDate={new Date(data.sessionDate)}` line.
 
 **All five locations (A through E) must be changed together** — removing `sessionDate` from only the lint-reported site (`SecretaryItemActions`'s signature, Location D) would just relocate the unused-variable error one level up to `OobItemRow`'s own destructuring (Location B), producing a new, different lint error instead of resolving anything.
@@ -1003,29 +1089,27 @@ Remove the `sessionDate={new Date(data.sessionDate)}` line.
 **Root cause, confirmed in `apps/server/src/modules/workflow/workflow.router.ts`**: the `listMyAssignedSteps` procedure (starts at line 516 in the current file — re-verify this line number before editing, since this is a 2551-line file and other work may have shifted it) has no `.output()` Zod schema at all. Inside its `.map()` callback (currently around lines 607–629), the specific leak is:
 
 ```typescript
-        const items = paginated.map((item) => {
-          const validStepTypes = new Set([
-            'action',
-            'approval',
-            'multi_referral',
-            'decision',
-            'notification',
-            'termination',
-          ]);
-          const stepType = validStepTypes.has(item.stepType)
-            ? (item.stepType as any)
-            : 'action';
+const items = paginated.map((item) => {
+  const validStepTypes = new Set([
+    'action',
+    'approval',
+    'multi_referral',
+    'decision',
+    'notification',
+    'termination',
+  ]);
+  const stepType = validStepTypes.has(item.stepType) ? (item.stepType as any) : 'action';
 
-          return {
-            stepInstanceId: item.stepInstanceId,
-            instanceId: item.instanceId,
-            documentId: item.documentId,
-            documentTitle: item.documentTitle,
-            stepType,
-            assignedAt: item.createdAt,
-            dueAt: item.slaDeadline,
-          };
-        });
+  return {
+    stepInstanceId: item.stepInstanceId,
+    instanceId: item.instanceId,
+    documentId: item.documentId,
+    documentTitle: item.documentTitle,
+    stepType,
+    assignedAt: item.createdAt,
+    dueAt: item.slaDeadline,
+  };
+});
 ```
 
 `Set<string>.has()` does not narrow the checked value's type the way `Array.includes()` sometimes can — so the ternary's true-branch needed an `as any` to compile.
@@ -1033,33 +1117,24 @@ Remove the `sessionDate={new Date(data.sessionDate)}` line.
 **Fix**: type the `Set` itself as a literal union, so `.has()`'s narrowing is unnecessary. Replace:
 
 ```typescript
-          const validStepTypes = new Set([
-            'action',
-            'approval',
-            'multi_referral',
-            'decision',
-            'notification',
-            'termination',
-          ]);
-          const stepType = validStepTypes.has(item.stepType)
-            ? (item.stepType as any)
-            : 'action';
+const validStepTypes = new Set([
+  'action',
+  'approval',
+  'multi_referral',
+  'decision',
+  'notification',
+  'termination',
+]);
+const stepType = validStepTypes.has(item.stepType) ? (item.stepType as any) : 'action';
 ```
 
 with:
 
 ```typescript
-          const validStepTypes = new Set<'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination'>([
-            'action',
-            'approval',
-            'multi_referral',
-            'decision',
-            'notification',
-            'termination',
-          ]);
-          const stepType = validStepTypes.has(item.stepType)
-            ? item.stepType
-            : 'action';
+const validStepTypes = new Set<
+  'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination'
+>(['action', 'approval', 'multi_referral', 'decision', 'notification', 'termination']);
+const stepType = validStepTypes.has(item.stepType) ? item.stepType : 'action';
 ```
 
 **Note on the resulting type — do not "improve" this further**: this removes the `any`, but the resulting type of `stepType` is `string`, not the tight 6-value literal union — `Set.has()`'s return type is plain `boolean` and does not narrow the checked argument afterward, regardless of how the `Set` itself is typed. This is fine and does not need further work: `StepTypeBadge` (in `columns.tsx`, the frontend consumer) already types its own `stepType` prop as plain `{ stepType: string }`, so no mismatch is introduced. Do not attempt to force a tighter literal-union return type here — it is unnecessary and not what this task is asking for.
@@ -1082,8 +1157,18 @@ Three independent findings in this file. Fix all three.
 
 ```tsx
 import {
-  Card, CardHeader, CardTitle, CardContent, Button, Textarea,
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Textarea,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Input,
 } from '@batac/ui';
 ```
 
@@ -1094,7 +1179,9 @@ import {
 ```tsx
           <Select value={outcome} onValueChange={(val: any) => setOutcome(val)}>
 ```
+
 and, further down:
+
 ```tsx
           <Select value={resolutionPath} onValueChange={(val: any) => setResolutionPath(val)}>
 ```
@@ -1110,19 +1197,25 @@ and, further down:
 **Do not simply change `(val: any)` to `(val: string)`** — this will produce a NEW type error at the `setOutcome(val)`/`setResolutionPath(val)` call, because `string` is wider than the state setters' expected literal-union types. The correct fix is to type each callback parameter with the exact same literal union already declared at the corresponding `useState` call.
 
 Replace:
+
 ```tsx
           <Select value={outcome} onValueChange={(val: any) => setOutcome(val)}>
 ```
+
 with:
+
 ```tsx
           <Select value={outcome} onValueChange={(val: 'VALID' | 'VALID_IN_PART' | 'OPERATIVE_IN_ITS_ENTIRETY' | 'RETURNED' | '') => setOutcome(val)}>
 ```
 
 Replace:
+
 ```tsx
           <Select value={resolutionPath} onValueChange={(val: any) => setResolutionPath(val)}>
 ```
+
 with:
+
 ```tsx
           <Select value={resolutionPath} onValueChange={(val: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly') => setResolutionPath(val)}>
 ```
@@ -1146,62 +1239,61 @@ This compiles cleanly because `Select` (re-exported from `@radix-ui/react-select
 **Fix — remove the dead print-preview state and branch entirely.** This is a straightforward deletion; there is no design decision left to make, since the spec already places this feature elsewhere and it isn't built there yet either.
 
 1. Delete these two `useState` declarations (lines 44–45):
+
 ```typescript
-  const [showPrintView, setShowPrintView] = useState(false);
-  const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
+const [showPrintView, setShowPrintView] = useState(false);
+const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
 ```
 
 2. Delete the `printableFormData` query (lines 50–53):
+
 ```typescript
-  const printableFormData = trpc.documents.generatePrintableForm.useQuery(
-    { requestId: createdRequestId! },
-    { enabled: !!createdRequestId && showPrintView }
-  );
+const printableFormData = trpc.documents.generatePrintableForm.useQuery(
+  { requestId: createdRequestId! },
+  { enabled: !!createdRequestId && showPrintView },
+);
 ```
 
 3. Replace the conditional render (currently lines 91–253):
+
 ```tsx
-  return (
-    <div className="container max-w-2xl mx-auto py-8">
-      {showPrintView && createdRequestId ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between no-print">
-            <h2 className="text-lg font-semibold">Print Preview</h2>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowPrintView(false)}
-              >
-                Back to Form
-              </Button>
-              <Button onClick={() => window.print()}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print
-              </Button>
-            </div>
+return (
+  <div className="container mx-auto max-w-2xl py-8">
+    {showPrintView && createdRequestId ? (
+      <div className="space-y-4">
+        <div className="no-print flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Print Preview</h2>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowPrintView(false)}>
+              Back to Form
+            </Button>
+            <Button onClick={() => window.print()}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </Button>
           </div>
-          {printableFormData.data && (
-            <PrintableFormView data={printableFormData.data} />
-          )}
         </div>
-      ) : (
-        <Card>
-          {/* ... the actual form, unchanged ... */}
-        </Card>
-      )}
-    </div>
-  );
+        {printableFormData.data && <PrintableFormView data={printableFormData.data} />}
+      </div>
+    ) : (
+      <Card>{/* ... the actual form, unchanged ... */}</Card>
+    )}
+  </div>
+);
 ```
+
 with just the `Card` branch's content, unconditionally rendered — remove the ternary and the entire print-preview true-branch:
+
 ```tsx
-  return (
-    <div className="container max-w-2xl mx-auto py-8">
-      <Card>
-        {/* ... the actual form, exactly as it currently exists in the false-branch, completely unchanged ... */}
-      </Card>
-    </div>
-  );
+return (
+  <div className="container mx-auto max-w-2xl py-8">
+    <Card>
+      {/* ... the actual form, exactly as it currently exists in the false-branch, completely unchanged ... */}
+    </Card>
+  </div>
+);
 ```
+
 Do not change anything inside the `Card` block itself — its contents (the form, all fields, the field array, the footer buttons) are unaffected by this task and must be preserved exactly as they currently are. This step only removes the outer ternary and its now-dead true-branch, keeping the `Card` and un-indenting it one level.
 
 4. Two imports become unused as a direct result of steps 1–3 and must also be removed, or this task will trade one lint error for two new ones:
@@ -1221,32 +1313,35 @@ Do not change anything inside the `Card` block itself — its contents (the form
 **Context**: this file's empty-state "New Document" button was recently fixed to navigate to `/documents/new` instead of doing nothing (it previously only ran `console.log`). The fix works correctly, but used `useNavigate()` inside the `onClick` handler, introducing a second, different navigation mechanism into a file that already uses `<Link to="/documents/new">` elsewhere for the exact same destination (the header "New Document" button, a few lines below). This task brings the two into alignment on the existing pattern.
 
 Current code (around lines 1-4 and 66-81):
+
 ```tsx
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import { FileText, Loader2, Plus } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 ```
+
 ```tsx
 export function DocumentListPage() {
   const navigate = useNavigate();
   const { filters } = useDocumentFilters();
 ```
+
 ```tsx
-        <EmptyState
-          icon={FileText}
-          heading="No documents available"
-          body="There are no documents to display at this time. This could be due to your current access permissions or active filters."
-          action={{
-            label: "New Document",
-            onClick: () => {
-              navigate("/documents/new");
-            }
-          }}
-        />
+<EmptyState
+  icon={FileText}
+  heading="No documents available"
+  body="There are no documents to display at this time. This could be due to your current access permissions or active filters."
+  action={{
+    label: 'New Document',
+    onClick: () => {
+      navigate('/documents/new');
+    },
+  }}
+/>
 ```
 
-**Fix**: `EmptyState`'s `action` prop takes an `onClick` handler, not a `to`/`href`, so this can't be swapped for a bare `<Link>` directly — the fix is to keep the `onClick` shape but call `navigate()` from inside it only as a last resort if `EmptyState`'s API genuinely offers no link-based alternative. Before making any change, check `EmptyState`'s prop type (it's exported from `@batac/ui` — find its definition, likely under `packages/ui/src`) for whether `action` supports a `to`/`href`-style prop in addition to or instead of `onClick`. 
+**Fix**: `EmptyState`'s `action` prop takes an `onClick` handler, not a `to`/`href`, so this can't be swapped for a bare `<Link>` directly — the fix is to keep the `onClick` shape but call `navigate()` from inside it only as a last resort if `EmptyState`'s API genuinely offers no link-based alternative. Before making any change, check `EmptyState`'s prop type (it's exported from `@batac/ui` — find its definition, likely under `packages/ui/src`) for whether `action` supports a `to`/`href`-style prop in addition to or instead of `onClick`.
 
 - If `EmptyState`'s `action` prop supports a link-style target (e.g. `to: string`) as an alternative to `onClick`, use that instead: replace `onClick: () => { navigate("/documents/new"); }` with the equivalent link-target prop pointing at `/documents/new`, matching whatever prop name `EmptyState` actually defines.
 - If `EmptyState`'s `action` prop only supports `onClick` and offers no link-based alternative, then `useNavigate()` is in fact the only mechanism available for this specific component, and no code change is needed — stop and report this back rather than guessing, since it would mean the original instruction to "match the existing pattern" wasn't achievable given this component's actual API, not that the fix was done wrong.
@@ -1269,6 +1364,7 @@ If you do make a change and `navigate`/`useNavigate` becomes unused as a result,
 2. **[Interpretation, not confirmed]** The override is only meaningful when the regular Vice Mayor/Presiding Officer is marked absent in the same `recordAttendance` call — mirroring the existing automatic logic's own conditional structure (the automatic lookup only runs when the VM is absent; when present, `presidedByEmployeeId` is simply the VM's own ID, unconditionally). This task does not add override support for overriding who presided when the regular officer was actually present, since no scenario in this system's existing logic models that case.
 
 **Context, confirmed directly against the current upload (`apps/server/src/modules/workflow/session.router.ts`):**
+
 - `recordAttendance`'s current input schema (lines 316–332): `{ sessionDate: z.coerce.date(), absences: z.array(z.object({ councilorEmployeeId: z.string().uuid(), reason: z.enum(['official_business', 'sick_leave', 'vacation_leave', 'absent_unqualified']) })) }`. No substitute-officer field exists.
 - The automatic resolution logic (lines 344–413, inside the `ctx.db.transaction` block): looks up the VM/Presiding-Officer position via `positions`/`assignments` (matching on title/code ILIKE patterns, `isPrimary: true`), checks whether that employee is in the submitted `absences` array, and if so queries `delegationGrants` (filtered on `positionId`, `isActive: true`, `startDate`/`endDate` bracketing the session date, `revokedAt IS NULL`) for an active delegation, falling back to the VM's own employee ID if none is found. If the VM position lookup itself returns nothing, it falls further back to the logged-in user's own employee record, then the first employee row, then `ctx.auth.userId` as a last resort (lines 393–413) — this fallback chain is unrelated to the override and should not be touched.
 - `getAttendanceRecord`'s current output (lines 67–146): `{ sessionDate: Date, presentCouncilors: string[], absences: Array<{ councilorEmployeeId, councilorDisplayName, reason }>, quorumMet: boolean }`. No `presidedByEmployeeId`/`presidedByDisplayName` field exists. The early-return branch for a session that doesn't exist yet (lines 86–93) returns `presentCouncilors: []`, `absences: []`, `quorumMet: false` — any new fields need a corresponding `null` value added to this same branch.
@@ -1276,9 +1372,11 @@ If you do make a change and `navigate`/`useNavigate` becomes unused as a result,
 - The existing test at `apps/server/src/modules/workflow/session.router.test.ts`, lines 128–153 (`'records attendance when VM is absent and delegation is active'`), calls `recordAttendance` without any override field and asserts on `result.success`, `result.presentCount`, `result.quorumMet` — it does not assert on `presidedByEmployeeId` directly. Because this task's schema change is additive/optional (see below), this existing test should continue to pass unmodified when the new field is omitted from the call. Confirm this remains true after your change; do not modify this test's expectations unless it actually breaks, in which case treat that as a signal to re-examine your implementation rather than adjusting the test to match.
 
 **Deliverables:**
+
 - `apps/server/src/modules/workflow/session.router.ts` — modify `recordAttendance`'s input schema and mutation body; modify `getAttendanceRecord`'s output shape and both return branches.
 
 **Scope boundary — do NOT touch:**
+
 - The VM/Presiding-Officer position lookup logic itself (lines 346–362) — unchanged.
 - The `delegationGrants` query (lines 369–381) — unchanged; it still runs as the default/fallback path when no override is supplied.
 - The final fallback chain (lines 393–413, logged-in employee → first employee → `ctx.auth.userId`) — unchanged.
@@ -1286,12 +1384,13 @@ If you do make a change and `navigate`/`useNavigate` becomes unused as a result,
 - `enterCommitteeHearingDate`, `getOrderOfBusiness`, `getAttendanceStatistics` — unrelated procedures in the same file; do not modify.
 
 **Acceptance Criteria:**
+
 - [ ] `pnpm typecheck` passes.
 - [ ] `recordAttendance`'s input schema gains one new optional field: `presidedByEmployeeIdOverride: z.string().uuid().nullish()`. This field is optional and nullable/nullish — omitting it entirely must produce identical behavior to the current implementation (fully backward compatible with all existing callers, including the existing test at lines 128–153).
 - [ ] When `presidedByEmployeeIdOverride` is provided (non-null) AND the VM/Presiding Officer is among the submitted `absences` (per the existing `isVmAbsent` check at line 366): use the override value directly as `presidedByEmployeeId`, skipping the `delegationGrants` query entirely for that call. Do not run the `delegationGrants` query at all when a valid override is supplied — it would be wasted work and could theoretically produce a value that's then discarded, which is confusing to reason about even if functionally harmless.
 - [ ] When `presidedByEmployeeIdOverride` is provided but the VM/Presiding Officer is NOT among the submitted `absences` (i.e., the regular officer is present): ignore the override value entirely and proceed with the existing unconditional "VM's own ID" assignment at line 389. This is a deliberate rule per interpretation (2) above — the override only has an effect when it's covering an actual absence. Do not throw an error in this case (a stray/leftover override value from a previous form state being present without the VM being absent should be silently ignored, not treated as a client error) — but do add a code comment explaining why the value is ignored here, so a future reader isn't confused about why an input field appears to do nothing in this branch.
 - [ ] When `presidedByEmployeeIdOverride` is provided and non-null, validate that it corresponds to an existing, non-deleted employee in the same city before using it: query `employees` for `eq(employees.id, input.presidedByEmployeeIdOverride)`, `eq(employees.cityId, ctx.auth.cityId)`, `isNull(employees.deletedAt)`. If no matching employee is found, throw `TRPCError({ code: 'BAD_REQUEST', message: 'The selected substitute presiding officer could not be found.' })` rather than silently proceeding with an invalid ID that would produce a dangling reference in `spSessions.presidedByEmployeeId`.
-- [ ] This task does NOT implement any restriction on *which* employees are eligible to be selected as an override (e.g., "must be a current SP member," "must be the subject of an active delegation grant") beyond the existence/not-deleted/same-city check above. Whether such a restriction is needed is an open product question — see "Open question requiring a decision" below. Do not add such a restriction speculatively.
+- [ ] This task does NOT implement any restriction on _which_ employees are eligible to be selected as an override (e.g., "must be a current SP member," "must be the subject of an active delegation grant") beyond the existence/not-deleted/same-city check above. Whether such a restriction is needed is an open product question — see "Open question requiring a decision" below. Do not add such a restriction speculatively.
 - [ ] `getAttendanceRecord`'s output gains two new fields: `presidedByEmployeeId: string | null` and `presidedByDisplayName: string | null`.
 - [ ] In the early-return branch (currently lines 86–93, for a session that doesn't exist yet), set both new fields to `null`, consistent with the existing `presentCouncilors: []`/`absences: []` pattern in that same branch.
 - [ ] In the main return path: the `session` object already selected via the existing bare `.select()` at line 74 already includes `presidedByEmployeeId` as a raw column (it's a `select()` with no column list, so every column on `spSessions` is already present on the `session` object — this does not require a new query or a schema change, only using a value that's already being fetched). Resolve this to a display name via a join against `employees`, following the exact same pattern already used for the `absences` array a few lines below (lines 100–101, 104: `innerJoin(employees, eq(sessionAttendances.employeeId, employees.id))`, then `firstName`/`lastName` concatenation as done at line 134). If `session.presidedByEmployeeId` is `null` (this can happen for a session that exists but was never assigned a presiding officer through either `recordAttendance` or `scheduleDocumentForFirstReading`), both new output fields should be `null` rather than attempting a join against a null ID.
@@ -1301,6 +1400,7 @@ If you do make a change and `navigate`/`useNavigate` becomes unused as a result,
 Should the override be restricted to a specific eligible set of employees (e.g., current SP members only, or employees with an active `delegationGrants` row for the VM/Presiding-Officer position specifically), or should any valid employee in the city be selectable? The existing/not-deleted/same-city check above is the minimum viable validation to prevent a broken reference, but doesn't answer whether the frontend's picker should show "any employee" or a scoped subset. This is a genuine product-scope decision (who is allowed to preside over a legislative session), not a technical implementation detail — it affects both this backend task (whether an additional eligibility check belongs here) and the frontend task (what the picker's candidate list should be sourced from). Recommend logging this as its own findings-log entry if it can't be resolved in-conversation before this task is picked up, tagged to both this task and the frontend task below.
 
 **AI Prompt:**
+
 > In `apps/server/src/modules/workflow/session.router.ts`, add an optional field `presidedByEmployeeIdOverride: z.string().uuid().nullish()` to `recordAttendance`'s existing input schema (currently at lines 316–332 — re-verify these line numbers against the file as it exists when you start, since line numbers shift). Inside the mutation body's existing `ctx.db.transaction` block, after the existing VM-position lookup (lines 346–362) confirms `vmPos[0]` exists and after the existing `isVmAbsent` check (line 366): if `input.presidedByEmployeeIdOverride` is provided and `isVmAbsent` is true, validate it against the `employees` table (must exist, `cityId` matching `ctx.auth.cityId`, `deletedAt IS NULL`) — throw `TRPCError({ code: 'BAD_REQUEST', message: 'The selected substitute presiding officer could not be found.' })` if invalid — and if valid, set `presidedByEmployeeId` to that value directly, skipping the existing `delegationGrants` query (lines 369–381) entirely for this call. If `input.presidedByEmployeeIdOverride` is provided but `isVmAbsent` is false, ignore the override value and fall through to the existing unconditional `presidedByEmployeeId = vmEmployeeId` assignment at line 389 (add a code comment explaining the override is intentionally ignored in this branch). Do not modify the fallback chain at lines 393–413, the `delegationGrants` query itself, or the VM-position lookup logic — those stay exactly as they are for every path except "valid override supplied while VM absent."
 >
 > In the same file's `getAttendanceRecord` procedure, add `presidedByEmployeeId: string | null` and `presidedByDisplayName: string | null` to the output. In the early-return branch (currently lines 86–93), set both to `null`. In the main return path, the `session` object (from the existing bare `.select()` at line 74) already has `presidedByEmployeeId` as a raw column — no new query needed for the ID itself. Resolve it to a display name via a join against `employees`, reusing the exact join pattern already used for the `absences` array (lines 100–101, 104, and the `firstName`/`lastName` concatenation at line 134). If `session.presidedByEmployeeId` is `null`, both new fields should be `null` — do not attempt to join against a null ID.
@@ -1320,6 +1420,7 @@ Should the override be restricted to a specific eligible set of employees (e.g.,
 **Tier 0 dependency — UPDATED:** TASK-PRE-04's decision has been recorded (see `docs/development-findings-log.md`, entry [LOG-0082], status `proposed` as of this writing): the decision was to implement a **manual override** for presiding-officer selection, not the read-only-display path this task's acceptance criteria previously assumed. The corresponding backend work is specified in a new task, **TASK-PRE-04c**, which has not been implemented yet as of this writing. TASK-PRE-04c must land before the substitute-officer sub-item below can be built — this is now a hard prerequisite for that specific sub-item, not an optional enhancement. Everything else on this page has no dependency on TASK-PRE-04c and can proceed regardless.
 
 **Deliverables:**
+
 - `apps/web/src/pages/workflow/SessionAttendanceOverviewPage.tsx`
 - `apps/web/src/pages/workflow/SessionAttendanceDetailPage.tsx`
 - Route registrations: `/sessions`, `/sessions/:sessionDate`.
@@ -1327,16 +1428,18 @@ Should the override be restricted to a specific eligible set of employees (e.g.,
 **Confirmed current state as of this writing:** neither page file exists yet; neither route is registered in `apps/web/src/main.tsx`. This task has not been started at any layer.
 
 **Acceptance Criteria:**
+
 - [ ] `pnpm typecheck` passes.
 - [ ] Overview calls `trpc.session.getAttendanceStatistics.useQuery({ from?, to? })`. Output: `{ series: Array<{ sessionDate: Date, presentCount: number, absentCount: number }>, printableSummaryUrl: null }`. **`printableSummaryUrl` is hardcoded `null`** in the current implementation — do not build a "print summary" link/button that expects this to resolve to a real URL; either omit that control entirely or visibly disable it with a "not yet available" state.
 - [ ] Detail page keys on `sessionDate` from the route param, calls `trpc.session.getAttendanceRecord.useQuery({ sessionDate })`. Current confirmed output (before TASK-PRE-04c lands): `{ sessionDate: Date, presentCouncilors: string[] (employee IDs, not names), absences: Array<{ councilorEmployeeId, councilorDisplayName, reason: string (human-readable, e.g. "Official Business", "Sick Leave", "Vacation Leave", "Absent (Unqualified)") }>, quorumMet: boolean }`. Once TASK-PRE-04c lands, this output additionally includes `presidedByEmployeeId: string | null` and `presidedByDisplayName: string | null` — see the substitute-officer display sub-item below for how to use these.
 - [ ] **`presentCouncilors` display-name limitation, UPDATED:** `presentCouncilors` is still bare employee-ID strings with no display name attached in this output, with no change to this specific limitation. **An employee-list-read procedure now exists** (`organization.listEmployees` and `organization.listEmployeesForSysAdmin`, confirmed present in `apps/server/src/modules/organization/organization.router.ts`), but both are gated to `plat_admin`/`isItAdmin` respectively — **neither is callable by any of the roles that use this page** (`sp_secretary, sp_member, sp_presiding_officer, mayor, auditor`). This means the limitation described in the original version of this task is still real and unresolved for this specific page: either accept showing bare IDs for `presentCouncilors` as a known limitation, or use `organization.getOfficeHierarchy` (which is not role-restricted beyond being a `protectedProcedure`, per prior confirmed usage elsewhere in this task list) if it happens to expose employee names in a way that can be cross-referenced against these IDs — check its actual output shape before assuming this works, since that hasn't been independently re-verified in this task-writing session specifically for this purpose.
-- [ ] Recording attendance calls `trpc.session.recordAttendance.useMutation({ sessionDate, absences: [{ councilorEmployeeId, reason }] })` where `reason` is one of `'official_business' | 'sick_leave' | 'vacation_leave' | 'absent_unqualified'` (note: these are the *input* enum values, different strings than the *output* `absences[].reason` human-readable strings above — don't confuse the two when building the recording form vs. the display view). **Once TASK-PRE-04c lands,** this same mutation additionally accepts an optional `presidedByEmployeeIdOverride: string (uuid) | null | undefined` field — see the substitute-officer sub-item below.
+- [ ] Recording attendance calls `trpc.session.recordAttendance.useMutation({ sessionDate, absences: [{ councilorEmployeeId, reason }] })` where `reason` is one of `'official_business' | 'sick_leave' | 'vacation_leave' | 'absent_unqualified'` (note: these are the _input_ enum values, different strings than the _output_ `absences[].reason` human-readable strings above — don't confuse the two when building the recording form vs. the display view). **Once TASK-PRE-04c lands,** this same mutation additionally accepts an optional `presidedByEmployeeIdOverride: string (uuid) | null | undefined` field — see the substitute-officer sub-item below.
 - [ ] **Substitute-officer display and selection — REWRITTEN, was previously written for the wrong branch of TASK-PRE-04's decision:**
   - **If TASK-PRE-04c has not yet landed:** build everything else on this page. For the substitute-officer piece specifically, do not build any UI for it yet — omit it entirely or show a clearly-labeled "not yet available" placeholder, matching the same pattern used elsewhere on this page for `printableSummaryUrl`. Do not build a read-only display expecting `presidedByEmployeeId`/`presidedByDisplayName` to be present in `getAttendanceRecord`'s output, since they are not present in the current implementation — confirm this directly against the live `getAttendanceRecord` output before building, don't assume TASK-PRE-04c has landed just because this updated task text exists.
   - **Once TASK-PRE-04c has landed:** display `presidedByDisplayName` (falling back to showing `presidedByEmployeeId` if the display name is somehow null but the ID isn't) read-only, prominently, on the detail page. Additionally, build a manual-override selection control as part of the attendance-recording form (`sp_secretary` only): when the regular Vice Mayor/Presiding Officer is marked absent in the form, show a control to optionally select a substitute presiding officer, submitted as `presidedByEmployeeIdOverride` on the same `recordAttendance` call. This control should only be shown/enabled when the VM/Presiding Officer is actually marked absent in the current form state — per TASK-PRE-04c's own design, the backend ignores the override value if the regular officer isn't absent, so showing an always-visible control would be misleading about when it actually has an effect. **The specific list of candidate employees to show in this selection control is an open product question that TASK-PRE-04c explicitly does not resolve** (see that task's "Open question requiring a decision" section) — do not build a full "any employee in the system" picker without confirming this is the intended scope, since the backend doesn't restrict eligibility beyond existence/not-deleted/same-city, and building a scoped picker (e.g., "current SP members only") would require additional data-fetching decisions not yet specified anywhere. Flag this to the user rather than guessing at the candidate list's source if it hasn't been resolved by the time this sub-item is picked up.
 
 **AI Prompt:**
+
 > Build both pages as a standard overview→detail pair, same navigational shape as `/documents` → `/documents/:documentId`.
 >
 > `SessionAttendanceOverviewPage`: a simple chart or table of `getAttendanceStatistics`'s `series` (session date, present/absent counts) — the `SLATimer` or `StatCard` domain components may not be the right fit here (they're SLA/count-specific), so this may need custom presentation; check `packages/ui`'s available components before assuming one fits. Do not build a working "print summary" control — `printableSummaryUrl` is always `null` server-side right now.
@@ -1358,14 +1461,17 @@ Should the override be restricted to a specific eligible set of employees (e.g.,
 TASK-WF-023's spec (`docs/pre-development/A-project-planning/a1-tasks/wf.md`, lines 2218–2220) requires: `presentCount = count of attendance entries where isPresent = true`, and `quorumAchieved computed server-side: presentCount >= ceil(totalActiveSpMembers / 2) + 1 ... confirm exact quorum formula against Organization module's SP membership roster rather than hardcoding the count of 12, since membership can change`.
 
 The live `recordAttendance` (`apps/server/src/modules/workflow/session.router.ts`, lines 339–341) currently computes:
+
 ```typescript
 const absentCount = absences.length;
 const presentCount = Math.max(0, 12 - absentCount);
 const quorumMet = presentCount >= 7;
 ```
+
 Both the `12` (assumed total roster size, used to derive `presentCount`) and the `7` (quorum threshold) are hardcoded constants, independently of each other and independently of any roster lookup.
 
-**The existing SP-roster query already in this same procedure is directly reusable for this fix.** Confirmed at lines 462–474, currently positioned *after* the quorum calculation (it currently exists only to build the list of employee IDs for attendance-row upserting, not for a headcount):
+**The existing SP-roster query already in this same procedure is directly reusable for this fix.** Confirmed at lines 462–474, currently positioned _after_ the quorum calculation (it currently exists only to build the list of employee IDs for attendance-row upserting, not for a headcount):
+
 ```typescript
 const spMembers = await tx
   .select({ id: employees.id })
@@ -1377,8 +1483,8 @@ const spMembers = await tx
       eq(offices.code, 'SP'),
       eq(offices.cityId, ctx.auth.cityId),
       isNull(employees.deletedAt),
-      isNull(assignments.deletedAt)
-    )
+      isNull(assignments.deletedAt),
+    ),
   );
 
 let councilorIds = spMembers.map((m) => m.id);
@@ -1390,36 +1496,41 @@ if (councilorIds.length === 0) {
       and(
         ilike(employees.employeeNumber, 'SP-%'),
         eq(employees.cityId, ctx.auth.cityId),
-        isNull(employees.deletedAt)
-      )
+        isNull(employees.deletedAt),
+      ),
     );
   councilorIds = fallbackMembers.map((m) => m.id);
 }
 ```
+
 `councilorIds.length` (after the fallback resolves) is exactly `totalActiveSpMembers` as the spec names it.
 
 **Deliverables:**
+
 - `apps/server/src/modules/workflow/session.router.ts` — modify `recordAttendance`'s body only.
 
 **Scope boundary — do NOT touch:**
+
 - `getAttendanceRecord`, `getOrderOfBusiness`, `scheduleDocumentForFirstReading`, `enterCommitteeHearingDate` — unrelated procedures in the same file, out of scope.
-- **`getAttendanceStatistics` (lines 148–191) is explicitly OUT OF SCOPE for this task, even though it has its own independent hardcoded-12 (`absentCount = Math.max(0, 12 - presentCount)`, line 178).** This is deliberate, not an oversight: `getAttendanceStatistics`'s `absentCount` is derived from `spSessions.presentCount` — a value already stored from whenever a past session's attendance was originally recorded. `spSessions` (confirmed via its Drizzle definition, `packages/database/schema/workflow.schema.ts` lines 539–569) has no column storing roster size, `absentCount`, or quorum threshold as they existed at the time of that session — only `presentCount` and `quorumAchieved` are persisted. This means fixing this task's `recordAttendance` calculation does not retroactively fix `getAttendanceStatistics`'s ability to correctly derive `absentCount` for historical sessions, because the roster size at the time of each historical session isn't recoverable from stored data. There are two genuinely different ways to fix `getAttendanceStatistics` (store `absentCount` as a new column at write-time for full historical accuracy, vs. compute it dynamically against *current* roster size and accept it will be inaccurate for any session recorded under a different roster size) — this is a real trade-off, not a mechanical fix, and is being left for a separate, explicitly-scoped follow-up task once that trade-off is decided. Do not touch `getAttendanceStatistics` in this task, even though its bug is adjacent to the one being fixed here.
+- **`getAttendanceStatistics` (lines 148–191) is explicitly OUT OF SCOPE for this task, even though it has its own independent hardcoded-12 (`absentCount = Math.max(0, 12 - presentCount)`, line 178).** This is deliberate, not an oversight: `getAttendanceStatistics`'s `absentCount` is derived from `spSessions.presentCount` — a value already stored from whenever a past session's attendance was originally recorded. `spSessions` (confirmed via its Drizzle definition, `packages/database/schema/workflow.schema.ts` lines 539–569) has no column storing roster size, `absentCount`, or quorum threshold as they existed at the time of that session — only `presentCount` and `quorumAchieved` are persisted. This means fixing this task's `recordAttendance` calculation does not retroactively fix `getAttendanceStatistics`'s ability to correctly derive `absentCount` for historical sessions, because the roster size at the time of each historical session isn't recoverable from stored data. There are two genuinely different ways to fix `getAttendanceStatistics` (store `absentCount` as a new column at write-time for full historical accuracy, vs. compute it dynamically against _current_ roster size and accept it will be inaccurate for any session recorded under a different roster size) — this is a real trade-off, not a mechanical fix, and is being left for a separate, explicitly-scoped follow-up task once that trade-off is decided. Do not touch `getAttendanceStatistics` in this task, even though its bug is adjacent to the one being fixed here.
 - The VM/Presiding-Officer lookup and `delegationGrants` logic (lines 344–413) — unrelated to the quorum fix, do not modify.
-- The session upsert logic (lines 415–460) — unmodified in structure; only the *values* being passed into it (`presentCount`, `quorumAchieved`) change as a consequence of this fix, not the upsert logic itself.
+- The session upsert logic (lines 415–460) — unmodified in structure; only the _values_ being passed into it (`presentCount`, `quorumAchieved`) change as a consequence of this fix, not the upsert logic itself.
 
 **Acceptance Criteria:**
+
 - [ ] `pnpm typecheck` passes.
-- [ ] The existing `spMembers`/fallback-query block (currently lines 462–489) is moved to execute *before* the quorum calculation, so its result is available when `presentCount`/`quorumMet` are computed. Do not duplicate the query — compute the roster-size list once and use its result both for the quorum calculation and for the existing attendance-row-target-list purpose (`allTargetIds`, currently line 492) it already serves.
+- [ ] The existing `spMembers`/fallback-query block (currently lines 462–489) is moved to execute _before_ the quorum calculation, so its result is available when `presentCount`/`quorumMet` are computed. Do not duplicate the query — compute the roster-size list once and use its result both for the quorum calculation and for the existing attendance-row-target-list purpose (`allTargetIds`, currently line 492) it already serves.
 - [ ] `presentCount` is computed as `Math.max(0, totalActiveSpMembers - absentCount)`, where `totalActiveSpMembers` is `councilorIds.length` from the (now-relocated) roster query — replacing the hardcoded `12`.
 - [ ] `quorumMet` is computed as `presentCount >= Math.ceil(totalActiveSpMembers / 2) + 1` — replacing the hardcoded `7`. Use `Math.ceil`, matching this file's existing style of using plain `Math.*` calls without a separate utility import (consistent with the existing `Math.max` usage at the current line 340).
 - [ ] If `totalActiveSpMembers` resolves to `0` (both the primary `offices.code === 'SP'` query and the `employeeNumber ILIKE 'SP-%'` fallback return nothing) — an edge case the current hardcoded-12 logic can't hit but a roster-driven calculation can — do not let this produce a nonsensical result (e.g., `Math.ceil(0/2) + 1 = 1`, meaning `quorumMet` would require at least 1 present out of a 0-member body, which is a paradox, not a real quorum). Add an explicit early check: if `totalActiveSpMembers === 0`, throw `TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'No active SP membership roster could be resolved; cannot compute quorum.' })` rather than silently proceeding with a formula that assumes a nonzero denominator context. This is a defensive check for a data-integrity problem (no active SP members exist in this city), not a scenario the spec anticipates or resolves — flag it as such in a code comment rather than presenting it as spec-mandated behavior.
-- [ ] Confirm this change does not alter the `absences.length`-derived `absentCount` calculation itself (line 339) — that stays as `absences.length`, unchanged; only what it's subtracted *from* (`totalActiveSpMembers` instead of `12`) and the quorum comparison threshold change.
+- [ ] Confirm this change does not alter the `absences.length`-derived `absentCount` calculation itself (line 339) — that stays as `absences.length`, unchanged; only what it's subtracted _from_ (`totalActiveSpMembers` instead of `12`) and the quorum comparison threshold change.
 - [ ] Existing tests in `apps/server/src/modules/workflow/session.router.test.ts` must still pass, updated as needed for the new roster-query-relocation and mock-response-sequence changes this introduces (moving the `spMembers` query earlier in execution order changes the sequence of mocked DB calls in tests that use `mockDb.mockResponse(...)` in call order — re-verify and reorder each existing test's mock sequence against the new actual call order rather than assuming the old sequence still lines up). Specifically re-check the test at lines 97–127 (`'successfully records attendance with quorum met'`) and lines 128–153 (`'records attendance when VM is absent and delegation is active'`) — both currently assert `result.presentCount`/`result.quorumMet` against values that assumed a hardcoded 12-member/7-quorum body; update their mocked roster-size response and expected assertions to reflect an explicit, stated roster size in the test setup (do not leave the test relying on an implicit "12" that no longer means anything once the code no longer hardcodes it).
 - [ ] Add new test coverage for: a roster size other than 12 (e.g., a hypothetical 10-member body, confirming both `presentCount` and `quorumMet` compute correctly against `ceil(10/2)+1 = 6`, not against the old hardcoded values); and the `totalActiveSpMembers === 0` case throwing the new `INTERNAL_SERVER_ERROR`.
 
 **Explicitly flagged, not resolved by this task — surface to the user before starting any follow-up work on it:** `getAttendanceStatistics`'s independent hardcoded-12 and its `absentCount`-is-not-stored problem, described in the scope-boundary section above. This needs a decision (store `absentCount` at write-time via a schema addition, vs. compute dynamically against current roster size and accept historical inaccuracy) before a follow-up task can be written for it.
 
 **AI Prompt:**
+
 > In `apps/server/src/modules/workflow/session.router.ts`, inside the `recordAttendance` mutation (currently starting at line 316), relocate the existing `spMembers` query and its `employeeNumber ILIKE 'SP-%'` fallback block (currently at lines 462–489, inside the same `ctx.db.transaction` callback) to execute before the quorum calculation (currently at lines 339–341) — re-verify these line numbers against the file as it exists when you start, since line numbers will have shifted from the LOG-0091/TASK-PRE-04c work if that's already landed. Do not duplicate this query; its result must serve both the quorum calculation and its existing purpose of building `allTargetIds` for the attendance-row upsert loop further down. Compute `totalActiveSpMembers` as the resolved `councilorIds.length` (after the fallback logic runs, if the primary query returns empty).
 >
 > Replace the hardcoded `const presentCount = Math.max(0, 12 - absentCount);` with `const presentCount = Math.max(0, totalActiveSpMembers - absentCount);`. Replace the hardcoded `const quorumMet = presentCount >= 7;` with `const quorumMet = presentCount >= Math.ceil(totalActiveSpMembers / 2) + 1;`. Before either calculation, add a guard: if `totalActiveSpMembers === 0`, throw `TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'No active SP membership roster could be resolved; cannot compute quorum.' })` — this is a defensive check for a data-integrity edge case, not something the spec (TASK-WF-023, wf.md lines 2218–2220) directly addresses, so add a code comment noting it's a defensive addition rather than a spec-mandated rule.
@@ -1472,13 +1583,31 @@ wrapped in `{ items: [...], nextCursor: string | null }`. **This confirmed shape
   instanceId: string; // uuid
   documentId: string; // uuid
   definitionVersionId: string; // uuid
-  currentStepType: 'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination' | 'parallel_split' | 'parallel_join';
+  currentStepType: 'action' |
+    'approval' |
+    'multi_referral' |
+    'decision' |
+    'notification' |
+    'termination' |
+    'parallel_split' |
+    'parallel_join';
   currentStepInstanceId: string; // uuid
   currentAssigneeUserId: string | null;
   status: 'Active' | 'Completed' | 'Cancelled';
   slaDeadline: Date | null;
   lapseStatus: 'mayor_10_day_lapsed' | 'panlalawigan_30_day_deemed' | null;
-  panelHint: 'multi_referral' | 'vp_certification' | 'mayor_decision' | 'mayor_lapse_confirmation' | 'veto_override_recording' | 'docketing' | 'panlalawigan_outcome' | 'publication_date' | 'secretariat_decision' | 'generic_action' | 'generic_approval' | null;
+  panelHint: 'multi_referral' |
+    'vp_certification' |
+    'mayor_decision' |
+    'mayor_lapse_confirmation' |
+    'veto_override_recording' |
+    'docketing' |
+    'panlalawigan_outcome' |
+    'publication_date' |
+    'secretariat_decision' |
+    'generic_action' |
+    'generic_approval' |
+    null;
 }
 ```
 
@@ -1498,7 +1627,7 @@ Do not attempt to filter directly on `stepKey` against `listMyAssignedSteps`'s r
 
 ```ts
 const instanceQueries = trpc.useQueries((t) =>
-  assignedRows.map((row) => t.workflow.getInstance({ instanceId: row.instanceId }))
+  assignedRows.map((row) => t.workflow.getInstance({ instanceId: row.instanceId })),
 );
 ```
 
@@ -1515,7 +1644,7 @@ This is a resolved design decision, not something left to your judgment — **do
 - **`mayor_lapse_confirmation`** items must be rendered **read-only** — as plain, non-interactive rows (a `<div>`, not a `<Link>`), not clickable, with no navigation on click. **Do not change `apps/web/src/pages/workflow/WorkflowStepActionPage.tsx` and do not change anything about the Mayor's ability to invoke `logMayorLapseConfirmation`.** This is intentional, not an oversight to work around:
   - `WorkflowStepActionPage.tsx` (lines 84–87) gates the `mayor_lapse_confirmation` case on `hasRole(roles, 'sp_secretary')`, not `'mayor'` — confirmed directly in the current file.
   - The backend mutation, `logMayorLapseConfirmation` (`workflow.router.ts` line 1636), independently enforces the same restriction via `workflowPolicy.canLogSpSecretaryAction(ctx.auth)` (called at line 1647; policy function at `workflow.policy.ts` line 671), which throws `FORBIDDEN` for any caller without the `sp_secretary` role.
-  - This is backed by the source-of-truth permission matrix: `docs/pre-development/I-security-and-authorization/i2-role-permission-matrix.md`, Section 6 ("Workflow Execution"), line 189 — *"Log 10-day Mayor lapse (system-triggered; manual confirmation)"* — explicitly marks the Mayor column as ❌ and SP Secretary as ✅.
+  - This is backed by the source-of-truth permission matrix: `docs/pre-development/I-security-and-authorization/i2-role-permission-matrix.md`, Section 6 ("Workflow Execution"), line 189 — _"Log 10-day Mayor lapse (system-triggered; manual confirmation)"_ — explicitly marks the Mayor column as ❌ and SP Secretary as ✅.
   - In short: a Mayor is deliberately not permitted to confirm their own action lapse (a third party — the SP Secretary — attests that the Mayor's window elapsed). The frontend gate and backend policy are both correctly mirroring this rule. Do not "fix" this gate as part of this task.
 
 **Layout instruction for these two groups (a stated default for an otherwise-undocumented UI-composition question — reasonable to revisit later, but do not leave it ambiguous in your implementation):** render the widget with two clearly labeled sub-sections rather than one undifferentiated list — e.g., "Awaiting Your Decision" (the clickable `mayor_decision` rows) and "Lapse Notices" or similar (the read-only `mayor_lapse_confirmation` rows, perhaps with a small "Pending SP Secretary confirmation" caption per row). Do not mix both types into a single list where some rows are clickable and others silently aren't — that would be confusing without any visual or structural distinction. For the read-only rows' content, you have everything you need already fetched — no additional calls required: `documentTitle` comes from the original `listMyAssignedSteps` row, and `lapseStatus` / `slaDeadline` come from the same per-row `getInstance` call already being made for filtering. Use these to write a short, factual line (e.g., referencing the elapsed deadline) rather than inventing copy with no backing data.
@@ -1550,6 +1679,7 @@ export function MayorDashboardPage() {
 (`useAuth` from `@/lib/auth-context`, `hasRole` from `@/lib/auth-helpers` — both existing imports, matching every other dashboard/panel file in this directory.)
 
 In `apps/web/src/main.tsx`:
+
 - Add `import { MayorDashboardPage } from "./pages/workflow/MayorDashboardPage";` — the import block (lines 30–50) is alphabetically sorted by imported name; this line belongs immediately **before** the existing `import { MyAssignedStepsPage } from "./pages/workflow/MyAssignedStepsPage";` line (comparing "Mayor" vs "MyAssigned" — 'a' < 'y' at the second character).
 - Add a route object `{ path: "/mayor", element: <MayorDashboardPage /> }` to the `router` array. There is no strict ordering convention evident across the existing route array (e.g. `/secretary` at line 90 does not sit in any obvious alphabetical or hierarchical position relative to its neighbors) — place it near the other dashboard/`/workflow`-adjacent routes (e.g. near line 90–92, alongside `/secretary`) for readability; exact position in the array has no functional effect.
 
@@ -1628,6 +1758,7 @@ Not required for this task's acceptance criteria — skip it if it's inconvenien
 In `scheduleDocumentForFirstReading`, locate the `.insert(spSessions).values({...})` call inside the `else` branch of the session-existence check (currently reads `presentCount: 12, quorumAchieved: true` among its inserted values — re-verify the exact surrounding lines against the file as it exists when you start, since line numbers may have shifted). Change these two fields to `presentCount: null, quorumAchieved: null`. Do not add a roster-size lookup or any other computation to this branch — the correct behavior is to leave these fields genuinely unknown at creation time, not to compute a plausible-looking substitute. Do not touch the other branch of this same `if (session) {...} else {...}` check (the one that runs when a session row already exists for the date) — it already doesn't touch these two fields, and must continue not to.
 
 In the same file, in `getAttendanceStatistics`, locate the row-mapping logic that currently reads `const presentCount = r.presentCount ?? 0;` followed by `const absentCount = Math.max(0, 12 - presentCount);`. Replace this so that:
+
 - If `r.presentCount` is `null`, the mapped series entry should have `presentCount: null` and `absentCount: null` (do not coerce to `0` and do not compute an `absentCount` from a coerced value).
 - If `r.presentCount` is a real number, keep the existing computation exactly as-is: `absentCount = Math.max(0, 12 - presentCount)`. (Note: this hardcoded `12` in the non-null branch is a separate, already-logged issue — [LOG-0091] point 3 / [LOG-0092] discuss it; do not attempt to fix it as part of this task. This task's job is only the null-vs-coerced-to-zero distinction, not the roster-size formula for rows that do have a real `presentCount`.)
 
@@ -1636,6 +1767,7 @@ This changes the inferred return type of `getAttendanceStatistics`'s `series` en
 **File 2 — `apps/server/src/modules/workflow/session.router.test.ts`:**
 
 Add test coverage for:
+
 - `scheduleDocumentForFirstReading`'s session-creation branch inserting `presentCount: null, quorumAchieved: null` (verify via the mocked `insert().values()` call arguments, following the existing test's mocking pattern for this procedure — see the existing `'schedules on next Tuesday and rolls forward...'` test for the established mock sequence to extend).
 - `getAttendanceStatistics` returning `presentCount: null, absentCount: null` for a row where the mocked `presentCount` is `null`, alongside at least one row in the same test with a real numeric `presentCount` to confirm the existing non-null computation path still works unchanged (the existing `'returns computed stats series within date range'` test already covers two non-null rows — extend it with a third `null`-`presentCount` row, or add a new adjacent test, whichever fits more naturally into the existing test's structure without disrupting its current assertions on the first two rows).
 
@@ -1644,12 +1776,14 @@ Add test coverage for:
 The table currently renders `item.presentCount` and `item.absentCount` directly as numbers in two `TableCell`s (with `text-success-600`/`text-danger-600` styling respectively). Add a check: when `item.presentCount === null` (equivalently, `item.absentCount === null` — both will be `null` together per the backend change above, never independently), render a "Not Yet Recorded" label spanning both the Present and Absent cells instead of two separate numeric cells, styled with `text-muted-foreground` (matching the existing muted styling already used elsewhere on this same page for the empty-state row, e.g. "No session attendance records found."). Do not remove or alter the `Link to={`/sessions/${dateStr}`}` "View Details" action in the Actions column for these rows — a not-yet-recorded row should still link to its detail page, since a secretary may want to go record attendance for it from there. Do not add any other new UI elements (no icons, no tooltips, no additional badges) beyond the text label — keep this consistent with the existing plain-text muted-color pattern already on this page.
 
 **Scope boundary — do not touch:**
+
 - The presiding-officer resolution logic in `scheduleDocumentForFirstReading` (the `vmPos` lookup and its fallback chain, lines 769–809 as last confirmed) — unrelated to this task, leave exactly as-is.
 - `recordAttendance`, `getAttendanceRecord`, `getEligibleSubstituteOfficers`, `getOrderOfBusiness`, `enterCommitteeHearingDate` — none of them are in scope for this task.
 - The hardcoded `12` inside `getAttendanceStatistics`'s non-null branch (`Math.max(0, 12 - presentCount)`) — already logged separately as [LOG-0091]/[LOG-0092], explicitly out of scope for this task, which only addresses the null-coercion issue, not the roster-size formula.
 - `SessionAttendanceDetailPage.tsx` — not touched by this change; the "not yet recorded" state is specific to the overview/statistics page, since `getAttendanceRecord` (which the detail page calls) already independently returns an honest empty/default shape (`presentCouncilors: [], absences: [], quorumMet: false`, confirmed in its own early-return branch) for a session that doesn't exist yet, which is a different code path from this task's changes.
 
 **Acceptance criteria:**
+
 - [ ] `pnpm typecheck` passes across the whole monorepo (this task changes an inferred return type consumed by the frontend, so both `apps/server` and `apps/web` must typecheck cleanly against the new nullable shape).
 - [ ] All existing tests in `session.router.test.ts` continue to pass unmodified except where explicitly extended above.
 - [ ] New test coverage added per File 2 above.
@@ -1718,7 +1852,7 @@ Extract this into a standalone, exported function in the same file (`workflow.ro
 ```ts
 export function computeMayorPanelHint(
   mayorActionDeadline: string | null | undefined,
-  lapseConfirmedAt: unknown
+  lapseConfirmedAt: unknown,
 ): 'mayor_decision' | 'mayor_lapse_confirmation' {
   if (mayorActionDeadline) {
     const deadline = new Date(mayorActionDeadline);
@@ -1739,7 +1873,7 @@ Then update `computePanelHint`'s branch to call it instead of inlining the logic
   }
 ```
 
-**Why this extraction matters, stated explicitly so it isn't mistaken for unnecessary refactoring:** this exact business rule (a mayor action lapses 10 days after its deadline unless confirmed) will now be needed in two call sites — `computePanelHint` (unchanged behavior, just delegated) and the new filtering logic in `listMyAssignedSteps` (Part 3 below). Duplicating the rule instead of extracting it would recreate the exact kind of drift already documented in `docs/development-findings-log.md` LOG-0092 (two copies of the same business rule silently diverging over time because nobody updates both when one changes). Extracting it once here prevents that from happening to *this* rule. Do not skip this extraction and separately reimplement the deadline check inline inside `listMyAssignedSteps` — that would be exactly the anti-pattern this refactor exists to avoid.
+**Why this extraction matters, stated explicitly so it isn't mistaken for unnecessary refactoring:** this exact business rule (a mayor action lapses 10 days after its deadline unless confirmed) will now be needed in two call sites — `computePanelHint` (unchanged behavior, just delegated) and the new filtering logic in `listMyAssignedSteps` (Part 3 below). Duplicating the rule instead of extracting it would recreate the exact kind of drift already documented in `docs/development-findings-log.md` LOG-0092 (two copies of the same business rule silently diverging over time because nobody updates both when one changes). Extracting it once here prevents that from happening to _this_ rule. Do not skip this extraction and separately reimplement the deadline check inline inside `listMyAssignedSteps` — that would be exactly the anti-pattern this refactor exists to avoid.
 
 Confirm `computePanelHint`'s behavior is unchanged after this edit — it should produce identical output to before for every existing call site, since this is a pure delegation, not a logic change.
 
@@ -1779,9 +1913,10 @@ This makes the new parameter fully optional and backward-compatible: any existin
 **3c. Apply the `stepKeyIn` filter to `filtered`, before pagination — this is the critical ordering fix.** After the existing role/assignment filter (the `.filter()` call at lines 578–600, which produces `filtered`), and **before** the pagination logic (currently lines 602–605), insert a second filter step:
 
 ```ts
-const stepKeyFiltered = input.stepKeyIn && input.stepKeyIn.length > 0
-  ? filtered.filter((row) => input.stepKeyIn!.includes(row.stepKey))
-  : filtered;
+const stepKeyFiltered =
+  input.stepKeyIn && input.stepKeyIn.length > 0
+    ? filtered.filter((row) => input.stepKeyIn!.includes(row.stepKey))
+    : filtered;
 
 const limit = input.limit ?? 50;
 const startIndex = input.cursor ? parseInt(input.cursor, 10) : 0;
@@ -1795,17 +1930,17 @@ const nextCursor = startIndex + limit < stepKeyFiltered.length ? String(startInd
 
 ```ts
 const items = paginated.map((item) => {
-  const validStepTypes = new Set<'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination' | 'parallel_split' | 'parallel_join'>([
-    'action',
-    'approval',
-    'multi_referral',
-    'decision',
-    'notification',
-    'termination',
-  ]);
-  const stepType = validStepTypes.has(item.stepType)
-    ? item.stepType
-    : 'action';
+  const validStepTypes = new Set<
+    | 'action'
+    | 'approval'
+    | 'multi_referral'
+    | 'decision'
+    | 'notification'
+    | 'termination'
+    | 'parallel_split'
+    | 'parallel_join'
+  >(['action', 'approval', 'multi_referral', 'decision', 'notification', 'termination']);
+  const stepType = validStepTypes.has(item.stepType) ? item.stepType : 'action';
 
   const context = (item.instanceContext as Record<string, any>) || {};
   const metadata = (item.stepMetadata as Record<string, any>) || {};
@@ -1879,7 +2014,7 @@ Remove the `trpc.useQueries` block, the `instanceQueries`/`isInstancesLoading`/`
 
 # TASK-WF-BE-002b
 
-**Context for executor:** `session.router.ts`'s `scheduleDocumentForFirstReading` mutation already correctly inserts `presentCount: null, quorumAchieved: null` (instead of previously-fabricated `12`/`true`) when creating a new `spSessions` row for a session date that doesn't yet have one. This is implemented correctly and already verified via `pnpm typecheck` passing monorepo-wide. What's missing is automated test coverage for this specific insert path — the current test suite for `scheduleDocumentForFirstReading` (in `apps/server/src/modules/workflow/session.router.test.ts`) contains exactly one test, and that test's mock sequence simulates a session that *already exists* for the target date, which routes execution through a different branch (`if (session) { sessionId = session.id; }`) that never reaches the insert in question. As a result, nothing in the test suite currently guards against a regression of this fix (e.g., if a future edit reintroduced a hardcoded default here, no test would fail).
+**Context for executor:** `session.router.ts`'s `scheduleDocumentForFirstReading` mutation already correctly inserts `presentCount: null, quorumAchieved: null` (instead of previously-fabricated `12`/`true`) when creating a new `spSessions` row for a session date that doesn't yet have one. This is implemented correctly and already verified via `pnpm typecheck` passing monorepo-wide. What's missing is automated test coverage for this specific insert path — the current test suite for `scheduleDocumentForFirstReading` (in `apps/server/src/modules/workflow/session.router.test.ts`) contains exactly one test, and that test's mock sequence simulates a session that _already exists_ for the target date, which routes execution through a different branch (`if (session) { sessionId = session.id; }`) that never reaches the insert in question. As a result, nothing in the test suite currently guards against a regression of this fix (e.g., if a future edit reintroduced a hardcoded default here, no test would fail).
 
 **File to edit:** `apps/server/src/modules/workflow/session.router.test.ts`
 
@@ -1905,6 +2040,7 @@ Use `mockDb.mockResponse(...)` calls in exactly this order, each with an inline 
 **Scope boundary — do not touch:** the existing test in this describe block; any other describe block in this file; `session.router.ts` itself (already correct, not part of this task); any other file.
 
 **Acceptance criteria:**
+
 - [ ] New test added, existing test unchanged.
 - [ ] New test asserts specifically on the `spSessions` insert call receiving `presentCount: null, quorumAchieved: null` — not just on the mutation's return value or absence of a thrown error.
 - [ ] `pnpm --filter server test:unit` (or equivalent vitest invocation for this file) passes, including both the existing and new test.
@@ -1916,7 +2052,7 @@ Use `mockDb.mockResponse(...)` calls in exactly this order, each with an inline 
 
 # TASK-WF-BE-003 (Presiding-Officer Substitute Eligibility — Revert to Spec-Literal)
 
-**Context for executor:** `apps/server/src/modules/workflow/session.router.ts` currently determines who is eligible to substitute as presiding officer (when the Vice Mayor is absent from an SP session) using a two-population check: (1) any employee currently assigned to the SP office, or (2) any employee holding an active `delegationGrants` row for the VM position. Population (1) — bare SP-office membership, with no requirement for any formal designation — was added without being requested by the original task spec for this feature, and was never authorized. The project's consolidated requirements reference (`docs/requirements-gathering/consolidated-architecture-and-requirements-reference-iteration-3.md`, §7.3, line 1032) states: *"If VM is absent, a presiding officer is designated beforehand (requires Designation document)"* — this system uses `delegationGrants` as its representation of that designation. Population (1) has no textual support in this requirement and is being removed. Population (2) — the active-delegation-grant check — is correct per spec and must be preserved unchanged in its own logic (date-range check, `isActive`, `revokedAt` null check, etc.).
+**Context for executor:** `apps/server/src/modules/workflow/session.router.ts` currently determines who is eligible to substitute as presiding officer (when the Vice Mayor is absent from an SP session) using a two-population check: (1) any employee currently assigned to the SP office, or (2) any employee holding an active `delegationGrants` row for the VM position. Population (1) — bare SP-office membership, with no requirement for any formal designation — was added without being requested by the original task spec for this feature, and was never authorized. The project's consolidated requirements reference (`docs/requirements-gathering/consolidated-architecture-and-requirements-reference-iteration-3.md`, §7.3, line 1032) states: _"If VM is absent, a presiding officer is designated beforehand (requires Designation document)"_ — this system uses `delegationGrants` as its representation of that designation. Population (1) has no textual support in this requirement and is being removed. Population (2) — the active-delegation-grant check — is correct per spec and must be preserved unchanged in its own logic (date-range check, `isActive`, `revokedAt` null check, etc.).
 
 This task touches three files. Do not skip any — they currently describe/enforce the same (soon-to-be-wrong) two-population rule in three different ways, and must move together or the system will be internally inconsistent (e.g., backend rejecting someone the frontend picker still offers).
 
@@ -1927,21 +2063,23 @@ This task touches three files. Do not skip any — they currently describe/enfor
 ### Change 1a: `getEligibleSubstituteOfficers` (currently lines 218–307)
 
 Remove the SP-office-membership query and its seeding of the candidate list entirely. Specifically:
+
 - Delete the `spMembers` query (currently lines 245–261) and the loop that seeds `candidateMap` from it (currently lines 263–270).
 - The `activeGrants` query (currently lines 272–300) becomes the **sole** source of candidates. Keep its logic exactly as-is — do not modify the delegation-grant query conditions.
-- **Explicit edge case, state this plainly, do not let it surface as a surprise:** after this change, if `vmPositionId` is undefined (no VM/Presiding-Officer position record found at all — the `if (vmPositionId)` guard, currently line 272), the procedure will return an **empty array**, with no fallback population to fall back to. This is a real behavior change from the current implementation (which would still return the full SP-member list in this case). This is the correct behavior per spec-literal (no designation possible without a VM position to be designated a substitute *for*), not a bug to guard against — do not add a fallback for this case.
+- **Explicit edge case, state this plainly, do not let it surface as a surprise:** after this change, if `vmPositionId` is undefined (no VM/Presiding-Officer position record found at all — the `if (vmPositionId)` guard, currently line 272), the procedure will return an **empty array**, with no fallback population to fall back to. This is a real behavior change from the current implementation (which would still return the full SP-member list in this case). This is the correct behavior per spec-literal (no designation possible without a VM position to be designated a substitute _for_), not a bug to guard against — do not add a fallback for this case.
 - The resulting procedure body should reduce to: get `vmPositionId`, if present query `delegationGrants` joined to `employees` for active grants against that position for the given date, map to `{ id, displayName }`, sort by `displayName`, return. If `vmPositionId` is absent, return `[]`.
 
 ### Change 1b: `recordAttendance`'s override-path eligibility check (currently lines 546–584, inside the `if (presidedByEmployeeIdOverride)` block)
 
 Remove the `spMember` (SP-office-assignment) query and its role in determining `isEligible`. Specifically:
+
 - Delete the `spMember` query (currently lines 546–558).
 - `isEligible` should be determined solely by the delegation-grant check (currently lines 561–577) — this becomes the only check, not a fallback triggered by `!isEligible`.
-- The two existing `BAD_REQUEST` throws (currently lines 539–544 for "employee not found," lines 579–584 for "not eligible to preside") both stay exactly as-is, including their exact message text — only the eligibility *determination* logic changes, not the error-handling shape around it.
+- The two existing `BAD_REQUEST` throws (currently lines 539–544 for "employee not found," lines 579–584 for "not eligible to preside") both stay exactly as-is, including their exact message text — only the eligibility _determination_ logic changes, not the error-handling shape around it.
 
 ### Change 1c: `recordAttendance`'s no-override-path fallback (currently lines 587–607, the `else` branch when no override was provided but VM is absent)
 
-**Do not change this block's structure.** This is a genuinely different case from 1a/1b: it doesn't offer a second *population* of eligible people to choose from — it's what happens when the system needs to pick *a* value for `presidedByEmployeeId` because a secretary didn't provide an explicit override, and no active delegation grant exists either. The existing fallback (currently lines 604–606: fall back to `vmEmployeeId` itself, i.e., the absent VM's own ID) is untouched by this task. This was confirmed via the current test suite: no test exercises this specific sub-case (no override, VM absent, no active grant) either before or after this task, so there is no existing behavior contract being broken either way — this task is scoped to removing the *unauthorized SP-office-membership population*, not to auditing every fallback-of-last-resort in the file. If you believe this fallback also needs to change, stop and flag it rather than changing it as part of this task — it was not part of what was decided.
+**Do not change this block's structure.** This is a genuinely different case from 1a/1b: it doesn't offer a second _population_ of eligible people to choose from — it's what happens when the system needs to pick _a_ value for `presidedByEmployeeId` because a secretary didn't provide an explicit override, and no active delegation grant exists either. The existing fallback (currently lines 604–606: fall back to `vmEmployeeId` itself, i.e., the absent VM's own ID) is untouched by this task. This was confirmed via the current test suite: no test exercises this specific sub-case (no override, VM absent, no active grant) either before or after this task, so there is no existing behavior contract being broken either way — this task is scoped to removing the _unauthorized SP-office-membership population_, not to auditing every fallback-of-last-resort in the file. If you believe this fallback also needs to change, stop and flag it rather than changing it as part of this task — it was not part of what was decided.
 
 ---
 
@@ -1950,12 +2088,15 @@ Remove the `spMember` (SP-office-assignment) query and its role in determining `
 Three existing tests need updates because their mock sequences currently exercise the population being removed. Confirm current line numbers directly before editing, since they may have shifted from what's cited below (drawn from a read earlier in this task's investigation, not guaranteed current at execution time).
 
 ### Test: `'records attendance when VM is absent and valid override is provided (override wins)'` (currently ~line 156)
+
 This test's mock sequence currently has, as step 4: `mockDb.mockResponse([{ id: 'assignment-id' }]); // 4. override eligibility (SP member)` — this is exactly the population being removed, and this test's success path currently depends on it. Rewrite this mock step to instead simulate a successful delegation-grant lookup (matching the shape used by the `'records attendance when VM is absent and delegation is active'` test's own grant-mock, e.g. `{ delegatedToEmployeeId: '...' }` — check that test's exact mock shape and column selection to match it precisely, since the two code paths query different things: the no-override path selects `delegatedToEmployeeId`, this override path's grant check currently only selects `{ id: delegationGrants.id }`, confirm which shape is correct for the post-change code before writing the mock). Update the inline comment accordingly. The test's name, its `presidedByEmployeeIdOverride` input value, and its final assertions should not need to change — only the mock step representing how eligibility is established.
 
 ### Test: `'throws BAD_REQUEST if override is provided, VM is absent, but override employee is not eligible'` (currently ~line 237)
+
 This test currently mocks two separate failing checks — step 4 `// 4. override eligibility (NOT an SP member)` and step 5 `// 5. override eligibility (NO active delegation)`. After this change there is only one eligibility check, so remove one of these two `mockResponse([])` calls (there should be exactly one fewer mocked response in this test after the edit) and update the remaining comment to reflect that it's now the only eligibility check being tested, not one of two. The test's assertions (still expecting the "not eligible to preside" error) should not need to change.
 
 ### `getEligibleSubstituteOfficers` — no existing test coverage
+
 This procedure currently has zero test coverage in this file (confirmed via search — no `getEligibleSubstituteOfficers` describe block exists). This task changes its behavior in two ways: removing an entire candidate population, and introducing the empty-array-on-no-VM-position edge case described in Change 1a. **Do not add test coverage for this procedure as part of this task** — adding a new describe block and its first tests is a larger, separate scope decision (what should be covered, how thoroughly) than "revert an unauthorized eligibility population," and folding it in here would be scope creep beyond what was decided. If you believe this gap should be closed, stop and flag it as a separate follow-up rather than adding it here.
 
 ---
@@ -2016,10 +2157,12 @@ Add the VM's employee ID to `getAttendanceRecord`'s return shape (currently the 
 ## File 2 — `apps/web/src/pages/workflow/SessionAttendanceDetailPage.tsx`
 
 **Remove:**
+
 - The `isVMAbsent` state declaration (currently line 45: `const [isVMAbsent, setIsVMAbsent] = useState(false);`).
 - The checkbox UI block entirely (currently lines 206–215: the `Checkbox` with `id="isVMAbsent"`, its `Label`, and the surrounding `div` — but keep the outer wrapping `div` at line 205 (`className="space-y-4 rounded-md border p-4"`) since the substitute-picker block still needs a container; only the checkbox-specific inner block goes).
 
 **Add:**
+
 - A derived (not stateful) value computed from `record?.vmEmployeeId` and the current `absences` state: `isVMAbsent` should now be `record?.vmEmployeeId ? absences.some(a => a.councilorEmployeeId === record.vmEmployeeId) : false`. This does not need `useMemo` given the component's scale and render frequency, but use your judgment on whether the existing codebase conventions in this file favor computing it inline versus memoizing — check how other derived values in this file or sibling page components in the same directory are typically handled, and match that convention rather than introducing a new pattern.
 - Keep the existing conditional rendering of the substitute-picker block (currently `{isVMAbsent && (...)}`, line 217) — this now reads the derived value instead of the removed state variable, no other change needed to this block's contents (the `Select`, its options mapped from `substituteCandidates`, and the explanatory text at line 236–238 all stay exactly as they are).
 - Line 72's mutation payload (`presidedByEmployeeIdOverride: isVMAbsent && substituteId ? substituteId : null`) needs no change beyond referencing the now-derived `isVMAbsent` instead of the removed state variable — the expression itself is already correct.
@@ -2460,7 +2603,7 @@ DELIVERABLE CHECKLIST
 
 # TASK-WF-FE-007
 
-````
+```
 CONTEXT — READ THIS FIRST
 
 You are implementing TASK-WF-FE-007, a new standalone task with two parts:
@@ -2759,7 +2902,7 @@ DELIVERABLE CHECKLIST
    actual current tail before writing, do not trust a number quoted here)
    documenting the tRPC-enforcement-gap discovery from Part 1 as the primary
    finding, status: proposed.
-````
+```
 
 ---
 
@@ -2770,6 +2913,7 @@ DELIVERABLE CHECKLIST
 Two-part task: a required backend enforcement fix (Part 1), followed by the frontend it unblocks (Part 2). Same shape as TASK-WF-FE-002. Part 1 must not be skipped — Part 2 is not meaningfully testable without it.
 
 **Prerequisite reading before starting:**
+
 - AGENTS.md (Section 2 routing: Part 1 = "Write a tRPC procedure or router" → E1 → I1 → I2; Part 2 = "Build a frontend page or view in /apps/web" → F4 → F1 → F5 → J6 → I2 → E1)
 - B5 §4.4-4.7 (`docs/pre-development/B-architecture-documents/b5-authentication-and-authorization-architecture.md`, lines 379-424)
 - ADR-AUTH-010 in full (`docs/pre-development/B-architecture-documents/b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-010-session-locked_at-behavior-when-access-token-expires-while-locked.md`, 52 lines)
@@ -2785,11 +2929,13 @@ Both source documents are Status: Accepted/Confirmed. This task implements their
 B5 §4.6 ("Shared Workstation Lock") states that while a session is locked, "all protected routes reject requests with locked session status" (line 411).
 
 **What's actually implemented:**
+
 - `apps/server/src/modules/iam/iam.middleware.ts`, lines 167-172: correctly checks `if (session.locked_at !== null && request.url !== '/api/auth/unlock') { return reply.code(423).send({ code: 'SESSION_LOCKED' ...}) }`
 - This check is only wired into Fastify inside `iam.routes.ts`'s own nested protected sub-app (`fastify.register(async (protectedApp) => { await protectedApp.register(authMiddlewarePlugin); ... })`, confirmed at `iam.routes.ts` line 369)
 - This sub-app covers exactly three REST routes: `/api/auth/lock`, `/api/auth/logout`, `/api/admin/sessions/:id/terminate`
 
 **What's missing:**
+
 - tRPC is registered separately (`apps/server/src/app.ts` line 125: `fastify.register(fastifyTRPCPlugin, { prefix: '/api/trpc', ... })`) as a sibling top-level plugin, not nested inside `iam.routes.ts`'s protected sub-app
 - tRPC's auth gate (`apps/server/src/trpc/trpc.ts`, `protectedProcedure`, lines 19-32) only checks whether `ctx.auth` is truthy — never re-checks `locked_at`
 - Repo-wide grep confirmed: zero references to `locked_at`, `SESSION_LOCKED`, or `isLocked` exist anywhere under `apps/server/src/trpc/` or any of the seven tRPC router files under `apps/server/src/modules/*/,*.router.ts`
@@ -2799,6 +2945,7 @@ B5 §4.6 ("Shared Workstation Lock") states that while a session is locked, "all
 ### Gap 2 — Frontend (Part 2 target)
 
 Repo-wide search of `apps/web/src` for "lock"/"unlock" (case-insensitive) confirmed:
+
 - No frontend surface for locking, the lock screen, or unlocking exists
 - No real consumer of `POST /api/auth/lock` or `POST /api/auth/unlock` anywhere
 - No frontend idle-timer exists for B5 §4.4's "25-minute warning is frontend-driven" requirement
@@ -2822,6 +2969,7 @@ Register an `onRequest`/`preHandler` hook before `fastifyTRPCPlugin` in `app.ts`
 Add the `locked_at` check directly inside `trpc.ts`'s `protectedProcedure` middleware (the `t.procedure.use(async (opts) => {...})` block, lines 19-32), immediately after the existing `if (!opts.ctx.auth)` check.
 
 Requires:
+
 - `ctx.auth` to carry a `sessionId` (confirmed present on every real session — `AuthSession`/JWT payload structures already carry `sid`/`sessionId`)
 - A way to look up that session's current `locked_at` value: either a fresh DB query per-request (matches the REST middleware's own approach; real per-request cost but consistent with existing pattern), or, if `ctx.auth`'s resolved shape already carries a locked boolean (not confirmed — check before assuming), reuse that instead of a new query.
 
@@ -2856,11 +3004,13 @@ New hook: `apps/web/src/hooks/useIdleTimer.ts`
 ### 2b. Lock screen
 
 Triggered at 30 minutes total idle, OR on explicit user action (e.g. "Lock" item in Topbar's account menu):
+
 - TASK-WF-FE-005's `AuthenticatedLayout`, if landed, has an `onUserMenuAction` prop currently supporting only `'profile' | 'logout'` per F5's spec — extend this union to include `'lock'` if it has landed, or build the menu item directly if it hasn't.
 
 On trigger: call `POST /api/auth/lock` (plain fetch, matching `auth-context.tsx`'s or `useAuthActions.ts`'s existing fetch pattern for `/api/auth/login`). No request body needed (confirmed: bare `protectedApp.post` with no input schema in `iam.routes.ts`).
 
 On success: render a full-screen lock overlay — **NOT a route change**. Underlying app state (in-progress work, scroll position, form state) must be preserved, not navigated away from. Show:
+
 - Current user's display context (name/username — same source as TASK-WF-FE-005/006's `SidebarUser.name` resolution, if either has landed)
 - Password-only re-entry field
 
@@ -2874,10 +3024,10 @@ Confirmed input schema (`iam.schemas.ts` lines 18-20): `UnlockInputSchema = z.ob
 
 Confirmed response handling (`iam.routes.ts` lines 288-367):
 
-| Case | Response | Frontend behavior |
-|---|---|---|
-| Success | `{ unlocked: true }`, 200 | Dismiss overlay, resume normal app state. No reload/re-navigation — underlying page was never unmounted. |
-| Wrong password | 401 `{ code: 'INVALID_PASSWORD' }` | Show inline "incorrect password" error, keep overlay up, allow retry. Note: this same code is used for both a missing credential row and a failed argon2 verify — the backend deliberately does not distinguish these to avoid a user-enumeration signal; the UI must not attempt to distinguish them either. |
+| Case                                                             | Response                                                                                                                      | Frontend behavior                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Success                                                          | `{ unlocked: true }`, 200                                                                                                     | Dismiss overlay, resume normal app state. No reload/re-navigation — underlying page was never unmounted.                                                                                                                                                                                                                                                                      |
+| Wrong password                                                   | 401 `{ code: 'INVALID_PASSWORD' }`                                                                                            | Show inline "incorrect password" error, keep overlay up, allow retry. Note: this same code is used for both a missing credential row and a failed argon2 verify — the backend deliberately does not distinguish these to avoid a user-enumeration signal; the UI must not attempt to distinguish them either.                                                                 |
 | Refresh token invalid (expired past 14 days, revoked, or reused) | 401 `{ code: 'REFRESH_REQUIRED', message: "Your session has expired. Please log in again." }` (`iam.routes.ts` lines 337-340) | Do NOT retry via the lock overlay. Redirect to `/login` (once TASK-WF-FE-004 has landed; if not, redirect to the eventual login route, or use a full page reload to `/` as a documented interim fallback). Note: this response includes a server-side `clearAuthCookies(reply)` call (line 338) — cookies are already cleared by the time this response reaches the frontend. |
 
 **Silent refresh note (per ADR-AUTH-010 and `unlockSession`'s implementation, `apps/server/src/modules/iam/iam.service.ts` lines 1020-1030):** if the access token had expired, a silent refresh happens transparently inside a successful unlock. The frontend does not need to detect or handle this specially — a 200 `{ unlocked: true }` response means the frontend can proceed as though nothing about token freshness needed handling. This is B5 §4.6's and ADR-AUTH-010's explicit design intent ("invisible to them"). **Caveat:** the full response shape beyond `{ unlocked: true }` was not fully re-verified past line 1050 of `unlockSession` in the source session — check the remainder of the implementation before assuming the success response contains nothing else.
@@ -2887,6 +3037,7 @@ Confirmed response handling (`iam.routes.ts` lines 288-367):
 ## Cross-Tab/Device Lock Detection
 
 A session can become locked two ways:
+
 1. The current tab locks it (2b handles this directly — the tab that called `/api/auth/lock` already knows to show the overlay)
 2. A **different tab or device** locked the same session. Sessions are server-side state, not per-tab; nothing in B5 or the schema ties a session to a single browser tab.
 
@@ -5146,10 +5297,9 @@ A reviewer will verify each one independently.
 
 ---
 
-
 # TASK-IAM-041 — Investigate and Fix Hook 3 (`setDatabaseSessionVars`) RLS Session-Variable Persistence Gap
 
-````
+```
 CONTEXT — READ THIS FIRST
 
 Read AGENTS.md before doing anything else if you have not already internalized
@@ -5450,7 +5600,7 @@ Before submitting this PR, confirm each item:
 - [ ] No RLS policy definitions, the locked_at check, or any Group B-L /
       AGENTS.md document were modified
 A reviewer will verify each one independently.
-````
+```
 
 ---
 
@@ -5523,15 +5673,16 @@ against the legitimate user's request.
 
 Fix ONLY the `markRefreshTokenUsed` guard and its two call sites' handling
 of the new no-match case, described exactly below. Do NOT:
+
 - Touch anything under `apps/web/src` — this is a server-only,
   defense-in-depth fix. It does not fix the user-visible symptom of a
   redirect loop on sidebar clicks; that is fixed by a separate,
   already-completed task addressing `packages/ui/src/components/domain/
-  Sidebar.tsx`. Do not treat this task as needing to also address that.
+Sidebar.tsx`. Do not treat this task as needing to also address that.
 - Touch `iam.middleware.ts`, `iam.routes.ts`, or any other file in the
   `iam` module besides the three listed below.
 - Change the EXISTING reuse-detection branch in `refresh` (the `if
-  (tokenRow.usedAt !== null) { ... }` block starting at line 578) — that
+(tokenRow.usedAt !== null) { ... }` block starting at line 578) — that
   logic is correct and unaffected by this task; you are adding a NEW
   branch elsewhere that, when triggered, performs the identical actions,
   not modifying the existing one.
@@ -5539,20 +5690,24 @@ of the new no-match case, described exactly below. Do NOT:
   unrelated to this task.
 
 ## Files to change, and exact current state to verify before editing (if
+
 what you find does not match, STOP and report the discrepancy rather than
 proceeding)
 
 ### 1. `apps/server/src/modules/iam/iam.types.ts`
 
 Current interface declaration (line 333):
+
 ```typescript
   markRefreshTokenUsed(id: string, replacedById: string): Promise<void>;
 ```
 
 Change to:
+
 ```typescript
   markRefreshTokenUsed(id: string, replacedById: string): Promise<boolean>;
 ```
+
 (Returns `true` if a row was matched and updated — i.e., the token was
 genuinely unused before this call — and `false` if zero rows were matched,
 meaning some other writer had already set `usedAt` on this token first.)
@@ -5560,6 +5715,7 @@ meaning some other writer had already set `usedAt` on this token first.)
 ### 2. `apps/server/src/modules/iam/iam.repository.ts`
 
 Current implementation (lines 105-107):
+
 ```typescript
     markRefreshTokenUsed: async (id, replacedById) => {
       await db.update(refreshTokens).set({ usedAt: new Date(), replacedBy: replacedById }).where(eq(refreshTokens.id, id));
@@ -5574,6 +5730,7 @@ followed by checking the result array (see, for example, the existing
 97-100, which also use `.returning()`) — follow that same convention here
 rather than introducing `.rowCount`-based detection, which is not used
 elsewhere in this file:
+
 ```typescript
     markRefreshTokenUsed: async (id, replacedById) => {
       const updated = await db.update(refreshTokens)
@@ -5583,6 +5740,7 @@ elsewhere in this file:
       return updated.length > 0;
     },
 ```
+
 Verify `and` and `isNull` are already imported at the top of this file
 (they are used elsewhere in this same file, e.g. in
 `revokeRefreshTokenFamily` at line 111-113, which uses both) — if for any
@@ -5595,8 +5753,9 @@ new import line.
 #### 3a. Inside `refresh` (method starting at line 543), at line 656
 
 Current code:
+
 ```typescript
-        await txRepo.markRefreshTokenUsed(tokenId, newTokenId);
+await txRepo.markRefreshTokenUsed(tokenId, newTokenId);
 ```
 
 This is the only statement between the transaction's opening (`await
@@ -5614,29 +5773,33 @@ session-termination calls here should use the SAME transactional `txRepo`
 already in scope in this block — do not open a second nested transaction.
 
 Concretely, replace:
+
 ```typescript
-        await txRepo.markRefreshTokenUsed(tokenId, newTokenId);
+await txRepo.markRefreshTokenUsed(tokenId, newTokenId);
 ```
+
 with:
+
 ```typescript
-        const wasMarkedUsed = await txRepo.markRefreshTokenUsed(tokenId, newTokenId);
-        if (!wasMarkedUsed) {
-          // Another concurrent request already marked this token as used
-          // between this request's step-4 reuse check and this rotation
-          // step. Treat identically to the step-4 reuse-detection branch:
-          // this is the same observable fact (a used token was presented)
-          // discovered at a different point in the flow.
-          await txRepo.revokeRefreshTokenFamily(tokenRow.familyId, 'reuse_detected');
-          const raceSession = await txRepo.findSessionById(tokenRow.sessionId);
-          if (raceSession && raceSession.active) {
-            await txRepo.terminateSession(raceSession.id, 'reuse_detected', null);
-          }
-          throw Object.assign(new Error('Session security event detected'), {
-            code:       'UNAUTHORIZED',
-            statusCode: 401,
-          });
-        }
+const wasMarkedUsed = await txRepo.markRefreshTokenUsed(tokenId, newTokenId);
+if (!wasMarkedUsed) {
+  // Another concurrent request already marked this token as used
+  // between this request's step-4 reuse check and this rotation
+  // step. Treat identically to the step-4 reuse-detection branch:
+  // this is the same observable fact (a used token was presented)
+  // discovered at a different point in the flow.
+  await txRepo.revokeRefreshTokenFamily(tokenRow.familyId, 'reuse_detected');
+  const raceSession = await txRepo.findSessionById(tokenRow.sessionId);
+  if (raceSession && raceSession.active) {
+    await txRepo.terminateSession(raceSession.id, 'reuse_detected', null);
+  }
+  throw Object.assign(new Error('Session security event detected'), {
+    code: 'UNAUTHORIZED',
+    statusCode: 401,
+  });
+}
 ```
+
 Note: `tokenRow` and `session` are both already in scope at this point in
 the method (from steps 2 and 6 respectively) — reuse `tokenRow.familyId`
 and `tokenRow.sessionId` exactly as the existing branch does; the local
@@ -5674,8 +5837,9 @@ transaction wrapper rolling back on a rejected/thrown callback).
 #### 3b. Inside `unlockSession` (method starting at line 986), at line 1057
 
 Current code:
+
 ```typescript
-          await txRepo.markRefreshTokenUsed(latestRt.id, newTokenId);
+await txRepo.markRefreshTokenUsed(latestRt.id, newTokenId);
 ```
 
 Apply the same pattern. In this method, the equivalent in-scope variables
@@ -5683,30 +5847,35 @@ are `latestRt` (in place of `refresh`'s `tokenRow`) and `sessionId` (a
 plain local variable already destructured from `input` at the top of the
 method, in place of `refresh`'s `session.id`) — use `latestRt.familyId` and
 `sessionId` directly. Replace:
+
 ```typescript
-          await txRepo.markRefreshTokenUsed(latestRt.id, newTokenId);
+await txRepo.markRefreshTokenUsed(latestRt.id, newTokenId);
 ```
+
 with:
+
 ```typescript
-          const wasMarkedUsed = await txRepo.markRefreshTokenUsed(latestRt.id, newTokenId);
-          if (!wasMarkedUsed) {
-            // Same rationale as the equivalent guard in refresh() — see
-            // that method for the full explanation.
-            await txRepo.revokeRefreshTokenFamily(latestRt.familyId, 'reuse_detected');
-            const raceSession = await txRepo.findSessionById(sessionId);
-            if (raceSession && raceSession.active) {
-              await txRepo.terminateSession(raceSession.id, 'reuse_detected', null);
-            }
-            throw Object.assign(new Error('Session security event detected'), {
-              code:       'UNAUTHORIZED',
-              statusCode: 401,
-            });
-          }
+const wasMarkedUsed = await txRepo.markRefreshTokenUsed(latestRt.id, newTokenId);
+if (!wasMarkedUsed) {
+  // Same rationale as the equivalent guard in refresh() — see
+  // that method for the full explanation.
+  await txRepo.revokeRefreshTokenFamily(latestRt.familyId, 'reuse_detected');
+  const raceSession = await txRepo.findSessionById(sessionId);
+  if (raceSession && raceSession.active) {
+    await txRepo.terminateSession(raceSession.id, 'reuse_detected', null);
+  }
+  throw Object.assign(new Error('Session security event detected'), {
+    code: 'UNAUTHORIZED',
+    statusCode: 401,
+  });
+}
 ```
+
 Same note on omitting the audit-event write and leaving an explanatory
 comment applies here.
 
 ## Test files that WILL need updating as a direct consequence of this
+
 change — update these, do not leave them broken
 
 The following three test files currently mock `markRefreshTokenUsed` with
@@ -5729,7 +5898,7 @@ the new race-detected path) rather than accidentally testing the new
    `markRefreshTokenUsed: vi.fn().mockResolvedValue(undefined),` → change
    to `mockResolvedValue(true)`. This same file has a separate assertion
    at line 208 (`expect(txRepoStub.markRefreshTokenUsed).toHaveBeenCalled
-   With(tokenId, expect.any(String));`) which only checks call arguments,
+With(tokenId, expect.any(String));`) which only checks call arguments,
    not the return value — this assertion should not need to change, but
    verify it still passes after your edit.
 
@@ -5788,7 +5957,7 @@ task alone; note this as a gap in your report instead.
   401-throw sequence described above, using the already-open transaction's
   `txRepo` (no nested transaction).
 - The three identified test-mock files are updated to `mockResolvedValue
-  (true)`.
+(true)`.
 - New test coverage exists in `iam.refresh.test.ts` for both the
   race-detected and happy-path cases as described above.
 - Typecheck and the full `iam` module test suite pass.
@@ -6089,7 +6258,7 @@ A reviewer will verify each one independently.
 
 ## Background you need (you have no access to any prior conversation — this is everything relevant)
 
-This project (`batac-dms`) recently fixed a bug where sidebar navigation used plain HTML `<a>` tags instead of React Router `Link` components, causing full-page reloads that raced a session-hydration component. That fix has been verified as correctly implemented and is not in question here. This is a **new, separate** investigation into a **different, still-open** redirect-to-login symptom that surfaced in a network capture taken *after* that sidebar fix was already in place.
+This project (`batac-dms`) recently fixed a bug where sidebar navigation used plain HTML `<a>` tags instead of React Router `Link` components, causing full-page reloads that raced a session-hydration component. That fix has been verified as correctly implemented and is not in question here. This is a **new, separate** investigation into a **different, still-open** redirect-to-login symptom that surfaced in a network capture taken _after_ that sidebar fix was already in place.
 
 Read `AGENTS.md` at the repo root before doing anything else, per this project's standing convention — it governs which documents to consult for different task types and defines the findings-log process referenced below.
 
@@ -6098,12 +6267,14 @@ Read `AGENTS.md` at the repo root before doing anything else, per this project's
 A browser network capture contains the following relevant entries, in this exact order, all within a 27-millisecond window:
 
 **Page metadata:**
+
 ```
 page_3: http://localhost:5173/       started 2026-07-13T04:11:21.535Z
 page_4: http://localhost:5173/login  started 2026-07-13T04:11:48.211Z
 ```
 
 **Entry [0]:**
+
 ```
 GET http://localhost:5173/batac-seal.png
 Status: 304
@@ -6114,6 +6285,7 @@ Sec-Fetch-Mode: no-cors
 ```
 
 **Entry [1]:**
+
 ```
 GET http://localhost:3000/api/trpc/documents.list?batch=1&input=%7B%220%22%3A%7B%22limit%22%3A20%7D%7D
 Status: 401
@@ -6130,6 +6302,7 @@ No Set-Cookie header present in the response
 ```
 
 **Entry [2]:**
+
 ```
 GET http://localhost:5173/login
 Status: 304
@@ -6196,7 +6369,7 @@ export const trpcClient = trpc.createClient({
           credentials: 'include' as const,
         } as RequestInit;
         let response = await fetch(url, fetchOptions);
-        
+
         if (response.status === 401) {
           const success = await performSilentRefresh();
           if (success) {
@@ -6205,7 +6378,7 @@ export const trpcClient = trpc.createClient({
             window.location.href = '/login';
           }
         }
-        
+
         if (response.status === 423) {
           useSessionStore.getState().setIsLocked(true);
           return new Response(
@@ -6219,7 +6392,7 @@ export const trpcClient = trpc.createClient({
                 },
               },
             }),
-            { status: 401, headers: { 'Content-Type': 'application/json' } }
+            { status: 401, headers: { 'Content-Type': 'application/json' } },
           );
         }
 
@@ -6246,7 +6419,7 @@ Work through these questions in order. For each, state your finding as one of: *
 
 5. **Determine whether `SessionHydrator.tsx` is involved in this specific symptom or not.** The prior sidebar-bug investigation found `SessionHydrator.tsx` (67 lines, at `apps/web/src/components/SessionHydrator.tsx`) has no dedup guard on its own `/api/auth/refresh` call and races under React Strict Mode's double-effect-firing. Since that investigation's root cause (full-page reloads from sidebar `<a>` tags) is now fixed, does `SessionHydrator` still mount fresh in the scenario you're reproducing here, or does it only mount once now (at the initial page load) and stay mounted through subsequent client-side navigation? This matters for whether the previously-identified refresh-race is even reachable via this new symptom, or whether this is a genuinely distinct mechanism.
 
-6. **Once 1-5 are answered, state a root-cause hypothesis for why `documents.list` returns 401 in the first place** in this scenario (natural token expiry during the session? something to do with how the page was reached? a different bug entirely?), and trace what happens after line 48's `window.location.href = '/login'` fires — specifically, does this then trigger a *fresh* mount of `SessionHydrator` (since it's a full page reload), and does that fresh mount succeed or fail, and does its outcome matter given the user is already being sent to `/login` regardless by that point?
+6. **Once 1-5 are answered, state a root-cause hypothesis for why `documents.list` returns 401 in the first place** in this scenario (natural token expiry during the session? something to do with how the page was reached? a different bug entirely?), and trace what happens after line 48's `window.location.href = '/login'` fires — specifically, does this then trigger a _fresh_ mount of `SessionHydrator` (since it's a full page reload), and does that fresh mount succeed or fail, and does its outcome matter given the user is already being sent to `/login` regardless by that point?
 
 ## What NOT to do
 
@@ -6259,6 +6432,7 @@ Work through these questions in order. For each, state your finding as one of: *
 ## What to produce
 
 A written report (not a code diff) containing:
+
 - Your answer to each of the 6 numbered questions above, each labeled Confirmed / Inference / Unresolved as specified.
 - Any raw evidence you gathered (HAR excerpts, DevTools screenshots described in text, console output) that supports your answers.
 - If you determine this genuinely is a new, distinct bug requiring a fix, do not fix it — instead, describe what you found in enough detail that a follow-up standalone fix-specification prompt could be written from your report alone, the same way this investigation itself was specified in enough detail to run without any other context.
@@ -6279,54 +6453,51 @@ This file was recently changed so that enabled sidebar nav items render as React
 ## Current exact content of the relevant block (lines 69–116 of the current file — verify this matches before editing; if it doesn't, stop and report the mismatch rather than proceeding)
 
 ```tsx
-        {items.map((item) => {
-          const isActive = item.id === activeItemId;
-          const Tag = (item.href && !item.disabled ? Link : "button") as any;
-          const itemProps =
-            Tag === Link
-              ? { to: item.href }
-              : { type: "button" as const };
+{
+  items.map((item) => {
+    const isActive = item.id === activeItemId;
+    const Tag = (item.href && !item.disabled ? Link : 'button') as any;
+    const itemProps = Tag === Link ? { to: item.href } : { type: 'button' as const };
 
-          const element = (
-            <Tag
-              aria-current={isActive ? "page" : undefined}
-              aria-label={collapsed ? item.label : undefined}
-              tabIndex={item.disabled ? -1 : undefined}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warning-500",
-                isActive
-                  ? "bg-primary-700 text-white font-semibold border-l-2 border-l-warning-500"
-                  : "text-primary-200 hover:bg-primary-800 hover:text-white",
-                item.disabled && "opacity-40 cursor-not-allowed pointer-events-none",
-                collapsed && "justify-center px-0 w-10 h-10 mx-auto"
-              )}
-              {...itemProps}
-            >
-              <item.icon className="h-5 w-5 shrink-0" />
-              <span className={cn(collapsed ? "sr-only" : "truncate")}>
-                {item.label}
-              </span>
-              {!collapsed && item.badge !== undefined && item.badge > 0 ? (
-                <span className="ml-auto text-xs font-medium bg-danger-500 text-white rounded-full px-1.5 py-0.5 touch-exempt min-h-0 min-w-0">
-                  {item.badge}
-                </span>
-              ) : null}
-            </Tag>
-          );
+    const element = (
+      <Tag
+        aria-current={isActive ? 'page' : undefined}
+        aria-label={collapsed ? item.label : undefined}
+        tabIndex={item.disabled ? -1 : undefined}
+        className={cn(
+          'duration-fast focus-visible:outline-warning-500 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
+          isActive
+            ? 'bg-primary-700 border-l-warning-500 border-l-2 font-semibold text-white'
+            : 'text-primary-200 hover:bg-primary-800 hover:text-white',
+          item.disabled && 'pointer-events-none cursor-not-allowed opacity-40',
+          collapsed && 'mx-auto h-10 w-10 justify-center px-0',
+        )}
+        {...itemProps}
+      >
+        <item.icon className="h-5 w-5 shrink-0" />
+        <span className={cn(collapsed ? 'sr-only' : 'truncate')}>{item.label}</span>
+        {!collapsed && item.badge !== undefined && item.badge > 0 ? (
+          <span className="bg-danger-500 touch-exempt ml-auto min-h-0 min-w-0 rounded-full px-1.5 py-0.5 text-xs font-medium text-white">
+            {item.badge}
+          </span>
+        ) : null}
+      </Tag>
+    );
 
-          if (collapsed) {
-            return (
-              <Tooltip key={item.id}>
-                <TooltipTrigger asChild>{element}</TooltipTrigger>
-                <TooltipContent side="right" sideOffset={12}>
-                  {item.label}
-                </TooltipContent>
-              </Tooltip>
-            );
-          }
+    if (collapsed) {
+      return (
+        <Tooltip key={item.id}>
+          <TooltipTrigger asChild>{element}</TooltipTrigger>
+          <TooltipContent side="right" sideOffset={12}>
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
 
-          return <React.Fragment key={item.id}>{element}</React.Fragment>;
-        })}
+    return <React.Fragment key={item.id}>{element}</React.Fragment>;
+  });
+}
 ```
 
 ## Why the cast exists (so you understand what you're removing, not just replacing text blindly)
@@ -6338,68 +6509,68 @@ This file was recently changed so that enabled sidebar nav items render as React
 Replace the block above with:
 
 ```tsx
-        {items.map((item) => {
-          const isActive = item.id === activeItemId;
-          const isLink = Boolean(item.href) && !item.disabled;
+{
+  items.map((item) => {
+    const isActive = item.id === activeItemId;
+    const isLink = Boolean(item.href) && !item.disabled;
 
-          const sharedClassName = cn(
-            "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warning-500",
-            isActive
-              ? "bg-primary-700 text-white font-semibold border-l-2 border-l-warning-500"
-              : "text-primary-200 hover:bg-primary-800 hover:text-white",
-            item.disabled && "opacity-40 cursor-not-allowed pointer-events-none",
-            collapsed && "justify-center px-0 w-10 h-10 mx-auto"
-          );
+    const sharedClassName = cn(
+      'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warning-500',
+      isActive
+        ? 'bg-primary-700 text-white font-semibold border-l-2 border-l-warning-500'
+        : 'text-primary-200 hover:bg-primary-800 hover:text-white',
+      item.disabled && 'opacity-40 cursor-not-allowed pointer-events-none',
+      collapsed && 'justify-center px-0 w-10 h-10 mx-auto',
+    );
 
-          const sharedChildren = (
-            <>
-              <item.icon className="h-5 w-5 shrink-0" />
-              <span className={cn(collapsed ? "sr-only" : "truncate")}>
-                {item.label}
-              </span>
-              {!collapsed && item.badge !== undefined && item.badge > 0 ? (
-                <span className="ml-auto text-xs font-medium bg-danger-500 text-white rounded-full px-1.5 py-0.5 touch-exempt min-h-0 min-w-0">
-                  {item.badge}
-                </span>
-              ) : null}
-            </>
-          );
+    const sharedChildren = (
+      <>
+        <item.icon className="h-5 w-5 shrink-0" />
+        <span className={cn(collapsed ? 'sr-only' : 'truncate')}>{item.label}</span>
+        {!collapsed && item.badge !== undefined && item.badge > 0 ? (
+          <span className="bg-danger-500 touch-exempt ml-auto min-h-0 min-w-0 rounded-full px-1.5 py-0.5 text-xs font-medium text-white">
+            {item.badge}
+          </span>
+        ) : null}
+      </>
+    );
 
-          const element = isLink ? (
-            <Link
-              to={item.href}
-              aria-current={isActive ? "page" : undefined}
-              aria-label={collapsed ? item.label : undefined}
-              tabIndex={item.disabled ? -1 : undefined}
-              className={sharedClassName}
-            >
-              {sharedChildren}
-            </Link>
-          ) : (
-            <button
-              type="button"
-              aria-current={isActive ? "page" : undefined}
-              aria-label={collapsed ? item.label : undefined}
-              tabIndex={item.disabled ? -1 : undefined}
-              className={sharedClassName}
-            >
-              {sharedChildren}
-            </button>
-          );
+    const element = isLink ? (
+      <Link
+        to={item.href}
+        aria-current={isActive ? 'page' : undefined}
+        aria-label={collapsed ? item.label : undefined}
+        tabIndex={item.disabled ? -1 : undefined}
+        className={sharedClassName}
+      >
+        {sharedChildren}
+      </Link>
+    ) : (
+      <button
+        type="button"
+        aria-current={isActive ? 'page' : undefined}
+        aria-label={collapsed ? item.label : undefined}
+        tabIndex={item.disabled ? -1 : undefined}
+        className={sharedClassName}
+      >
+        {sharedChildren}
+      </button>
+    );
 
-          if (collapsed) {
-            return (
-              <Tooltip key={item.id}>
-                <TooltipTrigger asChild>{element}</TooltipTrigger>
-                <TooltipContent side="right" sideOffset={12}>
-                  {item.label}
-                </TooltipContent>
-              </Tooltip>
-            );
-          }
+    if (collapsed) {
+      return (
+        <Tooltip key={item.id}>
+          <TooltipTrigger asChild>{element}</TooltipTrigger>
+          <TooltipContent side="right" sideOffset={12}>
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
 
-          return <React.Fragment key={item.id}>{element}</React.Fragment>;
-        })}
+    return <React.Fragment key={item.id}>{element}</React.Fragment>;
+  });
+}
 ```
 
 ## Design reasoning, so you understand what NOT to "improve" while implementing this
@@ -6465,6 +6636,7 @@ layer, instead of a silent runtime mismatch.
 schemas currently defined in `packages/shared/src/schemas/documents.ts`
 that map to the `documents` and `versions` tables specifically
 (`DocumentSelectSchema` and `VersionSelectSchema`). It does NOT touch:
+
 - Any other file in `packages/shared/src/schemas/` (`common.ts`,
   `document-metadata.ts`, `organization.ts`) — these are out of scope
   for this pass and must be left exactly as they are.
@@ -6549,11 +6721,11 @@ What you DO need to do:
    pattern already established in `apps/server`:
 
 ```typescript
-   import { documents, versions } from '@batac/database/schema/documents.schema.js';
+import { documents, versions } from '@batac/database/schema/documents.schema.js';
 ```
 
 3. Run `pnpm install` again after this change, then run `pnpm --filter
-   @batac/shared typecheck` (this runs `tsc --noEmit` per the script
+@batac/shared typecheck` (this runs `tsc --noEmit` per the script
    already defined in `packages/shared/package.json`). Confirm this
    import resolves with zero errors before proceeding to Part 3. If it
    does not resolve, stop and report the exact error — do not attempt
@@ -6629,13 +6801,14 @@ these two fields cannot come from `createSelectSchema()` directly).
 
 Rewrite `DocumentSelectSchema` to be built from `createSelectSchema()`
 on the `documents` table, using field-level refinement overrides for:
+
 - Every column that needs to be entirely excluded (the ones listed
   above: `cityId`, `numberSeriesId`, `draftedByEmployeeId`,
   `retentionScheduleId`, `tsv`, `deletedAt`, `deletedBy`) — use `.omit()`
   after generation, e.g. `createSelectSchema(documents).omit({ cityId:
-  true, numberSeriesId: true, draftedByEmployeeId: true,
-  retentionScheduleId: true, tsv: true, deletedAt: true, deletedBy: true
-  })`.
+true, numberSeriesId: true, draftedByEmployeeId: true,
+retentionScheduleId: true, tsv: true, deletedAt: true, deletedBy: true
+})`.
 - Every column whose auto-generated type needs a refinement to match
   the existing hand-written schema's validation behavior exactly (for
   example, `title` currently has `.min(1)` and `versionNumber` currently
@@ -6643,21 +6816,21 @@ on the `documents` table, using field-level refinement overrides for:
   generated type for these columns already includes equivalent
   constraints, and if not, add them back via the refinement-callback
   syntax: `createSelectSchema(documents, { title: (schema) =>
-  schema.min(1), versionNumber: (schema) => schema.min(1) })`. Do not
+schema.min(1), versionNumber: (schema) => schema.min(1) })`. Do not
   assume the defaults match — check the actual generated type, e.g. by
   temporarily logging or inspecting `._def` in a scratch script, or by
   writing the equality check described in Part 4 below and letting a
   failing test tell you.)
 - Then `.extend()` the two composite fields onto the result:
   `documentType: DocumentTypeSummarySchema` and `originatingOffice:
-  OfficeSummarySchema` (these keep their exact current definitions,
+OfficeSummarySchema` (these keep their exact current definitions,
   unchanged — only their surrounding schema's construction mechanism
   changes).
 
 The final exported `DocumentSelectSchema` must produce the exact same
 `z.infer` shape as the current hand-written version — same field names,
 same optionality/nullability, same set of fields. This is a mechanical
-refactor of *how* the schema is constructed, not a change to *what* it
+refactor of _how_ the schema is constructed, not a change to _what_ it
 validates. If your refactor changes the inferred type in any way (a
 field becomes optional that wasn't before, a nullable becomes optional
 or vice versa, a validation constraint is lost or gained), that is a
@@ -6744,45 +6917,45 @@ bundled into this task.)
    to find it). The `.query()` handler currently does:
 
 ```typescript
-   const versions = await repo.findVersionsByDocument(input.documentId);
-   return versions.map((v) => ({
-     id: v.id,
-     documentId: v.documentId,
-     versionNumber: v.versionNumber,
-     s3Key: v.fileKey,
-     originalFilename: v.originalFilename,
-     mimeType: v.mimeType,
-     fileSizeBytes: v.fileSizeBytes ?? 0,
-     pageCount: v.pageCount,
-     scanQualityScore: v.scanQualityScore ? Number(v.scanQualityScore) : null,
-     scanQualityCategory: v.scanQualityCategory as any,
-     ocrProcessed: v.ocrProcessed,
-     // ...(there may be more fields after this in the actual file —
-     // read the full mapping before editing, this excerpt may not be
-     // complete)
-   }));
+const versions = await repo.findVersionsByDocument(input.documentId);
+return versions.map((v) => ({
+  id: v.id,
+  documentId: v.documentId,
+  versionNumber: v.versionNumber,
+  s3Key: v.fileKey,
+  originalFilename: v.originalFilename,
+  mimeType: v.mimeType,
+  fileSizeBytes: v.fileSizeBytes ?? 0,
+  pageCount: v.pageCount,
+  scanQualityScore: v.scanQualityScore ? Number(v.scanQualityScore) : null,
+  scanQualityCategory: v.scanQualityCategory as any,
+  ocrProcessed: v.ocrProcessed,
+  // ...(there may be more fields after this in the actual file —
+  // read the full mapping before editing, this excerpt may not be
+  // complete)
+}));
 ```
 
-   Change `s3Key: v.fileKey,` to `fileKey: v.fileKey,`. Do not change
-   anything else in this handler, including the pre-existing `as any`
-   cast on `scanQualityCategory` — that is a separate, unrelated issue
-   and is out of scope for this task. Do not attempt to simplify or
-   remove this manual field-mapping object entirely (e.g. by having the
-   repository return an already-correctly-shaped object and just
-   passing it through) — that would be a larger refactor than this task
-   asks for; the minimal fix is the one field rename.
-4. Search the rest of the codebase for any other place that constructs
-   an object intended to satisfy `VersionSelectSchema`'s shape (as
-   opposed to the many OTHER, unrelated `s3Key` usages that belong to
-   different schemas and different tables entirely — see the warning
-   below) and apply the same one-field rename if you find any. As of
-   this task being written, the `getVersionHistory` handler above is
-   the only one — but re-verify this, since the codebase may have
-   changed since this prompt was written.
+Change `s3Key: v.fileKey,` to `fileKey: v.fileKey,`. Do not change
+anything else in this handler, including the pre-existing `as any`
+cast on `scanQualityCategory` — that is a separate, unrelated issue
+and is out of scope for this task. Do not attempt to simplify or
+remove this manual field-mapping object entirely (e.g. by having the
+repository return an already-correctly-shaped object and just
+passing it through) — that would be a larger refactor than this task
+asks for; the minimal fix is the one field rename. 4. Search the rest of the codebase for any other place that constructs
+an object intended to satisfy `VersionSelectSchema`'s shape (as
+opposed to the many OTHER, unrelated `s3Key` usages that belong to
+different schemas and different tables entirely — see the warning
+below) and apply the same one-field rename if you find any. As of
+this task being written, the `getVersionHistory` handler above is
+the only one — but re-verify this, since the codebase may have
+changed since this prompt was written.
 
 **Important warning — do not rename `s3Key` anywhere else.** A repo-wide
 search for `s3Key` will turn up many results that are NOT part of this
 fix and must NOT be touched:
+
 - `s3Key` fields in Input/Output schemas (`UploadNewVersionInputSchema`,
   `UploadAttachmentInputSchema`, `RequestUploadUrlOutputSchema`,
   `ConfirmUploadInputSchema`, and others in this same file) — these are
@@ -6864,9 +7037,9 @@ Do not renumber or otherwise edit rules 1–8. Do not touch any other part
 of E3 — specifically, do not update the `DocumentSelectSchema` or
 `VersionSelectSchema` documentation entries elsewhere in E3 (around the
 "Core Document Schemas" section) to reflect the `drizzle-zod`-based
-construction from Parts 3–4 above; E3 documents the *target shape*
+construction from Parts 3–4 above; E3 documents the _target shape_
 schemas must produce, and that target shape is unchanged by this task
-— only *how* the code produces that shape has changed. Updating E3's
+— only _how_ the code produces that shape has changed. Updating E3's
 code samples to show the new `createSelectSchema()`-based construction
 is a reasonable follow-up but is not part of this task; note it in the
 findings log instead (see below).
@@ -6896,16 +7069,16 @@ side effect of adding content elsewhere in the document.
    - Constructs one intentionally-invalid object per schema (e.g. an
      invalid `lifecycleState` value, a non-UUID `fileKey`) and confirms
      `.parse()` throws.
-   Run this script with `tsx` (already a devDependency in
-   `packages/database`, may need adding to `packages/shared` — check
-   first) or `node --loader` equivalent, save it as a throwaway script
-   in `/tmp` or similar, and delete it after confirming it passes. Do
-   not commit this script to the repo — it is a manual verification
-   step, not a permanent test file. (Setting up a real, permanent test
-   suite for `packages/shared` using `vitest`, matching the convention
-   already established in `apps/server`, is a reasonable follow-up but
-   is out of scope for this task — note it as a finding instead of
-   doing it here.)
+     Run this script with `tsx` (already a devDependency in
+     `packages/database`, may need adding to `packages/shared` — check
+     first) or `node --loader` equivalent, save it as a throwaway script
+     in `/tmp` or similar, and delete it after confirming it passes. Do
+     not commit this script to the repo — it is a manual verification
+     step, not a permanent test file. (Setting up a real, permanent test
+     suite for `packages/shared` using `vitest`, matching the convention
+     already established in `apps/server`, is a reasonable follow-up but
+     is out of scope for this task — note it as a finding instead of
+     doing it here.)
 3. `pnpm --filter server typecheck` (or the equivalent workspace filter
    for `apps/server` — confirm the exact filter name from
    `apps/server/package.json`'s `name` field before running) — must
@@ -6927,6 +7100,7 @@ Append an entry to `docs/development-findings-log.md` (append-only,
 bottom of file, following the exact format already used by existing
 entries — read the log file's own header for the format spec before
 writing, per AGENTS.md Section 4.5) recording:
+
 - That this task added `drizzle-zod` and converted
   `DocumentSelectSchema` and `VersionSelectSchema` to be
   Drizzle-derived, as a deliberately narrow first pass.
@@ -6962,7 +7136,7 @@ in this same task.
 
 # TASK-DOCS-SHARED-001
 
-````
+```
 TASK-DOCS-SHARED-001
 
 Title: Fix runtime-crashing DocumentSelectSchema/VersionSelectSchema; remove
@@ -7321,7 +7495,7 @@ Before submitting, confirm each item:
 - [ ] documents.router.ts shows zero diff
 - [ ] git status on packages/shared/ shows only the expected file changes
 A reviewer will verify each one independently.
-````
+```
 
 ---
 
@@ -7374,18 +7548,18 @@ Place this new import line immediately after the `import rateLimit from '@fastif
 Inside `buildApp()`, the current registration sequence (as of this task's writing) is:
 
 ```ts
-  await registerHealthRoute(fastify);
+await registerHealthRoute(fastify);
 
-  // Wave B infrastructure + module plugins, in dependency order.
-  await fastify.register(databasePlugin);
-  await fastify.register(eventBusPlugin);
-  await fastify.register(auditPlugin);
-  await fastify.register(rateLimit, {
-    max: env.RATE_API_MAX,
-    timeWindow: env.RATE_API_WINDOW_MS,
-    allowList: [env.HEALTH_CHECK_PATH],
-  });
-  await fastify.register(iamPlugin);
+// Wave B infrastructure + module plugins, in dependency order.
+await fastify.register(databasePlugin);
+await fastify.register(eventBusPlugin);
+await fastify.register(auditPlugin);
+await fastify.register(rateLimit, {
+  max: env.RATE_API_MAX,
+  timeWindow: env.RATE_API_WINDOW_MS,
+  allowList: [env.HEALTH_CHECK_PATH],
+});
+await fastify.register(iamPlugin);
 ```
 
 Insert the helmet registration immediately after `await registerHealthRoute(fastify);` and immediately before `await fastify.register(databasePlugin);` — i.e., helmet must be the very first plugin registered after the health route, before `databasePlugin` and everything that follows it. Do not place it anywhere else in the sequence (not alongside `rateLimit`, not at the end near `cors`).
@@ -7393,11 +7567,11 @@ Insert the helmet registration immediately after `await registerHealthRoute(fast
 The exact call and options object to register:
 
 ```ts
-  await fastify.register(helmet, {
-    xFrameOptions: { action: 'deny' },
-    referrerPolicy: { policy: 'no-referrer' },
-    strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true },
-  });
+await fastify.register(helmet, {
+  xFrameOptions: { action: 'deny' },
+  referrerPolicy: { policy: 'no-referrer' },
+  strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true },
+});
 ```
 
 Do not pass any other keys in this options object — specifically, do not add `contentSecurityPolicy`, `xContentTypeOptions`, `xXssProtection`, or `xssFilter` keys of any kind, including `false`. Leaving these unconfigured is intentional: `@fastify/helmet`'s underlying `helmet` package (confirmed against the installed `helmet@8.3.0` source, not assumed) runs `contentSecurityPolicy` and `xContentTypeOptions` by default when the options object omits them, and separately runs `xXssProtection` by default, which sets `X-XSS-Protection: 0` (telling the browser to disable its legacy XSS auditor — the current safe value, not the older unsafe default some tooling still associates with that header name). Do not add a `false` value for any of these three keys; that would actively disable behavior this task wants left on its default.
@@ -7405,24 +7579,24 @@ Do not pass any other keys in this options object — specifically, do not add `
 So the full modified sequence should read:
 
 ```ts
-  await registerHealthRoute(fastify);
+await registerHealthRoute(fastify);
 
-  await fastify.register(helmet, {
-    xFrameOptions: { action: 'deny' },
-    referrerPolicy: { policy: 'no-referrer' },
-    strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true },
-  });
+await fastify.register(helmet, {
+  xFrameOptions: { action: 'deny' },
+  referrerPolicy: { policy: 'no-referrer' },
+  strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true },
+});
 
-  // Wave B infrastructure + module plugins, in dependency order.
-  await fastify.register(databasePlugin);
-  await fastify.register(eventBusPlugin);
-  await fastify.register(auditPlugin);
-  await fastify.register(rateLimit, {
-    max: env.RATE_API_MAX,
-    timeWindow: env.RATE_API_WINDOW_MS,
-    allowList: [env.HEALTH_CHECK_PATH],
-  });
-  await fastify.register(iamPlugin);
+// Wave B infrastructure + module plugins, in dependency order.
+await fastify.register(databasePlugin);
+await fastify.register(eventBusPlugin);
+await fastify.register(auditPlugin);
+await fastify.register(rateLimit, {
+  max: env.RATE_API_MAX,
+  timeWindow: env.RATE_API_WINDOW_MS,
+  allowList: [env.HEALTH_CHECK_PATH],
+});
+await fastify.register(iamPlugin);
 ```
 
 ## Explicit scope boundaries — what NOT to touch

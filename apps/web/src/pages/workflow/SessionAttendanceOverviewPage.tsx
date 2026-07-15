@@ -33,10 +33,10 @@ export function SessionAttendanceOverviewPage() {
       <div className="p-6">
         {isLoading ? (
           <div className="flex justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
           </div>
         ) : error ? (
-          <div className="p-8 text-center text-danger-600">
+          <div className="text-danger-600 p-8 text-center">
             Failed to load attendance statistics.
           </div>
         ) : (
@@ -81,7 +81,7 @@ export function SessionAttendanceOverviewPage() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="text-muted-foreground h-24 text-center">
                       No session attendance records found.
                     </TableCell>
                   </TableRow>

@@ -1,11 +1,7 @@
 import 'dotenv/config';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import {
-  offices,
-  employees,
-  committees,
-} from '@batac/database/schema/organization.schema.js';
+import { offices, employees, committees } from '@batac/database/schema/organization.schema.js';
 import { sql } from 'drizzle-orm';
 
 // ────────── CONSTANTS ────────────────────────────────────────────────────────
@@ -39,22 +35,32 @@ interface CommitteeDef {
 // SPS has SP as parent — handled by two-pass insertion.
 const OFFICES: OfficeDef[] = [
   // Executive branch
-  { code: 'OOM',  name: 'Office of the Mayor',                        type: 'executive',   parentCode: null },
+  { code: 'OOM', name: 'Office of the Mayor', type: 'executive', parentCode: null },
   // Legislative branch
-  { code: 'OVM',  name: 'Office of the Vice Mayor',                   type: 'legislative', parentCode: null },
-  { code: 'SP',   name: 'Sangguniang Panlungsod',                     type: 'legislative', parentCode: null },
-  { code: 'SPS',  name: 'SP Secretariat',                             type: 'legislative', parentCode: 'SP' },
+  { code: 'OVM', name: 'Office of the Vice Mayor', type: 'legislative', parentCode: null },
+  { code: 'SP', name: 'Sangguniang Panlungsod', type: 'legislative', parentCode: null },
+  { code: 'SPS', name: 'SP Secretariat', type: 'legislative', parentCode: 'SP' },
   // City departments — all standalone (parentCode: null)
-  { code: 'CAO',  name: 'City Accounting Office',                     type: 'department',  parentCode: null },
-  { code: 'BO',   name: 'Budget Office',                              type: 'department',  parentCode: null },
-  { code: 'CEO',  name: "City Engineer's Office",                     type: 'department',  parentCode: null },
-  { code: 'CHO',  name: 'City Health Office',                         type: 'department',  parentCode: null },
-  { code: 'CHMO', name: 'City Human Resources Management Office',     type: 'department',  parentCode: null },
-  { code: 'CLO',  name: 'City Legal Office',                          type: 'department',  parentCode: null },
-  { code: 'CPDO', name: 'City Planning and Development Office',       type: 'department',  parentCode: null },
-  { code: 'CTO',  name: "City Treasurer's Office",                    type: 'department',  parentCode: null },
+  { code: 'CAO', name: 'City Accounting Office', type: 'department', parentCode: null },
+  { code: 'BO', name: 'Budget Office', type: 'department', parentCode: null },
+  { code: 'CEO', name: "City Engineer's Office", type: 'department', parentCode: null },
+  { code: 'CHO', name: 'City Health Office', type: 'department', parentCode: null },
+  {
+    code: 'CHMO',
+    name: 'City Human Resources Management Office',
+    type: 'department',
+    parentCode: null,
+  },
+  { code: 'CLO', name: 'City Legal Office', type: 'department', parentCode: null },
+  {
+    code: 'CPDO',
+    name: 'City Planning and Development Office',
+    type: 'department',
+    parentCode: null,
+  },
+  { code: 'CTO', name: "City Treasurer's Office", type: 'department', parentCode: null },
   // External — for documents received from outside the LGU
-  { code: 'EXT',  name: 'External',                                   type: 'external',    parentCode: null },
+  { code: 'EXT', name: 'External', type: 'external', parentCode: null },
 ];
 
 // ────────── SP MEMBER DEFINITIONS ─────────────────────────────────────────────
@@ -62,18 +68,18 @@ const OFFICES: OfficeDef[] = [
 // These are development placeholder employee records; a Platform Administrator
 // will link them to real IAM users after seeding via TASK-ORG-008 tRPC procedures.
 const SP_MEMBERS: SpMemberDef[] = [
-  { employeeNumber: 'SP-FLOJO',       firstName: 'Juan Paulo P.',               lastName: 'Flojo'           },
-  { employeeNumber: 'SP-AGUINALDO',   firstName: 'MacArthur A.',                lastName: 'Aguinaldo'       },
-  { employeeNumber: 'SP-PUNGTILAN',   firstName: 'Kichel Jomarie G.',           lastName: 'Pungtilan'       },
-  { employeeNumber: 'SP-DAGUIO',      firstName: 'John Gabrielle Dominique M.', lastName: 'Daguio'          },
-  { employeeNumber: 'SP-BORLEO',      firstName: 'Martha Louise Aurora M.',     lastName: 'Borleo'          },
-  { employeeNumber: 'SP-QUIDANG',     firstName: 'Gwyneth S.',                  lastName: 'Quidang'         },
-  { employeeNumber: 'SP-MEDINA',      firstName: 'Gilbert O.',                  lastName: 'Medina'          },
-  { employeeNumber: 'SP-MIRASOL',     firstName: 'Reign Gwendia T.',            lastName: 'Mirasol'         },
-  { employeeNumber: 'SP-CASTILLO',    firstName: 'Rizal P.',                    lastName: 'Castillo'        },
-  { employeeNumber: 'SP-NALUPTA',     firstName: 'Violeta Eugenia D.',          lastName: 'Nalupta'         },
-  { employeeNumber: 'SP-BUNYE',       firstName: 'Lucky Rene G.',               lastName: 'Bunye'           },
-  { employeeNumber: 'SP-SALAMANGKIT', firstName: 'Eleuterio A.',                lastName: 'Salamangkit Jr.' },
+  { employeeNumber: 'SP-FLOJO', firstName: 'Juan Paulo P.', lastName: 'Flojo' },
+  { employeeNumber: 'SP-AGUINALDO', firstName: 'MacArthur A.', lastName: 'Aguinaldo' },
+  { employeeNumber: 'SP-PUNGTILAN', firstName: 'Kichel Jomarie G.', lastName: 'Pungtilan' },
+  { employeeNumber: 'SP-DAGUIO', firstName: 'John Gabrielle Dominique M.', lastName: 'Daguio' },
+  { employeeNumber: 'SP-BORLEO', firstName: 'Martha Louise Aurora M.', lastName: 'Borleo' },
+  { employeeNumber: 'SP-QUIDANG', firstName: 'Gwyneth S.', lastName: 'Quidang' },
+  { employeeNumber: 'SP-MEDINA', firstName: 'Gilbert O.', lastName: 'Medina' },
+  { employeeNumber: 'SP-MIRASOL', firstName: 'Reign Gwendia T.', lastName: 'Mirasol' },
+  { employeeNumber: 'SP-CASTILLO', firstName: 'Rizal P.', lastName: 'Castillo' },
+  { employeeNumber: 'SP-NALUPTA', firstName: 'Violeta Eugenia D.', lastName: 'Nalupta' },
+  { employeeNumber: 'SP-BUNYE', firstName: 'Lucky Rene G.', lastName: 'Bunye' },
+  { employeeNumber: 'SP-SALAMANGKIT', firstName: 'Eleuterio A.', lastName: 'Salamangkit Jr.' },
 ];
 
 // ────────── COMMITTEE DEFINITIONS ─────────────────────────────────────────────
@@ -81,29 +87,105 @@ const SP_MEMBERS: SpMemberDef[] = [
 // (requirements-gathering/scanned-documents/standing-committees/standing-committees.md)
 // [Confirmed — 2026-06-27]
 const COMMITTEES: CommitteeDef[] = [
-  { code: 'CLREP',  name: 'Committee on Laws, Rules, Ethics & Privileges',                                                                    chairEmployeeNumber: 'SP-FLOJO'         },
-  { code: 'CPOPSD', name: 'Committee on Peace and Order & Public Safety & Dangerous Drugs',                                                   chairEmployeeNumber: 'SP-AGUINALDO'     },
-  { code: 'CSWDPS', name: 'Committee on Social Welfare Development & Public Service & Calamities',                                            chairEmployeeNumber: 'SP-PUNGTILAN'     },
-  { code: 'CECST',  name: 'Committee on Education, Culture, Science & Technology',                                                            chairEmployeeNumber: 'SP-DAGUIO'        },
-  { code: 'CHSP',   name: 'Committee on Health and Sanitation & Public Welfare',                                                              chairEmployeeNumber: 'SP-BORLEO'        },
-  { code: 'CAFWM',  name: 'Committee on Appropriations and Finance & Ways and Means',                                                         chairEmployeeNumber: 'SP-BORLEO'        },
-  { code: 'CHRCS',  name: 'Committee on Human Rights & CSOs',                                                                                 chairEmployeeNumber: 'SP-QUIDANG'       },
-  { code: 'CSPCA',  name: 'Committee on Special Projects & Corporate Affairs',                                                                chairEmployeeNumber: 'SP-AGUINALDO'     },
-  { code: 'CBA',    name: 'Committee on Barangay Affairs',                                                                                    chairEmployeeNumber: 'SP-MEDINA'        },
-  { code: 'CTC',    name: 'Committee on Transportation and Communication',                                                                    chairEmployeeNumber: 'SP-MEDINA'        },
-  { code: 'CTPI',   name: 'Committee on Tourism & Public Information',                                                                        chairEmployeeNumber: 'SP-DAGUIO'        },
-  { code: 'CGA',    name: 'Committee on Games and Amusements',                                                                                chairEmployeeNumber: 'SP-MIRASOL'       },
-  { code: 'CSCN',   name: 'Committee on Senior Citizens & NGOs',                                                                              chairEmployeeNumber: 'SP-CASTILLO'      },
-  { code: 'CEEMS',  name: 'Committee on Economic Enterprise, Market & Slaughterhouse',                                                        chairEmployeeNumber: 'SP-FLOJO'         },
-  { code: 'CLEA',   name: 'Committee on Landed Estates & Assessments',                                                                        chairEmployeeNumber: 'SP-NALUPTA'       },
-  { code: 'CGGE',   name: 'Committee on Good Government/Public Ethics and Accountability',                                                    chairEmployeeNumber: 'SP-BUNYE'         },
-  { code: 'CPWIH',  name: 'Committee on Public Works, Infrastructure, Housing & Urban Development',                                           chairEmployeeNumber: 'SP-SALAMANGKIT'   },
-  { code: 'CAFCL',  name: 'Committee on Agriculture, Food, Cooperatives and Livelihood',                                                      chairEmployeeNumber: 'SP-SALAMANGKIT'   },
-  { code: 'CENR',   name: 'Committee on Environment, Natural Resources, Climate Change Adaptation, Water Sustainability & Energy',            chairEmployeeNumber: 'SP-SALAMANGKIT'   },
-  { code: 'CTCI',   name: 'Committee on Trade, Commerce & Industry',                                                                          chairEmployeeNumber: 'SP-AGUINALDO'     },
-  { code: 'CWCF',   name: 'Committee on Women, Children & Family Relations & Indigenous Peoples',                                             chairEmployeeNumber: 'SP-PUNGTILAN'     },
-  { code: 'CLEC',   name: 'Committee on Labor, Employment & Civil Service',                                                                   chairEmployeeNumber: 'SP-FLOJO'         },
-  { code: 'CYSD',   name: 'Committee on Youth & Sports Development',                                                                          chairEmployeeNumber: 'SP-MIRASOL'       },
+  {
+    code: 'CLREP',
+    name: 'Committee on Laws, Rules, Ethics & Privileges',
+    chairEmployeeNumber: 'SP-FLOJO',
+  },
+  {
+    code: 'CPOPSD',
+    name: 'Committee on Peace and Order & Public Safety & Dangerous Drugs',
+    chairEmployeeNumber: 'SP-AGUINALDO',
+  },
+  {
+    code: 'CSWDPS',
+    name: 'Committee on Social Welfare Development & Public Service & Calamities',
+    chairEmployeeNumber: 'SP-PUNGTILAN',
+  },
+  {
+    code: 'CECST',
+    name: 'Committee on Education, Culture, Science & Technology',
+    chairEmployeeNumber: 'SP-DAGUIO',
+  },
+  {
+    code: 'CHSP',
+    name: 'Committee on Health and Sanitation & Public Welfare',
+    chairEmployeeNumber: 'SP-BORLEO',
+  },
+  {
+    code: 'CAFWM',
+    name: 'Committee on Appropriations and Finance & Ways and Means',
+    chairEmployeeNumber: 'SP-BORLEO',
+  },
+  { code: 'CHRCS', name: 'Committee on Human Rights & CSOs', chairEmployeeNumber: 'SP-QUIDANG' },
+  {
+    code: 'CSPCA',
+    name: 'Committee on Special Projects & Corporate Affairs',
+    chairEmployeeNumber: 'SP-AGUINALDO',
+  },
+  { code: 'CBA', name: 'Committee on Barangay Affairs', chairEmployeeNumber: 'SP-MEDINA' },
+  {
+    code: 'CTC',
+    name: 'Committee on Transportation and Communication',
+    chairEmployeeNumber: 'SP-MEDINA',
+  },
+  {
+    code: 'CTPI',
+    name: 'Committee on Tourism & Public Information',
+    chairEmployeeNumber: 'SP-DAGUIO',
+  },
+  { code: 'CGA', name: 'Committee on Games and Amusements', chairEmployeeNumber: 'SP-MIRASOL' },
+  { code: 'CSCN', name: 'Committee on Senior Citizens & NGOs', chairEmployeeNumber: 'SP-CASTILLO' },
+  {
+    code: 'CEEMS',
+    name: 'Committee on Economic Enterprise, Market & Slaughterhouse',
+    chairEmployeeNumber: 'SP-FLOJO',
+  },
+  {
+    code: 'CLEA',
+    name: 'Committee on Landed Estates & Assessments',
+    chairEmployeeNumber: 'SP-NALUPTA',
+  },
+  {
+    code: 'CGGE',
+    name: 'Committee on Good Government/Public Ethics and Accountability',
+    chairEmployeeNumber: 'SP-BUNYE',
+  },
+  {
+    code: 'CPWIH',
+    name: 'Committee on Public Works, Infrastructure, Housing & Urban Development',
+    chairEmployeeNumber: 'SP-SALAMANGKIT',
+  },
+  {
+    code: 'CAFCL',
+    name: 'Committee on Agriculture, Food, Cooperatives and Livelihood',
+    chairEmployeeNumber: 'SP-SALAMANGKIT',
+  },
+  {
+    code: 'CENR',
+    name: 'Committee on Environment, Natural Resources, Climate Change Adaptation, Water Sustainability & Energy',
+    chairEmployeeNumber: 'SP-SALAMANGKIT',
+  },
+  {
+    code: 'CTCI',
+    name: 'Committee on Trade, Commerce & Industry',
+    chairEmployeeNumber: 'SP-AGUINALDO',
+  },
+  {
+    code: 'CWCF',
+    name: 'Committee on Women, Children & Family Relations & Indigenous Peoples',
+    chairEmployeeNumber: 'SP-PUNGTILAN',
+  },
+  {
+    code: 'CLEC',
+    name: 'Committee on Labor, Employment & Civil Service',
+    chairEmployeeNumber: 'SP-FLOJO',
+  },
+  {
+    code: 'CYSD',
+    name: 'Committee on Youth & Sports Development',
+    chairEmployeeNumber: 'SP-MIRASOL',
+  },
 ];
 
 import { fileURLToPath } from 'node:url';
@@ -112,135 +194,136 @@ import { fileURLToPath } from 'node:url';
 export async function seedOrganization(db: any) {
   await db.transaction(async (tx: any) => {
     // ── Step 1: Upsert offices (two-pass for hierarchy) ──────────────────────
-      // Pass 1 inserts all standalone offices (parentCode: null).
-      // Pass 2 inserts SPS which references SP as its parent.
-      // This ordering guarantees the parent row exists before the child FK is set.
-      console.log('[seed:org] Step 1: Upserting offices (two-pass)...');
+    // Pass 1 inserts all standalone offices (parentCode: null).
+    // Pass 2 inserts SPS which references SP as its parent.
+    // This ordering guarantees the parent row exists before the child FK is set.
+    console.log('[seed:org] Step 1: Upserting offices (two-pass)...');
 
-      const standaloneOffices = OFFICES.filter((o) => o.parentCode === null);
-      const childOffices      = OFFICES.filter((o) => o.parentCode !== null);
+    const standaloneOffices = OFFICES.filter((o) => o.parentCode === null);
+    const childOffices = OFFICES.filter((o) => o.parentCode !== null);
 
-      // Map of office code → seeded row id, built as offices are inserted.
-      const seededOfficeIds: Record<string, string> = {};
+    // Map of office code → seeded row id, built as offices are inserted.
+    const seededOfficeIds: Record<string, string> = {};
 
-      for (const pass of [standaloneOffices, childOffices]) {
-        for (const office of pass) {
-          const parentOfficeId = office.parentCode !== null
-            ? (seededOfficeIds[office.parentCode] ?? null)
-            : null;
+    for (const pass of [standaloneOffices, childOffices]) {
+      for (const office of pass) {
+        const parentOfficeId =
+          office.parentCode !== null ? (seededOfficeIds[office.parentCode] ?? null) : null;
 
-          const [row] = await tx
-            .insert(offices)
-            .values({
-              cityId:        CITY_ID,
-              code:          office.code,
-              name:          office.name,
-              officeType:    office.type,
-              parentOfficeId,
-            })
-            .onConflictDoUpdate({
-              target: [offices.cityId, offices.code],
-              set: {
-                name:       sql`excluded.name`,
-                officeType: sql`excluded.office_type`,
-                updatedAt:  new Date(),
-              },
-            })
-            .returning({ id: offices.id });
-
-          if (!row) {
-            throw new Error(`[seed:org] Failed to upsert office code="${office.code}"`);
-          }
-
-          seededOfficeIds[office.code] = row.id;
-        }
-      }
-
-      console.log(`[seed:org] Upserted ${OFFICES.length} offices.`);
-
-      // ── Step 2: Upsert SP member placeholder employees ───────────────────────
-      // employee_number 'SP-{LASTNAME}' format is a development placeholder.
-      // A Platform Administrator links these to real IAM users via TASK-ORG-008.
-      // Note: Mayor and Vice Mayor employee records are NOT created here per spec.
-      console.log('[seed:org] Step 2: Upserting SP member placeholder employees...');
-
-      const seededEmployeeIds: Record<string, string> = {};
-
-      for (const member of SP_MEMBERS) {
         const [row] = await tx
-          .insert(employees)
+          .insert(offices)
           .values({
-            cityId:         CITY_ID,
-            employeeNumber: member.employeeNumber,
-            firstName:      member.firstName,
-            lastName:       member.lastName,
+            cityId: CITY_ID,
+            code: office.code,
+            name: office.name,
+            officeType: office.type,
+            parentOfficeId,
           })
           .onConflictDoUpdate({
-            target: [employees.cityId, employees.employeeNumber],
+            target: [offices.cityId, offices.code],
             set: {
-              firstName: sql`excluded.first_name`,
-              lastName:  sql`excluded.last_name`,
+              name: sql`excluded.name`,
+              officeType: sql`excluded.office_type`,
               updatedAt: new Date(),
             },
           })
-          .returning({ id: employees.id });
+          .returning({ id: offices.id });
 
         if (!row) {
-          throw new Error(`[seed:org] Failed to upsert employee number="${member.employeeNumber}"`);
+          throw new Error(`[seed:org] Failed to upsert office code="${office.code}"`);
         }
 
-        seededEmployeeIds[member.employeeNumber] = row.id;
+        seededOfficeIds[office.code] = row.id;
+      }
+    }
+
+    console.log(`[seed:org] Upserted ${OFFICES.length} offices.`);
+
+    // ── Step 2: Upsert SP member placeholder employees ───────────────────────
+    // employee_number 'SP-{LASTNAME}' format is a development placeholder.
+    // A Platform Administrator links these to real IAM users via TASK-ORG-008.
+    // Note: Mayor and Vice Mayor employee records are NOT created here per spec.
+    console.log('[seed:org] Step 2: Upserting SP member placeholder employees...');
+
+    const seededEmployeeIds: Record<string, string> = {};
+
+    for (const member of SP_MEMBERS) {
+      const [row] = await tx
+        .insert(employees)
+        .values({
+          cityId: CITY_ID,
+          employeeNumber: member.employeeNumber,
+          firstName: member.firstName,
+          lastName: member.lastName,
+        })
+        .onConflictDoUpdate({
+          target: [employees.cityId, employees.employeeNumber],
+          set: {
+            firstName: sql`excluded.first_name`,
+            lastName: sql`excluded.last_name`,
+            updatedAt: new Date(),
+          },
+        })
+        .returning({ id: employees.id });
+
+      if (!row) {
+        throw new Error(`[seed:org] Failed to upsert employee number="${member.employeeNumber}"`);
       }
 
-      console.log(`[seed:org] Upserted ${SP_MEMBERS.length} SP member placeholder employees.`);
+      seededEmployeeIds[member.employeeNumber] = row.id;
+    }
 
-      // ── Step 3: Upsert standing committees ───────────────────────────────────
-      // Committees reference chairedByEmployeeId which must exist first (Step 2).
-      // The chaired_by_employee_id column is NOT NULL — upsert will fail at the
-      // DB level if the employee row was not inserted in Step 2.
-      console.log('[seed:org] Step 3: Upserting SP standing committees...');
+    console.log(`[seed:org] Upserted ${SP_MEMBERS.length} SP member placeholder employees.`);
 
-      let committeesSeeded = 0;
+    // ── Step 3: Upsert standing committees ───────────────────────────────────
+    // Committees reference chairedByEmployeeId which must exist first (Step 2).
+    // The chaired_by_employee_id column is NOT NULL — upsert will fail at the
+    // DB level if the employee row was not inserted in Step 2.
+    console.log('[seed:org] Step 3: Upserting SP standing committees...');
 
-      for (const committee of COMMITTEES) {
-        const chairedByEmployeeId = seededEmployeeIds[committee.chairEmployeeNumber];
+    let committeesSeeded = 0;
 
-        if (!chairedByEmployeeId) {
-          // Guard: should never happen given SP_MEMBERS covers all chair codes.
-          throw new Error(
-            `[seed:org] Chair employee "${committee.chairEmployeeNumber}" not found for committee "${committee.code}". ` +
-            'Ensure SP_MEMBERS covers all chairEmployeeNumber values in COMMITTEES.'
-          );
-        }
+    for (const committee of COMMITTEES) {
+      const chairedByEmployeeId = seededEmployeeIds[committee.chairEmployeeNumber];
 
-        await tx
-          .insert(committees)
-          .values({
-            cityId:               CITY_ID,
-            code:                 committee.code,
-            name:                 committee.name,
-            chairedByEmployeeId,
-          })
-          .onConflictDoUpdate({
-            target: [committees.cityId, committees.code],
-            set: {
-              name:                 sql`excluded.name`,
-              chairedByEmployeeId:  sql`excluded.chaired_by_employee_id`,
-              updatedAt:            new Date(),
-            },
-          });
-
-        committeesSeeded++;
+      if (!chairedByEmployeeId) {
+        // Guard: should never happen given SP_MEMBERS covers all chair codes.
+        throw new Error(
+          `[seed:org] Chair employee "${committee.chairEmployeeNumber}" not found for committee "${committee.code}". ` +
+            'Ensure SP_MEMBERS covers all chairEmployeeNumber values in COMMITTEES.',
+        );
       }
 
-      console.log(`[seed:org] Upserted ${committeesSeeded} standing committees.`);
+      await tx
+        .insert(committees)
+        .values({
+          cityId: CITY_ID,
+          code: committee.code,
+          name: committee.name,
+          chairedByEmployeeId,
+        })
+        .onConflictDoUpdate({
+          target: [committees.cityId, committees.code],
+          set: {
+            name: sql`excluded.name`,
+            chairedByEmployeeId: sql`excluded.chaired_by_employee_id`,
+            updatedAt: new Date(),
+          },
+        });
+
+      committeesSeeded++;
+    }
+
+    console.log(`[seed:org] Upserted ${committeesSeeded} standing committees.`);
   });
 }
 
 async function main() {
   const databaseUrl = process.env['DATABASE_URL_MIGRATE'] || process.env['DATABASE_URL_APP'];
   if (!databaseUrl) {
-    console.error('[seed:org] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
+    console.error(
+      '[seed:org] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.',
+    );
     process.exit(1);
   }
   console.log('[seed:org] Connecting to database...');

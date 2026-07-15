@@ -28,12 +28,24 @@ describe('Organization Module Scaffold', () => {
 
   it('allows calling public API methods returning stub values', async () => {
     const mockQueryBuilder = {
-      from: function() { return this; },
-      where: function() { return this; },
-      innerJoin: function() { return this; },
-      leftJoin: function() { return this; },
-      limit: function() { return this; },
-      then: function(resolve: any) { resolve([]); },
+      from: function () {
+        return this;
+      },
+      where: function () {
+        return this;
+      },
+      innerJoin: function () {
+        return this;
+      },
+      leftJoin: function () {
+        return this;
+      },
+      limit: function () {
+        return this;
+      },
+      then: function (resolve: any) {
+        resolve([]);
+      },
     };
     const mockDb = {
       select: () => mockQueryBuilder,

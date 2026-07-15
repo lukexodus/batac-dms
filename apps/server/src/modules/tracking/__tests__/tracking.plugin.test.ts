@@ -14,7 +14,7 @@ vi.mock('../../../config/env.js', () => ({
     S3_BUCKET: 'test-bucket',
     APP_URL: 'http://localhost:3000',
     S3_SIGNED_URL_EXPIRES_S: 3600,
-  }
+  },
 }));
 
 vi.mock('@aws-sdk/client-s3', () => ({
@@ -30,28 +30,31 @@ vi.mock('../tracking.repository.js', () => {
   return {
     TrackingRepository: vi.fn().mockImplementation(() => ({
       // mock repository methods if needed by plugin init
-    }))
+    })),
   };
 });
 
 import fp from 'fastify-plugin';
 
-const mockDependenciesPlugin = fp(async (fastify) => {
-  fastify.decorate('db', {});
-  
-  fastify.decorate('eventBus', {
-    on: vi.fn(),
-    emit: vi.fn(),
-  });
+const mockDependenciesPlugin = fp(
+  async (fastify) => {
+    fastify.decorate('db', {});
 
-  fastify.decorate('documentsService', {
-    getDocumentById: vi.fn(),
-  });
+    fastify.decorate('eventBus', {
+      on: vi.fn(),
+      emit: vi.fn(),
+    });
 
-  fastify.decorate('iamService', {
-    getUserById: vi.fn(),
-  });
-}, { name: 'documents' });
+    fastify.decorate('documentsService', {
+      getDocumentById: vi.fn(),
+    });
+
+    fastify.decorate('iamService', {
+      getUserById: vi.fn(),
+    });
+  },
+  { name: 'documents' },
+);
 
 const mockIamPlugin = fp(async () => {}, { name: 'iam-plugin' });
 
@@ -60,9 +63,9 @@ describe('tracking.plugin', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    
+
     fastify = Fastify({ logger: false });
-    
+
     fastify.log.info = vi.fn();
     fastify.log.error = vi.fn();
 
@@ -75,20 +78,28 @@ describe('tracking.plugin', () => {
   it('registers successfully and sets up required decorations', () => {
     expect(fastify.trackingService).toBeDefined();
     expect(typeof fastify.trackingService.getTrackingRecordForDocument).toBe('function');
-    
+
     expect(fastify.trackingTrpcRouter).toBeDefined();
-    
+
     const routeInfo = fastify.hasRoute({
       method: 'GET',
-      url: '/track/:trackingId'
+      url: '/track/:trackingId',
     });
     expect(routeInfo).toBe(true);
-    
+
     expect(fastify.log.info).toHaveBeenCalledWith('tracking.module.ready');
   });
-  
+
   it('subscribes to required event bus events', () => {
-    expect(fastify.eventBus.on).toHaveBeenCalledWith('document.created', expect.any(Function), 'tracking');
-    expect(fastify.eventBus.on).toHaveBeenCalledWith('workflow.step_completed', expect.any(Function), 'tracking');
+    expect(fastify.eventBus.on).toHaveBeenCalledWith(
+      'document.created',
+      expect.any(Function),
+      'tracking',
+    );
+    expect(fastify.eventBus.on).toHaveBeenCalledWith(
+      'workflow.step_completed',
+      expect.any(Function),
+      'tracking',
+    );
   });
 });

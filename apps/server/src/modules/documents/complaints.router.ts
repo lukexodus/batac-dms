@@ -3,11 +3,7 @@ import { TRPCError } from '@trpc/server';
 import crypto from 'node:crypto';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import { eq, and, isNull, inArray, sql } from 'drizzle-orm';
-import {
-  UuidSchema,
-  TimestampSchema,
-  PaginationInputSchema,
-} from '@batac/shared/schemas/common';
+import { UuidSchema, TimestampSchema, PaginationInputSchema } from '@batac/shared/schemas/common';
 import { LifecycleStateSchema } from '@batac/shared/schemas/documents';
 import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
 import type { Context } from '../iam/iam.types.js';
@@ -82,7 +78,7 @@ export function createComplaintsRouter() {
           respondentName: z.string().optional(),
           respondentEmail: z.string().email().optional(),
           respondentPhone: z.string().optional(),
-        })
+        }),
       )
       .output(CreateComplaintOutputSchema)
       .mutation(async ({ ctx, input }) => {
@@ -100,11 +96,14 @@ export function createComplaintsRouter() {
           .limit(1);
 
         if (!docType) {
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'CITIZEN_COMPLAINT document type not found' });
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'CITIZEN_COMPLAINT document type not found',
+          });
         }
 
         const repo = getRepository(ctx);
-        
+
         const metadata = {
           complainant: {
             name: input.complainantName,
@@ -160,7 +159,7 @@ export function createComplaintsRouter() {
           complaintId: z.string().uuid(),
           assignedOfficeId: z.string().uuid(),
           routingNotes: z.string().max(512).optional(),
-        })
+        }),
       )
       .output(SuccessOutputSchema)
       .mutation(async ({ ctx, input }) => {
@@ -185,7 +184,12 @@ export function createComplaintsRouter() {
         });
 
         const service = ctx.req.server.documentsService;
-        await service.transitionState(document.id, 'submitted', subject.userId, 'Complaint logged and assigned');
+        await service.transitionState(
+          document.id,
+          'submitted',
+          subject.userId,
+          'Complaint logged and assigned',
+        );
 
         return { success: true as const };
       }),
@@ -195,12 +199,12 @@ export function createComplaintsRouter() {
         z.object({
           complaintId: z.string().uuid(),
           reportText: z.string().min(1),
-        })
+        }),
       )
       .output(SuccessOutputSchema)
       .mutation(async ({ ctx, input }) => {
         const subject = ctx.auth;
-        
+
         const repo = getRepository(ctx);
         const document = await repo.findDocumentById(input.complaintId);
 
@@ -212,10 +216,16 @@ export function createComplaintsRouter() {
 
         if (!subject.roles.includes('sp_secretary')) {
           if (!subject.roles.includes('sp_member')) {
-            throw new TRPCError({ code: 'FORBIDDEN', message: 'SP Secretary or SP Member role required' });
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message: 'SP Secretary or SP Member role required',
+            });
           }
-          if (!metadata['assignedOfficeId'] || !subject.committeeIds.includes(metadata['assignedOfficeId'] as string)) {
-             throw new TRPCError({ code: 'FORBIDDEN', message: 'Not assigned to this committee' });
+          if (
+            !metadata['assignedOfficeId'] ||
+            !subject.committeeIds.includes(metadata['assignedOfficeId'] as string)
+          ) {
+            throw new TRPCError({ code: 'FORBIDDEN', message: 'Not assigned to this committee' });
           }
         }
 
@@ -234,7 +244,7 @@ export function createComplaintsRouter() {
           complaintId: z.string().uuid(),
           outcome: z.enum(['dismissed', 'resolved']),
           notifyRespondentVia: z.enum(['contact_number', 'email']),
-        })
+        }),
       )
       .output(SuccessOutputSchema)
       .mutation(async ({ ctx, input }) => {
@@ -260,30 +270,30 @@ export function createComplaintsRouter() {
 
         const eventBus = getEventBus(ctx);
         if (eventBus) {
-           eventBus.emit('complaint.outcome_set', {
-             eventId: crypto.randomUUID(),
-             eventType: 'complaint.outcome_set',
-             occurredAt: new Date().toISOString(),
-             cityId: subject.cityId,
-             schemaVersion: 1,
-             payload: {
-               complaintId: document.id,
-               outcome: input.outcome,
-               notifyRespondentVia: input.notifyRespondentVia,
-             }
-           });
+          eventBus.emit('complaint.outcome_set', {
+            eventId: crypto.randomUUID(),
+            eventType: 'complaint.outcome_set',
+            occurredAt: new Date().toISOString(),
+            cityId: subject.cityId,
+            schemaVersion: 1,
+            payload: {
+              complaintId: document.id,
+              outcome: input.outcome,
+              notifyRespondentVia: input.notifyRespondentVia,
+            },
+          });
         }
 
         const auditService = (ctx.req.server as any).auditService;
         if (auditService) {
-           await auditService.logEvent({
-             cityId: subject.cityId,
-             actorId: subject.userId,
-             action: `complaint.${input.outcome}`,
-             resourceId: document.id,
-             resourceType: 'document',
-             metadata: { notifyRespondentVia: input.notifyRespondentVia },
-           });
+          await auditService.logEvent({
+            cityId: subject.cityId,
+            actorId: subject.userId,
+            action: `complaint.${input.outcome}`,
+            resourceId: document.id,
+            resourceType: 'document',
+            metadata: { notifyRespondentVia: input.notifyRespondentVia },
+          });
         }
 
         return { success: true as const };
@@ -292,18 +302,20 @@ export function createComplaintsRouter() {
     listAllComplaints: protectedProcedure
       .input(
         PaginationInputSchema.extend({
-          outcomeState: z.enum(['pending_hearing', 'received_seen', 'dismissed', 'resolved']).optional(),
-        })
+          outcomeState: z
+            .enum(['pending_hearing', 'received_seen', 'dismissed', 'resolved'])
+            .optional(),
+        }),
       )
       .output(ListComplaintsOutputSchema)
       .query(async ({ ctx, input }) => {
         const subject = ctx.auth;
-        
-        const hasUnconditionalAccess = 
-          subject.roles.includes('sp_secretary') || 
-          subject.roles.includes('sp_presiding_officer') || 
+
+        const hasUnconditionalAccess =
+          subject.roles.includes('sp_secretary') ||
+          subject.roles.includes('sp_presiding_officer') ||
           subject.roles.includes('auditor');
-          
+
         const isMember = subject.roles.includes('sp_member');
 
         if (!hasUnconditionalAccess && !isMember) {
@@ -318,29 +330,27 @@ export function createComplaintsRouter() {
           .limit(1);
 
         if (!docType) {
-           return { items: [], nextCursor: null };
+          return { items: [], nextCursor: null };
         }
 
         const conditions = [
-           eq(documents.cityId, subject.cityId),
-           eq(documents.documentTypeId, docType.id),
-           isNull(documents.deletedAt)
+          eq(documents.cityId, subject.cityId),
+          eq(documents.documentTypeId, docType.id),
+          isNull(documents.deletedAt),
         ];
-        
+
         if (!hasUnconditionalAccess && isMember) {
-           if (subject.committeeIds.length > 0) {
-             conditions.push(
-               inArray(sql`${documents.metadata}->>'assignedOfficeId'`, subject.committeeIds)
-             );
-           } else {
-             return { items: [], nextCursor: null };
-           }
+          if (subject.committeeIds.length > 0) {
+            conditions.push(
+              inArray(sql`${documents.metadata}->>'assignedOfficeId'`, subject.committeeIds),
+            );
+          } else {
+            return { items: [], nextCursor: null };
+          }
         }
-        
+
         if (input.outcomeState) {
-          conditions.push(
-            eq(sql`${documents.metadata}->>'outcomeState'`, input.outcomeState)
-          );
+          conditions.push(eq(sql`${documents.metadata}->>'outcomeState'`, input.outcomeState));
         }
 
         const rows = await db
@@ -403,7 +413,10 @@ export function createComplaintsRouter() {
           if (!subject.roles.includes('sp_member')) {
             throw new TRPCError({ code: 'FORBIDDEN' });
           }
-          if (!metadata['assignedOfficeId'] || !subject.committeeIds.includes(metadata['assignedOfficeId'] as string)) {
+          if (
+            !metadata['assignedOfficeId'] ||
+            !subject.committeeIds.includes(metadata['assignedOfficeId'] as string)
+          ) {
             throw new TRPCError({ code: 'FORBIDDEN', message: 'Not assigned to this committee' });
           }
         }

@@ -8,9 +8,7 @@ export type ValidationError = {
   message: string;
 };
 
-export type ValidationResult =
-  | { valid: true }
-  | { valid: false; errors: ValidationError[] };
+export type ValidationResult = { valid: true } | { valid: false; errors: ValidationError[] };
 
 export type DefinitionValidatorDeps = {
   workflowRepository: WorkflowRepository;
@@ -18,7 +16,7 @@ export type DefinitionValidatorDeps = {
 
 export async function validateDefinitionForPublish(
   versionId: string,
-  deps: DefinitionValidatorDeps
+  deps: DefinitionValidatorDeps,
 ): Promise<ValidationResult> {
   const { steps, transitionRules } =
     await deps.workflowRepository.getStepsAndRulesForValidation(versionId);
@@ -57,7 +55,7 @@ export async function validateDefinitionForPublish(
       // 3. MISSING_LAPSE_TRANSITION
       if (allowedOutcomes.includes('LAPSED')) {
         const hasLapsedRule = transitionRules.some(
-          (r) => r.fromStepId === step.id && r.outcomeFilter === 'LAPSED'
+          (r) => r.fromStepId === step.id && r.outcomeFilter === 'LAPSED',
         );
         if (!hasLapsedRule) {
           errors.push({
@@ -71,7 +69,7 @@ export async function validateDefinitionForPublish(
       // 4. MISSING_DEEMED_APPROVED_TRANSITION [Inference: symmetric with LAPSED]
       if (allowedOutcomes.includes('DEEMED_APPROVED')) {
         const hasDeemedRule = transitionRules.some(
-          (r) => r.fromStepId === step.id && r.outcomeFilter === 'DEEMED_APPROVED'
+          (r) => r.fromStepId === step.id && r.outcomeFilter === 'DEEMED_APPROVED',
         );
         if (!hasDeemedRule) {
           errors.push({
@@ -86,9 +84,7 @@ export async function validateDefinitionForPublish(
       for (const code of allowedOutcomes) {
         if (code === 'LAPSED' || code === 'DEEMED_APPROVED') continue;
         const hasMatchingRule = transitionRules.some(
-          (r) =>
-            r.fromStepId === step.id &&
-            (r.outcomeFilter === code || r.outcomeFilter === null)
+          (r) => r.fromStepId === step.id && (r.outcomeFilter === code || r.outcomeFilter === null),
         );
         if (!hasMatchingRule) {
           errors.push({
@@ -104,8 +100,7 @@ export async function validateDefinitionForPublish(
     if (step.stepType === 'multi_referral') {
       // 6. MISSING_CERTIFIED_URGENT_TRANSITION
       const hasBypassRule = transitionRules.some(
-        (r) =>
-          r.fromStepId === step.id && r.outcomeFilter === 'BYPASSED_CERTIFIED_URGENT'
+        (r) => r.fromStepId === step.id && r.outcomeFilter === 'BYPASSED_CERTIFIED_URGENT',
       );
       if (!hasBypassRule) {
         errors.push({

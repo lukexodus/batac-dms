@@ -200,42 +200,65 @@ import { fileURLToPath } from 'node:url';
 export async function seedNumberSeries(db: any) {
   await db.transaction(async (tx: any) => {
     // ── Step 1: Resolve SP Secretariat office (code='SPS') ─────────────────
-      console.log('[seed:series] Step 1: Querying SPS office id...');
-      const [spsOffice] = await tx
-        .select({ id: offices.id })
-        .from(offices)
-        .where(sql`${offices.code} = 'SPS'`)
-        .limit(1);
+    console.log('[seed:series] Step 1: Querying SPS office id...');
+    const [spsOffice] = await tx
+      .select({ id: offices.id })
+      .from(offices)
+      .where(sql`${offices.code} = 'SPS'`)
+      .limit(1);
 
-      if (!spsOffice) {
-        throw new Error('[seed:series] Error: SPS office not found. Please run organization seed first.');
-      }
-      const authorityOfficeId = spsOffice.id;
-      console.log(`[seed:series] Resolved authorityOfficeId = ${authorityOfficeId}`);
+    if (!spsOffice) {
+      throw new Error(
+        '[seed:series] Error: SPS office not found. Please run organization seed first.',
+      );
+    }
+    const authorityOfficeId = spsOffice.id;
+    console.log(`[seed:series] Resolved authorityOfficeId = ${authorityOfficeId}`);
 
-      // ── Step 2: Upsert numbering series ────────────────────────────────────
-      console.log('[seed:series] Step 2: Seeding 11 numbering series...');
-      let seededCount = 0;
+    // ── Step 2: Upsert numbering series ────────────────────────────────────
+    console.log('[seed:series] Step 2: Seeding 11 numbering series...');
+    let seededCount = 0;
 
-      for (const def of SERIES_DEFINITIONS) {
-        // Query if document type exists to get documentTypeId
-        let documentTypeId: string | null = null;
-        if (def.documentTypeCode) {
-          const [docType] = await tx
-            .select({ id: documentTypes.id })
-            .from(documentTypes)
-            .where(sql`${documentTypes.code} = ${def.documentTypeCode}`)
-            .limit(1);
-          if (docType) {
-            documentTypeId = docType.id;
-          }
+    for (const def of SERIES_DEFINITIONS) {
+      // Query if document type exists to get documentTypeId
+      let documentTypeId: string | null = null;
+      if (def.documentTypeCode) {
+        const [docType] = await tx
+          .select({ id: documentTypes.id })
+          .from(documentTypes)
+          .where(sql`${documentTypes.code} = ${def.documentTypeCode}`)
+          .limit(1);
+        if (docType) {
+          documentTypeId = docType.id;
         }
+      }
 
-        await tx
-          .insert(numberSeries)
-          .values({
-            cityId: CITY_ID,
-            seriesKey: def.seriesKey,
+      await tx
+        .insert(numberSeries)
+        .values({
+          cityId: CITY_ID,
+          seriesKey: def.seriesKey,
+          documentTypeId,
+          seriesType: def.seriesType,
+          phase: def.phase,
+          prefix: def.prefix,
+          spOrdinal: def.spOrdinal,
+          delimiter: ' ',
+          sequencePadding: def.sequencePadding,
+          sequenceNamePrefix: def.sequenceNamePrefix,
+          yearFormat: 'YYYY',
+          preliminaryFormat: def.preliminaryFormat,
+          finalFormat: def.finalFormat,
+          resetsAnnually: true,
+          authorityOfficeId,
+          preliminaryAssignmentEvent: def.preliminaryAssignmentEvent,
+          finalAssignmentEvent: def.finalAssignmentEvent,
+          deferredFinalAssignment: def.deferredFinalAssignment,
+          isActive: true,
+        })
+        .onConflictDoUpdate({
+          target: [numberSeries.cityId, numberSeries.seriesKey],
+          set: {
             documentTypeId,
             seriesType: def.seriesType,
             phase: def.phase,
@@ -253,52 +276,41 @@ export async function seedNumberSeries(db: any) {
             finalAssignmentEvent: def.finalAssignmentEvent,
             deferredFinalAssignment: def.deferredFinalAssignment,
             isActive: true,
-          })
-          .onConflictDoUpdate({
-            target: [numberSeries.cityId, numberSeries.seriesKey],
-            set: {
-              documentTypeId,
-              seriesType: def.seriesType,
-              phase: def.phase,
-              prefix: def.prefix,
-              spOrdinal: def.spOrdinal,
-              delimiter: ' ',
-              sequencePadding: def.sequencePadding,
-              sequenceNamePrefix: def.sequenceNamePrefix,
-              yearFormat: 'YYYY',
-              preliminaryFormat: def.preliminaryFormat,
-              finalFormat: def.finalFormat,
-              resetsAnnually: true,
-              authorityOfficeId,
-              preliminaryAssignmentEvent: def.preliminaryAssignmentEvent,
-              finalAssignmentEvent: def.finalAssignmentEvent,
-              deferredFinalAssignment: def.deferredFinalAssignment,
-              isActive: true,
-              updatedAt: new Date(),
-            },
-          });
+            updatedAt: new Date(),
+          },
+        });
 
-        seededCount++;
-      }
+      seededCount++;
+    }
 
-      console.log(`[seed:series] Seeded/upserted ${seededCount} numbering series records.`);
+    console.log(`[seed:series] Seeded/upserted ${seededCount} numbering series records.`);
 
-      // ── Step 3: Create 2026 sequences for Phase 1 active series ────────────
-      console.log('[seed:series] Step 3: Pre-creating sequences for year 2026...');
+    // ── Step 3: Create 2026 sequences for Phase 1 active series ────────────
+    console.log('[seed:series] Step 3: Pre-creating sequences for year 2026...');
 
-      await tx.execute(sql`CREATE SEQUENCE IF NOT EXISTS documents.ns_sp_resolution_2026_seq AS INTEGER INCREMENT 1 START 1;`);
-      await tx.execute(sql`CREATE SEQUENCE IF NOT EXISTS documents.ns_sp_ordinance_2026_seq AS INTEGER INCREMENT 1 START 1;`);
-      await tx.execute(sql`CREATE SEQUENCE IF NOT EXISTS documents.ns_sp_appropriation_ordinance_2026_seq AS INTEGER INCREMENT 1 START 1;`);
-      await tx.execute(sql`CREATE SEQUENCE IF NOT EXISTS documents.ns_panlalawigan_review_log_2026_seq AS INTEGER INCREMENT 1 START 1;`);
+    await tx.execute(
+      sql`CREATE SEQUENCE IF NOT EXISTS documents.ns_sp_resolution_2026_seq AS INTEGER INCREMENT 1 START 1;`,
+    );
+    await tx.execute(
+      sql`CREATE SEQUENCE IF NOT EXISTS documents.ns_sp_ordinance_2026_seq AS INTEGER INCREMENT 1 START 1;`,
+    );
+    await tx.execute(
+      sql`CREATE SEQUENCE IF NOT EXISTS documents.ns_sp_appropriation_ordinance_2026_seq AS INTEGER INCREMENT 1 START 1;`,
+    );
+    await tx.execute(
+      sql`CREATE SEQUENCE IF NOT EXISTS documents.ns_panlalawigan_review_log_2026_seq AS INTEGER INCREMENT 1 START 1;`,
+    );
 
-      console.log('[seed:series] Sequence pre-creation completed.');
+    console.log('[seed:series] Sequence pre-creation completed.');
   });
 }
 
 async function main() {
   const databaseUrl = process.env['DATABASE_URL_MIGRATE'] || process.env['DATABASE_URL_APP'];
   if (!databaseUrl) {
-    console.error('[seed:series] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.');
+    console.error(
+      '[seed:series] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.',
+    );
     process.exit(1);
   }
   console.log('[seed:series] Connecting to database...');

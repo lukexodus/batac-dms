@@ -133,9 +133,14 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       try {
         pino.destination(env.LOG_DESTINATION).end();
       } catch (err) {
-        throw new Error(`Invalid LOG_DESTINATION configuration: ${env.LOG_DESTINATION}. Failed to open for writing: ${err instanceof Error ? err.message : String(err)}`);
+        throw new Error(
+          `Invalid LOG_DESTINATION configuration: ${env.LOG_DESTINATION}. Failed to open for writing: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
-      destinationTarget = { target: 'pino/file', options: { destination: env.LOG_DESTINATION, mkdir: true } };
+      destinationTarget = {
+        target: 'pino/file',
+        options: { destination: env.LOG_DESTINATION, mkdir: true },
+      };
     }
 
     const targets: Array<{ target: string; options: Record<string, unknown>; level?: string }> = [];
@@ -150,7 +155,10 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       // LOG_DESTINATION.
       const prettyDestination =
         env.LOG_DESTINATION === 'stdout' ? 1 : env.LOG_DESTINATION === 'stderr' ? 2 : 1;
-      targets.push({ target: 'pino-pretty', options: { colorize: true, destination: prettyDestination } });
+      targets.push({
+        target: 'pino-pretty',
+        options: { colorize: true, destination: prettyDestination },
+      });
       if (env.LOG_DESTINATION !== 'stdout' && env.LOG_DESTINATION !== 'stderr') {
         targets.push(destinationTarget);
       }

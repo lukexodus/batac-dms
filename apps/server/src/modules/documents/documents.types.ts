@@ -54,7 +54,6 @@ export interface AttachmentRef {
   pageCount: number;
 }
 
-
 export interface DocumentStateChangedEvent {
   documentId: string;
   fromState: DocumentLifecycleState;
@@ -104,7 +103,7 @@ export interface DocumentsPublicAPI {
     toState: DocumentLifecycleState,
     actorId: string,
     reason?: string,
-    trx?: DbTransaction
+    trx?: DbTransaction,
   ): Promise<void>;
 
   /**

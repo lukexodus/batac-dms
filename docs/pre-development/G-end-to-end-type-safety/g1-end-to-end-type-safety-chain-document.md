@@ -7,6 +7,7 @@
 **Last Updated:** June 2026
 **Audience:** Backend and frontend development team
 **Source documents reviewed:**
+
 - `c1-full-database-schema-ddl.md` — table/column definitions, constraints, nullability, the cross-schema logical-FK convention (Architectural Invariant #1)
 - `e1-trpc-router-and-procedure-catalog.md` — procedure input/output shapes, the `protectedProcedure` middleware chain, error shape
 - `e3-shared-zod-schema-catalog.md` — the canonical schema catalog, schema-type tags, layer-consumption notation, naming and enforcement rules
@@ -38,12 +39,12 @@ This document does not independently re-review `tech-stack.md` or the consolidat
 
 This document follows the tagging convention established in C1 §1.1 and E1's Notation section, with one addition: unlike C1/E1/E3, which describe only internal project artifacts, this document also describes the behavior of external npm packages, which can change between versions.
 
-| Tag | Meaning |
-|---|---|
-| `[Confirmed — source]` | Stated directly in C1, E1, or E3 |
+| Tag                          | Meaning                                                                                                                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `[Confirmed — source]`       | Stated directly in C1, E1, or E3                                                                                                                                             |
 | `[Verified — external docs]` | Checked directly against current official documentation for the named library, because library APIs can change between releases. Sources are listed in the closing appendix. |
-| `[Inference]` | Reasoned from confirmed facts in the source documents, not stated verbatim anywhere |
-| `[Observed inconsistency]` | A specific, directly-checkable mismatch between two source documents, noted so it can be reconciled before `/packages/shared` is implemented |
+| `[Inference]`                | Reasoned from confirmed facts in the source documents, not stated verbatim anywhere                                                                                          |
+| `[Observed inconsistency]`   | A specific, directly-checkable mismatch between two source documents, noted so it can be reconciled before `/packages/shared` is implemented                                 |
 
 Code in this document that does not yet exist in any reviewed source — most importantly the actual `/packages/database` Drizzle files, which C1's own Non-Scope section states are "a development task, not a documentation one" — is illustrative. It is written as a direct, mechanical translation of confirmed DDL and schema facts, not as a transcription of a file that already exists.
 
@@ -51,19 +52,19 @@ Code in this document that does not yet exist in any reviewed source — most im
 
 ## Part 1 — Stack Decisions and Structure
 
-*(Carried forward from the prior draft, unchanged.)*
+_(Carried forward from the prior draft, unchanged.)_
 
 ### 1.1 Relevant Stack Decisions
 
-| Layer | Choice | Hard constraint |
-|---|---|---|
-| Internal API | tRPC on Fastify | End-to-end type safety for `/web` — no REST for internal routes |
-| External/public API | Fastify REST + OpenAPI (`@fastify/swagger`) | Required for portal, mobile, third-party, or non-TS clients |
-| ORM | Drizzle ORM + Drizzle Kit | Full PostgreSQL feature access with TypeScript inference |
-| Validation / contracts | Zod (shared package) | Single source of truth: backend validation, DB types, frontend forms |
-| Server state (frontend) | TanStack Query | Cache invalidation, background refetch, optimistic updates |
-| Forms | React Hook Form + `@hookform/resolvers/zod` | Validates against shared Zod schemas |
-| Env config | dotenv + Zod schema | Fail fast on missing required vars at startup |
+| Layer                   | Choice                                      | Hard constraint                                                      |
+| ----------------------- | ------------------------------------------- | -------------------------------------------------------------------- |
+| Internal API            | tRPC on Fastify                             | End-to-end type safety for `/web` — no REST for internal routes      |
+| External/public API     | Fastify REST + OpenAPI (`@fastify/swagger`) | Required for portal, mobile, third-party, or non-TS clients          |
+| ORM                     | Drizzle ORM + Drizzle Kit                   | Full PostgreSQL feature access with TypeScript inference             |
+| Validation / contracts  | Zod (shared package)                        | Single source of truth: backend validation, DB types, frontend forms |
+| Server state (frontend) | TanStack Query                              | Cache invalidation, background refetch, optimistic updates           |
+| Forms                   | React Hook Form + `@hookform/resolvers/zod` | Validates against shared Zod schemas                                 |
+| Env config              | dotenv + Zod schema                         | Fail fast on missing required vars at startup                        |
 
 ### 1.2 Monorepo Structure
 
@@ -153,44 +154,54 @@ Drizzle represents a PostgreSQL schema with `pgSchema()`, and a schema-scoped en
 
 ```typescript
 // /packages/database/src/schema/documents.ts
-import { uuid, text, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
-import { documentsSchema } from "./_schema"; // pgSchema("documents"), shared across this file's tables
+import { uuid, text, integer, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import { documentsSchema } from './_schema'; // pgSchema("documents"), shared across this file's tables
 
-export const lifecycleStateEnum = documentsSchema.enum("lifecycle_state_enum", [
-  "draft", "under_review", "pending_mayor_action", "pending_panlalawigan_review",
-  "approved", "released", "superseded", "cancelled", "rejected",
+export const lifecycleStateEnum = documentsSchema.enum('lifecycle_state_enum', [
+  'draft',
+  'under_review',
+  'pending_mayor_action',
+  'pending_panlalawigan_review',
+  'approved',
+  'released',
+  'superseded',
+  'cancelled',
+  'rejected',
 ]);
 
-export const classificationLevelEnum = documentsSchema.enum("classification_level_enum", [
-  "public", "internal", "confidential", "restricted",
+export const classificationLevelEnum = documentsSchema.enum('classification_level_enum', [
+  'public',
+  'internal',
+  'confidential',
+  'restricted',
 ]);
 
-export const documents = documentsSchema.table("documents", {
-  id:                  uuid("id").primaryKey().defaultRandom(),
-  cityId:              uuid("city_id").notNull(),
-  documentTypeId:      uuid("document_type_id").notNull(), // same-schema FK in the real file — .references() omitted here for brevity
-  title:               text("title").notNull(),
-  lifecycleState:      lifecycleStateEnum("lifecycle_state").notNull().default("draft"),
-  classificationLevel: classificationLevelEnum("classification_level").notNull(),
-  qrTrackingNumber:    uuid("qr_tracking_number").notNull(),
-  preliminaryNumber:   text("preliminary_number"),
-  finalNumber:         text("final_number"),
-  controlNumber:       text("control_number"),
-  numberSeriesId:      uuid("number_series_id"),
-  originatingOfficeId: uuid("originating_office_id").notNull(), // logical FK — no .references(), Invariant #1
-  ownedByOfficeId:     uuid("owned_by_office_id").notNull(),
-  createdBy:           uuid("created_by").notNull(),
-  workflowInstanceId:  uuid("workflow_instance_id"),
-  retentionScheduleId: uuid("retention_schedule_id").notNull(),
-  versionNumber:       integer("version_number").notNull().default(1),
-  metadata:            jsonb("metadata").notNull().default({}),
-  createdAt:           timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt:           timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  deletedAt:           timestamp("deleted_at", { withTimezone: true }),
-  deletedBy:           uuid("deleted_by"),
-  supersededBy:        uuid("superseded_by"),
-  supersededAt:        timestamp("superseded_at", { withTimezone: true }),
-  closureReason:       text("closure_reason"),
+export const documents = documentsSchema.table('documents', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  cityId: uuid('city_id').notNull(),
+  documentTypeId: uuid('document_type_id').notNull(), // same-schema FK in the real file — .references() omitted here for brevity
+  title: text('title').notNull(),
+  lifecycleState: lifecycleStateEnum('lifecycle_state').notNull().default('draft'),
+  classificationLevel: classificationLevelEnum('classification_level').notNull(),
+  qrTrackingNumber: uuid('qr_tracking_number').notNull(),
+  preliminaryNumber: text('preliminary_number'),
+  finalNumber: text('final_number'),
+  controlNumber: text('control_number'),
+  numberSeriesId: uuid('number_series_id'),
+  originatingOfficeId: uuid('originating_office_id').notNull(), // logical FK — no .references(), Invariant #1
+  ownedByOfficeId: uuid('owned_by_office_id').notNull(),
+  createdBy: uuid('created_by').notNull(),
+  workflowInstanceId: uuid('workflow_instance_id'),
+  retentionScheduleId: uuid('retention_schedule_id').notNull(),
+  versionNumber: integer('version_number').notNull().default(1),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  deletedBy: uuid('deleted_by'),
+  supersededBy: uuid('superseded_by'),
+  supersededAt: timestamp('superseded_at', { withTimezone: true }),
+  closureReason: text('closure_reason'),
 });
 ```
 
@@ -199,8 +210,8 @@ Every nullability decision here is a direct, mechanical reading of the DDL: a co
 ### 3.3 The raw drizzle-zod output
 
 ```typescript
-import { createSelectSchema, createInsertSchema, createUpdateSchema } from "drizzle-zod";
-import { documents } from "@batac-lgu/database/schema/documents";
+import { createSelectSchema, createInsertSchema, createUpdateSchema } from 'drizzle-zod';
+import { documents } from '@batac-lgu/database/schema/documents';
 
 const rawDocumentsSelectSchema = createSelectSchema(documents);
 const rawDocumentsInsertSchema = createInsertSchema(documents);
@@ -219,11 +230,11 @@ This is the layer where most type-safety bugs in a stack like this actually orig
 
 ### 4.1 The three nullable-shaped states
 
-| State | Where it shows up | Zod shape |
-|---|---|---|
-| Column has `NOT NULL`, no default | `title`, `classificationLevel` | Required in select, insert, and update-as-optional |
-| Column has `NOT NULL` + a default | `lifecycleState`, `versionNumber`, `id` | Required in select; **optional** (not nullable) in insert — the DB fills the gap |
-| Column has no `NOT NULL` | `preliminaryNumber`, `finalNumber`, `numberSeriesId` | **Nullable** in select; **nullable AND optional** in insert (you may omit it, and if present it may be `null`) |
+| State                             | Where it shows up                                    | Zod shape                                                                                                      |
+| --------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Column has `NOT NULL`, no default | `title`, `classificationLevel`                       | Required in select, insert, and update-as-optional                                                             |
+| Column has `NOT NULL` + a default | `lifecycleState`, `versionNumber`, `id`              | Required in select; **optional** (not nullable) in insert — the DB fills the gap                               |
+| Column has no `NOT NULL`          | `preliminaryNumber`, `finalNumber`, `numberSeriesId` | **Nullable** in select; **nullable AND optional** in insert (you may omit it, and if present it may be `null`) |
 
 The middle row is the one developers most often get wrong by reaching for `.nullable()` when they mean `.optional()`, or vice versa. A field that's optional-because-it-has-a-default is never actually `null` in the database — it's always one of its real values. A field that's nullable-because-the-column-allows-it can genuinely be `null` forever (`preliminaryNumber` stays `null` for the whole lifetime of a `final_number`-bearing document, per the mutual-exclusion `CHECK` constraint at C1 §4.5).
 
@@ -231,8 +242,8 @@ The middle row is the one developers most often get wrong by reaching for `.null
 
 `[Verified — external docs, drizzle-zod current documentation]` drizzle-zod's refinement option accepts two shapes, and only one of them composes safely with the column's inferred nullability:
 
-- **Function form** — `field: (col) => col.max(50)` — applies your refinement *first*, then layers the column's actual nullable/optional status on top. Nullability is preserved automatically.
-- **Direct-schema form** — `field: z.string().max(50)` — *replaces* the field outright, nullability included. If the column is nullable and you supply a non-nullable schema this way, the nullability is silently lost.
+- **Function form** — `field: (col) => col.max(50)` — applies your refinement _first_, then layers the column's actual nullable/optional status on top. Nullability is preserved automatically.
+- **Direct-schema form** — `field: z.string().max(50)` — _replaces_ the field outright, nullability included. If the column is nullable and you supply a non-nullable schema this way, the nullability is silently lost.
 
 Applied to `preliminaryNumber` (genuinely nullable — it's cleared once a final number is assigned):
 
@@ -252,18 +263,18 @@ const documentsSelectSchemaBroken = createSelectSchema(documents, {
 // validation on read.
 ```
 
-The distinction is mechanical — drizzle-zod treats the refinement as "function form" whenever a function is supplied, regardless of whether that function chains off its argument. So even when the goal is to *replace* the type entirely rather than just narrow it, the function form is still the safer default, because nullability/optionality still gets layered on afterward automatically. `metadata` (a `jsonb` column, defaulting to `z.unknown()`) is a case where the type genuinely changes — to `z.record(z.unknown())`, so callers get a plain-object guarantee rather than "could be anything JSON allows" — and the function form handles it the same way:
+The distinction is mechanical — drizzle-zod treats the refinement as "function form" whenever a function is supplied, regardless of whether that function chains off its argument. So even when the goal is to _replace_ the type entirely rather than just narrow it, the function form is still the safer default, because nullability/optionality still gets layered on afterward automatically. `metadata` (a `jsonb` column, defaulting to `z.unknown()`) is a case where the type genuinely changes — to `z.record(z.unknown())`, so callers get a plain-object guarantee rather than "could be anything JSON allows" — and the function form handles it the same way:
 
 ```typescript
 const documentsSelectSchema = createSelectSchema(documents, {
   preliminaryNumber: (col) => col.max(50),
   metadata: () => z.record(z.unknown()), // function form — ignores the auto-generated
-                                          // base schema and returns a new one, but
-                                          // nullability layering still applies afterward
+  // base schema and returns a new one, but
+  // nullability layering still applies afterward
 });
 ```
 
-`metadata` happens to be `NOT NULL`, so there's no nullability to lose either way here, and the direct-schema form (`metadata: z.record(z.unknown())`, no wrapping function) would land on an identical result. The rule of thumb that actually matters: on any column that *is* nullable, default to the function form; if the direct-schema form is used there instead, re-state nullability explicitly (`.nullable()`) on the replacement schema, because nothing else will.
+`metadata` happens to be `NOT NULL`, so there's no nullability to lose either way here, and the direct-schema form (`metadata: z.record(z.unknown())`, no wrapping function) would land on an identical result. The rule of thumb that actually matters: on any column that _is_ nullable, default to the function form; if the direct-schema form is used there instead, re-state nullability explicitly (`.nullable()`) on the replacement schema, because nothing else will.
 
 ### 4.3 Constraints that span multiple columns don't propagate automatically
 
@@ -285,10 +296,9 @@ drizzle-zod reads column-level type and nullability metadata; it has no mechanis
 ```typescript
 export const SessionSelectSchema = createSelectSchema(sessions, {
   /* per-field refinements as needed */
-}).refine(
-  (s) => (s.terminatedAt === null) === (s.terminationReason === null),
-  { message: "terminatedAt and terminationReason must both be null or both be set" }
-);
+}).refine((s) => (s.terminatedAt === null) === (s.terminationReason === null), {
+  message: 'terminatedAt and terminationReason must both be null or both be set',
+});
 ```
 
 This is the same pattern E3 already uses for `DateRangeSchema` (`from <= to`, Part 1) and for `UpdateUserInputSchema` (`Object.keys(v).length > 0`, Part 2) — both are cross-field rules Zod can express but drizzle-zod cannot derive, because both predate or exceed what a single column's type can encode.
@@ -305,17 +315,17 @@ E3's Sensitive Field Policy (Conventions, "Sensitive Field Policy") lists column
 
 ```typescript
 export const UserSelectSchema = z.object({
-  id:         UuidSchema,
-  username:   z.string().min(3).max(64),
-  email:      z.string().email().max(254),
-  status:     UserStatusSchema,
+  id: UuidSchema,
+  username: z.string().min(3).max(64),
+  email: z.string().email().max(254),
+  status: UserStatusSchema,
   mfaEnabled: z.boolean(),
-  createdAt:  TimestampSchema,
-  updatedAt:  TimestampSchema,
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
 });
 ```
 
-Mechanically, this is `createSelectSchema(users).pick({ id: true, username: true, ... })` made explicit rather than left as a `.pick()` call — explicit listing makes it obvious at a glance, in review, that nothing sensitive slipped through, which is the actual goal (E3 Rule 4). Note `password_hash` itself lives on a *different* table (`iam.credentials`, C1 §2.3) entirely, by design — separating the credential from the identity row is itself a narrowing strategy one level up, before Zod is even involved.
+Mechanically, this is `createSelectSchema(users).pick({ id: true, username: true, ... })` made explicit rather than left as a `.pick()` call — explicit listing makes it obvious at a glance, in review, that nothing sensitive slipped through, which is the actual goal (E3 Rule 4). Note `password_hash` itself lives on a _different_ table (`iam.credentials`, C1 §2.3) entirely, by design — separating the credential from the identity row is itself a narrowing strategy one level up, before Zod is even involved.
 
 ### 5.2 Widening — adding fields that aren't raw columns at all
 
@@ -323,12 +333,12 @@ Mechanically, this is `createSelectSchema(users).pick({ id: true, username: true
 
 ```typescript
 export const DocumentSelectSchema = z.object({
-  id:                  UuidSchema,
-  documentTypeId:      UuidSchema,
-  documentType:        DocumentTypeSummarySchema,   // ← joined, not a column
+  id: UuidSchema,
+  documentTypeId: UuidSchema,
+  documentType: DocumentTypeSummarySchema, // ← joined, not a column
   // ...
   originatingOfficeId: UuidSchema,
-  originatingOffice:   OfficeSummarySchema,          // ← joined, not a column
+  originatingOffice: OfficeSummarySchema, // ← joined, not a column
   // ...
 });
 ```
@@ -343,17 +353,17 @@ Covered in 4.3 above for cross-field nullability rules. The same mechanism handl
 export const UpdateUserInputSchema = z
   .object({
     username: z.string().min(3).max(64).trim().optional(),
-    email:    z.string().email().max(254).optional(),
-    status:   UserStatusSchema.optional(),
+    email: z.string().email().max(254).optional(),
+    status: UserStatusSchema.optional(),
   })
   .refine((v) => Object.keys(v).length > 0, {
-    message: "At least one field must be provided",
+    message: 'At least one field must be provided',
   });
 ```
 
 ### 5.4 A boundary worth stating plainly
 
-Narrowing and constraining only ever make a schema *stricter* than what drizzle-zod would generate on its own. Widening adds fields, but never removes the requirement that every field which *is* a real column stay consistent with that column's actual type and nullability. E3 Rule 5 states this directly: a shared schema "must never be more permissive than the authoritative server validation." If a refinement loosens what the database would actually accept, the bug isn't caught by TypeScript — it surfaces later as a `CONFLICT` or constraint-violation error at the database layer, which is a worse place to discover it than a Zod parse failure.
+Narrowing and constraining only ever make a schema _stricter_ than what drizzle-zod would generate on its own. Widening adds fields, but never removes the requirement that every field which _is_ a real column stay consistent with that column's actual type and nullability. E3 Rule 5 states this directly: a shared schema "must never be more permissive than the authoritative server validation." If a refinement loosens what the database would actually accept, the bug isn't caught by TypeScript — it surfaces later as a `CONFLICT` or constraint-violation error at the database layer, which is a worse place to discover it than a Zod parse failure.
 
 ---
 
@@ -363,12 +373,9 @@ Narrowing and constraining only ever make a schema *stricter* than what drizzle-
 
 ```typescript
 // /apps/server/src/modules/documents/router.ts
-import { z } from "zod";
-import {
-  DocumentSelectSchema,
-  CancelDocumentInputSchema,
-} from "@batac-lgu/shared";
-import { protectedProcedure, router } from "../../trpc";
+import { z } from 'zod';
+import { DocumentSelectSchema, CancelDocumentInputSchema } from '@batac-lgu/shared';
+import { protectedProcedure, router } from '../../trpc';
 
 export const documentsRouter = router({
   get: protectedProcedure
@@ -383,7 +390,10 @@ export const documentsRouter = router({
     .output(z.object({ success: z.literal(true) }))
     .mutation(async ({ input, ctx }) => {
       await ctx.services.documents.transitionState(
-        input.documentId, "cancelled", ctx.subject.userId, input.reason
+        input.documentId,
+        'cancelled',
+        ctx.subject.userId,
+        input.reason,
       );
       return { success: true };
     }),
@@ -413,8 +423,12 @@ The same exported schema validates a REST route with no duplication, which is th
 
 ```typescript
 // /apps/server/src/plugins/zod-type-provider.ts
-import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
-import type { FastifyInstance } from "fastify";
+import {
+  serializerCompiler,
+  validatorCompiler,
+  type ZodTypeProvider,
+} from 'fastify-type-provider-zod';
+import type { FastifyInstance } from 'fastify';
 
 export function registerZodTypeProvider(app: FastifyInstance) {
   app.setValidatorCompiler(validatorCompiler);
@@ -424,18 +438,23 @@ export function registerZodTypeProvider(app: FastifyInstance) {
 
 ```typescript
 // /apps/server/src/modules/documents/rest-routes.ts
-import { DocumentFilterSchema, DocumentSelectSchema } from "@batac-lgu/shared";
-import type { FastifyInstance } from "fastify";
-import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { z } from "zod";
+import { DocumentFilterSchema, DocumentSelectSchema } from '@batac-lgu/shared';
+import type { FastifyInstance } from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 
 export function registerDocumentRestRoutes(app: FastifyInstance) {
   app.withTypeProvider<ZodTypeProvider>().route({
-    method: "GET",
-    url: "/api/v1/documents",
+    method: 'GET',
+    url: '/api/v1/documents',
     schema: {
       querystring: DocumentFilterSchema,
-      response: { 200: z.object({ items: z.array(DocumentSelectSchema), nextCursor: z.string().uuid().nullable() }) },
+      response: {
+        200: z.object({
+          items: z.array(DocumentSelectSchema),
+          nextCursor: z.string().uuid().nullable(),
+        }),
+      },
     },
     handler: async (req, res) => {
       const result = await req.services.documents.list(req.query);
@@ -457,16 +476,16 @@ Because this is the same `DocumentFilterSchema` import the tRPC `documents.list`
 
 ```typescript
 // /apps/web/src/trpc/client.ts
-import { createTRPCContext } from "@trpc/tanstack-react-query";
-import type { AppRouter } from "@batac-lgu/server/router";
+import { createTRPCContext } from '@trpc/tanstack-react-query';
+import type { AppRouter } from '@batac-lgu/server/router';
 
 export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
 ```
 
 ```tsx
 // /apps/web/src/screens/DocumentDetail.tsx
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTRPC } from "../trpc/client";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTRPC } from '../trpc/client';
 
 export function DocumentDetail({ documentId }: { documentId: string }) {
   const trpc = useTRPC();
@@ -474,16 +493,14 @@ export function DocumentDetail({ documentId }: { documentId: string }) {
 
   // `document` is typed as DocumentSelect — inferred all the way from the
   // Drizzle column definitions in Part 3, through zero manual annotation.
-  const { data: document, isLoading } = useQuery(
-    trpc.documents.get.queryOptions({ documentId })
-  );
+  const { data: document, isLoading } = useQuery(trpc.documents.get.queryOptions({ documentId }));
 
   const cancelMutation = useMutation(
     trpc.documents.cancel.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: trpc.documents.get.queryKey({ documentId }) });
       },
-    })
+    }),
   );
 
   if (isLoading || !document) return <p>Loading…</p>;
@@ -526,14 +543,14 @@ sequenceDiagram
 
 ```tsx
 // /apps/web/src/screens/CancelDocumentDialog.tsx
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { CancelDocumentInputSchema, type CancelDocumentInput } from "@batac-lgu/shared";
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { CancelDocumentInputSchema, type CancelDocumentInput } from '@batac-lgu/shared';
 
 export function CancelDocumentDialog({ documentId }: { documentId: string }) {
   const form = useForm<CancelDocumentInput>({
     resolver: zodResolver(CancelDocumentInputSchema),
-    defaultValues: { documentId, reason: "" },
+    defaultValues: { documentId, reason: '' },
   });
 
   // form.formState.errors.reason is typed; form.handleSubmit only ever
@@ -589,7 +606,7 @@ For PR review, alongside E3 Part 16's enforcement rules:
 - [ ] If this is a Select schema for a table with nullable columns, were refinements added with the **function form**, not the direct-schema form — unless nullability is deliberately re-stated?
 - [ ] If a `CHECK` constraint or other cross-column DB rule exists for this table, is the equivalent `.refine()`/`.superRefine()` present on the relevant Input or Select schema?
 - [ ] If this schema adds fields beyond the raw table (joins, computed fields), is that divergence documented at the point it occurs, per E3 Rule 2?
-- [ ] Does the tRPC procedure's `.input()`/`.output()` and the REST route's `schema.body`/`schema.response` reference the *same* `/packages/shared` export, not two schemas that happen to look similar?
+- [ ] Does the tRPC procedure's `.input()`/`.output()` and the REST route's `schema.body`/`schema.response` reference the _same_ `/packages/shared` export, not two schemas that happen to look similar?
 - [ ] Does the RHF form's `zodResolver()` argument match the schema the server actually enforces — not a looser, locally-defined stand-in?
 - [ ] Did this change originate in C1 (a migration) and propagate outward — or did it originate somewhere downstream and need to be pushed back upstream instead?
 
@@ -598,11 +615,13 @@ For PR review, alongside E3 Part 16's enforcement rules:
 ## Sources Checked for This Document
 
 Internal (Batac City LGU Platform catalog):
+
 - C1 — Full Database Schema DDL (`c1-full-database-schema-ddl.md`)
 - E1 — tRPC Router and Procedure Catalog (`e1-trpc-router-and-procedure-catalog.md`)
 - E3 — Shared Zod Schema Catalog (`e3-shared-zod-schema-catalog.md`)
 
 External, checked against current official documentation rather than relied on from memory, because all three are actively-developed packages whose APIs have changed across versions:
+
 - `drizzle-zod` — refinement behavior (function form vs. direct-schema form) and select/insert/update optionality rules: `orm.drizzle.team/docs/zod`, `drizzle-zod` README (`github.com/drizzle-team/drizzle-orm`)
 - `drizzle-orm` schema/enum scoping (`pgSchema(...).enum(...)`, `pgSchema(...).table(...)`): `orm.drizzle.team/docs/schemas`
 - `fastify-type-provider-zod` — `setValidatorCompiler`/`setSerializerCompiler`/`withTypeProvider<ZodTypeProvider>()`: package README (`github.com/turkerdev/fastify-type-provider-zod`)

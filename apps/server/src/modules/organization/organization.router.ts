@@ -69,8 +69,16 @@ import {
  * since both groups get identical (read-only) access via this query.
  */
 const ORG_CHART_VIEW_ROLES = [
-  'sys_admin', 'plat_admin', 'records_officer', 'sp_secretary', 'sp_member',
-  'sp_presiding_officer', 'mayor', 'auditor', 'dept_encoder', 'dept_approver',
+  'sys_admin',
+  'plat_admin',
+  'records_officer',
+  'sp_secretary',
+  'sp_member',
+  'sp_presiding_officer',
+  'mayor',
+  'auditor',
+  'dept_encoder',
+  'dept_approver',
 ] as const;
 
 /**
@@ -85,7 +93,12 @@ const ORG_CHART_VIEW_ROLES = [
  * matrix, not introduced here.
  */
 const DESIGNATION_READ_ROLES = [
-  'sys_admin', 'plat_admin', 'sp_secretary', 'sp_presiding_officer', 'mayor', 'auditor',
+  'sys_admin',
+  'plat_admin',
+  'sp_secretary',
+  'sp_presiding_officer',
+  'mayor',
+  'auditor',
 ] as const;
 
 // ───────────────────────── auth helpers ─────────────────────────
@@ -96,11 +109,18 @@ function hasAnyRole(ctx: { auth: { roles: string[] } }, roles: readonly string[]
 
 function requirePlatformAdmin(ctx: { auth: { isPlatformAdmin: boolean } }): void {
   if (!ctx.auth.isPlatformAdmin) {
-    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Platform Administrator access required.' });
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'Platform Administrator access required.',
+    });
   }
 }
 
-function requireAnyRole(ctx: { auth: { roles: string[] } }, roles: readonly string[], message: string): void {
+function requireAnyRole(
+  ctx: { auth: { roles: string[] } },
+  roles: readonly string[],
+  message: string,
+): void {
   if (!hasAnyRole(ctx, roles)) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message });
   }
@@ -171,8 +191,18 @@ function isSingularHolderPosition(title: string): boolean {
 
 // ───────────────────────── output mappers ─────────────────────────
 
-function toOfficeSummary(row: { id: string; name: string; parentOfficeId: string | null; officeType: string }) {
-  return { officeId: row.id, name: row.name, parentOfficeId: row.parentOfficeId, type: row.officeType };
+function toOfficeSummary(row: {
+  id: string;
+  name: string;
+  parentOfficeId: string | null;
+  officeType: string;
+}) {
+  return {
+    officeId: row.id,
+    name: row.name,
+    parentOfficeId: row.parentOfficeId,
+    type: row.officeType,
+  };
 }
 
 function toDateOnlyString(d: Date): string {
@@ -199,47 +229,49 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
     // Input: z.void() per the AI Prompt — matching iam.router.ts's
     // listActiveSessions convention, a no-input query simply omits
     // .input(...) rather than chaining z.void() explicitly.
-    getOfficeHierarchy: protectedProcedure
-      .query(async ({ ctx }) => {
-        requireAnyRole(ctx, ORG_CHART_VIEW_ROLES, 'Access to the organization chart is not permitted for this role.');
-        const { orgService } = getDeps(ctx);
-        return orgService.getOfficeHierarchy();
-      }),
+    getOfficeHierarchy: protectedProcedure.query(async ({ ctx }) => {
+      requireAnyRole(
+        ctx,
+        ORG_CHART_VIEW_ROLES,
+        'Access to the organization chart is not permitted for this role.',
+      );
+      const { orgService } = getDeps(ctx);
+      return orgService.getOfficeHierarchy();
+    }),
 
     // ───────────── offices (plat_admin only) ─────────────
 
-    createOffice: protectedProcedure
-      .input(s.CreateOfficeInput)
-      .mutation(async ({ ctx, input }) => {
-        requirePlatformAdmin(ctx);
-        const { orgRepository } = getDeps(ctx);
-        const row = await runDbMutation(() =>
-          orgRepository.offices.create({
-            name: input.name,
-            code: input.code,
-            officeType: input.officeType,
-            parentOfficeId: input.parentOfficeId ?? null,
-          }),
-        );
-        return toOfficeSummary(row);
-      }),
+    createOffice: protectedProcedure.input(s.CreateOfficeInput).mutation(async ({ ctx, input }) => {
+      requirePlatformAdmin(ctx);
+      const { orgRepository } = getDeps(ctx);
+      const row = await runDbMutation(() =>
+        orgRepository.offices.create({
+          name: input.name,
+          code: input.code,
+          officeType: input.officeType,
+          parentOfficeId: input.parentOfficeId ?? null,
+        }),
+      );
+      return toOfficeSummary(row);
+    }),
 
-    updateOffice: protectedProcedure
-      .input(s.UpdateOfficeInput)
-      .mutation(async ({ ctx, input }) => {
-        requirePlatformAdmin(ctx);
-        const { orgRepository } = getDeps(ctx);
-        const { officeId, ...rest } = input;
-        if (rest.parentOfficeId && rest.parentOfficeId === officeId) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'An office cannot be its own parent.' });
-        }
-        const existing = await orgRepository.offices.findById(officeId);
-        if (!existing) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: `Office '${officeId}' was not found.` });
-        }
-        const row = await runDbMutation(() => orgRepository.offices.update(officeId, rest));
-        return toOfficeSummary(row);
-      }),
+    updateOffice: protectedProcedure.input(s.UpdateOfficeInput).mutation(async ({ ctx, input }) => {
+      requirePlatformAdmin(ctx);
+      const { orgRepository } = getDeps(ctx);
+      const { officeId, ...rest } = input;
+      if (rest.parentOfficeId && rest.parentOfficeId === officeId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'An office cannot be its own parent.',
+        });
+      }
+      const existing = await orgRepository.offices.findById(officeId);
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: `Office '${officeId}' was not found.` });
+      }
+      const row = await runDbMutation(() => orgRepository.offices.update(officeId, rest));
+      return toOfficeSummary(row);
+    }),
 
     deactivateOffice: protectedProcedure
       .input(s.DeactivateOfficeInput)
@@ -248,7 +280,10 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         const { orgRepository } = getDeps(ctx);
         const existing = await orgRepository.offices.findById(input.officeId);
         if (!existing) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: `Office '${input.officeId}' was not found.` });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Office '${input.officeId}' was not found.`,
+          });
         }
         await orgRepository.offices.softDelete(input.officeId, ctx.auth.userId);
         return { success: true as const };
@@ -280,7 +315,10 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         const { positionId, ...rest } = input;
         const existing = await orgRepository.positions.findById(positionId);
         if (!existing) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: `Position '${positionId}' was not found.` });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Position '${positionId}' was not found.`,
+          });
         }
         const row = await runDbMutation(() => orgRepository.positions.update(positionId, rest));
         return { positionId: row.id, title: row.title };
@@ -288,18 +326,11 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
 
     // ───────────── employees (plat_admin only) ─────────────
 
-    listEmployees: protectedProcedure
-      .input(s.ListEmployeesInput)
-      .query(async ({ ctx, input }) => {
-        requirePlatformAdmin(ctx);
-        const { orgService } = getDeps(ctx);
-        return orgService.listEmployees(
-          ctx.auth.cityId,
-          input.limit,
-          input.cursor,
-          input.search
-        );
-      }),
+    listEmployees: protectedProcedure.input(s.ListEmployeesInput).query(async ({ ctx, input }) => {
+      requirePlatformAdmin(ctx);
+      const { orgService } = getDeps(ctx);
+      return orgService.listEmployees(ctx.auth.cityId, input.limit, input.cursor, input.search);
+    }),
 
     // Scope-expanded for TASK-FE-IAM-002: `createUserAccount` (iam.router.ts)
     // is gated by isItAdmin. Its `employeeId` input requires an employee picker
@@ -312,15 +343,13 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
       .input(s.ListEmployeesInput)
       .query(async ({ ctx, input }) => {
         if (!ctx.auth.isItAdmin) {
-          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'System Administrator access required.' });
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'System Administrator access required.',
+          });
         }
         const { orgService } = getDeps(ctx);
-        return orgService.listEmployees(
-          ctx.auth.cityId,
-          input.limit,
-          input.cursor,
-          input.search
-        );
+        return orgService.listEmployees(ctx.auth.cityId, input.limit, input.cursor, input.search);
       }),
 
     createEmployee: protectedProcedure
@@ -354,19 +383,29 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         const { orgRepository } = getDeps(ctx);
         const { employeeId, ...rest } = input;
         if (Object.prototype.hasOwnProperty.call(rest, 'employeeNumber') && !rest.employeeNumber) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'employeeNumber cannot be cleared.' });
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'employeeNumber cannot be cleared.',
+          });
         }
         const existing = await orgRepository.employees.findById(employeeId);
         if (!existing) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: `Employee '${employeeId}' was not found.` });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Employee '${employeeId}' was not found.`,
+          });
         }
-        
+
         const updatePayload = {
           ...rest,
-          ...(rest.employeeNumber !== undefined ? { employeeNumber: rest.employeeNumber as string } : {})
+          ...(rest.employeeNumber !== undefined
+            ? { employeeNumber: rest.employeeNumber as string }
+            : {}),
         } as Parameters<typeof orgRepository.employees.update>[1];
-        
-        const row = await runDbMutation(() => orgRepository.employees.update(employeeId, updatePayload));
+
+        const row = await runDbMutation(() =>
+          orgRepository.employees.update(employeeId, updatePayload),
+        );
         return { employeeId: row.id };
       }),
 
@@ -380,18 +419,24 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
 
         const position = await orgRepository.positions.findById(input.positionId);
         if (!position) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: `Position '${input.positionId}' was not found.` });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Position '${input.positionId}' was not found.`,
+          });
         }
         const employee = await orgRepository.employees.findById(input.employeeId);
         if (!employee) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: `Employee '${input.employeeId}' was not found.` });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Employee '${input.employeeId}' was not found.`,
+          });
         }
 
         if (isSingularHolderPosition(position.title)) {
           const allAssignments = await orgRepository.assignments.findAll({ includeDeleted: false });
-          const hasActiveHolder = (allAssignments as Array<{ positionId: string; isActive: boolean }>).some(
-            (a) => a.positionId === input.positionId && a.isActive,
-          );
+          const hasActiveHolder = (
+            allAssignments as Array<{ positionId: string; isActive: boolean }>
+          ).some((a) => a.positionId === input.positionId && a.isActive);
           if (hasActiveHolder) {
             throw new TRPCError({
               code: 'CONFLICT',
@@ -419,28 +464,28 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
 
     // ───────────── designations — READ ONLY (I1 §11.3) ─────────────
 
-    getActiveDesignations: protectedProcedure
-      .query(async ({ ctx }) => {
-        const { delegationService } = getDeps(ctx);
-        if (!hasAnyRole(ctx, DESIGNATION_READ_ROLES)) {
-          // I1 §11.3's party clause, applied to the list as a whole per the
-          // Acceptance Criteria's literal phrasing ("who is not a party to
-          // any listed grant returns UNAUTHORIZED") — a subject without an
-          // allowed role but who is a delegating/delegated-to party on at
-          // least one active grant is let through to see the full list.
-          const parties = await delegationService.listActiveDesignationParties();
-          const isParty = parties.some(
-            (p) => p.delegatingUserId === ctx.auth.userId || p.delegatedToUserId === ctx.auth.userId,
-          );
-          if (!isParty) {
-            throw new TRPCError({
-              code: 'UNAUTHORIZED',
-              message: 'Viewing active designations requires an authorized role or being a party to an active grant.',
-            });
-          }
+    getActiveDesignations: protectedProcedure.query(async ({ ctx }) => {
+      const { delegationService } = getDeps(ctx);
+      if (!hasAnyRole(ctx, DESIGNATION_READ_ROLES)) {
+        // I1 §11.3's party clause, applied to the list as a whole per the
+        // Acceptance Criteria's literal phrasing ("who is not a party to
+        // any listed grant returns UNAUTHORIZED") — a subject without an
+        // allowed role but who is a delegating/delegated-to party on at
+        // least one active grant is let through to see the full list.
+        const parties = await delegationService.listActiveDesignationParties();
+        const isParty = parties.some(
+          (p) => p.delegatingUserId === ctx.auth.userId || p.delegatedToUserId === ctx.auth.userId,
+        );
+        if (!isParty) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message:
+              'Viewing active designations requires an authorized role or being a party to an active grant.',
+          });
         }
-        return delegationService.listActiveDesignations();
-      }),
+      }
+      return delegationService.listActiveDesignations();
+    }),
 
     getDesignationHistory: protectedProcedure
       .input(s.GetDesignationHistoryInput)
@@ -451,7 +496,11 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         // "ABAC:" line and the Acceptance Criteria don't request a party
         // exception here. Defaulting to the narrower (role-only) reading is
         // the more conservative choice for a history/audit endpoint.
-        requireAnyRole(ctx, DESIGNATION_READ_ROLES, 'Viewing designation history requires an authorized role.');
+        requireAnyRole(
+          ctx,
+          DESIGNATION_READ_ROLES,
+          'Viewing designation history requires an authorized role.',
+        );
         const items = await delegationService.listDesignationHistory({
           limit: input.pageSize,
           ...(input.employeeId !== undefined && { employeeId: input.employeeId }),
@@ -486,7 +535,7 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
               userId: ctx.auth.userId,
               roles: ctx.auth.roles,
               cityId: ctx.auth.cityId,
-            }
+            },
           );
           return { delegationId: result.id };
         } catch (err: any) {
@@ -514,13 +563,15 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
           await delegationService.revokeEarlyDelegationGrant(
             input.delegationId,
             {
-              ...(input.writtenInstructionReference ? { writtenInstructionReference: input.writtenInstructionReference } : {}),
+              ...(input.writtenInstructionReference
+                ? { writtenInstructionReference: input.writtenInstructionReference }
+                : {}),
             },
             {
               userId: ctx.auth.userId,
               roles: ctx.auth.roles,
               cityId: ctx.auth.cityId,
-            }
+            },
           );
           return { success: true as const };
         } catch (err: any) {
@@ -569,20 +620,33 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         requirePlatformAdmin(ctx);
         const { orgRepository } = getDeps(ctx);
         const { committeeId, ...rest } = input;
-        if (Object.prototype.hasOwnProperty.call(rest, 'chairedByEmployeeId') && !rest.chairedByEmployeeId) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'chairedByEmployeeId cannot be cleared.' });
+        if (
+          Object.prototype.hasOwnProperty.call(rest, 'chairedByEmployeeId') &&
+          !rest.chairedByEmployeeId
+        ) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'chairedByEmployeeId cannot be cleared.',
+          });
         }
         const existing = await orgRepository.committees.findById(committeeId);
         if (!existing) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: `Committee '${committeeId}' was not found.` });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Committee '${committeeId}' was not found.`,
+          });
         }
-        
+
         const updatePayload = {
           ...rest,
-          ...(rest.chairedByEmployeeId !== undefined ? { chairedByEmployeeId: rest.chairedByEmployeeId as string } : {})
+          ...(rest.chairedByEmployeeId !== undefined
+            ? { chairedByEmployeeId: rest.chairedByEmployeeId as string }
+            : {}),
         } as Parameters<typeof orgRepository.committees.update>[1];
-        
-        const row = await runDbMutation(() => orgRepository.committees.update(committeeId, updatePayload));
+
+        const row = await runDbMutation(() =>
+          orgRepository.committees.update(committeeId, updatePayload),
+        );
         return { committeeId: row.id };
       }),
 
@@ -593,11 +657,17 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         const { orgRepository } = getDeps(ctx);
         const committee = await orgRepository.committees.findById(input.committeeId);
         if (!committee) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: `Committee '${input.committeeId}' was not found.` });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Committee '${input.committeeId}' was not found.`,
+          });
         }
         const employee = await orgRepository.employees.findById(input.employeeId);
         if (!employee) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: `Employee '${input.employeeId}' was not found.` });
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Employee '${input.employeeId}' was not found.`,
+          });
         }
         const row = await runDbMutation(() =>
           orgRepository.committeeMemberships.create({
@@ -611,20 +681,32 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         return { membershipId: row.id };
       }),
 
-    listCommittees: protectedProcedure
-      .query(async ({ ctx }) => {
-        requireAnyRole(ctx, ['plat_admin', 'sp_secretary', 'sp_member'], 'Access to committees list is not permitted for this role.');
-        const { orgRepository } = getDeps(ctx);
-        const rows = await orgRepository.committees.findAll({ includeDeleted: false });
-        return rows.map((r: { id: string; name: string; code: string | null; description: string | null; chairedByEmployeeId: string; deletedAt: Date | string | null }) => ({
+    listCommittees: protectedProcedure.query(async ({ ctx }) => {
+      requireAnyRole(
+        ctx,
+        ['plat_admin', 'sp_secretary', 'sp_member'],
+        'Access to committees list is not permitted for this role.',
+      );
+      const { orgRepository } = getDeps(ctx);
+      const rows = await orgRepository.committees.findAll({ includeDeleted: false });
+      return rows.map(
+        (r: {
+          id: string;
+          name: string;
+          code: string | null;
+          description: string | null;
+          chairedByEmployeeId: string;
+          deletedAt: Date | string | null;
+        }) => ({
           committeeId: r.id,
           name: r.name,
           code: r.code,
           description: r.description,
           chairedByEmployeeId: r.chairedByEmployeeId,
           deletedAt: r.deletedAt,
-        }));
-      }),
+        }),
+      );
+    }),
   });
 }
 

@@ -8,7 +8,11 @@ import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // recordVetoOverrideVote: { stepInstanceId, votesFor, votesAgainst, absentCouncilorIds }
 // Per consolidated ref Part 4.1/4.2: override succeeds at ≥ 8 of 12 (hardcoded server-side too).
-export function VetoOverrideRecordingPanel({ instance }: { instance: RouterOutputs['workflow']['getInstance'] }) {
+export function VetoOverrideRecordingPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const [votesFor, setVotesFor] = useState(0);
@@ -29,13 +33,13 @@ export function VetoOverrideRecordingPanel({ instance }: { instance: RouterOutpu
         <CardTitle>Record Veto Override Vote</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Override requires ≥ 8 of 12 SP members (RA 7160 §47). The server computes
           OVERRIDE_SUCCEEDED or OVERRIDE_FAILED from the vote counts.
         </p>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Votes For</label>
+            <label className="mb-1 block text-sm font-medium">Votes For</label>
             <Input
               type="number"
               min={0}
@@ -45,7 +49,7 @@ export function VetoOverrideRecordingPanel({ instance }: { instance: RouterOutpu
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Votes Against</label>
+            <label className="mb-1 block text-sm font-medium">Votes Against</label>
             <Input
               type="number"
               min={0}

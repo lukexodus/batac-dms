@@ -15,7 +15,7 @@ export async function submitStepApproval(
   outcome: string,
   comment: string | null,
   deps: ApprovalHandlerDeps,
-  trx?: DbTransaction
+  trx?: DbTransaction,
 ): Promise<void> {
   // 1. Check status
   if (stepInstance.status !== 'active') {
@@ -24,11 +24,11 @@ export async function submitStepApproval(
 
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any
+    trx as any,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
-  const stepDef = versionData.steps.find(s => s.id === stepInstance.stepId);
+  const stepDef = versionData.steps.find((s) => s.id === stepInstance.stepId);
   if (!stepDef) throw new Error('Step definition not found');
 
   const config = (stepDef.config as Record<string, any>) || {};
@@ -54,7 +54,7 @@ export async function submitStepApproval(
   // 4. Verify actorId in assigned_to
   if (actorType !== 'scheduler') {
     const assignedUsers = (stepInstance.assignedTo as Array<{ user_id: string }>) || [];
-    const isAssigned = assignedUsers.some(a => a.user_id === actorId);
+    const isAssigned = assignedUsers.some((a) => a.user_id === actorId);
     if (!isAssigned) {
       throw new Error('FORBIDDEN: actor is not assigned to this step');
     }
@@ -68,7 +68,10 @@ export async function submitStepApproval(
   }
 
   // 6. Comment requirements
-  const requireCommentOn = (config['require_comment_on'] as string[]) || ['REJECTED', 'RETURNED_FOR_REVISION'];
+  const requireCommentOn = (config['require_comment_on'] as string[]) || [
+    'REJECTED',
+    'RETURNED_FOR_REVISION',
+  ];
   if (requireCommentOn.includes(outcome)) {
     if (!comment || comment.trim() === '') {
       throw new Error('VALIDATION_FAILED: comment is required');
@@ -98,18 +101,18 @@ export async function submitStepApproval(
 
   // State change on success
   const now = new Date();
-  
+
   if (outcome === 'RETURNED_FOR_REVISION') {
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
       { status: 'returned', completedAt: now, outcome, outcomeComment: comment },
-      trx as any
+      trx as any,
     );
   } else {
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
       { status: 'completed', completedAt: now, outcome, outcomeComment: comment },
-      trx as any
+      trx as any,
     );
   }
 
@@ -126,12 +129,15 @@ export async function submitStepApproval(
         stepType: stepDef.stepType,
         outcome,
         comment,
-      }
+      },
     },
-    trx as any
+    trx as any,
   );
 
-  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(stepInstance.id, trx as any);
+  const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
+    stepInstance.id,
+    trx as any,
+  );
   if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 
   await resolveNextStep(instance, updatedStepInstance, outcome, deps, trx);

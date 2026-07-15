@@ -1,7 +1,7 @@
 export interface TsaTimestampToken {
-  token:        Buffer;   // Raw DER-encoded RFC 3161 timestamp token
-  serialNumber: string;   // Token serial number for verification records
-  tsaUrl:       string;   // TSA URL used
+  token: Buffer; // Raw DER-encoded RFC 3161 timestamp token
+  serialNumber: string; // Token serial number for verification records
+  tsaUrl: string; // TSA URL used
 }
 
 export interface RfcTsaClient {

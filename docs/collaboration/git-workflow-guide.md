@@ -15,7 +15,6 @@
 
 ---
 
-
 ## Repository Structure
 
 ### Branches
@@ -46,10 +45,11 @@ master
 ```
 
 Rules:
-* Protected branch
-* No direct commits to `master`
-* Only merged through Pull Requests
-* Always contains stable, buildable, and production-ready code
+
+- Protected branch
+- No direct commits to `master`
+- Only merged through Pull Requests
+- Always contains stable, buildable, and production-ready code
 
 ---
 
@@ -58,14 +58,16 @@ Rules:
 Used for implementing tasks defined in the Master Phased Task List (A1). Each task maps to a single Pull Request ("one task produces one PR").
 
 Naming Convention:
+
 ```text
 feature/TASK-{MODULE}-{NNN}-{short-description}
 ```
 
 Examples:
-* `feature/TASK-UI-015-status-badge`
-* `feature/TASK-WF-011-lapse-timer`
-* `feature/TASK-DOCS-005-schema`
+
+- `feature/TASK-UI-015-status-badge`
+- `feature/TASK-WF-011-lapse-timer`
+- `feature/TASK-DOCS-005-schema`
 
 ---
 
@@ -74,6 +76,7 @@ Examples:
 Used for addressing bugs in merged code or hotfixes in production.
 
 Naming Convention:
+
 ```text
 fix/TASK-{MODULE}-{NNN}-{short-description}
 or
@@ -81,8 +84,9 @@ fix/{issue-description}
 ```
 
 Examples:
-* `fix/TASK-IAM-005-login-cookie`
-* `fix/workflow-cutoff-check`
+
+- `fix/TASK-IAM-005-login-cookie`
+- `fix/workflow-cutoff-check`
 
 ---
 
@@ -91,13 +95,15 @@ Examples:
 Used for experiments, spikes, or testing alternative implementation pathways (e.g., OCR libraries, SSE connections).
 
 Naming Convention:
+
 ```text
 research/{topic-description}
 ```
 
 Examples:
-* `research/ocr-library-evaluation`
-* `research/sse-reconnection-behavior`
+
+- `research/ocr-library-evaluation`
+- `research/sse-reconnection-behavior`
 
 ---
 
@@ -188,15 +194,15 @@ When a task's implementation is complete:
 
 ### PR Requirements
 
-* **PR Title**: Starts with the task ID (e.g., `[TASK-UI-001] Foundation PR`) and prepends special tags (`[MIGRATION]`, `[ABAC]`, `[AUDIT]`) where relevant.
-* **Pre-Merge Validation**: Code must pass `pnpm typecheck`, `pnpm lint`, and tests (`pnpm test`).
-* **PR Checklist**:
-  * Summary of changes and why they were made.
-  * Screenshots or video recordings for UI changes.
-  * Link to the mandatory dev route (e.g., `/dev/{component-name}`) showing the component in all states (UI component PRs only).
-  * Proof of accessibility compliance auditing (F6) (UI component PRs only).
-  * Testing details (vitest outputs for unit/integration tests).
-  * Verification steps for reviewers.
+- **PR Title**: Starts with the task ID (e.g., `[TASK-UI-001] Foundation PR`) and prepends special tags (`[MIGRATION]`, `[ABAC]`, `[AUDIT]`) where relevant.
+- **Pre-Merge Validation**: Code must pass `pnpm typecheck`, `pnpm lint`, and tests (`pnpm test`).
+- **PR Checklist**:
+  - Summary of changes and why they were made.
+  - Screenshots or video recordings for UI changes.
+  - Link to the mandatory dev route (e.g., `/dev/{component-name}`) showing the component in all states (UI component PRs only).
+  - Proof of accessibility compliance auditing (F6) (UI component PRs only).
+  - Testing details (vitest outputs for unit/integration tests).
+  - Verification steps for reviewers.
 
 ---
 
@@ -205,6 +211,7 @@ When a task's implementation is complete:
 Commit titles must be prefixed with the module scope and include the task ID to ensure clear traceabilty.
 
 ### New Features
+
 ```text
 feat(ui): [TASK-UI-015] implement StatusBadge component
 feat(wf): [TASK-WF-008] enforce Thursday cutoff in workflow transitions
@@ -212,22 +219,26 @@ feat(docs): [TASK-DOCS-003][MIGRATION] add metadata_schema column to document_ty
 ```
 
 ### Bug Fixes
+
 ```text
 fix(iam): [TASK-IAM-005] resolve duplicate session cookie bug
 fix(track): [TASK-TRACK-002] fix QR scanning target alignment
 ```
 
 ### Refactoring
+
 ```text
 refactor(wf): simplify step transition evaluation logic
 ```
 
 ### Documentation
+
 ```text
 docs: update system architecture diagram in B1
 ```
 
 ### Maintenance
+
 ```text
 chore: update date-fns-tz dependency in packages/ui
 chore: configure Turborepo pipelines
@@ -299,12 +310,12 @@ Every Tier 3 component PR must feature its own `/dev/{component-name}` route ren
 
 We structure development around the project's actual roadmap phases:
 
-* **Phase 1: Core DMS & Legislative Workflows** — Infrastructure setup, custom workflow engine transitions, core tracking, notification SSE channel, IAM logic, and public-portal search subset.
-* **Phase 1B: Expanded Workflows** — Committee referral configurations, standing committee schemas, and legislative metadata extensions.
-* **Phase 2: Search & Reporting** — Meilisearch metadata indexing and sync, and ARTA compliance report generation.
-* **Phase 3: Public Portal Expansion & Data Privacy Compliance** — Interactive citizen accounts, request tracking, and DPA (Data Privacy Act) compliance logs and policies.
-* **Phase 4: Builders & End-User Configuration** — Visual workflow template builder and custom query/report designer.
-* **Phase 5: Scaling & Migration** — Multi-tenant scale validation, payroll/HRIS external API gateways, and production on-premise migration scripting.
+- **Phase 1: Core DMS & Legislative Workflows** — Infrastructure setup, custom workflow engine transitions, core tracking, notification SSE channel, IAM logic, and public-portal search subset.
+- **Phase 1B: Expanded Workflows** — Committee referral configurations, standing committee schemas, and legislative metadata extensions.
+- **Phase 2: Search & Reporting** — Meilisearch metadata indexing and sync, and ARTA compliance report generation.
+- **Phase 3: Public Portal Expansion & Data Privacy Compliance** — Interactive citizen accounts, request tracking, and DPA (Data Privacy Act) compliance logs and policies.
+- **Phase 4: Builders & End-User Configuration** — Visual workflow template builder and custom query/report designer.
+- **Phase 5: Scaling & Migration** — Multi-tenant scale validation, payroll/HRIS external API gateways, and production on-premise migration scripting.
 
 ---
 
@@ -341,16 +352,16 @@ pnpm build
 
 The codebase is structured around 13 modules, each mapping to task codes and folder areas:
 
-* `INFRA` — DevOps, Docker Compose, CI/CD, backup/DR runbooks.
-* `UI` — Shared `@batac/ui` component library (Tailwind v4 tokens, Tier 2, Tier 3 components).
-* `IAM` — Identity & Access Management (JWTs, RBAC/ABAC rules, auth cookie handling).
-* `AUDIT` — Audit log, SHA-256 hash chaining, HMAC tamper-proofing.
-* `ORG` — LGU office structure, designations, position assignments.
-* `DOCS` — Document intake, OCR service, document type schemas, metadata.
-* `WF` — Custom workflow engine, step transitions, review timers.
-* `TRACK` — QR code generation, document scan-to-lookup, tracking routing history.
-* `REC` — Records Management, retention schedules, archive/disposal.
-* `NOTIF` — In-app notifications (SSE) for priority workflow events.
-* `PORTAL` — Public-facing no-auth endpoints, citizen portal requests.
-* `SEARCH` (Phase 2) — Meilisearch metadata indexing and sync.
-* `REPORT` (Phase 2/4) — ARTA report generator, custom reports.
+- `INFRA` — DevOps, Docker Compose, CI/CD, backup/DR runbooks.
+- `UI` — Shared `@batac/ui` component library (Tailwind v4 tokens, Tier 2, Tier 3 components).
+- `IAM` — Identity & Access Management (JWTs, RBAC/ABAC rules, auth cookie handling).
+- `AUDIT` — Audit log, SHA-256 hash chaining, HMAC tamper-proofing.
+- `ORG` — LGU office structure, designations, position assignments.
+- `DOCS` — Document intake, OCR service, document type schemas, metadata.
+- `WF` — Custom workflow engine, step transitions, review timers.
+- `TRACK` — QR code generation, document scan-to-lookup, tracking routing history.
+- `REC` — Records Management, retention schedules, archive/disposal.
+- `NOTIF` — In-app notifications (SSE) for priority workflow events.
+- `PORTAL` — Public-facing no-auth endpoints, citizen portal requests.
+- `SEARCH` (Phase 2) — Meilisearch metadata indexing and sync.
+- `REPORT` (Phase 2/4) — ARTA report generator, custom reports.

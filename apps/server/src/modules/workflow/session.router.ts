@@ -74,7 +74,13 @@ export function createSessionRouter() {
     getAttendanceRecord: protectedProcedure
       .input(z.object({ sessionDate: z.coerce.date() }))
       .query(async ({ input, ctx }) => {
-        enforceRoles(ctx, ['sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'auditor']);
+        enforceRoles(ctx, [
+          'sp_secretary',
+          'sp_member',
+          'sp_presiding_officer',
+          'mayor',
+          'auditor',
+        ]);
 
         const dateStr = formatDate(input.sessionDate);
 
@@ -87,12 +93,12 @@ export function createSessionRouter() {
               or(
                 ilike(positions.title, '%Vice Mayor%'),
                 ilike(positions.code, '%VM%'),
-                ilike(positions.title, '%Presiding%')
+                ilike(positions.title, '%Presiding%'),
               ),
               isNull(positions.deletedAt),
               isNull(assignments.deletedAt),
-              eq(assignments.isPrimary, true)
-            )
+              eq(assignments.isPrimary, true),
+            ),
           )
           .limit(1);
         const vmEmployeeId = vmPos[0]?.employeeId || null;
@@ -104,8 +110,8 @@ export function createSessionRouter() {
             and(
               eq(spSessions.sessionDate, dateStr),
               eq(spSessions.cityId, ctx.auth.cityId),
-              isNull(spSessions.deletedAt)
-            )
+              isNull(spSessions.deletedAt),
+            ),
           )
           .limit(1);
 
@@ -134,8 +140,8 @@ export function createSessionRouter() {
           .where(
             and(
               eq(sessionAttendances.spSessionId, session.id),
-              isNull(sessionAttendances.deletedAt)
-            )
+              isNull(sessionAttendances.deletedAt),
+            ),
           );
 
         const presentCouncilors: string[] = [];
@@ -196,12 +202,15 @@ export function createSessionRouter() {
     getAttendanceStatistics: protectedProcedure
       .input(dateRangeInput)
       .query(async ({ input, ctx }) => {
-        enforceRoles(ctx, ['sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'auditor']);
+        enforceRoles(ctx, [
+          'sp_secretary',
+          'sp_member',
+          'sp_presiding_officer',
+          'mayor',
+          'auditor',
+        ]);
 
-        const conditions = [
-          eq(spSessions.cityId, ctx.auth.cityId),
-          isNull(spSessions.deletedAt),
-        ];
+        const conditions = [eq(spSessions.cityId, ctx.auth.cityId), isNull(spSessions.deletedAt)];
         if (input.from) {
           conditions.push(gte(spSessions.sessionDate, formatDate(input.from)));
         }
@@ -259,12 +268,12 @@ export function createSessionRouter() {
               or(
                 ilike(positions.title, '%Vice Mayor%'),
                 ilike(positions.code, '%VM%'),
-                ilike(positions.title, '%Presiding%')
+                ilike(positions.title, '%Presiding%'),
               ),
               isNull(positions.deletedAt),
               isNull(assignments.deletedAt),
-              eq(assignments.isPrimary, true)
-            )
+              eq(assignments.isPrimary, true),
+            ),
           )
           .limit(1);
 
@@ -291,8 +300,8 @@ export function createSessionRouter() {
               lte(delegationGrants.startDate, dateStr),
               gte(delegationGrants.endDate, dateStr),
               isNull(delegationGrants.revokedAt),
-              isNull(employees.deletedAt)
-            )
+              isNull(employees.deletedAt),
+            ),
           );
 
         for (const emp of activeGrants) {
@@ -305,7 +314,7 @@ export function createSessionRouter() {
         }
 
         const candidates = Array.from(candidateMap.values()).sort((a, b) =>
-          a.displayName.localeCompare(b.displayName)
+          a.displayName.localeCompare(b.displayName),
         );
 
         return candidates;
@@ -314,7 +323,13 @@ export function createSessionRouter() {
     getOrderOfBusiness: protectedProcedure
       .input(z.object({ sessionDate: z.coerce.date().optional() }))
       .query(async ({ input, ctx }) => {
-        enforceRoles(ctx, ['sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor', 'auditor']);
+        enforceRoles(ctx, [
+          'sp_secretary',
+          'sp_member',
+          'sp_presiding_officer',
+          'mayor',
+          'auditor',
+        ]);
 
         const targetDate = input.sessionDate ?? getNextTuesday();
         const dateStr = formatDate(targetDate);
@@ -326,8 +341,8 @@ export function createSessionRouter() {
             and(
               eq(spSessions.sessionDate, dateStr),
               eq(spSessions.cityId, ctx.auth.cityId),
-              isNull(spSessions.deletedAt)
-            )
+              isNull(spSessions.deletedAt),
+            ),
           )
           .limit(1);
 
@@ -342,10 +357,7 @@ export function createSessionRouter() {
           .select()
           .from(orderOfBusiness)
           .where(
-            and(
-              eq(orderOfBusiness.spSessionId, session.id),
-              isNull(orderOfBusiness.deletedAt)
-            )
+            and(eq(orderOfBusiness.spSessionId, session.id), isNull(orderOfBusiness.deletedAt)),
           )
           .limit(1);
 
@@ -370,17 +382,14 @@ export function createSessionRouter() {
           .leftJoin(instances, eq(documents.workflowInstanceId, instances.id))
           .leftJoin(
             stepInstances,
-            and(
-              eq(instances.id, stepInstances.instanceId),
-              eq(stepInstances.status, 'active')
-            )
+            and(eq(instances.id, stepInstances.instanceId), eq(stepInstances.status, 'active')),
           )
           .leftJoin(steps, eq(stepInstances.stepId, steps.id))
           .where(
             and(
               eq(orderOfBusinessItems.orderOfBusinessId, oob.id),
-              isNull(orderOfBusinessItems.deletedAt)
-            )
+              isNull(orderOfBusinessItems.deletedAt),
+            ),
           )
           .orderBy(asc(orderOfBusinessItems.itemOrder));
 
@@ -393,14 +402,16 @@ export function createSessionRouter() {
         const resultItems = items.map((item) => {
           const isMultiReferral = item.stepType === 'multi_referral';
           const meta = (item.stepMetadata as Record<string, any>) || {};
-          const assignedList = (meta['assigned_committees'] as Array<{ committee_id: string }>) || [];
+          const assignedList =
+            (meta['assigned_committees'] as Array<{ committee_id: string }>) || [];
           const submissions = (meta['submissions'] as Array<any>) || [];
 
           const assignedCommittees = assignedList
             .map((ac) => committeeNameMap.get(ac.committee_id))
             .filter((name): name is string => typeof name === 'string');
 
-          let committeeReportStatus: 'not_applicable' | 'all_submitted' | 'red_flagged' = 'not_applicable';
+          let committeeReportStatus: 'not_applicable' | 'all_submitted' | 'red_flagged' =
+            'not_applicable';
           if (isMultiReferral) {
             const allSubmitted =
               meta['all_submitted_at'] ||
@@ -447,10 +458,10 @@ export function createSessionRouter() {
                 'vacation_leave',
                 'absent_unqualified',
               ]),
-            })
+            }),
           ),
           presidedByEmployeeIdOverride: z.string().uuid().nullish(),
-        })
+        }),
       )
       .output(RecordAttendanceOutputSchema)
       .mutation(async ({ input, ctx }) => {
@@ -472,8 +483,8 @@ export function createSessionRouter() {
                 eq(offices.code, 'SP'),
                 eq(offices.cityId, ctx.auth.cityId),
                 isNull(employees.deletedAt),
-                isNull(assignments.deletedAt)
-              )
+                isNull(assignments.deletedAt),
+              ),
             );
 
           let councilorIds = spMembers.map((m) => m.id);
@@ -485,8 +496,8 @@ export function createSessionRouter() {
                 and(
                   ilike(employees.employeeNumber, 'SP-%'),
                   eq(employees.cityId, ctx.auth.cityId),
-                  isNull(employees.deletedAt)
-                )
+                  isNull(employees.deletedAt),
+                ),
               );
             councilorIds = fallbackMembers.map((m) => m.id);
           }
@@ -515,12 +526,12 @@ export function createSessionRouter() {
                 or(
                   ilike(positions.title, '%Vice Mayor%'),
                   ilike(positions.code, '%VM%'),
-                  ilike(positions.title, '%Presiding%')
+                  ilike(positions.title, '%Presiding%'),
                 ),
                 isNull(positions.deletedAt),
                 isNull(assignments.deletedAt),
-                eq(assignments.isPrimary, true)
-              )
+                eq(assignments.isPrimary, true),
+              ),
             )
             .limit(1);
 
@@ -537,8 +548,8 @@ export function createSessionRouter() {
                     and(
                       eq(employees.id, presidedByEmployeeIdOverride),
                       eq(employees.cityId, ctx.auth.cityId),
-                      isNull(employees.deletedAt)
-                    )
+                      isNull(employees.deletedAt),
+                    ),
                   )
                   .limit(1);
 
@@ -559,8 +570,8 @@ export function createSessionRouter() {
                       eq(delegationGrants.isActive, true),
                       lte(delegationGrants.startDate, dateStr),
                       gte(delegationGrants.endDate, dateStr),
-                      isNull(delegationGrants.revokedAt)
-                    )
+                      isNull(delegationGrants.revokedAt),
+                    ),
                   )
                   .limit(1);
 
@@ -569,7 +580,8 @@ export function createSessionRouter() {
                 if (!isEligible) {
                   throw new TRPCError({
                     code: 'BAD_REQUEST',
-                    message: 'The selected substitute presiding officer is not eligible to preside.',
+                    message:
+                      'The selected substitute presiding officer is not eligible to preside.',
                   });
                 }
 
@@ -584,8 +596,8 @@ export function createSessionRouter() {
                       eq(delegationGrants.isActive, true),
                       lte(delegationGrants.startDate, dateStr),
                       gte(delegationGrants.endDate, dateStr),
-                      isNull(delegationGrants.revokedAt)
-                    )
+                      isNull(delegationGrants.revokedAt),
+                    ),
                   )
                   .limit(1);
 
@@ -612,10 +624,7 @@ export function createSessionRouter() {
             if (loggedInEmployee[0]) {
               presidedByEmployeeId = loggedInEmployee[0].id;
             } else {
-              const firstEmp = await tx
-                .select({ id: employees.id })
-                .from(employees)
-                .limit(1);
+              const firstEmp = await tx.select({ id: employees.id }).from(employees).limit(1);
               if (firstEmp[0]) {
                 presidedByEmployeeId = firstEmp[0].id;
               } else {
@@ -631,8 +640,8 @@ export function createSessionRouter() {
               and(
                 eq(spSessions.sessionDate, dateStr),
                 eq(spSessions.cityId, ctx.auth.cityId),
-                isNull(spSessions.deletedAt)
-              )
+                isNull(spSessions.deletedAt),
+              ),
             )
             .limit(1);
 
@@ -670,8 +679,6 @@ export function createSessionRouter() {
             if (!newSession) throw new Error('Failed to create session');
             sessionId = newSession.id;
           }
-
-
 
           const absenceIds = absences.map((a) => a.councilorEmployeeId);
           const allTargetIds = Array.from(new Set([...councilorIds, ...absenceIds]));
@@ -717,7 +724,7 @@ export function createSessionRouter() {
         z.object({
           documentId: z.string().uuid(),
           sessionDate: z.coerce.date(),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         enforceRoles(ctx, ['sp_secretary']);
@@ -771,12 +778,12 @@ export function createSessionRouter() {
                 or(
                   ilike(positions.title, '%Vice Mayor%'),
                   ilike(positions.code, '%VM%'),
-                  ilike(positions.title, '%Presiding%')
+                  ilike(positions.title, '%Presiding%'),
                 ),
                 isNull(positions.deletedAt),
                 isNull(assignments.deletedAt),
-                eq(assignments.isPrimary, true)
-              )
+                eq(assignments.isPrimary, true),
+              ),
             )
             .limit(1);
 
@@ -791,10 +798,7 @@ export function createSessionRouter() {
             if (loggedInEmployee[0]) {
               presidedByEmployeeId = loggedInEmployee[0].id;
             } else {
-              const firstEmp = await tx
-                .select({ id: employees.id })
-                .from(employees)
-                .limit(1);
+              const firstEmp = await tx.select({ id: employees.id }).from(employees).limit(1);
               if (firstEmp[0]) {
                 presidedByEmployeeId = firstEmp[0].id;
               } else {
@@ -810,8 +814,8 @@ export function createSessionRouter() {
               and(
                 eq(spSessions.sessionDate, dateStr),
                 eq(spSessions.cityId, ctx.auth.cityId),
-                isNull(spSessions.deletedAt)
-              )
+                isNull(spSessions.deletedAt),
+              ),
             )
             .limit(1);
 
@@ -845,10 +849,7 @@ export function createSessionRouter() {
             .select()
             .from(orderOfBusiness)
             .where(
-              and(
-                eq(orderOfBusiness.spSessionId, sessionId),
-                isNull(orderOfBusiness.deletedAt)
-              )
+              and(eq(orderOfBusiness.spSessionId, sessionId), isNull(orderOfBusiness.deletedAt)),
             )
             .limit(1);
 
@@ -875,8 +876,8 @@ export function createSessionRouter() {
               and(
                 eq(orderOfBusinessItems.orderOfBusinessId, oobId),
                 eq(orderOfBusinessItems.documentId, documentId),
-                isNull(orderOfBusinessItems.deletedAt)
-              )
+                isNull(orderOfBusinessItems.deletedAt),
+              ),
             )
             .limit(1);
 
@@ -906,7 +907,7 @@ export function createSessionRouter() {
         z.object({
           stepInstanceId: z.string().uuid(),
           hearingDate: z.coerce.date().nullish(),
-        })
+        }),
       )
       .mutation(async ({ input, ctx }) => {
         enforceRoles(ctx, ['sp_secretary']);
@@ -917,12 +918,7 @@ export function createSessionRouter() {
           const [stepInstance] = await tx
             .select()
             .from(stepInstances)
-            .where(
-              and(
-                eq(stepInstances.id, stepInstanceId),
-                isNull(stepInstances.deletedAt)
-              )
-            )
+            .where(and(eq(stepInstances.id, stepInstanceId), isNull(stepInstances.deletedAt)))
             .limit(1);
 
           if (!stepInstance) {

@@ -3,6 +3,7 @@
 **Pass type:** Step 2 — Module: UI (`A1-AGENTS.md` §2 Pass Types table)
 **Wave:** A (no prerequisite module task lists — confirmed by the calling instruction and by `a1-skeleton.md` §2: UI depends on `None`)
 **Documents loaded for this pass, in order:**
+
 1. `docs/pre-development/A-project-planning/a1-skeleton.md`
 2. `docs/pre-development/F-frontend-architecture/f5-ui-component-library-setup-and-package-architecture.md` (F5)
 3. `docs/pre-development/J-software-design-patterns-and-standards/j6-domain-component-engineering-reference.md` (J6)
@@ -16,6 +17,7 @@
 (`A1-AGENTS.md` itself — Section 2 Pass Types table and Section 6 Step 2 / UI-specific rules — was read first per the routing instruction, the same way the Skeleton pass reads it before producing its own output.)
 
 **Sourcing & confidence legend** (same convention `a1-skeleton.md` v2 uses, applied here):
+
 - Unmarked statements are taken directly from one of the nine loaded documents.
 - `[Inference]` — a reasoned synthesis not stated verbatim in a loaded document, labeled individually at the point it is made (inferences are not chained).
 - `[SPEC GAP]` — `A1-AGENTS.md` §1/§8 convention: something a source requires but no loaded document specifies clearly enough to write a self-contained AI Prompt for. Not invented; left for human resolution.
@@ -61,10 +63,9 @@ This document does not use the words "prevent," "guarantee," "will never," "fixe
 
 ---
 
-
 ## Note on Section 6's general Step-2 capability-list instruction
 
-`A1-AGENTS.md` §6 "Step 2 — Module passes" opens: *"Before writing any task: read the capability list for this module in consolidated ref §13 Phase 1, then read the module-specific documents in the order listed in the Pass Types table."* `a1-skeleton.md` §3 reads this as applying "for every pass without exception."
+`A1-AGENTS.md` §6 "Step 2 — Module passes" opens: _"Before writing any task: read the capability list for this module in consolidated ref §13 Phase 1, then read the module-specific documents in the order listed in the Pass Types table."_ `a1-skeleton.md` §3 reads this as applying "for every pass without exception."
 
 The calling instruction for this pass supplied an explicit nine-document load list (reproduced above) that did not include the consolidated reference, and this document originally flagged the omission as an unverified `[SPEC GAP — process]`. **Verified in the resolution pass, 2026-06-23:** `docs/requirements-gathering/consolidated-architecture-and-requirements-reference-iteration-3.md` Part 13 ("Roadmap"), Phase 1's "Included" capability list, was read directly. It names IAM, Organization module, Document Core, Workflow Engine, the per-document-type workflows, DTS, Session attendance tracking, Order of Business view, Secretariat decision logging, In-app notifications, dashboards, Audit log, OCR, Citizen Complaint module, the Phase 1 public-portal subset, and Infrastructure — **`UI` is not named as a capability anywhere in Part 13**, in either Phase 1 or any later phase. This confirms `a1-skeleton.md` §2 footnote `[†1]`'s reasoning: `UI` is a cross-cutting build module, not one of the 11 schema-owning domain modules Part 13 enumerates capabilities for, so its task list is correctly "structurally fixed by F7's instantiation rule" rather than driven by a §13 capability enumeration. There is nothing in consolidated ref §13 this task list is missing.
 
@@ -78,13 +79,13 @@ Everything below this point was originally written during the initial UI module 
 
 ## Pre-task reconciliation findings
 
-Per `A1-AGENTS.md` §6 Step 2: *"Before writing any task... read the module-specific documents... identify the complete set of Phase 1 capabilities this module must deliver before generating a single task."* Reading F5, J6, F6, and F7 together surfaced the following cross-document items. None of these are invented content — each is a direct comparison of what two or more loaded documents actually say. Per `A1-AGENTS.md` §8, no pre-dev document was edited to resolve any of these; each is recorded here and, where it affects a specific task below, repeated in that task's own notes.
+Per `A1-AGENTS.md` §6 Step 2: _"Before writing any task... read the module-specific documents... identify the complete set of Phase 1 capabilities this module must deliver before generating a single task."_ Reading F5, J6, F6, and F7 together surfaced the following cross-document items. None of these are invented content — each is a direct comparison of what two or more loaded documents actually say. Per `A1-AGENTS.md` §8, no pre-dev document was edited to resolve any of these; each is recorded here and, where it affects a specific task below, repeated in that task's own notes.
 
 1. **UI Tier-3 component count — `a1-skeleton.md`'s flagged open item, now checked directly.** `a1-skeleton.md` §3 and §6 carried forward an unresolved "F5/F7 component-count discrepancy" from an earlier pass, deferred "to whenever the UI Step 2 module pass actually runs and reads F5/F7 directly." Having now read both directly: F5 §1 and §4.3 both state **sixteen** Tier 3 components, and F7's own "Reconciliation Notes" (Correction 1, at the top of that document) record that an earlier draft input said "17" and that F7 already corrected its own prose to "16" before this version was written to disk. F5 and F7, as loaded for this pass, agree at **16**. This pass treats `a1-skeleton.md`'s flagged item as resolved by direct reading, not as a remaining gap.
-2. **`PageHeader` composing-primitives conflict — three-way, resolved 2026-06-23.** F5's overview table lists `PageHeader`'s "Composes" column as `—`. F7's per-component fill-in table (row 1) had "corrected" this to `Button (T2)`. J6 §3.1.2 states explicitly: *"the PageHeader renders the slot verbatim so it does not import Button directly — the consumer passes it. The component itself has no direct Tier 1 or Tier 2 imports."* **Resolved by following J6**, with human authorization: F5's original `—` was correct, and F7's "correction" was the error. F7's row 1 has been edited to read `none` and to record that its earlier correction was itself wrong. Recorded in TASK-UI-003 below.
-3. **`OrderOfBusinessRow` / `CommitteeReferralBlock` composition conflict — resolved 2026-06-23.** F7's per-component fill-in table (row 16) had listed `CommitteeReferralBlock` as a Tier 3 dependency of `OrderOfBusinessRow`. J6 §3.16 (props interface, Tier 1/2 dependency list, and visual-behavior layout description, item 5: *"one `Badge` per entry in `committeeReferrals` with per-status coloring"*) describes `OrderOfBusinessRow` rendering its own inline `Badge` (Tier 1) chips per committee referral, and does not list `CommitteeReferralBlock` anywhere in §3.16. **Resolved by following J6**, with human authorization — this changed the actual Prerequisites field, not just a documentation label. F7's row 16 and its Execution Order ASCII diagram have both been edited to remove `CommitteeReferralBlock` and record the correction. `OrderOfBusinessRow`'s Tier 3 dependencies are `DocumentNumberBadge` and `StatusBadge` only. Recorded in TASK-UI-018 below.
-4. **`QRCodeDisplay` / `DocumentNumberBadge` composition — F7's own flagged open item, now resolved.** F7 had stated directly, under "Open item — QRCodeDisplay composition": *"F5 §4.3 lists `QRCodeDisplay` composition as `—`... This is not resolved in this document. The A1 UI module pass should flag it and the human should decide."* J6 §3.11 gives a complete implementation spec with **no** Tier 1, Tier 2, or Tier 3 imports — the document number renders as plain text (`font-mono text-xs font-medium`) directly inside the component, not via a composed `DocumentNumberBadge`. The flag has now reached a human, who authorized resolving it: **`QRCodeDisplay` has no Tier 3 dependency**, per J6's complete spec. F7's "Open item" paragraph and its row 11 have both been edited to record this as resolved. Recorded in TASK-UI-013 below.
-5. **`WorkflowStepIndicator` pending/error step ARIA — was genuinely unresolved in the source material; now decided.** F6 §3.2 had stated directly: *"DESIGN.md does not specify ARIA attributes for either state. I do not have a confirmed requirement here... this specific suggestion is [Speculation], not a confirmed DESIGN.md requirement, and should be resolved explicitly before implementation rather than assumed."* With human authorization, this is now decided rather than left speculative: pending steps carry no special ARIA attribute beyond list position; error steps carry `aria-label="{step name} — error"`, the same default F6 had already proposed as "reasonable" before elevating it from speculation to a confirmed requirement. F6 §3.2 has been edited to record this as resolved, and its PR-check line updated accordingly. TASK-UI-016 below reflects the confirmed requirement.
+2. **`PageHeader` composing-primitives conflict — three-way, resolved 2026-06-23.** F5's overview table lists `PageHeader`'s "Composes" column as `—`. F7's per-component fill-in table (row 1) had "corrected" this to `Button (T2)`. J6 §3.1.2 states explicitly: _"the PageHeader renders the slot verbatim so it does not import Button directly — the consumer passes it. The component itself has no direct Tier 1 or Tier 2 imports."_ **Resolved by following J6**, with human authorization: F5's original `—` was correct, and F7's "correction" was the error. F7's row 1 has been edited to read `none` and to record that its earlier correction was itself wrong. Recorded in TASK-UI-003 below.
+3. **`OrderOfBusinessRow` / `CommitteeReferralBlock` composition conflict — resolved 2026-06-23.** F7's per-component fill-in table (row 16) had listed `CommitteeReferralBlock` as a Tier 3 dependency of `OrderOfBusinessRow`. J6 §3.16 (props interface, Tier 1/2 dependency list, and visual-behavior layout description, item 5: _"one `Badge` per entry in `committeeReferrals` with per-status coloring"_) describes `OrderOfBusinessRow` rendering its own inline `Badge` (Tier 1) chips per committee referral, and does not list `CommitteeReferralBlock` anywhere in §3.16. **Resolved by following J6**, with human authorization — this changed the actual Prerequisites field, not just a documentation label. F7's row 16 and its Execution Order ASCII diagram have both been edited to remove `CommitteeReferralBlock` and record the correction. `OrderOfBusinessRow`'s Tier 3 dependencies are `DocumentNumberBadge` and `StatusBadge` only. Recorded in TASK-UI-018 below.
+4. **`QRCodeDisplay` / `DocumentNumberBadge` composition — F7's own flagged open item, now resolved.** F7 had stated directly, under "Open item — QRCodeDisplay composition": _"F5 §4.3 lists `QRCodeDisplay` composition as `—`... This is not resolved in this document. The A1 UI module pass should flag it and the human should decide."_ J6 §3.11 gives a complete implementation spec with **no** Tier 1, Tier 2, or Tier 3 imports — the document number renders as plain text (`font-mono text-xs font-medium`) directly inside the component, not via a composed `DocumentNumberBadge`. The flag has now reached a human, who authorized resolving it: **`QRCodeDisplay` has no Tier 3 dependency**, per J6's complete spec. F7's "Open item" paragraph and its row 11 have both been edited to record this as resolved. Recorded in TASK-UI-013 below.
+5. **`WorkflowStepIndicator` pending/error step ARIA — was genuinely unresolved in the source material; now decided.** F6 §3.2 had stated directly: _"DESIGN.md does not specify ARIA attributes for either state. I do not have a confirmed requirement here... this specific suggestion is [Speculation], not a confirmed DESIGN.md requirement, and should be resolved explicitly before implementation rather than assumed."_ With human authorization, this is now decided rather than left speculative: pending steps carry no special ARIA attribute beyond list position; error steps carry `aria-label="{step name} — error"`, the same default F6 had already proposed as "reasonable" before elevating it from speculation to a confirmed requirement. F6 §3.2 has been edited to record this as resolved, and its PR-check line updated accordingly. TASK-UI-016 below reflects the confirmed requirement.
 6. **`Sidebar` collapsed-label hiding — F5 prose vs. F6 accessibility requirement.** F5 §4.3 describes collapsed-mode label hiding as `hidden` on the label `<span>`. F6 §3.5 states this conflicts with its own accessible-name requirement and gives a **required action** (a visually-hidden technique, or an explicit `aria-label` on the parent element) rather than leaving this open. This is not a gap — F6 resolves it — but F5's literal prose must not be followed as written. Recorded as a direct instruction in TASK-UI-004 below.
 7. **Sonner `<Toaster>` position conflict — resolved 2026-06-23.** F5 §3 deviation #6 recorded a conflict between `INSTALL.sh` (`top-right`) and DESIGN.md §6.5 (`bottom-right`), unresolved in either source, though F5's own "Required action" column already leaned toward `bottom-right` ("recommended unless there is a documented UX rationale for `top-right`"). With human authorization: **`bottom-right` is the canonical position**, per DESIGN.md §6.5's specific, deliberate value (`bottom-4 right-4`, 5s auto-dismiss) — `top-right` in `INSTALL.sh` was never DESIGN.md's stated position and appears to have been an unmodified Sonner default in an example comment, not a considered choice. `INSTALL.sh` Step 5 and F5's deviation-table row 6 have both been edited to record this. Still does not block any of the 19 tasks below, since registering the provider isn't part of Plan 0's deliverable list.
 8. **Domain-type location conflict — found and resolved during the resolution pass, not in the original pass.** F5 §1 and §4.3 stated that canonical domain types referenced in Tier 3 props interfaces (e.g., `DocumentState`) are defined in `packages/shared`, imported from `@batac/shared`. J6 §1 places them instead in `packages/ui/src/types/domain.ts`, with a stated rationale: `packages/ui` already depends on `packages/shared` for tRPC/Zod types, so having `packages/shared` import back from `packages/ui` would close a circular dependency. This task list's TASK-UI-002 had already followed J6's location throughout (it was never built against F5's claim), so no task content changes were needed — but F5's own text was wrong and is corrected: F5 §1's package-overview paragraph, its domain-types bullet rule, the `StatusBadge` section's description, and its implementation-steps reference have all been edited to `packages/ui/src/types/domain.ts`. F5's `DocumentState` union itself was also stale relative to J6 (23 members, including four "overlay" pseudo-states — `CERTIFIED_URGENT`, `SLA_AT_RISK`, `SLA_BREACHED`, `MISSING_REPORT` — that are not document lifecycle states; J6 correctly models these as booleans on `OrderOfBusinessItem` and a separate `SLAStatus` type instead, and adds seven lifecycle states F5 was missing). F5's `DocumentState` union has been replaced with J6's canonical 26-member version, with a code comment explaining the change.
@@ -101,7 +102,7 @@ Per `A1-AGENTS.md` §6 Step 2: *"Before writing any task... read the module-spec
 
 ## TASK-UI-001
 
-```
+````
 TASK-UI-001
 
 Phase:          1
@@ -193,13 +194,13 @@ AI Prompt:
   > - [ ] /dev/components 404s or redirects in a production build
   > - [ ] Tab through /dev/components — focus ring visible on every interactive element, no outline: none anywhere in the diff
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-002
 
-```
+````
 TASK-UI-002
 
 Phase:          1
@@ -385,7 +386,7 @@ AI Prompt:
   > - [ ] STATUS_META.DEEMED_APPROVED.textStyle === 'italic' and STATUS_META.CANCELLED.textStyle === 'line-through'
   > - [ ] `import { STATUS_META, type DocumentState } from '@batac/ui';` typechecks from a scratch file outside packages/ui
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
@@ -395,7 +396,7 @@ Per `A1-AGENTS.md` §6 UI-specific rule: "Group A components... have no Tier 3 p
 
 ## TASK-UI-003
 
-```
+````
 TASK-UI-003
 
 Phase:          1
@@ -474,13 +475,13 @@ AI Prompt:
   > - [ ] typecheck passes, title is a required prop
   > - [ ] Grayscale emulation check passes (nothing to lose — confirms no accidental color-only element was added)
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-004
 
-```
+````
 TASK-UI-004
 
 Phase:          1
@@ -577,13 +578,13 @@ AI Prompt:
   > - [ ] Disabled items show the correct classes and are skipped by Tab
   > - [ ] AvatarName shows full name+role expanded, avatar-only collapsed
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-005
 
-```
+````
 TASK-UI-005
 
 Phase:          1
@@ -666,13 +667,13 @@ AI Prompt:
   > - [ ] Breadcrumb truncation keeps first and last segment visible
   > - [ ] typecheck passes, both callback props optional
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-006
 
-```
+````
 TASK-UI-006
 
 Phase:          1
@@ -753,7 +754,7 @@ AI Prompt:
   > - [ ] sidebarContent wrapped in <nav aria-label="Main navigation">
   > - [ ] Main area is bg-surface-raised, visibly distinct from any Card inside it
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
@@ -763,7 +764,7 @@ Per `A1-AGENTS.md` §6 UI-specific rule: "Group B components (standalone display
 
 ## TASK-UI-007
 
-```
+````
 TASK-UI-007
 
 Phase:          1
@@ -833,13 +834,13 @@ AI Prompt:
   > - [ ] Dimensions/padding/font-size identical across variants
   > - [ ] No Tier 1/2 import in the file
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-008
 
-```
+````
 TASK-UI-008
 
 Phase:          1
@@ -906,13 +907,13 @@ AI Prompt:
   > - [ ] Card background stays bg-white regardless of className
   > - [ ] metric typed as string | number, both accepted without error
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-009
 
-```
+````
 TASK-UI-009
 
 Phase:          1
@@ -985,13 +986,13 @@ AI Prompt:
   > - [ ] Dev-route copy is directive, contains no apologetic phrasing
   > - [ ] icon prop typed as LucideIcon (component reference), confirmed by passing e.g. FileText, not <FileText />
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-010
 
-```
+````
 TASK-UI-010
 
 Phase:          1
@@ -1054,13 +1055,13 @@ AI Prompt:
   > - [ ] .touch-exempt present
   > - [ ] No level prop exists in the interface — score is the sole input
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-011
 
-```
+````
 TASK-UI-011
 
 Phase:          1
@@ -1138,13 +1139,13 @@ AI Prompt:
   > - [ ] Past-deadline example confirms aria-valuenow stays at exactly 100
   > - [ ] No tabindex, no interactive role on the outer container
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-012
 
-```
+````
 TASK-UI-012
 
 Phase:          1
@@ -1237,13 +1238,13 @@ AI Prompt:
   > - [ ] notes renders only when present, with correct indentation
   > - [ ] Entries render in passed order (no internal re-sorting)
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-013
 
-```
+````
 TASK-UI-013
 
 Phase:          1
@@ -1320,7 +1321,7 @@ AI Prompt:
   > - [ ] No Tier 1/2/3 import in this file
   > - [ ] Not part of the Tab order
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
@@ -1330,7 +1331,7 @@ Per `A1-AGENTS.md` §6 UI-specific rule: "Group C components... require J6 types
 
 ## TASK-UI-014
 
-```
+````
 TASK-UI-014
 
 Phase:          1
@@ -1397,13 +1398,13 @@ AI Prompt:
   > - [ ] No inline backgroundColor style anywhere
   > - [ ] CommitteeReferral import resolves (TASK-UI-002 merged)
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-015
 
-```
+````
 TASK-UI-015
 
 Phase:          1
@@ -1473,13 +1474,13 @@ AI Prompt:
   > - [ ] Colors come from STATUS_META at render time via cn(), not a CVA variants object
   > - [ ] No inline backgroundColor or hardcoded hex anywhere in the file
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-016
 
-```
+````
 TASK-UI-016
 
 Phase:          1
@@ -1586,7 +1587,7 @@ AI Prompt:
   > - [ ] assigneeName shows only on the active step
   > - [ ] Error-state and pending-state ARIA treatment matches the confirmed requirement above (no longer an open question as of 2026-06-23)
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
@@ -1596,7 +1597,7 @@ Per `A1-AGENTS.md` §6 UI-specific rule: "Group D components... depend on specif
 
 ## TASK-UI-017
 
-```
+````
 TASK-UI-017
 
 Phase:          1
@@ -1669,13 +1670,13 @@ AI Prompt:
   > - [ ] Hover shadow transition and cursor-pointer only when interactive
   > - [ ] All Date fields are real Date objects in your fixture data
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
 ## TASK-UI-018
 
-```
+````
 TASK-UI-018
 
 Phase:          1
@@ -1768,7 +1769,7 @@ AI Prompt:
   > - [ ] Title uses truncate (single-line), not line-clamp-2
   > - [ ] Row-click pattern choice documented in the PR description; Enter/Space work; no double-fire from nested interactive elements
   > A reviewer will verify each one independently.
-```
+````
 
 ---
 
@@ -1823,12 +1824,14 @@ AI Prompt:
 **Coverage:** Plan 0 Foundation (1) — Tier 1 install, Tier 2 overrides, token system, `/dev/components`. J6 type-system generation (1) — `domain.ts` + `status-meta.ts`, not separately instantiated by F7 but required to exist as "the J6-generation task" per `A1-AGENTS.md` §6. All sixteen Tier 3 components confirmed by F5 §1/§4.3 (16) — Group A layout shell ×4, Group B standalone display ×7, Group C J6-dependent ×3, Group D composed ×2. Plan 2 cross-component integration page (1).
 
 **Tasks carrying a status flag in their title, repeated here for visibility:**
+
 - `TASK-UI-004` (Sidebar) — `[implements F6 §3.5's accessible-name required action]`; not an open item, but a real divergence from F5's literal prose that an implementer could easily miss if they only skimmed F5.
 - `TASK-UI-013` (QRCodeDisplay) — `[F7's open item resolved 2026-06-23 — F7 and J6 now agree]`.
 - `TASK-UI-016` (WorkflowStepIndicator) — `[pending/error step ARIA confirmed 2026-06-23 — see F6 §3.2]`.
 - `TASK-UI-018` (OrderOfBusinessRow) — `[F7 corrected to match J6, 2026-06-23 — CommitteeReferralBlock not composed]`.
 
 **All eight items from the original Module Summary's "open items" list are now resolved**, with human authorization, as of 2026-06-23 (see the Pre-task reconciliation findings above for full detail on each — none was resolved by guessing; each states which source it follows and why):
+
 1. **Consolidated ref §13** — verified directly: Part 13's Phase 1 capability list does not name `UI` anywhere. Nothing missing from these 19 tasks.
 2. **`WorkflowStepIndicator` pending/error step ARIA** (`TASK-UI-016`) — confirmed: no special attribute for pending steps; `aria-label="{step name} — error"` for error steps. F6 §3.2 edited to record this as decided rather than speculative.
 3. **Sonner `<Toaster>` position** — confirmed: `bottom-right`, per DESIGN.md §6.5's specific value. `INSTALL.sh` Step 5 and F5's deviation-table row 6 edited accordingly.
@@ -1840,13 +1843,13 @@ AI Prompt:
 
 **Documents edited in the resolution pass (2026-06-23), with human authorization overriding `A1-AGENTS.md` §8's "do not edit any pre-dev document" rule for this specific purpose:**
 
-| Document | What changed |
-|---|---|
-| `docs/pre-development/F-frontend-architecture/f7-frontend-implementation-plans.md` | "Open item — QRCodeDisplay composition" → resolved. Row 1 (`PageHeader`) composing-primitives cell corrected. Row 11 (`QRCodeDisplay`) Tier 3 Deps cell corrected. Row 13 (`StatusBadge`) stale 23-state note corrected to 26 states. Row 16 (`OrderOfBusinessRow`) Tier 3 Deps cell corrected to remove `CommitteeReferralBlock`. Execution Order ASCII diagram's `OrderOfBusinessRow` annotation corrected to match. |
-| `docs/pre-development/F-frontend-architecture/f6-accessibility-compliance-checklist.md` | §3.2 `WorkflowStepIndicator`'s pending/error ARIA treatment changed from `[Speculation]` to a confirmed requirement; its PR-check line and ToC entry updated to match. |
-| `docs/pre-development/F-frontend-architecture/f5-ui-component-library-setup-and-package-architecture.md` | Deviation-table row 6 (Toaster position) marked resolved. Package-overview paragraph, domain-types bullet rule, `StatusBadge` section description, and implementation-steps reference all corrected from `packages/shared` to `packages/ui/src/types/domain.ts`. `DocumentState` union replaced with J6's canonical 26-member version (was a stale 23-member version with four non-state "overlay" pseudo-members). |
-| `INSTALL.sh` | Step 5 Sonner `<Toaster>` example changed from `position="top-right"` to `position="bottom-right"` with `duration={5000}` added, matching DESIGN.md §6.5. |
-| `docs/pre-development/A-project-planning/a1-skeleton.md` | UI Tier-3 component-count discrepancy (§3 closing note, §6 table row, aggregate estimate, changelog row 10) marked resolved at 19 tasks; aggregate Phase 1 task-count range recalculated from "110–162" to "112–162." |
+| Document                                                                                                 | What changed                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/pre-development/F-frontend-architecture/f7-frontend-implementation-plans.md`                       | "Open item — QRCodeDisplay composition" → resolved. Row 1 (`PageHeader`) composing-primitives cell corrected. Row 11 (`QRCodeDisplay`) Tier 3 Deps cell corrected. Row 13 (`StatusBadge`) stale 23-state note corrected to 26 states. Row 16 (`OrderOfBusinessRow`) Tier 3 Deps cell corrected to remove `CommitteeReferralBlock`. Execution Order ASCII diagram's `OrderOfBusinessRow` annotation corrected to match. |
+| `docs/pre-development/F-frontend-architecture/f6-accessibility-compliance-checklist.md`                  | §3.2 `WorkflowStepIndicator`'s pending/error ARIA treatment changed from `[Speculation]` to a confirmed requirement; its PR-check line and ToC entry updated to match.                                                                                                                                                                                                                                                 |
+| `docs/pre-development/F-frontend-architecture/f5-ui-component-library-setup-and-package-architecture.md` | Deviation-table row 6 (Toaster position) marked resolved. Package-overview paragraph, domain-types bullet rule, `StatusBadge` section description, and implementation-steps reference all corrected from `packages/shared` to `packages/ui/src/types/domain.ts`. `DocumentState` union replaced with J6's canonical 26-member version (was a stale 23-member version with four non-state "overlay" pseudo-members).    |
+| `INSTALL.sh`                                                                                             | Step 5 Sonner `<Toaster>` example changed from `position="top-right"` to `position="bottom-right"` with `duration={5000}` added, matching DESIGN.md §6.5.                                                                                                                                                                                                                                                              |
+| `docs/pre-development/A-project-planning/a1-skeleton.md`                                                 | UI Tier-3 component-count discrepancy (§3 closing note, §6 table row, aggregate estimate, changelog row 10) marked resolved at 19 tasks; aggregate Phase 1 task-count range recalculated from "110–162" to "112–162."                                                                                                                                                                                                  |
 
 **Documents read but not edited:** J6, F4, F1, DESIGN.md, `globals.css` — none contained anything this pass's resolutions required changing.
 

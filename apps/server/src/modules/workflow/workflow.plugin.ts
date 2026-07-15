@@ -44,42 +44,66 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
     documentsService: fastify.documentsService,
     eventBus: fastify.eventBus,
     orgService: fastify.organizationService,
-    delegationService: fastify.delegationService
+    delegationService: fastify.delegationService,
   };
 
-  fastify.eventBus.on('document.certification_urgency.logged', (event) => {
-    processCertificationUrgencyEvent(event.payload, stepDeps).catch(err => {
-      fastify.log.error({ err, eventId: event.eventId }, 'workflow: document.certification_urgency.logged handler failed');
-    });
-  }, 'workflow');
-
-  fastify.eventBus.on('document.created', (event) => {
-    // Note: The `engine.createInstance` function takes a DocumentCreatedPayload.
-    // However, it also requires fetching the active definition for the document type.
-    const run = async () => {
-      const activeDef = await workflowRepository.getActiveDefinitionForDocumentType(event.payload.documentTypeId);
-      if (!activeDef) {
-        // NO_ACTIVE_VERSION: expected inert failure in Phase 1 for DOCUMENT_REQUEST_FORM
-        fastify.log.info({ documentId: event.payload.documentId }, 'No active workflow definition found; skipping instance creation.');
-        return;
-      }
-      await createInstance(event.payload.documentId, activeDef.definition.id, event.payload.actorId, {
-        db,
-        workflowRepository,
-        documentsService: fastify.documentsService,
-        orgService: fastify.organizationService,
-        delegationService: fastify.delegationService,
-        eventBus: fastify.eventBus
+  fastify.eventBus.on(
+    'document.certification_urgency.logged',
+    (event) => {
+      processCertificationUrgencyEvent(event.payload, stepDeps).catch((err) => {
+        fastify.log.error(
+          { err, eventId: event.eventId },
+          'workflow: document.certification_urgency.logged handler failed',
+        );
       });
-    };
-    run().catch(err => {
-      fastify.log.error({ err, eventId: event.eventId }, 'workflow: document.created handler failed');
-    });
-  }, 'workflow');
+    },
+    'workflow',
+  );
+
+  fastify.eventBus.on(
+    'document.created',
+    (event) => {
+      // Note: The `engine.createInstance` function takes a DocumentCreatedPayload.
+      // However, it also requires fetching the active definition for the document type.
+      const run = async () => {
+        const activeDef = await workflowRepository.getActiveDefinitionForDocumentType(
+          event.payload.documentTypeId,
+        );
+        if (!activeDef) {
+          // NO_ACTIVE_VERSION: expected inert failure in Phase 1 for DOCUMENT_REQUEST_FORM
+          fastify.log.info(
+            { documentId: event.payload.documentId },
+            'No active workflow definition found; skipping instance creation.',
+          );
+          return;
+        }
+        await createInstance(
+          event.payload.documentId,
+          activeDef.definition.id,
+          event.payload.actorId,
+          {
+            db,
+            workflowRepository,
+            documentsService: fastify.documentsService,
+            orgService: fastify.organizationService,
+            delegationService: fastify.delegationService,
+            eventBus: fastify.eventBus,
+          },
+        );
+      };
+      run().catch((err) => {
+        fastify.log.error(
+          { err, eventId: event.eventId },
+          'workflow: document.created handler failed',
+        );
+      });
+    },
+    'workflow',
+  );
 
   // Scheduler Jobs
   registerSlaMonitorJob({ workflowRepository, eventBus: fastify.eventBus });
-  
+
   if (fastify.boss) {
     await fastify.boss.createQueue('evaluateMayorLapseTimers');
     await fastify.boss.schedule('evaluateMayorLapseTimers', '0 * * * *', {}, { tz: 'Asia/Manila' });
@@ -92,7 +116,12 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
     });
 
     await fastify.boss.createQueue('evaluatePanlalawiganTimers');
-    await fastify.boss.schedule('evaluatePanlalawiganTimers', '0 6 * * *', {}, { tz: 'Asia/Manila' });
+    await fastify.boss.schedule(
+      'evaluatePanlalawiganTimers',
+      '0 6 * * *',
+      {},
+      { tz: 'Asia/Manila' },
+    );
     fastify.boss.work('evaluatePanlalawiganTimers', async () => {
       try {
         await evaluatePanlalawiganTimers(stepDeps);

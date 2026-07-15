@@ -36,7 +36,6 @@ import {
 import { useSessionStore } from '@/stores';
 import { trpc } from '../../lib/trpc';
 
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface OfficeSummary {
@@ -119,31 +118,35 @@ function OfficeTreeNode({
 
   return (
     <div>
-      <div className="flex items-center gap-2 py-2 px-3 rounded-md hover:bg-muted/50 group">
+      <div className="hover:bg-muted/50 group flex items-center gap-2 rounded-md px-3 py-2">
         <button
           type="button"
-          className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-muted-foreground"
+          className="text-muted-foreground flex h-5 w-5 flex-shrink-0 items-center justify-center"
           onClick={() => setExpanded((e) => !e)}
           aria-label={expanded ? 'Collapse' : 'Expand'}
           disabled={!hasChildren}
         >
           {hasChildren ? (
-            expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+            expanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )
           ) : (
-            <span className="w-4 h-4 inline-block" />
+            <span className="inline-block h-4 w-4" />
           )}
         </button>
 
-        <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        <Building2 className="text-muted-foreground h-4 w-4 flex-shrink-0" />
 
-        <span className="font-medium text-sm flex-1">{node.name}</span>
+        <span className="flex-1 text-sm font-medium">{node.name}</span>
 
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeClass}`}>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeClass}`}>
           {typeLabel}
         </span>
 
         {isPlatAdmin && (
-          <div className="hidden group-hover:flex items-center gap-1">
+          <div className="hidden items-center gap-1 group-hover:flex">
             <Button
               variant="ghost"
               size="icon"
@@ -151,7 +154,7 @@ function OfficeTreeNode({
               onClick={() => onAddPosition(node.officeId)}
               title="Add Position"
             >
-              <Briefcase className="w-3.5 h-3.5" />
+              <Briefcase className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -160,23 +163,23 @@ function OfficeTreeNode({
               onClick={() => onEditOffice(node)}
               title="Edit Office"
             >
-              <Edit className="w-3.5 h-3.5" />
+              <Edit className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-destructive hover:text-destructive"
+              className="text-destructive hover:text-destructive h-7 w-7"
               onClick={() => onDeactivateOffice(node)}
               title="Deactivate Office"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         )}
       </div>
 
       {expanded && hasChildren && (
-        <div className="border-l ml-6 pl-2">
+        <div className="ml-6 border-l pl-2">
           {node.children.map((child) => (
             <OfficeTreeNode
               key={child.officeId}
@@ -227,48 +230,98 @@ export function OrganizationPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeSummary | null>(null);
 
   // ─── Form state ────────────────────────────────────────────────────────────
-  const defaultOfficeForm = { name: '', code: '', officeType: 'department' as OfficeType, parentOfficeId: '' };
+  const defaultOfficeForm = {
+    name: '',
+    code: '',
+    officeType: 'department' as OfficeType,
+    parentOfficeId: '',
+  };
   const [officeForm, setOfficeForm] = useState(defaultOfficeForm);
 
-  const defaultPositionForm = { officeId: '', title: '', code: '', authorityLevel: 'staff' as AuthorityLevel };
+  const defaultPositionForm = {
+    officeId: '',
+    title: '',
+    code: '',
+    authorityLevel: 'staff' as AuthorityLevel,
+  };
   const [positionForm, setPositionForm] = useState(defaultPositionForm);
 
-  const defaultEmployeeForm = { firstName: '', lastName: '', email: '', phoneNumber: '', employeeNumber: '' };
+  const defaultEmployeeForm = {
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: '',
+    employeeNumber: '',
+  };
   const [employeeForm, setEmployeeForm] = useState(defaultEmployeeForm);
 
-  const defaultAssignForm = { employeeId: '', positionId: '', officeId: '', startDate: new Date().toISOString().split('T')[0]! };
+  const defaultAssignForm = {
+    employeeId: '',
+    positionId: '',
+    officeId: '',
+    startDate: new Date().toISOString().split('T')[0]!,
+  };
   const [assignForm, setAssignForm] = useState(defaultAssignForm);
 
   // ─── Mutations ─────────────────────────────────────────────────────────────
-  const invalidateHierarchy = () => { void utils.organization.getOfficeHierarchy.invalidate(); };
-  const invalidateEmployees = () => { void utils.organization.listEmployees.invalidate(); };
+  const invalidateHierarchy = () => {
+    void utils.organization.getOfficeHierarchy.invalidate();
+  };
+  const invalidateEmployees = () => {
+    void utils.organization.listEmployees.invalidate();
+  };
 
   const createOffice = trpc.organization.createOffice.useMutation({
-    onSuccess: () => { toast.success('Office created'); setOfficeDialog(null); invalidateHierarchy(); },
+    onSuccess: () => {
+      toast.success('Office created');
+      setOfficeDialog(null);
+      invalidateHierarchy();
+    },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
   const updateOffice = trpc.organization.updateOffice.useMutation({
-    onSuccess: () => { toast.success('Office updated'); setOfficeDialog(null); invalidateHierarchy(); },
+    onSuccess: () => {
+      toast.success('Office updated');
+      setOfficeDialog(null);
+      invalidateHierarchy();
+    },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
   const deactivateOffice = trpc.organization.deactivateOffice.useMutation({
-    onSuccess: () => { toast.success('Office deactivated'); invalidateHierarchy(); },
+    onSuccess: () => {
+      toast.success('Office deactivated');
+      invalidateHierarchy();
+    },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
   const createPosition = trpc.organization.createPosition.useMutation({
-    onSuccess: () => { toast.success('Position created'); setPositionDialog(false); },
+    onSuccess: () => {
+      toast.success('Position created');
+      setPositionDialog(false);
+    },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
   const createEmployee = trpc.organization.createEmployee.useMutation({
-    onSuccess: () => { toast.success('Employee created'); setEmployeeDialog(null); invalidateEmployees(); },
+    onSuccess: () => {
+      toast.success('Employee created');
+      setEmployeeDialog(null);
+      invalidateEmployees();
+    },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
   const updateEmployee = trpc.organization.updateEmployee.useMutation({
-    onSuccess: () => { toast.success('Employee updated'); setEmployeeDialog(null); invalidateEmployees(); },
+    onSuccess: () => {
+      toast.success('Employee updated');
+      setEmployeeDialog(null);
+      invalidateEmployees();
+    },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
   const assignEmployeeToPosition = trpc.organization.assignEmployeeToPosition.useMutation({
-    onSuccess: () => { toast.success('Assignment created'); setAssignDialog(false); },
+    onSuccess: () => {
+      toast.success('Assignment created');
+      setAssignDialog(false);
+    },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
 
@@ -281,12 +334,20 @@ export function OrganizationPage() {
 
   const openEditOffice = (o: OfficeSummary) => {
     setSelectedOffice(o);
-    setOfficeForm({ name: o.name, code: '', officeType: o.type, parentOfficeId: o.parentOfficeId ?? '' });
+    setOfficeForm({
+      name: o.name,
+      code: '',
+      officeType: o.type,
+      parentOfficeId: o.parentOfficeId ?? '',
+    });
     setOfficeDialog('edit');
   };
 
   const openDeactivateOffice = (o: OfficeSummary) => {
-    if (!window.confirm(`Deactivate office "${o.name}"? This action removes it from the hierarchy.`)) return;
+    if (
+      !window.confirm(`Deactivate office "${o.name}"? This action removes it from the hierarchy.`)
+    )
+      return;
     deactivateOffice.mutate({ officeId: o.officeId });
   };
 
@@ -389,15 +450,15 @@ export function OrganizationPage() {
           isPlatAdmin ? (
             <div className="flex gap-2">
               <Button variant="outline" onClick={openAssign}>
-                <Users className="w-4 h-4 mr-2" />
+                <Users className="mr-2 h-4 w-4" />
                 Assign Position
               </Button>
               <Button variant="outline" onClick={openCreateEmployee}>
-                <UserPlus className="w-4 h-4 mr-2" />
+                <UserPlus className="mr-2 h-4 w-4" />
                 New Employee
               </Button>
               <Button onClick={openCreateOffice}>
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="mr-2 h-4 w-4" />
                 New Office
               </Button>
             </div>
@@ -409,15 +470,15 @@ export function OrganizationPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Building2 className="w-4 h-4" />
+            <Building2 className="h-4 w-4" />
             Office Hierarchy
           </CardTitle>
         </CardHeader>
         <CardContent>
           {hierarchyLoading ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
+            <p className="text-muted-foreground py-4 text-center text-sm">Loading…</p>
           ) : tree.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
+            <p className="text-muted-foreground py-4 text-center text-sm">
               No offices found.{isPlatAdmin && ' Create the first office to get started.'}
             </p>
           ) : (
@@ -442,7 +503,7 @@ export function OrganizationPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="w-4 h-4" />
+              <Users className="h-4 w-4" />
               Employees
             </CardTitle>
           </CardHeader>
@@ -456,19 +517,19 @@ export function OrganizationPage() {
               />
             </div>
             {!employeesData ? (
-              <p className="text-sm text-muted-foreground py-2">Loading…</p>
+              <p className="text-muted-foreground py-2 text-sm">Loading…</p>
             ) : employeesData.items.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2">No employees found.</p>
+              <p className="text-muted-foreground py-2 text-sm">No employees found.</p>
             ) : (
               <div className="divide-y rounded-md border">
                 {employeesData.items.map((emp) => (
                   <div
                     key={emp.employeeId}
-                    className="flex items-center justify-between px-4 py-2.5 hover:bg-muted/50"
+                    className="hover:bg-muted/50 flex items-center justify-between px-4 py-2.5"
                   >
                     <div>
                       <p className="text-sm font-medium">{emp.displayName}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-muted-foreground text-xs">
                         {emp.positionTitle ?? 'No position assigned'}
                       </p>
                     </div>
@@ -479,7 +540,7 @@ export function OrganizationPage() {
                       onClick={() => openEditEmployee(emp)}
                       title="Edit Employee"
                     >
-                      <Edit className="w-3.5 h-3.5" />
+                      <Edit className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 ))}
@@ -490,7 +551,12 @@ export function OrganizationPage() {
       )}
 
       {/* ── Office Create / Edit Dialog ── */}
-      <Dialog open={officeDialog !== null} onOpenChange={(o) => { if (!o) setOfficeDialog(null); }}>
+      <Dialog
+        open={officeDialog !== null}
+        onOpenChange={(o) => {
+          if (!o) setOfficeDialog(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{officeDialog === 'edit' ? 'Edit Office' : 'Create Office'}</DialogTitle>
@@ -541,7 +607,9 @@ export function OrganizationPage() {
               <Label htmlFor="parent-office">Parent Office (optional)</Label>
               <Select
                 value={officeForm.parentOfficeId || 'none'}
-                onValueChange={(v) => setOfficeForm({ ...officeForm, parentOfficeId: v === 'none' ? '' : v })}
+                onValueChange={(v) =>
+                  setOfficeForm({ ...officeForm, parentOfficeId: v === 'none' ? '' : v })
+                }
               >
                 <SelectTrigger id="parent-office">
                   <SelectValue placeholder="None (root office)" />
@@ -560,7 +628,9 @@ export function OrganizationPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOfficeDialog(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOfficeDialog(null)}>
+              Cancel
+            </Button>
             <Button
               onClick={handleOfficeSubmit}
               disabled={createOffice.isPending || updateOffice.isPending || !officeForm.name}
@@ -589,7 +659,9 @@ export function OrganizationPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {offices.map((o) => (
-                    <SelectItem key={o.officeId} value={o.officeId}>{o.name}</SelectItem>
+                    <SelectItem key={o.officeId} value={o.officeId}>
+                      {o.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -616,7 +688,9 @@ export function OrganizationPage() {
               <Label htmlFor="pos-authority">Authority Level</Label>
               <Select
                 value={positionForm.authorityLevel}
-                onValueChange={(v) => setPositionForm({ ...positionForm, authorityLevel: v as AuthorityLevel })}
+                onValueChange={(v) =>
+                  setPositionForm({ ...positionForm, authorityLevel: v as AuthorityLevel })
+                }
               >
                 <SelectTrigger id="pos-authority">
                   <SelectValue placeholder="Select level" />
@@ -631,7 +705,9 @@ export function OrganizationPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPositionDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setPositionDialog(false)}>
+              Cancel
+            </Button>
             <Button
               onClick={handlePositionSubmit}
               disabled={createPosition.isPending || !positionForm.title || !positionForm.officeId}
@@ -643,10 +719,17 @@ export function OrganizationPage() {
       </Dialog>
 
       {/* ── Employee Create / Edit Dialog ── */}
-      <Dialog open={employeeDialog !== null} onOpenChange={(o) => { if (!o) setEmployeeDialog(null); }}>
+      <Dialog
+        open={employeeDialog !== null}
+        onOpenChange={(o) => {
+          if (!o) setEmployeeDialog(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{employeeDialog === 'edit' ? 'Edit Employee' : 'Create Employee'}</DialogTitle>
+            <DialogTitle>
+              {employeeDialog === 'edit' ? 'Edit Employee' : 'Create Employee'}
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-3">
@@ -678,7 +761,9 @@ export function OrganizationPage() {
               <Input
                 id="emp-number"
                 value={employeeForm.employeeNumber}
-                onChange={(e) => setEmployeeForm({ ...employeeForm, employeeNumber: e.target.value })}
+                onChange={(e) =>
+                  setEmployeeForm({ ...employeeForm, employeeNumber: e.target.value })
+                }
                 placeholder="2024-001"
               />
             </div>
@@ -703,7 +788,9 @@ export function OrganizationPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEmployeeDialog(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEmployeeDialog(null)}>
+              Cancel
+            </Button>
             <Button
               onClick={handleEmployeeSubmit}
               disabled={
@@ -757,7 +844,9 @@ export function OrganizationPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {offices.map((o) => (
-                    <SelectItem key={o.officeId} value={o.officeId}>{o.name}</SelectItem>
+                    <SelectItem key={o.officeId} value={o.officeId}>
+                      {o.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -770,7 +859,7 @@ export function OrganizationPage() {
                 onChange={(e) => setAssignForm({ ...assignForm, positionId: e.target.value })}
                 placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 Enter the UUID of the position within the selected office.
               </p>
             </div>
@@ -785,7 +874,9 @@ export function OrganizationPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setAssignDialog(false)}>
+              Cancel
+            </Button>
             <Button
               onClick={handleAssignSubmit}
               disabled={
