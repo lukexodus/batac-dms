@@ -67,9 +67,9 @@ services:
 
 secrets:
   tls_cert:
-    file: /etc/batac/tls/fullchain.pem # path on Docker host — managed by IT Office
+    file: /etc/batac/tls/fullchain.pem   # path on Docker host — managed by IT Office
   tls_key:
-    file: /etc/batac/tls/privkey.pem # path on Docker host — managed by IT Office
+    file: /etc/batac/tls/privkey.pem     # path on Docker host — managed by IT Office
 ```
 
 The host paths (`/etc/batac/tls/`) are not committed to version control. The IT Office places cert files there as part of the deployment runbook. The directory is owned by `root` with `600` permissions on the key file.

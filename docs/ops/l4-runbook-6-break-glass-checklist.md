@@ -4,7 +4,7 @@
 **Applies to:** Production Database only
 **Revision:** 1.0
 
-This runbook outlines the physical envelope procedure and operational checklist for "break-glass" emergency access.
+This runbook outlines the physical envelope procedure and operational checklist for "break-glass" emergency access. 
 
 **CRITICAL SCOPE LIMITATION:** Break-glass credentials are for **emergency direct database access only**. They are not to be used for general maintenance, reporting, or day-to-day operations.
 
@@ -44,7 +44,7 @@ Once the emergency is resolved and direct access is no longer required, the expo
 - [ ] Manually transcribe the newly generated passwords printed by the script into the corresponding files in the `./secrets/` directory on the deployment host.
 - [ ] Restart the application stack (`docker compose restart server web-build`) so that the services connect with the new credentials.
 - [ ] Ensure that the old credentials no longer authenticate.
-- [ ] Seal the new emergency admin credentials in a _new_ envelope, sign across the seal (both authorized individuals), and return it to the physical safe.
+- [ ] Seal the new emergency admin credentials in a *new* envelope, sign across the seal (both authorized individuals), and return it to the physical safe.
 
 ---
 

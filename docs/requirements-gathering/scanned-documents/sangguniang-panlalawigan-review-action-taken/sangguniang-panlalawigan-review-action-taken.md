@@ -6,9 +6,7 @@ office: Sangguniang Panlalawigan (SP)
 ---
 
 # SANGGUNIANG PANLALAWIGAN
-
 ## REVIEW/ACTION TAKEN
-
 ### (2026 – 7SP)
 
 | Control No. | Date Received     | SP Reso. No. | Subject                                                                                                                                                                                                    | Date Approved/Disapproved | Date Referred    | Remarks                                                                                                         |

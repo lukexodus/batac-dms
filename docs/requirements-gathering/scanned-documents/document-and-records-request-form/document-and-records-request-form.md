@@ -19,35 +19,34 @@ Tel. No. (077) 670-7091; Email: spbatac@yahoo.com
 
 ---
 
-[ ] Ordinance [ ] Resolution [ ] Others ****\*\*****\_\_\_\_****\*\*****
+[ ] Ordinance  [ ] Resolution  [ ] Others ________________________
 
 Title:
+__________________________________________________________________________________________
+__________________________________________________________________________________________
+__________________________________________________________________________________________
 
----
+Number of pages: __________
 
----
+Requested by: _____________________________________ Agency: _________________________
 
----
+Date Requested: __________________________________
 
-Number of pages: \***\*\_\_\*\***
+Email address: _____________________________________
 
-Requested by: ********\*\*********\_********\*\********* Agency: ****\*\*\*\*****\_****\*\*\*\*****
+ID Presented: ______________________________________
 
-Date Requested: ******\*\*\*\*******\_\_******\*\*\*\*******
+Purpose: ___________________________________________
 
-Email address: ********\*\*********\_********\*\*********
-
-ID Presented: ********\*\*********\_\_********\*\*********
-
-Purpose: ********\*\*\*\*********\_\_\_********\*\*\*\*********
 
 Approved by: **VM ALBERT D. CHUA/SP SEC. GLADYS R. LAGURA**
 
-Approval Signature: **\*\***\_\_\_**\*\***
+Approval Signature: _______________
 
-Date Approved:\***\*\_\_\_\_\*\***
+Date Approved:____________
 
-**_Payment form for Secretary's Fees (Chapter IV, Article A, Section 4A.01 of Ordinance No. 3SP 2014-05)_**
+
+***Payment form for Secretary's Fees (Chapter IV, Article A, Section 4A.01 of Ordinance No. 3SP 2014-05)***
 
 Amount Paid: Php
 OR No.

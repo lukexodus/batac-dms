@@ -1,7 +1,7 @@
 ---
 document_type: Complaint Form
-date:
-document_number:
+date: 
+document_number: 
 office: Sangguniang Panlungsod, City of Batac
 ---
 
@@ -9,8 +9,7 @@ Republic of the Philippines
 Province of Ilocos Norte
 **CITY OF BATAC**
 
----
-
+__________________
 Date
 
 **HONORABLE MEMBERS**
@@ -19,17 +18,17 @@ Date
 
 Sir:
 
-In support of my complaint against the driver of Tricycle No. **\_\_\_** . I hereby attest to the following violation/s to wit:
+In support of my complaint against the driver of Tricycle No. _______ . I hereby attest to the following violation/s to wit:
 
-**\_\_\_** Overcharging
-**\_\_\_** Trip Cutting
-**\_\_\_** Refused to Convey Passenger/s
-**\_\_\_** Discourtesy
-**\_\_\_** Others (Pls specify **********\*\*\*\***********\_\_\_**********\*\*\*\***********)
+_______ Overcharging
+_______ Trip Cutting
+_______ Refused to Convey Passenger/s
+_______ Discourtesy
+_______ Others (Pls specify ___________________________________________________)
 
-Date and Time of Violation **********\*\*\*\***********\_\_\_**********\*\*\*\***********
+Date and Time of Violation ___________________________________________________
 
-Place of Violation ************\*\*\*\*************\_************\*\*\*\*************
+Place of Violation _________________________________________________________
 
 Remarks:
 
@@ -49,12 +48,12 @@ I hereby certify that the foregoing are true of my personal knowledge.
 
 Very truly yours,
 
----
 
+________________________
 Signature Over Printed Name
 
----
 
+________________________
 School/ House Address
 
-Contact No. **\*\***\_**\*\***
+Contact No. _____________

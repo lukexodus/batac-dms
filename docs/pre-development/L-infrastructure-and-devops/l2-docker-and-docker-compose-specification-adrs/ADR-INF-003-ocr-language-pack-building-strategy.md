@@ -14,7 +14,6 @@ The stack uses `tesseract.js` (`OCR_ENGINE=tesseract`, the L1 default) for OCR. 
 By default, `tesseract.js` fetches language pack `.traineddata` files from the network on first OCR execution. This is acceptable in environments with reliable internet access. It is not acceptable in the on-premise City Hall deployment, where internet connectivity is not guaranteed.
 
 Phase 1 production must support both deployment targets:
-
 - Cloud VPS (internet available at build and runtime)
 - On-premise City Hall / Barangay (no guaranteed internet)
 
@@ -65,10 +64,10 @@ RUN mkdir -p /app/tessdata && \
 
 ### Language packs included
 
-| Pack     | File              | Approximate size | Use                                |
-| -------- | ----------------- | ---------------- | ---------------------------------- |
-| English  | `eng.traineddata` | ~10 MB           | Standard document text             |
-| Filipino | `fil.traineddata` | ~3 MB            | Filipino-language document content |
+| Pack | File | Approximate size | Use |
+|------|------|-----------------|-----|
+| English | `eng.traineddata` | ~10 MB | Standard document text |
+| Filipino | `fil.traineddata` | ~3 MB | Filipino-language document content |
 
 Additional language packs (e.g., Ilocano) should be evaluated when the OCR feature is built. Ilocano OCR support via `tesseract.js` is [Unverified] — confirm availability in the `naptha/tessdata` repository before committing to it.
 

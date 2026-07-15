@@ -6,7 +6,6 @@ office: Sangguniang Panlungsod (SP)
 ---
 
 # NOTICE OF SPECIAL SESSION
-
 ## (2023 – 6SP)
 
 | Control No.      | Date Sent         | Session No.                                         | Subject                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

@@ -20,12 +20,12 @@
 
 Do not repeat these in individual series rows unless a specific series requires an override.
 
-| Field                 | Value                             | Source                                                                                  |
-| --------------------- | --------------------------------- | --------------------------------------------------------------------------------------- |
-| `delimiter`           | `" "` (single space)              | Q-A01 — confirmed                                                                       |
-| `resets_annually`     | `true`                            | Part 5.1 — confirmed for all 11 series                                                  |
-| `authority_office_id` | FK → SP Secretariat office record | Q-B03 — confirmed                                                                       |
-| `year_format`         | `YYYY` (4-digit)                  | [Inference — consistent with all examples in Part 5.1: `2026-01`, `2025-04`, `2024-19`] |
+| Field | Value | Source |
+|---|---|---|
+| `delimiter` | `" "` (single space) | Q-A01 — confirmed |
+| `resets_annually` | `true` | Part 5.1 — confirmed for all 11 series |
+| `authority_office_id` | FK → SP Secretariat office record | Q-B03 — confirmed |
+| `year_format` | `YYYY` (4-digit) | [Inference — consistent with all examples in Part 5.1: `2026-01`, `2025-04`, `2024-19`] |
 
 ---
 
@@ -35,19 +35,19 @@ Do not repeat these in individual series rows unless a specific series requires 
 `document_type_code` values are [Inference] — proposed FK references consistent with naming patterns in the reference document. Must match the `document_types` seed, which must be defined before this seed runs.  
 Padding footnotes follow the table.
 
-| `series_id`                  | `document_type_code`         | `prefix` | `sequence_padding` | `preliminary_format`    | `final_format`     | Phase |
-| ---------------------------- | ---------------------------- | -------- | ------------------ | ----------------------- | ------------------ | ----- |
-| `sp_resolution`              | `SP_RESOLUTION`              | `7SP`    | `2` ¹              | `Draft 7SP {YEAR}-{NN}` | `7SP {YEAR}-{NN}`  | 1     |
-| `sp_ordinance`               | `SP_ORDINANCE`               | `7SP`    | `2` ¹              | `Draft 7SP {YEAR}-{NN}` | `7SP {YEAR}-{NN}`  | 1     |
-| `sp_appropriation_ordinance` | `SP_APPROPRIATION_ORDINANCE` | `7SP`    | `2` ¹              | `Draft 7SP {YEAR}-{NN}` | `7SP {YEAR}-{NN}`  | 1     |
-| `notice_committee_hearing`   | `NOTICE_COMMITTEE_HEARING`   | `NCH`    | `2` ¹              | —                       | `NCH {YEAR}-{NN}`  | 1B    |
-| `notice_special_session`     | `NOTICE_SPECIAL_SESSION`     | `NOSP`   | `2` ¹              | —                       | `NOSP {YEAR}-{NN}` | 1B    |
-| `designation`                | `DESIGNATION`                | `D`      | `2` ¹              | —                       | `D {YEAR}-{NN}`    | 1B    |
-| `letters_received`           | `LETTER_RECEIVED`            | `SPR`    | `3` ²              | —                       | `SPR {YEAR}-{NN}`  | 1B    |
-| `letters_sent`               | `LETTER_SENT`                | `SPS`    | `2` ³              | —                       | `SPS {YEAR}-{NN}`  | 1B    |
-| `memo_outgoing`              | `MEMO_OUTGOING`              | `MO`     | `2` ¹              | —                       | `MO {YEAR}-{NN}`   | 1B    |
-| `memo_incoming`              | `MEMO_INCOMING`              | `MI`     | `2` ¹              | —                       | `MI {YEAR}-{NN}`   | 1B    |
-| `panlalawigan_review_log`    | `PANLALAWIGAN_REVIEW_LOG`    | _(none)_ | `2` ¹              | —                       | `{YEAR}-{NN}`      | 1     |
+| `series_id` | `document_type_code` | `prefix` | `sequence_padding` | `preliminary_format` | `final_format` | Phase |
+|---|---|---|---|---|---|---|
+| `sp_resolution` | `SP_RESOLUTION` | `7SP` | `2` ¹ | `Draft 7SP {YEAR}-{NN}` | `7SP {YEAR}-{NN}` | 1 |
+| `sp_ordinance` | `SP_ORDINANCE` | `7SP` | `2` ¹ | `Draft 7SP {YEAR}-{NN}` | `7SP {YEAR}-{NN}` | 1 |
+| `sp_appropriation_ordinance` | `SP_APPROPRIATION_ORDINANCE` | `7SP` | `2` ¹ | `Draft 7SP {YEAR}-{NN}` | `7SP {YEAR}-{NN}` | 1 |
+| `notice_committee_hearing` | `NOTICE_COMMITTEE_HEARING` | `NCH` | `2` ¹ | — | `NCH {YEAR}-{NN}` | 1B |
+| `notice_special_session` | `NOTICE_SPECIAL_SESSION` | `NOSP` | `2` ¹ | — | `NOSP {YEAR}-{NN}` | 1B |
+| `designation` | `DESIGNATION` | `D` | `2` ¹ | — | `D {YEAR}-{NN}` | 1B |
+| `letters_received` | `LETTER_RECEIVED` | `SPR` | `3` ² | — | `SPR {YEAR}-{NN}` | 1B |
+| `letters_sent` | `LETTER_SENT` | `SPS` | `2` ³ | — | `SPS {YEAR}-{NN}` | 1B |
+| `memo_outgoing` | `MEMO_OUTGOING` | `MO` | `2` ¹ | — | `MO {YEAR}-{NN}` | 1B |
+| `memo_incoming` | `MEMO_INCOMING` | `MI` | `2` ¹ | — | `MI {YEAR}-{NN}` | 1B |
+| `panlalawigan_review_log` | `PANLALAWIGAN_REVIEW_LOG` | _(none)_ | `2` ¹ | — | `{YEAR}-{NN}` | 1 |
 
 **Padding footnotes:**
 
@@ -65,19 +65,19 @@ One sequence per series per year, per Part 5.2: "Separate PostgreSQL sequence pe
 
 `sequence_name_pattern` is [Inference] — a proposed naming convention. The reference document specifies per-year sequences but does not define a naming pattern. Confirm the convention before writing seed scripts.
 
-| `series_id`                  | `sequence_name_pattern`                    | Example (year 2026)                      |
-| ---------------------------- | ------------------------------------------ | ---------------------------------------- |
-| `sp_resolution`              | `ns_sp_resolution_{YEAR}_seq`              | `ns_sp_resolution_2026_seq`              |
-| `sp_ordinance`               | `ns_sp_ordinance_{YEAR}_seq`               | `ns_sp_ordinance_2026_seq`               |
+| `series_id` | `sequence_name_pattern` | Example (year 2026) |
+|---|---|---|
+| `sp_resolution` | `ns_sp_resolution_{YEAR}_seq` | `ns_sp_resolution_2026_seq` |
+| `sp_ordinance` | `ns_sp_ordinance_{YEAR}_seq` | `ns_sp_ordinance_2026_seq` |
 | `sp_appropriation_ordinance` | `ns_sp_appropriation_ordinance_{YEAR}_seq` | `ns_sp_appropriation_ordinance_2026_seq` |
-| `notice_committee_hearing`   | `ns_nch_{YEAR}_seq`                        | `ns_nch_2026_seq`                        |
-| `notice_special_session`     | `ns_nosp_{YEAR}_seq`                       | `ns_nosp_2026_seq`                       |
-| `designation`                | `ns_designation_{YEAR}_seq`                | `ns_designation_2026_seq`                |
-| `letters_received`           | `ns_letters_received_{YEAR}_seq`           | `ns_letters_received_2026_seq`           |
-| `letters_sent`               | `ns_letters_sent_{YEAR}_seq`               | `ns_letters_sent_2026_seq`               |
-| `memo_outgoing`              | `ns_memo_outgoing_{YEAR}_seq`              | `ns_memo_outgoing_2026_seq`              |
-| `memo_incoming`              | `ns_memo_incoming_{YEAR}_seq`              | `ns_memo_incoming_2026_seq`              |
-| `panlalawigan_review_log`    | `ns_panlalawigan_review_log_{YEAR}_seq`    | `ns_panlalawigan_review_log_2026_seq`    |
+| `notice_committee_hearing` | `ns_nch_{YEAR}_seq` | `ns_nch_2026_seq` |
+| `notice_special_session` | `ns_nosp_{YEAR}_seq` | `ns_nosp_2026_seq` |
+| `designation` | `ns_designation_{YEAR}_seq` | `ns_designation_2026_seq` |
+| `letters_received` | `ns_letters_received_{YEAR}_seq` | `ns_letters_received_2026_seq` |
+| `letters_sent` | `ns_letters_sent_{YEAR}_seq` | `ns_letters_sent_2026_seq` |
+| `memo_outgoing` | `ns_memo_outgoing_{YEAR}_seq` | `ns_memo_outgoing_2026_seq` |
+| `memo_incoming` | `ns_memo_incoming_{YEAR}_seq` | `ns_memo_incoming_2026_seq` |
+| `panlalawigan_review_log` | `ns_panlalawigan_review_log_{YEAR}_seq` | `ns_panlalawigan_review_log_2026_seq` |
 
 **Sequence creation policy:** The seed script creates sequences for the current year only. A year-boundary maintenance process (cron or scheduled migration) must create the following year's sequences before the calendar rollover. On-demand creation at first use of a new year is also acceptable if the application handles this path without error.
 
@@ -89,19 +89,19 @@ Defines which workflow lifecycle event triggers number assignment. For the three
 
 Event name constants are [Inference] — proposed identifiers consistent with the confirmed assignment rules in Parts 4.1, 4.2, 4.6, 4.8, and 5.2. The workflow engine must emit or handle these event types at the corresponding lifecycle steps. Actual event constant names are confirmed during workflow engine implementation.
 
-| `series_id`                  | `preliminary_assignment_event` | `final_assignment_event`           | `deferred_final_assignment` |
-| ---------------------------- | ------------------------------ | ---------------------------------- | --------------------------- |
-| `sp_resolution`              | `SECRETARIAT_LOGGING`          | `SECOND_READING_VOTE_APPROVED`     | No                          |
-| `sp_ordinance`               | `SECRETARIAT_LOGGING`          | `THIRD_READING_VOTE_APPROVED`      | No                          |
-| `sp_appropriation_ordinance` | `SECRETARIAT_LOGGING`          | `THIRD_READING_VOTE_APPROVED`      | No                          |
-| `notice_committee_hearing`   | —                              | `SECRETARIAT_LOGGING`              | No                          |
-| `notice_special_session`     | —                              | `SECRETARIAT_LOGGING`              | No                          |
-| `designation`                | —                              | `SECRETARIAT_LOGGING`              | No                          |
-| `letters_received`           | —                              | `SECRETARIAT_NUMBER_ASSIGNMENT` ⁴  | **Yes**                     |
-| `letters_sent`               | —                              | `SECRETARIAT_LOGGING`              | No                          |
-| `memo_outgoing`              | —                              | `SECRETARIAT_FINALIZATION` ⁵       | No                          |
-| `memo_incoming`              | —                              | `SECRETARIAT_LOGGING`              | No                          |
-| `panlalawigan_review_log`    | —                              | `RECEIPT_OF_PROVINCIAL_RESPONSE` ⁶ | No                          |
+| `series_id` | `preliminary_assignment_event` | `final_assignment_event` | `deferred_final_assignment` |
+|---|---|---|---|
+| `sp_resolution` | `SECRETARIAT_LOGGING` | `SECOND_READING_VOTE_APPROVED` | No |
+| `sp_ordinance` | `SECRETARIAT_LOGGING` | `THIRD_READING_VOTE_APPROVED` | No |
+| `sp_appropriation_ordinance` | `SECRETARIAT_LOGGING` | `THIRD_READING_VOTE_APPROVED` | No |
+| `notice_committee_hearing` | — | `SECRETARIAT_LOGGING` | No |
+| `notice_special_session` | — | `SECRETARIAT_LOGGING` | No |
+| `designation` | — | `SECRETARIAT_LOGGING` | No |
+| `letters_received` | — | `SECRETARIAT_NUMBER_ASSIGNMENT` ⁴ | **Yes** |
+| `letters_sent` | — | `SECRETARIAT_LOGGING` | No |
+| `memo_outgoing` | — | `SECRETARIAT_FINALIZATION` ⁵ | No |
+| `memo_incoming` | — | `SECRETARIAT_LOGGING` | No |
+| `panlalawigan_review_log` | — | `RECEIPT_OF_PROVINCIAL_RESPONSE` ⁶ | No |
 
 ⁴ **Letters Received — deferred assignment confirmed (Part 4.8):** "Some entries show 'SPR-2026-' with no sequence number filled, then later numbered after VM review and routing decision." The document record is created at receipt but `control_number` remains `NULL` until the Secretariat explicitly assigns it. `deferred_final_assignment = true` means the `control_number` column must be nullable for this series. `SECRETARIAT_NUMBER_ASSIGNMENT` fires when the number is deliberately entered — a distinct, recorded action separate from document creation.
 

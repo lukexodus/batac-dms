@@ -97,73 +97,73 @@
 
 ### Key Changes Introduced by Interview 2
 
-| Topic                                                                                          | Change                                            |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| SP Resolution: two readings, not three                                                         | SUPERSEDES Interview 1 flowchart                  |
-| Final series number: assigned after last reading (before VP/Mayor sign), not after Mayor signs | SUPERSEDES Interview 1                            |
-| Preliminary number: "Draft" prefix added; removed at finalization                              | RESOLVES Q-01                                     |
-| QR code: assigned at secretariat logging, before preliminary number                            | RESOLVES Q-02                                     |
-| 10-day lapse rule: applies to resolutions too                                                  | RESOLVES Q-03                                     |
-| Designation: one active per person; no Platform Admin confirmation needed                      | RESOLVES Q-07; UPDATES design                     |
-| Notice of Special Session: NOSP prefix confirmed; separate counter from NCH                    | RESOLVES Q-13                                     |
-| Document prefix updates: SPR, SPS, MO, MI (supersede bare YEAR-NN formats)                     | SUPERSEDES Interview 1 numbering table            |
-| Phase 1 includes Appropriation Ordinance                                                       | CONFIRMED                                         |
-| Franchise removed from all scope; external read-only link only                                 | CONFIRMED                                         |
-| Certified Urgent: Mayor-issued formal document, frequent, Phase 1                              | PARTIALLY RESOLVES Q-05; now Phase 1 not Phase 1B |
-| Citizen Complaint: Phase 1 feature                                                             | NEW                                               |
-| Certification of Urgency: new document type                                                    | NEW                                               |
-| Appropriation Ordinance: "Operative in its entirety" = synonymous with VALID                   | CONFIRMED                                         |
-| Joint committee hearings: absent committees do not block; unified report                       | CONFIRMS Part 8 Option B                          |
-| LMITS: possibly renewed subscription; accessible data confirmed                                | UPDATES prior finding                             |
-| Transmittal letter to Mayor: formal cover letter for legislative measures                      | NEW                                               |
+|Topic|Change|
+|---|---|
+|SP Resolution: two readings, not three|SUPERSEDES Interview 1 flowchart|
+|Final series number: assigned after last reading (before VP/Mayor sign), not after Mayor signs|SUPERSEDES Interview 1|
+|Preliminary number: "Draft" prefix added; removed at finalization|RESOLVES Q-01|
+|QR code: assigned at secretariat logging, before preliminary number|RESOLVES Q-02|
+|10-day lapse rule: applies to resolutions too|RESOLVES Q-03|
+|Designation: one active per person; no Platform Admin confirmation needed|RESOLVES Q-07; UPDATES design|
+|Notice of Special Session: NOSP prefix confirmed; separate counter from NCH|RESOLVES Q-13|
+|Document prefix updates: SPR, SPS, MO, MI (supersede bare YEAR-NN formats)|SUPERSEDES Interview 1 numbering table|
+|Phase 1 includes Appropriation Ordinance|CONFIRMED|
+|Franchise removed from all scope; external read-only link only|CONFIRMED|
+|Certified Urgent: Mayor-issued formal document, frequent, Phase 1|PARTIALLY RESOLVES Q-05; now Phase 1 not Phase 1B|
+|Citizen Complaint: Phase 1 feature|NEW|
+|Certification of Urgency: new document type|NEW|
+|Appropriation Ordinance: "Operative in its entirety" = synonymous with VALID|CONFIRMED|
+|Joint committee hearings: absent committees do not block; unified report|CONFIRMS Part 8 Option B|
+|LMITS: possibly renewed subscription; accessible data confirmed|UPDATES prior finding|
+|Transmittal letter to Mayor: formal cover letter for legislative measures|NEW|
 
 ### Key Changes Introduced by Developer Decisions (Post-Interview 2)
 
-| Topic                                                                                           | Change                                                 |
-| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Number format delimiter: space confirmed for all document types                                 | RESOLVES Q-A01                                         |
-| Multi-committee referral: all committees must sign; red-flagged if missing by Thu               | RESOLVES Q-A02; UPDATES Part 8.3 step completion logic |
-| Certification of Urgency: no standalone number; attached to measure; covers batch               | RESOLVES Q-B01; UPDATES Part 4.17                      |
-| Cover page / QR cover sheet: same thing; 3 fields only; compact multi-per-page                  | RESOLVES Q-B02; UPDATES Part 11.4                      |
-| Originating office: SP Secretariat for all SP workflow docs; sender for letters                 | RESOLVES Q-B03; ADDS to Part 11.4                      |
-| Complaint: not limited to transportation; Secretariat routes; four outcome states               | RESOLVES Q-B04; UPDATES Part 4.14                      |
-| OCR: auto on upload with scan quality indicator; user decides re-scan; on migration             | RESOLVES Q-C01; UPDATES Part 11.4 and roadmap          |
-| Panlalawigan timer: formal written notification confirmed; Secretariat decides VIP              | RESOLVES Q-C02; UPDATES Part 4.3                       |
-| LMITS migration: migrate what can be migrated; format TBD; later phases                         | RESOLVES Q-C03; UPDATES Part 7.5                       |
-| Newspaper publication: SP Secretariat arranges; date is mandatory field; no pub for non-penalty | RESOLVES Q-C04; UPDATES Part 4.2                       |
-| Committee hearing input: Secretariat staff enters; can start without date                       | RESOLVES Q-C05; UPDATES Part 4.10 and Part 7.2         |
-| RETURNED ordinance: repassed (back to drafting); no formal legal challenge                      | RESOLVES Q-C06; UPDATES Part 4.3                       |
-| sp.batac.gov.ph: subscription renewed; both systems coexist; migration deferred                 | RESOLVES Q-C07; UPDATES Part 7.5                       |
-| VM letter review: Secretariat decides; almost all go to VM; direct if clearly not               | RESOLVES Q-D01; UPDATES Part 4.8                       |
-| Administration transition: in-flight documents auto-wait for new Mayor; no formal procedure     | RESOLVES Q-D02; UPDATES Part 11.13                     |
-| VALID-IN-PART: depends on recommendation; Legal, committee, or Secretariat direct               | RESOLVES Q-D03; UPDATES Part 4.3                       |
-| Payment/fee structure for copy requests: deferred to later stages                               | RESOLVES Q-D04                                         |
-| Franchise external system link: to be decided later                                             | RESOLVES Q-D05                                         |
-| QR system for letters/memos: assume doesn't exist; implement in batac-dms                       | RESOLVES Q-D06; UPDATES Part 7.5 and Part 4.6/4.7/4.8  |
+|Topic|Change|
+|---|---|
+|Number format delimiter: space confirmed for all document types|RESOLVES Q-A01|
+|Multi-committee referral: all committees must sign; red-flagged if missing by Thu|RESOLVES Q-A02; UPDATES Part 8.3 step completion logic|
+|Certification of Urgency: no standalone number; attached to measure; covers batch|RESOLVES Q-B01; UPDATES Part 4.17|
+|Cover page / QR cover sheet: same thing; 3 fields only; compact multi-per-page|RESOLVES Q-B02; UPDATES Part 11.4|
+|Originating office: SP Secretariat for all SP workflow docs; sender for letters|RESOLVES Q-B03; ADDS to Part 11.4|
+|Complaint: not limited to transportation; Secretariat routes; four outcome states|RESOLVES Q-B04; UPDATES Part 4.14|
+|OCR: auto on upload with scan quality indicator; user decides re-scan; on migration|RESOLVES Q-C01; UPDATES Part 11.4 and roadmap|
+|Panlalawigan timer: formal written notification confirmed; Secretariat decides VIP|RESOLVES Q-C02; UPDATES Part 4.3|
+|LMITS migration: migrate what can be migrated; format TBD; later phases|RESOLVES Q-C03; UPDATES Part 7.5|
+|Newspaper publication: SP Secretariat arranges; date is mandatory field; no pub for non-penalty|RESOLVES Q-C04; UPDATES Part 4.2|
+|Committee hearing input: Secretariat staff enters; can start without date|RESOLVES Q-C05; UPDATES Part 4.10 and Part 7.2|
+|RETURNED ordinance: repassed (back to drafting); no formal legal challenge|RESOLVES Q-C06; UPDATES Part 4.3|
+|sp.batac.gov.ph: subscription renewed; both systems coexist; migration deferred|RESOLVES Q-C07; UPDATES Part 7.5|
+|VM letter review: Secretariat decides; almost all go to VM; direct if clearly not|RESOLVES Q-D01; UPDATES Part 4.8|
+|Administration transition: in-flight documents auto-wait for new Mayor; no formal procedure|RESOLVES Q-D02; UPDATES Part 11.13|
+|VALID-IN-PART: depends on recommendation; Legal, committee, or Secretariat direct|RESOLVES Q-D03; UPDATES Part 4.3|
+|Payment/fee structure for copy requests: deferred to later stages|RESOLVES Q-D04|
+|Franchise external system link: to be decided later|RESOLVES Q-D05|
+|QR system for letters/memos: assume doesn't exist; implement in batac-dms|RESOLVES Q-D06; UPDATES Part 7.5 and Part 4.6/4.7/4.8|
 
 ---
 
 ## Part 1 — Project Identity and Scope
 
-| Decision                    | Detail                                                                              |
-| --------------------------- | ----------------------------------------------------------------------------------- |
-| Platform name               | Batac City LGU Platform                                                             |
-| Platform type               | LGU-wide government operations platform — not a narrow DMS                          |
-| Target LGU                  | Batac City, Ilocos Norte, Philippines                                               |
-| LGU scope                   | SP Office, Mayor's Office, City Hall departments, Barangays, Citizens               |
-| Multi-LGU                   | Batac-specific for now; configuration documented for potential adaptation           |
-| Legal source of truth       | Physical documents remain the legal source of truth                                 |
-| Operational source of truth | Digital system is the operational source of truth for tracking, workflow, reporting |
+|Decision|Detail|
+|---|---|
+|Platform name|Batac City LGU Platform|
+|Platform type|LGU-wide government operations platform — not a narrow DMS|
+|Target LGU|Batac City, Ilocos Norte, Philippines|
+|LGU scope|SP Office, Mayor's Office, City Hall departments, Barangays, Citizens|
+|Multi-LGU|Batac-specific for now; configuration documented for potential adaptation|
+|Legal source of truth|Physical documents remain the legal source of truth|
+|Operational source of truth|Digital system is the operational source of truth for tracking, workflow, reporting|
 
 ### Module Priority Order
 
-| Priority | Module                           | Phase                                                          |
-| -------- | -------------------------------- | -------------------------------------------------------------- |
-| 1        | Document Management System (DMS) | Phase 1                                                        |
-| 2        | Document Tracking System (DTS)   | Phase 1                                                        |
-| 3        | Workflow Management System (WMS) | Phase 1 (SP Resolutions, Ordinances, Appropriation Ordinances) |
-| 4        | Records Management System (RMS)  | Phase 2                                                        |
-| 5        | Government Portal                | Phase 3                                                        |
+|Priority|Module|Phase|
+|---|---|---|
+|1|Document Management System (DMS)|Phase 1|
+|2|Document Tracking System (DTS)|Phase 1|
+|3|Workflow Management System (WMS)|Phase 1 (SP Resolutions, Ordinances, Appropriation Ordinances)|
+|4|Records Management System (RMS)|Phase 2|
+|5|Government Portal|Phase 3|
 
 ---
 
@@ -222,10 +222,10 @@ Franchise Ordinances are managed by the Franchise Section with their own externa
 
 ### 3.1 Mayor and Vice Mayor
 
-| Role                                   | Name                        | Prefix |
-| -------------------------------------- | --------------------------- | ------ |
-| Mayor (7th SP era)                     | Hon. Mark Christian R. Chua | MRC    |
-| Vice Mayor (Presiding Officer, 7th SP) | Hon. Albert D. Chua         | ADC    |
+|Role|Name|Prefix|
+|---|---|---|
+|Mayor (7th SP era)|Hon. Mark Christian R. Chua|MRC|
+|Vice Mayor (Presiding Officer, 7th SP)|Hon. Albert D. Chua|ADC|
 
 Note: The Vice Mayor and a previous Mayor share the surname Chua but are distinct individuals. The current Mayor's document prefix is MRC; the Vice Mayor's is ADC.
 
@@ -270,12 +270,12 @@ Note: The Vice Mayor and a previous Mayor share the surname Chua but are distinc
 
 ### 3.4 Personal Staff of the Vice Mayor
 
-| Name                         | Position               |
-| ---------------------------- | ---------------------- |
-| Jocelyn D. Villavicencio     | Executive Assistant II |
-| Tristan Melecia D. Advincula | Executive Assistant I  |
-| Artelyn B. Rupisan           | Secretary I            |
-| Jay Carlo V. Ragudo          | Driver II              |
+|Name|Position|
+|---|---|
+|Jocelyn D. Villavicencio|Executive Assistant II|
+|Tristan Melecia D. Advincula|Executive Assistant I|
+|Artelyn B. Rupisan|Secretary I|
+|Jay Carlo V. Ragudo|Driver II|
 
 ### 3.5 Sangguniang Panlalawigan Contact
 
@@ -380,11 +380,11 @@ flowchart TD
 
 **Confirmed numbering formats:**
 
-| Ordinance Type          | Preliminary Format      | Final Format      | Counter Scope    |
-| ----------------------- | ----------------------- | ----------------- | ---------------- |
-| Regular Ordinance       | `Draft 7SP {YEAR}-{NN}` | `7SP {YEAR}-{NN}` | Per year; resets |
-| Appropriation Ordinance | Same as Regular         | Same as Regular   | Per year; resets |
-| Franchise Ordinance     | **OUT OF SCOPE**        | —                 | —                |
+|Ordinance Type|Preliminary Format|Final Format|Counter Scope|
+|---|---|---|---|
+|Regular Ordinance|`Draft 7SP {YEAR}-{NN}`|`7SP {YEAR}-{NN}`|Per year; resets|
+|Appropriation Ordinance|Same as Regular|Same as Regular|Per year; resets|
+|Franchise Ordinance|**OUT OF SCOPE**|—|—|
 
 **Key change from Interview 1:** Final series number is assigned **after Third Reading vote, before VP and Mayor sign** — not at docketing after Mayor's signature. `[SUPERSEDES Interview 1]`
 
@@ -473,26 +473,26 @@ flowchart TD
 
 **Log fields tracked by SP Secretariat:**
 
-| Field                       | Detail                                                  |
-| --------------------------- | ------------------------------------------------------- |
-| Control No.                 | SP Secretariat's own sequence number (e.g., 2026-01)    |
-| Date Received               | When the Panlalawigan's response was received back      |
-| SP Reso. No.                | Panlalawigan's own resolution number (e.g., R2026-0841) |
-| Subject                     | Which SP document(s) were reviewed                      |
-| Date Approved / Disapproved | From the Panlalawigan                                   |
-| Date Referred               | Date Panlalawigan sent to their own committee           |
-| Remarks                     | Outcome and notes                                       |
+|Field|Detail|
+|---|---|
+|Control No.|SP Secretariat's own sequence number (e.g., 2026-01)|
+|Date Received|When the Panlalawigan's response was received back|
+|SP Reso. No.|Panlalawigan's own resolution number (e.g., R2026-0841)|
+|Subject|Which SP document(s) were reviewed|
+|Date Approved / Disapproved|From the Panlalawigan|
+|Date Referred|Date Panlalawigan sent to their own committee|
+|Remarks|Outcome and notes|
 
 **Outcome types confirmed:**
 
-| Outcome                     | Meaning                                                                   |
-| --------------------------- | ------------------------------------------------------------------------- |
-| VALID                       | Approved by Panlalawigan                                                  |
-| VALID-IN-PART               | Partially approved; some provisions found invalid                         |
-| RETURNED                    | Returned with objections (treated as disapproved)                         |
-| Referred to committee       | Panlalawigan committee review in progress; 30-day clock running           |
-| Operative-in-its-entirety   | Used specifically for Appropriation Ordinances; means valid/implementable |
-| _(blank — 30 days elapsed)_ | Deemed approved per RA 7160 Section 56(d); Remarks: "Lapsed 30 days"      |
+|Outcome|Meaning|
+|---|---|
+|VALID|Approved by Panlalawigan|
+|VALID-IN-PART|Partially approved; some provisions found invalid|
+|RETURNED|Returned with objections (treated as disapproved)|
+|Referred to committee|Panlalawigan committee review in progress; 30-day clock running|
+|Operative-in-its-entirety|Used specifically for Appropriation Ordinances; means valid/implementable|
+|_(blank — 30 days elapsed)_|Deemed approved per RA 7160 Section 56(d); Remarks: "Lapsed 30 days"|
 
 **Outcome handling — updated from Interview 2 and developer decisions:**
 
@@ -533,16 +533,16 @@ When **no action after 30 days**:
 
 ### 4.4 Barangay Resolution `[CONFIRMED]`
 
-| Step | Actor                         | Notes                                   |
-| ---- | ----------------------------- | --------------------------------------- |
-| 1    | Barangay                      | Submits to SP Secretariat physically    |
-| 2    | Secretariat / Records Officer | Logs; attaches QR code                  |
-| 3    | SP Session                    | First Reading                           |
-| 4    | Vice Mayor                    | Refers to committee                     |
-| 5    | Committee                     | Reviews; produces committee report      |
-| 6    | Secretariat                   | Finalizes; assigns series number        |
-| 7    | Secretariat                   | Returns decision to barangay physically |
-| —    | System                        | Status notification sent to barangay    |
+|Step|Actor|Notes|
+|---|---|---|
+|1|Barangay|Submits to SP Secretariat physically|
+|2|Secretariat / Records Officer|Logs; attaches QR code|
+|3|SP Session|First Reading|
+|4|Vice Mayor|Refers to committee|
+|5|Committee|Reviews; produces committee report|
+|6|Secretariat|Finalizes; assigns series number|
+|7|Secretariat|Returns decision to barangay physically|
+|—|System|Status notification sent to barangay|
 
 **Phase 1 note:** Barangay officials have no system access in Phase 1. Secretariat logs their physically submitted documents on their behalf. `[CONFIRMED]`
 
@@ -552,15 +552,15 @@ When **no action after 30 days**:
 
 Referred simultaneously to multiple offices for preliminary review. **This is the only confirmed workflow in Phase 1 scope requiring parallel step execution.**
 
-| Step | Actor                                                         | Notes                                                |
-| ---- | ------------------------------------------------------------- | ---------------------------------------------------- |
-| 1    | Barangay                                                      | Submits to SP Secretariat                            |
-| 2    | SP Session                                                    | First Reading                                        |
-| 3    | Local Finance Committee; Budget Office; Treasury Office; CPDO | **Parallel preliminary review** (all simultaneously) |
-| 4    | Secretariat                                                   | Waits for all preliminary reviews to complete        |
-| 5    | Referred committee                                            | Produces committee report                            |
-| 6    | Secretariat                                                   | Assigns series number; SP votes                      |
-| 7    | Secretariat                                                   | Returns decision to barangay physically              |
+|Step|Actor|Notes|
+|---|---|---|
+|1|Barangay|Submits to SP Secretariat|
+|2|SP Session|First Reading|
+|3|Local Finance Committee; Budget Office; Treasury Office; CPDO|**Parallel preliminary review** (all simultaneously)|
+|4|Secretariat|Waits for all preliminary reviews to complete|
+|5|Referred committee|Produces committee report|
+|6|Secretariat|Assigns series number; SP votes|
+|7|Secretariat|Returns decision to barangay physically|
 
 **Note:** Confirms genuine parallel split/join requirement. While pre-development decision deferred parallel steps to Phase 2, barangay budgets are an early operational reality. The Barangay Budget parallel workflow requires Phase 2 parallel split/join engine.
 
@@ -572,13 +572,13 @@ Referred simultaneously to multiple offices for preliminary review. **This is th
 
 **Important distinction:** Memos have a **memo number** embedded in the document content itself (e.g., "VM ADC Memo No. MO 2025-01"). Letters have no number embedded in the document — only the secretariat control number exists for tracking purposes. `[CONFIRMED — Interview 2]`
 
-| Field          | Detail                                                                                                                  |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Initiator      | Vice Mayor or SP Secretary                                                                                              |
-| Memo number    | Assigned from originating authority; embedded in document; fixed and immutable                                          |
-| Control number | SP Secretariat's own sequential number (MO format) — assigned after finalization                                        |
-| Signatories    | Vice Mayor                                                                                                              |
-| Flow           | VM issues memo → SP Secretary receives → QR generated → Disseminated physically to SP Members and recipients → Archived |
+|Field|Detail|
+|---|---|
+|Initiator|Vice Mayor or SP Secretary|
+|Memo number|Assigned from originating authority; embedded in document; fixed and immutable|
+|Control number|SP Secretariat's own sequential number (MO format) — assigned after finalization|
+|Signatories|Vice Mayor|
+|Flow|VM issues memo → SP Secretary receives → QR generated → Disseminated physically to SP Members and recipients → Archived|
 
 **Dual number system:** Memo number (originating authority's own reference, embedded in document) + control number (secretariat's internal reference, MO format). These are distinct identifiers.
 
@@ -596,9 +596,9 @@ Referred simultaneously to multiple offices for preliminary review. **This is th
 
 **Current state:** Existing memos have QR codes attached. **System decision: assume no existing digital QR system; implement in batac-dms.** `[RESOLVES Q-D06]`
 
-| Field      | Detail                                                                                                              |
-| ---------- | ------------------------------------------------------------------------------------------------------------------- |
-| Log fields | Control No.; Date Received; Origin (including sender's own reference, e.g., "MRC Memo Circ. No. 2025-001"); Subject |
+|Field|Detail|
+|---|---|
+|Log fields|Control No.; Date Received; Origin (including sender's own reference, e.g., "MRC Memo Circ. No. 2025-001"); Subject|
 
 ---
 
@@ -626,9 +626,9 @@ Referred simultaneously to multiple offices for preliminary review. **This is th
 
 **Current state:** Existing letters have QR codes attached. **System decision: assume no existing digital QR system; implement in batac-dms.** `[RESOLVES Q-D06]`
 
-| Field | Detail                                                                                                                                            |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Flow  | Received → QR attached → Given to Vice Mayor (adds notes/routing instructions) → Returned to Secretariat → Action taken → Disseminated → Archived |
+|Field|Detail|
+|---|---|
+|Flow|Received → QR attached → Given to Vice Mayor (adds notes/routing instructions) → Returned to Secretariat → Action taken → Disseminated → Archived|
 
 ---
 
@@ -640,12 +640,12 @@ Referred simultaneously to multiple offices for preliminary review. **This is th
 
 **Confirmed:** The same sequence number (e.g., 07) can appear in both SPR and SPS logs without ambiguity. They are different documents in different sequences.
 
-| Field         | Detail                                                                                                                                                                                                                                |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Initiator     | Vice Mayor or SP Secretary                                                                                                                                                                                                            |
-| Signatories   | SP Secretary and Vice Mayor                                                                                                                                                                                                           |
-| Flow          | Secretariat creates → QR attached → Signed → Disseminated → Archived                                                                                                                                                                  |
-| Content types | Forwarding committee reports to complainants and respondents; transmitting Panlalawigan action; session invitations; forwarding ordinances/resolutions to external parties; **Transmittal Letters to Mayor for legislative measures** |
+|Field|Detail|
+|---|---|
+|Initiator|Vice Mayor or SP Secretary|
+|Signatories|SP Secretary and Vice Mayor|
+|Flow|Secretariat creates → QR attached → Signed → Disseminated → Archived|
+|Content types|Forwarding committee reports to complainants and respondents; transmitting Panlalawigan action; session invitations; forwarding ordinances/resolutions to external parties; **Transmittal Letters to Mayor for legislative measures**|
 
 **Operational note:** Letters Sent include formal forwarding of committee reports on transportation complaints to both complainants and respondents. Also used for transmittal letters accompanying legislative measures to the Mayor's Office.
 
@@ -655,11 +655,11 @@ Referred simultaneously to multiple offices for preliminary review. **This is th
 
 **Confirmed numbering format:** `NCH {YEAR}-{NN}` — **separate counter from NOSP** `[CONFIRMED — Interview 2]`
 
-| Field                           | Detail                                                                  |
-| ------------------------------- | ----------------------------------------------------------------------- |
-| Signatories                     | SP Secretary and Vice Mayor                                             |
-| Multiple recipients per notice  | Confirmed — a single NCH can go to multiple parties                     |
-| Multiple committees co-notified | Confirmed — some hearings involve two or more committees simultaneously |
+|Field|Detail|
+|---|---|
+|Signatories|SP Secretary and Vice Mayor|
+|Multiple recipients per notice|Confirmed — a single NCH can go to multiple parties|
+|Multiple committees co-notified|Confirmed — some hearings involve two or more committees simultaneously|
 
 **Joint committee hearing rules from Interview 2:**
 
@@ -688,11 +688,11 @@ The `NCH` prefix was briefly used for Notices of Special Session (2023) — this
 
 NCH and NOSP are separate sequences with separate annual counters.
 
-| Field       | Detail                                                             |
-| ----------- | ------------------------------------------------------------------ |
-| Purpose     | Urgent notification that a special session is happening            |
-| Log fields  | Control No.; Date Sent; Session No. (ordinal, date, time); Subject |
-| Signatories | SP Secretary and Vice Mayor                                        |
+|Field|Detail|
+|---|---|
+|Purpose|Urgent notification that a special session is happening|
+|Log fields|Control No.; Date Sent; Session No. (ordinal, date, time); Subject|
+|Signatories|SP Secretary and Vice Mayor|
 
 ---
 
@@ -704,13 +704,13 @@ NCH and NOSP are separate sequences with separate annual counters.
 
 **Confirmed constraints from Interview 2:**
 
-| Rule                                             | Value                                                                                                                        |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| Who initiates                                    | Original authority only (Mayor or Vice Mayor per scope of designation)                                                       |
-| Who else confirms                                | **No other confirmation required** — original authority initiates; no Platform Admin step                                    |
-| Multiple simultaneous designations per person    | **NOT ALLOWED** — a person cannot hold more than one active designation at a time `[CONFIRMED — Interview 2, resolves Q-07]` |
-| Expiry                                           | Automatic at end date — authority returns to original authority automatically `[CONFIRMED — Interview 2]`                    |
-| Designation scope confirmation by Platform Admin | **Not required** — Interview 2 supersedes the prior design that included this step `[SUPERSEDES Interview 1 design]`         |
+|Rule|Value|
+|---|---|
+|Who initiates|Original authority only (Mayor or Vice Mayor per scope of designation)|
+|Who else confirms|**No other confirmation required** — original authority initiates; no Platform Admin step|
+|Multiple simultaneous designations per person|**NOT ALLOWED** — a person cannot hold more than one active designation at a time `[CONFIRMED — Interview 2, resolves Q-07]`|
+|Expiry|Automatic at end date — authority returns to original authority automatically `[CONFIRMED — Interview 2]`|
+|Designation scope confirmation by Platform Admin|**Not required** — Interview 2 supersedes the prior design that included this step `[SUPERSEDES Interview 1 design]`|
 
 **Change from Interview 1 design:** The Post-Interview 1 design included a manual Platform Administrator confirmation step before delegation took effect. Interview 2 confirms: **no such confirmation is needed.** Original authority issues the Designation; Secretariat logs it; system updates routing immediately. `[SUPERSEDES Interview 1]`
 
@@ -728,11 +728,11 @@ NCH and NOSP are separate sequences with separate annual counters.
 
 **Confirmed examples:** Vice Mayor designated as Acting Mayor during Mayor's travel; Administrative Officer II designated as OIC of SP Secretariat; SP Member designated as Acting Vice Mayor.
 
-| Field       | Detail                                                         |
-| ----------- | -------------------------------------------------------------- |
-| Origin      | Mayor's Office (Mayor-level) or Vice Mayor's Office (VP-level) |
-| SP role     | Intake and logging only; does not create or authorize          |
-| Signatories | Mayor or Vice Mayor (per scope)                                |
+|Field|Detail|
+|---|---|
+|Origin|Mayor's Office (Mayor-level) or Vice Mayor's Office (VP-level)|
+|SP role|Intake and logging only; does not create or authorize|
+|Signatories|Mayor or Vice Mayor (per scope)|
 
 **Audit trail records:** Original authority, designated person, time period, scope, legal basis.
 
@@ -808,12 +808,12 @@ Physical submission with signature is still required (documents must be signed).
 
 ### 4.16 Documents Removed from Scope
 
-| Document Type        | Status                                                                                                                                                                                                                                                       |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Executive Orders     | Removed from scope entirely (per stakeholder)                                                                                                                                                                                                                |
-| Purchase Requests    | Not part of the system (per stakeholder)                                                                                                                                                                                                                     |
-| Session Minutes      | Not a standalone document type; treated as attachment to session record; no separate control number; assumed approved without separate certification workflow `[CONFIRMED]`                                                                                  |
-| Franchise Ordinances | **Removed from all scope** — Franchise Section has separate jurisdiction and their own system. Platform: read-only external link to Franchise Section system. No CRUD. `[CONFIRMED — Interview 2]` URL and link type to be decided later. `[RESOLVES Q-D05]` |
+|Document Type|Status|
+|---|---|
+|Executive Orders|Removed from scope entirely (per stakeholder)|
+|Purchase Requests|Not part of the system (per stakeholder)|
+|Session Minutes|Not a standalone document type; treated as attachment to session record; no separate control number; assumed approved without separate certification workflow `[CONFIRMED]`|
+|Franchise Ordinances|**Removed from all scope** — Franchise Section has separate jurisdiction and their own system. Platform: read-only external link to Franchise Section system. No CRUD. `[CONFIRMED — Interview 2]` URL and link type to be decided later. `[RESOLVES Q-D05]`|
 
 ---
 
@@ -821,16 +821,16 @@ Physical submission with signature is still required (documents must be signed).
 
 A formal document issued by the Mayor to certify a pending legislative measure as urgent, enabling First and Second Reading to occur in the same session.
 
-| Field                   | Detail                                                                                                                                                                     |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Issued by               | Mayor (formal written document — not a verbal declaration)                                                                                                                 |
-| Logged by               | SP Secretariat (receives and logs; does not create or authorize)                                                                                                           |
-| Effect                  | Associated measure bypasses committee referral; goes directly to Second Reading in the same session                                                                        |
-| Frequency               | **Frequent** — explicitly noted as a common occurrence `[CONFIRMED — Interview 2]`                                                                                         |
-| Debate and vote         | In the same session as First Reading (when certified urgent)                                                                                                               |
-| Number format           | **No standalone number** — the Certification is always associated with and referenced by the document(s) it certifies. No independent numbering series. `[RESOLVES Q-B01]` |
-| Attachment              | Attached to the specific legislative measure(s) in the system — not filed as a standalone document `[RESOLVES Q-B01]`                                                      |
-| Scope per certification | A single Certification of Urgency **can cover multiple measures** in the same session `[RESOLVES Q-B01]`                                                                   |
+|Field|Detail|
+|---|---|
+|Issued by|Mayor (formal written document — not a verbal declaration)|
+|Logged by|SP Secretariat (receives and logs; does not create or authorize)|
+|Effect|Associated measure bypasses committee referral; goes directly to Second Reading in the same session|
+|Frequency|**Frequent** — explicitly noted as a common occurrence `[CONFIRMED — Interview 2]`|
+|Debate and vote|In the same session as First Reading (when certified urgent)|
+|Number format|**No standalone number** — the Certification is always associated with and referenced by the document(s) it certifies. No independent numbering series. `[RESOLVES Q-B01]`|
+|Attachment|Attached to the specific legislative measure(s) in the system — not filed as a standalone document `[RESOLVES Q-B01]`|
+|Scope per certification|A single Certification of Urgency **can cover multiple measures** in the same session `[RESOLVES Q-B01]`|
 
 **System integration:** When a Certification of Urgency is logged by Secretariat:
 
@@ -847,15 +847,15 @@ A formal document issued by the Mayor to certify a pending legislative measure a
 
 A session agenda document generated and managed by the SP Secretariat.
 
-| Field             | Detail                                                                                                      |
-| ----------------- | ----------------------------------------------------------------------------------------------------------- |
-| Generated by      | SP Secretariat                                                                                              |
-| Frequency         | Weekly (prior to each Tuesday session)                                                                      |
-| Submission cutoff | Thursday of the preceding week                                                                              |
-| Content           | All documents scheduled for the upcoming session's First Reading                                            |
-| Visual indicator  | Items with missing or pending committee reports marked red                                                  |
-| Scheduling rule   | Documents received by Secretariat before Thursday cutoff are included in the next Tuesday Order of Business |
-| Physical use      | Participants read the Order of Business as a physical document during sessions                              |
+|Field|Detail|
+|---|---|
+|Generated by|SP Secretariat|
+|Frequency|Weekly (prior to each Tuesday session)|
+|Submission cutoff|Thursday of the preceding week|
+|Content|All documents scheduled for the upcoming session's First Reading|
+|Visual indicator|Items with missing or pending committee reports marked red|
+|Scheduling rule|Documents received by Secretariat before Thursday cutoff are included in the next Tuesday Order of Business|
+|Physical use|Participants read the Order of Business as a physical document during sessions|
 
 **System implication:** The Order of Business is a derived view generated from all documents scheduled for the upcoming session. The SP Secretary dashboard must include an Order of Business management view showing scheduled documents, their committee referral status, and red-flagging items with missing committee reports.
 
@@ -993,23 +993,23 @@ This frames the system's primary stakeholder-perceived value as **public access 
 
 ### 7.2 Session Patterns and Scheduling `[UPDATED — Interview 2]`
 
-| Rule                              | Detail                                                                                                                                       |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Session day                       | Tuesdays                                                                                                                                     |
-| Cutoff for Order of Business      | Thursday of the preceding week                                                                                                               |
-| Included in Order of Business     | Documents received by Secretariat before the Thursday cutoff                                                                                 |
-| First Reading scheduling          | SP Secretariat schedules first readings                                                                                                      |
-| Second Reading scheduling         | Committee schedules second readings                                                                                                          |
-| Hearing scheduling                | Committee schedules hearings (committees and concerned parties decide); Secretariat logs (receives notices)                                  |
-| Hearing date input in system      | **Secretariat staff enters what the committee communicates** — not direct committee input `[RESOLVES Q-C05]`                                 |
-| Committee referral without date   | Allowed — referral step can begin as "assigned; date TBD" `[RESOLVES Q-C05]`                                                                 |
-| Committee report deadline         | **Thursday cutoff** — if report not submitted by Thursday, Second Reading is delayed to the next Tuesday after submission `[RESOLVES Q-A02]` |
-| Same-session 1st and 2nd reading  | Possible when Certification of Urgency issued by Mayor — frequent                                                                            |
-| Certified Urgent: committee step  | **Certified Urgent Resolutions and Ordinances skip committee review and report entirely** `[RESOLVES Q-C05]`                                 |
-| Multiple documents in one session | Allowed if the committees concerned are the same                                                                                             |
-| Missing committee reports         | Marked red in the Order of Business                                                                                                          |
-| Session frequency                 | Up to three hearings per day; average five hearings per week                                                                                 |
-| Physical documents                | Participants read physical documents during sessions; system does not displace this in Phase 1                                               |
+|Rule|Detail|
+|---|---|
+|Session day|Tuesdays|
+|Cutoff for Order of Business|Thursday of the preceding week|
+|Included in Order of Business|Documents received by Secretariat before the Thursday cutoff|
+|First Reading scheduling|SP Secretariat schedules first readings|
+|Second Reading scheduling|Committee schedules second readings|
+|Hearing scheduling|Committee schedules hearings (committees and concerned parties decide); Secretariat logs (receives notices)|
+|Hearing date input in system|**Secretariat staff enters what the committee communicates** — not direct committee input `[RESOLVES Q-C05]`|
+|Committee referral without date|Allowed — referral step can begin as "assigned; date TBD" `[RESOLVES Q-C05]`|
+|Committee report deadline|**Thursday cutoff** — if report not submitted by Thursday, Second Reading is delayed to the next Tuesday after submission `[RESOLVES Q-A02]`|
+|Same-session 1st and 2nd reading|Possible when Certification of Urgency issued by Mayor — frequent|
+|Certified Urgent: committee step|**Certified Urgent Resolutions and Ordinances skip committee review and report entirely** `[RESOLVES Q-C05]`|
+|Multiple documents in one session|Allowed if the committees concerned are the same|
+|Missing committee reports|Marked red in the Order of Business|
+|Session frequency|Up to three hearings per day; average five hearings per week|
+|Physical documents|Participants read physical documents during sessions; system does not displace this in Phase 1|
 
 **Committee report timeline from Interview 2 and developer decisions `[RESOLVES Q-A02]`:**
 
@@ -1025,42 +1025,42 @@ This frames the system's primary stakeholder-perceived value as **public access 
 
 Session attendance tracked for quorum compliance.
 
-| Item                  | Detail                                                                                        |
-| --------------------- | --------------------------------------------------------------------------------------------- |
-| Absence input timing  | Recorded before the session                                                                   |
-| Absence reasons       | OB (official business), sick leave, vacation leave, absent (unqualified)                      |
-| Designated substitute | If VM is absent, a presiding officer is designated beforehand (requires Designation document) |
-| Quorum tracking       | Attendance used for quorum calculation (7 of 12 required to pass)                             |
-| UI requirement        | Session detail view: who is absent and why; visible before session                            |
-| Statistics            | Count of present/absent councilors; graph of attendee numbers over time; printable summary    |
-| Current state         | Only counts recorded; system to add count + graph functionality `[CONFIRMED — Interview 2]`   |
+|Item|Detail|
+|---|---|
+|Absence input timing|Recorded before the session|
+|Absence reasons|OB (official business), sick leave, vacation leave, absent (unqualified)|
+|Designated substitute|If VM is absent, a presiding officer is designated beforehand (requires Designation document)|
+|Quorum tracking|Attendance used for quorum calculation (7 of 12 required to pass)|
+|UI requirement|Session detail view: who is absent and why; visible before session|
+|Statistics|Count of present/absent councilors; graph of attendee numbers over time; printable summary|
+|Current state|Only counts recorded; system to add count + graph functionality `[CONFIRMED — Interview 2]`|
 
 ### 7.4 Confirmed Document Volumes
 
-| Document Type               | Volume     | Period       | Source                                                      |
-| --------------------------- | ---------- | ------------ | ----------------------------------------------------------- |
-| Letters Received            | ~38/month  | 2026         | Letters Received log (SPR 2026-01 to 2026-98, Jan–Mar 2026) |
-| Letters Sent                | ~12/month  | Q1 2026      | Letters Sent log (SPS 2026-01 to 2026-36)                   |
-| Memo Outgoing               | ~2/month   | Jul–Sep 2025 | Memo Outgoing log (MO 2025-01 to 2025-04)                   |
-| Memo Incoming               | ~1/month   | Jul–Sep 2025 | Memo Incoming log (MI 2025-26 to 2025-28)                   |
-| Notice of Committee Hearing | ~3–4/month | 2025         | NCH log (NCH 2025-03 to 2025-33, Jul–Dec 2025)              |
-| Ordinances                  | ~1–2/month | 2025–2026    | Panlalawigan sent log                                       |
-| Designations                | ~1–2/month | 2024         | Designation log (D 2024-01 to D 2024-19)                    |
+|Document Type|Volume|Period|Source|
+|---|---|---|---|
+|Letters Received|~38/month|2026|Letters Received log (SPR 2026-01 to 2026-98, Jan–Mar 2026)|
+|Letters Sent|~12/month|Q1 2026|Letters Sent log (SPS 2026-01 to 2026-36)|
+|Memo Outgoing|~2/month|Jul–Sep 2025|Memo Outgoing log (MO 2025-01 to 2025-04)|
+|Memo Incoming|~1/month|Jul–Sep 2025|Memo Incoming log (MI 2025-26 to 2025-28)|
+|Notice of Committee Hearing|~3–4/month|2025|NCH log (NCH 2025-03 to 2025-33, Jul–Dec 2025)|
+|Ordinances|~1–2/month|2025–2026|Panlalawigan sent log|
+|Designations|~1–2/month|2024|Designation log (D 2024-01 to D 2024-19)|
 
 ### 7.5 Current Systems and Migration Context `[UPDATED — Interview 2]`
 
-| Item                               | Status                                                                                                                                                                                                                                                                             |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Previous digital system            | LMITS (Legislative Management and Information Tracking System)                                                                                                                                                                                                                     |
-| LMITS managed by                   | CPDO (not SP Secretariat or IT Office)                                                                                                                                                                                                                                             |
-| LMITS subscription                 | Status not determined yet. Subscription may have been renewed (Interview 2 note). Access to data confirmed via CPDO. `[RESOLVES Q-C03]`                                                                                                                                            |
-| LMITS accessible data              | Titles of resolutions; keyword search; title and status `[CONFIRMED — Interview 2]`                                                                                                                                                                                                |
-| LMITS migration scope              | **Migrate what can be migrated.** Format/export not yet identified. Migration happens at **later phases** (not Phase 1 or Phase 1B). CPDO has access for extraction. `[RESOLVES Q-C03]`                                                                                            |
-| Current Records Officer tooling    | MS Word with keyword search for records                                                                                                                                                                                                                                            |
-| Physical records                   | Not yet in any digital system                                                                                                                                                                                                                                                      |
-| SP website sp.batac.gov.ph         | **Subscription has been renewed. Usage continues indefinitely.** The batac-dms is a new system primarily for **internal use** with a public portal similar to sp.batac.gov.ph. Both systems will coexist. Formal retirement of sp.batac.gov.ph is not required. `[RESOLVES Q-C07]` |
-| sp.batac.gov.ph data migration     | **Deferred decision.** Migration will happen some time after the whole system is already developed and has been used for a significant amount of time. `[RESOLVES Q-C07]`                                                                                                          |
-| Existing QR codes on letters/memos | Confirmed: existing memos and letters currently have QR codes attached. **System decision: assume no existing digital QR system behind these codes; QR generation and tracking for letters and memos will be implemented entirely in batac-dms.** `[RESOLVES Q-D06]`               |
+|Item|Status|
+|---|---|
+|Previous digital system|LMITS (Legislative Management and Information Tracking System)|
+|LMITS managed by|CPDO (not SP Secretariat or IT Office)|
+|LMITS subscription|Status not determined yet. Subscription may have been renewed (Interview 2 note). Access to data confirmed via CPDO. `[RESOLVES Q-C03]`|
+|LMITS accessible data|Titles of resolutions; keyword search; title and status `[CONFIRMED — Interview 2]`|
+|LMITS migration scope|**Migrate what can be migrated.** Format/export not yet identified. Migration happens at **later phases** (not Phase 1 or Phase 1B). CPDO has access for extraction. `[RESOLVES Q-C03]`|
+|Current Records Officer tooling|MS Word with keyword search for records|
+|Physical records|Not yet in any digital system|
+|SP website sp.batac.gov.ph|**Subscription has been renewed. Usage continues indefinitely.** The batac-dms is a new system primarily for **internal use** with a public portal similar to sp.batac.gov.ph. Both systems will coexist. Formal retirement of sp.batac.gov.ph is not required. `[RESOLVES Q-C07]`|
+|sp.batac.gov.ph data migration|**Deferred decision.** Migration will happen some time after the whole system is already developed and has been used for a significant amount of time. `[RESOLVES Q-C07]`|
+|Existing QR codes on letters/memos|Confirmed: existing memos and letters currently have QR codes attached. **System decision: assume no existing digital QR system behind these codes; QR generation and tracking for letters and memos will be implemented entirely in batac-dms.** `[RESOLVES Q-D06]`|
 
 ---
 
@@ -1182,44 +1182,44 @@ The `parallel_split` and `parallel_join` step types remain reserved for Phase 2 
 
 No changes from pre-development reference. Stack decisions confirmed and unchanged.
 
-| Layer                   | Choice                                                                | Constraint                                                      |
-| ----------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Backend framework       | Fastify                                                               | Schema-first routes; plugin scope enforces module encapsulation |
-| Internal API            | tRPC on Fastify                                                       | End-to-end type safety for `/web` — no REST for internal routes |
-| External/public API     | Fastify REST + OpenAPI (`@fastify/swagger`)                           | Required for portal, mobile, third-party, or non-TS clients     |
-| Internal frontend       | Vite + React SPA                                                      | No SSR; fully authenticated — SSR adds zero value               |
-| Public portal           | Next.js (Phase 3)                                                     | SSG for SEO on citizen-facing document lookups                  |
-| Database                | PostgreSQL                                                            | JSONB, Row-Level Security, append-only audit grants             |
-| ORM                     | Drizzle ORM + Drizzle Kit                                             | Full PostgreSQL feature access with TypeScript inference        |
-| Validation / contracts  | Zod (shared package)                                                  | Single source of truth: backend, DB types, frontend forms       |
-| Server state (frontend) | TanStack Query                                                        | Cache invalidation, background refetch, optimistic updates      |
-| UI state (frontend)     | Zustand                                                               | Modals, sidebar, multi-step form state                          |
-| Component library       | shadcn/ui + Radix UI primitives                                       | Owned source code; accessible by default                        |
-| Search                  | PostgreSQL FTS Phase 1; Meilisearch Phase 2+                          | Typo tolerance for Filipino names; Phase 1: tsvector/tsquery    |
-| Real-time notifications | Server-Sent Events (SSE)                                              | One-directional push                                            |
-| File storage            | S3-compatible (streamed)                                              | Files never touch disk; app stays stateless                     |
-| Logging                 | Pino + pino-http                                                      | Structured JSON                                                 |
-| Error tracking          | Sentry                                                                | Unhandled exceptions unacceptable in production from day one    |
-| Testing                 | Vitest (unit/integration) + Playwright (E2E)                          |                                                                 |
-| Email                   | Nodemailer + @react-email/components                                  | Works with any SMTP including LGU mail server                   |
-| Auth pattern            | Short-lived JWT + server-side refresh tokens + HTTP-only cookies      | Never localStorage                                              |
-| Password hashing        | Argon2id                                                              | OWASP recommendation                                            |
-| PDF generation          | @react-pdf/renderer (templates) + pdf-lib (stamping)                  |                                                                 |
-| QR codes                | `qrcode` (server) + `html5-qrcode` or `zxing-wasm` (frontend scanner) |                                                                 |
-| Forms                   | React Hook Form + `@hookform/resolvers/zod`                           | Validates against shared Zod schemas                            |
-| i18n                    | i18next + react-i18next                                               | Filipino, English, Ilocano                                      |
-| Rich text               | Tiptap                                                                | Comments and annotations                                        |
-| Data tables             | TanStack Table                                                        |                                                                 |
-| Charts                  | Recharts                                                              | Dashboard panels                                                |
-| Virtual lists           | TanStack Virtual                                                      | Long document lists                                             |
-| PDF viewer              | react-pdf                                                             | In-browser rendering                                            |
-| Date/time               | date-fns                                                              | Never moment.js                                                 |
-| Env config              | dotenv + Zod schema                                                   | Fail fast on missing required vars at startup                   |
-| Scheduling              | node-cron (simple) + pgboss (durable)                                 |                                                                 |
-| HTTP client             | native `fetch` (Node 18+) or `ky`                                     | Only for internal service calls                                 |
-| Rate limiting           | @fastify/rate-limit                                                   | Auth and portal endpoints                                       |
-| CORS                    | @fastify/cors                                                         | Strict origin allowlist                                         |
-| Security headers        | @fastify/helmet                                                       |                                                                 |
+|Layer|Choice|Constraint|
+|---|---|---|
+|Backend framework|Fastify|Schema-first routes; plugin scope enforces module encapsulation|
+|Internal API|tRPC on Fastify|End-to-end type safety for `/web` — no REST for internal routes|
+|External/public API|Fastify REST + OpenAPI (`@fastify/swagger`)|Required for portal, mobile, third-party, or non-TS clients|
+|Internal frontend|Vite + React SPA|No SSR; fully authenticated — SSR adds zero value|
+|Public portal|Next.js (Phase 3)|SSG for SEO on citizen-facing document lookups|
+|Database|PostgreSQL|JSONB, Row-Level Security, append-only audit grants|
+|ORM|Drizzle ORM + Drizzle Kit|Full PostgreSQL feature access with TypeScript inference|
+|Validation / contracts|Zod (shared package)|Single source of truth: backend, DB types, frontend forms|
+|Server state (frontend)|TanStack Query|Cache invalidation, background refetch, optimistic updates|
+|UI state (frontend)|Zustand|Modals, sidebar, multi-step form state|
+|Component library|shadcn/ui + Radix UI primitives|Owned source code; accessible by default|
+|Search|PostgreSQL FTS Phase 1; Meilisearch Phase 2+|Typo tolerance for Filipino names; Phase 1: tsvector/tsquery|
+|Real-time notifications|Server-Sent Events (SSE)|One-directional push|
+|File storage|S3-compatible (streamed)|Files never touch disk; app stays stateless|
+|Logging|Pino + pino-http|Structured JSON|
+|Error tracking|Sentry|Unhandled exceptions unacceptable in production from day one|
+|Testing|Vitest (unit/integration) + Playwright (E2E)||
+|Email|Nodemailer + @react-email/components|Works with any SMTP including LGU mail server|
+|Auth pattern|Short-lived JWT + server-side refresh tokens + HTTP-only cookies|Never localStorage|
+|Password hashing|Argon2id|OWASP recommendation|
+|PDF generation|@react-pdf/renderer (templates) + pdf-lib (stamping)||
+|QR codes|`qrcode` (server) + `html5-qrcode` or `zxing-wasm` (frontend scanner)||
+|Forms|React Hook Form + `@hookform/resolvers/zod`|Validates against shared Zod schemas|
+|i18n|i18next + react-i18next|Filipino, English, Ilocano|
+|Rich text|Tiptap|Comments and annotations|
+|Data tables|TanStack Table||
+|Charts|Recharts|Dashboard panels|
+|Virtual lists|TanStack Virtual|Long document lists|
+|PDF viewer|react-pdf|In-browser rendering|
+|Date/time|date-fns|Never moment.js|
+|Env config|dotenv + Zod schema|Fail fast on missing required vars at startup|
+|Scheduling|node-cron (simple) + pgboss (durable)||
+|HTTP client|native `fetch` (Node 18+) or `ky`|Only for internal service calls|
+|Rate limiting|@fastify/rate-limit|Auth and portal endpoints|
+|CORS|@fastify/cors|Strict origin allowlist|
+|Security headers|@fastify/helmet||
 
 **Monorepo structure:**
 
@@ -1306,12 +1306,12 @@ The `workflow` module's step type for committee referral must support a list of 
 
 **Token architecture:**
 
-| Decision              | Value                                |
-| --------------------- | ------------------------------------ |
-| Access token          | JWT, 15–60 minutes                   |
-| Refresh token storage | Server-side database (hashed value)  |
-| Cookie attributes     | HTTP-only, Secure, SameSite=Strict   |
-| Client-side storage   | Never localStorage or sessionStorage |
+|Decision|Value|
+|---|---|
+|Access token|JWT, 15–60 minutes|
+|Refresh token storage|Server-side database (hashed value)|
+|Cookie attributes|HTTP-only, Secure, SameSite=Strict|
+|Client-side storage|Never localStorage or sessionStorage|
 
 ---
 
@@ -1324,10 +1324,10 @@ The `workflow` module's step type for committee referral must support a list of 
 
 **Device infrastructure confirmed:**
 
-| Location  | OS                                       | Internet                         | Offline Tolerance         |
-| --------- | ---------------------------------------- | -------------------------------- | ------------------------- |
-| City Hall | Windows 11                               | Always-on with backup generator  | 30+ minutes acceptable    |
-| Barangays | Windows 11 (dedicated) + personal phones | Some reliable, some intermittent | Offline capability needed |
+|Location|OS|Internet|Offline Tolerance|
+|---|---|---|---|
+|City Hall|Windows 11|Always-on with backup generator|30+ minutes acceptable|
+|Barangays|Windows 11 (dedicated) + personal phones|Some reliable, some intermittent|Offline capability needed|
 
 ---
 
@@ -1337,16 +1337,16 @@ The `workflow` module's step type for committee referral must support a list of 
 
 **Phase 1 step types:**
 
-| Type           | Description                                                                                                                                                                                                                                                                                                  | Phase                            |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
-| action         | User performs an action (review, comment)                                                                                                                                                                                                                                                                    | Phase 1                          |
-| approval       | User approves, rejects, or returns for revision                                                                                                                                                                                                                                                              | Phase 1                          |
-| multi_referral | Assigns to multiple committees simultaneously; **all committees must sign/contribute to the unified report**; committees missing Thursday cutoff delay Second Reading; absent committees marked red in Order of Business; completes when all-committee unified report submitted and accepted by SP Secretary | Phase 1                          |
-| decision       | System evaluates a condition; routes accordingly                                                                                                                                                                                                                                                             | Phase 1                          |
-| notification   | System sends a notification; no user action required                                                                                                                                                                                                                                                         | Phase 1                          |
-| termination    | Ends the workflow                                                                                                                                                                                                                                                                                            | Phase 1                          |
-| parallel_split | Splits into parallel branches                                                                                                                                                                                                                                                                                | Phase 2 (reserved in data model) |
-| parallel_join  | Merges parallel branches                                                                                                                                                                                                                                                                                     | Phase 2 (reserved in data model) |
+|Type|Description|Phase|
+|---|---|---|
+|action|User performs an action (review, comment)|Phase 1|
+|approval|User approves, rejects, or returns for revision|Phase 1|
+|multi_referral|Assigns to multiple committees simultaneously; **all committees must sign/contribute to the unified report**; committees missing Thursday cutoff delay Second Reading; absent committees marked red in Order of Business; completes when all-committee unified report submitted and accepted by SP Secretary|Phase 1|
+|decision|System evaluates a condition; routes accordingly|Phase 1|
+|notification|System sends a notification; no user action required|Phase 1|
+|termination|Ends the workflow|Phase 1|
+|parallel_split|Splits into parallel branches|Phase 2 (reserved in data model)|
+|parallel_join|Merges parallel branches|Phase 2 (reserved in data model)|
 
 **Mayor's 10-day lapse-into-law:** Applies to **both SP Resolutions AND SP Ordinances**. `[CONFIRMED — Interview 2, resolves Q-03]` At day 10 with no Mayor action, system transitions to "Lapsed into Law," logs RA 7160 legal basis, and notifies SP Secretary.
 
@@ -1371,10 +1371,10 @@ The `workflow` module's step type for committee referral must support a list of 
 
 **Hardcoded workflow constraints (legally mandated minimum steps):**
 
-| Document Type                          | Minimum Required Steps                                                                                                                                                                    |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SP Resolution                          | Committee referral OR Certified Urgent path; Second Reading vote; VP certification; Transmittal to Mayor; Mayor review (10-day); Docketing; Panlalawigan review; Release                  |
-| SP Ordinance / Appropriation Ordinance | Committee referral OR Certified Urgent path; 3 readings; VP certification; Transmittal to Mayor; Mayor review (10-day); Docketing; Panlalawigan review; Publication (if penalty); Release |
+|Document Type|Minimum Required Steps|
+|---|---|
+|SP Resolution|Committee referral OR Certified Urgent path; Second Reading vote; VP certification; Transmittal to Mayor; Mayor review (10-day); Docketing; Panlalawigan review; Release|
+|SP Ordinance / Appropriation Ordinance|Committee referral OR Certified Urgent path; 3 readings; VP certification; Transmittal to Mayor; Mayor review (10-day); Docketing; Panlalawigan review; Publication (if penalty); Release|
 
 **Version pinning:** Instance pins to definition version active at creation. In-flight migration requires Option A (continue under old version) or Option B (admin migrates with mandatory reason, 2nd-level approval from City Administrator required, 24-hour reversible window, dedicated audit event).
 
@@ -1402,12 +1402,12 @@ Cancelled is a terminal state reachable from any active state by an authorized a
 
 **Classification levels:**
 
-| Level        | Access                                                             |
-| ------------ | ------------------------------------------------------------------ |
-| Public       | All users + public portal                                          |
-| Internal     | Authenticated LGU employees                                        |
-| Confidential | Restricted to explicit role allowlist (e.g., Administrative Cases) |
-| Restricted   | Restricted to explicit role allowlist                              |
+|Level|Access|
+|---|---|
+|Public|All users + public portal|
+|Internal|Authenticated LGU employees|
+|Confidential|Restricted to explicit role allowlist (e.g., Administrative Cases)|
+|Restricted|Restricted to explicit role allowlist|
 
 **Versioning:** All previous versions retained. No overwrite. No permanent deletion by any user or role.
 
@@ -1443,37 +1443,37 @@ Cancelled is a terminal state reachable from any active state by an authorized a
 
 ### 11.5 Document Numbering `[UPDATED — Interview 2]`
 
-| Decision                | Value                                                                                                                                                                                                  |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Preliminary number      | Assigned at secretariat logging. Uses "Draft" prefix. Format: `Draft 7SP 2026-02` (space delimiter). Can change before finalization. `[CONFIRMED — Interview 2; RESOLVES Q-A01]`                       |
-| Final number assignment | After last reading vote (Second Reading for Resolutions; Third Reading for Ordinances), before VP and Mayor sign. Secretariat decides and assigns. `[CONFIRMED — Interview 2; SUPERSEDES Interview 1]` |
-| Delimiter               | **Space** throughout — `SPR 2026-01`, `MO 2025-01`, `D 2024-01`, `NCH 2026-01`, `NOSP 2026-01`. `[RESOLVES Q-A01]`                                                                                     |
-| "Draft" prefix removal  | Marks promotion from preliminary to final number                                                                                                                                                       |
-| Uniqueness              | DB unique constraint: series + year + number                                                                                                                                                           |
-| Gaps                    | Permitted only for cancelled documents; gap logged with cancellation reason                                                                                                                            |
-| Year prefix             | Per-year counters that reset; continuous counters available per series configuration                                                                                                                   |
-| Series ownership        | Office-owned (configurable "Series Authority" per series)                                                                                                                                              |
-| Number immutability     | Final numbers (Draft prefix removed) are immutable — no editing by any user or role                                                                                                                    |
-| Reuse                   | Never, even if cancelled                                                                                                                                                                               |
-| Counters                | Separate PostgreSQL sequence per document type per year — no shared counter                                                                                                                            |
+|Decision|Value|
+|---|---|
+|Preliminary number|Assigned at secretariat logging. Uses "Draft" prefix. Format: `Draft 7SP 2026-02` (space delimiter). Can change before finalization. `[CONFIRMED — Interview 2; RESOLVES Q-A01]`|
+|Final number assignment|After last reading vote (Second Reading for Resolutions; Third Reading for Ordinances), before VP and Mayor sign. Secretariat decides and assigns. `[CONFIRMED — Interview 2; SUPERSEDES Interview 1]`|
+|Delimiter|**Space** throughout — `SPR 2026-01`, `MO 2025-01`, `D 2024-01`, `NCH 2026-01`, `NOSP 2026-01`. `[RESOLVES Q-A01]`|
+|"Draft" prefix removal|Marks promotion from preliminary to final number|
+|Uniqueness|DB unique constraint: series + year + number|
+|Gaps|Permitted only for cancelled documents; gap logged with cancellation reason|
+|Year prefix|Per-year counters that reset; continuous counters available per series configuration|
+|Series ownership|Office-owned (configurable "Series Authority" per series)|
+|Number immutability|Final numbers (Draft prefix removed) are immutable — no editing by any user or role|
+|Reuse|Never, even if cancelled|
+|Counters|Separate PostgreSQL sequence per document type per year — no shared counter|
 
 ---
 
 ### 11.6 Document Tracking (DTS) `[UPDATED — Interview 2]`
 
-| Decision               | Value                                                                                                        |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------ |
-| QR content             | Unique tracking ID only (not a URL, not document content)                                                    |
-| Tracking number format | Configurable; default: `DTS-{YEAR}-{SEQUENCE}`                                                               |
-| QR assignment point    | **At secretariat logging, before preliminary number is assigned** `[CONFIRMED — Interview 2, resolves Q-02]` |
-| Assignment sequence    | Councilor Draft → Secretariat Logs → QR assigned → Preliminary Draft number assigned                         |
-| QR code survives       | Throughout entire document lifecycle (preliminary through final, through Mayor signature)                    |
-| Immutability           | QR tracking number never changes after assignment                                                            |
-| Independence           | QR tracking number completely independent of preliminary number, final number, and control number            |
-| Scan result            | Document type, remarks, history from draft, first page visible; other pages blurred                          |
-| Full copy access       | "Get a copy" button on scan result → requires Document Request Form, VM + SP Secretary approval, payment     |
-| Routing history        | Every movement recorded: from, to, actor, timestamp, action                                                  |
-| Physical custody       | Tracked separately from digital workflow status                                                              |
+|Decision|Value|
+|---|---|
+|QR content|Unique tracking ID only (not a URL, not document content)|
+|Tracking number format|Configurable; default: `DTS-{YEAR}-{SEQUENCE}`|
+|QR assignment point|**At secretariat logging, before preliminary number is assigned** `[CONFIRMED — Interview 2, resolves Q-02]`|
+|Assignment sequence|Councilor Draft → Secretariat Logs → QR assigned → Preliminary Draft number assigned|
+|QR code survives|Throughout entire document lifecycle (preliminary through final, through Mayor signature)|
+|Immutability|QR tracking number never changes after assignment|
+|Independence|QR tracking number completely independent of preliminary number, final number, and control number|
+|Scan result|Document type, remarks, history from draft, first page visible; other pages blurred|
+|Full copy access|"Get a copy" button on scan result → requires Document Request Form, VM + SP Secretary approval, payment|
+|Routing history|Every movement recorded: from, to, actor, timestamp, action|
+|Physical custody|Tracked separately from digital workflow status|
 
 ---
 
@@ -1483,15 +1483,15 @@ Cancelled is a terminal state reachable from any active state by an authorized a
 
 **Retention defaults (configurable; to be confirmed with COA/DILG):**
 
-| Category                                            | Retention                   |
-| --------------------------------------------------- | --------------------------- |
-| SP Resolutions, Ordinances                          | **Permanent** `[CONFIRMED]` |
-| All documents currently retained — none disposed of | `[CONFIRMED]`               |
-| Signed contracts, financial records                 | Permanent                   |
-| Personnel records                                   | 10–15 years                 |
-| Correspondence with citizens                        | 10–15 years                 |
-| Internal memos                                      | 5 years                     |
-| Draft versions (final approved kept)                | 1 year                      |
+|Category|Retention|
+|---|---|
+|SP Resolutions, Ordinances|**Permanent** `[CONFIRMED]`|
+|All documents currently retained — none disposed of|`[CONFIRMED]`|
+|Signed contracts, financial records|Permanent|
+|Personnel records|10–15 years|
+|Correspondence with citizens|10–15 years|
+|Internal memos|5 years|
+|Draft versions (final approved kept)|1 year|
 
 **Disposition rules:** Explicit Records Officer action required with mandatory comment. No automated disposal. Document under legal hold cannot have retention shortened. Disposition creates audit record, not data deletion.
 
@@ -1517,13 +1517,13 @@ Cancelled is a terminal state reachable from any active state by an authorized a
 
 ### 11.9 Database Conventions (Invariants)
 
-| Convention       | Decision                                                                      |
-| ---------------- | ----------------------------------------------------------------------------- |
-| Primary keys     | UUID v4 (`gen_random_uuid()`) everywhere                                      |
-| Timestamps       | `TIMESTAMPTZ` on every timestamp column                                       |
-| Soft-delete      | `deleted_at TIMESTAMPTZ` + `deleted_by UUID` on every table — no hard deletes |
-| Tenant isolation | `city_id UUID NOT NULL` in all core entity tables (default: Batac City UUID)  |
-| Cross-schema FKs | Prohibited — enforced by automated migration linting                          |
+|Convention|Decision|
+|---|---|
+|Primary keys|UUID v4 (`gen_random_uuid()`) everywhere|
+|Timestamps|`TIMESTAMPTZ` on every timestamp column|
+|Soft-delete|`deleted_at TIMESTAMPTZ` + `deleted_by UUID` on every table — no hard deletes|
+|Tenant isolation|`city_id UUID NOT NULL` in all core entity tables (default: Batac City UUID)|
+|Cross-schema FKs|Prohibited — enforced by automated migration linting|
 
 **Schema map:**
 
@@ -1547,30 +1547,30 @@ schema: reporting     → report_definitions, schedules, outputs (Phase 2)
 
 ### 11.10 Object Storage
 
-| Decision            | Value                                                 |
-| ------------------- | ----------------------------------------------------- |
-| API                 | S3-compatible exclusively — no provider-specific SDKs |
-| Phase 1 provider    | Cloudflare R2 (no egress fees)                        |
-| On-premise / future | MinIO (migration = endpoint URL change only)          |
-| File key format     | UUID (never original filename)                        |
-| Original filename   | Stored as metadata in PostgreSQL only                 |
-| Supported formats   | PDF, DOCX, XLSX, images (PNG, JPG)                    |
-| Max file size       | 25MB per file (configurable)                          |
-| S3 versioning       | Enabled                                               |
+|Decision|Value|
+|---|---|
+|API|S3-compatible exclusively — no provider-specific SDKs|
+|Phase 1 provider|Cloudflare R2 (no egress fees)|
+|On-premise / future|MinIO (migration = endpoint URL change only)|
+|File key format|UUID (never original filename)|
+|Original filename|Stored as metadata in PostgreSQL only|
+|Supported formats|PDF, DOCX, XLSX, images (PNG, JPG)|
+|Max file size|25MB per file (configurable)|
+|S3 versioning|Enabled|
 
 ---
 
 ### 11.11 Audit Log
 
-| Decision           | Value                                                                     |
-| ------------------ | ------------------------------------------------------------------------- |
-| Schema             | Separate `audit` schema; append-only                                      |
-| DB permissions     | Application audit user: INSERT-only on audit schema. No UPDATE, no DELETE |
-| Hash chaining      | SHA-256; each entry includes hash of previous entry                       |
-| HMAC               | Applied to each payload with a secret key                                 |
-| External timestamp | Monthly export; RFC 3161 TSA (provider to be confirmed)                   |
-| Tamper detection   | Hash chain validated at retrieval time; broken chain = tampering flagged  |
-| Claim              | **Tamper-evident (not tamper-proof)** — this distinction is documented    |
+|Decision|Value|
+|---|---|
+|Schema|Separate `audit` schema; append-only|
+|DB permissions|Application audit user: INSERT-only on audit schema. No UPDATE, no DELETE|
+|Hash chaining|SHA-256; each entry includes hash of previous entry|
+|HMAC|Applied to each payload with a secret key|
+|External timestamp|Monthly export; RFC 3161 TSA (provider to be confirmed)|
+|Tamper detection|Hash chain validated at retrieval time; broken chain = tampering flagged|
+|Claim|**Tamper-evident (not tamper-proof)** — this distinction is documented|
 
 **Events always audited (cannot be disabled):** All authentication events; all document state changes; all approval actions; all delegation grants/revocations; all role assignments/revocations; all bulk operations; all exports; all session terminations; all workflow definition publishes/deprecations; all Option B migration executions; all RA 10173 erasure actions; all Secretariat "Approve/Reject/Amended" logging actions.
 
@@ -1578,11 +1578,11 @@ schema: reporting     → report_definitions, schedules, outputs (Phase 2)
 
 ### 11.12 Concurrency and Locking
 
-| Decision          | Value                                                                  |
-| ----------------- | ---------------------------------------------------------------------- |
-| Model             | Pessimistic locking                                                    |
-| Lock timeout      | 15 minutes (configurable per document type)                            |
-| Lock notification | User sees informational notice when document is locked by another user |
+|Decision|Value|
+|---|---|
+|Model|Pessimistic locking|
+|Lock timeout|15 minutes (configurable per document type)|
+|Lock notification|User sees informational notice when document is locked by another user|
 
 ---
 
@@ -1592,14 +1592,14 @@ schema: reporting     → report_definitions, schedules, outputs (Phase 2)
 
 **Confirmed rules from Interview 2:**
 
-| Rule                                                 | Value                                                                                                           |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Who initiates                                        | Original authority (Mayor or Vice Mayor, per scope)                                                             |
-| Who else confirms                                    | **No one — no Platform Admin confirmation step** `[CONFIRMED — Interview 2; SUPERSEDES Interview 1]`            |
-| Multiple simultaneous active designations per person | **NOT ALLOWED — only one active designation per person at any time** `[CONFIRMED — Interview 2, resolves Q-07]` |
-| Expiry                                               | Automatic at end date — authority returns to original authority automatically `[CONFIRMED — Interview 2]`       |
-| Early revocation                                     | Permitted by delegating person                                                                                  |
-| Open-ended delegations                               | Prohibited — duration must always be explicit                                                                   |
+|Rule|Value|
+|---|---|
+|Who initiates|Original authority (Mayor or Vice Mayor, per scope)|
+|Who else confirms|**No one — no Platform Admin confirmation step** `[CONFIRMED — Interview 2; SUPERSEDES Interview 1]`|
+|Multiple simultaneous active designations per person|**NOT ALLOWED — only one active designation per person at any time** `[CONFIRMED — Interview 2, resolves Q-07]`|
+|Expiry|Automatic at end date — authority returns to original authority automatically `[CONFIRMED — Interview 2]`|
+|Early revocation|Permitted by delegating person|
+|Open-ended delegations|Prohibited — duration must always be explicit|
 
 **System behavior:**
 
@@ -1624,30 +1624,30 @@ schema: reporting     → report_definitions, schedules, outputs (Phase 2)
 
 ### 11.14 Disaster Recovery and Backup
 
-| Decision          | Value                                                                |
-| ----------------- | -------------------------------------------------------------------- |
-| RTO               | 4 hours maximum                                                      |
-| RPO               | 1 hour maximum                                                       |
-| Hot standby       | Streaming replication; lag < 60 seconds                              |
-| Failover trigger  | Primary heartbeat loss for 60 seconds; automated DNS failover        |
-| Daily backup      | Encrypted `pg_dump` to S3-compatible storage                         |
-| Continuous backup | WAL-based PITR archiving                                             |
-| Hot retention     | 30 days                                                              |
-| Cold retention    | 1 year                                                               |
-| Backup encryption | Keys held exclusively by LGU IT Office                               |
-| Immutable backup  | At least one cold copy in write-once (object lock) storage           |
-| Restoration test  | Monthly (results logged)                                             |
-| DR drill          | Quarterly                                                            |
-| DR runbooks       | Written, versioned in repository, tested by minimum two team members |
+|Decision|Value|
+|---|---|
+|RTO|4 hours maximum|
+|RPO|1 hour maximum|
+|Hot standby|Streaming replication; lag < 60 seconds|
+|Failover trigger|Primary heartbeat loss for 60 seconds; automated DNS failover|
+|Daily backup|Encrypted `pg_dump` to S3-compatible storage|
+|Continuous backup|WAL-based PITR archiving|
+|Hot retention|30 days|
+|Cold retention|1 year|
+|Backup encryption|Keys held exclusively by LGU IT Office|
+|Immutable backup|At least one cold copy in write-once (object lock) storage|
+|Restoration test|Monthly (results logged)|
+|DR drill|Quarterly|
+|DR runbooks|Written, versioned in repository, tested by minimum two team members|
 
 ---
 
 ### 11.15 Offline and Connectivity `[CONFIRMED]`
 
-| Location  | Confirmed Connectivity                                   | Offline Behavior                                   |
-| --------- | -------------------------------------------------------- | -------------------------------------------------- |
-| City Hall | Always-on; backup generator; 30+ minute outage tolerance | Hybrid mode: local queue; SLA clock continues      |
-| Barangays | Some reliable, some intermittent                         | Personal phones primary; offline capability needed |
+|Location|Confirmed Connectivity|Offline Behavior|
+|---|---|---|
+|City Hall|Always-on; backup generator; 30+ minute outage tolerance|Hybrid mode: local queue; SLA clock continues|
+|Barangays|Some reliable, some intermittent|Personal phones primary; offline capability needed|
 
 **Note:** ARTA compliance obligations do not pause during system outages. SLA clock continues regardless of connectivity.
 
@@ -1655,41 +1655,41 @@ schema: reporting     → report_definitions, schedules, outputs (Phase 2)
 
 ### 11.16 Mobile and Device Support `[CONFIRMED]`
 
-| Decision           | Value                                                          |
-| ------------------ | -------------------------------------------------------------- |
-| Approach           | Mobile-first responsive design                                 |
-| OS                 | iOS and Android                                                |
-| Device (City Hall) | Windows 11 workstations                                        |
-| Device (Barangays) | Personal phones (primarily) + some shared Windows 11 computers |
-| Native app         | Deferred — web-responsive first                                |
-| Session behavior   | Refresh on app open; not during active use                     |
+|Decision|Value|
+|---|---|
+|Approach|Mobile-first responsive design|
+|OS|iOS and Android|
+|Device (City Hall)|Windows 11 workstations|
+|Device (Barangays)|Personal phones (primarily) + some shared Windows 11 computers|
+|Native app|Deferred — web-responsive first|
+|Session behavior|Refresh on app open; not during active use|
 
 ---
 
 ### 11.17 Session Management
 
-| Decision                        | Value                                                                        |
-| ------------------------------- | ---------------------------------------------------------------------------- |
-| Standard timeout                | 30 minutes of inactivity                                                     |
-| Timeout warning                 | At 25 minutes                                                                |
-| Concurrent sessions             | One active session per user                                                  |
-| New login from different device | Logs out previous session; notification sent to user                         |
-| Forced logout                   | IT/security admin can force-terminate any session (audit-logged with reason) |
-| Shared workstations             | "Switch User / Lock Screen" action suspends session without terminating it   |
+|Decision|Value|
+|---|---|
+|Standard timeout|30 minutes of inactivity|
+|Timeout warning|At 25 minutes|
+|Concurrent sessions|One active session per user|
+|New login from different device|Logs out previous session; notification sent to user|
+|Forced logout|IT/security admin can force-terminate any session (audit-logged with reason)|
+|Shared workstations|"Switch User / Lock Screen" action suspends session without terminating it|
 
 ---
 
 ### 11.18 Citizen Portal and Identity
 
-| Decision             | Value                                                                        |
-| -------------------- | ---------------------------------------------------------------------------- |
-| Citizen registration | Name, birthdate, phone, email + optional cross-reference with City Hall DB   |
-| Verification         | OTP to phone + OTP to email (both required)                                  |
-| Ongoing login        | Password + phone OTP                                                         |
-| Re-verification      | Annual                                                                       |
-| PhilSys              | Feature-flagged; assume unavailable; enable if integration becomes available |
-| Accepted IDs         | Government-issued ID, birth certificate, barangay residency certificate      |
-| Privacy notice       | Displayed at registration; citizen must acknowledge consent                  |
+|Decision|Value|
+|---|---|
+|Citizen registration|Name, birthdate, phone, email + optional cross-reference with City Hall DB|
+|Verification|OTP to phone + OTP to email (both required)|
+|Ongoing login|Password + phone OTP|
+|Re-verification|Annual|
+|PhilSys|Feature-flagged; assume unavailable; enable if integration becomes available|
+|Accepted IDs|Government-issued ID, birth certificate, barangay residency certificate|
+|Privacy notice|Displayed at registration; citizen must acknowledge consent|
 
 **Phase 1 public portal behavior confirmed:**
 
@@ -1714,15 +1714,15 @@ schema: reporting     → report_definitions, schedules, outputs (Phase 2)
 
 ### 11.20 Post-Delivery and Governance
 
-| Decision                           | Value                                                                                          |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Post-delivery owner                | Internal LGU IT Office                                                                         |
-| Development team role              | Consultation and support; not primary maintainers                                              |
-| Source code escrow                 | LGU receives source code, schemas, IaC, ADRs, runbooks from Phase 1 — not only at contract end |
-| ADRs                               | Mandatory for every non-obvious architectural decision                                         |
-| Automated coupling tests           | Required — enforce module boundary isolation on every PR                                       |
-| Development team production access | Zero access to production data — credentials held exclusively by LGU IT Office                 |
-| Emergency break-glass              | Physical sealed envelope in LGU IT Office safe; logged on opening                              |
+|Decision|Value|
+|---|---|
+|Post-delivery owner|Internal LGU IT Office|
+|Development team role|Consultation and support; not primary maintainers|
+|Source code escrow|LGU receives source code, schemas, IaC, ADRs, runbooks from Phase 1 — not only at contract end|
+|ADRs|Mandatory for every non-obvious architectural decision|
+|Automated coupling tests|Required — enforce module boundary isolation on every PR|
+|Development team production access|Zero access to production data — credentials held exclusively by LGU IT Office|
+|Emergency break-glass|Physical sealed envelope in LGU IT Office safe; logged on opening|
 
 ---
 
@@ -1742,24 +1742,24 @@ schema: reporting     → report_definitions, schedules, outputs (Phase 2)
 
 These decisions are protected by design and are extremely expensive or impossible to change after production data exists. Enforced from the first migration.
 
-| #   | Invariant                                                               | Enforcement Method                                                                                                  |
-| --- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| 1   | Schema-per-module; no cross-schema foreign keys                         | Automated migration linting; code review policy                                                                     |
-| 2   | Soft-delete everywhere; no hard deletes                                 | Repository layer; code review policy                                                                                |
-| 3   | Audit log INSERT-only at DB role level                                  | PostgreSQL role permissions set in migration                                                                        |
-| 4   | Workflow instance pins to definition version at creation                | DB column `definition_version_id`; all resolution uses pinned version                                               |
-| 5   | S3-compatible API only; UUID file keys                                  | No provider SDK imports allowed; code review policy                                                                 |
-| 6   | UUID v4 primary keys everywhere                                         | Migration linting                                                                                                   |
-| 7   | TIMESTAMPTZ for all timestamps                                          | Migration linting                                                                                                   |
-| 8   | `city_id UUID NOT NULL` in all core entity tables                       | Migration schema                                                                                                    |
-| 9   | Numbering assigned at defined lifecycle event only                      | Workflow engine constraint                                                                                          |
-| 10  | IT admin has no document content access                                 | PostgreSQL RLS + application ABAC policy                                                                            |
-| 11  | Document type must have retention schedule before activation            | Application validation constraint                                                                                   |
-| 12  | Platform Administrator role cannot be combined with operational roles   | Role assignment validation                                                                                          |
-| 13  | Encoder and final approver of same document cannot be the same user     | Workflow engine constraint                                                                                          |
-| 14  | Workflow constraints per document type (legally mandated minimum steps) | Workflow editor validation                                                                                          |
-| 15  | Backup credentials separate from production credentials                 | Infrastructure policy; Terraform                                                                                    |
-| 16  | One active designation per person at any time                           | Application-level validation + DB partial unique index on active delegation_grants per user `[ADDED — Interview 2]` |
+|#|Invariant|Enforcement Method|
+|---|---|---|
+|1|Schema-per-module; no cross-schema foreign keys|Automated migration linting; code review policy|
+|2|Soft-delete everywhere; no hard deletes|Repository layer; code review policy|
+|3|Audit log INSERT-only at DB role level|PostgreSQL role permissions set in migration|
+|4|Workflow instance pins to definition version at creation|DB column `definition_version_id`; all resolution uses pinned version|
+|5|S3-compatible API only; UUID file keys|No provider SDK imports allowed; code review policy|
+|6|UUID v4 primary keys everywhere|Migration linting|
+|7|TIMESTAMPTZ for all timestamps|Migration linting|
+|8|`city_id UUID NOT NULL` in all core entity tables|Migration schema|
+|9|Numbering assigned at defined lifecycle event only|Workflow engine constraint|
+|10|IT admin has no document content access|PostgreSQL RLS + application ABAC policy|
+|11|Document type must have retention schedule before activation|Application validation constraint|
+|12|Platform Administrator role cannot be combined with operational roles|Role assignment validation|
+|13|Encoder and final approver of same document cannot be the same user|Workflow engine constraint|
+|14|Workflow constraints per document type (legally mandated minimum steps)|Workflow editor validation|
+|15|Backup credentials separate from production credentials|Infrastructure policy; Terraform|
+|16|One active designation per person at any time|Application-level validation + DB partial unique index on active delegation_grants per user `[ADDED — Interview 2]`|
 
 ---
 

@@ -1,5 +1,6 @@
 # ADR-TST-003: COMMITTEE_CHAIR` Assignee Resolution (K2 §21, item 3)
 
+
 **Decision:** `COMMITTEE_CHAIR` resolves via the existing `actor_from_context:<context_key>` grammar (B4 §3.5) — **not** a new prefix. The engine reads the committee chair's user ID from a new instance context key, `referred_committee_id` (or the resolved chair user ID directly — see open sub-point below), which is populated by the SP Secretary's selection at the `valid_in_part_decision` → `ROUTED_TO_COMMITTEE` step, not at original `committee_referral` time.
 
 - **Single-committee original referral:** the SP Secretary's selection at routing time is a single choice with no real alternative — that one committee.

@@ -6,7 +6,6 @@ office: Sangguniang Panlungsod (SP)
 ---
 
 # ORDINANCE/RESOLUTION SENT
-
 ## (2025 – 7SP)
 
 | Date Sent         | Recipient                                                                                                      | Ord. / Res. No.                                  | Remarks                              |

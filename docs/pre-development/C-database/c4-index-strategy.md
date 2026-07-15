@@ -70,12 +70,12 @@ C1 explicitly excludes performance indexes from its scope: "Beyond the indexes r
 
 ### Notation
 
-| Tag                    | Meaning                                                                                                                                                               |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `[Phase 1]`            | Index must be in the initial migration set, before any Phase 1 feature is deployed                                                                                    |
-| `[Phase 2]`            | Index can be deferred; the query load it serves is either Phase 2+ only or is substantially absorbed by Meilisearch once that is live                                 |
-| `[Confirmed — source]` | The index's necessity is directly traceable to a named query pattern in E1 or to a stated architectural invariant                                                     |
-| `[Inference]`          | The index is implied by a confirmed column's role (e.g., a `WHERE deleted_at IS NULL` filter applied uniformly across the platform), not named verbatim in any source |
+| Tag | Meaning |
+|---|---|
+| `[Phase 1]` | Index must be in the initial migration set, before any Phase 1 feature is deployed |
+| `[Phase 2]` | Index can be deferred; the query load it serves is either Phase 2+ only or is substantially absorbed by Meilisearch once that is live |
+| `[Confirmed — source]` | The index's necessity is directly traceable to a named query pattern in E1 or to a stated architectural invariant |
+| `[Inference]` | The index is implied by a confirmed column's role (e.g., a `WHERE deleted_at IS NULL` filter applied uniformly across the platform), not named verbatim in any source |
 
 ### Global Patterns Applied Uniformly
 
@@ -116,7 +116,7 @@ CREATE INDEX idx_users_city_status
 -- [Phase 1] [Confirmed — iam.listUserDirectory; session validation guards]
 ```
 
-Note: `uq_users_city_username` and `uq_users_city_email` defined in C1 already enforce uniqueness on these same columns. The indexes above are _non-unique_ partial variants (scoped to `deleted_at IS NULL`) that the query planner will prefer over the unique constraint indexes for live-row-only lookups, because the constraint indexes include soft-deleted rows.
+Note: `uq_users_city_username` and `uq_users_city_email` defined in C1 already enforce uniqueness on these same columns. The indexes above are *non-unique* partial variants (scoped to `deleted_at IS NULL`) that the query planner will prefer over the unique constraint indexes for live-row-only lookups, because the constraint indexes include soft-deleted rows.
 
 ### 1.2 `iam.sessions`
 
@@ -915,15 +915,15 @@ CREATE INDEX idx_audit_events_target_id
 
 The following indexes are confirmed as needed by future query patterns but are explicitly deferred to Phase 2 or later. They must not be included in Phase 1 migrations.
 
-| Index                                                                                                  | Table                      | Reason for Deferral                                                                                                                                                       |
-| ------------------------------------------------------------------------------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `idx_routing_entries_office_pair`                                                                      | `tracking.routing_entries` | Routing analytics are a Phase 2 Reporting module feature; no Phase 1 procedure queries this column pair                                                                   |
-| `idx_records_retention_schedule`                                                                       | `records.records`          | RMS bulk archive and disposition are Phase 2 (B2 Module 6)                                                                                                                |
-| GIN on `documents.documents (to_tsvector(..., title \|\| ' ' \|\| coalesce(metadata->>'subject','')))` | `documents.documents`      | Extended multi-field FTS (title + subject metadata) is superseded by Meilisearch in Phase 2; a combined GIN in Phase 1 would duplicate maintenance cost for marginal gain |
-| Meilisearch sync column indexes (e.g., `last_indexed_at` on documents/versions)                        | `documents`, `search_meta` | Belong to the `search_meta` schema (Phase 2) and the Meilisearch sync job; not relevant until that infra is provisioned                                                   |
-| `idx_records_records_classification`                                                                   | `records.records`          | Classification-based records retrieval is a Phase 2 RMS feature                                                                                                           |
-| Reporting aggregation indexes (e.g., monthly document-type counts)                                     | Multiple                   | Phase 2 Reporting module (B2 Module 11); materialized views or covering indexes will be designed with the reporting schema DDL                                            |
-| Portal schema indexes                                                                                  | `portal.*`                 | Phase 3; portal schema DDL not yet baselined                                                                                                                              |
+| Index | Table | Reason for Deferral |
+|---|---|---|
+| `idx_routing_entries_office_pair` | `tracking.routing_entries` | Routing analytics are a Phase 2 Reporting module feature; no Phase 1 procedure queries this column pair |
+| `idx_records_retention_schedule` | `records.records` | RMS bulk archive and disposition are Phase 2 (B2 Module 6) |
+| GIN on `documents.documents (to_tsvector(..., title \|\| ' ' \|\| coalesce(metadata->>'subject','')))` | `documents.documents` | Extended multi-field FTS (title + subject metadata) is superseded by Meilisearch in Phase 2; a combined GIN in Phase 1 would duplicate maintenance cost for marginal gain |
+| Meilisearch sync column indexes (e.g., `last_indexed_at` on documents/versions) | `documents`, `search_meta` | Belong to the `search_meta` schema (Phase 2) and the Meilisearch sync job; not relevant until that infra is provisioned |
+| `idx_records_records_classification` | `records.records` | Classification-based records retrieval is a Phase 2 RMS feature |
+| Reporting aggregation indexes (e.g., monthly document-type counts) | Multiple | Phase 2 Reporting module (B2 Module 11); materialized views or covering indexes will be designed with the reporting schema DDL |
+| Portal schema indexes | `portal.*` | Phase 3; portal schema DDL not yet baselined |
 
 ---
 
@@ -960,4 +960,4 @@ export const documentsOfficeStateIdx = index('idx_documents_office_state')
 
 ---
 
-_This document is the C4 deliverable against the stated prerequisite chain (C1 → C4). Every index defined here must correspond to a named `CREATE INDEX` statement in a Drizzle migration file. Any index added during development that is not listed here must be documented in a C4 addendum and reviewed before merging, consistent with the change-discipline stated in tech-stack.md Migration Rules._
+*This document is the C4 deliverable against the stated prerequisite chain (C1 → C4). Every index defined here must correspond to a named `CREATE INDEX` statement in a Drizzle migration file. Any index added during development that is not listed here must be documented in a C4 addendum and reviewed before merging, consistent with the change-discipline stated in tech-stack.md Migration Rules.*

@@ -1,5 +1,6 @@
 # ADR-AUTH-003: Refresh Token Lifetime
 
+
 **Status:** Accepted
 
 **Context**

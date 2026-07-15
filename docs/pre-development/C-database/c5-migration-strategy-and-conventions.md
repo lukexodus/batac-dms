@@ -47,20 +47,20 @@
 
 The following rules are stated verbatim or unambiguously in `tech-stack.md` and the Consolidated Architecture Reference. They are not subject to interpretation or project decision — they are in effect from the first migration.
 
-| Rule                                                                                                                                                                  | Source                            |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| Every schema change produces a migration file committed to version control.                                                                                           | `tech-stack.md` — Migration Rules |
-| Drizzle Kit generates SQL migrations from schema diffs. Review the SQL before applying.                                                                               | `tech-stack.md` — Migration Rules |
-| Never use reset-and-regenerate in production.                                                                                                                         | `tech-stack.md` — Migration Rules |
-| Migrations must be readable, reviewable, and executable directly by `psql` if needed.                                                                                 | `tech-stack.md` — Migration Rules |
-| No cross-schema foreign key constraints. Enforced by automated migration linting and code review policy.                                                              | Invariant #1                      |
-| UUID v4 primary keys everywhere. Enforced by migration linting.                                                                                                       | Invariant #6                      |
-| TIMESTAMPTZ on every timestamp column. Enforced by migration linting.                                                                                                 | Invariant #7                      |
-| Soft-delete: `deleted_at TIMESTAMPTZ` + `deleted_by UUID` on every table. No hard deletes.                                                                            | Part 11.9                         |
-| `city_id UUID NOT NULL` in all core entity tables.                                                                                                                    | Part 11.9                         |
-| `audit` schema: `INSERT`-only at DB role level. `UPDATE` and `DELETE` revoked from the application DB user. Enforced by PostgreSQL role permissions set in migration. | Invariant #3                      |
-| One active designation per person. Enforced by DB partial unique index on active `delegation_grants` per user.                                                        | Invariant #16                     |
-| No module reads another module's schema directly. No cross-schema foreign key constraints.                                                                            | Part 10.2                         |
+|Rule|Source|
+|---|---|
+|Every schema change produces a migration file committed to version control.|`tech-stack.md` — Migration Rules|
+|Drizzle Kit generates SQL migrations from schema diffs. Review the SQL before applying.|`tech-stack.md` — Migration Rules|
+|Never use reset-and-regenerate in production.|`tech-stack.md` — Migration Rules|
+|Migrations must be readable, reviewable, and executable directly by `psql` if needed.|`tech-stack.md` — Migration Rules|
+|No cross-schema foreign key constraints. Enforced by automated migration linting and code review policy.|Invariant #1|
+|UUID v4 primary keys everywhere. Enforced by migration linting.|Invariant #6|
+|TIMESTAMPTZ on every timestamp column. Enforced by migration linting.|Invariant #7|
+|Soft-delete: `deleted_at TIMESTAMPTZ` + `deleted_by UUID` on every table. No hard deletes.|Part 11.9|
+|`city_id UUID NOT NULL` in all core entity tables.|Part 11.9|
+|`audit` schema: `INSERT`-only at DB role level. `UPDATE` and `DELETE` revoked from the application DB user. Enforced by PostgreSQL role permissions set in migration.|Invariant #3|
+|One active designation per person. Enforced by DB partial unique index on active `delegation_grants` per user.|Invariant #16|
+|No module reads another module's schema directly. No cross-schema foreign key constraints.|Part 10.2|
 
 ---
 
@@ -130,11 +130,11 @@ Drizzle Kit assigns a sequential numeric prefix automatically. The project adds 
 {NNNN}_{scope}_{description}.sql
 ```
 
-| Component       | Rule                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `{NNNN}`        | Four-digit zero-padded sequence number assigned by Drizzle Kit. Never manually assigned, reassigned, or reordered.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `{scope}`       | Lowercase name of the PostgreSQL schema primarily affected. Valid values: `core`, `iam`, `organization`, `documents`, `workflow`, `tracking`, `records`, `notifications`, `audit`, `shared`, `search_meta`, `portal`, `reporting`. Use `core` for migrations that create shared infrastructure: PostgreSQL extensions, DB roles, schema namespaces, or shared types. Use `shared` for migrations that create or modify tables in the INFRA-owned `shared` PostgreSQL schema (e.g. `shared.event_bus_dead_letters`). [Updated 2026-06-26 — TASK-INFRA-023] |
-| `{description}` | Snake-case, imperative mood, 40 characters or fewer. Describes what the migration does, not why it was needed.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+|Component|Rule|
+|---|---|
+|`{NNNN}`|Four-digit zero-padded sequence number assigned by Drizzle Kit. Never manually assigned, reassigned, or reordered.|
+|`{scope}`|Lowercase name of the PostgreSQL schema primarily affected. Valid values: `core`, `iam`, `organization`, `documents`, `workflow`, `tracking`, `records`, `notifications`, `audit`, `shared`, `search_meta`, `portal`, `reporting`. Use `core` for migrations that create shared infrastructure: PostgreSQL extensions, DB roles, schema namespaces, or shared types. Use `shared` for migrations that create or modify tables in the INFRA-owned `shared` PostgreSQL schema (e.g. `shared.event_bus_dead_letters`). [Updated 2026-06-26 — TASK-INFRA-023]|
+|`{description}`|Snake-case, imperative mood, 40 characters or fewer. Describes what the migration does, not why it was needed.|
 
 ### 3.2 Examples
 
@@ -221,23 +221,23 @@ Automated linting catches these (see Section 6), but human review is still requi
 
 A **breaking migration** is one that, when applied to a running database while the application serves traffic, causes the current application code to produce errors or incorrect results.
 
-| Operation                                             | Breaking?                        | Notes                                                                                                            |
-| ----------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `CREATE TABLE`                                        | No                               | Additive; existing code is unaffected.                                                                           |
-| `CREATE SCHEMA`                                       | No                               | Additive.                                                                                                        |
-| `ADD COLUMN` with nullable or constant `DEFAULT`      | No                               | PostgreSQL 11+ uses a catalog default for constant expressions; no table rewrite.                                |
-| `ADD COLUMN ... NOT NULL` without default             | **Yes**                          | Every existing row fails the constraint immediately.                                                             |
-| `CREATE INDEX CONCURRENTLY`                           | No                               | Non-blocking; safe during traffic.                                                                               |
-| `CREATE INDEX` (without `CONCURRENTLY`)               | **Yes**                          | Takes `ShareLock`; blocks writes for the entire index build duration.                                            |
-| `DROP COLUMN`                                         | **Yes**                          | Any code referencing the column fails immediately.                                                               |
-| `DROP TABLE`                                          | **Yes**                          | Any code referencing the table fails immediately.                                                                |
-| `RENAME TABLE`                                        | **Yes**                          | The old name no longer resolves.                                                                                 |
-| `RENAME COLUMN`                                       | **Yes**                          | The old name no longer resolves.                                                                                 |
-| `ALTER COLUMN ... TYPE`                               | **Yes**                          | May rewrite the table; type cast errors at runtime on incompatible values.                                       |
-| `ALTER COLUMN ... SET NOT NULL` on a populated column | **Yes**                          | Fails immediately if any row has `NULL`; acquires `AccessExclusiveLock` on scan.                                 |
-| `ADD FOREIGN KEY` without `NOT VALID`                 | [Inference] Potentially blocking | Validates all existing rows; takes `ShareRowExclusiveLock`. Prefer `NOT VALID` + deferred `VALIDATE CONSTRAINT`. |
-| `DROP CONSTRAINT`                                     | No                               | Additive in effect; loosens a restriction.                                                                       |
-| `GRANT` / `REVOKE`                                    | No                               | Takes effect for new connections only.                                                                           |
+|Operation|Breaking?|Notes|
+|---|---|---|
+|`CREATE TABLE`|No|Additive; existing code is unaffected.|
+|`CREATE SCHEMA`|No|Additive.|
+|`ADD COLUMN` with nullable or constant `DEFAULT`|No|PostgreSQL 11+ uses a catalog default for constant expressions; no table rewrite.|
+|`ADD COLUMN ... NOT NULL` without default|**Yes**|Every existing row fails the constraint immediately.|
+|`CREATE INDEX CONCURRENTLY`|No|Non-blocking; safe during traffic.|
+|`CREATE INDEX` (without `CONCURRENTLY`)|**Yes**|Takes `ShareLock`; blocks writes for the entire index build duration.|
+|`DROP COLUMN`|**Yes**|Any code referencing the column fails immediately.|
+|`DROP TABLE`|**Yes**|Any code referencing the table fails immediately.|
+|`RENAME TABLE`|**Yes**|The old name no longer resolves.|
+|`RENAME COLUMN`|**Yes**|The old name no longer resolves.|
+|`ALTER COLUMN ... TYPE`|**Yes**|May rewrite the table; type cast errors at runtime on incompatible values.|
+|`ALTER COLUMN ... SET NOT NULL` on a populated column|**Yes**|Fails immediately if any row has `NULL`; acquires `AccessExclusiveLock` on scan.|
+|`ADD FOREIGN KEY` without `NOT VALID`|[Inference] Potentially blocking|Validates all existing rows; takes `ShareRowExclusiveLock`. Prefer `NOT VALID` + deferred `VALIDATE CONSTRAINT`.|
+|`DROP CONSTRAINT`|No|Additive in effect; loosens a restriction.|
+|`GRANT` / `REVOKE`|No|Takes effect for new connections only.|
 
 ### 5.2 The Default: Non-Breaking Additive Changes
 
@@ -346,13 +346,13 @@ In any environment with persistent data, these operations are prohibited.
 
 ### 6.3 Environment Policy
 
-| Environment                                 | Status                                                                                                                     |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Production                                  | **Prohibited. No exceptions.**                                                                                             |
-| Staging with production-representative data | **Prohibited.**                                                                                                            |
-| Staging with synthetic/seeded data only     | [Inference] Prohibited by policy for consistency. Use a fresh database with all migrations applied from `0001` instead.    |
-| Developer local environment                 | Permitted. The developer accepts that their local migration state resets and all migrations must be reapplied from `0001`. |
-| CI ephemeral test database                  | Permitted. The database is discarded after the run.                                                                        |
+|Environment|Status|
+|---|---|
+|Production|**Prohibited. No exceptions.**|
+|Staging with production-representative data|**Prohibited.**|
+|Staging with synthetic/seeded data only|[Inference] Prohibited by policy for consistency. Use a fresh database with all migrations applied from `0001` instead.|
+|Developer local environment|Permitted. The developer accepts that their local migration state resets and all migrations must be reapplied from `0001`.|
+|CI ephemeral test database|Permitted. The database is discarded after the run.|
 
 ### 6.4 The Correct Alternative
 
@@ -364,11 +364,11 @@ If a non-production environment must be rebuilt from a known state, create a new
 
 Three invariants are explicitly designated for automated migration linting in the source documents:
 
-| Invariant                            | Designated enforcement                            |
-| ------------------------------------ | ------------------------------------------------- |
-| #1 — No cross-schema foreign keys    | "Automated migration linting; code review policy" |
-| #6 — UUID v4 primary keys everywhere | "Migration linting"                               |
-| #7 — TIMESTAMPTZ for all timestamps  | "Migration linting"                               |
+|Invariant|Designated enforcement|
+|---|---|
+|#1 — No cross-schema foreign keys|"Automated migration linting; code review policy"|
+|#6 — UUID v4 primary keys everywhere|"Migration linting"|
+|#7 — TIMESTAMPTZ for all timestamps|"Migration linting"|
 
 The linter runs as a Turborepo task (`db:lint`) in CI on every pull request that touches `/packages/database/`. It must pass before the `build` task runs. A failed linter blocks merge.
 
@@ -475,13 +475,13 @@ Every `allow-date` suppression requires a reason in the comment and a second dev
 
 The linter also checks the following conventions. These supplement the three invariant rules above.
 
-| Check                                                | Severity | Trigger                                                                                                                                                                               |
-| ---------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Missing soft-delete columns                          | WARN     | `CREATE TABLE` without both `deleted_at TIMESTAMPTZ` and `deleted_by UUID`.                                                                                                           |
-| Missing `city_id`                                    | WARN     | `CREATE TABLE` in a core entity schema (`iam`, `organization`, `documents`, `workflow`, `tracking`, `records`) without `city_id UUID NOT NULL`.                                       |
-| `DELETE` DML in migration SQL                        | FAIL     | Any `DELETE FROM` statement in a migration file. Migrations must not contain row-deleting DML.                                                                                        |
-| `DROP` without expand-contract comment               | WARN     | Any `DROP COLUMN`, `DROP TABLE`, or `DROP SCHEMA` without a `-- expand-contract: contract phase` comment confirming the expand phase was completed.                                   |
-| `CREATE INDEX` without `CONCURRENTLY` on named table | WARN     | `CREATE INDEX` (without `CONCURRENTLY`) where the table name does not match a table that appears in `CREATE TABLE` earlier in the same file, indicating it targets an existing table. |
+|Check|Severity|Trigger|
+|---|---|---|
+|Missing soft-delete columns|WARN|`CREATE TABLE` without both `deleted_at TIMESTAMPTZ` and `deleted_by UUID`.|
+|Missing `city_id`|WARN|`CREATE TABLE` in a core entity schema (`iam`, `organization`, `documents`, `workflow`, `tracking`, `records`) without `city_id UUID NOT NULL`.|
+|`DELETE` DML in migration SQL|FAIL|Any `DELETE FROM` statement in a migration file. Migrations must not contain row-deleting DML.|
+|`DROP` without expand-contract comment|WARN|Any `DROP COLUMN`, `DROP TABLE`, or `DROP SCHEMA` without a `-- expand-contract: contract phase` comment confirming the expand phase was completed.|
+|`CREATE INDEX` without `CONCURRENTLY` on named table|WARN|`CREATE INDEX` (without `CONCURRENTLY`) where the table name does not match a table that appears in `CREATE TABLE` earlier in the same file, indicating it targets an existing table.|
 
 **Suppressing warnings:** Add a comment immediately before the flagged statement:
 
@@ -498,19 +498,19 @@ Every suppression must include a reason and must be approved by a second develop
 
 Each PostgreSQL schema is the exclusive domain of its corresponding module. No migration in one schema may reference another schema via foreign key constraint (Invariant #1). Cross-schema relationships are handled at the application layer or through the internal event bus.
 
-| Schema          | Module                                                                  | First Phase |
-| --------------- | ----------------------------------------------------------------------- | ----------- |
-| `iam`           | Identity and Access Management                                          | Phase 1     |
-| `organization`  | Offices, positions, assignments, delegations                            | Phase 1     |
-| `documents`     | Document types, documents, versions, attachments, numbering, signatures | Phase 1     |
-| `workflow`      | Workflow definitions, versions, steps, instances, events                | Phase 1     |
-| `tracking`      | Tracking records, routing entries, QR codes                             | Phase 1     |
-| `notifications` | Templates, notification events, delivery log                            | Phase 1     |
-| `audit`         | Events — append-only; INSERT-only DB permissions                        | Phase 1     |
-| `records`       | Records, retention schedules, archive entries, dispositions             | Phase 2     |
-| `search_meta`   | Search index metadata, index jobs                                       | Phase 2     |
-| `reporting`     | Report definitions, schedules, outputs                                  | Phase 2     |
-| `portal`        | Public documents, citizen requests, complaints, announcements           | Phase 3     |
+|Schema|Module|First Phase|
+|---|---|---|
+|`iam`|Identity and Access Management|Phase 1|
+|`organization`|Offices, positions, assignments, delegations|Phase 1|
+|`documents`|Document types, documents, versions, attachments, numbering, signatures|Phase 1|
+|`workflow`|Workflow definitions, versions, steps, instances, events|Phase 1|
+|`tracking`|Tracking records, routing entries, QR codes|Phase 1|
+|`notifications`|Templates, notification events, delivery log|Phase 1|
+|`audit`|Events — append-only; INSERT-only DB permissions|Phase 1|
+|`records`|Records, retention schedules, archive entries, dispositions|Phase 2|
+|`search_meta`|Search index metadata, index jobs|Phase 2|
+|`reporting`|Report definitions, schedules, outputs|Phase 2|
+|`portal`|Public documents, citizen requests, complaints, announcements|Phase 3|
 
 **The `core` scope in migration file names** (used in `{scope}` when naming files) refers to migrations that create these schema namespaces, install PostgreSQL extensions, or set up DB roles and grant permissions. `core` is a file naming convention, not a PostgreSQL schema name.
 
@@ -617,18 +617,18 @@ Never delete, rename, or modify a migration file after it has been applied to an
 
 ## Appendix A — Quick Reference: Linting Rules
 
-| Rule                                                    | Invariant | Severity | Condition                                                                             |
-| ------------------------------------------------------- | --------- | -------- | ------------------------------------------------------------------------------------- |
-| Cross-schema `REFERENCES`                               | #1        | FAIL     | `REFERENCES {other_schema}.{table}`                                                   |
-| Non-UUID primary key                                    | #6        | FAIL     | PK column typed as `INT`, `BIGINT`, `SERIAL`, `BIGSERIAL`                             |
-| UUID PK without `DEFAULT gen_random_uuid()`             | #6        | FAIL     | `UUID PRIMARY KEY` with no default or non-standard default                            |
-| Non-TIMESTAMPTZ timestamp column                        | #7        | FAIL     | Timestamp-named column typed as `TIMESTAMP` / `TIMESTAMP WITHOUT TIME ZONE`           |
-| `DATE` column (context-dependent)                       | #7        | WARN     | Timestamp-named column typed as `DATE`; requires `-- linter: allow-date reason="..."` |
-| Missing soft-delete columns                             | —         | WARN     | `CREATE TABLE` without `deleted_at TIMESTAMPTZ` + `deleted_by UUID`                   |
-| Missing `city_id`                                       | —         | WARN     | `CREATE TABLE` in core schema without `city_id UUID NOT NULL`                         |
-| `DELETE` DML in migration SQL                           | —         | FAIL     | Any `DELETE FROM` statement in a `.sql` migration file                                |
-| `DROP` without expand-contract comment                  | —         | WARN     | `DROP COLUMN` / `DROP TABLE` without `-- expand-contract: contract phase` comment     |
-| `CREATE INDEX` without `CONCURRENTLY` on existing table | —         | WARN     | `CREATE INDEX` targeting a table not created in the same file                         |
+|Rule|Invariant|Severity|Condition|
+|---|---|---|---|
+|Cross-schema `REFERENCES`|#1|FAIL|`REFERENCES {other_schema}.{table}`|
+|Non-UUID primary key|#6|FAIL|PK column typed as `INT`, `BIGINT`, `SERIAL`, `BIGSERIAL`|
+|UUID PK without `DEFAULT gen_random_uuid()`|#6|FAIL|`UUID PRIMARY KEY` with no default or non-standard default|
+|Non-TIMESTAMPTZ timestamp column|#7|FAIL|Timestamp-named column typed as `TIMESTAMP` / `TIMESTAMP WITHOUT TIME ZONE`|
+|`DATE` column (context-dependent)|#7|WARN|Timestamp-named column typed as `DATE`; requires `-- linter: allow-date reason="..."`|
+|Missing soft-delete columns|—|WARN|`CREATE TABLE` without `deleted_at TIMESTAMPTZ` + `deleted_by UUID`|
+|Missing `city_id`|—|WARN|`CREATE TABLE` in core schema without `city_id UUID NOT NULL`|
+|`DELETE` DML in migration SQL|—|FAIL|Any `DELETE FROM` statement in a `.sql` migration file|
+|`DROP` without expand-contract comment|—|WARN|`DROP COLUMN` / `DROP TABLE` without `-- expand-contract: contract phase` comment|
+|`CREATE INDEX` without `CONCURRENTLY` on existing table|—|WARN|`CREATE INDEX` targeting a table not created in the same file|
 
 ---
 
@@ -636,15 +636,15 @@ Never delete, rename, or modify a migration file after it has been applied to an
 
 These are the conventions every migration must satisfy, drawn directly from Part 11.9 of the Consolidated Architecture Reference.
 
-| Convention                       | Value                                                                                       |
-| -------------------------------- | ------------------------------------------------------------------------------------------- |
-| Primary keys                     | `UUID NOT NULL DEFAULT gen_random_uuid()` everywhere                                        |
-| Timestamps                       | `TIMESTAMPTZ` on every timestamp column                                                     |
-| Soft-delete                      | `deleted_at TIMESTAMPTZ` + `deleted_by UUID` on every entity table; no hard deletes         |
-| Tenant isolation                 | `city_id UUID NOT NULL` in all core entity tables                                           |
-| Cross-schema foreign keys        | Prohibited. Enforced by automated migration linting.                                        |
-| Sequences for document numbering | One PostgreSQL sequence per document series per year; not used for primary keys             |
-| Audit schema permissions         | `INSERT` only; `UPDATE` and `DELETE` revoked from the application DB role, set in migration |
+|Convention|Value|
+|---|---|
+|Primary keys|`UUID NOT NULL DEFAULT gen_random_uuid()` everywhere|
+|Timestamps|`TIMESTAMPTZ` on every timestamp column|
+|Soft-delete|`deleted_at TIMESTAMPTZ` + `deleted_by UUID` on every entity table; no hard deletes|
+|Tenant isolation|`city_id UUID NOT NULL` in all core entity tables|
+|Cross-schema foreign keys|Prohibited. Enforced by automated migration linting.|
+|Sequences for document numbering|One PostgreSQL sequence per document series per year; not used for primary keys|
+|Audit schema permissions|`INSERT` only; `UPDATE` and `DELETE` revoked from the application DB role, set in migration|
 
 ## Addendum — Migration-Owning Role Name
 
@@ -657,7 +657,6 @@ These are the conventions every migration must satisfy, drawn directly from Part
 **Decided by:** Development team (ratifying detail already specified in C1; no alternate name was under consideration).
 
 If this role is ever renamed, the change must be made consistently across:
-
 - C1 §3.16 (`CREATE ROLE` statement and DB roles list)
 - C1's `fn_get_next_sequence_value` `OWNER TO` statement
 - This document (C5) — migration runner configuration / connection role

@@ -2,14 +2,14 @@
 
 **[Unverified — no ADR template document (J5) was available at drafting time. This ADR follows the structure and conventions observed in the existing ADR-B2-1 through ADR-B2-7 series as documented in B2 §"Resolved ADRs," but has not been validated against J5's actual template. Revise structure if it conflicts with J5 once available.]**
 
-| Field                    | Value                                                                                          |
-| ------------------------ | ---------------------------------------------------------------------------------------------- |
-| **ADR ID**               | ADR-EVT-001                                                                                    |
-| **Title**                | Document Request Form Approval Modeling                                                        |
-| **Status**               | Resolved                                                                                       |
-| **Date**                 | June 2026                                                                                      |
-| **Decided by**           | Luke (stakeholder/architect decision)                                                          |
-| **Authoritative record** | `b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md` |
+|Field|Value|
+|---|---|
+|**ADR ID**|ADR-EVT-001|
+|**Title**|Document Request Form Approval Modeling|
+|**Status**|Resolved|
+|**Date**|June 2026|
+|**Decided by**|Luke (stakeholder/architect decision)|
+|**Authoritative record**|`b3-internal-domain-event-catalog-adrs/ADR-EVT-001-document-request-form-approval-modeling.md`|
 
 ## Context
 
@@ -28,7 +28,7 @@ This question was load-bearing for three open items in B3 (Internal Domain Event
 - A `workflow.definitions` row is authored for `DOCUMENT_REQUEST_FORM`, consistent with the pattern used for `SP_RESOLUTION`, `SP_ORDINANCE`, and `SP_APPROPRIATION_ORDINANCE`.
 - Two `approval` steps are chained by `workflow.transition_rules`: a Vice Mayor approval step, followed conditionally by an SP Secretary approval step.
 - Each step uses `allowed_outcomes: ['APPROVED', 'REJECTED']` — both already-defined outcome codes from B4 §4.2's existing 13-value list. No new per-step outcome codes are introduced.
-- Rejection at the Vice Mayor step routes directly to termination (does not proceed to the SP Secretary step). This is expressed entirely via the transition rule's `outcome_filter`, not via a distinct outcome code — `step_instances.actor_id` and the step's own `step_id` already distinguish _who_ rejected without needing actor-specific outcome codes.
+- Rejection at the Vice Mayor step routes directly to termination (does not proceed to the SP Secretary step). This is expressed entirely via the transition rule's `outcome_filter`, not via a distinct outcome code — `step_instances.actor_id` and the step's own `step_id` already distinguish *who* rejected without needing actor-specific outcome codes.
 - The workflow terminates via a `termination` step using two new outcome codes specific to this document type (see Consequences).
 - `document.created` for `DOCUMENT_REQUEST_FORM` now triggers `workflow.instance.created`, adding a fourth value to OI-13's `documentType` enum.
 
@@ -36,10 +36,10 @@ This question was load-bearing for three open items in B3 (Internal Domain Event
 
 **New `termination` outcome codes (extends B4 §4.6's table, additive only — no existing codes renamed or removed):**
 
-| Code                    | Meaning                                                                        |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `RELEASED_TO_REQUESTER` | Both VM and SP Secretary approved; requested document copy released to citizen |
-| `REQUEST_DENIED`        | Either approver rejected; request does not proceed                             |
+|Code|Meaning|
+|---|---|
+|`RELEASED_TO_REQUESTER`|Both VM and SP Secretary approved; requested document copy released to citizen|
+|`REQUEST_DENIED`|Either approver rejected; request does not proceed|
 
 Existing legislative-specific codes (`APPROVED_AND_RELEASED`, `REJECTED_AT_VOTE`, etc.) are not reused for this document type — they encode legislative-voting semantics ("at vote") that do not apply to a two-signature citizen request and would be misleading to any consumer branching on `outcomeCode` string values (`records`, `portal`, per B3 §7.2).
 

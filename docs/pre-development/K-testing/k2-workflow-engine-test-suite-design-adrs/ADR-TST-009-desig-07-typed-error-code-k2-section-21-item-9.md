@@ -1,5 +1,6 @@
 # ADR-TST-009: DESIG-07 Typed Error Code (K2 §21, item 9)
 
+
 **Decision:** Use `UNAUTHORIZED_DESIGNATION_ISSUER` as the proposed typed error code for a non-original-authority (e.g., Platform Admin) attempting to create a designation.
 
 **Decided by:** Claude, under the discretion Luke granted for naming a typed error consistent with the existing convention, where no source names one.

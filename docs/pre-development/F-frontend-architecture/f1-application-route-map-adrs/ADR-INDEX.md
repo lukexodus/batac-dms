@@ -5,18 +5,18 @@
 
 This index tracks the ten ADRs produced to resolve every item in F1 §14. Each ADR's full context, decision, rationale, consequences, and traceability live in its own file; this index is a navigation aid only.
 
-| ADR                                                          | Gap # | Title                                                                | Decided by                      |
-| ------------------------------------------------------------ | ----- | -------------------------------------------------------------------- | ------------------------------- |
-| [ADR-UI-001](ADR-UI-001-public-portal-hosting-app.md)        | 1     | Public Portal Hosting App                                            | Luke                            |
-| [ADR-UI-002](ADR-UI-002-tier2-config-crud-scope.md)          | 2     | Tier-2 Platform Admin Config CRUD — Pulled Into Phase 1              | Luke                            |
-| [ADR-UI-003](ADR-UI-003-retention-schedule-crud-scope.md)    | 3     | Retention Schedule Creation/Activation — Pulled Into Phase 1         | Luke                            |
-| [ADR-UI-004](ADR-UI-004-committee-list-procedure.md)         | 4     | Committee List/Read Procedure                                        | Claude (engineering convention) |
-| [ADR-UI-005](ADR-UI-005-single-record-read-procedures.md)    | 5     | `complaints`/`documentRequests` Single-Record Read Procedures        | Claude (engineering convention) |
-| [ADR-UI-006](ADR-UI-006-public-portal-announcements.md)      | 6     | Public Portal Announcements — Built in Phase 1                       | Luke                            |
-| [ADR-UI-007](ADR-UI-007-designation-document-type-phase1.md) | 7     | Designation Document Type — Pulled Into Phase 1                      | Luke                            |
-| [ADR-UI-008](ADR-UI-008-system-administrator-views.md)       | 8     | System Administrator — Dedicated Views Built in Phase 1              | Luke                            |
-| [ADR-UI-009](ADR-UI-009-portal-form-no-login.md)             | 9     | No Authenticated Account Required for Portal Request/Complaint Forms | Luke                            |
-| [ADR-UI-010](ADR-UI-010-workflow-step-route-key.md)          | 10    | Workflow Step Detail Route Keys on `instanceId`                      | Claude (engineering convention) |
+| ADR | Gap # | Title | Decided by |
+|---|---|---|---|
+| [ADR-UI-001](ADR-UI-001-public-portal-hosting-app.md) | 1 | Public Portal Hosting App | Luke |
+| [ADR-UI-002](ADR-UI-002-tier2-config-crud-scope.md) | 2 | Tier-2 Platform Admin Config CRUD — Pulled Into Phase 1 | Luke |
+| [ADR-UI-003](ADR-UI-003-retention-schedule-crud-scope.md) | 3 | Retention Schedule Creation/Activation — Pulled Into Phase 1 | Luke |
+| [ADR-UI-004](ADR-UI-004-committee-list-procedure.md) | 4 | Committee List/Read Procedure | Claude (engineering convention) |
+| [ADR-UI-005](ADR-UI-005-single-record-read-procedures.md) | 5 | `complaints`/`documentRequests` Single-Record Read Procedures | Claude (engineering convention) |
+| [ADR-UI-006](ADR-UI-006-public-portal-announcements.md) | 6 | Public Portal Announcements — Built in Phase 1 | Luke |
+| [ADR-UI-007](ADR-UI-007-designation-document-type-phase1.md) | 7 | Designation Document Type — Pulled Into Phase 1 | Luke |
+| [ADR-UI-008](ADR-UI-008-system-administrator-views.md) | 8 | System Administrator — Dedicated Views Built in Phase 1 | Luke |
+| [ADR-UI-009](ADR-UI-009-portal-form-no-login.md) | 9 | No Authenticated Account Required for Portal Request/Complaint Forms | Luke |
+| [ADR-UI-010](ADR-UI-010-workflow-step-route-key.md) | 10 | Workflow Step Detail Route Keys on `instanceId` | Claude (engineering convention) |
 
 ## Net effect on Phase 1 scope
 

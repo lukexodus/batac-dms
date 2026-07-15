@@ -1,5 +1,6 @@
 # ADR-GEN-002: Custom Workflow Engine over Off-the-Shelf BPM Solutions
 
+
 **Status:** Accepted **Date:** June 2026 **Deciders:** Development team
 
 ---

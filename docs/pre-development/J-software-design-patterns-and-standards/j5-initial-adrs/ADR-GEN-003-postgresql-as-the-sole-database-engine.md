@@ -1,5 +1,6 @@
 # ADR-GEN-003: PostgreSQL as the Sole Database Engine
 
+
 **Status:** Accepted **Date:** June 2026 **Deciders:** Development team
 
 ---

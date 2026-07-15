@@ -60,11 +60,11 @@ The consolidated reference §11.14 requires "1-year cold retention." Object Lock
 ```typescript
 // /infra/index.ts — excerpt for the B2 backup bucket
 // One-time setup: pulumi package add terraform-provider backblaze/b2
-import * as b2 from '@pulumi/b2'; // generated SDK name may differ — confirm after `pulumi package add`
+import * as b2 from "@pulumi/b2"; // generated SDK name may differ — confirm after `pulumi package add`
 
 const backupBucket = new b2.Bucket(`batac-backups-${stack}`, {
   bucketName: `batac-backups-${stack}`,
-  bucketType: 'allPrivate',
+  bucketType: "allPrivate",
   // Object Lock must be set at bucket-creation time — cannot be added later.
   // [Unverified] — confirm the generated `b2.Bucket` resource exposes a
   // `defaultRetention` or `objectLockEnabled` argument. If it does not,
@@ -79,7 +79,6 @@ const backupBucket = new b2.Bucket(`batac-backups-${stack}`, {
 ```
 
 If the Pulumi B2 provider does not expose Object Lock as a resource argument, the fallback is:
-
 1. Create the bucket manually in the B2 web console with Object Lock enabled (Compliance mode, 365-day default retention).
 2. `pulumi import` the bucket so Pulumi manages subsequent lifecycle-rule and policy changes.
 3. Document the manual step in `./tools/ops/bootstrap-host.sh` (L5 §11) so future reprovisioning does not silently create a bucket without Object Lock.

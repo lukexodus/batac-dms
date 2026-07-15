@@ -2,15 +2,15 @@
 
 ## F3 — TanStack Query Key Factory Specification — Pre-dev
 
-| Field           | Value                                                                                               |
-| --------------- | --------------------------------------------------------------------------------------------------- |
-| **Document ID** | F3                                                                                                  |
-| **Type**        | Frontend Query Cache Specification — `/web` Cache Key Contract                                      |
-| **Status**      | BLOCKING — Pre-Development Baseline                                                                 |
-| **Version**     | 1.0                                                                                                 |
-| **Date**        | June 2026                                                                                           |
+| Field           | Value                                                                                                    |
+| --------------- | -------------------------------------------------------------------------------------------------------- |
+| **Document ID** | F3                                                                                                       |
+| **Type**        | Frontend Query Cache Specification — `/web` Cache Key Contract                                           |
+| **Status**      | BLOCKING — Pre-Development Baseline                                                                      |
+| **Version**     | 1.0                                                                                                      |
+| **Date**        | June 2026                                                                                                |
 | **Based on**    | E1 (tRPC Router and Procedure Catalog), tech-stack (Stack Decisions), C1 (Full Database Schema DDL) |
-| **Audience**    | Frontend development team (`/apps/web`)                                                             |
+| **Audience**    | Frontend development team (`/apps/web`)                                                                  |
 
 ## Table of Contents
 
@@ -88,7 +88,9 @@ tRPC v11 (`@trpc/react-query`) generates query keys using:
 
 ```typescript
 function getQueryKey(path: string[], input: unknown, type: 'query' | 'infinite' | 'any') {
-  return input === undefined ? [[...path], { type }] : [[...path], { input, type }];
+  return input === undefined
+    ? [[...path], { type }]
+    : [[...path], { input, type }];
 }
 ```
 
@@ -128,11 +130,13 @@ export const iamKeys = {
   // Void input. Returns SubjectContext, effective roles, MFA status.
   // Invalidated by: updateOwnProfile, changeOwnPassword, assignRole, revokeRole,
   //                 createDesignationGrant, revokeDesignationGrantEarly.
-  currentUser: () => [['iam', 'getCurrentUser'], { type: 'query' as const }] as const,
+  currentUser: () =>
+    [['iam', 'getCurrentUser'], { type: 'query' as const }] as const,
 
   // ── iam.listActiveSessions ────────────────────────────────────────────────
   // Void input. Own sessions only. Callable by all 12 authenticated roles.
-  ownSessions: () => [['iam', 'listActiveSessions'], { type: 'query' as const }] as const,
+  ownSessions: () =>
+    [['iam', 'listActiveSessions'], { type: 'query' as const }] as const,
 
   // ── iam.listAllActiveSessions ─────────────────────────────────────────────
   // sys_admin only. Paginated. Procedure scope used for any-pagination invalidation.
@@ -148,7 +152,8 @@ export const iamKeys = {
     pageSize?: number;
     officeId?: string;
     search?: string;
-  }) => [['iam', 'listUserDirectory'], { input, type: 'query' as const }] as const,
+  }) =>
+    [['iam', 'listUserDirectory'], { input, type: 'query' as const }] as const,
 } as const;
 ```
 
@@ -180,8 +185,15 @@ export const orgKeys = {
   // ── organization.getDesignationHistory ────────────────────────────────────
   // Paginated + optional employeeId filter. Includes inactive / expired / revoked grants.
   designationHistories: () => [['organization', 'getDesignationHistory']] as const,
-  designationHistory: (input: { cursor?: string | null; pageSize?: number; employeeId?: string }) =>
-    [['organization', 'getDesignationHistory'], { input, type: 'query' as const }] as const,
+  designationHistory: (input: {
+    cursor?: string | null;
+    pageSize?: number;
+    employeeId?: string;
+  }) =>
+    [
+      ['organization', 'getDesignationHistory'],
+      { input, type: 'query' as const },
+    ] as const,
 } as const;
 ```
 
@@ -227,7 +239,8 @@ export const documentKeys = {
     officeId?: string;
     from?: Date | null;
     to?: Date | null;
-  }) => [['documents', 'list'], { input, type: 'query' as const }] as const,
+  }) =>
+    [['documents', 'list'], { input, type: 'query' as const }] as const,
 
   // ── documents.search ──────────────────────────────────────────────────────
   // PostgreSQL FTS in Phase 1. All search permutations share the procedure scope key.
@@ -240,7 +253,8 @@ export const documentKeys = {
     classificationLevels?: string[];
     from?: Date | null;
     to?: Date | null;
-  }) => [['documents', 'search'], { input, type: 'query' as const }] as const,
+  }) =>
+    [['documents', 'search'], { input, type: 'query' as const }] as const,
 
   // ── documents.getVersionHistory ───────────────────────────────────────────
   // Returns all versions for a document in upload order.
@@ -305,7 +319,10 @@ export const workflowKeys = {
   // Invalidated by every mutation that advances, completes, or reassigns a step.
   mySteps: () => [['workflow', 'listMyAssignedSteps']] as const,
   myStepsList: (input: { cursor?: string | null; pageSize?: number }) =>
-    [['workflow', 'listMyAssignedSteps'], { input, type: 'query' as const }] as const,
+    [
+      ['workflow', 'listMyAssignedSteps'],
+      { input, type: 'query' as const },
+    ] as const,
 
   // ── workflow.getSlaComplianceData ─────────────────────────────────────────
   // ARTA SLA report data. Filterable by office, document type, breach status, date range.
@@ -316,7 +333,11 @@ export const workflowKeys = {
     breachedOnly?: boolean;
     from?: Date | null;
     to?: Date | null;
-  }) => [['workflow', 'getSlaComplianceData'], { input, type: 'query' as const }] as const,
+  }) =>
+    [
+      ['workflow', 'getSlaComplianceData'],
+      { input, type: 'query' as const },
+    ] as const,
 } as const;
 ```
 
@@ -339,21 +360,33 @@ export const trackingKeys = {
   // Returns the QR tracking record for a document. Assigned at secretariat logging.
   records: () => [['tracking', 'getTrackingRecord']] as const,
   record: (documentId: string) =>
-    [['tracking', 'getTrackingRecord'], { input: { documentId }, type: 'query' as const }] as const,
+    [
+      ['tracking', 'getTrackingRecord'],
+      { input: { documentId }, type: 'query' as const },
+    ] as const,
 
   // ── tracking.printQrCoverSheet ────────────────────────────────────────────
   // Returns presigned PDF URL for QR cover sheets. Ephemeral — staleTime: 0, gcTime: 0.
   // Contains only three fields per Q-B02: QR Code, Tracking Number, Series Number.
   qrCoverSheets: () => [['tracking', 'printQrCoverSheet']] as const,
-  qrCoverSheet: (input: { documentIds: string[]; layout?: 'single' | 'multi_per_page' }) =>
-    [['tracking', 'printQrCoverSheet'], { input, type: 'query' as const }] as const,
+  qrCoverSheet: (input: {
+    documentIds: string[];
+    layout?: 'single' | 'multi_per_page';
+  }) =>
+    [
+      ['tracking', 'printQrCoverSheet'],
+      { input, type: 'query' as const },
+    ] as const,
 
   // ── tracking.getRoutingHistory ────────────────────────────────────────────
   // Append-only routing log for a document. Grows with each step completion
   // and explicit logRoutingEntry call.
   routingHistories: () => [['tracking', 'getRoutingHistory']] as const,
   routingHistory: (documentId: string) =>
-    [['tracking', 'getRoutingHistory'], { input: { documentId }, type: 'query' as const }] as const,
+    [
+      ['tracking', 'getRoutingHistory'],
+      { input: { documentId }, type: 'query' as const },
+    ] as const,
 
   // ── tracking.scanQrCodeAuthenticated ─────────────────────────────────────
   // Keyed by qrTrackingNumber (the UUID assigned at secretariat logging, independent
@@ -396,7 +429,10 @@ export const sessionKeys = {
   // Aggregated attendance counts over a date range. Backs the attendance graph.
   attendanceStats: () => [['session', 'getAttendanceStatistics']] as const,
   attendanceStat: (input: { from?: Date | null; to?: Date | null }) =>
-    [['session', 'getAttendanceStatistics'], { input, type: 'query' as const }] as const,
+    [
+      ['session', 'getAttendanceStatistics'],
+      { input, type: 'query' as const },
+    ] as const,
 
   // ── session.getOrderOfBusiness ────────────────────────────────────────────
   // Derived view over documents scheduled for a session. Defaults to next Tuesday.
@@ -404,8 +440,11 @@ export const sessionKeys = {
   orderOfBusinesses: () => [['session', 'getOrderOfBusiness']] as const,
   orderOfBusiness: (input?: { sessionDate?: Date }) =>
     input !== undefined
-      ? ([['session', 'getOrderOfBusiness'], { input, type: 'query' as const }] as const)
-      : ([['session', 'getOrderOfBusiness'], { type: 'query' as const }] as const),
+      ? [
+          ['session', 'getOrderOfBusiness'],
+          { input, type: 'query' as const },
+        ] as const
+      : [['session', 'getOrderOfBusiness'], { type: 'query' as const }] as const,
 } as const;
 ```
 
@@ -439,7 +478,10 @@ export const recordsKeys = {
   // In Phase 1, stored as a documents.metadata flag (Phase 2 dedicated column).
   legalHolds: () => [['records', 'isUnderLegalHold']] as const,
   legalHold: (documentId: string) =>
-    [['records', 'isUnderLegalHold'], { input: { documentId }, type: 'query' as const }] as const,
+    [
+      ['records', 'isUnderLegalHold'],
+      { input: { documentId }, type: 'query' as const },
+    ] as const,
 } as const;
 ```
 
@@ -460,12 +502,20 @@ export const notificationKeys = {
   // Own in-app notifications. Paginated + unreadOnly filter.
   // Invalidated by markAsRead. Receives new items via SSE push (no polling needed).
   mine: () => [['notifications', 'listMine']] as const,
-  mineList: (input: { cursor?: string | null; pageSize?: number; unreadOnly?: boolean }) =>
+  mineList: (input: {
+    cursor?: string | null;
+    pageSize?: number;
+    unreadOnly?: boolean;
+  }) =>
     [['notifications', 'listMine'], { input, type: 'query' as const }] as const,
 
   // ── notifications.getOwnPreferences ───────────────────────────────────────
   // Void input. Own notification channel preferences. Invalidated by updateOwnPreferences.
-  preferences: () => [['notifications', 'getOwnPreferences'], { type: 'query' as const }] as const,
+  preferences: () =>
+    [
+      ['notifications', 'getOwnPreferences'],
+      { type: 'query' as const },
+    ] as const,
 
   // ── notifications.listDeliveryLogs ────────────────────────────────────────
   // sys_admin and plat_admin only. All delivery records across all recipients.
@@ -475,7 +525,11 @@ export const notificationKeys = {
     pageSize?: number;
     from?: Date | null;
     to?: Date | null;
-  }) => [['notifications', 'listDeliveryLogs'], { input, type: 'query' as const }] as const,
+  }) =>
+    [
+      ['notifications', 'listDeliveryLogs'],
+      { input, type: 'query' as const },
+    ] as const,
 } as const;
 ```
 
@@ -502,7 +556,8 @@ export const auditKeys = {
     pageSize?: number;
     from?: Date | null;
     to?: Date | null;
-  }) => [['audit', 'listOwnActions'], { input, type: 'query' as const }] as const,
+  }) =>
+    [['audit', 'listOwnActions'], { input, type: 'query' as const }] as const,
 
   // ── audit.listOwnOfficeDocumentActions ────────────────────────────────────
   // Audit events scoped to the caller's effective offices. Paginated + date range.
@@ -514,7 +569,11 @@ export const auditKeys = {
     officeId?: string;
     from?: Date | null;
     to?: Date | null;
-  }) => [['audit', 'listOwnOfficeDocumentActions'], { input, type: 'query' as const }] as const,
+  }) =>
+    [
+      ['audit', 'listOwnOfficeDocumentActions'],
+      { input, type: 'query' as const },
+    ] as const,
 
   // ── audit.listFullLog ─────────────────────────────────────────────────────
   // auditor only. Unfiltered event log + inline chain validation status per batch.
@@ -526,15 +585,22 @@ export const auditKeys = {
     eventTypes?: string[];
     from?: Date | null;
     to?: Date | null;
-  }) => [['audit', 'listFullLog'], { input, type: 'query' as const }] as const,
+  }) =>
+    [['audit', 'listFullLog'], { input, type: 'query' as const }] as const,
 
   // ── audit.validateChainIntegrity ──────────────────────────────────────────
   // Walks the SHA-256 hash chain; flags the first broken link.
   // sys_admin and auditor only. Optional fromEventId to validate a subset.
   chainIntegrity: (input?: { fromEventId?: string }) =>
     input !== undefined
-      ? ([['audit', 'validateChainIntegrity'], { input, type: 'query' as const }] as const)
-      : ([['audit', 'validateChainIntegrity'], { type: 'query' as const }] as const),
+      ? [
+          ['audit', 'validateChainIntegrity'],
+          { input, type: 'query' as const },
+        ] as const
+      : [
+          ['audit', 'validateChainIntegrity'],
+          { type: 'query' as const },
+        ] as const,
 } as const;
 ```
 
@@ -561,7 +627,8 @@ export const complaintKeys = {
     cursor?: string | null;
     pageSize?: number;
     outcomeState?: 'pending_hearing' | 'received_seen' | 'dismissed' | 'resolved';
-  }) => [['complaints', 'listAll'], { input, type: 'query' as const }] as const,
+  }) =>
+    [['complaints', 'listAll'], { input, type: 'query' as const }] as const,
 } as const;
 ```
 
@@ -594,7 +661,10 @@ export const documentRequestKeys = {
   // All document requests visible to the caller. Paginated.
   lists: () => [['documentRequests', 'listAll']] as const,
   list: (input: { cursor?: string | null; pageSize?: number }) =>
-    [['documentRequests', 'listAll'], { input, type: 'query' as const }] as const,
+    [
+      ['documentRequests', 'listAll'],
+      { input, type: 'query' as const },
+    ] as const,
 } as const;
 ```
 
@@ -612,148 +682,148 @@ Prefer `utils.*` calls from the tRPC context (`trpc.useUtils()`) in mutation cal
 
 ### IAM Mutations
 
-| Mutation                                              | Same-module invalidation                                                        | Cross-module invalidation                                        |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `iam.updateOwnProfile`                                | `iamKeys.currentUser()`, `iamKeys.userDirectory()`                              | —                                                                |
-| `iam.changeOwnPassword`                               | `iamKeys.currentUser()`                                                         | —                                                                |
-| `iam.forceTerminateSession`                           | `iamKeys.allSessions()`                                                         | —                                                                |
-| `iam.createUserAccount`                               | `iamKeys.userDirectory()`                                                       | —                                                                |
-| `iam.editUserAccount(userId)`                         | `iamKeys.userDirectory()`, `iamKeys.currentUser()` if `userId = subject.userId` | —                                                                |
-| `iam.deactivateUserAccount` / `reactivateUserAccount` | `iamKeys.userDirectory()`                                                       | `orgKeys.officeHierarchy()` (active assignments change visually) |
-| `iam.assignRole(userId)`                              | `iamKeys.userDirectory()`, `iamKeys.currentUser()` if target is self            | —                                                                |
-| `iam.revokeRole(userId)`                              | `iamKeys.userDirectory()`, `iamKeys.currentUser()` if target is self            | —                                                                |
-| `iam.registerCitizenAccountClerkAssisted`             | `iamKeys.userDirectory()`                                                       | —                                                                |
+|Mutation|Same-module invalidation|Cross-module invalidation|
+|---|---|---|
+|`iam.updateOwnProfile`|`iamKeys.currentUser()`, `iamKeys.userDirectory()`|—|
+|`iam.changeOwnPassword`|`iamKeys.currentUser()`|—|
+|`iam.forceTerminateSession`|`iamKeys.allSessions()`|—|
+|`iam.createUserAccount`|`iamKeys.userDirectory()`|—|
+|`iam.editUserAccount(userId)`|`iamKeys.userDirectory()`, `iamKeys.currentUser()` if `userId = subject.userId`|—|
+|`iam.deactivateUserAccount` / `reactivateUserAccount`|`iamKeys.userDirectory()`|`orgKeys.officeHierarchy()` (active assignments change visually)|
+|`iam.assignRole(userId)`|`iamKeys.userDirectory()`, `iamKeys.currentUser()` if target is self|—|
+|`iam.revokeRole(userId)`|`iamKeys.userDirectory()`, `iamKeys.currentUser()` if target is self|—|
+|`iam.registerCitizenAccountClerkAssisted`|`iamKeys.userDirectory()`|—|
 
 ---
 
 ### Organization Mutations
 
-| Mutation                                                          | Same-module invalidation                                         | Cross-module invalidation                                                                                                 |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `organization.createOffice` / `updateOffice` / `deactivateOffice` | `orgKeys.officeHierarchy()`                                      | —                                                                                                                         |
-| `organization.createPosition` / `updatePosition`                  | `orgKeys.officeHierarchy()`                                      | —                                                                                                                         |
-| `organization.createEmployee` / `updateEmployee`                  | `orgKeys.officeHierarchy()`                                      | `iamKeys.userDirectory()`                                                                                                 |
-| `organization.assignEmployeeToPosition`                           | `orgKeys.officeHierarchy()`                                      | `iamKeys.userDirectory()`                                                                                                 |
-| `organization.createDesignationGrant`                             | `orgKeys.activeDesignations()`, `orgKeys.designationHistories()` | `iamKeys.currentUser()` (delegation context in SubjectContext changes), `workflowKeys.all()` (step routing is reassigned) |
-| `organization.revokeDesignationGrantEarly`                        | `orgKeys.activeDesignations()`, `orgKeys.designationHistories()` | `iamKeys.currentUser()`, `workflowKeys.all()`                                                                             |
-| `organization.createCommittee` / `updateCommittee`                | `orgKeys.officeHierarchy()`                                      | —                                                                                                                         |
-| `organization.assignCommitteeMembership`                          | `orgKeys.officeHierarchy()`                                      | `iamKeys.currentUser()` (committee_ids JWT claim changes at next token refresh)                                           |
+|Mutation|Same-module invalidation|Cross-module invalidation|
+|---|---|---|
+|`organization.createOffice` / `updateOffice` / `deactivateOffice`|`orgKeys.officeHierarchy()`|—|
+|`organization.createPosition` / `updatePosition`|`orgKeys.officeHierarchy()`|—|
+|`organization.createEmployee` / `updateEmployee`|`orgKeys.officeHierarchy()`|`iamKeys.userDirectory()`|
+|`organization.assignEmployeeToPosition`|`orgKeys.officeHierarchy()`|`iamKeys.userDirectory()`|
+|`organization.createDesignationGrant`|`orgKeys.activeDesignations()`, `orgKeys.designationHistories()`|`iamKeys.currentUser()` (delegation context in SubjectContext changes), `workflowKeys.all()` (step routing is reassigned)|
+|`organization.revokeDesignationGrantEarly`|`orgKeys.activeDesignations()`, `orgKeys.designationHistories()`|`iamKeys.currentUser()`, `workflowKeys.all()`|
+|`organization.createCommittee` / `updateCommittee`|`orgKeys.officeHierarchy()`|—|
+|`organization.assignCommitteeMembership`|`orgKeys.officeHierarchy()`|`iamKeys.currentUser()` (committee_ids JWT claim changes at next token refresh)|
 
 ---
 
 ### Document Mutations
 
-| Mutation                                              | Same-module invalidation                                                                 | Cross-module invalidation                                                                                                              |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `documents.create`                                    | `documentKeys.lists()`                                                                   | —                                                                                                                                      |
-| `documents.update(documentId)`                        | `documentKeys.detail(documentId)`, `documentKeys.lists()`                                | —                                                                                                                                      |
-| `documents.delete(documentId)`                        | `documentKeys.detail(documentId)`, `documentKeys.lists()`                                | —                                                                                                                                      |
-| `documents.cancel(documentId)`                        | `documentKeys.detail(documentId)`, `documentKeys.lists()`                                | `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`                                                                       |
-| `documents.submit(documentId)`                        | `documentKeys.detail(documentId)`, `documentKeys.lists()`                                | `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`, `trackingKeys.record(documentId)`, `sessionKeys.orderOfBusinesses()` |
-| `documents.assignPreliminaryNumber(documentId)`       | `documentKeys.detail(documentId)`, `documentKeys.lists()`                                | `sessionKeys.orderOfBusinesses()` (preliminary number appears in OOB view)                                                             |
-| `documents.assignFinalNumber(documentId)`             | `documentKeys.detail(documentId)`, `documentKeys.lists()`                                | —                                                                                                                                      |
-| `documents.logCertificationOfUrgency`                 | `documentKeys.detail(certifyingDocumentId)`                                              | For each `associatedMeasureId`: `workflowKeys.forDocument(id)`, `workflowKeys.mySteps()`, `sessionKeys.orderOfBusinesses()`            |
-| `documents.publishToPortal(documentId)`               | `documentKeys.detail(documentId)`                                                        | —                                                                                                                                      |
-| `documents.unpublishFromPortal(documentId)`           | `documentKeys.detail(documentId)`                                                        | —                                                                                                                                      |
-| `documents.archive(documentId)`                       | `documentKeys.detail(documentId)`, `documentKeys.lists()`                                | `recordsKeys.legalHold(documentId)`                                                                                                    |
-| `documents.requestUploadUrl`                          | — (presigned URL only; no state mutation)                                                | —                                                                                                                                      |
-| `documents.confirmUpload(documentId)`                 | `documentKeys.versionHistory(documentId)`                                                | `documentKeys.scanQuality(newVersionId)` — start polling until `ocr_processed = true`                                                  |
-| `documents.triggerManualReOcr(versionId)`             | `documentKeys.ocrTexts()`, `documentKeys.scanQualities()`                                | —                                                                                                                                      |
-| `documents.flagScannedBackForVerification(versionId)` | `documentKeys.versionHistory(parentDocumentId)`, `documentKeys.detail(parentDocumentId)` | —                                                                                                                                      |
-| `documents.acceptScannedBackAsOfficial(versionId)`    | `documentKeys.versionHistory(parentDocumentId)`, `documentKeys.detail(parentDocumentId)` | —                                                                                                                                      |
-| `documents.logSecretariatDecision(documentId)`        | `documentKeys.detail(documentId)`, `documentKeys.lists()`                                | `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`, `sessionKeys.orderOfBusinesses()`                                    |
+|Mutation|Same-module invalidation|Cross-module invalidation|
+|---|---|---|
+|`documents.create`|`documentKeys.lists()`|—|
+|`documents.update(documentId)`|`documentKeys.detail(documentId)`, `documentKeys.lists()`|—|
+|`documents.delete(documentId)`|`documentKeys.detail(documentId)`, `documentKeys.lists()`|—|
+|`documents.cancel(documentId)`|`documentKeys.detail(documentId)`, `documentKeys.lists()`|`workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`|
+|`documents.submit(documentId)`|`documentKeys.detail(documentId)`, `documentKeys.lists()`|`workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`, `trackingKeys.record(documentId)`, `sessionKeys.orderOfBusinesses()`|
+|`documents.assignPreliminaryNumber(documentId)`|`documentKeys.detail(documentId)`, `documentKeys.lists()`|`sessionKeys.orderOfBusinesses()` (preliminary number appears in OOB view)|
+|`documents.assignFinalNumber(documentId)`|`documentKeys.detail(documentId)`, `documentKeys.lists()`|—|
+|`documents.logCertificationOfUrgency`|`documentKeys.detail(certifyingDocumentId)`|For each `associatedMeasureId`: `workflowKeys.forDocument(id)`, `workflowKeys.mySteps()`, `sessionKeys.orderOfBusinesses()`|
+|`documents.publishToPortal(documentId)`|`documentKeys.detail(documentId)`|—|
+|`documents.unpublishFromPortal(documentId)`|`documentKeys.detail(documentId)`|—|
+|`documents.archive(documentId)`|`documentKeys.detail(documentId)`, `documentKeys.lists()`|`recordsKeys.legalHold(documentId)`|
+|`documents.requestUploadUrl`|— (presigned URL only; no state mutation)|—|
+|`documents.confirmUpload(documentId)`|`documentKeys.versionHistory(documentId)`|`documentKeys.scanQuality(newVersionId)` — start polling until `ocr_processed = true`|
+|`documents.triggerManualReOcr(versionId)`|`documentKeys.ocrTexts()`, `documentKeys.scanQualities()`|—|
+|`documents.flagScannedBackForVerification(versionId)`|`documentKeys.versionHistory(parentDocumentId)`, `documentKeys.detail(parentDocumentId)`|—|
+|`documents.acceptScannedBackAsOfficial(versionId)`|`documentKeys.versionHistory(parentDocumentId)`, `documentKeys.detail(parentDocumentId)`|—|
+|`documents.logSecretariatDecision(documentId)`|`documentKeys.detail(documentId)`, `documentKeys.lists()`|`workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`, `sessionKeys.orderOfBusinesses()`|
 
 ---
 
 ### Workflow Mutations
 
-| Mutation                                                     | Same-module invalidation                                                                            | Cross-module invalidation                                                                                       |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `workflow.completeActionStep(stepInstanceId)`                | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()` | `documentKeys.detail(documentId)`, `trackingKeys.routingHistory(documentId)`, `sessionKeys.orderOfBusinesses()` |
-| `workflow.approveStep(stepInstanceId)`                       | Same as `completeActionStep`                                                                        | Same as `completeActionStep`, additionally `documentKeys.lists()` (lifecycle state may change)                  |
-| `workflow.rejectStep(stepInstanceId)`                        | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()` | `documentKeys.detail(documentId)`, `trackingKeys.routingHistory(documentId)`                                    |
-| `workflow.returnStepForRevision(stepInstanceId)`             | Same as `rejectStep`                                                                                | Same as `rejectStep`                                                                                            |
-| `workflow.submitCommitteeReport(stepInstanceId)`             | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()` | `sessionKeys.orderOfBusinesses()` (red-flag status changes)                                                     |
-| `workflow.manuallyAdvanceMultiReferralStep(stepInstanceId)`  | Same as `submitCommitteeReport`                                                                     | `sessionKeys.orderOfBusinesses()` (override logged; absent committees stay red-flagged)                         |
-| `workflow.certifyAsPresidingOfficer(stepInstanceId)`         | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()` | `documentKeys.detail(documentId)`                                                                               |
-| `workflow.mayorSign(stepInstanceId)`                         | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()` | `documentKeys.detail(documentId)`, `documentKeys.lists()`                                                       |
-| `workflow.mayorVeto(stepInstanceId)`                         | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()` | `documentKeys.detail(documentId)`                                                                               |
-| `workflow.logMayorLapseConfirmation(stepInstanceId)`         | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`                           | `documentKeys.detail(documentId)`, `documentKeys.lists()`                                                       |
-| `workflow.recordVetoOverrideVote(stepInstanceId)`            | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()` | `documentKeys.detail(documentId)`                                                                               |
-| `workflow.logDocketingCompletion(stepInstanceId)`            | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()` | `documentKeys.detail(documentId)`                                                                               |
-| `workflow.recordPanlalawiganOutcome(stepInstanceId)`         | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`                           | `documentKeys.detail(documentId)`                                                                               |
-| `workflow.resolveValidInPart(documentId)`                    | `workflowKeys.forDocument(documentId)`                                                              | `documentKeys.detail(documentId)`                                                                               |
-| `workflow.confirmPanlalawiganDeemedApproved(stepInstanceId)` | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`                           | `documentKeys.detail(documentId)`, `documentKeys.lists()`                                                       |
-| `workflow.recordNewspaperPublicationDate(documentId)`        | — (writes to document metadata)                                                                     | `documentKeys.detail(documentId)`                                                                               |
-| `workflow.migrateInstanceToNewDefinitionVersion(instanceId)` | `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`                           | —                                                                                                               |
+|Mutation|Same-module invalidation|Cross-module invalidation|
+|---|---|---|
+|`workflow.completeActionStep(stepInstanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`|`documentKeys.detail(documentId)`, `trackingKeys.routingHistory(documentId)`, `sessionKeys.orderOfBusinesses()`|
+|`workflow.approveStep(stepInstanceId)`|Same as `completeActionStep`|Same as `completeActionStep`, additionally `documentKeys.lists()` (lifecycle state may change)|
+|`workflow.rejectStep(stepInstanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`|`documentKeys.detail(documentId)`, `trackingKeys.routingHistory(documentId)`|
+|`workflow.returnStepForRevision(stepInstanceId)`|Same as `rejectStep`|Same as `rejectStep`|
+|`workflow.submitCommitteeReport(stepInstanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`|`sessionKeys.orderOfBusinesses()` (red-flag status changes)|
+|`workflow.manuallyAdvanceMultiReferralStep(stepInstanceId)`|Same as `submitCommitteeReport`|`sessionKeys.orderOfBusinesses()` (override logged; absent committees stay red-flagged)|
+|`workflow.certifyAsPresidingOfficer(stepInstanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`|`documentKeys.detail(documentId)`|
+|`workflow.mayorSign(stepInstanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`|`documentKeys.detail(documentId)`, `documentKeys.lists()`|
+|`workflow.mayorVeto(stepInstanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`|`documentKeys.detail(documentId)`|
+|`workflow.logMayorLapseConfirmation(stepInstanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`|`documentKeys.detail(documentId)`, `documentKeys.lists()`|
+|`workflow.recordVetoOverrideVote(stepInstanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`|`documentKeys.detail(documentId)`|
+|`workflow.logDocketingCompletion(stepInstanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, `workflowKeys.mySteps()`|`documentKeys.detail(documentId)`|
+|`workflow.recordPanlalawiganOutcome(stepInstanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`|`documentKeys.detail(documentId)`|
+|`workflow.resolveValidInPart(documentId)`|`workflowKeys.forDocument(documentId)`|`documentKeys.detail(documentId)`|
+|`workflow.confirmPanlalawiganDeemedApproved(stepInstanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`|`documentKeys.detail(documentId)`, `documentKeys.lists()`|
+|`workflow.recordNewspaperPublicationDate(documentId)`|— (writes to document metadata)|`documentKeys.detail(documentId)`|
+|`workflow.migrateInstanceToNewDefinitionVersion(instanceId)`|`workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`|—|
 
 ---
 
 ### Tracking Mutations
 
-| Mutation                               | Same-module invalidation                                                     | Cross-module invalidation |
-| -------------------------------------- | ---------------------------------------------------------------------------- | ------------------------- |
-| `tracking.logRoutingEntry(documentId)` | `trackingKeys.routingHistory(documentId)`, `trackingKeys.record(documentId)` | —                         |
+|Mutation|Same-module invalidation|Cross-module invalidation|
+|---|---|---|
+|`tracking.logRoutingEntry(documentId)`|`trackingKeys.routingHistory(documentId)`, `trackingKeys.record(documentId)`|—|
 
 ---
 
 ### Session Mutations
 
-| Mutation                                              | Same-module invalidation                                               | Cross-module invalidation         |
-| ----------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------- |
-| `session.recordAttendance(sessionDate)`               | `sessionKeys.attendance(sessionDate)`, `sessionKeys.attendanceStats()` | —                                 |
-| `session.scheduleDocumentForFirstReading(documentId)` | `sessionKeys.orderOfBusinesses()`                                      | —                                 |
-| `session.enterCommitteeHearingDate(stepInstanceId)`   | `sessionKeys.orderOfBusinesses()`                                      | `workflowKeys.detail(instanceId)` |
+|Mutation|Same-module invalidation|Cross-module invalidation|
+|---|---|---|
+|`session.recordAttendance(sessionDate)`|`sessionKeys.attendance(sessionDate)`, `sessionKeys.attendanceStats()`|—|
+|`session.scheduleDocumentForFirstReading(documentId)`|`sessionKeys.orderOfBusinesses()`|—|
+|`session.enterCommitteeHearingDate(stepInstanceId)`|`sessionKeys.orderOfBusinesses()`|`workflowKeys.detail(instanceId)`|
 
 ---
 
 ### Records Mutations
 
-| Mutation                                     | Same-module invalidation                        | Cross-module invalidation                                              |
-| -------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
-| `records.applyRetentionSchedule(documentId)` | `recordsKeys.retentionSchedule(documentTypeId)` | —                                                                      |
-| `records.applyClassification(documentId)`    | —                                               | `documentKeys.detail(documentId)`, `recordsKeys.legalHold(documentId)` |
-| `records.placeLegalHold(documentId)`         | `recordsKeys.legalHold(documentId)`             | `documentKeys.detail(documentId)`                                      |
-| `records.removeLegalHold(documentId)`        | `recordsKeys.legalHold(documentId)`             | `documentKeys.detail(documentId)`                                      |
+|Mutation|Same-module invalidation|Cross-module invalidation|
+|---|---|---|
+|`records.applyRetentionSchedule(documentId)`|`recordsKeys.retentionSchedule(documentTypeId)`|—|
+|`records.applyClassification(documentId)`|—|`documentKeys.detail(documentId)`, `recordsKeys.legalHold(documentId)`|
+|`records.placeLegalHold(documentId)`|`recordsKeys.legalHold(documentId)`|`documentKeys.detail(documentId)`|
+|`records.removeLegalHold(documentId)`|`recordsKeys.legalHold(documentId)`|`documentKeys.detail(documentId)`|
 
 ---
 
 ### Notifications Mutations
 
-| Mutation                                   | Same-module invalidation         | Cross-module invalidation |
-| ------------------------------------------ | -------------------------------- | ------------------------- |
-| `notifications.markAsRead(notificationId)` | `notificationKeys.mine()`        | —                         |
-| `notifications.updateOwnPreferences`       | `notificationKeys.preferences()` | —                         |
+|Mutation|Same-module invalidation|Cross-module invalidation|
+|---|---|---|
+|`notifications.markAsRead(notificationId)`|`notificationKeys.mine()`|—|
+|`notifications.updateOwnPreferences`|`notificationKeys.preferences()`|—|
 
 ---
 
 ### Audit Mutations
 
-| Mutation             | Same-module invalidation                                                              | Cross-module invalidation |
-| -------------------- | ------------------------------------------------------------------------------------- | ------------------------- |
-| `audit.exportEvents` | — (export presigned URL; audit entries are append-only and not invalidated by export) | —                         |
+|Mutation|Same-module invalidation|Cross-module invalidation|
+|---|---|---|
+|`audit.exportEvents`|— (export presigned URL; audit entries are append-only and not invalidated by export)|—|
 
 ---
 
 ### Complaints Mutations
 
-| Mutation                                       | Same-module invalidation | Cross-module invalidation |
-| ---------------------------------------------- | ------------------------ | ------------------------- |
-| `complaints.createClerkAssisted`               | `complaintKeys.lists()`  | —                         |
-| `complaints.logAndAssign(complaintId)`         | `complaintKeys.all()`    | —                         |
-| `complaints.enterCommitteeReport(complaintId)` | `complaintKeys.all()`    | —                         |
-| `complaints.setOutcome(complaintId)`           | `complaintKeys.all()`    | —                         |
+|Mutation|Same-module invalidation|Cross-module invalidation|
+|---|---|---|
+|`complaints.createClerkAssisted`|`complaintKeys.lists()`|—|
+|`complaints.logAndAssign(complaintId)`|`complaintKeys.all()`|—|
+|`complaints.enterCommitteeReport(complaintId)`|`complaintKeys.all()`|—|
+|`complaints.setOutcome(complaintId)`|`complaintKeys.all()`|—|
 
 ---
 
 ### Document Request Mutations
 
-| Mutation                                                | Same-module invalidation      | Cross-module invalidation |
-| ------------------------------------------------------- | ----------------------------- | ------------------------- |
-| `documentRequests.createClerkAssisted`                  | `documentRequestKeys.lists()` | —                         |
-| `documentRequests.approveAsPresidingOfficer(requestId)` | `documentRequestKeys.lists()` | —                         |
-| `documentRequests.approveAsSecretary(requestId)`        | `documentRequestKeys.lists()` | —                         |
-| `documentRequests.releaseCopy(requestId)`               | `documentRequestKeys.lists()` | —                         |
+|Mutation|Same-module invalidation|Cross-module invalidation|
+|---|---|---|
+|`documentRequests.createClerkAssisted`|`documentRequestKeys.lists()`|—|
+|`documentRequests.approveAsPresidingOfficer(requestId)`|`documentRequestKeys.lists()`|—|
+|`documentRequests.approveAsSecretary(requestId)`|`documentRequestKeys.lists()`|—|
+|`documentRequests.releaseCopy(requestId)`|`documentRequestKeys.lists()`|—|
 
 ---
 

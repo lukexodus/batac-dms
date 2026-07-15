@@ -1,3 +1,4 @@
+
 ## Table of Contents
 
 - [L18–L71] Handoff: Workflow module frontend — state after TASK-WF-FE-001 — Baseline status of the workflow frontend module after implementing the task-inbox page.
@@ -17,19 +18,19 @@
 ## Handoff: Workflow module frontend — state after TASK-WF-FE-001
 
 ### Module status
-
 All eight backend/component modules (`iam`, `org`, `docs`, `track`, `audit`, `infra`, `ui`, `wf`) are finished on the backend side. On the frontend, the DOCS module pages are built (TASK-DOCS-020/021/022/023 — tRPC client+List, Intake, Detail). `rec`, `notif`, and `portal` have no backend yet — any frontend pieces for those should be built with disabled states, but they are not otherwise relevant to workflow-module work.
 
 TASK-WF-FE-001 (`MyAssignedStepsPage`, route `/workflow/steps`) is built. It is a task-inbox page: one row per workflow step assigned to the logged-in user, using `workflow.listMyAssignedSteps`, linking each row to `/workflow/steps/:instanceId`.
 
 **Task B (DONE):** `/workflow/steps/:instanceId` (`WorkflowStepActionPage`), the richer role-conditional action panel. It depends on rows carrying both `instanceId` and `stepInstanceId` (Task A's rows already carry both). Task B's full panel spec — Generic Action/Approval, VP Certification, Mayor Decision, Mayor Lapse Confirmation, Veto Override, Multi-Referral, Secretariat Decision, Docketing, Panlalawigan Outcome, Publication Date — is documented at `docs/pre-development/F-frontend-architecture/f1-application-route-map-v2.md`, lines 341–365 (§8.2).
 
-### Data contract (`workflow.listMyAssignedSteps`)
 
+
+### Data contract (`workflow.listMyAssignedSteps`)
 `apps/server/src/modules/workflow/workflow.router.ts`:
 
 - **Input** (shared `paginationInput`, lines 35–38): `{ cursor?: string | null, limit: number (1–100, default 50) }`
-- **Output** (lines 513–541):
+- **Output** (lines 513–541): 
   ```
   {
     items: Array<{
@@ -49,13 +50,11 @@ TASK-WF-FE-001 (`MyAssignedStepsPage`, route `/workflow/steps`) is built. It is 
 - Pagination `cursor` is a numeric-string **offset** into an in-memory-filtered array (lines 508–511), not a stable DB cursor — new rows inserted between requests can shift indices. This is a backend characteristic, not something to fix from the frontend. Same shape as `documents.list`.
 
 ### Routing key — settled (ADR-UI-010)
-
 `/workflow/steps/:instanceId` is keyed on **`instanceId`**, not `stepInstanceId`, because `workflow.getInstance` (Task B's loader) takes `instanceId` and returns `currentStepInstanceId`/`currentStepType` from it. `stepInstanceId` is carried in Task A's row data for Task B to consume later — Task A itself ignores it for routing.
 
 Reference: `docs/pre-development/F-frontend-architecture/f1-application-route-map-adrs/ADR-UI-010-workflow-step-route-key.md`.
 
 ### Frontend conventions in this codebase (for Task B and beyond)
-
 - tRPC client, auth, query client: `apps/web/src/lib/trpc.ts`, `apps/web/src/lib/auth-context.tsx`, `apps/web/src/lib/query-client.ts`.
 - Closest analogs for page structure: `apps/web/src/pages/documents/DocumentListPage.tsx` (paginated, role-scoped list) and `DocumentDetailPage.tsx` (per-action role gating via a local `hasRole(roles, ...allowed)` helper — relevant to Task B, which will likely need several fine-grained per-action gates the way DocumentDetailPage does, unlike Task A's single page-level gate).
 - `StatusBadge`, `WorkflowStepIndicator` — `packages/ui/src/components/domain/`. Note: `WorkflowStepIndicator` renders a full document's step sequence (props: `steps`, `currentStepId`) for a detail view — not a per-row label. It was not reusable for Task A's inbox rows; may or may not be relevant for Task B's detail view, worth checking against its actual shape before assuming either way.
@@ -64,7 +63,6 @@ Reference: `docs/pre-development/F-frontend-architecture/f1-application-route-ma
 - `@batac/ui` barrel exports `DocumentState`/`STATUS_META` — import from there if ever needed rather than redeclaring locally (a real bug elsewhere, `apps/web/src/lib/status-mapping.ts`, exists because of exactly that mistake — being fixed separately, not in scope here).
 
 ### Open items worth checking before/during Task B
-
 - Whether a `useWorkflow`-style hook file exists yet (did not exist as of Task A).
 - Whether Task B needs a shared `hasRole` helper (currently only exists as a local copy in `DocumentDetailPage.tsx`) — a second real consumer (Task B) is a natural point to extract it to something like `apps/web/src/lib/auth-helpers.ts`, if that seems warranted once you're in the code.
 - Two other not-yet-built dashboard pages (`SecretaryDashboardPage`'s "Queue" widget, `MayorDashboardPage`) are documented (F4, lines 356–364 and 397–402) as potential future consumers of `listMyAssignedSteps` with a mayor-action-specific filter. That filter parameter does not exist server-side today (input schema is cursor/limit only). Not required for Task B, but keep in mind if it affects how reusable any shared query hook should be.
@@ -88,6 +86,7 @@ Worth carrying forward because it affects how much weight the frontend's own pan
 - `documents.logSecretariatDecision` (`documents.router.ts`, lines 1508–1545) accepts `stepInstanceId` in its input schema but never references it in the handler body — confirmed, not a red herring. Send it anyway per schema; don't treat the apparent non-use as license to omit it.
 - `mayor_signature` as a `stepKey` value exists only in code-side allow-lists (`workflow.router.ts` lines 1308/1388, `workflow.policy.ts` line 147) — never in seed data. Support it in any panel-routing logic anyway; just don't expect to see it in current fixtures.
 
+
 ## Documentation correction applied
 
 The F1 §8.2 panel table and its intro sentence have been corrected to replace `step.name` with `step.stepKey` throughout (the real schema field, per `workflow.schema.ts` line 209), and the `'docketing'` row's `[Inference]` tag has been upgraded to `[Confirmed]` against `phase1-legislative.ts` line 145. This work is fully complete.
@@ -98,17 +97,17 @@ If the next task touches `workflow.getInstance`, `organization.listCommittees`, 
 
 Let me check the other two handoff docs first — you uploaded three files but only one showed up in the documents block.All three are on disk, but only `wf-fe-003-handoff.md` landed in my context window as text. Let me pull the other two directly.Let me get the truncated lines and the third doc.Good, got it all. Now the third doc.Now I have all three docs in full. Let me think through the filtering before writing anything, since you asked for the reasoning laid out rather than folded away.
 
-**What "TASK-WF-FE-003-only" actually means here.** The task is a single, narrow fix: swap `documents.logSecretariatDecision` for a Workflow-Router mutation, and swap `computePanelHint`'s role proxy for the office-scoped policy check. Anything whose only reason for existing is to justify, scope, or execute _that specific fix_ is task-only. Anything that's a standing fact about the codebase — a convention, a load-bearing gotcha, a tool/gap that will bite the next task too — survives regardless of which document it came from.
+**What "TASK-WF-FE-003-only" actually means here.** The task is a single, narrow fix: swap `documents.logSecretariatDecision` for a Workflow-Router mutation, and swap `computePanelHint`'s role proxy for the office-scoped policy check. Anything whose only reason for existing is to justify, scope, or execute *that specific fix* is task-only. Anything that's a standing fact about the codebase — a convention, a load-bearing gotcha, a tool/gap that will bite the next task too — survives regardless of which document it came from.
 
 **The harder calls, and how I resolved them:**
 
-- `submitStepAction`'s three hardcoded `'DONE'` sites, and the fact that `approveStep` calls a _different_ sibling (`submitStepApproval`) rather than sharing `submitStepAction` with `completeActionStep` — I'm keeping this. It reads like WF-FE-003 trivia, but it's actually a durable fact about the workflow engine's outcome-handling architecture: the engine has two non-interchangeable step-completion primitives, one hardcoded-outcome and one outcome-validated-against-per-step-config, and this distinction will matter to _any_ future task touching step completion, not just this one.
+- `submitStepAction`'s three hardcoded `'DONE'` sites, and the fact that `approveStep` calls a *different* sibling (`submitStepApproval`) rather than sharing `submitStepAction` with `completeActionStep` — I'm keeping this. It reads like WF-FE-003 trivia, but it's actually a durable fact about the workflow engine's outcome-handling architecture: the engine has two non-interchangeable step-completion primitives, one hardcoded-outcome and one outcome-validated-against-per-step-config, and this distinction will matter to *any* future task touching step completion, not just this one.
 - `fetchStepContext`, the `workflowPolicy` accessor name (not `guard`), the `getXService(ctx)` factory convention, `SP_SECRETARIAT_OFFICE_CODE`'s local-redeclaration pattern — all kept. These are how-things-are-wired-in-this-codebase facts, reusable well past this one panel.
 - The `AMENDED` outcome gap, the sync/async tension in `computePanelHint`, the dual event-emission mechanism (`createWorkflowEvent` vs `eventBus.emit`) — kept, but reframed as standing architectural gotchas rather than "decisions you must make for this task," since the task-specific decision-making framing is now moot (it's implemented).
 - The `AGENTS.md` three-tier hierarchy, the append-only findings-log rule, the "match the target file's prose convention" rule, the `.bak` file rule — all kept. These are project-wide governance/authoring rules that will apply to every future task, not just this one.
-- Everything about _why FE-003 was chosen as the next task over test coverage_, the LOG-0078/LOG-0079 narrative, the "prior document claimed X but was wrong" reconciliation trail, the exact line numbers of the bug being replaced, the acceptance criteria, the validation checklist — all cut. That's the deliberation and paper trail for a task that's done; none of it is reusable frontend knowledge.
+- Everything about *why FE-003 was chosen as the next task over test coverage*, the LOG-0078/LOG-0079 narrative, the "prior document claimed X but was wrong" reconciliation trail, the exact line numbers of the bug being replaced, the acceptance criteria, the validation checklist — all cut. That's the deliberation and paper trail for a task that's done; none of it is reusable frontend knowledge.
 - Test infrastructure state (Vitest installed but no `test` script, no Playwright, one existing unit test) — I went back and forth on this one. It's phrased in the docs as "context for the next task," but it's really a standing fact about frontend tooling readiness that's true independent of WF-FE-003 and will matter whenever anyone next reaches for tests. Keeping it, generalized.
-- The specific 12-step secretariat*decision panel mechanics, `SecretariatDecisionPanel.tsx`'s specific stale comment and toast bug — cut, because that panel's fix is done and the file-specific state has moved on. But the \_pattern* it exposed (mutation succeeds silently / unconditional success toast masking real failures) is worth keeping as a general frontend gotcha, since it's exactly the kind of bug that recurs across panels.
+- The specific 12-step secretariat_decision panel mechanics, `SecretariatDecisionPanel.tsx`'s specific stale comment and toast bug — cut, because that panel's fix is done and the file-specific state has moved on. But the *pattern* it exposed (mutation succeeds silently / unconditional success toast masking real failures) is worth keeping as a general frontend gotcha, since it's exactly the kind of bug that recurs across panels.
 
 Here's the consolidated doc:
 
@@ -135,7 +134,7 @@ Here's the consolidated doc:
 - `resolveNextStep` itself is fully outcome-aware (`outcome: string | null` param feeding `evaluateTransitionRules`) — outcome-based branching genuinely exists at the engine layer; it's the two step-completion wrappers above that differ in whether they expose it.
 - **Two separate, independent event-recording mechanisms exist per mutation call**, and both need the real outcome or the event misreports it even after an internal fix:
   1. `workflowRepository.createWorkflowEvent` — DB-persisted, written inside the transaction, inside the step-completion handler itself.
-  2. `server.eventBus.emit('workflow.step.completed', ...)` — in-process, emitted separately at the **router/caller level**, _after_ the transaction commits. Confirmed dotted event name (`workflow.step.completed`, not `workflow.step_completed` — an earlier doc inconsistency, now corrected repo-wide).
+  2. `server.eventBus.emit('workflow.step.completed', ...)` — in-process, emitted separately at the **router/caller level**, *after* the transaction commits. Confirmed dotted event name (`workflow.step.completed`, not `workflow.step_completed` — an earlier doc inconsistency, now corrected repo-wide).
 - Any new step-completion mutation should model itself on `submitStepApproval` (outcome-aware) rather than `submitStepAction` (hardcoded) if it needs more than a single fixed outcome — and must independently pass the real outcome into its own router-level `eventBus.emit` payload, not just fix the internal handler.
 - **Standing gotcha:** if a step type's frontend decision options don't have a 1:1 match in that step's seed-data `allowed_outcomes` array, outcome-validated mutations will hard-fail on submission for that option. Worth checking seed data whenever wiring a new decision/outcome value into a panel, not just assuming the option is representable.
 
@@ -143,7 +142,7 @@ Here's the consolidated doc:
 
 - **`fetchStepContext(stepInstanceId, ctx)`** is the standard entry pattern for step-scoped mutations — returns `{ stepInstance, step, instance, stepAttrs }` in one call. `stepAttrs.assigneeOfficeId` is already extracted here, pulled from `stepInstances.assignedTo`'s JSONB `office_id` field. Use this on the **mutation/write side** — no extra query needed for the step's own assignee office.
 - **Display-side queries** (e.g. anything computing a panel hint before a mutation is attempted) may already select the raw `assignedTo` JSONB without extracting `office_id` from it yet — check before assuming a new column/join is needed. The JSONB shape is `Array<{ user_id?: string; office_id?: string }>`.
-- **Resolving a _named_ office's own ID** (e.g. "the SP Secretariat office"): `getOrgService(ctx).getOfficeByCode(OFFICE_CODE, subject.cityId)`. **Distinguish two different comparisons that are easy to conflate:**
+- **Resolving a *named* office's own ID** (e.g. "the SP Secretariat office"): `getOrgService(ctx).getOfficeByCode(OFFICE_CODE, subject.cityId)`. **Distinguish two different comparisons that are easy to conflate:**
   - Checking the **acting subject's own office membership** — resolve the office, then check if its ID is in `subject.effectiveOfficeIds`.
   - Checking a **step's assignee office** — resolve the office, then compare its ID directly against `stepAttrs.assigneeOfficeId` (or the display-side JSONB-extracted equivalent). These are not the same check; a precedent using one is not a template for the other.
 - Office code constants (e.g. `'SPS'` for SP Secretariat) are currently **locally redeclared per-file**, not imported from a shared module — matches an established (if not ideal) repo convention. Introducing a shared constant is an optional improvement, not something to assume is wanted.

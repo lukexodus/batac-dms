@@ -1,5 +1,6 @@
 # ADR-TST-007: MISSING_OUTCOME_TRANSITION` Publish-Time Validation Test (K2 §21, item 7)
 
+
 **Decision:** Add a dedicated publish-time validation test asserting that a definition version containing an `approval` step where some outcome code in `config.allowed_outcomes` has neither a matching outgoing transition rule (`outcome_filter` equal to that code) nor a default unconditional transition rule is rejected at publish time with `MISSING_OUTCOME_TRANSITION`.
 
 **Decided by:** Claude — same reasoning as ADR-TST-005/06: B4 §4.2 fully specifies the behavior ("Every outcome code in `config.allowed_outcomes` must have at least one outgoing transition rule with a matching `outcome_filter`, or a default unconditional transition must exist... rejected at publish time with `MISSING_OUTCOME_TRANSITION`"). This is broader than the `LAPSED`-specific case in ADR-TST-006 — it is the general coverage rule, of which `MISSING_LAPSE_TRANSITION` is a special case for one particular outcome code.

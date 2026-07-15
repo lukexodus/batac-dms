@@ -5,7 +5,6 @@
 **Status:** DRAFT — pre-development proposal, not yet reviewed or approved. Updated to reflect [ADR-001 through ADR-010](./f1-application-route-map-adrs/ADR-INDEX.md) and [ADR-011 through ADR-016](./f2-zustand-store-design-adrs/ADR-UI-011-f2-propagation-of-f1-adrs.md).
 **Date:** June 2026 (v3 revision: 2026-06-19)
 **Based on:**
-
 - F1 v2 — `f1-application-route-map-v2.md`
 - E3 — `e3-shared-zod-schema-catalog.md`
 - Stack Context — `tech-stack.md`
@@ -55,21 +54,21 @@ This boundary is the most important constraint in this document. Violating it cr
 
 **Zustand owns UI state. TanStack Query owns server state.**
 
-| Belongs in Zustand                                          | Belongs in TanStack Query                           |
-| ----------------------------------------------------------- | --------------------------------------------------- |
-| Modal open/closed                                           | Document list results                               |
-| Which modal is showing and its local payload                | Workflow instance data                              |
-| Sidebar collapsed/expanded                                  | Session attendance records                          |
-| Multi-step form current step index                          | Notification event list                             |
-| Multi-step form draft field values (pre-submit)             | User profile                                        |
-| Active auth session identity (decoded from cookie on login) | Role assignments                                    |
-| Notification drawer open/closed                             | SSE-delivered notification payloads (after receipt) |
-| QR scanner overlay open/closed                              | Committee list                                      |
-| Upload progress percentage (transient UI feedback)          | Dashboard aggregates                                |
-| Step-action panel which sub-panel is showing                | Order of Business items                             |
-| Attendance recording buffer before batch submission         | Panlalawigan review status                          |
+| Belongs in Zustand | Belongs in TanStack Query |
+|---|---|
+| Modal open/closed | Document list results |
+| Which modal is showing and its local payload | Workflow instance data |
+| Sidebar collapsed/expanded | Session attendance records |
+| Multi-step form current step index | Notification event list |
+| Multi-step form draft field values (pre-submit) | User profile |
+| Active auth session identity (decoded from cookie on login) | Role assignments |
+| Notification drawer open/closed | SSE-delivered notification payloads (after receipt) |
+| QR scanner overlay open/closed | Committee list |
+| Upload progress percentage (transient UI feedback) | Dashboard aggregates |
+| Step-action panel which sub-panel is showing | Order of Business items |
+| Attendance recording buffer before batch submission | Panlalawigan review status |
 
-`[Inference]` The SSE connection itself is a special case: the server pushes `NotificationEvent` payloads (E3 Part 9) via SSE. The notification _list_ — the full, persisted, paginated set of notifications — belongs in TanStack Query via `notifications.listMine`. The _drawer open/closed state_ and the _unread count badge_ (an ephemeral UI counter incremented on each incoming SSE event before the user opens the drawer) belong in Zustand. When the user opens the drawer, TanStack Query takes over and the Zustand unread counter is reset. This split is the correct design; it is elaborated in Store 4.
+`[Inference]` The SSE connection itself is a special case: the server pushes `NotificationEvent` payloads (E3 Part 9) via SSE. The notification *list* — the full, persisted, paginated set of notifications — belongs in TanStack Query via `notifications.listMine`. The *drawer open/closed state* and the *unread count badge* (an ephemeral UI counter incremented on each incoming SSE event before the user opens the drawer) belong in Zustand. When the user opens the drawer, TanStack Query takes over and the Zustand unread counter is reset. This split is the correct design; it is elaborated in Store 4.
 
 `[Inference]` Active auth identity (user ID, display name, role codes, office scope) is decoded from the initial login response and kept in Zustand for synchronous access in guards, headers, and ABAC checks without triggering a network round-trip. It is not a cache of server state — it is the single decoded representation of the session that arrived via HTTP-only cookie + `AuthResponseSchema`. When the cookie expires or is invalidated, the store is cleared and the user is redirected to login. TanStack Query is not used for this because ABAC guards need synchronous reads inside route protection logic.
 
@@ -77,19 +76,19 @@ This boundary is the most important constraint in this document. Violating it cr
 
 ## 2. Store Inventory
 
-| #   | Store                           | Primary concern                                           |
-| --- | ------------------------------- | --------------------------------------------------------- |
-| 1   | `useShellStore`                 | App shell layout: sidebar open/collapsed, active nav item |
-| 2   | `useSessionStore`               | Decoded auth identity for the active authenticated user   |
-| 3   | `useModalStore`                 | Global modal stack: which modal is open, its payload      |
-| 4   | `useNotificationDrawerStore`    | Notification drawer open/closed; ephemeral unread counter |
-| 5   | `useDocumentIntakeStore`        | Multi-step document intake form (log a new document)      |
-| 6   | `useWorkflowActionStore`        | Transient state for the workflow step action panel        |
-| 7   | `useComplaintIntakeStore`       | Clerk-assisted complaint intake multi-step form           |
-| 8   | `useDocumentRequestIntakeStore` | Clerk-assisted document request intake multi-step form    |
-| 9   | `useQrScannerStore`             | QR scan overlay open/closed and last scan result          |
-| 10  | `useOrderOfBusinessStore`       | Pending scheduling changes before committing to server    |
-| 11  | `useAttendanceStore`            | Attendance-recording buffer for one session               |
+| # | Store | Primary concern |
+|---|---|---|
+| 1 | `useShellStore` | App shell layout: sidebar open/collapsed, active nav item |
+| 2 | `useSessionStore` | Decoded auth identity for the active authenticated user |
+| 3 | `useModalStore` | Global modal stack: which modal is open, its payload |
+| 4 | `useNotificationDrawerStore` | Notification drawer open/closed; ephemeral unread counter |
+| 5 | `useDocumentIntakeStore` | Multi-step document intake form (log a new document) |
+| 6 | `useWorkflowActionStore` | Transient state for the workflow step action panel |
+| 7 | `useComplaintIntakeStore` | Clerk-assisted complaint intake multi-step form |
+| 8 | `useDocumentRequestIntakeStore` | Clerk-assisted document request intake multi-step form |
+| 9 | `useQrScannerStore` | QR scan overlay open/closed and last scan result |
+| 10 | `useOrderOfBusinessStore` | Pending scheduling changes before committing to server |
+| 11 | `useAttendanceStore` | Attendance-recording buffer for one session |
 
 ---
 
@@ -129,12 +128,12 @@ Each file exports exactly one named hook (e.g. `useShellStore`). The barrel `ind
 ```typescript
 interface ShellState {
   // Sidebar
-  sidebarOpen: boolean; // mobile: drawer open/closed
-  sidebarCollapsed: boolean; // desktop: collapsed to icon-only rail
+  sidebarOpen: boolean;         // mobile: drawer open/closed
+  sidebarCollapsed: boolean;    // desktop: collapsed to icon-only rail
 
   // Active navigation
   activeNavItem: string | null; // route path of the currently highlighted nav item
-  // e.g. "/secretary", "/documents", "/workflow/steps"
+                                // e.g. "/secretary", "/documents", "/workflow/steps"
 }
 ```
 
@@ -171,7 +170,7 @@ interface ShellActions {
 **Concern:** The decoded identity of the currently authenticated user, available synchronously to all route guards, ABAC checks, and UI rendering decisions throughout the app.
 
 `[Confirmed — Stack Context auth pattern: "Short-lived JWT + server-side refresh tokens + HTTP-only cookies — Never localStorage"]`
-`[Confirmed — E3 Part 2: `AuthResponseSchema`carries`user: UserSelectSchema`, `sessionId: UuidSchema`, `expiresAt: TimestampSchema`]`
+`[Confirmed — E3 Part 2: `AuthResponseSchema` carries `user: UserSelectSchema`, `sessionId: UuidSchema`, `expiresAt: TimestampSchema`]`
 `[Confirmed — Consolidated Reference Part 11.1: auth token delivered via HTTP-only cookies; PKCE for the SPA]`
 `[Confirmed — F1 §2.2: role codes list; roles determine gate access throughout the route map]`
 
@@ -183,20 +182,20 @@ interface ShellActions {
 // Mirrors the identity payload from AuthResponseSchema (E3 Part 2)
 // plus the role/office data resolved after login
 interface ActiveUserIdentity {
-  userId: string; // UUID
+  userId: string;                      // UUID
   username: string;
-  displayName: string; // computed from employee first+last, or username fallback
-  sessionId: string; // UUID from AuthResponseSchema
-  expiresAt: string; // ISO 8601; used to detect expiry client-side
-  roleCodes: string[]; // e.g. ["sp_secretary"], ["dept_encoder"], etc.
-  officeScopeId: string | null; // UUID of the office this role is scoped to
-  officeCode: string | null; // e.g. "SP_SEC", for display in headers
+  displayName: string;                 // computed from employee first+last, or username fallback
+  sessionId: string;                   // UUID from AuthResponseSchema
+  expiresAt: string;                   // ISO 8601; used to detect expiry client-side
+  roleCodes: string[];                 // e.g. ["sp_secretary"], ["dept_encoder"], etc.
+  officeScopeId: string | null;        // UUID of the office this role is scoped to
+  officeCode: string | null;           // e.g. "SP_SEC", for display in headers
 }
 
 interface SessionState {
   identity: ActiveUserIdentity | null; // null = unauthenticated
-  isHydrated: boolean; // true once the store has checked initial session
-  // (prevents flash-of-unauthenticated on mount)
+  isHydrated: boolean;                 // true once the store has checked initial session
+                                       // (prevents flash-of-unauthenticated on mount)
 }
 ```
 
@@ -205,8 +204,8 @@ interface SessionState {
 ```typescript
 interface SessionActions {
   setIdentity: (identity: ActiveUserIdentity) => void;
-  clearIdentity: () => void; // called on logout or session expiry
-  setHydrated: () => void; // called once on app mount after initial auth check
+  clearIdentity: () => void;           // called on logout or session expiry
+  setHydrated: () => void;             // called once on app mount after initial auth check
 }
 ```
 
@@ -237,34 +236,24 @@ interface SessionActions {
 ```typescript
 // Modal payload union — each variant is a separate modal surface in the app
 type ModalPayload =
-  | {
-      type: 'CONFIRM_ACTION';
-      title: string;
-      message: string;
-      onConfirm: () => void;
-      onCancel?: () => void;
-    }
-  | { type: 'CANCEL_DOCUMENT'; documentId: string; documentTitle: string }
-  | { type: 'ASSIGN_FINAL_NUMBER'; documentId: string; preliminaryNumber: string }
-  | { type: 'LOG_SIGNATURE'; documentId: string; signatureType: string } // SignatureTypeSchema values
-  | { type: 'LOG_SECRETARIAT_DECISION'; documentId: string; stepInstanceId: string }
-  | { type: 'UPLOAD_NEW_VERSION'; documentId: string }
-  | { type: 'UPLOAD_ATTACHMENT'; documentId: string; attachmentType: string } // AttachmentTypeSchema values
-  | { type: 'LOG_CERTIFICATION_OF_URGENCY'; stepInstanceId: string }
-  | { type: 'PANLALAWIGAN_OUTCOME'; documentId: string; reviewId: string }
-  | { type: 'BYPASS_MULTI_REFERRAL'; stepInstanceId: string }
-  | { type: 'REVOKE_DELEGATION'; delegationGrantId: string; delegatedToDisplayName: string }
-  | { type: 'CONFIRM_BULK_ARCHIVE'; documentIds: string[]; previewItemCount: number }
-  | { type: 'PLACE_LEGAL_HOLD'; documentId: string }
-  | { type: 'REMOVE_LEGAL_HOLD'; documentId: string }
-  | { type: 'PRINT_QR_COVER_SHEET'; documentId: string; trackingNumber: string }
-  | {
-      type: 'OCR_RESCAN_PROMPT';
-      documentId: string;
-      versionId: string;
-      qualityCategory: 'fair' | 'poor';
-    }
-  | { type: 'SESSION_TIMEOUT_WARNING'; secondsRemaining: number };
+  | { type: "CONFIRM_ACTION";        title: string; message: string; onConfirm: () => void; onCancel?: () => void; }
+  | { type: "CANCEL_DOCUMENT";       documentId: string; documentTitle: string; }
+  | { type: "ASSIGN_FINAL_NUMBER";   documentId: string; preliminaryNumber: string; }
+  | { type: "LOG_SIGNATURE";         documentId: string; signatureType: string; }  // SignatureTypeSchema values
+  | { type: "LOG_SECRETARIAT_DECISION"; documentId: string; stepInstanceId: string; }
+  | { type: "UPLOAD_NEW_VERSION";    documentId: string; }
+  | { type: "UPLOAD_ATTACHMENT";     documentId: string; attachmentType: string; }  // AttachmentTypeSchema values
+  | { type: "LOG_CERTIFICATION_OF_URGENCY"; stepInstanceId: string; }
+  | { type: "PANLALAWIGAN_OUTCOME";  documentId: string; reviewId: string; }
+  | { type: "BYPASS_MULTI_REFERRAL"; stepInstanceId: string; }
+  | { type: "REVOKE_DELEGATION";     delegationGrantId: string; delegatedToDisplayName: string; }
+  | { type: "CONFIRM_BULK_ARCHIVE";  documentIds: string[]; previewItemCount: number; }
+  | { type: "PLACE_LEGAL_HOLD";      documentId: string; }
+  | { type: "REMOVE_LEGAL_HOLD";     documentId: string; }
+  | { type: "PRINT_QR_COVER_SHEET";  documentId: string; trackingNumber: string; }
+  | { type: "OCR_RESCAN_PROMPT";     documentId: string; versionId: string; qualityCategory: "fair" | "poor"; }
+  | { type: "SESSION_TIMEOUT_WARNING"; secondsRemaining: number; }
+  ;
 ```
 
 ### State shape
@@ -282,8 +271,8 @@ interface ModalState {
 ```typescript
 interface ModalActions {
   openModal: (payload: ModalPayload) => void;
-  closeModal: () => void; // pops the top of the stack
-  closeAllModals: () => void; // clears the entire stack
+  closeModal: () => void;              // pops the top of the stack
+  closeAllModals: () => void;          // clears the entire stack
   replaceModal: (payload: ModalPayload) => void; // replaces the top item (prevents flash)
 }
 ```
@@ -338,7 +327,7 @@ interface NotificationDrawerState {
 
 ```typescript
 interface NotificationDrawerActions {
-  openDrawer: () => void; // also resets newArrivalCount to 0
+  openDrawer: () => void;              // also resets newArrivalCount to 0
   closeDrawer: () => void;
   toggleDrawer: () => void;
   onSseNotificationReceived: (event: {
@@ -346,8 +335,8 @@ interface NotificationDrawerActions {
     title: string;
     body: string;
     referenceId: string | null;
-  }) => void; // increments newArrivalCount; sets lastIncomingEvent
-  resetNewArrivalCount: () => void; // called when drawer opens
+  }) => void;                          // increments newArrivalCount; sets lastIncomingEvent
+  resetNewArrivalCount: () => void;    // called when drawer opens
 }
 ```
 
@@ -367,11 +356,11 @@ The full notification list, pagination state, and read/unread status of individu
 
 ## 8. Store 5 — `useDocumentIntakeStore`
 
-**Concern:** Multi-step document intake form state. `[Confirmed — Stack Context: "UI state (frontend): Zustand — multi-step form state"]` `[Confirmed — F1 §7.2: `/documents/new`—`DocumentIntakeFormPage`]`
+**Concern:** Multi-step document intake form state. `[Confirmed — Stack Context: "UI state (frontend): Zustand — multi-step form state"]` `[Confirmed — F1 §7.2: `/documents/new` — `DocumentIntakeFormPage`]`
 
 The document intake form is the most complex multi-step flow in Phase 1. It creates a new document record, assigns document type and metadata, handles file upload via pre-signed URL, and optionally triggers OCR. The form spans multiple steps that each map to distinct server operations; intermediate state must survive navigation between steps without being re-fetched.
 
-`[Confirmed — E3 Part 4: `LogDocumentInputSchema`; `PresignedUploadRequestSchema`/`PresignedUploadResponseSchema`; `DocumentMetadataSchema`discriminated union by`\_\_type`]`
+`[Confirmed — E3 Part 4: `LogDocumentInputSchema`; `PresignedUploadRequestSchema`/`PresignedUploadResponseSchema`; `DocumentMetadataSchema` discriminated union by `__type`]`
 `[Confirmed — E3 Part 5: per-document-type metadata schemas for SP_RESOLUTION, SP_ORDINANCE, APPROPRIATION_ORDINANCE, CITIZEN_COMPLAINT, DOCUMENT_REQUEST_FORM, CERTIFICATION_OF_URGENCY]`
 
 ### Steps
@@ -393,13 +382,13 @@ type DocumentIntakeStep = 1 | 2 | 3 | 4 | 5;
 
 // File upload tracking — separate from form data because upload is async
 interface FileUploadState {
-  file: File | null; // the File object from the file picker
-  s3Key: string | null; // set after presigned URL upload completes
+  file: File | null;                   // the File object from the file picker
+  s3Key: string | null;                // set after presigned URL upload completes
   originalFilename: string | null;
   mimeType: string | null;
   fileSizeBytes: number | null;
-  uploadProgress: number; // 0–100, for the progress bar
-  uploadStatus: 'idle' | 'requesting_url' | 'uploading' | 'complete' | 'error';
+  uploadProgress: number;              // 0–100, for the progress bar
+  uploadStatus: "idle" | "requesting_url" | "uploading" | "complete" | "error";
   uploadError: string | null;
 }
 
@@ -409,11 +398,11 @@ interface DocumentIntakeState {
 
   // Step 1
   selectedDocumentTypeId: string | null;
-  selectedDocumentTypeCode: string | null; // e.g. "SP_RESOLUTION" — drives Step 3 metadata form
+  selectedDocumentTypeCode: string | null;  // e.g. "SP_RESOLUTION" — drives Step 3 metadata form
 
   // Step 2 — core fields matching LogDocumentInputSchema
   title: string;
-  classificationLevel: string; // ClassificationLevelSchema value
+  classificationLevel: string;             // ClassificationLevelSchema value
   originatingOfficeId: string | null;
   ownedByOfficeId: string | null;
 
@@ -453,13 +442,13 @@ interface DocumentIntakeActions {
   // Step 4
   setFile: (file: File) => void;
   setUploadProgress: (progress: number) => void;
-  setUploadStatus: (status: FileUploadState['uploadStatus']) => void;
+  setUploadStatus: (status: FileUploadState["uploadStatus"]) => void;
   setUploadComplete: (s3Key: string) => void;
   setUploadError: (error: string) => void;
 
   // Lifecycle
   setSubmitting: (isSubmitting: boolean) => void;
-  reset: () => void; // called on success or explicit discard
+  reset: () => void;                   // called on success or explicit discard
 }
 ```
 
@@ -499,17 +488,18 @@ Document list results, existing document metadata fetched for review — TanStac
 ```typescript
 // Panels that can be "in progress" — user has started filling a form but not submitted
 type WorkflowPanelId =
-  | 'generic_action'
-  | 'generic_approval'
-  | 'secretariat_decision'
-  | 'vp_certification'
-  | 'mayor_decision'
-  | 'mayor_lapse_confirmation'
-  | 'veto_override_recording'
-  | 'multi_referral'
-  | 'docketing'
-  | 'panlalawigan_outcome'
-  | 'publication_date';
+  | "generic_action"
+  | "generic_approval"
+  | "secretariat_decision"
+  | "vp_certification"
+  | "mayor_decision"
+  | "mayor_lapse_confirmation"
+  | "veto_override_recording"
+  | "multi_referral"
+  | "docketing"
+  | "panlalawigan_outcome"
+  | "publication_date"
+  ;
 
 interface WorkflowActionState {
   // Which sub-panel the user has actively selected (when a step could show multiple panels)
@@ -519,7 +509,7 @@ interface WorkflowActionState {
   commentDraft: string;
 
   // Decision field for approval/secretariat-decision panels
-  decisionDraft: string | null; // ApprovalDecisionSchema value
+  decisionDraft: string | null;     // ApprovalDecisionSchema value
 
   // Specific to multi_referral panel: which committee's report form is expanded
   expandedCommitteeId: string | null;
@@ -542,7 +532,7 @@ interface WorkflowActionActions {
   setExpandedCommitteeId: (committeeId: string | null) => void;
   setVetoMessageVisible: (visible: boolean) => void;
   setSubmitting: (isSubmitting: boolean) => void;
-  reset: () => void; // called on successful submission or when navigating away
+  reset: () => void;                  // called on successful submission or when navigating away
 }
 ```
 
@@ -552,7 +542,7 @@ interface WorkflowActionActions {
 
 `[Inference]` The `commentDraft` is distinct from the actual form submission payload. It is a controlled-input mirror so that the textarea in any panel can be a controlled React component that reads from and writes to the store, without React Hook Form overhead for a single textarea. The final value is read from the store at submit time and passed to the tRPC mutation.
 
-`[Confirmed — E3 Part 6: `AdvanceWorkflowStepInputSchema`— comment required when`decision`is`rejected`, `returned_for_revision`, or `amended` (min 10 chars)]` This validation is enforced by the shared Zod schema at submit time. The store does not enforce it — it holds the draft value without constraints. Submit-time validation via `zodResolver` on the final assembled payload is the gate.
+`[Confirmed — E3 Part 6: `AdvanceWorkflowStepInputSchema` — comment required when `decision` is `rejected`, `returned_for_revision`, or `amended` (min 10 chars)]` This validation is enforced by the shared Zod schema at submit time. The store does not enforce it — it holds the draft value without constraints. Submit-time validation via `zodResolver` on the final assembled payload is the gate.
 
 `[Confirmed — F1 §8.2, Multi-Referral Panel: `workflow.manuallyAdvanceMultiReferralStep` requires SP Secretary; audit-logged with mandatory comment]` `[Confirmed — E3 Part 6: `BypassStepInputSchema` — reason min 20 chars, max 2048]` The bypass reason textarea uses the same `commentDraft` field but with stricter validation at submit time.
 
@@ -564,13 +554,13 @@ The workflow instance data, current step data, and committee assignment list —
 
 ## 10. Store 7 — `useComplaintIntakeStore`
 
-**Concern:** Clerk-assisted complaint intake form state for the in-person intake mode (`/complaints/new`). `[Confirmed — F1 §8.3: `ComplaintIntakeClerkAssistedPage`— SP Secretary only —`complaints.createClerkAssisted`]` `[Confirmed — Consolidated Reference Part 4.14: three access modes; clerk-assisted = mode 3]`
+**Concern:** Clerk-assisted complaint intake form state for the in-person intake mode (`/complaints/new`). `[Confirmed — F1 §8.3: `ComplaintIntakeClerkAssistedPage` — SP Secretary only — `complaints.createClerkAssisted`]` `[Confirmed — Consolidated Reference Part 4.14: three access modes; clerk-assisted = mode 3]`
 
 `[Confirmed — [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]` This store is structurally distinct from the citizen self-service form at `/portal/complaints/new`, which ADR-009 confirms is a no-login public form hosted in `/apps/portal` (per ADR-001) — outside this store's app boundary entirely. `useComplaintIntakeStore` exists only for mode 3 (clerk-assisted, in-person, SP Secretary operating the form on the citizen's behalf); it has no relationship to mode 2's digital self-service entry point. The two should not be conflated in implementation.
 
 `[Confirmed — [ADR-UI-004](./f1-application-route-map-adrs/ADR-UI-004-committee-list-procedure.md)]` `routedToCommitteeId` (Step 4, below) is populated from a committee list now backed by the confirmed `organization.listCommittees` procedure. This was already implicitly a TanStack-Query-sourced list under this document's boundary rule (§1); ADR-004 supplies the procedure name but does not change this store's shape.
 
-`[Confirmed — E3 Part 5: `CitizenComplaintMetadataSchema`— complainant, incident, respondent fields;`ComplaintOutcomeStateSchema`default`pending_hearing`]`
+`[Confirmed — E3 Part 5: `CitizenComplaintMetadataSchema` — complainant, incident, respondent fields; `ComplaintOutcomeStateSchema` default `pending_hearing`]`
 
 ### Steps
 
@@ -600,11 +590,11 @@ interface ComplaintIntakeState {
   complainantEmail: string;
 
   // Step 2 — incident
-  violationType: string | null; // ComplaintViolationTypeSchema value or null
+  violationType: string | null;         // ComplaintViolationTypeSchema value or null
   subjectDescription: string;
   tricycleNumber: string;
-  incidentDate: string; // YYYY-MM-DD or empty string
-  incidentTime: string; // HH:MM or empty string
+  incidentDate: string;                 // YYYY-MM-DD or empty string
+  incidentTime: string;                 // HH:MM or empty string
   incidentPlace: string;
   remarks: string;
 
@@ -627,35 +617,18 @@ interface ComplaintIntakeActions {
   nextStep: () => void;
   prevStep: () => void;
 
-  setComplainantFields: (
-    fields: Partial<
-      Pick<
-        ComplaintIntakeState,
-        'complainantName' | 'complainantAddress' | 'complainantContact' | 'complainantEmail'
-      >
-    >,
-  ) => void;
+  setComplainantFields: (fields: Partial<Pick<ComplaintIntakeState,
+    "complainantName" | "complainantAddress" | "complainantContact" | "complainantEmail"
+  >>) => void;
 
-  setIncidentFields: (
-    fields: Partial<
-      Pick<
-        ComplaintIntakeState,
-        | 'violationType'
-        | 'subjectDescription'
-        | 'tricycleNumber'
-        | 'incidentDate'
-        | 'incidentTime'
-        | 'incidentPlace'
-        | 'remarks'
-      >
-    >,
-  ) => void;
+  setIncidentFields: (fields: Partial<Pick<ComplaintIntakeState,
+    "violationType" | "subjectDescription" | "tricycleNumber" |
+    "incidentDate" | "incidentTime" | "incidentPlace" | "remarks"
+  >>) => void;
 
-  setRespondentFields: (
-    fields: Partial<
-      Pick<ComplaintIntakeState, 'respondentName' | 'respondentContact' | 'respondentEmail'>
-    >,
-  ) => void;
+  setRespondentFields: (fields: Partial<Pick<ComplaintIntakeState,
+    "respondentName" | "respondentContact" | "respondentEmail"
+  >>) => void;
 
   setRoutingDecision: (fields: {
     routedToCommitteeId?: string | null;
@@ -677,7 +650,7 @@ interface ComplaintIntakeActions {
 
 ## 11. Store 8 — `useDocumentRequestIntakeStore`
 
-**Concern:** Clerk-assisted document request intake form for the in-person intake mode (`/document-requests/new`). `[Confirmed — F1 §8.4: `DocumentRequestIntakeClerkAssistedPage`— SP Secretary only —`documentRequests.createClerkAssisted`, `documentRequests.generatePrintableForm`]` `[Confirmed — Consolidated Reference Part 4.15: three access modes; physical signature still required after digital form generation]`
+**Concern:** Clerk-assisted document request intake form for the in-person intake mode (`/document-requests/new`). `[Confirmed — F1 §8.4: `DocumentRequestIntakeClerkAssistedPage` — SP Secretary only — `documentRequests.createClerkAssisted`, `documentRequests.generatePrintableForm`]` `[Confirmed — Consolidated Reference Part 4.15: three access modes; physical signature still required after digital form generation]`
 
 `[Confirmed — [ADR-UI-009](./f1-application-route-map-adrs/ADR-UI-009-portal-form-no-login.md)]` As with `useComplaintIntakeStore` (§10), this store is structurally distinct from the citizen self-service form at `/portal/requests/new`, which ADR-009 confirms is a no-login public form hosted in `/apps/portal`. This store exists only for mode 3 (clerk-assisted, in-person, SP Secretary operating the form). No shape change results from ADR-009; this note exists to prevent future conflation of the two flows.
 
@@ -702,7 +675,7 @@ type DocumentRequestIntakeStep = 1 | 2 | 3 | 4;
 interface DocumentRequestIntakeState {
   currentStep: DocumentRequestIntakeStep;
   isSubmitting: boolean;
-  generatedFormUrl: string | null; // pre-signed URL of the generated printable PDF
+  generatedFormUrl: string | null;     // pre-signed URL of the generated printable PDF
 
   // Step 1 — requester
   requesterName: string;
@@ -731,27 +704,17 @@ interface DocumentRequestIntakeActions {
   nextStep: () => void;
   prevStep: () => void;
 
-  setRequesterFields: (
-    fields: Partial<
-      Pick<
-        DocumentRequestIntakeState,
-        'requesterName' | 'requesterAgency' | 'requesterEmail' | 'requesterPhone' | 'idPresented'
-      >
-    >,
-  ) => void;
+  setRequesterFields: (fields: Partial<Pick<DocumentRequestIntakeState,
+    "requesterName" | "requesterAgency" | "requesterEmail" | "requesterPhone" | "idPresented"
+  >>) => void;
 
-  setRequestFields: (
-    fields: Partial<
-      Pick<
-        DocumentRequestIntakeState,
-        'requestedDocumentType' | 'requestedDocumentTitle' | 'numberOfPagesCopied' | 'purpose'
-      >
-    >,
-  ) => void;
+  setRequestFields: (fields: Partial<Pick<DocumentRequestIntakeState,
+    "requestedDocumentType" | "requestedDocumentTitle" | "numberOfPagesCopied" | "purpose"
+  >>) => void;
 
-  setPaymentFields: (
-    fields: Partial<Pick<DocumentRequestIntakeState, 'paymentOrNumber' | 'collectingOfficer'>>,
-  ) => void;
+  setPaymentFields: (fields: Partial<Pick<DocumentRequestIntakeState,
+    "paymentOrNumber" | "collectingOfficer"
+  >>) => void;
 
   setGeneratedFormUrl: (url: string | null) => void;
   setSubmitting: (isSubmitting: boolean) => void;
@@ -769,24 +732,24 @@ interface DocumentRequestIntakeActions {
 
 ## 12. Store 9 — `useQrScannerStore`
 
-**Concern:** The QR scan overlay — open/closed state, scanner active/inactive, and the result of the last scan before the user navigates to the full document view. `[Confirmed — Stack Context: "`html5-qrcode`or`zxing-wasm` (frontend scanner)"]` `[Confirmed — E3 Part 7: `QrCodeScanResultSchema`; `QrScanInputSchema`]` `[Confirmed — F1 §7.1: tracking.scanQrCodeAuthenticated suggested as a search shortcut on the document list page]`
+**Concern:** The QR scan overlay — open/closed state, scanner active/inactive, and the result of the last scan before the user navigates to the full document view. `[Confirmed — Stack Context: "`html5-qrcode` or `zxing-wasm` (frontend scanner)"]` `[Confirmed — E3 Part 7: `QrCodeScanResultSchema`; `QrScanInputSchema`]` `[Confirmed — F1 §7.1: tracking.scanQrCodeAuthenticated suggested as a search shortcut on the document list page]`
 
 ### State shape
 
 ```typescript
 interface QrScannerState {
   isOpen: boolean;
-  scannerActive: boolean; // camera feed is live
-  scanStatus: 'idle' | 'scanning' | 'processing' | 'success' | 'error';
+  scannerActive: boolean;              // camera feed is live
+  scanStatus: "idle" | "scanning" | "processing" | "success" | "error";
   lastScanResult: {
     trackingNumber: string;
     documentTitle: string;
     documentTypeLabel: string;
-    lifecycleState: string; // LifecycleStateSchema value (draft, under_review, pending_mayor_action, pending_panlalawigan_review, approved, released, superseded, cancelled, rejected)
+    lifecycleState: string;            // LifecycleStateSchema value (draft, under_review, pending_mayor_action, pending_panlalawigan_review, approved, released, superseded, cancelled, rejected)
     remarks: string | null;
     firstPageS3Key: string | null;
     canRequestCopy: boolean;
-    routingHistoryCount: number; // just the count for the preview; full history on navigate
+    routingHistoryCount: number;       // just the count for the preview; full history on navigate
     supersededBy: string | null;
     supersededAt: string | null;
     closureReason: string | null;
@@ -800,12 +763,12 @@ interface QrScannerState {
 ```typescript
 interface QrScannerActions {
   openScanner: () => void;
-  closeScanner: () => void; // also clears lastScanResult and scanError
+  closeScanner: () => void;           // also clears lastScanResult and scanError
   setScannerActive: (active: boolean) => void;
-  setScanStatus: (status: QrScannerState['scanStatus']) => void;
-  setScanResult: (result: QrScannerState['lastScanResult']) => void;
+  setScanStatus: (status: QrScannerState["scanStatus"]) => void;
+  setScanResult: (result: QrScannerState["lastScanResult"]) => void;
   setScanError: (error: string | null) => void;
-  clearResult: () => void; // allows the user to scan another document
+  clearResult: () => void;            // allows the user to scan another document
 }
 ```
 
@@ -830,9 +793,9 @@ interface QrScannerActions {
 ```typescript
 // Represents a pending scheduling change not yet submitted to the server
 type PendingScheduleChange =
-  | { changeType: 'SCHEDULE_FIRST_READING'; documentId: string; sessionDate: string }
+  | { changeType: "SCHEDULE_FIRST_READING"; documentId: string; sessionDate: string; }
   | {
-      changeType: 'ENTER_HEARING_DATE';
+      changeType: "ENTER_HEARING_DATE";
       stepInstanceId: string;
       /**
        * UI-display-only field. Carries the committee name or ID so the pending-changes
@@ -851,7 +814,8 @@ type PendingScheduleChange =
        * that variant is unaffected.
        */
       hearingDate: string | null;
-    };
+    }
+  ;
 
 interface OrderOfBusinessState {
   // Pending changes buffer
@@ -863,7 +827,7 @@ interface OrderOfBusinessState {
 
   // Which Order of Business date is being viewed
   // (the next Tuesday, by default; may be changed if viewing a past week)
-  viewingSessionDate: string | null; // YYYY-MM-DD
+  viewingSessionDate: string | null;   // YYYY-MM-DD
 }
 ```
 
@@ -874,11 +838,7 @@ interface OrderOfBusinessActions {
   setViewingSessionDate: (date: string | null) => void;
 
   addScheduleFirstReading: (documentId: string, sessionDate: string) => void;
-  addEnterHearingDate: (
-    stepInstanceId: string,
-    committeeId: string,
-    hearingDate: string | null,
-  ) => void;
+  addEnterHearingDate: (stepInstanceId: string, committeeId: string, hearingDate: string | null) => void;
   removeChange: (index: number) => void;
   clearPendingChanges: () => void;
 
@@ -902,11 +862,12 @@ interface OrderOfBusinessActions {
 
 ---
 
+
 ## 14. Store 11 — `useAttendanceStore`
 
 **Concern:** A local buffer of attendance records being entered for a single SP session before batch submission. `[Confirmed — F1 §9: `SessionAttendanceDetailPage`; `session.recordAttendance` — SP Secretary only]` `[Confirmed — Consolidated Reference Part 7.3: "Absence input timing: recorded before the session; absence reasons: OB, sick leave, vacation leave, absent (unqualified)"]`
 
-`[Confirmed — E3 Part 11: `CreateSpSessionInputSchema`—`attendanceRecords: z.array(...)`— quorum requires ≥ 7 present;`AttendanceStatusSchema`: ["present", "absent_ob", "absent_sick", "absent_vacation", "absent"]]`
+`[Confirmed — E3 Part 11: `CreateSpSessionInputSchema` — `attendanceRecords: z.array(...)` — quorum requires ≥ 7 present; `AttendanceStatusSchema`: ["present", "absent_ob", "absent_sick", "absent_vacation", "absent"]]`
 
 `[Confirmed — [ADR-UI-007](./f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md)]` The Designation document type is pulled into Phase 1, resolving the dependency this store previously deferred (F1 §9, §14 item 7). The state shape below now models `presidingOfficerSubstituteId` directly. See the usage notes for sourcing details.
 
@@ -916,21 +877,21 @@ interface OrderOfBusinessActions {
 interface AttendanceRecord {
   employeeId: string;
   displayName: string;
-  status: 'present' | 'absent_ob' | 'absent_sick' | 'absent_vacation' | 'absent';
+  status: "present" | "absent_ob" | "absent_sick" | "absent_vacation" | "absent";
   reason: string;
 }
 
 interface AttendanceState {
   // The session being recorded
-  sessionDate: string | null; // YYYY-MM-DD
-  sessionId: string | null; // UUID; null if the session row doesn't exist yet
+  sessionDate: string | null;         // YYYY-MM-DD
+  sessionId: string | null;           // UUID; null if the session row doesn't exist yet
 
   // Buffer of attendance inputs, keyed by employeeId for O(1) lookup
   records: Record<string, AttendanceRecord>;
 
   // Computed quorum status
   presentCount: number;
-  quorumMet: boolean; // presentCount >= 7 (Confirmed — consolidated reference Part 3.2)
+  quorumMet: boolean;                 // presentCount >= 7 (Confirmed — consolidated reference Part 3.2)
 
   // Designated presiding officer substitute for this session, if the active VP/presiding
   // officer is unavailable and a Designation document has assigned a substitute beforehand.
@@ -947,28 +908,20 @@ interface AttendanceState {
 
 ```typescript
 interface AttendanceActions {
-  initSession: (
-    sessionDate: string,
-    sessionId: string | null,
-    members: Array<{
-      employeeId: string;
-      displayName: string;
-    }>,
-  ) => void; // seeds all members as "present"; SP Secretary changes absences
+  initSession: (sessionDate: string, sessionId: string | null, members: Array<{
+    employeeId: string;
+    displayName: string;
+  }>) => void;                         // seeds all members as "present"; SP Secretary changes absences
 
   setAttendanceRecord: (employeeId: string, record: Partial<AttendanceRecord>) => void;
 
   markPresent: (employeeId: string) => void;
-  markAbsent: (
-    employeeId: string,
-    status: Exclude<AttendanceRecord['status'], 'present'>,
-    reason?: string,
-  ) => void;
+  markAbsent: (employeeId: string, status: Exclude<AttendanceRecord["status"], "present">, reason?: string) => void;
 
   setPresidingOfficerSubstitute: (employeeId: string | null) => void;
 
   setSubmitting: (isSubmitting: boolean) => void;
-  reset: () => void; // called after successful submission
+  reset: () => void;                   // called after successful submission
 }
 ```
 
@@ -986,7 +939,7 @@ interface AttendanceActions {
 2. Confirm `sessionDate` falls within that row's `[validFrom, validUntil]`;
 3. Pass the matching row's `delegatedToUserId` to `setPresidingOfficerSubstitute`; pass `null` if no row matches.
 
-Because only one active designation per person is permitted and designations auto-expire (Consolidated Reference Part 11.13), at most one row can match the position-title filter at a given moment — but the _query itself_ returns the full unfiltered list, so naively taking `data[0]` without the filter above would pick an unrelated active designation (e.g. Acting Mayor grant) if one happens to exist concurrently. This procedure name and shape were previously `[Unverified]` (F2 v2 §18 item 6) and are now resolved.
+Because only one active designation per person is permitted and designations auto-expire (Consolidated Reference Part 11.13), at most one row can match the position-title filter at a given moment — but the *query itself* returns the full unfiltered list, so naively taking `data[0]` without the filter above would pick an unrelated active designation (e.g. Acting Mayor grant) if one happens to exist concurrently. This procedure name and shape were previously `[Unverified]` (F2 v2 §18 item 6) and are now resolved.
 
 `[Confirmed — Consolidated Reference Part 11.13: "One active designation per person enforced... Auto-expires at end date: routing returns to original authority automatically"]` Because only one active designation per person is permitted and designations auto-expire, the component does not need to handle multiple competing substitute candidates — at most one active Designation-backed substitute can exist for the presiding-officer role at any given session date.
 
@@ -1004,7 +957,7 @@ Historical attendance records across sessions, the attendance statistics graph d
 Cross-store coordination is done in component event handlers or custom hooks. If Store A needs to know about Store B's state, the component that needs both reads from both and decides what to do.
 
 **Rule 2: Only one store drives a given piece of UI.**
-If both `useDocumentIntakeStore` and `useModalStore` could be responsible for showing a confirmation when the user discards an in-progress intake form, the rule is: `useDocumentIntakeStore` owns the "has unsaved work" boolean; the _component_ reads it and calls `useModalStore.openModal({ type: "CONFIRM_ACTION", ... })` in its navigation guard. Neither store calls the other.
+If both `useDocumentIntakeStore` and `useModalStore` could be responsible for showing a confirmation when the user discards an in-progress intake form, the rule is: `useDocumentIntakeStore` owns the "has unsaved work" boolean; the *component* reads it and calls `useModalStore.openModal({ type: "CONFIRM_ACTION", ... })` in its navigation guard. Neither store calls the other.
 
 **Rule 3: TanStack Query mutations always call `reset()` on the corresponding form store after success.**
 The mutation's `onSuccess` callback (not the store) is responsible for calling `reset()`. This keeps the store ignorant of the mutation lifecycle.
@@ -1022,19 +975,19 @@ The modal stack is never persisted to `localStorage` or `sessionStorage`. On pag
 `[Confirmed — Stack Context: "Auth pattern: Never localStorage; structured for future SSO migration"]`
 `[Confirmed — Consolidated Reference Part 11.1: "Tokens delivered via HTTP-only, Secure, SameSite=Strict cookies — never localStorage or sessionStorage"]`
 
-| Store                           | Persistence                                                  | Rationale                                                                                                |
-| ------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `useShellStore`                 | `sessionStorage` — `sidebarCollapsed` only                   | Desktop rail preference within a session; not worth a server round-trip                                  |
-| `useSessionStore`               | None — hydrated from auth check on mount                     | Identity comes from the cookie + server check; never stored client-side                                  |
-| `useModalStore`                 | None                                                         | Ephemeral UI; meaningless after reload                                                                   |
-| `useNotificationDrawerStore`    | None                                                         | SSE resets naturally; `newArrivalCount` resets to 0 on reload (acceptable)                               |
-| `useDocumentIntakeStore`        | `sessionStorage` — all fields                                | Protects work-in-progress if the browser tab is accidentally refreshed                                   |
-| `useWorkflowActionStore`        | None                                                         | In-progress comment drafts are short-lived; losing them on reload is acceptable                          |
-| `useComplaintIntakeStore`       | `sessionStorage` — all fields                                | Protects clerk-entered complainant data from accidental refresh                                          |
-| `useDocumentRequestIntakeStore` | `sessionStorage` — all fields                                | Same rationale as complaint intake                                                                       |
-| `useQrScannerStore`             | None                                                         | Scanner state is instantaneous and should not survive reload                                             |
-| `useOrderOfBusinessStore`       | `sessionStorage` — `pendingChanges` and `viewingSessionDate` | Pending scheduling changes represent significant work and should survive accidental refresh              |
-| `useAttendanceStore`            | `sessionStorage` — all fields                                | A full attendance record for 12 members is significant data entry; accidental refresh should not lose it |
+| Store | Persistence | Rationale |
+|---|---|---|
+| `useShellStore` | `sessionStorage` — `sidebarCollapsed` only | Desktop rail preference within a session; not worth a server round-trip |
+| `useSessionStore` | None — hydrated from auth check on mount | Identity comes from the cookie + server check; never stored client-side |
+| `useModalStore` | None | Ephemeral UI; meaningless after reload |
+| `useNotificationDrawerStore` | None | SSE resets naturally; `newArrivalCount` resets to 0 on reload (acceptable) |
+| `useDocumentIntakeStore` | `sessionStorage` — all fields | Protects work-in-progress if the browser tab is accidentally refreshed |
+| `useWorkflowActionStore` | None | In-progress comment drafts are short-lived; losing them on reload is acceptable |
+| `useComplaintIntakeStore` | `sessionStorage` — all fields | Protects clerk-entered complainant data from accidental refresh |
+| `useDocumentRequestIntakeStore` | `sessionStorage` — all fields | Same rationale as complaint intake |
+| `useQrScannerStore` | None | Scanner state is instantaneous and should not survive reload |
+| `useOrderOfBusinessStore` | `sessionStorage` — `pendingChanges` and `viewingSessionDate` | Pending scheduling changes represent significant work and should survive accidental refresh |
+| `useAttendanceStore` | `sessionStorage` — all fields | A full attendance record for 12 members is significant data entry; accidental refresh should not lose it |
 
 `[Inference]` Zustand's `persist` middleware with `storage: sessionStorage` is used for the stores marked above. `sessionStorage` (not `localStorage`) is chosen because the data is session-scoped — a new browser tab should start fresh, and the data must not persist across logout. The `partialize` option on each `persist` call explicitly excludes `isSubmitting` and derived fields (e.g. `quorumMet`, `presentCount`) from the persisted subset; only raw input values are persisted.
 
@@ -1069,16 +1022,16 @@ Each store should have a Vitest unit test file alongside it (`shell.store.test.t
 
 ### Resolved in this revision (and carried forward from v2)
 
-| #         | Gap (as originally identified)                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Resolution                                                                                                                                                                                                    | ADR                                                                                                                                                                                |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1         | `useSessionStore` must hold `roleCodes` for synchronous ABAC checks; login response shape (flat `string[]` vs. full `RoleAssignmentSelectSchema[]`) was unconfirmed.                                                                                                                                                                                                                                                                                                                            | `AuthResponseSchema` extended to return `roleCodes: string[]`, `officeScopeId`, `officeCode` directly, computed server-side at login. No second call; no store shape change.                                  | [ADR-UI-012](./f2-zustand-store-design-adrs/ADR-UI-012-session-store-rolecodes-shape.md)                                                                                           |
-| 2 (orig.) | The Phase 1B Designation document type tension in `useAttendanceStore` (presiding-officer substitute field deferred pending Designation reaching Phase 1).                                                                                                                                                                                                                                                                                                                                      | Designation pulled into Phase 1; `presidingOfficerSubstituteId` modeled directly.                                                                                                                             | [ADR-UI-007](./f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md), [ADR-UI-011](./f2-zustand-store-design-adrs/ADR-UI-011-f2-propagation-of-f1-adrs.md) |
-| 3         | Whether CERTIFICATION_OF_URGENCY and DOCUMENT_REQUEST_FORM appear in the Step 1 document-type picker needed a product decision.                                                                                                                                                                                                                                                                                                                                                                 | Both excluded; each is created only through its own dedicated entry point (`LOG_CERTIFICATION_OF_URGENCY` modal; `useDocumentRequestIntakeStore`).                                                            | [ADR-UI-013](./f2-zustand-store-design-adrs/ADR-UI-013-document-intake-picker-scope.md)                                                                                            |
-| 4         | Partial batch-failure UX for `useOrderOfBusinessStore.pendingChanges` was not detailed in any source document.                                                                                                                                                                                                                                                                                                                                                                                  | Sequential per-item commit; failed items remain in the buffer, highlighted, and retryable; no rollback of prior successes.                                                                                    | [ADR-UI-014](./f2-zustand-store-design-adrs/ADR-UI-014-order-of-business-batch-save-error-handling.md)                                                                             |
-| 5         | SSE reconnection strategy for `useNotificationDrawerStore.newArrivalCount` was not described in any source document.                                                                                                                                                                                                                                                                                                                                                                            | Native `EventSource` reconnect + server-side `Last-Event-ID` replay as primary mechanism; unconditional TanStack Query refetch on drawer open as a correctness backstop; no continuous background poll added. | [ADR-UI-015](./f2-zustand-store-design-adrs/ADR-UI-015-sse-reconnection-strategy.md)                                                                                               |
-| 6         | Procedure name for the presiding-officer-substitute lookup was unconfirmed; `committeeId` strip-before-send convention lacked specified test coverage.                                                                                                                                                                                                                                                                                                                                          | Confirmed as `organization.getActiveDesignations` (unscoped — client-side filter by `positionTitle` + date range required). Strip-before-send Vitest case added as an explicit required test in §17.          | [ADR-UI-016](./f2-zustand-store-design-adrs/ADR-UI-016-designation-lookup-procedure-and-test-coverage.md)                                                                          |
-| 7         | The literal display string for the SP Presiding Officer `positionTitle` value returned by `organization.getActiveDesignations` (e.g. `"Vice Mayor"`, `"Presiding Officer"`, or something else) is not confirmed against actual `organization.positions` seed data. `useAttendanceStore`'s client-side filter (§14, per [ADR-UI-016](./f2-zustand-store-design-adrs/ADR-UI-016-designation-lookup-procedure-and-test-coverage.md)) cannot be implemented exactly until this string is confirmed. | Confirmed as `"Presiding Officer"`. §14's client-side filter is updated to use this literal string.                                                                                                           | Developer decision / seed data check                                                                                                                                               |
+| # | Gap (as originally identified) | Resolution | ADR |
+|---|---|---|---|
+| 1 | `useSessionStore` must hold `roleCodes` for synchronous ABAC checks; login response shape (flat `string[]` vs. full `RoleAssignmentSelectSchema[]`) was unconfirmed. | `AuthResponseSchema` extended to return `roleCodes: string[]`, `officeScopeId`, `officeCode` directly, computed server-side at login. No second call; no store shape change. | [ADR-UI-012](./f2-zustand-store-design-adrs/ADR-UI-012-session-store-rolecodes-shape.md) |
+| 2 (orig.) | The Phase 1B Designation document type tension in `useAttendanceStore` (presiding-officer substitute field deferred pending Designation reaching Phase 1). | Designation pulled into Phase 1; `presidingOfficerSubstituteId` modeled directly. | [ADR-UI-007](./f1-application-route-map-adrs/ADR-UI-007-designation-document-type-phase1.md), [ADR-UI-011](./f2-zustand-store-design-adrs/ADR-UI-011-f2-propagation-of-f1-adrs.md) |
+| 3 | Whether CERTIFICATION_OF_URGENCY and DOCUMENT_REQUEST_FORM appear in the Step 1 document-type picker needed a product decision. | Both excluded; each is created only through its own dedicated entry point (`LOG_CERTIFICATION_OF_URGENCY` modal; `useDocumentRequestIntakeStore`). | [ADR-UI-013](./f2-zustand-store-design-adrs/ADR-UI-013-document-intake-picker-scope.md) |
+| 4 | Partial batch-failure UX for `useOrderOfBusinessStore.pendingChanges` was not detailed in any source document. | Sequential per-item commit; failed items remain in the buffer, highlighted, and retryable; no rollback of prior successes. | [ADR-UI-014](./f2-zustand-store-design-adrs/ADR-UI-014-order-of-business-batch-save-error-handling.md) |
+| 5 | SSE reconnection strategy for `useNotificationDrawerStore.newArrivalCount` was not described in any source document. | Native `EventSource` reconnect + server-side `Last-Event-ID` replay as primary mechanism; unconditional TanStack Query refetch on drawer open as a correctness backstop; no continuous background poll added. | [ADR-UI-015](./f2-zustand-store-design-adrs/ADR-UI-015-sse-reconnection-strategy.md) |
+| 6 | Procedure name for the presiding-officer-substitute lookup was unconfirmed; `committeeId` strip-before-send convention lacked specified test coverage. | Confirmed as `organization.getActiveDesignations` (unscoped — client-side filter by `positionTitle` + date range required). Strip-before-send Vitest case added as an explicit required test in §17. | [ADR-UI-016](./f2-zustand-store-design-adrs/ADR-UI-016-designation-lookup-procedure-and-test-coverage.md) |
+| 7 | The literal display string for the SP Presiding Officer `positionTitle` value returned by `organization.getActiveDesignations` (e.g. `"Vice Mayor"`, `"Presiding Officer"`, or something else) is not confirmed against actual `organization.positions` seed data. `useAttendanceStore`'s client-side filter (§14, per [ADR-UI-016](./f2-zustand-store-design-adrs/ADR-UI-016-designation-lookup-procedure-and-test-coverage.md)) cannot be implemented exactly until this string is confirmed. | Confirmed as `"Presiding Officer"`. §14's client-side filter is updated to use this literal string. | Developer decision / seed data check |
 
 ---
 
-_This document supersedes any informal or ad-hoc Zustand store definitions that may exist in `/apps/web` prior to Phase 1 development start, and supersedes the original (v1/v2) `f2-zustand-store-design.md` in full as a standalone document. All new stores must be added to this catalog with the same structure: store name, state shape, actions, usage notes, and explicit boundary from TanStack Query. This document is updated after any stakeholder interview, developer decision, or UI design change that introduces a new modal, multi-step form, or persistent UI state requirement. This v3 revision incorporates the resolutions of all gaps from v2 via [ADR-UI-012](./f2-zustand-store-design-adrs/ADR-UI-012-session-store-rolecodes-shape.md) through [ADR-UI-016](./f2-zustand-store-design-adrs/ADR-UI-016-designation-lookup-procedure-and-test-coverage.md), plus the follow-up confirmation on the presiding officer's position title._
+*This document supersedes any informal or ad-hoc Zustand store definitions that may exist in `/apps/web` prior to Phase 1 development start, and supersedes the original (v1/v2) `f2-zustand-store-design.md` in full as a standalone document. All new stores must be added to this catalog with the same structure: store name, state shape, actions, usage notes, and explicit boundary from TanStack Query. This document is updated after any stakeholder interview, developer decision, or UI design change that introduces a new modal, multi-step form, or persistent UI state requirement. This v3 revision incorporates the resolutions of all gaps from v2 via [ADR-UI-012](./f2-zustand-store-design-adrs/ADR-UI-012-session-store-rolecodes-shape.md) through [ADR-UI-016](./f2-zustand-store-design-adrs/ADR-UI-016-designation-lookup-procedure-and-test-coverage.md), plus the follow-up confirmation on the presiding officer's position title.*

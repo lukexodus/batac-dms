@@ -1,3 +1,4 @@
+
 ## Table of Contents
 
 - [L23–L79] Prerequisite Table — Dependency matrix mapping each planned document (A1 to L5) to its direct prerequisite documents.
@@ -21,58 +22,58 @@
 
 ## Prerequisite Table
 
-| ID  | Document                                            | Prerequisites from this list |     |
-| --- | --------------------------------------------------- | ---------------------------- | --- |
-| A1  | Master Phased Task List                             | All other documents          |     |
-| A2  | Risk Register                                       | None                         |     |
-| B1  | System Architecture Document (C4 L1–L3)             | None                         |     |
-| B2  | Module Boundary and Internal API Contracts          | B1                           |     |
-| B3  | Internal Domain Event Catalog                       | B2, B4                       |     |
-| B4  | Workflow Engine Specification                       | None                         |     |
-| B5  | Authentication and Authorization Architecture       | None                         |     |
-| C1  | Full Database Schema DDL                            | B2, B4, D4, H2, H3           |     |
-| C2  | Entity-Relationship Diagrams                        | C1                           |     |
-| C3  | PostgreSQL RLS Policy Specifications                | C1, I1                       |     |
-| C4  | Index Strategy Document                             | C1, E1                       |     |
-| C5  | Migration Strategy and Conventions                  | None                         |     |
-| D1  | Use Case Diagrams                                   | None                         |     |
-| D2  | Sequence Diagrams — All Phase 1 Workflows           | B2, B4, H1                   |     |
-| D3  | State Machine Diagrams                              | B4                           |     |
-| D4  | Domain Class Diagram                                | None                         |     |
-| D5  | Deployment Diagram                                  | None                         |     |
-| D6  | Data Flow Diagrams — Key Operations                 | B4, H1                       |     |
-| E1  | tRPC Router and Procedure Catalog                   | C1, B2, I1, I2               |     |
-| E2  | REST API Specification (OpenAPI 3.0)                | C1, B2                       |     |
-| E3  | Shared Zod Schema Catalog                           | C1                           |     |
-| F1  | Application Route Map                               | I2, E1                       |     |
-| F2  | Zustand Store Design                                | F1, E3                       |     |
-| F3  | TanStack Query Key Factory                          | E1                           |     |
-| F4  | Component Hierarchy Specification                   | F1, F5                       |     |
-| F5  | UI Component Library Setup and Package Architecture | None                         |     |
-| F6  | Accessibility Compliance Checklist (WCAG 2.1 AA)    | F5                           |     |
-| F7  | Frontend Implementation Plans                       | F4, F5, F6, J6               |     |
-| G1  | End-to-End Type Safety Chain                        | C1, E1, E3                   |     |
-| H1  | Phase 1 Workflow Definitions (Structured Data)      | B4, D3                       |     |
-| H2  | Document Type Catalog with JSONB Schemas            | B4, H3                       |     |
-| H3  | Numbering Series Configuration                      | None                         |     |
-| H4  | Notification Event and Template Catalog             | B3, I2, H1                   |     |
-| I1  | ABAC Policy Specification                           | B5, I2, H2                   |     |
-| I2  | Role-Permission Matrix                              | None                         |     |
-| I3  | Security Design Document                            | B5, I1                       |     |
-| J1  | Software Design Patterns Document                   | B2                           |     |
-| J2  | Error Handling and Response Normalization           | None                         |     |
-| J3  | Coding Standards and Conventions                    | None                         |     |
-| J4  | Module Structure Template                           | B2, J1                       |     |
-| J5  | ADR Master Index                                    | None                         |     |
-| J6  | Kitchen-Sink Migration and Domain Component Catalog | F5                           |     |
-| K1  | Test Strategy Document                              | B4                           |     |
-| K2  | Workflow Engine Test Suite Design                   | B4, D3, H1                   |     |
-| K3  | Critical E2E Test Scenarios                         | F1, H1                       |     |
-| L1  | Environment Variables Catalog                       | None                         |     |
-| L2  | Docker and Docker Compose Specification             | D5, L1                       |     |
-| L3  | CI/CD Pipeline Specification                        | K1, L2                       |     |
-| L4  | Backup and DR Runbooks                              | C1, D5                       |     |
-| L5  | Infrastructure as Code Specification                | L1, L2, L4                   |     |
+| ID  | Document                                       | Prerequisites from this list |     |
+| --- | ---------------------------------------------- | ---------------------------- | --- |
+| A1  | Master Phased Task List                        | All other documents          |     |
+| A2  | Risk Register                                  | None                         |     |
+| B1  | System Architecture Document (C4 L1–L3)        | None                         |     |
+| B2  | Module Boundary and Internal API Contracts     | B1                           |     |
+| B3  | Internal Domain Event Catalog                  | B2, B4                       |     |
+| B4  | Workflow Engine Specification                  | None                         |     |
+| B5  | Authentication and Authorization Architecture  | None                         |     |
+| C1  | Full Database Schema DDL                       | B2, B4, D4, H2, H3           |     |
+| C2  | Entity-Relationship Diagrams                   | C1                           |     |
+| C3  | PostgreSQL RLS Policy Specifications           | C1, I1                       |     |
+| C4  | Index Strategy Document                        | C1, E1                       |     |
+| C5  | Migration Strategy and Conventions             | None                         |     |
+| D1  | Use Case Diagrams                              | None                         |     |
+| D2  | Sequence Diagrams — All Phase 1 Workflows      | B2, B4, H1                   |     |
+| D3  | State Machine Diagrams                         | B4                           |     |
+| D4  | Domain Class Diagram                           | None                         |     |
+| D5  | Deployment Diagram                             | None                         |     |
+| D6  | Data Flow Diagrams — Key Operations            | B4, H1                       |     |
+| E1  | tRPC Router and Procedure Catalog              | C1, B2, I1, I2               |     |
+| E2  | REST API Specification (OpenAPI 3.0)           | C1, B2                       |     |
+| E3  | Shared Zod Schema Catalog                      | C1                           |     |
+| F1  | Application Route Map                          | I2, E1                       |     |
+| F2  | Zustand Store Design                           | F1, E3                       |     |
+| F3  | TanStack Query Key Factory                     | E1                           |     |
+| F4  | Component Hierarchy Specification              | F1, F5                       |     |
+| F5  | UI Component Library Setup and Package Architecture | None                    |     |
+| F6  | Accessibility Compliance Checklist (WCAG 2.1 AA)   | F5                       |     |
+| F7 | Frontend Implementation Plans | F4, F5, F6, J6 | |
+| G1  | End-to-End Type Safety Chain                   | C1, E1, E3                   |     |
+| H1  | Phase 1 Workflow Definitions (Structured Data) | B4, D3                       |     |
+| H2  | Document Type Catalog with JSONB Schemas       | B4, H3                       |     |
+| H3  | Numbering Series Configuration                 | None                         |     |
+| H4  | Notification Event and Template Catalog        | B3, I2, H1                   |     |
+| I1  | ABAC Policy Specification                      | B5, I2, H2                   |     |
+| I2  | Role-Permission Matrix                         | None                         |     |
+| I3  | Security Design Document                       | B5, I1                       |     |
+| J1  | Software Design Patterns Document              | B2                           |     |
+| J2  | Error Handling and Response Normalization      | None                         |     |
+| J3  | Coding Standards and Conventions               | None                         |     |
+| J4  | Module Structure Template                      | B2, J1                       |     |
+| J5  | ADR Master Index                               | None                         |     |
+| J6  | Kitchen-Sink Migration and Domain Component Catalog | F5                      |     |
+| K1  | Test Strategy Document                         | B4                           |     |
+| K2  | Workflow Engine Test Suite Design              | B4, D3, H1                   |     |
+| K3  | Critical E2E Test Scenarios                    | F1, H1                       |     |
+| L1  | Environment Variables Catalog                  | None                         |     |
+| L2  | Docker and Docker Compose Specification        | D5, L1                       |     |
+| L3  | CI/CD Pipeline Specification                   | K1, L2                       |     |
+| L4  | Backup and DR Runbooks                         | C1, D5                       |     |
+| L5  | Infrastructure as Code Specification           | L1, L2, L4                   |     |
 
 ---
 
@@ -80,16 +81,16 @@
 
 Documents within the same wave have no dependency on each other and can be generated in parallel.
 
-| Wave | Documents                                                  | Count |
-| ---- | ---------------------------------------------------------- | ----- |
+| Wave | Documents                                              | Count |
+| ---- | ------------------------------------------------------ | ----- |
 | 1    | A2, B1, B4, B5, C5, D1, D4, D5, H3, I2, J2, J3, J5, L1, F5 | 15    |
-| 2    | B2, D3, H2, K1, L2, F6, J6                                 | 7     |
-| 3    | B3, C1, H1, I1, J1, L3                                     | 6     |
-| 4    | C2, C3, D2, D6, E1, E2, E3, H4, I3, J4, K2, L4             | 12    |
-| 5    | C4, F1, F3, G1, L5                                         | 5     |
-| 6    | F2, F4, K3                                                 | 3     |
-| 6.5  | F7                                                         | 1     |
-| 7    | A1                                                         | 1     |
+| 2    | B2, D3, H2, K1, L2, F6, J6                                  | 7     |
+| 3    | B3, C1, H1, I1, J1, L3                                 | 6     |
+| 4    | C2, C3, D2, D6, E1, E2, E3, H4, I3, J4, K2, L4         | 12    |
+| 5    | C4, F1, F3, G1, L5                                     | 5     |
+| 6    | F2, F4, K3                                             | 3     |
+| 6.5 | F7           | 1 | 
+| 7    | A1                                                     | 1     |
 
 ---
 
@@ -103,7 +104,7 @@ The stakeholder-confirmed ground truth for what the system must do. Status: Post
 
 **tech-stack.md** — Source of truth (located in /docs/pre-development)
 
-Confirmed for _how_ the system is built: stack, libraries, and conventions. Covers: monorepo structure (pnpm workspaces, Turborepo), the full stack decisions table (Fastify, tRPC, Vite + React, PostgreSQL, Drizzle ORM, Zod, TanStack Query, Zustand, shadcn/ui, and other library choices with their hard constraints), the tRPC/REST hybrid architecture, the end-to-end type safety chain, PostgreSQL non-negotiables, the search strategy (PostgreSQL FTS → Meilisearch), file storage strategy, OCR strategy, audit log integrity approach, authentication architecture, testing priorities, migration rules, and deployment constraints. One open decision remains as of this version: the OCR library choice (`tesseract.js` preferred vs. a self-hosted cloud alternative) is explicitly marked unresolved — per AGENTS-v2.md Section 1, this item is not to be treated as decided until tech-stack.md itself is updated. Per AGENTS-v2.md Section 1, this document is outranked only by the consolidated reference; any pre-development document under Groups B–L that contradicts it has a bug.
+Confirmed for *how* the system is built: stack, libraries, and conventions. Covers: monorepo structure (pnpm workspaces, Turborepo), the full stack decisions table (Fastify, tRPC, Vite + React, PostgreSQL, Drizzle ORM, Zod, TanStack Query, Zustand, shadcn/ui, and other library choices with their hard constraints), the tRPC/REST hybrid architecture, the end-to-end type safety chain, PostgreSQL non-negotiables, the search strategy (PostgreSQL FTS → Meilisearch), file storage strategy, OCR strategy, audit log integrity approach, authentication architecture, testing priorities, migration rules, and deployment constraints. One open decision remains as of this version: the OCR library choice (`tesseract.js` preferred vs. a self-hosted cloud alternative) is explicitly marked unresolved — per AGENTS-v2.md Section 1, this item is not to be treated as decided until tech-stack.md itself is updated. Per AGENTS-v2.md Section 1, this document is outranked only by the consolidated reference; any pre-development document under Groups B–L that contradicts it has a bug.
 
 **DESIGN.md** — Living; pending J6 update (located in /docs/design)
 

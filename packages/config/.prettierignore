@@ -6,3 +6,4 @@ node_modules
 *.sql
 coverage
 README.md
+docs

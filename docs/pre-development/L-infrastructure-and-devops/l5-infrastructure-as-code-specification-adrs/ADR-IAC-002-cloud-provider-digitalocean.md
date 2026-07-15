@@ -38,7 +38,6 @@ All data is encrypted in transit (TLS) and at rest (DigitalOcean Spaces AES-256 
 ### 3. Pricing fit for Phase 1 scope
 
 The two-Droplet production topology (L5 §6.1; ADR rationale in that section) costs approximately:
-
 - Droplet A (`s-2vcpu-4gb`): ~$24/month
 - Droplet B (`s-1vcpu-2gb`): ~$12/month
 - Block volume (50 GiB): ~$5/month

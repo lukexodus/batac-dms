@@ -1,5 +1,6 @@
 # ADR-GEN-010: sp.batac.gov.ph Coexistence Without Mandatory Migration
 
+
 **Status:** Accepted **Date:** June 2026 **Deciders:** Development team (confirmed by Interview 2, resolving Q-C07)
 
 ---

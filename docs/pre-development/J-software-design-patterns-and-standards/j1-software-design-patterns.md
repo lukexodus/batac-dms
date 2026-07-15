@@ -3,6 +3,7 @@
 **Status:** Pre-Development Reference | Audience: Development Team
 **Stack baseline:** See `tech-stack.md` — Fastify + tRPC + Drizzle ORM + TanStack Query
 
+
 ## Table of Contents
 
 - [L59–L71] Purpose and Scope — Mandatory codebase patterns, system objectives (isolation, auditability), and architectural deviation (ADR) requirement.
@@ -60,7 +61,6 @@
 This document defines the five mandatory patterns used in this codebase, how each pattern is implemented, and what is prohibited. Every developer contributing to this project must read this document before writing a single module file. Deviations require an ADR.
 
 These patterns exist because the platform must:
-
 - Remain testable in isolation at the repository and service levels
 - Enforce module boundary isolation (no cross-schema reads; no direct service-to-service coupling for side effects)
 - Give the workflow engine and audit log deterministic, auditable call sites
@@ -71,13 +71,13 @@ The patterns are not optional style preferences. They are the structural constra
 
 ## Pattern Index
 
-| #   | Pattern                   | Primary concern                  | Files involved                     |
-| --- | ------------------------- | -------------------------------- | ---------------------------------- |
-| 1   | Repository Pattern        | Data access isolation per module | `{module}.repository.ts`           |
-| 2   | Service Layer Pattern     | Business logic boundary          | `{module}.service.ts`              |
-| 3   | Domain Event Pattern      | Loose coupling between modules   | `event-bus.ts`, `domain-events.ts` |
-| 4   | Module Plugin Pattern     | Fastify module encapsulation     | `{module}.plugin.ts`               |
-| 5   | Query Key Factory Pattern | TanStack Query cache management  | `query-keys/{module}.keys.ts`      |
+| # | Pattern | Primary concern | Files involved |
+|---|---|---|---|
+| 1 | Repository Pattern | Data access isolation per module | `{module}.repository.ts` |
+| 2 | Service Layer Pattern | Business logic boundary | `{module}.service.ts` |
+| 3 | Domain Event Pattern | Loose coupling between modules | `event-bus.ts`, `domain-events.ts` |
+| 4 | Module Plugin Pattern | Fastify module encapsulation | `{module}.plugin.ts` |
+| 5 | Query Key Factory Pattern | TanStack Query cache management | `query-keys/{module}.keys.ts` |
 
 ---
 
@@ -215,8 +215,8 @@ The service layer (not the repository) creates transactions. The same repository
 // In a service function — the service owns the transaction boundary:
 async function logDocumentAndAssignTracking(input: LogDocumentInput) {
   return db.transaction(async (tx) => {
-    const docRepo = createDocumentsRepository(tx); // ← tx, not db
-    const trackingRepo = createTrackingRepository(tx); // ← same tx
+    const docRepo = createDocumentsRepository(tx);       // ← tx, not db
+    const trackingRepo = createTrackingRepository(tx);   // ← same tx
 
     const document = await docRepo.create(input.document);
     const qrCode = await trackingRepo.createQrCode({ documentId: document.id });
@@ -247,13 +247,13 @@ Advisory locks are a cooperative convention, not an enforced constraint — any 
 
 ### Prohibitions
 
-| Prohibited                                                                                | Why                                                                                                                                                         |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `import { db } from '@batac/database'` inside a repository                                | Creates a module-level singleton. Breaks testability and prevents transaction injection. Always receive `db` as a parameter.                                |
-| Queries against another module's schema                                                   | Violates module boundary. Go through that module's service instead.                                                                                         |
+| Prohibited | Why |
+|---|---|
+| `import { db } from '@batac/database'` inside a repository | Creates a module-level singleton. Breaks testability and prevents transaction injection. Always receive `db` as a parameter. |
+| Queries against another module's schema | Violates module boundary. Go through that module's service instead. |
 | Business logic (conditionals, calculations, domain rule checks) inside repository methods | The repository is dumb data access. If you find yourself writing `if (document.status === 'COMPLETED')` in a repository, that logic belongs in the service. |
-| Raw SQL strings (`sql\`...\``) except as last resort                                      | Use Drizzle operators. If a complex query genuinely requires raw SQL, document why in a comment and limit to one function.                                  |
-| Classes, decorators, or `new` keyword                                                     | Factory functions only. This aligns with the rest of the functional codebase style.                                                                         |
+| Raw SQL strings (`sql\`...\``) except as last resort | Use Drizzle operators. If a complex query genuinely requires raw SQL, document why in a comment and limit to one function. |
+| Classes, decorators, or `new` keyword | Factory functions only. This aligns with the rest of the functional codebase style. |
 
 ---
 
@@ -283,11 +283,7 @@ import { createDocumentsRepository } from './documents.repository';
 import type { TrackingService } from '../tracking/tracking.service';
 import type { AuditService } from '../audit/audit.service';
 import type { TypedEventBus } from '../../infrastructure/event-bus';
-import type {
-  LogDocumentInput,
-  LogDocumentResult,
-  AssignFinalNumberInput,
-} from './documents.types';
+import type { LogDocumentInput, LogDocumentResult, AssignFinalNumberInput } from './documents.types';
 import { DocumentAlreadyFinalizedError, DuplicateFinalNumberError } from './documents.errors';
 
 // ─── Interface ───────────────────────────────────────────────────────────────
@@ -479,13 +475,13 @@ export async function registerDocumentsRoutes(
 
 ### Prohibitions
 
-| Prohibited                                                  | Why                                                                                                                                                 |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Business logic in tRPC procedures or Fastify route handlers | Handlers are transport adapters. Business logic there cannot be reused, tested in isolation, or audited.                                            |
-| Direct repository calls from handlers                       | Route handlers must go through the service.                                                                                                         |
-| One service importing another module's repository directly  | Cross-module data access goes through the other module's service.                                                                                   |
-| Calling `eventBus.emit()` inside a transaction callback     | If the event fires before the transaction commits, subscribers may act on uncommitted data. Always emit after the `db.transaction()` call resolves. |
-| Throwing generic `Error` for known domain failures          | Export typed error classes from `{module}.errors.ts` (`DocumentAlreadyFinalizedError`, etc.) so callers can distinguish error types.                |
+| Prohibited | Why |
+|---|---|
+| Business logic in tRPC procedures or Fastify route handlers | Handlers are transport adapters. Business logic there cannot be reused, tested in isolation, or audited. |
+| Direct repository calls from handlers | Route handlers must go through the service. |
+| One service importing another module's repository directly | Cross-module data access goes through the other module's service. |
+| Calling `eventBus.emit()` inside a transaction callback | If the event fires before the transaction commits, subscribers may act on uncommitted data. Always emit after the `db.transaction()` call resolves. |
+| Throwing generic `Error` for known domain failures | Export typed error classes from `{module}.errors.ts` (`DocumentAlreadyFinalizedError`, etc.) so callers can distinguish error types. |
 
 ---
 
@@ -708,13 +704,13 @@ The module name prefix ensures no name collisions between modules. The verb must
 
 ### Prohibitions
 
-| Prohibited                                                                    | Why                                                                                                                                                                               |
-| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `eventBus.emit(...)` inside a `db.transaction()` callback                     | Subscribers may act on data before it is committed. Emit only after the transaction resolves.                                                                                     |
-| Using the event bus for synchronous results (emitting and reading a response) | Events are fire-and-forget. They cannot return values. Use direct service calls if you need a result.                                                                             |
-| Using events for critical path steps that require atomicity                   | Domain events for side effects only. The core business operation (create document, advance workflow step) must complete synchronously and transactionally before the event fires. |
-| String literals for event names anywhere except `domain-events.ts`            | Always use the `DomainEventMap` key type. TypeScript will catch typos.                                                                                                            |
-| A module subscribing to its own events                                        | If Module A emits and needs to react to its own emission in the same module, call the function directly. Self-subscription is a code smell.                                       |
+| Prohibited | Why |
+|---|---|
+| `eventBus.emit(...)` inside a `db.transaction()` callback | Subscribers may act on data before it is committed. Emit only after the transaction resolves. |
+| Using the event bus for synchronous results (emitting and reading a response) | Events are fire-and-forget. They cannot return values. Use direct service calls if you need a result. |
+| Using events for critical path steps that require atomicity | Domain events for side effects only. The core business operation (create document, advance workflow step) must complete synchronously and transactionally before the event fires. |
+| String literals for event names anywhere except `domain-events.ts` | Always use the `DomainEventMap` key type. TypeScript will catch typos. |
+| A module subscribing to its own events | If Module A emits and needs to react to its own emission in the same module, call the function directly. Self-subscription is a code smell. |
 
 ---
 
@@ -781,12 +777,9 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
   // 4. Register REST routes in a nested scope (no fp wrapper here).
   //    REST routes for the external/portal API live in a child scope.
   //    This means route-specific hooks (e.g. rate limiting) don't leak globally.
-  await fastify.register(
-    async (scopedInstance) => {
-      await registerDocumentsRoutes(scopedInstance, service);
-    },
-    { prefix: '/api/v1' },
-  );
+  await fastify.register(async (scopedInstance) => {
+    await registerDocumentsRoutes(scopedInstance, service);
+  }, { prefix: '/api/v1' });
 }
 
 // ─── Export with fp ───────────────────────────────────────────────────────────
@@ -845,12 +838,12 @@ export async function buildApp() {
   await fastify.register(eventBusPlugin);
 
   // Core modules in dependency order.
-  await fastify.register(auditPlugin); // no module deps
-  await fastify.register(iamPlugin); // depends on: database, audit
+  await fastify.register(auditPlugin);      // no module deps
+  await fastify.register(iamPlugin);        // depends on: database, audit
   await fastify.register(organizationPlugin); // depends on: database, audit, iam
-  await fastify.register(trackingPlugin); // depends on: database, audit
-  await fastify.register(documentsPlugin); // depends on: database, event-bus, tracking, audit
-  await fastify.register(workflowPlugin); // depends on: database, event-bus, documents, audit
+  await fastify.register(trackingPlugin);   // depends on: database, audit
+  await fastify.register(documentsPlugin);  // depends on: database, event-bus, tracking, audit
+  await fastify.register(workflowPlugin);   // depends on: database, event-bus, documents, audit
   await fastify.register(notificationsPlugin); // depends on: database, event-bus (subscriber only)
 
   // Register the merged tRPC router after all module routers are decorated.
@@ -907,13 +900,13 @@ declare module 'fastify' {
 
 ### Prohibitions
 
-| Prohibited                                                                                       | Why                                                                                                                                                                                                                                        |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `import { documentsService } from '../documents/documents.service'` directly in another module   | Creates tight compile-time coupling. All cross-module access goes through `fastify.documentsService` (the Fastify decoration).                                                                                                             |
-| Omitting `fp()` wrapping on a module plugin                                                      | Without `fp`, decorations are invisible to sibling plugins. The app will crash at runtime with `FST_ERR_DEC_ALREADY_PRESENT` or a "not found" error.                                                                                       |
-| Omitting the `dependencies` array                                                                | Fastify registers plugins in the order `fastify.register()` is called. Missing `dependencies` declaration means a wrong registration order will silently fail at runtime rather than crashing immediately with a clear message at startup. |
-| Registering REST routes at the module plugin's top scope (without a nested `fastify.register()`) | Route-specific hooks (authentication guards, rate limiting, serialization schemas) applied in the top scope of a module plugin leak to all sibling plugins registered afterward.                                                           |
-| Circular plugin dependencies                                                                     | If Module A depends on B and B depends on A, extract the shared concern into a third infrastructure plugin.                                                                                                                                |
+| Prohibited | Why |
+|---|---|
+| `import { documentsService } from '../documents/documents.service'` directly in another module | Creates tight compile-time coupling. All cross-module access goes through `fastify.documentsService` (the Fastify decoration). |
+| Omitting `fp()` wrapping on a module plugin | Without `fp`, decorations are invisible to sibling plugins. The app will crash at runtime with `FST_ERR_DEC_ALREADY_PRESENT` or a "not found" error. |
+| Omitting the `dependencies` array | Fastify registers plugins in the order `fastify.register()` is called. Missing `dependencies` declaration means a wrong registration order will silently fail at runtime rather than crashing immediately with a clear message at startup. |
+| Registering REST routes at the module plugin's top scope (without a nested `fastify.register()`) | Route-specific hooks (authentication guards, rate limiting, serialization schemas) applied in the top scope of a module plugin leak to all sibling plugins registered afterward. |
+| Circular plugin dependencies | If Module A depends on B and B depends on A, extract the shared concern into a third infrastructure plugin. |
 
 ---
 
@@ -1083,7 +1076,8 @@ export const portalKeys = {
     lists: () => [...portalKeys.documents.all, 'list'] as const,
     list: (filters: PublicDocumentFilters) => [...portalKeys.documents.lists(), filters] as const,
     detail: (id: string) => [...portalKeys.documents.all, 'detail', id] as const,
-    byTracking: (number: string) => [...portalKeys.documents.all, 'tracking', number] as const,
+    byTracking: (number: string) =>
+      [...portalKeys.documents.all, 'tracking', number] as const,
   },
 
   complaints: {
@@ -1140,13 +1134,13 @@ queryClient.invalidateQueries({ queryKey: portalKeys.all });
 
 ### Prohibitions
 
-| Prohibited                                                     | Why                                                                                                                                                                                                   |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inline string or array literals as query keys at the call site | `useQuery({ queryKey: ['documents', id] })` — this key is invisible to the factory, preventing hierarchical invalidation. Always use the factory.                                                     |
-| Defining keys for tRPC-backed queries                          | tRPC manages its own keys. Parallel manual keys for the same procedure will diverge and break cache consistency.                                                                                      |
-| `queryClient.invalidateQueries()` with no `queryKey` argument  | This invalidates the entire cache — all queries re-fetch simultaneously. Use a scoped key.                                                                                                            |
-| Putting keys in the component file that uses them              | Keys are reused across components and in mutation success callbacks. Inline definitions cannot be shared without import coupling.                                                                     |
-| Mutable key objects (non-`const` factory returns)              | TanStack Query compares keys by deep equality. Returning a plain array without `as const` makes TypeScript treat the values as `string[]` rather than a tuple, losing type information at call sites. |
+| Prohibited | Why |
+|---|---|
+| Inline string or array literals as query keys at the call site | `useQuery({ queryKey: ['documents', id] })` — this key is invisible to the factory, preventing hierarchical invalidation. Always use the factory. |
+| Defining keys for tRPC-backed queries | tRPC manages its own keys. Parallel manual keys for the same procedure will diverge and break cache consistency. |
+| `queryClient.invalidateQueries()` with no `queryKey` argument | This invalidates the entire cache — all queries re-fetch simultaneously. Use a scoped key. |
+| Putting keys in the component file that uses them | Keys are reused across components and in mutation success callbacks. Inline definitions cannot be shared without import coupling. |
+| Mutable key objects (non-`const` factory returns) | TanStack Query compares keys by deep equality. Returning a plain array without `as const` makes TypeScript treat the values as `string[]` rather than a tuple, losing type information at call sites. |
 
 ---
 
@@ -1221,14 +1215,14 @@ Back to Fastify handler → tRPC response → browser
 
 ### Cross-Pattern Rules That Apply Everywhere
 
-| Rule                                                    | Enforced by                                |
-| ------------------------------------------------------- | ------------------------------------------ |
-| No module reads another module's DB schema              | Repository pattern (schema ownership)      |
-| No business logic in route handlers                     | Service layer pattern                      |
-| No direct cross-module service imports                  | Module plugin pattern (decorate → consume) |
-| No cross-module side effects via direct service calls   | Domain event pattern                       |
-| No inline cache keys at the call site                   | Query key factory pattern                  |
-| All five patterns must be present for a complete module | This document                              |
+| Rule | Enforced by |
+|---|---|
+| No module reads another module's DB schema | Repository pattern (schema ownership) |
+| No business logic in route handlers | Service layer pattern |
+| No direct cross-module service imports | Module plugin pattern (decorate → consume) |
+| No cross-module side effects via direct service calls | Domain event pattern |
+| No inline cache keys at the call site | Query key factory pattern |
+| All five patterns must be present for a complete module | This document |
 
 ---
 

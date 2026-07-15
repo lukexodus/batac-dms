@@ -1,3 +1,4 @@
+
 ```mermaid
 flowchart TD
 
@@ -49,7 +50,7 @@ V["Posting and Publication"]
 
 W["Ordinance Becomes a Law; and<br/>Resolution has the force and effect of Law, if Approves"]
 
-
+  
 
 %% Solid Connections (Block Arrows)
 
@@ -85,7 +86,7 @@ U ==> V
 
 V ==> W
 
-
+  
 
 %% Dashed Connections
 
@@ -105,7 +106,8 @@ P -.-> S
 
 S ==> T
 
-T -.-> R
+T -.-> R 
 
 R -.-> T
 ```
+

@@ -58,6 +58,7 @@
 
 ---
 
+
 ## Section 1 — Shared Type Definitions {#section-1}
 
 **File:** `packages/ui/src/types/domain.ts`
@@ -81,40 +82,40 @@ system; `StatusBadge` and `STATUS_META` key off this union so that TypeScript en
 ```typescript
 export type DocumentState =
   // ── Core document lifecycle (Part 11.4) ──────────────────────────────────────
-  | 'DRAFT' // Document created; not yet submitted to Secretariat
-  | 'SUBMITTED' // Submitted to Secretariat; pending intake logging
-  | 'IN_WORKFLOW' // Active in a workflow instance — broad umbrella state // [Ambiguity — see note A]
-  | 'PENDING_APPROVAL' // Awaiting a generic approval action // [Ambiguity — see note B]
-  | 'COMPLETED' // Workflow instance reached a terminal approved outcome
-  | 'RELEASED' // Published to portal; publicly visible
-  | 'ARCHIVED' // Permanent historical record; read-only
-  | 'DISPOSED' // Records-managed disposal (no document destroyed — audit only)
-  | 'CANCELLED' // Withdrawn/cancelled; terminal; no further action possible
+  | 'DRAFT'              // Document created; not yet submitted to Secretariat
+  | 'SUBMITTED'          // Submitted to Secretariat; pending intake logging
+  | 'IN_WORKFLOW'        // Active in a workflow instance — broad umbrella state // [Ambiguity — see note A]
+  | 'PENDING_APPROVAL'   // Awaiting a generic approval action // [Ambiguity — see note B]
+  | 'COMPLETED'          // Workflow instance reached a terminal approved outcome
+  | 'RELEASED'           // Published to portal; publicly visible
+  | 'ARCHIVED'           // Permanent historical record; read-only
+  | 'DISPOSED'           // Records-managed disposal (no document destroyed — audit only)
+  | 'CANCELLED'          // Withdrawn/cancelled; terminal; no further action possible
   // ── Reading and workflow-step states (Parts 4.1, 4.2) ────────────────────────
-  | 'FIRST_READING' // Vice Mayor has referred document at First Reading session
-  | 'SECOND_READING' // Document before the body at Second Reading session
-  | 'THIRD_READING' // Document before the body at Third Reading session (Ordinances only)
-  | 'IN_COMMITTEE' // Referred to one or more standing committees
-  | 'PENDING_MAYOR' // Transmitted to Mayor; 10-day review clock running
-  | 'VETOED' // Mayor returned with veto; override vote pending or failed
-  | 'OVERRIDE_PENDING' // Override vote has not yet occurred; 2/3 threshold required
-  | 'LAPSED' // Mayor took no action within 10 days; lapsed into law per RA 7160
+  | 'FIRST_READING'      // Vice Mayor has referred document at First Reading session
+  | 'SECOND_READING'     // Document before the body at Second Reading session
+  | 'THIRD_READING'      // Document before the body at Third Reading session (Ordinances only)
+  | 'IN_COMMITTEE'       // Referred to one or more standing committees
+  | 'PENDING_MAYOR'      // Transmitted to Mayor; 10-day review clock running
+  | 'VETOED'             // Mayor returned with veto; override vote pending or failed
+  | 'OVERRIDE_PENDING'   // Override vote has not yet occurred; 2/3 threshold required
+  | 'LAPSED'             // Mayor took no action within 10 days; lapsed into law per RA 7160
   // ── Panlalawigan review outcome states (Parts 4.3, 4.4) ─────────────────────
-  | 'PANLALAWIGAN_REVIEW' // Transmitted to Sangguniang Panlalawigan; 30-day timer running
-  | 'VALID' // Panlalawigan affirmed the measure in its entirety
-  | 'VALID_IN_PART' // Panlalawigan approved with partial invalidity finding
-  | 'RETURNED' // Panlalawigan returned with objections; implementation typically stopped
-  | 'DEEMED_APPROVED' // 30-day Panlalawigan window lapsed with no action; RA 7160 §56(d)
+  | 'PANLALAWIGAN_REVIEW'  // Transmitted to Sangguniang Panlalawigan; 30-day timer running
+  | 'VALID'                // Panlalawigan affirmed the measure in its entirety
+  | 'VALID_IN_PART'        // Panlalawigan approved with partial invalidity finding
+  | 'RETURNED'             // Panlalawigan returned with objections; implementation typically stopped
+  | 'DEEMED_APPROVED'      // 30-day Panlalawigan window lapsed with no action; RA 7160 §56(d)
   // ── Citizen complaint states (Part 4.14) ─────────────────────────────────────
-  | 'PENDING_HEARING' // Complaint logged; committee referral in progress
-  | 'RECEIVED_SEEN' // Vice Mayor or Committee has acknowledged the complaint // [Not in task prompt — added from Part 4.14 source; Part 4.14 update required in task spec]
-  | 'DISMISSED' // Complaint dismissed by Secretariat or committee
-  | 'RESOLVED'; // Committee report issued; complainant notified; case closed
+  | 'PENDING_HEARING'      // Complaint logged; committee referral in progress
+  | 'RECEIVED_SEEN'        // Vice Mayor or Committee has acknowledged the complaint // [Not in task prompt — added from Part 4.14 source; Part 4.14 update required in task spec]
+  | 'DISMISSED'            // Complaint dismissed by Secretariat or committee
+  | 'RESOLVED';            // Committee report issued; complainant notified; case closed
 ```
 
 > **Note A — `IN_WORKFLOW` / step-level granularity ambiguity:** Part 11.4 defines `IN_WORKFLOW` as
 > a broad lifecycle state encompassing any active workflow instance. States like `FIRST_READING`,
-> `IN_COMMITTEE`, and `PENDING_MAYOR` are more granular positions _within_ `IN_WORKFLOW`. Showing
+> `IN_COMMITTEE`, and `PENDING_MAYOR` are more granular positions *within* `IN_WORKFLOW`. Showing
 > both in one union creates a semantic hierarchy that TypeScript cannot enforce without a discriminated
 > union refactor. For Phase 1, `IN_WORKFLOW` is retained for generic pipeline display (e.g., when
 > the specific reading state is not yet surfaced in the UI), and the granular states coexist. A
@@ -126,7 +127,7 @@ export type DocumentState =
 > concrete approval actor is the Mayor, so `PENDING_MAYOR` covers the SP workflow. `PENDING_APPROVAL`
 > exists as a generic alias for non-SP document types that pass through a generic approval gate.
 > `// [Ambiguity — use PENDING_MAYOR for SP Resolutions and Ordinances; PENDING_APPROVAL for other
-document types introduced in later phases]`
+> document types introduced in later phases]`
 
 ---
 
@@ -183,32 +184,32 @@ rendering can select the correct dot color and label without parsing strings.
 ```typescript
 export type RoutingAction =
   // ── Provided in J6 task spec ──────────────────────────────────────────────
-  | 'Logged' // Document first recorded by Secretariat (intake_logging)
-  | 'Transmitted' // Physical or digital transmission dispatched
-  | 'Received' // Receiving party confirmed receipt
-  | 'FirstReadingConducted' // First Reading completed at session (first_reading)
-  | 'ReferredToCommittee' // Referred to one or more committees (committee_referral)
-  | 'CommitteeReportSubmitted' // Committee report submitted to Secretariat
-  | 'SecondReadingConducted' // Second Reading vote recorded (second_reading_vote)
-  | 'ThirdReadingConducted' // Third Reading vote recorded (third_reading_vote — Ordinances)
-  | 'FinalNumberAssigned' // Draft prefix removed; final series number assigned
-  | 'VPCertified' // Vice Mayor signed the certified copy (vp_certification)
-  | 'TransmittedToMayor' // Transmittal letter dispatched to Mayor (mayor review clock starts)
-  | 'SignedByMayor' // Mayor signed within 10-day window
-  | 'Vetoed' // Mayor returned with formal veto
-  | 'Lapsed' // Mayor took no action; lapsed into law per RA 7160
-  | 'DeemedApproved' // 30-day Panlalawigan window expired; RA 7160 §56(d)
-  | 'SubmittedToPanlalawigan' // Transmitted to Sangguniang Panlalawigan
+  | 'Logged'                      // Document first recorded by Secretariat (intake_logging)
+  | 'Transmitted'                 // Physical or digital transmission dispatched
+  | 'Received'                    // Receiving party confirmed receipt
+  | 'FirstReadingConducted'       // First Reading completed at session (first_reading)
+  | 'ReferredToCommittee'         // Referred to one or more committees (committee_referral)
+  | 'CommitteeReportSubmitted'    // Committee report submitted to Secretariat
+  | 'SecondReadingConducted'      // Second Reading vote recorded (second_reading_vote)
+  | 'ThirdReadingConducted'       // Third Reading vote recorded (third_reading_vote — Ordinances)
+  | 'FinalNumberAssigned'         // Draft prefix removed; final series number assigned
+  | 'VPCertified'                 // Vice Mayor signed the certified copy (vp_certification)
+  | 'TransmittedToMayor'          // Transmittal letter dispatched to Mayor (mayor review clock starts)
+  | 'SignedByMayor'               // Mayor signed within 10-day window
+  | 'Vetoed'                      // Mayor returned with formal veto
+  | 'Lapsed'                      // Mayor took no action; lapsed into law per RA 7160
+  | 'DeemedApproved'              // 30-day Panlalawigan window expired; RA 7160 §56(d)
+  | 'SubmittedToPanlalawigan'     // Transmitted to Sangguniang Panlalawigan
   | 'PanlalawiganOutcomeRecorded' // SP Secretary recorded Panlalawigan VALID / VALID_IN_PART / RETURNED
-  | 'Released' // Document published to public portal
-  | 'Archived' // Permanently archived by Records Officer
+  | 'Released'                    // Document published to public portal
+  | 'Archived'                    // Permanently archived by Records Officer
   // ── Added by J6 — sourced from D2 Diagrams 2, 3, 7B, 7C ──────────────────
-  | 'CertificationOfUrgencyLogged' // [Added in J6 — D2 Diagram 2] Secretariat logged a Certification of Urgency; committee referral bypassed
-  | 'CommitteeBypassApplied' // [Added in J6 — D2 Diagram 2] Workflow engine recorded committee_referral step as Skipped per CERTIFIED_URGENT bypass
-  | 'OverrideVoteRecorded' // [Added in J6 — D2 Diagram 3] SP override vote outcome logged (OVERRIDE_SUCCEEDED or OVERRIDE_FAILED)
-  | 'Docketed' // [Added in J6 — D2 Diagram 1] Docketing step completed; document readied for distribution
-  | 'Repassed' // [Added in J6 — D2 Diagram 7C] Document returned to drafting after RETURNED Panlalawigan outcome
-  | 'OrderOfBusinessScheduled'; // [Added in J6 — D2 Diagram 1] Document added to next Tuesday Order of Business
+  | 'CertificationOfUrgencyLogged'  // [Added in J6 — D2 Diagram 2] Secretariat logged a Certification of Urgency; committee referral bypassed
+  | 'CommitteeBypassApplied'        // [Added in J6 — D2 Diagram 2] Workflow engine recorded committee_referral step as Skipped per CERTIFIED_URGENT bypass
+  | 'OverrideVoteRecorded'          // [Added in J6 — D2 Diagram 3] SP override vote outcome logged (OVERRIDE_SUCCEEDED or OVERRIDE_FAILED)
+  | 'Docketed'                      // [Added in J6 — D2 Diagram 1] Docketing step completed; document readied for distribution
+  | 'Repassed'                      // [Added in J6 — D2 Diagram 7C] Document returned to drafting after RETURNED Panlalawigan outcome
+  | 'OrderOfBusinessScheduled';     // [Added in J6 — D2 Diagram 1] Document added to next Tuesday Order of Business
 ```
 
 ---
@@ -226,7 +227,7 @@ status chip color without re-interpreting strings.
 > `ABSENT/NOT HEARD`. J6 defers to F5's `ABSENT_NOT_HEARD` because J6 never contradicts completed
 > prior documents. The type is renamed `CommitteeReportStatus` (from F5's `CommitteeReferralStatus`)
 > to distinguish it from the `CommitteeReferral` interface name. `// [F5 update required — rename
-CommitteeReferralStatus → CommitteeReportStatus for disambiguation]`
+> CommitteeReferralStatus → CommitteeReportStatus for disambiguation]`
 
 ```typescript
 export type CommitteeReportStatus = 'SUBMITTED' | 'PENDING' | 'ABSENT_NOT_HEARD';
@@ -245,18 +246,18 @@ a strict contract for the data it renders.
 > to `actorName`, `actorOfficeName`, `fromOfficeName`, `toOfficeName` for clarity when destructured
 > alongside other name-like fields. J6 also adds `notes?: string` (from Part 11.6: routing history
 > records remarks). `// [F5 update required — rename actor→actorName, actorOffice→actorOfficeName,
-fromOffice→fromOfficeName, toOffice→toOfficeName; add notes? field]`
+> fromOffice→fromOfficeName, toOffice→toOfficeName; add notes? field]`
 
 ```typescript
 export interface RoutingEntry {
   id: string;
-  actorName: string; // Display name of the person who performed the action
-  actorOfficeName: string; // Office/role of the actor (e.g. "SP Secretariat")
-  action: RoutingAction; // What happened
-  timestamp: Date; // When it happened — render via DATE_FORMATS.displayWithTime
-  notes?: string; // Optional remarks logged alongside the routing action
-  fromOfficeName?: string; // Physical custody: where the document came from
-  toOfficeName?: string; // Physical custody: where the document went
+  actorName: string;          // Display name of the person who performed the action
+  actorOfficeName: string;    // Office/role of the actor (e.g. "SP Secretariat")
+  action: RoutingAction;      // What happened
+  timestamp: Date;            // When it happened — render via DATE_FORMATS.displayWithTime
+  notes?: string;             // Optional remarks logged alongside the routing action
+  fromOfficeName?: string;    // Physical custody: where the document came from
+  toOfficeName?: string;      // Physical custody: where the document went
 }
 ```
 
@@ -273,16 +274,16 @@ the same data contract without re-deriving step shape from the workflow engine r
 > **Additions vs F5:** F5 includes `tooltip?: string`. J6 retains it and adds `completedAt?: Date`
 > and `assigneeName?: string` (both surfaced in the DESIGN.md §6.3 WorkflowStepIndicator behavior
 > spec and required for the tooltip content). `// [F5 update required — add completedAt? and
-assigneeName? to WorkflowStep]`
+> assigneeName? to WorkflowStep]`
 
 ```typescript
 export interface WorkflowStep {
   id: string;
-  label: string; // Human-readable step name; sourced from D2 Diagram 1 step keys
+  label: string;               // Human-readable step name; sourced from D2 Diagram 1 step keys
   state: 'completed' | 'active' | 'pending' | 'skipped' | 'error';
-  completedAt?: Date; // [Added in J6 — F5 update required] Render via DATE_FORMATS.display
-  assigneeName?: string; // [Added in J6 — F5 update required] Current or past assignee
-  tooltip?: string; // Additional context shown on hover via Tooltip (Tier 1)
+  completedAt?: Date;          // [Added in J6 — F5 update required] Render via DATE_FORMATS.display
+  assigneeName?: string;       // [Added in J6 — F5 update required] Current or past assignee
+  tooltip?: string;            // Additional context shown on hover via Tooltip (Tier 1)
 }
 ```
 
@@ -301,8 +302,8 @@ export interface CommitteeReferral {
   id: string;
   committeeName: string;
   status: CommitteeReportStatus;
-  submittedBy?: string; // Name of person who submitted the report (renders via AvatarName T2)
-  submittedAt?: Date; // Render via DATE_FORMATS.displayWithTime
+  submittedBy?: string;     // Name of person who submitted the report (renders via AvatarName T2)
+  submittedAt?: Date;       // Render via DATE_FORMATS.displayWithTime
 }
 ```
 
@@ -319,19 +320,19 @@ document, committee report required before Second Reading, red-flagging missing 
 > **Changes vs F5:** F5 has `agendaNumber: string`, `documentNumberVariant`, `committees: string[]`,
 > `reportStatus: CommitteeReportStatus`. J6 changes `agendaNumber` to `number` (it is an integer
 > position in the agenda, not a formatted string), renames `documentNumberVariant` → `numberVariant:
-NumberVariant`, replaces the flat `committees` array + `reportStatus` with the richer
+> NumberVariant`, replaces the flat `committees` array + `reportStatus` with the richer
 > `committeeReferrals: CommitteeReferral[]` (allows per-committee status), adds `documentState:
-DocumentState` (needed for StatusBadge inside the row), and adds `scheduledReadingType` (needed
+> DocumentState` (needed for StatusBadge inside the row), and adds `scheduledReadingType` (needed
 > for the reading-type chip). `// [F5 update required — see all comments below]`
 
 ```typescript
 export interface OrderOfBusinessItem {
-  agendaNumber: number; // [Changed in J6 — F5 had string; F5 update required]
-  documentNumber: string; // e.g. "7SP 2026-001"
-  numberVariant: NumberVariant; // [F5 had documentNumberVariant; F5 update required]
+  agendaNumber: number;                          // [Changed in J6 — F5 had string; F5 update required]
+  documentNumber: string;                        // e.g. "7SP 2026-001"
+  numberVariant: NumberVariant;                  // [F5 had documentNumberVariant; F5 update required]
   title: string;
-  documentState: DocumentState; // [Added in J6 — F5 update required]
-  committeeReferrals: CommitteeReferral[]; // [Changed in J6 — replaces F5's committees[] + reportStatus; F5 update required]
+  documentState: DocumentState;                  // [Added in J6 — F5 update required]
+  committeeReferrals: CommitteeReferral[];        // [Changed in J6 — replaces F5's committees[] + reportStatus; F5 update required]
   isCertifiedUrgent: boolean;
   isMissingReport: boolean;
   scheduledReadingType: 'FIRST' | 'SECOND' | 'THIRD'; // [Added in J6 — F5 update required]
@@ -352,19 +353,19 @@ into a larger document object at render time.
 > shadowing a commonly used variable name), and omits SLA fields. J6 adds `slaDeadlineAt?: Date` and
 > `slaStartedAt?: Date` so the card can conditionally render an embedded `SLATimer` for documents in
 > `PENDING_MAYOR` or `PANLALAWIGAN_REVIEW` without a second data fetch. `// [F5 update required —
-rename documentNumberVariant, rename state→documentState, add slaDeadlineAt?, slaStartedAt?]`
+> rename documentNumberVariant, rename state→documentState, add slaDeadlineAt?, slaStartedAt?]`
 
 ```typescript
 export interface DocumentPreview {
   id: string;
   documentNumber: string;
-  numberVariant: NumberVariant; // [F5 had documentNumberVariant; F5 update required]
+  numberVariant: NumberVariant;                  // [F5 had documentNumberVariant; F5 update required]
   title: string;
-  documentState: DocumentState; // [F5 had state; renamed for clarity; F5 update required]
-  lastActionAt: Date; // Render via DATE_FORMATS.displayWithTime
-  slaDeadlineAt?: Date; // [Added in J6 — F5 update required] Omit if state has no running SLA
-  slaStartedAt?: Date; // [Added in J6 — F5 update required] Omit if state has no running SLA
-  thumbnailUrl?: string; // Omit to render bg-neutral-100 placeholder
+  documentState: DocumentState;                  // [F5 had state; renamed for clarity; F5 update required]
+  lastActionAt: Date;                            // Render via DATE_FORMATS.displayWithTime
+  slaDeadlineAt?: Date;                          // [Added in J6 — F5 update required] Omit if state has no running SLA
+  slaStartedAt?: Date;                           // [Added in J6 — F5 update required] Omit if state has no running SLA
+  thumbnailUrl?: string;                         // Omit to render bg-neutral-100 placeholder
 }
 ```
 
@@ -380,9 +381,9 @@ machine-checkable and every consumer knows exactly what fields to expect.
 ```typescript
 export interface StatusMetaEntry {
   label: string;
-  bg: string; // Tailwind bg-* utility class; must exist in globals.css @theme
-  text: string; // Tailwind text-* utility class; must exist in globals.css @theme
-  borderLeft: string; // Space-separated Tailwind border-l-* utilities; must exist in @theme
+  bg: string;            // Tailwind bg-* utility class; must exist in globals.css @theme
+  text: string;          // Tailwind text-* utility class; must exist in globals.css @theme
+  borderLeft: string;    // Space-separated Tailwind border-l-* utilities; must exist in @theme
   borderStyle: 'solid' | 'dashed';
   textStyle: 'normal' | 'italic' | 'line-through';
 }
@@ -424,23 +425,24 @@ import type { DocumentState, StatusMetaEntry } from './types/domain';
  * See Section 4 Delta item 1.
  */
 export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
+
   // ── Core lifecycle states ─────────────────────────────────────────────────
 
   DRAFT: {
     label: 'Draft',
-    bg: 'bg-neutral-100', // #f1f3f5 — neutral-100 ✓ in @theme
-    text: 'text-neutral-700', // #495057 — neutral-700 ✓ in @theme
+    bg: 'bg-neutral-100',            // #f1f3f5 — neutral-100 ✓ in @theme
+    text: 'text-neutral-700',        // #495057 — neutral-700 ✓ in @theme
     borderLeft: 'border-l-2 border-l-neutral-600',
     // NOTE: §7 labels this border as neutral-500 (#868e96) but neutral-500 = #adb5bd in @theme.
     // The hex #868e96 = neutral-600. Using neutral-600. See Section 4 Delta item 1.
-    borderStyle: 'dashed', // Mandated by DESIGN.md §7 / §2 "Preliminary drafts use dashed border"
+    borderStyle: 'dashed',           // Mandated by DESIGN.md §7 / §2 "Preliminary drafts use dashed border"
     textStyle: 'normal',
   },
 
   SUBMITTED: {
     label: 'Submitted',
-    bg: 'bg-neutral-50', // #f8f9fa — neutral-50 ✓ in @theme
-    text: 'text-neutral-700', // neutral-700 ✓
+    bg: 'bg-neutral-50',             // #f8f9fa — neutral-50 ✓ in @theme
+    text: 'text-neutral-700',        // neutral-700 ✓
     borderLeft: 'border-l-2 border-l-neutral-500', // neutral-500 ✓ — lighter than DRAFT to signal progression
     borderStyle: 'solid',
     textStyle: 'normal',
@@ -450,8 +452,8 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   IN_WORKFLOW: {
     label: 'In Workflow',
-    bg: 'bg-info-100', // #dbeafe — info-100 ✓ in @theme
-    text: 'text-info-900', // #1e3a8a — info-900 ✓ in @theme
+    bg: 'bg-info-100',               // #dbeafe — info-100 ✓ in @theme
+    text: 'text-info-900',           // #1e3a8a — info-900 ✓ in @theme
     borderLeft: 'border-l-2 border-l-info-500', // info-500 ✓
     borderStyle: 'solid',
     textStyle: 'normal',
@@ -461,8 +463,8 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   PENDING_APPROVAL: {
     label: 'Pending Approval',
-    bg: 'bg-warning-100', // #fef3c7 — warning-100 ✓ in @theme
-    text: 'text-warning-900', // #78350f — warning-900 ✓ in @theme
+    bg: 'bg-warning-100',            // #fef3c7 — warning-100 ✓ in @theme
+    text: 'text-warning-900',        // #78350f — warning-900 ✓ in @theme
     borderLeft: 'border-l-2 border-l-warning-500', // warning-500 ✓
     borderStyle: 'solid',
     textStyle: 'normal',
@@ -472,8 +474,8 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   COMPLETED: {
     label: 'Completed',
-    bg: 'bg-success-100', // #d1fae5 — success-100 ✓ in @theme
-    text: 'text-success-900', // #064e3b — success-900 ✓ in @theme
+    bg: 'bg-success-100',            // #d1fae5 — success-100 ✓ in @theme
+    text: 'text-success-900',        // #064e3b — success-900 ✓ in @theme
     borderLeft: 'border-l-2 border-l-success-500', // success-500 ✓
     borderStyle: 'solid',
     textStyle: 'normal',
@@ -483,8 +485,8 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   RELEASED: {
     label: 'Released',
-    bg: 'bg-success-100', // success-100 ✓
-    text: 'text-success-900', // success-900 ✓
+    bg: 'bg-success-100',            // success-100 ✓
+    text: 'text-success-900',        // success-900 ✓
     borderLeft: 'border-l-2 border-l-success-300', // #6ee7b7 — success-300 ✓ in @theme
     borderStyle: 'solid',
     textStyle: 'normal',
@@ -495,8 +497,8 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   ARCHIVED: {
     label: 'Archived',
-    bg: 'bg-neutral-100', // neutral-100 ✓
-    text: 'text-neutral-600', // #868e96 — neutral-600 ✓ in @theme (muted, read-only signal)
+    bg: 'bg-neutral-100',            // neutral-100 ✓
+    text: 'text-neutral-600',        // #868e96 — neutral-600 ✓ in @theme (muted, read-only signal)
     borderLeft: 'border-l-2 border-l-neutral-400', // #ced4da — neutral-400 ✓ in @theme
     borderStyle: 'solid',
     textStyle: 'normal',
@@ -505,8 +507,8 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   DISPOSED: {
     label: 'Disposed',
-    bg: 'bg-neutral-100', // neutral-100 ✓
-    text: 'text-neutral-600', // neutral-600 ✓
+    bg: 'bg-neutral-100',            // neutral-100 ✓
+    text: 'text-neutral-600',        // neutral-600 ✓
     borderLeft: 'border-l-2 border-l-neutral-400', // neutral-400 ✓
     borderStyle: 'solid',
     textStyle: 'normal',
@@ -517,11 +519,11 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   CANCELLED: {
     label: 'Cancelled',
-    bg: 'bg-neutral-100', // neutral-100 ✓
-    text: 'text-neutral-600', // neutral-600 ✓ — §7: #868e96 = neutral-600
+    bg: 'bg-neutral-100',            // neutral-100 ✓
+    text: 'text-neutral-600',        // neutral-600 ✓ — §7: #868e96 = neutral-600
     borderLeft: 'border-l-2 border-l-neutral-400', // neutral-400 ✓
     borderStyle: 'solid',
-    textStyle: 'line-through', // Mandated by DESIGN.md §7 — "neutral (strikethrough)" category
+    textStyle: 'line-through',       // Mandated by DESIGN.md §7 — "neutral (strikethrough)" category
     // SOURCE: DESIGN.md §7 CANCELLED row.
   },
 
@@ -529,8 +531,8 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   FIRST_READING: {
     label: 'First Reading',
-    bg: 'bg-info-100', // info-100 ✓
-    text: 'text-info-900', // info-900 ✓
+    bg: 'bg-info-100',               // info-100 ✓
+    text: 'text-info-900',           // info-900 ✓
     borderLeft: 'border-l-2 border-l-info-500', // info-500 ✓
     borderStyle: 'solid',
     textStyle: 'normal',
@@ -569,8 +571,8 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   PENDING_MAYOR: {
     label: 'Pending Mayor',
-    bg: 'bg-warning-100', // warning-100 ✓
-    text: 'text-warning-900', // warning-900 ✓
+    bg: 'bg-warning-100',            // warning-100 ✓
+    text: 'text-warning-900',        // warning-900 ✓
     borderLeft: 'border-l-2 border-l-warning-500', // warning-500 ✓
     borderStyle: 'solid',
     textStyle: 'normal',
@@ -579,8 +581,8 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   VETOED: {
     label: 'Vetoed',
-    bg: 'bg-danger-100', // danger-100 ✓
-    text: 'text-danger-900', // #7f1d1d — danger-900 ✓ in @theme
+    bg: 'bg-danger-100',             // danger-100 ✓
+    text: 'text-danger-900',         // #7f1d1d — danger-900 ✓ in @theme
     borderLeft: 'border-l-2 border-l-danger-500', // danger-500 ✓
     borderStyle: 'solid',
     textStyle: 'normal',
@@ -600,10 +602,10 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
   LAPSED: {
     label: 'Lapsed',
     bg: 'bg-neutral-100',
-    text: 'text-neutral-700', // #495057 ✓
+    text: 'text-neutral-700',        // #495057 ✓
     borderLeft: 'border-l-2 border-l-neutral-400', // #ced4da ✓
     borderStyle: 'solid',
-    textStyle: 'italic', // Mandated by DESIGN.md §7 — "italic" in text column
+    textStyle: 'italic',             // Mandated by DESIGN.md §7 — "italic" in text column
     // SOURCE: DESIGN.md §7 LAPSED row. LAPSED is not a failure — the document became law
     // per RA 7160 §47 (Resolutions) or §47 (Ordinances). Italic distinguishes it from
     // CANCELLED (line-through) and ARCHIVED (normal).
@@ -653,11 +655,11 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   DEEMED_APPROVED: {
     label: 'Deemed Approved',
-    bg: 'bg-success-100', // success-100 ✓
-    text: 'text-success-900', // success-900 ✓
+    bg: 'bg-success-100',            // success-100 ✓
+    text: 'text-success-900',        // success-900 ✓
     borderLeft: 'border-l-2 border-l-success-300', // #6ee7b7 — success-300 ✓ in @theme
-    borderStyle: 'dashed', // Mandated by DESIGN.md §7 — "Dashed border variant"
-    textStyle: 'italic', // DESIGN.md §7 notes: "italic label"
+    borderStyle: 'dashed',           // Mandated by DESIGN.md §7 — "Dashed border variant"
+    textStyle: 'italic',             // DESIGN.md §7 notes: "italic label"
     // SOURCE: DESIGN.md §7 DEEMED_APPROVED row. RA 7160 §56(d) legal basis.
     // success-300 left border (not success-500) signals muted approval — Panlalawigan
     // did not act, so it is passive approval rather than active affirmation.
@@ -677,8 +679,8 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
   RECEIVED_SEEN: {
     label: 'Received / Seen',
-    bg: 'bg-info-100', // info-100 ✓
-    text: 'text-info-900', // info-900 ✓
+    bg: 'bg-info-100',               // info-100 ✓
+    text: 'text-info-900',           // info-900 ✓
     borderLeft: 'border-l-2 border-l-info-500', // info-500 ✓
     borderStyle: 'solid',
     textStyle: 'normal',
@@ -690,7 +692,7 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
   DISMISSED: {
     label: 'Dismissed',
     bg: 'bg-neutral-100',
-    text: 'text-neutral-700', // #495057 ✓ — §7: "neutral | #f1f3f5 | #495057"
+    text: 'text-neutral-700',        // #495057 ✓ — §7: "neutral | #f1f3f5 | #495057"
     borderLeft: 'border-l-2 border-l-neutral-600',
     // NOTE: §7 shows #868e96 for border (no label given). #868e96 = neutral-600 in @theme.
     borderStyle: 'solid',
@@ -714,34 +716,34 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
 
 Every member of `DocumentState` has a corresponding key in STATUS_META:
 
-| State                 | In §7? | Entry present?                             |
-| --------------------- | ------ | ------------------------------------------ |
-| `DRAFT`               | ✓      | ✓                                          |
-| `SUBMITTED`           | ✗      | ✓ (derived from DRAFT)                     |
-| `IN_WORKFLOW`         | ✗      | ✓ (derived from IN_COMMITTEE)              |
-| `PENDING_APPROVAL`    | ✗      | ✓ (derived from PENDING_MAYOR)             |
-| `COMPLETED`           | ✗      | ✓ (derived from VALID)                     |
-| `RELEASED`            | ✗      | ✓ (derived from VALID, success-300 border) |
-| `ARCHIVED`            | ✓      | ✓                                          |
-| `DISPOSED`            | ✗      | ✓ (derived from ARCHIVED)                  |
-| `CANCELLED`           | ✓      | ✓                                          |
-| `FIRST_READING`       | ✓      | ✓                                          |
-| `SECOND_READING`      | ✓      | ✓                                          |
-| `THIRD_READING`       | ✓      | ✓                                          |
-| `IN_COMMITTEE`        | ✓      | ✓                                          |
-| `PENDING_MAYOR`       | ✓      | ✓                                          |
-| `VETOED`              | ✓      | ✓                                          |
-| `OVERRIDE_PENDING`    | ✓      | ✓                                          |
-| `LAPSED`              | ✓      | ✓                                          |
-| `PANLALAWIGAN_REVIEW` | ✓      | ✓                                          |
-| `VALID`               | ✓      | ✓                                          |
-| `VALID_IN_PART`       | ✓      | ✓                                          |
-| `RETURNED`            | ✓      | ✓                                          |
-| `DEEMED_APPROVED`     | ✓      | ✓                                          |
-| `PENDING_HEARING`     | ✓      | ✓                                          |
-| `RECEIVED_SEEN`       | ✗      | ✓ (derived from PENDING_HEARING)           |
-| `DISMISSED`           | ✓      | ✓                                          |
-| `RESOLVED`            | ✓      | ✓                                          |
+| State | In §7? | Entry present? |
+|---|---|---|
+| `DRAFT` | ✓ | ✓ |
+| `SUBMITTED` | ✗ | ✓ (derived from DRAFT) |
+| `IN_WORKFLOW` | ✗ | ✓ (derived from IN_COMMITTEE) |
+| `PENDING_APPROVAL` | ✗ | ✓ (derived from PENDING_MAYOR) |
+| `COMPLETED` | ✗ | ✓ (derived from VALID) |
+| `RELEASED` | ✗ | ✓ (derived from VALID, success-300 border) |
+| `ARCHIVED` | ✓ | ✓ |
+| `DISPOSED` | ✗ | ✓ (derived from ARCHIVED) |
+| `CANCELLED` | ✓ | ✓ |
+| `FIRST_READING` | ✓ | ✓ |
+| `SECOND_READING` | ✓ | ✓ |
+| `THIRD_READING` | ✓ | ✓ |
+| `IN_COMMITTEE` | ✓ | ✓ |
+| `PENDING_MAYOR` | ✓ | ✓ |
+| `VETOED` | ✓ | ✓ |
+| `OVERRIDE_PENDING` | ✓ | ✓ |
+| `LAPSED` | ✓ | ✓ |
+| `PANLALAWIGAN_REVIEW` | ✓ | ✓ |
+| `VALID` | ✓ | ✓ |
+| `VALID_IN_PART` | ✓ | ✓ |
+| `RETURNED` | ✓ | ✓ |
+| `DEEMED_APPROVED` | ✓ | ✓ |
+| `PENDING_HEARING` | ✓ | ✓ |
+| `RECEIVED_SEEN` | ✗ | ✓ (derived from PENDING_HEARING) |
+| `DISMISSED` | ✓ | ✓ |
+| `RESOLVED` | ✓ | ✓ |
 
 **Result: 26/26 states covered. No state is missing.**
 
@@ -750,7 +752,6 @@ Every member of `DocumentState` has a corresponding key in STATUS_META:
 ## Section 3 — Per-Component Specifications {#section-3}
 
 > **Import alias convention throughout this section:**
->
 > - `@batac/ui/types/domain` — shared domain types from Section 1
 > - `@batac/ui/lib/status-meta` — STATUS_META constant
 > - `@batac/ui/lib/date-locale` — DATE_FORMATS, phLocale
@@ -816,14 +817,12 @@ export function OrderOfBusinessPage() {
 #### 3.1.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 // Using h2 for the page title
-<div className="border-border-default mb-6 border-b pb-4">
-  <h2 className="text-text-primary text-2xl font-bold">{title}</h2>
+<div className="mb-6 pb-4 border-b border-border-default">
+  <h2 className="text-2xl font-bold text-text-primary">{title}</h2>
 </div>
 ```
-
 This breaks the document heading hierarchy: screen readers expect each page to have exactly one `<h1>`. When `PageHeader` uses `<h2>`, the page has no `<h1>`, causing navigation landmarks to break and failing WCAG 2.1 §1.3.1.
 
 ---
@@ -908,12 +907,10 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
 #### 3.2.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 // Lightening the sidebar in collapsed mode
 <aside className={collapsed ? 'bg-neutral-100 w-14' : 'bg-primary-950 w-60'}>
 ```
-
 DESIGN.md §8 Rule 3 is explicit: the sidebar must remain `bg-primary-950` in all states, including collapsed. Lightening it to `neutral-100` destroys the structural hierarchy that visually separates navigation from content and breaks brand coherence.
 
 ---
@@ -979,9 +976,7 @@ export function AppTopbar({ sidebarCollapsed }: { sidebarCollapsed: boolean }) {
       onNotificationClick={() => {}}
       currentUser={{ name: 'Gladys R. Lagura', role: 'SP Secretary' }}
       onUserMenuAction={(action) => {
-        if (action === 'logout') {
-          /* handle logout */
-        }
+        if (action === 'logout') { /* handle logout */ }
       }}
     />
   );
@@ -991,14 +986,10 @@ export function AppTopbar({ sidebarCollapsed }: { sidebarCollapsed: boolean }) {
 #### 3.3.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 // Using a Lucide ChevronRight as the breadcrumb separator
-<BreadcrumbSeparator>
-  <ChevronRight className="h-4 w-4" />
-</BreadcrumbSeparator>
+<BreadcrumbSeparator><ChevronRight className="h-4 w-4" /></BreadcrumbSeparator>
 ```
-
 DESIGN.md §6.2 mandates the `/` literal character as the breadcrumb separator, not an icon. A Lucide icon has a different visual weight and, if used as a `<svg>` without text content, requires explicit `aria-hidden="true"` to avoid screen reader confusion.
 
 ---
@@ -1049,8 +1040,8 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <AppShell
       sidebarCollapsed={collapsed}
-      onSidebarToggle={() => setCollapsed((c) => !c)}
-      sidebarContent={<AppSidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />}
+      onSidebarToggle={() => setCollapsed(c => !c)}
+      sidebarContent={<AppSidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />}
       topbarContent={<AppTopbar sidebarCollapsed={collapsed} />}
     >
       {children}
@@ -1062,17 +1053,15 @@ export function Layout({ children }: { children: ReactNode }) {
 #### 3.4.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 // Importing Zustand inside AppShell
 import { useLayoutStore } from '@batac/web/stores/layoutStore';
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const collapsed = useLayoutStore((s) => s.sidebarCollapsed);
+  const collapsed = useLayoutStore(s => s.sidebarCollapsed);
   // ...
 }
 ```
-
 `packages/ui` must not import from `apps/web`. Zustand is installed only under `--filter @batac/web` per the confirmed `INSTALL.sh` Step 3. Importing it from `packages/ui` would add Zustand as a peer dependency of the UI package, breaking the `apps/portal` consumption path in Phase 3.
 
 ---
@@ -1129,11 +1118,9 @@ import { DocumentNumberBadge } from '@batac/ui/components/domain/DocumentNumberB
 #### 3.5.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
-<span className="text-primary-800 font-sans text-xs">7SP 2026-001</span>
+<span className="font-sans text-xs text-primary-800">7SP 2026-001</span>
 ```
-
 Using `font-sans` for a document number violates DESIGN.md §8 Rule 1 and Rule 12. In a dense table with many document numbers, proportional characters make the fixed-width format `7SP 2026-001` harder to scan and compare at a glance. Monospace is a government-document identity signal, not an aesthetic preference.
 
 ---
@@ -1194,16 +1181,9 @@ import { StatCard } from '@batac/ui/components/domain/StatCard';
 #### 3.6.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
-<StatCard
-  metric={14}
-  label="Pending"
-  trend={{ value: 3, direction: 'up' }}
-  className="bg-primary-50"
-/>
+<StatCard metric={14} label="Pending" trend={{ value: 3, direction: 'up' }} className="bg-primary-50" />
 ```
-
 Overriding the card background via `className` violates DESIGN.md §8 Rule 7 (color should never be used decoratively). `StatCard` backgrounds are always `bg-white` (via the `Card` primitive's default). Adding `bg-primary-50` to communicate a priority tier is an incorrect encoding — use a separate badge or alert instead.
 
 ---
@@ -1257,13 +1237,12 @@ import { FileText } from 'lucide-react';
   heading="No documents in queue"
   body="Upload a resolution or ordinance to begin the SP workflow."
   action={{ label: 'Upload Document', onClick: () => {} }}
-/>;
+/>
 ```
 
 #### 3.7.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 <EmptyState
   icon={InboxIcon}
@@ -1272,7 +1251,6 @@ import { FileText } from 'lucide-react';
   // action omitted
 />
 ```
-
 Apologetic copy ("Sorry") and passive language ("it looks like") violate DESIGN.md §8 Rule 9. Staff using this app all day need directive, actionable messages — not apologies. Omitting the action when an obvious action exists leaves users without a path forward.
 
 ---
@@ -1332,12 +1310,10 @@ import { ScanQualityIndicator } from '@batac/ui/components/domain/ScanQualityInd
 #### 3.8.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 // Deriving the level outside the component and passing it as a prop
 type QualityProps = { level: 'excellent' | 'good' | 'fair' | 'poor'; score: number };
 ```
-
 Externalising the level derivation forces every caller to implement the same threshold logic, creating duplication risk. The score-to-level boundary values come from DESIGN.md §6.3 and are design decisions — they belong in the component, not in every consumer.
 
 ---
@@ -1370,11 +1346,11 @@ No Tier 1 or Tier 2 imports. Pure Tailwind and date arithmetic.
 
 `SLATimer` derives `SLAStatus` internally: compute `elapsed = (now - startedAt) / (deadlineAt - startedAt)` as a ratio. `elapsed < 0.8 → 'on-track'`, `0.8 ≤ elapsed < 1.0 → 'at-risk'`, `elapsed ≥ 1.0 → 'breached'`.
 
-| SLAStatus  | Bar fill                                   | Text               | Extra                              |
-| ---------- | ------------------------------------------ | ------------------ | ---------------------------------- |
-| `on-track` | `bg-success-500` on `bg-success-100` track | `text-success-500` | —                                  |
-| `at-risk`  | `bg-warning-500` on `bg-warning-100` track | `text-warning-500` | Pulsing amber dot beside the label |
-| `breached` | `bg-danger-500` on `bg-danger-100` track   | `text-danger-500`  | `animate-pulse` on the entire bar  |
+| SLAStatus | Bar fill | Text | Extra |
+|---|---|---|---|
+| `on-track` | `bg-success-500` on `bg-success-100` track | `text-success-500` | — |
+| `at-risk` | `bg-warning-500` on `bg-warning-100` track | `text-warning-500` | Pulsing amber dot beside the label |
+| `breached` | `bg-danger-500` on `bg-danger-100` track | `text-danger-500` | `animate-pulse` on the entire bar |
 
 The progress bar width is `Math.min(elapsed * 100, 100)%` expressed as an inline style on the fill element (`width` style — this is the only justified use of inline styles in Tier 3 since the progress percentage cannot be expressed as a static Tailwind class). The remaining-time text is computed with `date-fns` `formatDistance(deadlineAt, now, { locale: phLocale })`.
 
@@ -1401,13 +1377,12 @@ const deadlineAt = new Date('2026-06-20T08:00:00+08:00');
   deadlineAt={deadlineAt}
   label="Mayor review (10-day) — 7SP 2026-001"
   // className omitted — no override needed
-/>;
+/>
 ```
 
 #### 3.9.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 // Passing a pre-computed percentage instead of the Date objects
 interface SLATimerProps {
@@ -1415,7 +1390,6 @@ interface SLATimerProps {
   label: string;
 }
 ```
-
 Externalising percentage calculation forces consumers to recompute the same arithmetic — and to handle the `now` reference themselves, creating bugs when `now` is computed at render time vs. effect time. The `SLAStatus` derivation must happen inside the component, keyed off `Date` objects, so the component can re-derive on each render with a current `now` reference.
 
 ---
@@ -1477,7 +1451,7 @@ const entries: RoutingEntry[] = [
     timestamp: new Date('2026-06-13T09:00:00+08:00'),
     notes: 'Transmittal letter SPS 2026-038 dispatched. Mayor review 10-day clock started.',
     fromOfficeName: 'SP Secretariat',
-    toOfficeName: 'Office of the Mayor',
+    toOfficeName: "Office of the Mayor",
   },
   {
     id: 'rh-003',
@@ -1491,22 +1465,18 @@ const entries: RoutingEntry[] = [
   },
 ];
 
-<RoutingHistoryTimeline entries={entries} />;
+<RoutingHistoryTimeline entries={entries} />
 ```
 
 #### 3.10.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 // Using <div> list without semantic list markup
 <div className="flex flex-col gap-4">
-  {entries.map((e) => (
-    <div key={e.id}>{e.actorName}</div>
-  ))}
+  {entries.map(e => <div key={e.id}>{e.actorName}</div>)}
 </div>
 ```
-
 A routing history is an ordered sequence of events. Rendering it as anonymous `<div>` elements fails WCAG 2.1 §1.3.1 (Info and Relationships) — screen readers cannot convey that these entries form a meaningful ordered list. Use `<ol>` / `<li>`.
 
 ---
@@ -1572,14 +1542,12 @@ import { QRCodeDisplay } from '@batac/ui/components/domain/QRCodeDisplay';
 #### 3.11.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 <div>
   <img src={qrDataUrl} alt="" />
   <p>{documentNumber}</p>
 </div>
 ```
-
 An empty `alt=""` marks the image as decorative, but the QR code is the primary content of this component. Screen reader users need to know this is a QR code for a specific document. The correct pattern is `role="img"` on the container with `aria-label="QR code for document 7SP 2026-001"`, not an empty `alt` on the `<img>`.
 
 ---
@@ -1633,23 +1601,21 @@ const referrals: CommitteeReferral[] = [
     id: 'cr-002',
     committeeName: 'Committee on Environment',
     status: 'PENDING',
-    submittedBy: undefined, // not yet submitted — field intentionally absent
+    submittedBy: undefined,  // not yet submitted — field intentionally absent
     submittedAt: undefined,
   },
 ];
 
-<CommitteeReferralBlock referrals={referrals} />;
+<CommitteeReferralBlock referrals={referrals} />
 ```
 
 #### 3.12.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 // Hardcoding status chip colors with inline styles
 <span style={{ backgroundColor: '#d1fae5', color: '#064e3b' }}>SUBMITTED</span>
 ```
-
 This violates DESIGN.md §8 Rule 2 and the Tier 3 construction rule that forbids hardcoded hex values. If the success token changes in `globals.css`, the inline style silently diverges. Use `bg-success-100 text-success-900` classes exclusively.
 
 ---
@@ -1707,11 +1673,11 @@ import { StatusBadge } from '@batac/ui/components/domain/StatusBadge';
 #### 3.13.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
-<span style={{ backgroundColor: '#d1fae5', color: '#064e3b' }}>Deemed Approved</span>
+<span style={{ backgroundColor: '#d1fae5', color: '#064e3b' }}>
+  Deemed Approved
+</span>
 ```
-
 Using inline `style={{ backgroundColor: '#d1fae5' }}` violates DESIGN.md §8 Rule 2 and the Tier 3 construction rule. When the `success-100` token value is updated in `globals.css`, the badge silently diverges from the design system. Only Tailwind utility classes from the `@theme` block may be used.
 
 ---
@@ -1744,13 +1710,13 @@ The indicator renders as an `<ol>` of step nodes connected by horizontal or vert
 
 Step node ring classes per state:
 
-| State       | Ring fill        | Ring text          | Connector to next                        |
-| ----------- | ---------------- | ------------------ | ---------------------------------------- |
-| `completed` | `bg-success-500` | `text-white`       | `bg-success-500`                         |
-| `active`    | `bg-primary-800` | `text-white`       | `bg-neutral-200`                         |
-| `pending`   | `bg-neutral-200` | `text-neutral-500` | `bg-neutral-200`                         |
-| `skipped`   | `bg-neutral-100` | `text-neutral-400` | `bg-neutral-200` (dashed border on ring) |
-| `error`     | `bg-danger-500`  | `text-white`       | `bg-neutral-200`                         |
+| State | Ring fill | Ring text | Connector to next |
+|---|---|---|---|
+| `completed` | `bg-success-500` | `text-white` | `bg-success-500` |
+| `active` | `bg-primary-800` | `text-white` | `bg-neutral-200` |
+| `pending` | `bg-neutral-200` | `text-neutral-500` | `bg-neutral-200` |
+| `skipped` | `bg-neutral-100` | `text-neutral-400` | `bg-neutral-200` (dashed border on ring) |
+| `error` | `bg-danger-500` | `text-white` | `bg-neutral-200` |
 
 Step labels: `font-semibold` on active step only; `text-text-muted` on pending/skipped; `text-text-primary` on completed and active. The `assigneeName` field renders as `text-xs text-text-muted` below the label when `state === 'active'`. Step nodes are `<li>` elements; the `<ol>` carries `aria-label="Document workflow steps"`.
 
@@ -1766,140 +1732,42 @@ import type { WorkflowStep } from '@batac/ui/types/domain';
 
 // D2 Diagram 1 standard SP Resolution path — 7SP 2026-001 is at VP Certification
 const steps: WorkflowStep[] = [
-  {
-    id: 'intake_logging',
-    label: 'Intake Logging',
-    state: 'completed',
-    completedAt: new Date('2026-05-06T09:00:00+08:00'),
-    assigneeName: undefined,
-    tooltip: undefined,
-  },
-  {
-    id: 'order_of_business_scheduling',
-    label: 'Order of Business Scheduling',
-    state: 'completed',
-    completedAt: new Date('2026-05-08T16:00:00+08:00'),
-    assigneeName: undefined,
-    tooltip: undefined,
-  },
-  {
-    id: 'first_reading',
-    label: 'First Reading',
-    state: 'completed',
-    completedAt: new Date('2026-05-13T10:00:00+08:00'),
-    assigneeName: undefined,
-    tooltip: 'Referred to Committee on Laws and Committee on Environment',
-  },
-  {
-    id: 'committee_referral',
-    label: 'Committee Referral',
-    state: 'completed',
-    completedAt: new Date('2026-06-05T14:00:00+08:00'),
-    assigneeName: undefined,
-    tooltip: undefined,
-  },
-  {
-    id: 'second_reading_vote',
-    label: 'Second Reading',
-    state: 'completed',
-    completedAt: new Date('2026-06-10T11:30:00+08:00'),
-    assigneeName: undefined,
-    tooltip: undefined,
-  },
-  {
-    id: 'final_number_assignment',
-    label: 'Final Number Assignment',
-    state: 'completed',
-    completedAt: new Date('2026-06-12T10:30:00+08:00'),
-    assigneeName: undefined,
-    tooltip: '7SP 2026-001 assigned',
-  },
-  {
-    id: 'vp_certification',
-    label: 'VP Certification',
-    state: 'active',
-    completedAt: undefined,
-    assigneeName: 'Hon. Albert D. Chua',
-    tooltip: undefined,
-  },
-  {
-    id: 'transmittal_letter_to_mayor',
-    label: 'Transmittal to Mayor',
-    state: 'pending',
-    completedAt: undefined,
-    assigneeName: undefined,
-    tooltip: undefined,
-  },
-  {
-    id: 'mayor_review',
-    label: 'Mayor Review',
-    state: 'pending',
-    completedAt: undefined,
-    assigneeName: undefined,
-    tooltip: undefined,
-  },
-  {
-    id: 'docketing',
-    label: 'Docketing',
-    state: 'pending',
-    completedAt: undefined,
-    assigneeName: undefined,
-    tooltip: undefined,
-  },
-  {
-    id: 'panlalawigan_transmission_logging',
-    label: 'Panlalawigan Transmission',
-    state: 'pending',
-    completedAt: undefined,
-    assigneeName: undefined,
-    tooltip: undefined,
-  },
-  {
-    id: 'panlalawigan_review',
-    label: 'Panlalawigan Review',
-    state: 'pending',
-    completedAt: undefined,
-    assigneeName: undefined,
-    tooltip: undefined,
-  },
-  {
-    id: 'portal_publication',
-    label: 'Portal Publication',
-    state: 'pending',
-    completedAt: undefined,
-    assigneeName: undefined,
-    tooltip: undefined,
-  },
-  {
-    id: 'archive',
-    label: 'Archive',
-    state: 'pending',
-    completedAt: undefined,
-    assigneeName: undefined,
-    tooltip: undefined,
-  },
+  { id: 'intake_logging',               label: 'Intake Logging',               state: 'completed', completedAt: new Date('2026-05-06T09:00:00+08:00'), assigneeName: undefined, tooltip: undefined },
+  { id: 'order_of_business_scheduling', label: 'Order of Business Scheduling', state: 'completed', completedAt: new Date('2026-05-08T16:00:00+08:00'), assigneeName: undefined, tooltip: undefined },
+  { id: 'first_reading',                label: 'First Reading',                state: 'completed', completedAt: new Date('2026-05-13T10:00:00+08:00'), assigneeName: undefined, tooltip: 'Referred to Committee on Laws and Committee on Environment' },
+  { id: 'committee_referral',           label: 'Committee Referral',           state: 'completed', completedAt: new Date('2026-06-05T14:00:00+08:00'), assigneeName: undefined, tooltip: undefined },
+  { id: 'second_reading_vote',          label: 'Second Reading',               state: 'completed', completedAt: new Date('2026-06-10T11:30:00+08:00'), assigneeName: undefined, tooltip: undefined },
+  { id: 'final_number_assignment',      label: 'Final Number Assignment',      state: 'completed', completedAt: new Date('2026-06-12T10:30:00+08:00'), assigneeName: undefined, tooltip: '7SP 2026-001 assigned' },
+  { id: 'vp_certification',             label: 'VP Certification',             state: 'active',    completedAt: undefined,                              assigneeName: 'Hon. Albert D. Chua', tooltip: undefined },
+  { id: 'transmittal_letter_to_mayor',  label: 'Transmittal to Mayor',         state: 'pending',   completedAt: undefined,                              assigneeName: undefined, tooltip: undefined },
+  { id: 'mayor_review',                 label: 'Mayor Review',                 state: 'pending',   completedAt: undefined,                              assigneeName: undefined, tooltip: undefined },
+  { id: 'docketing',                    label: 'Docketing',                    state: 'pending',   completedAt: undefined,                              assigneeName: undefined, tooltip: undefined },
+  { id: 'panlalawigan_transmission_logging', label: 'Panlalawigan Transmission', state: 'pending', completedAt: undefined,                              assigneeName: undefined, tooltip: undefined },
+  { id: 'panlalawigan_review',          label: 'Panlalawigan Review',          state: 'pending',   completedAt: undefined,                              assigneeName: undefined, tooltip: undefined },
+  { id: 'portal_publication',           label: 'Portal Publication',           state: 'pending',   completedAt: undefined,                              assigneeName: undefined, tooltip: undefined },
+  { id: 'archive',                      label: 'Archive',                      state: 'pending',   completedAt: undefined,                              assigneeName: undefined, tooltip: undefined },
 ];
 
-<WorkflowStepIndicator steps={steps} currentStepId="vp_certification" orientation="horizontal" />;
+<WorkflowStepIndicator
+  steps={steps}
+  currentStepId="vp_certification"
+  orientation="horizontal"
+/>
 ```
 
 #### 3.14.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 <div className="flex gap-2">
-  {steps.map((step) => (
+  {steps.map(step => (
     <div key={step.id} className="flex flex-col items-center">
-      <div
-        className={`h-8 w-8 rounded-full ${step.state === 'completed' ? 'bg-success-500' : 'bg-neutral-200'}`}
-      />
+      <div className={`h-8 w-8 rounded-full ${step.state === 'completed' ? 'bg-success-500' : 'bg-neutral-200'}`} />
       <span>{step.label}</span>
     </div>
   ))}
 </div>
 ```
-
 Using `<div>` / `<div>` instead of `<ol>` / `<li>` is the highest-probability anti-pattern for this component. WCAG 2.1 §1.3.1 requires list semantics for sequential step indicators. Screen readers skip unlabelled `<div>` sequences without conveying the ordered relationship between steps. Use `<ol aria-label="Document workflow steps">` with `<li>` per step.
 
 ---
@@ -1975,16 +1843,14 @@ const doc: DocumentPreview = {
 #### 3.15.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 // Constructing a DocumentPreview with string dates
 const doc: DocumentPreview = {
   id: 'doc-001',
-  lastActionAt: '2026-06-13' as any, // string instead of Date
+  lastActionAt: '2026-06-13' as any,  // string instead of Date
   // ...
 };
 ```
-
 All `Date` fields in the domain type system are TypeScript `Date` objects, never strings. Passing a string silently bypasses type checking (with `as any`) and causes `date-fns format()` to produce `Invalid Date` output. Server responses in JSON use ISO strings — convert them with `new Date(isoString)` at the API boundary, not at the component.
 
 ---
@@ -2017,7 +1883,6 @@ interface OrderOfBusinessRowProps {
 The row is a `flex items-center gap-3` container. When `isMissingReport=true`, the row background is `bg-danger-50` — this is the only case where a row background changes and it is sourced directly from `globals.css @theme` (`danger-50` = `#fef2f2`). The red-flag row background is never applied via a `style` attribute.
 
 Left-to-right layout:
-
 1. Agenda number: `font-mono text-sm text-text-muted w-8 shrink-0` (e.g., "1.")
 2. Certified urgent chip: `bg-warning-100 text-warning-900 text-xs font-semibold px-2 py-0.5 rounded-sm touch-exempt` — rendered only when `isCertifiedUrgent=true`, prepended to the number column
 3. `DocumentNumberBadge`
@@ -2041,8 +1906,7 @@ const item: OrderOfBusinessItem = {
   agendaNumber: 1,
   documentNumber: '7SP 2026-001',
   numberVariant: 'final',
-  title:
-    'An Ordinance Providing for the Comprehensive Solid Waste Management Program of the City of Batac',
+  title: 'An Ordinance Providing for the Comprehensive Solid Waste Management Program of the City of Batac',
   documentState: 'PANLALAWIGAN_REVIEW',
   committeeReferrals: [
     {
@@ -2061,11 +1925,11 @@ const item: OrderOfBusinessItem = {
     },
   ],
   isCertifiedUrgent: false,
-  isMissingReport: true, // Environment committee absent → red flag + bg-danger-50
+  isMissingReport: true,  // Environment committee absent → red flag + bg-danger-50
   scheduledReadingType: 'SECOND',
 };
 
-<OrderOfBusinessRow item={item} />;
+<OrderOfBusinessRow item={item} />
 
 // Letter SPR 2026-038 — certified urgent, first reading
 const urgentItem: OrderOfBusinessItem = {
@@ -2080,18 +1944,16 @@ const urgentItem: OrderOfBusinessItem = {
   scheduledReadingType: 'FIRST',
 };
 
-<OrderOfBusinessRow item={urgentItem} />;
+<OrderOfBusinessRow item={urgentItem} />
 ```
 
 #### 3.16.6 Anti-Pattern
 
 **Wrong:**
-
 ```tsx
 // Applying row background with inline style instead of Tailwind class
 <div style={{ backgroundColor: item.isMissingReport ? '#fef2f2' : 'white' }}>
 ```
-
 The danger-50 color `#fef2f2` is a design token — `bg-danger-50`. Using an inline hex bypasses the design token system and will not update if the danger-50 value is revised in `globals.css`. Apply `bg-danger-50` conditionally: `cn('flex items-center gap-3', item.isMissingReport && 'bg-danger-50')`.
 
 ---
@@ -2170,5 +2032,5 @@ J6 adds `slaDeadlineAt?` and `slaStartedAt?` to `DocumentPreview` so the card ca
 
 ---
 
-_End of J6 — Domain Component Engineering Reference_
-_batac-dms · `packages/ui` · Pre-development specification_
+*End of J6 — Domain Component Engineering Reference*
+*batac-dms · `packages/ui` · Pre-development specification*

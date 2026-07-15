@@ -33,11 +33,11 @@ For comfortable navigation of the diagram, paste the `mermaid` block into [Merma
 
 ## Diagram Legend
 
-| Notation                  | Meaning                                                        |
-| ------------------------- | -------------------------------------------------------------- |
-| `A "1" *-- "*" B`         | Composition — B's lifecycle depends on A (filled diamond on A) |
-| `A "*" --> "1" B : label` | Association — A holds a reference to B                         |
-| `Parent <\|-- Child`      | Inheritance — Child is a specialisation of Parent              |
+|Notation|Meaning|
+|---|---|
+|`A "1" *-- "*" B`|Composition — B's lifecycle depends on A (filled diamond on A)|
+|`A "*" --> "1" B : label`|Association — A holds a reference to B|
+|`Parent <\|-- Child`|Inheritance — Child is a specialisation of Parent|
 
 ---
 
@@ -549,69 +549,69 @@ classDiagram
 
 62 entities across 12 modules. Entities marked Phase 2 or Phase 3 are modeled at a placeholder level; detailed domain modeling deferred to those phases.
 
-| Entity                    | Module        | DB Schema     | Phase |
-| ------------------------- | ------------- | ------------- | ----- |
-| User                      | IAM           | iam           | 1     |
-| Credential                | IAM           | iam           | 1     |
-| Role                      | IAM           | iam           | 1     |
-| Permission                | IAM           | iam           | 1     |
-| Session                   | IAM           | iam           | 1     |
-| RefreshToken              | IAM           | iam           | 1     |
-| MfaRecord                 | IAM           | iam           | 2     |
-| Office                    | Organization  | organization  | 1     |
-| Position                  | Organization  | organization  | 1     |
-| Employee                  | Organization  | organization  | 1     |
-| Assignment                | Organization  | organization  | 1     |
-| DelegationGrant           | Organization  | organization  | 1     |
-| Committee                 | Organization  | organization  | 1     |
-| CommitteeMembership       | Organization  | organization  | 1     |
-| DocumentType              | Documents     | documents     | 1     |
-| NumberSeries              | Documents     | documents     | 1     |
-| DocumentNumber            | Documents     | documents     | 1     |
-| Document                  | Documents     | documents     | 1     |
-| DocumentVersion           | Documents     | documents     | 1     |
-| QrCode                    | Tracking      | tracking      | 1     |
-| Attachment                | Documents     | documents     | 1     |
-| Signature                 | Documents     | documents     | 1     |
-| DocumentSponsorship       | Documents     | documents     | 1     |
-| CertificationOfUrgency    | Documents     | documents     | 1     |
-| PanlalawiganReview        | Documents     | documents     | 1     |
-| PublicationRecord         | Documents     | documents     | 1     |
-| TransmittalLetter         | Documents     | documents     | 1     |
-| WorkflowDefinition        | Workflow      | workflow      | 1     |
-| WorkflowDefinitionVersion | Workflow      | workflow      | 1     |
-| WorkflowStep              | Workflow      | workflow      | 1     |
-| TransitionRule            | Workflow      | workflow      | 1     |
-| WorkflowInstance          | Workflow      | workflow      | 1     |
-| WorkflowStepInstance      | Workflow      | workflow      | 1     |
-| MultiReferralStepInstance | Workflow      | workflow      | 1     |
-| WorkflowEvent             | Workflow      | workflow      | 1     |
-| CommitteeReport           | Workflow      | workflow      | 1     |
-| SpSession                 | Workflow      | workflow      | 1     |
-| SessionAttendance         | Workflow      | workflow      | 1     |
-| OrderOfBusiness           | Workflow      | workflow      | 1     |
-| OrderOfBusinessItem       | Workflow      | workflow      | 1     |
-| TrackingRecord            | Tracking      | tracking      | 1     |
-| RoutingEntry              | Tracking      | tracking      | 1     |
-| Record                    | Records       | records       | 1     |
-| RetentionSchedule         | Records       | records       | 1     |
-| ClassificationRule        | Records       | records       | 1     |
-| ArchiveEntry              | Records       | records       | 1     |
-| Disposition               | Records       | records       | 1     |
-| Citizen                   | Portal        | portal        | 1     |
-| CitizenComplaint          | Portal        | portal        | 1     |
-| DocumentRequest           | Portal        | portal        | 1     |
-| PublicDocument            | Portal        | portal        | 3     |
-| Announcement              | Portal        | portal        | 3     |
-| NotificationTemplate      | Notifications | notifications | 1     |
-| NotificationEvent         | Notifications | notifications | 1     |
-| DeliveryLog               | Notifications | notifications | 1     |
-| AuditEvent                | Audit         | audit         | 1     |
-| IndexMetadata             | Search        | search_meta   | 2     |
-| IndexJob                  | Search        | search_meta   | 2     |
-| ReportDefinition          | Reporting     | reporting     | 2     |
-| ReportSchedule            | Reporting     | reporting     | 2     |
-| ReportOutput              | Reporting     | reporting     | 2     |
+|Entity|Module|DB Schema|Phase|
+|---|---|---|---|
+|User|IAM|iam|1|
+|Credential|IAM|iam|1|
+|Role|IAM|iam|1|
+|Permission|IAM|iam|1|
+|Session|IAM|iam|1|
+|RefreshToken|IAM|iam|1|
+|MfaRecord|IAM|iam|2|
+|Office|Organization|organization|1|
+|Position|Organization|organization|1|
+|Employee|Organization|organization|1|
+|Assignment|Organization|organization|1|
+|DelegationGrant|Organization|organization|1|
+|Committee|Organization|organization|1|
+|CommitteeMembership|Organization|organization|1|
+|DocumentType|Documents|documents|1|
+|NumberSeries|Documents|documents|1|
+|DocumentNumber|Documents|documents|1|
+|Document|Documents|documents|1|
+|DocumentVersion|Documents|documents|1|
+|QrCode|Tracking|tracking|1|
+|Attachment|Documents|documents|1|
+|Signature|Documents|documents|1|
+|DocumentSponsorship|Documents|documents|1|
+|CertificationOfUrgency|Documents|documents|1|
+|PanlalawiganReview|Documents|documents|1|
+|PublicationRecord|Documents|documents|1|
+|TransmittalLetter|Documents|documents|1|
+|WorkflowDefinition|Workflow|workflow|1|
+|WorkflowDefinitionVersion|Workflow|workflow|1|
+|WorkflowStep|Workflow|workflow|1|
+|TransitionRule|Workflow|workflow|1|
+|WorkflowInstance|Workflow|workflow|1|
+|WorkflowStepInstance|Workflow|workflow|1|
+|MultiReferralStepInstance|Workflow|workflow|1|
+|WorkflowEvent|Workflow|workflow|1|
+|CommitteeReport|Workflow|workflow|1|
+|SpSession|Workflow|workflow|1|
+|SessionAttendance|Workflow|workflow|1|
+|OrderOfBusiness|Workflow|workflow|1|
+|OrderOfBusinessItem|Workflow|workflow|1|
+|TrackingRecord|Tracking|tracking|1|
+|RoutingEntry|Tracking|tracking|1|
+|Record|Records|records|1|
+|RetentionSchedule|Records|records|1|
+|ClassificationRule|Records|records|1|
+|ArchiveEntry|Records|records|1|
+|Disposition|Records|records|1|
+|Citizen|Portal|portal|1|
+|CitizenComplaint|Portal|portal|1|
+|DocumentRequest|Portal|portal|1|
+|PublicDocument|Portal|portal|3|
+|Announcement|Portal|portal|3|
+|NotificationTemplate|Notifications|notifications|1|
+|NotificationEvent|Notifications|notifications|1|
+|DeliveryLog|Notifications|notifications|1|
+|AuditEvent|Audit|audit|1|
+|IndexMetadata|Search|search_meta|2|
+|IndexJob|Search|search_meta|2|
+|ReportDefinition|Reporting|reporting|2|
+|ReportSchedule|Reporting|reporting|2|
+|ReportOutput|Reporting|reporting|2|
 
 ---
 
@@ -619,59 +619,59 @@ classDiagram
 
 ### Document Lifecycle
 
-| Enum                  | Values                                                                                                                      |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `DocumentStatus`      | `Draft` · `Submitted` · `InWorkflow` · `PendingApproval` · `Completed` · `Released` · `Archived` · `Disposed` · `Cancelled` |
-| `ClassificationLevel` | `Public` · `Internal` · `Confidential` · `Restricted`                                                                       |
-| `NumberType`          | `PRELIMINARY` · `FINAL`                                                                                                     |
-| `SeriesType`          | `LEGISLATIVE` (two-stage: preliminary → final) · `ADMINISTRATIVE` (direct assignment)                                       |
-| `ScanQuality`         | `GOOD` · `FAIR` · `POOR`                                                                                                    |
-| `SponsorshipType`     | `PRINCIPAL_AUTHOR` · `CO_AUTHOR` · `INTRODUCER` · `CO_INTRODUCER`                                                           |
-| `SignatureType`       | `PRESIDING_OFFICER` · `MAYOR` · `SP_SECRETARY` · `VICE_MAYOR` · `COMMITTEE_CHAIR`                                           |
-| `AttachmentType`      | `CERTIFICATION_OF_URGENCY` · `COMMITTEE_REPORT` · `TRANSMITTAL_LETTER` · `SCAN` · `OTHER`                                   |
+|Enum|Values|
+|---|---|
+|`DocumentStatus`|`Draft` · `Submitted` · `InWorkflow` · `PendingApproval` · `Completed` · `Released` · `Archived` · `Disposed` · `Cancelled`|
+|`ClassificationLevel`|`Public` · `Internal` · `Confidential` · `Restricted`|
+|`NumberType`|`PRELIMINARY` · `FINAL`|
+|`SeriesType`|`LEGISLATIVE` (two-stage: preliminary → final) · `ADMINISTRATIVE` (direct assignment)|
+|`ScanQuality`|`GOOD` · `FAIR` · `POOR`|
+|`SponsorshipType`|`PRINCIPAL_AUTHOR` · `CO_AUTHOR` · `INTRODUCER` · `CO_INTRODUCER`|
+|`SignatureType`|`PRESIDING_OFFICER` · `MAYOR` · `SP_SECRETARY` · `VICE_MAYOR` · `COMMITTEE_CHAIR`|
+|`AttachmentType`|`CERTIFICATION_OF_URGENCY` · `COMMITTEE_REPORT` · `TRANSMITTAL_LETTER` · `SCAN` · `OTHER`|
 
 ### Workflow Engine
 
-| Enum                 | Values                                                                                                                        |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `StepType`           | `action` · `approval` · `multi_referral` · `decision` · `notification` · `termination` · `parallel_split`_ · `parallel_join`_ |
-| `WorkflowStatus`     | `Active` · `Completed` · `Cancelled` · `Suspended`                                                                            |
-| `StepInstanceStatus` | `Pending` · `InProgress` · `Completed` · `Skipped` · `Overdue` · `ManuallyAdvanced`                                           |
-| `DefinitionStatus`   | `Draft` · `Published` · `Deprecated`                                                                                          |
+|Enum|Values|
+|---|---|
+|`StepType`|`action` · `approval` · `multi_referral` · `decision` · `notification` · `termination` · `parallel_split`* · `parallel_join`*|
+|`WorkflowStatus`|`Active` · `Completed` · `Cancelled` · `Suspended`|
+|`StepInstanceStatus`|`Pending` · `InProgress` · `Completed` · `Skipped` · `Overdue` · `ManuallyAdvanced`|
+|`DefinitionStatus`|`Draft` · `Published` · `Deprecated`|
 
-- `parallel_split` and `parallel_join` are Phase 2 step types (Barangay Budget workflow). Reserved in the data model from Phase 1.
+* `parallel_split` and `parallel_join` are Phase 2 step types (Barangay Budget workflow). Reserved in the data model from Phase 1.
 
 ### Legislative
 
-| Enum                  | Values                                                                                   |
-| --------------------- | ---------------------------------------------------------------------------------------- |
-| `PanlalawiganOutcome` | `VALID` · `VALID_IN_PART` · `RETURNED` · `OPERATIVE_IN_ITS_ENTIRETY` · `DEEMED_APPROVED` |
-| `SpSessionType`       | `REGULAR` · `SPECIAL`                                                                    |
-| `AbsenceReason`       | `OB` · `SICK_LEAVE` · `VACATION_LEAVE` · `ABSENT`                                        |
+|Enum|Values|
+|---|---|
+|`PanlalawiganOutcome`|`VALID` · `VALID_IN_PART` · `RETURNED` · `OPERATIVE_IN_ITS_ENTIRETY` · `DEEMED_APPROVED`|
+|`SpSessionType`|`REGULAR` · `SPECIAL`|
+|`AbsenceReason`|`OB` · `SICK_LEAVE` · `VACATION_LEAVE` · `ABSENT`|
 
 ### Organization and Complaints
 
-| Enum                    | Values                                                                |
-| ----------------------- | --------------------------------------------------------------------- |
-| `CommitteeRole`         | `CHAIRMAN` · `VICE_CHAIRMAN` · `MEMBER`                               |
-| `ComplaintStatus`       | `PENDING_HEARING` · `RECEIVED_SEEN` · `DISMISSED` · `RESOLVED`        |
-| `DocumentRequestStatus` | `Pending` · `AwaitingApproval` · `Approved` · `Released` · `Rejected` |
-| `VerificationStatus`    | `UNVERIFIED` · `VERIFIED` · `EXPIRED` · `REVOKED`                     |
-| `UserStatus`            | `ACTIVE` · `INACTIVE` · `SUSPENDED` · `DEACTIVATED`                   |
+|Enum|Values|
+|---|---|
+|`CommitteeRole`|`CHAIRMAN` · `VICE_CHAIRMAN` · `MEMBER`|
+|`ComplaintStatus`|`PENDING_HEARING` · `RECEIVED_SEEN` · `DISMISSED` · `RESOLVED`|
+|`DocumentRequestStatus`|`Pending` · `AwaitingApproval` · `Approved` · `Released` · `Rejected`|
+|`VerificationStatus`|`UNVERIFIED` · `VERIFIED` · `EXPIRED` · `REVOKED`|
+|`UserStatus`|`ACTIVE` · `INACTIVE` · `SUSPENDED` · `DEACTIVATED`|
 
 ### Notifications
 
-| Enum                  | Values                                      |
-| --------------------- | ------------------------------------------- |
-| `NotificationChannel` | `IN_APP` · `EMAIL` · `SMS`                  |
-| `NotificationStatus`  | `Pending` · `Sent` · `Failed` · `Cancelled` |
-| `DeliveryStatus`      | `Delivered` · `Bounced` · `Failed`          |
+|Enum|Values|
+|---|---|
+|`NotificationChannel`|`IN_APP` · `EMAIL` · `SMS`|
+|`NotificationStatus`|`Pending` · `Sent` · `Failed` · `Cancelled`|
+|`DeliveryStatus`|`Delivered` · `Bounced` · `Failed`|
 
 ### Records
 
-| Enum         | Values                                                                                             |
-| ------------ | -------------------------------------------------------------------------------------------------- |
-| `RecordType` | `LEGISLATIVE_PERMANENT` · `FINANCIAL` · `PERSONNEL` · `CORRESPONDENCE` · `INTERNAL_MEMO` · `DRAFT` |
+|Enum|Values|
+|---|---|
+|`RecordType`|`LEGISLATIVE_PERMANENT` · `FINANCIAL` · `PERSONNEL` · `CORRESPONDENCE` · `INTERNAL_MEMO` · `DRAFT`|
 
 Defined in [ADR-WFL-005](d4-domain-class-diagram-adrs/ADR-WFL-005-recordtype-enum.md), ratifying the six categories from the Consolidated Architecture & Requirements Reference, Part 11.7. Retention periods behind each category remain unverified pending NAP/COA/DILG confirmation — this enum fixes category names and the `document_type` → `RecordType` mapping only.
 
@@ -710,3 +710,4 @@ Defined in [ADR-WFL-005](d4-domain-class-diagram-adrs/ADR-WFL-005-recordtype-enu
 **15 — DocumentSponsorship.** Tracks all co-authors and introducers of a legislative measure, including their order of priority. Sponsorship is distinct from the drafter (`Document.draftedBy`); a document drafted by Secretariat staff may have multiple councilor sponsors. Required for the Index of Ordinances tracked fields. Ref: Part 4.1, Part 5.3.
 
 **16 — RecordType mapping.** `Record.recordType` values map from `document_type` as follows: SP_RESOLUTION, SP_ORDINANCE, SP_APPROPRIATION_ORDINANCE → LEGISLATIVE_PERMANENT; MEMO_OUTGOING, MEMO_INCOMING → INTERNAL_MEMO; LETTER_RECEIVED, LETTER_SENT → CORRESPONDENCE; NOTICE_COMMITTEE_HEARING, NOTICE_SPECIAL_SESSION, DESIGNATION → LEGISLATIVE_PERMANENT [Inference — proposed, not directly stated in source]. PANLALAWIGAN_REVIEW_LOG has no RecordType mapping — per [ADR-DB-001](../C-database/c1-full-database-schema-ddl-adrs/ADR-DB-001-panlalawigan-review-log-entity-classification.md), it is not modeled as a document_types row at all. See ADR-WFL-005 (`d4-domain-class-diagram-adrs/ADR-WFL-005-recordtype-enum-value-list`) for full rationale and the retention-period caveat.
+

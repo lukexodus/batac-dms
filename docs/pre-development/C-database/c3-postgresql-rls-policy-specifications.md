@@ -43,7 +43,7 @@
 
 This document is **C3** in the Batac City LGU Platform specification chain. It defines the complete set of PostgreSQL Row-Level Security (RLS) policies for every table across the eight Phase 1 schemas: `iam`, `organization`, `documents`, `workflow`, `tracking`, `records`, `notifications`, and `audit`.
 
-C1 deliberately excludes all RLS DDL (`ALTER TABLE … ENABLE ROW LEVEL SECURITY` and `CREATE POLICY`), explicitly assigning that entire concern to this document. C1 Convention §1.3 notes: _"a uniform `city_id` column means every RLS policy has the same shape with no special-cased joins."_ This document fulfils that promise.
+C1 deliberately excludes all RLS DDL (`ALTER TABLE … ENABLE ROW LEVEL SECURITY` and `CREATE POLICY`), explicitly assigning that entire concern to this document. C1 Convention §1.3 notes: *"a uniform `city_id` column means every RLS policy has the same shape with no special-cased joins."* This document fulfils that promise.
 
 RLS is the **second** enforcement layer in a two-layer security architecture. The first layer is the application-level ABAC `PolicyEvaluator` service specified in I1. RLS does not replace the ABAC layer — it enforces the same rules at the database engine level so that a bug, a bypassed route, or a direct database connection cannot expose data outside its permitted scope.
 
@@ -70,12 +70,12 @@ RLS is the **second** enforcement layer in a two-layer security architecture. Th
 
 The following architectural invariants from the Consolidated Reference (Part 12) are directly enforced or supported by this document:
 
-| Invariant                        | Mechanism in this Document                                                                                                                                                                                                         |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #2 — No hard deletes             | No `DELETE` policy is created for `batac_app` on any table; `DELETE` is revoked from all application-facing roles (`batac_app`, `batac_it_admin`, `batac_readonly`); hard deletes are structurally impossible via any runtime role |
-| #3 — Audit log INSERT-only       | `audit.events` has `FORCE ROW LEVEL SECURITY`; `batac_app` has no SELECT/UPDATE/DELETE policy on it                                                                                                                                |
-| #8 — Tenant isolation            | `city_id = current_setting('app.current_city_id', true)::uuid` is the base condition in every single policy `USING` and `WITH CHECK` clause                                                                                        |
-| #10 — IT Admin content isolation | Dedicated RESTRICTIVE policies on `documents.versions` and `documents.attachments` block IT Admin reads on Confidential/Restricted content                                                                                         |
+| Invariant | Mechanism in this Document |
+|---|---|
+| #2 — No hard deletes | No `DELETE` policy is created for `batac_app` on any table; `DELETE` is revoked from all application-facing roles (`batac_app`, `batac_it_admin`, `batac_readonly`); hard deletes are structurally impossible via any runtime role |
+| #3 — Audit log INSERT-only | `audit.events` has `FORCE ROW LEVEL SECURITY`; `batac_app` has no SELECT/UPDATE/DELETE policy on it |
+| #8 — Tenant isolation | `city_id = current_setting('app.current_city_id', true)::uuid` is the base condition in every single policy `USING` and `WITH CHECK` clause |
+| #10 — IT Admin content isolation | Dedicated RESTRICTIVE policies on `documents.versions` and `documents.attachments` block IT Admin reads on Confidential/Restricted content |
 
 ---
 
@@ -105,13 +105,13 @@ A row that passes Layer 1 must also pass Layer 2. A query that passes Layer 2 mu
 
 Five database roles are defined in C1 Part 0.2. Their relationship to RLS is:
 
-| DB Role          | RLS Status     | Notes                                                                                                                                                                                                                                                                                        |
-| ---------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `batac_migrate`  | `BYPASSRLS`    | DDL-only; never used at application runtime. Granted BYPASSRLS so schema migrations work unconditionally.                                                                                                                                                                                    |
-| `batac_app`      | Subject to RLS | The primary runtime role for all application queries. Policies in this document target `batac_app`. `DELETE` is revoked from this role on all tables.                                                                                                                                        |
-| `batac_audit`    | Subject to RLS | INSERT + SELECT on `audit` schema only. Policies for `audit.events` target this role for its permitted operations. `DELETE` is revoked.                                                                                                                                                      |
+| DB Role | RLS Status | Notes |
+|---|---|---|
+| `batac_migrate` | `BYPASSRLS` | DDL-only; never used at application runtime. Granted BYPASSRLS so schema migrations work unconditionally. |
+| `batac_app` | Subject to RLS | The primary runtime role for all application queries. Policies in this document target `batac_app`. `DELETE` is revoked from this role on all tables. |
+| `batac_audit` | Subject to RLS | INSERT + SELECT on `audit` schema only. Policies for `audit.events` target this role for its permitted operations. `DELETE` is revoked. |
 | `batac_it_admin` | Subject to RLS | IT Admin runtime role. Connects with the same session variables as `batac_app`. IT Admin users are assigned this DB role instead of `batac_app`. Has **no access** to `documents.versions` or `documents.attachments` (grant-level revocation enforcing Invariant #10). `DELETE` is revoked. |
-| `batac_readonly` | Subject to RLS | Read-only role for reporting and monitoring dashboards. SELECT only on all schemas except `audit`. `DELETE` is revoked.                                                                                                                                                                      |
+| `batac_readonly` | Subject to RLS | Read-only role for reporting and monitoring dashboards. SELECT only on all schemas except `audit`. `DELETE` is revoked. |
 
 > **Note on DELETE revocation:** Per C1 v3, `DELETE` is revoked from all application-facing roles (`batac_app`, `batac_audit`, `batac_it_admin`, `batac_readonly`). Hard deletes are structurally impossible via any runtime role. Only `batac_migrate` retains `DELETE` for DDL migration purposes.
 
@@ -260,11 +260,11 @@ TO batac_app, batac_audit, batac_it_admin, batac_readonly;
 
 All policy names follow: `pol_{table}_{operation}[_{qualifier}]`
 
-| Component      | Example         | Meaning                                                   |
-| -------------- | --------------- | --------------------------------------------------------- |
-| `pol_`         | `pol_`          | Prefix — distinguishes policies from constraints/indexes  |
-| `{table}`      | `documents`     | Short table name (no schema prefix)                       |
-| `{operation}`  | `select`        | `select`, `insert`, `update`, `all`                       |
+| Component | Example | Meaning |
+|---|---|---|
+| `pol_` | `pol_` | Prefix — distinguishes policies from constraints/indexes |
+| `{table}` | `documents` | Short table name (no schema prefix) |
+| `{operation}` | `select` | `select`, `insert`, `update`, `all` |
 | `_{qualifier}` | `_ita_restrict` | Optional suffix for RESTRICTIVE policies or special cases |
 
 ### 3.6 Global Policy Patterns
@@ -305,52 +305,52 @@ ALTER ROLE batac_migrate BYPASSRLS;
 
 All 49 Phase 1 tables plus the two I1-introduced tables require RLS. The complexity tier indicates how sophisticated the USING clause is:
 
-| Schema        | Table                     | Complexity Tier | Key Special Condition                                       |
-| ------------- | ------------------------- | --------------- | ----------------------------------------------------------- |
-| iam           | users                     | B               | IT Admin reads all; others read own city                    |
-| iam           | credentials               | C               | Self-only or IT Admin                                       |
-| iam           | sessions                  | C               | Self-only; IT Admin reads all; forced-terminate role        |
-| iam           | refresh_tokens            | C               | Self-only; no cross-user read                               |
-| iam           | roles                     | A               | City isolation; all authenticated users may read            |
-| iam           | permissions               | A               | City isolation; all authenticated users may read            |
-| iam           | role_permissions          | A               | City isolation; IT Admin / Platform Admin write             |
-| iam           | role_assignments          | C               | Self-read; IT Admin / sp_secretary read all                 |
-| iam           | mfa_records               | C               | Self-only; IT Admin reads all                               |
-| organization  | offices                   | A               | City isolation; all authenticated read                      |
-| organization  | positions                 | A               | City isolation; all authenticated read                      |
-| organization  | employees                 | B               | City isolation; own-office and cross-office                 |
-| organization  | assignments               | B               | City isolation; own-office and cross-office                 |
-| organization  | delegation_grants         | C               | Complex read/write access; Invariant #16                    |
-| organization  | committees                | A               | City isolation; all authenticated read                      |
-| organization  | committee_memberships     | A               | City isolation; all authenticated read                      |
-| organization  | cross_office_grants       | C               | IT Admin / sp_secretary manage; user reads own              |
-| documents     | document_types            | A               | City isolation; all authenticated read; plat_admin write    |
-| documents     | number_series             | B               | City isolation; sp_secretary / plat_admin write             |
-| documents     | documents                 | D               | Full ABAC: office scope + classification gate               |
-| documents     | versions                  | D               | IT Admin content isolation (Invariant #10)                  |
-| documents     | attachments               | D               | IT Admin content isolation (Invariant #10)                  |
-| documents     | numbers                   | B               | Same scope as parent document                               |
-| documents     | signatures                | B               | Same scope as parent document                               |
-| documents     | panlalawigan_reviews      | B               | sp_secretary write; broader read                            |
-| documents     | classification_allowlists | C               | plat_admin manage; used by Gate 4                           |
-| workflow      | definitions               | B               | plat_admin write; authenticated read                        |
-| workflow      | definition_versions       | B               | plat_admin write; authenticated read                        |
-| workflow      | steps                     | B               | plat_admin write; authenticated read                        |
-| workflow      | transition_rules          | B               | plat_admin write; authenticated read                        |
-| workflow      | instances                 | C               | Office-scoped; sp_secretary / senior roles broader          |
-| workflow      | step_instances            | C               | Assignee-scoped; sp_secretary broader                       |
-| workflow      | workflow_events           | A               | Append-only; city isolation; authenticated read             |
-| tracking      | tracking_records          | B               | Document-office scope                                       |
-| tracking      | routing_entries           | B               | Append-only; sp_secretary write                             |
-| records       | records                   | C               | Office-scoped; records_officer manage                       |
-| records       | retention_schedules       | B               | plat_admin write; authenticated read                        |
-| records       | archive_entries           | C               | records_officer manage                                      |
-| records       | classification_rules      | B               | plat_admin write; authenticated read                        |
-| records       | dispositions              | C               | records_officer manage                                      |
-| notifications | templates                 | B               | plat_admin write; authenticated read                        |
-| notifications | notification_events       | C               | Self-read; system INSERT                                    |
-| notifications | delivery_log              | A               | Append-only; system INSERT; self-read                       |
-| audit         | events                    | E               | FORCE RLS; batac_audit INSERT; auditor SELECT via procedure |
+| Schema | Table | Complexity Tier | Key Special Condition |
+|---|---|---|---|
+| iam | users | B | IT Admin reads all; others read own city |
+| iam | credentials | C | Self-only or IT Admin |
+| iam | sessions | C | Self-only; IT Admin reads all; forced-terminate role |
+| iam | refresh_tokens | C | Self-only; no cross-user read |
+| iam | roles | A | City isolation; all authenticated users may read |
+| iam | permissions | A | City isolation; all authenticated users may read |
+| iam | role_permissions | A | City isolation; IT Admin / Platform Admin write |
+| iam | role_assignments | C | Self-read; IT Admin / sp_secretary read all |
+| iam | mfa_records | C | Self-only; IT Admin reads all |
+| organization | offices | A | City isolation; all authenticated read |
+| organization | positions | A | City isolation; all authenticated read |
+| organization | employees | B | City isolation; own-office and cross-office |
+| organization | assignments | B | City isolation; own-office and cross-office |
+| organization | delegation_grants | C | Complex read/write access; Invariant #16 |
+| organization | committees | A | City isolation; all authenticated read |
+| organization | committee_memberships | A | City isolation; all authenticated read |
+| organization | cross_office_grants | C | IT Admin / sp_secretary manage; user reads own |
+| documents | document_types | A | City isolation; all authenticated read; plat_admin write |
+| documents | number_series | B | City isolation; sp_secretary / plat_admin write |
+| documents | documents | D | Full ABAC: office scope + classification gate |
+| documents | versions | D | IT Admin content isolation (Invariant #10) |
+| documents | attachments | D | IT Admin content isolation (Invariant #10) |
+| documents | numbers | B | Same scope as parent document |
+| documents | signatures | B | Same scope as parent document |
+| documents | panlalawigan_reviews | B | sp_secretary write; broader read |
+| documents | classification_allowlists | C | plat_admin manage; used by Gate 4 |
+| workflow | definitions | B | plat_admin write; authenticated read |
+| workflow | definition_versions | B | plat_admin write; authenticated read |
+| workflow | steps | B | plat_admin write; authenticated read |
+| workflow | transition_rules | B | plat_admin write; authenticated read |
+| workflow | instances | C | Office-scoped; sp_secretary / senior roles broader |
+| workflow | step_instances | C | Assignee-scoped; sp_secretary broader |
+| workflow | workflow_events | A | Append-only; city isolation; authenticated read |
+| tracking | tracking_records | B | Document-office scope |
+| tracking | routing_entries | B | Append-only; sp_secretary write |
+| records | records | C | Office-scoped; records_officer manage |
+| records | retention_schedules | B | plat_admin write; authenticated read |
+| records | archive_entries | C | records_officer manage |
+| records | classification_rules | B | plat_admin write; authenticated read |
+| records | dispositions | C | records_officer manage |
+| notifications | templates | B | plat_admin write; authenticated read |
+| notifications | notification_events | C | Self-read; system INSERT |
+| notifications | delivery_log | A | Append-only; system INSERT; self-read |
+| audit | events | E | FORCE RLS; batac_audit INSERT; auditor SELECT via procedure |
 
 **Tier key:** A = city + soft-delete only | B = city + role gate | C = city + role + office/user scope | D = city + role + office + classification | E = append-only isolation
 
@@ -360,21 +360,21 @@ All 49 Phase 1 tables plus the two I1-introduced tables require RLS. The complex
 
 The following logical role codes are stored in `iam.roles.code` and appear in the `app.user_roles` session variable. They drive policy decisions throughout this document.
 
-| Role Code              | Description             | DB Access Level      | Notes                                           |
-| ---------------------- | ----------------------- | -------------------- | ----------------------------------------------- |
-| `dept_encoder`         | Department Encoder      | Standard operational | Document creation and submission                |
-| `dept_approver`        | Department Approver     | Standard operational | Approval and cancellation                       |
-| `sp_secretary`         | SP Secretary            | Elevated operational | Broadest cross-office operational access        |
-| `sp_member`            | SP Member (Councilor)   | Committee-scoped     | Access gated to committee membership            |
-| `sp_presiding_officer` | Vice Mayor              | Senior operational   | Cross-office metadata read                      |
-| `mayor`                | Mayor                   | Senior operational   | Cross-office metadata read; signature authority |
-| `brgy_encoder`         | Barangay Encoder        | Limited operational  | Own office only                                 |
-| `brgy_captain`         | Barangay Captain        | Limited operational  | Own office only                                 |
-| `records_officer`      | Records Officer         | Records management   | Bulk operations; archive; retention             |
-| `auditor`              | Auditor                 | Audit read-only      | Full audit log; soft-deleted row visibility     |
-| `sys_admin`            | IT System Administrator | Infra monitoring     | No document content for confidential/restricted |
-| `plat_admin`           | Platform Administrator  | Configuration only   | Cannot process documents (Invariant #12)        |
-| `citizen`              | Citizen                 | Portal only          | No access to internal schemas                   |
+| Role Code | Description | DB Access Level | Notes |
+|---|---|---|---|
+| `dept_encoder` | Department Encoder | Standard operational | Document creation and submission |
+| `dept_approver` | Department Approver | Standard operational | Approval and cancellation |
+| `sp_secretary` | SP Secretary | Elevated operational | Broadest cross-office operational access |
+| `sp_member` | SP Member (Councilor) | Committee-scoped | Access gated to committee membership |
+| `sp_presiding_officer` | Vice Mayor | Senior operational | Cross-office metadata read |
+| `mayor` | Mayor | Senior operational | Cross-office metadata read; signature authority |
+| `brgy_encoder` | Barangay Encoder | Limited operational | Own office only |
+| `brgy_captain` | Barangay Captain | Limited operational | Own office only |
+| `records_officer` | Records Officer | Records management | Bulk operations; archive; retention |
+| `auditor` | Auditor | Audit read-only | Full audit log; soft-deleted row visibility |
+| `sys_admin` | IT System Administrator | Infra monitoring | No document content for confidential/restricted |
+| `plat_admin` | Platform Administrator | Configuration only | Cannot process documents (Invariant #12) |
+| `citizen` | Citizen | Portal only | No access to internal schemas |
 
 `sys_admin` sets `app.is_ita = true`. `plat_admin` sets `app.is_pa = true`.
 
@@ -388,12 +388,12 @@ The `iam` schema holds identity and access management records. It is self-refere
 
 #### 6.1.1 `iam.users`
 
-| Operation | Permitted Roles                              | Condition Summary                                                                               |
-| --------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| SELECT    | All authenticated                            | Same city; own row always visible; IT Admin sees all; soft-deleted visible to auditor/sys_admin |
-| INSERT    | `sys_admin`, application (user provisioning) | City match                                                                                      |
-| UPDATE    | `sys_admin`; own row (status/profile fields) | City match                                                                                      |
-| DELETE    | None (soft-delete only)                      | —                                                                                               |
+| Operation | Permitted Roles | Condition Summary |
+|---|---|---|
+| SELECT | All authenticated | Same city; own row always visible; IT Admin sees all; soft-deleted visible to auditor/sys_admin |
+| INSERT | `sys_admin`, application (user provisioning) | City match |
+| UPDATE | `sys_admin`; own row (status/profile fields) | City match |
+| DELETE | None (soft-delete only) | — |
 
 ```sql
 ALTER TABLE iam.users ENABLE ROW LEVEL SECURITY;
@@ -1926,7 +1926,6 @@ The `audit` schema is the most tightly controlled in the platform. It implements
 #### 6.8.1 `audit.events` — Tier E (Append-Only Isolation)
 
 Key design decisions reflected in these policies:
-
 - `FORCE ROW LEVEL SECURITY` prevents even the `batac_migrate` BYPASSRLS grant from overriding the audit isolation during normal operation. **Exception:** `batac_migrate` may still bypass for DDL migrations during scheduled maintenance windows.
 - `batac_app` has **no SELECT policy** on `audit.events`. The absence of a SELECT policy means `batac_app` can never read the audit log directly. Full log reads go through the `batac_audit` role via a stored procedure.
 - `batac_audit` has INSERT and SELECT policies only (UPDATE/DELETE revoked at the grant level per C1 Part 0.2).
@@ -2154,7 +2153,6 @@ GRANT EXECUTE ON FUNCTION audit.fn_read_audit_log(TIMESTAMPTZ, TIMESTAMPTZ, TEXT
 The session variable mechanism (`SET LOCAL app.xxx`) is the single most security-sensitive element of this RLS design. If an attacker can execute arbitrary SQL that includes `SET LOCAL app.current_user_id = '<victim_uuid>'` before a query, they can impersonate any user.
 
 **Mitigations:**
-
 - Session variables must be set exclusively by authenticated application middleware, immediately after JWT verification. User-supplied data must never flow directly into a `SET LOCAL` call.
 - The application's database connection pool must **never** leak a session with pre-set variables to a different request. Use transaction-scoped `SET LOCAL` (not `SET SESSION`) so variables reset at transaction end.
 - The Fastify plugin responsible for setting session variables should be the only code path that does so, and should be covered by integration tests that verify variables are set correctly for each role combination.
@@ -2174,7 +2172,6 @@ This means that even if a future PERMISSIVE policy is added that would otherwise
 ### 8.4 Cross-Schema RLS Function Dependency
 
 The `has_cross_office_read_grant` function and the SELECT policies on `documents.documents`, `documents.versions`, and `documents.attachments` execute subqueries against other schemas (`organization.cross_office_grants`, `documents.classification_allowlists`, `documents.documents`). These cross-schema reads happen inside policy expressions, which run in the security context of the calling query — not the table owner. Ensure that:
-
 - `batac_app` has SELECT on `organization.cross_office_grants`.
 - `batac_app` has SELECT on `documents.classification_allowlists`.
 - The helper functions that encapsulate these reads are marked `STABLE` (already done in §3.4) so the query planner can cache results within a single query.
@@ -2184,7 +2181,6 @@ The `has_cross_office_read_grant` function and the SELECT policies on `documents
 Every query against an RLS-protected table incurs the cost of evaluating the policy expression. The most expensive expressions are the EXISTS subqueries in the `documents.documents`, `documents.versions`, and `documents.attachments` SELECT policies.
 
 The following indexes (to be specified in full in C4) are critical for RLS policy performance:
-
 - `documents.documents (city_id, owned_by_office_id)` — the primary filter in all document SELECT policies.
 - `documents.documents (city_id, classification_level)` — the classification gate subquery.
 - `documents.classification_allowlists (document_type_id, role_code)` — the EXISTS check in Gate 4.
@@ -2237,4 +2233,4 @@ Before the first Phase 1 database migration is applied:
 
 ---
 
-_This document is the authoritative C3 specification. It must be updated whenever a new table is added to any Phase 1 schema, whenever a new role is introduced to `iam.roles`, or whenever I1's ABAC policy adds a new resource type or action that has database-layer enforcement implications. This document supersedes any implicit RLS assumptions in prior architecture documents._
+*This document is the authoritative C3 specification. It must be updated whenever a new table is added to any Phase 1 schema, whenever a new role is introduced to `iam.roles`, or whenever I1's ABAC policy adds a new resource type or action that has database-layer enforcement implications. This document supersedes any implicit RLS assumptions in prior architecture documents.*

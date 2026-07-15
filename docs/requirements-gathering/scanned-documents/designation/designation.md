@@ -6,7 +6,6 @@ office: Sangguniang Panlungsod (SP)
 ---
 
 # DESIGNATION
-
 ## (2024 – 6SP)
 
 | Control No. | Memo No.                      | Date Sent/Received | Recipient                                             | Subject                                                                |

@@ -13,11 +13,11 @@ All Dockerfiles in the project currently use `node:20-alpine`. The open decision
 
 Node.js LTS schedule as of mid-2026:
 
-| Version | Status            | Active LTS start | Maintenance end                          |
-| ------- | ----------------- | ---------------- | ---------------------------------------- |
-| 20      | Maintenance LTS   | October 2023     | April 2026                               |
-| 22      | Active LTS        | October 2024     | April 2027                               |
-| 24      | Current (non-LTS) | April 2025       | October 2025 (if it follows the pattern) |
+| Version | Status | Active LTS start | Maintenance end |
+|---------|--------|-----------------|-----------------|
+| 20 | Maintenance LTS | October 2023 | April 2026 |
+| 22 | Active LTS | October 2024 | April 2027 |
+| 24 | Current (non-LTS) | April 2025 | October 2025 (if it follows the pattern) |
 
 Node.js 20 entered Maintenance LTS mode in April 2026, meaning it receives only critical security fixes. Node.js 22 is the current Active LTS line and receives active bugfixes through October 2026, followed by maintenance through April 2027.
 
@@ -62,7 +62,6 @@ FROM node:22-alpine AS production
 ```
 
 This applies to:
-
 - `apps/server/Dockerfile` (Part 4) — all stages
 - `apps/web/Dockerfile` (Part 5) — all stages
 

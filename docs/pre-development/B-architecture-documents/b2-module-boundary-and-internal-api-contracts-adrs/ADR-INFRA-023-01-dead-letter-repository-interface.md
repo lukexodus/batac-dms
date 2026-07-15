@@ -3,7 +3,7 @@
 **Status:** Accepted  
 **Date:** 2026-06-26  
 **Decided by:** Agent (TASK-INFRA-023); human-approved in PR review  
-**Related documents:** ADR-API-001 (Event Bus Implementation); B2 §"Common Event Envelope"; TASK-INFRA-023
+**Related documents:** ADR-API-001 (Event Bus Implementation); B2 §"Common Event Envelope"; TASK-INFRA-023  
 
 ---
 
@@ -40,13 +40,8 @@ The two options considered:
 
 ```typescript
 export interface IDeadLetterRepository {
-  insert(row: {
-    eventId: string;
-    eventType: string;
-    payload: Record<string, unknown>;
-    failedModule: string;
-    errorMessage: string;
-  }): Promise<void>;
+  insert(row: { eventId: string; eventType: string; payload: Record<string, unknown>;
+                failedModule: string; errorMessage: string; }): Promise<void>;
   fetchPending(opts: { maxRetries: number }): Promise<PendingDeadLetter[]>;
   markRetried(id: string): Promise<void>;
   incrementRetry(id: string, backoffSeconds: number): Promise<void>;
@@ -67,7 +62,6 @@ const bus = new EventBus(logger, deadLetterRepo);
 ## Consequences
 
 **Positive:**
-
 - `packages/shared` has zero dependency on `apps/server`. Importing `@batac/shared`
   in a test harness or a future package does not pull in Drizzle, postgres, or
   Fastify.
@@ -77,7 +71,6 @@ const bus = new EventBus(logger, deadLetterRepo);
   (`EventBus`) depends on an abstraction, not on a concrete implementation.
 
 **Negative / Trade-offs:**
-
 - One additional file (`dead-letter-repository.interface.ts`) to maintain.
   Acceptable: it is thin (< 20 lines) and changes only when the dead-letter API changes.
 - The task spec's illustrative pseudocode must be mentally translated to this

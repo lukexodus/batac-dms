@@ -1,5 +1,6 @@
 # ADR-AUTH-002: Argon2id Parameters
 
+
 **Status:** Accepted
 
 **Context**

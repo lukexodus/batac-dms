@@ -1,5 +1,6 @@
 # ADR-GEN-007: QR Tracking Number Assigned at Secretariat Logging, Before Preliminary Series Number
 
+
 **Status:** Accepted **Date:** June 2026 **Deciders:** Development team (confirmed by Interview 2, resolving Q-02)
 
 ---

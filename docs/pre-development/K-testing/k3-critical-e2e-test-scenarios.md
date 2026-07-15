@@ -5,7 +5,6 @@
 **Status:** SETTLED — scenario list and assertion specifications finalized before first workflow feature is implemented
 **Date:** June 2026
 **Based on:**
-
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` (Post-Interview 2, developer decisions incorporated)
 - `f1-application-route-map-v2.md` (F1) — route paths and component names
 - `h1-phase-1-workflow-definitions-structured-data.md` (H1) — step keys, outcome codes, transition rules
@@ -55,7 +54,6 @@ The scenarios are not a comprehensive regression suite. They are a risk-weighted
 **Outcome codes.** `REPORT_ACCEPTED`, `BYPASSED_CERTIFIED_URGENT`, `SIGNED`, `LAPSED`, `VALID`, etc. are outcome codes from H1 §2.3.
 
 **Epistemic markers.** This document inherits the project's labeling convention.
-
 - `[Confirmed]` — grounded in the consolidated reference or interview findings
 - `[Inference]` — a reasonable conclusion drawn from confirmed facts
 - `[Unverified]` — no confirmed source; a design choice or open question that the test reveals rather than resolves
@@ -66,21 +64,21 @@ The scenarios are not a comprehensive regression suite. They are a risk-weighted
 
 All six scenarios depend on the following base seed state. Run this before any scenario; each scenario may add to it but not replace it.
 
-| Seed entity                         | Value / notes                                                                                            |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Organization                        | Batac City (city_id = `BATAC_CITY_UUID` constant)                                                        |
-| Document type                       | `sp_resolution` active, linked to `SP_RESOLUTION_WORKFLOW` definition version 1                          |
-| Numbering series                    | `7SP` series, year = current year, counter = 1                                                           |
-| Workflow definition                 | `SP_RESOLUTION_WORKFLOW` seeded per H1 §10 insertion sequence; all step UUIDs deterministic via `uuidv5` |
-| User: secretariat staff             | Role `secretariat_staff`, office = SP Secretariat                                                        |
-| User: SP Secretary                  | Role `sp_secretary`, office = SP Secretariat                                                             |
-| User: SP Member (Committee on Laws) | Role `sp_member`, assigned to Committee on Laws                                                          |
-| User: Vice Mayor                    | Role `sp_presiding_officer`, position = Vice Mayor                                                       |
-| User: Mayor                         | Role `mayor`                                                                                             |
-| User: Records Officer               | Role `records_officer`                                                                                   |
-| User: Citizen                       | Role `citizen`, phone OTP verified, email verified                                                       |
-| User: Platform Administrator        | Role `plat_admin`                                                                                        |
-| Session                             | No active Tuesday session pre-seeded; each scenario that needs one must create it                        |
+| Seed entity | Value / notes |
+|---|---|
+| Organization | Batac City (city_id = `BATAC_CITY_UUID` constant) |
+| Document type | `sp_resolution` active, linked to `SP_RESOLUTION_WORKFLOW` definition version 1 |
+| Numbering series | `7SP` series, year = current year, counter = 1 |
+| Workflow definition | `SP_RESOLUTION_WORKFLOW` seeded per H1 §10 insertion sequence; all step UUIDs deterministic via `uuidv5` |
+| User: secretariat staff | Role `secretariat_staff`, office = SP Secretariat |
+| User: SP Secretary | Role `sp_secretary`, office = SP Secretariat |
+| User: SP Member (Committee on Laws) | Role `sp_member`, assigned to Committee on Laws |
+| User: Vice Mayor | Role `sp_presiding_officer`, position = Vice Mayor |
+| User: Mayor | Role `mayor` |
+| User: Records Officer | Role `records_officer` |
+| User: Citizen | Role `citizen`, phone OTP verified, email verified |
+| User: Platform Administrator | Role `plat_admin` |
+| Session | No active Tuesday session pre-seeded; each scenario that needs one must create it |
 
 Scenarios that require a `sp_ordinance` or `appropriation_ordinance` document type add those seed records locally. Scenario 4 requires the complaint module seed (`complaints` document type active, complaint workflow definition seeded).
 
@@ -528,7 +526,6 @@ Run these six scenarios in order during early development: S1 is the critical pa
 ### Playwright project structure
 
 These scenarios map naturally to one Playwright spec file each:
-
 ```
 /apps/web/e2e/
   s1-sp-resolution-full-lifecycle.spec.ts

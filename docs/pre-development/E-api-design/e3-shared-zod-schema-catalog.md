@@ -6,7 +6,6 @@
 **Last Updated:** June 2026
 **Audience:** Backend and frontend development team
 **Source Documents Reviewed:**
-
 - `c1-full-database-schema-ddl.md` — authoritative column types, enums, and constraints for all eight Phase 1 schemas
 - `tech-stack.md` — type safety chain; stack decisions (Zod, drizzle-zod, tRPC, React Hook Form, TanStack Query)
 - `consolidated-architecture-and-requirements-reference-iteration-3.md` — Parts 4, 5, 9, 10, 11, 12 (document types, numbering, module boundaries, design decisions, architectural invariants)
@@ -114,23 +113,23 @@ A DB schema change propagates as a compile error to every layer. No layer may de
 
 ### Schema Type Tags
 
-| Tag          | Description                                                                                                                                                                                                                            |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Select**   | Full entity shape derived from `drizzle-zod`'s `createSelectSchema()`. Used as response types. Never includes sensitive fields (`password_hash`, `session_token_hash`, `secret_encrypted`).                                            |
-| **Insert**   | DB insert shape from `createInsertSchema()`. Used only in the backend repository layer. **Not exported from `/packages/shared`**.                                                                                                      |
-| **Input**    | Custom client-input schema for a user-initiated operation. Validates form submissions and tRPC/REST request bodies. Often differs from the Insert schema (e.g. the client sends `password`; the Insert schema stores `password_hash`). |
-| **Filter**   | Query-parameter schema for list endpoints. All fields optional.                                                                                                                                                                        |
-| **Response** | Composite schema assembling multiple entities for a specific API payload (e.g. dashboard). Not directly a DB entity row.                                                                                                               |
-| **Params**   | Path/route parameter schema (e.g. `{ id: UuidSchema }`). Used by both tRPC and REST.                                                                                                                                                   |
+| Tag | Description |
+|-----|-------------|
+| **Select** | Full entity shape derived from `drizzle-zod`'s `createSelectSchema()`. Used as response types. Never includes sensitive fields (`password_hash`, `session_token_hash`, `secret_encrypted`). |
+| **Insert** | DB insert shape from `createInsertSchema()`. Used only in the backend repository layer. **Not exported from `/packages/shared`**. |
+| **Input** | Custom client-input schema for a user-initiated operation. Validates form submissions and tRPC/REST request bodies. Often differs from the Insert schema (e.g. the client sends `password`; the Insert schema stores `password_hash`). |
+| **Filter** | Query-parameter schema for list endpoints. All fields optional. |
+| **Response** | Composite schema assembling multiple entities for a specific API payload (e.g. dashboard). Not directly a DB entity row. |
+| **Params** | Path/route parameter schema (e.g. `{ id: UuidSchema }`). Used by both tRPC and REST. |
 
 ### Layer Consumption Notation
 
-| Symbol  | Layer                                                                                                    |
-| ------- | -------------------------------------------------------------------------------------------------------- |
+| Symbol | Layer |
+|--------|-------|
 | **[B]** | Backend validation — Fastify route schema via `fastify-type-provider-zod`; also REST-specific middleware |
-| **[T]** | tRPC procedure input — the `.input(schema)` call on a procedure                                          |
-| **[F]** | React Hook Form — passed to `useForm({ resolver: zodResolver(schema) })`                                 |
-| **[R]** | TanStack Query response type — inferred as `TData` from a query or mutation                              |
+| **[T]** | tRPC procedure input — the `.input(schema)` call on a procedure |
+| **[F]** | React Hook Form — passed to `useForm({ resolver: zodResolver(schema) })` |
+| **[R]** | TanStack Query response type — inferred as `TData` from a query or mutation |
 
 A schema tagged **[T]** is also used by the backend tRPC handler for validation, so it covers **[B]** implicitly. They are distinguished when a REST endpoint uses the same schema independently.
 
@@ -138,12 +137,12 @@ A schema tagged **[T]** is also used by the backend tRPC handler for validation,
 
 The following database columns are **never** included in any schema exported from `/packages/shared`:
 
-| Column               | Table                | Reason                                    |
-| -------------------- | -------------------- | ----------------------------------------- |
-| `password_hash`      | `iam.credentials`    | Argon2id hash; never transmitted          |
-| `session_token_hash` | `iam.sessions`       | Raw token; never transmitted              |
-| `secret_encrypted`   | `iam.mfa_records`    | Encrypted TOTP secret; never transmitted  |
-| `ocr_text`           | `documents.versions` | Large blob; streamed separately on demand |
+| Column | Table | Reason |
+|--------|-------|--------|
+| `password_hash` | `iam.credentials` | Argon2id hash; never transmitted |
+| `session_token_hash` | `iam.sessions` | Raw token; never transmitted |
+| `secret_encrypted` | `iam.mfa_records` | Encrypted TOTP secret; never transmitted |
+| `ocr_text` | `documents.versions` | Large blob; streamed separately on demand |
 
 ### File Organization in `/packages/shared`
 
@@ -211,7 +210,7 @@ export type Timestamp = z.infer<typeof TimestampSchema>;
 ```typescript
 export const DateSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date — expected YYYY-MM-DD');
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date — expected YYYY-MM-DD");
 export type DateString = z.infer<typeof DateSchema>;
 ```
 
@@ -223,10 +222,10 @@ export type DateString = z.infer<typeof DateSchema>;
 
 > Standard cursor-based pagination parameters for all list endpoints.
 
-| Field    | Zod Type           | Validation                 | Notes                                        |
-| -------- | ------------------ | -------------------------- | -------------------------------------------- |
-| `cursor` | `UuidSchema`       | optional                   | UUID of the last item from the previous page |
-| `limit`  | `z.number().int()` | min 1, max 100, default 25 |                                              |
+| Field | Zod Type | Validation | Notes |
+|-------|----------|------------|-------|
+| `cursor` | `UuidSchema` | optional | UUID of the last item from the previous page |
+| `limit` | `z.number().int()` | min 1, max 100, default 25 | |
 
 ```typescript
 export const PaginationInputSchema = z.object({
@@ -259,7 +258,7 @@ export type OffsetPaginationInput = z.infer<typeof OffsetPaginationInputSchema>;
 ### `SortOrderSchema`
 
 ```typescript
-export const SortOrderSchema = z.enum(['asc', 'desc']).default('asc');
+export const SortOrderSchema = z.enum(["asc", "desc"]).default("asc");
 export type SortOrder = z.infer<typeof SortOrderSchema>;
 ```
 
@@ -275,11 +274,12 @@ export type SortOrder = z.infer<typeof SortOrderSchema>;
 export const DateRangeSchema = z
   .object({
     from: DateSchema.optional(),
-    to: DateSchema.optional(),
+    to:   DateSchema.optional(),
   })
-  .refine((v) => !(v.from && v.to) || v.from <= v.to, {
-    message: "'from' must not be later than 'to'",
-  });
+  .refine(
+    (v) => !(v.from && v.to) || v.from <= v.to,
+    { message: "'from' must not be later than 'to'" }
+  );
 export type DateRange = z.infer<typeof DateRangeSchema>;
 ```
 
@@ -294,9 +294,9 @@ export type DateRange = z.infer<typeof DateRangeSchema>;
 ```typescript
 export const PaginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
   z.object({
-    items: z.array(itemSchema),
+    items:      z.array(itemSchema),
     nextCursor: UuidSchema.nullable(),
-    total: z.number().int().nonnegative(),
+    total:      z.number().int().nonnegative(),
   });
 ```
 
@@ -325,7 +325,7 @@ export type IdParams = z.infer<typeof IdParamsSchema>;
 
 ```typescript
 export const ApiErrorSchema = z.object({
-  code: z.string(),
+  code:    z.string(),
   message: z.string(),
   details: z.record(z.unknown()).optional(),
 });
@@ -340,34 +340,34 @@ export type ApiError = z.infer<typeof ApiErrorSchema>;
 
 > Client requests a pre-signed S3 upload URL before sending a file. Applies to all document upload operations. Files are streamed directly to S3-compatible storage per the file storage strategy — they never pass through the application server.
 
-| Field           | Zod Type           | Validation                       | Notes                                                        |
-| --------------- | ------------------ | -------------------------------- | ------------------------------------------------------------ |
-| `filename`      | `z.string()`       | max 512                          | Original filename for display; UUID key assigned server-side |
-| `mimeType`      | `z.enum([...])`    | PDF, DOCX, XLSX, PNG, JPG only   | Per stack constraint                                         |
-| `fileSizeBytes` | `z.number().int()` | positive, max 26,214,400 (25 MB) | Configurable via env but validated here at the default cap   |
+| Field | Zod Type | Validation | Notes |
+|-------|----------|------------|-------|
+| `filename` | `z.string()` | max 512 | Original filename for display; UUID key assigned server-side |
+| `mimeType` | `z.enum([...])` | PDF, DOCX, XLSX, PNG, JPG only | Per stack constraint |
+| `fileSizeBytes` | `z.number().int()` | positive, max 26,214,400 (25 MB) | Configurable via env but validated here at the default cap |
 
 ```typescript
 export const AllowedMimeTypeSchema = z.enum([
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'image/png',
-  'image/jpeg',
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/png",
+  "image/jpeg",
 ]);
 
 export const PresignedUploadRequestSchema = z.object({
-  filename: z.string().max(512),
-  mimeType: AllowedMimeTypeSchema,
+  filename:      z.string().max(512),
+  mimeType:      AllowedMimeTypeSchema,
   fileSizeBytes: z.number().int().positive().max(26_214_400),
 });
 
 export const PresignedUploadResponseSchema = z.object({
   uploadUrl: z.string().url(),
-  s3Key: z.string().min(1),
+  s3Key:     z.string().min(1),
   expiresAt: TimestampSchema,
 });
 
-export type PresignedUploadRequest = z.infer<typeof PresignedUploadRequestSchema>;
+export type PresignedUploadRequest  = z.infer<typeof PresignedUploadRequestSchema>;
 export type PresignedUploadResponse = z.infer<typeof PresignedUploadResponseSchema>;
 ```
 
@@ -387,7 +387,7 @@ export type PresignedUploadResponse = z.infer<typeof PresignedUploadResponseSche
 #### `UserStatusSchema`
 
 ```typescript
-export const UserStatusSchema = z.enum(['active', 'inactive', 'suspended', 'deactivated']);
+export const UserStatusSchema = z.enum(["active", "inactive", "suspended", "deactivated"]);
 export type UserStatus = z.infer<typeof UserStatusSchema>;
 ```
 
@@ -398,7 +398,7 @@ export type UserStatus = z.infer<typeof UserStatusSchema>;
 #### `MfaTypeSchema`
 
 ```typescript
-export const MfaTypeSchema = z.enum(['totp']);
+export const MfaTypeSchema = z.enum(["totp"]);
 export type MfaType = z.infer<typeof MfaTypeSchema>;
 ```
 
@@ -410,7 +410,7 @@ export type MfaType = z.infer<typeof MfaTypeSchema>;
 #### `SessionTerminationReasonSchema`
 
 ```typescript
-export const SessionTerminationReasonSchema = z.enum(['user_logout', 'forced', 'timeout']);
+export const SessionTerminationReasonSchema = z.enum(["user_logout", "forced", "timeout"]);
 export type SessionTerminationReason = z.infer<typeof SessionTerminationReasonSchema>;
 ```
 
@@ -421,7 +421,7 @@ export type SessionTerminationReason = z.infer<typeof SessionTerminationReasonSc
 #### `PermissionDecisionSchema`
 
 ```typescript
-export const PermissionDecisionSchema = z.enum(['allow', 'deny', 'conditional']);
+export const PermissionDecisionSchema = z.enum(["allow", "deny", "conditional"]);
 export type PermissionDecision = z.infer<typeof PermissionDecisionSchema>;
 ```
 
@@ -435,25 +435,25 @@ export type PermissionDecision = z.infer<typeof PermissionDecisionSchema>;
 
 > Full user entity as returned by the API. Excludes `city_id` (inferred from session) and sensitive credential fields.
 
-| Field        | Zod Type           | Notes           |
-| ------------ | ------------------ | --------------- |
-| `id`         | `UuidSchema`       | PK              |
-| `username`   | `z.string()`       | Unique per city |
-| `email`      | `z.string()`       | Unique per city |
-| `status`     | `UserStatusSchema` |                 |
-| `mfaEnabled` | `z.boolean()`      |                 |
-| `createdAt`  | `TimestampSchema`  |                 |
-| `updatedAt`  | `TimestampSchema`  |                 |
+| Field | Zod Type | Notes |
+|-------|----------|-------|
+| `id` | `UuidSchema` | PK |
+| `username` | `z.string()` | Unique per city |
+| `email` | `z.string()` | Unique per city |
+| `status` | `UserStatusSchema` | |
+| `mfaEnabled` | `z.boolean()` | |
+| `createdAt` | `TimestampSchema` | |
+| `updatedAt` | `TimestampSchema` | |
 
 ```typescript
 export const UserSelectSchema = z.object({
-  id: UuidSchema,
-  username: z.string().min(3).max(64),
-  email: z.string().email().max(254),
-  status: UserStatusSchema,
+  id:         UuidSchema,
+  username:   z.string().min(3).max(64),
+  email:      z.string().email().max(254),
+  status:     UserStatusSchema,
   mfaEnabled: z.boolean(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  createdAt:  TimestampSchema,
+  updatedAt:  TimestampSchema,
 });
 export type UserSelect = z.infer<typeof UserSelectSchema>;
 ```
@@ -468,8 +468,8 @@ export type UserSelect = z.infer<typeof UserSelectSchema>;
 
 ```typescript
 export const UserSummarySchema = z.object({
-  id: UuidSchema,
-  username: z.string(),
+  id:          UuidSchema,
+  username:    z.string(),
   displayName: z.string(), // computed: employee first+last name, or username fallback
 });
 export type UserSummary = z.infer<typeof UserSummarySchema>;
@@ -483,24 +483,20 @@ export type UserSummary = z.infer<typeof UserSummarySchema>;
 
 > Platform Administrator creates a new system user. Password is Argon2id-hashed server-side; the plain-text value is never stored.
 
-| Field             | Zod Type           | Validation                       | Notes                            |
-| ----------------- | ------------------ | -------------------------------- | -------------------------------- |
-| `username`        | `z.string()`       | min 3, max 64, `^[a-z0-9_.\-]+$` | Lowercase alphanumeric + `_ . -` |
-| `email`           | `z.string()`       | `.email()`, max 254              |                                  |
-| `initialPassword` | `z.string()`       | min 12, max 128                  |                                  |
-| `status`          | `UserStatusSchema` | default `'active'`               |                                  |
+| Field | Zod Type | Validation | Notes |
+|-------|----------|------------|-------|
+| `username` | `z.string()` | min 3, max 64, `^[a-z0-9_.\-]+$` | Lowercase alphanumeric + `_ . -` |
+| `email` | `z.string()` | `.email()`, max 254 | |
+| `initialPassword` | `z.string()` | min 12, max 128 | |
+| `status` | `UserStatusSchema` | default `'active'` | |
 
 ```typescript
 export const CreateUserInputSchema = z.object({
-  username: z
-    .string()
-    .min(3)
-    .max(64)
-    .trim()
-    .regex(/^[a-z0-9_.\-]+$/, 'Username: a-z, 0-9, _, ., - only'),
-  email: z.string().email().max(254),
+  username:        z.string().min(3).max(64).trim()
+                    .regex(/^[a-z0-9_.\-]+$/, "Username: a-z, 0-9, _, ., - only"),
+  email:           z.string().email().max(254),
   initialPassword: z.string().min(12).max(128),
-  status: UserStatusSchema.default('active'),
+  status:          UserStatusSchema.default("active"),
 });
 export type CreateUserInput = z.infer<typeof CreateUserInputSchema>;
 ```
@@ -515,11 +511,11 @@ export type CreateUserInput = z.infer<typeof CreateUserInputSchema>;
 export const UpdateUserInputSchema = z
   .object({
     username: z.string().min(3).max(64).trim().optional(),
-    email: z.string().email().max(254).optional(),
-    status: UserStatusSchema.optional(),
+    email:    z.string().email().max(254).optional(),
+    status:   UserStatusSchema.optional(),
   })
   .refine((v) => Object.keys(v).length > 0, {
-    message: 'At least one field must be provided',
+    message: "At least one field must be provided",
   });
 export type UpdateUserInput = z.infer<typeof UpdateUserInputSchema>;
 ```
@@ -532,11 +528,11 @@ export type UpdateUserInput = z.infer<typeof UpdateUserInputSchema>;
 
 ```typescript
 export const UserFilterSchema = z.object({
-  status: UserStatusSchema.optional(),
+  status:   UserStatusSchema.optional(),
   officeId: UuidSchema.optional(),
   roleCode: z.string().optional(),
-  search: z.string().max(100).optional(),
-  sortBy: z.enum(['username', 'email', 'createdAt', 'status']).default('username'),
+  search:   z.string().max(100).optional(),
+  sortBy:   z.enum(["username", "email", "createdAt", "status"]).default("username"),
   sortOrder: SortOrderSchema,
   ...PaginationInputSchema.shape,
 });
@@ -570,16 +566,15 @@ export type LoginInput = z.infer<typeof LoginInputSchema>;
 
 ```typescript
 export const AuthResponseSchema = z.object({
-  user: UserSelectSchema,
-  sessionId: UuidSchema,
-  expiresAt: TimestampSchema,
-  roleCodes: z.array(z.string()),
+  user:          UserSelectSchema,
+  sessionId:     UuidSchema,
+  expiresAt:     TimestampSchema,
+  roleCodes:     z.array(z.string()),
   officeScopeId: UuidSchema.nullable(),
-  officeCode: z.string().nullable(),
+  officeCode:    z.string().nullable(),
 });
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 ```
-
 `[RESOLVED — 2026-06-25]` `roleCodes`, `officeScopeId`, `officeCode` added per ADR-UI-012
 (frontend, accepted 2026-06-19), whose own "Consequences" section already called for this
 exact change to this schema; that section had not yet been carried out in this revision of
@@ -597,17 +592,17 @@ until the ORG module exists; `roleCodes` is IAM-internal and does not depend on 
 ```typescript
 export const ChangePasswordInputSchema = z
   .object({
-    currentPassword: z.string().min(1),
-    newPassword: z.string().min(12).max(128),
+    currentPassword:    z.string().min(1),
+    newPassword:        z.string().min(12).max(128),
     confirmNewPassword: z.string().min(12).max(128),
   })
   .refine((v) => v.newPassword === v.confirmNewPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmNewPassword'],
+    message: "Passwords do not match",
+    path: ["confirmNewPassword"],
   })
   .refine((v) => v.newPassword !== v.currentPassword, {
-    message: 'New password must differ from current password',
-    path: ['newPassword'],
+    message: "New password must differ from current password",
+    path: ["newPassword"],
   });
 export type ChangePasswordInput = z.infer<typeof ChangePasswordInputSchema>;
 ```
@@ -622,10 +617,7 @@ export type ChangePasswordInput = z.infer<typeof ChangePasswordInputSchema>;
 
 ```typescript
 export const SetupTotpInputSchema = z.object({
-  totpCode: z
-    .string()
-    .length(6)
-    .regex(/^\d{6}$/, 'TOTP code must be 6 digits'),
+  totpCode: z.string().length(6).regex(/^\d{6}$/, "TOTP code must be 6 digits"),
 });
 export type SetupTotpInput = z.infer<typeof SetupTotpInputSchema>;
 ```
@@ -640,13 +632,13 @@ export type SetupTotpInput = z.infer<typeof SetupTotpInputSchema>;
 
 ```typescript
 export const RoleSelectSchema = z.object({
-  id: UuidSchema,
-  name: z.string().min(1).max(128),
-  code: z.string().min(1).max(64),
-  description: z.string().nullable(),
+  id:           UuidSchema,
+  name:         z.string().min(1).max(128),
+  code:         z.string().min(1).max(64),
+  description:  z.string().nullable(),
   isSystemRole: z.boolean(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  createdAt:    TimestampSchema,
+  updatedAt:    TimestampSchema,
 });
 export type RoleSelect = z.infer<typeof RoleSelectSchema>;
 ```
@@ -659,9 +651,9 @@ export type RoleSelect = z.infer<typeof RoleSelectSchema>;
 
 ```typescript
 export const PermissionSelectSchema = z.object({
-  id: UuidSchema,
-  resource: z.string().min(1).max(128),
-  action: z.string().min(1).max(64),
+  id:          UuidSchema,
+  resource:    z.string().min(1).max(128),
+  action:      z.string().min(1).max(64),
   description: z.string().nullable(),
 });
 export type PermissionSelect = z.infer<typeof PermissionSelectSchema>;
@@ -675,11 +667,11 @@ export type PermissionSelect = z.infer<typeof PermissionSelectSchema>;
 
 ```typescript
 export const RolePermissionSelectSchema = z.object({
-  id: UuidSchema,
-  roleId: UuidSchema,
-  permissionId: UuidSchema,
-  permission: PermissionSelectSchema,
-  decision: z.enum(['allow', 'deny', 'conditional']),
+  id:                 UuidSchema,
+  roleId:             UuidSchema,
+  permissionId:       UuidSchema,
+  permission:         PermissionSelectSchema,
+  decision:           z.enum(["allow", "deny", "conditional"]),
   conditionReference: z.string().nullable(),
 });
 export type RolePermissionSelect = z.infer<typeof RolePermissionSelectSchema>;
@@ -693,23 +685,17 @@ export type RolePermissionSelect = z.infer<typeof RolePermissionSelectSchema>;
 
 ```typescript
 export const CreateRoleInputSchema = z.object({
-  name: z.string().min(1).max(128).trim(),
-  code: z
-    .string()
-    .min(1)
-    .max(64)
-    .trim()
-    .regex(/^[A-Z0-9_]+$/, 'Role code must be UPPER_SNAKE_CASE'),
+  name:        z.string().min(1).max(128).trim(),
+  code:        z.string().min(1).max(64).trim()
+                .regex(/^[A-Z0-9_]+$/, "Role code must be UPPER_SNAKE_CASE"),
   description: z.string().max(512).optional(),
   permissions: z
-    .array(
-      z.object({
-        permissionId: UuidSchema,
-        decision: PermissionDecisionSchema.default('allow'),
-        conditionReference: z.string().optional(),
-      }),
-    )
-    .min(1, 'At least one permission required'),
+    .array(z.object({
+      permissionId:       UuidSchema,
+      decision:           PermissionDecisionSchema.default("allow"),
+      conditionReference: z.string().optional(),
+    }))
+    .min(1, "At least one permission required"),
 });
 export type CreateRoleInput = z.infer<typeof CreateRoleInputSchema>;
 ```
@@ -722,8 +708,8 @@ export type CreateRoleInput = z.infer<typeof CreateRoleInputSchema>;
 
 ```typescript
 export const AssignRoleInputSchema = z.object({
-  userId: UuidSchema,
-  roleId: UuidSchema,
+  userId:        UuidSchema,
+  roleId:        UuidSchema,
   officeScopeId: UuidSchema.optional(),
 });
 export type AssignRoleInput = z.infer<typeof AssignRoleInputSchema>;
@@ -737,16 +723,16 @@ export type AssignRoleInput = z.infer<typeof AssignRoleInputSchema>;
 
 ```typescript
 export const RoleAssignmentSelectSchema = z.object({
-  id: UuidSchema,
-  userId: UuidSchema,
-  roleId: UuidSchema,
-  role: RoleSelectSchema,
+  id:            UuidSchema,
+  userId:        UuidSchema,
+  roleId:        UuidSchema,
+  role:          RoleSelectSchema,
   officeScopeId: UuidSchema.nullable(),
-  assignedBy: UuidSchema.nullable(),
-  assignedAt: TimestampSchema,
-  revokedAt: TimestampSchema.nullable(),
-  revokedBy: UuidSchema.nullable(),
-  isActive: z.boolean(),
+  assignedBy:    UuidSchema.nullable(),
+  assignedAt:    TimestampSchema,
+  revokedAt:     TimestampSchema.nullable(),
+  revokedBy:     UuidSchema.nullable(),
+  isActive:      z.boolean(),
 });
 export type RoleAssignmentSelect = z.infer<typeof RoleAssignmentSelectSchema>;
 ```
@@ -761,14 +747,14 @@ export type RoleAssignmentSelect = z.infer<typeof RoleAssignmentSelectSchema>;
 
 ```typescript
 export const SessionSelectSchema = z.object({
-  id: UuidSchema,
-  userId: UuidSchema,
-  ipAddress: z.string().nullable(),
-  userAgent: z.string().nullable(),
-  expiresAt: TimestampSchema,
-  terminatedAt: TimestampSchema.nullable(),
-  terminationReason: SessionTerminationReasonSchema.nullable(),
-  createdAt: TimestampSchema,
+  id:                 UuidSchema,
+  userId:             UuidSchema,
+  ipAddress:          z.string().nullable(),
+  userAgent:          z.string().nullable(),
+  expiresAt:          TimestampSchema,
+  terminatedAt:       TimestampSchema.nullable(),
+  terminationReason:  SessionTerminationReasonSchema.nullable(),
+  createdAt:          TimestampSchema,
 });
 export type SessionSelect = z.infer<typeof SessionSelectSchema>;
 ```
@@ -790,11 +776,7 @@ export type SessionSelect = z.infer<typeof SessionSelectSchema>;
 
 ```typescript
 export const OfficeTypeSchema = z.enum([
-  'executive',
-  'legislative',
-  'department',
-  'barangay',
-  'external',
+  "executive", "legislative", "department", "barangay", "external",
 ]);
 export type OfficeType = z.infer<typeof OfficeTypeSchema>;
 ```
@@ -806,7 +788,7 @@ export type OfficeType = z.infer<typeof OfficeTypeSchema>;
 #### `AuthorityLevelSchema`
 
 ```typescript
-export const AuthorityLevelSchema = z.enum(['executive', 'managerial', 'staff', 'support']);
+export const AuthorityLevelSchema = z.enum(["executive", "managerial", "staff", "support"]);
 export type AuthorityLevel = z.infer<typeof AuthorityLevelSchema>;
 ```
 
@@ -817,7 +799,7 @@ export type AuthorityLevel = z.infer<typeof AuthorityLevelSchema>;
 #### `CommitteeRoleSchema`
 
 ```typescript
-export const CommitteeRoleSchema = z.enum(['chairman', 'vice_chairman', 'member']);
+export const CommitteeRoleSchema = z.enum(["chairman", "vice_chairman", "member"]);
 export type CommitteeRole = z.infer<typeof CommitteeRoleSchema>;
 ```
 
@@ -829,25 +811,25 @@ export type CommitteeRole = z.infer<typeof CommitteeRoleSchema>;
 
 #### `OfficeSelectSchema` — Select
 
-| Field            | Zod Type                | Notes                      |
-| ---------------- | ----------------------- | -------------------------- |
-| `id`             | `UuidSchema`            |                            |
-| `name`           | `z.string()`            | max 256                    |
-| `code`           | `z.string()`            | max 32; unique per city    |
-| `officeType`     | `OfficeTypeSchema`      |                            |
+| Field | Zod Type | Notes |
+|-------|----------|-------|
+| `id` | `UuidSchema` | |
+| `name` | `z.string()` | max 256 |
+| `code` | `z.string()` | max 32; unique per city |
+| `officeType` | `OfficeTypeSchema` | |
 | `parentOfficeId` | `UuidSchema.nullable()` | Self-referential hierarchy |
-| `createdAt`      | `TimestampSchema`       |                            |
-| `updatedAt`      | `TimestampSchema`       |                            |
+| `createdAt` | `TimestampSchema` | |
+| `updatedAt` | `TimestampSchema` | |
 
 ```typescript
 export const OfficeSelectSchema = z.object({
-  id: UuidSchema,
-  name: z.string().min(1).max(256),
-  code: z.string().min(1).max(32),
-  officeType: OfficeTypeSchema,
+  id:             UuidSchema,
+  name:           z.string().min(1).max(256),
+  code:           z.string().min(1).max(32),
+  officeType:     OfficeTypeSchema,
   parentOfficeId: UuidSchema.nullable(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  createdAt:      TimestampSchema,
+  updatedAt:      TimestampSchema,
 });
 export type OfficeSelect = z.infer<typeof OfficeSelectSchema>;
 ```
@@ -862,9 +844,9 @@ export type OfficeSelect = z.infer<typeof OfficeSelectSchema>;
 
 ```typescript
 export const OfficeSummarySchema = z.object({
-  id: UuidSchema,
-  name: z.string(),
-  code: z.string(),
+  id:         UuidSchema,
+  name:       z.string(),
+  code:       z.string(),
   officeType: OfficeTypeSchema,
 });
 export type OfficeSummary = z.infer<typeof OfficeSummarySchema>;
@@ -878,9 +860,9 @@ export type OfficeSummary = z.infer<typeof OfficeSummarySchema>;
 
 ```typescript
 export const CreateOfficeInputSchema = z.object({
-  name: z.string().min(1).max(256).trim(),
-  code: z.string().min(1).max(32).trim().toUpperCase(),
-  officeType: OfficeTypeSchema,
+  name:           z.string().min(1).max(256).trim(),
+  code:           z.string().min(1).max(32).trim().toUpperCase(),
+  officeType:     OfficeTypeSchema,
   parentOfficeId: UuidSchema.optional(),
 });
 export type CreateOfficeInput = z.infer<typeof CreateOfficeInputSchema>;
@@ -893,10 +875,9 @@ export type CreateOfficeInput = z.infer<typeof CreateOfficeInputSchema>;
 #### `UpdateOfficeInputSchema` — Input
 
 ```typescript
-export const UpdateOfficeInputSchema = CreateOfficeInputSchema.partial().refine(
-  (v) => Object.keys(v).length > 0,
-  { message: 'At least one field required' },
-);
+export const UpdateOfficeInputSchema = CreateOfficeInputSchema
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: "At least one field required" });
 export type UpdateOfficeInput = z.infer<typeof UpdateOfficeInputSchema>;
 ```
 
@@ -908,12 +889,12 @@ export type UpdateOfficeInput = z.infer<typeof UpdateOfficeInputSchema>;
 
 ```typescript
 export const OfficeFilterSchema = z.object({
-  officeType: OfficeTypeSchema.optional(),
-  parentOfficeId: UuidSchema.optional(),
-  search: z.string().max(100).optional(),
+  officeType:      OfficeTypeSchema.optional(),
+  parentOfficeId:  UuidSchema.optional(),
+  search:          z.string().max(100).optional(),
   includeInactive: z.boolean().default(false),
-  sortBy: z.enum(['name', 'code', 'officeType']).default('name'),
-  sortOrder: SortOrderSchema,
+  sortBy:          z.enum(["name", "code", "officeType"]).default("name"),
+  sortOrder:       SortOrderSchema,
   ...PaginationInputSchema.shape,
 });
 export type OfficeFilter = z.infer<typeof OfficeFilterSchema>;
@@ -929,13 +910,13 @@ export type OfficeFilter = z.infer<typeof OfficeFilterSchema>;
 
 ```typescript
 export const PositionSelectSchema = z.object({
-  id: UuidSchema,
-  officeId: UuidSchema,
-  title: z.string().min(1).max(256),
-  code: z.string().min(1).max(64),
+  id:             UuidSchema,
+  officeId:       UuidSchema,
+  title:          z.string().min(1).max(256),
+  code:           z.string().min(1).max(64),
   authorityLevel: AuthorityLevelSchema,
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  createdAt:      TimestampSchema,
+  updatedAt:      TimestampSchema,
 });
 export type PositionSelect = z.infer<typeof PositionSelectSchema>;
 ```
@@ -948,9 +929,9 @@ export type PositionSelect = z.infer<typeof PositionSelectSchema>;
 
 ```typescript
 export const CreatePositionInputSchema = z.object({
-  officeId: UuidSchema,
-  title: z.string().min(1).max(256).trim(),
-  code: z.string().min(1).max(64).trim().toUpperCase(),
+  officeId:       UuidSchema,
+  title:          z.string().min(1).max(256).trim(),
+  code:           z.string().min(1).max(64).trim().toUpperCase(),
   authorityLevel: AuthorityLevelSchema,
 });
 export type CreatePositionInput = z.infer<typeof CreatePositionInputSchema>;
@@ -964,27 +945,27 @@ export type CreatePositionInput = z.infer<typeof CreatePositionInputSchema>;
 
 #### `EmployeeSelectSchema` — Select
 
-| Field            | Zod Type                | Notes                                                     |
-| ---------------- | ----------------------- | --------------------------------------------------------- |
-| `id`             | `UuidSchema`            |                                                           |
-| `userId`         | `UuidSchema.nullable()` | NULL for Barangay officials (no system access in Phase 1) |
-| `employeeNumber` | `z.string().nullable()` |                                                           |
-| `firstName`      | `z.string()`            | max 128                                                   |
-| `lastName`       | `z.string()`            | max 128                                                   |
-| `email`          | `z.string().nullable()` |                                                           |
-| `phoneNumber`    | `z.string().nullable()` |                                                           |
+| Field | Zod Type | Notes |
+|-------|----------|-------|
+| `id` | `UuidSchema` | |
+| `userId` | `UuidSchema.nullable()` | NULL for Barangay officials (no system access in Phase 1) |
+| `employeeNumber` | `z.string().nullable()` | |
+| `firstName` | `z.string()` | max 128 |
+| `lastName` | `z.string()` | max 128 |
+| `email` | `z.string().nullable()` | |
+| `phoneNumber` | `z.string().nullable()` | |
 
 ```typescript
 export const EmployeeSelectSchema = z.object({
-  id: UuidSchema,
-  userId: UuidSchema.nullable(),
+  id:             UuidSchema,
+  userId:         UuidSchema.nullable(),
   employeeNumber: z.string().nullable(),
-  firstName: z.string().min(1).max(128),
-  lastName: z.string().min(1).max(128),
-  email: z.string().email().nullable(),
-  phoneNumber: z.string().max(32).nullable(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  firstName:      z.string().min(1).max(128),
+  lastName:       z.string().min(1).max(128),
+  email:          z.string().email().nullable(),
+  phoneNumber:    z.string().max(32).nullable(),
+  createdAt:      TimestampSchema,
+  updatedAt:      TimestampSchema,
 });
 export type EmployeeSelect = z.infer<typeof EmployeeSelectSchema>;
 ```
@@ -999,10 +980,10 @@ export type EmployeeSelect = z.infer<typeof EmployeeSelectSchema>;
 
 ```typescript
 export const EmployeeSummarySchema = z.object({
-  id: UuidSchema,
+  id:          UuidSchema,
   displayName: z.string(), // computed: "Hon. First Last" for SP members; "First Last" otherwise
-  position: z.string().optional(),
-  officeCode: z.string().optional(),
+  position:    z.string().optional(),
+  officeCode:  z.string().optional(),
 });
 export type EmployeeSummary = z.infer<typeof EmployeeSummarySchema>;
 ```
@@ -1015,12 +996,12 @@ export type EmployeeSummary = z.infer<typeof EmployeeSummarySchema>;
 
 ```typescript
 export const CreateEmployeeInputSchema = z.object({
-  userId: UuidSchema.optional(),
+  userId:         UuidSchema.optional(),
   employeeNumber: z.string().max(32).optional(),
-  firstName: z.string().min(1).max(128).trim(),
-  lastName: z.string().min(1).max(128).trim(),
-  email: z.string().email().max(254).optional(),
-  phoneNumber: z.string().max(32).optional(),
+  firstName:      z.string().min(1).max(128).trim(),
+  lastName:       z.string().min(1).max(128).trim(),
+  email:          z.string().email().max(254).optional(),
+  phoneNumber:    z.string().max(32).optional(),
 });
 export type CreateEmployeeInput = z.infer<typeof CreateEmployeeInputSchema>;
 ```
@@ -1035,18 +1016,18 @@ export type CreateEmployeeInput = z.infer<typeof CreateEmployeeInputSchema>;
 
 ```typescript
 export const AssignmentSelectSchema = z.object({
-  id: UuidSchema,
+  id:         UuidSchema,
   employeeId: UuidSchema,
-  employee: EmployeeSummarySchema,
+  employee:   EmployeeSummarySchema,
   positionId: UuidSchema,
-  position: PositionSelectSchema,
-  officeId: UuidSchema,
-  office: OfficeSummarySchema,
-  startDate: DateSchema,
-  endDate: DateSchema.nullable(),
-  isActive: z.boolean(),
-  isPrimary: z.boolean(), // [RESOLVED — ADR-AUTH-011, 2026-06-26] maps to organization.assignments.is_primary
-  createdAt: TimestampSchema,
+  position:   PositionSelectSchema,
+  officeId:   UuidSchema,
+  office:     OfficeSummarySchema,
+  startDate:  DateSchema,
+  endDate:    DateSchema.nullable(),
+  isActive:   z.boolean(),
+  isPrimary:  z.boolean(), // [RESOLVED — ADR-AUTH-011, 2026-06-26] maps to organization.assignments.is_primary
+  createdAt:  TimestampSchema,
 });
 export type AssignmentSelect = z.infer<typeof AssignmentSelectSchema>;
 ```
@@ -1062,14 +1043,14 @@ export const CreateAssignmentInputSchema = z
   .object({
     employeeId: UuidSchema,
     positionId: UuidSchema,
-    officeId: UuidSchema,
-    startDate: DateSchema,
-    endDate: DateSchema.optional(),
+    officeId:   UuidSchema,
+    startDate:  DateSchema,
+    endDate:    DateSchema.optional(),
   })
-  .refine((v) => !v.endDate || v.endDate >= v.startDate, {
-    message: 'endDate must not be before startDate',
-    path: ['endDate'],
-  });
+  .refine(
+    (v) => !v.endDate || v.endDate >= v.startDate,
+    { message: "endDate must not be before startDate", path: ["endDate"] }
+  );
 export type CreateAssignmentInput = z.infer<typeof CreateAssignmentInputSchema>;
 ```
 
@@ -1083,13 +1064,13 @@ export type CreateAssignmentInput = z.infer<typeof CreateAssignmentInputSchema>;
 
 ```typescript
 export const CommitteeSelectSchema = z.object({
-  id: UuidSchema,
-  name: z.string().min(1).max(256),
-  code: z.string().min(1).max(64),
-  chairedByEmployeeId: UuidSchema.nullable(),
-  chair: EmployeeSummarySchema.nullable(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  id:                    UuidSchema,
+  name:                  z.string().min(1).max(256),
+  code:                  z.string().min(1).max(64),
+  chairedByEmployeeId:   UuidSchema.nullable(),
+  chair:                 EmployeeSummarySchema.nullable(),
+  createdAt:             TimestampSchema,
+  updatedAt:             TimestampSchema,
 });
 export type CommitteeSelect = z.infer<typeof CommitteeSelectSchema>;
 ```
@@ -1102,11 +1083,11 @@ export type CommitteeSelect = z.infer<typeof CommitteeSelectSchema>;
 
 ```typescript
 export const CommitteeMemberSchema = z.object({
-  id: UuidSchema,
-  employee: EmployeeSummarySchema,
+  id:            UuidSchema,
+  employee:      EmployeeSummarySchema,
   committeeRole: CommitteeRoleSchema,
-  startDate: DateSchema,
-  isActive: z.boolean(),
+  startDate:     DateSchema,
+  isActive:      z.boolean(),
 });
 
 export const CommitteeWithMembersSchema = CommitteeSelectSchema.extend({
@@ -1123,18 +1104,14 @@ export type CommitteeWithMembers = z.infer<typeof CommitteeWithMembersSchema>;
 
 ```typescript
 export const CreateCommitteeInputSchema = z.object({
-  name: z.string().min(1).max(256).trim(),
-  code: z.string().min(1).max(64).trim().toUpperCase(),
+  name:                z.string().min(1).max(256).trim(),
+  code:                z.string().min(1).max(64).trim().toUpperCase(),
   chairedByEmployeeId: UuidSchema.optional(),
-  members: z
-    .array(
-      z.object({
-        employeeId: UuidSchema,
-        committeeRole: CommitteeRoleSchema,
-        startDate: DateSchema,
-      }),
-    )
-    .optional(),
+  members: z.array(z.object({
+    employeeId:    UuidSchema,
+    committeeRole: CommitteeRoleSchema,
+    startDate:     DateSchema,
+  })).optional(),
 });
 export type CreateCommitteeInput = z.infer<typeof CreateCommitteeInputSchema>;
 ```
@@ -1149,43 +1126,43 @@ export type CreateCommitteeInput = z.infer<typeof CreateCommitteeInputSchema>;
 
 > Reflects the `organization.delegation_grants` table. One active delegation per person is enforced by a DB partial unique index (Architectural Invariant #16).
 
-| Field                   | Zod Type                     | Notes                                              |
-| ----------------------- | ---------------------------- | -------------------------------------------------- |
-| `id`                    | `UuidSchema`                 |                                                    |
-| `designationDocumentId` | `UuidSchema`                 | The `D {YEAR}-{NN}` document evidencing this grant |
-| `delegatingEmployeeId`  | `UuidSchema`                 |                                                    |
-| `delegatedToEmployeeId` | `UuidSchema`                 |                                                    |
-| `officeId`              | `UuidSchema`                 |                                                    |
-| `positionId`            | `UuidSchema`                 |                                                    |
-| `scopeDescription`      | `z.string()`                 |                                                    |
-| `legalBasis`            | `z.string().nullable()`      |                                                    |
-| `validFrom`             | `DateSchema`                 | Open-ended delegations prohibited                  |
-| `validUntil`            | `DateSchema`                 | NOT NULL — open-ended prohibited                   |
-| `isActive`              | `z.boolean()`                |                                                    |
-| `revokedAt`             | `TimestampSchema.nullable()` |                                                    |
-| `revokedBy`             | `UuidSchema.nullable()`      |                                                    |
+| Field | Zod Type | Notes |
+|-------|----------|-------|
+| `id` | `UuidSchema` | |
+| `designationDocumentId` | `UuidSchema` | The `D {YEAR}-{NN}` document evidencing this grant |
+| `delegatingEmployeeId` | `UuidSchema` | |
+| `delegatedToEmployeeId` | `UuidSchema` | |
+| `officeId` | `UuidSchema` | |
+| `positionId` | `UuidSchema` | |
+| `scopeDescription` | `z.string()` | |
+| `legalBasis` | `z.string().nullable()` | |
+| `validFrom` | `DateSchema` | Open-ended delegations prohibited |
+| `validUntil` | `DateSchema` | NOT NULL — open-ended prohibited |
+| `isActive` | `z.boolean()` | |
+| `revokedAt` | `TimestampSchema.nullable()` | |
+| `revokedBy` | `UuidSchema.nullable()` | |
 
 ```typescript
 export const DelegationGrantSelectSchema = z.object({
-  id: UuidSchema,
-  designationDocumentId: UuidSchema,
-  delegatingEmployeeId: UuidSchema,
-  delegatingEmployee: EmployeeSummarySchema,
-  delegatedToEmployeeId: UuidSchema,
-  delegatedToEmployee: EmployeeSummarySchema,
-  officeId: UuidSchema,
-  office: OfficeSummarySchema,
-  positionId: UuidSchema,
-  position: PositionSelectSchema,
-  scopeDescription: z.string(),
-  legalBasis: z.string().nullable(),
-  validFrom: DateSchema,
-  validUntil: DateSchema,
-  isActive: z.boolean(),
-  revokedAt: TimestampSchema.nullable(),
-  revokedBy: UuidSchema.nullable(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  id:                      UuidSchema,
+  designationDocumentId:   UuidSchema,
+  delegatingEmployeeId:    UuidSchema,
+  delegatingEmployee:      EmployeeSummarySchema,
+  delegatedToEmployeeId:   UuidSchema,
+  delegatedToEmployee:     EmployeeSummarySchema,
+  officeId:                UuidSchema,
+  office:                  OfficeSummarySchema,
+  positionId:              UuidSchema,
+  position:                PositionSelectSchema,
+  scopeDescription:        z.string(),
+  legalBasis:              z.string().nullable(),
+  validFrom:               DateSchema,
+  validUntil:              DateSchema,
+  isActive:                z.boolean(),
+  revokedAt:               TimestampSchema.nullable(),
+  revokedBy:               UuidSchema.nullable(),
+  createdAt:               TimestampSchema,
+  updatedAt:               TimestampSchema,
 });
 export type DelegationGrantSelect = z.infer<typeof DelegationGrantSelectSchema>;
 ```
@@ -1201,24 +1178,24 @@ export type DelegationGrantSelect = z.infer<typeof DelegationGrantSelectSchema>;
 ```typescript
 export const LogDelegationInputSchema = z
   .object({
-    designationDocumentId: UuidSchema,
-    delegatingEmployeeId: UuidSchema,
-    delegatedToEmployeeId: UuidSchema,
-    officeId: UuidSchema,
-    positionId: UuidSchema,
-    scopeDescription: z.string().min(1).max(1024).trim(),
-    legalBasis: z.string().max(512).optional(),
-    validFrom: DateSchema,
-    validUntil: DateSchema,
+    designationDocumentId:   UuidSchema,
+    delegatingEmployeeId:    UuidSchema,
+    delegatedToEmployeeId:   UuidSchema,
+    officeId:                UuidSchema,
+    positionId:              UuidSchema,
+    scopeDescription:        z.string().min(1).max(1024).trim(),
+    legalBasis:              z.string().max(512).optional(),
+    validFrom:               DateSchema,
+    validUntil:              DateSchema,
   })
-  .refine((v) => v.delegatingEmployeeId !== v.delegatedToEmployeeId, {
-    message: 'Delegating and delegated-to employees must differ',
-    path: ['delegatedToEmployeeId'],
-  })
-  .refine((v) => v.validUntil >= v.validFrom, {
-    message: 'validUntil must not be before validFrom',
-    path: ['validUntil'],
-  });
+  .refine(
+    (v) => v.delegatingEmployeeId !== v.delegatedToEmployeeId,
+    { message: "Delegating and delegated-to employees must differ", path: ["delegatedToEmployeeId"] }
+  )
+  .refine(
+    (v) => v.validUntil >= v.validFrom,
+    { message: "validUntil must not be before validFrom", path: ["validUntil"] }
+  );
 export type LogDelegationInput = z.infer<typeof LogDelegationInputSchema>;
 ```
 
@@ -1231,7 +1208,7 @@ export type LogDelegationInput = z.infer<typeof LogDelegationInputSchema>;
 ```typescript
 export const RevokeDelegationInputSchema = z.object({
   delegationGrantId: UuidSchema,
-  reason: z.string().min(1).max(512).trim(),
+  reason:            z.string().min(1).max(512).trim(),
 });
 export type RevokeDelegationInput = z.infer<typeof RevokeDelegationInputSchema>;
 ```
@@ -1253,15 +1230,8 @@ export type RevokeDelegationInput = z.infer<typeof RevokeDelegationInputSchema>;
 
 ```typescript
 export const LifecycleStateSchema = z.enum([
-  'draft',
-  'under_review',
-  'pending_mayor_action',
-  'pending_panlalawigan_review',
-  'approved',
-  'released',
-  'superseded',
-  'cancelled',
-  'rejected',
+  "draft", "under_review", "pending_mayor_action", "pending_panlalawigan_review",
+  "approved", "released", "superseded", "cancelled", "rejected",
 ]);
 export type LifecycleState = z.infer<typeof LifecycleStateSchema>;
 ```
@@ -1273,12 +1243,7 @@ export type LifecycleState = z.infer<typeof LifecycleStateSchema>;
 #### `ClassificationLevelSchema`
 
 ```typescript
-export const ClassificationLevelSchema = z.enum([
-  'public',
-  'internal',
-  'confidential',
-  'restricted',
-]);
+export const ClassificationLevelSchema = z.enum(["public", "internal", "confidential", "restricted"]);
 export type ClassificationLevel = z.infer<typeof ClassificationLevelSchema>;
 ```
 
@@ -1290,10 +1255,10 @@ export type ClassificationLevel = z.infer<typeof ClassificationLevelSchema>;
 
 ```typescript
 export const PublicVisibilityRuleSchema = z.enum([
-  'title_and_first_page_public',
-  'not_public',
-  'complainant_restricted',
-  'requester_restricted',
+  "title_and_first_page_public",
+  "not_public",
+  "complainant_restricted",
+  "requester_restricted",
 ]);
 export type PublicVisibilityRule = z.infer<typeof PublicVisibilityRuleSchema>;
 ```
@@ -1305,7 +1270,7 @@ export type PublicVisibilityRule = z.infer<typeof PublicVisibilityRuleSchema>;
 #### `NumberTypeSchema`
 
 ```typescript
-export const NumberTypeSchema = z.enum(['preliminary', 'final']);
+export const NumberTypeSchema = z.enum(["preliminary", "final"]);
 export type NumberType = z.infer<typeof NumberTypeSchema>;
 ```
 
@@ -1317,11 +1282,11 @@ export type NumberType = z.infer<typeof NumberTypeSchema>;
 
 ```typescript
 export const AttachmentTypeSchema = z.enum([
-  'certification_of_urgency',
-  'committee_report',
-  'transmittal_letter',
-  'scan',
-  'other',
+  "certification_of_urgency",
+  "committee_report",
+  "transmittal_letter",
+  "scan",
+  "other",
 ]);
 export type AttachmentType = z.infer<typeof AttachmentTypeSchema>;
 ```
@@ -1334,11 +1299,11 @@ export type AttachmentType = z.infer<typeof AttachmentTypeSchema>;
 
 ```typescript
 export const SignatureTypeSchema = z.enum([
-  'presiding_officer',
-  'mayor',
-  'sp_secretary',
-  'vice_mayor',
-  'committee_chair',
+  "presiding_officer",
+  "mayor",
+  "sp_secretary",
+  "vice_mayor",
+  "committee_chair",
 ]);
 export type SignatureType = z.infer<typeof SignatureTypeSchema>;
 ```
@@ -1351,11 +1316,11 @@ export type SignatureType = z.infer<typeof SignatureTypeSchema>;
 
 ```typescript
 export const PanlalawiganOutcomeSchema = z.enum([
-  'valid',
-  'valid_in_part',
-  'returned',
-  'operative_in_its_entirety',
-  'deemed_approved',
+  "valid",
+  "valid_in_part",
+  "returned",
+  "operative_in_its_entirety",
+  "deemed_approved",
 ]);
 export type PanlalawiganOutcome = z.infer<typeof PanlalawiganOutcomeSchema>;
 ```
@@ -1368,7 +1333,7 @@ export type PanlalawiganOutcome = z.infer<typeof PanlalawiganOutcomeSchema>;
 #### `ScanQualityCategorySchema`
 
 ```typescript
-export const ScanQualityCategorySchema = z.enum(['good', 'fair', 'poor']);
+export const ScanQualityCategorySchema = z.enum(["good", "fair", "poor"]);
 export type ScanQualityCategory = z.infer<typeof ScanQualityCategorySchema>;
 ```
 
@@ -1384,9 +1349,9 @@ export type ScanQualityCategory = z.infer<typeof ScanQualityCategorySchema>;
 
 ```typescript
 export const DocumentTypeSummarySchema = z.object({
-  id: UuidSchema,
-  name: z.string(),
-  code: z.string(),
+  id:                   UuidSchema,
+  name:                 z.string(),
+  code:                 z.string(),
   classificationDefault: ClassificationLevelSchema,
   preliminaryNumbering: z.boolean(),
 });
@@ -1401,19 +1366,19 @@ export type DocumentTypeSummary = z.infer<typeof DocumentTypeSummarySchema>;
 
 ```typescript
 export const DocumentTypeSelectSchema = z.object({
-  id: UuidSchema,
-  name: z.string(),
-  code: z.string(),
-  owningModule: z.string(),
-  numberSeriesId: UuidSchema.nullable(),
+  id:                   UuidSchema,
+  name:                 z.string(),
+  code:                 z.string(),
+  owningModule:         z.string(),
+  numberSeriesId:       UuidSchema.nullable(),
   preliminaryNumbering: z.boolean(),
   controlNumberDeferred: z.boolean(),
   classificationDefault: ClassificationLevelSchema,
   publicVisibilityRule: PublicVisibilityRuleSchema,
-  metadataSchema: z.record(z.unknown()),
-  isActive: z.boolean(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  metadataSchema:       z.record(z.unknown()),
+  isActive:             z.boolean(),
+  createdAt:            TimestampSchema,
+  updatedAt:            TimestampSchema,
 });
 export type DocumentTypeSelect = z.infer<typeof DocumentTypeSelectSchema>;
 ```
@@ -1428,52 +1393,52 @@ export type DocumentTypeSelect = z.infer<typeof DocumentTypeSelectSchema>;
 
 > Full document entity. The `metadata` field is `z.record(z.unknown())` here; callers requiring typed metadata use the per-type schemas from Part 5 (`document-metadata.ts`).
 
-| Field                 | Zod Type                     | Notes                                                                                          |
-| --------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------- |
-| `id`                  | `UuidSchema`                 |                                                                                                |
-| `documentTypeId`      | `UuidSchema`                 |                                                                                                |
-| `documentType`        | `DocumentTypeSummarySchema`  |                                                                                                |
-| `title`               | `z.string()`                 |                                                                                                |
-| `lifecycleState`      | `LifecycleStateSchema`       |                                                                                                |
-| `classificationLevel` | `ClassificationLevelSchema`  |                                                                                                |
-| `qrTrackingNumber`    | `UuidSchema`                 | Immutable UUID assigned at secretariat logging, before preliminary number                      |
-| `preliminaryNumber`   | `z.string().nullable()`      | Mutable; cleared when final number assigned; mutually exclusive with `finalNumber`             |
-| `finalNumber`         | `z.string().nullable()`      | Immutable once set — DB trigger enforces this                                                  |
-| `controlNumber`       | `z.string().nullable()`      | SPR/SPS/MO/MI tracking reference; may be deferred per `document_types.control_number_deferred` |
-| `originatingOfficeId` | `UuidSchema`                 | SP Secretariat for SP-workflow docs; external sender for letters received                      |
-| `ownedByOfficeId`     | `UuidSchema`                 |                                                                                                |
-| `createdBy`           | `UuidSchema`                 |                                                                                                |
-| `workflowInstanceId`  | `UuidSchema.nullable()`      |                                                                                                |
-| `versionNumber`       | `z.number().int()`           |                                                                                                |
-| `metadata`            | `z.record(z.unknown())`      | Narrowed per document type by callers                                                          |
-| `supersededBy`        | `UuidSchema.nullable()`      |                                                                                                |
-| `supersededAt`        | `TimestampSchema.nullable()` |                                                                                                |
-| `closureReason`       | `z.string().nullable()`      |                                                                                                |
+| Field | Zod Type | Notes |
+|-------|----------|-------|
+| `id` | `UuidSchema` | |
+| `documentTypeId` | `UuidSchema` | |
+| `documentType` | `DocumentTypeSummarySchema` | |
+| `title` | `z.string()` | |
+| `lifecycleState` | `LifecycleStateSchema` | |
+| `classificationLevel` | `ClassificationLevelSchema` | |
+| `qrTrackingNumber` | `UuidSchema` | Immutable UUID assigned at secretariat logging, before preliminary number |
+| `preliminaryNumber` | `z.string().nullable()` | Mutable; cleared when final number assigned; mutually exclusive with `finalNumber` |
+| `finalNumber` | `z.string().nullable()` | Immutable once set — DB trigger enforces this |
+| `controlNumber` | `z.string().nullable()` | SPR/SPS/MO/MI tracking reference; may be deferred per `document_types.control_number_deferred` |
+| `originatingOfficeId` | `UuidSchema` | SP Secretariat for SP-workflow docs; external sender for letters received |
+| `ownedByOfficeId` | `UuidSchema` | |
+| `createdBy` | `UuidSchema` | |
+| `workflowInstanceId` | `UuidSchema.nullable()` | |
+| `versionNumber` | `z.number().int()` | |
+| `metadata` | `z.record(z.unknown())` | Narrowed per document type by callers |
+| `supersededBy` | `UuidSchema.nullable()` | |
+| `supersededAt` | `TimestampSchema.nullable()` | |
+| `closureReason` | `z.string().nullable()` | |
 
 ```typescript
 export const DocumentSelectSchema = z.object({
-  id: UuidSchema,
-  documentTypeId: UuidSchema,
-  documentType: DocumentTypeSummarySchema,
-  title: z.string().min(1),
-  lifecycleState: LifecycleStateSchema,
+  id:                  UuidSchema,
+  documentTypeId:      UuidSchema,
+  documentType:        DocumentTypeSummarySchema,
+  title:               z.string().min(1),
+  lifecycleState:      LifecycleStateSchema,
   classificationLevel: ClassificationLevelSchema,
-  qrTrackingNumber: UuidSchema,
-  preliminaryNumber: z.string().nullable(),
-  finalNumber: z.string().nullable(),
-  controlNumber: z.string().nullable(),
+  qrTrackingNumber:    UuidSchema,
+  preliminaryNumber:   z.string().nullable(),
+  finalNumber:         z.string().nullable(),
+  controlNumber:       z.string().nullable(),
   originatingOfficeId: UuidSchema,
-  originatingOffice: OfficeSummarySchema,
-  ownedByOfficeId: UuidSchema,
-  createdBy: UuidSchema,
-  workflowInstanceId: UuidSchema.nullable(),
-  versionNumber: z.number().int().min(1),
-  metadata: z.record(z.unknown()),
-  supersededBy: UuidSchema.nullable(),
-  supersededAt: TimestampSchema.nullable(),
-  closureReason: z.string().nullable(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  originatingOffice:   OfficeSummarySchema,
+  ownedByOfficeId:     UuidSchema,
+  createdBy:           UuidSchema,
+  workflowInstanceId:  UuidSchema.nullable(),
+  versionNumber:       z.number().int().min(1),
+  metadata:            z.record(z.unknown()),
+  supersededBy:        UuidSchema.nullable(),
+  supersededAt:        TimestampSchema.nullable(),
+  closureReason:       z.string().nullable(),
+  createdAt:           TimestampSchema,
+  updatedAt:           TimestampSchema,
 });
 export type DocumentSelect = z.infer<typeof DocumentSelectSchema>;
 ```
@@ -1488,15 +1453,15 @@ export type DocumentSelect = z.infer<typeof DocumentSelectSchema>;
 
 ```typescript
 export const DocumentSummarySchema = z.object({
-  id: UuidSchema,
-  title: z.string(),
+  id:               UuidSchema,
+  title:            z.string(),
   documentTypeCode: z.string(),
-  lifecycleState: LifecycleStateSchema,
+  lifecycleState:   LifecycleStateSchema,
   preliminaryNumber: z.string().nullable(),
-  finalNumber: z.string().nullable(),
+  finalNumber:      z.string().nullable(),
   qrTrackingNumber: UuidSchema,
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  createdAt:        TimestampSchema,
+  updatedAt:        TimestampSchema,
 });
 export type DocumentSummary = z.infer<typeof DocumentSummarySchema>;
 ```
@@ -1511,16 +1476,16 @@ export type DocumentSummary = z.infer<typeof DocumentSummarySchema>;
 
 ```typescript
 export const LogDocumentInputSchema = z.object({
-  documentTypeId: UuidSchema,
-  title: z.string().min(1).max(1024).trim(),
+  documentTypeId:      UuidSchema,
+  title:               z.string().min(1).max(1024).trim(),
   classificationLevel: ClassificationLevelSchema,
   originatingOfficeId: UuidSchema,
-  ownedByOfficeId: UuidSchema,
-  metadata: z.record(z.unknown()), // validated server-side against per-type schema
+  ownedByOfficeId:     UuidSchema,
+  metadata:            z.record(z.unknown()), // validated server-side against per-type schema
   uploadedFile: z.object({
-    s3Key: z.string().min(1),
+    s3Key:         z.string().min(1),
     originalFilename: z.string().max(512),
-    mimeType: AllowedMimeTypeSchema,
+    mimeType:      AllowedMimeTypeSchema,
     fileSizeBytes: z.number().int().positive().max(26_214_400),
   }),
 });
@@ -1535,16 +1500,14 @@ export type LogDocumentInput = z.infer<typeof LogDocumentInputSchema>;
 
 ```typescript
 export const DocumentFilterSchema = z.object({
-  documentTypeCode: z.string().optional(),
-  lifecycleState: LifecycleStateSchema.optional(),
+  documentTypeCode:    z.string().optional(),
+  lifecycleState:      LifecycleStateSchema.optional(),
   classificationLevel: ClassificationLevelSchema.optional(),
-  officeId: UuidSchema.optional(),
-  search: z.string().max(256).optional(),
-  dateRange: DateRangeSchema.optional(),
-  sortBy: z
-    .enum(['title', 'createdAt', 'updatedAt', 'finalNumber', 'lifecycleState'])
-    .default('createdAt'),
-  sortOrder: SortOrderSchema,
+  officeId:            UuidSchema.optional(),
+  search:              z.string().max(256).optional(),
+  dateRange:           DateRangeSchema.optional(),
+  sortBy:              z.enum(["title", "createdAt", "updatedAt", "finalNumber", "lifecycleState"]).default("createdAt"),
+  sortOrder:           SortOrderSchema,
   ...PaginationInputSchema.shape,
 });
 export type DocumentFilter = z.infer<typeof DocumentFilterSchema>;
@@ -1559,7 +1522,7 @@ export type DocumentFilter = z.infer<typeof DocumentFilterSchema>;
 ```typescript
 export const CancelDocumentInputSchema = z.object({
   documentId: UuidSchema,
-  reason: z.string().min(10).max(1024).trim(),
+  reason:     z.string().min(10).max(1024).trim(),
 });
 export type CancelDocumentInput = z.infer<typeof CancelDocumentInputSchema>;
 ```
@@ -1576,19 +1539,19 @@ export type CancelDocumentInput = z.infer<typeof CancelDocumentInputSchema>;
 
 ```typescript
 export const VersionSelectSchema = z.object({
-  id: UuidSchema,
-  documentId: UuidSchema,
-  versionNumber: z.number().int().min(1),
-  s3Key: z.string(),
-  originalFilename: z.string().nullable(),
-  mimeType: z.string(),
-  fileSizeBytes: z.number().int().positive(),
-  pageCount: z.number().int().positive().nullable(),
-  scanQualityScore: z.number().min(0).max(1).nullable(),
-  scanQualityCategory: ScanQualityCategorySchema.nullable(),
-  ocrProcessed: z.boolean(),
-  uploadedBy: UuidSchema,
-  createdAt: TimestampSchema,
+  id:                   UuidSchema,
+  documentId:           UuidSchema,
+  versionNumber:        z.number().int().min(1),
+  s3Key:                z.string(),
+  originalFilename:     z.string().nullable(),
+  mimeType:             z.string(),
+  fileSizeBytes:        z.number().int().positive(),
+  pageCount:            z.number().int().positive().nullable(),
+  scanQualityScore:     z.number().min(0).max(1).nullable(),
+  scanQualityCategory:  ScanQualityCategorySchema.nullable(),
+  ocrProcessed:         z.boolean(),
+  uploadedBy:           UuidSchema,
+  createdAt:            TimestampSchema,
 });
 export type VersionSelect = z.infer<typeof VersionSelectSchema>;
 ```
@@ -1601,12 +1564,12 @@ export type VersionSelect = z.infer<typeof VersionSelectSchema>;
 
 ```typescript
 export const UploadNewVersionInputSchema = z.object({
-  documentId: UuidSchema,
-  s3Key: z.string().min(1),
+  documentId:       UuidSchema,
+  s3Key:            z.string().min(1),
   originalFilename: z.string().max(512),
-  mimeType: AllowedMimeTypeSchema,
-  fileSizeBytes: z.number().int().positive().max(26_214_400),
-  reason: z.string().min(1).max(512).trim(),
+  mimeType:         AllowedMimeTypeSchema,
+  fileSizeBytes:    z.number().int().positive().max(26_214_400),
+  reason:           z.string().min(1).max(512).trim(),
 });
 export type UploadNewVersionInput = z.infer<typeof UploadNewVersionInputSchema>;
 ```
@@ -1621,15 +1584,15 @@ export type UploadNewVersionInput = z.infer<typeof UploadNewVersionInputSchema>;
 
 ```typescript
 export const AttachmentSelectSchema = z.object({
-  id: UuidSchema,
-  documentId: UuidSchema,
-  s3Key: z.string(),
+  id:             UuidSchema,
+  documentId:     UuidSchema,
+  s3Key:          z.string(),
   attachmentType: AttachmentTypeSchema,
-  description: z.string().nullable(),
-  mimeType: z.string(),
-  fileSizeBytes: z.number().int().positive(),
-  uploadedBy: UuidSchema,
-  createdAt: TimestampSchema,
+  description:    z.string().nullable(),
+  mimeType:       z.string(),
+  fileSizeBytes:  z.number().int().positive(),
+  uploadedBy:     UuidSchema,
+  createdAt:      TimestampSchema,
 });
 export type AttachmentSelect = z.infer<typeof AttachmentSelectSchema>;
 ```
@@ -1642,12 +1605,12 @@ export type AttachmentSelect = z.infer<typeof AttachmentSelectSchema>;
 
 ```typescript
 export const UploadAttachmentInputSchema = z.object({
-  documentId: UuidSchema,
+  documentId:     UuidSchema,
   attachmentType: AttachmentTypeSchema,
-  description: z.string().max(512).optional(),
-  s3Key: z.string().min(1),
-  mimeType: AllowedMimeTypeSchema,
-  fileSizeBytes: z.number().int().positive().max(26_214_400),
+  description:    z.string().max(512).optional(),
+  s3Key:          z.string().min(1),
+  mimeType:       AllowedMimeTypeSchema,
+  fileSizeBytes:  z.number().int().positive().max(26_214_400),
 });
 export type UploadAttachmentInput = z.infer<typeof UploadAttachmentInputSchema>;
 ```
@@ -1664,17 +1627,17 @@ export type UploadAttachmentInput = z.infer<typeof UploadAttachmentInputSchema>;
 
 ```typescript
 export const DocumentNumberSelectSchema = z.object({
-  id: UuidSchema,
-  documentId: UuidSchema,
-  seriesId: UuidSchema,
-  numberType: NumberTypeSchema,
-  numberValue: z.string(),
-  sequenceYear: z.number().int(),
-  sequenceNumber: z.number().int(),
-  isCurrent: z.boolean(),
-  assignedAt: TimestampSchema,
-  assignedBy: UuidSchema,
-  supersededAt: TimestampSchema.nullable(),
+  id:               UuidSchema,
+  documentId:       UuidSchema,
+  seriesId:         UuidSchema,
+  numberType:       NumberTypeSchema,
+  numberValue:      z.string(),
+  sequenceYear:     z.number().int(),
+  sequenceNumber:   z.number().int(),
+  isCurrent:        z.boolean(),
+  assignedAt:       TimestampSchema,
+  assignedBy:       UuidSchema,
+  supersededAt:     TimestampSchema.nullable(),
   cancellationReason: z.string().nullable(),
 });
 export type DocumentNumberSelect = z.infer<typeof DocumentNumberSelectSchema>;
@@ -1691,7 +1654,7 @@ export type DocumentNumberSelect = z.infer<typeof DocumentNumberSelectSchema>;
 ```typescript
 export const AssignFinalNumberInputSchema = z.object({
   documentId: UuidSchema,
-  reason: z.string().min(1).max(512).trim(),
+  reason:     z.string().min(1).max(512).trim(),
 });
 export type AssignFinalNumberInput = z.infer<typeof AssignFinalNumberInputSchema>;
 ```
@@ -1708,15 +1671,15 @@ export type AssignFinalNumberInput = z.infer<typeof AssignFinalNumberInputSchema
 
 ```typescript
 export const SignatureSelectSchema = z.object({
-  id: UuidSchema,
-  documentId: UuidSchema,
-  signedByEmployeeId: UuidSchema,
-  signedByDisplayName: z.string(),
-  signatureType: SignatureTypeSchema,
-  signedAt: TimestampSchema,
-  isWetInk: z.boolean(),
-  signatureImageS3Key: z.string().nullable(),
-  createdAt: TimestampSchema,
+  id:                    UuidSchema,
+  documentId:            UuidSchema,
+  signedByEmployeeId:    UuidSchema,
+  signedByDisplayName:   z.string(),
+  signatureType:         SignatureTypeSchema,
+  signedAt:              TimestampSchema,
+  isWetInk:              z.boolean(),
+  signatureImageS3Key:   z.string().nullable(),
+  createdAt:             TimestampSchema,
 });
 export type SignatureSelect = z.infer<typeof SignatureSelectSchema>;
 ```
@@ -1731,12 +1694,12 @@ export type SignatureSelect = z.infer<typeof SignatureSelectSchema>;
 
 ```typescript
 export const LogSignatureInputSchema = z.object({
-  documentId: UuidSchema,
-  signedByEmployeeId: UuidSchema,
-  signedByDisplayName: z.string().min(1).max(256).trim(),
-  signatureType: SignatureTypeSchema,
-  signedAt: TimestampSchema,
-  signatureImageS3Key: z.string().optional(),
+  documentId:           UuidSchema,
+  signedByEmployeeId:   UuidSchema,
+  signedByDisplayName:  z.string().min(1).max(256).trim(),
+  signatureType:        SignatureTypeSchema,
+  signedAt:             TimestampSchema,
+  signatureImageS3Key:  z.string().optional(),
 });
 export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;
 ```
@@ -1753,19 +1716,19 @@ export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;
 
 ```typescript
 export const PanlalawiganReviewSelectSchema = z.object({
-  id: UuidSchema,
-  documentId: UuidSchema,
-  controlNumber: z.string().nullable(),
-  subject: z.string().nullable(),
-  transmittedAt: TimestampSchema.nullable(),
-  receivedAt: TimestampSchema.nullable(),
-  dateReferred: TimestampSchema.nullable(),
-  outcome: PanlalawiganOutcomeSchema.nullable(),
+  id:                           UuidSchema,
+  documentId:                   UuidSchema,
+  controlNumber:                z.string().nullable(),
+  subject:                      z.string().nullable(),
+  transmittedAt:                TimestampSchema.nullable(),
+  receivedAt:                   TimestampSchema.nullable(),
+  dateReferred:                 TimestampSchema.nullable(),
+  outcome:                      PanlalawiganOutcomeSchema.nullable(),
   panlalawiganResolutionNumber: z.string().nullable(),
-  remarks: z.string().nullable(),
-  daysElapsed: z.number().int().nonnegative().nullable(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  remarks:                      z.string().nullable(),
+  daysElapsed:                  z.number().int().nonnegative().nullable(),
+  createdAt:                    TimestampSchema,
+  updatedAt:                    TimestampSchema,
 });
 export type PanlalawiganReviewSelect = z.infer<typeof PanlalawiganReviewSelectSchema>;
 ```
@@ -1778,14 +1741,12 @@ export type PanlalawiganReviewSelect = z.infer<typeof PanlalawiganReviewSelectSc
 
 ```typescript
 export const InitiatePanlalawiganTransmittalInputSchema = z.object({
-  documentId: UuidSchema,
+  documentId:    UuidSchema,
   transmittedAt: TimestampSchema,
   controlNumber: z.string().max(64).optional(),
-  subject: z.string().max(512).optional(),
+  subject:       z.string().max(512).optional(),
 });
-export type InitiatePanlalawiganTransmittalInput = z.infer<
-  typeof InitiatePanlalawiganTransmittalInputSchema
->;
+export type InitiatePanlalawiganTransmittalInput = z.infer<typeof InitiatePanlalawiganTransmittalInputSchema>;
 ```
 
 **Layers:** [B] [T] [F]
@@ -1799,21 +1760,21 @@ export type InitiatePanlalawiganTransmittalInput = z.infer<
 ```typescript
 export const LogPanlalawiganOutcomeInputSchema = z
   .object({
-    documentId: UuidSchema,
-    outcome: PanlalawiganOutcomeSchema,
+    documentId:                   UuidSchema,
+    outcome:                      PanlalawiganOutcomeSchema,
     panlalawiganResolutionNumber: z.string().max(64).optional(),
-    receivedAt: TimestampSchema,
-    dateReferred: TimestampSchema.optional(),
-    remarks: z.string().max(2048).optional(),
+    receivedAt:                   TimestampSchema,
+    dateReferred:                 TimestampSchema.optional(),
+    remarks:                      z.string().max(2048).optional(),
   })
-  .refine((v) => v.outcome !== 'valid_in_part' || (v.remarks && v.remarks.length >= 10), {
-    message: 'Remarks required for VALID-IN-PART (min 10 chars)',
-    path: ['remarks'],
-  })
-  .refine((v) => v.outcome !== 'returned' || (v.remarks && v.remarks.length >= 10), {
-    message: 'Remarks required for RETURNED (min 10 chars)',
-    path: ['remarks'],
-  });
+  .refine(
+    (v) => v.outcome !== "valid_in_part" || (v.remarks && v.remarks.length >= 10),
+    { message: "Remarks required for VALID-IN-PART (min 10 chars)", path: ["remarks"] }
+  )
+  .refine(
+    (v) => v.outcome !== "returned" || (v.remarks && v.remarks.length >= 10),
+    { message: "Remarks required for RETURNED (min 10 chars)", path: ["remarks"] }
+  );
 export type LogPanlalawiganOutcomeInput = z.infer<typeof LogPanlalawiganOutcomeInputSchema>;
 ```
 
@@ -1835,51 +1796,51 @@ These schemas validate the JSONB `metadata` column of `documents.documents` for 
 
 ```typescript
 export const SponsorSchema = z.object({
-  employeeId: UuidSchema,
+  employeeId:  UuidSchema,
   displayName: z.string(),
 });
 
 export const ReadingRecordSchema = z.object({
-  sessionId: UuidSchema.optional(),
-  sessionDate: DateSchema.optional(),
-  motionCarried: z.boolean().optional(),
-  yesVotes: z.number().int().min(0).optional(),
-  noVotes: z.number().int().min(0).optional(),
-  abstentions: z.number().int().min(0).optional(),
-  presidingOfficerId: UuidSchema.optional(),
-  notes: z.string().max(2048).optional(),
+  sessionId:           UuidSchema.optional(),
+  sessionDate:         DateSchema.optional(),
+  motionCarried:       z.boolean().optional(),
+  yesVotes:            z.number().int().min(0).optional(),
+  noVotes:             z.number().int().min(0).optional(),
+  abstentions:         z.number().int().min(0).optional(),
+  presidingOfficerId:  UuidSchema.optional(),
+  notes:               z.string().max(2048).optional(),
 });
 
 export const MayorActionSchema = z
   .object({
-    type: z.enum(['signed', 'vetoed', 'lapsed']),
-    actionDate: DateSchema,
-    notes: z.string().max(2048).optional(),
-    vetoMessage: z.string().max(4096).optional(),
+    type:         z.enum(["signed", "vetoed", "lapsed"]),
+    actionDate:   DateSchema,
+    notes:        z.string().max(2048).optional(),
+    vetoMessage:  z.string().max(4096).optional(),
   })
-  .refine((v) => v.type !== 'vetoed' || (v.vetoMessage && v.vetoMessage.length > 0), {
-    message: "vetoMessage required when type is 'vetoed'",
-    path: ['vetoMessage'],
-  });
+  .refine(
+    (v) => v.type !== "vetoed" || (v.vetoMessage && v.vetoMessage.length > 0),
+    { message: "vetoMessage required when type is 'vetoed'", path: ["vetoMessage"] }
+  );
 
 export const VetoOverrideSchema = z.object({
-  overrideDate: DateSchema,
-  yesVotes: z.number().int().min(0),
-  noVotes: z.number().int().min(0),
+  overrideDate:      DateSchema,
+  yesVotes:          z.number().int().min(0),
+  noVotes:           z.number().int().min(0),
   resultedInOverride: z.boolean(),
 });
 
 export const PublicationInfoSchema = z.object({
-  isPublished: z.boolean().default(false),
+  isPublished:   z.boolean().default(false),
   firstPageS3Key: z.string().optional(),
-  publishedAt: TimestampSchema.optional(),
+  publishedAt:   TimestampSchema.optional(),
 });
 
 export const NewspaperPublicationSchema = z.object({
-  newspaper: z.string().max(256),
+  newspaper:       z.string().max(256),
   publicationDate: DateSchema,
-  s3Key: z.string().optional(),
-  arrangedBy: UuidSchema.optional(), // SP Secretariat employee who arranged placement
+  s3Key:           z.string().optional(),
+  arrangedBy:      UuidSchema.optional(), // SP Secretariat employee who arranged placement
 });
 ```
 
@@ -1889,36 +1850,37 @@ export const NewspaperPublicationSchema = z.object({
 
 > JSONB metadata for `SP_RESOLUTION`. Two readings. Final number assigned after Second Reading vote. Certified Urgent path skips committee referral entirely. (Consolidated reference Part 4.1.)
 
-| Field                              | Zod Type                 | Required   | Notes                                                    |
-| ---------------------------------- | ------------------------ | ---------- | -------------------------------------------------------- |
-| `sponsors`                         | `z.array(SponsorSchema)` | yes, min 1 | Only councilors may sponsor                              |
-| `firstReading`                     | `ReadingRecordSchema`    | optional   |                                                          |
-| `certificationOfUrgencyDocumentId` | `UuidSchema`             | optional   | Mutually exclusive with `committeeReferralIds`           |
-| `committeeReferralIds`             | `z.array(UuidSchema)`    | optional   | Multi-committee — all must sign unified report           |
-| `secondReading`                    | `ReadingRecordSchema`    | optional   |                                                          |
-| `amendmentNotes`                   | `z.string()`             | optional   | Logged by Secretariat at Second Reading                  |
-| `mayorAction`                      | `MayorActionSchema`      | optional   |                                                          |
-| `vetoOverride`                     | `VetoOverrideSchema`     | optional   |                                                          |
-| `transmittalLetterDocumentId`      | `UuidSchema`             | optional   | SPS document accompanying the measure to Mayor           |
-| `publication`                      | `PublicationInfoSchema`  | optional   | Title + first page public; full copy by Document Request |
+| Field | Zod Type | Required | Notes |
+|-------|----------|----------|-------|
+| `sponsors` | `z.array(SponsorSchema)` | yes, min 1 | Only councilors may sponsor |
+| `firstReading` | `ReadingRecordSchema` | optional | |
+| `certificationOfUrgencyDocumentId` | `UuidSchema` | optional | Mutually exclusive with `committeeReferralIds` |
+| `committeeReferralIds` | `z.array(UuidSchema)` | optional | Multi-committee — all must sign unified report |
+| `secondReading` | `ReadingRecordSchema` | optional | |
+| `amendmentNotes` | `z.string()` | optional | Logged by Secretariat at Second Reading |
+| `mayorAction` | `MayorActionSchema` | optional | |
+| `vetoOverride` | `VetoOverrideSchema` | optional | |
+| `transmittalLetterDocumentId` | `UuidSchema` | optional | SPS document accompanying the measure to Mayor |
+| `publication` | `PublicationInfoSchema` | optional | Title + first page public; full copy by Document Request |
 
 ```typescript
 export const SpResolutionMetadataSchema = z
   .object({
-    sponsors: z.array(SponsorSchema).min(1, 'At least one sponsor required'),
-    firstReading: ReadingRecordSchema.optional(),
-    certificationOfUrgencyDocumentId: UuidSchema.optional(),
-    committeeReferralIds: z.array(UuidSchema).optional(),
-    secondReading: ReadingRecordSchema.optional(),
-    amendmentNotes: z.string().max(4096).optional(),
-    mayorAction: MayorActionSchema.optional(),
-    vetoOverride: VetoOverrideSchema.optional(),
-    transmittalLetterDocumentId: UuidSchema.optional(),
-    publication: PublicationInfoSchema.optional(),
+    sponsors:                          z.array(SponsorSchema).min(1, "At least one sponsor required"),
+    firstReading:                      ReadingRecordSchema.optional(),
+    certificationOfUrgencyDocumentId:  UuidSchema.optional(),
+    committeeReferralIds:               z.array(UuidSchema).optional(),
+    secondReading:                     ReadingRecordSchema.optional(),
+    amendmentNotes:                    z.string().max(4096).optional(),
+    mayorAction:                       MayorActionSchema.optional(),
+    vetoOverride:                      VetoOverrideSchema.optional(),
+    transmittalLetterDocumentId:       UuidSchema.optional(),
+    publication:                       PublicationInfoSchema.optional(),
   })
-  .refine((v) => !(v.certificationOfUrgencyDocumentId && v.committeeReferralIds?.length), {
-    message: 'A certified urgent measure cannot also have committee referrals',
-  });
+  .refine(
+    (v) => !(v.certificationOfUrgencyDocumentId && v.committeeReferralIds?.length),
+    { message: "A certified urgent measure cannot also have committee referrals" }
+  );
 export type SpResolutionMetadata = z.infer<typeof SpResolutionMetadataSchema>;
 ```
 
@@ -1933,23 +1895,24 @@ export type SpResolutionMetadata = z.infer<typeof SpResolutionMetadataSchema>;
 ```typescript
 export const SpOrdinanceMetadataSchema = z
   .object({
-    sponsors: z.array(SponsorSchema).min(1),
-    firstReading: ReadingRecordSchema.optional(),
-    certificationOfUrgencyDocumentId: UuidSchema.optional(),
-    committeeReferralIds: z.array(UuidSchema).optional(),
-    secondReading: ReadingRecordSchema.optional(),
-    amendmentNotes: z.string().max(4096).optional(),
-    thirdReading: ReadingRecordSchema.optional(),
-    mayorAction: MayorActionSchema.optional(),
-    vetoOverride: VetoOverrideSchema.optional(),
-    transmittalLetterDocumentId: UuidSchema.optional(),
-    hasPenaltyProvision: z.boolean().default(false),
-    newspaperPublication: NewspaperPublicationSchema.optional(),
-    publication: PublicationInfoSchema.optional(),
+    sponsors:                          z.array(SponsorSchema).min(1),
+    firstReading:                      ReadingRecordSchema.optional(),
+    certificationOfUrgencyDocumentId:  UuidSchema.optional(),
+    committeeReferralIds:               z.array(UuidSchema).optional(),
+    secondReading:                     ReadingRecordSchema.optional(),
+    amendmentNotes:                    z.string().max(4096).optional(),
+    thirdReading:                      ReadingRecordSchema.optional(),
+    mayorAction:                       MayorActionSchema.optional(),
+    vetoOverride:                      VetoOverrideSchema.optional(),
+    transmittalLetterDocumentId:       UuidSchema.optional(),
+    hasPenaltyProvision:               z.boolean().default(false),
+    newspaperPublication:              NewspaperPublicationSchema.optional(),
+    publication:                       PublicationInfoSchema.optional(),
   })
-  .refine((v) => !(v.certificationOfUrgencyDocumentId && v.committeeReferralIds?.length), {
-    message: 'A certified urgent measure cannot also have committee referrals',
-  });
+  .refine(
+    (v) => !(v.certificationOfUrgencyDocumentId && v.committeeReferralIds?.length),
+    { message: "A certified urgent measure cannot also have committee referrals" }
+  );
 export type SpOrdinanceMetadata = z.infer<typeof SpOrdinanceMetadataSchema>;
 ```
 
@@ -1963,9 +1926,9 @@ export type SpOrdinanceMetadata = z.infer<typeof SpOrdinanceMetadataSchema>;
 
 ```typescript
 export const AppropriationOrdinanceMetadataSchema = SpOrdinanceMetadataSchema.extend({
-  appropriationType: z.enum(['annual_budget', 'supplemental']).default('annual_budget'),
-  fiscalYear: z.number().int().min(2000).max(2099),
-  totalAmountPhp: z.number().positive().optional(),
+  appropriationType: z.enum(["annual_budget", "supplemental"]).default("annual_budget"),
+  fiscalYear:        z.number().int().min(2000).max(2099),
+  totalAmountPhp:    z.number().positive().optional(),
 });
 export type AppropriationOrdinanceMetadata = z.infer<typeof AppropriationOrdinanceMetadataSchema>;
 ```
@@ -1980,12 +1943,12 @@ export type AppropriationOrdinanceMetadata = z.infer<typeof AppropriationOrdinan
 
 ```typescript
 export const CertificationOfUrgencyMetadataSchema = z.object({
-  issuedByEmployeeId: UuidSchema,
-  issuedByDisplayName: z.string().min(1),
-  issuanceDate: DateSchema,
-  associatedDocumentIds: z.array(UuidSchema).min(1, 'At least one associated measure required'),
-  justification: z.string().max(4096).optional(),
-  sessionDate: DateSchema.optional(),
+  issuedByEmployeeId:   UuidSchema,
+  issuedByDisplayName:  z.string().min(1),
+  issuanceDate:         DateSchema,
+  associatedDocumentIds: z.array(UuidSchema).min(1, "At least one associated measure required"),
+  justification:        z.string().max(4096).optional(),
+  sessionDate:          DateSchema.optional(),
 });
 export type CertificationOfUrgencyMetadata = z.infer<typeof CertificationOfUrgencyMetadataSchema>;
 ```
@@ -2000,51 +1963,44 @@ export type CertificationOfUrgencyMetadata = z.infer<typeof CertificationOfUrgen
 
 ```typescript
 export const ComplaintOutcomeStateSchema = z.enum([
-  'pending_hearing',
-  'received_seen',
-  'dismissed',
-  'resolved',
+  "pending_hearing",
+  "received_seen",
+  "dismissed",
+  "resolved",
 ]);
 export type ComplaintOutcomeState = z.infer<typeof ComplaintOutcomeStateSchema>;
 
 export const ComplaintViolationTypeSchema = z.enum([
-  'overcharging',
-  'trip_cutting',
-  'refused_to_convey',
-  'discourtesy',
-  'other',
+  "overcharging", "trip_cutting", "refused_to_convey", "discourtesy", "other",
 ]);
 
 export const CitizenComplaintMetadataSchema = z.object({
   // Complainant
-  complainantName: z.string().min(1).max(256).trim(),
-  complainantAddress: z.string().max(512).optional(),
-  complainantContact: z.string().max(64).optional(),
-  complainantEmail: z.string().email().optional(),
+  complainantName:     z.string().min(1).max(256).trim(),
+  complainantAddress:  z.string().max(512).optional(),
+  complainantContact:  z.string().max(64).optional(),
+  complainantEmail:    z.string().email().optional(),
 
   // Incident
-  violationType: ComplaintViolationTypeSchema.optional(),
+  violationType:   ComplaintViolationTypeSchema.optional(),
   subjectDescription: z.string().min(1).max(2048).trim(),
-  tricycleNumber: z.string().max(64).optional(),
-  incidentDate: DateSchema.optional(),
-  incidentTime: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/)
-    .optional(),
-  incidentPlace: z.string().max(512).optional(),
-  remarks: z.string().max(2048).optional(),
+  tricycleNumber:  z.string().max(64).optional(),
+  incidentDate:    DateSchema.optional(),
+  incidentTime:    z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  incidentPlace:   z.string().max(512).optional(),
+  remarks:         z.string().max(2048).optional(),
 
   // Respondent
-  respondentName: z.string().max(256).optional(),
+  respondentName:    z.string().max(256).optional(),
   respondentContact: z.string().max(64).optional(),
-  respondentEmail: z.string().email().optional(),
+  respondentEmail:   z.string().email().optional(),
 
   // Routing and outcome
   routedToCommitteeId: UuidSchema.optional(),
-  routedToViceMayor: z.boolean().default(false),
-  outcomeState: ComplaintOutcomeStateSchema.default('pending_hearing'),
+  routedToViceMayor:   z.boolean().default(false),
+  outcomeState:        ComplaintOutcomeStateSchema.default("pending_hearing"),
   committeeReportDocumentId: UuidSchema.optional(),
-  resolutionSummary: z.string().max(2048).optional(),
+  resolutionSummary:   z.string().max(2048).optional(),
 });
 export type CitizenComplaintMetadata = z.infer<typeof CitizenComplaintMetadataSchema>;
 ```
@@ -2059,21 +2015,21 @@ export type CitizenComplaintMetadata = z.infer<typeof CitizenComplaintMetadataSc
 
 ```typescript
 export const DocumentRequestFormMetadataSchema = z.object({
-  requesterName: z.string().min(1).max(256).trim(),
-  requesterAgency: z.string().max(256).optional(),
-  requesterEmail: z.string().email().optional(),
-  requesterPhone: z.string().max(64).optional(),
-  idPresented: z.string().max(128).optional(),
-  purpose: z.string().min(1).max(1024).trim(),
-  requestedDocumentType: z.string().max(128),
-  requestedDocumentTitle: z.string().max(1024).optional(),
-  numberOfPagesCopied: z.number().int().positive().optional(),
-  paymentOrNumber: z.string().max(64).optional(),
-  collectingOfficer: z.string().max(256).optional(),
-  approvalStatus: z.enum(['pending', 'approved', 'denied']).default('pending'),
-  approvedByViceMayor: z.boolean().default(false),
-  approvedBySpSecretary: z.boolean().default(false),
-  releasedAt: TimestampSchema.optional(),
+  requesterName:           z.string().min(1).max(256).trim(),
+  requesterAgency:         z.string().max(256).optional(),
+  requesterEmail:          z.string().email().optional(),
+  requesterPhone:          z.string().max(64).optional(),
+  idPresented:             z.string().max(128).optional(),
+  purpose:                 z.string().min(1).max(1024).trim(),
+  requestedDocumentType:   z.string().max(128),
+  requestedDocumentTitle:  z.string().max(1024).optional(),
+  numberOfPagesCopied:     z.number().int().positive().optional(),
+  paymentOrNumber:         z.string().max(64).optional(),
+  collectingOfficer:       z.string().max(256).optional(),
+  approvalStatus:          z.enum(["pending", "approved", "denied"]).default("pending"),
+  approvedByViceMayor:     z.boolean().default(false),
+  approvedBySpSecretary:   z.boolean().default(false),
+  releasedAt:              TimestampSchema.optional(),
 });
 export type DocumentRequestFormMetadata = z.infer<typeof DocumentRequestFormMetadataSchema>;
 ```
@@ -2090,13 +2046,13 @@ export type DocumentRequestFormMetadata = z.infer<typeof DocumentRequestFormMeta
 
 ```typescript
 export const LetterReceivedMetadataSchema = z.object({
-  senderName: z.string().min(1).max(256).trim(),
+  senderName:              z.string().min(1).max(256).trim(),
   senderOfficeOrganization: z.string().max(256).optional(),
-  dateReceived: DateSchema,
-  routedToViceMayor: z.boolean().default(true), // almost all letters go to VM first
-  viceMayorNotes: z.string().max(2048).optional(),
-  routedToOfficeId: UuidSchema.optional(),
-  actionTaken: z.string().max(2048).optional(),
+  dateReceived:            DateSchema,
+  routedToViceMayor:       z.boolean().default(true), // almost all letters go to VM first
+  viceMayorNotes:          z.string().max(2048).optional(),
+  routedToOfficeId:        UuidSchema.optional(),
+  actionTaken:             z.string().max(2048).optional(),
 });
 export type LetterReceivedMetadata = z.infer<typeof LetterReceivedMetadataSchema>;
 ```
@@ -2107,12 +2063,12 @@ export type LetterReceivedMetadata = z.infer<typeof LetterReceivedMetadataSchema
 
 ```typescript
 export const LetterSentMetadataSchema = z.object({
-  recipientName: z.string().min(1).max(256).trim(),
+  recipientName:              z.string().min(1).max(256).trim(),
   recipientOfficeOrganization: z.string().max(256).optional(),
-  recipientEmail: z.string().email().optional(),
-  dateSent: DateSchema,
-  relatedDocumentId: UuidSchema.optional(),
-  letterType: z.enum(['transmittal', 'invitation', 'forwarding', 'general']).default('general'),
+  recipientEmail:             z.string().email().optional(),
+  dateSent:                   DateSchema,
+  relatedDocumentId:          UuidSchema.optional(),
+  letterType:                 z.enum(["transmittal", "invitation", "forwarding", "general"]).default("general"),
 });
 export type LetterSentMetadata = z.infer<typeof LetterSentMetadataSchema>;
 ```
@@ -2125,13 +2081,13 @@ export type LetterSentMetadata = z.infer<typeof LetterSentMetadataSchema>;
 
 ```typescript
 export const MemoOutgoingMetadataSchema = z.object({
-  memoNumber: z.string().min(1).max(64).trim(),
-  issuedByEmployeeId: UuidSchema,
-  issuedByDisplayName: z.string(),
-  issuanceDate: DateSchema,
-  recipientEmployeeIds: z.array(UuidSchema).min(1),
-  subject: z.string().min(1).max(512).trim(),
-  disseminatedAt: DateSchema.optional(),
+  memoNumber:            z.string().min(1).max(64).trim(),
+  issuedByEmployeeId:    UuidSchema,
+  issuedByDisplayName:   z.string(),
+  issuanceDate:          DateSchema,
+  recipientEmployeeIds:  z.array(UuidSchema).min(1),
+  subject:               z.string().min(1).max(512).trim(),
+  disseminatedAt:        DateSchema.optional(),
 });
 export type MemoOutgoingMetadata = z.infer<typeof MemoOutgoingMetadataSchema>;
 ```
@@ -2142,10 +2098,10 @@ export type MemoOutgoingMetadata = z.infer<typeof MemoOutgoingMetadataSchema>;
 
 ```typescript
 export const MemoIncomingMetadataSchema = z.object({
-  senderOffice: z.string().min(1).max(256).trim(),
-  sendersOwnReference: z.string().max(128).optional(), // e.g. "MRC Memo Circ. No. 2025-001"
-  dateReceived: DateSchema,
-  subject: z.string().min(1).max(512).trim(),
+  senderOffice:           z.string().min(1).max(256).trim(),
+  sendersOwnReference:    z.string().max(128).optional(), // e.g. "MRC Memo Circ. No. 2025-001"
+  dateReceived:           DateSchema,
+  subject:                z.string().min(1).max(512).trim(),
 });
 export type MemoIncomingMetadata = z.infer<typeof MemoIncomingMetadataSchema>;
 ```
@@ -2156,20 +2112,15 @@ export type MemoIncomingMetadata = z.infer<typeof MemoIncomingMetadataSchema>;
 
 ```typescript
 export const NoticeOfCommitteeHearingMetadataSchema = z.object({
-  committeeIds: z.array(UuidSchema).min(1),
-  hearingDate: DateSchema.optional(),
-  hearingTime: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/)
-    .optional(),
-  hearingVenue: z.string().max(256).optional(),
-  relatedDocumentIds: z.array(UuidSchema).min(1),
-  recipientEmployeeIds: z.array(UuidSchema).min(1),
-  notes: z.string().max(2048).optional(),
+  committeeIds:          z.array(UuidSchema).min(1),
+  hearingDate:           DateSchema.optional(),
+  hearingTime:           z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  hearingVenue:          z.string().max(256).optional(),
+  relatedDocumentIds:    z.array(UuidSchema).min(1),
+  recipientEmployeeIds:  z.array(UuidSchema).min(1),
+  notes:                 z.string().max(2048).optional(),
 });
-export type NoticeOfCommitteeHearingMetadata = z.infer<
-  typeof NoticeOfCommitteeHearingMetadataSchema
->;
+export type NoticeOfCommitteeHearingMetadata = z.infer<typeof NoticeOfCommitteeHearingMetadataSchema>;
 ```
 
 ---
@@ -2180,11 +2131,11 @@ export type NoticeOfCommitteeHearingMetadata = z.infer<
 
 ```typescript
 export const NoticeOfSpecialSessionMetadataSchema = z.object({
-  sessionNumber: z.string().max(64),
-  sessionDate: DateSchema,
-  sessionTime: z.string().regex(/^\d{2}:\d{2}$/),
-  subject: z.string().min(1).max(512).trim(),
-  recipientEmployeeIds: z.array(UuidSchema).min(1),
+  sessionNumber:         z.string().max(64),
+  sessionDate:           DateSchema,
+  sessionTime:           z.string().regex(/^\d{2}:\d{2}$/),
+  subject:               z.string().min(1).max(512).trim(),
+  recipientEmployeeIds:  z.array(UuidSchema).min(1),
 });
 export type NoticeOfSpecialSessionMetadata = z.infer<typeof NoticeOfSpecialSessionMetadataSchema>;
 ```
@@ -2200,24 +2151,24 @@ export const DesignationMetadataSchema = z
   .object({
     delegatingAuthorityEmployeeId: UuidSchema,
     delegatingAuthorityDisplayName: z.string(),
-    designatedPersonEmployeeId: UuidSchema,
-    designatedPersonDisplayName: z.string(),
-    designatedOfficeId: UuidSchema,
-    designatedPositionId: UuidSchema,
-    scopeDescription: z.string().min(1).max(1024).trim(),
-    legalBasis: z.string().max(512).optional(),
-    effectiveFrom: DateSchema,
-    effectiveUntil: DateSchema,
-    delegationGrantId: UuidSchema.optional(),
+    designatedPersonEmployeeId:    UuidSchema,
+    designatedPersonDisplayName:   z.string(),
+    designatedOfficeId:            UuidSchema,
+    designatedPositionId:          UuidSchema,
+    scopeDescription:              z.string().min(1).max(1024).trim(),
+    legalBasis:                    z.string().max(512).optional(),
+    effectiveFrom:                 DateSchema,
+    effectiveUntil:                DateSchema,
+    delegationGrantId:             UuidSchema.optional(),
   })
-  .refine((v) => v.delegatingAuthorityEmployeeId !== v.designatedPersonEmployeeId, {
-    message: 'Delegating authority and designated person must differ',
-    path: ['designatedPersonEmployeeId'],
-  })
-  .refine((v) => v.effectiveUntil >= v.effectiveFrom, {
-    message: 'effectiveUntil must not be before effectiveFrom',
-    path: ['effectiveUntil'],
-  });
+  .refine(
+    (v) => v.delegatingAuthorityEmployeeId !== v.designatedPersonEmployeeId,
+    { message: "Delegating authority and designated person must differ", path: ["designatedPersonEmployeeId"] }
+  )
+  .refine(
+    (v) => v.effectiveUntil >= v.effectiveFrom,
+    { message: "effectiveUntil must not be before effectiveFrom", path: ["effectiveUntil"] }
+  );
 export type DesignationMetadata = z.infer<typeof DesignationMetadataSchema>;
 ```
 
@@ -2228,22 +2179,20 @@ export type DesignationMetadata = z.infer<typeof DesignationMetadataSchema>;
 > Server-side utility for validating `metadata` against the correct per-type schema. The `__type` discriminant mirrors the `document_types.code` value.
 
 ```typescript
-export const DocumentMetadataSchema = z.discriminatedUnion('__type', [
-  SpResolutionMetadataSchema.extend({ __type: z.literal('SP_RESOLUTION') }),
-  SpOrdinanceMetadataSchema.extend({ __type: z.literal('SP_ORDINANCE') }),
-  AppropriationOrdinanceMetadataSchema.extend({ __type: z.literal('APPROPRIATION_ORDINANCE') }),
-  CertificationOfUrgencyMetadataSchema.extend({ __type: z.literal('CERTIFICATION_OF_URGENCY') }),
-  CitizenComplaintMetadataSchema.extend({ __type: z.literal('CITIZEN_COMPLAINT') }),
-  DocumentRequestFormMetadataSchema.extend({ __type: z.literal('DOCUMENT_REQUEST_FORM') }),
-  LetterReceivedMetadataSchema.extend({ __type: z.literal('LETTER_RECEIVED') }),
-  LetterSentMetadataSchema.extend({ __type: z.literal('LETTER_SENT') }),
-  MemoOutgoingMetadataSchema.extend({ __type: z.literal('MEMO_OUTGOING') }),
-  MemoIncomingMetadataSchema.extend({ __type: z.literal('MEMO_INCOMING') }),
-  NoticeOfCommitteeHearingMetadataSchema.extend({
-    __type: z.literal('NOTICE_OF_COMMITTEE_HEARING'),
-  }),
-  NoticeOfSpecialSessionMetadataSchema.extend({ __type: z.literal('NOTICE_OF_SPECIAL_SESSION') }),
-  DesignationMetadataSchema.extend({ __type: z.literal('DESIGNATION') }),
+export const DocumentMetadataSchema = z.discriminatedUnion("__type", [
+  SpResolutionMetadataSchema.extend({ __type: z.literal("SP_RESOLUTION") }),
+  SpOrdinanceMetadataSchema.extend({ __type: z.literal("SP_ORDINANCE") }),
+  AppropriationOrdinanceMetadataSchema.extend({ __type: z.literal("APPROPRIATION_ORDINANCE") }),
+  CertificationOfUrgencyMetadataSchema.extend({ __type: z.literal("CERTIFICATION_OF_URGENCY") }),
+  CitizenComplaintMetadataSchema.extend({ __type: z.literal("CITIZEN_COMPLAINT") }),
+  DocumentRequestFormMetadataSchema.extend({ __type: z.literal("DOCUMENT_REQUEST_FORM") }),
+  LetterReceivedMetadataSchema.extend({ __type: z.literal("LETTER_RECEIVED") }),
+  LetterSentMetadataSchema.extend({ __type: z.literal("LETTER_SENT") }),
+  MemoOutgoingMetadataSchema.extend({ __type: z.literal("MEMO_OUTGOING") }),
+  MemoIncomingMetadataSchema.extend({ __type: z.literal("MEMO_INCOMING") }),
+  NoticeOfCommitteeHearingMetadataSchema.extend({ __type: z.literal("NOTICE_OF_COMMITTEE_HEARING") }),
+  NoticeOfSpecialSessionMetadataSchema.extend({ __type: z.literal("NOTICE_OF_SPECIAL_SESSION") }),
+  DesignationMetadataSchema.extend({ __type: z.literal("DESIGNATION") }),
 ]);
 export type DocumentMetadata = z.infer<typeof DocumentMetadataSchema>;
 ```
@@ -2265,14 +2214,14 @@ export type DocumentMetadata = z.infer<typeof DocumentMetadataSchema>;
 
 ```typescript
 export const StepTypeSchema = z.enum([
-  'action',
-  'approval',
-  'multi_referral', // Phase 1: all assigned committees must sign unified report
-  'decision',
-  'notification',
-  'termination',
-  'parallel_split', // Phase 2 (reserved in data model)
-  'parallel_join', // Phase 2 (reserved in data model)
+  "action",
+  "approval",
+  "multi_referral",   // Phase 1: all assigned committees must sign unified report
+  "decision",
+  "notification",
+  "termination",
+  "parallel_split",   // Phase 2 (reserved in data model)
+  "parallel_join",    // Phase 2 (reserved in data model)
 ]);
 export type StepType = z.infer<typeof StepTypeSchema>;
 ```
@@ -2285,11 +2234,7 @@ export type StepType = z.infer<typeof StepTypeSchema>;
 
 ```typescript
 export const WorkflowInstanceStatusSchema = z.enum([
-  'pending',
-  'active',
-  'completed',
-  'cancelled',
-  'suspended',
+  "pending", "active", "completed", "cancelled", "suspended",
 ]);
 export type WorkflowInstanceStatus = z.infer<typeof WorkflowInstanceStatusSchema>;
 ```
@@ -2302,13 +2247,8 @@ export type WorkflowInstanceStatus = z.infer<typeof WorkflowInstanceStatusSchema
 
 ```typescript
 export const StepInstanceStatusSchema = z.enum([
-  'not_started',
-  'in_progress',
-  'pending_action',
-  'completed',
-  'skipped',
-  'bypassed',
-  'cancelled',
+  "not_started", "in_progress", "pending_action",
+  "completed", "skipped", "bypassed", "cancelled",
 ]);
 export type StepInstanceStatus = z.infer<typeof StepInstanceStatusSchema>;
 ```
@@ -2323,10 +2263,10 @@ export type StepInstanceStatus = z.infer<typeof StepInstanceStatusSchema>;
 
 ```typescript
 export const ApprovalDecisionSchema = z.enum([
-  'approved',
-  'rejected',
-  'returned_for_revision',
-  'amended',
+  "approved",
+  "rejected",
+  "returned_for_revision",
+  "amended",
 ]);
 export type ApprovalDecision = z.infer<typeof ApprovalDecisionSchema>;
 ```
@@ -2341,14 +2281,14 @@ export type ApprovalDecision = z.infer<typeof ApprovalDecisionSchema>;
 
 ```typescript
 export const WorkflowDefinitionSelectSchema = z.object({
-  id: UuidSchema,
-  documentTypeId: UuidSchema,
-  name: z.string().min(1).max(256),
-  description: z.string().nullable(),
-  isActive: z.boolean(),
+  id:               UuidSchema,
+  documentTypeId:   UuidSchema,
+  name:             z.string().min(1).max(256),
+  description:      z.string().nullable(),
+  isActive:         z.boolean(),
   currentVersionId: UuidSchema.nullable(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  createdAt:        TimestampSchema,
+  updatedAt:        TimestampSchema,
 });
 export type WorkflowDefinitionSelect = z.infer<typeof WorkflowDefinitionSelectSchema>;
 ```
@@ -2361,18 +2301,18 @@ export type WorkflowDefinitionSelect = z.infer<typeof WorkflowDefinitionSelectSc
 
 ```typescript
 export const WorkflowStepSelectSchema = z.object({
-  id: UuidSchema,
+  id:                  UuidSchema,
   definitionVersionId: UuidSchema,
-  stepOrder: z.number().int().min(0),
-  stepType: StepTypeSchema,
-  name: z.string().min(1).max(256),
-  description: z.string().nullable(),
-  assignedRoleCodes: z.array(z.string()),
+  stepOrder:           z.number().int().min(0),
+  stepType:            StepTypeSchema,
+  name:                z.string().min(1).max(256),
+  description:         z.string().nullable(),
+  assignedRoleCodes:   z.array(z.string()),
   assignedCommitteeIds: z.array(UuidSchema), // populated for multi_referral steps
-  durationDays: z.number().int().positive().nullable(),
-  isMandatory: z.boolean(),
-  canBypass: z.boolean(),
-  configuration: z.record(z.unknown()),
+  durationDays:        z.number().int().positive().nullable(),
+  isMandatory:         z.boolean(),
+  canBypass:           z.boolean(),
+  configuration:       z.record(z.unknown()),
 });
 export type WorkflowStepSelect = z.infer<typeof WorkflowStepSelectSchema>;
 ```
@@ -2387,17 +2327,17 @@ export type WorkflowStepSelect = z.infer<typeof WorkflowStepSelectSchema>;
 
 ```typescript
 export const WorkflowInstanceSelectSchema = z.object({
-  id: UuidSchema,
-  documentId: UuidSchema,
+  id:                  UuidSchema,
+  documentId:          UuidSchema,
   definitionVersionId: UuidSchema,
-  status: WorkflowInstanceStatusSchema,
-  currentStepId: UuidSchema.nullable(),
-  startedAt: TimestampSchema.nullable(),
-  completedAt: TimestampSchema.nullable(),
-  slaDeadlineAt: TimestampSchema.nullable(),
-  slaBreached: z.boolean(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  status:              WorkflowInstanceStatusSchema,
+  currentStepId:       UuidSchema.nullable(),
+  startedAt:           TimestampSchema.nullable(),
+  completedAt:         TimestampSchema.nullable(),
+  slaDeadlineAt:       TimestampSchema.nullable(),
+  slaBreached:         z.boolean(),
+  createdAt:           TimestampSchema,
+  updatedAt:           TimestampSchema,
 });
 export type WorkflowInstanceSelect = z.infer<typeof WorkflowInstanceSelectSchema>;
 ```
@@ -2412,11 +2352,11 @@ export type WorkflowInstanceSelect = z.infer<typeof WorkflowInstanceSelectSchema
 
 ```typescript
 export const StepAssigneeSchema = z.object({
-  type: z.enum(['user', 'role', 'committee']),
-  userId: UuidSchema.optional(),
-  roleCode: z.string().optional(),
-  committeeId: UuidSchema.optional(),
-  displayName: z.string(),
+  type:         z.enum(["user", "role", "committee"]),
+  userId:       UuidSchema.optional(),
+  roleCode:     z.string().optional(),
+  committeeId:  UuidSchema.optional(),
+  displayName:  z.string(),
   hasCompleted: z.boolean(),
 });
 ```
@@ -2427,21 +2367,21 @@ export const StepAssigneeSchema = z.object({
 
 ```typescript
 export const StepInstanceSelectSchema = z.object({
-  id: UuidSchema,
-  workflowInstanceId: UuidSchema,
-  stepId: UuidSchema,
-  step: WorkflowStepSelectSchema,
-  status: StepInstanceStatusSchema,
-  assignedTo: z.array(StepAssigneeSchema),
-  startedAt: TimestampSchema.nullable(),
-  dueAt: TimestampSchema.nullable(),
-  completedAt: TimestampSchema.nullable(),
-  completedBy: UuidSchema.nullable(),
-  decision: ApprovalDecisionSchema.nullable(),
-  comment: z.string().nullable(),
-  isRedFlagged: z.boolean(), // true when committee hasn't submitted by Thursday cutoff
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  id:                  UuidSchema,
+  workflowInstanceId:  UuidSchema,
+  stepId:              UuidSchema,
+  step:                WorkflowStepSelectSchema,
+  status:              StepInstanceStatusSchema,
+  assignedTo:          z.array(StepAssigneeSchema),
+  startedAt:           TimestampSchema.nullable(),
+  dueAt:               TimestampSchema.nullable(),
+  completedAt:         TimestampSchema.nullable(),
+  completedBy:         UuidSchema.nullable(),
+  decision:            ApprovalDecisionSchema.nullable(),
+  comment:             z.string().nullable(),
+  isRedFlagged:        z.boolean(), // true when committee hasn't submitted by Thursday cutoff
+  createdAt:           TimestampSchema,
+  updatedAt:           TimestampSchema,
 });
 export type StepInstanceSelect = z.infer<typeof StepInstanceSelectSchema>;
 ```
@@ -2457,23 +2397,23 @@ export type StepInstanceSelect = z.infer<typeof StepInstanceSelectSchema>;
 ```typescript
 export const AdvanceWorkflowStepInputSchema = z
   .object({
-    stepInstanceId: UuidSchema,
-    decision: ApprovalDecisionSchema,
-    comment: z.string().max(2048).optional(),
-    attachmentS3Key: z.string().optional(),
+    stepInstanceId:   UuidSchema,
+    decision:         ApprovalDecisionSchema,
+    comment:          z.string().max(2048).optional(),
+    attachmentS3Key:  z.string().optional(),
   })
-  .refine((v) => v.decision !== 'rejected' || (v.comment && v.comment.length >= 10), {
-    message: 'Comment required when rejecting (min 10 chars)',
-    path: ['comment'],
-  })
-  .refine((v) => v.decision !== 'returned_for_revision' || (v.comment && v.comment.length >= 10), {
-    message: 'Comment required when returning for revision (min 10 chars)',
-    path: ['comment'],
-  })
-  .refine((v) => v.decision !== 'amended' || (v.comment && v.comment.length >= 10), {
-    message: 'Amendment notes required (min 10 chars)',
-    path: ['comment'],
-  });
+  .refine(
+    (v) => v.decision !== "rejected" || (v.comment && v.comment.length >= 10),
+    { message: "Comment required when rejecting (min 10 chars)", path: ["comment"] }
+  )
+  .refine(
+    (v) => v.decision !== "returned_for_revision" || (v.comment && v.comment.length >= 10),
+    { message: "Comment required when returning for revision (min 10 chars)", path: ["comment"] }
+  )
+  .refine(
+    (v) => v.decision !== "amended" || (v.comment && v.comment.length >= 10),
+    { message: "Amendment notes required (min 10 chars)", path: ["comment"] }
+  );
 export type AdvanceWorkflowStepInput = z.infer<typeof AdvanceWorkflowStepInputSchema>;
 ```
 
@@ -2487,13 +2427,13 @@ export type AdvanceWorkflowStepInput = z.infer<typeof AdvanceWorkflowStepInputSc
 
 ```typescript
 export const SubmitCommitteeReportInputSchema = z.object({
-  stepInstanceId: UuidSchema,
-  committeeId: UuidSchema,
-  reportS3Key: z.string().min(1),
-  reportMimeType: AllowedMimeTypeSchema,
+  stepInstanceId:      UuidSchema,
+  committeeId:         UuidSchema,
+  reportS3Key:         z.string().min(1),
+  reportMimeType:      AllowedMimeTypeSchema,
   reportFileSizeBytes: z.number().int().positive().max(26_214_400),
-  recommendation: z.string().min(10).max(4096).trim(),
-  submittedAt: TimestampSchema,
+  recommendation:      z.string().min(10).max(4096).trim(),
+  submittedAt:         TimestampSchema,
 });
 export type SubmitCommitteeReportInput = z.infer<typeof SubmitCommitteeReportInputSchema>;
 ```
@@ -2509,7 +2449,7 @@ export type SubmitCommitteeReportInput = z.infer<typeof SubmitCommitteeReportInp
 ```typescript
 export const BypassStepInputSchema = z.object({
   stepInstanceId: UuidSchema,
-  reason: z.string().min(20).max(2048).trim(),
+  reason:         z.string().min(20).max(2048).trim(),
 });
 export type BypassStepInput = z.infer<typeof BypassStepInputSchema>;
 ```
@@ -2525,7 +2465,7 @@ export type BypassStepInput = z.infer<typeof BypassStepInputSchema>;
 ```typescript
 export const LogCertificationOfUrgencyInputSchema = z.object({
   certificationDocumentId: UuidSchema,
-  associatedDocumentIds: z.array(UuidSchema).min(1, 'At least one associated measure required'),
+  associatedDocumentIds:   z.array(UuidSchema).min(1, "At least one associated measure required"),
 });
 export type LogCertificationOfUrgencyInput = z.infer<typeof LogCertificationOfUrgencyInputSchema>;
 ```
@@ -2538,13 +2478,13 @@ export type LogCertificationOfUrgencyInput = z.infer<typeof LogCertificationOfUr
 
 ```typescript
 export const WorkflowEventSelectSchema = z.object({
-  id: UuidSchema,
-  workflowInstanceId: UuidSchema,
-  stepInstanceId: UuidSchema.nullable(),
-  eventType: z.string(), // e.g. 'step.completed', 'step.bypassed', 'instance.cancelled'
-  actorId: UuidSchema.nullable(),
-  payload: z.record(z.unknown()),
-  occurredAt: TimestampSchema,
+  id:                  UuidSchema,
+  workflowInstanceId:  UuidSchema,
+  stepInstanceId:      UuidSchema.nullable(),
+  eventType:           z.string(), // e.g. 'step.completed', 'step.bypassed', 'instance.cancelled'
+  actorId:             UuidSchema.nullable(),
+  payload:             z.record(z.unknown()),
+  occurredAt:          TimestampSchema,
 });
 export type WorkflowEventSelect = z.infer<typeof WorkflowEventSelectSchema>;
 ```
@@ -2565,22 +2505,22 @@ export type WorkflowEventSelect = z.infer<typeof WorkflowEventSelectSchema>;
 
 ```typescript
 export const RoutingHistoryEntrySchema = z.object({
-  from: z.string(),
-  to: z.string(),
-  actor: UserSummarySchema,
-  action: z.string(),
-  occurredAt: TimestampSchema,
+  from:        z.string(),
+  to:          z.string(),
+  actor:       UserSummarySchema,
+  action:      z.string(),
+  occurredAt:  TimestampSchema,
 });
 
 export const QrCodeScanResultSchema = z.object({
-  trackingNumber: UuidSchema,
-  document: DocumentSummarySchema,
-  documentTypeLabel: z.string(),
+  trackingNumber:      UuidSchema,
+  document:            DocumentSummarySchema,
+  documentTypeLabel:   z.string(),
   currentLifecycleState: LifecycleStateSchema,
-  remarks: z.string().nullable(),
-  routingHistory: z.array(RoutingHistoryEntrySchema),
-  firstPageS3Key: z.string().nullable(),
-  canRequestCopy: z.boolean(),
+  remarks:             z.string().nullable(),
+  routingHistory:      z.array(RoutingHistoryEntrySchema),
+  firstPageS3Key:      z.string().nullable(),
+  canRequestCopy:      z.boolean(),
 });
 export type QrCodeScanResult = z.infer<typeof QrCodeScanResultSchema>;
 ```
@@ -2606,14 +2546,14 @@ export type QrScanInput = z.infer<typeof QrScanInputSchema>;
 
 ```typescript
 export const RoutingEntrySelectSchema = z.object({
-  id: UuidSchema,
+  id:               UuidSchema,
   trackingRecordId: UuidSchema,
-  fromOfficeName: z.string().nullable(),
-  toOfficeName: z.string(),
-  actor: UserSummarySchema,
-  action: z.string(),
-  notes: z.string().nullable(),
-  occurredAt: TimestampSchema,
+  fromOfficeName:   z.string().nullable(),
+  toOfficeName:     z.string(),
+  actor:            UserSummarySchema,
+  action:           z.string(),
+  notes:            z.string().nullable(),
+  occurredAt:       TimestampSchema,
 });
 export type RoutingEntrySelect = z.infer<typeof RoutingEntrySelectSchema>;
 ```
@@ -2626,12 +2566,12 @@ export type RoutingEntrySelect = z.infer<typeof RoutingEntrySelectSchema>;
 
 ```typescript
 export const LogRoutingEntryInputSchema = z.object({
-  documentId: UuidSchema,
+  documentId:   UuidSchema,
   fromOfficeId: UuidSchema.optional(),
-  toOfficeId: UuidSchema,
-  action: z.string().min(1).max(128).trim(),
-  notes: z.string().max(1024).optional(),
-  occurredAt: TimestampSchema,
+  toOfficeId:   UuidSchema,
+  action:       z.string().min(1).max(128).trim(),
+  notes:        z.string().max(1024).optional(),
+  occurredAt:   TimestampSchema,
 });
 export type LogRoutingEntryInput = z.infer<typeof LogRoutingEntryInputSchema>;
 ```
@@ -2644,14 +2584,14 @@ export type LogRoutingEntryInput = z.infer<typeof LogRoutingEntryInputSchema>;
 
 ```typescript
 export const TrackingRecordSelectSchema = z.object({
-  id: UuidSchema,
-  documentId: UuidSchema,
-  qrTrackingNumber: UuidSchema,
-  currentOfficeName: z.string(),
+  id:                         UuidSchema,
+  documentId:                 UuidSchema,
+  qrTrackingNumber:           UuidSchema,
+  currentOfficeName:          z.string(),
   physicalCustodyConfirmedAt: TimestampSchema.nullable(),
-  routingEntries: z.array(RoutingEntrySelectSchema),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  routingEntries:             z.array(RoutingEntrySelectSchema),
+  createdAt:                  TimestampSchema,
+  updatedAt:                  TimestampSchema,
 });
 export type TrackingRecordSelect = z.infer<typeof TrackingRecordSelectSchema>;
 ```
@@ -2672,12 +2612,7 @@ export type TrackingRecordSelect = z.infer<typeof TrackingRecordSelectSchema>;
 
 ```typescript
 export const RecordTypeSchema = z.enum([
-  'Permanent-Legislative',
-  'Financial',
-  'Personnel',
-  'Correspondence',
-  'Internal Memo',
-  'Draft',
+  "Permanent-Legislative", "Financial", "Personnel", "Correspondence", "Internal Memo", "Draft"
 ]);
 export type RecordType = z.infer<typeof RecordTypeSchema>;
 ```
@@ -2692,22 +2627,17 @@ export type RecordType = z.infer<typeof RecordTypeSchema>;
 
 ```typescript
 export const RetentionPolicySchema = z.enum([
-  'permanent',
-  '1_year',
-  '5_years',
-  '10_years',
-  '15_years',
-  'configurable',
+  "permanent", "1_year", "5_years", "10_years", "15_years", "configurable",
 ]);
 
 export const RetentionScheduleSelectSchema = z.object({
-  id: UuidSchema,
-  name: z.string().min(1).max(256),
-  policy: RetentionPolicySchema,
+  id:             UuidSchema,
+  name:           z.string().min(1).max(256),
+  policy:         RetentionPolicySchema,
   retentionYears: z.number().int().positive().nullable(),
-  description: z.string().nullable(),
-  isActive: z.boolean(),
-  createdAt: TimestampSchema,
+  description:    z.string().nullable(),
+  isActive:       z.boolean(),
+  createdAt:      TimestampSchema,
 });
 export type RetentionScheduleSelect = z.infer<typeof RetentionScheduleSelectSchema>;
 ```
@@ -2720,20 +2650,20 @@ export type RetentionScheduleSelect = z.infer<typeof RetentionScheduleSelectSche
 
 ```typescript
 export const ArchiveEntrySelectSchema = z.object({
-  id: UuidSchema,
-  documentId: UuidSchema,
-  document: DocumentSummarySchema,
-  archivedAt: TimestampSchema,
-  archivedBy: UuidSchema,
-  archiver: UserSummarySchema,
+  id:                  UuidSchema,
+  documentId:          UuidSchema,
+  document:            DocumentSummarySchema,
+  archivedAt:          TimestampSchema,
+  archivedBy:          UuidSchema,
+  archiver:            UserSummarySchema,
   retentionScheduleId: UuidSchema,
-  retentionSchedule: RetentionScheduleSelectSchema,
-  reviewDueAt: DateSchema.nullable(),
-  disposedAt: TimestampSchema.nullable(),
-  disposedBy: UuidSchema.nullable(),
-  disposalReason: z.string().nullable(),
-  notes: z.string().nullable(),
-  createdAt: TimestampSchema,
+  retentionSchedule:   RetentionScheduleSelectSchema,
+  reviewDueAt:         DateSchema.nullable(),
+  disposedAt:          TimestampSchema.nullable(),
+  disposedBy:          UuidSchema.nullable(),
+  disposalReason:      z.string().nullable(),
+  notes:               z.string().nullable(),
+  createdAt:           TimestampSchema,
 });
 export type ArchiveEntrySelect = z.infer<typeof ArchiveEntrySelectSchema>;
 ```
@@ -2748,10 +2678,10 @@ export type ArchiveEntrySelect = z.infer<typeof ArchiveEntrySelectSchema>;
 
 ```typescript
 export const BulkArchiveInputSchema = z.object({
-  documentIds: z.array(UuidSchema).min(1).max(200),
-  reason: z.string().min(10).max(1024).trim(),
+  documentIds:         z.array(UuidSchema).min(1).max(200),
+  reason:              z.string().min(10).max(1024).trim(),
   retentionScheduleId: UuidSchema,
-  dryRun: z.boolean().default(false),
+  dryRun:              z.boolean().default(false),
 });
 export type BulkArchiveInput = z.infer<typeof BulkArchiveInputSchema>;
 ```
@@ -2766,14 +2696,12 @@ export type BulkArchiveInput = z.infer<typeof BulkArchiveInputSchema>;
 
 ```typescript
 export const BulkArchivePreviewSchema = z.object({
-  eligibleCount: z.number().int(),
-  ineligibleDocuments: z.array(
-    z.object({
-      documentId: UuidSchema,
-      title: z.string(),
-      reason: z.string(),
-    }),
-  ),
+  eligibleCount:        z.number().int(),
+  ineligibleDocuments:  z.array(z.object({
+    documentId: UuidSchema,
+    title:      z.string(),
+    reason:     z.string(),
+  })),
   estimatedArchivedCount: z.number().int(),
 });
 export type BulkArchivePreview = z.infer<typeof BulkArchivePreviewSchema>;
@@ -2794,20 +2722,20 @@ export type BulkArchivePreview = z.infer<typeof BulkArchivePreviewSchema>;
 > In-app notification delivered via SSE. `referenceId` links to the document or step instance the notification is about.
 
 ```typescript
-export const NotificationChannelSchema = z.enum(['in_app', 'email', 'sms']);
+export const NotificationChannelSchema = z.enum(["in_app", "email", "sms"]);
 
 export const NotificationEventSchema = z.object({
-  id: UuidSchema,
-  userId: UuidSchema,
-  type: z.string().min(1), // e.g. 'document.assigned', 'sla.warning', 'step.overdue'
-  title: z.string().max(256),
-  body: z.string().max(2048),
-  channel: NotificationChannelSchema,
-  referenceId: UuidSchema.nullable(),
-  referenceType: z.string().nullable(),
-  isRead: z.boolean(),
-  deliveredAt: TimestampSchema.nullable(),
-  createdAt: TimestampSchema,
+  id:             UuidSchema,
+  userId:         UuidSchema,
+  type:           z.string().min(1), // e.g. 'document.assigned', 'sla.warning', 'step.overdue'
+  title:          z.string().max(256),
+  body:           z.string().max(2048),
+  channel:        NotificationChannelSchema,
+  referenceId:    UuidSchema.nullable(),
+  referenceType:  z.string().nullable(),
+  isRead:         z.boolean(),
+  deliveredAt:    TimestampSchema.nullable(),
+  createdAt:      TimestampSchema,
 });
 export type NotificationEvent = z.infer<typeof NotificationEventSchema>;
 ```
@@ -2834,7 +2762,7 @@ export type MarkNotificationsReadInput = z.infer<typeof MarkNotificationsReadInp
 ```typescript
 export const NotificationFilterSchema = z.object({
   isRead: z.boolean().optional(),
-  type: z.string().optional(),
+  type:   z.string().optional(),
   ...PaginationInputSchema.shape,
 });
 export type NotificationFilter = z.infer<typeof NotificationFilterSchema>;
@@ -2850,9 +2778,9 @@ export type NotificationFilter = z.infer<typeof NotificationFilterSchema>;
 
 ```typescript
 export const SseEventSchema = z.object({
-  event: z.enum(['notification', 'workflow_update', 'sla_warning', 'heartbeat']),
-  data: z.union([NotificationEventSchema, z.object({ message: z.string() })]),
-  id: z.string().optional(),
+  event: z.enum(["notification", "workflow_update", "sla_warning", "heartbeat"]),
+  data:  z.union([NotificationEventSchema, z.object({ message: z.string() })]),
+  id:    z.string().optional(),
 });
 export type SseEvent = z.infer<typeof SseEventSchema>;
 ```
@@ -2871,33 +2799,33 @@ export type SseEvent = z.infer<typeof SseEventSchema>;
 
 ### `AuditEventSelectSchema` — Select
 
-| Field              | Zod Type                | Notes                                                                      |
-| ------------------ | ----------------------- | -------------------------------------------------------------------------- |
-| `id`               | `UuidSchema`            |                                                                            |
-| `eventType`        | `z.string()`            | e.g. `'document.state_changed'`, `'user.role_assigned'`, `'step.bypassed'` |
-| `actorId`          | `UuidSchema.nullable()` | NULL for system-initiated events                                           |
-| `actorDisplayName` | `z.string().nullable()` | Denormalised at write time                                                 |
-| `targetId`         | `UuidSchema.nullable()` | Document, user, step instance, etc.                                        |
-| `targetType`       | `z.string().nullable()` |                                                                            |
-| `payload`          | `z.record(z.unknown())` | Event-specific structured data                                             |
-| `chainHash`        | `z.string()`            | SHA-256 hex; broken chain = tamper indicator                               |
-| `hmacSignature`    | `z.string()`            | HMAC-SHA-256                                                               |
-| `occurredAt`       | `TimestampSchema`       |                                                                            |
-| `ipAddress`        | `z.string().nullable()` |                                                                            |
+| Field | Zod Type | Notes |
+|-------|----------|-------|
+| `id` | `UuidSchema` | |
+| `eventType` | `z.string()` | e.g. `'document.state_changed'`, `'user.role_assigned'`, `'step.bypassed'` |
+| `actorId` | `UuidSchema.nullable()` | NULL for system-initiated events |
+| `actorDisplayName` | `z.string().nullable()` | Denormalised at write time |
+| `targetId` | `UuidSchema.nullable()` | Document, user, step instance, etc. |
+| `targetType` | `z.string().nullable()` | |
+| `payload` | `z.record(z.unknown())` | Event-specific structured data |
+| `chainHash` | `z.string()` | SHA-256 hex; broken chain = tamper indicator |
+| `hmacSignature` | `z.string()` | HMAC-SHA-256 |
+| `occurredAt` | `TimestampSchema` | |
+| `ipAddress` | `z.string().nullable()` | |
 
 ```typescript
 export const AuditEventSelectSchema = z.object({
-  id: UuidSchema,
-  eventType: z.string().min(1).max(128),
-  actorId: UuidSchema.nullable(),
+  id:               UuidSchema,
+  eventType:        z.string().min(1).max(128),
+  actorId:          UuidSchema.nullable(),
   actorDisplayName: z.string().nullable(),
-  targetId: UuidSchema.nullable(),
-  targetType: z.string().nullable(),
-  payload: z.record(z.unknown()),
-  chainHash: z.string().length(64),
-  hmacSignature: z.string(),
-  occurredAt: TimestampSchema,
-  ipAddress: z.string().nullable(),
+  targetId:         UuidSchema.nullable(),
+  targetType:       z.string().nullable(),
+  payload:          z.record(z.unknown()),
+  chainHash:        z.string().length(64),
+  hmacSignature:    z.string(),
+  occurredAt:       TimestampSchema,
+  ipAddress:        z.string().nullable(),
 });
 export type AuditEventSelect = z.infer<typeof AuditEventSelectSchema>;
 ```
@@ -2910,12 +2838,12 @@ export type AuditEventSelect = z.infer<typeof AuditEventSelectSchema>;
 
 ```typescript
 export const AuditEventFilterSchema = z.object({
-  actorId: UuidSchema.optional(),
-  targetId: UuidSchema.optional(),
-  targetType: z.string().optional(),
-  eventType: z.string().optional(),
-  dateRange: DateRangeSchema.optional(),
-  sortOrder: SortOrderSchema.default('desc'),
+  actorId:     UuidSchema.optional(),
+  targetId:    UuidSchema.optional(),
+  targetType:  z.string().optional(),
+  eventType:   z.string().optional(),
+  dateRange:   DateRangeSchema.optional(),
+  sortOrder:   SortOrderSchema.default("desc"),
   ...OffsetPaginationInputSchema.shape,
 });
 export type AuditEventFilter = z.infer<typeof AuditEventFilterSchema>;
@@ -2937,11 +2865,7 @@ Note: "Session" here means an SP plenary session (Tuesday legislative session), 
 
 ```typescript
 export const AttendanceStatusSchema = z.enum([
-  'present',
-  'absent_ob',
-  'absent_sick',
-  'absent_vacation',
-  'absent',
+  "present", "absent_ob", "absent_sick", "absent_vacation", "absent",
 ]);
 export type AttendanceStatus = z.infer<typeof AttendanceStatusSchema>;
 ```
@@ -2955,24 +2879,24 @@ export type AttendanceStatus = z.infer<typeof AttendanceStatusSchema>;
 ```typescript
 export const AttendanceRecordSchema = z.object({
   employeeId: UuidSchema,
-  employee: EmployeeSummarySchema,
-  status: AttendanceStatusSchema,
-  reason: z.string().nullable(),
+  employee:   EmployeeSummarySchema,
+  status:     AttendanceStatusSchema,
+  reason:     z.string().nullable(),
 });
 
 export const SpSessionSelectSchema = z.object({
-  id: UuidSchema,
-  sessionDate: DateSchema,
-  sessionNumber: z.string().max(64),
-  sessionType: z.enum(['regular', 'special']),
+  id:                      UuidSchema,
+  sessionDate:             DateSchema,
+  sessionNumber:           z.string().max(64),
+  sessionType:             z.enum(["regular", "special"]),
   presidingOfficerEmployeeId: UuidSchema,
-  presidingOfficer: EmployeeSummarySchema,
-  quorumMet: z.boolean(),
-  attendanceRecords: z.array(AttendanceRecordSchema),
-  presentCount: z.number().int(),
-  absentCount: z.number().int(),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema,
+  presidingOfficer:        EmployeeSummarySchema,
+  quorumMet:               z.boolean(),
+  attendanceRecords:       z.array(AttendanceRecordSchema),
+  presentCount:            z.number().int(),
+  absentCount:             z.number().int(),
+  createdAt:               TimestampSchema,
+  updatedAt:               TimestampSchema,
 });
 export type SpSessionSelect = z.infer<typeof SpSessionSelectSchema>;
 ```
@@ -2988,23 +2912,20 @@ export type SpSessionSelect = z.infer<typeof SpSessionSelectSchema>;
 ```typescript
 export const CreateSpSessionInputSchema = z
   .object({
-    sessionDate: DateSchema,
-    sessionNumber: z.string().min(1).max(64).trim(),
-    sessionType: z.enum(['regular', 'special']).default('regular'),
+    sessionDate:             DateSchema,
+    sessionNumber:           z.string().min(1).max(64).trim(),
+    sessionType:             z.enum(["regular", "special"]).default("regular"),
     presidingOfficerEmployeeId: UuidSchema,
-    attendanceRecords: z
-      .array(
-        z.object({
-          employeeId: UuidSchema,
-          status: AttendanceStatusSchema,
-          reason: z.string().max(512).optional(),
-        }),
-      )
-      .min(1),
+    attendanceRecords: z.array(z.object({
+      employeeId: UuidSchema,
+      status:     AttendanceStatusSchema,
+      reason:     z.string().max(512).optional(),
+    })).min(1),
   })
-  .refine((v) => v.attendanceRecords.filter((r) => r.status === 'present').length >= 7, {
-    message: 'Quorum not met — at least 7 members must be present',
-  });
+  .refine(
+    (v) => v.attendanceRecords.filter((r) => r.status === "present").length >= 7,
+    { message: "Quorum not met — at least 7 members must be present" }
+  );
 export type CreateSpSessionInput = z.infer<typeof CreateSpSessionInputSchema>;
 ```
 
@@ -3018,28 +2939,28 @@ export type CreateSpSessionInput = z.infer<typeof CreateSpSessionInputSchema>;
 
 ```typescript
 export const OrderOfBusinessItemSchema = z.object({
-  documentId: UuidSchema,
-  document: DocumentSummarySchema,
-  documentTypeCode: z.string(),
-  sponsors: z.array(EmployeeSummarySchema),
-  scheduleItemType: z.enum(['first_reading', 'second_reading', 'third_reading']),
+  documentId:              UuidSchema,
+  document:                DocumentSummarySchema,
+  documentTypeCode:        z.string(),
+  sponsors:                z.array(EmployeeSummarySchema),
+  scheduleItemType:        z.enum(["first_reading", "second_reading", "third_reading"]),
   committeeReferralStatus: z.enum([
-    'not_referred',
-    'pending_report',
-    'report_submitted',
-    'skipped_certified_urgent',
+    "not_referred",
+    "pending_report",
+    "report_submitted",
+    "skipped_certified_urgent",
   ]),
-  isRedFlagged: z.boolean(),
-  notes: z.string().nullable(),
+  isRedFlagged:            z.boolean(),
+  notes:                   z.string().nullable(),
 });
 
 export const OrderOfBusinessSchema = z.object({
-  sessionDate: DateSchema,
-  sessionNumber: z.string(),
-  cutoffDate: DateSchema, // the Thursday that preceded this Order of Business
-  items: z.array(OrderOfBusinessItemSchema),
-  redFlaggedCount: z.number().int(),
-  totalCount: z.number().int(),
+  sessionDate:      DateSchema,
+  sessionNumber:    z.string(),
+  cutoffDate:       DateSchema,   // the Thursday that preceded this Order of Business
+  items:            z.array(OrderOfBusinessItemSchema),
+  redFlaggedCount:  z.number().int(),
+  totalCount:       z.number().int(),
 });
 export type OrderOfBusiness = z.infer<typeof OrderOfBusinessSchema>;
 ```
@@ -3058,12 +2979,12 @@ export type OrderOfBusiness = z.infer<typeof OrderOfBusinessSchema>;
 
 ```typescript
 export const SlaStatusSchema = z.object({
-  documentId: UuidSchema,
-  document: DocumentSummarySchema,
+  documentId:    UuidSchema,
+  document:      DocumentSummarySchema,
   slaDeadlineAt: TimestampSchema,
   daysRemaining: z.number(),
-  isBreached: z.boolean(),
-  isWarning: z.boolean(), // true when past 80% of SLA time (consolidated reference Part 11.3)
+  isBreached:    z.boolean(),
+  isWarning:     z.boolean(), // true when past 80% of SLA time (consolidated reference Part 11.3)
 });
 export type SlaStatus = z.infer<typeof SlaStatusSchema>;
 ```
@@ -3078,19 +2999,17 @@ export type SlaStatus = z.infer<typeof SlaStatusSchema>;
 export const SpSecretaryDashboardSchema = z.object({
   pendingInbox: z.array(DocumentSummarySchema),
   upcomingSession: z.object({
-    sessionDate: DateSchema.nullable(),
+    sessionDate:     DateSchema.nullable(),
     orderOfBusiness: OrderOfBusinessSchema.nullable(),
   }),
-  slaWarnings: z.array(SlaStatusSchema),
-  overdueItems: z.array(SlaStatusSchema),
+  slaWarnings:           z.array(SlaStatusSchema),
+  overdueItems:          z.array(SlaStatusSchema),
   unreadNotificationCount: z.number().int(),
-  recentActivity: z.array(
-    z.object({
-      occurredAt: TimestampSchema,
-      description: z.string(),
-      documentId: UuidSchema.nullable(),
-    }),
-  ),
+  recentActivity: z.array(z.object({
+    occurredAt:  TimestampSchema,
+    description: z.string(),
+    documentId:  UuidSchema.nullable(),
+  })),
 });
 export type SpSecretaryDashboard = z.infer<typeof SpSecretaryDashboardSchema>;
 ```
@@ -3108,11 +3027,11 @@ export const MayorDashboardSchema = z.object({
   pendingSignatures: z.array(
     DocumentSummarySchema.extend({
       daysUntilLapse: z.number().int(),
-      transmittedAt: TimestampSchema.nullable(),
-    }),
+      transmittedAt:  TimestampSchema.nullable(),
+    })
   ),
-  overdueSignatures: z.array(DocumentSummarySchema),
-  slaWarnings: z.array(SlaStatusSchema),
+  overdueSignatures:       z.array(DocumentSummarySchema),
+  slaWarnings:             z.array(SlaStatusSchema),
   unreadNotificationCount: z.number().int(),
 });
 export type MayorDashboard = z.infer<typeof MayorDashboardSchema>;
@@ -3126,128 +3045,128 @@ export type MayorDashboard = z.infer<typeof MayorDashboardSchema>;
 
 ✓ = schema directly used in this layer
 
-| Schema                                         | [B] | [T] | [F] | [R] |
-| ---------------------------------------------- | :-: | :-: | :-: | :-: |
-| **Common**                                     |     |     |     |     |
-| `UuidSchema`                                   |  ✓  |  ✓  |  ✓  |  ✓  |
-| `TimestampSchema`                              |     |     |     |  ✓  |
-| `DateSchema`                                   |  ✓  |  ✓  |  ✓  |  ✓  |
-| `PaginationInputSchema`                        |  ✓  |  ✓  |     |     |
-| `DateRangeSchema`                              |  ✓  |  ✓  |  ✓  |     |
-| `PaginatedResponseSchema<T>`                   |     |     |     |  ✓  |
-| `ApiErrorSchema`                               |     |     |     |  ✓  |
-| `PresignedUploadRequestSchema`                 |  ✓  |  ✓  |     |     |
-| `PresignedUploadResponseSchema`                |     |     |     |  ✓  |
-| **IAM**                                        |     |     |     |     |
-| `UserSelectSchema`                             |     |     |     |  ✓  |
-| `UserSummarySchema`                            |     |     |     |  ✓  |
-| `CreateUserInputSchema`                        |  ✓  |  ✓  |  ✓  |     |
-| `UpdateUserInputSchema`                        |  ✓  |  ✓  |  ✓  |     |
-| `UserFilterSchema`                             |  ✓  |  ✓  |     |     |
-| `LoginInputSchema`                             |  ✓  |  ✓  |  ✓  |     |
-| `AuthResponseSchema`                           |  ✓  |     |     |  ✓  |
-| `ChangePasswordInputSchema`                    |  ✓  |  ✓  |  ✓  |     |
-| `SetupTotpInputSchema`                         |  ✓  |  ✓  |  ✓  |     |
-| `RoleSelectSchema`                             |     |     |     |  ✓  |
-| `CreateRoleInputSchema`                        |  ✓  |  ✓  |  ✓  |     |
-| `AssignRoleInputSchema`                        |  ✓  |  ✓  |  ✓  |     |
-| `RoleAssignmentSelectSchema`                   |     |     |     |  ✓  |
-| `SessionSelectSchema`                          |     |     |     |  ✓  |
-| **Organization**                               |     |     |     |     |
-| `OfficeSelectSchema`                           |     |     |     |  ✓  |
-| `OfficeSummarySchema`                          |     |     |     |  ✓  |
-| `CreateOfficeInputSchema`                      |  ✓  |  ✓  |  ✓  |     |
-| `UpdateOfficeInputSchema`                      |  ✓  |  ✓  |  ✓  |     |
-| `OfficeFilterSchema`                           |  ✓  |  ✓  |     |     |
-| `CreatePositionInputSchema`                    |  ✓  |  ✓  |  ✓  |     |
-| `EmployeeSelectSchema`                         |     |     |     |  ✓  |
-| `EmployeeSummarySchema`                        |     |     |     |  ✓  |
-| `CreateEmployeeInputSchema`                    |  ✓  |  ✓  |  ✓  |     |
-| `CreateAssignmentInputSchema`                  |  ✓  |  ✓  |  ✓  |     |
-| `CommitteeWithMembersSchema`                   |     |     |     |  ✓  |
-| `CreateCommitteeInputSchema`                   |  ✓  |  ✓  |  ✓  |     |
-| `DelegationGrantSelectSchema`                  |     |     |     |  ✓  |
-| `LogDelegationInputSchema`                     |  ✓  |  ✓  |  ✓  |     |
-| `RevokeDelegationInputSchema`                  |  ✓  |  ✓  |  ✓  |     |
-| **Documents Core**                             |     |     |     |     |
-| `DocumentSelectSchema`                         |     |     |     |  ✓  |
-| `DocumentSummarySchema`                        |     |     |     |  ✓  |
-| `DocumentTypeSummarySchema`                    |     |     |     |  ✓  |
-| `LogDocumentInputSchema`                       |  ✓  |  ✓  |  ✓  |     |
-| `DocumentFilterSchema`                         |  ✓  |  ✓  |     |     |
-| `CancelDocumentInputSchema`                    |  ✓  |  ✓  |  ✓  |     |
-| `VersionSelectSchema`                          |     |     |     |  ✓  |
-| `UploadNewVersionInputSchema`                  |  ✓  |  ✓  |  ✓  |     |
-| `AttachmentSelectSchema`                       |     |     |     |  ✓  |
-| `UploadAttachmentInputSchema`                  |  ✓  |  ✓  |  ✓  |     |
-| `DocumentNumberSelectSchema`                   |     |     |     |  ✓  |
-| `AssignFinalNumberInputSchema`                 |  ✓  |  ✓  |  ✓  |     |
-| `SignatureSelectSchema`                        |     |     |     |  ✓  |
-| `LogSignatureInputSchema`                      |  ✓  |  ✓  |  ✓  |     |
-| `PanlalawiganReviewSelectSchema`               |     |     |     |  ✓  |
-| `InitiatePanlalawiganTransmittalInputSchema`   |  ✓  |  ✓  |  ✓  |     |
-| `LogPanlalawiganOutcomeInputSchema`            |  ✓  |  ✓  |  ✓  |     |
-| **Document Metadata**                          |     |     |     |     |
-| `SpResolutionMetadataSchema`                   |  ✓  |  ✓  |  ✓  |     |
-| `SpOrdinanceMetadataSchema`                    |  ✓  |  ✓  |  ✓  |     |
-| `AppropriationOrdinanceMetadataSchema`         |  ✓  |  ✓  |  ✓  |     |
-| `CertificationOfUrgencyMetadataSchema`         |  ✓  |  ✓  |  ✓  |     |
-| `CitizenComplaintMetadataSchema`               |  ✓  |  ✓  |  ✓  |     |
-| `DocumentRequestFormMetadataSchema`            |  ✓  |  ✓  |  ✓  |     |
-| Phase 1B metadata schemas (6 types)            |  ✓  |  ✓  |  ✓  |     |
-| `DocumentMetadataSchema` (discriminated union) |  ✓  |  ✓  |     |     |
-| **Workflow**                                   |     |     |     |     |
-| `WorkflowDefinitionSelectSchema`               |     |     |     |  ✓  |
-| `WorkflowStepSelectSchema`                     |     |     |     |  ✓  |
-| `WorkflowInstanceSelectSchema`                 |     |     |     |  ✓  |
-| `StepInstanceSelectSchema`                     |     |     |     |  ✓  |
-| `AdvanceWorkflowStepInputSchema`               |  ✓  |  ✓  |  ✓  |     |
-| `SubmitCommitteeReportInputSchema`             |  ✓  |  ✓  |  ✓  |     |
-| `BypassStepInputSchema`                        |  ✓  |  ✓  |  ✓  |     |
-| `LogCertificationOfUrgencyInputSchema`         |  ✓  |  ✓  |  ✓  |     |
-| `WorkflowEventSelectSchema`                    |     |     |     |  ✓  |
-| **Tracking**                                   |     |     |     |     |
-| `QrScanInputSchema`                            |  ✓  |  ✓  |     |     |
-| `QrCodeScanResultSchema`                       |  ✓  |     |     |  ✓  |
-| `RoutingEntrySelectSchema`                     |     |     |     |  ✓  |
-| `LogRoutingEntryInputSchema`                   |  ✓  |  ✓  |  ✓  |     |
-| `TrackingRecordSelectSchema`                   |     |     |     |  ✓  |
-| **Records**                                    |     |     |     |     |
-| `RetentionScheduleSelectSchema`                |     |     |     |  ✓  |
-| `ArchiveEntrySelectSchema`                     |     |     |     |  ✓  |
-| `BulkArchiveInputSchema`                       |  ✓  |  ✓  |  ✓  |     |
-| `BulkArchivePreviewSchema`                     |     |     |     |  ✓  |
-| **Notifications**                              |     |     |     |     |
-| `NotificationEventSchema`                      |     |     |     |  ✓  |
-| `MarkNotificationsReadInputSchema`             |  ✓  |  ✓  |     |     |
-| `NotificationFilterSchema`                     |  ✓  |  ✓  |     |     |
-| `SseEventSchema`                               |  ✓  |     |     |  ✓  |
-| **Audit**                                      |     |     |     |     |
-| `AuditEventSelectSchema`                       |     |     |     |  ✓  |
-| `AuditEventFilterSchema`                       |  ✓  |  ✓  |     |     |
-| **Attendance**                                 |     |     |     |     |
-| `AttendanceStatusSchema`                       |  ✓  |  ✓  |  ✓  |  ✓  |
-| `CreateSpSessionInputSchema`                   |  ✓  |  ✓  |  ✓  |     |
-| `SpSessionSelectSchema`                        |     |     |     |  ✓  |
-| `OrderOfBusinessSchema`                        |     |     |     |  ✓  |
-| **Dashboards**                                 |     |     |     |     |
-| `SpSecretaryDashboardSchema`                   |     |     |     |  ✓  |
-| `MayorDashboardSchema`                         |     |     |     |  ✓  |
+| Schema | [B] | [T] | [F] | [R] |
+|--------|:---:|:---:|:---:|:---:|
+| **Common** | | | | |
+| `UuidSchema` | ✓ | ✓ | ✓ | ✓ |
+| `TimestampSchema` | | | | ✓ |
+| `DateSchema` | ✓ | ✓ | ✓ | ✓ |
+| `PaginationInputSchema` | ✓ | ✓ | | |
+| `DateRangeSchema` | ✓ | ✓ | ✓ | |
+| `PaginatedResponseSchema<T>` | | | | ✓ |
+| `ApiErrorSchema` | | | | ✓ |
+| `PresignedUploadRequestSchema` | ✓ | ✓ | | |
+| `PresignedUploadResponseSchema` | | | | ✓ |
+| **IAM** | | | | |
+| `UserSelectSchema` | | | | ✓ |
+| `UserSummarySchema` | | | | ✓ |
+| `CreateUserInputSchema` | ✓ | ✓ | ✓ | |
+| `UpdateUserInputSchema` | ✓ | ✓ | ✓ | |
+| `UserFilterSchema` | ✓ | ✓ | | |
+| `LoginInputSchema` | ✓ | ✓ | ✓ | |
+| `AuthResponseSchema` | ✓ | | | ✓ |
+| `ChangePasswordInputSchema` | ✓ | ✓ | ✓ | |
+| `SetupTotpInputSchema` | ✓ | ✓ | ✓ | |
+| `RoleSelectSchema` | | | | ✓ |
+| `CreateRoleInputSchema` | ✓ | ✓ | ✓ | |
+| `AssignRoleInputSchema` | ✓ | ✓ | ✓ | |
+| `RoleAssignmentSelectSchema` | | | | ✓ |
+| `SessionSelectSchema` | | | | ✓ |
+| **Organization** | | | | |
+| `OfficeSelectSchema` | | | | ✓ |
+| `OfficeSummarySchema` | | | | ✓ |
+| `CreateOfficeInputSchema` | ✓ | ✓ | ✓ | |
+| `UpdateOfficeInputSchema` | ✓ | ✓ | ✓ | |
+| `OfficeFilterSchema` | ✓ | ✓ | | |
+| `CreatePositionInputSchema` | ✓ | ✓ | ✓ | |
+| `EmployeeSelectSchema` | | | | ✓ |
+| `EmployeeSummarySchema` | | | | ✓ |
+| `CreateEmployeeInputSchema` | ✓ | ✓ | ✓ | |
+| `CreateAssignmentInputSchema` | ✓ | ✓ | ✓ | |
+| `CommitteeWithMembersSchema` | | | | ✓ |
+| `CreateCommitteeInputSchema` | ✓ | ✓ | ✓ | |
+| `DelegationGrantSelectSchema` | | | | ✓ |
+| `LogDelegationInputSchema` | ✓ | ✓ | ✓ | |
+| `RevokeDelegationInputSchema` | ✓ | ✓ | ✓ | |
+| **Documents Core** | | | | |
+| `DocumentSelectSchema` | | | | ✓ |
+| `DocumentSummarySchema` | | | | ✓ |
+| `DocumentTypeSummarySchema` | | | | ✓ |
+| `LogDocumentInputSchema` | ✓ | ✓ | ✓ | |
+| `DocumentFilterSchema` | ✓ | ✓ | | |
+| `CancelDocumentInputSchema` | ✓ | ✓ | ✓ | |
+| `VersionSelectSchema` | | | | ✓ |
+| `UploadNewVersionInputSchema` | ✓ | ✓ | ✓ | |
+| `AttachmentSelectSchema` | | | | ✓ |
+| `UploadAttachmentInputSchema` | ✓ | ✓ | ✓ | |
+| `DocumentNumberSelectSchema` | | | | ✓ |
+| `AssignFinalNumberInputSchema` | ✓ | ✓ | ✓ | |
+| `SignatureSelectSchema` | | | | ✓ |
+| `LogSignatureInputSchema` | ✓ | ✓ | ✓ | |
+| `PanlalawiganReviewSelectSchema` | | | | ✓ |
+| `InitiatePanlalawiganTransmittalInputSchema` | ✓ | ✓ | ✓ | |
+| `LogPanlalawiganOutcomeInputSchema` | ✓ | ✓ | ✓ | |
+| **Document Metadata** | | | | |
+| `SpResolutionMetadataSchema` | ✓ | ✓ | ✓ | |
+| `SpOrdinanceMetadataSchema` | ✓ | ✓ | ✓ | |
+| `AppropriationOrdinanceMetadataSchema` | ✓ | ✓ | ✓ | |
+| `CertificationOfUrgencyMetadataSchema` | ✓ | ✓ | ✓ | |
+| `CitizenComplaintMetadataSchema` | ✓ | ✓ | ✓ | |
+| `DocumentRequestFormMetadataSchema` | ✓ | ✓ | ✓ | |
+| Phase 1B metadata schemas (6 types) | ✓ | ✓ | ✓ | |
+| `DocumentMetadataSchema` (discriminated union) | ✓ | ✓ | | |
+| **Workflow** | | | | |
+| `WorkflowDefinitionSelectSchema` | | | | ✓ |
+| `WorkflowStepSelectSchema` | | | | ✓ |
+| `WorkflowInstanceSelectSchema` | | | | ✓ |
+| `StepInstanceSelectSchema` | | | | ✓ |
+| `AdvanceWorkflowStepInputSchema` | ✓ | ✓ | ✓ | |
+| `SubmitCommitteeReportInputSchema` | ✓ | ✓ | ✓ | |
+| `BypassStepInputSchema` | ✓ | ✓ | ✓ | |
+| `LogCertificationOfUrgencyInputSchema` | ✓ | ✓ | ✓ | |
+| `WorkflowEventSelectSchema` | | | | ✓ |
+| **Tracking** | | | | |
+| `QrScanInputSchema` | ✓ | ✓ | | |
+| `QrCodeScanResultSchema` | ✓ | | | ✓ |
+| `RoutingEntrySelectSchema` | | | | ✓ |
+| `LogRoutingEntryInputSchema` | ✓ | ✓ | ✓ | |
+| `TrackingRecordSelectSchema` | | | | ✓ |
+| **Records** | | | | |
+| `RetentionScheduleSelectSchema` | | | | ✓ |
+| `ArchiveEntrySelectSchema` | | | | ✓ |
+| `BulkArchiveInputSchema` | ✓ | ✓ | ✓ | |
+| `BulkArchivePreviewSchema` | | | | ✓ |
+| **Notifications** | | | | |
+| `NotificationEventSchema` | | | | ✓ |
+| `MarkNotificationsReadInputSchema` | ✓ | ✓ | | |
+| `NotificationFilterSchema` | ✓ | ✓ | | |
+| `SseEventSchema` | ✓ | | | ✓ |
+| **Audit** | | | | |
+| `AuditEventSelectSchema` | | | | ✓ |
+| `AuditEventFilterSchema` | ✓ | ✓ | | |
+| **Attendance** | | | | |
+| `AttendanceStatusSchema` | ✓ | ✓ | ✓ | ✓ |
+| `CreateSpSessionInputSchema` | ✓ | ✓ | ✓ | |
+| `SpSessionSelectSchema` | | | | ✓ |
+| `OrderOfBusinessSchema` | | | | ✓ |
+| **Dashboards** | | | | |
+| `SpSecretaryDashboardSchema` | | | | ✓ |
+| `MayorDashboardSchema` | | | | ✓ |
 
 ---
 
 ## Part 14 — Naming Conventions
 
-| Convention                  | Rule                              | Example                                                      |
-| --------------------------- | --------------------------------- | ------------------------------------------------------------ |
-| Select schemas              | `{Entity}SelectSchema`            | `DocumentSelectSchema`                                       |
-| Summary/lightweight schemas | `{Entity}SummarySchema`           | `DocumentSummarySchema`, `OfficeSummarySchema`               |
-| Input schemas               | `{Verb}{Entity}InputSchema`       | `LogDocumentInputSchema`, `CreateUserInputSchema`            |
-| Filter schemas              | `{Entity}FilterSchema`            | `DocumentFilterSchema`, `AuditEventFilterSchema`             |
-| Response schemas            | `{Entity}Schema`                  | `OrderOfBusinessSchema`, `QrCodeScanResultSchema`            |
-| Enum schemas                | `{Concept}Schema`                 | `LifecycleStateSchema`, `StepTypeSchema`                     |
-| Path params                 | `{Context}ParamsSchema`           | `IdParamsSchema`                                             |
-| Inferred types              | Same name without `Schema` suffix | `type DocumentSelect = z.infer<typeof DocumentSelectSchema>` |
+| Convention | Rule | Example |
+|------------|------|---------|
+| Select schemas | `{Entity}SelectSchema` | `DocumentSelectSchema` |
+| Summary/lightweight schemas | `{Entity}SummarySchema` | `DocumentSummarySchema`, `OfficeSummarySchema` |
+| Input schemas | `{Verb}{Entity}InputSchema` | `LogDocumentInputSchema`, `CreateUserInputSchema` |
+| Filter schemas | `{Entity}FilterSchema` | `DocumentFilterSchema`, `AuditEventFilterSchema` |
+| Response schemas | `{Entity}Schema` | `OrderOfBusinessSchema`, `QrCodeScanResultSchema` |
+| Enum schemas | `{Concept}Schema` | `LifecycleStateSchema`, `StepTypeSchema` |
+| Path params | `{Context}ParamsSchema` | `IdParamsSchema` |
+| Inferred types | Same name without `Schema` suffix | `type DocumentSelect = z.infer<typeof DocumentSelectSchema>` |
 
 ---
 
@@ -3258,47 +3177,47 @@ export type MayorDashboard = z.infer<typeof MayorDashboardSchema>;
 ```typescript
 // /packages/shared/src/index.ts
 
-export * from './schemas/common';
-export * from './schemas/iam';
-export * from './schemas/organization';
-export * from './schemas/documents';
-export * from './schemas/document-metadata';
-export * from './schemas/workflow';
-export * from './schemas/tracking';
-export * from './schemas/records';
-export * from './schemas/notifications';
-export * from './schemas/audit';
-export * from './schemas/attendance';
-export * from './schemas/dashboard';
+export * from "./schemas/common";
+export * from "./schemas/iam";
+export * from "./schemas/organization";
+export * from "./schemas/documents";
+export * from "./schemas/document-metadata";
+export * from "./schemas/workflow";
+export * from "./schemas/tracking";
+export * from "./schemas/records";
+export * from "./schemas/notifications";
+export * from "./schemas/audit";
+export * from "./schemas/attendance";
+export * from "./schemas/dashboard";
 
 // Enum schemas are re-exported from domain files above.
 // These explicit re-exports allow import directly from the enums path
 // for callers that only need enums (e.g. database seed scripts).
-export * from './enums/iam';
-export * from './enums/organization';
-export * from './enums/documents';
-export * from './enums/workflow';
+export * from "./enums/iam";
+export * from "./enums/organization";
+export * from "./enums/documents";
+export * from "./enums/workflow";
 ```
 
 ### Consumer Import Patterns
 
 ```typescript
 // tRPC procedure (apps/server)
-import { LogDocumentInputSchema, type LogDocumentInput } from '@batac-lgu/shared';
+import { LogDocumentInputSchema, type LogDocumentInput } from "@batac-lgu/shared";
 
 // Fastify REST route (apps/server)
-import { IdParamsSchema, DocumentFilterSchema } from '@batac-lgu/shared';
+import { IdParamsSchema, DocumentFilterSchema } from "@batac-lgu/shared";
 
 // React Hook Form (apps/web)
-import { zodResolver } from '@hookform/resolvers/zod';
-import { SpResolutionMetadataSchema, type SpResolutionMetadata } from '@batac-lgu/shared';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { SpResolutionMetadataSchema, type SpResolutionMetadata } from "@batac-lgu/shared";
 
 const form = useForm<SpResolutionMetadata>({
   resolver: zodResolver(SpResolutionMetadataSchema),
 });
 
 // TanStack Query response typing (apps/web)
-import { type DocumentSelect, type PaginatedResponse } from '@batac-lgu/shared';
+import { type DocumentSelect, type PaginatedResponse } from "@batac-lgu/shared";
 ```
 
 ---
@@ -3325,4 +3244,4 @@ The following rules are enforced at PR review and, where automated, by tooling:
 
 ---
 
-_This document supersedes any locally-defined schema definitions in `/apps/web` or `/apps/server` present at the time of publication. Migration of pre-existing local schemas to this catalog is a pre-Phase-1-development-start requirement. This document is updated after every stakeholder interview, developer decision, or schema migration that changes a column type, constraint, or business rule._
+*This document supersedes any locally-defined schema definitions in `/apps/web` or `/apps/server` present at the time of publication. Migration of pre-existing local schemas to this catalog is a pre-Phase-1-development-start requirement. This document is updated after every stakeholder interview, developer decision, or schema migration that changes a column type, constraint, or business rule.*

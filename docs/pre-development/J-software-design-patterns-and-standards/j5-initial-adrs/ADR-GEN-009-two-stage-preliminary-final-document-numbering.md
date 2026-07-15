@@ -1,5 +1,6 @@
 # ADR-GEN-009: Two-Stage Preliminary/Final Document Numbering
 
+
 **Status:** Accepted **Date:** June 2026 **Deciders:** Development team (confirmed by Interview 2, superseding Interview 1's understanding, resolving Q-01)
 
 ---

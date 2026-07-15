@@ -14,8 +14,7 @@ The IAM module's ABAC Policy Engine evaluates classification-gated access polici
 The Records module is Phase 2 (Consolidated Reference, Module Priority Order; B2 Module 6 header: "Phase 2 (module delivered Phase 2; schema reserved in Phase 1 migration)"). This creates a genuine question for Phase 1: since `IAM.evaluatePolicy()` is documented as internally calling `Records.getClassificationForDocument()` "as needed" (B2, Module 1 Published API doc comment), what does the ABAC engine call in Phase 1, when Records does not yet exist as an active module?
 
 B2 already answers this in two places without contradiction:
-
-- Module 6's `getClassificationForDocument()` doc comment: _"Phase 1 note: Records module is delivered in Phase 2. In Phase 1, the ABAC engine uses the classificationLevel field from Documents.getDocumentById() instead. This method becomes the canonical classification source in Phase 2."_
+- Module 6's `getClassificationForDocument()` doc comment: *"Phase 1 note: Records module is delivered in Phase 2. In Phase 1, the ABAC engine uses the classificationLevel field from Documents.getDocumentById() instead. This method becomes the canonical classification source in Phase 2."*
 - The Published API Call Matrix: `IAM (ABAC engine) | Records | getClassificationForDocument() | Classification-gated access control [Phase 2]`.
 
 What is not yet specified is the mechanics of the Phase 1→2 cutover itself — this ADR's purpose, per its entry in B2's Required ADRs table, is to require "a deliberate migration plan at Phase 2 start."
