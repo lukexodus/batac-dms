@@ -2720,3 +2720,15 @@ This runs against `tech-stack.md`'s own stated intent that the shared package's 
 
 ---
 
+### [LOG-0110] Resolution of `infra` vs `infrastructure` directory near-collision
+
+- date: 2026-07-15
+- task_id: none — direct request from user
+- status: proposed
+- affects: none
+
+**What was found:** The server app had both a `src/infra` directory (containing `dead-letter.repository.ts`) and a `src/infrastructure` directory (containing `database.plugin.ts` and `event-bus.plugin.ts`). These represented distinct concerns (repository implementation vs Fastify plugins), but the naming near-collision was confusing for contributors.
+
+**Resolution:** Combined the directories by moving `src/infra/dead-letter.repository.ts` to `src/infrastructure/dead-letter.repository.ts` and removing the now-empty `src/infra` directory. Updated the import path inside `src/infrastructure/event-bus.plugin.ts` to `./dead-letter.repository.js`.
+
+---

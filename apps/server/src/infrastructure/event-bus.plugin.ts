@@ -31,7 +31,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
 import { EventBus } from '@batac/shared';
-import { DeadLetterRepository } from '../infra/dead-letter.repository.js';
+import { DeadLetterRepository } from './dead-letter.repository.js';
 
 async function eventBusPlugin(fastify: FastifyInstance): Promise<void> {
   const deadLetterRepo = new DeadLetterRepository(fastify.db);
