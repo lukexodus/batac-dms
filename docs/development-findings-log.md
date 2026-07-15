@@ -2829,3 +2829,22 @@ document in the pre-dev corpus (beyond E3) also references the stale
 task; if a future task or human review finds another stale reference, it
 should get its own findings-log entry rather than assuming this entry
 covers it.
+### [LOG-0113] Document schema field divergence: AttachmentSelectSchema.s3Key nullability
+**Status:** `proposed`
+**Tags:** `E3`, `C1`, `packages/shared`, `TASK-DOCS-SHARED-003`
+
+**Issue:** While migrating `AttachmentSelectSchema` to derive from `drizzle-zod`'s `createSelectSchema()` (TASK-DOCS-SHARED-003), the Drizzle column `fileKey` (`file_key` in PostgreSQL) maps to `z.string().nullable()` because it lacks `.notNull()`. However, the established schema overrides this field as `s3Key: z.string()` (non-nullable). If an attachment record legitimately lacks a file key (e.g., when it references a `sourceDocumentId` like a shared Certification of Urgency as mentioned in Drizzle schema comments), this non-nullable override will fail at runtime.
+
+**What was done:** The override `s3Key: z.string()` was retained to preserve backwards compatibility for existing consumers, as silently widening it to `nullable` would be a behavior change beyond the task's scope. 
+
+**Recommendation:** A human must review whether `s3Key` should genuinely be nullable (which requires updating downstream consumers handling the null case), or whether the database schema should enforce `.notNull()` if it's strictly required everywhere.
+
+### [LOG-0114] Document schema field divergence: PanlalawiganReview dateReferred mapping
+**Status:** `proposed`
+**Tags:** `E3`, `C1`, `packages/shared`, `TASK-DOCS-SHARED-003`
+
+**Issue:** During the migration of `PanlalawiganReviewSelectSchema` to use `createSelectSchema()` (TASK-DOCS-SHARED-003), it was observed that the old hand-written schema included a `dateReferred` field. This field does not exist as a column in the `panlalawiganReviews` table under that exact name. The Drizzle table instead contains `actionDeadline` and `responseDate` (which were consequently added to the output by `createSelectSchema`). 
+
+**What was done:** The `dateReferred` field was removed from the schema output as it could not be mapped safely to `actionDeadline` or `responseDate` without guessing its intentional tracking purpose. The new fields `actionDeadline` and `responseDate` are now exposed directly.
+
+**Recommendation:** A human should review if `dateReferred` was intentionally tracking something distinct from `actionDeadline`/`responseDate`, or if it was an outdated naming alias. Any consumers still expecting `dateReferred` will need to be updated.

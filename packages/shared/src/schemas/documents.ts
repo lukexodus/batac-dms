@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import { createSelectSchema } from 'drizzle-zod';
-import { documents, versions } from '@batac/database/schema/documents.schema.js';
+import {
+  documents,
+  versions,
+  documentTypes,
+  attachments,
+  numbers,
+  signatures,
+  panlalawiganReviews,
+} from '@batac/database/schema/documents.schema.js';
 import {
   UuidSchema,
   TimestampSchema,
@@ -101,17 +109,27 @@ export const DocumentTypeSummarySchema = z.object({
 export type DocumentTypeSummary = z.infer<typeof DocumentTypeSummarySchema>;
 
 export const DocumentTypeSelectSchema = z.object({
+  ...createSelectSchema(documentTypes).omit({
+    cityId: true,
+    deletedAt: true,
+    deletedBy: true,
+  }).shape,
   id: UuidSchema,
-  name: z.string(),
-  code: z.string(),
-  owningModule: z.string(),
   numberSeriesId: UuidSchema.nullable(),
+  // Renamed from Drizzle's `hasPreliminaryNumbering` to
+  // `preliminaryNumbering` to match this field's existing, established
+  // name in this schema. Confirmed via repo-wide search: no live code
+  // outside this file depends on the OLD Drizzle-matching name
+  // (`hasPreliminaryNumbering` is not referenced anywhere as a property
+  // access), so this override is a safe rename, not a compatibility
+  // requirement — kept as an explicit override rather than accepting the
+  // derived name because `preliminaryNumbering` is the name already used
+  // by this schema's existing consumers, and there was no reason found
+  // to force a rename onto them.
   preliminaryNumbering: z.boolean(),
-  controlNumberDeferred: z.boolean(),
   classificationDefault: ClassificationLevelSchema,
   publicVisibilityRule: PublicVisibilityRuleSchema,
   metadataSchema: z.record(z.unknown()),
-  isActive: z.boolean(),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });
@@ -396,12 +414,31 @@ export type FlagScannedBackInput = z.infer<typeof FlagScannedBackInputSchema>;
 
 // Attachments
 export const AttachmentSelectSchema = z.object({
+  ...createSelectSchema(attachments).omit({
+    cityId: true,
+    deletedAt: true,
+    deletedBy: true,
+  }).shape,
   id: UuidSchema,
   documentId: UuidSchema,
+  // Renamed from Drizzle's `fileKey` to `s3Key` to match this field's
+  // existing, established name in this schema. Confirmed via repo-wide
+  // search: no live code depends on the OLD Drizzle-matching name
+  // (`fileKey` is not referenced as a property access on any
+  // attachment-shaped object outside this file), so this is a safe
+  // rename. The underlying Drizzle column is nullable
+  // (`fileKey: uuid('file_key')`, no `.notNull()`), but this schema's
+  // existing consumers expect a non-nullable string — preserved as-is
+  // below rather than silently widening to nullable, since that would be
+  // a behavior change beyond this task's scope. If a genuinely
+  // attachment-without-a-file-key row can exist (the Drizzle comment for
+  // `sourceDocumentId` below suggests one can — a Certification of
+  // Urgency attachment referencing a source document instead of its own
+  // file), this non-nullable override may be WRONG and is flagged here
+  // as a finding, not silently resolved:
   s3Key: z.string(),
-  attachmentType: AttachmentTypeSchema,
+  sourceDocumentId: UuidSchema.nullable(),
   description: z.string().nullable(),
-  mimeType: z.string(),
   fileSizeBytes: z.number().int().positive(),
   uploadedBy: UuidSchema,
   createdAt: TimestampSchema,
@@ -420,14 +457,20 @@ export type UploadAttachmentInput = z.infer<typeof UploadAttachmentInputSchema>;
 
 // Numbers
 export const DocumentNumberSelectSchema = z.object({
+  ...createSelectSchema(numbers).omit({
+    cityId: true,
+    deletedAt: true,
+    deletedBy: true,
+  }).shape,
   id: UuidSchema,
   documentId: UuidSchema,
+  // Renamed from Drizzle's `numberSeriesId` to `seriesId` to match this
+  // field's existing, established name in this schema. Confirmed via
+  // repo-wide search: no live code depends on the OLD Drizzle-matching
+  // name (`numberSeriesId` is not referenced as a property access on any
+  // number-shaped object outside this file), so this is a safe rename.
   seriesId: UuidSchema,
-  numberType: NumberTypeSchema,
   numberValue: z.string(),
-  sequenceYear: z.number().int(),
-  sequenceNumber: z.number().int(),
-  isCurrent: z.boolean(),
   assignedAt: TimestampSchema,
   assignedBy: UuidSchema,
   supersededAt: TimestampSchema.nullable(),
@@ -443,13 +486,16 @@ export type AssignFinalNumberInput = z.infer<typeof AssignFinalNumberInputSchema
 
 // Signatures
 export const SignatureSelectSchema = z.object({
+  ...createSelectSchema(signatures).omit({
+    cityId: true,
+    deletedAt: true,
+    deletedBy: true,
+  }).shape,
   id: UuidSchema,
   documentId: UuidSchema,
   signedByEmployeeId: UuidSchema,
-  signedByDisplayName: z.string(),
-  signatureType: SignatureTypeSchema,
+  signedByDisplayName: z.string().nullable(),
   signedAt: TimestampSchema,
-  isWetInk: z.boolean(),
   signatureImageS3Key: z.string().nullable(),
   createdAt: TimestampSchema,
 });
@@ -468,14 +514,37 @@ export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;
 
 // Panlalawigan
 export const PanlalawiganReviewSelectSchema = z.object({
+  ...createSelectSchema(panlalawiganReviews).omit({
+    cityId: true,
+    deletedAt: true,
+    deletedBy: true,
+  }).shape,
   id: UuidSchema,
   documentId: UuidSchema,
+  numberSeriesId: UuidSchema.nullable(),
+  // OVERRIDE REQUIRED, NOT OPTIONAL: the underlying Drizzle column is
+  // named `controlNo` (DB: `control_no`), but this schema has ALWAYS
+  // exposed it as `controlNumber`, and live code genuinely depends on
+  // that name — confirmed via repo-wide search:
+  // `apps/server/src/modules/workflow/workflow.router.ts` line ~1940
+  // reads `input.controlNumber`. Renaming this to match Drizzle would
+  // break that call site. Do NOT rename to `controlNo` — keep the
+  // override exactly as below.
   controlNumber: z.string().nullable(),
   subject: z.string().nullable(),
   transmittedAt: TimestampSchema.nullable(),
   receivedAt: TimestampSchema.nullable(),
-  dateReferred: TimestampSchema.nullable(),
+  actionDeadline: TimestampSchema.nullable(),
+  responseDate: TimestampSchema.nullable(),
   outcome: PanlalawiganOutcomeSchema.nullable(),
+  // OVERRIDE REQUIRED, NOT OPTIONAL: same situation as controlNumber
+  // above — the underlying Drizzle column is named `resolutionNumber`,
+  // but this schema has always exposed it as
+  // `panlalawiganResolutionNumber`, and live code depends on that name
+  // (`apps/server/src/modules/workflow/workflow.router.ts` line ~1941,
+  // `apps/server/src/modules/documents/panlalawigan.router.ts` line
+  // ~138). Do NOT rename to `resolutionNumber` — keep the override
+  // exactly as below.
   panlalawiganResolutionNumber: z.string().nullable(),
   remarks: z.string().nullable(),
   daysElapsed: z.number().int().nonnegative().nullable(),
