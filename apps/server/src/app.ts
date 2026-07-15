@@ -58,7 +58,7 @@ import helmet from '@fastify/helmet';
  * `key=value` pairs (e.g. "Authorization=Basic xyz,X-Custom=abc"), matching
  * the same format instrumentation.ts already parses for the trace exporter.
  */
-function parseOtlpHeaders(raw: string): Record<string, string> {
+export function parseOtlpHeaders(raw: string): Record<string, string> {
   const headers: Record<string, string> = {};
   if (!raw) return headers;
   for (const pair of raw.split(',')) {

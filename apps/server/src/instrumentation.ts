@@ -3,14 +3,9 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { FastifyInstrumentation } from '@opentelemetry/instrumentation-fastify';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { env } from './config/env.js';
+import { parseOtlpHeaders } from './app.js';
 
-const headers: Record<string, string> = {};
-if (env.OTEL_EXPORTER_OTLP_HEADERS) {
-  const [key, value] = env.OTEL_EXPORTER_OTLP_HEADERS.split('=', 2);
-  if (key && value) {
-    headers[key.trim()] = value.trim();
-  }
-}
+const headers = parseOtlpHeaders(env.OTEL_EXPORTER_OTLP_HEADERS);
 
 // OTLPTraceExporter expects the full endpoint for traces.
 // We append /v1/traces to the base endpoint as required by OpenObserve.
