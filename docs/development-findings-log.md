@@ -2732,3 +2732,22 @@ This runs against `tech-stack.md`'s own stated intent that the shared package's 
 **Resolution:** Combined the directories by moving `src/infra/dead-letter.repository.ts` to `src/infrastructure/dead-letter.repository.ts` and removing the now-empty `src/infra` directory. Updated the import path inside `src/infrastructure/event-bus.plugin.ts` to `./dead-letter.repository.js`.
 
 ---
+
+### [LOG-0111] Proposed resolution strategy for LOG-0108 (Zod v3/v4 package split)
+
+- date: 2026-07-15
+- task_id: TASK-DOCS-SHARED-004
+- status: proposed
+- affects: tech-stack.md (same sections named in the entry this supersedes/extends), AGENTS.md (no existing routing row covers "verify no cross-branch Zod composition" as a review step — see proposal below)
+
+**What this entry adds to the referenced entry:** the referenced entry documented the Zod v3 (`packages/shared`, `apps/server`) / v4 (`apps/web`) split but explicitly did not investigate whether it causes a concrete problem today, or propose a resolution. This entry does both, within the constraints of what an agent may decide (see "What this entry does NOT do" below).
+
+**Direct verification performed this session:** Checked the two runtime-import call sites in `apps/web`. The first import, `AllowedMimeTypeSchema` in `apps/web/src/pages/documents/DocumentIntakePage.tsx`, is used via `.safeParse()` directly to validate selected files. The second import, `LifecycleStateSchema` in `apps/web/src/lib/status-mapping.test.ts`, is used only to retrieve the `.options` array. Neither of these imports is composed with a local `apps/web` schema via `.extend()`, `.merge()`, or `z.intersection()`. This indicates that the current runtime risk of this split is low because there is no cross-branch Zod composition occurring at these call sites.
+
+**Proposed resolution (for human decision — not implemented as part of this entry):** two options were considered, presented here for a human to choose between rather than decided by this task:
+
+1. **Formally document the version boundary as a standing constraint**: add an explicit note to `tech-stack.md`'s dependency-flow diagram section stating that `apps/web`'s local Zod instance (v4) must not compose a `@batac/shared`-imported schema (v3) via `.extend()`, `.merge()`, or `z.intersection()` — isolated usage (`.safeParse()`/`.parse()`/property access) is safe, composition is not. This requires a human to make the `tech-stack.md` edit; this entry does not make it. A corresponding routing-table or Section-4.5-adjacent note in `AGENTS.md` could also be added by a human, flagging this as a review-time check for any future PR touching `apps/web` schema composition — this task does not draft that edit, since drafting AGENTS.md routing-table content was judged out of scope for a findings-log task; a human who wants that can request it as its own follow-up.
+2. **Upgrade `packages/shared`/`apps/server` to Zod v4**, removing the split entirely. Not investigated as part of this task — the blast radius of a Zod v3→v4 upgrade across `packages/shared`'s entire schema catalog and its interaction with the already-pinned `drizzle-zod@0.7.1` (itself pinned specifically to stay on Zod's classic-v3-branch internal types — see the `drizzle-zod` version investigation from TASK-DOCS-SHARED-001) was not assessed. This is very likely a larger, separately-scoped task if pursued, not a quick fix — flagging this scale concern explicitly rather than either recommending or discouraging the option outright.
+
+**What this entry does NOT do:** it does not edit `tech-stack.md`. It does not edit `AGENTS.md`. It does not choose between the two options above. It does not set this entry's own `status` to anything other than `proposed`. Per AGENTS.md Section 4.5, only a human may do any of those four things.
+
