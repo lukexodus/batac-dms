@@ -215,11 +215,6 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await fastify.register(databasePlugin);
   await fastify.register(eventBusPlugin);
   await fastify.register(auditPlugin);
-  await fastify.register(rateLimit, {
-    max: env.RATE_API_MAX,
-    timeWindow: env.RATE_API_WINDOW_MS,
-    allowList: [env.HEALTH_CHECK_PATH],
-  });
   await fastify.register(iamPlugin);
 
   // Must be decorated before organizationPlugin registers — see the Bug B
@@ -248,6 +243,11 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   });
 
   await fastify.register(async (trpcApp) => {
+    await trpcApp.register(rateLimit, {
+      max: env.RATE_API_MAX,
+      timeWindow: env.RATE_API_WINDOW_MS,
+    });
+
     const { authMiddlewarePlugin } = await import('./modules/iam/iam.middleware.js');
     await trpcApp.register(authMiddlewarePlugin);
 

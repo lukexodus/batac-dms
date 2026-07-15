@@ -15,6 +15,7 @@
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
+import rateLimit from '@fastify/rate-limit';
 import { env } from '../../config/env.js';
 import { LoginInputSchema, TerminateSessionInputSchema, UnlockInputSchema } from './iam.schemas.js';
 import { authMiddlewarePlugin, clearAuthCookies } from './iam.middleware.js';
@@ -58,6 +59,11 @@ function buildCookieHeader(
 }
 
 export async function registerIamRoutes(fastify: FastifyInstance): Promise<void> {
+  await fastify.register(rateLimit, {
+    max: env.RATE_API_MAX,
+    timeWindow: env.RATE_API_WINDOW_MS,
+  });
+
   /**
    * POST /api/auth/login
    *
