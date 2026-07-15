@@ -63,11 +63,10 @@ export default function DocumentIntakePage() {
       return;
     }
 
-    // TODO: validTypes only lists 3 of the 5 MIME types AllowedMimeTypeSchema actually accepts (missing Office document types)
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-    if (!validTypes.includes(selected.type)) {
+    const mimeTypeCheck = AllowedMimeTypeSchema.safeParse(selected.type);
+    if (!mimeTypeCheck.success) {
       setFile(null);
-      setFileError('Invalid file type. Must be PDF, JPEG, or PNG');
+      setFileError('Invalid file type. Must be PDF, Word (.docx), Excel (.xlsx), JPEG, or PNG');
       return;
     }
 
