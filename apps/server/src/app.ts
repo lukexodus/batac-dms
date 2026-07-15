@@ -47,6 +47,7 @@ import documentsPlugin from './modules/documents/documents.plugin.js';
 import trackingPlugin from './modules/tracking/tracking.plugin.js';
 import { workflowPlugin } from './modules/workflow/index.js';
 import rateLimit from '@fastify/rate-limit';
+import helmet from '@fastify/helmet';
 // organization, documents, workflow, tracking, notifications: add
 // `await fastify.register(...)` below, after iamPlugin and before the tRPC
 // registration, when each module's own plugin-wiring task completes.
@@ -105,7 +106,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   if (env.LOG_LEVEL !== 'silent') {
     // Resolve the primary destination (stdout / stderr / file path) as a
     // pino/file transport target rather than a separate `dest` argument.
-    // [Fixed — see docs/development-findings-log.md, LOG-0107] Pino does not
+    // [Fixed — see docs/development-findings-log.md, LOG-0108] Pino does not
     // allow both `opts.transport` and a second positional `dest` argument to
     // be pino.destination(...) at the same time: when opts.transport is set,
     // Pino builds its stream entirely from `opts.transport` and silently
@@ -203,6 +204,12 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   });
 
   await registerHealthRoute(fastify);
+
+  await fastify.register(helmet, {
+    xFrameOptions: { action: 'deny' },
+    referrerPolicy: { policy: 'no-referrer' },
+    strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true },
+  });
 
   // Wave B infrastructure + module plugins, in dependency order.
   await fastify.register(databasePlugin);
