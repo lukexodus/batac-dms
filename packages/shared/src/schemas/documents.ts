@@ -113,8 +113,8 @@ export const DocumentTypeSelectSchema = z.object({
 export type DocumentTypeSelect = z.infer<typeof DocumentTypeSelectSchema>;
 
 // Core Document
-export const DocumentSelectSchema = z.intersection(
-  createSelectSchema(documents).omit({
+export const DocumentSelectSchema = z.object({
+  ...createSelectSchema(documents).omit({
     cityId: true,
     numberSeriesId: true,
     draftedByEmployeeId: true,
@@ -122,34 +122,44 @@ export const DocumentSelectSchema = z.intersection(
     tsv: true,
     deletedAt: true,
     deletedBy: true,
-  }) as any,
-  z.object({
-    id: UuidSchema,
-    documentTypeId: UuidSchema,
-    documentType: DocumentTypeSummarySchema,
-    title: z.string().min(1),
-    lifecycleState: LifecycleStateSchema,
-    classificationLevel: ClassificationLevelSchema,
-    qrTrackingNumber: UuidSchema,
-    preliminaryNumber: z.string().nullable(),
-    finalNumber: z.string().nullable(),
-    controlNumber: z.string().nullable(),
-    originatingOfficeId: UuidSchema,
-    originatingOffice: OfficeSummarySchema,
-    ownedByOfficeId: UuidSchema,
-    createdBy: UuidSchema,
-    workflowInstanceId: UuidSchema.nullable(),
-    versionNumber: z.number().int().min(1),
-    metadata: z.record(z.unknown()),
-    supersededBy: UuidSchema.nullable(),
-    supersededAt: TimestampSchema.nullable(),
-    closureReason: z.string().nullable(),
-    createdAt: TimestampSchema,
-    updatedAt: TimestampSchema,
-  })
-);
-type InferOutput<T> = T extends { _output: infer O } ? O : never;
-export type DocumentSelect = InferOutput<typeof DocumentSelectSchema>;
+  }).shape,
+  id: UuidSchema,
+  documentTypeId: UuidSchema,
+  documentType: DocumentTypeSummarySchema,
+  title: z.string().min(1),
+  // [KNOWN GAP — see docs/development-findings-log.md] The underlying
+  // Drizzle column (lifecycle_state) is plain text() with the 11-value
+  // constraint living only in a raw SQL CHECK — Drizzle's type system
+  // has no way to derive an enum from that. This means TypeScript CANNOT
+  // catch it if this override key is ever misspelled, renamed, or
+  // dropped — it would silently fall back to an unconstrained string
+  // with zero compile error. This override is the ONLY place this
+  // constraint is enforced at the type level. Do not remove it without
+  // first giving the underlying column a real Drizzle-level type (native
+  // pgEnum or .$type<LifecycleState>() narrowing) — a schema-level
+  // change outside the scope of this file.
+  lifecycleState: LifecycleStateSchema,
+  // classificationLevel has the identical gap — see the comment above
+  // lifecycleState.
+  classificationLevel: ClassificationLevelSchema,
+  qrTrackingNumber: UuidSchema,
+  preliminaryNumber: z.string().nullable(),
+  finalNumber: z.string().nullable(),
+  controlNumber: z.string().nullable(),
+  originatingOfficeId: UuidSchema,
+  originatingOffice: OfficeSummarySchema,
+  ownedByOfficeId: UuidSchema,
+  createdBy: UuidSchema,
+  workflowInstanceId: UuidSchema.nullable(),
+  versionNumber: z.number().int().min(1),
+  metadata: z.record(z.unknown()),
+  supersededBy: UuidSchema.nullable(),
+  supersededAt: TimestampSchema.nullable(),
+  closureReason: z.string().nullable(),
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+});
+export type DocumentSelect = z.infer<typeof DocumentSelectSchema>;
 
 export const DocumentSummarySchema = z.object({
   id: UuidSchema,
@@ -280,8 +290,8 @@ export const SearchDocumentsOutputSchema = z.object({
 export type SearchDocumentsOutput = z.infer<typeof SearchDocumentsOutputSchema>;
 
 // Versions
-export const VersionSelectSchema = z.intersection(
-  createSelectSchema(versions).omit({
+export const VersionSelectSchema = z.object({
+  ...createSelectSchema(versions).omit({
     cityId: true,
     ocrText: true,
     tsv: true,
@@ -289,24 +299,22 @@ export const VersionSelectSchema = z.intersection(
     verifiedAt: true,
     requiresManualVerification: true,
     createdBy: true,
-  }) as any,
-  z.object({
-    id: UuidSchema,
-    documentId: UuidSchema,
-    versionNumber: z.number().int().min(1),
-    fileKey: UuidSchema,
-    originalFilename: z.string().nullable(),
-    mimeType: z.string(),
-    fileSizeBytes: z.number().int().positive(),
-    pageCount: z.number().int().positive().nullable(),
-    scanQualityScore: z.number().min(0).max(1).nullable(),
-    scanQualityCategory: ScanQualityCategorySchema.nullable(),
-    ocrProcessed: z.boolean(),
-    uploadedBy: UuidSchema,
-    createdAt: TimestampSchema,
-  })
-);
-export type VersionSelect = InferOutput<typeof VersionSelectSchema>;
+  }).shape,
+  id: UuidSchema,
+  documentId: UuidSchema,
+  versionNumber: z.number().int().min(1),
+  fileKey: UuidSchema,
+  originalFilename: z.string().nullable(),
+  mimeType: z.string(),
+  fileSizeBytes: z.number().int().positive(),
+  pageCount: z.number().int().positive().nullable(),
+  scanQualityScore: z.number().min(0).max(1).nullable(),
+  scanQualityCategory: ScanQualityCategorySchema.nullable(),
+  ocrProcessed: z.boolean(),
+  uploadedBy: UuidSchema,
+  createdAt: TimestampSchema,
+});
+export type VersionSelect = z.infer<typeof VersionSelectSchema>;
 
 export const UploadNewVersionInputSchema = z.object({
   documentId: UuidSchema,

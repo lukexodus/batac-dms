@@ -2643,7 +2643,7 @@ A human reviewer should determine whether this is in-scope for the current
 Phase 1 round (in which case it likely needs a new task, e.g. under IAM) or
 correctly deferred, and whether the consolidated reference needs an explicit
 statement of the intended flow either way.
-### [LOG-0104] performSilentRefresh() synchronous rejection prevents HAR capture during token expiration redirect
+### [LOG-0105] performSilentRefresh() synchronous rejection prevents HAR capture during token expiration redirect
 
 - date: 2026-07-13
 - task_id: TASK-IAM-INV-001
@@ -2658,7 +2658,7 @@ Additionally, the `Referer` discrepancy (where `documents.list` reports `/` inst
 
 [Tested]: Reconstructed the timeline and browser policies logically without code modification, confirming both the cookie drop and the Referer path stripping are standards-compliant browser behaviors, not framework artifacts.
 
-### [LOG-0105] [Unconfirmed Hypothesis] SessionHydrator race condition destroys batac_at cookies on fast login
+### [LOG-0106] [Unconfirmed Hypothesis] SessionHydrator race condition destroys batac_at cookies on fast login
 
 - date: 2026-07-13
 - task_id: TASK-IAM-INV-001
@@ -2676,7 +2676,7 @@ The "immediate 401 redirect" when clicking "Documents" right after login *may* b
 
 [Fix Required]: If this hypothesis is confirmed by server-side logs, `SessionHydrator` will need an `AbortController` to cancel the `refresh` fetch if the user successfully logs in, OR the backend should not indiscriminately clear cookies if `refresh` fails.
 
-### [LOG-0106] Observability stack shifted to OpenObserve with OpenTelemetry
+### [LOG-0107] Observability stack shifted to OpenObserve with OpenTelemetry
 
 - date: 2026-07-14
 - task_id: TASK-INFRA-024
@@ -2684,5 +2684,39 @@ The "immediate 401 redirect" when clicking "Documents" right after login *may* b
 - affects: none
 - resolved_in: docs/pre-development/tech-stack.md
 
-The original plan named Sentry for error tracking and a generic log aggregator for Pino JSON. During TASK-IAM-INV-001 (tracing the login failure in LOG-0105), it became clear that Sentry's free tier limits (5,000 events/mo) and lack of unified trace correlation made it unsuitable for the codebase. OpenObserve (self-hosted, OSS) was chosen for full-stack observability. The backend uses OpenTelemetry natively emitting OTLP over HTTP to OpenObserve, correlating Pino logs with unique trace IDs (`req_...`). The frontend uses `@openobserve/browser-rum` for view tracking and `@openobserve/browser-logs` for structured client-side error logging, forwarding the backend `traceId` when 401/423 errors occur. `tech-stack.md` has been updated to reflect OpenObserve RUM as the active error tracking choice, leaving Sentry as a future fallback. [Implemented in codebase].
+The original plan named Sentry for error tracking and a generic log aggregator for Pino JSON. During TASK-IAM-INV-001 (tracing the login failure in LOG-0106), it became clear that Sentry's free tier limits (5,000 events/mo) and lack of unified trace correlation made it unsuitable for the codebase. OpenObserve (self-hosted, OSS) was chosen for full-stack observability. The backend uses OpenTelemetry natively emitting OTLP over HTTP to OpenObserve, correlating Pino logs with unique trace IDs (`req_...`). The frontend uses `@openobserve/browser-rum` for view tracking and `@openobserve/browser-logs` for structured client-side error logging, forwarding the backend `traceId` when 401/423 errors occur. `tech-stack.md` has been updated to reflect OpenObserve RUM as the active error tracking choice, leaving Sentry as a future fallback. [Implemented in codebase].
+
+---
+
+### [LOG-0108] Zod major-version split between `packages/shared` (v3) and `apps/web` (v4)
+
+- date: 2026-07-15
+- task_id: none — surfaced during a planning-layer investigation of the DocumentSelectSchema/VersionSelectSchema runtime crash (see the standalone prompt this session produced), not itself an A1 task
+- status: proposed
+- affects: tech-stack.md (§ dependency flow diagram, "drizzle-zod → Zod schemas → ... React Hook Form validation"; § stack table row "Validation / contracts — Zod (shared package) — Single source of truth: ... frontend forms")
+
+**What was found:** `packages/shared/package.json` declares `"zod": "^3.23.0"` (resolves to `3.25.76` per the lockfile). `apps/web/package.json` declares `"zod": "^4.4.3"` — a different Zod major version. `apps/web` depends on `@batac/shared` as a workspace package and does consume exports from `packages/shared/src/schemas/documents.ts` (confirmed: `DocumentSummary` and/or `DocumentFilter` types are referenced in `apps/web/src/hooks/useDocumentFilters.ts`, `apps/web/src/pages/documents/columns.tsx`, and `apps/web/src/pages/documents/DocumentListPage.tsx`, though not via a literal runtime import of the Zod schema object itself — most likely via tRPC's inferred `AppRouter`/`RouterOutputs` types, which was not independently traced further).
+
+This runs against `tech-stack.md`'s own stated intent that the shared package's Zod schemas are "the single source of truth" flowing through to "frontend forms" (see `affects` above, and the file's dependency-flow diagram showing `drizzle-zod → Zod schemas → ... React Hook Form validation` as one continuous chain). With two different Zod majors installed, whatever crosses that boundary is, at minimum, not literally the same schema-instance/type-branch on both sides.
+
+**What was NOT done:** No further investigation into whether this currently causes a concrete type error, a runtime validation gap, or a silent `any`-typed leak anywhere in `apps/web`. No attempt was made to determine which side (if either) is the "correct" target version, or whether this was a deliberate decision made outside the sessions visible to this investigation. [Speculation] — given the parallel `drizzle-zod` v3-branch/v4-branch mismatch found in the same investigation (which fixes an unrelated but structurally similar Zod-branch problem inside `packages/shared` alone), it's plausible `apps/web`'s Zod version was bumped independently of `packages/shared`'s at some point without the cross-package consequence being evaluated, but this has not been confirmed against any commit history or prior session record.
+
+---
+
+### [LOG-0109] AGENTS.md/document-list.md have no routing row for security-header (`@fastify/helmet`) work, and the two pre-dev documents that do cover it disagree on which headers to set
+
+- date: 2026-07-15
+- task_id: none — surfaced during a planning-layer investigation of a standalone `@fastify/helmet` integration task, not itself an A1 task
+- status: proposed
+- affects: AGENTS.md (Section 2 Task→Documents table), document-list.md (Group I and Group L summaries), i3-security-design-document.md (§11.6), e2-rest-api-specification-openapi3.md ("Security Headers" section)
+
+**Routing gap:** AGENTS.md Section 2's Task→Documents table has no row matching "add/configure a Fastify plugin" or "security headers" as a task type. Per Section 3, `document-list.md` was checked directly — its Group I (Security and Authorization, I1–I3) and Group L (Infrastructure and DevOps, L1–L5) entries were read in full and neither names HTTP security headers, `helmet`, CSP, or HSTS as content covered by any document ID. The actual coverage exists only in the body text of `i3-security-design-document.md` §11.6 and `e2-rest-api-specification-openapi3.md`'s "Security Headers" section — found only via a full-text search across `docs/`, not discoverable by following the routing table as designed. An agent following AGENTS.md's stated process (match task to table row → Section 3 fallback → document-list.md) would not find these two documents without already knowing to search for them by content rather than by the routing table's document-ID summaries.
+
+**Content discrepancy between the two documents that do cover it:** I3 §11.6 (tagged `[CONFIRMED — Stack Context]` for the base set) specifies `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Strict-Transport-Security` (§12.3 gives the specific values: `max-age=31536000; includeSubDomains`), and `Referrer-Policy: no-referrer`; `Content-Security-Policy` is separately tagged `[RECOMMENDED]` (the document's own weaker tag) rather than confirmed, despite I3's own §15.4 threat register (T-15, XSS Attack) naming CSP-via-helmet as the actual control that keeps that threat's residual risk at "Low." E2's "Security Headers" section instead lists `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Strict-Transport-Security`, and `X-XSS-Protection` — omitting `Content-Security-Policy` and `Referrer-Policy` entirely, and adding `X-XSS-Protection`, which appears nowhere in I3 or anywhere else in the docs corpus. Neither the consolidated reference nor `tech-stack.md` (both higher-authority than either I3 or E2 per AGENTS.md Section 1) specifies individual headers — both have only a bare `@fastify/helmet` stack-table entry with an empty notes column — so the hierarchy does not resolve the discrepancy between these two same-tier documents.
+
+**Resolution for this task:** the human was asked directly and chose to anchor on I3 as the primary source, let `@fastify/helmet`'s own defaults handle `Content-Security-Policy` and `X-Content-Type-Options`, explicitly configure `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and the specific HSTS values from I3 §12.3, and omit any `X-XSS-Protection`/`xssFilter` configuration. [Tested against the installed `helmet@8.3.0` package source (`node_modules/helmet/index.cjs`), not merely inferred from README prose]: `Content-Security-Policy` and `X-Content-Type-Options` both run by default when left unconfigured (the option-resolution switch treats `undefined` and `true` identically); `Referrer-Policy: no-referrer` and `Strict-Transport-Security: max-age=31536000; includeSubDomains` are *also* already the current library defaults — so the explicit configuration of these two per the human's decision is intentionally redundant with defaults, kept for self-documentation rather than because the defaults were wrong. Omitting `X-XSS-Protection` configuration does not mean the header is absent: the same source check confirms `xXssProtection` also runs by default and sets `X-XSS-Protection: 0` (the current safe value, telling browsers to disable their legacy XSS auditor) — not the dangerous legacy value the header name might suggest to someone reading E2's mention of it in isolation. This entry does not resolve which document is "correct" — that remains a human decision about I3 vs. E2 — it records the discrepancy and the task-level choice made pending that decision.
+
+**Not implemented as part of resolving this finding:** no edit was made to AGENTS.md, document-list.md, i3-security-design-document.md, or e2-rest-api-specification-openapi3.md. Per Section 4.5, agents never edit these directly as a result of an A1-execution-time discovery.
+
+---
 

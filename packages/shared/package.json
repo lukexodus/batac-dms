@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@batac/database": "workspace:*",
-    "drizzle-zod": "^0.8.3",
+    "drizzle-zod": "0.7.1",
     "pino": "^9.0.0",
     "zod": "^3.23.0"
   },
