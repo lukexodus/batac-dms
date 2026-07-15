@@ -21,6 +21,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@batac/database": "workspace:*",
+    "drizzle-zod": "^0.8.3",
     "pino": "^9.0.0",
     "zod": "^3.23.0"
   },

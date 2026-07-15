@@ -890,7 +890,7 @@ export function createDocumentsRouter() {
           id: v.id,
           documentId: v.documentId,
           versionNumber: v.versionNumber,
-          s3Key: v.fileKey,
+          fileKey: v.fileKey,
           originalFilename: v.originalFilename,
           mimeType: v.mimeType,
           fileSizeBytes: v.fileSizeBytes ?? 0,

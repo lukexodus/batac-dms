@@ -16,7 +16,7 @@ export function createContext({ req, res }: CreateFastifyContextOptions): Contex
 
 export const t = initTRPC.context<Context>().create({
   errorFormatter({ shape, error, ctx }) {
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isProduction = process.env['NODE_ENV'] === 'production';
 
     const domainError =
       error.cause instanceof AppError

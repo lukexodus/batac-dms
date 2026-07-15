@@ -1,4 +1,4 @@
-import { logs } from '@openobserve/browser-logs';
+import { openobserveLogs as logs } from '@openobserve/browser-logs';
 
 // Simple heuristic based redaction matching the intent of backend LOG_REDACT_PATHS
 const REDACT_KEYWORDS = ['authorization', 'cookie', 'password', 'secret', 'token'];

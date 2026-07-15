@@ -9,7 +9,7 @@ import "@batac/ui/styles/globals.css";
 import { SessionHydrator } from './components/SessionHydrator';
 import { queryClient } from './lib/query-client.js';
 import { trpc, trpcClient } from './lib/trpc.js';
-import { rum } from '@openobserve/browser-rum';
+import { openobserveRum as rum } from '@openobserve/browser-rum';
 import { useLocation, Outlet } from 'react-router-dom';
 import { useEffect } from 'react';
 import AllComponentsPage from "./pages/dev/AllComponentsPage";
@@ -62,13 +62,15 @@ import { AuthenticatedLayout } from "./components/AuthenticatedLayout";
 
 rum.init({
   applicationId: 'batac-dms',
-  clientToken: import.meta.env.VITE_OTEL_RUM_CLIENT_TOKEN,
-  site: import.meta.env.VITE_OTEL_RUM_SITE,
-  organization: import.meta.env.VITE_OTEL_RUM_ORGANIZATION,
+  clientToken: import.meta.env['VITE_OTEL_RUM_CLIENT_TOKEN'],
+  site: import.meta.env['VITE_OTEL_RUM_SITE'],
+  organizationIdentifier: import.meta.env['VITE_OTEL_RUM_ORGANIZATION'],
+  apiVersion: 'v1',
+  insecureHTTP: false,
   service: 'batac-web',
-  env: import.meta.env.MODE,
+  env: import.meta.env['MODE'],
   trackViewsManually: true,
-  trackInteractions: true,
+  trackUserInteractions: true,
   trackResources: true,
   trackLongTasks: true,
   defaultPrivacyLevel: 'mask-user-input',
