@@ -35,13 +35,13 @@ export function SessionLockScreen() {
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.code === 'REFRESH_REQUIRED') {
+        if (data.error?.code === 'REFRESH_REQUIRED') {
           // Session expired beyond refresh capability
           await logout();
-          navigate('/login', { replace: true, state: { message: data.message } });
+          navigate('/login', { replace: true, state: { message: data.error?.message } });
           return;
         }
-        throw new Error(data.message || 'Invalid password');
+        throw new Error(data.error?.message || 'Invalid password');
       }
 
       // Success

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useSessionStore } from '@/stores';
 import { logger } from '../lib/logger.js';
 
-interface AuthResponse {
+interface AuthResponseData {
   user: {
     id: string;
     username: string;
@@ -13,6 +13,11 @@ interface AuthResponse {
   officeScopeId: string | null;
   officeCode: string | null;
   committeeIds: string[];
+}
+
+interface AuthEnvelope {
+  ok: true;
+  data: AuthResponseData;
 }
 
 export function SessionHydrator() {
@@ -27,9 +32,18 @@ export function SessionHydrator() {
         });
 
         if (!response.ok) {
+          let traceId: string | undefined;
+          try {
+            const errorBody = await response.json();
+            traceId = errorBody?.error?.traceId;
+          } catch {
+            // Response body wasn't valid JSON — proceed without a traceId
+            // rather than let this throw and swallow the original failure.
+          }
           logger.error('session_hydration_failed', {
             status: response.status,
             reason: 'http_error',
+            traceId,
           });
           if (mounted) {
             useSessionStore.getState().clearIdentity();
@@ -38,7 +52,8 @@ export function SessionHydrator() {
           return;
         }
 
-        const data = (await response.json()) as AuthResponse;
+        const envelope = (await response.json()) as AuthEnvelope;
+        const data = envelope.data;
         if (mounted) {
           useSessionStore.getState().setIdentity({
             userId: data.user.id,

@@ -3,7 +3,7 @@ import { generatePkcePair } from '../lib/pkce.js';
 import { useSessionStore } from '@/stores';
 
 // Reusing the same shape expected from the legacy context migration
-interface AuthResponse {
+interface AuthResponseData {
   user: {
     id: string;
     username: string;
@@ -14,6 +14,11 @@ interface AuthResponse {
   officeScopeId: string | null;
   officeCode: string | null;
   committeeIds: string[];
+}
+
+interface AuthEnvelope {
+  ok: true;
+  data: AuthResponseData;
 }
 
 export function useAuthActions() {
@@ -37,7 +42,8 @@ export function useAuthActions() {
       throw new Error('Login failed');
     }
 
-    const data = (await response.json()) as AuthResponse;
+    const envelope = (await response.json()) as AuthEnvelope;
+    const data = envelope.data;
     useSessionStore.getState().setIdentity({
       userId: data.user.id,
       username: data.user.username,
