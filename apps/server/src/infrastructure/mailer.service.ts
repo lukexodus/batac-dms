@@ -32,12 +32,19 @@ export class MailerService {
       secure: env.SMTP_SECURE,
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
       tls: { rejectUnauthorized: env.SMTP_REJECT_UNAUTHORIZED },
-      pool: env.SMTP_POOL,
+      // `pool` is typed as the literal `true` in @types/nodemailer's
+      // SMTPPool.Options (pooled mode is either on or the field is
+      // absent — it isn't modeled as a togglable boolean), but
+      // env.SMTP_POOL is a genuine runtime-configurable boolean
+      // (env.server.ts: booleanFromString.default('true')). Narrow the
+      // cast to just this field rather than casting the whole options
+      // object, so every other field here stays type-checked normally.
+      pool: env.SMTP_POOL as true,
       maxConnections: env.SMTP_MAX_CONNECTIONS,
       maxMessages: env.SMTP_MAX_MESSAGES,
       debug: env.SMTP_DEBUG,
       logger: env.SMTP_DEBUG,
-    } as any);
+    });
   }
 
   async sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
