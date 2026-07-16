@@ -1,5 +1,5 @@
 {
-  "id": "0514f942-ce7d-42d1-a817-43daa4c2ba7d",
+  "id": "0653284c-61a1-4885-b784-ef9599f213ce",
   "prevId": "6cb07d2f-4ac9-42a6-844e-9630fcaa046c",
   "version": "7",
   "dialect": "postgresql",
@@ -2540,6 +2540,7 @@
             }
           ],
           "isUnique": false,
+          "where": "revoked_at IS NULL AND used_at IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
