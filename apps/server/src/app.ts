@@ -37,6 +37,7 @@ import type PgBoss from 'pg-boss';
 import { env } from './config/env.js';
 import { nanoid } from 'nanoid';
 import pino from 'pino';
+import { parseOtlpHeaders } from './config/otlp-headers.js';
 import { registerHealthRoute } from './routes/health.route.js';
 import databasePlugin from './infrastructure/database.plugin.js';
 import eventBusPlugin from './infrastructure/event-bus.plugin.js';
@@ -53,24 +54,6 @@ import helmet from '@fastify/helmet';
 // `await fastify.register(...)` below, after iamPlugin and before the tRPC
 // registration, when each module's own plugin-wiring task completes.
 
-/**
- * Parses the OTEL_EXPORTER_OTLP_HEADERS env var into a headers object for
- * the OTLP exporters. Follows the standard OTel spec format: comma-separated
- * `key=value` pairs (e.g. "Authorization=Basic xyz,X-Custom=abc"), matching
- * the same format instrumentation.ts already parses for the trace exporter.
- */
-export function parseOtlpHeaders(raw: string): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (!raw) return headers;
-  for (const pair of raw.split(',')) {
-    const [key, ...rest] = pair.split('=');
-    const value = rest.join('=');
-    if (key && value) {
-      headers[key.trim()] = value.trim();
-    }
-  }
-  return headers;
-}
 
 /**
  * [Confirmed — see docs/development-findings-log.md, Bug B] `organizationPlugin`

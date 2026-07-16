@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --import @opentelemetry/instrumentation/hook.mjs --import ./src/instrumentation.ts src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "db:seed": "tsx src/database/seeds/orchestrator.ts",
@@ -21,6 +21,7 @@
     "@fastify/rate-limit": "^10.2.2",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.220.0",
+    "@opentelemetry/instrumentation": "^0.220.0",
     "@opentelemetry/instrumentation-fastify": "^0.57.0",
     "@opentelemetry/instrumentation-pino": "^0.66.0",
     "@opentelemetry/sdk-node": "^0.220.0",

@@ -18,4 +18,4 @@ else
 fi
 
 echo "[entrypoint] Starting server on port ${APP_PORT:-3000}..."
-exec node ./apps/server/dist/index.js
+exec node --import @opentelemetry/instrumentation/hook.mjs --import ./apps/server/dist/apps/server/src/instrumentation.js ./apps/server/dist/apps/server/src/index.js
