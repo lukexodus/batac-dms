@@ -55,6 +55,7 @@ import { SessionAttendanceOverviewPage } from './pages/workflow/SessionAttendanc
 import { WorkflowStepActionPage } from './pages/workflow/WorkflowStepActionPage';
 import { RequireAuth } from './components/RequireAuth';
 import { LoginPage } from './pages/auth/LoginPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -91,6 +92,10 @@ const router = createBrowserRouter([
       {
         path: '/login',
         element: <LoginPage />,
+      },
+      {
+        path: '/reset-password',
+        element: <ResetPasswordPage />,
       },
       {
         path: '/',

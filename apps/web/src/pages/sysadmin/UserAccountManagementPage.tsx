@@ -11,6 +11,11 @@ import {
   Input,
   Label,
   Skeleton,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@batac/ui';
 
 import { useSessionStore } from '@/stores';
@@ -241,6 +246,14 @@ interface UserRowProps {
 function UserRow({ userId, username, email, status }: UserRowProps) {
   const utils = trpc.useUtils();
   const [editing, setEditing] = useState(false);
+  const [resetUrl, setResetUrl] = useState<string | null>(null);
+
+  const generateResetLinkMutation = trpc.iam.generatePasswordResetLink.useMutation({
+    onSuccess: (data) => {
+      setResetUrl(data.resetUrl);
+    },
+    onError: (err) => toast.error(err.message || 'Failed to generate reset link.'),
+  });
 
   const deactivateMutation = trpc.iam.deactivateUserAccount.useMutation({
     onSuccess: (data) => {
@@ -260,7 +273,10 @@ function UserRow({ userId, username, email, status }: UserRowProps) {
     onError: (err) => toast.error(err.message || 'Failed to reactivate account.'),
   });
 
-  const busy = deactivateMutation.isPending || reactivateMutation.isPending;
+  const busy =
+    deactivateMutation.isPending ||
+    reactivateMutation.isPending ||
+    generateResetLinkMutation.isPending;
 
   const statusColor =
     status === 'active'
@@ -287,6 +303,14 @@ function UserRow({ userId, username, email, status }: UserRowProps) {
           </span>
           <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)} disabled={busy}>
             {editing ? 'Cancel Edit' : 'Edit'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => generateResetLinkMutation.mutate({ userId })}
+          >
+            Generate Reset Link
           </Button>
           {status !== 'deactivated' ? (
             <Button
@@ -318,6 +342,44 @@ function UserRow({ userId, username, email, status }: UserRowProps) {
           onDone={() => setEditing(false)}
         />
       )}
+
+      <Dialog
+        open={resetUrl !== null}
+        onOpenChange={(open) => {
+          if (!open) setResetUrl(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Password Reset Link</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            Share this link with the user. It is single-use and will expire. This is the only time
+            this link will be shown — it cannot be retrieved again after this dialog is closed.
+          </p>
+          {resetUrl && (
+            <div className="flex items-center gap-2">
+              <Input readOnly value={resetUrl} className="font-mono text-xs" />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard.writeText(resetUrl);
+                  toast.success('Copied to clipboard.');
+                }}
+              >
+                Copy
+              </Button>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetUrl(null)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
