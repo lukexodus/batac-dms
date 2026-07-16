@@ -40,6 +40,7 @@ import pino from 'pino';
 import { registerHealthRoute } from './routes/health.route.js';
 import databasePlugin from './infrastructure/database.plugin.js';
 import eventBusPlugin from './infrastructure/event-bus.plugin.js';
+import mailerPlugin from './infrastructure/mailer.plugin.js';
 import auditPlugin from './modules/audit/audit.plugin.js';
 import iamPlugin from './modules/iam/iam.plugin.js';
 import organizationPlugin from './modules/organization/organization.plugin.js';
@@ -222,6 +223,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   // Wave B infrastructure + module plugins, in dependency order.
   await fastify.register(databasePlugin);
   await fastify.register(eventBusPlugin);
+  await fastify.register(mailerPlugin);
   await fastify.register(auditPlugin);
   await fastify.register(iamPlugin);
 
