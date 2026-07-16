@@ -2860,3 +2860,17 @@ covers it.
 The password reset flow requires generating a token and sending a reset link. No document specified the exact Time-To-Live (TTL) for this reset token. 
 
 [Inference]: A conservative default of 24 hours was implemented in `iam.service.ts` for the password reset token expiration, balancing usability with security.
+
+
+### [LOG-0115] Password reset link TTL conservative default of 24 hours
+
+- date: 2026-07-16
+- task_id: TASK-IAM-050
+- status: proposed
+- affects: none (implementation detail; no pre-dev document specifies reset TTL)
+- resolved_in: none
+- supersedes: the "Password reset link TTL conservative default of 24 hours" entry appended immediately above under the duplicate/incorrect number LOG-0026
+
+The password reset flow requires generating a token and sending a reset link. No document specified the exact Time-To-Live (TTL) for this reset token. 
+
+[Inference]: A conservative default of 24 hours was implemented in `iam.service.ts` for the password reset token expiration, balancing usability with security. This entry supersedes the identically titled entry immediately above which was assigned a duplicate ID colliding with an unrelated entry near line 725.

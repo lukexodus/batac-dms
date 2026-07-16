@@ -163,6 +163,7 @@ export const refreshTokens = iamSchema.table(
     index('idx_rt_family_id').on(table.familyId),
     index('idx_rt_expires_at')
       .on(table.expiresAt)
+      .where(sql`revoked_at IS NULL AND used_at IS NULL`),
   ],
 );
 
