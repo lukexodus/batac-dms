@@ -1183,6 +1183,91 @@ export function createIamService(deps: IamServiceDeps): IamService {
       return user;
     },
 
+    async generatePasswordResetToken(input: {
+      userId: string;
+      actorId: string;
+      cityId: string;
+    }): Promise<{ resetUrl: string }> {
+      const rawBytes = randomBytes(32);
+      const saltBytes = randomBytes(16);
+      const rawBase64url = rawBytes.toString('base64url');
+      const saltBase64url = saltBytes.toString('base64url');
+      const tokenHash = sha256Hex(rawBase64url + saltBase64url);
+
+      const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
+
+      const token = await iamRepo.createPasswordResetToken({
+        userId: input.userId,
+        cityId: input.cityId,
+        tokenHash,
+        salt: saltBase64url,
+        expiresAt,
+      });
+
+      eventBus.emit(IAM_EVENTS.PASSWORD_RESET_TOKEN_GENERATED, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.PASSWORD_RESET_TOKEN_GENERATED,
+        occurredAt: new Date().toISOString(),
+        cityId: input.cityId,
+        schemaVersion: 1,
+        payload: {
+          actorId: input.actorId,
+          targetUserId: input.userId,
+        },
+      });
+
+      const baseUrl = env.APP_URL ? env.APP_URL.replace(/\/$/, '') : '';
+      const resetUrl = `${baseUrl}/reset-password?token=${token.id}.${rawBase64url}`;
+
+      return { resetUrl };
+    },
+
+    async redeemPasswordResetToken(input: {
+      tokenId: string;
+      rawToken: string;
+      newPassword: string;
+    }): Promise<void> {
+      const storedRow = await iamRepo.findPasswordResetTokenById(input.tokenId);
+      if (!storedRow) {
+        throw new NotFoundError('PasswordResetToken', input.tokenId);
+      }
+
+      if (storedRow.usedAt !== null) {
+        throw Object.assign(new Error('Password reset link has already been used'), {
+          code: 'RESET_TOKEN_USED',
+          statusCode: 400,
+        });
+      }
+
+      if (storedRow.expiresAt < new Date()) {
+        throw Object.assign(new Error('Password reset link has expired'), {
+          code: 'RESET_TOKEN_EXPIRED',
+          statusCode: 400,
+        });
+      }
+
+      const computedHash = sha256Hex(input.rawToken + storedRow.salt);
+      if (computedHash !== storedRow.tokenHash) {
+        throw new NotFoundError('PasswordResetToken', input.tokenId);
+      }
+
+      const newHash = await argon2.hash(input.newPassword);
+      await iamRepo.updateCredentialHash(storedRow.userId, newHash);
+      await iamRepo.markPasswordResetTokenUsed(input.tokenId);
+
+      eventBus.emit(IAM_EVENTS.PASSWORD_RESET_COMPLETED, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.PASSWORD_RESET_COMPLETED,
+        occurredAt: new Date().toISOString(),
+        cityId: storedRow.cityId,
+        schemaVersion: 1,
+        payload: {
+          actorId: storedRow.userId,
+          targetUserId: storedRow.userId,
+        },
+      });
+    },
+
     async updateUserAccount(input: {
       userId: string;
       email?: string;

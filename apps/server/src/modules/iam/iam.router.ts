@@ -1,6 +1,6 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { router, protectedProcedure } from '../../trpc/trpc.js';
+import { router, protectedProcedure, publicProcedure } from '../../trpc/trpc.js';
 import * as s from './iam.schemas.js';
 import { RoleCombinationForbiddenError } from './iam.errors.js';
 import type { IamService, IamRepository } from './iam.types.js';
@@ -123,6 +123,34 @@ export const iamRouter = router({
         employeeId: input.employeeId,
         cityId: ctx.auth.cityId,
         actorId: ctx.auth.userId,
+      });
+    }),
+
+  generatePasswordResetLink: protectedProcedure
+    .input(s.GeneratePasswordResetLinkInput)
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.auth.isItAdmin) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'System Admin access required to generate password reset links',
+        });
+      }
+      const service = getService(ctx);
+      return service.generatePasswordResetToken({
+        userId: input.userId,
+        actorId: ctx.auth.userId,
+        cityId: ctx.auth.cityId,
+      });
+    }),
+
+  redeemPasswordResetToken: publicProcedure
+    .input(s.RedeemPasswordResetTokenInput)
+    .mutation(async ({ ctx, input }) => {
+      const service = getService(ctx);
+      return service.redeemPasswordResetToken({
+        tokenId: input.tokenId,
+        rawToken: input.rawToken,
+        newPassword: input.newPassword,
       });
     }),
 

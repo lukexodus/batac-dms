@@ -2848,3 +2848,15 @@ covers it.
 **What was done:** The `dateReferred` field was removed from the schema output as it could not be mapped safely to `actionDeadline` or `responseDate` without guessing its intentional tracking purpose. The new fields `actionDeadline` and `responseDate` are now exposed directly.
 
 **Recommendation:** A human should review if `dateReferred` was intentionally tracking something distinct from `actionDeadline`/`responseDate`, or if it was an outdated naming alias. Any consumers still expecting `dateReferred` will need to be updated.
+
+### [LOG-0026] Password reset link TTL conservative default of 24 hours
+
+- date: 2026-07-15
+- task_id: TASK-IAM-050
+- status: proposed
+- affects: none (implementation detail; no pre-dev document specifies reset TTL)
+- resolved_in: none
+
+The password reset flow requires generating a token and sending a reset link. No document specified the exact Time-To-Live (TTL) for this reset token. 
+
+[Inference]: A conservative default of 24 hours was implemented in `iam.service.ts` for the password reset token expiration, balancing usability with security.

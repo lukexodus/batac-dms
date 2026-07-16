@@ -4,6 +4,7 @@ import {
   credentials,
   sessions,
   refreshTokens,
+  passwordResetTokens,
   roles,
   permissions,
   rolePermissions,
@@ -167,6 +168,25 @@ export function createIamRepository(db: DbClient | DbTransaction): IamRepository
         .update(refreshTokens)
         .set({ usedAt: new Date(), replacedBy: replacedById })
         .where(and(eq(refreshTokens.id, id), isNull(refreshTokens.usedAt)))
+        .returning();
+      return updated.length > 0;
+    },
+    createPasswordResetToken: async (input) => {
+      const [token] = await db.insert(passwordResetTokens).values(input).returning();
+      return token!;
+    },
+    findPasswordResetTokenById: async (id) => {
+      const [token] = await db
+        .select()
+        .from(passwordResetTokens)
+        .where(and(eq(passwordResetTokens.id, id), isNull(passwordResetTokens.deletedAt)));
+      return token || null;
+    },
+    markPasswordResetTokenUsed: async (id) => {
+      const updated = await db
+        .update(passwordResetTokens)
+        .set({ usedAt: new Date() })
+        .where(and(eq(passwordResetTokens.id, id), isNull(passwordResetTokens.usedAt)))
         .returning();
       return updated.length > 0;
     },

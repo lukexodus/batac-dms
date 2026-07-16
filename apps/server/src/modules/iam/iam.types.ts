@@ -6,6 +6,7 @@ import {
   credentials,
   sessions,
   refreshTokens,
+  passwordResetTokens,
   roles,
   permissions,
   rolePermissions,
@@ -24,6 +25,7 @@ export type UserRow = InferSelectModel<typeof users>;
 export type CredentialRow = InferSelectModel<typeof credentials>;
 export type SessionRow = InferSelectModel<typeof sessions>;
 export type RefreshTokenRow = InferSelectModel<typeof refreshTokens>;
+export type PasswordResetTokenRow = InferSelectModel<typeof passwordResetTokens>;
 export type RoleRow = InferSelectModel<typeof roles>;
 export type PermissionRow = InferSelectModel<typeof permissions>;
 export type RolePermissionRow = InferSelectModel<typeof rolePermissions>;
@@ -59,6 +61,14 @@ export interface CreateRefreshTokenInput {
   tokenHash: string;
   salt: string;
   familyId: string;
+  expiresAt: Date;
+  cityId?: string;
+}
+
+export interface CreatePasswordResetTokenInput {
+  userId: string;
+  tokenHash: string;
+  salt: string;
   expiresAt: Date;
   cityId?: string;
 }
@@ -278,6 +288,18 @@ export interface IamService extends IamPublicAPI {
     actorId: string;
   }): Promise<UserRow>;
 
+  generatePasswordResetToken(input: {
+    userId: string;
+    actorId: string;
+    cityId: string;
+  }): Promise<{ resetUrl: string }>;
+
+  redeemPasswordResetToken(input: {
+    tokenId: string;
+    rawToken: string;
+    newPassword: string;
+  }): Promise<void>;
+
   updateUserAccount(input: {
     userId: string;
     email?: string;
@@ -340,6 +362,11 @@ export interface IamRepository {
   revokeRefreshTokensBySessionId(sessionId: string, reason: string): Promise<void>;
   revokeRefreshTokenFamily(familyId: string, reason: string): Promise<void>;
   findLatestActiveRefreshTokenForSession(sessionId: string): Promise<RefreshTokenRow | null>;
+
+  // Password reset tokens
+  createPasswordResetToken(input: CreatePasswordResetTokenInput): Promise<PasswordResetTokenRow>;
+  findPasswordResetTokenById(id: string): Promise<PasswordResetTokenRow | null>;
+  markPasswordResetTokenUsed(id: string): Promise<boolean>;
 
   // Roles
   findRoleById(id: string): Promise<RoleRow | null>;

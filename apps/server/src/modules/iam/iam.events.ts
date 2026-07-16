@@ -8,6 +8,8 @@ export const IAM_EVENTS = {
   PASSWORD_CHANGED: 'password.changed',
   SESSION_LOCKED: 'session.locked',
   SESSION_UNLOCKED: 'session.unlocked',
+  PASSWORD_RESET_TOKEN_GENERATED: 'password_reset_token.generated',
+  PASSWORD_RESET_COMPLETED: 'password_reset.completed',
 } as const;
 
 export function registerIamEventSubscriptions(): void {

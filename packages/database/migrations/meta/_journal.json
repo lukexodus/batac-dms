@@ -85,6 +85,13 @@
       "when": 1784105841545,
       "tag": "0011_lumpy_goblin_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784173079319,
+      "tag": "0012_plain_black_panther",
+      "breakpoints": true
     }
   ]
 }

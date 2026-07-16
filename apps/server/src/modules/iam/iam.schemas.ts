@@ -122,6 +122,16 @@ export const CreateUserAccountInput = z.object({
   employeeId: z.string().uuid(),
 });
 
+export const GeneratePasswordResetLinkInput = z.object({
+  userId: z.string().uuid(),
+});
+
+export const RedeemPasswordResetTokenInput = z.object({
+  tokenId: z.string().uuid(),
+  rawToken: z.string(),
+  newPassword: z.string().min(12),
+});
+
 export const EditUserAccountInput = z.object({
   userId: z.string().uuid(),
   email: z.string().email().optional(),

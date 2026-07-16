@@ -122,6 +122,8 @@ export interface EventPayloadMap {
   'password.changed': Stub;
   'session.locked': Stub;
   'session.unlocked': Stub;
+  'password_reset_token.generated': { actorId: string; targetUserId: string };
+  'password_reset.completed': { actorId: string; targetUserId: string };
 
   // ── Organization module ────────────────────────────────────────────────────
   'delegation.granted': Stub;

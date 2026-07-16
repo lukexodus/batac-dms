@@ -163,7 +163,34 @@ export const refreshTokens = iamSchema.table(
     index('idx_rt_family_id').on(table.familyId),
     index('idx_rt_expires_at')
       .on(table.expiresAt)
-      .where(sql`revoked_at IS NULL AND used_at IS NULL`),
+  ],
+);
+
+/**
+ * iam.password_reset_tokens table
+ * Server-side DB, hashed + salted value for one-time password reset.
+ */
+export const passwordResetTokens = iamSchema.table(
+  'password_reset_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    cityId: uuid('city_id')
+      .notNull()
+      .default(sql`'00000000-0000-4000-8000-000000000001'::uuid`),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    tokenHash: text('token_hash').notNull(),
+    salt: text('salt').notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)
+  },
+  (table) => [
+    unique('uq_password_reset_tokens_hash').on(table.tokenHash),
+    index('idx_prt_user_id').on(table.userId),
   ],
 );
 
