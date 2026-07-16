@@ -1,4 +1,4 @@
-# TASK-DOCS-LINT-003: `main.tsx` Import-Order Fix + `DocumentDetailPage.tsx` Full `any`-Cast Remediation
+# TASK-DOCS-LINT-003: `main.tsx` Import-Order Fix + `DocumentDetailP.tsx` Full `any`-Cast Remediation
 
 ## Context
 
@@ -8785,4 +8785,1800 @@ Before submitting this PR, confirm each item:
 - [ ] `pnpm typecheck --filter @batac/web` passes with zero errors.
 - [ ] Diff scope is exactly one code block in one file.
 A reviewer will verify each one independently.
+````
+
+---
+
+# TASK-OBS-001
+
+````
+TASK: Three separate frontend files call REST auth endpoints directly via
+raw `fetch` and parse the response body assuming the OLD, pre-wrapper
+response shape. The backend's actual response shape changed (REST error
+and success envelope conformance work, already completed and verified).
+These three files were never updated to match and are currently broken.
+Fix all three. They are independent fixes to independent files — do not
+let a fix in one file bleed into another.
+
+BACKGROUND (confirmed against the current repo, not to be re-verified by
+you — stated here only so you understand why the fix is correct):
+apps/server/src/modules/iam/iam.routes.ts's routes now respond with:
+  Success: { ok: true, data: { ...the old flat body... } }
+  Error:   { ok: false, error: { code, message, traceId, details? } }
+This applies to POST /api/auth/login, /api/auth/refresh, /api/auth/unlock,
+/api/auth/lock, and POST /api/admin/sessions/:id/terminate. (POST
+/api/auth/logout returns a bodyless 204 and is unaffected — do not touch
+any file's handling of the logout call.)
+
+═══ FIX 1: apps/web/src/hooks/useAuthActions.ts — login() crashes ═══
+
+FILE: apps/web/src/hooks/useAuthActions.ts
+
+CURRENT STATE (verified against the current repo snapshot): the login()
+function does:
+
+  const data = (await response.json()) as AuthResponse;
+  useSessionStore.getState().setIdentity({
+    userId: data.user.id,
+    username: data.user.username,
+    displayName: data.user.username,
+    sessionId: data.sessionId,
+    expiresAt: data.expiresAt,
+    roleCodes: data.roleCodes,
+    officeScopeId: data.officeScopeId,
+    officeCode: data.officeCode,
+    committeeIds: data.committeeIds,
+  });
+
+Where the local `AuthResponse` interface is the OLD flat shape (user,
+sessionId, expiresAt, roleCodes, officeScopeId, officeCode, committeeIds
+at the top level). This is now wrong: the real response wraps this exact
+same object under a `data` key, alongside a top-level `ok: boolean`.
+
+ACTION:
+1. Rename the existing `AuthResponse` interface to `AuthResponseData` (it
+   correctly describes the INNER payload shape — that part doesn't need
+   to change, just its name and where it's used).
+2. Add a new wrapper type above it:
+
+     interface AuthEnvelope {
+       ok: true;
+       data: AuthResponseData;
+     }
+
+   (This file only needs the success-path type; it does not need to model
+   the error envelope shape, since the `if (!response.ok) throw new
+   Error('Login failed')` check above already exits before this parsing
+   happens on any non-2xx response — do not add error-envelope handling
+   here as part of this fix; that is out of scope for this specific fix.)
+
+3. Change the parsing and field access:
+
+     const envelope = (await response.json()) as AuthEnvelope;
+     const data = envelope.data;
+     useSessionStore.getState().setIdentity({
+       userId: data.user.id,
+       username: data.user.username,
+       displayName: data.user.username, // Using fallback per TASK-WF-FE-006 notes
+       sessionId: data.sessionId,
+       expiresAt: data.expiresAt,
+       roleCodes: data.roleCodes,
+       officeScopeId: data.officeScopeId,
+       officeCode: data.officeCode,
+       committeeIds: data.committeeIds,
+     });
+
+   (Keep the existing "Using fallback per TASK-WF-FE-006 notes" comment
+   exactly where it is — do not remove it, it documents pre-existing,
+   unrelated intent about the displayName field.)
+
+WHAT NOT TO TOUCH: the logout() function in this same file makes a fetch
+call but never reads the response body — it is correctly unaffected by
+this change and must not be modified. Do not touch generatePkcePair,
+useSessionStore's own implementation, or the request body / headers being
+SENT to the server (only how the response is being READ needs to change).
+
+═══ FIX 2: apps/web/src/components/SessionHydrator.tsx — refresh crashes
+    on success, AND traceId not forwarded on failure ═══
+
+FILE: apps/web/src/components/SessionHydrator.tsx
+
+DO NOT MODIFY ANY OTHER FILE, including useAuthActions.ts (covered
+separately above) or logger.ts.
+
+CURRENT STATE (verified against the current repo snapshot): this file has
+TWO separate problems, both being fixed in this one task since they're in
+the same function and the same response-handling logic:
+
+PROBLEM A (crash on success): the success branch does:
+
+  const data = (await response.json()) as AuthResponse;
+  if (mounted) {
+    useSessionStore.getState().setIdentity({
+      userId: data.user.id,
+      ...
+    });
+
+Same bug class as Fix 1 above — this file has its own separate, locally-
+defined `AuthResponse` interface (not shared with useAuthActions.ts's
+copy — do not attempt to import/share types between these two files as
+part of this task; that consolidation is a separate, out-of-scope
+refactor). Fix using the same pattern as Fix 1: rename the local
+`AuthResponse` interface to `AuthResponseData`, add a local
+`AuthEnvelope { ok: true; data: AuthResponseData }` wrapper type, and
+change the parsing to unwrap `.data` before reading fields. This file's
+interface is currently:
+
+  interface AuthResponse {
+    user: {
+      id: string;
+      username: string;
+    };
+    sessionId: string;
+    expiresAt: string;
+    roleCodes: string[];
+    officeScopeId: string | null;
+    officeCode: string | null;
+    committeeIds: string[];
+  }
+
+Apply the identical rename-and-wrap pattern from Fix 1 to this file's
+copy of the interface and its usage site (inside the `if (mounted) {...}`
+block in the try's success path).
+
+PROBLEM B (traceId not forwarded on failure): the failure branch
+currently does:
+
+  if (!response.ok) {
+    logger.error('session_hydration_failed', {
+      status: response.status,
+      reason: 'http_error',
+    });
+    ...
+  }
+
+This never reads the response body at all, so it cannot report a
+traceId — even though the backend's error response for this exact route
+now includes one. Fix this by parsing the error envelope and forwarding
+its traceId (falling back gracefully if parsing fails, since a non-JSON
+or malformed error body should not itself throw and mask the original
+failure):
+
+  if (!response.ok) {
+    let traceId: string | undefined;
+    try {
+      const errorBody = await response.json();
+      traceId = errorBody?.error?.traceId;
+    } catch {
+      // Response body wasn't valid JSON — proceed without a traceId
+      // rather than let this throw and swallow the original failure.
+    }
+    logger.error('session_hydration_failed', {
+      status: response.status,
+      reason: 'http_error',
+      traceId,
+    });
+    ...
+  }
+
+Keep everything else in this branch (the `if (mounted) { clearIdentity();
+setHydrated(); }` block and the `return` statement) exactly as-is —only
+insert the traceId-reading logic before the existing logger.error call,
+and add the traceId field to the existing logger.error context object
+(do not restructure the other two fields, status and reason).
+
+Do NOT touch the catch block (the 'network_error' reason branch) — a
+network-level failure (e.g. the server unreachable) never receives an
+HTTP response at all, so there is no body to parse and no traceId to
+extract; that branch is correctly already complete as-is.
+
+WHAT NOT TO TOUCH: the `mounted` flag / cleanup logic, useSessionStore
+calls' structure, the overall useEffect shape, or logger.ts itself.
+
+═══ FIX 3: apps/web/src/pages/auth/SessionLockScreen.tsx — REFRESH_REQUIRED
+    detection silently broken ═══
+
+FILE: apps/web/src/pages/auth/SessionLockScreen.tsx
+
+DO NOT MODIFY ANY OTHER FILE.
+
+CURRENT STATE (verified against the current repo snapshot):
+
+  const data = await response.json();
+  if (!response.ok) {
+    if (data.code === 'REFRESH_REQUIRED') {
+      await logout();
+      navigate('/login', { replace: true, state: { message: data.message } });
+      return;
+    }
+    throw new Error(data.message || 'Invalid password');
+  }
+
+`data.code` and `data.message` both read the OLD flat error shape. The
+real error shape is now `{ ok: false, error: { code, message, traceId,
+details? } }` — the fields this code wants are at `data.error.code` and
+`data.error.message`, not `data.code`/`data.message`.
+
+IMPORTANT: this file also has pre-existing, separately-documented, and
+already-tested synthetic 423-status-handling logic elsewhere in this
+component (a prior findings-log entry covers it) — do NOT touch, look
+for, or modify any 423-related logic as part of this fix. This fix is
+scoped ONLY to the two field-access paths shown above (`data.code` and
+`data.message` inside the `if (!response.ok)` block). If you encounter
+423-handling code while making this edit, leave it completely untouched
+and do not comment on or near it.
+
+ACTION: change the two field reads to go through the nested `error`
+object:
+
+  const data = await response.json();
+  if (!response.ok) {
+    if (data.error?.code === 'REFRESH_REQUIRED') {
+      await logout();
+      navigate('/login', { replace: true, state: { message: data.error?.message } });
+      return;
+    }
+    throw new Error(data.error?.message || 'Invalid password');
+  }
+
+Note the optional chaining (`data.error?.code`, `data.error?.message`) —
+this is deliberate defensive coding, not a style preference: keep it, do
+not simplify to non-optional `data.error.code` even though `error` should
+always be present on a real `!response.ok` response, since a malformed or
+unexpected response body should degrade to the existing 'Invalid
+password' fallback message rather than throw a NEW, different, more
+confusing error (a TypeError on undefined) while trying to construct the
+original error message.
+
+Do NOT touch the success path below this block (`// Success` comment and
+what follows) — this fix is scoped to the `if (!response.ok)` branch only.
+
+VERIFICATION AFTER ALL THREE FIXES:
+1. Run pnpm typecheck from the repo root. Confirm zero new errors
+   introduced by any of the three files touched.
+2. Manually or via existing test coverage, confirm: a successful login
+   through the UI no longer throws — actually exercise the login flow if
+   you have a way to do so (a running dev server + backend), since this
+   is exactly the kind of runtime-only bug that typecheck alone will not
+   catch (both AuthResponse/AuthResponseData interfaces are locally
+   defined, unvalidated TypeScript interfaces cast onto a fetch response
+   with `as` — a type assertion, not runtime validation — so typecheck
+   passing does NOT prove the fix works; it only proves the types are
+   internally consistent).
+3. If you have no way to run the app live, say so explicitly in your
+   report rather than imply the fix was runtime-verified when it was
+   only typecheck-verified — this distinction matters given the bug
+   class involved.
+
+Report back: the diff for all three files, typecheck confirmation, and
+an explicit statement of whether you were able to runtime-verify the
+login flow or only typecheck-verify it.
+````
+
+---
+
+# TASK-OBS-002
+
+````
+TASK: apps/server/src/instrumentation.ts and apps/server/src/app.ts each
+independently parse the OTEL_EXPORTER_OTLP_HEADERS env var, using two
+DIFFERENT implementations. app.ts's implementation (a function named
+parseOtlpHeaders) correctly handles multiple comma-separated key=value
+header pairs. instrumentation.ts's implementation does not — it only
+handles a single pair and will silently produce a corrupted header value
+if the env var is ever set to more than one pair. Consolidate to one
+shared, correct implementation.
+
+FILES TO MODIFY:
+1. apps/server/src/app.ts
+2. apps/server/src/instrumentation.ts
+
+DO NOT MODIFY ANY OTHER FILE.
+
+CURRENT STATE (verified against the current repo snapshot):
+
+apps/server/src/app.ts currently has, as a private (non-exported)
+function:
+
+  function parseOtlpHeaders(raw: string): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (!raw) return headers;
+    for (const pair of raw.split(',')) {
+      const [key, ...rest] = pair.split('=');
+      const value = rest.join('=');
+      if (key && value) {
+        headers[key.trim()] = value.trim();
+      }
+    }
+    return headers;
+  }
+
+This is used once, at the pino-opentelemetry-transport target
+configuration inside buildApp().
+
+apps/server/src/instrumentation.ts currently has, inline, at the top of
+the file:
+
+  const headers: Record<string, string> = {};
+  if (env.OTEL_EXPORTER_OTLP_HEADERS) {
+    const [key, value] = env.OTEL_EXPORTER_OTLP_HEADERS.split('=', 2);
+    if (key && value) {
+      headers[key.trim()] = value.trim();
+    }
+  }
+
+This only ever extracts ONE header pair, regardless of how many
+comma-separated pairs are actually present in the env var. If the env var
+ever contains more than one pair (e.g. "Authorization=Basic
+xyz,X-Custom=abc"), this produces a corrupted single header where `value`
+literally contains the unparsed remainder past the first `=`, rather than
+extracting each pair separately. This currently does not cause a visible
+failure because the project's current OTEL_EXPORTER_OTLP_HEADERS default
+value happens to be single-pair — but it is a live correctness bug
+waiting on a config change, not a hypothetical.
+
+DECISION (already made — do not re-litigate): consolidate to ONE shared
+implementation rather than fixing instrumentation.ts's inline logic
+separately (which would just create a second correct-but-duplicated
+implementation, reintroducing the same maintenance risk that caused this
+divergence in the first place).
+
+ACTION:
+1. In apps/server/src/app.ts: add the `export` keyword to the existing
+   parseOtlpHeaders function declaration. Change nothing else about its
+   implementation — it is already correct.
+
+     export function parseOtlpHeaders(raw: string): Record<string, string> {
+       // ... existing body, unchanged ...
+     }
+
+2. In apps/server/src/instrumentation.ts:
+   a. Add an import: `import { parseOtlpHeaders } from './app.js';`
+   b. Replace the entire inline parsing block (the `const headers:
+      Record<string, string> = {}; if (env.OTEL_EXPORTER_OTLP_HEADERS)
+      {...}` block) with a single call:
+
+        const headers = parseOtlpHeaders(env.OTEL_EXPORTER_OTLP_HEADERS);
+
+   c. The rest of the file (the OTLPTraceExporter construction, the SDK
+      setup, everything below the headers logic) stays completely
+      unchanged — it already correctly consumes the `headers` variable,
+      you're only changing how that variable's value is produced.
+
+WHAT NOT TO TOUCH: do not change parseOtlpHeaders' internal logic in
+app.ts (only add the export keyword). Do not change anything else in
+instrumentation.ts beyond the import line and the headers-parsing block
+replacement — the OTLPTraceExporter construction, FastifyInstrumentation,
+PinoInstrumentation, and the sdk.start() try/catch block all stay exactly
+as they are. Do not touch app.ts's own usage of parseOtlpHeaders inside
+buildApp() — that call site is already correct and unrelated to this fix.
+
+A NOTE ON IMPORT DIRECTION (read before starting, this affects how you
+should think about whether this creates a problem): instrumentation.ts
+importing from app.ts is importing a plain, pure utility function
+(parseOtlpHeaders has no side effects, doesn't reference `buildApp` or
+anything else in app.ts) — check that this does not create a circular
+import (does app.ts, or anything app.ts itself imports, ever import
+instrumentation.ts? Confirmed via source inspection: it does not, and
+instrumentation.ts is loaded via a side-effect-only bare import solely
+from index.ts, so this should be a clean one-directional dependency) —
+but VERIFY this yourself against the actual current import graph before
+proceeding, don't take this note's claim on faith, since import cycles
+can cause confusing runtime initialization-order bugs that typecheck
+alone won't always catch cleanly.
+
+VERIFICATION AFTER CHANGES:
+1. Run pnpm typecheck from the repo root. Confirm it passes with no new
+   errors, and specifically no circular-import-related errors.
+2. Confirm the app still boots (if you have a way to run it) — since
+   instrumentation.ts is imported first-thing in index.ts specifically
+   to instrument everything else, any import-order issue introduced here
+   would likely manifest as a boot-time crash, not a typecheck error.
+3. Grep both files afterward to confirm instrumentation.ts no longer
+   contains its own inline header-splitting logic, and that app.ts's
+   parseOtlpHeaders is now the sole implementation, referenced from
+   exactly two call sites total (its own usage in app.ts, plus the new
+   one in instrumentation.ts).
+
+Report back: the diff for both files, typecheck confirmation, boot
+confirmation if possible, and explicit confirmation of the import-cycle
+check described above.
+````
+
+---
+
+# TASK-IAM-050
+
+````
+TASK-IAM-050: Add password-reset token generation and redemption to the IAM module
+
+CONTEXT
+The `createUserAccount` procedure in `apps/server/src/modules/iam/iam.service.ts`
+(function starts at line 1154) creates a user with an unrecoverable random
+password: `randomBytes(32).toString('hex')` is hashed with argon2 and stored,
+but the raw value is never captured anywhere, making the account permanently
+unusable until a credential-issuance mechanism exists. This task adds that
+mechanism as a SEPARATE, ADDITIVE flow — a "generate reset link" action an
+IT Admin triggers after account creation, and a public redemption endpoint
+the new user hits to set a real password. `createUserAccount` itself is NOT
+modified by this task; it is a locked-until-reset bootstrap, and the reset
+flow being added here is the unlock mechanism.
+
+DESIGN DECISION ALREADY MADE — DO NOT RE-DERIVE
+The new token table's database-level access posture mirrors the EXISTING
+`iam.refresh_tokens` table, not `iam.credentials`. Concretely: the new table
+gets NO Row-Level Security policy and NO blanket `REVOKE SELECT`. It relies
+solely on the schema's default grant (`GRANT SELECT, INSERT, UPDATE ON ALL
+TABLES IN SCHEMA iam TO batac_app`, already present in migration
+0002_iam_create_iam_schema.sql, line 243) plus the cryptographic strength of
+the split raw-value/hash design for its security boundary. Do not add an RLS
+policy or a REVOKE statement for this table. This was an explicit human
+decision, not a default to second-guess.
+
+═══════════════════════════════════════════
+PART 1 — DATABASE SCHEMA AND MIGRATION
+═══════════════════════════════════════════
+
+File to edit: packages/database/schema/iam.schema.ts
+
+Add a new table export, following the exact structural pattern of the
+existing `refreshTokens` table (defined in this same file, currently at
+line 131). The new table is named `passwordResetTokens` (Drizzle export
+name) / `password_reset_tokens` (actual Postgres table name), placed in
+the `iam` Postgres schema (via the same `iamSchema.table(...)` helper the
+other tables in this file use).
+
+Columns (do not add any not listed here; do not omit any listed here):
+- id: uuid, primary key, default random (mirror refreshTokens.id exactly —
+  same `uuid('id').primaryKey().defaultRandom()` pattern)
+- cityId: uuid, not null, same default as every other table in this file:
+  `.default(sql`'00000000-0000-4000-8000-000000000001'::uuid`)`
+- userId: uuid, not null, references users.id (mirror refreshTokens.userId
+  exactly — `.references(() => users.id)`)
+- tokenHash: text, not null (mirror refreshTokens.tokenHash)
+- salt: text, not null (mirror refreshTokens.salt)
+- expiresAt: timestamp with time zone, not null (mirror
+  refreshTokens.expiresAt)
+- usedAt: timestamp with time zone, nullable (mirror refreshTokens.usedAt —
+  null means unused, non-null means already redeemed)
+- createdAt: timestamp with time zone, not null, default now() (mirror
+  refreshTokens.createdAt)
+- deletedAt: timestamp with time zone, nullable (mirror
+  refreshTokens.deletedAt — soft-delete column present on every table in
+  this file)
+- deletedBy: uuid, nullable, with the same
+  `// logical FK -> iam.users.id (cross-schema)` comment used on every
+  other deletedBy column in this file
+
+DO NOT include: sessionId, familyId, revocationReason, replacedBy, or any
+other refresh-token-rotation-specific column. This table has no rotation
+concept — a reset token is single-use (governed by usedAt) and has no
+family/replacement chain. Including these columns would be scope creep
+copying refresh_tokens' rotation machinery, which this table does not need.
+
+Table-level constraint: add a unique constraint on tokenHash, following the
+exact syntax of `unique('uq_refresh_tokens_hash').on(table.tokenHash)` at
+line 157 of this file — name it `uq_password_reset_tokens_hash`.
+
+Add one index: on userId, following the exact syntax of
+`index('idx_rt_user_id').on(table.userId)` at line 162 — name it
+`idx_prt_user_id`.
+
+Do NOT add RLS or a REVOKE statement for this table — see the "Design
+decision already made" section above.
+
+MIGRATION GENERATION — DO NOT HAND-WRITE SQL DIRECTLY
+This project's existing migrations (packages/database/migrations/, files
+0000 through 0011) are generated via Drizzle Kit from the schema source,
+not hand-authored — confirmed by migration filenames like
+0003_glamorous_scream.sql and 0007_slim_starfox.sql, which are Drizzle
+Kit's auto-generated names for migrations not given an explicit name, and
+by the existence of a corresponding packages/database/migrations/meta/
+directory with a _journal.json and per-migration snapshot JSON files that
+must stay in sync with the SQL files. After editing iam.schema.ts as
+described above, run this project's actual Drizzle Kit migration-generation
+command (check package.json scripts in packages/database/ for the exact
+command — likely something like `pnpm --filter @batac/database db:generate`
+or `drizzle-kit generate`, but verify the actual script name rather than
+guessing) to produce migration 0012 and its corresponding journal/snapshot
+entries. Do not hand-write a 0012_*.sql file directly — this would
+desynchronize the meta/_journal.json state from reality.
+
+═══════════════════════════════════════════
+PART 2 — REPOSITORY LAYER
+═══════════════════════════════════════════
+
+File to edit: apps/server/src/modules/iam/iam.repository.ts
+
+Add three new methods to the repository object (the same object literal
+that currently contains createUser at line 40, createRefreshToken at line
+154, findRefreshTokenById at line 158, and markRefreshTokenUsed at line
+165). Add these new methods near the refresh-token methods, since they are
+the closest existing analog:
+
+1. `createPasswordResetToken: async (input) => { ... }` — inserts into the
+   new passwordResetTokens table (imported from
+   '@batac/database/schema/iam.schema.js', matching how `refreshTokens` is
+   already imported in this file) and returns the inserted row via
+   `.returning()`. Follow the exact pattern of createRefreshToken (line
+   154): `const [token] = await db.insert(passwordResetTokens)
+   .values(input).returning(); return token!;`
+
+2. `findPasswordResetTokenById: async (id) => { ... }` — follow the exact
+   pattern of findRefreshTokenById (line 158): select where id matches AND
+   deletedAt is null, return the row or null. Do NOT filter on usedAt in
+   this lookup — the caller (service layer) needs to see an already-used
+   token to produce a correct "this link was already used" error, rather
+   than a generic "not found" that would be indistinguishable from an
+   invalid token.
+
+3. `markPasswordResetTokenUsed: async (id) => { ... }` — follow the exact
+   pattern of markRefreshTokenUsed (line 165), adapted: `const updated =
+   await db.update(passwordResetTokens).set({ usedAt: new Date() })
+   .where(and(eq(passwordResetTokens.id, id),
+   isNull(passwordResetTokens.usedAt))).returning(); return updated.length
+   > 0;` — this WHERE-clause guard (usedAt IS NULL) is what makes
+   consumption atomic and prevents a race where the same token is redeemed
+   twice; do not remove or weaken this guard.
+
+Also add the corresponding three method signatures to the `IamRepository`
+interface in apps/server/src/modules/iam/iam.types.ts (interface starts at
+line 302), positioned near the existing createRefreshToken /
+findRefreshTokenById / markRefreshTokenUsed signatures (lines 337-339) for
+the same reason — follow their exact signature style, e.g.:
+`createPasswordResetToken(input: CreatePasswordResetTokenInput):
+Promise<PasswordResetTokenRow>;` — you will need to define
+`CreatePasswordResetTokenInput` and `PasswordResetTokenRow` types in this
+same file, following how `CreateRefreshTokenInput` and `RefreshTokenRow`
+are already defined there (search this file for those two type names to
+find the exact pattern to mirror).
+
+═══════════════════════════════════════════
+PART 3 — SERVICE LAYER
+═══════════════════════════════════════════
+
+File to edit: apps/server/src/modules/iam/iam.service.ts
+
+This file already has everything needed in scope with no new imports
+required for the core mechanism: `randomBytes` and `argon2` are imported
+at line 3 area (confirm exact current import line before editing — do not
+assume line numbers without checking), `IAM_EVENTS` is imported, and a
+local `sha256Hex(input: string): string` helper already exists at line 66
+(module-scope, not exported — this is fine since these new functions live
+in this same file).
+
+Add two new methods to the service object (the same object literal that
+contains createUserAccount at line 1154):
+
+1. `generatePasswordResetToken(input: { userId: string; actorId: string;
+   cityId: string }): Promise<{ resetUrl: string }>` — mirror the
+   refresh-token issuance pattern at lines 458-481 of this same file
+   EXACTLY for the crypto/hashing mechanics, with these adaptations:
+   - `const rawBytes = randomBytes(32);` then
+     `rawBytes.toString('base64url')` for the raw value (same as the
+     refresh-token pattern)
+   - `const saltBytes = randomBytes(16);` then
+     `saltBytes.toString('base64url')` for the salt (same pattern)
+   - `const tokenHash = sha256Hex(rawBase64url + saltBase64url);` (same
+     pattern, reusing the existing sha256Hex helper — do not use argon2
+     here; this mirrors why refresh tokens use SHA-256 rather than argon2:
+     the raw value already has 32 bytes of entropy, so a fast hash is
+     appropriate, unlike password hashing where a slow hash defends a
+     low-entropy human-chosen secret)
+   - Call `iamRepo.createPasswordResetToken({ userId: input.userId, cityId:
+     input.cityId, tokenHash, salt: saltBase64url, expiresAt: <see TTL
+     note below> })`
+   - Emit an event: add `PASSWORD_RESET_TOKEN_GENERATED:
+     'password_reset_token.generated'` to the IAM_EVENTS object in
+     apps/server/src/modules/iam/iam.events.ts (follow the existing
+     `NOUN_PASTTENSE: 'noun.pasttense'` naming convention used by every
+     other entry in that file, e.g. USER_CREATED: 'user.created'). Emit it
+     with payload `{ actorId: input.actorId, targetUserId: input.userId }`
+     — do NOT include the raw token value in the event payload, mirroring
+     how USER_CREATED's payload excludes the credential material (lines
+     1177-1180 of this same file, current version).
+   - TTL: no existing project convention specifies a password-reset-link
+     TTL (the refresh-token TTL constant, JWT_REFRESH_TTL_SECONDS at line
+     42, is 14 days, but that is a session-continuity TTL and not an
+     appropriate default for a one-time bootstrap link, which should be
+     short-lived for security). Use 24 hours
+     (`new Date(Date.now() + 24 * 3600 * 1000)`) as a conservative default.
+     Label this choice `[Inference]` in the PR description, since no
+     document specifies this value — this is exactly the kind of
+     undocumented-by-design gap AGENTS.md Section 4 describes; implement
+     the conservative default and continue, do not block on it, and log it
+     per the process below.
+   - Return `{ resetUrl: <base URL>/reset-password?token=${tokenId}.${rawBase64url}
+     }` where tokenId is the `id` field of the row returned by
+     createPasswordResetToken. For <base URL>, check
+     apps/server/src/config/env.ts (or env.server.ts) for an existing
+     frontend-base-URL env var (search for something like
+     FRONTEND_URL, APP_URL, or WEB_BASE_URL) and use it if one exists;
+     if none exists, construct a relative path (`/reset-password?token=...`)
+     instead of inventing a new env var, and note this in the PR
+     description as a follow-up item rather than adding new env
+     configuration as part of this task.
+
+2. `redeemPasswordResetToken(input: { tokenId: string; rawToken: string;
+   newPassword: string }): Promise<void>` — this is the function the
+   PUBLIC redemption procedure (Part 4 below) will call. Steps:
+   - Call `iamRepo.findPasswordResetTokenById(input.tokenId)`. If null,
+     throw a NotFoundError (imported at the top of this file already, used
+     elsewhere — follow existing usage pattern in this file for the exact
+     throw style).
+   - If found but `usedAt` is already set (non-null), throw an error
+     indicating the link was already used — check this file and
+     iam.errors.ts for an existing error type/pattern to reuse before
+     creating a new one; if none fits, a plain descriptive Error is
+     acceptable but note it as a candidate for a proper error class in the
+     PR description.
+   - If found and unused, check `expiresAt` against `new Date()`; if
+     expired, throw an error indicating the link has expired (same
+     error-type-selection guidance as above).
+   - If found, unused, and not expired: recompute
+     `sha256Hex(input.rawToken + storedRow.salt)` and compare against
+     `storedRow.tokenHash`. If they don't match, throw the SAME
+     not-found-style error used for the "token doesn't exist" case above
+     — do not give a distinguishable error message for "wrong raw value"
+     vs "token doesn't exist", since a distinguishable error would let an
+     attacker probe which token IDs are valid.
+   - If the hash matches: hash `input.newPassword` with argon2 (mirror the
+     exact argon2.hash() call style already used elsewhere in this file,
+     e.g. line 951's newHash pattern) and call
+     `iamRepo.updateCredentialHash(userId, newHash)` — CONFIRM this method
+     exists in iam.repository.ts before assuming it (it is referenced in
+     this file's repository, near createCredential and
+     findCredentialByUserId; verify its exact signature before calling
+     it, do not assume the argument order without checking).
+   - Then call `iamRepo.markPasswordResetTokenUsed(input.tokenId)` to
+     consume the token atomically.
+   - Emit a `PASSWORD_RESET_COMPLETED: 'password_reset.completed'` event
+     (add this to IAM_EVENTS alongside the entry from step 1 above),
+     payload `{ targetUserId: storedRow.userId }`.
+
+Add both new method signatures to the `IamService` interface in
+apps/server/src/modules/iam/iam.types.ts, positioned near the existing
+createUserAccount signature (line 273) — follow its exact declaration
+style.
+
+═══════════════════════════════════════════
+PART 4 — ROUTER LAYER
+═══════════════════════════════════════════
+
+File to edit: apps/server/src/modules/iam/iam.router.ts
+
+Add ONE new procedure to the existing `iamRouter = router({...})` object
+literal (starts at line 16, currently contains exactly 15 procedures,
+ending around line 221):
+
+`generatePasswordResetLink: protectedProcedure` — gate it on
+`ctx.auth.isItAdmin` only, following the EXACT gating style of
+createUserAccount (lines 113-127 of this file, current version — copy its
+`if (!ctx.auth.isItAdmin) { throw new TRPCError({ code: 'FORBIDDEN',
+message: '...' }); }` pattern verbatim in structure, adapting only the
+message text). Input: a Zod schema requiring `userId: z.string().uuid()`
+(add this schema to iam.schemas.ts, near CreateUserAccountInput at line
+119, following its exact style). The procedure body calls
+`service.generatePasswordResetToken({ userId: input.userId, actorId:
+ctx.auth.userId, cityId: ctx.auth.cityId })` and returns its result
+directly (no .output() schema — this matches every other procedure in this
+file, none of which currently has one; do not introduce a new
+file-wide convention as a side effect of this task).
+
+For the SECOND new procedure — token redemption — this CANNOT be a
+protectedProcedure, because the person redeeming a reset token is by
+definition not yet authenticated (this is explicitly required; see PART 3
+above, "the PUBLIC redemption procedure"). This file currently has ZERO
+publicProcedure entries (confirmed: 15/15 existing procedures are
+protectedProcedure). Before adding this procedure, locate this project's
+actual publicProcedure export — it is used elsewhere in the codebase for
+login/refresh (per prior investigation, likely in a file such as
+iam.routes.ts or a separate auth router, NOT in this file) — find that
+exact import and use the SAME publicProcedure import this project already
+uses elsewhere, rather than inventing a new one or importing tRPC's raw
+`publicProcedure` builder directly if this project has its own wrapped
+version. If you cannot find an existing publicProcedure export used
+elsewhere in this codebase, stop and report this back rather than
+inventing one, since the existing pattern (whatever context/middleware it
+attaches) needs to be matched, not reinvented.
+
+Add `redeemPasswordResetToken: publicProcedure` with input schema
+requiring `tokenId: z.string().uuid()`, `rawToken: z.string()`,
+`newPassword: <reuse whatever Zod validation rule this project already
+uses for passwords elsewhere — check EditUserAccountInput or
+changeOwnPassword's input schema in iam.schemas.ts for an existing
+password-strength rule before inventing a new one>`. The procedure body
+calls `service.redeemPasswordResetToken({ tokenId: input.tokenId,
+rawToken: input.rawToken, newPassword: input.newPassword })` with no
+auth-flag check (there is no ctx.auth to check meaningfully for an
+unauthenticated caller).
+
+═══════════════════════════════════════════
+EXPLICIT SCOPE BOUNDARY
+═══════════════════════════════════════════
+
+DO NOT in this task:
+- Modify createUserAccount itself (it remains the "locked" bootstrap;
+  this task only adds the "unlock" mechanism)
+- Modify editUserAccount, deactivateUserAccount, or reactivateUserAccount
+- Add any frontend code (a separate follow-up task will cover the
+  "generate reset link" button in UserAccountManagementPage.tsx and the
+  new public ResetPasswordPage.tsx redemption page, once this backend
+  work is confirmed to exist and its exact output shape is known)
+- Add RLS or REVOKE statements for the new table (see "Design decision
+  already made" above)
+- Add email-sending capability of any kind (no SMTP-sending
+  infrastructure exists in this codebase currently; this task returns a
+  URL string that an IT Admin copies/shares manually — building
+  email-sending is explicitly out of scope for this task)
+- Touch any file under docs/ as part of implementing this task (findings
+  and open questions from this task should go through the normal
+  development-findings-log.md process, described below, not through
+  editing architecture documents directly)
+
+═══════════════════════════════════════════
+FINDINGS LOG
+═══════════════════════════════════════════
+
+Per this project's AGENTS.md Section 4.5 and development-findings-log.md's
+own header rules: if you hit any of the following during this task, do
+NOT resolve it silently — append a findings-log entry with status:
+proposed (never write "confirmed" yourself) instead, following the exact
+format in development-findings-log.md's own header (read that header
+before writing your entry):
+- If the actual Drizzle Kit generate command in package.json differs
+  meaningfully from what's assumed above
+- If updateCredentialHash's actual signature differs from what's assumed
+- If no existing publicProcedure export can be found elsewhere in this
+  codebase to reuse
+- If no existing password-strength Zod rule can be found to reuse
+- The 24-hour TTL choice (label it [Inference], per AGENTS.md Section 4's
+  guidance on undocumented implementation decisions)
+Before writing any new entry, check whether an existing entry already
+covers the same discovery (search by affects document ID or topic) — if
+one does and your finding is consistent with it, do not duplicate.
+
+Report back: which parts completed as specified, any deviation from this
+prompt and why, and the exact new file paths / migration number created.
+````
+
+---
+
+# TASK-INFRA-XXX
+
+````
+TASK-INFRA-XXX: Implement SMTP email-sending capability using the existing,
+already-mandatory SMTP environment configuration.
+
+═══════════════════════════════════════════
+BACKGROUND / WHY THIS TASK EXISTS
+═══════════════════════════════════════════
+apps/server/src/config/env.server.ts already declares a full SMTP
+configuration block as UNCONDITIONALLY REQUIRED (no feature flag gates it,
+unlike FEATURE_MEILISEARCH_ENABLED / AUDIT_TSA_ENABLED / BACKUP_ENABLED /
+DR_HOT_STANDBY_ENABLED, which are each gated by their own boolean flag via
+a .superRefine() check at the bottom of the schema):
+
+  SMTP_HOST: z.string().min(1)                          — required, no default
+  SMTP_PORT: z.coerce.number()...default(587)
+  SMTP_SECURE: booleanFromString.default('false')
+  SMTP_USER: z.string().min(1)                           — required, no default
+  SMTP_PASSWORD: z.string().min(1)                       — required, no default
+  SMTP_FROM: z.string().email()                          — required, no default
+  SMTP_FROM_NAME: z.string().default('Batac City LGU')
+  SMTP_REJECT_UNAUTHORIZED: booleanFromString.default('true')
+  SMTP_POOL: booleanFromString.default('true')
+  SMTP_MAX_CONNECTIONS: positiveInt.default(5)
+  SMTP_MAX_MESSAGES: positiveInt.default(100)
+  SMTP_DEBUG: booleanFromString.default('false')
+
+Because env validation happens eagerly at module-load time in
+apps/server/src/config/env.ts (serverEnvSchema.safeParse(process.env),
+process.exit(1) on failure — this already exists, do not modify it), the
+server currently CANNOT START without a real SMTP_HOST/USER/PASSWORD/FROM
+being supplied. Despite this, there is no code anywhere in the repository
+that ever constructs an SMTP transport or sends an email. `nodemailer` is
+not installed. No other email-sending library (react-email, @aws-sdk/
+client-ses, resend, postmark, mailgun-js, @sendgrid/mail, emailjs) is
+installed either — confirmed via repo-wide search across every
+package.json, not just apps/server's.
+
+═══════════════════════════════════════════
+EXPLICIT SCOPE BOUNDARY — READ BEFORE STARTING
+═══════════════════════════════════════════
+IN SCOPE: build a reusable, generic "send an email via SMTP" capability,
+decorated onto the Fastify instance, using the config that already exists.
+
+OUT OF SCOPE — DO NOT BUILD ANY OF THE FOLLOWING, even though they may
+seem like natural next steps:
+  - Do NOT build a Notifications system (in-app notifications, notification
+    templates, per-user channel preferences, notification history/log
+    table). No such table exists in packages/database/schema/ today (I
+    checked — searched every .schema.ts file for "notification", the only
+    hits are an unrelated stepType enum literal in workflow.schema.ts and
+    an unrelated doc-comment example string in shared.schema.ts). Building
+    one is a real design task with its own open questions and is not part
+    of this task.
+  - Do NOT wire this mailer into
+    apps/server/src/modules/workflow/engine/step-handlers/notification.handler.ts.
+    That file's `notificationService?: any` dependency is intentionally
+    generic (it's meant to eventually take a full Notifications-API client,
+    of which email would be at most one channel among others — 'inapp' is
+    the only channel currently named anywhere, as a default value). Wiring
+    a raw mailer directly into that handler would conflate two different,
+    separable problems. Leave that file completely untouched.
+  - Do NOT invent email templates, HTML email design, or any React-email-
+    style component system. Send plain-text and/or simple pre-built HTML
+    strings passed in by the caller — templating is a separate concern.
+  - Do NOT add a call site that sends a real email as part of any existing
+    business flow (e.g. do not add "send email on document status change"
+    or "send email on password reset"). No such call site exists today
+    (confirmed via repo-wide search for sendEmail/emailService/mailer
+    patterns — zero hits anywhere in apps/server/src). Adding one is a
+    product decision about WHEN emails should be sent, which is not part
+    of this task. This task ends at "the capability exists, is correctly
+    wired, and is provably functional" — not at "something in the app
+    calls it."
+  - Do NOT touch any of the other three .superRefine()-gated optional
+    subsystems (Meilisearch, Audit TSA, Backup, DR hot standby) even
+    though they follow a related "config exists, feature may be
+    unimplemented" shape. Out of scope.
+
+═══════════════════════════════════════════
+STEP 1 — Install dependencies
+═══════════════════════════════════════════
+In apps/server/package.json:
+  - Add "nodemailer" as a dependency, pinned to the current major (^9.0.0
+    or later — check npm for whatever the actual current latest patch is
+    at execution time and use that; as of this prompt being written the
+    latest is 9.0.3). Do not pin to any 6.x/7.x/8.x line: versions before
+    7.0.11 are vulnerable to CVE-2025-14874 (DoS via infinite recursion in
+    the address parser — fixed in nodemailer commit b61b9c0, released in
+    v7.0.11). Installing current avoids this by a wide margin.
+  - Add "@types/nodemailer" as a devDependency, latest version (nodemailer
+    does not ship its own TypeScript types even at v9.x — this is a
+    genuinely separate, actively-maintained DefinitelyTyped package and is
+    required or apps/server will fail to typecheck on `import nodemailer`).
+
+Run the install via this project's actual package manager (pnpm, per the
+workspace's pnpm-lock.yaml and pnpm-workspace.yaml) so the lockfile updates
+correctly. Confirm both packages appear in the regenerated lockfile under
+apps/server's importer block before moving on.
+
+═══════════════════════════════════════════
+STEP 2 — Build the mailer service
+═══════════════════════════════════════════
+Create apps/server/src/infrastructure/mailer.service.ts.
+
+Follow the existing pattern used by
+apps/server/src/infrastructure/event-bus.plugin.ts exactly: that file
+instantiates a class (EventBus, imported from @batac/shared) inside a thin
+plugin function, then decorates it onto `fastify`. For the mailer, since
+there's no existing shared-package class to reuse, define the class
+directly in this new file instead (do not add a new export to
+@batac/shared for this — keep it server-local, since nothing outside
+apps/server needs to send email directly).
+
+Required shape:
+
+  import nodemailer, { type Transporter } from 'nodemailer';
+  import { env } from '../config/env.js';
+
+  export interface SendEmailInput {
+    to: string | string[];
+    subject: string;
+    text?: string;
+    html?: string;
+    replyTo?: string;
+  }
+
+  export interface SendEmailResult {
+    messageId: string;
+    accepted: string[];
+    rejected: string[];
+  }
+
+  export class MailerService {
+    private readonly transporter: Transporter;
+
+    constructor() {
+      this.transporter = nodemailer.createTransport({
+        host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        secure: env.SMTP_SECURE,
+        auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
+        tls: { rejectUnauthorized: env.SMTP_REJECT_UNAUTHORIZED },
+        pool: env.SMTP_POOL,
+        maxConnections: env.SMTP_MAX_CONNECTIONS,
+        maxMessages: env.SMTP_MAX_MESSAGES,
+        debug: env.SMTP_DEBUG,
+        logger: env.SMTP_DEBUG,
+      });
+    }
+
+    async sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
+      // Validate every recipient address is a syntactically well-formed
+      // email BEFORE handing anything to nodemailer. This project already
+      // validates SMTP_FROM the same way (z.string().email() in
+      // env.server.ts) — mirror that convention here rather than trusting
+      // nodemailer's own address parser on unsanitized input. This is a
+      // deliberate mitigation for CVE-2025-13033 (a nodemailer address-
+      // parsing flaw that can misdirect mail to an attacker-embedded
+      // address hidden inside quotes) — I could not confirm a specific
+      // patched version for this CVE the way I could for CVE-2025-14874,
+      // so treat this validation step as required regardless of which
+      // nodemailer version gets installed, not as a nice-to-have.
+      // Use a simple, well-known email regex or Zod's z.string().email()
+      // inline — do not add a new dependency for this.
+      //
+      // On validation failure: throw a clear Error before calling
+      // this.transporter.sendMail(), do not silently drop invalid
+      // recipients.
+
+      const info = await this.transporter.sendMail({
+        from: `"${env.SMTP_FROM_NAME}" <${env.SMTP_FROM}>`,
+        to: input.to,
+        subject: input.subject,
+        text: input.text,
+        html: input.html,
+        replyTo: input.replyTo,
+      });
+
+      return {
+        messageId: info.messageId,
+        accepted: info.accepted as string[],
+        rejected: info.rejected as string[],
+      };
+    }
+
+    async verifyConnection(): Promise<boolean> {
+      return this.transporter.verify();
+    }
+  }
+
+Then create apps/server/src/infrastructure/mailer.plugin.ts:
+
+  import fp from 'fastify-plugin';
+  import type { FastifyInstance } from 'fastify';
+  import { MailerService } from './mailer.service.js';
+
+  async function mailerPlugin(fastify: FastifyInstance): Promise<void> {
+    const mailer = new MailerService();
+    fastify.decorate('mailer', mailer);
+  }
+
+  export default fp(mailerPlugin, {
+    name: 'mailer',
+  });
+
+Note this plugin has NO `dependencies` array — it doesn't need `database`
+or `event-bus` the way documents/tracking/workflow do, since it only reads
+from `env`, matching how database.plugin.ts itself (which also only reads
+`env`) has no dependencies of its own.
+
+This design deliberately does NOT call `verifyConnection()` at plugin
+registration time (i.e. do not call it inside `mailerPlugin` itself,
+before or after decorate). I checked: database.plugin.ts does not eagerly
+ping the database at startup either — it constructs the client and trusts
+it lazily. Match that existing convention rather than introducing an
+eager-connectivity-check pattern that doesn't exist anywhere else in this
+codebase today. `verifyConnection()` is exposed as a method precisely so a
+caller (e.g. a future health-check route, or the smoke-test script in Step
+4 below) can invoke it explicitly when wanted — but the plugin itself
+should not call it during registration.
+
+═══════════════════════════════════════════
+STEP 3 — Register the plugin and declare the ambient type
+═══════════════════════════════════════════
+In apps/server/src/app.ts: register the mailer plugin. Since it has no
+`dependencies` array, its position in the registration sequence relative
+to the other plugins doesn't matter mechanically — but for readability,
+register it near the top alongside `database` and `event-bus` (the other
+plugins that only depend on `env`), not interleaved among the six
+business-logic modules (audit/iam/organization/documents/tracking/
+workflow). Look at the current app.ts to find the exact right place; do
+not guess at line numbers from this prompt, since app.ts may have changed
+since this prompt was written.
+
+For the ambient Fastify type: this codebase's convention for
+`declare module 'fastify'` blocks is NOT centralized in one file — each
+plugin's block currently lives in whichever file was most convenient at
+the time (e.g. `eventBus`'s type is declared in
+modules/audit/audit.plugin.ts, NOT in infrastructure/event-bus.plugin.ts
+itself — and is in fact ALSO separately re-declared a second time in
+modules/tracking/tracking.plugin.ts; TypeScript's declaration merging
+means this doesn't error, but it means "search for the one canonical
+declaration" is not a safe assumption to make anywhere in this codebase).
+Given that:
+  - Add `mailer: MailerService;` to a `declare module 'fastify'` block
+    inside mailer.plugin.ts itself (co-locate it with the plugin that
+    creates it, since there's no other consumer file yet that would have
+    an equally good claim to owning it).
+  - Import `MailerService` as a type-only import in mailer.plugin.ts for
+    this purpose if it isn't already imported as a value.
+
+═══════════════════════════════════════════
+STEP 4 — Prove it works
+═══════════════════════════════════════════
+Do NOT wire this into any real business call site (see Explicit Scope
+Boundary above). Instead, prove correctness via test setup, mirroring how
+this codebase already tests infrastructure-adjacent code (mocked
+dependencies, no real network calls in the automated test suite):
+
+  - Create apps/server/src/infrastructure/mailer.service.test.ts.
+    Mock `nodemailer.createTransport` (vi.mock('nodemailer', ...)) so no
+    real SMTP connection is attempted during the test run. Test:
+      - sendEmail() calls transporter.sendMail() with the correct `from`
+        format (name + SMTP_FROM combined as shown above).
+      - sendEmail() rejects (throws) before calling sendMail() when given
+        a malformed recipient address, and does NOT call sendMail() in
+        that case (assert the mock was not called).
+      - sendEmail() correctly returns messageId/accepted/rejected from
+        whatever the mocked transporter.sendMail() resolves with.
+      - verifyConnection() calls transporter.verify() and returns its
+        result.
+  - Do NOT create any test that makes a real network connection to an
+    SMTP server, real or fake (no test SMTP server, no Ethereal/Mailtrap
+    integration). Keep this fully within the existing mocked-unit-test
+    convention.
+
+Additionally: confirm the server still boots correctly end to end by
+running the project's existing dev/build/typecheck commands (check
+apps/server/package.json's own "scripts" block for the exact current
+command names — do not assume they're named "dev"/"build"/"typecheck"
+without checking) with a valid set of SMTP_* env vars supplied (any
+syntactically valid placeholder values are fine — SMTP_HOST=localhost,
+SMTP_USER=test, SMTP_PASSWORD=test, SMTP_FROM=noreply@example.com — since
+we are only proving the app constructs successfully, not that mail
+actually sends). Report the exact commands run and their exact output.
+
+═══════════════════════════════════════════
+WHAT TO REPORT BACK
+═══════════════════════════════════════════
+- Confirm the exact nodemailer and @types/nodemailer versions actually
+  installed (from the regenerated lockfile, not just what was requested).
+- Confirm mailer.service.ts and mailer.plugin.ts were created at the exact
+  paths above, and paste their final content.
+- Confirm exactly where in app.ts the plugin was registered (file + line
+  number after your edit).
+- Confirm the ambient `mailer: MailerService` type was added, and exactly
+  where.
+- Paste the full output of the test run for mailer.service.test.ts.
+- Paste the full output of the boot-verification step from Step 4,
+  including which exact package.json script(s) you used.
+- Explicitly state: did you touch notification.handler.ts, or any file
+  under modules/workflow/? (Expected answer: no. If you did, explain why,
+  since this was explicitly out of scope.)
+- Explicitly state: did you add any new call site anywhere that invokes
+  sendEmail() outside of the test file? (Expected answer: no. If you did,
+  explain why, since this was explicitly out of scope.)
+- Flag anything you found that contradicts what this prompt states as
+  fact about the current repo (e.g. if app.ts's registration pattern has
+  changed since this was written, if the SMTP env fields have changed, if
+  a mailer-adjacent file already exists that this prompt didn't account
+  for). Do not silently work around such a discrepancy — report it.
+````
+
+---
+
+````
+TASK-INFRA-XXX-FOLLOWUP: Replace the blanket `as any` cast in
+MailerService's transporter construction with a narrow, single-field cast
+on only the `pool` property.
+
+═══════════════════════════════════════════
+BACKGROUND / WHY THIS TASK EXISTS
+═══════════════════════════════════════════
+apps/server/src/infrastructure/mailer.service.ts currently constructs its
+nodemailer transporter like this (constructor body, inside the
+MailerService class):
+
+  this.transporter = nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_SECURE,
+    auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
+    tls: { rejectUnauthorized: env.SMTP_REJECT_UNAUTHORIZED },
+    pool: env.SMTP_POOL,
+    maxConnections: env.SMTP_MAX_CONNECTIONS,
+    maxMessages: env.SMTP_MAX_MESSAGES,
+    debug: env.SMTP_DEBUG,
+    logger: env.SMTP_DEBUG,
+  } as any);
+
+The `as any` on the whole options object is functionally necessary today
+— I confirmed by direct experimentation that removing it entirely causes
+a genuine compile error (TS2769, "No overload matches this call") — but
+it is broader than the actual problem requires.
+
+ROOT CAUSE (confirmed by reading @types/nodemailer's actual type
+definitions at
+node_modules/.pnpm/@types+nodemailer@8.0.1/node_modules/@types/nodemailer/index.d.ts):
+`nodemailer.createTransport` has seven overloads, one of which resolves
+to `SMTPPool.Options` when pooled-mode fields (like `pool`) are present.
+In that interface, `pool` is typed as the literal `true`, not `boolean` —
+because SMTPPool.Options specifically models "pooled mode is on," not "a
+togglable pool flag." But `env.SMTP_POOL` (declared in
+apps/server/src/config/env.server.ts as
+`SMTP_POOL: booleanFromString.default('true')`) is a genuine runtime
+boolean, not a compile-time-known `true`. That mismatch on the single
+`pool` field is what breaks overload resolution for the whole object —
+every other field (host, port, secure, auth, tls, maxConnections,
+maxMessages, debug, logger) is already structurally compatible with
+SMTPPool.Options and does not need to be cast.
+
+I verified this directly: narrowing the cast to only
+`pool: env.SMTP_POOL as true` (leaving every other field as a plain,
+uncast value) typechecks cleanly with this project's actual tsconfig
+(apps/server/tsconfig.json, via `pnpm run typecheck`), and the existing
+mailer.service.test.ts test suite (all 4 tests) still passes unchanged
+against it, since this is a compile-time-only annotation — it does not
+change env.SMTP_POOL's actual runtime value or behavior in any way.
+
+═══════════════════════════════════════════
+EXPLICIT SCOPE BOUNDARY
+═══════════════════════════════════════════
+IN SCOPE: exactly one change, in exactly one file.
+
+OUT OF SCOPE — do not do any of the following:
+  - Do not touch mailer.plugin.ts, mailer.service.test.ts, app.ts, or any
+    other file. This is a single-line-shape change in
+    mailer.service.ts only.
+  - Do not add any new test for this change. The existing 4 tests in
+    mailer.service.test.ts already exercise the pooled-transport
+    construction path indirectly (every test instantiates
+    `new MailerService()`, which runs this exact constructor code), and
+    already passed against the fix during verification. No new test
+    scenario is being added by this change — it is a types-only fix with
+    identical runtime behavior, not a behavior change that needs new
+    coverage.
+  - Do not change env.SMTP_POOL's declaration in env.server.ts. It stays
+    exactly as it is (`booleanFromString.default('true')`) — a genuine
+    runtime-configurable boolean. The fix belongs entirely on the
+    nodemailer-consuming side, not the env-schema side.
+  - Do not attempt option (b) (branching into two separate typed
+    `createTransport` calls based on env.SMTP_POOL) or leave the current
+    blanket `as any` in place. The narrow single-field cast (below) is
+    the specific, decided approach for this task — do not substitute a
+    different one, even if it seems cleaner to you in the moment.
+  - Do not add a code comment that re-derives or re-explains the root
+    cause from scratch. Use the comment text given below verbatim (or
+    materially equivalent) — it already reflects verified investigation,
+    re-deriving it risks introducing a subtly different, unverified
+    explanation.
+
+═══════════════════════════════════════════
+THE EXACT CHANGE
+═══════════════════════════════════════════
+In apps/server/src/infrastructure/mailer.service.ts, inside the
+MailerService constructor:
+
+REPLACE this (the entire constructor body, verbatim, exactly as it
+currently exists in the file — verify it still matches exactly this
+before editing; if it does not, STOP and report the discrepancy instead
+of proceeding):
+
+  constructor() {
+    this.transporter = nodemailer.createTransport({
+      host: env.SMTP_HOST,
+      port: env.SMTP_PORT,
+      secure: env.SMTP_SECURE,
+      auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
+      tls: { rejectUnauthorized: env.SMTP_REJECT_UNAUTHORIZED },
+      pool: env.SMTP_POOL,
+      maxConnections: env.SMTP_MAX_CONNECTIONS,
+      maxMessages: env.SMTP_MAX_MESSAGES,
+      debug: env.SMTP_DEBUG,
+      logger: env.SMTP_DEBUG,
+    } as any);
+  }
+
+WITH this:
+
+  constructor() {
+    this.transporter = nodemailer.createTransport({
+      host: env.SMTP_HOST,
+      port: env.SMTP_PORT,
+      secure: env.SMTP_SECURE,
+      auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
+      tls: { rejectUnauthorized: env.SMTP_REJECT_UNAUTHORIZED },
+      // `pool` is typed as the literal `true` in @types/nodemailer's
+      // SMTPPool.Options (pooled mode is either on or the field is
+      // absent — it isn't modeled as a togglable boolean), but
+      // env.SMTP_POOL is a genuine runtime-configurable boolean
+      // (env.server.ts: booleanFromString.default('true')). Narrow the
+      // cast to just this field rather than casting the whole options
+      // object, so every other field here stays type-checked normally.
+      pool: env.SMTP_POOL as true,
+      maxConnections: env.SMTP_MAX_CONNECTIONS,
+      maxMessages: env.SMTP_MAX_MESSAGES,
+      debug: env.SMTP_DEBUG,
+      logger: env.SMTP_DEBUG,
+    });
+  }
+
+Note precisely what changed: the `as true` moved from the closing `)` of
+the whole `createTransport(...)` call onto only the `pool:` value, and
+the trailing `} as any)` became a plain `});`. No other line in this
+constructor changes.
+
+═══════════════════════════════════════════
+VERIFICATION
+═══════════════════════════════════════════
+1. Run `pnpm run typecheck` in apps/server. Expect clean exit (no
+   TS2769, no other new errors). This exact command already succeeded
+   against this exact change during investigation — if it fails for you,
+   something about the current repo state differs from what this prompt
+   assumes, and you should report the actual error rather than attempt a
+   different workaround.
+2. Run `npx vitest run src/infrastructure/mailer.service.test.ts` in
+   apps/server. Expect all 4 existing tests to still pass, unchanged.
+3. Run the full existing suite (`npx vitest run` in apps/server) and
+   confirm the pass/fail counts match what existed before this change
+   (as of the last verification: 803 passed, 6 failed — all 6 failures
+   being pre-existing audit-module integration tests that fail on
+   ECONNREFUSED 127.0.0.1:5432 due to no live Postgres instance being
+   available, unrelated to this change). If your environment has a live
+   Postgres available, those 6 may legitimately pass instead — the
+   important check is that no test which passed before this change now
+   fails, and no new failure appears anywhere outside that known set.
+
+═══════════════════════════════════════════
+WHAT TO REPORT BACK
+═══════════════════════════════════════════
+- Paste the exact final content of the modified constructor.
+- Paste the full output of `pnpm run typecheck`.
+- Paste the full output of the mailer.service.test.ts run.
+- Paste the full pass/fail summary line of the full suite run, and
+  confirm whether the failure set matches the known pre-existing one
+  above or differs (and if it differs, exactly how).
+- Confirm no file other than mailer.service.ts was modified.
+````
+
+---
+
+# TASK-IAM-051
+
+````
+TASK-IAM-051: Restore an accidentally-dropped index clause on iam.refresh_tokens
+and correct a duplicate-numbered findings-log entry
+
+CONTEXT
+This is a corrective follow-up to TASK-IAM-050 (password-reset token
+generation/redemption). Two unrelated defects were found during review of
+TASK-IAM-050's output, neither of which involves the password-reset feature
+itself. This task fixes both. Do not touch any password-reset-token logic,
+schema, repository, service, or router code as part of this task — that
+code is already correct and is explicitly out of scope here.
+
+═══════════════════════════════════════════
+FIX 1 — Restore idx_rt_expires_at's WHERE clause on iam.refresh_tokens
+═══════════════════════════════════════════
+
+File: packages/database/schema/iam.schema.ts
+
+While adding the passwordResetTokens table in TASK-IAM-050, the existing
+`refreshTokens` table's `idx_rt_expires_at` index definition was
+unintentionally modified — its `.where(...)` partial-index clause was
+deleted, apparently as a side effect of inserting the new table
+immediately after the refreshTokens block. This was never requested and
+is outside the scope of any task related to password-reset tokens.
+
+Current state (confirm this matches before editing — if it does not match
+exactly, stop and report back rather than proceeding, since that would
+mean the file has changed again since this prompt was written):
+
+    index('idx_rt_expires_at')
+      .on(table.expiresAt)
+  ],
+);
+
+Change it to restore the deleted clause, so it reads:
+
+    index('idx_rt_expires_at')
+      .on(table.expiresAt)
+      .where(sql`revoked_at IS NULL AND used_at IS NULL`),
+  ],
+);
+
+This is a straight restoration — the `sql` tagged-template import already
+exists at the top of this file (line 16: `import { sql } from
+'drizzle-orm';`), so no new import is needed. Do not add any other change
+to the refreshTokens table definition.
+
+Verify the passwordResetTokens table definition (added by TASK-IAM-050,
+directly below the refreshTokens table in this same file) is completely
+unaffected by this edit — it should remain exactly as it currently is,
+with no columns, constraints, or indexes added, removed, or modified.
+
+═══════════════════════════════════════════
+FIX 1, CONTINUED — Regenerate the migration
+═══════════════════════════════════════════
+
+After the schema edit above, before regenerating, check whether migration
+0012_plain_black_panther.sql (the migration TASK-IAM-050 generated) has
+already been applied to any database this environment can reach. Check via
+this project's actual migration-tracking mechanism (Drizzle Kit tracks
+applied migrations in a `__drizzle_migrations` table it manages, or
+consult packages/database's db:migrate script — `tsx scripts/migrate.ts`
+— for how this project checks applied state) rather than assuming either
+way.
+
+- If migration 0012 has NOT been applied anywhere yet: regenerate it by
+  re-running this project's migration-generation command (`pnpm --filter
+  @batac/database db:generate`, i.e. `drizzle-kit generate` — confirm the
+  exact filter/workspace invocation against this project's actual
+  package.json scripts rather than assuming the exact pnpm invocation
+  syntax) so that 0012_plain_black_panther.sql is regenerated to no longer
+  contain the erroneous DROP INDEX / CREATE INDEX pair for
+  idx_rt_expires_at, since the schema now matches what's already live.
+- If migration 0012 HAS already been applied somewhere: do not edit or
+  regenerate 0012 itself (never modify an already-applied migration file).
+  Instead, run the generation command to produce a new, subsequent
+  migration (0013) that corrects idx_rt_expires_at back to its
+  partial-index form on refresh_tokens. State clearly in your report which
+  of these two cases applied and why.
+
+Either way, confirm after regeneration that the new/regenerated migration
+file no longer touches iam.refresh_tokens in any way other than restoring
+the WHERE clause — no other unrelated DDL should appear.
+
+═══════════════════════════════════════════
+FIX 2 — Correct the duplicate-numbered findings-log entry
+═══════════════════════════════════════════
+
+File: docs/development-findings-log.md
+
+TASK-IAM-050 appended a findings-log entry titled "Password reset link TTL
+conservative default of 24 hours" but numbered it LOG-0026. This collides
+with a pre-existing, unrelated entry already at that number (line 725 in
+the current file: "[LOG-0026] TASK-DOCS-009's deliverable
+(DocumentPolicyGuard) was an unimplemented stub at TASK-DOCS-011 time" —
+confirm this pre-existing entry is still there and unchanged before
+proceeding). This violates this log's own numbering rule, stated in its
+header: continue from the highest existing number, never reuse one.
+
+Before editing, re-check the current highest LOG-NNNN number in the file
+(it was LOG-0114 as of TASK-IAM-050's own review, immediately before the
+wrongly-numbered entry was appended — but re-verify this directly against
+the file's current actual state rather than trusting this prompt's
+citation of it, in case anything has changed since).
+
+This log is append-only — per its own header rules, agents may never edit
+or delete an existing entry, including one from an earlier task. The
+existing rule for this exact situation is: "if a later task contradicts or
+refines a prior entry, append a new entry that supersedes it and
+references the earlier entry's ID; don't go back and rewrite it." Apply
+that rule here:
+
+1. Do NOT edit the misnumbered LOG-0026 entry currently at the bottom of
+   the file (the "Password reset link TTL..." one). Leave its text exactly
+   as it is.
+2. Append a NEW entry, using the next correct sequential number (LOG-0115,
+   assuming the LOG-0114 high-water mark is confirmed unchanged per the
+   re-check above — use whatever the actual correct next number is if it
+   has changed), that:
+   - Has the same substantive content as the misnumbered entry (the 24-hour
+     TTL inference, same task_id: TASK-IAM-050, same status: proposed)
+   - Adds a `supersedes:` field pointing to the misnumbered entry by
+     description (since the misnumbered entry cannot be correctly
+     identified by a bare "LOG-0026" reference without ambiguity — use
+     something like `supersedes: the "Password reset link TTL conservative
+     default of 24 hours" entry appended immediately above under the
+     duplicate/incorrect number LOG-0026` rather than just `supersedes:
+     LOG-0026`, precisely because LOG-0026 is ambiguous between two
+     entries in this file)
+   - Explicitly states in its body that the entry immediately above it was
+     appended with an incorrect, duplicate number (colliding with the
+     pre-existing LOG-0026 at line ~725) and that this entry is the
+     corrected re-numbering, not a new independent finding
+
+Do not attempt to renumber or move the original misnumbered entry. Do not
+touch any Table of Contents in this or any other document as a result of
+this edit, per this project's standing convention (Table of Contents line
+numbers are never touched, even incidentally, by an agent).
+
+═══════════════════════════════════════════
+SCOPE BOUNDARY
+═══════════════════════════════════════════
+
+DO NOT in this task:
+- Modify any password-reset-token schema, repository, service, router, or
+  schema-validation code (all of that is correct as-is)
+- Modify packages/shared/src/events/event-payload-map.ts
+- Touch any file under apps/web/src
+- Edit the misnumbered LOG-0026 entry's existing text (append a correction
+  entry instead, per Fix 2 above)
+- Renumber, reorder, or delete any other existing findings-log entry
+
+Report back: which of the two Fix-1 regeneration paths applied (0012
+regenerated in place, or a new 0013 created) and why; the exact new LOG
+number used for the Fix-2 correction entry; and confirmation that no other
+file was touched.
+````
+
+---
+
+# TASK: Two related fixes to apps/server's OpenTelemetry instrumentation setup.
+
+````
+TASK: Two related fixes to apps/server's OpenTelemetry instrumentation setup.
+Fix 1 resolves an import-order timing bug (instrumentation.ts now pulls in
+the entire Fastify/Pino dependency tree before sdk.start() runs). Fix 2
+wires the Node.js ESM loader hook that ESM-based OpenTelemetry
+auto-instrumentation requires, which is currently completely absent from
+this project's dev and production startup commands. Do both — they are
+related but independent; do Fix 1 first, then Fix 2, and verify each
+separately before moving to the next.
+
+BACKGROUND — WHY BOTH ARE NEEDED (read this before starting; it explains
+why Fix 2 is not optional even after Fix 1 lands):
+
+apps/server/src/instrumentation.ts currently imports parseOtlpHeaders
+from apps/server/src/app.ts. Because this project uses genuine ES modules
+("type": "module" in apps/server/package.json, "module": "Node16" in
+tsconfig.json — confirmed, not CJS-with-shims), and index.ts's first
+import is `import './instrumentation.js';` specifically so instrumentation
+runs before anything else, instrumentation.ts importing from app.ts
+creates a problem: ES modules resolve their entire import graph and
+evaluate dependencies before dependents. This means app.ts — and
+everything it imports at its own top level, including `fastify` and
+`pino` directly — gets fully loaded and evaluated BEFORE
+instrumentation.ts's own top-level code (including the sdk.start() call)
+runs. This does not crash anything and produces no visible error; it just
+means FastifyInstrumentation and PinoInstrumentation have nothing left to
+patch by the time sdk.start() actually executes, since Node's module
+cache already holds the unpatched originals. Fix 1 resolves this by
+giving instrumentation.ts a dependency-free source for parseOtlpHeaders,
+so it no longer needs to import anything from app.ts's own tree.
+
+SEPARATELY: this project's ESM-based auto-instrumentation additionally
+needs a Node.js loader hook to work AT ALL, independent of the timing bug
+above. This is confirmed via OpenTelemetry's own current ESM support
+documentation: CommonJS auto-instrumentation works by hooking require(),
+but ESM's `import` statements go through a completely different loading
+mechanism that a plain early import statement does not intercept. OTel's
+documentation states the required mechanism is
+`--experimental-loader=@opentelemetry/instrumentation/hook.mjs`, used
+TOGETHER WITH (not instead of) a `--import` flag that preloads the
+instrumentation module itself. Neither flag is currently present anywhere
+in this repository — confirmed via full-repo grep for NODE_OPTIONS,
+--experimental-loader, and --import: zero matches outside node_modules.
+This means Fastify/Pino auto-instrumentation may never have actually
+worked in this project, independent of and predating the Fix-1 bug above.
+Fix 1 alone does not resolve this — it only fixes import ORDER, not the
+separate, required ESM PATCHING MECHANISM. Both fixes are needed for
+auto-instrumentation to actually function.
+
+═══ FIX 1: Extract parseOtlpHeaders to a dependency-free leaf file ═══
+
+FILES TO MODIFY:
+1. Create: apps/server/src/config/otlp-headers.ts (new file)
+2. apps/server/src/app.ts
+3. apps/server/src/instrumentation.ts
+
+DO NOT MODIFY ANY OTHER FILE as part of Fix 1.
+
+WHY THIS LOCATION: apps/server/src/config/ already holds env.ts,
+env.server.ts, and load-docker-secrets.ts — environment/config-adjacent
+utilities. env.server.ts imports only 'zod'; load-docker-secrets.ts
+imports only Node's built-in 'fs'. Neither imports fastify, pino, or
+app.ts. This new file continues that pattern. Do NOT put this function
+inside apps/server/src/config/env.ts itself — env.ts has side effects on
+import (it calls loadDockerSecrets(), runs Zod validation against
+process.env, and can call process.exit(1) on invalid config) and is not
+a clean leaf; mixing a pure string-parsing utility into a file that does
+environment validation and can exit the process is worse than a
+dedicated new file, and instrumentation.ts should not inherit env.ts's
+import-time side effects just to get one pure function.
+
+STEP 1a — Create apps/server/src/config/otlp-headers.ts:
+This file must have ZERO imports from app.ts, fastify, pino, or
+anything else in this project's application runtime tree. It should
+import nothing at all (the function body uses only built-in string
+methods).
+
+Content:
+  /**
+   * Parses the OTEL_EXPORTER_OTLP_HEADERS env var into a headers object
+   * for the OTLP exporters. Follows the standard OTel spec format:
+   * comma-separated `key=value` pairs (e.g.
+   * "Authorization=Basic xyz,X-Custom=abc").
+   *
+   * Deliberately isolated in its own dependency-free file: both
+   * app.ts (for the Pino log-shipping transport) and instrumentation.ts
+   * (for the trace exporter) need this function, and instrumentation.ts
+   * must be importable without pulling in app.ts's own dependency tree
+   * (fastify, pino, etc.) — see instrumentation.ts's own top-of-file
+   * comment for why that ordering matters.
+   */
+  export function parseOtlpHeaders(raw: string): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (!raw) return headers;
+    for (const pair of raw.split(',')) {
+      const [key, ...rest] = pair.split('=');
+      const value = rest.join('=');
+      if (key && value) {
+        headers[key.trim()] = value.trim();
+      }
+    }
+    return headers;
+  }
+
+This is the exact current implementation from apps/server/src/app.ts's
+own parseOtlpHeaders (currently at app.ts lines 61-72) — copy its logic
+verbatim into the new file. Do not alter the parsing behavior in any way
+as part of this move.
+
+STEP 1b — Modify apps/server/src/app.ts:
+CURRENT STATE (verified against the current repo snapshot): app.ts
+currently has, starting at line 55:
+  /**
+   * Parses the OTEL_EXPORTER_OTLP_HEADERS env var into a headers object for
+   * the OTLP exporters. Follows the standard OTel spec format: comma-separated
+   * `key=value` pairs (e.g. "Authorization=Basic xyz,X-Custom=abc"), matching
+   * the same format instrumentation.ts already parses for the trace exporter.
+   */
+  export function parseOtlpHeaders(raw: string): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (!raw) return headers;
+    for (const pair of raw.split(',')) {
+      const [key, ...rest] = pair.split('=');
+      const value = rest.join('=');
+      if (key && value) {
+        headers[key.trim()] = value.trim();
+      }
+    }
+    return headers;
+  }
+And later, at line 194, inside buildApp()'s pino-opentelemetry-transport
+target configuration:
+    headers: parseOtlpHeaders(env.OTEL_EXPORTER_OTLP_HEADERS),
+
+ACTION:
+1. Delete the entire parseOtlpHeaders function definition (the doc
+   comment and the function body both) from app.ts.
+2. Add an import near app.ts's other local imports (it currently imports
+   `env` from './config/env.js' at line 37 — add the new import near
+   there):
+     import { parseOtlpHeaders } from './config/otlp-headers.js';
+3. Leave the usage at (what is currently) line 194 completely
+   unchanged — `headers: parseOtlpHeaders(env.OTEL_EXPORTER_OTLP_HEADERS)`
+   stays exactly as it is. It now resolves via the new import instead of
+   a local definition, but the call site itself does not change.
+4. Do not touch anything else in app.ts. In particular, do not touch
+   buildApp()'s own logic, the BuildAppOptions interface, or any of the
+   plugin registration order — none of that is related to this fix.
+
+STEP 1c — Modify apps/server/src/instrumentation.ts:
+CURRENT STATE (verified against the current repo snapshot): the full
+current file is:
+  import { NodeSDK } from '@opentelemetry/sdk-node';
+  import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+  import { FastifyInstrumentation } from '@opentelemetry/instrumentation-fastify';
+  import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
+  import { env } from './config/env.js';
+  import { parseOtlpHeaders } from './app.js';
+
+  const headers = parseOtlpHeaders(env.OTEL_EXPORTER_OTLP_HEADERS);
+
+  // OTLPTraceExporter expects the full endpoint for traces.
+  // We append /v1/traces to the base endpoint as required by OpenObserve.
+  const traceExporter = new OTLPTraceExporter({
+    url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,
+    headers,
+  });
+
+  const sdk = new NodeSDK({
+    traceExporter,
+    instrumentations: [
+      new FastifyInstrumentation(),
+      new PinoInstrumentation({
+        // The instrumentation automatically injects trace_id and span_id into log records.
+      }),
+    ],
+  });
+
+  try {
+    sdk.start();
+    console.log('OpenTelemetry initialized.');
+  } catch (error) {
+    console.error('Error initializing OpenTelemetry', error);
+  }
+
+ACTION:
+1. Change the import line from:
+     import { parseOtlpHeaders } from './app.js';
+   to:
+     import { parseOtlpHeaders } from './config/otlp-headers.js';
+2. Do not change anything else in this file — the rest of the import
+   list, the headers/traceExporter/sdk construction, and the try/catch
+   around sdk.start() all stay exactly as they are. This fix only
+   changes WHERE parseOtlpHeaders is imported from, nothing about how
+   it's used.
+3. Add this comment immediately above the import list (this documents
+   WHY this file's imports are constrained, for future maintainers who
+   might otherwise reintroduce the same bug by adding a convenient-looking
+   import from app.ts or another application-tree file later):
+     // NOTE: This file's imports are deliberately minimal. Anything
+     // imported here that transitively pulls in this project's own
+     // application code (app.ts, fastify, pino, etc.) risks forcing
+     // that code to load and evaluate before sdk.start() below runs —
+     // which silently defeats FastifyInstrumentation/PinoInstrumentation,
+     // since by the time sdk.start() executes, the target modules are
+     // already cached and unpatched. This file should only ever import
+     // from @opentelemetry/* packages, Node built-ins, and genuinely
+     // leaf, dependency-free local files (like ./config/otlp-headers.js
+     // and ./config/env.js).
+   Place this comment right before the `import { NodeSDK } from
+   '@opentelemetry/sdk-node';` line, as a file-level note.
+
+WHAT NOT TO TOUCH (Fix 1): the OTLPTraceExporter construction, the
+NodeSDK/instrumentations array, the try/catch around sdk.start(), and
+env.ts itself. Do not touch any file other than the three listed above.
+
+VERIFICATION AFTER FIX 1:
+1. Run pnpm typecheck from the repo root. Confirm zero new errors.
+2. Grep the codebase to confirm: apps/server/src/config/otlp-headers.ts
+   exists and has no imports of its own; app.ts no longer contains a
+   parseOtlpHeaders function definition (only an import); instrumentation.ts
+   imports parseOtlpHeaders from './config/otlp-headers.js', not './app.js'.
+3. Confirm instrumentation.ts's own import list, after this fix, contains
+   NOTHING from app.ts. (It should still import from './config/env.js' —
+   that one's fine, env.ts doesn't import app.ts either — but nothing
+   from app.ts itself.)
+4. If you have a way to boot the app (pnpm --filter server dev), do so
+   and confirm it still starts without error. This does not by itself
+   confirm instrumentation is working (see Fix 2 below for that) — it
+   only confirms this refactor didn't break the boot sequence.
+
+═══ FIX 2: Wire the ESM loader hook for OpenTelemetry auto-instrumentation ═══
+
+FILES TO MODIFY:
+1. apps/server/package.json (dev script)
+2. apps/server/entrypoint.sh (production start command)
+
+DO NOT MODIFY ANY OTHER FILE as part of Fix 2. Do NOT modify
+apps/server/Dockerfile — the loader flag belongs in entrypoint.sh's
+`exec node` command, not baked into the image build.
+
+REQUIRED FIRST STEP — VERIFY THE LOADER HOOK ACTUALLY RESOLVES BEFORE
+WIRING THE FLAG:
+@opentelemetry/instrumentation (the package that ships the
+hook.mjs loader file referenced below) is NOT a direct dependency of
+apps/server — it's expected to be present as a transitive dependency of
+@opentelemetry/instrumentation-fastify and/or @opentelemetry/instrumentation-pino
+(both of which ARE direct dependencies), but this has not been verified
+against your actual installed node_modules, since the planning layer
+that wrote this prompt does not have node_modules available to check.
+Before making any change, run:
+  find node_modules/@opentelemetry/instrumentation -iname "hook.mjs" 2>/dev/null
+(adjust the path if your package manager hoists differently — with
+pnpm's default node-linker, you may need to check
+node_modules/.pnpm/@opentelemetry+instrumentation@*/node_modules/@opentelemetry/instrumentation/
+instead; try both) and confirm the file actually exists and note its
+resolved version. If it does NOT exist anywhere in node_modules, STOP
+and report this back rather than proceeding — it means
+@opentelemetry/instrumentation needs to be added as an explicit direct
+dependency first, which is a scope decision outside this prompt (report
+back what you find and what version, if any, is present, and do not add
+a new dependency yourself without that being separately confirmed).
+
+ACTION (only proceed if the hook.mjs file was confirmed to exist above):
+
+STEP 2a — apps/server/package.json:
+CURRENT STATE (verified against the current repo snapshot):
+  "dev": "tsx watch src/index.ts",
+This runs the uncompiled TypeScript directly via tsx, which itself needs
+--import to preload ESM modules correctly ahead of the entry point (per
+OpenTelemetry's own ESM support documentation, tsx-based ESM execution
+specifically requires --import, not --require, for this purpose).
+
+CHANGE this line to:
+  "dev": "tsx watch --import @opentelemetry/instrumentation/hook.mjs --import ./src/instrumentation.ts src/index.ts",
+
+Notes on this exact form, read before changing anything else nearby:
+- The FIRST --import (the loader hook,
+  @opentelemetry/instrumentation/hook.mjs) must come before the SECOND
+  (the actual instrumentation module) — this order matters, the hook
+  needs to already be registered as Node's ESM loader before
+  instrumentation.ts itself gets loaded and evaluated.
+- Even with this flag correctly wired, index.ts still has its own
+  `import './instrumentation.js';` as its first line, with the comment
+  "Must be first to instrument everything" — do NOT remove that line
+  from index.ts as part of this fix. Leave it in place; it is
+  harmless with this flag in effect (Node will simply see
+  instrumentation has already been loaded via --import and skip
+  re-evaluating it — ES modules are only evaluated once regardless of
+  how many places import them), and removing it is out of scope for
+  this task and not something you were asked to touch.
+- Do not change the `watch` flag or anything else about how tsx is
+  invoked — only add the two --import flags before the entry file
+  argument.
+
+STEP 2b — apps/server/entrypoint.sh:
+CURRENT STATE (verified against the current repo snapshot): the file's
+final relevant section is:
+  echo "[entrypoint] Starting server on port ${APP_PORT:-3000}..."
+  exec node ./apps/server/dist/index.js
+
+This is a plain node invocation of the COMPILED output (apps/server/dist
+is what apps/server/Dockerfile's builder stage produces via `pnpm
+--filter server build`, which runs `tsc` per apps/server/package.json's
+"build" script) — so this path needs the compiled .js path for the
+--import flags, not the .ts source path used in Step 2a's dev config.
+
+CHANGE the exec line to:
+  exec node --import @opentelemetry/instrumentation/hook.mjs --import ./apps/server/dist/instrumentation.js ./apps/server/dist/index.js
+
+Notes:
+- Same ordering rule as Step 2a: the loader hook --import must come
+  before the instrumentation-module --import.
+- This assumes `tsc`'s compiled output preserves the same relative file
+  structure (dist/instrumentation.js sitting alongside dist/index.js) as
+  the current apps/server/src/ layout (instrumentation.ts alongside
+  index.ts). Verify this assumption after running the build (see
+  verification steps below) — if the compiled output structure differs
+  (e.g., instrumentation.js ends up nested differently), adjust the path
+  in this exec line to match reality and note that you did so in your
+  report, since this prompt's path is based on the current source
+  layout, not on having actually run the compiled build.
+- Do not touch anything else in entrypoint.sh — the migration step, the
+  conditional seed step, and the echo statements around this section all
+  stay exactly as they are. Only this one exec line changes.
+- Do not touch apps/server/Dockerfile. It doesn't need to change for
+  this fix — entrypoint.sh already runs inside the built image and is
+  the correct place for this flag, not the Dockerfile's CMD/ENTRYPOINT
+  (which currently just runs entrypoint.sh itself and should stay that
+  way).
+
+WHAT NOT TO TOUCH (Fix 2): Dockerfile, any other script in package.json,
+docker compose files, .env files. This fix is scoped to exactly the two
+lines identified above.
+
+VERIFICATION AFTER FIX 2:
+1. Confirm apps/server/package.json's "dev" script and
+   apps/server/entrypoint.sh's exec line both match what's specified
+   above (or your justified path adjustment for entrypoint.sh per the
+   note above).
+2. If you have a way to run `pnpm --filter server dev`, do so. Enable
+   OTel diagnostic logging temporarily to check whether the hook is
+   actually registering — OpenTelemetry's own documentation recommends
+   this exact approach for troubleshooting: add
+     import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
+     diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
+   temporarily near the top of instrumentation.ts (after the imports),
+   boot the app, check the console output for confirmation that
+   FastifyInstrumentation and PinoInstrumentation are being applied
+   (versus any "already loaded" / "could not be found" warnings related
+   to fastify or pino), then REMOVE this temporary debug logging before
+   finishing — do not leave DEBUG-level diagnostic logging permanently
+   enabled in the committed code. Report what you observed in the
+   console output, verbatim, in your report.
+3. If you have a way to actually exercise a real HTTP request against
+   the running dev server (e.g. hitting the health check route) while
+   watching for span/trace output (either via the console, if a
+   ConsoleSpanExporter is temporarily substituted for testing, or via
+   checking whatever OpenObserve instance this environment has access
+   to, if any), do so and report what you find. This is the only way to
+   fully confirm end-to-end that traces are actually being generated and
+   exported — everything else in this verification list confirms setup
+   correctness but not actual trace output.
+4. If you have NO way to boot the app or observe live output (e.g. no
+   database, no OpenObserve instance reachable from your environment),
+   say so explicitly in your report rather than imply this was runtime-
+   verified. State plainly which of steps 2-3 above you were and were
+   not able to perform.
+5. Also attempt to build the production artifact if you have a way to
+   (pnpm --filter server build), to confirm the compiled dist/ output
+   structure matches what Step 2b's entrypoint.sh path assumes. Report
+   the actual resulting path to instrumentation.js if it differs from
+   ./apps/server/dist/instrumentation.js.
+
+Report back for the whole task: diffs for all five touched/created
+files (otlp-headers.ts, app.ts, instrumentation.ts, package.json,
+entrypoint.sh), the hook.mjs existence check result from Fix 2's
+required-first-step, typecheck confirmation, and an explicit statement
+of exactly which verification steps above you were able to perform
+live versus which you could only confirm statically.
 ````

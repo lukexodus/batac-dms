@@ -14,6 +14,7 @@ batac-dms/
 
 *-ignore.md
 *-ignore.html
+*.patch
 
 # Monorepo/Tooling ignores
 node_modules
@@ -33,3 +34,5 @@ commit_msg.txt
 lint-result
 typecheck-result
 PLAN-*
+
+data/openobserve/
