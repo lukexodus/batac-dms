@@ -53,7 +53,7 @@ import {
 
 import { hasRole } from '../../lib/auth-helpers';
 
-import type { AllowedMimeType } from '@batac/shared';
+import { AllowedMimeTypeSchema, type AllowedMimeType } from '@batac/shared';
 import type { WorkflowStep, RoutingEntry } from '@batac/ui';
 
 import { useScanQualityPolling } from '@/hooks/useScanQualityPolling';
@@ -214,16 +214,10 @@ function canPrintQrCoverSheet(identity: ActiveUserIdentity | null): boolean {
 }
 
 // Runtime type guard bridging File.type (string) to the AllowedMimeType literal union.
+// Derives from AllowedMimeTypeSchema directly so this stays correct if the
+// schema's accepted MIME types ever change — no separate array to maintain.
 function isAllowedMimeType(value: string): value is AllowedMimeType {
-  return (
-    [
-      'application/pdf',
-      'image/jpeg',
-      'image/png',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ] as const satisfies readonly AllowedMimeType[]
-  ).includes(value as AllowedMimeType);
+  return AllowedMimeTypeSchema.safeParse(value).success;
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────
