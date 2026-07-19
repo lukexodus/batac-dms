@@ -130,9 +130,16 @@ function runLinter() {
     } catch {
       // Fallback: split on Drizzle's statement-breakpoint markers and parse
       // each chunk individually. Statements the parser cannot handle (CREATE
-      // TRIGGER, CREATE POLICY, SECURITY DEFINER, GRANT/REVOKE variants, etc.)
-      // are skipped with a warning; the remaining parseable statements still
-      // receive invariant checks.
+      // TRIGGER, CREATE POLICY, SECURITY DEFINER, GRANT/REVOKE variants,
+      // ALTER COLUMN ... SET DATA TYPE with a schema-qualified target type
+      // and a USING cast — e.g. `ALTER TABLE t ALTER COLUMN c SET DATA TYPE
+      // "schema"."enum_name" USING c::"schema"."enum_name"`, confirmed by
+      // migration 0011_lumpy_goblin_queen.sql — etc.) are skipped with a
+      // warning; the remaining parseable statements still receive invariant
+      // checks. Skipped statements are NOT linted — the invariant checks
+      // (soft-delete columns, city_id, expand-contract comments, index
+      // concurrency, etc.) never ran against them. A "passed successfully"
+      // result only means the parseable portion passed.
       ast = [];
       const breakpoint = '--> statement-breakpoint';
       const ranges: [number, number][] = [];
