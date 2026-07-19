@@ -212,6 +212,16 @@ export function createIamService(deps: IamServiceDeps): IamService {
         positionTitle: null,
       };
     },
+    getUsersByRole: async (roleCode: string) => {
+      const rows = await iamRepo.findUsersByRoleCode(BATAC_CITY_ID, roleCode);
+      return rows.map((u) => ({
+        userId: u.id,
+        displayName: u.username,
+        email: u.email,
+        officeId: null,
+        positionTitle: null,
+      }));
+    },
     // ─── logout ──────────────────────────────────────────────────────────────
     async logout(sessionId: string, userId: string): Promise<void> {
       await db.transaction(async (tx) => {

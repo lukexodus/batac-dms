@@ -271,6 +271,26 @@ export function createIamRepository(db: DbClient | DbTransaction): IamRepository
         );
       return rows.map((r) => ({ ...r.assignment, role: r.role }));
     },
+    findUsersByRoleCode: async (cityId, roleCode) => {
+      const [role] = await db
+        .select()
+        .from(roles)
+        .where(and(eq(roles.cityId, cityId), eq(roles.code, roleCode), isNull(roles.deletedAt)));
+      if (!role) return [];
+
+      const rows = await db
+        .select({ user: users })
+        .from(roleAssignments)
+        .innerJoin(users, eq(roleAssignments.userId, users.id))
+        .where(
+          and(
+            eq(roleAssignments.roleId, role.id),
+            eq(roleAssignments.isActive, true),
+            isNull(roleAssignments.deletedAt),
+          ),
+        );
+      return rows.map((r) => r.user);
+    },
     createRoleAssignment: async (input) => {
       const [assignment] = await db.insert(roleAssignments).values(input).returning();
       return assignment!;

@@ -13,12 +13,30 @@ import { WORKFLOW_SEED_NAMESPACE, SEED_SYSTEM_USER_ID, CITY_ID } from './constan
 import { uuidv5 } from './uuidv5.js';
 
 const ROLE = {
-  SECRETARIAT_STAFF: 'role:secretariat_staff',
+  // [Corrected — Category 1] 'secretariat_staff' is not a system role code;
+  // Part 3.3 of the consolidated reference names one SP Secretary at the
+  // head of this office. Affects 6 usage sites: intake_logging,
+  // amendments_logging, transmittal_letter_to_mayor, docketing,
+  // panlalawigan_transmission_logging, portal_publication.
+  SECRETARIAT_STAFF: 'role:sp_secretary',
   SP_SECRETARY: 'role:sp_secretary',
-  VICE_MAYOR: 'role:vice_mayor',
-  MAYOR: 'role:mayor',
+  // [Corrected — Category 2] Was 'role:vice_mayor' (wrong role code AND
+  // wrong expression format). H1 §5.2 and wf.md both specify
+  // delegation-awareness for this step (vp_certification); 'sp_presiding_officer'
+  // is the correct role code per the consolidated reference Part 3.1 and
+  // the demo-credentials seed.
+  VICE_MAYOR: 'delegation_aware:sp_presiding_officer',
+  // [Corrected — Category 2] Was 'role:mayor' (correct role code, wrong
+  // expression format — lost delegation-awareness). H1 §5.2 and wf.md both
+  // specify delegation-awareness for this step (mayor_review).
+  MAYOR: 'delegation_aware:mayor',
   COMMITTEE_LAWS: 'role:committee_laws',
-  LEGAL_OFFICER: 'role:legal_officer',
+  // [Corrected — Category 4, temporary operational proxy — see LOG-0120]
+  // 'legal_officer' does not exist in iam.roles or roleCodeEnum, and the
+  // City Legal Office (org code CLO) has no seeded employees. This is a
+  // stand-in, not a real fix — see the TODO at this step's usage site
+  // (legal_office_review, below) for what the real fix requires.
+  LEGAL_OFFICER: 'role:sp_secretary',
   COMMITTEE_CHAIR: 'actor_from_context:referred_committee_chair_id',
   RECORDS_OFFICER: 'role:records_officer',
 };
@@ -286,6 +304,11 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
         position: 18,
         legally_mandated: false,
         config: {
+          // TODO: Re-route to office_role:city_legal:legal_officer once the
+          // IAM legal_officer role is introduced and the engine's
+          // office_role: resolution branch is implemented. Currently a
+          // temporary operational proxy assigned to SP Secretary — see
+          // findings-log LOG-0120.
           assignee: ROLE.LEGAL_OFFICER,
           allowed_outcomes: ['RESOLVED_IN_PLACE'],
           require_comment_on: ['RESOLVED_IN_PLACE'],

@@ -1,4 +1,5 @@
 import type { DelegationService, OrgService } from '../../organization/organization.types.js';
+import type { IamPublicAPI } from '../../iam/iam.types.js';
 
 export interface AssigneeSnapshot {
   user_id: string;
@@ -8,6 +9,7 @@ export interface AssigneeSnapshot {
 export interface ResolveAssigneesDeps {
   orgService: OrgService;
   delegationService: DelegationService;
+  iamService: IamPublicAPI;
 }
 
 /**
@@ -15,7 +17,9 @@ export interface ResolveAssigneesDeps {
  *
  * @param assigneeExpression The `config.assignee` string from the step definition.
  * @param context The current workflow instance context.
- * @param deps Injected dependencies, particularly the Organization Published API.
+ * @param deps Injected dependencies — role-based resolution (`role:`,
+ *   `delegation_aware:`) calls the IAM Published API; office-based and
+ *   delegation-lookup resolution call the Organization Published API.
  * @returns Array of authoritative assignee snapshots for the step instance.
  */
 export async function resolveAssignees(
@@ -38,10 +42,12 @@ export async function resolveAssignees(
   }
 
   if (assigneeExpression.startsWith('role:')) {
-    // Gap 2: Organization Published API currently lacks getUsersByRole
-    throw new Error(
-      `NotImplemented: The Organization module does not currently support role-based bulk lookups for '${assigneeExpression}'.`,
-    );
+    const roleCode = assigneeExpression.replace('role:', '');
+    const matchedUsers = await deps.iamService.getUsersByRole(roleCode);
+    return matchedUsers.map((u) => ({
+      user_id: u.userId,
+      resolved_via: assigneeExpression,
+    }));
   }
 
   if (assigneeExpression.startsWith('office_role:')) {
@@ -54,28 +60,26 @@ export async function resolveAssignees(
   if (assigneeExpression.startsWith('delegation_aware:')) {
     const roleKey = assigneeExpression.replace('delegation_aware:', '');
 
-    // First, resolve the base role users.
-    // Gap 2: We would call getUsersByRole(roleKey) here, but it doesn't exist yet.
-    // For now, this will throw to prevent silent failures.
-    throw new Error(
-      `NotImplemented: delegation_aware requires role resolution which is missing for role '${roleKey}'.`,
-    );
-
-    /* 
-    // Planned implementation once Organization API is updated:
-    const baseUsers = await deps.organizationService.getUsersByRole(roleKey);
+    const baseUsers = await deps.iamService.getUsersByRole(roleKey);
     const resolved: AssigneeSnapshot[] = [];
 
     for (const baseUser of baseUsers) {
-      const activeDelegation = await deps.organizationService.getActiveDelegationForUser(baseUser.userId);
+      const activeDelegation = await deps.delegationService.getActiveDelegationForUser(
+        baseUser.userId,
+      );
       if (activeDelegation) {
-        resolved.push({ user_id: activeDelegation.delegatedToUserId, resolved_via: `delegated_from:${baseUser.userId}` });
+        resolved.push({
+          user_id: activeDelegation.delegatedToUserId,
+          resolved_via: `delegated_from:${baseUser.userId}`,
+        });
       } else {
-        resolved.push({ user_id: baseUser.userId, resolved_via: `role:${roleKey}` });
+        resolved.push({
+          user_id: baseUser.userId,
+          resolved_via: `role:${roleKey}`,
+        });
       }
     }
     return resolved;
-    */
   }
 
   // Fallback for unknown or unsupported expressions

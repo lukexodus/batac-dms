@@ -2,6 +2,7 @@ import type { InstanceRow } from './types.js';
 import type { WorkflowRepository } from '../workflow.repository.js';
 import type { DocumentsPublicAPI } from '../../documents/documents.types.js';
 import type { OrgService, DelegationService } from '../../organization/organization.types.js';
+import type { IamPublicAPI } from '../../iam/iam.types.js';
 import type { EventBus } from '@batac/shared';
 import type { AppDb } from '../../../db.js';
 import { resolveAssignees } from './assignee-resolution.js';
@@ -16,6 +17,7 @@ export interface CreateInstanceDeps {
   documentsService: DocumentsPublicAPI;
   orgService: OrgService;
   delegationService: DelegationService;
+  iamService: IamPublicAPI;
   eventBus: EventBus;
 }
 

@@ -2911,3 +2911,25 @@ decision:** whether the corrupted instance should eventually be visually
 marked (e.g., a human-applied `status: superseded` edit directly on it, or
 some other in-place annotation) is outside what this entry does — this
 entry only records the finding and the authoritative designation.
+
+---
+
+### [LOG-0117] workflow.router.ts: 16 call sites construct step-handler deps objects missing required `iamService` property
+
+- date: 2026-07-19
+- task_id: TASK-WF-FE-007-D (surfaced during typecheck verification of this task's report; unrelated to the task itself)
+- status: proposed
+- affects: apps/server/src/modules/workflow/workflow.router.ts, apps/server/src/modules/workflow/engine/step-resolution.ts, apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts, apps/server/src/modules/workflow/engine/step-handlers/approval.handler.ts, apps/server/src/modules/workflow/engine/step-handlers/multi-referral.handler.ts
+- resolved_in: none
+
+**Not a session-lock defect.** This was found while independently re-running `pnpm --filter @batac/web typecheck` to verify a local agent's report on TASK-WF-FE-007-D (session-lock frontend pieces). None of the 8 files that task touched are implicated — every error traces to `workflow.router.ts`, which is reachable during an `apps/web` typecheck only because `apps/web/src/lib/trpc.ts` imports `AppRouter` as a type directly from `server/src/trpc/root.js`, causing `tsc` to transitively resolve the full server router graph including this file.
+
+[Tested]: Ran `pnpm --filter @batac/web typecheck` directly (via `corepack use pnpm@9.15.4` to match the pinned version in root `package.json`). Produced 16 distinct `TS2345` errors, all in `workflow.router.ts`, at lines 894, 974, 1065, 1142, 1219, 1307, 1421, 1498, 1577, 1653, 1734, 1918, 1976, 2067, 2231, 2469 (each at column 13). Every error has the same shape: an object literal passed as the `deps` argument to a step-handler function (`submitStepAction`, `submitStepApproval`, or `submitCommitteeReport`) is missing a required `iamService` property.
+
+[Confirmed via direct source read]: `iamService: IamPublicAPI` is declared once, on the shared base interface `StepResolutionDeps` (`step-resolution.ts` line 19), which is inherited by all three handler-specific interfaces — `ActionHandlerDeps`, `ApprovalHandlerDeps`, and `MultiReferralHandlerDeps` (each `extends StepResolutionDeps`, each only adding `workflowRepository` on top). So the requirement is inherited, not separately declared three times, and the three interfaces themselves look intentional and consistent — this is not a case of one interface having a stray extra field.
+
+[Confirmed via direct source read]: `workflow.router.ts` has zero references to `iamService` or `IamPublicAPI` anywhere in the file (`grep` returns no matches). This means the gap is total, not partial — the file isn't importing, receiving, or constructing an `IamPublicAPI` instance from wherever its other dependencies (`documentsService`, `orgService`, `delegationService`, `eventBus`) currently come from. I did not trace where those other dependencies are wired in from (e.g. a Fastify decorator, a DI container, or similar), so I don't know whether adding `iamService` to that same wiring point would be a one-line fix or requires the `IamPublicAPI` instance to be constructed/registered for the first time.
+
+[Inference, not confirmed]: Two plausible explanations, not distinguished by anything I checked: (a) this is a genuinely unnoticed regression or incomplete migration — something added `iamService` to `StepResolutionDeps` without updating the 16 call sites that construct the deps object, or (b) this is a known, in-progress piece of a WF task that hasn't finished landing the IAM-dependency wiring yet. No evidence found for either specifically.
+
+**Recommendation:** A human should determine (1) whether `workflow.router.ts`'s dependency construction is missing `iamService` because of an incomplete change elsewhere, or because IAM-dependent step-resolution logic is a planned-but-unbuilt piece of a different WF task, and (2) if it's a straightforward gap, where the `IamPublicAPI` instance should come from at each of the 16 call sites (a shared request-scoped value already available to `workflow.router.ts` under a different name, or something not yet constructed at all).

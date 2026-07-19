@@ -4,6 +4,7 @@ import type { EventBus } from '@batac/shared';
 import { evaluateTransitionRules } from './transition-evaluation.js';
 import { resolveAssignees } from './assignee-resolution.js';
 import type { OrgService, DelegationService } from '../../organization/organization.types.js';
+import type { IamPublicAPI } from '../../iam/iam.types.js';
 import type { DbTransaction } from '../../documents/documents.types.js';
 import type { AppDb } from '../../../db.js';
 import type { DocumentsPublicAPI } from '../../documents/documents.types.js';
@@ -15,6 +16,7 @@ export interface StepResolutionDeps {
   eventBus: EventBus;
   orgService: OrgService;
   delegationService: DelegationService;
+  iamService: IamPublicAPI;
 }
 
 /**

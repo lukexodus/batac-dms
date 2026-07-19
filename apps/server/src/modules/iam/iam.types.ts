@@ -124,6 +124,17 @@ export interface IamPublicAPI {
   ): Promise<boolean>;
 
   getUserById(userId: string): Promise<UserSummary | null>;
+
+  /**
+   * [Added — Gap A resolution, role-based assignee resolution.]
+   * All users currently holding the given role code, city-scoped.
+   * Used by the Workflow engine's assignee resolution (B4 §3.5) for
+   * `role:<role_key>` expressions, which per B4 §3.5 must resolve to
+   * "All users currently holding this role" (plural).
+   * Returns an empty array if the role code does not exist or no user
+   * currently holds it — never throws for a not-found role code.
+   */
+  getUsersByRole(roleCode: string): Promise<UserSummary[]>;
 }
 
 export interface IamServiceDeps {
@@ -372,6 +383,7 @@ export interface IamRepository {
   findRoleById(id: string): Promise<RoleRow | null>;
   findRoleByCode(cityId: string, code: string): Promise<RoleRow | null>;
   listActiveRoles(cityId: string): Promise<RoleRow[]>;
+  findUsersByRoleCode(cityId: string, roleCode: string): Promise<UserRow[]>;
 
   // Role assignments
   findActiveRoleAssignmentsByUserId(

@@ -45,6 +45,7 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
     eventBus: fastify.eventBus,
     orgService: fastify.organizationService,
     delegationService: fastify.delegationService,
+    iamService: fastify.iamService,
   };
 
   fastify.eventBus.on(
@@ -87,6 +88,7 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
             documentsService: fastify.documentsService,
             orgService: fastify.organizationService,
             delegationService: fastify.delegationService,
+            iamService: fastify.iamService,
             eventBus: fastify.eventBus,
           },
         );
@@ -153,5 +155,5 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
 
 export default fp(workflowPlugin, {
   name: 'workflow',
-  dependencies: ['database', 'event-bus', 'audit', 'organization', 'documents'],
+  dependencies: ['database', 'event-bus', 'audit', 'organization', 'documents', 'iam'],
 });
