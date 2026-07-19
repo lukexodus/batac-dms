@@ -52,18 +52,6 @@ describe('publicLookupHandler', () => {
     return reply as FastifyReply;
   };
 
-  it('should return 400 for invalid UUID', async () => {
-    const req = { params: { trackingId: 'not-a-uuid' } } as unknown as FastifyRequest<{
-      Params: { trackingId: string };
-    }>;
-    const reply = createMockReply();
-
-    await handler(req, reply);
-
-    expect(reply.status).toHaveBeenCalledWith(400);
-    expect(reply.send).toHaveBeenCalledWith({ error: 'Invalid tracking ID format' });
-  });
-
   it('should return 404 for unknown UUID', async () => {
     const req = {
       params: { trackingId: '123e4567-e89b-12d3-a456-426614174000' },

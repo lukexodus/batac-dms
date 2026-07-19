@@ -20,12 +20,6 @@ export function createPublicLookupHandler(deps: {
   ) {
     const { trackingId } = request.params;
 
-    // Validate UUID format (the QR content is always a UUID)
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!UUID_RE.test(trackingId)) {
-      return reply.status(400).send({ error: 'Invalid tracking ID format' });
-    }
-
     const qrCode = await deps.repository.findQrCodeByTrackingId(trackingId);
     if (!qrCode) return reply.status(404).send({ error: 'Tracking ID not found' });
 

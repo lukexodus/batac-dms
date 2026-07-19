@@ -1,5 +1,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { TrackingRepository } from './tracking.repository.js';
 import { QrCodeService } from './tracking.qr-service.js';
 import { createTrackingService } from './tracking.service.js';
@@ -69,7 +71,41 @@ export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
     },
   });
 
-  fastify.get('/track/:trackingId', publicLookupHandler);
+  const trackingParamsSchema = z.object({
+    trackingId: z.string().uuid(),
+  });
+
+  const trackingSuccessSchema = z.object({
+    documentType: z.string(),
+    remarks: z.string().nullable(),
+    routingHistory: z.array(
+      z.object({
+        actionDescription: z.string(),
+        timestamp: z.string(),
+      }),
+    ),
+    firstPageImageUrl: z.string(),
+    getCopyUrl: z.string(),
+  });
+
+  const trackingErrorSchema = z.object({
+    error: z.string(),
+  });
+
+  fastify.withTypeProvider<ZodTypeProvider>().get(
+    '/track/:trackingId',
+    {
+      schema: {
+        params: trackingParamsSchema,
+        response: {
+          200: trackingSuccessSchema,
+          400: trackingErrorSchema,
+          404: trackingErrorSchema,
+        },
+      },
+    },
+    publicLookupHandler,
+  );
 
   const eventConsumer = new TrackingEventConsumer(
     repository,

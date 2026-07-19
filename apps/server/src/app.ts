@@ -33,6 +33,11 @@
  * Source: TASK-IAM-014.
  */
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import {
+  validatorCompiler,
+  serializerCompiler,
+  type ZodTypeProvider,
+} from 'fastify-type-provider-zod';
 import type PgBoss from 'pg-boss';
 import { env } from './config/env.js';
 import { nanoid } from 'nanoid';
@@ -53,7 +58,6 @@ import helmet from '@fastify/helmet';
 // organization, documents, workflow, tracking, notifications: add
 // `await fastify.register(...)` below, after iamPlugin and before the tRPC
 // registration, when each module's own plugin-wiring task completes.
-
 
 /**
  * [Confirmed — see docs/development-findings-log.md, Bug B] `organizationPlugin`
@@ -194,6 +198,9 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     genReqId: () => `req_${nanoid(12)}`,
     ...fastifyOpts,
   });
+
+  fastify.setValidatorCompiler(validatorCompiler);
+  fastify.setSerializerCompiler(serializerCompiler);
 
   await registerHealthRoute(fastify);
 

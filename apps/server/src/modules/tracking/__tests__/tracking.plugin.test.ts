@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
+import { validatorCompiler, serializerCompiler } from 'fastify-type-provider-zod';
 import trackingPlugin from '../tracking.plugin.js';
 import { TrackingRepository } from '../tracking.repository.js';
 import { env } from '../../../config/env.js';
@@ -65,6 +66,8 @@ describe('tracking.plugin', () => {
     vi.clearAllMocks();
 
     fastify = Fastify({ logger: false });
+    fastify.setValidatorCompiler(validatorCompiler);
+    fastify.setSerializerCompiler(serializerCompiler);
 
     fastify.log.info = vi.fn();
     fastify.log.error = vi.fn();
