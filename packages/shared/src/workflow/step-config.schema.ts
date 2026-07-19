@@ -151,12 +151,12 @@ export const WorkflowStepDefSchema = z.discriminatedUnion('step_type', [
   z.object({
     ...CommonStepDefFields,
     step_type: z.literal('parallel_split'),
-    config: z.record(z.unknown()).optional(),
+    config: z.record(z.string(), z.unknown()).optional(),
   }),
   z.object({
     ...CommonStepDefFields,
     step_type: z.literal('parallel_join'),
-    config: z.record(z.unknown()).optional(),
+    config: z.record(z.string(), z.unknown()).optional(),
   }),
 ]);
 export type WorkflowStepDef = z.infer<typeof WorkflowStepDefSchema>;

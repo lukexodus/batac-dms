@@ -47,7 +47,7 @@ export class MailerService {
   async sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
     const parseResult = recipientSchema.safeParse(input.to);
     if (!parseResult.success) {
-      throw new Error(`Invalid recipient address: ${parseResult.error.message}`);
+      throw new Error(`Invalid recipient address: ${parseResult.error.issues[0]?.message}`);
     }
 
     const info = await this.transporter.sendMail({

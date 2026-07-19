@@ -126,7 +126,7 @@ export const DocumentTypeSelectSchema = z.object({
   preliminaryNumbering: z.boolean(),
   classificationDefault: ClassificationLevelSchema,
   publicVisibilityRule: PublicVisibilityRuleSchema,
-  metadataSchema: z.record(z.unknown()),
+  metadataSchema: z.record(z.string(), z.unknown()),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });
@@ -172,7 +172,7 @@ export const DocumentSelectSchema = z.object({
   createdBy: UuidSchema,
   workflowInstanceId: UuidSchema.nullable(),
   versionNumber: z.number().int().min(1),
-  metadata: z.record(z.unknown()),
+  metadata: z.record(z.string(), z.unknown()),
   supersededBy: UuidSchema.nullable(),
   supersededAt: TimestampSchema.nullable(),
   closureReason: z.string().nullable(),
@@ -200,7 +200,7 @@ export const LogDocumentInputSchema = z.object({
   classificationLevel: ClassificationLevelSchema,
   originatingOfficeId: UuidSchema,
   ownedByOfficeId: UuidSchema,
-  metadata: z.record(z.unknown()),
+  metadata: z.record(z.string(), z.unknown()),
   uploadedFile: z.object({
     s3Key: z.string().min(1),
     originalFilename: z.string().max(512),
@@ -237,7 +237,7 @@ export const CreateDocumentInputSchema = z.object({
   documentTypeId: UuidSchema,
   title: z.string().min(1).max(500).trim(),
   classificationLevel: ClassificationLevelSchema.default('internal'),
-  metadata: z.record(z.unknown()).default({}),
+  metadata: z.record(z.string(), z.unknown()).default({}),
 });
 export type CreateDocumentInput = z.infer<typeof CreateDocumentInputSchema>;
 
@@ -256,7 +256,7 @@ export type DocumentIdInput = z.infer<typeof DocumentIdInputSchema>;
 export const UpdateDocumentInputSchema = z.object({
   documentId: UuidSchema,
   title: z.string().min(1).max(500).trim().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type UpdateDocumentInput = z.infer<typeof UpdateDocumentInputSchema>;
 

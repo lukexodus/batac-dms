@@ -90,7 +90,7 @@ const auditEventOutput = z.object({
   targetId: z.string().uuid().nullable(),
   targetType: z.string().nullable(),
   occurredAt: z.coerce.date(),
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
 });
 
 const listOutput = z.object({
