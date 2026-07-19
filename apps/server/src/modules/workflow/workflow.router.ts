@@ -2595,6 +2595,7 @@ export function createWorkflowRouter() {
             eventBus: server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
+            iamService: server.iamService,
             getApprovalGrant: (instanceId: string, versionId: string) =>
               deps.workflowRepository.getApprovalGrant(instanceId, versionId),
             markApprovalGrantUsed: (grantId: string) =>

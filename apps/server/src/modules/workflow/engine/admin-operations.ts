@@ -10,11 +10,29 @@ import {
   StepKeyNotFoundInTargetVersionError,
   InvalidWorkflowTransitionError,
 } from '../../../errors/domain/workflow.js';
-import { resolveNextStep } from './step-resolution.js';
+import { resolveNextStep, type StepResolutionDeps } from './step-resolution.js';
 
 export interface AdminOperationsDeps {
   db: AppDb;
   workflowRepository: WorkflowRepository;
+}
+
+/**
+ * bypassStep-specific deps. Extends AdminOperationsDeps with the full
+ * StepResolutionDeps shape, since bypassStep forwards into resolveNextStep
+ * (B4 §3.3) after marking the current step bypassed. The other three
+ * functions in this file (cancelInstance, migrateInstance, reverseMigration)
+ * do not call resolveNextStep and must keep using the narrower
+ * AdminOperationsDeps — do not widen that shared interface for this fix.
+ */
+export interface BypassStepDeps extends AdminOperationsDeps {
+  documentsService: StepResolutionDeps['documentsService'];
+  eventBus: StepResolutionDeps['eventBus'];
+  orgService: StepResolutionDeps['orgService'];
+  delegationService: StepResolutionDeps['delegationService'];
+  iamService: StepResolutionDeps['iamService'];
+  getApprovalGrant: (instanceId: string, versionId: string) => ReturnType<WorkflowRepository['getApprovalGrant']>;
+  markApprovalGrantUsed: (grantId: string) => ReturnType<WorkflowRepository['markApprovalGrantUsed']>;
 }
 
 export async function cancelInstance(
@@ -57,7 +75,7 @@ export async function bypassStep(
   bypassReason: string,
   comment: string,
   outcomeCode: string,
-  deps: AdminOperationsDeps,
+  deps: BypassStepDeps,
 ): Promise<void> {
   if (!comment || comment.trim().length === 0) {
     throw new ValidationFailedError('bypass comment must not be empty');
@@ -109,11 +127,7 @@ export async function bypassStep(
 
     // B4 invariant #12: if outcomeCode doesn't match an outcome filter in target version, resolveNextStep
     // will leave the instance stuck and emit workflow.instance.stuck.
-    // Notice: we cast deps to any here because AdminOperationsDeps does not have the full
-    // StepResolutionDeps (eventBus, orgService, delegationService, documentsService).
-    // In actual runtime, the caller (router) has to provide all of these if they expect resolveNextStep
-    // to function correctly (or we inject them). For this task, we will just cast.
-    await resolveNextStep(instance, updatedStepInstance, outcomeCode, deps as any, trx as any);
+    await resolveNextStep(instance, updatedStepInstance, outcomeCode, deps, trx as any);
   });
 }
 
