@@ -53,7 +53,7 @@ import {
 
 import { hasRole } from '../../lib/auth-helpers';
 
-import type { LifecycleState, AllowedMimeType } from '@batac/shared';
+import type { AllowedMimeType } from '@batac/shared';
 import type { WorkflowStep, RoutingEntry } from '@batac/ui';
 
 import { useScanQualityPolling } from '@/hooks/useScanQualityPolling';
@@ -444,7 +444,7 @@ export default function DocumentDetailPage() {
   }
 
   // ── Derived values ─────────────────────────────────────────────────────────
-  const lifecycleState = document.lifecycleState as LifecycleState;
+  const lifecycleState = document.lifecycleState;
   const documentState = mapLifecycleStateToDocumentState(lifecycleState);
   const displayNumber = document.finalNumber ?? document.preliminaryNumber ?? null;
   const numberVariant = document.finalNumber

@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server';
 import crypto from 'node:crypto';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import type { Context } from '../iam/iam.types.js';
-import { type LifecycleState, type ClassificationLevel } from '@batac/shared';
+
 import {
   CreateDocumentInputSchema,
   CreateDocumentOutputSchema,
@@ -241,7 +241,7 @@ function toDocumentTypeSummary(type: DocumentTypeRow) {
     id: type.id,
     name: type.name,
     code: type.code,
-    classificationDefault: type.classificationDefault as ClassificationLevel,
+    classificationDefault: type.classificationDefault,
     preliminaryNumbering: type.hasPreliminaryNumbering,
   };
 }
@@ -263,8 +263,8 @@ async function toDocumentSelect(ctx: Context, row: DocumentRow, documentType: Do
     documentTypeId: row.documentTypeId,
     documentType: toDocumentTypeSummary(documentType),
     title: row.title,
-    lifecycleState: row.lifecycleState as LifecycleState,
-    classificationLevel: row.classificationLevel as ClassificationLevel,
+    lifecycleState: row.lifecycleState,
+    classificationLevel: row.classificationLevel,
     qrTrackingNumber: row.qrTrackingNumber,
     preliminaryNumber: row.preliminaryNumber,
     finalNumber: row.finalNumber,
@@ -292,7 +292,7 @@ function toDocumentSummary(row: DocumentRow, documentTypeCode: string) {
     id: row.id,
     title: row.title,
     documentTypeCode,
-    lifecycleState: row.lifecycleState as LifecycleState,
+    lifecycleState: row.lifecycleState,
     preliminaryNumber: row.preliminaryNumber,
     finalNumber: row.finalNumber,
     qrTrackingNumber: row.qrTrackingNumber,
@@ -329,7 +329,7 @@ export function createDocumentsRouter() {
         const rows = await getRepository(ctx).listActiveDocumentTypes();
         return rows.map((row) => ({
           ...row,
-          classificationDefault: row.classificationDefault as ClassificationLevel,
+          classificationDefault: row.classificationDefault,
         }));
       }),
 
@@ -379,7 +379,7 @@ export function createDocumentsRouter() {
         // in this PR -- input.classificationLevel is accepted (so the Zod
         // contract matches the task spec) but the server-computed default
         // always wins. See docs/development-findings-log.md.
-        const classificationLevel = documentType.classificationDefault as ClassificationLevel;
+        const classificationLevel = documentType.classificationDefault;
 
         let originatingOfficeId: string;
         let ownedByOfficeId: string;
@@ -484,7 +484,7 @@ export function createDocumentsRouter() {
 
         const allowed = guard.canReadMetadata(subject, {
           ownedByOfficeId: document.ownedByOfficeId,
-          classificationLevel: document.classificationLevel as ClassificationLevel,
+          classificationLevel: document.classificationLevel,
           // [Unverified — TASK-DOCS-011] No OrgService method currently
           // computes has_cross_office_read_grant(); always false until one
           // exists. See documents.policy.ts and the findings log.
@@ -528,7 +528,7 @@ export function createDocumentsRouter() {
         }
 
         const allowed = guard.canReadMetadataAdmin(subject, {
-          classificationLevel: document.classificationLevel as ClassificationLevel,
+          classificationLevel: document.classificationLevel,
         });
         if (!allowed) {
           throw new TRPCError({
@@ -541,9 +541,9 @@ export function createDocumentsRouter() {
         return {
           documentId: document.id,
           title: document.title,
-          lifecycleState: document.lifecycleState as LifecycleState,
+          lifecycleState: document.lifecycleState,
           finalNumber: document.finalNumber,
-          classificationLevel: document.classificationLevel as ClassificationLevel,
+          classificationLevel: document.classificationLevel,
         };
       }),
 
@@ -631,7 +631,7 @@ export function createDocumentsRouter() {
             title: row.title,
             documentTypeName: row.documentTypeName,
             finalNumber: row.finalNumber,
-            currentState: row.lifecycleState as LifecycleState,
+            currentState: row.lifecycleState,
           })),
           nextCursor: hasMore && page.length > 0 ? page[page.length - 1]!.id : null,
         };
@@ -666,7 +666,7 @@ export function createDocumentsRouter() {
         // implemented as one check rather than two redundant ones.
         const allowed = guard.canUpdate(subject, {
           ownedByOfficeId: document.ownedByOfficeId,
-          lifecycleState: document.lifecycleState as LifecycleState,
+          lifecycleState: document.lifecycleState,
           createdBy: document.createdBy,
         });
         if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
@@ -723,7 +723,7 @@ export function createDocumentsRouter() {
 
         const allowed = guard.canSoftDelete(subject, {
           ownedByOfficeId: document.ownedByOfficeId,
-          lifecycleState: document.lifecycleState as LifecycleState,
+          lifecycleState: document.lifecycleState,
           workflowInstanceId: document.workflowInstanceId,
         });
         if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
@@ -759,7 +759,7 @@ export function createDocumentsRouter() {
         // outgoing transitions from 'disposed').
         const allowed = guard.canCancel(subject, {
           ownedByOfficeId: document.ownedByOfficeId,
-          lifecycleState: document.lifecycleState as LifecycleState,
+          lifecycleState: document.lifecycleState,
           workflowInstanceId: document.workflowInstanceId,
         });
         if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
@@ -926,7 +926,7 @@ export function createDocumentsRouter() {
 
         const allowed = guard.canReadMetadata(subject, {
           ownedByOfficeId: document.ownedByOfficeId,
-          classificationLevel: document.classificationLevel as ClassificationLevel,
+          classificationLevel: document.classificationLevel,
           hasCrossOfficeGrant: false,
           hasAllowlistEntry,
         });
@@ -982,7 +982,7 @@ export function createDocumentsRouter() {
 
         const allowed = guard.canReadVersionContent(subject, {
           ownedByOfficeId: document.ownedByOfficeId,
-          classificationLevel: document.classificationLevel as ClassificationLevel,
+          classificationLevel: document.classificationLevel,
           hasAllowlistEntry,
         });
         if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
@@ -1033,7 +1033,7 @@ export function createDocumentsRouter() {
 
         const allowed = guard.canReadOcrText(subject, {
           ownedByOfficeId: document.ownedByOfficeId,
-          classificationLevel: document.classificationLevel as ClassificationLevel,
+          classificationLevel: document.classificationLevel,
           hasAllowlistEntry,
         });
         if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
@@ -1097,7 +1097,7 @@ export function createDocumentsRouter() {
         }
 
         const allowed = guard.canUpdate(subject, {
-          lifecycleState: document.lifecycleState as LifecycleState,
+          lifecycleState: document.lifecycleState,
           ownedByOfficeId: document.ownedByOfficeId,
           createdBy: document.createdBy,
         });
@@ -1136,7 +1136,7 @@ export function createDocumentsRouter() {
 
         // Same access requirement as Re-OCR (must be able to update)
         const allowed = guard.canUpdate(subject, {
-          lifecycleState: document.lifecycleState as LifecycleState,
+          lifecycleState: document.lifecycleState,
           ownedByOfficeId: document.ownedByOfficeId,
           createdBy: document.createdBy,
         });
@@ -1172,7 +1172,7 @@ export function createDocumentsRouter() {
         }
 
         const allowed = guard.canUpdate(subject, {
-          lifecycleState: document.lifecycleState as LifecycleState,
+          lifecycleState: document.lifecycleState,
           ownedByOfficeId: document.ownedByOfficeId,
           createdBy: document.createdBy,
         });
@@ -1204,7 +1204,7 @@ export function createDocumentsRouter() {
         }
 
         const allowed = guard.canSubmit(subject, {
-          lifecycleState: document.lifecycleState as LifecycleState,
+          lifecycleState: document.lifecycleState,
           ownedByOfficeId: document.ownedByOfficeId,
         });
         if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
@@ -1331,7 +1331,7 @@ export function createDocumentsRouter() {
 
         const allowed = guard.canAssignPreliminaryNumber(subject, {
           documentTypeCode: docType.code,
-          lifecycleState: document.lifecycleState as LifecycleState,
+          lifecycleState: document.lifecycleState,
           preliminaryNumber: document.preliminaryNumber,
         });
         if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
@@ -1487,8 +1487,8 @@ export function createDocumentsRouter() {
 
         const allowed = guard.canPublishPortal(subject, {
           documentTypeCode: docType.code,
-          lifecycleState: document.lifecycleState as LifecycleState,
-          classificationLevel: document.classificationLevel as ClassificationLevel,
+          lifecycleState: document.lifecycleState,
+          classificationLevel: document.classificationLevel,
           publicVisibilityRule: docType.publicVisibilityRule as any,
         });
         if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
@@ -1524,8 +1524,8 @@ export function createDocumentsRouter() {
 
         const allowed = guard.canPublishPortal(subject, {
           documentTypeCode: docType.code,
-          lifecycleState: document.lifecycleState as LifecycleState,
-          classificationLevel: document.classificationLevel as ClassificationLevel,
+          lifecycleState: document.lifecycleState,
+          classificationLevel: document.classificationLevel,
           publicVisibilityRule: docType.publicVisibilityRule as any,
         });
         if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
@@ -1564,7 +1564,7 @@ export function createDocumentsRouter() {
         const isSp = spsOffice ? subject.effectiveOfficeIds.includes(spsOffice.officeId) : false;
 
         const allowed = guard.canArchive(subject, {
-          lifecycleState: document.lifecycleState as LifecycleState,
+          lifecycleState: document.lifecycleState,
           ownedByOfficeId: document.ownedByOfficeId,
           isSpSecretariatOffice: isSp,
         });

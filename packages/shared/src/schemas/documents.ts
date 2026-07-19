@@ -65,9 +65,6 @@ export const PublicVisibilityRuleSchema = z.enum([
 ]);
 export type PublicVisibilityRule = z.infer<typeof PublicVisibilityRuleSchema>;
 
-export const NumberTypeSchema = z.enum(['preliminary', 'final']);
-export type NumberType = z.infer<typeof NumberTypeSchema>;
-
 export const AttachmentTypeSchema = z.enum([
   'certification_of_urgency',
   'committee_report',
