@@ -1,6 +1,7 @@
 import { useAuthActions } from '@/hooks/useAuthActions';
 import { useIdleTimer } from '@/hooks/useIdleTimer';
 import { useUIStore } from '@/stores/ui.store';
+import { trpc } from '@/lib/trpc';
 import {
   Dialog,
   DialogContent,
@@ -16,9 +17,11 @@ export function IdleWarningModal() {
   const closeIdleWarning = useUIStore((state) => state.closeIdleWarning);
   const { resetTimers } = useIdleTimer();
   const { lock } = useAuthActions();
+  const utils = trpc.useUtils();
 
   const handleStillHere = () => {
     resetTimers();
+    void utils.iam.listActiveSessions.fetch();
   };
 
   const handleLockNow = () => {
