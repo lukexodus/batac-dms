@@ -33,7 +33,7 @@ export class MailerService {
       // SMTPPool.Options (pooled mode is either on or the field is
       // absent — it isn't modeled as a togglable boolean), but
       // env.SMTP_POOL is a genuine runtime-configurable boolean
-      // (env.server.ts: booleanFromString.default('true')). Narrow the
+      // (env.server.ts: booleanFromString('true')). Narrow the
       // cast to just this field rather than casting the whole options
       // object, so every other field here stays type-checked normally.
       pool: env.SMTP_POOL as true,

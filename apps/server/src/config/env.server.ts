@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
-const booleanFromString = z.enum(['true', 'false']).transform((v) => v === 'true');
+const booleanFromString = (defaultValue: 'true' | 'false') =>
+  z
+    .enum(['true', 'false'])
+    .default(defaultValue)
+    .transform((v) => v === 'true');
 const positiveInt = z.coerce.number().int().positive();
 const nonNegativeInt = z.coerce.number().int().min(0);
 const floatBetween0and1 = z.coerce.number().min(0).max(1);
@@ -23,7 +27,7 @@ export const serverEnvSchema = z
     APP_PORT: z.coerce.number().int().min(1024).max(65535).default(3000),
     APP_HOST: z.string().default('0.0.0.0'),
     LOG_LEVEL: LogLevel.default('info'),
-    LOG_PRETTY: booleanFromString.default('false'),
+    LOG_PRETTY: booleanFromString('false'),
     LOG_REDACT_PATHS: z
       .string()
       .default('["req.headers.authorization","req.headers.cookie","*.password","*.secret"]')
@@ -37,7 +41,7 @@ export const serverEnvSchema = z
         .filter(Boolean),
     ),
     CITY_ID: z.string().uuid(),
-    TRUST_PROXY: booleanFromString.default('false'),
+    TRUST_PROXY: booleanFromString('false'),
     APP_INSTANCE_ID: z
       .string()
       .min(1)
@@ -53,7 +57,7 @@ export const serverEnvSchema = z
     DB_POOL_ACQUIRE_TIMEOUT_MS: positiveInt.default(10000),
     DB_POOL_CONNECTION_TIMEOUT_MS: positiveInt.default(5000),
     DB_STATEMENT_TIMEOUT_MS: positiveInt.default(30000),
-    DRIZZLE_VERBOSE: booleanFromString.default('false'),
+    DRIZZLE_VERBOSE: booleanFromString('false'),
 
     // ─── Authentication ───────────────────────────────────────────────────
     AUTH_JWT_ACCESS_SECRET: z.string().min(32),
@@ -61,7 +65,7 @@ export const serverEnvSchema = z
     AUTH_JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
     AUTH_JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
     AUTH_JWT_ALGORITHM: z.enum(['HS256', 'RS256', 'ES256']).default('HS256'),
-    AUTH_COOKIE_SECURE: booleanFromString.default('true'),
+    AUTH_COOKIE_SECURE: booleanFromString('true'),
     AUTH_COOKIE_SAMESITE: z.enum(['Strict', 'Lax', 'None']).default('Strict'),
     AUTH_COOKIE_DOMAIN: z.string().optional(),
     AUTH_ACCESS_TOKEN_COOKIE_NAME: z.string().default('__Host-bat_at'),
@@ -69,7 +73,7 @@ export const serverEnvSchema = z
     AUTH_SESSION_INACTIVITY_TIMEOUT_MS: positiveInt.default(1800000),
     AUTH_SESSION_WARNING_THRESHOLD_MS: positiveInt.default(1500000),
     AUTH_MAX_CONCURRENT_SESSIONS: positiveInt.default(1),
-    AUTH_MFA_TOTP_ENABLED: booleanFromString.default('false'),
+    AUTH_MFA_TOTP_ENABLED: booleanFromString('false'),
     AUTH_MFA_TOTP_ISSUER: z.string().default('Batac City LGU'),
     AUTH_MFA_TOTP_WINDOW: nonNegativeInt.default(1),
 
@@ -82,11 +86,11 @@ export const serverEnvSchema = z
     // ─── Audit Log ────────────────────────────────────────────────────────
     AUDIT_HMAC_SECRET: z.string().min(32),
     AUDIT_GENESIS_HASH: z.string().length(64).default('0'.repeat(64)),
-    AUDIT_CHAIN_VERIFY_ON_READ: booleanFromString.default('true'),
+    AUDIT_CHAIN_VERIFY_ON_READ: booleanFromString('true'),
     AUDIT_RETENTION_DAYS: positiveInt.default(3650),
-    AUDIT_TSA_ENABLED: booleanFromString.default('false'),
+    AUDIT_TSA_ENABLED: booleanFromString('false'),
     AUDIT_TSA_URL: z.string().url().optional(),
-    AUDIT_EXPORT_ENABLED: booleanFromString.default('false'),
+    AUDIT_EXPORT_ENABLED: booleanFromString('false'),
     AUDIT_EXPORT_DESTINATION: z.enum(['s3']).default('s3'),
 
     // ─── S3-Compatible Storage ────────────────────────────────────────────
@@ -95,7 +99,7 @@ export const serverEnvSchema = z
     S3_ACCESS_KEY: z.string().min(1),
     S3_SECRET_KEY: z.string().min(1),
     S3_REGION: z.string().default('auto'),
-    S3_FORCE_PATH_STYLE: booleanFromString.default('false'),
+    S3_FORCE_PATH_STYLE: booleanFromString('false'),
     S3_UPLOAD_MAX_SIZE_MB: positiveInt.default(25),
     S3_SIGNED_URL_EXPIRES_S: positiveInt.default(300),
     S3_UPLOAD_PRESIGN_EXPIRES_S: positiveInt.default(600),
@@ -113,16 +117,16 @@ export const serverEnvSchema = z
     // ─── SMTP ─────────────────────────────────────────────────────────────
     SMTP_HOST: z.string().min(1),
     SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
-    SMTP_SECURE: booleanFromString.default('false'),
+    SMTP_SECURE: booleanFromString('false'),
     SMTP_USER: z.string().min(1),
     SMTP_PASSWORD: z.string().min(1),
     SMTP_FROM: z.string().email(),
     SMTP_FROM_NAME: z.string().default('Batac City LGU'),
-    SMTP_REJECT_UNAUTHORIZED: booleanFromString.default('true'),
-    SMTP_POOL: booleanFromString.default('true'),
+    SMTP_REJECT_UNAUTHORIZED: booleanFromString('true'),
+    SMTP_POOL: booleanFromString('true'),
     SMTP_MAX_CONNECTIONS: positiveInt.default(5),
     SMTP_MAX_MESSAGES: positiveInt.default(100),
-    SMTP_DEBUG: booleanFromString.default('false'),
+    SMTP_DEBUG: booleanFromString('false'),
 
     // ─── OCR ──────────────────────────────────────────────────────────────
     OCR_ENGINE: OcrEngine.default('tesseract'),
@@ -134,7 +138,7 @@ export const serverEnvSchema = z
     OCR_MAX_FILE_SIZE_MB: positiveInt.default(25),
     OCR_QUALITY_THRESHOLD: floatBetween0and1.default(0.6),
     OCR_QUEUE_CONCURRENCY: positiveInt.default(3),
-    OCR_MIGRATION_ENABLED: booleanFromString.default('false'),
+    OCR_MIGRATION_ENABLED: booleanFromString('false'),
     OCR_MIGRATION_BATCH_SIZE: positiveInt.default(50),
 
     // ─── Search (Phase 1 = postgres; Phase 2 fields optional now) ────────
@@ -145,7 +149,7 @@ export const serverEnvSchema = z
     SEARCH_MEILISEARCH_INDEX_PREFIX: z.string().default('batac_'),
     SEARCH_SYNC_BATCH_SIZE: positiveInt.default(100),
     SEARCH_SYNC_INTERVAL_MS: positiveInt.default(5000),
-    SEARCH_SYNC_ON_STARTUP: booleanFromString.default('false'),
+    SEARCH_SYNC_ON_STARTUP: booleanFromString('false'),
 
     // ─── SSE & Notifications ──────────────────────────────────────────────
     SSE_HEARTBEAT_INTERVAL_MS: positiveInt.default(30000),
@@ -216,23 +220,23 @@ export const serverEnvSchema = z
     I18N_FALLBACK_LOCALE: z.string().default('en'),
 
     // ─── Feature Flags ────────────────────────────────────────────────────
-    FEATURE_MFA_ENABLED: booleanFromString.default('false'),
-    FEATURE_OCR_ENABLED: booleanFromString.default('true'),
-    FEATURE_MEILISEARCH_ENABLED: booleanFromString.default('false'),
-    FEATURE_CITIZEN_PORTAL_ENABLED: booleanFromString.default('false'),
-    FEATURE_SMS_ENABLED: booleanFromString.default('false'),
-    FEATURE_PHILSYS_ENABLED: booleanFromString.default('false'),
-    FEATURE_RECORDS_MANAGEMENT_ENABLED: booleanFromString.default('false'),
-    FEATURE_EMAIL_NOTIFICATIONS_ENABLED: booleanFromString.default('true'),
-    FEATURE_SSE_ENABLED: booleanFromString.default('true'),
+    FEATURE_MFA_ENABLED: booleanFromString('false'),
+    FEATURE_OCR_ENABLED: booleanFromString('true'),
+    FEATURE_MEILISEARCH_ENABLED: booleanFromString('false'),
+    FEATURE_CITIZEN_PORTAL_ENABLED: booleanFromString('false'),
+    FEATURE_SMS_ENABLED: booleanFromString('false'),
+    FEATURE_PHILSYS_ENABLED: booleanFromString('false'),
+    FEATURE_RECORDS_MANAGEMENT_ENABLED: booleanFromString('false'),
+    FEATURE_EMAIL_NOTIFICATIONS_ENABLED: booleanFromString('true'),
+    FEATURE_SSE_ENABLED: booleanFromString('true'),
 
     // ─── Disaster Recovery ────────────────────────────────────────────────
-    DR_HOT_STANDBY_ENABLED: booleanFromString.default('false'),
+    DR_HOT_STANDBY_ENABLED: booleanFromString('false'),
     DR_HOT_STANDBY_URL: z.string().url().optional(),
     DR_MAX_REPLICATION_LAG_S: positiveInt.default(60),
 
     // ─── Backup ───────────────────────────────────────────────────────────
-    BACKUP_ENABLED: booleanFromString.default('false'),
+    BACKUP_ENABLED: booleanFromString('false'),
     BACKUP_ENCRYPTION_KEY: z.string().min(32).optional(),
     BACKUP_RETENTION_DAYS_HOT: positiveInt.default(30),
     BACKUP_RETENTION_DAYS_COLD: positiveInt.default(365),
