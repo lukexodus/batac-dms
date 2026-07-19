@@ -68,5 +68,36 @@ export function useAuthActions() {
     }
   }, []);
 
-  return { login, logout };
+  const lock = useCallback(async () => {
+    await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lock`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    useSessionStore.getState().setIsLocked(true);
+  }, []);
+
+  const unlock = useCallback(async (
+    password: string
+  ): Promise<
+    | { ok: true }
+    | { ok: false; code: 'INVALID_PASSWORD' | 'REFRESH_REQUIRED'; message?: string }
+  > => {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/unlock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ password }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      if (data.error?.code === 'REFRESH_REQUIRED') {
+        return { ok: false, code: 'REFRESH_REQUIRED', message: data.error?.message };
+      }
+      return { ok: false, code: 'INVALID_PASSWORD', message: data.error?.message };
+    }
+    useSessionStore.getState().setIsLocked(false);
+    return { ok: true };
+  }, []);
+
+  return { login, logout, lock, unlock };
 }

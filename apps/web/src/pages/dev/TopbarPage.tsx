@@ -35,7 +35,7 @@ export default function TopbarPage() {
     setLastAction('Notification bell clicked');
   };
 
-  const handleUserMenuAction = (action: 'profile' | 'logout') => {
+  const handleUserMenuAction = (action: 'profile' | 'logout' | 'lock') => {
     setLastAction(`User menu action triggered: ${action}`);
   };
 

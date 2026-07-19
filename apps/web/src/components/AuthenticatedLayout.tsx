@@ -26,6 +26,7 @@ import { hasRole } from '../lib/auth-helpers';
 import { useShellStore } from '@/stores';
 import { useIdleTimer } from '@/hooks/useIdleTimer';
 import { SessionLockScreen } from '@/pages/auth/SessionLockScreen';
+import { IdleWarningModal } from '@/components/IdleWarningModal';
 
 const ROLE_LABELS: Record<string, string> = {
   sys_admin: 'System Administrator',
@@ -63,7 +64,7 @@ export function AuthenticatedLayout() {
   useIdleTimer();
   const identity = useSessionStore((s) => s.identity);
   const isLocked = useSessionStore((s) => s.isLocked);
-  const { logout } = useAuthActions();
+  const { logout, lock } = useAuthActions();
   const { sidebarCollapsed, toggleSidebar } = useShellStore();
   const location = useLocation();
 
@@ -313,6 +314,8 @@ export function AuthenticatedLayout() {
             onUserMenuAction={(action) => {
               if (action === 'logout') {
                 void logout();
+              } else if (action === 'lock') {
+                void lock();
               } else if (action === 'profile') {
                 // No-op per F1 specification - no profile page exists yet.
               }
@@ -323,6 +326,7 @@ export function AuthenticatedLayout() {
         <Outlet />
       </AppShell>
       {isLocked && <SessionLockScreen />}
+      <IdleWarningModal />
     </>
   );
 }

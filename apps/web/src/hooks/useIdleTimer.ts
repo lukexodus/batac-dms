@@ -1,57 +1,53 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useSessionStore } from '@/stores/session.store';
+import { useUIStore } from '@/stores/ui.store';
+import { useAuthActions } from '@/hooks/useAuthActions';
 
-// Default to 30 minutes if not provided via env
-const INACTIVITY_TIMEOUT_MS = Number(
+const WARNING_AT_MS = Number(
+  import.meta.env['VITE_AUTH_SESSION_WARNING_MS'] || 25 * 60 * 1000,
+);
+const LOCK_AT_MS = Number(
   import.meta.env['VITE_AUTH_SESSION_INACTIVITY_TIMEOUT_MS'] || 30 * 60 * 1000,
 );
 
 export function useIdleTimer() {
   const identity = useSessionStore((state) => state.identity);
   const isLocked = useSessionStore((state) => state.isLocked);
-  const setIsLocked = useSessionStore((state) => state.setIsLocked);
+  const { lock } = useAuthActions();
+  const openIdleWarning = useUIStore((state) => state.openIdleWarning);
+  const closeIdleWarning = useUIStore((state) => state.closeIdleWarning);
 
-  const timerRef = useRef<number | null>(null);
+  const warningTimerRef = useRef<number | null>(null);
+  const lockTimerRef = useRef<number | null>(null);
+
+  const resetTimers = useCallback(() => {
+    if (warningTimerRef.current) window.clearTimeout(warningTimerRef.current);
+    if (lockTimerRef.current) window.clearTimeout(lockTimerRef.current);
+    closeIdleWarning();
+    warningTimerRef.current = window.setTimeout(() => {
+      openIdleWarning();
+    }, WARNING_AT_MS);
+    lockTimerRef.current = window.setTimeout(() => {
+      closeIdleWarning();
+      void lock();
+    }, LOCK_AT_MS);
+  }, [lock, openIdleWarning, closeIdleWarning]);
 
   useEffect(() => {
-    // Only run the timer if the user is authenticated and the session is not currently locked
     if (!identity || isLocked) {
-      if (timerRef.current) {
-        window.clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
+      if (warningTimerRef.current) window.clearTimeout(warningTimerRef.current);
+      if (lockTimerRef.current) window.clearTimeout(lockTimerRef.current);
+      warningTimerRef.current = null;
+      lockTimerRef.current = null;
       return;
     }
 
-    const handleLock = async () => {
-      try {
-        await fetch(`${import.meta.env.VITE_API_URL}/api/auth/lock`, {
-          method: 'POST',
-          credentials: 'include',
-        });
-        setIsLocked(true);
-      } catch (error) {
-        console.error('Failed to lock session on idle timeout', error);
-        // Even if the network call fails, we should lock the UI locally
-        setIsLocked(true);
-      }
-    };
-
-    const resetTimer = () => {
-      if (timerRef.current) {
-        window.clearTimeout(timerRef.current);
-      }
-      timerRef.current = window.setTimeout(handleLock, INACTIVITY_TIMEOUT_MS);
-    };
-
     const handleActivity = () => {
-      resetTimer();
+      resetTimers();
     };
 
-    // Initialize timer
-    resetTimer();
+    resetTimers();
 
-    // Attach event listeners
     window.addEventListener('mousemove', handleActivity, { passive: true });
     window.addEventListener('mousedown', handleActivity, { passive: true });
     window.addEventListener('keydown', handleActivity, { passive: true });
@@ -59,14 +55,15 @@ export function useIdleTimer() {
     window.addEventListener('touchstart', handleActivity, { passive: true });
 
     return () => {
-      if (timerRef.current) {
-        window.clearTimeout(timerRef.current);
-      }
+      if (warningTimerRef.current) window.clearTimeout(warningTimerRef.current);
+      if (lockTimerRef.current) window.clearTimeout(lockTimerRef.current);
       window.removeEventListener('mousemove', handleActivity);
       window.removeEventListener('mousedown', handleActivity);
       window.removeEventListener('keydown', handleActivity);
       window.removeEventListener('scroll', handleActivity);
       window.removeEventListener('touchstart', handleActivity);
     };
-  }, [identity, isLocked, setIsLocked]);
+  }, [identity, isLocked, resetTimers]);
+
+  return { resetTimers };
 }

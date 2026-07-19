@@ -21,7 +21,7 @@ export interface TopbarProps {
   notificationCount?: number;
   onNotificationClick?: () => void;
   currentUser: SidebarUser;
-  onUserMenuAction?: (action: 'profile' | 'logout') => void;
+  onUserMenuAction?: (action: 'profile' | 'logout' | 'lock') => void;
 }
 
 export function Topbar({
@@ -141,6 +141,13 @@ export function Topbar({
                 className="text-text-secondary hover:text-text-primary touch-exempt w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-neutral-100"
               >
                 Profile
+              </button>
+              <button
+                type="button"
+                onClick={() => onUserMenuAction?.('lock')}
+                className="text-text-secondary hover:text-text-primary touch-exempt w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-neutral-100"
+              >
+                Lock
               </button>
               <button
                 type="button"

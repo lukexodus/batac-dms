@@ -11,7 +11,7 @@ export function SessionLockScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const identity = useSessionStore((state) => state.identity);
   const setIsLocked = useSessionStore((state) => state.setIsLocked);
-  const { logout } = useAuthActions();
+  const { logout, unlock } = useAuthActions();
   const navigate = useNavigate();
 
   const handleUnlock = async (e: React.FormEvent) => {
@@ -25,27 +25,19 @@ export function SessionLockScreen() {
     setError(null);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/unlock`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ password }),
-      });
+      const result = await unlock(password);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.error?.code === 'REFRESH_REQUIRED') {
+      if (!result.ok) {
+        if (result.code === 'REFRESH_REQUIRED') {
           // Session expired beyond refresh capability
           await logout();
-          navigate('/login', { replace: true, state: { message: data.error?.message } });
+          navigate('/login', { replace: true, state: { message: result.message } });
           return;
         }
-        throw new Error(data.error?.message || 'Invalid password');
+        throw new Error(result.message || 'Invalid password');
       }
 
       // Success
-      setIsLocked(false);
       setPassword('');
     } catch (err: any) {
       setError(err.message || 'An error occurred. Please try again.');

@@ -35,6 +35,9 @@ interface UIState {
   /** Command palette */
   paletteOpen: boolean;
 
+  /** Idle-session warning modal */
+  idleWarningOpen: boolean;
+
   /** Global toast notification (Sonner is called imperatively;
       this tracks whether a persistent alert banner is shown) */
   toast: ToastState;
@@ -50,6 +53,9 @@ interface UIState {
   openPalette: () => void;
   closePalette: () => void;
 
+  openIdleWarning: () => void;
+  closeIdleWarning: () => void;
+
   showToast: (variant: ToastVariant, title: string, body?: string) => void;
   dismissToast: () => void;
 }
@@ -62,6 +68,7 @@ export const useUIStore = create<UIState>()((set) => ({
   dialogDocId: null,
 
   paletteOpen: false,
+  idleWarningOpen: false,
 
   toast: {
     open: false,
@@ -77,6 +84,9 @@ export const useUIStore = create<UIState>()((set) => ({
 
   openPalette: () => set({ paletteOpen: true }),
   closePalette: () => set({ paletteOpen: false }),
+
+  openIdleWarning: () => set({ idleWarningOpen: true }),
+  closeIdleWarning: () => set({ idleWarningOpen: false }),
 
   showToast: (variant, title, body) =>
     set({ toast: { open: true, variant, title, ...(body !== undefined && { body }) } }),
