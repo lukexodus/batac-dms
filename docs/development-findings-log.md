@@ -2874,3 +2874,40 @@ The password reset flow requires generating a token and sending a reset link. No
 The password reset flow requires generating a token and sending a reset link. No document specified the exact Time-To-Live (TTL) for this reset token. 
 
 [Inference]: A conservative default of 24 hours was implemented in `iam.service.ts` for the password reset token expiration, balancing usability with security. This entry supersedes the identically titled entry immediately above which was assigned a duplicate ID colliding with an unrelated entry near line 725.
+
+
+### [LOG-0116] Duplicate LOG-0112 entry — corrupted instance identified, intact instance designated authoritative
+
+- date: 2026-07-19
+- task_id: TASK-DOCS-SHARED-007
+- status: proposed
+- affects: docs/development-findings-log.md
+- supersedes: LOG-0112
+
+Two entries both numbered LOG-0112 exist in this file (currently at lines
+2755 and 2794), both titled "E3's LifecycleStateSchema
+corrected from 9 values to the authoritative 11-value set
+(TASK-DOCS-SHARED-002)" — a direct violation of this log's own "do not reuse
+a number" rule. The instance at line 2755 is corrupted: its
+backtick-wrapped code terms (schema names, enum values, file paths) were
+stripped out during whatever process produced it, leaving broken, gappy
+prose that does not convey its intended content. The instance at line
+2794 is intact and properly formatted.
+
+A human has reviewed both and designated the entry at line 2794
+(the intact one) as authoritative. The entry at line 2755 (the
+corrupted one) should not be treated as a source of information — its
+content is unreadable, not merely differently-worded.
+
+Per AGENTS.md Section 4.5, only a human may change an existing entry's
+`status` field, and this log's own header states entry numbers are never
+reused even when an entry is superseded — so this correction is recorded as
+this new, separate, appended entry rather than as an edit to either existing
+LOG-0112 instance. Neither existing instance's text or status field was
+modified as part of producing this entry.
+
+**Not done as part of this entry, and left for separate human or agent
+decision:** whether the corrupted instance should eventually be visually
+marked (e.g., a human-applied `status: superseded` edit directly on it, or
+some other in-place annotation) is outside what this entry does — this
+entry only records the finding and the authoritative designation.
