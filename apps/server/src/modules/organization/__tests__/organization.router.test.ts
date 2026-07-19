@@ -732,3 +732,22 @@ describe('organization.listCommittees', () => {
     expect(deps.orgRepository.committees.findAll).not.toHaveBeenCalled();
   });
 });
+
+describe('createOrgRouter dependency validation', () => {
+  it('throws an error mentioning orgRepository when getDeps is invoked with a deps object missing orgRepository', async () => {
+    const deps = makeDeps();
+    const { orgRepository, ...incompleteDeps } = deps;
+    
+    const caller = buildCaller(makeCtx(['plat_admin']), incompleteDeps as any);
+    
+    let caughtError: Error | unknown;
+    try {
+      await caller.organization.getOfficeHierarchy();
+    } catch (err) {
+      caughtError = err;
+    }
+    
+    expect(caughtError).toBeDefined();
+    expect((caughtError as Error).message).toMatch(/orgRepository/);
+  });
+});

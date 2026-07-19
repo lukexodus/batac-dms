@@ -50,6 +50,7 @@ async function organizationPlugin(fastify: FastifyInstance): Promise<void> {
   fastify.decorate(
     'orgTrpcRouter',
     createOrgRouter({
+      orgRepository,
       policyEvaluator: fastify.policyEvaluator,
       organizationService,
       delegationService,

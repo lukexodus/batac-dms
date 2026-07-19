@@ -211,9 +211,25 @@ function toDateOnlyString(d: Date): string {
 
 // ───────────────────────── router factory ─────────────────────────
 
+const REQUIRED_ORG_ROUTER_DEPS_KEYS: (keyof OrgRouterDeps)[] = [
+  'orgRepository',
+  'orgService',
+  'delegationService',
+  'policyEvaluator',
+];
+
 export function createOrgRouter(deps?: OrgRouterDeps) {
   function getDeps(ctx: any): OrgRouterDeps {
-    if (deps) return deps;
+    if (deps) {
+      const missingKeys = REQUIRED_ORG_ROUTER_DEPS_KEYS.filter((key) => deps[key] === undefined);
+      if (missingKeys.length > 0) {
+        throw new Error(
+          `createOrgRouter received an incomplete deps object — missing key(s): ${missingKeys.join(', ')}. ` +
+            `This is a construction-time bug (see docs/development-findings-log.md LOG-0088), not a per-request failure.`,
+        );
+      }
+      return deps;
+    }
     const server = ctx.req.server;
     return {
       orgRepository: server.orgRepository,
