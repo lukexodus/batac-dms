@@ -17,10 +17,7 @@ export interface SendEmailResult {
 }
 
 const emailSchema = z.string().email();
-const recipientSchema = z.union([
-  emailSchema,
-  z.array(emailSchema).min(1),
-]);
+const recipientSchema = z.union([emailSchema, z.array(emailSchema).min(1)]);
 
 export class MailerService {
   private readonly transporter: Transporter;

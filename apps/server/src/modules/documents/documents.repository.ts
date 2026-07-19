@@ -185,7 +185,10 @@ export class DocumentsRepository {
    * Return the single current number row for a given document + number_type.
    * Returns null when no current row exists (e.g. no preliminary assigned yet).
    */
-  async findCurrentNumber(documentId: string, numberType: 'final' | 'preliminary' | 'control'): Promise<NumberRow | null> {
+  async findCurrentNumber(
+    documentId: string,
+    numberType: 'final' | 'preliminary' | 'control',
+  ): Promise<NumberRow | null> {
     const [row] = await this.db
       .select()
       .from(numbers)

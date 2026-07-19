@@ -29,7 +29,7 @@ describe('MailerService', () => {
       service.sendEmail({
         to: 'invalid-email',
         subject: 'Test',
-      })
+      }),
     ).rejects.toThrow(/Invalid recipient address/);
 
     expect(mockTransport.sendMail).not.toHaveBeenCalled();
@@ -43,7 +43,7 @@ describe('MailerService', () => {
       service.sendEmail({
         to: ['valid@example.com', 'invalid-email'],
         subject: 'Test',
-      })
+      }),
     ).rejects.toThrow(/Invalid recipient address/);
 
     expect(mockTransport.sendMail).not.toHaveBeenCalled();
