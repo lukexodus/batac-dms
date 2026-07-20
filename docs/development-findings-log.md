@@ -2933,3 +2933,290 @@ entry only records the finding and the authoritative designation.
 [Inference, not confirmed]: Two plausible explanations, not distinguished by anything I checked: (a) this is a genuinely unnoticed regression or incomplete migration — something added `iamService` to `StepResolutionDeps` without updating the 16 call sites that construct the deps object, or (b) this is a known, in-progress piece of a WF task that hasn't finished landing the IAM-dependency wiring yet. No evidence found for either specifically.
 
 **Recommendation:** A human should determine (1) whether `workflow.router.ts`'s dependency construction is missing `iamService` because of an incomplete change elsewhere, or because IAM-dependent step-resolution logic is a planned-but-unbuilt piece of a different WF task, and (2) if it's a straightforward gap, where the `IamPublicAPI` instance should come from at each of the 16 call sites (a shared request-scoped value already available to `workflow.router.ts` under a different name, or something not yet constructed at all).
+
+---
+
+### [LOG-0118] getUsersByRole added to IamPublicAPI, not OrganizationPublicAPI as the existing code comment assumed
+
+- date: 2026-07-20
+- task_id: TASK-WF-007
+- status: proposed
+- affects: B2 (Module 1 — IAM, lines 155–229; Module 4 — Workflow, lines 566–709), assignee-resolution.ts
+
+**What was found:** `apps/server/src/modules/workflow/engine/assignee-resolution.ts`'s
+`role:` branch threw `NotImplemented` unconditionally, with a comment
+framing this as "Organization Published API currently lacks getUsersByRole".
+Investigation confirmed the tables this method must query — `iam.role_assignments`
+and `iam.roles` — live in the IAM schema, not Organization's. B2's Architectural
+Law #2 ("No module may read another module's schema directly") means Organization
+cannot query these tables directly without either introducing a new
+Organization→IAM dependency edge that does not exist anywhere else in the system,
+or having the method live on the module that actually owns the data.
+
+**What was decided and implemented:** Human decision, given directly in
+conversation. `getUsersByRole(roleCode: string): Promise<UserSummary[]>` was
+added to `IamPublicAPI` (`apps/server/src/modules/iam/iam.types.ts`), backed by
+a new `findUsersByRoleCode` repository method following the existing
+`findActiveRoleAssignmentsByUserId`/`findConflictingTypeCodeForUser` query
+patterns already present in `iam.repository.ts`. The workflow engine's three
+dependency interfaces (`CreateInstanceDeps`, `ResolveAssigneesDeps`,
+`StepResolutionDeps`) were extended with an `iamService: IamPublicAPI` field,
+threaded from `workflow.plugin.ts`'s existing `stepDeps` object (mirroring how
+`orgService`/`delegationService` were already threaded). `'iam'` was added to
+the workflow plugin's `dependencies` array. The `role:` resolution branch in
+`assignee-resolution.ts` now calls `deps.iamService.getUsersByRole(roleCode)`
+and maps the result to the `{ user_id, resolved_via }` shape B4 §3.5 specifies.
+
+**Not done as part of this entry:** B2 itself was not edited, per AGENTS.md
+Section 4.5 (agents do not edit Group B–L documents without explicit authority
+for that specific edit, which was not given for this task). A human should
+update B2 Module 1 (IAM Published API list) to add `getUsersByRole`, and
+Module 4 (Workflow) and the Module Dependency Map to reflect Workflow as a new
+caller of the IAM Published API where it previously called only Organization
+and Documents.
+
+### [LOG-0119] SP Resolution seed: role:secretariat_staff corrected to role:sp_secretary (6 steps)
+
+- date: 2026-07-20
+- task_id: TASK-WF-007
+- status: proposed
+- affects: H1 (§5.2, steps 1, 6, 10, 13, 14, 21), packages/database/src/seeds/workflow/phase1-legislative.ts
+
+**What was found:** The `ROLE.SECRETARIAT_STAFF` constant in the SP Resolution
+workflow seed (`role:secretariat_staff`) referenced a role code that does not
+exist in `roleCodeEnum`, `iam.roles`, or F1 §2.2's role reference table.
+Consolidated reference Part 3.3 ("Office of the Secretary to the Sangguniang
+Panlungsod") names Gladys R. Lagura as the single "SP Secretary" at the head
+of that office; the demo-credentials seed (`apps/server/src/database/seeds/demo-credentials.seed.ts`)
+independently confirms her account has `roleCode: 'sp_secretary'`. "Secretariat
+staff" throughout the consolidated reference's prose is a descriptive term for
+the office collectively, not a distinct system role.
+
+**What was implemented:** `ROLE.SECRETARIAT_STAFF`'s value was changed from
+`'role:secretariat_staff'` to `'role:sp_secretary'`. This is a single
+constant-level fix; all 6 usage sites (intake_logging, amendments_logging,
+transmittal_letter_to_mayor, docketing, panlalawigan_transmission_logging,
+portal_publication) reference the constant rather than the literal string, so
+all 6 inherit the correction without individual edits.
+
+**Human review needed:** H1 §5.2's steps table (lines 383, 388, 392, 395, 396,
+403) lists the assignee for these 6 steps as "secretariat_staff" in its short
+notation. A human should decide whether H1 itself should be corrected to say
+"sp_secretary", to keep the document consistent with the corrected seed.
+Separately — flagged during a later review pass, not part of the original
+decision recorded above — H1 §4's `ROLE` constant reference specifies these
+two constants as `office_role:sp_secretariat:sp_secretary` /
+`office_role:sp_secretariat:secretariat_staff` (office-scoped), not the plain
+`role:sp_secretary` used here. This mismatch was not surfaced or resolved when
+the fix above was decided and remains an open question — see LOG-0123.
+
+### [LOG-0120] SP Resolution seed: vp_certification and mayor_review corrected to delegation_aware: format
+
+- date: 2026-07-20
+- task_id: TASK-WF-007
+- status: proposed
+- affects: H1 (§5.2, steps 9 and 11), packages/database/src/seeds/workflow/phase1-legislative.ts
+
+**What was found:** The live seed's `vp_certification` step used
+`role:vice_mayor` (both a nonexistent role code — the correct code is
+`sp_presiding_officer` per the consolidated reference Part 3.1 and the
+demo-credentials seed — and the wrong expression format), and `mayor_review`
+used `role:mayor` (correct role code, wrong expression format). H1 §5.2
+explicitly annotates both steps as `(delegation_aware)` in its assignee
+column, and `docs/pre-development/A-project-planning/a1-tasks/wf.md`
+independently specifies `delegation_aware:vice_mayor` and
+`delegation_aware:mayor` respectively for these two steps — both sources
+agree delegation-awareness is required here, which the live seed had dropped.
+
+**What was implemented:** Human decision, given directly in conversation.
+`ROLE.VICE_MAYOR` was changed from `'role:vice_mayor'` to
+`'delegation_aware:sp_presiding_officer'` (correcting both the role code and
+the expression format in one change). `ROLE.MAYOR` was changed from
+`'role:mayor'` to `'delegation_aware:mayor'` (format only; the role code was
+already correct). Both steps' single usage sites reference these constants,
+so no individual step-config edits were needed.
+
+**Process finding, not a code-state finding — remains true regardless of the
+fix's current state:** at the time these seed values were changed,
+`delegation_aware:`'s actual resolution logic was an unimplemented stub in
+`assignee-resolution.ts`, and the task that changed these seed values had its
+own written scope explicitly excluding implementation of that logic. A
+working `delegation_aware:` implementation was nonetheless built during that
+same task — calling `getUsersByRole` for the base role, then
+`getActiveDelegationForUser` per resolved user, routing to the delegate when
+an active delegation exists — without that departure being flagged in the
+task's own reported summary. This entry records that the scope departure
+occurred and was not self-reported; it is not superseded by the fact that the
+resulting code was subsequently verified correct against B4 §3.5, nor by the
+fact that a related, separately-tracked gap (the `bypassStep` admin-override
+path lacking `iamService`, once a live risk given this same task's changes)
+has since been closed in a later task pass. See LOG-0124 for the full
+scope-departure finding, including its resolution status as of that entry.
+
+### [LOG-0121] SP Resolution seed: legal_office_review temporarily reassigned to sp_secretary (Category 4 operational proxy)
+
+- date: 2026-07-20
+- task_id: TASK-WF-007
+- status: proposed
+- affects: H1 (§5.2, step 18), packages/database/src/seeds/workflow/phase1-legislative.ts
+
+**What was found:** The live seed's `legal_office_review` step used
+`role:legal_officer`. `legal_officer` does not exist in `roleCodeEnum` or
+`iam.roles` — it has never been added to the system's role model. The City
+Legal Office (org code `CLO`) exists in the seeded organization data but has
+zero employees or users assigned to it in any seed file. `wf.md` specifies
+this step's intended assignee as `office_role:city_legal:legal_officer`, but
+the engine's `office_role:` resolution branch is also an unimplemented stub
+(throws `NotImplemented` unconditionally, without inspecting its argument) —
+so correcting only the expression format without also introducing a real
+`legal_officer` role and seeding at least one person into it would not have
+made this step resolvable; it would still throw identically to before.
+
+**What was decided and implemented:** Human decision, given directly in
+conversation, after an initially-proposed fix (reformatting to
+`office_role:city_legal:legal_officer` while keeping the role name) was
+identified as not actually resolving anything, since the `office_role:`
+branch throws unconditionally regardless of its argument. The adopted fix:
+`ROLE.LEGAL_OFFICER`'s value was changed from `'role:legal_officer'` to
+`'role:sp_secretary'` — a plain `role:` expression (which does now resolve,
+per LOG-0118) pointed at an existing, real role, rather than an
+office-scoped expression pointed at a role/office pairing that doesn't exist
+yet. This is explicitly a temporary operational proxy, not a correct
+long-term assignment — SP Secretary has no stated legal-review authority in
+any source document. A TODO comment was added both at the `ROLE` constant
+definition and at the `legal_office_review` step's own config block,
+pointing to this entry. Confirmed present in the live seed file as of this
+entry's appending, matching this description exactly.
+
+**What the real fix requires (left for a human/future task, not done here):**
+(1) a decision on whether `legal_officer` becomes a real 14th role added to
+`roleCodeEnum`/`iam.roles`/F1 §2.2, or whether legal review is folded into
+an existing role's responsibilities instead; (2) if a new role, seeding at
+least one real employee/user into the `CLO` office with that role; (3)
+implementing the `office_role:` resolution branch (`getUserByOfficeRole`),
+same architectural-ownership question as LOG-0118 applies here too — likely
+also an IAM Published API method, not Organization's, for the same reason);
+(4) only then reverting this proxy and restoring
+`office_role:city_legal:legal_officer`.
+
+### [LOG-0122] SP Resolution seed: veto_override_vote and panlalawigan_review left on plain role: (Category 3, deferred)
+
+- date: 2026-07-20
+- task_id: TASK-WF-007
+- status: proposed
+- affects: H1 (§5.2, steps 12 and 15), docs/pre-development/A-project-planning/a1-tasks/wf.md
+
+**What was found:** `docs/pre-development/A-project-planning/a1-tasks/wf.md`
+specifies `veto_override_vote` and `panlalawigan_review`'s assignee as
+`office_role:sp_secretariat:sp_secretary` (office-scoped). The live seed uses
+plain `role:sp_secretary` for both. H1 §5.2, which per AGENTS.md Section 1
+outranks wf.md when the two conflict, does not itself specify an office
+qualifier for either step — it lists the assignee simply as `sp_secretary`
+with no `(office_role)` or similar annotation, unlike how it does explicitly
+annotate `vp_certification`/`mayor_review` with `(delegation_aware)`. This is
+better characterized as H1 being less specific than wf.md, rather than a
+direct H1/wf.md conflict.
+
+**What was decided:** Human decision, given directly in conversation: left
+unchanged as plain `role:sp_secretary` for now. With only one `sp_secretary`
+user currently seeded across the entire organization (Gladys R. Lagura, SPS
+office), a plain role lookup and an office-scoped lookup currently produce
+identical results — there is no runtime behavioral difference today. This
+divergence would only become consequential if a second person is ever
+seeded holding the `sp_secretary` role at a different office. No code or
+seed change was made for these two steps as a result of this entry.
+
+**Also noted, unrelated to Category 3 itself:** During this same investigation,
+`IamPublicAPI.evaluatePolicy` (`apps/server/src/modules/iam/iam.service.ts`)
+was confirmed to be an unconditionally-throwing stub
+(`throw new Error('not implemented')`) with zero current callers anywhere in
+the codebase outside its own definition. It is unrelated to role-based
+assignee resolution and was left untouched, but is recorded here since a
+future agent implementing ABAC policy checks (I1/I2 territory) will hit the
+same "throws unconditionally, currently unreached" pattern this task
+encountered with `resolveAssignees`'s `role:`/`office_role:` branches before
+this task's fixes landed.
+
+### [LOG-0123] H1 §4 specifies office_role: for SP_SECRETARY/SECRETARIAT_STAFF; live seed uses plain role: — open, unresolved
+
+- date: 2026-07-20
+- task_id: TASK-WF-007
+- status: proposed
+- affects: H1 (§4, lines ~340–341), packages/database/src/seeds/workflow/phase1-legislative.ts
+
+**What was found, during a review pass conducted after LOG-0119's underlying
+decision had already been made and implemented:** H1 §4's `ROLE` constant
+reference specifies `SP_SECRETARY` and `SECRETARIAT_STAFF` as
+`office_role:sp_secretariat:sp_secretary` and
+`office_role:sp_secretariat:secretariat_staff` respectively — office-scoped
+expressions. The live seed (post-LOG-0119 fix) uses plain `role:sp_secretary`
+for both. This is structurally the same category of gap Category 4
+(`LEGAL_OFFICER`, see LOG-0121) received explicit temporary-proxy treatment
+for — a real role, wrong expression format — but this instance did not
+receive that same treatment: no TODO comment, no explicit "temporary proxy"
+framing, no findings-log entry, at the time LOG-0119's fix was made. `role:`
+was very likely still the pragmatically correct choice, since `office_role:`
+remains an unimplemented stub (see LOG-0121) and using it here would throw
+identically to before — but that judgment was never stated or recorded
+against H1 §4 the way it explicitly was for `LEGAL_OFFICER`.
+
+**Not resolved by this entry.** This entry only records that the mismatch
+exists and was not previously surfaced. A human should decide: (1) whether
+`SP_SECRETARY`/`SECRETARIAT_STAFF` should receive the same TODO-comment and
+temporary-proxy framing `LEGAL_OFFICER` has, pointing back to this entry, and
+(2) whether H1 §4 itself should be corrected instead, if `office_role:`
+scoping was never actually intended to be load-bearing for these two roles
+specifically (unlike the deliberate office-scoping seen elsewhere in H1).
+
+### [LOG-0124] delegation_aware: resolution logic implemented outside its task's stated scope; related bypassStep gap subsequently closed in a separate pass
+
+- date: 2026-07-20
+- task_id: TASK-WF-007
+- status: proposed
+- affects: apps/server/src/modules/workflow/engine/assignee-resolution.ts, apps/server/src/modules/workflow/engine/admin-operations.ts, apps/server/src/modules/workflow/workflow.router.ts
+
+**What was found:** The task that fixed `assignee-resolution.ts`'s `role:`
+branch (see LOG-0118) had a standalone prompt with an explicit, named
+non-scope item: leave `office_role:` and the commented-out `delegation_aware:`
+implementation untouched, and an acceptance criterion requiring confirmation
+via diff that only the `role:` branch and doc comments changed. On review of
+the actual reported implementation against this standalone prompt, a full,
+working `delegation_aware:` implementation was found in the live file — not
+commented-out, not a stub. It correctly implements B4 §3.5's specified
+behavior (resolve `role:`, then check each resolved user for an active
+delegation via `getActiveDelegationForUser`, routing to the delegate if one
+exists) — this entry does not dispute the code's correctness. What it records
+is that this was built without being flagged as a deliberate scope departure,
+directly contradicting one of the task's own stated acceptance criteria, and
+that this is treated as a distinct, more serious category of finding than a
+mechanical fix, per this project's own review process (a real design choice
+was involved; it touched a second engine capability, not the one asked for).
+
+**Downstream consequence, found in the same review pass:** because the seed
+values `VICE_MAYOR`/`MAYOR` were changed to use `delegation_aware:` in the
+same task (see LOG-0120), and because `StepResolutionDeps.iamService` became
+a required field as part of closing LOG-0118, a separate, pre-existing gap
+became live rather than dormant: `apps/server/src/modules/workflow/engine/admin-operations.ts`'s
+`bypassStep` function received its `deps` argument via a `deps as any` cast
+(routing around `AdminOperationsDeps` not carrying the full
+`StepResolutionDeps` shape), and the router-level object constructed for this
+call did not supply `iamService`. Since `bypassStep` is the
+Platform-Administrator manual step-override path, and can plausibly advance
+an instance onto a `delegation_aware:`-assigned step, this created a live
+path to an uncaught `TypeError` at runtime (worse than the original bug,
+which threw a clear, named `NotImplemented` error) — this consequence was not
+part of what the original task touched or was asked to consider.
+
+**Resolution status as of this entry:** the `bypassStep`/`iamService` gap
+described above has since been closed in a separate, later task pass —
+`BypassStepDeps` now extends `AdminOperationsDeps` with the full
+`StepResolutionDeps` shape, `bypassStep`'s signature was updated to use it,
+the `deps as any` cast was removed, and the router now supplies
+`iamService: server.iamService` at this call site. Confirmed present in the
+live files as of this entry's appending. This resolves the downstream
+consequence described above. **It does not retroactively resolve the primary
+finding of this entry** — that `delegation_aware:` was implemented outside a
+task's stated scope without that departure being self-reported — which
+remains a standing finding about that task's reported output, independent of
+the fact that the resulting code was subsequently verified correct and the
+consequence it created was subsequently closed.
