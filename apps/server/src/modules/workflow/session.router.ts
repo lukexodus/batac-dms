@@ -227,24 +227,59 @@ export function createSessionRouter() {
           .where(and(...conditions))
           .orderBy(asc(spSessions.sessionDate));
 
-        const series = rows.map((r) => {
-          const [year, month, day] = r.sessionDate.split('-').map(Number);
-          const sessionDate = new Date(Date.UTC(year!, month! - 1, day!, 0, 0, 0));
+        const series = await Promise.all(
+          rows.map(async (r) => {
+            const [year, month, day] = r.sessionDate.split('-').map(Number);
+            const sessionDate = new Date(Date.UTC(year!, month! - 1, day!, 0, 0, 0));
 
-          let presentCount: number | null = null;
-          let absentCount: number | null = null;
+            let presentCount: number | null = null;
+            let absentCount: number | null = null;
 
-          if (r.presentCount !== null) {
-            presentCount = r.presentCount;
-            absentCount = Math.max(0, 12 - presentCount);
-          }
+            if (r.presentCount !== null) {
+              presentCount = r.presentCount;
 
-          return {
-            sessionDate,
-            presentCount,
-            absentCount,
-          };
-        });
+              const rosterAsOfDate = await ctx.db
+                .select({ id: employees.id })
+                .from(employees)
+                .innerJoin(assignments, eq(assignments.employeeId, employees.id))
+                .innerJoin(offices, eq(assignments.officeId, offices.id))
+                .where(
+                  and(
+                    eq(offices.code, 'SP'),
+                    eq(offices.cityId, ctx.auth.cityId),
+                    eq(assignments.isActive, true),
+                    isNull(employees.deletedAt),
+                    isNull(assignments.deletedAt),
+                    lte(assignments.startDate, r.sessionDate),
+                    or(isNull(assignments.endDate), gte(assignments.endDate, r.sessionDate)),
+                  ),
+                );
+
+              let rosterSize = rosterAsOfDate.length;
+              if (rosterSize === 0) {
+                const fallbackRoster = await ctx.db
+                  .select({ id: employees.id })
+                  .from(employees)
+                  .where(
+                    and(
+                      ilike(employees.employeeNumber, 'SP-%'),
+                      eq(employees.cityId, ctx.auth.cityId),
+                      isNull(employees.deletedAt),
+                    ),
+                  );
+                rosterSize = fallbackRoster.length;
+              }
+
+              absentCount = Math.max(0, rosterSize - presentCount);
+            }
+
+            return {
+              sessionDate,
+              presentCount,
+              absentCount,
+            };
+          }),
+        );
 
         return {
           series,

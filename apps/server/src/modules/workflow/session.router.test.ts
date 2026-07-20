@@ -363,6 +363,8 @@ describe('Session Router tRPC Procedures', () => {
         { sessionDate: '2026-07-14', presentCount: 8 },
         { sessionDate: '2026-07-21', presentCount: null },
       ]);
+      mockDb.mockResponse(Array.from({ length: 12 }).map((_, i) => ({ id: `emp-${i}` })));
+      mockDb.mockResponse(Array.from({ length: 12 }).map((_, i) => ({ id: `emp-${i}` })));
 
       const result = await caller.getAttendanceStatistics({
         from: new Date('2026-07-01'),
