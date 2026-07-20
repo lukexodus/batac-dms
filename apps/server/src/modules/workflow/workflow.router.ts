@@ -883,6 +883,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         await ctx.db.transaction(async (tx) => {
@@ -961,6 +962,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         await ctx.db.transaction(async (tx) => {
@@ -1052,6 +1054,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         await ctx.db.transaction(async (tx) => {
@@ -1129,6 +1132,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         await ctx.db.transaction(async (tx) => {
@@ -1206,6 +1210,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         await ctx.db.transaction(async (tx) => {
@@ -1287,6 +1292,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         // As per E1, we pass a generated UUID for contributionDocId since the engine
@@ -1386,6 +1392,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         await ctx.db.transaction(async (tx) => {
@@ -1485,6 +1492,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         await ctx.db.transaction(async (tx) => {
@@ -1540,6 +1548,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         const hasRole = ctx.auth.effectiveRoles.includes('sp_presiding_officer');
@@ -1620,6 +1629,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         const hasRole = ctx.auth.effectiveRoles.includes('mayor');
@@ -1701,6 +1711,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         const hasRole = ctx.auth.effectiveRoles.includes('mayor');
@@ -1882,6 +1893,7 @@ export function createWorkflowRouter() {
           eventBus: server4.eventBus,
           orgService: server4.organizationService,
           delegationService: server4.delegationService,
+          iamService: server4.iamService,
         };
 
         await ctx.db.transaction(async (tx) => {
@@ -1960,6 +1972,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         await ctx.db.transaction(async (tx) => {
@@ -2029,6 +2042,7 @@ export function createWorkflowRouter() {
           eventBus: server2.eventBus,
           orgService: server2.organizationService,
           delegationService: server2.delegationService,
+          iamService: server2.iamService,
         };
 
         await ctx.db.transaction(async (tx) => {
@@ -2151,6 +2165,7 @@ export function createWorkflowRouter() {
           eventBus: server3.eventBus,
           orgService: server3.organizationService,
           delegationService: server3.delegationService,
+          iamService: server3.iamService,
         };
 
         // Map resolutionPath to engine outcome string
@@ -2444,6 +2459,7 @@ export function createWorkflowRouter() {
           eventBus: server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
+          iamService: server.iamService,
         };
 
         await ctx.db.transaction(async (tx) => {

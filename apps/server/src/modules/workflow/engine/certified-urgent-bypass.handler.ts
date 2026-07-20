@@ -1,5 +1,6 @@
 import type { WorkflowRepository } from '../workflow.repository.js';
 import type { AppDb } from '../../../db.js';
+import type { IamPublicAPI } from '../../iam/iam.types.js';
 import { resolveNextStep } from './step-resolution.js';
 
 export interface CertifiedUrgentBypassDeps {
@@ -10,6 +11,7 @@ export interface CertifiedUrgentBypassDeps {
   eventBus: any;
   orgService: any;
   delegationService: any;
+  iamService: IamPublicAPI;
 }
 
 interface CertificationUrgencyPayload {
