@@ -13,21 +13,21 @@
 
 - [L34–L91] Part 0 — Source Preamble and Notation — Source documents cited, notation tags, and conflict-resolution summary.
 - [L92–L167] Part 1 — Conventions — Cross-schema FK rules, PK/city_id/timestamp/soft-delete standards, and lifecycle enforcement.
-- [L168–L231] Part 2 — Extensions, Roles, and Schemas — pgcrypto extension, trigger function, schema creation, and database roles.
-- [L232–L470] Part 3 — Schema `iam` — Users, credentials, sessions, refresh tokens, permissions, assignments, and MFA records.
-- [L471–L740] Part 4 — Schema `organization` — Offices, positions, employees, assignments, delegation grants, committees, committee memberships, and cross-office grants (security config).
-- [L741–L1233] Part 5 — Schema `documents` — DDL for document types, numbers ledger, versions, attachments, signatures, sponsorships, and reviews.
-- [L1234–L1571] Part 6 — Schema `workflow` — DDL for workflow definitions, steps, transitions, events, sessions, attendances, and business order.
-- [L1572–L1708] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
-- [L1709–L1828] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
-- [L1829–L1899] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
-- [L1900–L1945] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
-- [L1946–L1974] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
-- [L1975–L2089] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
-- [L2090–L2101] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
-- [L2102–L2136] Part 13.5 — Schema `shared` — Infrastructure/operational schema for cross-cutting tables not owned by any domain module; Phase 1: event_bus_dead_letters.
-- [L2137–L2157] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
-- [L2158–L2172] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
+- [L168–L237] Part 2 — Extensions, Roles, and Schemas — pgcrypto extension, trigger function, schema creation, and database roles.
+- [L238–L476] Part 3 — Schema `iam` — Users, credentials, sessions, refresh tokens, permissions, assignments, and MFA records.
+- [L477–L746] Part 4 — Schema `organization` — Offices, positions, employees, assignments, delegation grants, committees, committee memberships, and cross-office grants (security config).
+- [L747–L1239] Part 5 — Schema `documents` — DDL for document types, numbers ledger, versions, attachments, signatures, sponsorships, and reviews.
+- [L1240–L1577] Part 6 — Schema `workflow` — DDL for workflow definitions, steps, transitions, events, sessions, attendances, and business order.
+- [L1578–L1714] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
+- [L1715–L1834] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
+- [L1835–L1912] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
+- [L1913–L1958] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
+- [L1959–L1987] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
+- [L1988–L2102] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
+- [L2103–L2114] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
+- [L2115–L2149] Part 13.5 — Schema `shared` — Infrastructure/operational schema for cross-cutting tables not owned by any domain module; Phase 1: event_bus_dead_letters.
+- [L2150–L2170] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
+- [L2171–L2186] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
 
 ---
 

@@ -57,64 +57,64 @@
   - [L831–L841] `documents.triggerManualReOcr`
   - [L842–L852] `documents.flagScannedBackForVerification`
   - [L853–L863] `documents.acceptScannedBackAsOfficial`
-- [L864–L1520] 3.4 Secretariat Decision Logging `[Routing superseded by ADR-B2-3]` — superseded by workflow step completion — delegates directly to Workflow router per ADR-B2-3.
+- [L864–L1524] 3.4 Secretariat Decision Logging `[Routing superseded by ADR-B2-3]` — superseded by workflow step completion — delegates directly to Workflow router per ADR-B2-3.
   - [L866–L882] `documents.logSecretariatDecision`
-  - [L883–L893] `workflow.getInstance`
-  - [L894–L904] `workflow.getActiveInstanceForDocument`
-  - [L905–L915] `workflow.listMyAssignedSteps`
-  - [L916–L926] `workflow.completeActionStep`
-  - [L927–L937] `workflow.approveStep` / `workflow.rejectStep` / `workflow.returnStepForRevision`
-  - [L938–L948] `workflow.submitCommitteeReport`
-  - [L949–L959] `workflow.manuallyAdvanceMultiReferralStep`
-  - [L960–L970] `workflow.certifyAsPresidingOfficer`
-  - [L971–L981] `workflow.mayorSign` / `workflow.mayorVeto`
-  - [L982–L992] `workflow.logMayorLapseConfirmation`
-  - [L993–L1003] `workflow.recordVetoOverrideVote`
-  - [L1004–L1014] `workflow.logDocketingCompletion`
-  - [L1015–L1025] `workflow.recordPanlalawiganOutcome`
-  - [L1026–L1036] `workflow.resolveValidInPart`
-  - [L1037–L1047] `workflow.confirmPanlalawiganDeemedApproved`
-  - [L1048–L1058] `workflow.recordNewspaperPublicationDate`
-  - [L1059–L1069] `workflow.migrateInstanceToNewDefinitionVersion`
-  - [L1070–L1086] `workflow.getSlaComplianceData`
-  - [L1087–L1097] `tracking.getTrackingRecord`
-  - [L1098–L1108] `tracking.printQrCoverSheet`
-  - [L1109–L1119] `tracking.getRoutingHistory`
-  - [L1120–L1130] `tracking.logRoutingEntry`
-  - [L1131–L1147] `tracking.scanQrCodeAuthenticated`
-  - [L1148–L1158] `session.recordAttendance`
-  - [L1159–L1169] `session.getAttendanceRecord`
-  - [L1170–L1180] `session.getAttendanceStatistics`
-  - [L1181–L1191] `session.getOrderOfBusiness`
-  - [L1192–L1202] `session.scheduleDocumentForFirstReading`
-  - [L1203–L1219] `session.enterCommitteeHearingDate`
-  - [L1220–L1230] `records.getRetentionSchedule`
-  - [L1231–L1241] `records.applyRetentionSchedule`
-  - [L1242–L1252] `records.applyClassification`
-  - [L1253–L1263] `records.placeLegalHold` / `records.removeLegalHold`
-  - [L1264–L1280] `records.isUnderLegalHold`
-  - [L1281–L1291] `notifications.listMine`
-  - [L1292–L1302] `notifications.markAsRead`
-  - [L1303–L1313] `notifications.getOwnPreferences` / `notifications.updateOwnPreferences`
-  - [L1314–L1330] `notifications.listDeliveryLogs`
-  - [L1331–L1341] `audit.listOwnActions`
-  - [L1342–L1352] `audit.listOwnOfficeDocumentActions`
-  - [L1353–L1363] `audit.listFullLog`
-  - [L1364–L1374] `audit.validateChainIntegrity`
-  - [L1375–L1391] `audit.exportEvents`
-  - [L1392–L1402] `complaints.createClerkAssisted`
-  - [L1403–L1413] `complaints.logAndAssign`
-  - [L1414–L1424] `complaints.enterCommitteeReport`
-  - [L1425–L1435] `complaints.setOutcome`
-  - [L1436–L1452] `complaints.listAll`
-  - [L1453–L1463] `documentRequests.createClerkAssisted`
-  - [L1464–L1474] `documentRequests.generatePrintableForm`
-  - [L1475–L1485] `documentRequests.approveAsPresidingOfficer`
-  - [L1486–L1496] `documentRequests.approveAsSecretary`
-  - [L1497–L1507] `documentRequests.releaseCopy`
-  - [L1508–L1520] `documentRequests.listAll`
-- [L1521–L1546] Cross-Reference: Procedure-to-Policy Traceability Index — Inverted trace index mapping permission matrix sections to in-scope, deferred, or inferred router procedures.
-- [L1547–L1557] Required Follow-Up Before Full Sign-Off — Deferred action items for platform admin CRUD, records bulk operations, and signature uploads.
+  - [L883–L895] `workflow.getInstance`
+  - [L896–L906] `workflow.getActiveInstanceForDocument`
+  - [L907–L917] `workflow.listMyAssignedSteps`
+  - [L918–L928] `workflow.completeActionStep`
+  - [L929–L939] `workflow.approveStep` / `workflow.rejectStep` / `workflow.returnStepForRevision`
+  - [L940–L950] `workflow.submitCommitteeReport`
+  - [L951–L961] `workflow.manuallyAdvanceMultiReferralStep`
+  - [L962–L972] `workflow.certifyAsPresidingOfficer`
+  - [L973–L983] `workflow.mayorSign` / `workflow.mayorVeto`
+  - [L984–L994] `workflow.logMayorLapseConfirmation`
+  - [L995–L1005] `workflow.recordVetoOverrideVote`
+  - [L1006–L1016] `workflow.logDocketingCompletion`
+  - [L1017–L1027] `workflow.recordPanlalawiganOutcome`
+  - [L1028–L1038] `workflow.resolveValidInPart`
+  - [L1039–L1049] `workflow.confirmPanlalawiganDeemedApproved`
+  - [L1050–L1060] `workflow.recordNewspaperPublicationDate`
+  - [L1061–L1071] `workflow.migrateInstanceToNewDefinitionVersion`
+  - [L1072–L1088] `workflow.getSlaComplianceData`
+  - [L1089–L1099] `tracking.getTrackingRecord`
+  - [L1100–L1110] `tracking.printQrCoverSheet`
+  - [L1111–L1121] `tracking.getRoutingHistory`
+  - [L1122–L1132] `tracking.logRoutingEntry`
+  - [L1133–L1149] `tracking.scanQrCodeAuthenticated`
+  - [L1150–L1160] `session.recordAttendance`
+  - [L1161–L1171] `session.getAttendanceRecord`
+  - [L1172–L1182] `session.getAttendanceStatistics`
+  - [L1183–L1193] `session.getOrderOfBusiness`
+  - [L1194–L1204] `session.scheduleDocumentForFirstReading`
+  - [L1205–L1221] `session.enterCommitteeHearingDate`
+  - [L1222–L1232] `records.getRetentionSchedule`
+  - [L1233–L1243] `records.applyRetentionSchedule`
+  - [L1244–L1254] `records.applyClassification`
+  - [L1255–L1265] `records.placeLegalHold` / `records.removeLegalHold`
+  - [L1266–L1284] `records.isUnderLegalHold`
+  - [L1285–L1295] `notifications.listMine`
+  - [L1296–L1306] `notifications.markAsRead`
+  - [L1307–L1317] `notifications.getOwnPreferences` / `notifications.updateOwnPreferences`
+  - [L1318–L1334] `notifications.listDeliveryLogs`
+  - [L1335–L1345] `audit.listOwnActions`
+  - [L1346–L1356] `audit.listOwnOfficeDocumentActions`
+  - [L1357–L1367] `audit.listFullLog`
+  - [L1368–L1378] `audit.validateChainIntegrity`
+  - [L1379–L1395] `audit.exportEvents`
+  - [L1396–L1406] `complaints.createClerkAssisted`
+  - [L1407–L1417] `complaints.logAndAssign`
+  - [L1418–L1428] `complaints.enterCommitteeReport`
+  - [L1429–L1439] `complaints.setOutcome`
+  - [L1440–L1456] `complaints.listAll`
+  - [L1457–L1467] `documentRequests.createClerkAssisted`
+  - [L1468–L1478] `documentRequests.generatePrintableForm`
+  - [L1479–L1489] `documentRequests.approveAsPresidingOfficer`
+  - [L1490–L1500] `documentRequests.approveAsSecretary`
+  - [L1501–L1511] `documentRequests.releaseCopy`
+  - [L1512–L1524] `documentRequests.listAll`
+- [L1525–L1550] Cross-Reference: Procedure-to-Policy Traceability Index — Inverted trace index mapping permission matrix sections to in-scope, deferred, or inferred router procedures.
+- [L1551–L1561] Required Follow-Up Before Full Sign-Off — Deferred action items for platform admin CRUD, records bulk operations, and signature uploads.
 
 ---
 

@@ -33,13 +33,13 @@
 - [L798–L915] TASK-NOTIF-012 — Four tRPC procedures (listMine, markAsRead, preferences, listDeliveryLogs) protected by the standard ABAC and role middleware chain.
 - [L916–L969] TASK-NOTIF-013 — Fastify plugin wiring the SSE route, tRPC router, and eight event subscriptions at server startup.
 - [L970–L1010] TASK-NOTIF-014 — Vitest suite covering repository, service, SSE, router, and all consumer logic across seven priority testing areas.
-- [L1011–L1179] Module Summary — NOTIF — High-level overview of total tasks, wave dependency details, and first executable task prerequisites.
-  - [L1019–L1028] Document Conflicts Resolved at Generation Time — Details of resolved conflicts regarding the recipient identifier, template lookup key, and initial planning counts.
-  - [L1029–L1096] Confirmed Spec Gaps — Unresolved specification gaps including urgency bypass alerts, cutoff warnings, template CRUD, and trilingual schema support.
-  - [L1097–L1139] Deferred Capabilities — Features deferred to later development phases, including email notifications, SMS gateway integration, and future document types.
-  - [L1140–L1150] Cross-Module Reference Placeholders (for Step 4 Integration Pass) — Outlines cross-module placeholders for the DOCS and IAM event emitters to be resolved during integration.
-  - [L1151–L1170] Task Dependency Graph — Visual dependency diagram mapping workflow prerequisites and execution order of all NOTIF tasks.
-  - [L1171–L1179] Cross-Validation Log — Verification checklist documenting source cross-checks, API signature validations, and payload schema alignment testing.
+- [L1011–L1181] Module Summary — NOTIF — High-level overview of total tasks, wave dependency details, and first executable task prerequisites.
+  - [L1021–L1030] Document Conflicts Resolved at Generation Time — Details of resolved conflicts regarding the recipient identifier, template lookup key, and initial planning counts.
+  - [L1031–L1098] Confirmed Spec Gaps — Unresolved specification gaps including urgency bypass alerts, cutoff warnings, template CRUD, and trilingual schema support.
+  - [L1099–L1141] Deferred Capabilities — Features deferred to later development phases, including email notifications, SMS gateway integration, and future document types.
+  - [L1142–L1152] Cross-Module Reference Placeholders (for Step 4 Integration Pass) — Outlines cross-module placeholders for the DOCS and IAM event emitters to be resolved during integration.
+  - [L1153–L1172] Task Dependency Graph — Visual dependency diagram mapping workflow prerequisites and execution order of all NOTIF tasks.
+  - [L1173–L1181] Cross-Validation Log — Verification checklist documenting source cross-checks, API signature validations, and payload schema alignment testing.
 
 ---
 
