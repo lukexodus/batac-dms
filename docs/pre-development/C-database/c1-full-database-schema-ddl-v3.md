@@ -1867,8 +1867,15 @@ CREATE TABLE notifications.notification_events (
     city_id               UUID        NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
     template_id           UUID        NOT NULL REFERENCES notifications.templates(id),
     channel               TEXT        NOT NULL CHECK (channel IN ('in_app','email','sms')),
-    -- recipient_employee_id: logical FK → organization.employees.id (cross-schema)
-    recipient_employee_id UUID        NULL,
+    -- recipient_user_id: logical FK → iam.users.id (cross-schema)
+    -- SUPERSEDED (see Part 15 "Resolved" table): this column was originally specified as
+    -- recipient_employee_id (logical FK → organization.employees.id). Corrected to
+    -- recipient_user_id per four independent, mutually-consistent sources: E1's listMine/
+    -- markAsRead ABAC conditions and listDeliveryLogs output schema (all recipient_user_id/
+    -- recipientUserId); B2's NotificationInput.recipientUserId; and B2's
+    -- IAMPublicAPI.getUserById(userId) doc comment, which states it is called by
+    -- "Notifications (recipient addressing)".
+    recipient_user_id     UUID        NULL,
     recipient_email       TEXT        NULL,
     recipient_phone       TEXT        NULL,
     template_data         JSONB       NULL,
@@ -1882,7 +1889,7 @@ CREATE TABLE notifications.notification_events (
 );
 
 CREATE INDEX idx_notification_events_template  ON notifications.notification_events(template_id);
-CREATE INDEX idx_notification_events_recipient ON notifications.notification_events(recipient_employee_id);
+CREATE INDEX idx_notification_events_recipient ON notifications.notification_events(recipient_user_id);
 
 -- Append-only: no updated_at (§1.4).
 CREATE TABLE notifications.delivery_log (
@@ -2170,6 +2177,7 @@ CREATE TABLE shared.event_bus_dead_letters (
 | `panlalawigan_review_log` entity classification | **Formalized as an internal tracking/log entity, not a public document type.** `documents.number_series.document_type_id = NULL` for this series is confirmed permanent, not provisional. `documents.panlalawigan_reviews` remains the authoritative table in the `documents` schema. Control numbers from this series do not appear in the standard document catalog, search, or listings — only as a field on the parent document. No DDL change required. | `ADR-DB-001` (`c1-full-database-schema-ddl-adrs/ADR-DB-001-panlalawigan-review-log-classification.md`) |
 | Migration-owning role name (`batac_migrate`) | **Confirmed as-is, with LOGIN correction.** Already defined and used consistently in this document (§3.16, DB roles list, `fn_get_next_sequence_value` `OWNER TO`). C5's addendum cited this document's §3.16 as defining `batac_migrate` as NOLOGIN, but `DATABASE_URL_MIGRATE` (L1) is a direct connection string, which requires a LOGIN role. **§3.16 updated (2026-06): `batac_migrate` is now `LOGIN`.** Password is not set in DDL; it is applied post-creation by `TASK-INFRA-005` via `ALTER ROLE batac_migrate PASSWORD '<from-DB_MIGRATE_PASSWORD-secret>'`. The C5 addendum's NOLOGIN reference is superseded by this correction. | `a1-tasks/infra.md` Conflict #1 (resolved); C5 addendum — "Migration-Owning Role Name"                 |
 | `RecordType` enum values | **Six-value enum defined**, ratifying the categories already present in Part 11.7 of the Consolidated Reference (Permanent-Legislative, Financial, Personnel, Correspondence, Internal Memo, Draft), plus a `document_type` → `RecordType` mapping. `records.records.record_type` should be updated from unconstrained `TEXT` to a `CHECK` constraint or native enum over the six values (see DDL change below). **Retention-period figures behind each category remain `[Unverified]` pending NAP/COA/DILG confirmation — this ADR resolves the enum only, not the legal retention durations.** | `ADR-WFL-005` (`c1-full-database-schema-ddl-adrs/ADR-WFL-005-recordtype-enum-values.md`)               |
+| `notifications.notification_events` recipient column name | **Corrected from `recipient_employee_id` to `recipient_user_id`** (FK → `iam.users.id`, not `organization.employees.id`). Four independent sources outside C1 consistently used `recipient_user_id`: E1's `listMine`/`markAsRead` ABAC conditions, E1's `listDeliveryLogs` output schema, B2's `NotificationInput.recipientUserId`, and B2's `getUserById(userId)` doc comment ("Called by ... Notifications (recipient addressing)"). C1 was the outlier and is corrected here; DDL and index updated in Part 9 accordingly. | Identified and resolved during NOTIF module A1 task generation — see `a1-tasks/notif.md` Module Summary, Document Conflicts Resolved table, row 1 |
 
 ### Still Open
 

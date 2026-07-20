@@ -1280,6 +1280,8 @@ This is the largest router. It is organized into five sub-sections: general docu
 
 **Schema:** `notifications`. **Backing service:** B2 Module 7 Published API (`sendNotification`). Phase 1 channel: in-app only (SSE delivery); email/SMS exist in the schema but are Phase 2/3 per the consolidated reference roadmap.
 
+**Note on `recipient_user_id`:** every ABAC condition and output field in this module referencing the recipient uses `recipient_user_id`/`recipientUserId`, consistent with B2's `NotificationInput.recipientUserId` and `getUserById(userId)`. C1 Part 9 originally specified this column as `recipient_employee_id`; C1 has been corrected to `recipient_user_id` to match this document and B2 — see C1 Part 15 "Resolved" table. No change was needed in this document.
+
 ### `notifications.listMine`
 
 | | |

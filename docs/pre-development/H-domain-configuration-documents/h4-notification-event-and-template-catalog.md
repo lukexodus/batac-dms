@@ -372,6 +372,8 @@ Notification templates are **administrator-configurable** — no developer invol
 
 This catalog does not define specific message body text. It defines the **template framework**: the template key for each notification type, the delivery channel, the payload variables available for message composition, and implementation notes. Template content is written and maintained by the Platform Administrator.
 
+**Terminology note:** "`template_key`" throughout this section (§5.1–§5.11) is this catalog's own conceptual name for the identifier field — it is not a literal column name in C1. The actual DDL column in `notifications.templates` is `name` (C1 Part 9). Every `template_key` value below (e.g. `notif.workflow.step_assignment.in_app`) is exactly the value stored in that `name` column — no schema change is implied or needed. See `a1-tasks/notif.md` Module Summary, Document Conflicts Resolved table, row 2.
+
 ### 5.1 Template Framework
 
 Each template record has the following structure. This structure is derived from the `NotificationStepConfig` interface defined in H1 §3 and the `notifications` schema in the consolidated reference:
@@ -764,6 +766,8 @@ This catalog defines nine notification events and ten associated templates requi
 | 1 | Add `notifications` as a consumer of `session.terminated` in B3 | §8.3 | **Open** |
 | 2 | Complaint respondent notification routing: **resolved** — Portal's Respondent Notice Service calls `Notifications.sendNotification()`; B1 direct-SMTP diagram superseded (ADR-B2-4) | §8.4 | **Resolved — ADR-B2-4** |
 | 3 | Confirm the 150% SLA critical threshold with stakeholders before configuring `pgboss` timers | §8.10 | **Open** |
+| 4 | Certification of Urgency bypass (4 events, B3 §7.23–7.26) has no catalogued notification, recipient, or template — B3's Master Event Registry lists only `audit` as consumer for all four | Not yet a section in this document | **Open — see `a1-tasks/notif.md` Module Summary, Confirmed Spec Gaps, gap 1** |
+| 5 | Thursday-cutoff / missing-committee-report (`workflow.multi_referral.cutoff_missed`, B3 §7.18) has no catalogued notification — B3's Master Event Registry lists only `audit` as consumer; unclear whether this needs a push notification or is fully served by the existing Order-of-Business red-flag UI | Not yet a section in this document | **Open — see `a1-tasks/notif.md` Module Summary, Confirmed Spec Gaps, gap 2** |
 
 **Ongoing maintenance:** This document must be updated whenever a new notification event is introduced, an existing event's recipient logic changes, or a delivery channel is added. Changes to template message content do not require a revision to this document — that content is managed by the Platform Administrator in the admin interface.
 
