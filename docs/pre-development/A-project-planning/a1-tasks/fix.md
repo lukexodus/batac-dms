@@ -13537,6 +13537,699 @@ unavailable. Do not attempt to add date-scoping to the fallback branch.
 5. Confirmation that no other procedure in `session.router.ts` was
    modified, and that `organization.service.ts` was not modified.
 
+---
+
+# TASK-IAM-052: Chain reset-token generation into `createUserAccount`, atomically, and surface the resulting link in the create-account UI (LOG-0104)
+
+## Context
+
+`createUserAccount` currently creates a user with a randomly-generated temporary password that is hashed and discarded — never returned, logged, or connected to any way the new user could set a real password. A separate method, `generatePasswordResetToken`, already exists and works correctly, but it is only reachable via a distinct tRPC mutation (`generatePasswordResetLink`) that a System Admin must remember to invoke manually, from a different part of the UI, after account creation. This gap is documented as `LOG-0104` in `docs/development-findings-log.md` (status: `proposed`). Do not edit that log entry — if this task's completion should be reflected there, append a new entry per the log's own format instead.
+
+This task closes that gap by making reset-token generation an automatic, atomic part of account creation, and surfacing the resulting link immediately in the UI.
+
+**Design decision already made — not open for reinterpretation:** account creation and reset-token generation must be atomic. If reset-token generation fails for any reason, the user account creation must roll back entirely — no user row, no credential row should persist. Do not implement this as two independently-committing sequential calls.
+
+## Files in scope
+
+- `apps/server/src/modules/iam/iam.service.ts`
+- `apps/server/src/modules/iam/iam.types.ts`
+- `apps/web/src/pages/sysadmin/UserAccountManagementPage.tsx`
+
+## Out of scope — do not touch
+
+- `apps/server/src/modules/iam/iam.router.ts` — the `createUserAccount` procedure's body does not need to change; it already returns whatever `service.createUserAccount(...)` returns, and that pass-through remains correct once the service method's return type changes. Do not add a new procedure, do not modify `generatePasswordResetLink` or `redeemPasswordResetToken`.
+- `apps/server/src/modules/iam/iam.repository.ts` — no repository method's implementation needs to change. `createUser`, `createCredential`, and `createPasswordResetToken` are used as they exist today, just called together inside a transaction where they weren't before.
+- The existing, standalone `generatePasswordResetLink` tRPC mutation and its `UserRow`-level "Generate Reset Link" button/dialog in `UserAccountManagementPage.tsx` (inside the `UserRow` component, using `resetUrl` state and `generateResetLinkMutation`) — this must continue to exist and work exactly as it does today, unchanged, as a way to generate a *new* reset link later (e.g. if the first one expires unused, or the account is created but the admin needs another link for some other reason). Do not remove, rename, or alter this existing flow.
+- Any file not listed above.
+
+## Change 1 — `iam.service.ts`: extract shared reset-token logic into a hoisted local function
+
+This codebase has an established pattern for logic shared across sibling methods inside `createIamService`'s returned object: a hoisted local `async function` declared before the `return {}` block, referencing the closure's `iamRepo`/`db`/etc. directly. `buildAccessTokenClaims` (declared at line 158, used by `login`, `refresh`, and `unlock`) is the existing example of this pattern in this exact file. Follow it precisely — do not use a different pattern (no `this`-based method reference, no separate exported helper module, no class).
+
+**Exact current code** for the object's `generatePasswordResetToken` property (lines 1196–1233):
+```typescript
+    async generatePasswordResetToken(input: {
+      userId: string;
+      actorId: string;
+      cityId: string;
+    }): Promise<{ resetUrl: string }> {
+      const rawBytes = randomBytes(32);
+      const saltBytes = randomBytes(16);
+      const rawBase64url = rawBytes.toString('base64url');
+      const saltBase64url = saltBytes.toString('base64url');
+      const tokenHash = sha256Hex(rawBase64url + saltBase64url);
+
+      const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
+
+      const token = await iamRepo.createPasswordResetToken({
+        userId: input.userId,
+        cityId: input.cityId,
+        tokenHash,
+        salt: saltBase64url,
+        expiresAt,
+      });
+
+      eventBus.emit(IAM_EVENTS.PASSWORD_RESET_TOKEN_GENERATED, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.PASSWORD_RESET_TOKEN_GENERATED,
+        occurredAt: new Date().toISOString(),
+        cityId: input.cityId,
+        schemaVersion: 1,
+        payload: {
+          actorId: input.actorId,
+          targetUserId: input.userId,
+        },
+      });
+
+      const baseUrl = env.APP_URL ? env.APP_URL.replace(/\/$/, '') : '';
+      const resetUrl = `${baseUrl}/reset-password?token=${token.id}.${rawBase64url}`;
+
+      return { resetUrl };
+    },
+```
+
+**Required change:** extract the token-creation-and-URL-building portion (everything except the `eventBus.emit(...)` call) into a new hoisted local function, placed immediately after `buildAccessTokenClaims`'s closing brace and before the `return {` that starts the service object (i.e. in the same location `buildAccessTokenClaims` occupies relative to the object literal — before it, not inside it):
+
+```typescript
+  /**
+   * Create a password-reset token row and build the reset URL for a given user.
+   * Does not emit any event — callers are responsible for emitting whichever
+   * event fits their context (PASSWORD_RESET_TOKEN_GENERATED for a standalone
+   * admin-triggered reset link; USER_CREATED already covers the account-creation
+   * case, so createUserAccount does not additionally emit
+   * PASSWORD_RESET_TOKEN_GENERATED for the token it generates as part of setup).
+   *
+   * Accepts a repo parameter so it can be called with either the outer iamRepo
+   * (standalone generatePasswordResetToken) or a transaction-scoped repo
+   * (createUserAccount, so the token row commits atomically with the new user
+   * and credential rows).
+   *
+   * Source: TASK-IAM-052, extracted from generatePasswordResetToken to allow
+   * createUserAccount to reuse the same token-generation logic atomically.
+   */
+  async function createResetTokenAndUrl(
+    repo: IamRepository,
+    input: { userId: string; cityId: string },
+  ): Promise<{ resetUrl: string }> {
+    const rawBytes = randomBytes(32);
+    const saltBytes = randomBytes(16);
+    const rawBase64url = rawBytes.toString('base64url');
+    const saltBase64url = saltBytes.toString('base64url');
+    const tokenHash = sha256Hex(rawBase64url + saltBase64url);
+
+    const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
+
+    const token = await repo.createPasswordResetToken({
+      userId: input.userId,
+      cityId: input.cityId,
+      tokenHash,
+      salt: saltBase64url,
+      expiresAt,
+    });
+
+    const baseUrl = env.APP_URL ? env.APP_URL.replace(/\/$/, '') : '';
+    const resetUrl = `${baseUrl}/reset-password?token=${token.id}.${rawBase64url}`;
+
+    return { resetUrl };
+  }
+```
+
+This JSON block is authoritative for what does and does not move into the extracted function — if anything in the prose above conflicts with it, this block wins:
+```json
+{
+  "moves_into_extracted_function": [
+    "rawBytes/saltBytes/rawBase64url/saltBase64url/tokenHash generation",
+    "expiresAt calculation",
+    "repo.createPasswordResetToken call",
+    "baseUrl/resetUrl construction and return"
+  ],
+  "stays_in_generatePasswordResetToken_object_property": [
+    "the eventBus.emit(IAM_EVENTS.PASSWORD_RESET_TOKEN_GENERATED, ...) call, unchanged, verbatim"
+  ],
+  "TTL_value_must_not_change": "24 * 3600 * 1000",
+  "event_type_for_standalone_call_must_not_change": "IAM_EVENTS.PASSWORD_RESET_TOKEN_GENERATED"
+}
+```
+
+**Then update `generatePasswordResetToken`'s object property** (the thing still living inside `return { ... }` at its original location, lines 1196–1233 in the current file) to call the extracted function instead of duplicating its body:
+
+```typescript
+    async generatePasswordResetToken(input: {
+      userId: string;
+      actorId: string;
+      cityId: string;
+    }): Promise<{ resetUrl: string }> {
+      const { resetUrl } = await createResetTokenAndUrl(iamRepo, {
+        userId: input.userId,
+        cityId: input.cityId,
+      });
+
+      eventBus.emit(IAM_EVENTS.PASSWORD_RESET_TOKEN_GENERATED, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.PASSWORD_RESET_TOKEN_GENERATED,
+        occurredAt: new Date().toISOString(),
+        cityId: input.cityId,
+        schemaVersion: 1,
+        payload: {
+          actorId: input.actorId,
+          targetUserId: input.userId,
+        },
+      });
+
+      return { resetUrl };
+    },
+```
+
+This preserves the standalone mutation's exact current external behavior (same event, same payload shape, same TTL, same URL format) — it must remain usable exactly as it is today for generating a new link on an existing account.
+
+## Change 2 — `iam.service.ts`: make `createUserAccount` atomic and chain token generation
+
+**Exact current code** (lines 1164–1194):
+```typescript
+    async createUserAccount(input: {
+      username: string;
+      email: string;
+      employeeId: string;
+      cityId: string;
+      actorId: string;
+    }): Promise<UserRow> {
+      const user = await iamRepo.createUser({
+        username: input.username,
+        email: input.email,
+        cityId: input.cityId,
+        status: 'active',
+      });
+
+      const tempHash = await argon2.hash(randomBytes(32).toString('hex'));
+      await iamRepo.createCredential(user.id, tempHash);
+
+      eventBus.emit(IAM_EVENTS.USER_CREATED, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.USER_CREATED,
+        occurredAt: new Date().toISOString(),
+        cityId: input.cityId,
+        schemaVersion: 1,
+        payload: {
+          actorId: input.actorId,
+          newUserId: user.id,
+        },
+      });
+
+      return user;
+    },
+```
+
+**Required new code:**
+```typescript
+    async createUserAccount(input: {
+      username: string;
+      email: string;
+      employeeId: string;
+      cityId: string;
+      actorId: string;
+    }): Promise<UserRow & { resetUrl: string }> {
+      const { user, resetUrl } = await db.transaction(async (tx) => {
+        const { createIamRepository } = await import('./iam.repository.js');
+        const txRepo = createIamRepository(tx);
+
+        const createdUser = await txRepo.createUser({
+          username: input.username,
+          email: input.email,
+          cityId: input.cityId,
+          status: 'active',
+        });
+
+        const tempHash = await argon2.hash(randomBytes(32).toString('hex'));
+        await txRepo.createCredential(createdUser.id, tempHash);
+
+        const { resetUrl: generatedResetUrl } = await createResetTokenAndUrl(txRepo, {
+          userId: createdUser.id,
+          cityId: input.cityId,
+        });
+
+        return { user: createdUser, resetUrl: generatedResetUrl };
+      });
+
+      eventBus.emit(IAM_EVENTS.USER_CREATED, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.USER_CREATED,
+        occurredAt: new Date().toISOString(),
+        cityId: input.cityId,
+        schemaVersion: 1,
+        payload: {
+          actorId: input.actorId,
+          newUserId: user.id,
+        },
+      });
+
+      return { ...user, resetUrl };
+    },
+```
+
+Numbered decision table for the specific choices embedded above — each row is a literal requirement, not a general rule to re-derive:
+
+| # | Point | Required decision |
+|---|---|---|
+| 1 | Does `createUserAccount` emit `PASSWORD_RESET_TOKEN_GENERATED` in addition to `USER_CREATED`? | **No.** Only `USER_CREATED` fires, unchanged in payload shape from the current code. `PASSWORD_RESET_TOKEN_GENERATED` stays exclusive to the standalone `generatePasswordResetToken` object property, matching the extracted function's own doc comment above. |
+| 2 | Do the `eventBus.emit` calls happen inside or outside the `db.transaction` callback? | **Outside**, after the transaction resolves — matching this file's existing pattern (`logout`, `forceLogoutSession` at line 913, both shown above) where event/audit emission is a fire-and-forget step after the transactional writes commit, not part of the transaction itself. |
+| 3 | Does the `.import('./iam.repository.js')` call inside the transaction need to be dynamic (`await import(...)`), or can it be a top-level static import? | **Dynamic**, matching the existing pattern used at every other `db.transaction` call site in this same file (6 existing examples, e.g. line 913-914 shown above) — do not change this to a static import; that would be an unrelated refactor of an established convention outside this task's scope. |
+| 4 | What does `createUserAccount` return? | `UserRow & { resetUrl: string }` — the full user row's fields spread alongside a new `resetUrl` field, not a nested `{ user, resetUrl }` wrapper object. This keeps every existing field the frontend already reads off the created user (e.g. `id`, `username`) accessible exactly as before, with `resetUrl` simply available alongside them. |
+| 5 | If `createResetTokenAndUrl` throws inside the transaction (e.g. a DB constraint failure), what happens to the user and credential rows already written in that same transaction? | They roll back — this is the entire point of wrapping all three writes in one `db.transaction` call, per the earlier design decision. Do not add a `try/catch` around the token-generation step that would swallow the error and let user creation succeed independently — that would defeat the atomicity requirement. |
+
+## Change 3 — `iam.types.ts`: update the `IamService` interface
+
+**Exact current code** (lines 294–300):
+```typescript
+  createUserAccount(input: {
+    username: string;
+    email: string;
+    employeeId: string;
+    cityId: string;
+    actorId: string;
+  }): Promise<UserRow>;
+```
+
+**Required new code:**
+```typescript
+  createUserAccount(input: {
+    username: string;
+    email: string;
+    employeeId: string;
+    cityId: string;
+    actorId: string;
+  }): Promise<UserRow & { resetUrl: string }>;
+```
+
+Only the return type changes (`Promise<UserRow>` → `Promise<UserRow & { resetUrl: string }>`). The input parameter shape is unchanged — do not add, remove, or rename any input field.
+
+## Change 4 — `UserAccountManagementPage.tsx`: surface the reset URL in `CreateUserForm`
+
+The existing `UserRow` component (elsewhere in this same file) already has a working, styled pattern for surfacing a `resetUrl` via a `Dialog`, using `resetUrl` state, a "Password Reset Link" title, explanatory copy about the link being single-use and shown only once, a read-only `Input` with the URL, a "Copy" button using `navigator.clipboard.writeText`, and a "Done" button that clears the state and closes the dialog. Reuse this exact visual pattern and copy in `CreateUserForm` — do not write different wording for the explanatory text or invent a different visual treatment. The two dialogs (this new one and the existing one in `UserRow`) should read as the same UI pattern used in two places, not two different designs.
+
+**Exact current code** for `CreateUserForm`'s state and mutation (lines 41–69 of the current file):
+```typescript
+function CreateUserForm() {
+  const utils = trpc.useUtils();
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [selectedEmployeeName, setSelectedEmployeeName] = useState<string>('');
+
+  // Employee picker — uses the sysadmin-gated variant.
+  // The existing organization.listEmployees is gated by isPlatformAdmin only,
+  // so a dedicated listEmployeesForSysAdmin procedure was added (scope expansion
+  // documented in the PR description).
+  const employeesQuery = trpc.organization.listEmployeesForSysAdmin.useQuery(
+    { search: employeeSearch || undefined, limit: 20 },
+    { enabled: employeeSearch.length >= 2 || false },
+  );
+
+  const createMutation = trpc.iam.createUserAccount.useMutation({
+    onSuccess: () => {
+      toast.success('User account created successfully.');
+      void utils.iam.listUserDirectory.invalidate();
+      setUsername('');
+      setEmail('');
+      setEmployeeSearch('');
+      setSelectedEmployeeId(null);
+      setSelectedEmployeeName('');
+    },
+    onError: (err) => toast.error(err.message || 'Failed to create user account.'),
+  });
+```
+
+**Required new code:**
+```typescript
+function CreateUserForm() {
+  const utils = trpc.useUtils();
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [selectedEmployeeName, setSelectedEmployeeName] = useState<string>('');
+  const [resetUrl, setResetUrl] = useState<string | null>(null);
+
+  // Employee picker — uses the sysadmin-gated variant.
+  // The existing organization.listEmployees is gated by isPlatformAdmin only,
+  // so a dedicated listEmployeesForSysAdmin procedure was added (scope expansion
+  // documented in the PR description).
+  const employeesQuery = trpc.organization.listEmployeesForSysAdmin.useQuery(
+    { search: employeeSearch || undefined, limit: 20 },
+    { enabled: employeeSearch.length >= 2 || false },
+  );
+
+  const createMutation = trpc.iam.createUserAccount.useMutation({
+    onSuccess: (data) => {
+      toast.success('User account created successfully.');
+      void utils.iam.listUserDirectory.invalidate();
+      setUsername('');
+      setEmail('');
+      setEmployeeSearch('');
+      setSelectedEmployeeId(null);
+      setSelectedEmployeeName('');
+      setResetUrl(data.resetUrl);
+    },
+    onError: (err) => toast.error(err.message || 'Failed to create user account.'),
+  });
+```
+
+**Then add the dialog** to `CreateUserForm`'s JSX, immediately before its closing `</Card>` (i.e. as the last child inside the returned `<Card>`, after the closing `</CardContent>` — matching where `UserRow`'s equivalent `<Dialog>` sits relative to its own component's other returned JSX, which is as a sibling after the row's main content div, not nested inside it):
+
+```typescript
+      <Dialog
+        open={resetUrl !== null}
+        onOpenChange={(open) => {
+          if (!open) setResetUrl(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Password Reset Link</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            Share this link with the user. It is single-use and will expire. This is the only time
+            this link will be shown — it cannot be retrieved again after this dialog is closed.
+          </p>
+          {resetUrl && (
+            <div className="flex items-center gap-2">
+              <Input readOnly value={resetUrl} className="font-mono text-xs" />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard.writeText(resetUrl);
+                  toast.success('Copied to clipboard.');
+                }}
+              >
+                Copy
+              </Button>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetUrl(null)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+```
+
+This is a verbatim copy of the existing dialog JSX already present in `UserRow` (same file) — do not reword the explanatory paragraph, do not change the dialog title, do not change the button labels. The only thing that differs between this instance and `UserRow`'s existing instance is which component's `resetUrl` state and `setResetUrl` setter it closes over — the JSX itself is identical.
+
+`Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogFooter`, `Input`, and `Button` are already imported at the top of this file (used by `UserRow`'s existing dialog) — no new imports are needed for this change.
+
+## What NOT to do in Change 4
+
+- Do not remove or alter `UserRow`'s existing `resetUrl` state, `generateResetLinkMutation`, or its own dialog — that flow must keep working exactly as it does today, independently of this change.
+- Do not add a shared/extracted React component for the dialog (e.g. a new `ResetLinkDialog` component) unless explicitly asked — this task's scope is limited to the two files/regions described above. If you believe extracting a shared component is clearly better, stop and ask rather than doing it, since it would touch more of the file's structure than this task specifies.
+- Do not change `CreateUserForm`'s existing validation logic (`usernameValid`, `emailValid`, `canSubmit`), the employee picker, or the submit button — only the `onSuccess` handler and the addition of the dialog JSX are in scope.
+
+## Testing
+
+Check whether `apps/server/src/modules/iam/__tests__/` contains an existing test file that tests `createUserAccount` directly (e.g. `iam.service.test.ts` or similar — locate it yourself, do not assume a specific filename). If such a test exists:
+- Update any assertion that checks `createUserAccount`'s return value only contains `UserRow` fields, since it now also contains `resetUrl`. Do not weaken the assertion to `expect(result).toBeDefined()` or similar — assert the shape precisely, including that `resetUrl` is a non-empty string.
+- Add one new test case: call `createUserAccount`, then verify a corresponding password-reset-token row was actually created in the database for the returned user's `id` (query however this test file's existing tests query the database directly, following its established pattern — do not invent a new database-access pattern for this one test).
+- Add one new test case verifying atomicity: this is the harder case, and there is no single obvious way to force `createResetTokenAndUrl` to fail from a test using only the public repository/service interfaces (its only real failure mode is a `createPasswordResetToken` DB write failing, and that is not trivially triggerable from outside without either mocking or a contrived DB constraint violation). If you cannot find a clean way to force this failure using this test file's existing conventions and available mocking setup, do not invent a brittle or contrived one — stop and report back what you found (what failure modes you considered and why none fit cleanly) rather than shipping a test that doesn't actually exercise the rollback path. This is a case where "I could not test this cleanly" is an acceptable, expected outcome to report, not a failure on your part.
+
+If no test file for `iam.service.ts`'s `createUserAccount` currently exists, do not create one as part of this task — report that no such test file was found, and that testing this change was therefore not possible within this task's scope, rather than creating a new test file unprompted (test-file creation strategy is a separate decision from this task's fix).
+
+## Acceptance criteria
+
+1. `createResetTokenAndUrl` exists as a hoisted local function in `iam.service.ts`, in the position specified, matching the `buildAccessTokenClaims` pattern.
+2. `generatePasswordResetToken`'s object property calls `createResetTokenAndUrl` and still emits `PASSWORD_RESET_TOKEN_GENERATED` with an unchanged payload shape; its external behavior (URL format, TTL, event) is unchanged from before this task.
+3. `createUserAccount` wraps user creation, credential creation, and reset-token creation in a single `db.transaction` call, using the dynamic-import `txRepo` pattern already established elsewhere in this file.
+4. `createUserAccount` emits only `USER_CREATED` (unchanged payload), not `PASSWORD_RESET_TOKEN_GENERATED`.
+5. `createUserAccount`'s return type is `UserRow & { resetUrl: string }` in both `iam.service.ts`'s implementation and `iam.types.ts`'s `IamService` interface declaration.
+6. `CreateUserForm` surfaces the returned `resetUrl` in a dialog matching `UserRow`'s existing dialog pattern verbatim (same copy, same structure), triggered on successful account creation.
+7. `UserRow`'s existing standalone reset-link generation flow is unmodified and still functions independently.
+8. `pnpm typecheck` passes with no new errors, and does not introduce any *new* errors beyond whatever pre-existing ones were confirmed in TASK-ORG-091 (the `iamService`-missing-property errors in `workflow.router.ts` and `certified-urgent-bypass.handler.ts`) — if typecheck surfaces anything beyond those two already-known files, treat that as a new finding to report, not something to silently work around.
+9. All existing tests pass. New tests are added per the Testing section above, or their absence is explicitly reported per that section's fallback instructions.
+
+## Report back
+
+State plainly: (a) whether an existing test file for `iam.service.ts` was found, and if so its exact path, (b) whether the atomicity-rollback test case was achievable cleanly or whether you're reporting it as not cleanly testable (per the Testing section's explicit allowance for that outcome), and (c) the exact final diff for all three changed files.
 
 ---
 
+# TASK-WF-060: Add missing `iamService` to 17 deps-construction sites across `workflow.router.ts` and `certified-urgent-bypass.handler.ts` (LOG-0117 / LOG-0118 / LOG-0125)
+
+## Context
+
+`iamService: IamPublicAPI` was added as a required field to `StepResolutionDeps` (and its extensions `ActionHandlerDeps`, `ApprovalHandlerDeps`, `MultiReferralHandlerDeps`) as part of a deliberate, human-approved fix (documented as `LOG-0118` in `docs/development-findings-log.md`) to correctly source `getUsersByRole` from the IAM module rather than Organization. That change updated the shared dependency interfaces and threaded `iamService` through `workflow.plugin.ts`'s `stepDeps`/`createInstance` wiring, but did not update every individual call site inside `workflow.router.ts` that separately constructs its own `deps` object, nor `certified-urgent-bypass.handler.ts`'s own narrower interface declaration. This left 17 unresolved `pnpm typecheck` errors (documented as `LOG-0117`, with a corrected site count in `LOG-0125`), all of the same shape: `Property 'iamService' is missing in type '...' but required in type '...'`.
+
+One of these 17 sites was already fixed correctly as part of a separate task (`bypassStep`, documented as part of `LOG-0124`) — that fix is not part of this task's scope and must not be touched or duplicated.
+
+This task closes the remaining 17 sites. Do not edit `docs/development-findings-log.md` as part of this task — if this work should be reflected there, append a new entry per the log's own format, referencing LOG-0117, LOG-0118, and LOG-0125, rather than editing any of them.
+
+## Files in scope
+
+- `apps/server/src/modules/workflow/workflow.router.ts` — 16 sites
+- `apps/server/src/modules/workflow/engine/certified-urgent-bypass.handler.ts` — 1 site, fixed differently from the 16 (see Change 2 below — this is not the same pattern, do not try to force it into the same shape)
+
+## Out of scope — do not touch
+
+- `apps/server/src/modules/workflow/workflow.router.ts`'s `bypassStep` procedure (contains `iamService: server.iamService,` at its own `deps` construction, already correct) — do not modify, and do not use it as a literal copy-paste source without checking the exact server-variable name at each of the 16 sites below, since several of them do not use a variable literally named `server`.
+- `apps/server/src/modules/workflow/engine/step-resolution.ts` — `StepResolutionDeps`'s declaration already correctly includes `iamService: IamPublicAPI;` and is not to be changed.
+- `apps/server/src/modules/workflow/workflow.plugin.ts` — both of its `deps`-equivalent objects (`stepDeps` at line 41, and the inline object passed to `createInstance` at line 81) already correctly include `iamService: fastify.iamService,` / `iamService: fastify.iamService,` respectively. Do not touch this file.
+- Any test file. This task is a type-level fix only — do not add, remove, or modify test assertions as part of this task. If completing this task causes any previously-failing test to newly pass or fail, report that; do not "fix" a test yourself as part of this task.
+- Any file not listed above.
+
+## Change 1 — `workflow.router.ts`: add `iamService` to 16 `deps` object literals
+
+This numbered table is the authoritative, literal source of truth for all 16 edits. Each row's "Unique anchor (old_str)" is the exact text to match — it includes one line of preceding context specific to that site, because the 8-line `const deps = { ... };` block itself is duplicated verbatim across multiple sites and is not unique on its own. Do not construct your own anchor from a shorter snippet; use exactly what's given per row, since a shorter match will fail or match the wrong site.
+
+If any `old_str` below does not match the current file exactly (e.g. because the file has changed since this prompt was written), stop and report the mismatch for that specific row rather than approximating a fix — do not guess at a corrected line number or a "close enough" match.
+
+| # | Line (as last verified) | Unique anchor (old_str) | Replacement (new_str) |
+|---|---|---|---|
+| 1 | 879 | ```\n        workflowPolicy.canCompleteActionStep(ctx.auth, stepAttrs);\n\n        const workflowRepository = new WorkflowRepository(ctx.db);\n        const server = ctx.req.server as any;\n\n        const deps = {\n          db: ctx.db,\n          workflowRepository,\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | Same, with `          iamService: server.iamService,\n` inserted as a new line immediately after `delegationService: server.delegationService,` and before the closing `};` |
+| 2 | 957 | ```\n        workflowPolicy.canApproveStep(ctx.auth, stepAttrs);\n\n        const workflowRepository = new WorkflowRepository(ctx.db);\n        const server = ctx.req.server as any;\n\n        const deps = {\n          db: ctx.db,\n          workflowRepository,\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | Same, `iamService: server.iamService,` inserted (as above) |
+| 3 | 1048 | ```\n          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid decision outcome.' });\n        }\n\n        const workflowRepository = new WorkflowRepository(ctx.db);\n        const server = ctx.req.server as any;\n\n        const deps = {\n          db: ctx.db,\n          workflowRepository,\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | Same, `iamService: server.iamService,` inserted |
+| 4 | 1125 | ```\n        workflowPolicy.canApproveStep(ctx.auth, stepAttrs);\n\n        const workflowRepository = new WorkflowRepository(ctx.db);\n        const server = ctx.req.server as any;\n\n        const deps = {\n          db: ctx.db,\n          workflowRepository,\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | **Ambiguity warning for this row specifically:** this anchor text is identical to row 2's (line 957) and row 4's own preceding-context line (`workflowPolicy.canApproveStep(ctx.auth, stepAttrs);`) recurs at multiple procedures in this file. Before editing this row, use the line number (1125, as last verified) to confirm you are at the correct occurrence — view the file at that line number directly rather than relying on `old_str` matching alone, since this specific anchor is not guaranteed unique across the whole file even though it disambiguates rows 1–3 and 5–11 from each other locally. If `str_replace` reports this match is not unique, fall back to line-number-targeted editing for this row only, and report that you had to do so. Insert `iamService: server.iamService,` in the same position as the other rows once you've confirmed you're at line 1125. |
+| 5 | 1202 | ```\n        workflowPolicy.canApproveStep(ctx.auth, stepAttrs);\n\n        const workflowRepository = new WorkflowRepository(ctx.db);\n        const server = ctx.req.server as any;\n\n        const deps = {\n          db: ctx.db,\n          workflowRepository,\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | Same ambiguity caveat as row 4 applies — confirm via line number 1202 before editing. Insert `iamService: server.iamService,` |
+| 6 | 1283 | ```\n        // ABAC: committee scoped check\n        workflowPolicy.canSubmitCommitteeReport(ctx.auth, stepAttrs);\n\n        const workflowRepository = new WorkflowRepository(ctx.db);\n        const server = ctx.req.server as any;\n\n        const deps = {\n          db: ctx.db,\n          workflowRepository,\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | Same, `iamService: server.iamService,` inserted (`canSubmitCommitteeReport` makes this anchor unique) |
+| 7 | 1382 | ```\n          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Step is not active.' });\n        }\n\n        const workflowRepository = new WorkflowRepository(ctx.db);\n        const server = ctx.req.server as any;\n\n        const deps = {\n          db: ctx.db,\n          workflowRepository,\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | Same, `iamService: server.iamService,` inserted (`'Step is not active.'` makes this anchor unique) |
+| 8 | 1481 | ```\n        workflowPolicy.canManuallyAdvanceMultiReferral(ctx.auth);\n\n        const workflowRepository = new WorkflowRepository(ctx.db);\n        const server = ctx.req.server as any;\n\n        const deps = {\n          db: ctx.db,\n          workflowRepository,\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | Same, `iamService: server.iamService,` inserted (`canManuallyAdvanceMultiReferral` makes this anchor unique) |
+| 9 | 1536 | ```\n        if (step.stepType !== 'approval' || step.stepKey !== 'vp_certification') {\n          throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid step type or key.' });\n        }\n\n        const server = ctx.req.server as any;\n        const deps = {\n          db: ctx.db,\n          workflowRepository: new WorkflowRepository(ctx.db),\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | Same, `iamService: server.iamService,` inserted (`'vp_certification'` makes this anchor unique) |
+| 10 | 1616 | ```\n        if (step.stepKey !== 'mayor_review' && step.stepKey !== 'mayor_signature') {\n          throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid step key.' });\n        }\n\n        const server = ctx.req.server as any;\n        const deps = {\n          db: ctx.db,\n          workflowRepository: new WorkflowRepository(ctx.db),\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | **Ambiguity warning:** rows 10 and 11 share this exact anchor text (`'mayor_review'`/`'mayor_signature'` check appears at two procedures). Confirm via line number 1616 before editing this row. Insert `iamService: server.iamService,` |
+| 11 | 1697 | ```\n        if (step.stepKey !== 'mayor_review' && step.stepKey !== 'mayor_signature') {\n          throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid step key.' });\n        }\n\n        const server = ctx.req.server as any;\n        const deps = {\n          db: ctx.db,\n          workflowRepository: new WorkflowRepository(ctx.db),\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | Same ambiguity caveat as row 10 — confirm via line number 1697. Insert `iamService: server.iamService,` |
+| 12 | 1878 | ```\n        const server4 = ctx.req.server as any;\n        const deps = {\n          db: ctx.db,\n          workflowRepository: new WorkflowRepository(ctx.db),\n          documentsService: server4.documentsService,\n          eventBus: server4.eventBus,\n          orgService: server4.organizationService,\n          delegationService: server4.delegationService,\n        };\n``` | Same, but note the variable name: insert `          iamService: server4.iamService,\n` — **not** `server.iamService`. This site's local Fastify-instance variable is named `server4`, not `server`. |
+| 13 | 1956 | ```\n        workflowPolicy.canLogSpSecretaryAction(ctx.auth);\n\n        const server = ctx.req.server as any;\n        const deps = {\n          db: ctx.db,\n          workflowRepository: new WorkflowRepository(ctx.db),\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | **Ambiguity warning:** `workflowPolicy.canLogSpSecretaryAction(ctx.auth);` also appears near line 1878 (row 12) in a nearby procedure, though the full block differs (row 12 uses `server4`, no `canLogSpSecretaryAction` line immediately before its `deps`). Confirm via line number 1956 before editing. Insert `iamService: server.iamService,` |
+| 14 | 2025 | ```\n        workflowPolicy.canLogPanlalawiganAction(ctx.auth, stepAttrs);\n\n        const server2 = ctx.req.server as any;\n        const deps = {\n          db: ctx.db,\n          workflowRepository: new WorkflowRepository(ctx.db),\n          documentsService: server2.documentsService,\n          eventBus: server2.eventBus,\n          orgService: server2.organizationService,\n          delegationService: server2.delegationService,\n        };\n``` | Insert `          iamService: server2.iamService,\n` — variable name is `server2`, not `server`. |
+| 15 | 2147 | ```\n        workflowPolicy.canResolveValidInPart(ctx.auth);\n\n        const server3 = ctx.req.server as any;\n        const deps = {\n          db: ctx.db,\n          workflowRepository,\n          documentsService: server3.documentsService,\n          eventBus: server3.eventBus,\n          orgService: server3.organizationService,\n          delegationService: server3.delegationService,\n        };\n``` | Insert `          iamService: server3.iamService,\n` — variable name is `server3`, not `server`. |
+| 16 | 2440 | ```\n        const stepContext = await fetchStepContext(rows[0]!.stepInstanceId, ctx);\n        if (!stepContext)\n          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });\n\n        const server = ctx.req.server as any;\n        const deps = {\n          db: ctx.db,\n          workflowRepository,\n          documentsService: server.documentsService,\n          eventBus: server.eventBus,\n          orgService: server.organizationService,\n          delegationService: server.delegationService,\n        };\n``` | **Ambiguity warning:** `const stepContext = await fetchStepContext(rows[0]!.stepInstanceId, ctx);` followed by the same not-found throw recurs near line 2147 (row 15) as well, though row 15's full block differs (`server3`, `workflowPolicy.canResolveValidInPart` precedes it, no `if (!stepContext)\n  throw` on its own line the same way). Confirm via line number 2440 before editing. Insert `iamService: server.iamService,` |
+
+This JSON block is authoritative for exactly which insertion pattern applies to each of the 16 rows above — if any prose elsewhere conflicts with it, this block wins:
+```json
+{
+  "insertion_rule": "iamService: <server_variable_name>.iamService, — inserted as a new line immediately after the delegationService line and before the closing '};' of that specific deps object literal",
+  "server_variable_by_row": {
+    "1": "server", "2": "server", "3": "server", "4": "server", "5": "server",
+    "6": "server", "7": "server", "8": "server", "9": "server", "10": "server",
+    "11": "server", "12": "server4", "13": "server", "14": "server2", "15": "server3", "16": "server"
+  },
+  "do_not_add_iamService_to_any_txDeps_block": true,
+  "reason_txDeps_excluded": "Every txDeps object in this file is constructed as { ...deps, workflowRepository: ... } — spreading the outer deps object. Once the outer deps object (rows 1-16 above) includes iamService, every txDeps built from it inherits the field automatically via the spread. Editing txDeps directly in addition to its source deps would be redundant, not incorrect, but is explicitly out of scope — do not touch any 'const txDeps = { ...deps, ... }' block."
+}
+```
+
+## Change 2 — `certified-urgent-bypass.handler.ts`: add `iamService` to the `CertifiedUrgentBypassDeps` interface
+
+This is a different kind of fix from Change 1, not a variant of it. `workflow.plugin.ts`'s `stepDeps` object (the only production value ever passed into this function) already includes `iamService: fastify.iamService,` at the value level — the runtime data was never missing. The problem is that `CertifiedUrgentBypassDeps`, the **interface** this function's `deps` parameter is typed against, doesn't declare `iamService` as one of its fields, so TypeScript narrows the parameter's static type to exclude it even though the actual object passed in has it. The fix is to correct the interface declaration, not to change how or where the value is constructed.
+
+**Exact current code** (lines 1–13):
+```typescript
+import type { WorkflowRepository } from '../workflow.repository.js';
+import type { AppDb } from '../../../db.js';
+import { resolveNextStep } from './step-resolution.js';
+
+export interface CertifiedUrgentBypassDeps {
+  db: AppDb;
+  workflowRepository: WorkflowRepository;
+  // include other deps needed by resolveNextStep, they will be provided by the consumer wrapper
+  documentsService: any;
+  eventBus: any;
+  orgService: any;
+  delegationService: any;
+}
+```
+
+**Required new code:**
+```typescript
+import type { WorkflowRepository } from '../workflow.repository.js';
+import type { AppDb } from '../../../db.js';
+import type { IamPublicAPI } from '../../iam/iam.types.js';
+import { resolveNextStep } from './step-resolution.js';
+
+export interface CertifiedUrgentBypassDeps {
+  db: AppDb;
+  workflowRepository: WorkflowRepository;
+  // include other deps needed by resolveNextStep, they will be provided by the consumer wrapper
+  documentsService: any;
+  eventBus: any;
+  orgService: any;
+  delegationService: any;
+  iamService: IamPublicAPI;
+}
+```
+
+Two changes: (a) a new type-only import for `IamPublicAPI`, using the exact import path already established in `step-resolution.ts` (`'../../iam/iam.types.js'`) — do not use a different relative path or import from a different module; (b) `iamService: IamPublicAPI;` added as a new field on the interface, placed last (after `delegationService`), matching the field's position in `StepResolutionDeps` for consistency.
+
+Do not touch the stale comment on line 8 (`// include other deps needed by resolveNextStep, they will be provided by the consumer wrapper`) — while it's arguably now slightly imprecise (this interface itself now explicitly declares `iamService` rather than relying entirely on "provided by the consumer wrapper"), rewording it is a documentation-polish decision outside this task's scope. If you believe it should be reworded, report that as a suggestion rather than doing it.
+
+Do not touch anything else in this file — the function body, `resolveNextStep`'s own signature, or any other interface.
+
+## Testing
+
+Do not add new tests for this task — this is a pure type-level fix with no runtime behavior change (every value being typed already existed at runtime; only the type declarations were incomplete). Run the existing test suite to confirm nothing regresses, but do not write new test cases.
+
+## Acceptance criteria
+
+1. `pnpm typecheck` (run from the repo root, the same command used in the baseline run this task is based on) produces **zero** errors referencing `iamService` in either `workflow.router.ts` or `certified-urgent-bypass.handler.ts`.
+2. All 16 `deps` object literals in `workflow.router.ts` listed in the table above include `iamService: <correct server variable>.iamService,` using the exact variable name specified per row — not uniformly `server` where the row specifies otherwise.
+3. No `txDeps` block in `workflow.router.ts` is directly edited.
+4. `CertifiedUrgentBypassDeps` in `certified-urgent-bypass.handler.ts` includes `iamService: IamPublicAPI;`, and the new import uses the exact path `'../../iam/iam.types.js'`.
+5. `bypassStep`'s existing, already-correct `deps` construction is untouched.
+6. No file outside the two listed in "Files in scope" is modified.
+7. All existing tests pass. If `pnpm typecheck` surfaces any error not referencing `iamService` in these two files (i.e., something new and unrelated), stop and report it rather than attempting to fix it — that would be outside this task's scope.
+
+## Report back
+
+State plainly: (a) the complete, final `pnpm typecheck` output (full, unfiltered — not a summary claiming success), (b) for each of rows 4, 5, 10, 11, 13, and 16 above (the ones flagged with an ambiguity warning), confirm explicitly which line number you edited and how you disambiguated it, since these are the rows most likely to go wrong silently, and (c) the exact final diff for both files.
+
+---
+
+# Standalone Prompt 1 of 2: TASK-WF-008 — Fix `CertifiedUrgentBypassDeps` iamService Gap
+
+### Context (no prior conversation access assumed)
+
+`apps/server/src/modules/workflow/engine/certified-urgent-bypass.handler.ts`'s `processCertificationUrgencyEvent` function calls `resolveNextStep` (from `./step-resolution.js`), which requires a `deps: StepResolutionDeps` argument where `StepResolutionDeps.iamService: IamPublicAPI` is a required (non-optional) field. `CertifiedUrgentBypassDeps` — the interface this function's own `deps` parameter is typed against — does not declare `iamService`, and independently redeclares four other fields (`documentsService`, `eventBus`, `orgService`, `delegationService`) as bare `any` rather than importing their real types, with a comment acknowledging this is a known shortcut. This produces a TypeScript error at the `resolveNextStep` call site.
+
+Separately confirmed, for context only — do not act on this, it needs no fix: the actual runtime value passed into this function (`stepDeps`, constructed in `workflow.plugin.ts`) already includes a real `iamService`. This is a type-declaration gap, not a missing runtime value — the object passed in has always had the field; the interface describing what the function expects has not.
+
+### Step 1 — Verify current state
+
+```
+grep -n "CertifiedUrgentBypassDeps\|iamService\|StepResolutionDeps" apps/server/src/modules/workflow/engine/certified-urgent-bypass.handler.ts
+```
+
+Expected: an `export interface CertifiedUrgentBypassDeps {` block with no `iamService` line and no `StepResolutionDeps` reference. If the file already contains `iamService` or already extends `StepResolutionDeps`, stop and report — do not proceed on an assumption this still needs fixing.
+
+### Step 2 — Fix the interface
+
+**File:** `apps/server/src/modules/workflow/engine/certified-urgent-bypass.handler.ts`
+
+Current content (verify this exact text is present before editing):
+```typescript
+import type { WorkflowRepository } from '../workflow.repository.js';
+import type { AppDb } from '../../../db.js';
+import { resolveNextStep } from './step-resolution.js';
+
+export interface CertifiedUrgentBypassDeps {
+  db: AppDb;
+  workflowRepository: WorkflowRepository;
+  // include other deps needed by resolveNextStep, they will be provided by the consumer wrapper
+  documentsService: any;
+  eventBus: any;
+  orgService: any;
+  delegationService: any;
+}
+```
+
+Replace with:
+```typescript
+import type { WorkflowRepository } from '../workflow.repository.js';
+import type { AppDb } from '../../../db.js';
+import { resolveNextStep, type StepResolutionDeps } from './step-resolution.js';
+
+export interface CertifiedUrgentBypassDeps extends StepResolutionDeps {
+  workflowRepository: WorkflowRepository;
+}
+```
+
+This matches the exact pattern already used by the three sibling interfaces in `apps/server/src/modules/workflow/engine/step-handlers/` (`ActionHandlerDeps`, `ApprovalHandlerDeps`, `MultiReferralHandlerDeps` — all three `extend StepResolutionDeps` and redeclare only `workflowRepository`). Do not invent a different shape — mirror this one exactly. `db` and `AppDb` are no longer needed as separate declarations since `StepResolutionDeps` already includes `db: AppDb`; if the `AppDb` import becomes unused after this change, remove it (check via typecheck in Step 4, don't guess).
+
+### Step 3 — Confirm no other change is needed
+
+The function body (`processCertificationUrgencyEvent`) references `deps.db`, `deps.workflowRepository`, `deps.documentsService`, `deps.eventBus`, `deps.orgService`, `deps.delegationService`, and passes `deps` directly (unspread, no cast) to `resolveNextStep` at what is currently line 152. None of this needs to change — the interface fix alone resolves the type error, since the field types now come from `StepResolutionDeps` rather than `any`, and `iamService` becomes available without any body-level edit. Do not touch the function body.
+
+### Step 4 — Typecheck
+
+Run `pnpm --filter server typecheck`. Confirm the error previously reported at `certified-urgent-bypass.handler.ts:152` (or wherever `resolveNextStep` is now called, if the line shifted) is gone. Report the full before/after error count and list, not just pass/fail.
+
+### Explicit scope boundary
+
+**In scope:** the interface declaration and its imports, in this one file, only.
+
+**Not in scope:** the function body of `processCertificationUrgencyEvent`. `workflow.plugin.ts` (already correctly supplies `iamService` via `stepDeps` — do not touch). Any file in `workflow.router.ts` or the 16-site gap described there — that is a separate task with its own prompt. Do not attempt both in one pass.
+
+---
+
+# Standalone Prompt 2 of 2: TASK-WF-009 — Supply `iamService` at 16 Deps-Construction Sites in `workflow.router.ts`
+
+### Context (no prior conversation access assumed)
+
+`workflow.router.ts` constructs a local `deps` object at 16 separate tRPC mutation procedures, each eventually calling one of `submitStepAction`, `submitStepApproval`, `submitStepMultiReferral`, or `engineSubmitCommitteeReport` — all four of whose deps interfaces (`ActionHandlerDeps`, `ApprovalHandlerDeps`, `MultiReferralHandlerDeps`) already `extend StepResolutionDeps`, which requires `iamService: IamPublicAPI`. None of the 16 base `deps` objects below currently include this field. This produces 16 TypeScript errors.
+
+**This is a type-declaration/construction gap only, not a runtime-crash risk** — unlike a previously-fixed, structurally different issue in this same file (`bypassStep`, at a separate procedure, already resolved in a prior task) where a `deps as any` cast let a genuinely-incomplete runtime object slip past the compiler. Here, no cast is involved; these 16 sites simply fail to typecheck as written. Do not treat this task as more urgent than a normal typecheck-blocking fix, and do not go looking for or attempting to fix the `bypassStep` site — it is already correct and out of scope for this prompt.
+
+### Verified current state — authoritative, overrides any line-number claim elsewhere
+
+The table below was produced by reading every one of the 16 sites directly in the current file. **Line numbers are current as of this prompt being written and may shift slightly by the time this is executed** if anything above a given site is edited first — if a `grep -n "iamService"` re-check (Step 1) shows a different line number for a site's `const deps = {`, use the line the grep reports, not the number in this table; the *content and count* below are what's authoritative, not the exact line numbers.
+
+```json
+[
+  { "site": 1, "procedure": "completeActionStep", "deps_base_line": 879, "call_fn": "submitStepAction", "server_var": "server" },
+  { "site": 2, "procedure": "approveStep", "deps_base_line": 957, "call_fn": "submitStepApproval", "server_var": "server" },
+  { "site": 3, "procedure": "logSecretariatDecision", "deps_base_line": 1048, "call_fn": "submitStepApproval", "server_var": "server" },
+  { "site": 4, "procedure": "rejectStep", "deps_base_line": 1125, "call_fn": "submitStepApproval", "server_var": "server" },
+  { "site": 5, "procedure": "returnStepForRevision", "deps_base_line": 1202, "call_fn": "submitStepApproval", "server_var": "server" },
+  { "site": 6, "procedure": "submitCommitteeReport", "deps_base_line": 1283, "call_fn": "engineSubmitCommitteeReport", "server_var": "server" },
+  { "site": 7, "procedure": "acceptUnifiedReport", "deps_base_line": 1382, "call_fn": "submitStepMultiReferral", "server_var": "server" },
+  { "site": 8, "procedure": "manuallyAdvanceMultiReferralStep", "deps_base_line": 1481, "call_fn": "submitStepMultiReferral", "server_var": "server" },
+  { "site": 9, "procedure": "certifyAsPresidingOfficer", "deps_base_line": 1536, "call_fn": "submitStepApproval", "server_var": "server", "note": "deps.orgService and deps.delegationService are also called directly inline, before the transaction — this is expected, not a defect to fix" },
+  { "site": 10, "procedure": "mayorSign", "deps_base_line": 1616, "call_fn": "submitStepApproval", "server_var": "server", "note": "same inline-usage pattern as site 9" },
+  { "site": 11, "procedure": "mayorVeto", "deps_base_line": 1697, "call_fn": "submitStepApproval", "server_var": "server", "note": "same inline-usage pattern as site 9" },
+  { "site": 12, "procedure": "recordVetoOverrideVote", "deps_base_line": 1878, "call_fn": "submitStepApproval", "server_var": "server4", "note": "local variable is genuinely named server4 in source, not a typo — use server4.iamService here, not server.iamService" },
+  { "site": 13, "procedure": "logDocketingCompletion", "deps_base_line": 1956, "call_fn": "submitStepAction", "server_var": "server" },
+  { "site": 14, "procedure": "recordPanlalawiganOutcome", "deps_base_line": 2025, "call_fn": "submitStepApproval", "server_var": "server2", "note": "local variable is genuinely named server2 in source — use server2.iamService" },
+  { "site": 15, "procedure": "resolveValidInPart", "deps_base_line": 2147, "call_fn": "submitStepApproval", "server_var": "server3", "note": "local variable is genuinely named server3 in source — use server3.iamService" },
+  { "site": 16, "procedure": "recordPublicationDate (newspaper_publication handler, exact procedure name may differ — confirm via the .input()/procedure declaration a few lines above deps_base_line if this name is wrong)", "deps_base_line": 2440, "call_fn": "submitStepAction", "server_var": "server" }
+]
+```
+
+**Note on site 16's procedure name:** I confirmed this site's line number, base-object content, call function, and server variable directly. I did not scroll far enough back to confirm its exact `.mutation()` procedure declaration name the way I did for all 15 other sites — the name given is a best-effort guess from surrounding context (it handles `newspaper_publication` step completion with a `publicationDate`/`newspaperName` input), not a confirmed fact. Confirm the real name via Step 1 before editing; if it differs from the guess above, use the real name in your report but the fix itself (adding one line to the base object at line 2440) does not depend on knowing the name correctly.
+
+### Step 1 — Re-verify all 16 line numbers and confirm the count
+
+```
+grep -n "await submitStepAction(\|await submitStepApproval(\|await submitStepMultiReferral(\|await engineSubmitCommitteeReport(" apps/server/src/modules/workflow/workflow.router.ts
+```
+
+Required outcome: exactly 16 lines returned. If the count differs from 16, stop and report the actual count and lines found — do not proceed assuming the table above is still accurate; something changed since this prompt was written.
+
+For each of the 16 call-site lines returned, locate its corresponding base `const deps = {` object (it is always above the call, sometimes many lines above if the call sits inside a nested `ctx.db.transaction`). Confirm each base object currently has exactly these 6 fields and no `iamService`:
+```
+db, workflowRepository, documentsService, eventBus, orgService, delegationService
+```
+If any of the 16 already has `iamService`, or has a different field set than this, stop and report which site and how it differs — do not silently skip it or silently "fix" a shape that doesn't match what this prompt describes.
+
+### Step 2 — Fix, one line per site
+
+At each of the 16 base `deps` objects, add exactly one line: `iamService: <that site's server variable>.iamService,` — using the exact local variable name confirmed in Step 1 for that specific site (`server`, `server4`, `server2`, or `server3` — do not use `server` everywhere; three of the sixteen sites use a different local name for their own `ctx.req.server as any` reference, and using the wrong one will either fail to compile or silently reference an unrelated variable).
+
+Insert the new line immediately after `delegationService: ...,` in each object, matching the field-ordering convention already used at the `bypassStep` site (already fixed, in this same file, as a reference example of the target shape — do not copy its other fields, only its field-ordering convention for where `iamService` goes).
+
+Do not change anything else about any of the 16 base objects: field values, spread patterns (`{ ...deps, db: tx as any, ... }` vs `const txDeps = { ...deps, ... }`), or surrounding logic. This is strictly additive — one new line, 16 times, nothing else touched in this pass.
+
+### Step 3 — Typecheck
+
+Run `pnpm --filter server typecheck`. Report the full before/after error list. Expected: the 16 errors previously located in `workflow.router.ts` are gone. If `certified-urgent-bypass.handler.ts`'s error also still appears, that is a separate task (TASK-WF-008) — note it in your report but do not attempt to fix it here unless TASK-WF-008 has already been run and you're seeing something unexpected, in which case report that specifically rather than fixing it inline.
+
+### Explicit scope boundary
+
+**In scope:** exactly 16 one-line additions, each to a base `deps` object identified in Step 1, in `workflow.router.ts` only.
+
+**Not in scope:** `certified-urgent-bypass.handler.ts` (separate task, TASK-WF-008). The `bypassStep`, `cancelInstance`, or `migrateInstance` procedures in this same file (already correct or don't call the affected handlers — verify via Step 1's grep, which should not surface any of these three). Any other logic, field, or pattern in any of the 16 touched procedures beyond the single added line. If Step 1 surfaces anything inconsistent with this prompt's description, report it rather than resolve it unilaterally.

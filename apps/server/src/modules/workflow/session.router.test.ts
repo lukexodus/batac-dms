@@ -354,7 +354,7 @@ describe('Session Router tRPC Procedures', () => {
   });
 
   describe('getAttendanceStatistics', () => {
-    it('returns computed stats series within date range', async () => {
+    it('returns computed stats series within date range, using roster size as of each session date', async () => {
       const subject = makeSubject();
       const caller = callerFor(makeCtx(subject, mockDb));
 
@@ -363,8 +363,12 @@ describe('Session Router tRPC Procedures', () => {
         { sessionDate: '2026-07-14', presentCount: 8 },
         { sessionDate: '2026-07-21', presentCount: null },
       ]);
+      // Roster as of 2026-07-07: 12 members.
       mockDb.mockResponse(Array.from({ length: 12 }).map((_, i) => ({ id: `emp-${i}` })));
-      mockDb.mockResponse(Array.from({ length: 12 }).map((_, i) => ({ id: `emp-${i}` })));
+      // Roster as of 2026-07-14: 10 members (2 fewer than the prior session's date —
+      // this is the value that proves the roster-lookup query is actually being
+      // exercised per-row rather than a fixed constant leaking through).
+      mockDb.mockResponse(Array.from({ length: 10 }).map((_, i) => ({ id: `emp-${i}` })));
 
       const result = await caller.getAttendanceStatistics({
         from: new Date('2026-07-01'),
@@ -375,10 +379,38 @@ describe('Session Router tRPC Procedures', () => {
       expect(result.series[0]?.presentCount).toBe(10);
       expect(result.series[0]?.absentCount).toBe(2);
       expect(result.series[1]?.presentCount).toBe(8);
-      expect(result.series[1]?.absentCount).toBe(4);
+      expect(result.series[1]?.absentCount).toBe(2);
       expect(result.series[2]?.presentCount).toBeNull();
       expect(result.series[2]?.absentCount).toBeNull();
       expect(result.printableSummaryUrl).toBeNull();
+    });
+
+    it('falls back to a fixed roster size of 12 if the mocked roster size is not distinguished across dates (regression guard)', async () => {
+      // This second test intentionally mirrors the OLD, defeated test's mock
+      // shape (12 employees for every date) as a permanent regression guard:
+      // it exists so that if the roster-lookup query is ever accidentally
+      // removed or short-circuited back to a hardcoded 12, at least one test
+      // in this file still exercises that a *query* happens per-row (even
+      // though this specific test cannot, by itself, prove the query is
+      // date-aware — the first test above is what proves that). Do not
+      // delete this test in a future cleanup on the assumption it's
+      // redundant with the first one; it exercises a genuinely different
+      // failure mode (query never called at all vs. query called but not
+      // date-scoped).
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([{ sessionDate: '2026-07-07', presentCount: 10 }]);
+      mockDb.mockResponse(Array.from({ length: 12 }).map((_, i) => ({ id: `emp-${i}` })));
+
+      const result = await caller.getAttendanceStatistics({
+        from: new Date('2026-07-01'),
+        to: new Date('2026-07-20'),
+      });
+
+      expect(result.series.length).toBe(1);
+      expect(result.series[0]?.presentCount).toBe(10);
+      expect(result.series[0]?.absentCount).toBe(2);
     });
   });
 

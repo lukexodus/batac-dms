@@ -1798,10 +1798,10 @@ F1 states the Secretariat Decision panel applies when the "assignee office is th
 - resolved_in: docs/pre-development/F-frontend-architecture/f1-application-route-map-v2.md
 
 **What was found:**
-F1 §8.2's panel table cited the deprecated procedure `documents.logSecretariatDecision` as the key procedure for the "Secretariat Decision Panel". This procedure was superseded by ADR-B2-3, under which the action routes through the Workflow Router's step-completion mechanism (which synchronously calls `Documents.transitionState()` and emits `workflow.step_completed`).
+F1 §8.2's panel table cited the deprecated procedure `documents.logSecretariatDecision` as the key procedure for the "Secretariat Decision Panel". This procedure was superseded by ADR-API-003, under which the action routes through the Workflow Router's step-completion mechanism (which synchronously calls `Documents.transitionState()` and emits `workflow.step_completed`).
 
 **What was implemented:**
-Updated the F1 §8.2 panel table row to reference the ADR-B2-3 supersession and the correct routing through the Workflow Router step-completion mechanism, along with the ABAC rule citation from I1 §6.8.
+Updated the F1 §8.2 panel table row to reference the ADR-API-003 supersession and the correct routing through the Workflow Router step-completion mechanism, along with the ABAC rule citation from I1 §6.8.
 
 ---
 
@@ -3220,3 +3220,200 @@ task's stated scope without that departure being self-reported — which
 remains a standing finding about that task's reported output, independent of
 the fact that the resulting code was subsequently verified correct and the
 consequence it created was subsequently closed.
+
+---
+
+### [LOG-0125] Correction to LOG-0117: undercounted scope (17 sites across 2 files, not 16 in 1), and origin now known via LOG-0118
+
+- date: 2026-07-20
+- task_id: TASK-WF-BE-003 (surfaced during typecheck verification of TASK-WF-BE-003-related work; supersedes LOG-0117's scope claim, does not supersede its core finding)
+- status: proposed
+- affects: apps/server/src/modules/workflow/workflow.router.ts, apps/server/src/modules/workflow/engine/certified-urgent-bypass.handler.ts, apps/server/src/modules/workflow/engine/admin-operations.ts
+- supersedes: LOG-0117 (partially — see below)
+
+**What LOG-0117 got wrong:** LOG-0117 described this defect as 16 call
+sites, confined to `workflow.router.ts`, and stated the origin was unknown
+("[Inference, not confirmed]: two plausible explanations, not distinguished
+by anything I checked"). Both of these were incomplete, not because
+LOG-0117's own verification was sloppy (its 16-site, `workflow.router.ts`-only
+count was accurately checked against the code as it stood at the time), but
+because it was written without cross-referencing same-day sibling entries
+that account for the same underlying change.
+
+[Confirmed via direct re-run]: `pnpm --filter server typecheck` (note: the
+correct filter is `server`, not `@batac/server` — LOG-0117's original prompt
+used the wrong scoped name; this has no effect on the error count, only on
+whether the command as literally written would execute at all) currently
+produces 17 errors, not 16. 16 remain at the exact `workflow.router.ts` line
+numbers LOG-0117 documented (894, 974, 1065, 1142, 1219, 1307, 1421, 1498,
+1577, 1653, 1734, 1918, 1976, 2067, 2231, 2469). The 17th is at
+`apps/server/src/modules/workflow/engine/certified-urgent-bypass.handler.ts:152`,
+same `TS2345`/`iamService`-missing shape, against `CertifiedUrgentBypassDeps`
+rather than `ActionHandlerDeps`/`ApprovalHandlerDeps`/`MultiReferralHandlerDeps`.
+[Confirmed]: this 17th error already existed in the snapshot LOG-0117 was
+originally written against — it is not a regression introduced after
+LOG-0117, it was simply never checked for, since LOG-0117's verification was
+scoped to `workflow.router.ts` specifically and never grepped sibling engine
+files for the same pattern. [Confirmed]: no other findings-log entry
+mentions `certified-urgent-bypass.handler.ts` prior to this one.
+
+**Origin, now known:** LOG-0118 (`TASK-WF-007`, same day) documents that
+`iamService: IamPublicAPI` was added as a required field to
+`StepResolutionDeps` (and to `CreateInstanceDeps`/`ResolveAssigneesDeps`) as
+part of a human-directed decision to implement `getUsersByRole` on
+`IamPublicAPI` rather than `OrganizationPublicAPI`. This is the origin event
+for the entire class of error LOG-0117 (and this correction) describes —
+every one of the 17 current errors is a call site constructing a deps object
+that predates this field becoming required and was never updated once it
+did. This was not visible to LOG-0117 at the time it was written.
+
+**Partial remediation, already documented elsewhere — not re-described
+here:** LOG-0124 documents that the `workflow.router.ts`/`admin-operations.ts`
+portion of this gap (specifically the `bypassStep` call site, which is NOT
+one of the 16 original TS2345-erroring sites LOG-0117 tracked, but a related,
+separately-caused live-crash risk) has since been closed: `BypassStepDeps`
+now extends the full `StepResolutionDeps` shape, the `deps as any` cast was
+removed, and `iamService: server.iamService` is supplied at that call site.
+[Confirmed]: this specific line no longer appears in current typecheck
+output. LOG-0124 also documents that this particular fix was itself an
+undisclosed scope departure from a different task's stated boundaries — that
+finding stands independently and is not restated here; see LOG-0124 directly.
+
+**Still open, not touched by LOG-0124's remediation:** all 16 original
+`workflow.router.ts` sites, plus `certified-urgent-bypass.handler.ts:152`.
+None of these are `bypassStep`; LOG-0124's fix did not address them and did
+not claim to.
+
+**Recommendation, updated from LOG-0117's version:** the "which explanation
+is correct" question LOG-0117 posed as open is now answered (LOG-0118 is the
+origin, not an unrelated regression or an incomplete migration of unknown
+provenance). What remains open for a human: whether the 17 still-broken call
+sites should each be fixed the same way LOG-0124 fixed `bypassStep`
+(construct/extend an `IamPublicAPI` instance and supply it at each site), and
+whether that should be one consolidated task across all 17 sites or handled
+per-file/per-caller given how large `workflow.router.ts`'s share of this is.
+
+---
+
+### [LOG-0126] LOG-0079's body still names the informal "ADR-B2-3," not the correctly-filed "ADR-API-003"
+
+- date: 2026-07-20
+- task_id: none (surfaced during a planning-layer review of LOG-0079/LOG-0080 while scoping an unrelated task)
+- status: confirmed
+- affects: docs/development-findings-log.md (LOG-0079's body text only — no code or other doc affected)
+- resolved_in: LOG-0079 (edited in place per explicit user request)
+- refines: LOG-0079
+
+**What was found:**
+LOG-0079's "What was found" and "What was implemented" sections both refer to "ADR-B2-3" as the ADR that superseded `documents.logSecretariatDecision`. No file named `ADR-B2-3` exists anywhere in the repository. The correctly-filed document is `docs/pre-development/B-architecture-documents/b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-003-secretariat-decision-entry-point.md`, referenced by its real name, `ADR-API-003`, in at least eight other project documents (E1, F1, B2, B3, J5, D2, and the A1 task files for AUDIT/DOCS/FE) as well as in LOG-0080's own body. LOG-0080 — filed the same day as LOG-0079, as its explicit follow-up — already uses the correct name throughout and states plainly that Luke (the project decision-maker named on the ADR's own line 5) confirmed `ADR-API-003` as authoritative. Read together, LOG-0079 and LOG-0080 have only ever described one real document; "ADR-B2-3" was never a second, competing ADR, just an informal shorthand (most likely "the B2 directory's ADR" written from memory) that LOG-0079's body never corrected to the document's actual filed name.
+
+**What was implemented:**
+Per explicit user request, LOG-0079's body was edited in place to fix the naming discrepancy. This entry is now marked confirmed.
+
+---
+
+### [LOG-0127] LOG-0111's Zod v3/v4 decision resolved: option 2 taken, packages/shared and apps/server upgraded to v4
+
+- date: 2026-07-20
+- task_id: none — confirmed directly by Luke during a planning-layer review; surfaced while re-scanning the findings log for anything unverified since the original LOG-0108/0111 investigation
+- status: proposed
+- affects: packages/shared/package.json, apps/server/package.json, apps/web/package.json (zod), packages/shared/package.json (drizzle-zod)
+- refines: LOG-0111
+
+**What was found:**
+LOG-0111 presented two options for a human to choose between: (1) formally document the version boundary as a standing constraint, or (2) upgrade `packages/shared`/`apps/server` to Zod v4, removing the split entirely — explicitly not investigated at the time, flagged as "very likely a larger, separately-scoped task if pursued." The current package manifests show `packages/shared`, `apps/server`, and `apps/web` all declare `"zod": "^4.4.3"` — option 2 was taken. `drizzle-zod` — the dependency LOG-0111 specifically flagged as an interaction risk, since it was "pinned specifically to stay on Zod's classic-v3-branch internal types" at `0.7.1` — is now at `0.8.3`, a version that tracks the Zod v4 migration rather than remaining stale against the new major. Luke confirmed directly this was a deliberate resolution of LOG-0111's decision, not an incidental drift.
+
+No log entry between LOG-0111 and this one documents the upgrade itself — no task ID, no date, no description of what changed in the schema catalog to accommodate the major-version jump. This entry does not reconstruct that history; it only confirms the end state and the fact that it was intentional.
+
+**What was implemented:**
+No code change in this entry. This is a closure/pointer entry only, so a future reader who finds LOG-0108/0111 does not re-open a decision that has already been made. The underlying upgrade itself — whatever it touched in `packages/shared`'s schema catalog to accommodate Zod v4 semantics — was not independently verified line-by-line as part of this entry; no live `pnpm typecheck` or test run was performed to confirm the upgrade is fully clean, since this entry's purpose is to record that the decision was made, not to re-audit the migration's execution. If a full technical audit of the upgrade itself is wanted, that is a separate, larger task than this entry covers.
+
+---
+
+### [LOG-0128] LOG-0067 re-verified and deepened: workflow.router.ts has zero city-isolation enforcement at both app and DB layers; workflow.policy.ts's own comment asserts otherwise
+
+- date: 2026-07-20
+- task_id: none — surfaced during a planning-layer re-scan of the findings log, prioritized specifically because LOG-0097 (independently verified this session) explicitly named LOG-0067 as an open, distinct gap it did not resolve
+- status: proposed
+- affects: apps/server/src/modules/workflow/workflow.router.ts, apps/server/src/modules/workflow/workflow.policy.ts (lines 194-195), packages/database/migrations/0006_workflow_create_workflow_schema.sql
+- refines: LOG-0067
+
+**What was found:**
+LOG-0067 (2026-07-09) flagged that `protectedProcedure` only enforces authentication, not Gates 1-5, and that `workflow` procedures specifically do not call the evaluator — hedged as "a potential security gap if multi-tenancy is introduced." This entry independently re-verified and extends that finding against the current codebase, tracing the actual mechanism rather than re-stating the original claim:
+
+1. `protectedProcedure` (`apps/server/src/trpc/trpc.ts`, lines 48-61) checks only `if (!opts.ctx.auth)` — confirmed no change since LOG-0067.
+2. `Gate 1` (tenant isolation) exists only inside `PolicyGuard.checkGates()` (`apps/server/src/modules/iam/iam.policy.ts`, called at line 241), which is only reachable through `PolicyEvaluator.evaluate()`. Confirmed via repo-wide grep: `workflow.router.ts` never calls `policyEvaluator` or `.evaluate(` anywhere.
+3. `workflow.policy.ts` (lines 194-195) contains a comment stating: *"Gate 1 (tenant isolation) is enforced globally by `PolicyGuard.checkGates` in `iam.policy.ts` — not re-implemented here."* This is not accurate for this module's actual call path — `checkGates` is never reached from anywhere in `workflow.router.ts`. Confirmed via repo-wide grep: `workflow.policy.ts` never references `cityId` anywhere in its own logic; the comment is the only mention of tenant isolation in the file.
+4. Checked for a database-level backstop: `packages/database/migrations/0006_workflow_create_workflow_schema.sql` (the workflow schema's own creation migration) contains zero `ENABLE ROW LEVEL SECURITY` statements. No workflow table has RLS. This differs from `documents.documents` and `iam.sessions`, both of which do have RLS enabled (per LOG-0100's independently-confirmed findings from migrations 0004 and 0002 respectively).
+
+**Conclusion:** the workflow module has no city-isolation enforcement at either the application layer or the database layer, and one comment in the module's own policy file incorrectly asserts the opposite, which is a materially worse finding than LOG-0067's original hedge (an acknowledged absence is safer than a false assurance of presence, since a future reader trusting the comment would reasonably conclude no action is needed).
+
+**Why this is not being escalated to a fix task:** Luke confirmed directly that multi-tenancy (multiple LGU cities on one deployment) is not currently a live concern — the system is single-tenant, Batac City only. Per LOG-0067's own original framing ("if multi-tenancy is introduced"), the risk this entry documents is real but currently theoretical. This entry exists so the finding is precise and current rather than left at LOG-0067's five-line, unverified 2026-07-09 state, and so a future reintroduction of multi-tenancy (or a decision to onboard a second LGU) has an accurate, checked starting point rather than needing to re-derive this from scratch. If multi-tenancy becomes live, the two open questions for a human at that point are: (a) whether to enforce via an application-layer check (e.g., wiring `policyEvaluator.evaluate()` into `workflow.router.ts`'s procedures, mirroring how Gates are checked elsewhere) or via RLS on the workflow schema (mirroring `documents`/`iam`), and (b) correcting the stale comment at `workflow.policy.ts` lines 194-195 regardless of which mechanism is chosen, since it is inaccurate today independent of tenancy model.
+
+**What was implemented:**
+No code change. The comment at `workflow.policy.ts` lines 194-195 was not corrected as part of this entry — per this project's convention, a source-code comment fix is a task for a human or a scoped standalone prompt to authorize, not something to fold silently into a findings-log investigation.
+
+---
+
+### [LOG-0129] LOG-0123 resolved: H1 §4 to be corrected to match live seed, not the reverse — role: is intentional, not a temporary gap
+
+- date: 2026-07-20
+- task_id: none — human decision given directly in conversation during a planning-layer review
+- status: proposed
+- affects: H1 (§4, lines 340–341), packages/database/src/seeds/workflow/phase1-legislative.ts (no change)
+- refines: LOG-0123
+
+**Decision:** LOG-0123 left open which side of the `office_role:` (H1 §4) vs
+`role:` (live seed) mismatch for `SP_SECRETARY`/`SECRETARIAT_STAFF` should
+move. Resolved: H1 §4 is to be corrected to match the seed. The seed's plain
+`role:sp_secretary` is intentional and correct going forward; it does not
+need `office_role:` reformatting, and does not need the TODO-comment/
+temporary-proxy treatment LOG-0121 gave `LEGAL_OFFICER` — this is not that
+same category of gap.
+
+**Why, beyond the decision itself, recorded here since LOG-0123 did not
+reach a view on it:** re-reading H1 §4 in full alongside this decision
+surfaced that the same `ROLE` constant block contains an directly-adjacent,
+H1-authored admission that not every expression in it was engine-verified
+before being written down — `COMMITTEE_CHAIR`'s entry is explicitly flagged
+in H1's own inline comment as "a placeholder shape, not a confirmed engine
+contract... needs engine-side confirmation before implementation," drawing
+an explicit parallel to `VICE_MAYOR`/`MAYOR`'s `delegation_aware:` prefix
+having "presumably needed confirming when it was first introduced." Unlike
+`LEGAL_OFFICER`'s `office_role:city_legal:legal_officer` (which has clear,
+independently-confirmed grounding — a real, distinct office, `CLO`, that a
+future real role should be scoped to) or `VICE_MAYOR`/`MAYOR`'s
+`delegation_aware:` (which have inline comments explaining exactly what the
+expression accomplishes), `SP_SECRETARY`/`SECRETARIAT_STAFF`'s
+`office_role:sp_secretariat:...` framing has no accompanying rationale
+anywhere in H1, and appears nowhere else in the document outside its own
+constant definition. This absence doesn't prove the office-scoping was
+unconsidered, but it's consistent with it being written as a stylistic
+default rather than a deliberate response to something specific, the same
+way `COMMITTEE_CHAIR`'s placeholder syntax was.
+
+**Also re-confirmed as still true, supporting but not solely determining
+this decision:** exactly one `sp_secretary` role assignment exists in any
+seed file (Gladys R. Lagura, SPS office — `apps/server/src/database/seeds/demo-credentials.seed.ts`).
+`office_role:sp_secretariat:sp_secretary` and plain `role:sp_secretary`
+currently resolve identically. This was already noted in LOG-0123 and LOG-0122
+(Category 3) and is not new to this entry — restated here only because it
+was part of what was weighed in reaching this decision, not because it
+changes on its own.
+
+**What is NOT done by this entry:** H1 itself is not edited here. Per
+AGENTS.md Section 4.5, only a human edits a Group B–L document directly
+unless given explicit authority for that specific edit — no such authority
+was given for this edit specifically, so it is not made as part of this
+finding. A human should update H1 §4, lines 340–341, removing the
+`office_role:sp_secretariat:` prefix from both `SP_SECRETARY` and
+`SECRETARIAT_STAFF` (→ `"role:sp_secretary"` for both, matching the live
+seed and each other — `SECRETARIAT_STAFF` and `SP_SECRETARY` already resolve
+to the identical string in code, per LOG-0119), and should consider whether
+an inline comment analogous to `VICE_MAYOR`/`MAYOR`'s is warranted, stating
+plainly that this is a deliberate simple-role assignment, not an
+under-specified one — to prevent a future reader from re-deriving the same
+open question LOG-0123 raised. H1 §5.2's own short-form assignee column
+(steps 1, 6, 10, 13, 14, 21) is unaffected by this — it already just says
+"secretariat_staff"/"sp_secretary" with no office annotation and needs no
+change.
