@@ -13182,3 +13182,361 @@ Do not add a browser-based or integration-level test for this — this is a unit
 ## Report back
 
 In your response, state plainly: (a) whether you found any other call site anywhere in the repo — not just the plugin — that constructs `createOrgRouter(deps)` with a partial object, since this task's fix assumes `organization.plugin.ts` is the only production call site and the test file is the only other one, and (b) the exact final diff for both changed files.
+
+---
+
+# TASK-WF-BE-003: Date-Aware Roster Fix for getAttendanceStatistics
+
+Standalone task. Fixes a hardcoded-roster-size defect in one procedure of
+`session.router.ts`. Does not require reading TASK-WF-BE-001, TASK-WF-BE-002,
+LOG-0091, LOG-0093, or any prior task/log entry — everything needed is below.
+
+## File
+
+`apps/server/src/modules/workflow/session.router.ts`
+(current file: 948 lines; verified checksum at time of writing:
+`76817c8915a0e108b3d706d59848b989`. If this doesn't match, the file has
+changed since this prompt was written — re-view the file before proceeding
+and report the discrepancy rather than proceeding on stale assumptions.)
+
+## The defect
+
+`getAttendanceStatistics` (currently lines 202-253) computes `absentCount`
+for each session in a historical time series using a hardcoded constant:
+
+```ts
+absentCount = Math.max(0, 12 - presentCount);
+```
+
+This assumes SP membership is always exactly 12 people. It is not
+date-aware: it applies today's (or a fixed) roster size uniformly to every
+row in the series, including sessions from the past where actual SP
+membership may have differed (a seat vacated, a special election, a new
+seat added, etc.). This system is intended to serve as an official
+legislative attendance record, so a wrong `absentCount` for a past session
+is a data-integrity problem, not just a display quirk — this task requires
+computing roster size as of each session's own date, not applying a
+present-day or fixed number retroactively.
+
+## In scope
+
+- `getAttendanceStatistics` only (currently lines 202-253 of
+  `session.router.ts`). Nothing else in this file changes.
+
+## Explicitly out of scope — do not touch even if related
+
+- `recordAttendance` (currently lines 448-720) — already correct, already
+  uses a dynamic (but NOT date-aware — see note below) roster query. Do not
+  modify it, do not "improve" it to also be date-aware as part of this
+  task. If you believe `recordAttendance` should also become date-aware,
+  that is a separate task requiring its own scoping decision — flag it,
+  don't fix it here.
+- `scheduleDocumentForFirstReading`'s `presentCount: null, quorumAchieved: null`
+  placeholder logic — already correct, unrelated to this defect. Do not touch.
+- Any other procedure in this file (`getAttendanceRecord`,
+  `getEligibleSubstituteOfficers`, `getOrderOfBusiness`,
+  `enterCommitteeHearingDate`) — none reference `presentCount` or roster
+  size; none need any change for this task.
+- `apps/server/src/modules/organization/organization.service.ts` — this
+  task borrows a query PATTERN from this file (see below) but does not
+  modify it, import from it, or add any dependency on it. Do not touch it.
+
+## The fix
+
+### Why this can't just copy `recordAttendance`'s query as-is
+
+`recordAttendance`'s roster query (lines 476-488) answers "who is
+currently assigned to SP" — it filters on `offices.code = 'SP'` and
+`assignments.deletedAt IS NULL`, with no date-range check at all (it does
+NOT check `assignments.startDate`/`endDate`/`isActive`). That's correct
+for `recordAttendance`, because that procedure is always recording
+attendance for a session happening now/very recently. It is NOT correct
+for `getAttendanceStatistics`, because that procedure renders a series of
+PAST sessions — reusing today's roster for a session from months ago would
+silently produce the same class of error this task exists to fix, just
+moved one level down (today's roster instead of a fixed 12, still wrong
+for any past row where membership differed from today).
+
+### The correct query: an existing, verified precedent in this codebase
+
+`apps/server/src/modules/organization/organization.service.ts`
+(currently lines 56-75) already contains a working "assignment as of a
+given date" query, used for a different purpose (resolving a delegate for
+a position as of a date) but structurally exactly what's needed here:
+
+```ts
+const activeAssignments = await db
+  .select({
+    userId: employees.userId,
+    firstName: employees.firstName,
+    lastName: employees.lastName,
+  })
+  .from(assignments)
+  .innerJoin(employees, eq(assignments.employeeId, employees.id))
+  .where(
+    and(
+      eq(assignments.positionId, positionId),
+      eq(assignments.isActive, true),
+      isNull(assignments.deletedAt),
+      lte(assignments.startDate, asOfStr),
+      or(isNull(assignments.endDate), gte(assignments.endDate, asOfStr)),
+      isNotNull(employees.userId),
+      isNull(employees.deletedAt),
+    ),
+  )
+  .limit(1);
+```
+
+The four conditions that make this date-aware are:
+```json
+{
+  "date_aware_where_conditions": [
+    "eq(assignments.isActive, true)",
+    "isNull(assignments.deletedAt)",
+    "lte(assignments.startDate, asOfStr)",
+    "or(isNull(assignments.endDate), gte(assignments.endDate, asOfStr))"
+  ],
+  "meaning": "assignment is active, not soft-deleted, started on or before asOfStr, and either has no end date or ends on or after asOfStr",
+  "authoritative": true
+}
+```
+This JSON block is the literal, authoritative shape of the four
+conditions — if any prose elsewhere in this document seems to describe
+them differently, this block wins.
+
+### Building the new query for `getAttendanceStatistics`
+
+Adapt this pattern, joined the same way `recordAttendance` joins for SP
+office scoping (via `offices.code = 'SP'`, not via `positionId` — this
+procedure has no `positionId`, unlike the `organization.service.ts`
+source), and run it once per row in the series (see "Row-by-row, not
+batched" below), using that row's own `sessionDate` as `asOfStr`.
+
+**Critical: do NOT reuse `asOfDate.toISOString().split('T')[0]` from
+`organization.service.ts` to produce `asOfStr`.** That conversion exists
+in `organization.service.ts` because it starts from a `Date` object with
+no timezone correction applied. `getAttendanceStatistics` does not have
+this problem and does not need this conversion at all: `r.sessionDate`
+(from the existing `rows` query, line 224) is already a plain
+`YYYY-MM-DD` string — it's a Postgres `date`-typed column, and the
+existing code at line 231 already treats it as a string via
+`r.sessionDate.split('-')`. Pass `r.sessionDate` directly into the new
+query's `lte`/`gte` comparisons with no conversion, no `new Date(...)`,
+and do not import or call this file's own `formatDate` helper (line 37)
+for this purpose either — that helper applies a Manila UTC+8 offset
+correction meant for converting a JS `Date` object into a date string, and
+`r.sessionDate` is already a string, so running it through `formatDate`
+would be applying a conversion to something that doesn't need one and
+doesn't have the right input type in the first place.
+
+### Row-by-row, not batched — this is expected, not a bug to fix
+
+This task turns `getAttendanceStatistics` from doing 1 query (the existing
+`rows` select) into 1 + N queries (the existing `rows` select, plus one
+roster-as-of-date query per row in `rows`). This is a real, expected
+architectural change, not an oversight — do not attempt to collapse this
+into a single windowed/batched query as part of this task. That would be
+a significantly larger, riskier change (a single query that correctly
+computes "roster size as of EACH DISTINCT date in a set" in one round
+trip is nontrivial SQL, likely requiring a lateral join or similar) and is
+explicitly out of scope here. If N+1 query performance becomes a real
+problem in practice, that's a separate, future task with its own scoping
+decision — not something to preemptively solve in this one.
+
+### Exact before/after
+
+Current (lines 202-253):
+```ts
+    getAttendanceStatistics: protectedProcedure
+      .input(dateRangeInput)
+      .query(async ({ input, ctx }) => {
+        enforceRoles(ctx, [
+          'sp_secretary',
+          'sp_member',
+          'sp_presiding_officer',
+          'mayor',
+          'auditor',
+        ]);
+
+        const conditions = [eq(spSessions.cityId, ctx.auth.cityId), isNull(spSessions.deletedAt)];
+        if (input.from) {
+          conditions.push(gte(spSessions.sessionDate, formatDate(input.from)));
+        }
+        if (input.to) {
+          conditions.push(lte(spSessions.sessionDate, formatDate(input.to)));
+        }
+
+        const rows = await ctx.db
+          .select({
+            sessionDate: spSessions.sessionDate,
+            presentCount: spSessions.presentCount,
+          })
+          .from(spSessions)
+          .where(and(...conditions))
+          .orderBy(asc(spSessions.sessionDate));
+
+        const series = rows.map((r) => {
+          const [year, month, day] = r.sessionDate.split('-').map(Number);
+          const sessionDate = new Date(Date.UTC(year!, month! - 1, day!, 0, 0, 0));
+
+          let presentCount: number | null = null;
+          let absentCount: number | null = null;
+
+          if (r.presentCount !== null) {
+            presentCount = r.presentCount;
+            absentCount = Math.max(0, 12 - presentCount);
+          }
+
+          return {
+            sessionDate,
+            presentCount,
+            absentCount,
+          };
+        });
+
+        return {
+          series,
+          printableSummaryUrl: null,
+        };
+      }),
+```
+
+Replace the `series` construction with an async version that looks up
+roster size per row. The overall procedure becomes:
+
+```ts
+    getAttendanceStatistics: protectedProcedure
+      .input(dateRangeInput)
+      .query(async ({ input, ctx }) => {
+        enforceRoles(ctx, [
+          'sp_secretary',
+          'sp_member',
+          'sp_presiding_officer',
+          'mayor',
+          'auditor',
+        ]);
+
+        const conditions = [eq(spSessions.cityId, ctx.auth.cityId), isNull(spSessions.deletedAt)];
+        if (input.from) {
+          conditions.push(gte(spSessions.sessionDate, formatDate(input.from)));
+        }
+        if (input.to) {
+          conditions.push(lte(spSessions.sessionDate, formatDate(input.to)));
+        }
+
+        const rows = await ctx.db
+          .select({
+            sessionDate: spSessions.sessionDate,
+            presentCount: spSessions.presentCount,
+          })
+          .from(spSessions)
+          .where(and(...conditions))
+          .orderBy(asc(spSessions.sessionDate));
+
+        const series = await Promise.all(
+          rows.map(async (r) => {
+            const [year, month, day] = r.sessionDate.split('-').map(Number);
+            const sessionDate = new Date(Date.UTC(year!, month! - 1, day!, 0, 0, 0));
+
+            let presentCount: number | null = null;
+            let absentCount: number | null = null;
+
+            if (r.presentCount !== null) {
+              presentCount = r.presentCount;
+
+              const rosterAsOfDate = await ctx.db
+                .select({ id: employees.id })
+                .from(employees)
+                .innerJoin(assignments, eq(assignments.employeeId, employees.id))
+                .innerJoin(offices, eq(assignments.officeId, offices.id))
+                .where(
+                  and(
+                    eq(offices.code, 'SP'),
+                    eq(offices.cityId, ctx.auth.cityId),
+                    eq(assignments.isActive, true),
+                    isNull(employees.deletedAt),
+                    isNull(assignments.deletedAt),
+                    lte(assignments.startDate, r.sessionDate),
+                    or(isNull(assignments.endDate), gte(assignments.endDate, r.sessionDate)),
+                  ),
+                );
+
+              let rosterSize = rosterAsOfDate.length;
+              if (rosterSize === 0) {
+                const fallbackRoster = await ctx.db
+                  .select({ id: employees.id })
+                  .from(employees)
+                  .where(
+                    and(
+                      ilike(employees.employeeNumber, 'SP-%'),
+                      eq(employees.cityId, ctx.auth.cityId),
+                      isNull(employees.deletedAt),
+                    ),
+                  );
+                rosterSize = fallbackRoster.length;
+              }
+
+              absentCount = Math.max(0, rosterSize - presentCount);
+            }
+
+            return {
+              sessionDate,
+              presentCount,
+              absentCount,
+            };
+          }),
+        );
+
+        return {
+          series,
+          printableSummaryUrl: null,
+        };
+      }),
+```
+
+Note the fallback query mirrors `recordAttendance`'s fallback (lines
+490-503) — same `ilike(employees.employeeNumber, 'SP-%')` pattern-match —
+for consistency, EXCEPT it is not itself date-scoped (the fallback path
+has no assignment-date columns to filter on at all, since it doesn't
+query `assignments`; it queries `employees` directly by employee-number
+pattern). This is an accepted limitation of the fallback path, not
+something to fix in this task — if the primary office-code roster query
+returns results, the fallback never runs, and it only exists as a
+last-resort when the primary office/assignment data itself is
+unavailable. Do not attempt to add date-scoping to the fallback branch.
+
+## Verification
+
+1. `pnpm --filter @batac/server typecheck` (note: this is `@batac/server`,
+   not `@batac/web` or `@batac/ui` — this task only touches server code,
+   so verify against the server package's own typecheck, not either
+   frontend package's). Report exact, complete, raw output — not a
+   pass/fail summary.
+2. If a test file already exists for `session.router.ts` or
+   `getAttendanceStatistics` specifically, run it and report exact raw
+   output. If none exists, do not create one as part of this task — that
+   would be scope expansion beyond the fix itself; flag the absence of
+   test coverage in your report instead of silently adding tests or
+   silently proceeding without mentioning it.
+3. Do not attempt to spin up a real database connection to empirically
+   verify the query against live data as part of this task, unless one is
+   already running and available in your environment for other verified
+   reasons — if a real DB connection is not readily available, say so in
+   your report rather than fabricating or assuming a result.
+
+## Reporting requirements
+
+1. The exact diff applied to `getAttendanceStatistics` — verbatim.
+2. The exact, complete, raw output of `pnpm --filter @batac/server typecheck`.
+3. Whether an existing test for this procedure was found and run, and its
+   exact raw output if so; explicit statement that none exists if not
+   found — do not silently skip mentioning this either way.
+4. Any discrepancy between this document's stated current-file-content
+   (including the checksum given at the top) and the actual current
+   content/checksum at execution time — verbatim, if one exists.
+5. Confirmation that no other procedure in `session.router.ts` was
+   modified, and that `organization.service.ts` was not modified.
+
+
+---
+
