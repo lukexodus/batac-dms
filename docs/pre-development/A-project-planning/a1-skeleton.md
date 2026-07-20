@@ -49,13 +49,13 @@ re-read for this v2 pass after its own §2/§3 were amended to add the `SEARCH`/
 - [L60–L89] 1. Task ID Convention — Format, 13 module codes (including SEARCH/REPORT), zero-padding, and global ID uniqueness rules.
 - [L90–L147] 2. Module List in Wave Order — Alphabetical and wave-ordered module registry mapping to source documents and dependency lists.
 - [L148–L270] 3. Phase Scope Table — Grid mapping modules to phase eligibility, specifying full-spec, title-only, or N/A scope.
-- [L271–L336] 4. Cross-Module Dependency Rules — Rules governing task ID references, placeholder values, feature page layout, and schema boundary laws.
-- [L337–L355] 5. Special Tags — Standard database migration, ABAC permission check, and audit trail tagging conventions for tasks.
-- [L356–L394] 6. Phase 1 Task Count Estimates — Rough planning task-range estimates per module based on Phase 1 capability lists.
-- [L395–L416] Changelog — v1 → v2 (2026-06-22) — Reconciliation log detailing the ten resolved architectural changes between v1 and v2 skeleton passes.
+- [L271–L364] 4. Cross-Module Dependency Rules — Rules governing task ID references, placeholder values, feature page layout, and schema boundary laws.
+- [L365–L383] 5. Special Tags — Standard database migration, ABAC permission check, and audit trail tagging conventions for tasks.
+- [L384–L435] 6. Phase 1 Task Count Estimates — Rough planning task-range estimates per module based on Phase 1 capability lists.
+- [L436–L460] Changelog — v1 → v2 (2026-06-22) — Reconciliation log detailing the ten resolved architectural changes between v1 and v2 skeleton passes.
+- [L461–L490] Changelog — REC Step 2 pass reconciliation (2026-07-20) — Format, 13 module codes (including SEARCH/REPORT), zero-padding, and global ID uniqueness rules.
 
 ---
-
 
 ## 1. Task ID Convention
 

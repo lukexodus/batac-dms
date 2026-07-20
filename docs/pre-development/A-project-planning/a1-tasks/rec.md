@@ -27,9 +27,9 @@ Wave F — runs after DOCS (Wave D), WF and TRACK (Wave E) task lists are comple
 
 ## Table of Contents
 
-- [L36–L136] TASK-REC-001 — Drizzle ORM schema, SQL migration, and table grants for the records.retention_schedules table.
-- [L137–L220] TASK-REC-002 — Idempotent seed script inserting the two Phase 1 retention categories matching hardcoded placeholder UUIDs.
-- [L221–L300] Module Summary — Overview of tasks, provisional COA/DILG retention limits, deferred Phase 2 capabilities, and resolved conflicts.
+- [L36–L139] TASK-REC-001 — Drizzle ORM schema, SQL migration, and table grants for the records.retention_schedules table.
+- [L140–L223] TASK-REC-002 — Idempotent seed script inserting the two Phase 1 retention categories matching hardcoded placeholder UUIDs.
+- [L224–L303] Module Summary — Overview of tasks, provisional COA/DILG retention limits, deferred Phase 2 capabilities, and resolved conflicts.
 
 ---
 

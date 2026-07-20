@@ -20,14 +20,14 @@
 - [L1240–L1577] Part 6 — Schema `workflow` — DDL for workflow definitions, steps, transitions, events, sessions, attendances, and business order.
 - [L1578–L1714] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
 - [L1715–L1834] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
-- [L1835–L1912] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
-- [L1913–L1958] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
-- [L1959–L1987] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
-- [L1988–L2102] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
-- [L2103–L2114] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
-- [L2115–L2149] Part 13.5 — Schema `shared` — Infrastructure/operational schema for cross-cutting tables not owned by any domain module; Phase 1: event_bus_dead_letters.
-- [L2150–L2170] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
-- [L2171–L2186] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
+- [L1835–L1920] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
+- [L1921–L1966] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
+- [L1967–L1995] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
+- [L1996–L2110] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
+- [L2111–L2122] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
+- [L2123–L2157] Part 13.5 — Schema `shared` — Infrastructure/operational schema for cross-cutting tables not owned by any domain module; Phase 1: event_bus_dead_letters.
+- [L2158–L2178] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
+- [L2179–L2194] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
 
 ---
 
