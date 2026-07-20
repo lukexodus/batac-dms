@@ -4,6 +4,7 @@ import argon2 from 'argon2';
 import type {
   IamService,
   IamServiceDeps,
+  IamRepository,
   RoleAssignmentRow,
   UserRow,
   SessionRow,
@@ -195,6 +196,48 @@ export function createIamService(deps: IamServiceDeps): IamService {
         committeeIds,
       },
     };
+  }
+
+  /**
+   * Create a password-reset token row and build the reset URL for a given user.
+   * Does not emit any event — callers are responsible for emitting whichever
+   * event fits their context (PASSWORD_RESET_TOKEN_GENERATED for a standalone
+   * admin-triggered reset link; USER_CREATED already covers the account-creation
+   * case, so createUserAccount does not additionally emit
+   * PASSWORD_RESET_TOKEN_GENERATED for the token it generates as part of setup).
+   *
+   * Accepts a repo parameter so it can be called with either the outer iamRepo
+   * (standalone generatePasswordResetToken) or a transaction-scoped repo
+   * (createUserAccount, so the token row commits atomically with the new user
+   * and credential rows).
+   *
+   * Source: TASK-IAM-052, extracted from generatePasswordResetToken to allow
+   * createUserAccount to reuse the same token-generation logic atomically.
+   */
+  async function createResetTokenAndUrl(
+    repo: IamRepository,
+    input: { userId: string; cityId: string },
+  ): Promise<{ resetUrl: string }> {
+    const rawBytes = randomBytes(32);
+    const saltBytes = randomBytes(16);
+    const rawBase64url = rawBytes.toString('base64url');
+    const saltBase64url = saltBytes.toString('base64url');
+    const tokenHash = sha256Hex(rawBase64url + saltBase64url);
+
+    const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
+
+    const token = await repo.createPasswordResetToken({
+      userId: input.userId,
+      cityId: input.cityId,
+      tokenHash,
+      salt: saltBase64url,
+      expiresAt,
+    });
+
+    const baseUrl = env.APP_URL ? env.APP_URL.replace(/\/$/, '') : '';
+    const resetUrl = `${baseUrl}/reset-password?token=${token.id}.${rawBase64url}`;
+
+    return { resetUrl };
   }
 
   return {
@@ -1167,16 +1210,28 @@ export function createIamService(deps: IamServiceDeps): IamService {
       employeeId: string;
       cityId: string;
       actorId: string;
-    }): Promise<UserRow> {
-      const user = await iamRepo.createUser({
-        username: input.username,
-        email: input.email,
-        cityId: input.cityId,
-        status: 'active',
-      });
+    }): Promise<UserRow & { resetUrl: string }> {
+      const { user, resetUrl } = await db.transaction(async (tx) => {
+        const { createIamRepository } = await import('./iam.repository.js');
+        const txRepo = createIamRepository(tx);
 
-      const tempHash = await argon2.hash(randomBytes(32).toString('hex'));
-      await iamRepo.createCredential(user.id, tempHash);
+        const createdUser = await txRepo.createUser({
+          username: input.username,
+          email: input.email,
+          cityId: input.cityId,
+          status: 'active',
+        });
+
+        const tempHash = await argon2.hash(randomBytes(32).toString('hex'));
+        await txRepo.createCredential(createdUser.id, tempHash);
+
+        const { resetUrl: generatedResetUrl } = await createResetTokenAndUrl(txRepo, {
+          userId: createdUser.id,
+          cityId: input.cityId,
+        });
+
+        return { user: createdUser, resetUrl: generatedResetUrl };
+      });
 
       eventBus.emit(IAM_EVENTS.USER_CREATED, {
         eventId: randomUUID(),
@@ -1190,7 +1245,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
         },
       });
 
-      return user;
+      return { ...user, resetUrl };
     },
 
     async generatePasswordResetToken(input: {
@@ -1198,20 +1253,9 @@ export function createIamService(deps: IamServiceDeps): IamService {
       actorId: string;
       cityId: string;
     }): Promise<{ resetUrl: string }> {
-      const rawBytes = randomBytes(32);
-      const saltBytes = randomBytes(16);
-      const rawBase64url = rawBytes.toString('base64url');
-      const saltBase64url = saltBytes.toString('base64url');
-      const tokenHash = sha256Hex(rawBase64url + saltBase64url);
-
-      const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
-
-      const token = await iamRepo.createPasswordResetToken({
+      const { resetUrl } = await createResetTokenAndUrl(iamRepo, {
         userId: input.userId,
         cityId: input.cityId,
-        tokenHash,
-        salt: saltBase64url,
-        expiresAt,
       });
 
       eventBus.emit(IAM_EVENTS.PASSWORD_RESET_TOKEN_GENERATED, {
@@ -1225,9 +1269,6 @@ export function createIamService(deps: IamServiceDeps): IamService {
           targetUserId: input.userId,
         },
       });
-
-      const baseUrl = env.APP_URL ? env.APP_URL.replace(/\/$/, '') : '';
-      const resetUrl = `${baseUrl}/reset-password?token=${token.id}.${rawBase64url}`;
 
       return { resetUrl };
     },

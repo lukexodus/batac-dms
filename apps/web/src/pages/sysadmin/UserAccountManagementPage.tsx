@@ -45,6 +45,7 @@ function CreateUserForm() {
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [selectedEmployeeName, setSelectedEmployeeName] = useState<string>('');
+  const [resetUrl, setResetUrl] = useState<string | null>(null);
 
   // Employee picker — uses the sysadmin-gated variant.
   // The existing organization.listEmployees is gated by isPlatformAdmin only,
@@ -56,7 +57,7 @@ function CreateUserForm() {
   );
 
   const createMutation = trpc.iam.createUserAccount.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('User account created successfully.');
       void utils.iam.listUserDirectory.invalidate();
       setUsername('');
@@ -64,6 +65,7 @@ function CreateUserForm() {
       setEmployeeSearch('');
       setSelectedEmployeeId(null);
       setSelectedEmployeeName('');
+      setResetUrl(data.resetUrl);
     },
     onError: (err) => toast.error(err.message || 'Failed to create user account.'),
   });
@@ -177,6 +179,43 @@ function CreateUserForm() {
           </Button>
         </form>
       </CardContent>
+      <Dialog
+        open={resetUrl !== null}
+        onOpenChange={(open) => {
+          if (!open) setResetUrl(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Password Reset Link</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            Share this link with the user. It is single-use and will expire. This is the only time
+            this link will be shown — it cannot be retrieved again after this dialog is closed.
+          </p>
+          {resetUrl && (
+            <div className="flex items-center gap-2">
+              <Input readOnly value={resetUrl} className="font-mono text-xs" />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard.writeText(resetUrl);
+                  toast.success('Copied to clipboard.');
+                }}
+              >
+                Copy
+              </Button>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetUrl(null)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

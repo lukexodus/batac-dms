@@ -297,7 +297,7 @@ export interface IamService extends IamPublicAPI {
     employeeId: string;
     cityId: string;
     actorId: string;
-  }): Promise<UserRow>;
+  }): Promise<UserRow & { resetUrl: string }>;
 
   generatePasswordResetToken(input: {
     userId: string;

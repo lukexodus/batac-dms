@@ -332,6 +332,34 @@ identically to `search_meta` (owned by `SEARCH`) and `reporting` (owned by
 never by querying those schemas directly, regardless of how convenient a direct
 join across four modules' worth of reporting source data might seem.
 
+**A wave-ordering "Depends On" entry (Section 2's Module List) does not
+guarantee a citable TASK ID will exist in the dependent module's Prerequisites
+field — `[Resolved — 2026-07-20]`, precedent confirmed by direct execution of
+the REC Step 2 pass.** Section 2 lists `REC`'s Depends On as `WF, TRACK`, and
+`A1-AGENTS.md` §6 Step 2 requires loading both modules' task lists "so that
+TASK-WF and TASK-TRACK IDs can be referenced in Prerequisites fields." Per
+`rec.md`'s "Document Conflicts Resolved at Generation Time" table (row 5),
+both lists were loaded and checked as instructed, and neither contained an ID
+REC's actual (narrow, schema-reservation-only) Phase 1 scope needed to cite:
+`track.md` contains zero mentions of "retention" anywhere; `wf.md` contains
+exactly one, and that one is itself deferred — its own Module Summary
+Deferred Capabilities table lists "Records module retention trigger on
+`workflow.instance.completed`" as `Phase 2`. This is not a documentation gap
+in `wf.md` or `track.md` — both were independently confirmed accurate as
+written; the one place `WF` and `REC` would connect is itself deferred past
+this round on both sides without either module having read the other's
+Module Summary. Read as a standing rule: the wave-ordering dependency
+determines *when* a module pass may run (it cannot start until the
+prerequisite module's list exists to be checked), not a guarantee that the
+check will produce a citable ID. A future module pass hitting the same
+pattern — a Depends-On entry that resolves, on inspection, to nothing
+citable in a specific narrow scope — is not a defect requiring a `[TBD]`
+placeholder or a blocked task; per `A1-AGENTS.md` §5, `[TBD]` is never an
+acceptable substitute for a real ID when a dependency genuinely exists, but
+this precedent confirms the reverse case is equally valid: correctly
+concluding, after checking, that no dependency exists to cite in a given
+task's Prerequisites field.
+
 ---
 
 ## 5. Special Tags
@@ -374,20 +402,33 @@ is nothing to estimate here; see `A1-AGENTS.md` §2 for their deferred scope.
 | DOCS   | 14–22 tasks     | The largest Phase 1 module by named capability count: the document core schema, the document-type catalog and numbering-series seed data, the OCR service wrapper, and procedure/schema catalogs for every Phase 1 document type §13 names (SP Resolution, SP Ordinance, Appropriation Ordinance, Certification of Urgency, Transmittal Letter, Citizen Complaint, Document Request Form). |
 | WF     | 16–24 tasks     | The most logic-dense module per §13's Phase 1 list: the engine itself, three full workflow definitions each with standard + Certified Urgent paths, the multi-committee all-signatures rule, Thursday-cutoff/Second-Reading delay logic, and the 10-day Mayor lapse timer. |
 | TRACK  | 6–10 tasks      | Bounded to QR assignment at logging, routing-history recording, and scan-to-lookup — the three sub-capabilities §13 names under "DTS." |
-| REC    | 3–5 tasks `[Resolved — 2026-06-22]` | **Revised down from v1's 2–8 range** now that the Phase 1 scope question is settled (Section 3 above): schema-reservation only. Estimated unit of work: (1) `[MIGRATION]` create the `records` schema with placeholder `records` and `retention_schedules` tables; (2) `[MIGRATION]` add the `retention_schedule_id` reservation column to the relevant `documents`-schema table per H2; (3) baseline RLS policy stub(s) for the two new placeholder tables per the C3 convention that every table gets one even before a feature is wired to it; possibly (4) a verification task confirming the reservation does not interfere with `DOCS` Phase 1 (migration applies cleanly; `documents` Phase 1 writes succeed with the new column left null). No CRUD, no retention-policy enforcement — those are Phase 2. |
+| REC    | 2 tasks `[Resolved — 2026-07-20]` (supersedes prior estimate below) | **Confirmed by direct execution of the REC Step 2 module pass** (`a1-tasks/rec.md`): TASK-REC-001 (`[MIGRATION]` create the `records` schema with the `retention_schedules` table only — `records`, `classification_rules`, `archive_entries`, and `dispositions` tables are explicitly NOT created; see `rec.md` Module Summary) and TASK-REC-002 (idempotent seed script for the two Phase 1 retention categories). Sub-items (2) and (3) of the original 3–5 estimate below did not materialize into tasks — see the `[Superseded — 2026-07-20]` note immediately below for why. No CRUD, no retention-policy enforcement — those remain Phase 2. |
+
+`[Superseded — 2026-07-20]` **Original v2 estimate (3–5 tasks), kept for audit trail, not deleted:** "Revised down from v1's 2–8 range now that the Phase 1 scope question is settled (Section 3 above): schema-reservation only. Estimated unit of work: (1) `[MIGRATION]` create the `records` schema with placeholder `records` and `retention_schedules` tables; (2) `[MIGRATION]` add the `retention_schedule_id` reservation column to the relevant `documents`-schema table per H2; (3) baseline RLS policy stub(s) for the two new placeholder tables per the C3 convention that every table gets one even before a feature is wired to it; possibly (4) a verification task confirming the reservation does not interfere with `DOCS` Phase 1 (migration applies cleanly; `documents` Phase 1 writes succeed with the new column left null)."
+
+**Why sub-items (2) and (3) are superseded, per `rec.md`'s "Document Conflicts Resolved at Generation Time" table (rows 3 and 4), confirmed by direct reading of C1 during the REC Step 2 pass:**
+- **Sub-item (2) — ALTER TABLE for `retention_schedule_id` — does not apply.** This skeleton's v2 pass did not read C1 directly (its Step 1 reading list was only `document-list.md`, `tech-stack.md`, and consolidated ref §10.2/§13 — see the header above). C1 Part 5 shows `retention_schedule_id` is already defined inline in the `documents.document_types` / `documents.documents` `CREATE TABLE` statements — H2's reservation was implemented by DOCS (Wave D, TASK-DOCS-001), not left for REC to add. No ALTER TABLE task exists in `rec.md`.
+- **Sub-item (3) — baseline RLS policy stub "per the C3 convention" — does not apply.** No such blanket convention exists in the documents actually loaded: C1 Part 12 (Roles, Grants, and Row-Level Security) defines RLS policies only for `documents.documents` and `iam.sessions` — no policy is specified for any `records` table. (`rec.md` notes this matches the same finding TASK-TRACK-001 independently made for the tracking schema.) No RLS task exists in `rec.md`.
+- Sub-item (1) (schema/table creation) and the "possibly (4)" verification task are not separately superseded — (1) matches TASK-REC-001 as actually written (with the table list itself narrowed, per Module Summary), and (4) was never firmly committed to begin with ("possibly").
 | NOTIF  | 10–14 tasks     | In-app/SSE channel only (email is named as a Phase 2 addition in §13) across the eight named Phase 1 priority events, each needing trilingual template content. |
 | PORTAL | 8–12 tasks      | Deliberately the smallest scope: only the four no-auth public capabilities §13 frames as the "Phase 1 subset" (status lookup, published-documents listing, citizen complaint submission, document request submission). |
 
 **Aggregate, heavily caveated:** summing the ranges above (with `UI` now a
-confirmed 19 rather than a 17–19 range) gives a rough span of **112–162 Phase
-1 tasks** (revised from v1's 109–165, then v2's 110–162; `REC`'s range changed
-from 2–8 down to 3–5, and `UI`'s range collapsed to a single resolved number,
-raising the floor by 2). This is a `[Inference]` built on ten independent
-`[Inference]` estimates plus one resolved count — still a compounding figure
-for the ten unresolved modules, not a sourced number for the total. It is
-included only as an order-of-magnitude pointer for planning purposes and
-should not be treated as more reliable than its weakest remaining input —
-which, with `UI` now resolved, is whichever of the other ten ranges turns out
+confirmed 19 rather than a 17–19 range, and `REC` now a confirmed 2 rather
+than a 3–5 range) gives a rough span of **111–159 Phase 1 tasks** `[Resolved
+— 2026-07-20]` (revised from v1's 109–165, then v2's 110–162, then v2's
+112–162 once `REC`'s range first moved from 2–8 to 3–5; `REC`'s count is now
+resolved to a fixed 2 rather than an estimated range, following direct
+execution of the REC Step 2 pass — see the `REC` row above — which lowers
+both the floor by 1 and the ceiling by 3 relative to the 112–162 figure).
+`[Superseded — 2026-07-20]`, kept for audit trail: the prior aggregate of
+**112–162** is no longer accurate now that `REC` is a resolved count rather
+than a range. This is a `[Inference]` built on nine independent `[Inference]`
+estimates plus two resolved counts — still a compounding figure for the nine
+unresolved modules, not a sourced number for the total. It is included only
+as an order-of-magnitude pointer for planning purposes and should not be
+treated as more reliable than its weakest remaining input — which, with `UI`
+and `REC` now both resolved, is whichever of the other nine ranges turns out
 to be least accurate once that module's own Step 2 pass runs.
 
 ---
@@ -414,3 +455,36 @@ resolved the following day when the `UI` Step 2 module pass actually ran.
 (Items 3 and 4 are sub-decisions of item 2, not separate v1 flags — listed
 separately here because they were resolved as distinct questions during the
 Q&A.)
+
+---
+
+## Changelog — REC Step 2 pass reconciliation (2026-07-20)
+
+Separate from the v1→v2 table above: this update applies findings from the
+**REC Step 2 module pass** (`a1-tasks/rec.md`, "Document Conflicts Resolved
+at Generation Time" table), run after v2 of this skeleton was written. Three
+of that table's six rows are mechanical corrections to speculative content
+in this document with a single defensible resolution; they are applied here.
+The other three rows (row 1 — Records module application-layer Phase
+assignment across E1 vs. B2/I1/consolidated-ref; row 2 — `documents.
+retention_schedule_id` NOT NULL sequencing, resolved by inspecting `docs.md`
+rather than this document; row 6 — non-blocking schema file path naming
+observation) are **not** applied by this update — row 1 and row 2 involve a
+real design choice outside this document's scope and are held pending
+explicit project-owner resolution; row 6 is noted separately as factually
+inconsistent with the current repository state and is not applied as
+written (see accompanying findings, not part of this document).
+
+| # | rec.md row | Item | Resolution | Where in this document |
+|---|---|---|---|---|
+| 1 | 3 | Speculative REC sub-task: `[MIGRATION]` add `retention_schedule_id` column | Column already exists — created by DOCS (C1 Part 5; TASK-DOCS-001). No ALTER TABLE task exists. Original speculative text marked `[Superseded — 2026-07-20]`, kept, not deleted. | §6 (REC row) |
+| 2 | 4 | Speculative REC sub-task: baseline RLS policy stub "per the C3 convention" | No such convention exists in the documents actually loaded — C1 Part 12 defines RLS only for `documents.documents` and `iam.sessions`, none for any `records` table (same finding TASK-TRACK-001 made independently for its own schema). No RLS task exists. Original speculative text marked `[Superseded — 2026-07-20]`, kept, not deleted. | §6 (REC row) |
+| 3 | 5 | Whether REC Phase 1 tasks need a TASK-WF-NNN / TASK-TRACK-NNN Prerequisites citation, per the Depends On entry in §2 | Both lists loaded and checked as instructed; neither contained a citable ID for REC's actual narrow scope (`track.md`: zero "retention" mentions; `wf.md`: one, itself deferred to Phase 2). Documented as a new precedent, not a correction of prior wrong content — no earlier text in this document claimed a specific ID would exist to cite. | §4 (new paragraph, end of section) |
+
+REC's task count also changes as a direct consequence of rows 1–2 above:
+§6's REC row moves from an estimated 3–5 range to a confirmed 2 (TASK-REC-001,
+TASK-REC-002), and the Aggregate paragraph at the end of §6 is recomputed
+from 112–162 to 111–159 accordingly. Both changes are marked `[Resolved —
+2026-07-20]` / `[Superseded — 2026-07-20]` in place at §6, not listed as a
+separate row here since they follow mechanically from rows 1–2 rather than
+being independent rec.md findings.
