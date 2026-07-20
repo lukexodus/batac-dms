@@ -1031,37 +1031,6 @@ AI Prompt:
 ### Confirmed Spec Gaps
 
 ```
-[SPEC GAP: Certification of Urgency bypass notifications. Four workflow domain
-events exist with fully-specified payloads — workflow.certification_urgency.
-bypass_applied (B3 §7.23), .bypass_deferred (§7.24), .already_past_referral
-(§7.25), .already_inactive (§7.26), all emitted by TASK-WF-009 — but B3's
-Master Event Registry (§8, rows 36–39) lists only `audit` as a consumer for
-every one of them, independently corroborated by B2 Module 7's own Events
-Consumed table (which does not mention any of these four events at all). H4
-does not catalog a notification for this trigger anywhere in its 9 events.
-Certified Urgent is described as a "frequent" major Phase 1 feature
-(consolidated ref Part 11.3) that causes a measure to skip committee referral
-entirely — a stakeholder-relevant procedural deviation with no confirmed
-notification recipient, template, or even a confirmed decision that a
-notification (versus a passive UI indicator) is the right solution. Not
-resolved here — no task was generated for it.]
-
-[SPEC GAP: Thursday-cutoff / missing-committee-report notification.
-workflow.multi_referral.cutoff_missed (B3 §7.18) has a fully-specified
-payload (stepInstanceId, cutoffTimestamp, missingCommitteeIds, cutoffNumber)
-emitted by TASK-WF-011, but B3's Master Event Registry (§8, row 31) lists
-only `audit` as a consumer, again independently corroborated by B2's silence
-on this event in its Notifications Events Consumed table. The consolidated
-reference confirms the underlying business requirement is real (Parts 4.18,
-7.2, 11.3: missing committee reports are "marked red in the Order of
-Business") but frames it as a derived dashboard indicator, not necessarily
-a push notification — document-list.md's early planning brief (line 293)
-listed "committee report missing (red-flag)" as an intended notification
-event, but no source document confirms whether an active notification (vs.
-the existing red-flag UI treatment, which TASK-WF-023's Order-of-Business
-query already handles) is actually required. Not resolved here — no task
-was generated for it.]
-
 [SPEC GAP: Notification template CRUD / administrator-management procedures.
 H4 states repeatedly and unambiguously that templates are "administrator-
 configurable... through the admin configuration interface" (§5, §8.1) with
@@ -1093,6 +1062,10 @@ locale-column extension without a source document specifying one.]
 **Session Security's B3 registration gap (H4 §8.3) is a known, already-actionable item, not a newly-discovered one** — it is addressed directly by TASK-NOTIF-011, which includes the required companion B3 edit in its own Acceptance Criteria, per H4's explicit instruction that the fix ships in the same PR as the feature. It is listed here for completeness, not as an unresolved gap: **[RESOLVED — addressed by TASK-NOTIF-011, not left as a gap]**.
 
 **Complaint Respondent routing (H4 §8.4, B2 Module 7) is fully resolved, not a gap** — ADR-B2-4 settles the routing question definitively (`Notifications.sendNotification()`, not direct SMTP, not a domain event). TASK-NOTIF-010 implements it as specified. The one item ADR-B2-4 leaves genuinely open — whether a future `complaint.respondent_notice.issued`-style domain event ever gets added to the bus — belongs to whichever future module implements the complaint workflow, not to NOTIF.
+
+**Certification of Urgency bypass notification — decided, no notification built (human decision, not a document-derived resolution)** — a human has decided that no dedicated notification will be built for any of the four CU-bypass events (`.bypass_applied`, `.bypass_deferred`, `.already_past_referral`, `.already_inactive`) in Phase 1. Rationale on record: every one of these events already has a confirmed `audit` consumer (B3 §8, rows 36–39) — the bypass is fully and immediately auditable regardless of this decision. Investigation did not find any source document positively stating a notification was intended here; the only suggestive evidence is a contrast in the consolidated reference (§11.3), which explicitly states the comparable Mayor's 10-day lapse event "notifies SP Secretary" but uses no equivalent phrase for CU bypass, one paragraph later. This contrast is suggestive, not dispositive — no document affirmatively rules a notification out either. **This closure rests primarily on the human decision, not on documentary proof that no notification was ever intended.** If Certified Urgent's actual Phase 1 usage reveals stakeholders need an active alert rather than relying on the audit trail, this should be revisited as a Phase 1B or Phase 2 addition, not treated as permanently settled. H4 §9's decision table (row 4) has been updated to reflect this closure — see that document. **[RESOLVED — no notification built, per human decision; see rationale above]**
+
+**Thursday-cutoff / missing-committee-report notification — decided, no notification built (human decision, with strong document support)** — a human has decided that no dedicated notification will be built for `workflow.multi_referral.cutoff_missed` in Phase 1. This decision has stronger direct document support than the CU-bypass closure above: D3 (State Machine Diagrams) §3.4 states explicitly and with a `[CONFIRMED]` label, citing B4 §6.2, that "`multi_referral` red-flag is not a state transition" — meaning the project's own authoritative state-machine reference already treats the missed-cutoff situation as a display/query-layer concern, not an event requiring its own downstream side effect. B4 §6.2's own job algorithm describes the effect of a missed cutoff entirely in terms of Order-of-Business exclusion, and the consolidated reference §4.18 independently frames the same mechanism as a "visual indicator" on a "derived view." Every one of these was read directly, not inferred from a citation. As with the CU-bypass closure, `cutoff_missed` retains its confirmed `audit` consumer (B3 §8, row 31) regardless of this decision. H4 §9's decision table (row 5) has been updated to reflect this closure — see that document. **[RESOLVED — no notification built, per human decision; existing Order-of-Business red-flag UI and audit trail are the intended stakeholder-facing signal]**
 
 ---
 
