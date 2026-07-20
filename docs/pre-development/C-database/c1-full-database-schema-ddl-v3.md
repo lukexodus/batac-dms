@@ -1846,6 +1846,14 @@ CREATE TABLE notifications.templates (
     city_id          UUID        NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,
     name             TEXT        NOT NULL,
     channel          TEXT        NOT NULL CHECK (channel IN ('in_app','email','sms')),
+    -- locale: added to support trilingual template content (Filipino, English, Ilocano
+    -- per tech-stack.md's i18n row). Joins the unique constraint below as a fourth
+    -- dimension, so the same (city_id, name, channel) combination can exist once per
+    -- locale as separate rows, rather than one row holding all three languages.
+    -- NOT NULL with no default: every template row must explicitly declare its locale;
+    -- there is no "locale-agnostic" template. Value format (e.g. 'en'/'fil'/'ilo' vs.
+    -- full names) is left to whoever implements this column — not specified here.
+    locale           TEXT        NOT NULL,
     subject_template TEXT        NULL,
     body_template    TEXT        NOT NULL,
     is_active        BOOLEAN     NOT NULL DEFAULT true,
@@ -1855,7 +1863,7 @@ CREATE TABLE notifications.templates (
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at       TIMESTAMPTZ NULL,
     deleted_by       UUID        NULL,
-    CONSTRAINT uq_templates_city_name_channel UNIQUE (city_id, name, channel)
+    CONSTRAINT uq_templates_city_name_channel_locale UNIQUE (city_id, name, channel, locale)
 );
 
 CREATE TRIGGER trg_templates_set_updated_at

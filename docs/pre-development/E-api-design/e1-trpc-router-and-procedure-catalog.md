@@ -1326,6 +1326,61 @@ This is the largest router. It is organized into five sub-sections: general docu
 | ABAC conditions | None beyond role gate. |
 | Business operation | Reads `notifications.delivery_log` in full — this is the only procedure in the Notifications router with cross-recipient visibility. `[Confirmed — I2 Section 11 "View delivery logs (all notifications)", ✅ only Sys Admin and Plat Admin]` |
 
+### `notifications.createTemplate`
+
+| | |
+|---|---|
+| Type | `mutation` |
+| Input | `z.object({ name: z.string().min(1), channel: z.enum(['in_app','email','sms']), locale: z.string().min(1), subjectTemplate: z.string().min(1).nullish(), bodyTemplate: z.string().min(1) })` |
+| Output | `z.object({ templateId: z.string().uuid() })` |
+| Callable by | `plat_admin` only |
+| ABAC conditions | `subject.is_pa = true` |
+| Business operation | Inserts `notifications.templates`. `cityId` is not caller-supplied — defaults per the DDL's own default value, matching how no other admin-CRUD procedure in this router accepts `cityId` as input. `isActive` is not caller-supplied either — every template is created live (`is_active = true`, the DDL default); there is no draft-creation path. Rejects with `CONFLICT` on the `uq_templates_city_name_channel_locale` unique constraint (C1 Part 9) if a row with the same `city_id`/`name`/`channel`/`locale` already exists and is not soft-deleted. |
+
+### `notifications.updateTemplate`
+
+| | |
+|---|---|
+| Type | `mutation` |
+| Input | `z.object({ templateId: z.string().uuid() }).merge(createTemplateInput.partial())` — same merge-partial shape as `organization.updateOffice` |
+| Output | `z.object({ templateId: z.string().uuid(), name: z.string(), channel: z.enum(['in_app','email','sms']), locale: z.string() })` |
+| Callable by | `plat_admin` only |
+| ABAC conditions | `subject.is_pa = true` |
+| Business operation | Updates any subset of `name`, `channel`, `locale`, `subjectTemplate`, `bodyTemplate` on the target row. All fields are mutable — no field is restricted from post-creation editing, consistent with every comparable procedure in Modules 1–2, none of which walls off a subset of create-time fields from later editing. |
+
+### `notifications.deactivateTemplate` / `notifications.reactivateTemplate`
+
+| | |
+|---|---|
+| Type | `mutation` |
+| Input | `z.object({ templateId: z.string().uuid() })` |
+| Output | `z.object({ success: z.literal(true), isActive: z.boolean() })` |
+| Callable by | `plat_admin` only |
+| ABAC conditions | `subject.is_pa = true` |
+| Business operation | Sets `is_active` to `false`/`true`. Reversible; does not touch `deleted_at`/`deleted_by`. Directly mirrors `iam.deactivateUserAccount`/`reactivateUserAccount`'s exact shape — same input, same paired-procedure structure, same "toggle a status field, don't touch the soft-delete columns" behavior. This is a distinct lifecycle action from `deleteTemplate` below — the table has two separate columns for two separate concepts (temporarily hidden from use vs. permanently removed), and both actions exist because both columns exist. |
+
+### `notifications.deleteTemplate`
+
+| | |
+|---|---|
+| Type | `mutation` |
+| Input | `z.object({ templateId: z.string().uuid() })` |
+| Output | `z.object({ success: z.literal(true) })` |
+| Callable by | `plat_admin` only |
+| ABAC conditions | `subject.is_pa = true` |
+| Business operation | Sets `deleted_at`/`deleted_by`, per Invariant #2 (I1 §15) — no hard delete permitted, system-wide, no exceptions. **In the same operation, `name` is rewritten** to append a suffix (timestamp or UUID — implementer's choice of exact format, not specified here) so that the original `(city_id, name, channel, locale)` combination is immediately free for reuse by a new `createTemplate` call, rather than remaining permanently blocked by the deleted row's continued presence in the unique index. This is a deliberate design choice, not a side effect to avoid — the rename exists specifically to free the constraint slot. |
+
+### `notifications.listTemplates`
+
+| | |
+|---|---|
+| Type | `query` |
+| Input | `paginationInput.extend({ channel: z.enum(['in_app','email','sms']).optional(), locale: z.string().optional(), includeInactive: z.boolean().default(false) })` |
+| Output | `z.object({ items: z.array(z.object({ templateId: z.string().uuid(), name: z.string(), channel: z.enum(['in_app','email','sms']), locale: z.string(), isActive: z.boolean(), updatedAt: z.coerce.date() })), nextCursor: z.string().nullable() })` |
+| Callable by | `plat_admin` only |
+| ABAC conditions | `subject.is_pa = true` |
+| Business operation | Reads `notifications.templates WHERE deleted_at IS NULL`, filtered by `channel` and/or `locale` if supplied, excluding `is_active = false` rows unless `includeInactive` is set. Cursor-paginated per `paginationInput`, consistent with every other `list*` procedure in this router, even though the actual row count for this table is expected to be small (roughly one row per H4-catalogued event × channel × locale). |
+
 ---
 
 # Module 9 — Audit Router (`auditRouter`)

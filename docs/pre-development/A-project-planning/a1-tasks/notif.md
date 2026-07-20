@@ -1030,34 +1030,11 @@ AI Prompt:
 
 ### Confirmed Spec Gaps
 
-```
-[SPEC GAP: Notification template CRUD / administrator-management procedures.
-H4 states repeatedly and unambiguously that templates are "administrator-
-configurable... through the admin configuration interface" (§5, §8.1) with
-"no developer involvement required to create, edit, or activate them." The
-underlying schema (notifications.templates) exists in C1 Part 9. E1's own
-"What Is Out of Scope" note states that admin configuration procedures ARE
-in scope precisely when "the underlying schema is confirmed in C1" — yet
-E1 Module 8 (Notifications Router) defines only 4 procedures (listMine,
-markAsRead, preferences, listDeliveryLogs), none of which allow creating,
-editing, or listing templates. Without such a procedure, no Platform
-Administrator can actually manage templates as H4 requires. Not resolved
-here — TASK-NOTIF-012 explicitly does not add an invented procedure shape
-for this, per A1-AGENTS.md §8's instruction not to fill spec gaps with
-invented content.]
+No `[SPEC GAP: ...]` items remain open in this module summary as of this note. All four originally-identified gaps are closed — two by a human decision that no notification is needed (see the CU-bypass and cutoff-missed notes below), two by adding the previously-missing procedures and schema support (see the template-CRUD and trilingual notes immediately following).
 
-[SPEC GAP: Trilingual template content has no schema support. tech-stack.md
-confirms a platform-wide requirement: "i18n | i18next + react-i18next |
-Filipino, English, Ilocano" — and H4 explicitly lists tech-stack.md as one
-of its five source documents. Yet H4 makes no mention of localization
-anywhere in its full 772 lines, and C1 Part 9's notifications.templates DDL
-has no locale/language discriminator column (only the existing UNIQUE
-(city_id, name, channel) constraint, with no fourth dimension for language).
-As currently specified, the schema cannot represent "the same template_key,
-in three languages" at all. Not resolved here — TASK-NOTIF-005 seeds single-
-language (English) starter content only, and does not attempt to design a
-locale-column extension without a source document specifying one.]
-```
+**Notification template CRUD / administrator-management procedures — resolved, procedures added** — five procedures added to E1 Module 8: `createTemplate`, `updateTemplate`, `deactivateTemplate`/`reactivateTemplate`, `deleteTemplate`, `listTemplates`. All use `subject.is_pa = true` as their sole ABAC condition, matching every comparable admin-config-CRUD procedure elsewhere in E1 (`iam.assignRole`, `organization.createOffice`, etc.). Deletion is soft (`deleted_at`/`deleted_by`, per Invariant #2) with an accompanying rename of `name` to free the unique-constraint slot for reuse; deactivation is a separate, reversible `is_active` toggle — both exist as distinct actions because the underlying table has two separate columns for two separate lifecycle concepts. **[RESOLVED — procedures specified in E1 Module 8]**
+
+**Trilingual template content has no schema support — resolved, schema extended** — `notifications.templates` (C1 Part 9) gains a `locale TEXT NOT NULL` column, and the existing unique constraint is extended from `(city_id, name, channel)` to `(city_id, name, channel, locale)`, renamed accordingly to `uq_templates_city_name_channel_locale`. This is a genuinely new pattern in this schema — no other table in C1, and no section of H2, has an existing locale/language column to be consistent with; this is the first. **English-only content only, per explicit instruction** — this resolves the schema's *capacity* to hold trilingual content as separate rows, not the actual population of Filipino/Ilocano rows, which remains out of scope. **One item remains genuinely unresolved and is not addressed by this schema change: nothing in E1, C1, or I1 specifies how a template's locale is selected at the moment a notification is triggered** (i.e., when `notification_events.template_id` needs to resolve to one of what may now be up to three same-`name`-same-`channel` rows). No user-locale field exists on `SubjectContext` (I1), no locale parameter exists on any workflow-triggering procedure, and no default-locale rule is stated anywhere in the read documents. This selection mechanism needs a separate decision before trilingual content can actually be dispatched correctly — until it exists, `listTemplates`/`createTemplate`/`updateTemplate` let an admin author content in three languages, but nothing in the specified system yet knows which one to send. **[PARTIALLY RESOLVED — schema and CRUD procedures specified; locale-selection-at-send-time mechanism remains an open gap, not addressed here]**
 
 **Session Security's B3 registration gap (H4 §8.3) is a known, already-actionable item, not a newly-discovered one** — it is addressed directly by TASK-NOTIF-011, which includes the required companion B3 edit in its own Acceptance Criteria, per H4's explicit instruction that the fix ships in the same PR as the feature. It is listed here for completeness, not as an unresolved gap: **[RESOLVED — addressed by TASK-NOTIF-011, not left as a gap]**.
 
