@@ -1,17 +1,8 @@
 import type { WorkflowRepository } from '../workflow.repository.js';
-import type { AppDb } from '../../../db.js';
-import type { IamPublicAPI } from '../../iam/iam.types.js';
-import { resolveNextStep } from './step-resolution.js';
+import { resolveNextStep, type StepResolutionDeps } from './step-resolution.js';
 
-export interface CertifiedUrgentBypassDeps {
-  db: AppDb;
+export interface CertifiedUrgentBypassDeps extends StepResolutionDeps {
   workflowRepository: WorkflowRepository;
-  // include other deps needed by resolveNextStep, they will be provided by the consumer wrapper
-  documentsService: any;
-  eventBus: any;
-  orgService: any;
-  delegationService: any;
-  iamService: IamPublicAPI;
 }
 
 interface CertificationUrgencyPayload {
