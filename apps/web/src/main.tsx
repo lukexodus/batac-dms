@@ -45,6 +45,7 @@ import { OrganizationPage } from './pages/organization/OrganizationPage';
 import { ActiveSessionsPage } from './pages/sysadmin/ActiveSessionsPage';
 import { PlatformAdminHomePage } from './pages/admin/PlatformAdminHomePage';
 import { SystemAdminHomePage } from './pages/sysadmin/SystemAdminHomePage';
+import { SystemLogsPage } from './pages/sysadmin/SystemLogsPage';
 import { UserAccountManagementPage } from './pages/sysadmin/UserAccountManagementPage';
 import { MayorDashboardPage } from './pages/workflow/MayorDashboardPage';
 import { MyAssignedStepsPage } from './pages/workflow/MyAssignedStepsPage';
@@ -128,6 +129,10 @@ const router = createBrowserRouter([
           {
             path: 'sysadmin',
             element: <SystemAdminHomePage />,
+          },
+          {
+            path: 'sysadmin/logs',
+            element: <SystemLogsPage />,
           },
           {
             path: 'sysadmin/sessions',

@@ -498,6 +498,92 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
           eventCount: lineCount,
         };
       }),
+
+    queryRuntimeLogs: protectedProcedure
+      .input(
+        z.object({
+          search: z.string().optional(),
+          level: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).optional(),
+          startTime: z.string().datetime({ offset: true }).optional(),
+          endTime: z.string().datetime({ offset: true }).optional(),
+          cursor: z.string().optional(),
+          limit: z.number().int().min(1).max(500).default(100),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        if (!ctx.auth.isItAdmin) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'System Admin access required',
+          });
+        }
+
+        const env = (ctx.req.server as any).auditEnv ?? (ctx.req.server as any).config;
+        const OPENOBSERVE_QUERY_URL = env.OPENOBSERVE_QUERY_URL;
+        const OPENOBSERVE_QUERY_USER = env.OPENOBSERVE_QUERY_USER;
+        const OPENOBSERVE_QUERY_PASSWORD = env.OPENOBSERVE_QUERY_PASSWORD;
+
+        const auth = Buffer.from(`${OPENOBSERVE_QUERY_USER}:${OPENOBSERVE_QUERY_PASSWORD}`).toString('base64');
+        let fromOffset = 0;
+        if (input.cursor) {
+          fromOffset = parseInt(input.cursor, 10) || 0;
+        }
+
+        const sqlParts = [];
+        if (input.search) {
+          const s = input.search.replace(/'/g, "''");
+          sqlParts.push(`(msg ILIKE '%${s}%' OR message ILIKE '%${s}%')`);
+        }
+        if (input.level) {
+          sqlParts.push(`level = '${input.level}'`);
+        }
+        const whereClause = sqlParts.length > 0 ? `WHERE ${sqlParts.join(' AND ')}` : '';
+        const sql = `SELECT * FROM default ${whereClause} ORDER BY _timestamp DESC`;
+
+        const startTimeEpoch = input.startTime ? Math.floor(new Date(input.startTime).getTime() * 1000) : 0;
+        const endTimeEpoch = input.endTime ? Math.floor(new Date(input.endTime).getTime() * 1000) : Math.floor(Date.now() * 1000);
+
+        try {
+          const res = await fetch(`${OPENOBSERVE_QUERY_URL}/_search`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Basic ${auth}`,
+            },
+            body: JSON.stringify({
+              query: {
+                sql,
+                start_time: startTimeEpoch,
+                end_time: endTimeEpoch,
+                from: fromOffset,
+                size: input.limit,
+              }
+            })
+          });
+
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+
+          const data = (await res.json()) as any;
+          const hits = data.hits || [];
+          
+          let nextCursor = null;
+          if (hits.length === input.limit) {
+            nextCursor = (fromOffset + input.limit).toString();
+          }
+
+          return {
+            items: hits,
+            nextCursor,
+          };
+        } catch (err: any) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to query system logs from the telemetry backend.',
+          });
+        }
+      }),
   });
 }
 

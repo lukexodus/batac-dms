@@ -165,6 +165,11 @@ export const serverEnvSchema = z
       .string()
       .default('Authorization=Basic YWRtaW5AYmF0YWMuZ292LnBoOkNvbXBsZXhQYXNzd29yZDEyMyE='),
 
+    // ─── OpenObserve Query API ───
+    OPENOBSERVE_QUERY_URL: z.string().url(),
+    OPENOBSERVE_QUERY_USER: z.string().min(1),
+    OPENOBSERVE_QUERY_PASSWORD: z.string().min(1),
+
     // ─── Sentry ───────────────────────────────────────────────────────────
     SENTRY_DSN: z.string().url().optional(),
     SENTRY_ENVIRONMENT: z.string().optional(),

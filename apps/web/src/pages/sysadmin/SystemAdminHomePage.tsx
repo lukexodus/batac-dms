@@ -42,6 +42,12 @@ const NAV_ITEMS = [
     href: '/sysadmin/users',
     icon: '👤',
   },
+  {
+    label: 'System Logs',
+    description: 'Query and view live system runtime logs from the OpenObserve backend.',
+    href: '/sysadmin/logs',
+    icon: '📋',
+  },
 ] as const;
 
 export function SystemAdminHomePage() {
