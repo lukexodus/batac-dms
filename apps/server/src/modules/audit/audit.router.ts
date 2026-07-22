@@ -5,6 +5,7 @@ import { auditEvents } from '@batac/database/schema/audit.schema.js';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
 import { computeChainHash, canonicalizePayload, verifyHmac, GENESIS_HASH } from './audit.crypto.js';
 import type { AuditPublicAPI, AuditQueryResult, AuditEvent } from './index.js';
+import { env } from '../../config/env.js';
 
 // ─── Shared role sets (I1 §8 / I2 §15) ───────────────────────────────────────
 
@@ -518,7 +519,6 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
           });
         }
 
-        const env = (ctx.req.server as any).auditEnv ?? (ctx.req.server as any).config;
         const OPENOBSERVE_QUERY_URL = env.OPENOBSERVE_QUERY_URL;
         const OPENOBSERVE_QUERY_USER = env.OPENOBSERVE_QUERY_USER;
         const OPENOBSERVE_QUERY_PASSWORD = env.OPENOBSERVE_QUERY_PASSWORD;
@@ -531,7 +531,15 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
 
         const sqlParts = [];
         if (input.search) {
-          const s = input.search.replace(/'/g, "''");
+          // Defense-in-depth: OpenObserve _search API does not natively support Postgres-style 
+          // parameterized query arguments ($1). We strip SQL comment boundaries and statement 
+          // terminators alongside single-quote escaping to prevent injection.
+          const s = input.search
+            .replace(/'/g, "''")
+            .replace(/--/g, "")
+            .replace(/\/\*/g, "")
+            .replace(/\*\//g, "")
+            .replace(/;/g, "");
           sqlParts.push(`(msg ILIKE '%${s}%' OR message ILIKE '%${s}%')`);
         }
         if (input.level) {

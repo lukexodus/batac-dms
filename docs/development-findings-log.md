@@ -3478,3 +3478,120 @@ Per the task's explicit instructions ("if none is found, flag this back as a gen
 
 [Inference]: The `batac_it_admin` connection mechanism was designed in documentation (C1 Part 2 / 01-create-roles.sh) but never implemented in the application layer. Implementing it requires adding a new database connection pool or session manager that invokes `SET ROLE batac_it_admin` upon acquisition.
 
+### [LOG-0133] Pre-existing broken `.auditEnv`/`.config` fallback at audit.router.ts line 361 (AUDIT_HMAC_SECRET resolution) — found adjacent to, but distinct from, the LOG-0132-family fix
+
+- date: 2026-07-22
+- task_id: none — discovered incidentally while fixing TASK-AUDIT-021/TASK-IAM-053's env-access bug
+- status: proposed
+- affects: apps/server/src/modules/audit/audit.router.ts, line ~361 (locate by the literal string `env?.AUDIT_HMAC_SECRET` rather than by line number)
+
+This line predates this fix and was not introduced by it.
+It uses the same broken (ctx.req.server as any).auditEnv / .config pattern that was corrected in this codebase's queryRuntimeLogs procedure (apps/server/src/modules/audit/audit.router.ts) and getEnvironmentConfigMatrix procedure (apps/server/src/modules/iam/iam.router.ts), both fixed by replacing the broken Fastify-decoration access pattern with a top-level `import { env } from '../../config/env.js';` import — but in a different, still-unfixed procedure.
+It has NOT been fixed as part of this pass. It is flagged for separate review because fixing it requires understanding what that procedure's AUDIT_HMAC_SECRET fallback is actually meant to accomplish (it may be genuinely dead/unreachable code if AUDIT_HMAC_SECRET is already guaranteed present via another path earlier in the same procedure — this needs to be checked, not assumed, before editing it).
+Do not mark this status as anything other than proposed.
+
+### [LOG-0134] LOG-0132 superseded: batac_it_admin is a NOLOGIN role by design — no direct connection string was ever possible
+
+- date: 2026-07-22
+- task_id: none — human decision given directly in conversation during a planning-layer review
+- status: proposed
+- affects: TASK-AUDIT-022 (Database Query Performance View) — clarifies, does not change, LOG-0132's blocking conclusion
+- supersedes: LOG-0132
+
+LOG-0132 correctly concluded no batac_it_admin connection path exists and correctly did not implement one — that conclusion is NOT reversed by this entry.
+This entry adds a fact LOG-0132 omitted: tools/db/init/01-create-roles.sh line 15 states batac_it_admin is a NOLOGIN service role. NOLOGIN roles cannot authenticate a direct database connection under any circumstances -- this is a PostgreSQL server-enforced restriction, not an application-layer gap.
+Practical implication for any future work on this: a DATABASE_URL_IT_ADMIN-style env var would never have worked, by design, and should not be the direction taken to unblock this task. The only mechanism by which the pg_monitor grant on batac_it_admin could ever be exercised is a session that first authenticates as a LOGIN-capable role (most plausibly batac_app, the role the server process already authenticates as) and then issues `SET ROLE batac_it_admin` to switch into the granted role for the duration of that query.
+This entry does not decide whether that SET ROLE mechanism should be built. That remains a separate design decision, deferred exactly as LOG-0132 already deferred it.
+
+---
+
+### [LOG-0135] main.tsx auth/ import block out of alphabetical order — observed, not fixed
+
+- date: 2026-07-22
+- task_id: none — observed incidentally while fixing PlatformAdminHomePage's position (LOG-0133-adjacent cleanup)
+- status: proposed
+- affects: apps/web/src/main.tsx, lines ~60–62 (confirm current line numbers before acting — they will have shifted since this entry was written, due to the PlatformAdminHomePage relocation logged as part of the same cleanup pass)
+
+**What was found:** While verifying the fix that repositioned
+`PlatformAdminHomePage` to its correct alphabetical position (top of
+the page-import block, since `admin/` sorts before `dev/`), a second,
+separate ordering problem was noticed just past that fix's boundary and
+deliberately left untouched: `import { RequireAuth } from
+'./components/RequireAuth';` and the two `./pages/auth/...` imports
+(`LoginPage`, `ResetPasswordPage`) that follow it currently sit after
+the entire `./pages/workflow/...` block, rather than in their
+alphabetically-correct position (`auth/` would sort before
+`documents/`, well above where they currently are). `RequireAuth`
+itself is a component import, not a page import, and doesn't obviously
+belong in this same alphabetized run at all — that's a separate
+question from where the two `auth/` page imports belong.
+
+**Why this was not fixed as part of the pass that found it:** the fix
+in progress at the time had an explicitly narrow, pre-agreed scope (one
+single import relocation) specifically to avoid silent scope expansion
+into pre-existing, unrelated disorder. This is now the second distinct
+ordering problem found in this same file by accident while fixing a
+different one — the first being the wider `documents/`-through-
+`workflow/` disorder that LOG-0133-adjacent work already corrected.
+That pattern (two separate import-ordering problems, discovered only
+incidentally, in the same file) is worth noting on its own, independent
+of whether this specific instance gets fixed soon.
+
+**What is NOT done by this entry:** No fix is applied. The two `auth/`
+page imports and the `RequireAuth` component import remain exactly
+where they currently sit. This entry does not decide whether
+`RequireAuth` belongs in the same alphabetized run as the page imports,
+or whether it should be treated as a separate category exempt from that
+convention — that determination, and any actual fix, is deferred to
+future work.
+
+---
+
+### [LOG-0136] OpenObserve query-API credentials in .env / .env.example are non-functional placeholders — deferred, not resolved
+
+- date: 2026-07-22
+- task_id: none — decision deferred directly in conversation during a planning-layer review, originally raised as part of the TASK-AUDIT-021 consolidated-fix pass
+- status: proposed
+- affects: apps/server/.env, .env.example (both files — confirm current state before acting, as neither has been modified since this entry was written)
+
+**What was found:** `OPENOBSERVE_QUERY_URL`, `OPENOBSERVE_QUERY_USER`,
+and `OPENOBSERVE_QUERY_PASSWORD` were added as required (non-optional)
+fields to `serverEnvSchema` as part of TASK-AUDIT-021 (System Runtime
+Log Viewer). Local startup validation failed until placeholder values
+were added to both `apps/server/.env` and `.env.example`:
+`OPENOBSERVE_QUERY_URL=http://localhost:5080/api/default`,
+`OPENOBSERVE_QUERY_USER=admin@example.com`,
+`OPENOBSERVE_QUERY_PASSWORD=dev_password_placeholder`. These values
+were deliberately chosen as non-functional placeholders rather than
+copying `compose.yml`'s actual local-dev OpenObserve root credentials
+(`ZO_ROOT_USER_EMAIL` / `ZO_ROOT_USER_PASSWORD`) into a second file.
+
+**Practical consequence:** the server now starts successfully (schema
+validation passes), but the System Runtime Log Viewer feature
+(`queryRuntimeLogs` procedure, `SystemLogsPage.tsx`) cannot actually
+authenticate against a local OpenObserve instance with these
+placeholder values — any query attempt will fail at the HTTP request
+level, not at startup. This is a distinct failure mode from the
+separate `.auditEnv`/`.config` access-pattern bug that was found and
+fixed earlier in this same feature's review (see LOG-0133); this entry
+concerns credential *values*, not code correctness.
+
+**Why this was not resolved:** two materially different valid paths
+exist, and choosing between them is a decision this entry does not
+make: (a) wire real local-dev OpenObserve credentials (matching
+compose.yml's actual root user) into `.env`/`.env.example` so the
+feature functions out of the box in local development, or (b) leave
+placeholders in place and instead add an explicit "not configured" /
+"connection unavailable" state to `SystemLogsPage.tsx`'s UI, so the
+feature fails visibly and informatively rather than with an opaque
+downstream HTTP error. Neither `.env` nor `.env.example` has been
+further modified since the placeholder values described above were
+added.
+
+**What is NOT done by this entry:** No credential values are changed.
+No UI error-state handling is added. This entry only records that the
+current state is a known, deliberate placeholder — not a forgotten
+detail — pending a decision between the two paths above.
+
+---
+

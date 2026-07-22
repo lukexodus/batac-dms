@@ -4,6 +4,7 @@ import { router, protectedProcedure, publicProcedure } from '../../trpc/trpc.js'
 import * as s from './iam.schemas.js';
 import { RoleCombinationForbiddenError } from './iam.errors.js';
 import type { IamService, IamRepository } from './iam.types.js';
+import { env } from '../../config/env.js';
 
 function getService(ctx: any): IamService {
   return ctx.req.server.iamService;
@@ -271,7 +272,7 @@ export const iamRouter = router({
       }
 
       const { serverEnvSchema } = await import('../../config/env.server.js');
-      const config = (ctx.req.server as any).config || {};
+      const config: Record<string, unknown> = env;
       
       const keys = Object.keys(serverEnvSchema.shape);
 
