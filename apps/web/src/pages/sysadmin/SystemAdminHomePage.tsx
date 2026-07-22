@@ -60,6 +60,12 @@ const NAV_ITEMS = [
     href: '/sysadmin/database-performance',
     icon: '🗄️',
   },
+  {
+    label: 'Security Audit Ledger',
+    description: 'Append-only log of system security events and activity.',
+    href: '/sysadmin/audit-ledger',
+    icon: '🔐',
+  },
 ] as const;
 
 export function SystemAdminHomePage() {

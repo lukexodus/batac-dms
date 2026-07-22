@@ -604,6 +604,72 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
           message: 'Blocking finding (LOG-0132): The required batac_it_admin-privileged connection path does not exist.',
         });
       }),
+    // ─── audit.listSecurityLedger ─────────────────────────────────────────────
+    // Note: This is a NEW procedure rather than an extension of listFullLog.
+    // Reason: listFullLog is strictly gated to the 'auditor' role (throwing
+    // FORBIDDEN otherwise), while this procedure requires the 'sys_admin' role.
+    // Merging them would require muddying the explicit role-separation boundaries
+    // established in I2 §15.
+    // Actor Display: Returned as raw actorId (UUID). This avoids an N+1 performance
+    // problem from the client to iam.getCurrentUser and adheres to the accepted
+    // initial scope fallback.
+    // -------------------------------------------------------------------------
+    listSecurityLedger: protectedProcedure
+      .input(
+        paginationInput.merge(dateRangeInput).extend({
+          actorId: z.string().uuid().optional(),
+          eventType: z.string().optional(),
+        })
+      )
+      .output(listOutput)
+      .query(async ({ ctx, input }) => {
+        if (!ctx.auth.isItAdmin) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'System Admin access required',
+          });
+        }
+
+        const service = auditService ?? ((ctx.req.server as any).auditService as AuditPublicAPI);
+        const result = await service.queryEvents(
+          omitUndefined({
+            actorId: input.actorId,
+            eventTypes: input.eventType ? [input.eventType] : undefined,
+            cityId: ctx.auth.cityId,
+            pageSize: input.pageSize,
+            cursor: input.cursor,
+            from: input.from,
+            to: input.to,
+          })
+        );
+
+        return {
+          items: mapToOutput(result.events),
+          nextCursor: result.nextCursor ?? null,
+        };
+      }),
+
+    getSecurityLedgerEventTypes: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.auth.isItAdmin) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'System Admin access required' });
+        }
+        const service = auditService ?? ((ctx.req.server as any).auditService as AuditPublicAPI);
+        
+        // Dynamically query distinct eventType values from the table.
+        // We bypass the AuditPublicAPI interface here to avoid modifying
+        // the core domain interfaces for a UI-specific dropdown requirement.
+        const db = service._internal.repo.db;
+        const { auditEvents } = await import('@batac/database/schema/audit.schema.js');
+        const { eq } = await import('drizzle-orm');
+        
+        const result = await db
+          .selectDistinct({ eventType: auditEvents.eventType })
+          .from(auditEvents)
+          .where(eq(auditEvents.cityId, ctx.auth.cityId));
+
+        return result.map((r: any) => r.eventType);
+      }),
   });
 }
 

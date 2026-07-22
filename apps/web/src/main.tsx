@@ -39,6 +39,8 @@ import { DocumentListPage } from './pages/documents/DocumentListPage';
 import { DocumentRequestDetailPage } from './pages/documents/DocumentRequestDetailPage';
 import { DocumentRequestIntakeClerkAssistedPage } from './pages/documents/DocumentRequestIntakeClerkAssistedPage';
 import { DocumentRequestsListPage } from './pages/documents/DocumentRequestsListPage';
+import { DatabasePerformancePage } from './pages/sysadmin/DatabasePerformancePage';
+import { SecurityAuditLedgerPage } from './pages/sysadmin/SecurityAuditLedgerPage';
 import { RoleAssignmentPage } from './pages/iam/RoleAssignmentPage';
 import { CommitteeManagementPage } from './pages/organization/CommitteeManagementPage';
 import { OrganizationPage } from './pages/organization/OrganizationPage';
@@ -134,6 +136,10 @@ const router = createBrowserRouter([
           {
             path: 'sysadmin/database-performance',
             element: <DatabasePerformancePage />,
+          },
+          {
+            path: 'sysadmin/audit-ledger',
+            element: <SecurityAuditLedgerPage />,
           },
           {
             path: 'sysadmin/environment',
