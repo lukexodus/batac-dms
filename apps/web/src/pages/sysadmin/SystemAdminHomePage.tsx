@@ -54,6 +54,12 @@ const NAV_ITEMS = [
     href: '/sysadmin/environment',
     icon: '⚙️',
   },
+  {
+    label: 'Database Performance',
+    description: 'Live snapshot of database activity and connection health.',
+    href: '/sysadmin/database-performance',
+    icon: '🗄️',
+  },
 ] as const;
 
 export function SystemAdminHomePage() {

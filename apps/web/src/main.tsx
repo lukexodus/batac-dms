@@ -132,6 +132,10 @@ const router = createBrowserRouter([
             element: <SystemAdminHomePage />,
           },
           {
+            path: 'sysadmin/database-performance',
+            element: <DatabasePerformancePage />,
+          },
+          {
             path: 'sysadmin/environment',
             element: <EnvironmentConfigPage />,
           },

@@ -3359,8 +3359,7 @@ No code change. The comment at `workflow.policy.ts` lines 194-195 was not correc
 
 - date: 2026-07-20
 - task_id: none — human decision given directly in conversation during a planning-layer review
-- status: proposed
-- affects: H1 (§4, lines 340–341), packages/database/src/seeds/workflow/phase1-legislative.ts (no change)
+- status: proposed- affects: H1 (§4, lines 340–341), packages/database/src/seeds/workflow/phase1-legislative.ts (no change)
 - refines: LOG-0123
 
 **Decision:** LOG-0123 left open which side of the `office_role:` (H1 §4) vs
@@ -3417,3 +3416,65 @@ open question LOG-0123 raised. H1 §5.2's own short-form assignee column
 (steps 1, 6, 10, 13, 14, 21) is unaffected by this — it already just says
 "secretariat_staff"/"sp_secretary" with no office annotation and needs no
 change.
+
+---
+
+### [LOG-0131] B1 resolved: CI/CD-pipeline-owned, not app-layer — supersedes the open state left by LOG-0130. B2 deferral finalized.
+
+- date: 2026-07-20
+- task_id: none — human decision given directly in conversation during a planning-layer review
+- status: proposed
+- affects: B1 and B2 use case scope (`docs/pre-development/D-uml-and-diagrams/d1-use-case-diagrams.md`, lines 391–441); no code or Group B–L document changed by this entry
+- supersedes: LOG-0130 (the "genuinely undecided, pending decision" state — now resolved)
+
+**Decision:** LOG-0130 left B1 ("Apply Database Migrations") in a
+genuinely open state pending explicit human input, per the tension between
+the Tier 1 architectural classification and the instruction to spec it as
+an in-app IT-Admin feature. That input has now been given: **B1 is to be
+implemented as a strict infrastructure-level CI/CD pipeline boundary, not
+an application-layer feature.** No `TASK-*` spec for an in-app
+migration-apply procedure will be written. This resolves LOG-0130's open
+question in favor of the position originally described in the earlier
+verification pass as "Ops-Owned, Out-of-App-Scope Functionality" (the same
+category already established for Group C and A3), rather than the
+in-app-with-flagged-tension path also considered.
+
+**B2 status, addressed in the same decision:** "Manage Database Users and
+Grants" **remains deferred outside the application boundary.** The
+rationale given matches the original deferral basis already on record:
+its infrastructure risk profile is the same class as Group C and D2's
+runbook-driven, credential-isolated model. This is a confirmation of the
+position already logged (see the B1/B2 verification pass predating
+LOG-0130), not a new deliberation — recorded here primarily so B1 and B2's
+final dispositions are dated and findable at the same log location,
+rather than one being confirmable only by cross-referencing an earlier,
+separate entry.
+
+**What this entry does NOT do:** does not write, and does not authorize
+writing, any `TASK-*` spec that exposes a migration-apply or grants-
+management action through the application's tRPC layer. Does not
+constitute a CI/CD pipeline design — "CI/CD-pipeline-owned" describes
+*where this responsibility lives architecturally* (matching A3's existing
+disposition), not a spec for how the pipeline should be built; that
+remains separate work, out of scope for this entry and for the Thread 3
+application-layer task list that follows. Does not edit
+`d1-use-case-diagrams.md` or the consolidated architecture reference —
+per AGENTS.md Section 4.5, only a human edits a Group B–L document
+directly, and no such authority was given here.
+
+---
+
+### [LOG-0132] batac_it_admin connection path does not exist for Database Query Performance View
+
+- date: 2026-07-22
+- task_id: TASK-AUDIT-022
+- status: proposed
+- affects: none (implementation gap)
+- resolved_in: none
+
+The TASK-AUDIT-022 AI Prompt requires querying `pg_stat_activity` using a `batac_it_admin`-privileged connection to enforce Invariant #10 role separation. However, a full codebase search confirmed that no such connection path currently exists in `apps/server/src/modules/iam` or anywhere else in the application. There are zero instances of `SET ROLE batac_it_admin` being invoked or acquired in the codebase.
+
+Per the task's explicit instructions ("if none is found, flag this back as a genuine gap rather than defaulting to DATABASE_URL_APP silently"), this was not silently defaulted to the `DATABASE_URL_APP` connection. The `getDatabasePerformanceSnapshot` procedure was scaffolded but returns a 501 NOT_IMPLEMENTED error reporting this blocking finding to the UI. The UI was built to gracefully render this explicit error state.
+
+[Inference]: The `batac_it_admin` connection mechanism was designed in documentation (C1 Part 2 / 01-create-roles.sh) but never implemented in the application layer. Implementing it requires adding a new database connection pool or session manager that invokes `SET ROLE batac_it_admin` upon acquisition.
+

@@ -92,6 +92,7 @@ BEGIN
   ELSE
     ALTER ROLE batac_it_admin WITH NOLOGIN;
   END IF;
+  GRANT pg_monitor TO batac_it_admin;
 
   -- ── batac_readonly: read-only monitoring/reporting ───────────────────────────
   -- NOLOGIN; no password. Connected to via SET ROLE after batac_app login.

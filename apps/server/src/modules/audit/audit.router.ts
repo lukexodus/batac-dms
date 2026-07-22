@@ -584,6 +584,26 @@ export function createAuditTrpcRouter(auditService?: AuditPublicAPI) {
           });
         }
       }),
+    getDatabasePerformanceSnapshot: protectedProcedure
+      .input(
+        z.object({
+          activeOnly: z.boolean().default(true).optional(),
+        }).optional()
+      )
+      .query(async ({ ctx }) => {
+        if (!ctx.auth.isItAdmin) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'System Admin access required',
+          });
+        }
+
+        // [LOG-0132] Finding: There is no batac_it_admin-scoped connection path available.
+        throw new TRPCError({
+          code: 'NOT_IMPLEMENTED',
+          message: 'Blocking finding (LOG-0132): The required batac_it_admin-privileged connection path does not exist.',
+        });
+      }),
   });
 }
 
