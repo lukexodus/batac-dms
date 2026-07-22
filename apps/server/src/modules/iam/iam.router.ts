@@ -260,4 +260,73 @@ export const iamRouter = router({
         ...(idReference !== undefined && { idReference }),
       });
     }),
+
+  getEnvironmentConfigMatrix: protectedProcedure
+    .query(async ({ ctx }) => {
+      if (!ctx.auth.isItAdmin) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'System Admin access required',
+        });
+      }
+
+      const { serverEnvSchema } = await import('../../config/env.server.js');
+      const config = (ctx.req.server as any).config || {};
+      
+      const keys = Object.keys(serverEnvSchema.shape);
+
+      const MASK_THESE_KEYS_ENTIRELY = new Set([
+        "AUTH_JWT_ACCESS_SECRET",
+        "AUTH_JWT_REFRESH_SECRET",
+        "AUDIT_HMAC_SECRET",
+        "S3_ACCESS_KEY",
+        "S3_SECRET_KEY",
+        "S3_BACKUP_ACCESS_KEY",
+        "S3_BACKUP_SECRET_KEY",
+        "SMTP_PASSWORD",
+        "OCR_SERVICE_API_KEY",
+        "SEARCH_MEILISEARCH_MASTER_KEY",
+        "SMS_API_KEY",
+        "BACKUP_ENCRYPTION_KEY",
+        "OTEL_EXPORTER_OTLP_HEADERS",
+        "DATABASE_URL_APP",
+        "DATABASE_URL_AUDIT",
+        "DATABASE_URL_MIGRATE",
+        "S3_BACKUP_ENDPOINT"
+      ]);
+
+      const result = [];
+      for (const key of keys) {
+        const isSet = process.env[key] !== undefined;
+        let val = config[key];
+        
+        let stringVal: string | null = null;
+        if (val !== undefined && val !== null) {
+          if (Array.isArray(val)) {
+             stringVal = JSON.stringify(val);
+          } else {
+             stringVal = String(val);
+          }
+        }
+        
+        let isMasked = false;
+        if (stringVal !== null && MASK_THESE_KEYS_ENTIRELY.has(key)) {
+           isMasked = true;
+           if (stringVal.length < 8) {
+             stringVal = '••••••••';
+           } else {
+             stringVal = stringVal.substring(0, 4) + '••••••••' + stringVal.substring(stringVal.length - 2);
+           }
+        }
+        
+        result.push({
+          key,
+          isSet,
+          value: stringVal,
+          isMasked
+        });
+      }
+
+      return result;
+    }),
 });

@@ -44,6 +44,7 @@ import { CommitteeManagementPage } from './pages/organization/CommitteeManagemen
 import { OrganizationPage } from './pages/organization/OrganizationPage';
 import { ActiveSessionsPage } from './pages/sysadmin/ActiveSessionsPage';
 import { PlatformAdminHomePage } from './pages/admin/PlatformAdminHomePage';
+import { EnvironmentConfigPage } from './pages/sysadmin/EnvironmentConfigPage';
 import { SystemAdminHomePage } from './pages/sysadmin/SystemAdminHomePage';
 import { SystemLogsPage } from './pages/sysadmin/SystemLogsPage';
 import { UserAccountManagementPage } from './pages/sysadmin/UserAccountManagementPage';
@@ -129,6 +130,10 @@ const router = createBrowserRouter([
           {
             path: 'sysadmin',
             element: <SystemAdminHomePage />,
+          },
+          {
+            path: 'sysadmin/environment',
+            element: <EnvironmentConfigPage />,
           },
           {
             path: 'sysadmin/logs',

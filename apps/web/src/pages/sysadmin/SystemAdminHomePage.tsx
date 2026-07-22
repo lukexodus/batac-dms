@@ -48,6 +48,12 @@ const NAV_ITEMS = [
     href: '/sysadmin/logs',
     icon: '📋',
   },
+  {
+    label: 'Environment Config',
+    description: 'View runtime environment variable configuration matrix.',
+    href: '/sysadmin/environment',
+    icon: '⚙️',
+  },
 ] as const;
 
 export function SystemAdminHomePage() {
