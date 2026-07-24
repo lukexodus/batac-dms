@@ -138,7 +138,7 @@ const citizenComplaintBase = z.object({
     name: z.string().min(1),
     address: z.string().nullable(),
     contactNumber: z.string().nullable(),
-    email: z.string().email().nullable(),
+    email: z.email().nullable(),
     citizenUserId: UuidSchema.nullable(),
   }),
   subjectCategory: z.string(),
@@ -170,7 +170,7 @@ const documentRequestFormBase = z.object({
   requester: z.object({
     name: z.string().min(1),
     agencyOrOrganization: z.string().nullable(),
-    email: z.string().email().nullable(),
+    email: z.email().nullable(),
     contactNumber: z.string().nullable(),
     idTypePresented: z.string().nullable(),
     citizenUserId: UuidSchema.nullable(),
@@ -218,7 +218,7 @@ export type LetterReceivedMetadata = z.infer<typeof LetterReceivedMetadataSchema
 const letterSentBase = z.object({
   recipientName: z.string().min(1).max(256).trim(),
   recipientOfficeOrganization: z.string().max(256).optional(),
-  recipientEmail: z.string().email().optional(),
+  recipientEmail: z.email().optional(),
   dateSent: DateSchema,
   relatedDocumentId: UuidSchema.optional(),
   letterType: z.enum(['transmittal', 'invitation', 'forwarding', 'general']).default('general'),

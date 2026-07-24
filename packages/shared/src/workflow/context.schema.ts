@@ -12,18 +12,18 @@ import { z } from 'zod';
  */
 export const WorkflowContextSchema = z.object({
   // Set at instance creation
-  document_id: z.string().uuid().optional(),
+  document_id: z.uuid().optional(),
   document_type: z.enum(['sp_resolution', 'sp_ordinance', 'appropriation_ordinance']).optional(),
-  created_by: z.string().uuid().optional(), // encoder reference for invariant 11: encoder ≠ final approver
+  created_by: z.uuid().optional(), // encoder reference for invariant 11: encoder ≠ final approver
 
   // Written by documents module callbacks
   series_number_preliminary: z.string().nullable().optional(),
   series_number_final: z.string().nullable().optional(),
-  qr_tracking_id: z.string().uuid().nullable().optional(),
+  qr_tracking_id: z.uuid().nullable().optional(),
 
   // Certified Urgent (set by bypass handler)
   certified_urgent: z.boolean().optional().default(false),
-  certified_urgent_document_id: z.string().uuid().nullable().optional(),
+  certified_urgent_document_id: z.uuid().nullable().optional(),
 
   // Thursday cutoff scheduler output (ISO date string YYYY-MM-DD)
   second_reading_eligible_date: z.string().nullable().optional(),
@@ -54,7 +54,7 @@ export const WorkflowContextSchema = z.object({
   publication_newspaper: z.string().nullable().optional(),
 
   // VALID_IN_PART routing (referred committee chairperson ID)
-  referred_committee_chair_id: z.string().uuid().nullable().optional(),
+  referred_committee_chair_id: z.uuid().nullable().optional(),
 
   // SLA control (always false in Phase 1; reserved)
   sla_paused: z.literal(false).optional(),

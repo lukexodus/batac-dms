@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
 export const OfficeSummarySchema = z.object({
-  officeId: z.string().uuid(),
+  officeId: z.uuid(),
   name: z.string(),
-  parentOfficeId: z.string().uuid().nullable(),
+  parentOfficeId: z.uuid().nullable(),
   type: z.enum(['executive', 'legislative', 'department', 'barangay', 'external']),
 });
 

@@ -14233,3 +14233,1991 @@ Run `pnpm --filter server typecheck`. Report the full before/after error list. E
 **In scope:** exactly 16 one-line additions, each to a base `deps` object identified in Step 1, in `workflow.router.ts` only.
 
 **Not in scope:** `certified-urgent-bypass.handler.ts` (separate task, TASK-WF-008). The `bypassStep`, `cancelInstance`, or `migrateInstance` procedures in this same file (already correct or don't call the affected handlers — verify via Step 1's grep, which should not surface any of these three). Any other logic, field, or pattern in any of the 16 touched procedures beyond the single added line. If Step 1 surfaces anything inconsistent with this prompt's description, report it rather than resolve it unilaterally.
+
+---
+
+# TASK-AUDIT-021 — System Runtime Log Viewer
+
+````
+TASK-AUDIT-021: System Runtime Log Viewer
+
+═══════════════════════════════════════════
+CONTEXT (verified against current repo snapshot — do not re-derive, use as stated)
+═══════════════════════════════════════════
+This system already ships every Pino log line to OpenObserve via OTLP,
+unconditionally, regardless of LOG_DESTINATION. This is confirmed at
+apps/server/src/app.ts, lines 169-187, where a `pino-opentelemetry-transport`
+target is pushed into the `targets` array alongside whatever primary
+destination (stdout/stderr/file) is configured. This means OpenObserve
+already holds a full, queryable copy of every server log line — you do
+NOT need to build a new log-collection mechanism. You are building a
+read-only query interface against an existing, already-populated backend.
+
+OpenObserve connection facts (confirmed):
+- Ingest endpoint already configured: OTEL_EXPORTER_OTLP_ENDPOINT
+  (apps/server/src/config/env.server.ts, line 163), defaults to
+  http://localhost:5080/api/default
+- OpenObserve is deployed via compose.yml (lines 138-154), image
+  public.ecr.aws/zinclabs/openobserve:latest, exposed on port 5080
+- CRITICAL GAP, must be resolved as part of this task, not worked around:
+  env.server.ts currently has NO env var for an OpenObserve QUERY API
+  credential. The existing OTEL_EXPORTER_OTLP_ENDPOINT / 
+  OTEL_EXPORTER_OTLP_HEADERS pair is an INGEST (write) path only, used
+  by the Pino transport to push logs OUT. There is no existing
+  credential for querying logs back OUT of OpenObserve from server code.
+  compose.yml's ZO_ROOT_USER_EMAIL / ZO_ROOT_USER_PASSWORD (lines
+  144-146) are hardcoded local-dev defaults, explicitly commented as
+  such — do not treat these as a production credential source.
+
+═══════════════════════════════════════════
+IN SCOPE
+═══════════════════════════════════════════
+IN SCOPE:
+- apps/server/src/config/env.server.ts — add new required env vars for
+  OpenObserve query API access (see "New Env Vars" below)
+- apps/server/src/modules/audit/audit.router.ts — add one new tRPC
+  procedure (see "Backend Procedure" below)
+- A new frontend page file at
+  apps/web/src/pages/sysadmin/SystemLogsPage.tsx
+- apps/web/src/pages/sysadmin/SystemAdminHomePage.tsx — add exactly one
+  new entry to the existing NAV_ITEMS array (do not restructure the
+  array, do not touch the existing two entries)
+- apps/web/src/main.tsx — add exactly one new route registration and
+  exactly one new import, inserted at the correct alphabetical position
+  among existing imports (do not reorder existing imports)
+
+OUT OF SCOPE (do not touch even if related):
+- Any change to how Pino is configured in apps/server/src/app.ts. The
+  existing OTLP shipping is already correct and complete; do not modify
+  it.
+- Any change to compose.yml or OpenObserve's own deployment
+  configuration.
+- Any new log-writing/collection mechanism. This task is read-only
+  query against an existing backend.
+- Log deletion, truncation, or on-disk file modification of any kind.
+- Log export to any third-party service outside OpenObserve.
+- apps/server/src/modules/iam/**, apps/server/src/modules/organization/**,
+  or any file not explicitly listed above.
+
+═══════════════════════════════════════════
+NEW ENV VARS (add to env.server.ts, exact names/types below —
+authoritative, do not rename or restructure)
+═══════════════════════════════════════════
+```json
+{
+  "new_env_vars": {
+    "OPENOBSERVE_QUERY_URL": {
+      "zod_type": "z.string().url()",
+      "required": true,
+      "purpose": "Base URL for OpenObserve's search API, e.g. http://localhost:5080/api/default"
+    },
+    "OPENOBSERVE_QUERY_USER": {
+      "zod_type": "z.string().min(1)",
+      "required": true,
+      "purpose": "Username for OpenObserve query API Basic Auth"
+    },
+    "OPENOBSERVE_QUERY_PASSWORD": {
+      "zod_type": "z.string().min(1)",
+      "required": true,
+      "purpose": "Password for OpenObserve query API Basic Auth"
+    }
+  },
+  "insertion_point": "Add as a new commented section '// ─── OpenObserve Query API ───' immediately after the existing '// ─── OpenTelemetry ───' section (currently ends at line 166 of env.server.ts, right before the '// ─── Sentry ───' section begins)",
+  "authoritative": true
+}
+```
+Do NOT reuse OTEL_EXPORTER_OTLP_HEADERS for this. That var is a single
+pre-encoded Basic Auth header used for the ingest path; conflating it
+with the query path couples two independent credentials that should be
+independently rotatable.
+
+═══════════════════════════════════════════
+BACKEND PROCEDURE
+═══════════════════════════════════════════
+Add to apps/server/src/modules/audit/audit.router.ts, inside the
+`createAuditTrpcRouter` factory's returned router object (insert as a
+new property before the closing `});` at line 501 — after the existing
+`exportEvents` procedure which ends at line 500).
+
+Procedure name: `queryRuntimeLogs`
+Gating: use this EXACT fragment, copied verbatim from
+apps/server/src/modules/iam/iam.router.ts (confirmed present at that
+file's `listAllActiveSessions` and `forceTerminateSession` procedures):
+
+old_str (do not exist yet in audit.router.ts — this is what to ADD, not
+find/replace):
+```typescript
+if (!ctx.auth.isItAdmin) {
+  throw new TRPCError({
+    code: 'FORBIDDEN',
+    message: 'System Admin access required',
+  });
+}
+```
+Note the 3-line formatting (not condensed to 2 lines) — preserve exactly
+as shown.
+
+Input schema (zod): accept `search` (optional string, free-text filter),
+`level` (optional enum matching the existing LogLevel values already
+defined in env.server.ts: 'trace'|'debug'|'info'|'warn'|'error'|'fatal'),
+`startTime` (optional ISO8601 string), `endTime` (optional ISO8601
+string), `cursor` (optional string, for pagination), `limit` (number,
+default 100, max 500).
+
+Behavior: construct an OpenObserve search API request using
+OPENOBSERVE_QUERY_URL / OPENOBSERVE_QUERY_USER / OPENOBSERVE_QUERY_PASSWORD
+(Basic Auth), querying the log stream OpenObserve receives from the
+existing OTLP shipper. Return results with a `nextCursor` for pagination
+matching TanStack Table v8's expected shape for server-side pagination
+(confirm the exact expected shape by checking how listFullLog at line
+292 of the same file already returns paginated results, and mirror that
+same response shape for consistency — do not invent a new pagination
+response contract when one already exists in this file).
+
+TRPCError handling: if the OpenObserve request fails (network error,
+non-2xx response), throw a TRPCError with code 'INTERNAL_SERVER_ERROR'
+and a message that does not leak the OpenObserve credential or raw
+connection string.
+
+═══════════════════════════════════════════
+FRONTEND PAGE
+═══════════════════════════════════════════
+Create apps/web/src/pages/sysadmin/SystemLogsPage.tsx, mirroring the
+structural precedent of the existing
+apps/web/src/pages/sysadmin/ActiveSessionsPage.tsx in this repo (read
+that file directly before writing this one — do not write from a
+general React pattern, match this project's actual conventions):
+- Client-side gate: `identity?.roleCodes.includes('sys_admin')` from
+  useSessionStore, with the same "UX-only approximation, real
+  enforcement is server-side" comment style already used in
+  ActiveSessionsPage.tsx
+- tRPC call: `trpc.audit.queryRuntimeLogs.useQuery` (or
+  `useInfiniteQuery` if that fits the pagination shape better — decide
+  based on what listFullLog's existing frontend consumer, if one
+  exists, already uses; if no existing frontend consumer of
+  listFullLog exists yet, use useInfiniteQuery)
+- UI: a text search input, a level filter, a scrollable log table/list,
+  and an auto-scroll toggle (default ON, pauses when the user scrolls
+  up manually — this is the "auto-scrolling" requirement from the
+  original scope)
+- Imports from @batac/ui: Button, Input, Card, PageHeader (matching the
+  import shape already used in ActiveSessionsPage.tsx)
+
+═══════════════════════════════════════════
+NAV & ROUTE REGISTRATION
+═══════════════════════════════════════════
+In SystemAdminHomePage.tsx: add exactly one new object to the existing
+NAV_ITEMS array (currently 2 entries: "Active Sessions", "User
+Accounts"). New entry: label "System Logs", href "/sysadmin/logs",
+description of your choosing consistent with the existing two entries'
+tone, icon consistent with the existing icon import pattern in that
+file.
+
+In main.tsx: add import for SystemLogsPage at the correct alphabetical
+position among the existing sysadmin imports at lines 45-48 (note:
+line 46 is PlatformAdminHomePage, an unrelated page interleaved
+alphabetically — do not mistake it for a sysadmin page, do not move
+it). Add route registration for path "/sysadmin/logs" within the
+existing sysadmin route registration block (lines 129-137), matching
+the existing registration pattern for "/sysadmin/sessions" exactly.
+
+═══════════════════════════════════════════
+EXCLUDED (explicit, do not add even if it seems like a natural extension)
+═══════════════════════════════════════════
+- No log deletion/truncation capability, anywhere, ever, in this task.
+- No third-party export (email, download-as-file, Slack, etc.) of log
+  contents.
+- No write path back into OpenObserve from this feature — read-only
+  query only.
+
+═══════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════
+- A non-IT-Admin authenticated user calling queryRuntimeLogs receives a
+  403 FORBIDDEN with message "System Admin access required"
+- OPENOBSERVE_QUERY_URL/USER/PASSWORD are read from env, never
+  hardcoded, never logged in plaintext anywhere (including error
+  messages)
+- The existing OTLP ingest path in app.ts is byte-for-byte unchanged
+- SystemAdminHomePage.tsx's NAV_ITEMS grows by exactly one entry; the
+  existing two entries are unchanged
+- main.tsx's existing route registrations for /sysadmin/sessions and
+  /sysadmin/users are unchanged; only one new import and one new route
+  are added
+````
+
+---
+
+# TASK-IAM-053 — Environment Configuration Matrix
+
+````
+TASK-IAM-053: Environment Configuration Matrix
+
+═══════════════════════════════════════════
+CONTEXT (verified against current repo snapshot)
+═══════════════════════════════════════════
+The full, current list of environment keys is defined in
+apps/server/src/config/env.server.ts (256 lines, single Zod schema
+`serverEnvSchema`). This task exposes a read-only view of which keys
+are currently SET (present and passing Zod validation) vs. UNSET
+(absent, relying on a schema default, or failing validation), with
+sensitive values masked.
+
+An existing precedent for "what counts as sensitive" already exists in
+this codebase: LOG_REDACT_PATHS (env.server.ts line 31-34) defines glob
+patterns for redacting sensitive FIELDS WITHIN LOGGED OBJECTS
+(req.headers.authorization, req.headers.cookie, *.password, *.secret).
+This is a related but DISTINCT problem from classifying which TOP-LEVEL
+ENV VAR NAMES are sensitive — do not conflate the two. This task needs
+its own explicit classification of env var names, provided below as the
+authoritative source — do not attempt to derive sensitivity from
+LOG_REDACT_PATHS's glob patterns, and do not attempt to infer
+sensitivity from naming heuristics (e.g. "contains SECRET" or "contains
+KEY") since this produces false positives and false negatives against
+the actual list below (e.g. AUDIT_GENESIS_HASH contains no secret-like
+substring but IS discussed below; OCR_QUALITY_THRESHOLD is a plain
+number despite superficially sounding configuration-sensitive).
+
+═══════════════════════════════════════════
+IN SCOPE
+═══════════════════════════════════════════
+IN SCOPE:
+- A new tRPC procedure in apps/server/src/modules/iam/iam.router.ts
+- A new frontend page at
+  apps/web/src/pages/sysadmin/EnvironmentConfigPage.tsx
+- SystemAdminHomePage.tsx NAV_ITEMS — one new entry
+- main.tsx — one new import (correct alphabetical position), one new
+  route
+
+OUT OF SCOPE (do not touch even if related):
+- apps/server/src/config/env.server.ts itself — this task reads the
+  already-validated `env` object at runtime, it does not modify the
+  schema file. (Exception: if the classification below requires you to
+  determine whether a key IS a Zod default vs. an explicitly-set value,
+  you may need to read the schema's shape reflectively — see
+  "Set/Unset Determination" below — but you are not adding, removing,
+  or modifying any schema field.)
+- Any mechanism to WRITE, modify, or inject an env var value through
+  the application, in any form.
+- Any comparison against an external specification file, .env.example,
+  or similar — this is a live runtime snapshot only, not a diff tool.
+- apps/server/src/modules/audit/**, apps/server/src/modules/organization/**.
+
+═══════════════════════════════════════════
+SENSITIVE KEY CLASSIFICATION (authoritative — this JSON block is the
+literal source of truth for which keys are masked; if any prose
+elsewhere in this prompt appears to suggest a different classification,
+this JSON block wins)
+═══════════════════════════════════════════
+```json
+{
+  "mask_these_keys_entirely": [
+    "AUTH_JWT_ACCESS_SECRET",
+    "AUTH_JWT_REFRESH_SECRET",
+    "AUDIT_HMAC_SECRET",
+    "S3_ACCESS_KEY",
+    "S3_SECRET_KEY",
+    "S3_BACKUP_ACCESS_KEY",
+    "S3_BACKUP_SECRET_KEY",
+    "SMTP_PASSWORD",
+    "OCR_SERVICE_API_KEY",
+    "SEARCH_MEILISEARCH_MASTER_KEY",
+    "SMS_API_KEY",
+    "BACKUP_ENCRYPTION_KEY",
+    "OTEL_EXPORTER_OTLP_HEADERS",
+    "DATABASE_URL_APP",
+    "DATABASE_URL_AUDIT",
+    "DATABASE_URL_MIGRATE",
+    "S3_BACKUP_ENDPOINT"
+  ],
+  "mask_reasoning_for_S3_BACKUP_ENDPOINT": "URLs of this shape may embed inline credentials per S3-compatible endpoint conventions; treat as potentially credential-bearing even though it is a URL field, not a *_KEY field",
+  "do_not_mask_these_despite_superficially_sensitive_names": {
+    "AUDIT_GENESIS_HASH": "This is a public chain-verification seed value (a fixed starting hash for the audit hash-chain), not a secret. It is designed to be public/known — masking it would be actively wrong, not merely unnecessary. Display its actual value.",
+    "AUDIT_TSA_URL": "A URL for a timestamping authority service, not credential-bearing on its own.",
+    "DR_HOT_STANDBY_URL": "A connection target URL, not a credential.",
+    "QR_BASE_URL": "A public base URL, appears in generated QR codes, must be displayed unmasked to be useful for verification."
+  },
+  "masking_format": "Display as first 4 characters + '••••••••' + last 2 characters, e.g. a value 'sk_live_abc123xyz789' displays as 'sk_l••••••••89'. For values under 8 characters total, display as '••••••••' with no visible characters at all.",
+  "authoritative": true
+}
+```
+Every other key in serverEnvSchema not listed in either list above is
+non-sensitive and displays its actual resolved value in full.
+
+═══════════════════════════════════════════
+SET/UNSET DETERMINATION
+═══════════════════════════════════════════
+"Set" means: the corresponding process.env value was present at
+startup (i.e., not relying purely on the Zod schema's own `.default()`
+fallback). "Unset" means: the key is either genuinely absent AND has no
+default (validation would have failed at startup, so this state is
+only reachable for `.optional()` fields), or absent and falling back to
+a schema default.
+
+Do not attempt runtime reflection tricks to distinguish "explicitly set
+to the same value as the default" from "using the default" — this
+distinction is not reliably determinable after Zod parsing has already
+occurred, and is not required by this task's scope. It is sufficient to
+report: (a) whether process.env[key] was present at process start, and
+(b) the resolved value after Zod parsing (masked per the classification
+above, where applicable). Do not report a third, unrequested
+"is-default" boolean state.
+
+═══════════════════════════════════════════
+BACKEND PROCEDURE
+═══════════════════════════════════════════
+Add to apps/server/src/modules/iam/iam.router.ts.
+Procedure name: `getEnvironmentConfigMatrix`
+Gating: reuse the exact same isItAdmin fragment already confirmed at
+this file's own listAllActiveSessions/forceTerminateSession/
+createUserAccount/generatePasswordResetLink procedures (4 existing
+occurrences in this file) — do not write a new gating pattern, use the
+existing one verbatim:
+```typescript
+if (!ctx.auth.isItAdmin) {
+  throw new TRPCError({
+    code: 'FORBIDDEN',
+    message: 'System Admin access required',
+  });
+}
+```
+No input schema needed (no parameters).
+Output: an array of { key: string, isSet: boolean, value: string |
+null, isMasked: boolean }, one entry per key in serverEnvSchema,
+ordered to match the schema file's own section groupings (Core,
+Database, Authentication, Argon2id, Audit Log, S3, SMTP, OCR, Search,
+SSE & Notifications, OpenTelemetry, Sentry, Background Jobs, Cron
+Expressions, Rate Limiting, QR & Document Numbering, i18n, Feature
+Flags, Disaster Recovery, Backup, Portal, SMS) — this preserves the
+existing logical grouping already present as comments in the source
+file, rather than presenting an alphabetized or otherwise reordered
+list that loses that structure.
+
+═══════════════════════════════════════════
+FRONTEND PAGE
+═══════════════════════════════════════════
+Create apps/web/src/pages/sysadmin/EnvironmentConfigPage.tsx, mirroring
+ActiveSessionsPage.tsx's structural conventions (client-side
+sys_admin gate with the same comment style, @batac/ui imports, trpc
+client usage pattern `trpc.iam.getEnvironmentConfigMatrix.useQuery`).
+Render as a table grouped by the same section headings listed above,
+with a visual distinction (icon or badge) for masked vs. unmasked
+entries and for set vs. unset entries.
+
+═══════════════════════════════════════════
+NAV & ROUTE REGISTRATION
+═══════════════════════════════════════════
+SystemAdminHomePage.tsx: add one NAV_ITEMS entry — label "Environment
+Config", href "/sysadmin/environment".
+main.tsx: one new import at correct alphabetical position, one new
+route matching the existing registration pattern.
+
+═══════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════
+- Every key in the "mask_these_keys_entirely" JSON list above is never
+  returned in full/unmasked form under any circumstance, including in
+  error paths
+- AUDIT_GENESIS_HASH and the other three keys in
+  "do_not_mask_these_despite_superficially_sensitive_names" display
+  their real resolved values
+- Every key present in serverEnvSchema (all 22 section groups) appears
+  exactly once in the output — no keys silently dropped, no keys
+  duplicated
+- No mutation capability exists anywhere in this feature — no PATCH,
+  no form submission that writes env values, nothing
+````
+
+---
+
+# TASK-AUDIT-022 — Database Query Performance View
+
+````
+TASK-AUDIT-022: Database Query Performance View
+
+═══════════════════════════════════════════
+CONTEXT AND A BLOCKING PREREQUISITE (verified against current repo
+snapshot — read this section fully before writing any code)
+═══════════════════════════════════════════
+This task requires reading PostgreSQL's pg_stat_activity and (if
+available) pg_stat_statements system views. THIS IS A NEW
+INFRASTRUCTURE REQUIREMENT, NOT ALREADY SATISFIED BY ANY EXISTING
+CREDENTIAL. Confirmed directly against tools/db/init/01-create-roles.sh:
+none of the three existing roles (batac_app, batac_audit,
+batac_it_admin — search performed for "pg_monitor", "pg_stat", and
+"GRANT.*batac_app|batac_audit|batac_it_admin" across this file) holds
+membership in PostgreSQL's built-in pg_monitor role, and no equivalent
+manual GRANT on pg_stat_activity/pg_stat_statements exists for any
+role.
+
+This means: before the tRPC procedure below can function, a new grant
+must be added to tools/db/init/01-create-roles.sh. This grant is IN
+SCOPE for this task (it is a read-only, non-destructive grant — it does
+not touch table data, DDL authority, or any of the credential
+boundaries discussed in this project's B1/B2 findings-log entries,
+which concerned DDL/migration authority and PostgreSQL role/grant
+management as an IT-Admin-facing FEATURE, not the underlying app's own
+read access to activity statistics).
+
+Required addition to 01-create-roles.sh (exact statement, insert near
+the existing GRANT CONNECT statements for batac_it_admin — locate that
+role's existing grant block and add this line adjacent to it, do not
+scatter it elsewhere in the file):
+```sql
+GRANT pg_monitor TO batac_it_admin;
+```
+Use batac_it_admin specifically, NOT batac_app and NOT batac_audit —
+this keeps the new read capability scoped to the same role that
+already carries IT-Admin-specific, narrowly-scoped grants (confirmed:
+lines 177-190 of the same file already give batac_it_admin its own
+distinct, narrow grant set for Invariant #10 enforcement — this is the
+correct role family to extend, by existing precedent in this same
+file).
+
+Note: this requires that the tRPC procedure below run its query using
+the batac_it_admin-privileged connection, not DATABASE_URL_APP. Confirm
+in apps/server/src/modules/iam how the batac_it_admin-scoped connection
+is currently obtained/used elsewhere (this project already has an
+IT-Admin-specific credential path — do not introduce a fourth
+DATABASE_URL_* variable if an existing IT-Admin connection mechanism
+is already wired; if none is found, flag this back as a genuine gap
+rather than defaulting to DATABASE_URL_APP silently, since running a
+pg_monitor-requiring query over a connection that lacks that grant
+will simply fail at query time with a permissions error, and silently
+falling back to a different, unintended role would be a worse outcome
+than an explicit failure).
+
+═══════════════════════════════════════════
+IN SCOPE
+═══════════════════════════════════════════
+IN SCOPE:
+- tools/db/init/01-create-roles.sh — the single GRANT statement above,
+  only
+- A new tRPC procedure in apps/server/src/modules/audit/audit.router.ts
+- A new frontend page at
+  apps/web/src/pages/sysadmin/DatabasePerformancePage.tsx
+- SystemAdminHomePage.tsx NAV_ITEMS — one new entry
+- main.tsx — one new import, one new route
+
+OUT OF SCOPE (do not touch even if related):
+- No process-termination capability. Do not call pg_cancel_backend or
+  pg_terminate_backend, do not expose any UI control that would do so,
+  even as a "future" stubbed button.
+- No schema modification, no data mutation statements, anywhere in
+  this feature.
+- No connection pool reset/restart capability.
+- No APM tracing integration, no distributed tracing UI — this is
+  PostgreSQL-native stats only.
+- Do not modify any GRANT already present in 01-create-roles.sh for
+  batac_app or batac_audit — only ADD the one new line specified above
+  for batac_it_admin.
+- Do not touch packages/database/scripts/post-migrate-grants.sql — that
+  file is part of the B1/B2-adjacent migration tooling and is
+  explicitly out of scope per this project's prior findings-log
+  resolution on B1/B2.
+
+═══════════════════════════════════════════
+BACKEND PROCEDURE
+═══════════════════════════════════════════
+Add to apps/server/src/modules/audit/audit.router.ts.
+Procedure name: `getDatabasePerformanceSnapshot`
+Gating (exact fragment, add fresh — this file currently has no
+isItAdmin gate anywhere, confirmed by direct search; do not confuse
+this with the existing `roles.includes('auditor')` pattern used
+elsewhere in this same file for a different, unrelated procedure):
+```typescript
+if (!ctx.auth.isItAdmin) {
+  throw new TRPCError({
+    code: 'FORBIDDEN',
+    message: 'System Admin access required',
+  });
+}
+```
+No input parameters required for a base snapshot; optionally accept an
+`activeOnly` boolean (default true) to filter pg_stat_activity to
+non-idle connections.
+
+Query pg_stat_activity for: pid, usename, application_name, state,
+query_start, wait_event_type, wait_event, and a computed duration
+(now() - query_start). Do NOT select the `query` column's full text
+unfiltered — per the existing comment convention already found at
+01-create-roles.sh line 44 regarding credentials never appearing in
+query text, treat query text as potentially sensitive and either omit
+it entirely from this initial version or explicitly truncate/redact it;
+do not pass raw query text through to the frontend without this
+consideration, since pg_stat_activity's query column can contain
+literal parameter values in some PostgreSQL configurations.
+
+For "long-running or delayed" visual indicators: define a threshold
+(e.g., >5 seconds duration = warning, >30 seconds = critical) as a
+named constant in the procedure file, not a magic number inline.
+
+═══════════════════════════════════════════
+FRONTEND PAGE
+═══════════════════════════════════════════
+Create apps/web/src/pages/sysadmin/DatabasePerformancePage.tsx,
+mirroring ActiveSessionsPage.tsx conventions. Render as a table with
+visual (color/badge) indicators for the warning/critical thresholds
+defined above. Poll on a reasonable interval (align with existing
+polling patterns if any exist in ActiveSessionsPage.tsx; if none
+exist, default to a 10-second refetchInterval via TanStack Query).
+
+═══════════════════════════════════════════
+NAV & ROUTE REGISTRATION
+═══════════════════════════════════════════
+SystemAdminHomePage.tsx: one NAV_ITEMS entry — label "Database
+Performance", href "/sysadmin/database-performance".
+main.tsx: one new import (correct alphabetical position), one new
+route.
+
+═══════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════
+- The new GRANT statement in 01-create-roles.sh is the only change to
+  that file — every existing line is byte-for-byte unchanged
+- No procedure, button, or code path anywhere in this feature can
+  terminate, cancel, or otherwise mutate a database process or its
+  state
+- If the batac_it_admin-privileged connection path cannot be
+  determined to already exist, this is reported back explicitly as a
+  blocking finding rather than silently defaulting to DATABASE_URL_APP
+````
+
+---
+
+# TASK-AUDIT-023 — Security Audit Event Ledger
+
+````
+TASK-AUDIT-023: Security Audit Event Ledger
+
+═══════════════════════════════════════════
+CONTEXT (verified against current repo snapshot)
+═══════════════════════════════════════════
+The audit.events table (packages/database/schema/audit.schema.ts,
+lines 41-90) already has the exact shape this task needs, with
+existing indexes matching the requested filter dimensions:
+- eventType: text, filterable (no dedicated index currently exists on
+  this column alone — acceptable for now given expected table
+  cardinality, but do not add a new index as part of this task unless
+  query performance is separately measured and found inadequate; that
+  would be new, unscoped work)
+- actorId: uuid, indexed (idx_audit_events_actor)
+- occurredAt: timestamptz, indexed jointly with cityId
+  (idx_audit_events_city_occurred) — this composite index is what
+  pagination/date-range filtering should be built against
+- targetId, targetType, resourceOfficeId: additional queryable columns
+
+The table is append-only by database-level enforcement — the schema
+file's own comment (lines 20-23) states UPDATE and DELETE privileges
+are revoked at the grant level. This means the "no edit/alter/purge"
+requirement for this task is ALREADY partially enforced independent of
+anything this task builds. State this in the UI/docs as an existing
+protection, not as something this feature itself newly implements.
+
+An existing, working precedent for querying this exact table already
+exists: `listFullLog` (audit.router.ts, line 292) and `queryEvents`
+(line 166) are both existing procedures already reading from
+auditEvents. Read both of these directly before writing the new
+procedure — do not write a new query pattern from scratch if an
+existing one already does most of what is needed; determine whether
+this task should be a NEW procedure or whether it should reuse/extend
+listFullLog, and state which you chose and why as a comment above the
+procedure.
+
+═══════════════════════════════════════════
+IN SCOPE
+═══════════════════════════════════════════
+IN SCOPE:
+- A new tRPC procedure in apps/server/src/modules/audit/audit.router.ts
+  (or extension of the existing listFullLog procedure at line 292 — see
+  above; this decision is left to you, but must be stated explicitly,
+  not made silently)
+- A new frontend page at
+  apps/web/src/pages/sysadmin/SecurityAuditLedgerPage.tsx
+- SystemAdminHomePage.tsx NAV_ITEMS — one new entry
+- main.tsx — one new import, one new route
+
+OUT OF SCOPE (do not touch even if related):
+- packages/database/schema/audit.schema.ts — no schema changes. The
+  existing columns and indexes are sufficient for this task's stated
+  scope.
+- Any UPDATE, DELETE, or TRUNCATE statement against audit.events,
+  anywhere, in any code path added by this task — this is additionally
+  redundant with the existing DB-level grant revocation, but must not
+  be attempted at the application layer either.
+- Any change to HOW audit events are generated. This task is read-only
+  consumption of the existing event stream — do not touch
+  auditService.writeEvent(), any of its callers (forceTerminateSession
+  in iam.service.ts or any other), or the audit event-bus consumer.
+- apps/server/src/modules/iam/**, except where a call into an existing,
+  unmodified iam procedure is needed for actor-name resolution (see
+  below).
+
+═══════════════════════════════════════════
+"SECURITY-CRITICAL" EVENT SCOPE (authoritative — if this list conflicts
+with prose elsewhere, this list wins)
+═══════════════════════════════════════════
+```json
+{
+  "note": "eventType is a free-form text column, not a closed enum in the schema (confirmed: text('event_type').notNull(), no enum constraint). This task does not need to enumerate every possible eventType value up front, since the filter UI should allow filtering by whatever eventType strings actually exist in the data, not a hardcoded closed list.",
+  "known_security_relevant_event_types_to_verify_exist_in_data": [
+    "forced_logout"
+  ],
+  "instruction": "Query DISTINCT eventType values present in the table (or a reasonable recent time window) to populate the filter dropdown dynamically, rather than hardcoding a list of expected event type strings. Do not assume the list above is exhaustive -- it reflects only the one eventType confirmed by name in prior investigation (written by forceTerminateSession in iam.service.ts). Other eventType values may already exist in the data from other callers.",
+  "authoritative": true
+}
+```
+
+═══════════════════════════════════════════
+BACKEND PROCEDURE
+═══════════════════════════════════════════
+Gating (exact fragment — this file has no isItAdmin gate currently; add
+fresh, do not confuse with the unrelated `roles.includes('auditor')`
+check used by a different existing procedure in this same file):
+```typescript
+if (!ctx.auth.isItAdmin) {
+  throw new TRPCError({
+    code: 'FORBIDDEN',
+    message: 'System Admin access required',
+  });
+}
+```
+
+Input schema: `eventType` (optional string), `actorId` (optional
+uuid), `startTime` (optional ISO8601), `endTime` (optional ISO8601),
+`cursor` (optional, for pagination), `limit` (default 50, max 200).
+
+Query against idx_audit_events_city_occurred for the primary date-range
++ tenant scan path; apply eventType/actorId as additional WHERE
+clauses. Return using the same pagination response shape already
+established by whichever existing procedure you determined to extend
+or mirror (see "Context" above) — do not invent a third, inconsistent
+pagination contract in this same router file.
+
+Actor display: actorId is a "logical FK to iam.users.id (cross-schema)"
+per the schema comment — this is NOT a real database foreign key (it's
+explicitly logical/cross-schema), so do not attempt a SQL JOIN across
+schemas. If actor display names are needed (rather than raw UUIDs), a
+separate lookup call to an existing IAM procedure/query is required —
+check whether one already exists for resolving a user ID to a display
+name before building a new one; if none exists, raw actorId (uuid) is
+an acceptable fallback for this task's initial scope rather than
+building a new IAM lookup procedure as unscoped additional work — state
+which approach you took.
+
+═══════════════════════════════════════════
+FRONTEND PAGE
+═══════════════════════════════════════════
+Create apps/web/src/pages/sysadmin/SecurityAuditLedgerPage.tsx,
+mirroring ActiveSessionsPage.tsx conventions (client gate, @batac/ui
+imports). Use TanStack Table v8 for the data table, matching the
+project's stated frontend stack, with server-side pagination wired to
+the cursor/limit pattern from the procedure above. Filter controls for
+eventType (populated dynamically per the JSON block above), actorId,
+and a date range picker for occurredAt.
+
+═══════════════════════════════════════════
+NAV & ROUTE REGISTRATION
+═══════════════════════════════════════════
+SystemAdminHomePage.tsx: one NAV_ITEMS entry — label "Security Audit
+Ledger", href "/sysadmin/audit-ledger".
+main.tsx: one new import, one new route.
+
+═══════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════
+- No code path added by this task issues UPDATE, DELETE, or TRUNCATE
+  against audit.events
+- packages/database/schema/audit.schema.ts is byte-for-byte unchanged
+- The eventType filter is populated from actual distinct values in the
+  data, not a hardcoded list
+- A stated, explicit decision is recorded (as a code comment above the
+  new/extended procedure) on whether this reuses/extends listFullLog or
+  is a wholly new procedure, and why
+````
+
+---
+
+# Consolidated Fix: env-access bug, LOG-0132 completeness, main.tsx import ordering, .env placeholder credentials
+
+````
+CONSOLIDATED FIX SPECIFICATION
+Fixes four findings surfaced during three-pass review of TASK-AUDIT-021,
+TASK-IAM-053, TASK-AUDIT-022, and TASK-AUDIT-023. Each fix below is
+independent of the others — they are consolidated into one prompt because
+they were discovered together and some touch overlapping files, not
+because they depend on each other. Apply all four unless a section says
+otherwise.
+
+═══════════════════════════════════════════
+FIX 1 — Broken server-config access pattern in two new procedures
+═══════════════════════════════════════════
+
+ROOT CAUSE (verified against current repo state, not assumed):
+`apps/server/src/modules/audit/audit.plugin.ts` declares its
+`FastifyInstance` augmentation at lines 12-18 as exactly:
+```typescript
+declare module 'fastify' {
+  interface FastifyInstance {
+    auditService: AuditPublicAPI;
+    eventBus: EventBus;
+    auditTrpcRouter: AuditTrpcRouter;
+  }
+}
+```
+There is no `auditEnv` and no `config` decorated onto the Fastify
+instance anywhere in this codebase. A full search across all ten
+`FastifyInstance` augmentation blocks in `apps/server/src` (in
+`audit.plugin.ts`, `iam.types.ts`, `tracking.plugin.ts` [×2 blocks],
+`workflow.plugin.ts`, `organization.types.ts`, `documents.types.ts`,
+`documents.plugin.ts`, `mailer.plugin.ts`, `index.ts`) confirms this.
+The single `config:` hit inside `tracking.plugin.ts` (line 68) is an
+unrelated local object literal passed as a function argument to
+`createPublicLookupHandler(...)` — it is never a Fastify decoration and
+is not reachable via `ctx.req.server`.
+
+THE ACTUAL, CORRECT, ALREADY-ESTABLISHED PATTERN in this codebase:
+`apps/server/src/config/env.ts` calls `serverEnvSchema.safeParse(process.env)`
+and exports the resolved result as `export const env = result.data;`
+(confirmed at that file's lines 8 and 17). This is already imported and
+used successfully in at least three other files: `tracking.plugin.ts`,
+`documents.plugin.ts`, and `index.ts`, all via
+`import { env } from '../../config/env.js';` (relative path depth may
+differ per file's own location — see per-file instructions below).
+
+THIS CONSOLIDATED FIX DOES NOT TOUCH `env.server.ts` (the schema
+definition file) OR `env.ts` (the parse/export file) — both are already
+correct. The fix is entirely in how the two new procedures below READ
+the already-correctly-exported `env` object.
+
+--- Fix 1a: apps/server/src/modules/audit/audit.router.ts ---
+
+old_str:
+```typescript
+import { computeChainHash, canonicalizePayload, verifyHmac, GENESIS_HASH } from './audit.crypto.js';
+import type { AuditPublicAPI, AuditQueryResult, AuditEvent } from './index.js';
+```
+new_str:
+```typescript
+import { computeChainHash, canonicalizePayload, verifyHmac, GENESIS_HASH } from './audit.crypto.js';
+import type { AuditPublicAPI, AuditQueryResult, AuditEvent } from './index.js';
+import { env } from '../../config/env.js';
+```
+
+old_str:
+```typescript
+        const env = (ctx.req.server as any).auditEnv ?? (ctx.req.server as any).config;
+        const OPENOBSERVE_QUERY_URL = env.OPENOBSERVE_QUERY_URL;
+        const OPENOBSERVE_QUERY_USER = env.OPENOBSERVE_QUERY_USER;
+        const OPENOBSERVE_QUERY_PASSWORD = env.OPENOBSERVE_QUERY_PASSWORD;
+```
+new_str:
+```typescript
+        const OPENOBSERVE_QUERY_URL = env.OPENOBSERVE_QUERY_URL;
+        const OPENOBSERVE_QUERY_USER = env.OPENOBSERVE_QUERY_USER;
+        const OPENOBSERVE_QUERY_PASSWORD = env.OPENOBSERVE_QUERY_PASSWORD;
+```
+(The local `const env = ...` shadowing declaration is removed entirely;
+the module-level imported `env` from the new import line above is used
+directly. This also removes the shadowing conflict the local `const env`
+would otherwise create against the new top-level import.)
+
+IMPORTANT — a directly adjacent, PRE-EXISTING instance of this same
+broken pattern exists at this file's line 361, inside a DIFFERENT,
+older procedure that predates this consolidated fix and was not part of
+any of the four original task prompts:
+```typescript
+        const env = (ctx.req.server as any).auditEnv as { AUDIT_HMAC_SECRET: string };
+        const auditHmacSecret =
+          env?.AUDIT_HMAC_SECRET ?? (ctx.req.server as any).config?.AUDIT_HMAC_SECRET;
+```
+DO NOT FIX THIS LINE AS PART OF THIS TASK. It is flagged here only so
+its existence is not mistaken for a new occurrence of the same bug
+introduced by this fix, and so it is not silently swept up into this
+fix's scope. It is a separate, standalone finding, to be logged (see
+Fix 1c below) but not touched in code as part of this consolidated fix.
+It is likely that this line has never worked correctly either (its
+fallback to `.config` would also be `undefined`, meaning
+`auditHmacSecret` likely resolves to `undefined` whenever the primary
+`AUDIT_HMAC_SECRET` env var handling elsewhere in this procedure hasn't
+already supplied it another way) — but confirming and fixing that is
+out of scope here and belongs in its own, separately-reviewed task.
+
+--- Fix 1b: apps/server/src/modules/iam/iam.router.ts ---
+
+old_str:
+```typescript
+import { RoleCombinationForbiddenError } from './iam.errors.js';
+import type { IamService, IamRepository } from './iam.types.js';
+```
+new_str:
+```typescript
+import { RoleCombinationForbiddenError } from './iam.errors.js';
+import type { IamService, IamRepository } from './iam.types.js';
+import { env } from '../../config/env.js';
+```
+
+old_str:
+```typescript
+      const { serverEnvSchema } = await import('../../config/env.server.js');
+      const config = (ctx.req.server as any).config || {};
+      
+      const keys = Object.keys(serverEnvSchema.shape);
+```
+new_str:
+```typescript
+      const { serverEnvSchema } = await import('../../config/env.server.js');
+      const config: Record<string, unknown> = env;
+      
+      const keys = Object.keys(serverEnvSchema.shape);
+```
+(The dynamic `await import('../../config/env.server.js')` for
+`serverEnvSchema` itself is UNCHANGED and correct — it's genuinely used
+only for `Object.keys(serverEnvSchema.shape)` to enumerate key names,
+which is a different, legitimate need from resolving actual values.
+Only the broken `(ctx.req.server as any).config` value-source line is
+replaced, with the module-level imported `env` — now typed as
+`Record<string, unknown>` rather than `any`, since the existing
+downstream code in this procedure, which is otherwise UNCHANGED, reads
+`config[key]` and does its own runtime type narrowing already.)
+
+--- Fix 1c: Findings-log entry recording the adjacent pre-existing bug ---
+This is a NEW, SEPARATE, STANDALONE entry — do not merge it into Fix 3's
+entry below, and do not attempt to resolve it, only record it.
+
+```json
+{
+  "new_log_entry": {
+    "header": "### [LOG-0133] Pre-existing broken `.auditEnv`/`.config` fallback at audit.router.ts line 361 (AUDIT_HMAC_SECRET resolution) — found adjacent to, but distinct from, the LOG-0132-family fix",
+    "fields": {
+      "date": "use the actual current date at time of execution",
+      "task_id": "none — discovered incidentally while fixing TASK-AUDIT-021/TASK-IAM-053's env-access bug",
+      "status": "proposed",
+      "affects": "apps/server/src/modules/audit/audit.router.ts, line ~361 (line number may shift slightly after Fix 1a's edits above — locate by the literal string `env?.AUDIT_HMAC_SECRET` rather than by line number)"
+    },
+    "body_must_state": [
+      "This line predates this fix and was not introduced by it.",
+      "It uses the same broken (ctx.req.server as any).auditEnv / .config pattern documented in [whichever LOG-number this consolidated fix itself is recorded under, per Fix 3 below] — but in a different procedure.",
+      "It has NOT been fixed as part of this pass. It is flagged for separate review because fixing it requires understanding what that procedure's AUDIT_HMAC_SECRET fallback is actually meant to accomplish (it may be genuinely dead/unreachable code if AUDIT_HMAC_SECRET is already guaranteed present via another path earlier in the same procedure — this needs to be checked, not assumed, before editing it).",
+      "Do not mark this status as anything other than proposed."
+    ]
+  },
+  "authoritative": true
+}
+```
+
+═══════════════════════════════════════════
+FIX 2 — SQL-string-building hardening in queryRuntimeLogs
+═══════════════════════════════════════════
+In `apps/server/src/modules/audit/audit.router.ts`, the `queryRuntimeLogs`
+procedure builds an OpenObserve SQL query via string interpolation with
+only single-quote doubling as escaping:
+```typescript
+        if (input.search) {
+          const s = input.search.replace(/'/g, "''");
+          sqlParts.push(`(msg ILIKE '%${s}%' OR message ILIKE '%${s}%')`);
+        }
+```
+This is the current, exact, unmodified text — confirm it still matches
+before editing (it may have shifted slightly after Fix 1a's edits
+above; if the surrounding code differs from this in more than
+whitespace, stop and report the discrepancy rather than proceeding).
+
+REPLACE the single-quote-doubling approach with OpenObserve's own
+parameterized/prepared query mechanism if its `_search` API supports
+one (check OpenObserve's actual API — do not assume a specific
+mechanism name without verifying against OpenObserve's real API
+surface, since this codebase does not have an existing
+parameterized-query precedent for OpenObserve calls to copy from,
+unlike the Drizzle-based Postgres queries elsewhere in this file).
+
+IF no parameterized mechanism is confirmed to exist in OpenObserve's
+`_search` API: at minimum, in addition to the existing single-quote
+escaping, strip or reject any of OpenObserve's own SQL-comment and
+statement-termination sequences from `input.search` before
+interpolation (e.g. `--`, `/*`, `*/`, `;`) rather than relying on
+quote-escaping alone. State explicitly, as a code comment directly
+above this block, which of the two approaches (native parameterization
+vs. defense-in-depth stripping) was used and why.
+
+This fix ONLY touches the `search` input handling shown above. The
+`level` filter's interpolation (`level = '${input.level}'`) is already
+safe as-is, since `input.level` is constrained by the Zod schema to one
+of a fixed enum of literal strings — do not modify that line.
+
+═══════════════════════════════════════════
+FIX 3 — Correcting LOG-0132's incomplete reasoning
+═══════════════════════════════════════════
+`docs/development-findings-log.md`, entry `### [LOG-0132]`, currently
+does not state that `batac_it_admin` is a NOLOGIN PostgreSQL role — a
+fact confirmed present in `tools/db/init/01-create-roles.sh` at line
+15's header comment, four lines before the same file's
+`CREATE ROLE batac_it_admin` block. This is a materially relevant fact:
+it means no `DATABASE_URL_IT_ADMIN`-style direct connection string
+could ever have existed for this role, by PostgreSQL design — not
+merely "wasn't built yet," which is the weaker claim the current entry
+makes.
+
+DO NOT edit LOG-0132 in place. Per this project's findings-log
+immutability convention, existing entries are never edited or deleted.
+
+Per this consolidated fix, append a NEW entry that supersedes LOG-0132
+with the more complete reasoning:
+
+```json
+{
+  "new_log_entry": {
+    "header": "### [LOG-0134] LOG-0132 superseded: batac_it_admin is a NOLOGIN role by design — no direct connection string was ever possible",
+    "fields": {
+      "date": "use the actual current date at time of execution",
+      "task_id": "none — human decision given directly in conversation during a planning-layer review",
+      "status": "proposed",
+      "affects": "TASK-AUDIT-022 (Database Query Performance View) — clarifies, does not change, LOG-0132's blocking conclusion",
+      "supersedes": "LOG-0132"
+    },
+    "body_must_state": [
+      "LOG-0132 correctly concluded no batac_it_admin connection path exists and correctly did not implement one — that conclusion is NOT reversed by this entry.",
+      "This entry adds a fact LOG-0132 omitted: tools/db/init/01-create-roles.sh line 15 states batac_it_admin is a NOLOGIN service role. NOLOGIN roles cannot authenticate a direct database connection under any circumstances -- this is a PostgreSQL server-enforced restriction, not an application-layer gap.",
+      "Practical implication for any future work on this: a DATABASE_URL_IT_ADMIN-style env var would never have worked, by design, and should not be the direction taken to unblock this task. The only mechanism by which the pg_monitor grant on batac_it_admin could ever be exercised is a session that first authenticates as a LOGIN-capable role (most plausibly batac_app, the role the server process already authenticates as) and then issues `SET ROLE batac_it_admin` to switch into the granted role for the duration of that query.",
+      "This entry does not decide whether that SET ROLE mechanism should be built. That remains a separate design decision, deferred exactly as LOG-0132 already deferred it."
+    ]
+  },
+  "authoritative": true
+}
+```
+
+═══════════════════════════════════════════
+FIX 4 — main.tsx import ordering
+═══════════════════════════════════════════
+The sysadmin-relevant region of `apps/web/src/main.tsx`'s import block
+is not alphabetically ordered by import path. This spans imports added
+across all four original tasks plus pre-existing imports; attribution
+of exactly which task caused the disorder could not be established
+(no git history survives in the available repo snapshot to diff
+against). This fix corrects the ordering as it currently stands,
+without attempting that attribution.
+
+VERBATIM CURRENT STATE of the affected region (confirm this matches
+exactly before editing — if it does not match exactly, stop and report
+the discrepancy rather than guessing at the correct edit):
+```
+import { DocumentRequestIntakeClerkAssistedPage } from './pages/documents/DocumentRequestIntakeClerkAssistedPage';
+import { DocumentRequestsListPage } from './pages/documents/DocumentRequestsListPage';
+import { DatabasePerformancePage } from './pages/sysadmin/DatabasePerformancePage';
+import { SecurityAuditLedgerPage } from './pages/sysadmin/SecurityAuditLedgerPage';
+import { RoleAssignmentPage } from './pages/iam/RoleAssignmentPage';
+import { CommitteeManagementPage } from './pages/organization/CommitteeManagementPage';
+import { OrganizationPage } from './pages/organization/OrganizationPage';
+import { ActiveSessionsPage } from './pages/sysadmin/ActiveSessionsPage';
+import { PlatformAdminHomePage } from './pages/admin/PlatformAdminHomePage';
+import { EnvironmentConfigPage } from './pages/sysadmin/EnvironmentConfigPage';
+import { SystemAdminHomePage } from './pages/sysadmin/SystemAdminHomePage';
+import { SystemLogsPage } from './pages/sysadmin/SystemLogsPage';
+import { UserAccountManagementPage } from './pages/sysadmin/UserAccountManagementPage';
+```
+REPLACE with, sorted strictly alphabetically by the import PATH string
+(the `./pages/...` portion, not the exported symbol name — matching
+the ordering convention already visible in the surrounding,
+correctly-ordered parts of this same file, e.g. the `./pages/documents/*`
+block immediately above this region):
+```
+import { PlatformAdminHomePage } from './pages/admin/PlatformAdminHomePage';
+import { DocumentRequestIntakeClerkAssistedPage } from './pages/documents/DocumentRequestIntakeClerkAssistedPage';
+import { DocumentRequestsListPage } from './pages/documents/DocumentRequestsListPage';
+import { RoleAssignmentPage } from './pages/iam/RoleAssignmentPage';
+import { CommitteeManagementPage } from './pages/organization/CommitteeManagementPage';
+import { OrganizationPage } from './pages/organization/OrganizationPage';
+import { ActiveSessionsPage } from './pages/sysadmin/ActiveSessionsPage';
+import { DatabasePerformancePage } from './pages/sysadmin/DatabasePerformancePage';
+import { EnvironmentConfigPage } from './pages/sysadmin/EnvironmentConfigPage';
+import { SecurityAuditLedgerPage } from './pages/sysadmin/SecurityAuditLedgerPage';
+import { SystemAdminHomePage } from './pages/sysadmin/SystemAdminHomePage';
+import { SystemLogsPage } from './pages/sysadmin/SystemLogsPage';
+import { UserAccountManagementPage } from './pages/sysadmin/UserAccountManagementPage';
+```
+Note: `PlatformAdminHomePage` (`./pages/admin/...`) moves to the very
+top of this block since `admin/` sorts before `documents/`
+alphabetically — this is a real reordering, not a no-op, even though
+that import itself is unrelated to any of the four sysadmin tasks.
+
+DO NOT touch any import line outside this exact block (the lines
+immediately before, starting with `WorkflowStepIndicatorPage`, and
+immediately after, starting with `MayorDashboardPage`, are OUT OF
+SCOPE — confirm the block boundaries match what's shown above before
+editing, do not extend the reordering beyond it on the assumption that
+"the rest of the file probably needs it too").
+
+The corresponding route-registration block (confirmed at lines ~129-152
+of the same file) is NOT reordered by this fix — only the import
+statements are. Route registration order has no alphabetical
+convention established anywhere in this project's prior work and
+reordering it is unrequested, out-of-scope work.
+
+═══════════════════════════════════════════
+FIX 5 — NOT INCLUDED IN THIS SPEC, FLAGGED FOR A SEPARATE DECISION
+═══════════════════════════════════════════
+The unrequested `.env` / `.env.example` change (adding
+OPENOBSERVE_QUERY_URL/USER/PASSWORD with placeholder values
+`admin@example.com` / `dev_password_placeholder`) is NOT addressed by
+this consolidated fix. It is called out here only so it is not
+forgotten, not because it is being resolved.
+
+Reason for exclusion: this requires a human decision this spec cannot
+make — whether real local-dev OpenObserve credentials (matching
+compose.yml's actual ZO_ROOT_USER_EMAIL / ZO_ROOT_USER_PASSWORD) should
+be wired in so the log-viewer feature actually functions against a
+local OpenObserve instance, or whether the placeholder should remain
+and a different, explicit "not configured" state should be surfaced in
+SystemLogsPage.tsx's UI instead. Do not resolve this choice as part of
+executing this fix — leave .env and .env.example exactly as they
+currently are.
+
+═══════════════════════════════════════════
+ACCEPTANCE CRITERIA FOR THIS CONSOLIDATED FIX
+═══════════════════════════════════════════
+- `grep -rn "auditEnv\|(ctx.req.server as any).config" apps/server/src/modules/audit/audit.router.ts apps/server/src/modules/iam/iam.router.ts` returns exactly ONE remaining hit total: the pre-existing line ~361 in audit.router.ts (Fix 1c), which is intentionally left unfixed. Zero hits in iam.router.ts.
+- `pnpm -C apps/server tsc --noEmit && pnpm -C apps/web tsc --noEmit` passes
+- LOG-0132 itself is byte-for-byte unchanged (immutability preserved); LOG-0133 and LOG-0134 are new, appended entries
+- The main.tsx import block matches the REPLACE block in Fix 4 exactly; no import outside that block is touched
+- .env and .env.example are byte-for-byte unchanged by this fix
+````
+
+---
+
+# Final Cleanup Prompt
+
+````
+FINAL CLEANUP: LOG-0133 cross-reference correction + PlatformAdminHomePage
+alphabetical repositioning in main.tsx.
+
+These are two independent, isolated fixes. Apply both. Neither depends
+on the other.
+
+═══════════════════════════════════════════
+FIX A — LOG-0133 cross-reference correction
+═══════════════════════════════════════════
+File: docs/development-findings-log.md
+
+LOG-0133 currently cites LOG-0134 as documenting the `.auditEnv`/
+`.config` fallback pattern. This is incorrect — LOG-0134 is an
+unrelated finding about `batac_it_admin` being a NOLOGIN PostgreSQL
+role. The `.auditEnv`/`.config` pattern was corrected directly in code
+(not in a numbered findings-log entry) at two locations:
+`apps/server/src/modules/audit/audit.router.ts`'s `queryRuntimeLogs`
+procedure and `apps/server/src/modules/iam/iam.router.ts`'s
+`getEnvironmentConfigMatrix` procedure — both fixed by replacing the
+broken `(ctx.req.server as any).auditEnv ?? (ctx.req.server as any).config`
+access pattern with a top-level `import { env } from '../../config/env.js';`
+import instead.
+
+Confirm the following line still matches EXACTLY before editing — if it
+does not match exactly (even a single character different), STOP and
+report the discrepancy rather than guessing at the intended edit:
+
+old_str:
+```
+It uses the same broken (ctx.req.server as any).auditEnv / .config pattern documented in LOG-0134 — but in a different procedure.
+```
+
+new_str:
+```
+It uses the same broken (ctx.req.server as any).auditEnv / .config pattern that was corrected in this codebase's queryRuntimeLogs procedure (apps/server/src/modules/audit/audit.router.ts) and getEnvironmentConfigMatrix procedure (apps/server/src/modules/iam/iam.router.ts), both fixed by replacing the broken Fastify-decoration access pattern with a top-level `import { env } from '../../config/env.js';` import — but in a different, still-unfixed procedure.
+```
+
+Do not touch any other line in this entry or in the surrounding entries
+(LOG-0132, LOG-0134). Do not renumber, re-date, or change the status
+field of LOG-0133 as part of this fix — only the one sentence above is
+replaced.
+
+═══════════════════════════════════════════
+FIX B — PlatformAdminHomePage alphabetical repositioning
+═══════════════════════════════════════════
+File: apps/web/src/main.tsx
+
+`PlatformAdminHomePage` (from `./pages/admin/PlatformAdminHomePage`)
+currently sits at line 40, between two `./pages/documents/...` imports.
+Its correct alphabetical-by-path position is at the very top of the
+page-import block — before every `./pages/dev/...` import — since
+`admin/` sorts before `dev/`, which in turn sorts before `documents/`.
+
+SCOPE IS DELIBERATELY NARROW: this fix repositions exactly one import
+line. It does NOT address the separate, already-flagged observation
+that `./pages/auth/...` imports (confirmed present at lines 61-62 of
+the current file) sit after the `./pages/workflow/...` block and are
+themselves out of alphabetical order relative to the rest of the file.
+That is a distinct, out-of-scope issue — do not touch lines 42 onward
+in this file for any reason as part of this fix, including to "also
+fix" that or any other ordering issue you may notice while in this
+file. If you notice additional ordering problems beyond what's
+described here, do not fix them — report them back instead.
+
+Confirm the following block still matches EXACTLY (all 27 lines, verbatim,
+including exact whitespace) before editing — if it does not match
+exactly, STOP and report the discrepancy rather than guessing at the
+intended edit, since this fix moves a line found partway through the
+block, not a simple append:
+
+old_str:
+```
+import AllComponentsPage from './pages/dev/AllComponentsPage';
+import AppShellPage from './pages/dev/AppShellPage';
+import CommitteeReferralBlockPage from './pages/dev/CommitteeReferralBlockPage';
+import ComponentsPage from './pages/dev/ComponentsPage';
+import DocumentNumberBadgePage from './pages/dev/DocumentNumberBadgePage';
+import DocumentPreviewCardPage from './pages/dev/DocumentPreviewCardPage';
+import EmptyStatePage from './pages/dev/EmptyStatePage';
+import OrderOfBusinessRowPage from './pages/dev/OrderOfBusinessRowPage';
+import PageHeaderPage from './pages/dev/PageHeaderPage';
+import QRCodeDisplayPage from './pages/dev/QRCodeDisplayPage';
+import RoutingHistoryTimelinePage from './pages/dev/RoutingHistoryTimelinePage';
+import ScanQualityIndicatorPage from './pages/dev/ScanQualityIndicatorPage';
+import SidebarPage from './pages/dev/SidebarPage';
+import SLATimerPage from './pages/dev/SLATimerPage';
+import StatCardPage from './pages/dev/StatCardPage';
+import StatusBadgePage from './pages/dev/StatusBadgePage';
+import TopbarPage from './pages/dev/TopbarPage';
+import WorkflowStepIndicatorPage from './pages/dev/WorkflowStepIndicatorPage';
+import ComplaintDetailPage from './pages/documents/ComplaintDetailPage';
+import { ComplaintIntakeClerkAssistedPage } from './pages/documents/ComplaintIntakeClerkAssistedPage';
+import { ComplaintsListPage } from './pages/documents/ComplaintsListPage';
+import DocumentDetailPage from './pages/documents/DocumentDetailPage';
+import DocumentIntakePage from './pages/documents/DocumentIntakePage';
+import { DocumentListPage } from './pages/documents/DocumentListPage';
+import { DocumentRequestDetailPage } from './pages/documents/DocumentRequestDetailPage';
+import { PlatformAdminHomePage } from './pages/admin/PlatformAdminHomePage';
+import { DocumentRequestIntakeClerkAssistedPage } from './pages/documents/DocumentRequestIntakeClerkAssistedPage';
+```
+
+new_str:
+```
+import { PlatformAdminHomePage } from './pages/admin/PlatformAdminHomePage';
+import AllComponentsPage from './pages/dev/AllComponentsPage';
+import AppShellPage from './pages/dev/AppShellPage';
+import CommitteeReferralBlockPage from './pages/dev/CommitteeReferralBlockPage';
+import ComponentsPage from './pages/dev/ComponentsPage';
+import DocumentNumberBadgePage from './pages/dev/DocumentNumberBadgePage';
+import DocumentPreviewCardPage from './pages/dev/DocumentPreviewCardPage';
+import EmptyStatePage from './pages/dev/EmptyStatePage';
+import OrderOfBusinessRowPage from './pages/dev/OrderOfBusinessRowPage';
+import PageHeaderPage from './pages/dev/PageHeaderPage';
+import QRCodeDisplayPage from './pages/dev/QRCodeDisplayPage';
+import RoutingHistoryTimelinePage from './pages/dev/RoutingHistoryTimelinePage';
+import ScanQualityIndicatorPage from './pages/dev/ScanQualityIndicatorPage';
+import SidebarPage from './pages/dev/SidebarPage';
+import SLATimerPage from './pages/dev/SLATimerPage';
+import StatCardPage from './pages/dev/StatCardPage';
+import StatusBadgePage from './pages/dev/StatusBadgePage';
+import TopbarPage from './pages/dev/TopbarPage';
+import WorkflowStepIndicatorPage from './pages/dev/WorkflowStepIndicatorPage';
+import ComplaintDetailPage from './pages/documents/ComplaintDetailPage';
+import { ComplaintIntakeClerkAssistedPage } from './pages/documents/ComplaintIntakeClerkAssistedPage';
+import { ComplaintsListPage } from './pages/documents/ComplaintsListPage';
+import DocumentDetailPage from './pages/documents/DocumentDetailPage';
+import DocumentIntakePage from './pages/documents/DocumentIntakePage';
+import { DocumentListPage } from './pages/documents/DocumentListPage';
+import { DocumentRequestDetailPage } from './pages/documents/DocumentRequestDetailPage';
+import { DocumentRequestIntakeClerkAssistedPage } from './pages/documents/DocumentRequestIntakeClerkAssistedPage';
+```
+
+Net effect: `PlatformAdminHomePage` moves from its old position (between
+`DocumentRequestDetailPage` and `DocumentRequestIntakeClerkAssistedPage`)
+to the very first line of this block, immediately before
+`AllComponentsPage`. Every other line in the block is byte-for-byte
+identical between old_str and new_str, in the same relative order —
+this is a pure single-line relocation, not a re-sort of the whole
+block. Line count is unchanged (27 lines in, 27 lines out).
+
+Lines 42 onward (starting with `DocumentRequestsListPage`) are
+UNCHANGED and OUT OF SCOPE — do not view, touch, or re-verify them as
+part of this fix beyond confirming the old_str block above still ends
+correctly at the line immediately before them.
+
+═══════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════
+- `grep -n "LOG-0134" docs/development-findings-log.md` shows LOG-0134
+  only in its own entry header/fields — zero remaining references to
+  LOG-0134 inside LOG-0133's body text
+- `grep -n "PlatformAdminHomePage" apps/web/src/main.tsx` shows the
+  import at line 15 (or wherever it lands after the file's line count
+  shifts by the fixes above — confirm by content, not by assuming line
+  15 exactly, since Fix A's edit to a different file has no bearing on
+  this file's line numbers, but re-confirm anyway)
+- `pnpm -C apps/web tsc --noEmit` (or the equivalent fallback command
+  already used successfully in this session if `pnpm` workspace
+  filtering does not resolve correctly in this environment — if a
+  fallback is needed, state which one and why, rather than silently
+  substituting it) passes with zero errors
+- Lines 42 onward of main.tsx are confirmed byte-for-byte unchanged
+- No other file is touched by this prompt
+````
+
+---
+
+# TASK-DOCS-021
+
+````
+TASK-DOCS-021
+
+Title: Remove barrel-export violations from documents/index.ts
+
+═══════════════════════════════════════════
+CONTEXT (self-contained — no other document needed)
+═══════════════════════════════════════════
+Per J4 (Module Structure Template) §3.1, corroborated directly by B2
+(Module Boundary and Internal API Contracts) v1.1's Enforcement
+Mechanisms section: a module's index.ts must export ONLY the Published
+API interface and the public types cross-module callers need to consume
+it. It must contain NO implementation code, and must NOT re-export
+service factories, repository classes/factories, or Fastify plugin
+registration. Plugin registration belongs exclusively in
+{module}.plugin.ts (J4 §3.2).
+
+The current file, apps/server/src/modules/documents/index.ts (58 lines),
+violates this in four confirmed ways. This task removes exactly those
+four things and nothing else.
+
+═══════════════════════════════════════════
+CURRENT FILE CONTENT (verbatim, as it exists now)
+═══════════════════════════════════════════
+
+```typescript
+import { DocumentsRepository } from './documents.repository.js';
+import { createDocumentsService } from './documents.service.js';
+import type { DocumentsPublicAPI, DbClient } from './documents.types.js';
+import type { NumberingService } from './numbering.service.js';
+import type { S3Client } from '@aws-sdk/client-s3';
+import type { ServerEnv } from '../../config/env.server.js';
+
+export * from './documents.types.js';
+export { default as documentsPlugin } from './documents.plugin.js';
+export { createDocumentsRouter } from './documents.router.js';
+export { createComplaintsRouter } from './complaints.router.js';
+export { createDocumentRequestsRouter } from './document-requests.router.js';
+export { createDocumentsAppRouter } from './documents.app.router.js';
+export { DocumentsRepository } from './documents.repository.js';
+export { createDocumentsService } from './documents.service.js';
+export type {
+  SubjectContext as DocumentsSubjectContext,
+  CreateDocumentAttrs,
+  ReadMetadataAttrs,
+  UpdateDocumentAttrs,
+  SoftDeleteDocumentAttrs,
+  SubmitDocumentAttrs,
+  CancelDocumentAttrs,
+  AssignPreliminaryNumberAttrs,
+  AssignFinalNumberAttrs,
+  CertifyUrgentAttrs,
+  ArchiveDocumentAttrs,
+  PublishPortalAttrs,
+  ContentReadAttrs,
+  CreateVersionAttrs,
+  ScanQualityAttrs,
+} from './documents.policy.js';
+export { DocumentPolicyGuard } from './documents.policy.js';
+
+/**
+ * Factory to create the Documents Module instance.
+ * Initializes the repository and service, returning the DocumentsPublicAPI.
+ */
+export function createDocumentsModule(deps: {
+  db: DbClient;
+  eventBus?: any;
+  auditService?: any;
+  numberingService: NumberingService;
+  s3Client: S3Client;
+  env: ServerEnv;
+}): DocumentsPublicAPI {
+  const repo = new DocumentsRepository(deps.db);
+  return createDocumentsService({
+    db: deps.db,
+    documentsRepository: repo,
+    eventBus: deps.eventBus,
+    auditService: deps.auditService,
+    numberingService: deps.numberingService,
+    s3Client: deps.s3Client,
+    env: deps.env,
+  });
+}
+```
+
+═══════════════════════════════════════════
+EXACT REMOVALS — AUTHORITATIVE (this JSON block is the literal source
+of truth for what to delete; if any prose below appears to conflict
+with it, this block wins)
+═══════════════════════════════════════════
+
+```json
+{
+  "lines_to_delete_by_content": [
+    {
+      "reason": "plugin re-export — forbidden by J4 §3.1",
+      "old_str": "export { default as documentsPlugin } from './documents.plugin.js';\n"
+    },
+    {
+      "reason": "repository re-export — forbidden by J4 §3.1",
+      "old_str": "export { DocumentsRepository } from './documents.repository.js';\n"
+    },
+    {
+      "reason": "service re-export — forbidden by J4 §3.1",
+      "old_str": "export { createDocumentsService } from './documents.service.js';\n"
+    },
+    {
+      "reason": "implementation code living in the barrel — forbidden by J4 §3.1 ('Contains no implementation code')",
+      "old_str": "\n/**\n * Factory to create the Documents Module instance.\n * Initializes the repository and service, returning the DocumentsPublicAPI.\n */\nexport function createDocumentsModule(deps: {\n  db: DbClient;\n  eventBus?: any;\n  auditService?: any;\n  numberingService: NumberingService;\n  s3Client: S3Client;\n  env: ServerEnv;\n}): DocumentsPublicAPI {\n  const repo = new DocumentsRepository(deps.db);\n  return createDocumentsService({\n    db: deps.db,\n    documentsRepository: repo,\n    eventBus: deps.eventBus,\n    auditService: deps.auditService,\n    numberingService: deps.numberingService,\n    s3Client: deps.s3Client,\n    env: deps.env,\n  });\n}\n"
+    }
+  ],
+  "now_unused_imports_to_also_remove": [
+    "import { DocumentsRepository } from './documents.repository.js';",
+    "import { createDocumentsService } from './documents.service.js';",
+    "import type { NumberingService } from './numbering.service.js';",
+    "import type { S3Client } from '@aws-sdk/client-s3';",
+    "import type { ServerEnv } from '../../config/env.server.js';"
+  ],
+  "import_to_narrow_not_remove": {
+    "old_str": "import type { DocumentsPublicAPI, DbClient } from './documents.types.js';",
+    "reason": "DbClient is only used by the deleted createDocumentsModule and its now-removed imports; DocumentsPublicAPI is unused directly in this file too, since it was only the return type of the deleted function. Check with a repo-wide search within this file after the deletions above — if TypeScript/ESLint flags this whole import line as unused, remove it entirely. Do not remove it preemptively if anything else in the file still references either name after the deletions above are applied."
+  }
+}
+```
+
+═══════════════════════════════════════════
+SCOPE
+═══════════════════════════════════════════
+
+IN SCOPE (this task touches only):
+- `apps/server/src/modules/documents/index.ts` — apply exactly the
+  deletions specified in the JSON block above, and remove the
+  now-unused imports it lists.
+
+OUT OF SCOPE (do not touch even if related):
+- `documents.plugin.ts` — already correctly wires the plugin, service,
+  and repository. Not touched by this task. Do not modify it.
+- `documents.policy.ts` and its re-export in index.ts (`DocumentPolicyGuard`
+  and the associated type re-exports) — J4 does not explicitly classify
+  this file, so whether it belongs on the Published API surface is
+  UNRESOLVED, not part of this task's deletion list. Leave these
+  exports exactly as they currently are.
+- The router-factory re-exports (`createDocumentsRouter`,
+  `createComplaintsRouter`, `createDocumentRequestsRouter`,
+  `createDocumentsAppRouter`) — J4's "must not contain" list does not
+  name router factories specifically. Leave these exactly as they are.
+- The blanket `export * from './documents.types.js'` — broader than
+  J4's "named public types" language (it also re-exports internal-only
+  types and the Fastify module augmentation), but narrowing this to an
+  itemized export list is a separate, larger edit than this task's
+  four confirmed removals. Leave it exactly as it is.
+- `documents.repository.ts`, `documents.service.ts`, `documents.types.ts`,
+  and every other file in the `documents` module — not touched.
+- `documents.scaffold.test.ts` — see "BLOCKING QUESTION" below. Do not
+  edit, delete, or rewrite this file as part of this task without the
+  answer to that question.
+
+═══════════════════════════════════════════
+BLOCKING QUESTION — DO NOT RESOLVE THIS YOURSELF
+═══════════════════════════════════════════
+
+apps/server/src/modules/documents/__tests__/documents.scaffold.test.ts
+imports createDocumentsModule, createDocumentsService, createDocumentsRouter,
+and DocumentsRepository from '../index.js', and directly calls
+createDocumentsModule(...) in its second test case. Once the deletions
+above are applied, this test file will fail to compile: createDocumentsModule
+and DocumentsRepository will no longer exist as exports of index.ts (and
+createDocumentsService will not either, per the JSON block above).
+
+createDocumentsService and createDocumentsRouter remain legitimately
+exported from other files in this module after this fix (createDocumentsService
+was only removed from the barrel, not deleted from documents.service.ts;
+createDocumentsRouter was never touched, since it's a router factory,
+out of scope per this task) — but they are no longer importable via
+'../index.js' the way this test currently does it for createDocumentsService.
+
+This task does NOT include a decision for what to do with this test file.
+Do one of the following ONLY on explicit instruction, and report back
+which was chosen before proceeding to close this task:
+
+(a) Delete documents.scaffold.test.ts entirely, on the reasoning that it
+    is a smoke test duplicating what TypeScript's compiler already
+    guarantees (DocumentsPublicAPI's 5-method contract) and what the real
+    plugin registration path in documents.plugin.ts already exercises at
+    boot.
+(b) Rewrite it to test through the real, sanctioned construction path —
+    i.e., import createDocumentsService directly from './documents.service.js'
+    and DocumentsRepository directly from './documents.repository.js'
+    (matching how documents.plugin.ts itself constructs them), rather than
+    through the barrel.
+(c) Something else — state what and why.
+
+If no instruction is given, STOP after making the index.ts changes above
+and report this test file's compile failure as a finding, without
+guessing which of (a)/(b)/(c) is correct.
+
+═══════════════════════════════════════════
+VERIFICATION
+═══════════════════════════════════════════
+After making the changes:
+1. Run the module's typecheck (confirm the exact pnpm command/filter
+   name for the server package before running it — do not assume
+   `@batac/server` is correct; a prior findings-log entry recorded that
+   assumption being wrong for this repo, the correct filter is `server`).
+2. Confirm apps/server/src/trpc/root.ts still compiles — it imports
+   createDocumentsAppRouter from this same index.ts and must be
+   unaffected by this change.
+3. Confirm apps/server/src/app.ts still compiles — it imports
+   documentsPlugin directly from documents.plugin.js already, not from
+   this barrel, so it should be entirely unaffected, but confirm this
+   rather than assuming it.
+4. Report the blocking question above rather than silently resolving it,
+   per this task's explicit instruction.
+
+Before submitting this PR, confirm each item:
+- [ ] All four confirmed violations removed from index.ts exactly as
+      specified in the JSON block, no more, no less
+- [ ] Now-unused imports removed; DocumentsPublicAPI/DbClient import
+      line handled per the narrowing note, not removed preemptively
+- [ ] Every OUT OF SCOPE item confirmed untouched by diff review
+- [ ] documents.scaffold.test.ts's fate reported as a blocking question,
+      not silently resolved, unless explicit instruction was given
+- [ ] typecheck run with the correct filter and result reported
+- [ ] root.ts and app.ts confirmed unaffected
+A reviewer will verify each one independently.
+````
+
+---
+
+# TASK-WF-BE-011: Delete vestigial stub workflow/engine/index.ts
+
+````
+TASK-WF-BE-011
+
+Title: Delete vestigial stub workflow/engine/index.ts
+
+═══════════════════════════════════════════
+CONTEXT (self-contained — no other document needed)
+═══════════════════════════════════════════
+apps/server/src/modules/workflow/engine/index.ts is an early-stage
+scaffold file. Every one of its seven exported functions has a body
+that unconditionally throws NotImplementedError — none contain real
+logic. Since it was written, the real, working implementations of
+these same functions have landed in sibling files within the same
+engine/ directory (and, for one function, in a separate jobs/
+directory). This task deletes the stub file. It is a pure deletion —
+no other file's logic changes.
+
+This is verified, not assumed: a full grep across the entire repository
+(both by import path and by each function name individually) confirms
+zero production files and zero test files import anything from this
+file, by any path. Nothing else needs to change as a result of deleting
+it.
+
+═══════════════════════════════════════════
+CURRENT FILE CONTENT (verbatim, as it exists now — this entire file is
+deleted, not edited)
+═══════════════════════════════════════════
+
+```typescript
+import { NotImplementedError } from '../../../errors/not-implemented.js';
+import type { WorkflowInstance } from './types.js';
+
+export async function createInstance(
+  documentId: string,
+  definitionId: string,
+): Promise<WorkflowInstance> {
+  throw new NotImplementedError('createInstance is not implemented');
+}
+
+export async function submitStepAction(
+  stepInstanceId: string,
+  actorId: string,
+  outcome: string,
+  comment: string | null,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  throw new NotImplementedError('submitStepAction is not implemented');
+}
+
+export async function bypassStep(
+  stepInstanceId: string,
+  actorId: string,
+  bypassReason: string,
+  comment: string,
+): Promise<void> {
+  throw new NotImplementedError('bypassStep is not implemented');
+}
+
+export async function cancelInstance(
+  instanceId: string,
+  actorId: string,
+  reason: string,
+): Promise<void> {
+  throw new NotImplementedError('cancelInstance is not implemented');
+}
+
+export async function migrateInstance(
+  instanceId: string,
+  targetVersionId: string,
+  actorId: string,
+  reason: string,
+): Promise<{ reversibleUntil: Date }> {
+  throw new NotImplementedError('migrateInstance is not implemented');
+}
+
+export async function evaluateTimers(): Promise<void> {
+  throw new NotImplementedError('evaluateTimers is not implemented');
+}
+
+export async function evaluateSlaBreaches(): Promise<void> {
+  throw new NotImplementedError('evaluateSlaBreaches is not implemented');
+}
+```
+
+═══════════════════════════════════════════
+STUB-TO-REAL-IMPLEMENTATION MAPPING — AUTHORITATIVE (informational
+record of what superseded each stub function; this does not require
+any action beyond deleting the file above — the real implementations
+are already live and already the ones actually called in production)
+═══════════════════════════════════════════
+
+```json
+{
+  "one_to_one_superseded": [
+    {
+      "stub_function": "createInstance",
+      "real_location": "apps/server/src/modules/workflow/engine/create-instance.ts",
+      "real_export_line": 27
+    },
+    {
+      "stub_function": "submitStepAction",
+      "real_location": "apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts",
+      "real_export_line": 11
+    },
+    {
+      "stub_function": "bypassStep",
+      "real_location": "apps/server/src/modules/workflow/engine/admin-operations.ts",
+      "real_export_line": 72
+    },
+    {
+      "stub_function": "cancelInstance",
+      "real_location": "apps/server/src/modules/workflow/engine/admin-operations.ts",
+      "real_export_line": 38
+    },
+    {
+      "stub_function": "migrateInstance",
+      "real_location": "apps/server/src/modules/workflow/engine/admin-operations.ts",
+      "real_export_line": 134
+    },
+    {
+      "stub_function": "evaluateSlaBreaches",
+      "real_location": "apps/server/src/modules/workflow/jobs/evaluate-sla-breaches.ts",
+      "real_export_line": 11
+    }
+  ],
+  "not_one_to_one": [
+    {
+      "stub_function": "evaluateTimers",
+      "note": "No function of this exact name exists anywhere else. It was not renamed 1:1 — it was split into three separate, more specific jobs: evaluateMayorLapseTimers (apps/server/src/modules/workflow/jobs/evaluate-mayor-lapse-timers.ts), evaluatePanlalawiganTimers (apps/server/src/modules/workflow/jobs/evaluate-panlalawigan-timers.ts), and evaluateThursdayCutoffs (apps/server/src/modules/workflow/jobs/evaluate-thursday-cutoffs.ts). State this mapping as-is in any commit message or PR description for this task rather than describing it as a simple rename, since it is not one."
+    }
+  ]
+}
+```
+
+═══════════════════════════════════════════
+SCOPE
+═══════════════════════════════════════════
+
+IN SCOPE:
+- Delete apps/server/src/modules/workflow/engine/index.ts entirely.
+
+OUT OF SCOPE (do not touch even if related):
+- Every other file in apps/server/src/modules/workflow/engine/,
+  including the six real implementations listed in the mapping above
+  and every step-handlers/*.ts file. None of these are touched by this
+  task.
+- apps/server/src/modules/workflow/engine/types.ts — after this
+  deletion, its WorkflowInstance export will have no remaining
+  consumer anywhere in the codebase (confirmed by grep: it was only
+  used by its own declaration and by the deleted stub). This is a
+  separate, smaller finding, not part of this task's scope. Do not
+  remove or modify this export as part of this task.
+- apps/server/src/errors/not-implemented.ts (the NotImplementedError
+  class) — not touched. This class is not being deleted, only this
+  one file's import of it.
+- Everything outside apps/server/src/modules/workflow/engine/ —
+  workflow.plugin.ts, workflow.router.ts, workflow/index.ts,
+  workflow.public-api.ts, jobs/, services/ — none of these import from
+  the deleted file (confirmed) and none require any change.
+- Whether workflow/engine/ should exist as a sub-folder split from the
+  workflow module at all is a separate, pre-existing architectural
+  question this task does not raise or resolve — see the note below.
+
+═══════════════════════════════════════════
+NOT PART OF THIS TASK — FOR AWARENESS ONLY, NO ACTION REQUIRED
+═══════════════════════════════════════════
+J4 §8 lists "splitting a module into sub-folders" as a change requiring
+an ADR before implementation. No ADR for the workflow/engine/ subfolder
+split was found in the ADR Master Index (J5) or anywhere else in the
+document corpus. The findings log shows this subfolder has been treated
+as settled, working structure across multiple recent tasks
+(TASK-WF-007, TASK-WF-BE-003) without this gap ever being flagged. This
+task does not attempt to resolve that gap — it is noted here only so it
+isn't rediscovered as if new. No action is required as part of this
+task.
+
+═══════════════════════════════════════════
+VERIFICATION
+═══════════════════════════════════════════
+1. Confirm the file no longer exists at the stated path.
+2. Run the server package's typecheck (filter name: `server`, not
+   `@batac/server` — confirm the correct filter before running).
+3. Run the server package's test suite and confirm no test references
+   the deleted file (this should already be true per the verification
+   done before writing this task, but confirm directly rather than
+   trusting that verification alone).
+
+Before submitting this PR, confirm each item:
+- [ ] apps/server/src/modules/workflow/engine/index.ts deleted, no
+      other file in the repo modified
+- [ ] typecheck passes with the correct filter
+- [ ] test suite run and confirmed clean of any reference to the
+      deleted file
+- [ ] PR description states the evaluateTimers split-into-three mapping
+      accurately, not as a simple rename
+A reviewer will verify each one independently.
+````
+
+---
+
+# TASK-DOCS-021-B
+
+````
+Title: Rewrite documents.scaffold.test.ts off the deleted barrel factory
+
+═══════════════════════════════════════════
+CONTEXT (self-contained — no other document needed)
+═══════════════════════════════════════════
+TASK-DOCS-021 removed createDocumentsModule, the DocumentsRepository
+re-export, and the createDocumentsService re-export from
+apps/server/src/modules/documents/index.ts, because all three violated
+J4 (Module Structure Template) §3.1's rule that a module's index.ts
+barrel must not contain implementation code or re-export service/
+repository implementations.
+
+apps/server/src/modules/documents/__tests__/documents.scaffold.test.ts
+currently imports all three of those from '../index.js' and will fail
+to compile as a result. This task rewrites the test to construct the
+same object under test through the real, sanctioned path — importing
+createDocumentsService directly from './documents.service.js' and
+DocumentsRepository directly from './documents.repository.js' — the
+same way apps/server/src/modules/documents/documents.plugin.ts
+constructs them in production. createDocumentsRouter is unaffected by
+TASK-DOCS-021 and remains correctly exported from '../index.js'; its
+import path does not change.
+
+═══════════════════════════════════════════
+CURRENT FILE CONTENT (verbatim, as it exists now — this entire file is
+replaced with the new version below)
+═══════════════════════════════════════════
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import {
+  createDocumentsModule,
+  createDocumentsService,
+  createDocumentsRouter,
+  DocumentsRepository,
+} from '../index.js';
+
+vi.mock('../../../config/env.js', () => ({
+  env: {},
+}));
+
+describe('Documents Module Scaffold', () => {
+  it('exposes the factory functions and repository class', () => {
+    expect(createDocumentsModule).toBeDefined();
+    expect(createDocumentsService).toBeDefined();
+    expect(createDocumentsRouter).toBeDefined();
+    expect(DocumentsRepository).toBeDefined();
+  });
+
+  it('allows creating the module and exposes the public API methods', () => {
+    const mockDb = {} as any;
+    const documentsModule = createDocumentsModule({
+      db: mockDb,
+      numberingService: {} as any,
+      s3Client: {} as any,
+      env: {} as any,
+    });
+
+    expect(documentsModule).toBeDefined();
+    expect(typeof documentsModule.getDocumentById).toBe('function');
+    expect(typeof documentsModule.getDocumentType).toBe('function');
+    expect(typeof documentsModule.transitionState).toBe('function');
+    expect(typeof documentsModule.assignFinalNumber).toBe('function');
+    expect(typeof documentsModule.getAttachmentRefs).toBe('function');
+  });
+});
+```
+
+═══════════════════════════════════════════
+THE SIGNATURE CHANGE THIS REWRITE MUST ACCOUNT FOR — AUTHORITATIVE
+(this is the one drift-prone fact in this task; get this exactly right,
+not approximately right)
+═══════════════════════════════════════════
+
+The deleted createDocumentsModule was a thin wrapper: it took
+{ db, eventBus?, auditService?, numberingService, s3Client, env },
+internally did `new DocumentsRepository(deps.db)`, and forwarded a
+DIFFERENTLY-SHAPED object into createDocumentsService. It is NOT the
+same signature as createDocumentsService itself. Do not pass the old
+test's deps object directly into createDocumentsService unchanged —
+it will not match.
+
+createDocumentsService's real deps type (apps/server/src/modules/documents/documents.service.ts,
+DocumentsServiceDeps interface, confirmed current as of this task):
+
+```json
+{
+  "DocumentsServiceDeps_fields": {
+    "db": { "type": "DbClient", "required": true },
+    "documentsRepository": { "type": "DocumentsRepository", "required": true, "note": "an already-constructed instance, NOT the raw db client — this field did not exist on the old createDocumentsModule wrapper's own parameter object at all, since the wrapper constructed it internally and passed it through under this different name" },
+    "numberingService": { "type": "NumberingService", "required": true },
+    "s3Client": { "type": "S3Client", "required": true },
+    "env": { "type": "ServerEnv", "required": true },
+    "eventBus": { "type": "any", "required": true, "note": "REQUIRED, no '?' in the interface — the old test never passed this at all and relied on the deleted wrapper's own looser signature silently forwarding undefined. The new test must supply a mock value for this field or it will not type-check." },
+    "auditService": { "type": "any", "required": false, "note": "optional, has '?' in the interface — may be omitted, matching the old test's behavior for this one field" }
+  },
+  "DocumentsRepository_constructor": "new DocumentsRepository(db: DbClient | DbTransaction) — single argument, same mock db value the old test already used for its 'db' field"
+}
+```
+
+═══════════════════════════════════════════
+REPLACEMENT FILE — WRITE EXACTLY THIS
+═══════════════════════════════════════════
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { createDocumentsService } from '../documents.service.js';
+import { DocumentsRepository } from '../documents.repository.js';
+import { createDocumentsRouter } from '../index.js';
+
+vi.mock('../../../config/env.js', () => ({
+  env: {},
+}));
+
+describe('Documents Module Scaffold', () => {
+  it('exposes the factory functions and repository class', () => {
+    expect(createDocumentsService).toBeDefined();
+    expect(createDocumentsRouter).toBeDefined();
+    expect(DocumentsRepository).toBeDefined();
+  });
+
+  it('allows creating the service and exposes the public API methods', () => {
+    const mockDb = {} as any;
+    const documentsRepository = new DocumentsRepository(mockDb);
+    const documentsService = createDocumentsService({
+      db: mockDb,
+      documentsRepository,
+      numberingService: {} as any,
+      s3Client: {} as any,
+      env: {} as any,
+      eventBus: {} as any,
+    });
+
+    expect(documentsService).toBeDefined();
+    expect(typeof documentsService.getDocumentById).toBe('function');
+    expect(typeof documentsService.getDocumentType).toBe('function');
+    expect(typeof documentsService.transitionState).toBe('function');
+    expect(typeof documentsService.assignFinalNumber).toBe('function');
+    expect(typeof documentsService.getAttachmentRefs).toBe('function');
+  });
+});
+```
+
+═══════════════════════════════════════════
+SCOPE
+═══════════════════════════════════════════
+
+IN SCOPE:
+- apps/server/src/modules/documents/__tests__/documents.scaffold.test.ts
+  — replace its entire content with the REPLACEMENT FILE block above,
+  verbatim.
+
+OUT OF SCOPE (do not touch even if related):
+- apps/server/src/modules/documents/index.ts — already correctly fixed
+  by TASK-DOCS-021. Not touched by this task.
+- apps/server/src/modules/documents/documents.service.ts,
+  documents.repository.ts — not touched. This task only changes how
+  the test constructs and imports these, not their own source.
+- Every other test file under apps/server/src/modules/documents/__tests__/
+  — not touched, not reviewed for similar issues as part of this task.
+- The describe block's name ('Documents Module Scaffold') and the first
+  it() block's title are kept as-is; only the second it() block's title
+  changes (from "allows creating the module..." to "allows creating the
+  service...") to reflect that a service, not a "module," is now under
+  test — this is the only prose/title change in the replacement, stated
+  explicitly so it isn't mistaken for an accidental deviation from
+  "verbatim."
+
+═══════════════════════════════════════════
+VERIFICATION
+═══════════════════════════════════════════
+1. Confirm the file's new content matches the REPLACEMENT FILE block
+   exactly.
+2. Run the server package's typecheck (filter name: `server`, not
+   `@batac/server`).
+3. Run this specific test file (or the full server test suite) and
+   confirm both it() blocks pass.
+4. Confirm apps/server/src/modules/documents/index.ts was NOT modified
+   by this task (it should already be correct from TASK-DOCS-021).
+
+Before submitting this PR, confirm each item:
+- [ ] documents.scaffold.test.ts replaced exactly per the REPLACEMENT
+      FILE block, no deviation beyond the one stated title change
+- [ ] typecheck passes with the correct filter
+- [ ] both test cases in the file pass
+- [ ] no other file modified as part of this task
+A reviewer will verify each one independently.
+````
+
+---
+
+# TASK-DOCS-SHARED-002
+
+````
+TASK-DOCS-SHARED-002: Migrate deprecated chained Zod methods to top-level
+equivalents in packages/shared
+
+═══════════════════════════════════════════
+CONTEXT
+═══════════════════════════════════════════
+packages/shared uses zod@4.4.3 (confirmed identical across
+packages/shared/package.json, apps/server/package.json,
+apps/web/package.json, and the single resolved version in pnpm-lock.yaml —
+no version skew in the workspace). Zod 4.4.3 ships a v3-compatible chained
+API alongside newer top-level functions. The chained forms used below are
+functional but deprecated, per Zod's own source comments
+(src/v4/classic/schemas.ts, e.g. line 469: "/** @deprecated Use `z.uuid()`
+instead. */" directly above the chained uuid() method).
+
+This is a syntax migration only. It changes API spelling, not the
+project's own validation intent — except for one caveat under
+BEHAVIORAL NOTE below, which must be surfaced, not silently absorbed.
+
+═══════════════════════════════════════════
+IN SCOPE — exactly these 13 edits, no others
+═══════════════════════════════════════════
+The table below is the literal source of truth for what changes. If any
+other content in this prompt appears to conflict with it, the table wins.
+
+| # | File | Line | old_str (exact) | new_str (exact) |
+|---|---|---|---|---|
+| 1 | packages/shared/src/schemas/common.ts | 3 | `export const UuidSchema = z.string().uuid();` | `export const UuidSchema = z.uuid();` |
+| 2 | packages/shared/src/schemas/common.ts | 6 | `export const TimestampSchema = z.string().datetime({ offset: true });` | `export const TimestampSchema = z.iso.datetime({ offset: true });` |
+| 3 | packages/shared/src/schemas/documents.ts | 508 | `  signatureImageS3Key: z.string().uuid().optional(),` | `  signatureImageS3Key: z.uuid().optional(),` |
+| 4 | packages/shared/src/schemas/organization.ts | 4 | `  officeId: z.string().uuid(),` | `  officeId: z.uuid(),` |
+| 5 | packages/shared/src/schemas/organization.ts | 6 | `  parentOfficeId: z.string().uuid().nullable(),` | `  parentOfficeId: z.uuid().nullable(),` |
+| 6 | packages/shared/src/workflow/context.schema.ts | 15 | `  document_id: z.string().uuid().optional(),` | `  document_id: z.uuid().optional(),` |
+| 7 | packages/shared/src/workflow/context.schema.ts | 17 | `  created_by: z.string().uuid().optional(), // encoder reference for invariant 11: encoder ≠ final approver` | `  created_by: z.uuid().optional(), // encoder reference for invariant 11: encoder ≠ final approver` |
+| 8 | packages/shared/src/workflow/context.schema.ts | 22 | `  qr_tracking_id: z.string().uuid().nullable().optional(),` | `  qr_tracking_id: z.uuid().nullable().optional(),` |
+| 9 | packages/shared/src/workflow/context.schema.ts | 26 | `  certified_urgent_document_id: z.string().uuid().nullable().optional(),` | `  certified_urgent_document_id: z.uuid().nullable().optional(),` |
+| 10 | packages/shared/src/workflow/context.schema.ts | 57 | `  referred_committee_chair_id: z.string().uuid().nullable().optional(),` | `  referred_committee_chair_id: z.uuid().nullable().optional(),` |
+| 11 | packages/shared/src/schemas/document-metadata.ts | 141 | `    email: z.string().email().nullable(),` | `    email: z.email().nullable(),` |
+| 12 | packages/shared/src/schemas/document-metadata.ts | 173 | `    email: z.string().email().nullable(),` | `    email: z.email().nullable(),` |
+| 13 | packages/shared/src/schemas/document-metadata.ts | 221 | `  recipientEmail: z.string().email().optional(),` | `  recipientEmail: z.email().optional(),` |
+
+For edits #7 and #10: the old_str/new_str above include the trailing
+`//` inline comment exactly as it must appear after the edit. Do not drop,
+move, or reword these trailing comments — only the `z.string().uuid()` →
+`z.uuid()` portion changes.
+
+═══════════════════════════════════════════
+OUT OF SCOPE — do not touch even though related
+═══════════════════════════════════════════
+- `packages/shared/src/schemas/documents.ts` line 607: this line is
+  `// requested it to just be { documentId: z.string().uuid() }. The
+  existing one includes `reason`.` — this is prose inside a `//` comment,
+  describing a past design discussion, not a live schema call. Do NOT
+  find/replace inside comments. Leave this line completely unchanged.
+- `packages/shared/src/schemas/organization.ts` inlining `z.uuid()`
+  directly rather than importing `UuidSchema` from `common.ts` (post-fix)
+  is a separate architectural question (DRY / catalog-reuse), not part of
+  this task. Do not refactor `organization.ts` to import `UuidSchema` —
+  only change the two literal calls listed in the table above, in place.
+- `docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md`:
+  this document contains verbatim code-block copies of the pre-migration
+  `UuidSchema`/`TimestampSchema` source at lines 185 and 198. Do NOT edit
+  this document. It is a Group E pre-development document; per AGENTS.md
+  Section 4.5, agents never edit Group B–L documents directly, even when
+  a code change will make the document's content stale. This has already
+  been logged (docs/development-findings-log.md, LOG-0137) for a human to
+  resolve by editing E3 directly.
+- `docs/pre-development/tech-stack.md`: do not add, edit, or otherwise
+  touch any convention statement about Zod syntax in this file. A
+  proposal for this has already been logged (LOG-0137) for human review;
+  it is explicitly not this task's job to decide or encode that
+  convention.
+- No other file in the repository beyond the 4 files and 13 lines listed
+  above. Do not extend this migration to any other package (apps/server,
+  apps/web) or to any other chained Zod method not listed in the table,
+  even if you notice one while making these edits — if you notice
+  something else, stop and report it rather than including it.
+
+═══════════════════════════════════════════
+BEHAVIORAL NOTE — must be surfaced in your report, not silently absorbed
+═══════════════════════════════════════════
+This migration is not purely cosmetic for the `.uuid()` sites (edits
+#1, #3, #4, #5, #6, #8, #9, #10). The deprecated chained
+`.string().uuid()` form validates against an unconstrained hex-shape
+regex (any string matching 8-4-4-4-12 hexadecimal groups). The top-level
+`z.uuid()` form validates against a stricter regex that additionally
+constrains the UUID version nibble to `[1-8]` and variant nibble to
+`[89abAB]`, per RFC 9562/4122.
+
+This means: after this migration, some UUID-shaped strings that were
+previously accepted by these 8 fields will now be REJECTED as invalid,
+if they don't conform to the RFC's version/variant bit layout. This is
+expected and intended — do not treat any resulting new validation
+rejection as a bug to work around or loosen. If you encounter existing
+test fixtures, seed data, or stored values that fail against the new
+stricter validation, do NOT weaken the schema to accommodate them — stop
+and report which fixture/data failed and why, so a human can decide
+whether the fixture data is malformed or whether an exception is needed.
+Do not silently regenerate or "fix" any UUID literal you find failing
+this check without flagging it first.
+
+The `.email()` sites (#11, #12, #13) and the `TimestampSchema`
+`.datetime()`/`z.iso.datetime()` site (#2) are drop-in equivalents with
+no behavioral change — `offset: true` is confirmed to be a shared field
+on the same underlying type both spellings build, and Zod's email
+validation logic itself was not part of what changed between the two
+spellings (only its call-site location moved from chained to top-level).
+
+═══════════════════════════════════════════
+VERIFICATION AFTER EDITING
+═══════════════════════════════════════════
+1. Run the type checker for packages/shared (and any package that
+   consumes UuidSchema/TimestampSchema from it, since their exported
+   TypeScript types are inferred via z.infer<> and must not silently
+   change shape in a way that breaks a consumer). Report the exact
+   command run and its full output, pass or fail.
+2. Run the package's existing test suite, if one exists for these
+   schema files. Report which test files ran and their result.
+3. If either step fails, do not attempt to fix the failure yourself by
+   further modifying scope beyond the 13 lines above — report the exact
+   failure output and stop. This is a syntax-migration task; if
+   verification surfaces a deeper issue (e.g., a stored value that now
+   fails the stricter UUID check), that is a finding to report back, not
+   something to resolve within this task's scope.
+
+═══════════════════════════════════════════
+REPORT BACK
+═══════════════════════════════════════════
+- Confirm all 13 edits were applied exactly as specified, with a diff or
+  before/after per site.
+- Confirm the line 607 comment in documents.ts was left untouched.
+- Confirm no other file was modified.
+- Full output of the type-check and test steps above.
+- Any UUID validation failures surfaced by the stricter regex, named
+  explicitly (which field, which file, what value if visible in test
+  output) rather than summarized as "some tests failed."
+````

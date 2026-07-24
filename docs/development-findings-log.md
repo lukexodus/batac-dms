@@ -3595,3 +3595,44 @@ detail — pending a decision between the two paths above.
 
 ---
 
+### [LOG-0137] Zod v4 deprecated chained-method syntax audited across packages/shared; forward convention proposed
+
+- date: 2026-07-24
+- task_id: none — surfaced during planning-layer investigation of a user-supplied note about common.ts, prioritized specifically because LOG-0127 explicitly named a full technical audit of the v3→v4 upgrade as a separate, not-yet-done task
+- status: proposed
+- affects: packages/shared/src/schemas/common.ts, packages/shared/src/schemas/documents.ts, packages/shared/src/schemas/organization.ts, packages/shared/src/schemas/document-metadata.ts, packages/shared/src/workflow/context.schema.ts, docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md, docs/pre-development/tech-stack.md
+- refines: LOG-0127
+
+**What was found:**
+Following up on LOG-0127's explicit note that the Zod v3→v4 upgrade "was not independently verified line-by-line," an audit was performed of every file in `packages/shared` for chained Zod string-format methods that have newer top-level equivalents in Zod 4.4.3 (confirmed installed workspace-wide via `registry.npmjs.org`-fetched real source, not assumed from package.json alone). Zod's own `src/v4/classic/schemas.ts` source carries explicit `@deprecated` JSDoc comments above each chained method naming its top-level replacement.
+
+13 live, executable instances of the deprecated chained form were found across 4 files:
+
+| File | Line | Current | Deprecated-but-functional? |
+|---|---|---|---|
+| `schemas/common.ts` | 3 | `UuidSchema = z.string().uuid()` | Yes |
+| `schemas/common.ts` | 6 | `TimestampSchema = z.string().datetime({ offset: true })` | Yes |
+| `schemas/documents.ts` | 508 | `signatureImageS3Key: z.string().uuid().optional()` | Yes |
+| `schemas/organization.ts` | 4 | `officeId: z.string().uuid()` | Yes |
+| `schemas/organization.ts` | 6 | `parentOfficeId: z.string().uuid().nullable()` | Yes |
+| `workflow/context.schema.ts` | 15 | `document_id: z.string().uuid().optional()` | Yes |
+| `workflow/context.schema.ts` | 17 | `created_by: z.string().uuid().optional()` (trailing inline comment on this line) | Yes |
+| `workflow/context.schema.ts` | 22 | `qr_tracking_id: z.string().uuid().nullable().optional()` | Yes |
+| `workflow/context.schema.ts` | 26 | `certified_urgent_document_id: z.string().uuid().nullable().optional()` | Yes |
+| `workflow/context.schema.ts` | 57 | `referred_committee_chair_id: z.string().uuid().nullable().optional()` (trailing inline comment on this line) | Yes |
+| `schemas/document-metadata.ts` | 141 | `email: z.string().email().nullable()` | Yes |
+| `schemas/document-metadata.ts` | 173 | `email: z.string().email().nullable()` | Yes |
+| `schemas/document-metadata.ts` | 221 | `recipientEmail: z.string().email().optional()` | Yes |
+
+One additional occurrence at `schemas/documents.ts` line 607 is inside a `//` comment (prose referencing a hypothetical schema shape from a past discussion) and is **not** a live call — it is explicitly excluded from the fix.
+
+The stricter top-level replacements are not purely cosmetic. Verified directly against real Zod 4.4.3 source (`src/v4/core/regexes.ts`): the deprecated `.string().uuid()` path uses an unconstrained hex-shape regex (`guid`), while the top-level `z.uuid()` uses a separate regex that additionally constrains the RFC 9562/4122 version nibble to `[1-8]` and variant nibble to `[89abAB]` — meaning some strings currently accepted by `UuidSchema` and the other `.uuid()` fields above would be rejected under the stricter top-level form. `z.iso.datetime({ offset: true })` was confirmed as a drop-in equivalent for `.string().datetime({ offset: true })` — `offset` is a shared field on the same underlying `$ZodISODateTimeDef` type both spellings build, so no behavior changes there.
+
+Separately, `docs/pre-development/E-api-design/e3-shared-zod-schema-catalog.md` reproduces the literal deprecated-form source code for `UuidSchema` (line 185) and `TimestampSchema` (line 198) as verbatim code blocks — not paraphrased semantics. If the code migrates to top-level spelling, these catalog entries will assert something false about the actual source unless also updated. Per AGENTS.md Section 4.5, agents do not edit Group B–L documents (E3 is Group E) directly, even to fix an entry that will become stale as a result of A1 work — that update is a human/reviewer action, tracked here.
+
+Also noted, out of scope for this entry: `organization.ts` inlines `z.string().uuid()` directly rather than importing `UuidSchema` from `common.ts`, despite E3's stated purpose that no file should define its own copy of a catalogued schema. This is a DRY/architecture observation, not part of the syntax-migration finding, and is not something this entry resolves.
+
+Neither `tech-stack.md` nor E3's Conventions section (L112–L173) currently states any position on chained-vs-top-level Zod syntax for new schemas. This is confirmed as a genuine gap, not a contradiction of an existing rule.
+
+**What was implemented:**
+No code change as part of this log entry. The code migration (13 sites, scoped exactly as the table above) is being handed to the local execution agent as a standalone prompt, separate from this entry. This entry exists to (a) record the audit as the "full technical audit" LOG-0127 flagged as outstanding, (b) flag the E3 staleness that will result once the code prompt executes, for a human to resolve by editing E3 directly, and (c) propose, for human review, a forward convention: **new Zod schemas written in `/packages/shared` from this point forward should use top-level spellings (`z.uuid()`, `z.iso.datetime()`, `z.email()`, etc.) rather than the chained `.string().x()` form**, to be encoded in `tech-stack.md`'s Type Safety Chain section or a new ADR if a human agrees. This entry does not itself modify `tech-stack.md` — per Section 4.5, that edit is for a human to make, with this entry as the `resolved_in` target once they do.

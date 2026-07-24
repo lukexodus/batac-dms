@@ -505,7 +505,7 @@ export const LogSignatureInputSchema = z.object({
   signatureType: SignatureTypeSchema,
   signedAt: TimestampSchema,
   isWetInk: z.boolean().default(true),
-  signatureImageS3Key: z.string().uuid().optional(),
+  signatureImageS3Key: z.uuid().optional(),
 });
 export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;
 

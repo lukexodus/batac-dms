@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-export const UuidSchema = z.string().uuid();
+export const UuidSchema = z.uuid();
 export type Uuid = z.infer<typeof UuidSchema>;
 
-export const TimestampSchema = z.string().datetime({ offset: true });
+export const TimestampSchema = z.iso.datetime({ offset: true });
 export type Timestamp = z.infer<typeof TimestampSchema>;
 
 export const DateSchema = z
