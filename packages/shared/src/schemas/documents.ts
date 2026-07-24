@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createSelectSchema } from 'drizzle-zod';
+import { createSelectSchema, createInsertSchema, createUpdateSchema } from 'drizzle-zod';
 import {
   documents,
   versions,
@@ -233,9 +233,14 @@ export type CancelDocumentInput = z.infer<typeof CancelDocumentInputSchema>;
 
 // --- General CRUD (TASK-DOCS-011) ---------------------------------------
 
-export const CreateDocumentInputSchema = z.object({
-  documentTypeId: UuidSchema,
-  title: z.string().min(1).max(500).trim(),
+export const CreateDocumentInputSchema = createInsertSchema(documents, {
+  title: (schema) => schema.min(1).max(500).trim(),
+}).pick({
+  documentTypeId: true,
+  title: true,
+  classificationLevel: true,
+  metadata: true,
+}).extend({
   classificationLevel: ClassificationLevelSchema.default('internal'),
   metadata: z.record(z.string(), z.unknown()).default({}),
 });
@@ -255,8 +260,12 @@ export type DocumentIdInput = z.infer<typeof DocumentIdInputSchema>;
 
 export const UpdateDocumentInputSchema = z.object({
   documentId: UuidSchema,
-  title: z.string().min(1).max(500).trim().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  ...createUpdateSchema(documents, {
+    title: (schema) => schema.min(1).max(500).trim(),
+  }).pick({
+    title: true,
+    metadata: true,
+  }).shape,
 });
 export type UpdateDocumentInput = z.infer<typeof UpdateDocumentInputSchema>;
 
