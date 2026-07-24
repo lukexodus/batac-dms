@@ -16221,3 +16221,435 @@ REPORT BACK
   explicitly (which field, which file, what value if visible in test
   output) rather than summarized as "some tests failed."
 ````
+
+---
+
+# TASK-DOCS-SHARED-004B
+
+````
+# TASK-DOCS-SHARED-004B: Fix UpdateDocumentInputSchema metadata type 
+mismatch introduced by TASK-DOCS-SHARED-004
+
+## Context
+
+TASK-DOCS-SHARED-004 migrated `CreateDocumentInputSchema` and 
+`UpdateDocumentInputSchema` in `packages/shared/src/schemas/documents.ts` 
+from hand-written Zod schemas to schemas derived from `createInsertSchema`/
+`createUpdateSchema` (from the `drizzle-zod` package). That task is 
+committed on this branch, but the commit's own typecheck claim is 
+inaccurate: the commit message states "Typecheck over packages/shared and 
+apps/server succeeds with no errors," but a full, complete typecheck run 
+(not a premature read of a still-running background process) shows 
+`apps/server` typecheck FAILS with two TS2345 errors in 
+`apps/server/src/modules/documents/documents.router.ts`, both stemming 
+from the same root cause. This task fixes that root cause and corrects 
+the record.
+
+## The bug
+
+`documents.metadata` (in `packages/database/schema/documents.schema.ts`) 
+is declared as `jsonb('metadata')` with a SQL-level default 
+(`.default(sql\`'{}'::jsonb\`)`), not a Drizzle-level `.default()`. When 
+`createInsertSchema`/`createUpdateSchema` generate a Zod schema from a 
+raw `jsonb()` column with no explicit inner type, they infer a generic 
+`Json` type (a recursive union that includes `null`, primitives, and 
+nested objects/arrays), not `Record<string, unknown>`.
+
+On `CreateDocumentInputSchema`, this was already handled: the schema 
+includes an explicit `.extend({ metadata: z.record(z.string(), 
+z.unknown()).default({}) })` override, so `CreateDocumentInput['metadata']` 
+correctly resolves to `Record<string, unknown>`.
+
+On `UpdateDocumentInputSchema`, this override was NOT applied — the 
+current schema derives `metadata` directly from 
+`createUpdateSchema(documents, {...}).pick({ title: true, metadata: true 
+}).shape` with no `.extend()` on top. As a result, 
+`UpdateDocumentInput['metadata']` currently resolves to `Json | undefined`, 
+not `Record<string, unknown> | undefined`.
+
+This breaks compilation in `apps/server/src/modules/documents/documents.router.ts` 
+at two call sites that expect `Record<string, unknown> | undefined`:
+
+```text
+src/modules/documents/documents.router.ts:678:13 - error TS2345: Argument of type 'Json' is not assignable to parameter of type 'Record<string, unknown>'.
+  Type 'null' is not assignable to type 'Record<string, unknown>'.
+678             input.metadata,
+                ~~~~~~~~~~~~~~
+src/modules/documents/documents.router.ts:689:75 - error TS2345: Argument of type '{ metadata?: Json | undefined; title?: string | undefined; }' is not assignable to parameter of type '{ title?: string | undefined; metadata?: Record<string, unknown> | undefined; versionNumber?: number | undefined; }'.
+  Types of property 'metadata' are incompatible.
+    Type 'Json | undefined' is not assignable to type 'Record<string, unknown> | undefined'.
+      Type 'null' is not assignable to type 'Record<string, unknown> | undefined'.
+689         const updated = await repo.updateDocumentFields(input.documentId, {
+```
+
+## Files: what to touch and what NOT to touch
+
+IN SCOPE:
+  packages/shared/src/schemas/documents.ts
+    — specifically and only: the `UpdateDocumentInputSchema` declaration.
+
+OUT OF SCOPE (do not touch even if related):
+  packages/shared/src/schemas/documents.ts
+    — `CreateDocumentInputSchema` (already correct, do not modify).
+    — every other schema in this file (same exclusion list as 
+      TASK-DOCS-SHARED-004: `LogDocumentInputSchema`, 
+      `CancelDocumentInputSchema`, `UploadAttachmentInputSchema`, 
+      `AssignFinalNumberInputSchema`, `LogSignatureInputSchema`, 
+      `InitiatePanlalawiganTransmittalInputSchema`, 
+      `LogPanlalawiganOutcomeInputSchema`, `DocumentSelectSchema`, 
+      `DocumentTypeSelectSchema`, and all other Select/Filter/Output 
+      schemas in this file).
+  apps/server/src/modules/documents/documents.router.ts
+    — do not change this file at all, including the resolver bodies at 
+      lines 678 and 689 referenced above. The fix must be entirely 
+      schema-side. If after your change this file still does not compile 
+      without modification, stop and report back — do not modify this 
+      file to make it compile.
+  packages/database/schema/documents.schema.ts
+    — do not change the underlying Drizzle column definition. The 
+      `metadata` column stays exactly as `jsonb('metadata')` with its 
+      existing SQL-level default. This task fixes the derived Zod type 
+      only, not the source column.
+  All five files excluded in TASK-DOCS-SHARED-004's scope table remain 
+  excluded here too: `packages/shared/src/schemas/common.ts`, 
+  `packages/shared/src/schemas/organization.ts`, 
+  `packages/shared/src/schemas/document-metadata.ts`, 
+  `packages/shared/src/workflow/context.schema.ts`, 
+  `packages/shared/src/workflow/step-config.schema.ts`.
+
+## Required change
+
+Current code (verify this still matches before replacing — if it doesn't, 
+stop and report the actual current content rather than proceeding):
+
+```typescript
+export const UpdateDocumentInputSchema = z.object({
+  documentId: UuidSchema,
+  ...createUpdateSchema(documents, {
+    title: (schema) => schema.min(1).max(500).trim(),
+  }).pick({
+    title: true,
+    metadata: true,
+  }).shape,
+});
+export type UpdateDocumentInput = z.infer<typeof UpdateDocumentInputSchema>;
+```
+
+Replace with:
+
+```typescript
+export const UpdateDocumentInputSchema = z.object({
+  documentId: UuidSchema,
+  ...createUpdateSchema(documents, {
+    title: (schema) => schema.min(1).max(500).trim(),
+  }).pick({
+    title: true,
+    metadata: true,
+  }).shape,
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+export type UpdateDocumentInput = z.infer<typeof UpdateDocumentInputSchema>;
+```
+
+**Note the exact mechanism of this fix, because it differs slightly from 
+`CreateDocumentInputSchema`'s pattern and the difference is intentional, 
+not an inconsistency to "correct":** on `CreateDocumentInputSchema`, the 
+override is applied via a chained `.extend({...})` call on the schema 
+object. On `UpdateDocumentInputSchema`, the schema is built via object-
+spread (`...schema.shape`) inside a `z.object({...})` call, not a chained 
+method call on a schema instance — so the override here is a plain object 
+key (`metadata: z.record(...)`) placed AFTER the spread inside the same 
+`z.object({...})` literal, letting normal JavaScript object-literal 
+"later key wins" semantics override the spread-in `metadata` field from 
+`createUpdateSchema`'s shape. Do not attempt to rewrite this as a 
+`.extend()` chain to match `CreateDocumentInputSchema`'s style — the 
+update schema is not built by chaining off a single schema object the way 
+the create schema is (note the top-level `documentId` field means this 
+was never a pure `createUpdateSchema(...).pick(...)` chain to begin with), 
+and forcing it into that shape would require restructuring the whole 
+schema, which is out of scope for this fix.
+
+**Critically: do NOT add `.default({})` to this override.** The pre-
+migration hand-written version of this schema (visible in TASK-DOCS-
+SHARED-004's original "Current code" block) was 
+`metadata: z.record(z.string(), z.unknown()).optional()` — optional, with 
+NO default. This is different from `CreateDocumentInputSchema`'s 
+`metadata` override, which DOES have `.default({})`. This difference is 
+intentional and must be preserved:
+
+| Schema | metadata override | Why |
+|---|---|---|
+| `CreateDocumentInputSchema` | `.default({})` | On document creation, if no metadata is supplied, defaulting to an empty object is correct — there's no existing metadata to distinguish from "none." |
+| `UpdateDocumentInputSchema` | `.optional()`, no default | On document update, omitting `metadata` from the request must mean "don't touch existing metadata" — this is what the resolver's `input.metadata === undefined` check at line 651 of `documents.router.ts` depends on. If `metadata` had a `.default({})` here, an update request that simply omits `metadata` would have it silently coerced to `{}` by Zod BEFORE the resolver's `=== undefined` check ever runs, making the omitted-vs-explicitly-cleared distinction impossible to detect at the resolver level, and would very likely make the resolver's existing "at least one field must be provided" logic misbehave (a request that provides only `title` would appear to also be providing `metadata: {}`, since Zod would have already filled it in). |
+
+The above table is authoritative on this specific point — if any other 
+part of this prompt's prose seems to suggest otherwise, the table wins.
+
+## Verification steps (required before reporting completion)
+
+1. Run a full, complete typecheck across `packages/shared` AND 
+   `apps/server` — do not report results from a command that may still 
+   be running in the background. If your typecheck command is 
+   asynchronous or long-running, explicitly wait for full completion and 
+   confirm the process has exited before reading its output. State 
+   explicitly in your report that you confirmed the process had fully 
+   exited before reading results.
+2. Confirm zero type errors in `apps/server/src/modules/documents/documents.router.ts` 
+   specifically — including but not limited to the two error sites from 
+   this task's Context section (lines 678 and 689, though line numbers 
+   may shift slightly; identify them by the `input.metadata` /
+   `updateDocumentFields` call sites described above, not by exact line 
+   number alone).
+3. Confirm `documents.router.ts` required zero modifications. If it 
+   required any modification at all to compile, stop and report this 
+   rather than making the modification — this would mean the schema-side 
+   fix above is not sufficient and needs reconsideration.
+4. Report the exact resulting inferred type of `UpdateDocumentInput['metadata']` 
+   (should be `Record<string, unknown> | undefined`, NOT `Json | 
+   undefined` and NOT `Record<string, unknown>` without the `| undefined` 
+   — it must remain optional).
+5. Do NOT run or modify anything related to LOG-0113 or LOG-0114 
+   (`AttachmentSelectSchema`/`s3Key` nullability, 
+   `PanlalawiganReviewSelectSchema`/`dateReferred`) — unrelated to this 
+   fix.
+6. Amend the existing TASK-DOCS-SHARED-004 commit's message (via `git 
+   commit --amend`, only if this is the most recent commit on the branch 
+   and has not been pushed/shared anywhere else — if it has already been 
+   pushed or you are uncertain whether amending is safe, do NOT amend; 
+   instead create a new commit and report that amending was skipped and 
+   why) to correct the false claim "Typecheck over packages/shared and 
+   apps/server succeeds with no errors." The corrected commit history 
+   should accurately reflect that the original migration required this 
+   follow-up fix to fully compile. If you create a new commit instead of 
+   amending, its message must reference that it fixes a typecheck failure 
+   introduced by the TASK-DOCS-SHARED-004 commit, and must not claim a 
+   clean typecheck occurred in the original commit if it did not.
+
+## Report back
+
+After completing and verifying, report:
+- The final content of the replaced `UpdateDocumentInputSchema` block.
+- The full, complete typecheck result for both `packages/shared` and 
+  `apps/server` (pass/fail), with explicit confirmation the check ran to 
+  full completion before being reported (not read from a still-running 
+  background process).
+- The exact resulting type of `UpdateDocumentInput['metadata']`.
+- Whether `documents.router.ts` required any modification (should be no).
+- Whether the original commit was amended or a new commit was created, 
+  and why.
+- Whether anything in this prompt's stated current code (the "Current 
+  code" block above) did NOT match what you actually found in the file — 
+  if so, stop before making changes and report the actual current 
+  content instead.
+````
+
+---
+
+# TASK-DOCS-FIX-001
+
+````
+TASK-DOCS-FIX-001 — Fix @batac/web typecheck failure: documents.plugin.ts's
+Fastify type augmentation is unreachable from apps/web's TypeScript program
+
+═══════════════════════════════════════════
+CONTEXT (no other file needs to be opened to understand this)
+═══════════════════════════════════════════
+`pnpm typecheck` fails specifically in the `@batac/web:typecheck` task with 10
+errors across 5 files, all of the form "Property 'X' does not exist on type
+'FastifyInstance<...>'". The properties are: `documentsRepository`,
+`documentsPolicyGuard`, `numberingService`, `designationHandler`.
+
+Root cause: `apps/server/src/modules/documents/documents.plugin.ts` contains
+this `declare module 'fastify'` block (lines 32-40 as currently written):
+
+    declare module 'fastify' {
+      interface FastifyInstance {
+        documentsRepository: DocumentsRepository;
+        documentsPolicyGuard: DocumentPolicyGuard;
+        numberingService: NumberingService;
+        designationHandler: DesignationHandler;
+        ocrService: OcrService;
+      }
+    }
+
+`apps/server/src/modules/documents/index.ts` (the module's public barrel
+file) does NOT import or re-export anything from `documents.plugin.ts`.
+`apps/web`'s TypeScript program reaches into `apps/server/src` via a
+type-only import chain (`apps/web/src/lib/trpc.ts` and
+`apps/web/src/lib/query-client.ts` both import
+`type { AppRouter } from 'server/src/trpc/root.js'`, which resolves to
+`apps/server/src/trpc/root.ts` via the `server` workspace package — this
+works because `apps/server/package.json`'s `name` field is literally
+`"server"` and `apps/web/package.json` lists `"server": "workspace:*"` as a
+dependency). `root.ts` imports `createDocumentsAppRouter` from
+`../modules/documents/index.js`, and TypeScript's program-file-inclusion
+follows that chain — but since `index.ts` never touches
+`documents.plugin.ts`, the `declare module 'fastify'` augmentation above is
+never included in `apps/web`'s compilation unit, so those four properties
+don't exist as far as `apps/web`'s typecheck is concerned.
+
+This is why `server:typecheck` (a separate turbo task) passes: it includes
+`apps/server/src/app.ts`, which imports `documents.plugin.ts` directly
+(`apps/server/src/app.ts:53` and `:229`), so the augmentation IS visible
+there. `apps/web`'s program never includes `app.ts`.
+
+This is a type-visibility gap only. Runtime plugin registration is NOT
+affected — `documents.plugin.ts` is correctly registered via
+`fastify.register(documentsPlugin)` at `apps/server/src/app.ts:229`, and
+every property in the errored `declare module` block IS correctly
+`fastify.decorate()`-d at runtime in `documents.plugin.ts` (confirmed lines
+109-115 of that file: `fastify.decorate('documentsRepository', repository)`,
+`fastify.decorate('documentsPolicyGuard', policyGuard)`,
+`fastify.decorate('numberingService', numberingService)`,
+`fastify.decorate('designationHandler', designationHandler)`).
+
+Note the fifth property accessed in these same files,
+`ctx.req.server.documentsService`, does NOT error, because its own separate
+`declare module 'fastify'` augmentation lives in
+`apps/server/src/modules/documents/documents.types.ts` (lines 122-127),
+which IS re-exported by `documents/index.ts` via its first line,
+`export * from './documents.types.js';`.
+
+The exact fix pattern already exists, twice, elsewhere in this same
+codebase, for the identical situation (a `.plugin.ts` file with a
+`declare module 'fastify'` augmentation, needing to be reachable from its
+module's `index.ts` barrel):
+
+  - `apps/server/src/modules/tracking/index.ts` contains the line:
+    `export { default } from './tracking.plugin.js';`
+  - `apps/server/src/modules/workflow/index.ts` contains the line:
+    `export { default as workflowPlugin } from './workflow.plugin.js';`
+
+`documents.plugin.ts`'s own default export (last 4 lines of the file,
+unchanged by this task) is:
+
+    export default fp(documentsPlugin, {
+      name: 'documents',
+      dependencies: ['database', 'event-bus', 'audit', 'organization'],
+    });
+
+— same shape as `tracking.plugin.ts`'s and `workflow.plugin.ts`'s default
+exports, so the same re-export pattern applies directly.
+
+═══════════════════════════════════════════
+THE FIX — exact change required
+═══════════════════════════════════════════
+File to edit: `apps/server/src/modules/documents/index.ts`
+
+Its current full content is:
+
+```
+export * from './documents.types.js';
+export { createDocumentsRouter } from './documents.router.js';
+export { createComplaintsRouter } from './complaints.router.js';
+export { createDocumentRequestsRouter } from './document-requests.router.js';
+export { createDocumentsAppRouter } from './documents.app.router.js';
+export type {
+  SubjectContext as DocumentsSubjectContext,
+  CreateDocumentAttrs,
+  ReadMetadataAttrs,
+  UpdateDocumentAttrs,
+  SoftDeleteDocumentAttrs,
+  SubmitDocumentAttrs,
+  CancelDocumentAttrs,
+  AssignPreliminaryNumberAttrs,
+  AssignFinalNumberAttrs,
+  CertifyUrgentAttrs,
+  ArchiveDocumentAttrs,
+  PublishPortalAttrs,
+  ContentReadAttrs,
+  CreateVersionAttrs,
+  ScanQualityAttrs,
+} from './documents.policy.js';
+export { DocumentPolicyGuard } from './documents.policy.js';
+```
+
+Required change — add exactly one export line, re-exporting
+`documents.plugin.ts`'s default export, matching `tracking/index.ts`'s exact
+naming convention (`export { default } from ...`, not the
+`export { default as X }` variant that `workflow/index.ts` happens to use —
+this project has no existing consumer that imports a `documentsPlugin` name
+from `documents/index.ts` specifically, so there is no naming constraint
+forcing one variant over the other; use the plain `export { default }` form
+to match `tracking/index.ts` precisely since it is the closer structural
+analog — a module barrel with a single plugin default export and no
+existing named alias in use elsewhere for it).
+
+```json
+{
+  "old_str": "export * from './documents.types.js';",
+  "new_str": "export * from './documents.types.js';\nexport { default } from './documents.plugin.js';"
+}
+```
+
+The JSON block above is authoritative for the exact text change — if
+anything else in this prompt's prose seems to describe the change
+differently, the JSON block wins.
+
+═══════════════════════════════════════════
+SCOPE
+═══════════════════════════════════════════
+IN SCOPE: `apps/server/src/modules/documents/index.ts` — exactly the
+one-line addition specified in the JSON block above. Nothing else in this
+file changes; no reordering of the existing export lines.
+
+OUT OF SCOPE (do not touch even though related):
+- `apps/server/src/modules/documents/documents.plugin.ts` — already correct,
+  do not modify it.
+- `apps/server/src/modules/documents/documents.types.ts` — already correct
+  (this is the file whose separate augmentation already works), do not
+  modify it.
+- `apps/server/src/modules/audit/index.ts` — this file has a structurally
+  identical gap (its `audit.plugin.ts` declares a `declare module 'fastify'`
+  augmentation for `auditService`, `eventBus`, `auditTrpcRouter` that is
+  similarly never re-exported by `audit/index.ts`), but it is NOT currently
+  producing any typecheck error anywhere in this repo (every current
+  call site accesses `auditService` via an `(ctx.req.server as any)` cast
+  rather than typed property access, so the gap is latent, not active).
+  Do not fix this as part of this task — it is a separate finding requiring
+  its own decision about scope and priority. Do not modify
+  `apps/server/src/modules/audit/index.ts` or
+  `apps/server/src/modules/audit/audit.plugin.ts` under any circumstance as
+  part of this task, even if you notice the same pattern while working
+  nearby.
+- Any other module's `index.ts` or `.plugin.ts` file.
+- Any of the five router files that appeared in the original error list
+  (`complaints.router.ts`, `document-requests.router.ts`,
+  `documents.router.ts`, `panlalawigan.router.ts`, `signatures.router.ts`)
+  — none of these need to change. Their `ctx.req.server.X` access pattern is
+  already correct and is explicitly noted as the established convention in
+  an existing comment at `documents.router.ts` line 102 ("ctx.req.server.xxx
+  pattern as every other accessor in this block") — do not restructure how
+  they access these properties.
+
+═══════════════════════════════════════════
+VERIFICATION AFTER THE CHANGE
+═══════════════════════════════════════════
+Run: `pnpm typecheck`
+
+Expected result: all 7 packages/apps pass, specifically:
+- `@batac/web:typecheck` should now pass with zero errors (previously 10
+  errors across the 5 files listed above).
+- `server:typecheck` should continue to pass (it already did before this
+  change; this change does not touch anything in its dependency graph in a
+  way that should regress it, but confirm it still passes).
+
+If `@batac/web:typecheck` still fails after this change with the SAME 10
+errors unchanged, do not attempt a second speculative fix — report back
+with the exact new `pnpm typecheck` output. That would mean the diagnosis
+above (the import-chain trace from `apps/web/src/lib/trpc.ts` through to
+`documents/index.ts`) needs to be re-verified against the actual current
+repo state rather than assumed to still hold, since something about the
+traced chain would have been wrong.
+
+If `@batac/web:typecheck` passes but produces DIFFERENT errors than before
+(not the same 10), report those back as well rather than treating the task
+as complete — a different error set means this change had a side effect
+that needs review before being considered done.
+
+═══════════════════════════════════════════
+REPORT BACK
+═══════════════════════════════════════════
+Report: the exact diff applied, the full `pnpm typecheck` output after the
+change, and explicit confirmation of which packages passed/failed.
+````

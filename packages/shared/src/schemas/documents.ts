@@ -266,6 +266,7 @@ export const UpdateDocumentInputSchema = z.object({
     title: true,
     metadata: true,
   }).shape,
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type UpdateDocumentInput = z.infer<typeof UpdateDocumentInputSchema>;
 
