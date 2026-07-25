@@ -4171,3 +4171,294 @@ code, preserve real test coverage via the port) is achieved and verified.
 Logged so the discrepancy between the prior handoff's stated status and
 the actual repository state is on record, and so the next agent working
 in this area doesn't re-derive or re-attempt work that's already done.
+
+---
+
+### [LOG-0148] documentSponsorships and classificationAllowlists tables have no Zod schema representation
+
+- date: 2026-07-25
+- task_id: (planning session — drizzle-zod coverage audit, migration convertibility check)
+- status: proposed
+- affects: E3 (shared Zod schema catalog), C1 (Part 5 DDL — packages/database/schema/documents.schema.ts lines 450, 524)
+- supersedes: none
+
+**What was found.** While auditing drizzle-zod generator coverage across `packages/shared` and checking each hand-written schema in `documents.ts` against the actual Drizzle table set in `packages/database/schema/documents.schema.ts`, two tables were found to have no corresponding Zod schema at all — not hand-written, not generator-derived, simply absent from `documents.ts` (confirmed via direct grep for both table names and both column names across the file, zero matches):
+
+- `documentSponsorships` (`documents.schema.ts` line 450) — tracks councilor sponsorship of legislative measures, documented in-schema as "Required for the Index of Ordinances tracked fields" (D4 Relationship Note 15).
+- `classificationAllowlists` (`documents.schema.ts` line 524) — supports Gate 4 of the ABAC policy (I1 D-ABAC-02), granting role-based read/download access to Confidential/Restricted documents by type.
+
+**Why this wasn't caught by the coverage audit itself.** The audit's method was to classify existing schema exports in `documents.ts` as generator-backed or hand-written. That method only examines schemas that exist — it has no mechanism to notice a table with zero corresponding schema, since there is no export to classify. This gap was found by separately cross-referencing every table in the Drizzle schema file against schema coverage in `documents.ts`, which is a different check than the coverage audit performed.
+
+**What was NOT done.** No investigation into whether either table is actually read from or written to anywhere in live server code (e.g., via raw queries or a different schema file) — it's possible one or both are unused in practice, which would change the urgency but not the fact of the gap. No schema was drafted. No determination was made as to why these two tables were omitted when the other eight tables in the same file all have corresponding schemas — whether an oversight, a deferred task, or an intentional decision not otherwise documented.
+
+**Disposition.** This is flagged as a new-schema-creation task, not a migration task — there is nothing to convert from hand-written to generator-derived, since nothing was written for these two tables in the first place. Out of scope for the drizzle-zod coverage migration currently in progress (that migration only covers existing hand-written schemas). A human should decide whether this warrants its own task (e.g. `TASK-DOCS-SHARED-0XX`) and, if so, whether the resulting schemas should be generator-derived from the start given the established package convention.
+
+---
+
+### [LOG-0149] 60 hand-written schemas across packages/shared exempted from drizzle-zod generator migration — architectural categorization
+
+- date: 2026-07-25
+- task_id: (planning session — drizzle-zod coverage audit, migration convertibility check)
+- status: proposed
+- affects: E3 (shared Zod schema catalog), C1 (Part 5 DDL), documents.ts, document-metadata.ts, common.ts, organization.ts, workflow/context.schema.ts, workflow/step-config.schema.ts
+- supersedes: none
+
+**Context.** Following the drizzle-zod coverage audit (packages/shared: 55 schema exports in documents.ts, 10 generator-backed / 45 hand-written; plus 44 further exports across common.ts, document-metadata.ts, organization.ts, workflow/context.schema.ts, and workflow/step-config.schema.ts, all hand-written), each of the 65 hand-written exports was checked field-by-field against the actual Drizzle table definitions in packages/database/schema/documents.schema.ts and workflow.schema.ts to determine which genuinely map to a single table's insertable/updatable/selectable column set. 5 of the 65 do (see the accompanying batching plan). The remaining 60 do not, and are exempted from the migration by this entry — not because they are incomplete or lower-priority work, but because createInsertSchema/createUpdateSchema/createSelectSchema operate on a single Drizzle table, and these 60 schemas structurally represent something other than a single table row. Recorded here so no future developer or agent spends cycles trying to "fix" them toward a 100% coverage figure that was never achievable for this category of schema.
+
+**Category 1 — JSONB blob validators (23 schemas).** These validate the *contents* of an untyped `jsonb()` column, not a table's typed columns. No createSelectSchema/createInsertSchema/createUpdateSchema call can derive from a JSONB column, because Drizzle has no column-level type information to generate from — the column type is opaque `jsonb`, and the shape lives entirely in the Zod schema, enforced only at the application layer.
+
+- `document-metadata.ts` (22 of 22 exports): SponsorSchema, ReadingRecordSchema, MayorActionSchema, VetoOverrideSchema, PublicationInfoSchema, NewspaperPublicationSchema, SpResolutionMetadataSchema, SpOrdinanceMetadataSchema, AppropriationOrdinanceMetadataSchema, CertificationOfUrgencyMetadataSchema, ComplaintOutcomeStateSchema, ComplaintViolationTypeSchema, CitizenComplaintMetadataSchema, DocumentRequestFormMetadataSchema, LetterReceivedMetadataSchema, LetterSentMetadataSchema, MemoOutgoingMetadataSchema, MemoIncomingMetadataSchema, NoticeOfCommitteeHearingMetadataSchema, NoticeOfSpecialSessionMetadataSchema, DesignationMetadataSchema, DocumentMetadataSchema — validate the contents of `documents.documents.metadata` (jsonb), discriminated by document type.
+- `workflow/context.schema.ts` (1 of 1 export): WorkflowContextSchema — validates the contents of `workflow.instances.context` (jsonb). Confirmed no `workflow_context` table exists; fields are written by multiple independent callbacks across the workflow engine, not sourced from one table's columns.
+
+**Category 2 — Request, query-filter, and action-trigger payloads (30 schemas).** These describe an operation's input shape, not a row being created or updated.
+
+*Lookup-key-only payloads (8, documents.ts)* — a bare ID (or ID pair) identifying an existing row to act on, not a value being inserted: DocumentIdInputSchema, VersionIdInputSchema, DownloadVersionInputSchema, SubmitDocumentInputSchema, AssignPreliminaryNumberInputSchema, PortalPublishInputSchema, ArchiveDocumentInputSchema (all `{ documentId: UuidSchema }` or equivalent single-key shape), and RequestUploadUrlInputSchema (documentId + mimeType; no `versions` row exists yet at this call — the row is created by the later ConfirmUploadInputSchema call).
+
+*Action-trigger payloads with no backing column (4, documents.ts)* — fields that describe *why* an action is being taken, not a column being written: CancelDocumentInputSchema (reason — no `reason` column on `documents`), FlagScannedBackInputSchema (reason — no matching column on `versions`), AssignFinalNumberInputSchema (reason — no matching column on `numbers`), LogSecretariatDecisionInputSchema (stepInstanceId/decision — a workflow-engine concept, not a column on any table in documents.schema.ts at all).
+
+*Query-filter and composite shapes (4, documents.ts)* — DocumentFilterSchema, ListDocumentsInputSchema, SearchDocumentsInputSchema (date-range and multi-value filter shapes; ListDocumentsInputSchema's `officeId` is deliberately generic where the `documents` table has two distinct office columns — originatingOfficeId and ownedByOfficeId — collapsing that distinction would be a semantic loss, not a fix), LogDocumentInputSchema (a composite spanning `documents` fields plus a nested `versions`-shaped `uploadedFile` sub-object — not a single-table shape), and LogCertificationOfUrgencyInputSchema (a multi-document linking operation — certifyingDocumentId plus an array of associatedMeasureIds — not a single-table row).
+
+*Supporting primitives and cross-cutting utilities (7, common.ts)* — UuidSchema, TimestampSchema, DateSchema, SortOrderSchema, AllowedMimeTypeSchema (single-value primitives, not object shapes) and PaginationInputSchema, DateRangeSchema (cross-cutting shapes spread into multiple filter schemas above via `.shape`, not tied to any one table).
+
+**Category 3 — Pre-load JSON seed formats (13 schemas, workflow/step-config.schema.ts, all 13 exports).** StepTypeSchema, WorkflowInstanceStatusSchema, StepInstanceStatusSchema, ApprovalDecisionSchema, ActionStepConfigSchema, ApprovalStepConfigSchema, MultiReferralStepConfigSchema, DecisionStepConfigSchema, NotificationStepConfigSchema, TerminationStepConfigSchema, WorkflowStepDefSchema, WorkflowTransitionRuleDefSchema, WorkflowDefinitionSeedSchema. These validate a structured JSON seed format (consistently snake_case, distinct from the camelCase used throughout every table-derived schema in this package) that is transformed into rows at load time, not inserted as-is. Two confirmed structural mismatches against the closest candidate tables (`workflow.steps`, `workflow.transition_rules`): (1) the six `*StepConfigSchema` shapes validate the contents of `workflow.steps.config`, an untyped `jsonb()` column — the same limitation as Category 1; (2) WorkflowStepDefSchema and WorkflowTransitionRuleDefSchema reference steps by human-readable `step_key` strings, while the tables store resolved `uuid` foreign keys (`fromStepId`/`toStepId`) assigned at seed-load time — these are not the same data, and no generator can bridge a pre-resolution key to a post-resolution foreign key. Converting this category would require redesigning the schemas' shape first (splitting seed-format fields from row-derived fields), which is a schema-design change, not a generator-migration.
+
+**Category 4 — Cross-module DTO / projection (1 schema, organization.ts).** OfficeSummarySchema. Distinguished from Categories 1–3: a real backing table (`organization.offices`, 9 columns) exists, and 4 of its columns do map cleanly onto this schema's 4 fields, including a precedented rename-and-narrow-enum pattern (`type`↔`officeType`, narrowed from the table's untyped `text()` to a proper enum) already used elsewhere in this package for `documents.ts`'s `lifecycleState`. Exempted on architectural grounds, not mechanical infeasibility: every other generator-backed `*SelectSchema` in this package uses a consistent, narrow `.omit({ cityId, deletedAt, deletedBy })` — a standard 3-field audit-column exclusion that preserves the rest of the row. OfficeSummarySchema is a curated 4-of-9-field cross-module DTO for embedding in other packages' schemas, not a full-row representation; reaching that shape via `createSelectSchema(offices)` would require a much heavier `.omit()` (5 of 9 columns), coupling a cross-module API contract to the `offices` table's ORM definition. A schema change to `offices` unrelated to this DTO's purpose (e.g. adding a new required column) could then silently change or break the projection at the point it's consumed by other packages. This schema is kept as an explicit, hand-written contract by design, decoupled from the underlying table's evolution.
+
+**Tally.** 23 (Category 1) + 30 (Category 2) + 13 (Category 3) + 1 (Category 4) = 60, reconciling exactly against the documents.ts audit (16 not-convertible: 8 lookup-key + 4 action-trigger + 4 query/filter-composite) plus the 5-file audit (44 not-convertible: 22 document-metadata.ts + 7 common.ts + 1 organization.ts + 1 context.schema.ts + 13 step-config.schema.ts) = 60.
+
+**Disposition.** No code change as part of this entry. All 60 schemas remain in their current hand-written form. This entry is the durable record of *why* they were excluded from the drizzle-zod coverage migration tracked since LOG-0137, so the migration's scope (5 schemas) is understood as complete-for-what's-convertible, not partial progress toward these 60 as a backlog.
+
+---
+
+--- LOG-0150 ---
+### [LOG-0150] workflow/index.ts's createWorkflowPublicAPI re-export, and workflow.public-api.ts's own type-only barrel import, discovered unscoped during TASK-WORKFLOW-012 drafting — not covered by that task or any prior session
+- date: 2026-07-25
+- task_id: TASK-WORKFLOW-012 (discovered while scoping, explicitly excluded from its execution)
+- status: proposed
+- affects: J4 §3.1 (index.ts "must not contain" list), workflow module barrel compliance (same category as LOG-0140's documents/tracking Option A decision and the now-closed TASK-DOCS-025/TASK-TRACK-010/TASK-WORKFLOW-012/TASK-BARRELS-001 work)
+
+**What was found.** While independently re-verifying workflow/index.ts's full
+content prior to drafting TASK-WORKFLOW-012 (which removed only the
+`export { default as workflowPlugin } from './workflow.plugin.js';` plugin
+re-export), a second export was found in the same file that no prior
+session's investigation had identified: `export { createWorkflowPublicAPI }
+from './workflow.public-api.js';` (currently line 1, following
+TASK-WORKFLOW-012's removal of the plugin re-export that previously
+occupied that position). This is a factory-function re-export, the same
+general category of J4 §3.1 violation ("service factory functions/
+implementations") already addressed for the documents and tracking modules
+under TASK-BARRELS-001.
+
+Separately, workflow.public-api.ts itself was found to import from its own
+barrel: `import type { WorkflowPublicAPI, WorkflowInstanceSummary,
+WorkflowSLAFilter, WorkflowSLAData, WorkflowStepType } from './index.js';`
+(lines 3-9) — a type-only import of the five interface/type declarations
+that live directly in index.ts. This is structurally identical in nature to
+workflow.plugin.ts's own type-only import of WorkflowPublicAPI from
+index.ts (already known and accounted for in TASK-WORKFLOW-012's
+verification steps), but workflow.public-api.ts's import was not
+previously identified anywhere — the item 2 compliance table in the prior
+multi-session investigation's handoff reference only listed
+workflow.plugin.ts's type-only import as the module's internal barrel
+dependency, not this second one.
+
+**Why this wasn't caught earlier.** The prior investigation's own item 2
+table explicitly noted workflow's "Other J4 §3.1 violations" column as "Not
+investigated in detail (out of scope so far)" — the multi-session effort's
+empirical safety testing and task-drafting focus was on the plugin
+re-export specifically (the load-bearing case blocking documents/tracking
+by analogy), not a full audit of every export in workflow/index.ts. Both
+findings here surfaced only because drafting TASK-WORKFLOW-012 required
+re-reading the file's complete current content and every file importing
+from it, rather than relying on the prior table's summary.
+
+**Consumer check performed for createWorkflowPublicAPI (relevant to a
+future removal task's risk level).** A full-repository search found no
+consumer that imports createWorkflowPublicAPI from the barrel
+(workflow/index.js) — the only real consumer, workflow.plugin.ts, already
+imports it directly from './workflow.public-api.js' (line 6), not from
+index.ts. The only occurrence of the name sourced from index.ts is the
+barrel's own re-export declaration. This mirrors 6 of the 8 exports handled
+under TASK-BARRELS-001 (createComplaintsRouter, createDocumentRequestsRouter,
+DocumentPolicyGuard, TrackingRepository, QrCodeService,
+createTrackingService) in having zero barrel consumers, rather than the 2
+of 8 that needed consumer-file updates (createDocumentsRouter,
+createDocumentsAppRouter). If a future task removes this re-export, on
+current evidence it would require no consumer-file changes beyond the
+barrel file itself — though this should be re-confirmed fresh at that
+task's execution time, per this project's standard practice, rather than
+assumed to still hold.
+
+**What was NOT done.** No task was drafted or executed to remove either
+item. TASK-WORKFLOW-012's own scope boundaries explicitly listed both the
+createWorkflowPublicAPI re-export and workflow.public-api.ts as OUT OF
+SCOPE, and both were left untouched by that task's execution — confirmed
+directly against the current repository (workflow/index.ts line 1 still
+re-exports createWorkflowPublicAPI; workflow.public-api.ts's type-only
+import from index.js at lines 3-9 is unchanged). No determination was made
+as to whether removing the createWorkflowPublicAPI re-export should be
+folded into a future combined task (the way TASK-BARRELS-001 combined
+documents' and tracking's remaining violations) or scoped as its own task.
+No determination was made as to whether workflow.public-api.ts's type-only
+import of index.ts constitutes a violation at all in the first place — it
+imports only type declarations that live directly in index.ts and are not
+proposed for removal, so unlike the plugin re-export and the
+createWorkflowPublicAPI re-export, this may not need any code change even
+if the barrel's other violations are eventually addressed; it is recorded
+here as a fact about the module's current import graph, not as a confirmed
+finding of non-compliance.
+
+**Disposition.** This entry exists to ensure this unscoped surface area is
+tracked in the durable, searchable record rather than only in
+conversation-level planning notes, consistent with this project's
+convention that discoveries from A1 execution and its adjacent planning
+work go in this log rather than risking being lost between sessions. No
+code change was made as part of this entry. A human should decide whether
+to fold the createWorkflowPublicAPI re-export's removal into a follow-on
+task (alone, or combined with any other remaining barrel violations found
+in the future) and, separately, whether workflow.public-api.ts's type-only
+barrel import warrants any action at all.
+--- END LOG-0150 ---
+
+---
+
+### [LOG-0151] Nullable-column-vs-required-input tightening required on 3 of 5 Batch-1 drizzle-zod migration schemas; TASK-DOCS-SHARED-011 issued
+
+- date: 2026-07-25
+- task_id: (planning session — pre-migration re-verification, standalone prompt drafting for TASK-DOCS-SHARED-011)
+- status: proposed
+- affects: E3 (shared Zod schema catalog), C1 (Part 5 DDL — packages/database/schema/documents.schema.ts lines 341, 390-393), documents.ts (UploadNewVersionInputSchema, ConfirmUploadInputSchema, UploadAttachmentInputSchema)
+- supersedes: none
+
+**What was found.** Before drafting the executor prompt for the 5-schema
+drizzle-zod migration batch identified by LOG-0149's convertibility
+check, each of the 5 target schemas' underlying Drizzle columns was
+re-verified directly against the current
+packages/database/schema/documents.schema.ts. Three fields across two of
+the five schemas are nullable at the DB level despite being required
+(non-optional) in the corresponding hand-written input schema:
+attachments.mimeType and attachments.fileSizeBytes (both affecting
+UploadAttachmentInputSchema), and versions.fileSizeBytes (affecting both
+UploadNewVersionInputSchema and ConfirmUploadInputSchema). This was not
+called out as a distinct complexity axis in LOG-0149's convertibility
+categorization, which focused on field-name mapping rather than
+nullability/strictness mapping.
+
+**Not a blocker.** A working precedent for exactly this situation
+already exists in the codebase: LogSignatureInputSchema (from
+TASK-DOCS-SHARED-008) uses createInsertSchema(signatures).pick({...})
+.extend({...}) to override the nullable signatures.signedByDisplayName
+column into a strict, non-optional field. The same technique is
+specified for the newly-identified nullable fields in the
+TASK-DOCS-SHARED-011 executor prompt.
+
+**Also independently re-confirmed during this session (no new facts,
+listed for completeness of this entry's audit trail):** LOG-0142's
+dateReferred-drop-maintained status on PanlalawiganReviewSelectSchema,
+and LOG-0145's dateReferred removal from LogPanlalawiganOutcomeInputSchema
+— both checked directly against the current documents.ts, both still
+hold. The TASK-DOCS-SHARED-005/006 numbering gap (flagged unexplained in
+a prior planning session) was traced to fix.md's side-band task
+sequence (lines 10588 and 10710) — the same dual-numbering pattern
+LOG-0147 already documented for TASK-ORG-011. Both the findings log and
+fix.md were searched for any existing TASK-DOCS-SHARED-011 before this
+number was assigned; neither contained it.
+
+**Disposition.** TASK-DOCS-SHARED-011 issued covering the 5-schema batch
+(Group A: UploadNewVersionInputSchema, ConfirmUploadInputSchema; Group B:
+UploadAttachmentInputSchema; Group C: InitiatePanlalawiganTransmittalInputSchema,
+LogPanlalawiganOutcomeInputSchema), with the nullable-field overrides
+made explicit per-field in the executor prompt rather than left for the
+executor to discover or improvise.
+
+---
+
+### [LOG-0152] TASK-DOCS-SHARED-011 execution independently verified correct — 5-schema drizzle-zod migration closed out
+
+- date: 2026-07-25
+- task_id: TASK-DOCS-SHARED-011
+- status: proposed
+- affects: E3 (shared Zod schema catalog), documents.ts (UploadNewVersionInputSchema, ConfirmUploadInputSchema, UploadAttachmentInputSchema, InitiatePanlalawiganTransmittalInputSchema, LogPanlalawiganOutcomeInputSchema)
+- supersedes: none (LOG-0151 documented the pre-execution risk assessment for this same task; this entry documents the post-execution outcome — a different fact, not a correction, so LOG-0151 stands as accurate history rather than being superseded)
+
+**What was done.** TASK-DOCS-SHARED-011 was executed against the live
+repository: all 5 schemas identified as genuinely convertible by the
+LOG-0149 categorization (UploadNewVersionInputSchema,
+ConfirmUploadInputSchema, UploadAttachmentInputSchema,
+InitiatePanlalawiganTransmittalInputSchema,
+LogPanlalawiganOutcomeInputSchema) were converted from hand-written
+z.object({...}) definitions to createInsertSchema(table).pick({...})
+.extend({...})[.omit({...})] patterns, in the Group A/B/C sequence and
+per-field mapping specified by the executor prompt. The executor
+reported both `pnpm --filter @batac/shared typecheck` and `pnpm --filter
+server typecheck` passing with zero errors, and pasted grep output
+confirming no raw Drizzle column names (`fileKey`, `controlNo`,
+`resolutionNumber`) leak into any exported schema's field names.
+
+**Independent verification performed, not just the executor's
+self-report accepted.** The report's alignment against the original
+prompt was checked directly (Pass 1): all 5 schemas match the prompt's
+specified code exactly, including the portion of the supplied git-diff
+that was truncated mid-hunk (the diff cut off inside
+LogPanlalawiganOutcomeInputSchema's first .refine() call, before its
+second .refine() and before the schema's closing type export — this was
+confirmed by reading the live file directly, not relied upon from the
+incomplete diff). Correctness was then checked independently of
+alignment (Pass 2): the executor's pasted grep output was independently
+re-run against the live file and matched line-for-line; the two
+consuming files (panlalawigan.router.ts, documents.router.ts) were read
+directly and confirmed to access only the renamed field names
+(input.panlalawiganResolutionNumber, input.s3Key) with no dependency on
+a raw Drizzle name anywhere. Beyond that, the migration's actual runtime
+behavior was tested in an isolated sandbox against the real pinned
+zod@^4.4.3 / drizzle-zod@0.8.3 versions, using the executor's exact code
+verbatim against the real (nullable-column) table shapes: 9 targeted
+checks against UploadAttachmentInputSchema (nullable-to-required
+tightening on mimeType/fileSizeBytes, fileKey non-leakage, constraint
+survival through .extend()) and 8 targeted checks against
+LogPanlalawiganOutcomeInputSchema (both .refine() gates firing correctly
+with exact messages on valid_in_part/returned, ungated outcomes
+unaffected, correct field stripping/renaming) — all 17 checks passed.
+This confirmed the mechanism behind why the typecheck passes: Zod v4's
+.extend() fully replaces a picked field's schema rather than merging
+with its original (possibly nullable) type, which is what makes the
+.pick().extend() pattern a valid way to tighten a nullable Drizzle
+column into a strict input-schema field.
+
+**Caveat for the record — zero live consumers for 2 of 5 schemas.**
+UploadNewVersionInputSchema and UploadAttachmentInputSchema have no
+consumer anywhere in the repository (apps/server or apps/web) — confirmed
+by repository-wide search. This means the executor prompt's Hard Stop
+Condition (stop if a resolver body would need to change) was structurally
+unreachable for these two specifically, not because the migration proved
+safe against real call sites, but because no call site currently exists
+to test against. This is a fact about the current codebase, not a defect
+in this task's execution — recorded here explicitly so no one
+independently re-discovers this and wonders why the Hard Stop Condition
+didn't fire for these two schemas, or spends cycles searching for a
+consumer that isn't there. The other 3 schemas (ConfirmUploadInputSchema,
+InitiatePanlalawiganTransmittalInputSchema,
+LogPanlalawiganOutcomeInputSchema) do have live consumers, and those
+consumers' field access was directly verified against the post-migration
+schema shape, as described above.
+
+**Not independently reproduced.** The typecheck commands themselves were
+not re-run end-to-end in the verifying environment — no node_modules was
+present in the snapshot used for this verification, matching the same
+limitation noted in LOG-0144. The sandbox behavioral testing described
+above used the real generator and real Zod runtime with the exact live
+code, which is strong corroborating evidence for the same conclusion the
+typecheck would confirm, but this entry treats the typecheck output
+itself as [Inference]-supported rather than independently [Confirmed].
+
+**Disposition.** TASK-DOCS-SHARED-011 is complete. All 5 schemas in the
+Batch-1 convertibility set (LOG-0149) are now generator-backed. This
+closes out the drizzle-zod coverage migration thread opened at LOG-0137
+for everything identified as convertible; the 60 schemas categorized as
+architecturally non-convertible (LOG-0149) remain intentionally
+hand-written, and the documentSponsorships/classificationAllowlists
+schema gap (LOG-0148) and the workflow/index.ts barrel-export findings
+(LOG-0150) remain open as separate, unrelated next steps.
+
+---
+

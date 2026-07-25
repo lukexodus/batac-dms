@@ -18738,3 +18738,1032 @@ This task does not address:
   already-drafted or not-yet-scoped tasks and are not affected by this one.
 - The workflow module's barrel deviation — untouched by this task.
 ````
+
+# TASK-WORKFLOW-012: Remove Fastify plugin default re-export from workflow/index.ts and update app.ts to import the plugin directly
+
+````
+TASK-WORKFLOW-012: Remove Fastify plugin default re-export from workflow/index.ts and update app.ts to import the plugin directly
+
+## Context
+J4 (docs/pre-development/J-software-design-patterns-and-standards/j4-module-structure-template.md),
+§3.1's "Must not contain" list for index.ts explicitly forbids "Fastify plugin
+registration." §8's Deviation Policy names "Placing the Fastify plugin in
+index.ts instead of {module}.plugin.ts" as an example change requiring an ADR
+before implementation. No such ADR exists anywhere in this repository. The
+workflow module's index.ts currently violates this rule. A human has selected
+Option A (bring into compliance) for this specific module, over Option B
+(writing a retroactive ADR to document the deviation as accepted practice).
+This task brings workflow/index.ts into compliance.
+
+Unlike the documents and tracking modules (already fixed under TASK-DOCS-025
+and TASK-TRACK-010), app.ts genuinely depends on workflow/index.ts's plugin
+re-export — it does not import the plugin file directly. This task must
+therefore change two files, not one: the re-export line itself, and app.ts's
+import of it.
+
+## Files to edit
+1. /apps/server/src/modules/workflow/index.ts
+2. /apps/server/src/app.ts
+
+## Exact change 1 — workflow/index.ts
+Delete this exact line from the file (it is currently line 1):
+
+old_str:
+export { default as workflowPlugin } from './workflow.plugin.js';
+
+new_str:
+(nothing — delete the line entirely, including its trailing newline)
+
+Do not alter any other line in this file. In particular:
+- Line 2, `export { createWorkflowPublicAPI } from './workflow.public-api.js';`,
+  is NOT part of this task's scope. Leave it exactly as-is, even though it may
+  also be arguably non-conformant with J4 §3.1 — that is a separate,
+  not-yet-scoped concern and must not be touched here.
+- Every interface and type declared directly in this file (WorkflowPublicAPI,
+  WorkflowInstanceSummary, WorkflowStepType, WorkflowSLAFilter,
+  WorkflowSLAData) must remain exactly as-is.
+This task's scope is the single plugin re-export line and nothing else.
+
+## Exact change 2 — app.ts
+Change this exact line (it is currently line 55):
+
+old_str:
+import { workflowPlugin } from './modules/workflow/index.js';
+
+new_str:
+import workflowPlugin from './modules/workflow/workflow.plugin.js';
+
+This changes a named import of an aliased re-export into a default import
+directly from the source file — matching the exact style already used two
+lines above it for documentsPlugin (line 53) and trackingPlugin (line 54).
+Do not alter the import's position in the file (it stays between the
+trackingPlugin import and the rateLimit import) and do not alter anything
+else in app.ts. In particular, line 231,
+`await fastify.register(workflowPlugin);`, must NOT be changed — the local
+identifier `workflowPlugin` is unaffected by this change, since it is bound
+by the import statement either way; only the import's source changes.
+
+## Verification before making the change
+Before editing, confirm directly against the live repository (do not assume
+this still holds — re-check it):
+
+1. /apps/server/src/modules/workflow/workflow.plugin.ts contains exactly one
+   import of './index.js', and it is type-only:
+   `import type { WorkflowPublicAPI } from './index.js';`
+   If this import is not type-only (i.e., if it has become a value import),
+   or if there is more than one import from './index.js' in this file, STOP
+   and do not make this change — report back what was found instead, since
+   this task's premise (no circular-import risk from workflow.plugin.ts) no
+   longer holds and the task needs to be re-scoped by a human before
+   proceeding.
+
+2. /apps/server/src/modules/workflow/workflow.public-api.ts contains exactly
+   one import of './index.js', and it is type-only, importing some subset of:
+   WorkflowPublicAPI, WorkflowInstanceSummary, WorkflowSLAFilter,
+   WorkflowSLAData, WorkflowStepType. If this import is not type-only, or if
+   it imports anything other than these five names, STOP and report back —
+   do not proceed, since this task's premise would no longer hold.
+
+3. /apps/server/src/modules/workflow/workflow.plugin.ts exports its plugin
+   as a genuine `export default` statement (currently:
+   `export default fp(workflowPlugin, { name: 'workflow', dependencies: [...] });`
+   at line 156). If this has changed to a named export instead of a default
+   export, STOP and report back — do not proceed, since app.ts's new import
+   (a default import) would then be incorrect.
+
+4. /apps/server/src/app.ts's only import of anything from
+   './modules/workflow/index.js' is the workflowPlugin import at (currently)
+   line 55. Confirm no other import in app.ts pulls from
+   modules/workflow/index.js. If another import from that path exists, STOP
+   and report back — do not proceed without human input on how to handle it.
+
+5. app.ts's only usage of the identifier `workflowPlugin` (aside from the
+   import line itself) is the registration call
+   `await fastify.register(workflowPlugin);` (currently line 231). If
+   `workflowPlugin` is referenced anywhere else in app.ts, STOP and report
+   back what was found.
+
+6. No file anywhere in the repository other than app.ts imports anything
+   from apps/server/src/modules/workflow/index.js. (Note: a grep for
+   "workflow/index" will also surface packages/shared/src/index.ts's
+   `export * from './workflow/index.js';` — this is an entirely unrelated
+   file, packages/shared/src/workflow/index.ts, which only re-exports
+   context.schema.js and step-config.schema.js. It has no relationship to
+   apps/server/src/modules/workflow/index.ts and must be ignored; do not
+   treat it as a hit.) If any import of
+   apps/server/src/modules/workflow/index.js is found anywhere other than
+   app.ts, STOP and report back — do not proceed, since this task's premise
+   (app.ts is the sole external dependent) would no longer hold.
+
+If all six checks pass exactly as stated, proceed with both edits together
+(they must be made together — making only one would break either app.ts's
+build or leave index.ts non-compliant with a stale app.ts import).
+
+## Scope boundaries
+IN SCOPE (touch these, and only these):
+- /apps/server/src/modules/workflow/index.ts (the one-line deletion above)
+- /apps/server/src/app.ts (the one-line import change above)
+
+OUT OF SCOPE (do not touch even if related):
+- /apps/server/src/modules/workflow/workflow.plugin.ts
+- /apps/server/src/modules/workflow/workflow.public-api.ts
+- Any other export currently in workflow/index.ts (the
+  createWorkflowPublicAPI re-export, and every interface/type declaration —
+  leave every one of these exactly as they currently are)
+- packages/shared/src/workflow/index.ts and any file under
+  packages/shared/src/workflow/ (unrelated file, same name, different
+  directory — see verification check 6 above)
+- /apps/server/src/modules/documents/** and
+  /apps/server/src/modules/tracking/** (already handled under TASK-DOCS-025
+  and TASK-TRACK-010; not part of this task)
+- /apps/server/src/modules/organization/** (already handled separately; not
+  part of this task)
+- Any file under apps/server/src/modules/workflow/__tests__/ or any
+  *.test.ts file anywhere in the workflow module — this task does not
+  require any test file changes (see Post-change verification below for
+  why), and none should be made
+
+## Post-change verification
+After making both edits, run:
+  pnpm --filter server typecheck
+This must complete with no new errors.
+
+Also run:
+  pnpm --filter server test
+
+No existing test should newly fail as a result of this change. In
+particular:
+- /apps/server/src/modules/workflow/workflow.plugin.test.ts already imports
+  workflowPlugin as a default import directly from './workflow.plugin.js'
+  (not from the barrel) — this file has no dependency on either edit and is
+  expected to continue behaving exactly as before (including any
+  pre-existing failures it already had, which are unrelated to this
+  change).
+- /apps/server/src/modules/workflow/workflow.router.test.ts has no import
+  from './index.js' or '../index.js' at all — unaffected by either edit.
+
+This task is expected to produce zero new test failures and zero new
+typecheck errors relative to whatever the test/typecheck baseline is at the
+time this task is executed. If the result differs from the baseline in any
+way (a test that was passing now fails, or typecheck newly errors), STOP,
+do not attempt to fix it by making further changes to other files, and
+report the exact failure or error back instead.
+
+## What this task does NOT do
+This task does not address:
+- The createWorkflowPublicAPI re-export also present in workflow/index.ts,
+  which may also be arguably non-conformant with J4 §3.1. This is a
+  separate, not-yet-scoped, not-yet-created task.
+- Any change to the documents, tracking, or organization modules.
+- Writing an ADR. This task proceeds under the "bring into compliance"
+  direction (Option A) that a human has already selected for this specific
+  module; it is not itself the ADR-writing task, and no ADR should be
+  written as part of executing it.
+````
+
+---
+
+# TASK-BARRELS-001: Remove router-factory, DocumentPolicyGuard, TrackingRepository, QrCodeService, and createTrackingService re-exports from documents/index.ts and tracking/index.ts
+
+````
+TASK-BARRELS-001: Remove router-factory, DocumentPolicyGuard, TrackingRepository, QrCodeService, and createTrackingService re-exports from documents/index.ts and tracking/index.ts
+
+## Context
+J4 (docs/pre-development/J-software-design-patterns-and-standards/j4-module-structure-template.md),
+§3.1's "Must not contain" list for index.ts forbids repository factory
+functions/implementations and service factory functions/implementations,
+among other things. The documents and tracking modules' index.ts files
+currently re-export several items that fall into these forbidden
+categories, beyond the plugin re-exports already removed under
+TASK-DOCS-025 and TASK-TRACK-010. This task removes those remaining
+non-conformant re-exports. A human has selected to handle both modules'
+remaining violations in this single combined task rather than as two
+separate per-module tasks.
+
+## Files to edit
+1. /apps/server/src/modules/documents/index.ts
+2. /apps/server/src/modules/tracking/index.ts
+3. /apps/server/src/modules/documents/__tests__/documents.scaffold.test.ts
+4. /apps/server/src/trpc/root.ts
+
+Files 3 and 4 are consumer-update files, required because two of the eight
+exports being removed have live consumers that import from the barrel
+specifically (see "Consumer scan results" below). Files 1 and 2 are the
+primary target of this task; files 3 and 4 are necessary follow-on edits to
+avoid breaking the build/tests, not incidental scope creep.
+
+## Consumer scan results — authoritative, do not re-derive
+The following table is the authoritative result of a full-repository search
+for consumers of each of the 8 named exports being removed. This search has
+already been done; do not re-search from scratch, but DO perform the
+"Verification before making the change" step below, which re-confirms the
+load-bearing facts (not the exhaustive search) fresh at execution time.
+
+```json
+{
+  "exports_to_remove": [
+    {
+      "name": "createDocumentsRouter",
+      "source_file": "documents/index.ts",
+      "line": 2,
+      "has_barrel_consumer": true,
+      "consumer_file": "apps/server/src/modules/documents/__tests__/documents.scaffold.test.ts",
+      "consumer_kind": "test-only",
+      "action_required": "redirect import to '../documents.router.js'"
+    },
+    {
+      "name": "createComplaintsRouter",
+      "source_file": "documents/index.ts",
+      "line": 3,
+      "has_barrel_consumer": false,
+      "action_required": "none"
+    },
+    {
+      "name": "createDocumentRequestsRouter",
+      "source_file": "documents/index.ts",
+      "line": 4,
+      "has_barrel_consumer": false,
+      "action_required": "none"
+    },
+    {
+      "name": "createDocumentsAppRouter",
+      "source_file": "documents/index.ts",
+      "line": 5,
+      "has_barrel_consumer": true,
+      "consumer_file": "apps/server/src/trpc/root.ts",
+      "consumer_kind": "production code",
+      "action_required": "redirect import to '../modules/documents/documents.app.router.js'"
+    },
+    {
+      "name": "DocumentPolicyGuard",
+      "source_file": "documents/index.ts",
+      "line": 23,
+      "has_barrel_consumer": false,
+      "action_required": "none"
+    },
+    {
+      "name": "TrackingRepository",
+      "source_file": "tracking/index.ts",
+      "line": 39,
+      "has_barrel_consumer": false,
+      "action_required": "none"
+    },
+    {
+      "name": "QrCodeService",
+      "source_file": "tracking/index.ts",
+      "line": 40,
+      "has_barrel_consumer": false,
+      "action_required": "none"
+    },
+    {
+      "name": "createTrackingService",
+      "source_file": "tracking/index.ts",
+      "line": 41,
+      "has_barrel_consumer": false,
+      "action_required": "none"
+    }
+  ]
+}
+```
+
+The JSON block above is authoritative. If any prose elsewhere in this
+prompt appears to conflict with it, the JSON block wins.
+
+For the six exports with `has_barrel_consumer: false`: every real consumer
+of these names in the repository already imports directly from the
+underlying source file (documents.router.ts, complaints.router.ts,
+document-requests.router.ts, documents.policy.ts, tracking.repository.ts,
+tracking.qr-service.ts, tracking.service.ts respectively), not from the
+barrel. Removing these six re-export lines requires no other file changes.
+
+## Exact change 1 — documents/index.ts
+Delete these exact lines from the file (currently lines 2, 3, 4, 5, and 23):
+
+old_str:
+export { createDocumentsRouter } from './documents.router.js';
+export { createComplaintsRouter } from './complaints.router.js';
+export { createDocumentRequestsRouter } from './document-requests.router.js';
+export { createDocumentsAppRouter } from './documents.app.router.js';
+
+new_str:
+(nothing — delete these four lines entirely)
+
+Separately, also delete this exact line (currently line 23):
+
+old_str:
+export { DocumentPolicyGuard } from './documents.policy.js';
+
+new_str:
+(nothing — delete this line entirely)
+
+Do not alter any other line in this file. Specifically, the following must
+remain exactly as-is:
+- Line 1: `export * from './documents.types.js';`
+- The `export type { ... } from './documents.policy.js';` block (currently
+  lines 6-22) — this is a set of named TYPE exports from documents.policy.js
+  and is explicitly OUT OF SCOPE for this task, even though it originates
+  from the same source file as DocumentPolicyGuard. Only the
+  DocumentPolicyGuard class export is being removed; the type exports
+  (SubjectContext as DocumentsSubjectContext, CreateDocumentAttrs,
+  ReadMetadataAttrs, UpdateDocumentAttrs, SoftDeleteDocumentAttrs,
+  SubmitDocumentAttrs, CancelDocumentAttrs, AssignPreliminaryNumberAttrs,
+  AssignFinalNumberAttrs, CertifyUrgentAttrs, ArchiveDocumentAttrs,
+  PublishPortalAttrs, ContentReadAttrs, CreateVersionAttrs,
+  ScanQualityAttrs) must remain untouched. Do not remove, modify, or
+  "clean up" these type exports as part of this task, even though they may
+  also be arguably non-conformant with J4 §3.1 — that determination is out
+  of scope here.
+
+After these deletions, documents/index.ts should contain exactly: the
+`export *` line, the `export type { ... }` block, and nothing else
+(assuming no other agent has modified this file between now and execution
+— re-verify the file's actual current content before editing per the
+Verification section below, do not assume it still matches this
+description).
+
+## Exact change 2 — tracking/index.ts
+Delete these exact lines from the file (currently lines 39, 40, and 41):
+
+old_str:
+export { TrackingRepository } from './tracking.repository.js';
+export { QrCodeService } from './tracking.qr-service.js';
+export { createTrackingService } from './tracking.service.js';
+
+new_str:
+(nothing — delete these three lines entirely)
+
+Do not alter any other line in this file. Specifically, the three interface
+declarations (TrackingPublicAPI, TrackingRecordSummary, RoutingEntry —
+currently lines 1-37) must remain exactly as-is. These are out of scope for
+this task; only the three concrete class/function re-exports are being
+removed.
+
+After this deletion, tracking/index.ts should contain exactly the three
+interface declarations and nothing else (assuming no other agent has
+modified this file between now and execution — re-verify before editing).
+
+## Exact change 3 — documents.scaffold.test.ts
+Change this exact line (currently line 4):
+
+old_str:
+import { createDocumentsRouter } from '../index.js';
+
+new_str:
+import { createDocumentsRouter } from '../documents.router.js';
+
+This is the only change to this file. The test's actual assertions (line
+13, `expect(createDocumentsRouter).toBeDefined();`, and everything else in
+the file) are unaffected — this test verifies the function exists and is
+defined, which is equally true whether the import comes from the barrel or
+directly from the source file. Other imports in this file (lines 2-3,
+createDocumentsService and DocumentsRepository) are already sourced
+directly from their own files, not the barrel, and must not be changed.
+
+## Exact change 4 — trpc/root.ts
+Change this exact line (currently line 3):
+
+old_str:
+import { createDocumentsAppRouter } from '../modules/documents/index.js';
+
+new_str:
+import { createDocumentsAppRouter } from '../modules/documents/documents.app.router.js';
+
+This is the only change to this file. The usage site (currently line 13,
+`documents: createDocumentsAppRouter(),`) is unaffected — the local
+identifier createDocumentsAppRouter is unchanged, only its import source
+changes. Every other import and every other line in this file (iamRouter,
+createTrackingRouter, workflowRouter, sessionRouter, createOrgRouter,
+createAuditTrpcRouter, and the appRouter object itself) must remain exactly
+as-is.
+
+## Verification before making the change
+Before editing, confirm directly against the live repository (do not
+assume the Consumer scan results table above still holds — re-check the
+load-bearing facts fresh):
+
+1. /apps/server/src/modules/documents/index.ts currently contains, at or
+   near the line numbers stated above, exactly the five export lines listed
+   in "Exact change 1." If the file's content has diverged from what this
+   task assumes (different line numbers are fine as long as the same export
+   statements are present with the same exact text; different export
+   statements or missing ones are not fine), STOP and report back what was
+   found instead of proceeding.
+
+2. /apps/server/src/modules/tracking/index.ts currently contains, at or
+   near the line numbers stated above, exactly the three export lines
+   listed in "Exact change 2." Same STOP condition as above if diverged.
+
+3. Re-run a repository-wide search for each of the following 8 names to
+   confirm no NEW consumer has appeared since the Consumer scan results
+   table above was produced: createDocumentsRouter, createComplaintsRouter,
+   createDocumentRequestsRouter, createDocumentsAppRouter,
+   DocumentPolicyGuard, TrackingRepository, QrCodeService,
+   createTrackingService. Specifically confirm:
+   a. No file other than documents.scaffold.test.ts imports
+      createDocumentsRouter from documents/index.js (either
+      '../index.js' or '../../modules/documents/index.js' or any
+      equivalent path).
+   b. No file other than trpc/root.ts imports createDocumentsAppRouter
+      from documents/index.js.
+   c. No file anywhere imports createComplaintsRouter,
+      createDocumentRequestsRouter, or DocumentPolicyGuard from
+      documents/index.js.
+   d. No file anywhere imports TrackingRepository, QrCodeService, or
+      createTrackingService from tracking/index.js.
+   If any of a-d is now false (a new consumer has appeared that this task
+   does not account for), STOP and report back exactly what was found — do
+   not proceed with the deletion for that specific export, and do not
+   silently add a fix for the new consumer without reporting it first,
+   since it means this task's scope is now incomplete and needs human
+   input on how to handle the new consumer.
+
+4. Confirm documents.scaffold.test.ts's import at (currently) line 4 is
+   exactly `import { createDocumentsRouter } from '../index.js';` as
+   assumed in "Exact change 3." If it has changed, STOP and report back.
+
+5. Confirm trpc/root.ts's import at (currently) line 3 is exactly
+   `import { createDocumentsAppRouter } from '../modules/documents/index.js';`
+   as assumed in "Exact change 4." If it has changed, STOP and report back.
+
+If all five checks pass exactly as stated, proceed with all four edits
+together. They should be made as a single coherent change — the two
+consumer-file updates (changes 3 and 4) are required by changes 1 and 2 and
+must not be applied separately or out of order in a way that leaves the
+build broken at any intermediate point you'd commit.
+
+## Scope boundaries
+IN SCOPE (touch these, and only these):
+- /apps/server/src/modules/documents/index.ts (five-line deletion, Exact
+  change 1)
+- /apps/server/src/modules/tracking/index.ts (three-line deletion, Exact
+  change 2)
+- /apps/server/src/modules/documents/__tests__/documents.scaffold.test.ts
+  (one-line import redirect, Exact change 3)
+- /apps/server/src/trpc/root.ts (one-line import redirect, Exact change 4)
+
+OUT OF SCOPE (do not touch even if related):
+- /apps/server/src/modules/documents/documents.router.ts,
+  complaints.router.ts, document-requests.router.ts,
+  documents.app.router.ts, documents.policy.ts (the actual source files
+  the removed re-exports pointed to — these are untouched; only the
+  barrel's re-export of them is removed)
+- /apps/server/src/modules/tracking/tracking.repository.ts,
+  tracking.qr-service.ts, tracking.service.ts (same — untouched)
+- The `export * from './documents.types.js';` line and the
+  `export type { ... } from './documents.policy.js';` block in
+  documents/index.ts (must remain exactly as-is — see Exact change 1)
+- The three interface declarations (TrackingPublicAPI,
+  TrackingRecordSummary, RoutingEntry) in tracking/index.ts (must remain
+  exactly as-is — see Exact change 2)
+- Any test file other than documents.scaffold.test.ts — no other test file
+  requires changes per the Consumer scan results table above
+- /apps/server/src/modules/workflow/** (handled separately under
+  TASK-WORKFLOW-012; not part of this task)
+- /apps/server/src/modules/organization/** (already handled separately;
+  not part of this task)
+- /apps/server/src/app.ts (not touched by this task — the plugin
+  re-exports were already removed under TASK-DOCS-025/TASK-TRACK-010, and
+  app.ts never depended on any of the 8 exports this task removes)
+
+## Post-change verification
+After making all four edits, run:
+  pnpm --filter server typecheck
+This must complete with no new errors. If it introduces any error, one of
+the verification-step assumptions above was either skipped or the live
+files no longer matched what this task assumed — revert all four edits and
+report the exact typecheck error back rather than attempting to fix it by
+making further changes to other files.
+
+Also run:
+  pnpm --filter server test
+
+No existing test should newly fail as a result of these changes. In
+particular:
+- documents.scaffold.test.ts's two existing tests (the "exposes the
+  factory functions and repository class" test and the "allows creating
+  the service..." test) must both continue passing, with the same
+  assertions as before — only the import source changed, not the test
+  logic or expectations.
+- Every other test file in the documents and tracking modules is expected
+  to be entirely unaffected (per the Consumer scan results table, none of
+  them import any of the 8 removed exports from either barrel).
+
+This task is expected to produce zero new test failures and zero new
+typecheck errors relative to whatever the test/typecheck baseline is at the
+time this task is executed. If the result differs from the baseline in any
+way, STOP, do not attempt to fix it by making further changes to other
+files, and report the exact failure or error back instead.
+
+## What this task does NOT do
+This task does not address:
+- Any change to the workflow module (handled separately under
+  TASK-WORKFLOW-012).
+- Any change to the organization module (already handled separately).
+- Writing an ADR for either module.
+- Any further J4 §3.1 non-conformance in documents/index.ts or
+  tracking/index.ts beyond the 8 specific exports named in the Consumer
+  scan results table above (for example, the `export type { ... }` block
+  from documents.policy.ts and the `export *` from documents.types.ts are
+  both left untouched and unevaluated by this task).
+````
+
+---
+
+# TASK-DOCS-SHARED-011: Migrate 5 hand-written schemas in documents.ts to
+drizzle-zod generator-backed schemas (Batch A/B/C)
+
+````
+TASK-DOCS-SHARED-011: Migrate 5 hand-written schemas in documents.ts to
+drizzle-zod generator-backed schemas (Batch A/B/C)
+
+═══════════════════════════════════════════
+CONTEXT
+═══════════════════════════════════════════
+This task continues the drizzle-zod coverage migration tracked since
+LOG-0137 (Zod v3→v4 syntax audit) in the file
+docs/development-findings-log.md. That migration's convertibility audit
+identified exactly 5 hand-written schemas in
+packages/shared/src/schemas/documents.ts that structurally map 1:1 to a
+single Drizzle table's insertable column set and are therefore safe to
+convert to drizzle-zod generator calls. Everything else in that file, and
+in the rest of packages/shared, was found not to be structurally
+convertible (validates JSONB contents, describes an operation rather than
+a table row, etc.) and is explicitly out of scope — see LOG-0148 and
+LOG-0149 in the findings log for the full categorization if you want the
+background, but you do not need to read those to execute this task; this
+prompt is self-contained.
+
+The package is on zod@^4.4.3 and drizzle-zod@0.8.3 (confirmed against
+packages/shared/package.json). Do not assume either version differs from
+this at execution time — if package.json shows something else, STOP and
+report before proceeding; the conversion patterns below assume
+drizzle-zod 0.8.3's API.
+
+═══════════════════════════════════════════
+FILES YOU WILL EDIT
+═══════════════════════════════════════════
+- packages/shared/src/schemas/documents.ts (all 5 schema edits happen here)
+
+═══════════════════════════════════════════
+FILES YOU MUST NOT TOUCH
+═══════════════════════════════════════════
+IN SCOPE: `packages/shared/src/schemas/documents.ts`
+OUT OF SCOPE (do not touch even if related):
+- `packages/shared/src/schemas/document-metadata.ts`
+- `packages/shared/src/schemas/common.ts`
+- `packages/shared/src/schemas/organization.ts`
+- `packages/shared/src/workflow/context.schema.ts`
+- `packages/shared/src/workflow/step-config.schema.ts`
+- `packages/database/schema/documents.schema.ts` (read-only reference —
+  do not modify the Drizzle table definitions)
+- Any file under `apps/server` (this task must not require resolver
+  changes — see Hard Stop Condition below)
+- The stray scratch comment at documents.ts lines 610-614 (starting
+  "// Note: AssignFinalNumberInputSchema is already defined above...").
+  This is a known, separately-tracked issue. Do not clean it up, do not
+  fix its stale line-number reference, do not touch it in any way as
+  part of this task, even though it sits in the same file you are
+  editing.
+- Anything related to the `dateReferred` field or
+  `panlalawigan_date_referred` — this was already removed from
+  PanlalawiganReviewSelectSchema (LOG-0142) and from
+  LogPanlalawiganOutcomeInputSchema (LOG-0145) in prior work. Do not
+  restore it, reference it, or investigate it as part of this task.
+
+═══════════════════════════════════════════
+THE 5 SCHEMAS TO CONVERT — GROUPED, IN EXECUTION ORDER
+═══════════════════════════════════════════
+
+Convert in this order: Group A, then Group B, then Group C. Verify each
+group compiles (see Verification section) before moving to the next.
+
+-----------------------------------------------------------------------
+GROUP A — Upload-flow pair (versions table)
+-----------------------------------------------------------------------
+
+### A1. UploadNewVersionInputSchema
+
+CURRENT CODE (documents.ts, locate by exact match — do not rely on a
+line number, the file may have shifted since this prompt was written):
+
+  old_str:
+  ```
+  export const UploadNewVersionInputSchema = z.object({
+    documentId: UuidSchema,
+    s3Key: z.string().min(1),
+    originalFilename: z.string().max(512),
+    mimeType: AllowedMimeTypeSchema,
+    fileSizeBytes: z.number().int().positive().max(26_214_400),
+    reason: z.string().min(1).max(512).trim(),
+  });
+  export type UploadNewVersionInput = z.infer<typeof UploadNewVersionInputSchema>;
+  ```
+
+REPLACE WITH:
+  ```
+  export const UploadNewVersionInputSchema = createInsertSchema(versions)
+    .pick({
+      documentId: true,
+      fileKey: true,
+      originalFilename: true,
+      mimeType: true,
+      fileSizeBytes: true,
+    })
+    .extend({
+      s3Key: z.string().min(1),
+      originalFilename: z.string().max(512),
+      mimeType: AllowedMimeTypeSchema,
+      fileSizeBytes: z.number().int().positive().max(26_214_400),
+      reason: z.string().min(1).max(512).trim(),
+    })
+    .omit({ fileKey: true });
+  export type UploadNewVersionInput = z.infer<typeof UploadNewVersionInputSchema>;
+  ```
+
+FIELD MAPPING TABLE (authoritative — if anything elsewhere in this
+prompt appears to conflict with this table, the table wins):
+
+```json
+{
+  "field_mapping": [
+    {"drizzle_column": "documentId", "zod_field": "documentId", "rename": false, "notes": "notNull on versions table — no override needed beyond the .extend() re-assertion pattern shown"},
+    {"drizzle_column": "fileKey", "zod_field": "s3Key", "rename": true, "notes": "Renamed. versions.fileKey IS notNull at the DB level, so no nullable-override is strictly required for this field, but it must still be renamed via .omit({fileKey:true}) + .extend({s3Key:...}) since drizzle-zod has no built-in field-rename mechanism"},
+    {"drizzle_column": "originalFilename", "zod_field": "originalFilename", "rename": false, "notes": "versions.originalFilename is nullable at the DB level; the .extend() override to z.string().max(512) (non-optional) is REQUIRED here, not optional cleanup"},
+    {"drizzle_column": "mimeType", "zod_field": "mimeType", "rename": false, "notes": "notNull on versions table, but the generator would produce a bare z.string(); the .extend() override to AllowedMimeTypeSchema is REQUIRED to preserve the enum constraint, which drizzle-zod cannot infer from a text() column"},
+    {"drizzle_column": "fileSizeBytes", "zod_field": "fileSizeBytes", "rename": false, "notes": "versions.fileSizeBytes is nullable at the DB level (bigint with no .notNull()); the .extend() override to the strict positive-int-with-max shape is REQUIRED"},
+    {"drizzle_column": null, "zod_field": "reason", "rename": false, "notes": "No versions column. This field has no generator origin — it MUST be added purely via .extend(), never picked from the generator"}
+  ]
+}
+```
+
+Why the `.omit({ fileKey: true })` step at the end: `.pick()` selects
+`fileKey` from the generator (needed so drizzle-zod's underlying type
+machinery resolves correctly), but the field must not appear in the
+final schema under that name — only under `s3Key`, which `.extend()`
+adds separately. This is the same pattern already used for
+`AttachmentSelectSchema`'s `fileKey`→`s3Key` rename
+(documents.ts, currently around line 423-444) and `PanlalawiganReviewSelectSchema`'s
+`controlNo`→`controlNumber` rename (currently around line 518-556) — but
+those are on Select schemas built via object-spread; this is an Insert
+schema built via `.pick()/.extend()`, so the omit-then-extend order
+matters: pick the raw column first, extend with the renamed field, then
+omit the raw-named field so it doesn't leak into the final type as a
+duplicate.
+
+### A2. ConfirmUploadInputSchema
+
+CURRENT CODE:
+  old_str:
+  ```
+  export const ConfirmUploadInputSchema = z.object({
+    documentId: UuidSchema,
+    s3Key: z.string(),
+    originalFilename: z.string().max(512),
+    mimeType: AllowedMimeTypeSchema,
+    fileSizeBytes: z.number().int().positive().max(26_214_400),
+    reason: z.string().max(512).optional(),
+  });
+  export type ConfirmUploadInput = z.infer<typeof ConfirmUploadInputSchema>;
+  ```
+
+REPLACE WITH:
+  ```
+  export const ConfirmUploadInputSchema = createInsertSchema(versions)
+    .pick({
+      documentId: true,
+      fileKey: true,
+      originalFilename: true,
+      mimeType: true,
+      fileSizeBytes: true,
+    })
+    .extend({
+      s3Key: z.string(),
+      originalFilename: z.string().max(512),
+      mimeType: AllowedMimeTypeSchema,
+      fileSizeBytes: z.number().int().positive().max(26_214_400),
+      reason: z.string().max(512).optional(),
+    })
+    .omit({ fileKey: true });
+  export type ConfirmUploadInput = z.infer<typeof ConfirmUploadInputSchema>;
+  ```
+
+FIELD MAPPING: identical structure and rationale to A1 above, with two
+literal differences you must preserve exactly, not generalize from A1:
+- `s3Key` here is `z.string()` with NO `.min(1)` (A1's has `.min(1)`) —
+  this is a genuine difference between the two schemas in the current
+  code, not a typo. Do not "fix" this into consistency with A1.
+- `reason` here is `.optional()` (A1's is required, no `.optional()`) —
+  same instruction: preserve as a genuine, deliberate difference.
+
+-----------------------------------------------------------------------
+GROUP B — Attachment (attachments table)
+-----------------------------------------------------------------------
+
+### B1. UploadAttachmentInputSchema
+
+CURRENT CODE:
+  old_str:
+  ```
+  export const UploadAttachmentInputSchema = z.object({
+    documentId: UuidSchema,
+    attachmentType: AttachmentTypeSchema,
+    description: z.string().max(512).optional(),
+    s3Key: z.string().min(1),
+    mimeType: AllowedMimeTypeSchema,
+    fileSizeBytes: z.number().int().positive().max(26_214_400),
+  });
+  export type UploadAttachmentInput = z.infer<typeof UploadAttachmentInputSchema>;
+  ```
+
+REPLACE WITH:
+  ```
+  export const UploadAttachmentInputSchema = createInsertSchema(attachments)
+    .pick({
+      documentId: true,
+      attachmentType: true,
+      description: true,
+      fileKey: true,
+      mimeType: true,
+      fileSizeBytes: true,
+    })
+    .extend({
+      attachmentType: AttachmentTypeSchema,
+      description: z.string().max(512).optional(),
+      s3Key: z.string().min(1),
+      mimeType: AllowedMimeTypeSchema,
+      fileSizeBytes: z.number().int().positive().max(26_214_400),
+    })
+    .omit({ fileKey: true });
+  export type UploadAttachmentInput = z.infer<typeof UploadAttachmentInputSchema>;
+  ```
+
+FIELD MAPPING TABLE (authoritative):
+
+```json
+{
+  "field_mapping": [
+    {"drizzle_column": "documentId", "zod_field": "documentId", "rename": false, "notes": "notNull on attachments table"},
+    {"drizzle_column": "attachmentType", "zod_field": "attachmentType", "rename": false, "notes": "notNull on attachments table, but generator would produce a bare enum from the Postgres enum type — the .extend() override to AttachmentTypeSchema keeps the Zod-side type name/import explicit and matches the existing package convention of every enum field being backed by a named exported Zod enum schema, not an inline one"},
+    {"drizzle_column": "description", "zod_field": "description", "rename": false, "notes": "nullable on attachments table; .extend() override to .optional() (not .nullable()) is REQUIRED — this is an input schema, optional is the correct semantics here, not nullable"},
+    {"drizzle_column": "fileKey", "zod_field": "s3Key", "rename": true, "notes": "Renamed, same pattern as Group A. attachments.fileKey is nullable at the DB level (per the ck_attachments_file_or_source CHECK constraint allowing reference-only attachments) but this INPUT schema requires it non-null with .min(1) — this is intentional: uploading a new attachment always has a file, the nullable case exists on the table for a different code path (reference-only attachments created some other way), not for this procedure's input"},
+    {"drizzle_column": "mimeType", "zod_field": "mimeType", "rename": false, "notes": "NULLABLE on attachments table (confirmed: text('mime_type') with no .notNull()) — this is DIFFERENT from versions.mimeType which is notNull. The .extend() override to the required AllowedMimeTypeSchema is REQUIRED here, more so than in Group A"},
+    {"drizzle_column": "fileSizeBytes", "zod_field": "fileSizeBytes", "rename": false, "notes": "nullable on attachments table (bigint with no .notNull()); .extend() override to the strict positive-int-with-max shape is REQUIRED"}
+  ]
+}
+```
+
+Note on this schema specifically: three of its six fields
+(`description` is nullable-to-optional, which is expected/normal;
+`mimeType` and `fileSizeBytes` are nullable-to-required, which is a
+genuine tightening) sit on nullable Drizzle columns while the input
+schema requires stricter shapes. This is MORE fields requiring an
+`.extend()` override than in Group A — do not treat this schema as
+"simpler" than Group A because it has fewer total fields; verify each
+override individually against the field mapping table above.
+
+-----------------------------------------------------------------------
+GROUP C — Panlalawigan pair (panlalawiganReviews table)
+-----------------------------------------------------------------------
+Higher risk than A/B: both schemas in this group interact with an
+explicit "Do NOT rename" comment block that already exists in the file,
+protecting the same field renames these conversions must also perform.
+Do not remove, shorten, or reword that existing comment block as part of
+this task — it documents a real production dependency
+(apps/server/.../workflow.router.ts) that is out of scope for you to
+verify or re-verify; treat its claim as given.
+
+### C1. InitiatePanlalawiganTransmittalInputSchema
+
+CURRENT CODE:
+  old_str:
+  ```
+  export const InitiatePanlalawiganTransmittalInputSchema = z.object({
+    documentId: UuidSchema,
+    transmittedAt: TimestampSchema,
+    controlNumber: z.string().max(64).optional(),
+    subject: z.string().max(512).optional(),
+  });
+  export type InitiatePanlalawiganTransmittalInput = z.infer
+    typeof InitiatePanlalawiganTransmittalInputSchema
+  >;
+  ```
+
+REPLACE WITH:
+  ```
+  export const InitiatePanlalawiganTransmittalInputSchema = createInsertSchema(
+    panlalawiganReviews,
+  )
+    .pick({
+      documentId: true,
+      transmittedAt: true,
+      controlNo: true,
+      subject: true,
+    })
+    .extend({
+      transmittedAt: TimestampSchema,
+      // Renamed from Drizzle's `controlNo` to `controlNumber` — same
+      // rename already protected by a "Do NOT rename" comment on
+      // PanlalawiganReviewSelectSchema elsewhere in this file. Live
+      // code depends on the `controlNumber` name; do not change it to
+      // match the raw column name.
+      controlNumber: z.string().max(64).optional(),
+      subject: z.string().max(512).optional(),
+    })
+    .omit({ controlNo: true });
+  export type InitiatePanlalawiganTransmittalInput = z.infer
+    typeof InitiatePanlalawiganTransmittalInputSchema
+  >;
+  ```
+
+FIELD MAPPING TABLE (authoritative):
+
+```json
+{
+  "field_mapping": [
+    {"drizzle_column": "documentId", "zod_field": "documentId", "rename": false, "notes": "notNull on panlalawiganReviews table"},
+    {"drizzle_column": "transmittedAt", "zod_field": "transmittedAt", "rename": false, "notes": "nullable on panlalawiganReviews table; this input schema requires it (TimestampSchema, non-optional) — .extend() override required"},
+    {"drizzle_column": "controlNo", "zod_field": "controlNumber", "rename": true, "notes": "MUST preserve this exact rename. Do not emit controlNo anywhere in the final exported schema shape."},
+    {"drizzle_column": "subject", "zod_field": "subject", "rename": false, "notes": "nullable on panlalawiganReviews table, .optional() in this input schema — this is the normal nullable-to-optional case, no tightening needed"}
+  ]
+}
+```
+
+### C2. LogPanlalawiganOutcomeInputSchema
+
+This is the highest-complexity conversion in this task. It carries two
+`.refine()` cross-field validators that MUST survive character-for-
+character — exact message text, exact 10-character threshold, exact
+`path: ['remarks']` — on top of the generator-derived base shape.
+
+CURRENT CODE:
+  old_str:
+  ```
+  export const LogPanlalawiganOutcomeInputSchema = z
+    .object({
+      documentId: UuidSchema,
+      outcome: PanlalawiganOutcomeSchema,
+      panlalawiganResolutionNumber: z.string().max(64).optional(),
+      receivedAt: TimestampSchema,
+      remarks: z.string().max(2048).optional(),
+    })
+    .refine((v) => v.outcome !== 'valid_in_part' || (v.remarks && v.remarks.length >= 10), {
+      message: 'Remarks required for VALID-IN-PART (min 10 chars)',
+      path: ['remarks'],
+    })
+    .refine((v) => v.outcome !== 'returned' || (v.remarks && v.remarks.length >= 10), {
+      message: 'Remarks required for RETURNED (min 10 chars)',
+      path: ['remarks'],
+    });
+  export type LogPanlalawiganOutcomeInput = z.infer<typeof LogPanlalawiganOutcomeInputSchema>;
+  ```
+
+REPLACE WITH:
+  ```
+  export const LogPanlalawiganOutcomeInputSchema = createInsertSchema(
+    panlalawiganReviews,
+  )
+    .pick({
+      documentId: true,
+      outcome: true,
+      resolutionNumber: true,
+      receivedAt: true,
+      remarks: true,
+    })
+    .extend({
+      outcome: PanlalawiganOutcomeSchema,
+      // Renamed from Drizzle's `resolutionNumber` to
+      // `panlalawiganResolutionNumber` — same rename already protected
+      // by a "Do NOT rename" comment on PanlalawiganReviewSelectSchema
+      // elsewhere in this file. Live code depends on the
+      // `panlalawiganResolutionNumber` name; do not change it to match
+      // the raw column name.
+      panlalawiganResolutionNumber: z.string().max(64).optional(),
+      receivedAt: TimestampSchema,
+      remarks: z.string().max(2048).optional(),
+    })
+    .omit({ resolutionNumber: true })
+    .refine((v) => v.outcome !== 'valid_in_part' || (v.remarks && v.remarks.length >= 10), {
+      message: 'Remarks required for VALID-IN-PART (min 10 chars)',
+      path: ['remarks'],
+    })
+    .refine((v) => v.outcome !== 'returned' || (v.remarks && v.remarks.length >= 10), {
+      message: 'Remarks required for RETURNED (min 10 chars)',
+      path: ['remarks'],
+    });
+  export type LogPanlalawiganOutcomeInput = z.infer<typeof LogPanlalawiganOutcomeInputSchema>;
+  ```
+
+VERBATIM STRING PRESERVATION — these exact strings must appear in the
+final code, character for character, with no rewording:
+
+  refine_1_message: `Remarks required for VALID-IN-PART (min 10 chars)`
+  refine_2_message: `Remarks required for RETURNED (min 10 chars)`
+  refine_1_condition_outcome_value: `valid_in_part`
+  refine_2_condition_outcome_value: `returned`
+  refine_1_and_2_min_length: `10`
+  refine_1_and_2_path: `['remarks']`
+
+FIELD MAPPING TABLE (authoritative):
+
+```json
+{
+  "field_mapping": [
+    {"drizzle_column": "documentId", "zod_field": "documentId", "rename": false, "notes": "notNull on panlalawiganReviews table"},
+    {"drizzle_column": "outcome", "zod_field": "outcome", "rename": false, "notes": "nullable on panlalawiganReviews table (the enum column itself); this input schema requires it — .extend() override to the non-optional PanlalawiganOutcomeSchema is required"},
+    {"drizzle_column": "resolutionNumber", "zod_field": "panlalawiganResolutionNumber", "rename": true, "notes": "MUST preserve this exact rename. Do not emit resolutionNumber anywhere in the final exported schema shape."},
+    {"drizzle_column": "receivedAt", "zod_field": "receivedAt", "rename": false, "notes": "nullable on panlalawiganReviews table; this input schema requires it (TimestampSchema, non-optional) — .extend() override required"},
+    {"drizzle_column": "remarks", "zod_field": "remarks", "rename": false, "notes": "nullable on panlalawiganReviews table, .optional() with a .max(2048) constraint in this input schema, PLUS the two .refine() validators above conditionally tighten it further based on outcome. Do not let the .refine() logic influence how you write the base .extend() shape — write the base shape as unconditionally optional/max(2048), then let refine handle the conditional requirement on top, exactly as the current code does."}
+  ]
+}
+```
+
+DO NOT TOUCH as part of this schema's conversion, even though related:
+- The already-completed `dateReferred` removal from this schema
+  (LOG-0145) — there is no dateReferred field in the current code and
+  none should be added or referenced by you in any form.
+- `PanlalawiganReviewSelectSchema`'s own "Do NOT rename" comment block
+  elsewhere in the file — read it for context on the rename precedent,
+  but do not edit it.
+
+═══════════════════════════════════════════
+HARD STOP CONDITION
+═══════════════════════════════════════════
+If converting ANY of the 5 schemas above would require a change to a
+resolver body anywhere in apps/server (not just a type-check adjustment,
+but an actual behavioral or structural change to a router procedure's
+implementation) — STOP immediately and report which schema triggered
+this and what the required resolver change would be. Do not make the
+resolver change yourself under any circumstances, and do not proceed to
+convert any remaining schemas in this task until you've reported this
+and received further instruction.
+
+═══════════════════════════════════════════
+VERIFICATION — REQUIRED BEFORE REPORTING COMPLETION
+═══════════════════════════════════════════
+Run both of the following and report the full output of each, not just
+a pass/fail summary:
+
+  pnpm --filter @batac/shared typecheck
+  pnpm --filter server typecheck
+
+Both must complete with zero errors. In particular, watch for TS2322
+errors mentioning `never` types or generic resolution failures tied to
+drizzle-zod — this is a known failure mode from prior work in this area
+(see docs/development-findings-log.md, an entry referencing
+src/type-scratch-full.ts and TS2322, if you want background — not
+required reading to execute this task, but if you hit this exact error
+shape, it has prior context worth searching for). If either typecheck
+command fails for any reason, STOP and report the full error output
+rather than attempting to work around it yourself.
+
+Also run a full-text search to confirm no remaining references to the
+raw (unrenamed) Drizzle column names leaked into the final exported
+schema shapes:
+
+  grep -n "fileKey\b" packages/shared/src/schemas/documents.ts
+  grep -n "\bcontrolNo\b" packages/shared/src/schemas/documents.ts
+  grep -n "\bresolutionNumber\b" packages/shared/src/schemas/documents.ts
+
+Each of these should return zero matches inside the 5 schemas you just
+converted (matches elsewhere in the file, e.g. inside
+PanlalawiganReviewSelectSchema or AttachmentSelectSchema's own
+pre-existing rename comments, are expected and fine — those are the
+pre-existing Select-schema renames, not something you touched).
+
+═══════════════════════════════════════════
+EXPLICITLY OUT OF SCOPE FOR THIS TASK
+═══════════════════════════════════════════
+- The stray scratch comment at documents.ts lines 610-614 and its stale
+  internal line-number reference. Tracked separately.
+- The open TS2322/drizzle-zod generic-resolution typecheck investigation
+  referenced in the Verification section above, beyond confirming it
+  does not occur as a result of THIS task's changes. If the typecheck
+  commands above are clean, you do not need to investigate this further.
+- documentSponsorships and classificationAllowlists having no Zod schema
+  at all — this is tracked as a separate, future new-schema-creation
+  task (LOG-0148), not a migration task, and is unrelated to what this
+  task converts.
+- Any of the 60 schemas categorized as architecturally non-convertible
+  in LOG-0149. Do not attempt to convert any of them as a "bonus" or
+  because converting the 5 in this task made a pattern feel applicable
+  elsewhere. This task's scope is exactly the 5 schemas listed above,
+  no more.
+
+═══════════════════════════════════════════
+REPORT BACK
+═══════════════════════════════════════════
+When done, report:
+1. Full output of both typecheck commands.
+2. Full output of the three grep verification commands.
+3. Confirmation of which schemas were converted (all 5, or fewer if you
+   hit the Hard Stop Condition on one of them) and in what order.
+4. Any deviation you made from this prompt's literal instructions, with
+   your reasoning — even a deviation you believe is an improvement. Do
+   not silently improve on this prompt's literal specification.
+5. If you hit the Hard Stop Condition on any schema, full detail on
+   which one and what resolver change would be required — do not just
+   say "hit a hard stop," describe the actual finding.
+````
+
+---
+
