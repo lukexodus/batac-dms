@@ -348,14 +348,22 @@ export const VersionSelectSchema = z.object({
 });
 export type VersionSelect = z.infer<typeof VersionSelectSchema>;
 
-export const UploadNewVersionInputSchema = z.object({
-  documentId: UuidSchema,
-  s3Key: z.string().min(1),
-  originalFilename: z.string().max(512),
-  mimeType: AllowedMimeTypeSchema,
-  fileSizeBytes: z.number().int().positive().max(26_214_400),
-  reason: z.string().min(1).max(512).trim(),
-});
+export const UploadNewVersionInputSchema = createInsertSchema(versions)
+  .pick({
+    documentId: true,
+    fileKey: true,
+    originalFilename: true,
+    mimeType: true,
+    fileSizeBytes: true,
+  })
+  .extend({
+    s3Key: z.string().min(1),
+    originalFilename: z.string().max(512),
+    mimeType: AllowedMimeTypeSchema,
+    fileSizeBytes: z.number().int().positive().max(26_214_400),
+    reason: z.string().min(1).max(512).trim(),
+  })
+  .omit({ fileKey: true });
 export type UploadNewVersionInput = z.infer<typeof UploadNewVersionInputSchema>;
 
 export const RequestUploadUrlInputSchema = z.object({
@@ -370,14 +378,22 @@ export const RequestUploadUrlOutputSchema = z.object({
 });
 export type RequestUploadUrlOutput = z.infer<typeof RequestUploadUrlOutputSchema>;
 
-export const ConfirmUploadInputSchema = z.object({
-  documentId: UuidSchema,
-  s3Key: z.string(),
-  originalFilename: z.string().max(512),
-  mimeType: AllowedMimeTypeSchema,
-  fileSizeBytes: z.number().int().positive().max(26_214_400),
-  reason: z.string().max(512).optional(),
-});
+export const ConfirmUploadInputSchema = createInsertSchema(versions)
+  .pick({
+    documentId: true,
+    fileKey: true,
+    originalFilename: true,
+    mimeType: true,
+    fileSizeBytes: true,
+  })
+  .extend({
+    s3Key: z.string(),
+    originalFilename: z.string().max(512),
+    mimeType: AllowedMimeTypeSchema,
+    fileSizeBytes: z.number().int().positive().max(26_214_400),
+    reason: z.string().max(512).optional(),
+  })
+  .omit({ fileKey: true });
 export type ConfirmUploadInput = z.infer<typeof ConfirmUploadInputSchema>;
 
 export const ConfirmUploadOutputSchema = z.object({
@@ -443,14 +459,23 @@ export const AttachmentSelectSchema = z.object({
 });
 export type AttachmentSelect = z.infer<typeof AttachmentSelectSchema>;
 
-export const UploadAttachmentInputSchema = z.object({
-  documentId: UuidSchema,
-  attachmentType: AttachmentTypeSchema,
-  description: z.string().max(512).optional(),
-  s3Key: z.string().min(1),
-  mimeType: AllowedMimeTypeSchema,
-  fileSizeBytes: z.number().int().positive().max(26_214_400),
-});
+export const UploadAttachmentInputSchema = createInsertSchema(attachments)
+  .pick({
+    documentId: true,
+    attachmentType: true,
+    description: true,
+    fileKey: true,
+    mimeType: true,
+    fileSizeBytes: true,
+  })
+  .extend({
+    attachmentType: AttachmentTypeSchema,
+    description: z.string().max(512).optional(),
+    s3Key: z.string().min(1),
+    mimeType: AllowedMimeTypeSchema,
+    fileSizeBytes: z.number().int().positive().max(26_214_400),
+  })
+  .omit({ fileKey: true });
 export type UploadAttachmentInput = z.infer<typeof UploadAttachmentInputSchema>;
 
 // Numbers
@@ -555,24 +580,53 @@ export const PanlalawiganReviewSelectSchema = z.object({
 });
 export type PanlalawiganReviewSelect = z.infer<typeof PanlalawiganReviewSelectSchema>;
 
-export const InitiatePanlalawiganTransmittalInputSchema = z.object({
-  documentId: UuidSchema,
-  transmittedAt: TimestampSchema,
-  controlNumber: z.string().max(64).optional(),
-  subject: z.string().max(512).optional(),
-});
+export const InitiatePanlalawiganTransmittalInputSchema = createInsertSchema(
+  panlalawiganReviews,
+)
+  .pick({
+    documentId: true,
+    transmittedAt: true,
+    controlNo: true,
+    subject: true,
+  })
+  .extend({
+    transmittedAt: TimestampSchema,
+    // Renamed from Drizzle's `controlNo` to `controlNumber` — same
+    // rename already protected by a "Do NOT rename" comment on
+    // PanlalawiganReviewSelectSchema elsewhere in this file. Live
+    // code depends on the `controlNumber` name; do not change it to
+    // match the raw column name.
+    controlNumber: z.string().max(64).optional(),
+    subject: z.string().max(512).optional(),
+  })
+  .omit({ controlNo: true });
 export type InitiatePanlalawiganTransmittalInput = z.infer<
   typeof InitiatePanlalawiganTransmittalInputSchema
 >;
 
-export const LogPanlalawiganOutcomeInputSchema = z
-  .object({
-    documentId: UuidSchema,
+export const LogPanlalawiganOutcomeInputSchema = createInsertSchema(
+  panlalawiganReviews,
+)
+  .pick({
+    documentId: true,
+    outcome: true,
+    resolutionNumber: true,
+    receivedAt: true,
+    remarks: true,
+  })
+  .extend({
     outcome: PanlalawiganOutcomeSchema,
+    // Renamed from Drizzle's `resolutionNumber` to
+    // `panlalawiganResolutionNumber` — same rename already protected
+    // by a "Do NOT rename" comment on PanlalawiganReviewSelectSchema
+    // elsewhere in this file. Live code depends on the
+    // `panlalawiganResolutionNumber` name; do not change it to match
+    // the raw column name.
     panlalawiganResolutionNumber: z.string().max(64).optional(),
     receivedAt: TimestampSchema,
     remarks: z.string().max(2048).optional(),
   })
+  .omit({ resolutionNumber: true })
   .refine((v) => v.outcome !== 'valid_in_part' || (v.remarks && v.remarks.length >= 10), {
     message: 'Remarks required for VALID-IN-PART (min 10 chars)',
     path: ['remarks'],
