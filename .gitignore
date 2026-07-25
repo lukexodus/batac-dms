@@ -34,5 +34,7 @@ commit_msg.txt
 lint-result
 typecheck-result
 PLAN-*
+test-result
+git-diff
 
 data/openobserve/
