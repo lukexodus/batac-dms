@@ -52,7 +52,7 @@ import iamPlugin from './modules/iam/iam.plugin.js';
 import organizationPlugin from './modules/organization/organization.plugin.js';
 import documentsPlugin from './modules/documents/documents.plugin.js';
 import trackingPlugin from './modules/tracking/tracking.plugin.js';
-import { workflowPlugin } from './modules/workflow/index.js';
+import workflowPlugin from './modules/workflow/workflow.plugin.js';
 import rateLimit from '@fastify/rate-limit';
 import helmet from '@fastify/helmet';
 // organization, documents, workflow, tracking, notifications: add
