@@ -16653,3 +16653,357 @@ REPORT BACK
 Report: the exact diff applied, the full `pnpm typecheck` output after the
 change, and explicit confirmation of which packages passed/failed.
 ````
+
+---
+
+# TASK-DOCS-SHARED-008: Migrate `LogSignatureInputSchema` to drizzle-zod `createInsertSchema`
+
+## Context
+
+`packages/shared/src/schemas/documents.ts` currently defines `LogSignatureInputSchema` as a fully hand-written `z.object({...})`. A prior task (`TASK-DOCS-SHARED-004`/`004B`) established a working pattern for deriving insert-shaped Zod schemas from Drizzle table definitions using `drizzle-zod`'s `createInsertSchema`, applied to `CreateDocumentInputSchema` in the same file. This task applies that exact same pattern to `LogSignatureInputSchema`, targeting the `signatures` Drizzle table.
+
+## Scope
+
+**IN SCOPE:**
+- `packages/shared/src/schemas/documents.ts` — replace the definition of `LogSignatureInputSchema` (currently lines 511–519, immediately followed by its `export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;` type export at line 520) with a `createInsertSchema`-derived version, per the exact specification below.
+
+**OUT OF SCOPE — do not touch, even if related or seemingly convenient to fix in passing:**
+- `apps/server/src/modules/documents/signatures.router.ts` — the resolver body. If your schema change would require any edit to this file to keep it compiling, **stop and report** rather than making the edit. This is a hard stop condition, not a soft preference.
+- `apps/server/src/modules/documents/signatures.router.ts` line 78 (`uploadSignatureImage`'s inline `s3Key: z.string().uuid()` input schema) — this is a separate, unrelated schema in a different file, outside `packages/shared`, not part of this migration.
+- `SignatureSelectSchema` (lines 495–509 of the same file) — the read-side schema. Not part of this task.
+- `packages/database/schema/documents.schema.ts` — the underlying Drizzle column definitions. Do not modify.
+- Any other schema in `documents.ts` (`CreateDocumentInputSchema`, `UpdateDocumentInputSchema`, `AttachmentSelectSchema`, `PanlalawiganReviewSelectSchema`, etc.).
+- `packages/shared/src/schemas/common.ts`, `organization.ts`, `document-metadata.ts`, `workflow/context.schema.ts`, `workflow/step-config.schema.ts` — no drizzle-zod involvement, do not add any.
+- The `signatures.router.ts` lines 66 and 149 `as any` casts on `signatureType` (output-side, unrelated to this input-side migration) — leave these exactly as they are.
+- Do not attempt to resolve or touch anything related to `AttachmentSelectSchema`/`s3Key` nullability or `PanlalawiganReviewSelectSchema`/`dateReferred` (findings-log entries LOG-0113 and LOG-0114) — those concern different tables and are explicitly handled by a separate, unrelated task.
+- Do not add, remove, or modify any import in `signatures.router.ts`. The exported name `LogSignatureInputSchema` from `@batac/shared/schemas/documents` must remain unchanged so no import needs to change.
+
+## Current State (Ground Truth — Confirmed Against Live Repo)
+
+### Current `LogSignatureInputSchema` (to be replaced), `packages/shared/src/schemas/documents.ts` lines 511–520:
+
+```typescript
+export const LogSignatureInputSchema = z.object({
+  documentId: UuidSchema,
+  signedByEmployeeId: UuidSchema,
+  signedByDisplayName: z.string().min(1).max(256).trim(),
+  signatureType: SignatureTypeSchema,
+  signedAt: TimestampSchema,
+  isWetInk: z.boolean().default(true),
+  signatureImageS3Key: z.uuid().optional(),
+});
+export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;
+```
+
+### Underlying Drizzle table, `packages/database/schema/documents.schema.ts`, `signatures` table (starts line 417):
+
+```typescript
+export const signatures = documentsSchema.table(
+  'signatures',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    cityId: uuid('city_id')
+      .notNull()
+      .default(sql`'00000000-0000-4000-8000-000000000001'::uuid`),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id),
+    signatureType: signatureTypeEnum('signature_type').notNull(),
+    signedByEmployeeId: uuid('signed_by_employee_id').notNull(),
+    signedByDisplayName: text('signed_by_display_name'),
+    signedAt: timestamp('signed_at', { withTimezone: true }).notNull(),
+    isWetInk: boolean('is_wet_ink').notNull().default(false),
+    signatureImageS3Key: text('signature_image_s3_key'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    deletedBy: uuid('deleted_by'),
+  },
+  (table) => [
+    index('idx_signatures_document').on(table.documentId),
+  ],
+);
+```
+
+`signatureTypeEnum` (`packages/database/schema/documents.schema.ts` line 84) is a genuine native Postgres enum via Drizzle's schema-scoped `.enum(...)` constructor:
+```typescript
+export const signatureTypeEnum = documentsSchema.enum('signature_type_enum', [
+  'presiding_officer', 'mayor', 'sp_secretary', 'vice_mayor', 'committee_chair',
+]);
+```
+
+### Established pattern to mirror — `CreateDocumentInputSchema`, same file, lines 236–247:
+
+```typescript
+export const CreateDocumentInputSchema = createInsertSchema(documents, {
+  title: (schema) => schema.min(1).max(500).trim(),
+}).pick({
+  documentTypeId: true,
+  title: true,
+  classificationLevel: true,
+  metadata: true,
+}).extend({
+  classificationLevel: ClassificationLevelSchema.default('internal'),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+});
+export type CreateDocumentInput = z.infer<typeof CreateDocumentInputSchema>;
+```
+
+This is the pattern to follow (`createInsertSchema(table, {refinements}).pick({...}).extend({...})`) because `LogSignatureInputSchema` is insert-shaped like `CreateDocumentInputSchema` — there is no "update a signature" operation in this domain (signatures are logged once; only the image key is later updated via the separate `uploadSignatureImage` procedure, which is out of scope). Do **not** mirror `UpdateDocumentInputSchema`'s object-spread-with-plain-identifier-field style — that pattern exists specifically to handle a required top-level `documentId` alongside `createUpdateSchema`'s all-fields-optional behavior, which does not apply here.
+
+`createInsertSchema`, `createUpdateSchema`, and `createSelectSchema` are already imported from `drizzle-zod` at line 2 of `documents.ts`. `signatures` is already imported from `@batac/database/schema/documents.schema.js` at line 9 of the same import block. **No new imports are required.**
+
+### Resolver consumption — `apps/server/src/modules/documents/signatures.router.ts`, `logSignature` procedure, lines 27–72 — the schema you produce must remain compatible with this exact, unmodified code:
+
+```typescript
+logSignature: protectedProcedure
+  .input(LogSignatureInputSchema)
+  .output(SignatureSelectSchema)
+  .mutation(async ({ ctx, input }) => {
+    // ...
+    const signatureRow = await repo.insertSignature({
+      cityId: subject.cityId,                                    // line 51 — supplied by resolver, NEVER read from input
+      documentId: input.documentId,                               // line 52
+      signedByEmployeeId: input.signedByEmployeeId,                // line 53
+      signedByDisplayName: input.signedByDisplayName,              // line 54 — used directly, NO fallback/guard
+      signatureType: input.signatureType,                          // line 55
+      signedAt: new Date(input.signedAt),                          // line 56
+      isWetInk: input.isWetInk,                                    // line 57 — used directly, NO fallback
+      signatureImageS3Key: input.signatureImageS3Key || null,      // line 58 — already normalizes undefined/falsy to null
+    });
+    // ...
+  }),
+```
+
+This confirms:
+- `signedByDisplayName` must remain a **required** field in the produced schema (line 54 has no guard against `undefined`).
+- `isWetInk` must remain **required-with-a-default-of-`true`** in the produced schema (line 57 has no fallback — see Decision Table below).
+- `signatureImageS3Key` may remain `.optional()` (line 58 already handles the `undefined` case).
+- `cityId` must **not** appear in the produced schema at all — the resolver supplies it directly from `subject.cityId` and never reads it from `input`. This is a structural fact, not a style choice: `repo.insertSignature`'s parameter type is `InsertSignature = InferInsertModel<typeof signatures>` (`apps/server/src/modules/documents/documents.repository.ts` line 37), which is Drizzle's own raw type, entirely independent of the Zod input schema — the resolver manually constructs the object literal passed to it field-by-field, as shown above.
+
+## Required Change
+
+Replace the current `LogSignatureInputSchema` block (lines 511–520 of `packages/shared/src/schemas/documents.ts`) with:
+
+```typescript
+export const LogSignatureInputSchema = createInsertSchema(signatures, {
+  signedByDisplayName: (schema) => schema.min(1).max(256).trim(),
+}).pick({
+  documentId: true,
+  signedByEmployeeId: true,
+  signedByDisplayName: true,
+  signatureType: true,
+  signedAt: true,
+  isWetInk: true,
+  signatureImageS3Key: true,
+}).extend({
+  isWetInk: z.boolean().default(true),
+});
+export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;
+```
+
+### Authoritative Decision Table — resolved, apply exactly as stated, do not deviate or re-derive from surrounding prose
+
+These two decisions were made by the human reviewer and are **not open questions** — apply them exactly as given. If your derived output differs from either row below, treat that as a bug in your derivation to fix, not as new information to weigh against the table.
+
+| # | Field | Decision | Required implementation |
+|---|---|---|---|
+| 1 | `isWetInk` | Preserve current runtime behavior: defaults to `true` when omitted. **Do not** let it fall through to the Drizzle/DB-level default of `false`. | `.extend({ isWetInk: z.boolean().default(true) })` — exactly as shown in the code block above. This override is required because the Drizzle column's default (`.default(false)`) is a genuine Drizzle-level default, meaning bare `createInsertSchema` output would infer this field as optional-with-a-default-of-`false`, silently changing behavior from the current `.default(true)` if left unoverridden. |
+| 2 | `signatureImageS3Key` | Preserve current runtime validation: value must be a valid UUID string, field itself is optional. **Do not** widen it to an unconstrained/plain string. | Take `signatureImageS3Key: true` in the `.pick()` as-is, with **no** `.extend()` override for this field. Confirmed reasoning: this field is `text('signature_image_s3_key')` at the Drizzle level with no `.notNull()` and no `.default()`, so bare `createInsertSchema` inference produces exactly `z.uuid().optional()` — matching the current hand-written form — because `createInsertSchema` correctly infers plain optionality from DB nullability, and `.uuid()`-vs-plain-string is a Zod-layer constraint that only needs an override when it needs to *change*, not when the base inference already happens to match. **If your derivation produces anything other than `z.uuid().optional()` for this field with no explicit override present** (e.g., if `createInsertSchema` infers a plain `z.string().optional()` instead because it doesn't know to apply `.uuid()` from a bare `text()` column) — **stop and report this specifically** rather than silently adding an override or accepting a widened type. This would mean the base-inference assumption in this row is wrong and needs a human decision on how to add the constraint back, not a decision you make unilaterally. |
+
+### Why `signedByDisplayName` needs a refinement callback but no `.extend()`
+
+`signedByDisplayName` is `text('signed_by_display_name')` at the Drizzle level — nullable, no length constraint. The current hand-written schema requires `z.string().min(1).max(256).trim()`. `createInsertSchema`'s inference alone would produce `z.string().nullable()` (matching DB nullability) — wrong on two counts: it needs to be non-nullable/required (per the resolver's unguarded usage at line 54) and it needs the length/trim constraints the DB doesn't enforce. The 2nd-argument refinement callback (`signedByDisplayName: (schema) => schema.min(1).max(256).trim()`) is how the established pattern (see `title` in `CreateDocumentInputSchema`) restores Zod-layer-only constraints on top of a column's base inferred type — use this, not a post-`.pick()` `.extend()` override, since `.extend()` is reserved in this pattern for restoring defaults/types that diverge from Drizzle inference (as used for `isWetInk` above), not for adding validation refinements.
+
+Note: the refinement callback approach handles the `.min()/.max()/.trim()` constraints, but you should independently confirm during the required verification step below whether the callback form also correctly resolves this field to non-nullable/required — if `createInsertSchema`'s nullable-column inference persists as `.nullable()` even after the refinement callback is applied (since refinement callbacks typically compose with, rather than override, the base inferred type), this may require an explicit non-nullability fix as well. This is exactly the kind of inference-behavior detail that cannot be determined by static reading alone (see Required Verification Step below) — check the actual inferred type and report exactly what you find, including if it requires an additional fix beyond what's shown in the code block above.
+
+## Zod Syntax Convention Note (informational, not a decision needed)
+
+A findings-log entry (LOG-0137) proposes that new Zod schemas in `packages/shared` should use top-level syntax (`z.uuid()`, not `z.string().uuid()`) going forward, but this proposal's `status` remains `proposed`, not adjudicated as policy. This is noted here only for completeness — **it does not require any decision or action from you**, because every field in both the current `LogSignatureInputSchema` and the produced replacement is already top-level form (`UuidSchema`/`TimestampSchema` from `common.ts` are `z.uuid()`/`z.iso.datetime(...)`; the schema you're deriving inherits its field types directly from `createInsertSchema`'s output, which does not introduce chained-form syntax). There is no chained-to-top-level conversion to make or avoid as part of this task.
+
+## Required Verification Step (mandatory — do not report success without this)
+
+`node_modules` is not part of the environment snapshot this prompt was written against, so the following claims about `createInsertSchema`'s actual inference behavior are **assumptions requiring live confirmation, not settled facts**:
+1. That `signatureType` (a native Postgres enum column) is inferred as the literal union `z.enum(['presiding_officer', 'mayor', 'sp_secretary', 'vice_mayor', 'committee_chair'])` (or a TS-equivalent literal union type), not a bare `string`.
+2. That `signatureImageS3Key` is inferred as exactly `z.uuid().optional()` with no override needed, per Decision Table row 2 above.
+3. That `signedByDisplayName`, after the refinement callback, is fully non-nullable/required (per the note in the section above) — and if it is not, what the minimal correct fix is.
+
+After making the change, run a full typecheck to completion (do not report results from a possibly-still-running or asynchronously-resolving process — `pnpm run typecheck` fans out per-workspace; confirm full completion explicitly before reporting). Report:
+- The exact inferred TypeScript type of `LogSignatureInput` (paste the hovered/inferred type, not a paraphrase).
+- Whether `signatureType`'s inferred type is the expected literal union or a bare `string` — state which, explicitly.
+- Whether `signatureImageS3Key`'s inferred type is exactly `string` with `.optional()`-equivalent (`| undefined`) — confirm no unexpected widening occurred.
+- Whether `signedByDisplayName`'s inferred type is non-nullable (`string`, not `string | null`) — if it is nullable, report this as a finding requiring a fix, and describe what fix you applied or, if the correct fix is not mechanical/obvious, stop and report without applying one.
+- Zero, or a full list of, resulting compile errors in `signatures.router.ts` specifically. **If any compile error appears in `signatures.router.ts`, this means the hard-stop condition (schema change requiring a resolver edit) has been triggered — stop, do not edit the resolver, and report the exact error(s) instead.**
+- Confirmation that `apps/server` and `packages/shared` both typecheck clean, or the exact errors if not.
+- Explicit confirmation of whether the "Current State" code blocks quoted in this prompt matched the actual file content you found before making changes (they were verified directly against the live repo when this prompt was written, but per project convention, you should independently confirm this rather than trust the prompt's transcription).
+
+## Commit Message
+
+If committing, do not claim typecheck success unless the full, completed typecheck run actually confirms it — a false claim in a commit message must be corrected in a follow-up per project convention, so get this right the first time rather than relying on a later correction.
+
+---
+
+# TASK-DOCS-SHARED-008 (revised): Migrate `LogSignatureInputSchema` to drizzle-zod `createInsertSchema`
+
+## Context
+
+`packages/shared/src/schemas/documents.ts` currently defines `LogSignatureInputSchema` as a fully hand-written `z.object({...})`. This task replaces it with a version derived from `drizzle-zod`'s `createInsertSchema`, applied to the `signatures` Drizzle table, following the same general pattern already established for `CreateDocumentInputSchema` in the same file.
+
+This is a **revised** prompt. A prior attempt at this same task correctly identified, via live `tsc`/`tsx` introspection, that two assumptions in the earlier version of this prompt about drizzle-zod's inference behavior were wrong, and correctly stopped without applying a fix rather than guessing. This revision supplies the corrected final schema directly — you should not need to re-run exploratory type introspection to determine the shape, only to confirm it compiles and behaves as specified.
+
+## Scope
+
+**IN SCOPE:**
+- `packages/shared/src/schemas/documents.ts` — replace the definition of `LogSignatureInputSchema` (currently lines 511–519, followed by its `export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;` type export at line 520) with the exact code given below.
+
+**OUT OF SCOPE — do not touch, even if related or seemingly convenient to fix in passing:**
+- `apps/server/src/modules/documents/signatures.router.ts` — the resolver body. If the schema below fails to compile against this file without a resolver edit, **stop and report** rather than editing the resolver. Hard stop condition, not a soft preference.
+- `apps/server/src/modules/documents/signatures.router.ts` line 78 (`uploadSignatureImage`'s inline `s3Key: z.string().uuid()` input schema) — separate schema, different file, not part of this migration.
+- `SignatureSelectSchema` (lines 495–509 of the same file) — read-side schema, not part of this task.
+- `packages/database/schema/documents.schema.ts` — underlying Drizzle column definitions. Do not modify.
+- Any other schema in `documents.ts` (`CreateDocumentInputSchema`, `UpdateDocumentInputSchema`, `AttachmentSelectSchema`, `PanlalawiganReviewSelectSchema`, etc.).
+- `common.ts`, `organization.ts`, `document-metadata.ts`, `workflow/context.schema.ts`, `workflow/step-config.schema.ts` — no drizzle-zod involvement, do not add any.
+- `signatures.router.ts` lines 66 and 149 `as any` casts on `signatureType` (output-side, unrelated) — leave exactly as-is.
+- LOG-0113/LOG-0114 (`AttachmentSelectSchema`/`PanlalawiganReviewSelectSchema` issues) — different tables, separate task, not this one.
+- Do not add, remove, or modify any import in `signatures.router.ts`. The exported name `LogSignatureInputSchema` from `@batac/shared/schemas/documents` is unchanged, so no import needs to change.
+- Do not create any scratch/exploratory files as part of the final deliverable. Exploratory files are fine to use transiently while verifying, but must be deleted before reporting completion — same discipline the prior attempt correctly followed.
+
+## Current State (Ground Truth)
+
+### Current `LogSignatureInputSchema` (to be replaced), `packages/shared/src/schemas/documents.ts` lines 511–520:
+
+```typescript
+export const LogSignatureInputSchema = z.object({
+  documentId: UuidSchema,
+  signedByEmployeeId: UuidSchema,
+  signedByDisplayName: z.string().min(1).max(256).trim(),
+  signatureType: SignatureTypeSchema,
+  signedAt: TimestampSchema,
+  isWetInk: z.boolean().default(true),
+  signatureImageS3Key: z.uuid().optional(),
+});
+export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;
+```
+
+### Underlying Drizzle table, `packages/database/schema/documents.schema.ts`, `signatures` table (starts line 417):
+
+```typescript
+export const signatures = documentsSchema.table(
+  'signatures',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    cityId: uuid('city_id')
+      .notNull()
+      .default(sql`'00000000-0000-4000-8000-000000000001'::uuid`),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id),
+    signatureType: signatureTypeEnum('signature_type').notNull(),
+    signedByEmployeeId: uuid('signed_by_employee_id').notNull(),
+    signedByDisplayName: text('signed_by_display_name'),
+    signedAt: timestamp('signed_at', { withTimezone: true }).notNull(),
+    isWetInk: boolean('is_wet_ink').notNull().default(false),
+    signatureImageS3Key: text('signature_image_s3_key'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    deletedBy: uuid('deleted_by'),
+  },
+  (table) => [
+    index('idx_signatures_document').on(table.documentId),
+  ],
+);
+```
+
+`createInsertSchema`, `createUpdateSchema`, and `createSelectSchema` are already imported from `drizzle-zod` at line 2 of `documents.ts`. `signatures` is already imported from `@batac/database/schema/documents.schema.js` at line 9. **No new imports required.**
+
+### Resolver consumption — `signatures.router.ts`, `logSignature` procedure, lines 27–72 — must remain compatible, unmodified:
+
+```typescript
+const signatureRow = await repo.insertSignature({
+  cityId: subject.cityId,                                    // line 51 — supplied by resolver, never read from input
+  documentId: input.documentId,                               // line 52
+  signedByEmployeeId: input.signedByEmployeeId,                // line 53
+  signedByDisplayName: input.signedByDisplayName,              // line 54 — used directly, no fallback/guard
+  signatureType: input.signatureType,                          // line 55
+  signedAt: new Date(input.signedAt),                          // line 56
+  isWetInk: input.isWetInk,                                    // line 57 — used directly, no fallback
+  signatureImageS3Key: input.signatureImageS3Key || null,      // line 58 — already normalizes undefined/falsy to null
+});
+```
+
+## Verified Inference Behavior (confirmed via live `tsc`/`tsx` introspection in a prior attempt at this task — do not re-derive from scratch, but do confirm the final assembled schema still typechecks)
+
+Bare `createInsertSchema(signatures, {...}).pick({...})` output, before any `.extend()`, infers as follows for the fields in scope:
+
+| Field | Confirmed bare-inferred type | Matches current hand-written schema? |
+|---|---|---|
+| `documentId` | `string` (required) | Yes — no override needed |
+| `signedByEmployeeId` | `string` (required) | Yes — no override needed |
+| `signatureType` | `"presiding_officer" \| "mayor" \| "sp_secretary" \| "vice_mayor" \| "committee_chair"` (required) | Yes — no override needed |
+| `signedAt` | `string` (required) | Yes — no override needed |
+| `signedByDisplayName` | `string \| null \| undefined` | **No** — must be required, non-nullable, with `.min(1).max(256).trim()` |
+| `isWetInk` | `boolean \| undefined`, defaults to Drizzle's `false` | **No** — must default to `true` |
+| `signatureImageS3Key` | `string \| null \| undefined`, no `.uuid()` constraint | **No** — must be `.uuid().optional()`, no `null` |
+
+## Required Change
+
+Replace the current `LogSignatureInputSchema` block with:
+
+```typescript
+export const LogSignatureInputSchema = createInsertSchema(signatures).pick({
+  documentId: true,
+  signedByEmployeeId: true,
+  signedByDisplayName: true,
+  signatureType: true,
+  signedAt: true,
+  isWetInk: true,
+  signatureImageS3Key: true,
+}).extend({
+  signedByDisplayName: z.string().min(1).max(256).trim(),
+  isWetInk: z.boolean().default(true),
+  signatureImageS3Key: z.uuid().optional(),
+});
+export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;
+```
+
+### Authoritative Decision Table — resolved, apply exactly as stated
+
+| # | Field | Decision | Implementation |
+|---|---|---|---|
+| 1 | `isWetInk` | Preserve current runtime behavior: defaults to `true` when omitted. Do not let it fall through to the Drizzle-level default of `false`. | `.extend({ isWetInk: z.boolean().default(true) })` as shown above. |
+| 2 | `signatureImageS3Key` | Preserve current runtime validation: must be a valid UUID string when provided, field itself optional, `null` not accepted. | `.extend({ signatureImageS3Key: z.uuid().optional() })` as shown above. This supersedes the prior prompt's assumption that no override was needed — live introspection confirmed the bare-inferred type is `string \| null \| undefined` with no `.uuid()` constraint, so the override is required to preserve current behavior. |
+| 3 | `signedByDisplayName` | Preserve current runtime validation: required, non-nullable, `.min(1).max(256).trim()`. | `.extend({ signedByDisplayName: z.string().min(1).max(256).trim() })` as shown above — a full replacement override, not a refinement callback. Live introspection confirmed a 2nd-argument refinement callback (the pattern used for `title` in `CreateDocumentInputSchema`) does not strip the `.nullable().optional()` wrapper that `createInsertSchema` applies to this field, because the underlying Drizzle column has no `.notNull()` (unlike `title`, which does). A full `.extend()` override, matching the treatment already used for `isWetInk` and `signatureImageS3Key`, is the correct mechanism here — not `.unwrap()` inside a refinement callback, which would not remove the wrapper `createInsertSchema` applies before the callback runs. |
+
+This means, unlike the established `CreateDocumentInputSchema` pattern (which uses a refinement callback for `title` because that column is `.notNull()`), **none** of the three diverging fields here use a refinement callback — all three are handled via full `.extend()` overrides, because none of the three Drizzle columns backing them (`signed_by_display_name`, `is_wet_ink`'s default, `signature_image_s3_key`) match what the Zod layer requires closely enough for a callback-only refinement to suffice. This is a genuine difference from the `documents` precedent, not an inconsistency — apply it as specified above rather than reconciling it against the `CreateDocumentInputSchema` pattern's callback usage.
+
+## Required Verification Step
+
+1. Confirm `LogSignatureInputSchema`'s final inferred type (`z.infer<typeof LogSignatureInputSchema>`) matches:
+   ```typescript
+   {
+     documentId: string;
+     signedByEmployeeId: string;
+     signedByDisplayName: string;
+     signatureType: "presiding_officer" | "mayor" | "sp_secretary" | "vice_mayor" | "committee_chair";
+     signedAt: string;
+     isWetInk: boolean;
+     signatureImageS3Key: string | undefined;
+   }
+   ```
+   Report the actual inferred type as found — do not simply assert this block matches without checking, since the whole reason this task is being revised is that a similar assertion turned out wrong once already.
+2. Run a full typecheck to completion (confirm full completion explicitly — `pnpm run typecheck` fans out per-workspace and can resolve asynchronously; do not report from a possibly-still-running process).
+3. Report zero, or a full list of, resulting compile errors in `signatures.router.ts` specifically. **If any appear, the hard-stop condition has triggered — stop, do not edit the resolver, report the exact error(s).**
+4. Confirm `apps/server` and `packages/shared` both typecheck clean, or report exact errors if not.
+5. Confirm no scratch/exploratory files remain in the working tree before reporting completion.
+6. Explicitly confirm whether the "Current State" and "Verified Inference Behavior" blocks quoted in this prompt matched what you found in the live repo before making changes.
+
+## Commit Message
+
+Do not claim typecheck success unless the full, completed typecheck run actually confirms it.
+
+---
+
+# TASK-AUDIT-023
+
+````
+
+````

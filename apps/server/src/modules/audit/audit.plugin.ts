@@ -2,20 +2,9 @@ import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
 import { createAuditDb } from './audit.db.js';
 import { createAuditModule } from './index.js';
-import type { AuditPublicAPI } from './index.js';
 import { registerAuditEventConsumer } from './audit.event-consumer.js';
-import type { EventBus } from '@batac/shared/event-bus';
-import { createAuditTrpcRouter, type AuditTrpcRouter } from './audit.router.js';
-
-// ─── TypeScript Fastify augmentation ─────────────────────────────────────────
-
-declare module 'fastify' {
-  interface FastifyInstance {
-    auditService: AuditPublicAPI;
-    eventBus: EventBus;
-    auditTrpcRouter: AuditTrpcRouter;
-  }
-}
+import { createAuditTrpcRouter } from './audit.router.js';
+import './audit.types.js';
 
 // ─── Plugin ───────────────────────────────────────────────────────────────────
 

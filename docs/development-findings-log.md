@@ -3636,3 +3636,124 @@ Neither `tech-stack.md` nor E3's Conventions section (L112–L173) currently sta
 
 **What was implemented:**
 No code change as part of this log entry. The code migration (13 sites, scoped exactly as the table above) is being handed to the local execution agent as a standalone prompt, separate from this entry. This entry exists to (a) record the audit as the "full technical audit" LOG-0127 flagged as outstanding, (b) flag the E3 staleness that will result once the code prompt executes, for a human to resolve by editing E3 directly, and (c) propose, for human review, a forward convention: **new Zod schemas written in `/packages/shared` from this point forward should use top-level spellings (`z.uuid()`, `z.iso.datetime()`, `z.email()`, etc.) rather than the chained `.string().x()` form**, to be encoded in `tech-stack.md`'s Type Safety Chain section or a new ADR if a human agrees. This entry does not itself modify `tech-stack.md` — per Section 4.5, that edit is for a human to make, with this entry as the `resolved_in` target once they do.
+
+---
+
+### [LOG-0138] audit module's declare-module Fastify augmentation is unreachable from apps/web's typecheck; fix is to relocate it to a new audit.types.ts, not to re-export audit.plugin.ts from index.ts
+
+- date: 2026-07-25
+- task_id: none — investigation requested directly, not from an A1 task
+- status: proposed
+- affects: J1 (§4 Module Plugin Pattern — TypeScript Augmentation subsection), J4 (§3.1, §3.6, §8), B2 (Enforcement Mechanisms)
+
+**What was found.** `apps/server/src/modules/audit/audit.plugin.ts` declares
+`declare module 'fastify' { interface FastifyInstance { auditService,
+eventBus, auditTrpcRouter } }` inline in that file. `audit/index.ts` does not
+import or re-export anything from `audit.plugin.ts`, so this augmentation is
+absent from any TypeScript program whose file graph reaches the `audit`
+module only through `audit/index.ts` or `audit.router.ts` without also
+including `audit.plugin.ts`.
+
+Traced precisely: `apps/web`'s own `tsconfig.json` (`include: ["src",
+"vite.config.ts"]`) does not include the server tree; its only path into
+server types is `apps/web/src/lib/trpc.ts`'s `import type { AppRouter } from
+'server/src/trpc/root.js'`. `trpc/root.ts` imports the audit router
+directly from `audit.router.ts` (not through `audit/index.ts`), and
+`audit.router.ts` never imports `audit.plugin.ts`. So the augmentation is
+confirmed absent from `apps/web`'s typecheck program specifically.
+
+Currently inert there only because every `auditService` access reachable
+from that chain (`audit.router.ts`'s procedures) uses `(ctx.req.server as
+any).auditService` rather than typed property access. This is NOT true
+project-wide, which corrects an inaccurate premise this investigation
+started from: `apps/server/src/modules/iam/iam.plugin.ts` (line 68) and
+`apps/server/src/modules/organization/organization.plugin.ts` (lines 28, 40)
+both perform genuinely typed, non-cast access to `fastify.auditService` and
+currently compile without error — but only because `apps/server/tsconfig.json`
+(`include: "src/**/*"`) compiles the entire server tree as one program, and
+`app.ts` imports `audit.plugin.ts` directly (line 50), so the augmentation
+is present in that separate, broader compilation unit regardless of the
+`index.ts` gap. The gap is real and specific to `apps/web`'s narrower
+program, not a project-wide latent defect masked uniformly by casts.
+
+**Correction to an external diagnostic this investigation was asked to act
+on.** That diagnostic proposed fixing this by adding `export { default }
+from './audit.plugin.js';` to `audit/index.ts`, citing the `documents`
+module's equivalent fix as direct precedent and citing "entries in the
+LOG-0133 area" as prior art for this bug class. Both citations were checked
+directly and don't hold:
+
+1. `audit.plugin.ts` (line 4) already does `import { createAuditModule }
+   from './index.js';` — the reverse dependency direction from what the
+   proposed fix assumes. Adding the proposed re-export would create a
+   circular import (`index.ts → plugin.ts → index.ts`). The `documents`
+   module's real fix does not have this problem: `documents.plugin.ts`
+   does not import from `documents/index.ts` at all, and its own file
+   header comment (lines 15–25) explains its plugin-only `declare module`
+   block was deliberately kept there, rather than moved to
+   `documents.types.ts`, specifically to avoid a circular import between
+   `documents.types.ts` and the files that need it. The `audit` module's
+   situation is the mirror image, and the same fix does not transfer.
+2. LOG-0133 (checked directly, in full) is not about barrel exports,
+   `declare module` placement, or missing type augmentations. Its actual
+   subject is a broken `(ctx.req.server as any).auditEnv / .config`
+   fallback pattern for `AUDIT_HMAC_SECRET` resolution — a config-access
+   bug, unrelated to this one beyond superficially sharing the phrase
+   "Fastify-decoration access." This is not a correction to LOG-0133
+   itself, which is accurate about its own actual subject — it's a
+   correction to the external diagnostic's citation of it. No
+   `supersedes` field is set on this entry for that reason; LOG-0133 is
+   unaffected and remains as written. A full search of this log (grep for
+   "barrel", "declare module", "re-export", "TS2339") found no entry
+   anywhere documenting the `documents` module's barrel-export fix as
+   confirmed, despite that fix being present in the current code
+   (`documents/index.ts` line 2) — that fix has no findings-log paper
+   trail in this file as of this entry.
+
+**What the resolved direction is, and why.** J4's own text (line 11, placed
+before its ToC) already states plainly: "The J4 scope brief assigned
+'Fastify plugin registration' to `index.ts`. This conflicts with two source
+documents... This document follows J1 and B2. If the intent is to merge
+plugin registration into `index.ts`, that is a deviation and requires an
+ADR before implementation." J4 §3.1 lists "Fastify plugin registration"
+under `index.ts`'s "Must not contain." J4 §8 lists "Placing the Fastify
+plugin in `index.ts` instead of `{module}.plugin.ts`" as an example change
+requiring an ADR. No ADR exists anywhere in this repo authorizing this for
+any module. Given this, the audit fix follows J4's documented model
+directly: relocate the `declare module` block to a new `audit.types.ts`
+(matching J4 §3.6's stated content for `{module}.types.ts`: "Domain types;
+repository/service interfaces; Fastify augmentation"), and have
+`audit/index.ts` re-export it the same way `documents/index.ts` line 1 does
+for `documents.types.ts` (`export * from './documents.types.js';`), so the
+augmentation rides along wherever the barrel is already imported.
+
+Empirically verified (not assumed) against this project's actual compiler
+settings (`isolatedModules: true`, `verbatimModuleSyntax: true`, matching
+`apps/web`'s inherited base config): a file containing only a bare
+`declare module` block with no top-level `import`/`export` is treated by
+`tsc` as a global script, not a module, and `export * from` it fails with
+`TS2306`. Prefixing the file with `export {};` makes it a genuine module and
+resolves this. Tested both the positive case (with the barrel re-export, a
+consumer sees the augmentation, clean compile) and the negative control
+(without the re-export, a consumer gets `TS2339` — the exact error class
+this whole investigation is about) using a local sandbox with the project's
+exact `tsconfig` flags and a stand-in for the `fastify` package. Both
+behaved as expected.
+
+**Existing deviation this does not resolve.** `documents/index.ts`,
+`tracking/index.ts`, and `workflow/index.ts` (3 of the 6 currently
+implemented modules) already re-export their plugin's default export from
+`index.ts`, the same deviation from J1/J4/B2 described above. `workflow`'s
+case is load-bearing: `app.ts` (line 55) imports `workflowPlugin` from
+`workflow/index.js`, not from `workflow.plugin.ts` directly, unlike every
+other module. This entry does not touch those three modules or attempt to
+reconcile them with J4 — that is a separate decision (bring the other three
+into compliance, or write a retroactive ADR accepting the deviation
+project-wide) that a human should make deliberately, not one this entry
+resolves by implication. Flagging it here so it isn't lost.
+
+[Confirmed]: every claim above was checked directly against this exact
+upload — file contents, tsconfig contents, import graphs, and the
+compiler behavior test. Nothing here is carried forward from the earlier
+diagnostic without independent re-verification.
+

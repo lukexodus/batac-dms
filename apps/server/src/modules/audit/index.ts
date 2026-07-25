@@ -119,3 +119,5 @@ export function createAuditModule(deps: {
     },
   };
 }
+
+export * from './audit.types.js';
