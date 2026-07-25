@@ -4037,3 +4037,137 @@ does not select between them.
 **What was implemented.** The field was removed from both input schemas (the shared-package schema and the router's own inline schema — these are structurally independent types that happened to share field names, not a shared type used in two places), the two corresponding write-site lines in `recordPanlalawiganOutcome`, and the test assertions in `workflow.router.test.ts` that exercised the now-removed field.
 
 **Relationship to prior findings.** This is a companion cleanup to the same underlying "field defined but never wired to a purpose" problem previously found on the domain-table side of the Panlalawigan review data model (see `LOG-0114`, status `proposed`, later noted as maintained by `LOG-0142`). That prior finding concerned `PanlalawiganReviewSelectSchema` and the `panlalawiganReviews` relational table — a structurally distinct data path (durable system-of-record) from the workflow-context JSONB path this entry concerns (transient step-routing state). The two are independent instances of the same pattern, not the same bug; this entry documents the second, separate occurrence. Note that `LOG-0114` and `LOG-0142` both currently carry `status: proposed` and have not yet been reviewed by a human, so this entry treats them as related prior context rather than as settled precedent.
+
+---
+
+### [LOG-0146] Exact per-category tally of the 169 pre-existing test failures completed; TASK-DOCS-025 and TASK-TRACK-010 independently confirmed safe (alone and combined); LOG-0144 superseded
+- date: 2026-07-25
+- task_id: TASK-DOCS-025, TASK-TRACK-010
+- status: proposed
+- affects: LOG-0144 (superseded by this entry), LOG-0140 (documents/tracking
+  barrel-export scoping — this entry lifts the hold LOG-0144 placed on
+  TASK-DOCS-025)
+
+**What was done.** A fresh install (pnpm 9.15.4, matching the repo's pinned
+packageManager field) was performed from a clean snapshot. `pnpm --filter
+server typecheck` passed cleanly. `pnpm --filter server test` was run in
+four separate states: (1) unmodified baseline, (2) TASK-DOCS-025's edit
+applied alone, (3) TASK-TRACK-010's edit applied alone, (4) both edits
+applied together. All four states produced an identical result: `13 failed
+| 54 passed | 1 skipped (68)` test files, `169 failed | 639 passed | 9
+skipped (817)` tests, and an identical set of 13 failing files in every
+state (audit.event-consumer, audit.query-service, audit.router,
+audit.tsa-export, complaints.router, document-requests.router,
+documents.router, signatures.router, assignee-resolution, designations,
+session.router, workflow.plugin, workflow.router — none of which is
+documents.scaffold.test.ts or anything under organization/). Typecheck
+remained clean (zero errors) in all four states.
+
+Note: this run's baseline test-count (169 failed | 639 passed | 9 skipped
+| 817 total) differs from LOG-0144's stated baseline (169 failed | 641
+passed | 9 skipped | 819 total) by exactly 2 passed/total — this is fully
+explained by TASK-ORG-011 (organization module dead-code removal) having
+been applied to the repository between LOG-0144's run and this one, which
+nets -2 tests suite-wide (see LOG-0147). The 169 failed / 9 skipped counts,
+and the specific 13 failing files, are unaffected and identical across
+both baselines — TASK-ORG-011 touched none of the files in this failure
+signature.
+
+**Exact per-category tally of the 169 failures (completed; LOG-0144 only
+approximated "~150 of 169" for the dominant category and did not account
+for all 169):**
+1. UUID/Zod strict-format rejection (input or output validation): 152
+   (workflow.router 63, audit.router 33, document-requests.router 24,
+   complaints.router 11, session.router 9, documents.router 9,
+   signatures.router 3).
+2. workflow.plugin.test.ts — "The dependency 'iam' of plugin 'workflow' is
+   not registered": 4.
+3. Postgres ECONNREFUSED against the 3 audit integration test files: 9
+   (audit.query-service 6, audit.event-consumer 2, audit.tsa-export 1).
+   Observed as `ECONNREFUSED 127.0.0.1:5435` in this run's environment,
+   versus `ECONNREFUSED ::1:5435` (IPv6) in the environment LOG-0144's run
+   occurred in — attributed to environment-dependent DNS/localhost
+   resolution order, not a substantive discrepancy; same root cause
+   (no reachable Postgres) in both cases.
+4. `getUsersByRole` undefined / `NotImplemented`-vs-`TypeError` mismatch in
+   assignee-resolution.test.ts and designations.test.ts: 4 (2 each) — not
+   present in LOG-0144 at all; discovered and confirmed live in a later
+   session, independently reproduced in this session's run.
+Sum: 152 + 4 + 9 + 4 = 169, matching the total exactly.
+
+**New finding not in LOG-0144:** category 1's audit.router.test.ts failures
+(33 of the 152) manifest via `outputValidatorMiddleware` — i.e.
+`TRPCError: Output validation failed` wrapping a `Caused by: ZodError`
+with the identical `invalid_format`/`uuid` signature — rather than input
+rejection. Traced to the router's output schema also using `z.uuid()`,
+and the test's mocked/returned data carrying the same broken fixture
+literals. Same root cause as the rest of category 1, but a materially
+different failure surface (the router is returning invalid-shaped data
+in these test scenarios, not just rejecting bad input) — relevant context
+for whoever eventually scopes the actual fix.
+
+**Disposition.** TASK-DOCS-025 and TASK-TRACK-010 are confirmed safe —
+individually and applied together — on direct empirical evidence (four
+full test-suite runs from a clean install), not source-level inference.
+The hold placed by LOG-0144 is lifted by this entry. Both tasks may be
+executed as originally drafted, subject to their own pre-edit verification
+steps being re-confirmed fresh at execution time. The underlying
+UUID-fixture/Zod v4 mismatch itself remains unfixed and unscoped as a task
+— this entry does not select a fix direction (correcting fixture literals,
+relaxing Zod validation strictness, or something else); that decision
+remains open and is unchanged from LOG-0144.
+
+---
+
+### [LOG-0147] TASK-ORG-011 (organization/index.ts dead-code removal) found already applied and verified correct in the current snapshot, contrary to prior handoff status
+- date: 2026-07-25
+- task_id: TASK-ORG-011
+- status: proposed
+- affects: none
+
+**What was found.** A prior handoff document described TASK-ORG-011 as
+"not yet drafted — the session ended before this could be written."
+Checked directly against the current repository: TASK-ORG-011 is not only
+drafted (present verbatim in fix.md, its last entry as of this check) but
+fully executed. organization/index.ts is 4 lines / 189 bytes, matching the
+task's specified post-deletion content exactly (not the 110-line
+pre-deletion state). organization.scaffold.test.ts is trimmed to its 2
+kept tests. organization.service.test.ts (which the task describes as a
+new file to be created) already exists with content matching the
+specified port. org.published-api.test.ts (which the task deletes) is
+confirmed absent from the repository entirely.
+
+**Correctness independently verified, not just presence.** A full-repo
+grep for every one of the 9 deleted free-function names and
+initializePublishedAPI found no remaining reference anywhere that imports
+them from organization/index.js — every remaining occurrence is either an
+OrgService/DelegationService interface declaration (organization.types.ts,
+unrelated), a vi.fn() mock standing in for an injected service dependency
+(organization.router.test.ts), or a call on a real
+createOrgService(...)/createDelegationService(...) instance
+(organization.scaffold.test.ts, delegation.create.test.ts).
+organization.plugin.ts is unaffected — it constructs services directly and
+never referenced the barrel's dead implementation. `pnpm --filter server
+typecheck` is clean.
+
+**Explains a numeric discrepancy in LOG-0146.** This change accounts for
+the -2 test delta between this session's baseline test count (169 failed
+| 639 passed | 9 skipped | 817 total) and LOG-0144's stated baseline (169
+failed | 641 passed | 9 skipped | 819 total): org.published-api.test.ts's
+9 tests and organization.scaffold.test.ts's 2 removed tests (-11) minus
+organization.service.test.ts's 9 new tests (+9) = net -2, matching
+exactly. Confirmed this delta touches none of the 13 files in the
+UUID/Zod/ECONNREFUSED/getUsersByRole failure signature LOG-0146 tallies.
+
+**Process note, not a technical finding.** org.md's own primary TASK-ORG
+sequence (001 through 010) has independently advanced to TASK-ORG-014,
+apparently without awareness that 011 was assigned and consumed via
+fix.md's separate numbering band. No action taken on this by this entry —
+flagged for whoever assigns the next TASK-ORG number, to avoid a
+collision between org.md's primary sequence and fix.md's post-hoc band.
+
+**Disposition.** No action required — the task's own intent (remove dead
+code, preserve real test coverage via the port) is achieved and verified.
+Logged so the discrepancy between the prior handoff's stated status and
+the actual repository state is on record, and so the next agent working
+in this area doesn't re-derive or re-attempt work that's already done.
