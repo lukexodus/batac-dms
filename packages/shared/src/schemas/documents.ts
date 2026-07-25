@@ -571,7 +571,6 @@ export const LogPanlalawiganOutcomeInputSchema = z
     outcome: PanlalawiganOutcomeSchema,
     panlalawiganResolutionNumber: z.string().max(64).optional(),
     receivedAt: TimestampSchema,
-    dateReferred: TimestampSchema.optional(),
     remarks: z.string().max(2048).optional(),
   })
   .refine((v) => v.outcome !== 'valid_in_part' || (v.remarks && v.remarks.length >= 10), {

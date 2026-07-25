@@ -1327,7 +1327,6 @@ describe('TASK-WF-021 Procedures', () => {
         outcome: 'RETURNED',
         controlNumber: 'PN-001',
         panlalawiganResolutionNumber: 'RES-2026-001',
-        dateReferred: new Date('2026-07-01'),
         remarks: 'Returned for corrections',
       });
 
@@ -1338,7 +1337,6 @@ describe('TASK-WF-021 Procedures', () => {
       expect(contextPatch['panlalawigan_outcome']).toBe('RETURNED');
       expect(contextPatch['panlalawigan_control_number']).toBe('PN-001');
       expect(contextPatch['panlalawigan_resolution_number']).toBe('RES-2026-001');
-      expect(contextPatch['panlalawigan_date_referred']).toBeDefined();
       expect(contextPatch['panlalawigan_remarks']).toBe('Returned for corrections');
       // submitStepApproval called with RETURNED outcome
       expect(mockSubmitStepApproval).toHaveBeenCalledOnce();

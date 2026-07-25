@@ -2019,7 +2019,6 @@ export function createWorkflowRouter() {
           outcome: z.enum(['VALID', 'VALID_IN_PART', 'RETURNED', 'OPERATIVE_IN_ITS_ENTIRETY']),
           controlNumber: z.string().optional(),
           panlalawiganResolutionNumber: z.string().optional(),
-          dateReferred: z.coerce.date().optional(),
           remarks: z.string().optional(),
         }),
       )
@@ -2058,8 +2057,6 @@ export function createWorkflowRouter() {
             patch['panlalawigan_control_number'] = input.controlNumber;
           if (input.panlalawiganResolutionNumber !== undefined)
             patch['panlalawigan_resolution_number'] = input.panlalawiganResolutionNumber;
-          if (input.dateReferred !== undefined)
-            patch['panlalawigan_date_referred'] = input.dateReferred.toISOString();
           if (input.remarks !== undefined) patch['panlalawigan_remarks'] = input.remarks;
 
           await txDeps.workflowRepository.updateInstanceContext(instance.id, patch, tx as any);

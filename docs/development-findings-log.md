@@ -3891,6 +3891,7 @@ TASK-DOCS-025 or TASK-TRACK-010.
 upload, including a fresh re-check of the "no ADR exists" claim across all
 71 ADR files currently in the repository (none reference module structure,
 barrel exports, or plugin placement).
+
 ### [LOG-0141] AttachmentSelectSchema.s3Key widen to nullable
 
 - date: 2026-07-25
@@ -3919,3 +3920,120 @@ The `dateReferred` field remains excluded from `PanlalawiganReviewSelectSchema`.
 - affects: none
 
 The `getPanlalawiganReview` procedure returned a hardcoded `dateReferred: null` key that predated the removal of `dateReferred` from the shared schema. This dead-weight field was removed to eliminate inconsistency between the actual API response and the shared schema. The procedure has no `.output()` binding and is not called by any `apps/web` consumer, making this removal safe.
+
+---
+
+### [LOG-0144] TASK-DOCS-025 test-suite failure traced to pre-existing Zod v4 strict UUID validation, not to the barrel-export edit; task held per LOG-0140
+
+- date: 2026-07-25
+- task_id: TASK-DOCS-025
+- status: proposed
+- affects: LOG-0137 (Zod v4 chained-method audit), LOG-0140 (documents/tracking barrel-export scoping — TASK-DOCS-025 held pending this entry)
+
+**What was found.** TASK-DOCS-025 (removing the plugin default re-export
+from `documents/index.ts`, per LOG-0140) was executed against the live
+repository. Both of the task's pre-edit verification checks passed
+(`documents.plugin.ts` has no import of `./index.js` in any form;
+`app.ts` already imports `documentsPlugin` directly from
+`documents.plugin.js`). `pnpm --filter server typecheck` completed with no
+errors. `pnpm --filter server test` reported 169 failed tests across 13
+test files (641 passed, 9 skipped, of 819 total). The edit was reverted by
+the executing agent pending investigation, per the task's own instruction
+not to modify test files or proceed past an unexplained test failure
+without reporting it first.
+
+**Root cause, traced directly against this repository's source.** The
+dominant failure signature (~150 of the 169 failures, spanning
+`documents`, `audit`, `workflow`, and `session` router test files —
+none of which import from `documents/index.ts`) is `ZodError` with
+`code: "invalid_format", format: "uuid"` rejecting test-fixture values.
+Zod is pinned and installed at `4.4.3` (confirmed against
+`apps/server/package.json`, `packages/shared/package.json`, and the
+lockfile). `packages/shared/src/schemas/common.ts`'s `UuidSchema` and
+numerous other fields across `documents.ts`, `organization.ts`, and
+`context.schema.ts` use `z.uuid()` directly — the same top-level form
+LOG-0137 already documented as enforcing a stricter regex than the
+deprecated chained `.string().uuid()` form: RFC 4122's version nibble
+constrained to `[1-8]` and variant nibble to `[89abAB]`, with the nil
+(`00000000-...`) and max (`ffffffff-...`) UUIDs specially allowed as the
+only exceptions.
+
+Verified directly (not inferred) against the actual regex shown in the
+test-failure output and the actual fixture literals in the affected
+files: `documents.router.test.ts` uses
+`'22222222-2222-2222-2222-222222222222'` for `documentTypeId`;
+`workflow.router.test.ts` line 39 defines
+`const VALID_UUID = '11111111-1111-1111-1111-111111111111'` and reuses it
+throughout that file, including for `committeeId` fixtures alongside a
+`'33333333-...'` counterpart. None of these three fixture values satisfy
+`z.uuid()`'s version/variant nibble constraint — tested directly against
+the exact regex from the failure output (`2`, `1`, and `3` all fall
+outside `[1-8]` only by chance of also failing the variant-nibble
+position in each case checked). These are UUID-shaped placeholder
+literals, not RFC-4122-valid UUIDs, and predate this task entirely.
+
+Two smaller, independently-confirmed, unrelated failure categories were
+also present in the same run: `workflow.plugin.test.ts` (4 failures) —
+`"The dependency 'iam' of plugin 'workflow' is not registered"`, a
+Fastify plugin-registration-order issue local to that test's own setup;
+and three `audit` integration tests
+(`audit.query-service.test.ts`, `audit.event-consumer.test.ts`,
+`audit.tsa-export.test.ts`) failing on `ECONNREFUSED ::1:5435` against a
+Postgres instance not reachable in the environment the test run occurred
+in.
+
+**Verification that this is unrelated to TASK-DOCS-025's edit.** Traced
+the full dependency path from `documents/index.ts` to
+`packages/shared/src/schemas/common.ts`'s `UuidSchema` and found none —
+`packages/shared` has no import of anything under `apps/server`
+(confirmed: the two textual matches for the string "apps/server" in that
+package are code comments, not import statements), so a change to
+`documents/index.ts`'s exports cannot reach Zod's validation behavior by
+any import-graph path. This was checked directly, not assumed from the
+edit's small size.
+
+**Note on verification limits.** A live re-run of the test suite was not
+performed independently as part of this entry — the investigating
+environment has no installed `node_modules` for this repository and no
+reachable Postgres instance, matching the same `ECONNREFUSED` condition
+visible in the original failure output for the unrelated integration
+tests. This entry's conclusion rests on direct source-level tracing (the
+pinned Zod version, the actual regex from the failure output, the actual
+fixture literals in three separate test files, and the confirmed absence
+of any dependency path from `documents/index.ts` to Zod's validation
+layer) rather than an independent live confirmation under the executor's
+exact conditions.
+
+**Disposition.** TASK-DOCS-025's edit itself is not implicated by this
+failure and remains, on the evidence gathered, safe to re-run once the
+test suite is in a known-good state — this entry does not reverse or
+qualify LOG-0140's decision to bring `documents`/`tracking` into J4/B2
+compliance. Per explicit human instruction, TASK-DOCS-025 is held rather
+than re-issued until the UUID-fixture/Zod v4 mismatch is triaged and
+resolved separately, so that a passing test run can be used to verify the
+barrel-export edit does not introduce a regression. The UUID-fixture
+mismatch itself is not fixed by this entry and is not scoped as a task
+here — logged as a discovery only, per explicit human instruction to
+keep it separate from the module-structure reconciliation effort. A
+human should decide whether the fix is correcting the fixture literals
+to RFC-4122-valid values, adjusting the Zod validation strictness, or
+something else — more than one reasonable approach exists and this entry
+does not select between them.
+
+---
+
+### [LOG-0145] Write-only dateReferred ghost field in recordPanlalawiganOutcome workflow-context path
+
+- date: 2026-07-25
+- task_id: TASK-DOCS-SHARED-010
+- status: proposed
+- affects: none
+- supersedes: none
+
+**What was found.** `LogPanlalawiganOutcomeInputSchema` (`packages/shared/src/schemas/documents.ts`) and the independent inline input schema declared inside the `recordPanlalawiganOutcome` procedure (`apps/server/src/modules/workflow/workflow.router.ts`) both included a `dateReferred` field. Tracing all reads and writes of this field across the repository (server code, frontend code, and test files) found it was accepted as user input by `recordPanlalawiganOutcome`, coerced to a `Date`, formatted as an ISO string, and merged into the `workflow.instances.context` JSONB column under the key `panlalawigan_date_referred` — but never read back anywhere: not by any other server procedure, not by any `apps/web` component, and not by `getInstance` (the procedure that `PanlalawiganOutcomePanel.tsx` actually consumes), whose `.output()` schema is an explicit closed set of named fields with no raw `context` passthrough.
+
+**Why Zod validation never caught this.** The write path bypasses schema validation entirely. `WorkflowRepository.updateInstanceContext` performs a raw JSONB merge directly against the database column (`context: sql\`${instances.context} || ${JSON.stringify(patch)}::jsonb\``) rather than running the patch object through `WorkflowContextSchema` or any other Zod schema. Consistent with this, `WorkflowContextSchema` (`packages/shared/src/workflow/context.schema.ts`) does not declare a `panlalawigan_date_referred` key at all — it declares five other `panlalawigan_*` keys, but not this one — yet the value was written regardless, since the raw-SQL merge never checks the schema at any point.
+
+**What was implemented.** The field was removed from both input schemas (the shared-package schema and the router\'s own inline schema — these are structurally independent types that happened to share field names, not a shared type used in two places), the two corresponding write-site lines in `recordPanlalawiganOutcome`, and the test assertions in `workflow.router.test.ts` that exercised the now-removed field.
+
+**Relationship to prior findings.** This is a companion cleanup to the same underlying "field defined but never wired to a purpose" problem previously found on the domain-table side of the Panlalawigan review data model (see `LOG-0114`, status `proposed`, later noted as maintained by `LOG-0142`). That prior finding concerned `PanlalawiganReviewSelectSchema` and the `panlalawiganReviews` relational table — a structurally distinct data path (durable system-of-record) from the workflow-context JSONB path this entry concerns (transient step-routing state). The two are independent instances of the same pattern, not the same bug; this entry documents the second, separate occurrence. Note that `LOG-0114` and `LOG-0142` both currently carry `status: proposed` and have not yet been reviewed by a human, so this entry treats them as related prior context rather than as settled precedent.
