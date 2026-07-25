@@ -508,12 +508,16 @@ export const SignatureSelectSchema = z.object({
 });
 export type SignatureSelect = z.infer<typeof SignatureSelectSchema>;
 
-export const LogSignatureInputSchema = z.object({
-  documentId: UuidSchema,
-  signedByEmployeeId: UuidSchema,
+export const LogSignatureInputSchema = createInsertSchema(signatures).pick({
+  documentId: true,
+  signedByEmployeeId: true,
+  signedByDisplayName: true,
+  signatureType: true,
+  signedAt: true,
+  isWetInk: true,
+  signatureImageS3Key: true,
+}).extend({
   signedByDisplayName: z.string().min(1).max(256).trim(),
-  signatureType: SignatureTypeSchema,
-  signedAt: TimestampSchema,
   isWetInk: z.boolean().default(true),
   signatureImageS3Key: z.uuid().optional(),
 });
