@@ -17004,6 +17004,1737 @@ Do not claim typecheck success unless the full, completed typecheck run actually
 
 # TASK-AUDIT-023
 
+````markdown
+TASK-AUDIT-023
+
+Phase:          1
+Module:         AUDIT
+Title:          Relocate audit module's Fastify type augmentation to audit.types.ts
+Prerequisites:  [NONE]
+
+## Context
+
+`apps/server/src/modules/audit/audit.plugin.ts` currently declares a
+TypeScript Fastify type augmentation (a `declare module 'fastify'` block)
+inline in that file. Per this project's `J4 — Module Structure Template`
+document (§3.6, `{module}.types.ts`), Fastify augmentations belong in a
+dedicated `{module}.types.ts` file, not in `{module}.plugin.ts`. This task
+moves it there. It does not touch any other file's business logic, add any
+new capability, or change any runtime behavior — it is a pure relocation of
+a compile-time-only construct.
+
+Do not add `export { default } from './audit.plugin.js';` to
+`audit/index.ts`, and do not otherwise make `audit/index.ts` import from or
+re-export anything from `audit.plugin.ts`. `audit.plugin.ts` already imports
+`createAuditModule` from `audit/index.ts` (see current content below); doing
+so would create a circular import between the two files.
+
+## Exact current content of the two files this task touches
+
+### `apps/server/src/modules/audit/audit.plugin.ts` (current, full file, 60 lines)
+
+```typescript
+import fp from 'fastify-plugin';
+import type { FastifyInstance } from 'fastify';
+import { createAuditDb } from './audit.db.js';
+import { createAuditModule } from './index.js';
+import type { AuditPublicAPI } from './index.js';
+import { registerAuditEventConsumer } from './audit.event-consumer.js';
+import type { EventBus } from '@batac/shared/event-bus';
+import { createAuditTrpcRouter, type AuditTrpcRouter } from './audit.router.js';
+
+// ─── TypeScript Fastify augmentation ─────────────────────────────────────────
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    auditService: AuditPublicAPI;
+    eventBus: EventBus;
+    auditTrpcRouter: AuditTrpcRouter;
+  }
+}
+
+// ─── Plugin ───────────────────────────────────────────────────────────────────
+
+async function auditPlugin(fastify: FastifyInstance): Promise<void> {
+  const databaseUrlAudit = process.env['DATABASE_URL_AUDIT'];
+  if (!databaseUrlAudit) {
+    throw new Error('DATABASE_URL_AUDIT env var is required for the audit plugin');
+  }
+
+  const hmacSecret = process.env['AUDIT_HMAC_SECRET'];
+  if (!hmacSecret) {
+    throw new Error('AUDIT_HMAC_SECRET env var is required for the audit plugin');
+  }
+
+  // Default to true; only disabled when explicitly set to 'false'.
+  const verifyOnRead = process.env['AUDIT_CHAIN_VERIFY_ON_READ'] !== 'false';
+
+  const auditDb = createAuditDb(databaseUrlAudit);
+  const auditModule = createAuditModule({
+    auditDb,
+    env: {
+      AUDIT_HMAC_SECRET: hmacSecret,
+      AUDIT_CHAIN_VERIFY_ON_READ: verifyOnRead,
+    },
+  });
+
+  fastify.decorate('auditService', auditModule);
+
+  // Expose the tRPC sub-router for the root adapter to mount
+  fastify.decorate('auditTrpcRouter', createAuditTrpcRouter(auditModule));
+
+  // Register the domain event consumer for all audit events
+  registerAuditEventConsumer(fastify.eventBus, auditModule, fastify.log);
+}
+
+export default fp(auditPlugin, {
+  name: 'audit',
+  dependencies: ['database', 'event-bus'],
+});
+
+export { createAuditDb };
+```
+
+### `apps/server/src/modules/audit/index.ts` (current, lines 100–122, the end of the file — lines 1–99 are unaffected and must not be changed)
+
+```typescript
+  };
+}
+
+// ─── Factory ───────────────────────────────────────────────────────────────────
+
+export function createAuditModule(deps: {
+  auditDb: ReturnType<typeof createAuditDb>;
+  env: { AUDIT_HMAC_SECRET: string; AUDIT_CHAIN_VERIFY_ON_READ: boolean };
+}): AuditPublicAPI {
+  const repo = new AuditRepository(deps.auditDb);
+  const writeService = new AuditWriteService(repo, deps.env);
+  const queryService = new AuditQueryService(repo, deps.env);
+
+  return {
+    writeEvent: (e) => writeService.writeEvent(e),
+    queryEvents: (f) => queryService.queryEvents(f),
+    _internal: {
+      repo,
+      writeService,
+    },
+  };
+}
+```
+
+(This is the literal end of the current file — line 122 is the last line.)
+
+## Required changes
+
+### 1. Create `apps/server/src/modules/audit/audit.types.ts` — new file, this exact content, nothing more and nothing less
+
+```typescript
+import type { AuditPublicAPI } from './index.js';
+import type { AuditTrpcRouter } from './audit.router.js';
+import type { EventBus } from '@batac/shared/event-bus';
+
+export {};
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    auditService: AuditPublicAPI;
+    eventBus: EventBus;
+    auditTrpcRouter: AuditTrpcRouter;
+  }
+}
+```
+
+The `export {};` line is required and must not be removed: this project's
+`tsconfig` chain has `isolatedModules: true` and (for `apps/web`, the
+compilation unit this fix specifically targets) `verbatimModuleSyntax:
+true`. A file containing only a `declare module` block with no top-level
+`import`/`export` of its own is treated by `tsc` as a global script, not a
+module, and any `export * from` targeting it fails with `TS2306: File is
+not a module`. This was verified directly against a local build with this
+project's exact compiler flags before writing this prompt; do not remove
+`export {};` as "unnecessary."
+
+### 2. Edit `apps/server/src/modules/audit/index.ts`
+
+Append this exact line at the end of the file (after the current last line,
+which is the closing `}` of `createAuditModule` at line 122):
+
+old_str (this is the current literal end of the file — match it exactly, including the trailing blank line if present in the actual file on disk):
+```
+  return {
+    writeEvent: (e) => writeService.writeEvent(e),
+    queryEvents: (f) => queryService.queryEvents(f),
+    _internal: {
+      repo,
+      writeService,
+    },
+  };
+}
+```
+
+new_str:
+```
+  return {
+    writeEvent: (e) => writeService.writeEvent(e),
+    queryEvents: (f) => queryService.queryEvents(f),
+    _internal: {
+      repo,
+      writeService,
+    },
+  };
+}
+
+export * from './audit.types.js';
+```
+
+Nothing else in `audit/index.ts` changes. Every interface, type, and the
+`createAuditModule` factory function currently in this file (lines 1–99, the
+`AuditEventInput`, `AuditQueryFilter`, `AuditEvent`, `AuditQueryResult`,
+`AuditPublicAPI` interfaces, and the `createAuditModule` function itself)
+stays exactly where it is. This task does not move Published API types out
+of `index.ts` — only the Fastify augmentation moves, out of `audit.plugin.ts`
+and into the new `audit.types.ts`.
+
+### 3. Edit `apps/server/src/modules/audit/audit.plugin.ts`
+
+Remove the `declare module` block (the exact block shown in the "current
+content" section above, lines 10–18 including the two `// ───` comment
+lines immediately surrounding it) in its entirety.
+
+Change the import list at the top of the file. This is a before/after pair;
+apply it exactly:
+
+old_str:
+```
+import fp from 'fastify-plugin';
+import type { FastifyInstance } from 'fastify';
+import { createAuditDb } from './audit.db.js';
+import { createAuditModule } from './index.js';
+import type { AuditPublicAPI } from './index.js';
+import { registerAuditEventConsumer } from './audit.event-consumer.js';
+import type { EventBus } from '@batac/shared/event-bus';
+import { createAuditTrpcRouter, type AuditTrpcRouter } from './audit.router.js';
+
+// ─── TypeScript Fastify augmentation ─────────────────────────────────────────
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    auditService: AuditPublicAPI;
+    eventBus: EventBus;
+    auditTrpcRouter: AuditTrpcRouter;
+  }
+}
+
+// ─── Plugin ───────────────────────────────────────────────────────────────────
+```
+
+new_str:
+```
+import fp from 'fastify-plugin';
+import type { FastifyInstance } from 'fastify';
+import { createAuditDb } from './audit.db.js';
+import { createAuditModule } from './index.js';
+import { registerAuditEventConsumer } from './audit.event-consumer.js';
+import { createAuditTrpcRouter } from './audit.router.js';
+import './audit.types.js';
+
+// ─── Plugin ───────────────────────────────────────────────────────────────────
+```
+
+Note the specific, deliberate changes in this before/after pair — this JSON
+block is the authoritative record of exactly which imports are removed,
+kept, or added; if any other part of this prompt's prose seems to conflict
+with it, this block wins:
+
+```json
+{
+  "imports_removed_entirely": [
+    "import type { AuditPublicAPI } from './index.js';",
+    "import type { EventBus } from '@batac/shared/event-bus';"
+  ],
+  "imports_changed": [
+    {
+      "before": "import { createAuditTrpcRouter, type AuditTrpcRouter } from './audit.router.js';",
+      "after": "import { createAuditTrpcRouter } from './audit.router.js';",
+      "reason": "createAuditTrpcRouter is still used as a value at the existing fastify.decorate('auditTrpcRouter', createAuditTrpcRouter(auditModule)) call later in this same file — keep it. The AuditTrpcRouter type import is dropped because this file no longer declares the augmentation that needed it."
+    }
+  ],
+  "imports_added": [
+    "import './audit.types.js';"
+  ],
+  "do_not_add": "Do not add `import type { AuditTrpcRouter } from './audit.types.js';` or re-import AuditPublicAPI/EventBus into this file for any reason — nothing in the remaining body of auditPlugin() references these type names directly; they were only ever used inside the declare module block that has been removed from this file."
+}
+```
+
+The `import './audit.types.js';` line is a bare side-effect import with no
+named bindings. Its only purpose is to guarantee `audit.types.ts` is
+included in any compilation unit that includes `audit.plugin.ts` (this
+matters for `apps/server`'s own tsconfig, which already includes it via
+`app.ts`'s existing direct import of `audit.plugin.ts` regardless, but
+including it here too is harmless, consistent with the intent of the fix,
+and costs nothing). Do not replace it with `import type './audit.types.js';`
+— `import type` does not accept a bare specifier with no named bindings.
+
+The rest of `audit.plugin.ts` (the `auditPlugin` function body, the `export
+default fp(...)` block, and the final `export { createAuditDb };` line) is
+unchanged. Do not touch it.
+
+## Scope
+
+IN SCOPE (the only files this task creates or edits):
+- `apps/server/src/modules/audit/audit.types.ts` — new file
+- `apps/server/src/modules/audit/index.ts` — one line appended at the end
+- `apps/server/src/modules/audit/audit.plugin.ts` — import list changed as specified; declare module block removed
+
+OUT OF SCOPE (do not touch even if related):
+- `apps/server/src/modules/audit/audit.router.ts` — its existing `import
+  type { AuditPublicAPI, AuditQueryResult, AuditEvent } from './index.js';`
+  and every `(ctx.req.server as any).auditService` cast site are unaffected
+  by this change and must not be edited as part of this task. Removing the
+  `as any` casts is a separate, larger change (it would surface whatever
+  the augmentation now correctly exposes, which needs its own review) and
+  is explicitly not part of this task.
+- `apps/server/src/modules/documents/index.ts`,
+  `apps/server/src/modules/tracking/index.ts`,
+  `apps/server/src/modules/workflow/index.ts` — these three modules
+  currently re-export their Fastify plugin from `index.ts`, a different,
+  pre-existing pattern from what this task implements for `audit`. Do not
+  modify any of them to match this task's pattern, and do not modify this
+  task's `audit` files to match their pattern instead. Reconciling that
+  inconsistency across modules is a separate decision for a human, tracked
+  in `docs/development-findings-log.md` LOG-0138, not part of this task.
+- `apps/server/src/app.ts`, `apps/server/src/trpc/root.ts` — both already
+  import `audit.plugin.ts` and `audit.router.ts` directly (not through
+  `index.ts`) and need no changes for this fix to take effect.
+- Any file under `apps/web` — this task changes only server-side file
+  structure; no `apps/web` file is edited. `apps/web`'s typecheck passing
+  cleanly with the augmentation now reachable is the acceptance signal,
+  not a file this task edits.
+
+## Acceptance Criteria
+
+- [ ] `apps/server/src/modules/audit/audit.types.ts` exists with exactly the
+      content specified above (the three type-only imports, `export {};`,
+      then the `declare module 'fastify'` block with `auditService`,
+      `eventBus`, `auditTrpcRouter` — same three property names and same
+      three types as before this task, only relocated).
+- [ ] `apps/server/src/modules/audit/audit.plugin.ts` no longer contains any
+      `declare module 'fastify'` block.
+- [ ] `apps/server/src/modules/audit/audit.plugin.ts`'s import list matches
+      the `new_str` block above exactly — specifically, it does NOT import
+      `AuditPublicAPI` or `EventBus` as types anywhere, and its import of
+      `AuditTrpcRouter` as a type is removed (the value import
+      `createAuditTrpcRouter` is kept).
+- [ ] `apps/server/src/modules/audit/index.ts` has exactly one line added
+      at the very end of the file: `export * from './audit.types.js';` —
+      no other line in this file is changed.
+- [ ] `pnpm --filter server typecheck` (or the equivalent command this
+      repo uses to run `tsc --noEmit` for `apps/server`) passes with no new
+      errors introduced.
+- [ ] `pnpm --filter web typecheck` (or the equivalent command for
+      `apps/web`) passes with no new errors introduced. This is the
+      specific compilation unit this fix targets; if this doesn't cleanly
+      pick up the augmentation, the fix is incomplete — report the exact
+      error rather than working around it with an additional cast.
+- [ ] No file outside the three listed in "IN SCOPE" above is modified.
+- [ ] `audit/index.ts`'s existing exports (every interface and the
+      `createAuditModule` function currently in lines 1–99 of that file)
+      are byte-for-byte unchanged except for the one new line appended at
+      the end.
+
+A reviewer will verify each one independently.
 ````
 
+---
+
+# TASK-DOCS-SHARED-009: Resolve LOG-0113 and LOG-0114 — attachment/panlalawigan-review schema divergences
+
+## Context
+
+Two findings-log entries — `LOG-0113` (`AttachmentSelectSchema.s3Key` nullability) and `LOG-0114` (`PanlalawiganReviewSelectSchema.dateReferred` field-existence) — have both been reviewed and adjudicated by a human. This task implements both resolutions, plus a related resolver-level cleanup that surfaced during the review of LOG-0114. All three changes are independent of each other and independent of the `signatures`/`documents` schema work done in prior tasks in this family.
+
+**This task is structurally different from prior tasks in this family in one important way: it explicitly authorizes and requires a resolver-body edit** (in `panlalawigan.router.ts`). Prior tasks in this family (`TASK-DOCS-SHARED-004`/`004B`/`008`) established a hard-stop rule — "if a schema change requires any resolver edit, stop and report rather than making it." That rule does not apply to Decision 3 below. Decision 3's resolver edit is a deliberate, pre-approved part of this task's scope, not an incidental side effect of a schema change — do not stop or flag it as if it were.
+
+## Scope
+
+**IN SCOPE:**
+- `packages/shared/src/schemas/documents.ts` — `AttachmentSelectSchema` (Decision 1 below).
+- `apps/server/src/modules/documents/panlalawigan.router.ts` — `getPanlalawiganReview` procedure's return object only (Decision 3 below).
+
+**OUT OF SCOPE — do not touch, even if related or seemingly convenient to fix in passing:**
+- `PanlalawiganReviewSelectSchema` in `packages/shared/src/schemas/documents.ts` — per Decision 2 below, this schema requires **zero edits**. Do not add a `dateReferred` field to it under any circumstance.
+- The `controlNumber` and `panlalawiganResolutionNumber` field overrides and their accompanying "OVERRIDE REQUIRED, NOT OPTIONAL" comment blocks inside `PanlalawiganReviewSelectSchema` (currently lines 536–544 and 551–559). **These describe a completely separate, already-resolved, deliberate Drizzle-column-name-vs-established-name divergence, unrelated to LOG-0113 or LOG-0114.** Do not rename these fields, do not shorten or "clean up" their comments, do not touch them in any way, even though you will be reading through this schema as part of confirming Decision 2. Leave every line of both comment blocks and both field declarations character-for-character as you find them.
+- Any other field, comment, or line in `PanlalawiganReviewSelectSchema` beyond what's explicitly listed above.
+- `SignatureSelectSchema`, `LogSignatureInputSchema`, `CreateDocumentInputSchema`, `UpdateDocumentInputSchema`, `documentTypes`, `versions`, `numbers` schemas, or any other schema in the same file.
+- `packages/database/schema/documents.schema.ts` — the underlying Drizzle column definitions and the `ck_attachments_file_or_source` CHECK constraint. Do not modify. (Decision 1 only widens the Zod-layer type to match what this constraint already permits at the DB layer — it does not change the DB layer itself.)
+- `panlalawigan.router.ts`'s other procedures (`initiatePanlalawiganTransmittal`, `logPanlalawiganOutcome`) — only `getPanlalawiganReview`'s return object is in scope.
+- `apps/web/src/pages/workflow/panels/PanlalawiganOutcomePanel.tsx` — this file contains an unrelated developer comment (lines 21–23) that happens to mention the string `dateReferred` in a stale note about a differently-named procedure (`recordPanlalawiganOutcome`, which does not match either `getPanlalawiganReview` or the live `logPanlalawiganOutcome` procedure name). This comment is not live code, does not reference the field being deleted in this task, and is confirmed to have no connection to `getPanlalawiganReview` (repo-wide search confirms `getPanlalawiganReview` is not called anywhere in `apps/web`). Do not edit this file as part of this task, even though a `dateReferred` string search will surface it.
+- Any attachments-related router — none exists (`attachments.router.ts` is not a real file in this repo), and creating one is out of scope for this task.
+
+---
+
+## Decision 1 — `AttachmentSelectSchema.s3Key`: widen to `.nullable()`, remove the resolved comment
+
+### Resolution (already adjudicated by a human — apply exactly as stated, do not re-litigate)
+
+`s3Key` changes from non-nullable (`z.string()`) to nullable (`z.string().nullable()`). Rationale, for context only (do not include this rationale text in the code, it belongs in the findings log, not a code comment — see Decision 1's log-entry note below): the live `ck_attachments_file_or_source` CHECK constraint on the `attachments` table (`packages/database/schema/documents.schema.ts`, confirmed present) proves reference-only attachments (`fileKey: null`, `sourceDocumentId: <uuid>`) are a deliberate, DB-enforced design feature, not an oversight — the Zod schema must reflect that. There are currently no live consumers of `AttachmentSelectSchema` anywhere in `apps/server` or `apps/web` (confirmed via repo-wide search), so this change is fully backward-compatible with the current codebase.
+
+### Exact current state, `packages/shared/src/schemas/documents.ts`, lines 423–453 (confirmed against the live repo immediately before this prompt was written):
+
+```typescript
+export const AttachmentSelectSchema = z.object({
+  ...createSelectSchema(attachments).omit({
+    cityId: true,
+    deletedAt: true,
+    deletedBy: true,
+  }).shape,
+  id: UuidSchema,
+  documentId: UuidSchema,
+  // Renamed from Drizzle's `fileKey` to `s3Key` to match this field's
+  // existing, established name in this schema. Confirmed via repo-wide
+  // search: no live code depends on the OLD Drizzle-matching name
+  // (`fileKey` is not referenced as a property access on any
+  // attachment-shaped object outside this file), so this is a safe
+  // rename. The underlying Drizzle column is nullable
+  // (`fileKey: uuid('file_key')`, no `.notNull()`), but this schema's
+  // existing consumers expect a non-nullable string — preserved as-is
+  // below rather than silently widening to nullable, since that would be
+  // a behavior change beyond this task's scope. If a genuinely
+  // attachment-without-a-file-key row can exist (the Drizzle comment for
+  // `sourceDocumentId` below suggests one can — a Certification of
+  // Urgency attachment referencing a source document instead of its own
+  // file), this non-nullable override may be WRONG and is flagged here
+  // as a finding, not silently resolved:
+  s3Key: z.string(),
+  sourceDocumentId: UuidSchema.nullable(),
+  description: z.string().nullable(),
+  fileSizeBytes: z.number().int().positive(),
+  uploadedBy: UuidSchema,
+  createdAt: TimestampSchema,
+});
+export type AttachmentSelect = z.infer<typeof AttachmentSelectSchema>;
+```
+
+### Required change
+
+**Verbatim old/new string pair — this is the authoritative source of truth for this edit; if any surrounding prose in this prompt appears to conflict with it, this pair wins:**
+
+`old_str`:
+```
+  id: UuidSchema,
+  documentId: UuidSchema,
+  // Renamed from Drizzle's `fileKey` to `s3Key` to match this field's
+  // existing, established name in this schema. Confirmed via repo-wide
+  // search: no live code depends on the OLD Drizzle-matching name
+  // (`fileKey` is not referenced as a property access on any
+  // attachment-shaped object outside this file), so this is a safe
+  // rename. The underlying Drizzle column is nullable
+  // (`fileKey: uuid('file_key')`, no `.notNull()`), but this schema's
+  // existing consumers expect a non-nullable string — preserved as-is
+  // below rather than silently widening to nullable, since that would be
+  // a behavior change beyond this task's scope. If a genuinely
+  // attachment-without-a-file-key row can exist (the Drizzle comment for
+  // `sourceDocumentId` below suggests one can — a Certification of
+  // Urgency attachment referencing a source document instead of its own
+  // file), this non-nullable override may be WRONG and is flagged here
+  // as a finding, not silently resolved:
+  s3Key: z.string(),
+  sourceDocumentId: UuidSchema.nullable(),
+```
+
+`new_str`:
+```
+  id: UuidSchema,
+  documentId: UuidSchema,
+  // Renamed from Drizzle's `fileKey` to `s3Key` to match this field's
+  // existing, established name in this schema. Confirmed via repo-wide
+  // search: no live code depends on the OLD Drizzle-matching name
+  // (`fileKey` is not referenced as a property access on any
+  // attachment-shaped object outside this file), so this is a safe
+  // rename.
+  s3Key: z.string().nullable(),
+  sourceDocumentId: UuidSchema.nullable(),
+```
+
+Note exactly what is preserved and what is removed: the first paragraph of the comment (the rename rationale, ending at "...so this is a safe rename.") is **kept**, since it documents a separate, still-true fact (the field-name rename) that has nothing to do with the nullability question. Only the second portion — everything from "The underlying Drizzle column is nullable" through "as a finding, not silently resolved:" — is deleted, because that portion specifically documented the now-resolved open question. Do not delete the entire comment block; do not keep the entire comment block; the split point is exactly as shown in the two string blocks above.
+
+### Required findings-log entry for this decision
+
+Per `AGENTS.md` §4.5, append a new entry to `docs/development-findings-log.md` recording that `LOG-0113` has been resolved. Use `LOG-NNNN` with `NNNN` being the next sequential number continuing from the highest number currently in the file at the time you run this task — **do not assume a specific number; check the file yourself immediately before writing the entry, since other entries may have been added since this prompt was written.** Set `status: proposed` (per the log's own rule, only a human sets `confirmed`). Set `supersedes: LOG-0113`. In the entry body, state plainly: the decision (widen to `.nullable()`), the rationale (the `ck_attachments_file_or_source` CHECK constraint), and the fact that no live consumers existed at the time of this change. Follow the log's own entry-format template exactly as documented in the file's own header (read that header section before writing the entry, the same way `AGENTS.md` §5 instructs reading a document's ToC before requesting a line range) — do not invent a different format. Do not write placeholder text like `(omit)` for fields that should simply be absent from the entry (`resolved_in`) — if a field doesn't apply, leave it out of the block entirely, don't write a placeholder value for it.
+
+---
+
+## Decision 2 — `PanlalawiganReviewSelectSchema.dateReferred`: leave dropped, zero schema edits
+
+### Resolution (already adjudicated by a human — apply exactly as stated)
+
+`dateReferred` stays absent from `PanlalawiganReviewSelectSchema`. **This decision requires no code change to this schema whatsoever.** Rationale, for context only: no `dateReferred`/`date_referred` column exists anywhere in the `panlalawiganReviews` Drizzle table (confirmed by direct inspection of `packages/database/schema/documents.schema.ts`, lines 483–516 — full column list checked, no match). Restoring the field to the Zod layer would require either a database migration (to add a column that has no confirmed business justification) or a synthetic mapping to an existing field, neither of which is warranted, especially given chronological fields (`transmittedAt`, `receivedAt`, `actionDeadline`, `responseDate`) already exist on this table.
+
+**Your task here is verification, not modification:** confirm `PanlalawiganReviewSelectSchema` (currently lines 527–565 of `packages/shared/src/schemas/documents.ts`) does not contain a `dateReferred` field, and confirm it still does not after Decision 1 and Decision 3's edits are made elsewhere in this same task (since those edits are in different files/schemas, they should have zero effect on this schema, but confirm rather than assume). If you find `dateReferred` is somehow already present, or if any other unexpected change is needed to satisfy this decision, **stop and report** rather than adding or removing anything from this schema — that would mean something about this task's stated ground truth no longer matches the live repo, which needs to be surfaced, not silently resolved.
+
+### Required findings-log entry for this decision
+
+Append a second new entry (next sequential number after Decision 1's entry) recording that `LOG-0114` has been resolved as "leave dropped." Same format rules as Decision 1's entry above: `status: proposed`, `supersedes: LOG-0114`, state the decision and rationale (no underlying column exists; chronological data is already covered by existing fields), follow the log's own header-documented format exactly.
+
+---
+
+## Decision 3 — `panlalawigan.router.ts`: remove the hardcoded `dateReferred: null` ghost field
+
+### Resolution (already adjudicated by a human — apply exactly as stated)
+
+The `getPanlalawiganReview` procedure in `apps/server/src/modules/documents/panlalawigan.router.ts` currently returns a hand-built object (this procedure has no `.output()` schema validation) that includes a hardcoded `dateReferred: null` key on every response, regardless of the underlying data — this is dead weight left over from before `dateReferred` was removed from the shared schema, and it never reflected real data even before this task. It is being removed to eliminate the inconsistency between what the shared Zod schema says exists and what the live API response actually contains.
+
+**Confirmed safe to remove, no downstream impact:** `getPanlalawiganReview` is not called anywhere in `apps/web` (confirmed via repo-wide search of `apps/web/src`), and this procedure has no `.output()` schema binding, so there is no compile-time or runtime contract anywhere that requires this key's presence.
+
+### Exact current state, `apps/server/src/modules/documents/panlalawigan.router.ts`, lines 215–231 (confirmed against the live repo immediately before this prompt was written):
+
+```typescript
+        return {
+          documentId: review.documentId,
+          transmittedAt: review.transmittedAt!.toISOString(),
+          actionDeadline: review.actionDeadline?.toISOString() ?? null,
+          controlNumber: review.controlNo,
+          subject: review.subject,
+          outcome: review.outcome as any,
+          responseDate: review.responseDate?.toISOString() ?? null,
+          resolutionNumber: review.resolutionNumber,
+          remarks: review.remarks,
+          createdAt: review.createdAt.toISOString(),
+          updatedAt: review.updatedAt.toISOString(),
+          receivedAt: review.receivedAt?.toISOString() ?? null,
+          dateReferred: null,
+          panlalawiganResolutionNumber: review.resolutionNumber,
+          daysElapsed: review.daysElapsed,
+        };
+```
+
+### Required change
+
+**Verbatim old/new string pair — authoritative source of truth for this edit:**
+
+`old_str`:
+```
+          receivedAt: review.receivedAt?.toISOString() ?? null,
+          dateReferred: null,
+          panlalawiganResolutionNumber: review.resolutionNumber,
+```
+
+`new_str`:
+```
+          receivedAt: review.receivedAt?.toISOString() ?? null,
+          panlalawiganResolutionNumber: review.resolutionNumber,
+```
+
+This removes exactly one line (`dateReferred: null,`) and its trailing comma-bearing line ending, leaving `receivedAt` and `panlalawiganResolutionNumber` adjacent, matching the existing indentation and comma style of every other line in this return object. Do not alter `receivedAt` or `panlalawiganResolutionNumber` themselves, and do not alter any other key in this return object (`resolutionNumber` at line 223 and `panlalawiganResolutionNumber` at line 229 both legitimately exist as separate keys holding the same value — this is not a duplicate to clean up, it is out of scope for this task, leave both as-is).
+
+### Explicit note on the hard-stop rule
+
+As stated in this prompt's Context section: this edit is a **deliberate, in-scope, pre-authorized part of this task**, not an incidental resolver change triggered by a schema modification. The "stop and report if a schema change requires a resolver edit" rule from prior tasks in this family does not apply here — there is no schema change anywhere in this task that touches `panlalawiganReviews`-related types in a way that would force this edit; this edit exists because a human explicitly decided the ghost field should be removed, independent of Decision 1 or Decision 2. Proceed with this edit as directly instructed.
+
+### Required findings-log entry for this decision
+
+Append a third new entry (next sequential number after Decision 2's entry) recording this resolver-level cleanup. `status: proposed`. This entry does not supersede a numbered LOG entry (no prior entry described this hardcoded-`null` issue specifically — it was found during the LOG-0114 review, not previously logged on its own), so **do not set a `supersedes` field for this entry.** `affects: none` (this is an implementation-detail cleanup with no corresponding Group B–L document). State plainly: what was found (a hardcoded `dateReferred: null` in `getPanlalawiganReview`'s return object, predating and unrelated to any `.output()` schema check), why it was removed (eliminates a stale field with no live consumer, keeps the API response honest about what data actually exists), and the two confirmed safety facts (no `.output()` binding on this procedure, no `apps/web` caller of this procedure).
+
+---
+
+## Required Verification Step (applies to all three decisions)
+
+1. Confirm `AttachmentSelectSchema`'s `s3Key` field reads exactly `z.string().nullable()` after the edit, and that the comment above it now ends at "...so this is a safe rename." with nothing further.
+2. Confirm `PanlalawiganReviewSelectSchema` is **byte-for-byte unchanged** from its state before this task — this is the one schema in this task where "no diff" is itself the success condition. Explicitly confirm the `controlNumber`/`panlalawiganResolutionNumber` override comments (lines 536–544, 551–559 as of this prompt's writing) are present and untouched.
+3. Confirm `panlalawigan.router.ts`'s `getPanlalawiganReview` return object no longer contains a `dateReferred` key, and that every other key in that object is unchanged.
+4. Confirm `PanlalawiganOutcomePanel.tsx` was not modified.
+5. Run a full typecheck to completion (confirm full completion explicitly — do not report from a possibly-still-running or asynchronously-resolving process). Report zero, or a full list of, resulting compile errors — specifically check `packages/shared`, `apps/server`, and `apps/web`, since Decision 3 touches a file consumed transitively by `apps/web`'s tRPC type inference even though no `apps/web` file directly calls the changed procedure.
+6. Confirm exactly three new findings-log entries were appended (one per decision, in the order given above), each following the log's own documented entry format, each `status: proposed`, with `supersedes`/`affects` fields set exactly as instructed per decision above (or correctly omitted where instructed).
+7. Report the exact `LOG-NNNN` numbers used for all three new entries, and confirm no number was reused or skipped relative to what was already in the file when you started this task.
+
+## Commit Message
+
+Do not claim typecheck success unless the full, completed typecheck run actually confirms it. Since this task spans three logically distinct decisions across two files, consider either one commit with a message that clearly enumerates all three changes, or three separate commits — your choice, but if using one commit, the message must not collapse the three decisions into a vague summary; each should be identifiable on its own line.
+
+---
+
+# TASK-DOCS-025 — Remove Fastify plugin default re-export from `documents/index.ts`
+
+```
+TASK-DOCS-025: Remove Fastify plugin default re-export from documents/index.ts
+
+## Context
+
+J4 (docs/pre-development/J-software-design-patterns-and-standards/j4-module-structure-template.md),
+§3.1's "Must not contain" list for index.ts explicitly forbids "Fastify plugin
+registration." §8's Deviation Policy names "Placing the Fastify plugin in
+index.ts instead of {module}.plugin.ts" as an example change requiring an ADR
+before implementation. No such ADR exists anywhere in this repository. The
+documents module's index.ts currently violates this rule. This task brings it
+into compliance. It does not touch any other file's content beyond the two
+files listed under IN SCOPE below.
+
+## File to edit
+
+/apps/server/src/modules/documents/index.ts
+
+## Exact change
+
+Delete this exact line from the file (it is currently line 2):
+
+old_str:
+export { default } from './documents.plugin.js';
+
+new_str:
+(nothing — delete the line entirely, including its trailing newline)
+
+Do not alter any other line in this file. Every other export currently in
+index.ts (the export * from './documents.types.js'; line, the four router
+factory exports, the DocumentPolicyGuard export, and every named type export)
+must remain exactly as-is. This task's scope is the single plugin re-export
+line and nothing else, even though several of the file's other exports are
+also arguably non-conformant with J4 §3.1 — those are explicitly out of
+scope for this task; do not remove, modify, or "clean up" anything else in
+this file.
+
+## Verification before making the change
+
+Before editing, confirm directly against the live repository (do not assume
+this still holds — re-check it):
+
+1. /apps/server/src/modules/documents/documents.plugin.ts contains no import
+   of './index.js' or '../index.js' anywhere in the file, in any form
+   (neither a type-only import nor a value import). If it does, STOP and do
+   not make this change — report back what import was found instead, since
+   its presence would mean this task's premise (no circular-import risk) no
+   longer holds and the task needs to be re-scoped by a human before
+   proceeding.
+2. /apps/server/src/app.ts already imports the documents plugin as:
+   import documentsPlugin from './modules/documents/documents.plugin.js';
+   (i.e., a default import directly from documents.plugin.js, NOT from
+   documents/index.js). If app.ts's import of the documents plugin has
+   changed to go through index.js instead, STOP and report back — do not
+   proceed with this task's edit, since removing the re-export would then
+   break app.ts.
+
+If both checks pass exactly as stated, proceed with the edit.
+
+## Scope boundaries
+
+IN SCOPE (touch these, and only these):
+- /apps/server/src/modules/documents/index.ts (the one-line deletion above)
+
+OUT OF SCOPE (do not touch even if related):
+- /apps/server/src/modules/documents/documents.plugin.ts
+- /apps/server/src/app.ts
+- Any other export currently in documents/index.ts (router factory exports,
+  DocumentPolicyGuard export, type exports — leave every one of these
+  exactly as they currently are)
+- /apps/server/src/modules/tracking/** and
+  /apps/server/src/modules/workflow/** (these have their own, separate
+  tasks — TASK-TRACK-010 for tracking; workflow is explicitly not part of
+  this round of fixes and must not be touched)
+- /apps/server/src/modules/organization/** (explicitly out of scope;
+  handled as a separate, later task, not this one)
+
+## Post-change verification
+
+After making the edit, run:
+
+  pnpm --filter server typecheck
+
+This must complete with no new errors. If it introduces any error, the
+verification step above (checking documents.plugin.ts's imports) was
+either skipped or the live file no longer matches what this task assumed —
+revert the edit and report the exact typecheck error back rather than
+attempting to fix it by making further changes to other files.
+
+Also run:
+
+  pnpm --filter server test
+
+Confirm no existing test fails as a result of this change. In particular,
+/apps/server/src/modules/documents/__tests__/documents.scaffold.test.ts
+imports createDocumentsRouter from '../index.js' (a named export, not the
+default) — this test is expected to continue passing unmodified. If it or
+any other test fails, report the failure; do not modify test files to make
+them pass without first reporting what broke and why.
+
+## What this task does NOT do
+
+This task does not address:
+- The router-factory and DocumentPolicyGuard re-exports also present in
+  documents/index.ts, which are also arguably non-conformant with J4 §3.1.
+  These are a separate, not-yet-created task.
+- Any change to the tracking or workflow modules.
+- Writing an ADR. This task proceeds under the "bring into compliance"
+  direction that a human has already selected for this specific fix; it is
+  not itself the ADR-writing task.
+```
+
+---
+
+# TASK-TRACK-010 — Remove Fastify plugin default re-export from `tracking/index.ts`
+
+```
+TASK-TRACK-010: Remove Fastify plugin default re-export from tracking/index.ts
+
+## Context
+
+J4 (docs/pre-development/J-software-design-patterns-and-standards/j4-module-structure-template.md),
+§3.1's "Must not contain" list for index.ts explicitly forbids "Fastify plugin
+registration." §8's Deviation Policy names "Placing the Fastify plugin in
+index.ts instead of {module}.plugin.ts" as an example change requiring an ADR
+before implementation. No such ADR exists anywhere in this repository. The
+tracking module's index.ts currently violates this rule. This task brings it
+into compliance. It does not touch any other file's content beyond the file
+listed under IN SCOPE below.
+
+## File to edit
+
+/apps/server/src/modules/tracking/index.ts
+
+## Exact change
+
+Delete this exact line from the file (it is currently line 39):
+
+old_str:
+export { default } from './tracking.plugin.js';
+
+new_str:
+(nothing — delete the line entirely, including its trailing newline)
+
+Do not alter any other line in this file. Every other export currently in
+index.ts (the TrackingPublicAPI interface, the TrackingRecordSummary and
+RoutingEntry interfaces, and the TrackingRepository, QrCodeService, and
+createTrackingService re-exports) must remain exactly as-is. This task's
+scope is the single plugin re-export line and nothing else, even though the
+TrackingRepository / QrCodeService / createTrackingService re-exports are
+also arguably non-conformant with J4 §3.1 — those are explicitly out of
+scope for this task; do not remove, modify, or "clean up" anything else in
+this file.
+
+## Verification before making the change
+
+Before editing, confirm directly against the live repository (do not assume
+this still holds — re-check it):
+
+1. /apps/server/src/modules/tracking/tracking.plugin.ts contains no import
+   of './index.js' or '../index.js' anywhere in the file, in any form
+   (neither a type-only import nor a value import). If it does, STOP and do
+   not make this change — report back what import was found instead, since
+   its presence would mean this task's premise (no circular-import risk) no
+   longer holds and the task needs to be re-scoped by a human before
+   proceeding.
+2. /apps/server/src/app.ts already imports the tracking plugin as:
+   import trackingPlugin from './modules/tracking/tracking.plugin.js';
+   (i.e., a default import directly from tracking.plugin.js, NOT from
+   tracking/index.js). If app.ts's import of the tracking plugin has
+   changed to go through index.js instead, STOP and report back — do not
+   proceed with this task's edit, since removing the re-export would then
+   break app.ts.
+3. Note for context only, not a blocker: four other files inside this same
+   module (tracking.public-handler.ts, tracking.repository.ts,
+   tracking.router.ts, tracking.service.ts) already import types from
+   './index.js'. None of these import the plugin's default export
+   specifically — they import TrackingPublicAPI, TrackingRecordSummary, or
+   RoutingEntry, all of which are declared directly in index.ts and are
+   untouched by this task's edit. Confirm this is still the case (a grep
+   for "from './index.js'" or "from \"./index.js\"" across the tracking
+   module's non-test .ts files should show only type-only imports of these
+   three names) but do not treat their presence as a reason to stop; they
+   are unaffected by removing the plugin re-export line.
+
+If checks 1 and 2 pass exactly as stated, proceed with the edit.
+
+## Scope boundaries
+
+IN SCOPE (touch these, and only these):
+- /apps/server/src/modules/tracking/index.ts (the one-line deletion above)
+
+OUT OF SCOPE (do not touch even if related):
+- /apps/server/src/modules/tracking/tracking.plugin.ts
+- /apps/server/src/app.ts
+- Any other export currently in tracking/index.ts (TrackingRepository,
+  QrCodeService, createTrackingService re-exports, and the three interface
+  declarations — leave every one of these exactly as they currently are)
+- /apps/server/src/modules/tracking/tracking.public-handler.ts,
+  tracking.repository.ts, tracking.router.ts, tracking.service.ts (these
+  import types from index.ts but require no change as part of this task)
+- /apps/server/src/modules/documents/** and
+  /apps/server/src/modules/workflow/** (documents has its own, separate
+  task — TASK-DOCS-025; workflow is explicitly not part of this round of
+  fixes and must not be touched)
+- /apps/server/src/modules/organization/** (explicitly out of scope;
+  handled as a separate, later task, not this one)
+
+## Post-change verification
+
+After making the edit, run:
+
+  pnpm --filter server typecheck
+
+This must complete with no new errors. If it introduces any error, the
+verification step above (checking tracking.plugin.ts's imports) was either
+skipped or the live file no longer matches what this task assumed — revert
+the edit and report the exact typecheck error back rather than attempting
+to fix it by making further changes to other files.
+
+Also run:
+
+  pnpm --filter server test
+
+Confirm no existing test fails as a result of this change. In particular:
+- /apps/server/src/modules/tracking/__tests__/tracking.service.test.ts
+  imports RoutingEntry from '../index.js' (a type-only import of an
+  interface declared directly in index.ts, not the default export)
+- /apps/server/src/modules/tracking/__tests__/tracking.public-handler.test.ts
+  imports TrackingPublicAPI from '../index.js' (same — a type-only import
+  of an interface declared directly in index.ts, not the default export)
+Both are expected to continue passing unmodified. If either or any other
+test fails, report the failure; do not modify test files to make them pass
+without first reporting what broke and why.
+
+## What this task does NOT do
+
+This task does not address:
+- The TrackingRepository, QrCodeService, and createTrackingService
+  re-exports also present in tracking/index.ts, which are also arguably
+  non-conformant with J4 §3.1. These are a separate, not-yet-created task.
+- Any change to the documents or workflow modules.
+- Writing an ADR. This task proceeds under the "bring into compliance"
+  direction that a human has already selected for this specific fix; it is
+  not itself the ADR-writing task.
+```
+
+---
+
+# EXECUTOR PROMPT — TASK-DOCS-SHARED-010
+
+````
+# EXECUTOR PROMPT — TASK-DOCS-SHARED-010
+
+## Task Summary
+
+Remove the write-only `dateReferred` ghost field from three locations in the workflow-engine's `recordPanlalawiganOutcome` mutation path, update its corresponding test assertions, and append one entry to the development findings log documenting the discovery.
+
+This is a pure removal task. No new behavior is introduced. The field is confirmed (by direct source inspection, repeated independently as part of drafting this prompt) to be accepted as user input, written into a database column, and never read back by any code anywhere in the repository.
+
+---
+
+## Background Context (for your understanding only — not instructions to act on)
+
+This repository has an established pattern where certain fields from a durable domain table are duplicated into a `workflow.instances.context` JSONB blob, so the workflow engine's routing logic can make decisions without a DB join on every step transition. This duplication is legitimate and correctly used for fields like `outcome`, `controlNumber`, and `resolutionNumber` in this cluster.
+
+`dateReferred` is not one of those legitimately-duplicated fields. It was defined on both the domain-table schema side and this workflow-context side, but never actually wired to do anything on either side. The domain-table side was already found and resolved in a separate, prior, already-completed task (see `LOG-0114`, `LOG-0142`, `LOG-0143` in the findings log for that history — you do not need to read them to execute this task, they're mentioned only so the log entry you'll write in Action 3 can reference them accurately).
+
+This task addresses a second, independent instance of the same "ghost field" pattern, found in a different subsystem: the workflow-engine's own inline input schema and its JSONB context-writing logic, inside `recordPanlalawiganOutcome`.
+
+**Important — these are two structurally separate schemas that happen to share field names.** `LogPanlalawiganOutcomeInputSchema` (edited in Action 1, below) and the inline schema inside `recordPanlalawiganOutcome` (edited in Action 2, below) are **not the same type and do not reference each other**. Removing the field from one does not affect the other. Both edits are required independently.
+
+---
+
+## Action 1 (Fix): Remove `dateReferred` from `LogPanlalawiganOutcomeInputSchema`
+
+**File:** `packages/shared/src/schemas/documents.ts`
+
+This field is confirmed present at line 574, inside the schema definition that begins at line 568:
+
+```
+old_str:
+    receivedAt: TimestampSchema,
+    dateReferred: TimestampSchema.optional(),
+    remarks: z.string().max(2048).optional(),
+
+new_str:
+    receivedAt: TimestampSchema,
+    remarks: z.string().max(2048).optional(),
+```
+
+Verify before editing: this schema is a chained `z.object({...}).refine(...).refine(...)` (two `.refine()` calls follow the object literal, validating `outcome` and `remarks` — neither references `dateReferred`). Confirm your edit lands only inside the object literal and does not disturb the `.refine()` chain that follows it.
+
+**Do not touch** `PanlalawiganOutcomeSchema` (a separate enum defined earlier in the same file, around line 86) or any other field in this schema. `dateReferred` is the only field being removed.
+
+---
+
+## Action 2 (Fix): Remove `dateReferred` from `recordPanlalawiganOutcome` in `workflow.router.ts`
+
+**File:** `apps/server/src/modules/workflow/workflow.router.ts`
+
+Note the exact path — this file is under `apps/server/src/modules/workflow/`, **not** under `apps/server/src/modules/documents/`. (`apps/server/src/modules/documents/` contains a different, unrelated file called `panlalawigan.router.ts` — do not confuse the two directories or the two files.)
+
+This requires three separate edits, all within the `recordPanlalawiganOutcome` procedure:
+
+**Edit 2a — remove the field from the procedure's own inline input schema**, confirmed at line 2022:
+
+```
+old_str:
+          controlNumber: z.string().optional(),
+          panlalawiganResolutionNumber: z.string().optional(),
+          dateReferred: z.coerce.date().optional(),
+          remarks: z.string().optional(),
+
+new_str:
+          controlNumber: z.string().optional(),
+          panlalawiganResolutionNumber: z.string().optional(),
+          remarks: z.string().optional(),
+```
+
+**Edit 2b — remove the conditional write into the context patch**, confirmed at lines 2061–2062:
+
+```
+old_str:
+          if (input.panlalawiganResolutionNumber !== undefined)
+            patch['panlalawigan_resolution_number'] = input.panlalawiganResolutionNumber;
+          if (input.dateReferred !== undefined)
+            patch['panlalawigan_date_referred'] = input.dateReferred.toISOString();
+          if (input.remarks !== undefined) patch['panlalawigan_remarks'] = input.remarks;
+
+new_str:
+          if (input.panlalawiganResolutionNumber !== undefined)
+            patch['panlalawigan_resolution_number'] = input.panlalawiganResolutionNumber;
+          if (input.remarks !== undefined) patch['panlalawigan_remarks'] = input.remarks;
+```
+
+**IN SCOPE for Action 2:** only the three lines shown above, all within `recordPanlalawiganOutcome`.
+
+**OUT OF SCOPE for Action 2 (do not touch even though related):**
+- `WorkflowContextSchema` in `packages/shared/src/workflow/context.schema.ts` — this file does not declare a `panlalawigan_date_referred` key, and that is a pre-existing gap unrelated to this fix (the schema also doesn't declare `panlalawigan_remarks` or `panlalawigan_control_number`, which are legitimately-used fields written by this same procedure — this is a broader, separate issue, not something to fix here).
+- The `updateInstanceContext` method in `workflow.repository.ts` (its raw-SQL JSONB merge behavior is the reason Zod never caught this field — it is not itself a bug and is not being changed).
+- Any other `panlalawigan_*` field or any other procedure in this file.
+- The comment at `apps/web/src/pages/workflow/panels/PanlalawiganOutcomePanel.tsx` line 21, which mentions `dateReferred?` as part of a shape-note comment. This is a non-executable comment, not code. It is optional/cosmetic to update it and is **not required** for this task. If you choose to update it for accuracy, that is acceptable, but do not treat it as a required part of this task's scope, and do not touch anything else in that file.
+
+---
+
+## Action 2 continued: Update the test in `workflow.router.test.ts`
+
+**File:** `apps/server/src/modules/workflow/workflow.router.test.ts`
+
+Two separate lines in the same test case (`'writes panlalawigan fields to instance context and calls submitStepApproval (RETURNED outcome)'`, inside the `describe('recordPanlalawiganOutcome', ...)` block) need to be removed. Both are confirmed present:
+
+**Edit 2c — remove the field from the test's input fixture**, confirmed at line 1330:
+
+```
+old_str:
+        controlNumber: 'PN-001',
+        panlalawiganResolutionNumber: 'RES-2026-001',
+        dateReferred: new Date('2026-07-01'),
+        remarks: 'Returned for corrections',
+      });
+
+new_str:
+        controlNumber: 'PN-001',
+        panlalawiganResolutionNumber: 'RES-2026-001',
+        remarks: 'Returned for corrections',
+      });
+```
+
+**Edit 2d — remove the assertion**, confirmed at line 1341:
+
+```
+old_str:
+      expect(contextPatch['panlalawigan_resolution_number']).toBe('RES-2026-001');
+      expect(contextPatch['panlalawigan_date_referred']).toBeDefined();
+      expect(contextPatch['panlalawigan_remarks']).toBe('Returned for corrections');
+
+new_str:
+      expect(contextPatch['panlalawigan_resolution_number']).toBe('RES-2026-001');
+      expect(contextPatch['panlalawigan_remarks']).toBe('Returned for corrections');
+```
+
+**Both 2c and 2d must be applied together.** Removing only one will either leave the test passing a value for a field that no longer exists on the schema (if only 2d is applied), or leave an assertion that fails against `undefined` (if only 2c is applied).
+
+Before editing, confirm these two `old_str` blocks are still unique matches in the file — search the full file for any other occurrence of `dateReferred` or `panlalawigan_date_referred` first. As of the investigation preceding this prompt, these were the only two lines in this file referencing the field in any form; if you find additional occurrences, stop and report them rather than guessing whether they should also be removed.
+
+**Do not modify any other test case** in this file, including the other test cases inside the same `describe('recordPanlalawiganOutcome', ...)` block (e.g. the `'throws NOT_FOUND...'` test, or the `'writes context and calls submitStepApproval for VALID_IN_PART outcome'` test that follows). Only the one test case identified above is in scope.
+
+---
+
+## Action 3 (Log): Append an entry to `docs/development-findings-log.md`
+
+**Before writing anything:**
+
+1. Read the file's own header section (top of file, before the `## Entries` heading) if you have not already internalized its current entry-format template in this session — the format may have been revised since any prior task you've run. Use the current template's exact field set, not the field set from any older-style entry you might see further down in the file (some older entries in this file use a different, now-superseded format with `**Status:**`/`**Tags:**` inline labels instead of the current bulleted-field format — do not copy that older style).
+2. Search the file for `panlalawigan_date_referred`, `dateReferred`, `recordPanlalawiganOutcome`, and `WorkflowContextSchema` to confirm no entry already covers this exact discovery. (As of the investigation preceding this prompt, no such entry existed — only LOG-0114/LOG-0142/LOG-0143, which cover the unrelated domain-table-side instance of a similarly-named field, not this one.) If you find an entry that already covers this exact finding, stop and report it rather than duplicating.
+3. Find the current highest `LOG-NNNN` number in the file (search for all `### [LOG-` headers and take the highest number found) — **do not assume it is `LOG-0144`**, even though that was the highest number found during the investigation preceding this prompt. The log is shared and append-only; other work may have appended to it since. Use `LOG-(highest + 1)`, zero-padded to four digits.
+4. Check the last few lines of the file to see its current trailing whitespace state before appending. As of the investigation preceding this prompt, the file ended with a trailing blank line after a `---` separator (i.e., ended in `\n\n---\n\n`), meaning a new entry could be appended directly after that trailing blank line with no newline-insertion workaround needed. Re-verify this is still true before appending; if the file's ending has changed, adjust so the new entry starts cleanly on its own line following a blank line, and does not run onto the same line as any existing content.
+
+**The entry to append** (substitute the correct `LOG-NNNN` number per step 3 above — the number below is a placeholder, not a confirmed value):
+
+```markdown
+---
+
+### [LOG-NNNN] Write-only dateReferred ghost field in recordPanlalawiganOutcome workflow-context path
+
+- date: 2026-07-25
+- task_id: TASK-DOCS-SHARED-010
+- status: proposed
+- affects: none
+- supersedes: none
+
+**What was found.** `LogPanlalawiganOutcomeInputSchema` (`packages/shared/src/schemas/documents.ts`) and the independent inline input schema declared inside the `recordPanlalawiganOutcome` procedure (`apps/server/src/modules/workflow/workflow.router.ts`) both included a `dateReferred` field. Tracing all reads and writes of this field across the repository (server code, frontend code, and test files) found it was accepted as user input by `recordPanlalawiganOutcome`, coerced to a `Date`, formatted as an ISO string, and merged into the `workflow.instances.context` JSONB column under the key `panlalawigan_date_referred` — but never read back anywhere: not by any other server procedure, not by any `apps/web` component, and not by `getInstance` (the procedure that `PanlalawiganOutcomePanel.tsx` actually consumes), whose `.output()` schema is an explicit closed set of named fields with no raw `context` passthrough.
+
+**Why Zod validation never caught this.** The write path bypasses schema validation entirely. `WorkflowRepository.updateInstanceContext` performs a raw JSONB merge directly against the database column (`context: sql\`${instances.context} || ${JSON.stringify(patch)}::jsonb\``) rather than running the patch object through `WorkflowContextSchema` or any other Zod schema. Consistent with this, `WorkflowContextSchema` (`packages/shared/src/workflow/context.schema.ts`) does not declare a `panlalawigan_date_referred` key at all — it declares five other `panlalawigan_*` keys, but not this one — yet the value was written regardless, since the raw-SQL merge never checks the schema at any point.
+
+**What was implemented.** The field was removed from both input schemas (the shared-package schema and the router's own inline schema — these are structurally independent types that happened to share field names, not a shared type used in two places), the two corresponding write-site lines in `recordPanlalawiganOutcome`, and the test assertions in `workflow.router.test.ts` that exercised the now-removed field.
+
+**Relationship to prior findings.** This is a companion cleanup to the same underlying "field defined but never wired to a purpose" problem previously found on the domain-table side of the Panlalawigan review data model (see `LOG-0114`, status `proposed`, later noted as maintained by `LOG-0142`). That prior finding concerned `PanlalawiganReviewSelectSchema` and the `panlalawiganReviews` relational table — a structurally distinct data path (durable system-of-record) from the workflow-context JSONB path this entry concerns (transient step-routing state). The two are independent instances of the same pattern, not the same bug; this entry documents the second, separate occurrence. Note that `LOG-0114` and `LOG-0142` both currently carry `status: proposed` and have not yet been reviewed by a human, so this entry treats them as related prior context rather than as settled precedent.
+```
+
+**After appending, do not reorder any existing entries.** Your new entry goes at the bottom of the `## Entries` section, after the current last entry, in chronological position.
+
+---
+
+## Required Verification (must be completed and reported, not just attempted)
+
+Run these against the live repository after all edits above, and report actual output — not a summary, not "should pass," not a still-running process. If any command is still executing when you'd otherwise report, wait for it to finish first.
+
+```json
+{
+  "typecheck_commands": [
+    "pnpm --filter @batac/shared typecheck",
+    "pnpm --filter server typecheck"
+  ],
+  "test_command": "pnpm --filter server test -- workflow.router.test.ts",
+  "required_result": "zero errors from both typecheck commands; the test command must show the full pass/fail summary for workflow.router.test.ts specifically, including confirmation that no test in that file other than the two edited assertions changed status"
+}
+```
+
+(If the exact package name in the first typecheck command does not match what's in `packages/shared/package.json`'s `"name"` field, use the correct name from that file instead — verify it before running rather than assuming `@batac/shared` is correct.)
+
+Both `packages/shared` and `apps/server` must be typechecked, not just one — `apps/server` resolves `@batac/shared` directly against `packages/shared/src/*` via a `paths` alias in `apps/server/tsconfig.json` (source, not a compiled `dist/` build), so a type change in the shared schema can surface as a downstream type error in `apps/server` even though no `apps/server` file was directly edited for Action 1. No rebuild of `packages/shared` is required before typechecking `apps/server`, since the alias points at source.
+
+Report:
+1. Full output of both typecheck commands.
+2. Full output of the test command, including the pass/fail counts for the whole file (not just the one edited test), so a regression in an unrelated test in the same file would be visible.
+3. Confirmation of which `LOG-NNNN` number was actually used for the new entry (per the "check before assuming" instruction above).
+4. Confirmation of whether the file's trailing-newline state matched what was expected before you appended, or differed (and if it differed, what you did to handle it).
+
+If any typecheck or test command fails, **stop and report the failure output** rather than attempting to fix it yourself — a failure here means either this prompt's understanding of the codebase was wrong in some way not caught during verification, or an unrelated pre-existing issue is present (see LOG-0144 for a precedent of a pre-existing, unrelated test failure being correctly identified as such rather than misattributed to a small edit). Do not guess which case applies; report the raw output and let it be triaged.
+````
+
+# TASK-ORG-011: Port Published API test coverage to real services, then delete dead barrel implementation from organization/index.ts
+
+````
+TASK-ORG-011: Port Published API test coverage to real services, then delete dead barrel implementation from organization/index.ts
+
+## Context
+
+organization/index.ts currently contains a complete, module-level singleton
+implementation of a "Published API" — nine free functions, an
+initializePublishedAPI() initializer, two module-scoped `let` singleton
+variables, and two error-throwing guard functions — duplicating methods that
+already exist, properly typed, on organization.service.ts's OrgService
+interface and delegation.service.ts's DelegationService interface.
+
+This implementation is dead in production. organization.plugin.ts constructs
+organizationService/delegationService directly from organization.repository.js,
+organization.service.js, and delegation.service.js, decorates them onto
+`fastify`, and never imports or calls initializePublishedAPI. A full-repo
+search confirms initializePublishedAPI has no caller anywhere outside two test
+files. Every real production caller of an organization/delegation method
+(iam.plugin.ts, workflow.router.ts, documents.router.ts, organization.router.ts,
+documents/designation.handler.ts) goes through fastify.organizationService /
+fastify.delegationService or a router-injected service dependency — never
+through this barrel's free functions.
+
+This is J4 §3.1's "Must not contain" violation for service factory
+implementations, in its most severe form found anywhere in this codebase: not
+just a re-export of a factory, but a full parallel implementation sitting in
+the barrel file itself.
+
+However, unlike a simple dead-code deletion, two of this module's test files
+depend on the code being removed, and one of them — org.published-api.test.ts
+— contains real behavioral test coverage (delegation-vs-assignment fallback
+resolution order, active/revoked/expired grant filtering) that does not exist
+anywhere else in the current test suite. Deleting the barrel code without first
+preserving this coverage would be a silent regression in test coverage, not
+just a code-cleanup. This task is therefore two sequential steps: port the
+real coverage to target the actual service implementations directly, confirm
+it passes, and only then delete the dead code.
+
+Do not skip Step 1 or treat it as optional. Do not proceed to Step 2 until
+Step 1's new test file is confirmed passing.
+
+## Files in scope
+
+IN SCOPE (touch these, and only these):
+- /apps/server/src/modules/organization/index.ts (Step 2: full-file rewrite, see below)
+- /apps/server/src/modules/organization/__tests__/organization.service.test.ts (Step 1: NEW FILE — does not currently exist, must be created)
+- /apps/server/src/modules/organization/__tests__/organization.scaffold.test.ts (Step 2: partial edit — two tests removed, two tests kept, see below)
+- /apps/server/src/modules/organization/__tests__/org.published-api.test.ts (Step 2: DELETE this file entirely, only after Step 1's new file is confirmed passing)
+
+OUT OF SCOPE (do not touch even if related):
+- /apps/server/src/modules/organization/organization.plugin.ts
+- /apps/server/src/modules/organization/organization.service.ts
+- /apps/server/src/modules/organization/delegation.service.ts
+- /apps/server/src/modules/organization/organization.repository.ts
+- /apps/server/src/modules/organization/organization.router.ts
+- /apps/server/src/modules/organization/organization.types.ts
+- /apps/server/src/modules/organization/__tests__/organization.repository.test.ts
+- /apps/server/src/modules/organization/__tests__/organization.router.test.ts
+- /apps/server/src/modules/organization/__tests__/delegation.create.test.ts
+- /apps/server/src/modules/organization/__tests__/delegation.expiry.test.ts
+- /apps/server/src/modules/organization/__tests__/delegation.revoke.test.ts
+- Any file in /apps/server/src/modules/documents/**, /apps/server/src/modules/tracking/**, /apps/server/src/modules/workflow/**, or /apps/server/src/modules/iam/** — these consume organizationService/delegationService via the Fastify decoration, not via this barrel, and require no change
+- /apps/server/src/app.ts
+
+## STEP 1 — Port the real coverage to a new test file
+
+### Create this new file: /apps/server/src/modules/organization/__tests__/organization.service.test.ts
+
+This file does not currently exist. Create it with EXACTLY this content:
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createOrgService } from '../organization.service.js';
+import { createDelegationService } from '../delegation.service.js';
+import type { OrgServiceDeps, DelegationServiceDeps } from '../organization.types.js';
+
+describe('Organization Service — resolveCurrentHolder', () => {
+  let mockDb: any;
+  let orgService: ReturnType<typeof createOrgService>;
+
+  beforeEach(() => {
+    mockDb = {
+      select: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      innerJoin: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+    };
+    const deps: OrgServiceDeps = {
+      db: mockDb,
+      orgRepository: {} as any,
+      eventBus: {} as any,
+    };
+    orgService = createOrgService(deps);
+  });
+
+  it('returns delegated-to employee summary when active delegation grant exists', async () => {
+    // Mock delegationGrants join returning a user
+    mockDb.limit.mockResolvedValueOnce([
+      {
+        userId: 'delegatee-user-id',
+        firstName: 'John',
+        lastName: 'Doe',
+      },
+    ]);
+
+    const result = await orgService.resolveCurrentHolder('position-id');
+    expect(result).toEqual({
+      userId: 'delegatee-user-id',
+      displayName: 'John Doe',
+    });
+    expect(mockDb.from).toHaveBeenCalledWith(expect.any(Object)); // delegationGrants
+  });
+
+  it('falls back to active assignment when no delegation exists', async () => {
+    // Mock delegation query returning empty, assignment query returning a user
+    mockDb.limit
+      .mockResolvedValueOnce([]) // Delegation query empty
+      .mockResolvedValueOnce([
+        {
+          // Assignment query finds holder
+          userId: 'assigned-user-id',
+          firstName: 'Jane',
+          lastName: 'Smith',
+        },
+      ]);
+
+    const result = await orgService.resolveCurrentHolder('position-id');
+    expect(result).toEqual({
+      userId: 'assigned-user-id',
+      displayName: 'Jane Smith',
+    });
+  });
+
+  it('returns null if neither delegation nor assignment is found', async () => {
+    mockDb.limit.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+    const result = await orgService.resolveCurrentHolder('position-id');
+    expect(result).toBeNull();
+  });
+});
+
+describe('Organization Service — getPrimaryOfficeForUser', () => {
+  let mockDb: any;
+  let orgService: ReturnType<typeof createOrgService>;
+
+  beforeEach(() => {
+    mockDb = {
+      select: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      innerJoin: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+    };
+    const deps: OrgServiceDeps = {
+      db: mockDb,
+      orgRepository: {} as any,
+      eventBus: {} as any,
+    };
+    orgService = createOrgService(deps);
+  });
+
+  it('returns office details when user has active primary assignment', async () => {
+    mockDb.limit.mockResolvedValueOnce([
+      {
+        officeId: 'office-id',
+        officeCode: 'CODE',
+      },
+    ]);
+
+    const result = await orgService.getPrimaryOfficeForUser('user-id');
+    expect(result).toEqual({
+      officeId: 'office-id',
+      officeCode: 'CODE',
+    });
+  });
+
+  it('returns null when no employee record exists or no primary assignment', async () => {
+    mockDb.limit.mockResolvedValueOnce([]);
+
+    const result = await orgService.getPrimaryOfficeForUser('user-id');
+    expect(result).toBeNull();
+  });
+});
+
+describe('Organization Service — getCommitteeIdsForUser', () => {
+  let mockDb: any;
+  let orgService: ReturnType<typeof createOrgService>;
+
+  beforeEach(() => {
+    mockDb = {
+      select: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      innerJoin: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+    };
+    const deps: OrgServiceDeps = {
+      db: mockDb,
+      orgRepository: {} as any,
+      eventBus: {} as any,
+    };
+    orgService = createOrgService(deps);
+  });
+
+  it('returns committee ids when memberships are found', async () => {
+    mockDb.where.mockResolvedValueOnce([{ committeeId: 'comm-1' }, { committeeId: 'comm-2' }]);
+
+    const result = await orgService.getCommitteeIdsForUser('user-id');
+    expect(result).toEqual(['comm-1', 'comm-2']);
+  });
+
+  it('returns empty array when no memberships are found', async () => {
+    mockDb.where.mockResolvedValueOnce([]);
+
+    const result = await orgService.getCommitteeIdsForUser('user-id');
+    expect(result).toEqual([]);
+  });
+});
+
+describe('Delegation Service — getDelegationGrantById', () => {
+  let mockDb: any;
+  let delegationService: ReturnType<typeof createDelegationService>;
+
+  beforeEach(() => {
+    mockDb = {
+      select: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      innerJoin: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+    };
+    const deps: DelegationServiceDeps = {
+      db: mockDb,
+      orgRepository: {} as any,
+      eventBus: {} as any,
+      auditService: {} as any,
+      policyEvaluator: {} as any,
+      boss: {} as any,
+    };
+    delegationService = createDelegationService(deps);
+  });
+
+  it('returns scope object when active grant is found', async () => {
+    mockDb.where.mockResolvedValueOnce([
+      {
+        scope: { roles: ['r1'], officeIds: ['o1'], actions: ['a1'] },
+      },
+    ]);
+
+    const result = await delegationService.getDelegationGrantById('grant-id');
+    expect(result).toEqual({
+      scope: {
+        roles: ['r1'],
+        officeIds: ['o1'],
+        actions: ['a1'],
+      },
+    });
+  });
+
+  it('returns null when grant is inactive, revoked, or expired', async () => {
+    mockDb.where.mockResolvedValueOnce([]);
+
+    const result = await delegationService.getDelegationGrantById('grant-id');
+    expect(result).toBeNull();
+  });
+});
+```
+
+### Why this is a faithful port, not a rewrite
+
+This is the same test logic as the current org.published-api.test.ts, moved to
+call the real service factories directly instead of the barrel's free
+functions:
+
+- The four describe blocks map 1:1 to org.published-api.test.ts's four
+  describe blocks (resolveCurrentHolder, getPrimaryOfficeForUser,
+  getCommitteeIdsForUser, getDelegationGrantById), same 9 total `it()` cases,
+  same mockDb chain-mocking approach, same mockResolvedValueOnce sequencing,
+  same assertions.
+- The ONE deliberate structural change: instead of one shared outer
+  beforeEach calling initializePublishedAPI(mockDb) to build both services
+  together, each describe block has its own beforeEach constructing only the
+  service it needs, via createOrgService(deps) / createDelegationService(deps)
+  directly — matching the existing precedent already used elsewhere in this
+  module (delegation.create.test.ts, delegation.revoke.test.ts both construct
+  createDelegationService(deps) directly with a typed deps object, not through
+  the barrel). This is a structural improvement, not a functional change —
+  each test still gets fresh mocks, same as before.
+- orgRepository, eventBus, auditService, policyEvaluator, and boss are all
+  stubbed as `{} as any` in the deps objects because the four methods under
+  test (resolveCurrentHolder, getPrimaryOfficeForUser, getCommitteeIdsForUser,
+  getDelegationGrantById) read exclusively from `deps.db` in their real
+  implementations — verified directly against organization.service.ts and
+  delegation.service.ts — none of them touch orgRepository or any of the other
+  four dependencies. This matches the original test's implicit assumption
+  (the original also never gave these dependencies real behavior).
+
+### Verification for Step 1 — MANDATORY before proceeding to Step 2
+
+Run:
+
+  pnpm --filter server test -- organization.service.test.ts
+
+This new file must show exactly 9 passing tests, 0 failing. If any test
+fails, STOP — do not proceed to Step 2. Report the exact failure. Do not
+modify organization.service.ts or delegation.service.ts to make a test pass;
+if a test fails, the port was done incorrectly and needs to be fixed in the
+new test file, not in the services.
+
+Do not delete org.published-api.test.ts yet. Step 2 does not begin until this
+9/9 pass is confirmed.
+
+## STEP 2 — Delete the dead barrel implementation
+
+Only proceed once Step 1's new test file is confirmed passing 9/9.
+
+### Change A — Replace the full content of organization/index.ts
+
+The current file is 110 lines, 3607 bytes. Replace its ENTIRE content —
+every line, in full — with the following. This is a whole-file replacement,
+not a set of individual line deletions, because nearly everything in the
+current file is being removed and specifying it as a list of separate ranges
+risks a tracking error given how much changes at once.
+
+old_str (the entire current file, all 110 lines, verbatim):
+```typescript
+import type {
+  UserSummary,
+  OfficeSummary,
+  OfficeTree,
+  EmployeeSummary,
+  DelegationSummary,
+  DelegationGrantRow,
+  CreateDelegationGrantInput,
+  DelegationSubject,
+  DbClient,
+} from './organization.types.js';
+import type { AuditPublicAPI } from '../audit/index.js';
+import type { PolicyEvaluator } from '../iam/iam.policy.js';
+import { createOrgRepository } from './organization.repository.js';
+import { createOrgService } from './organization.service.js';
+import { createDelegationService } from './delegation.service.js';
+import type PgBoss from 'pg-boss';
+
+// Re-export types
+export * from './organization.types.js';
+export { createOrgService } from './organization.service.js';
+export { createDelegationService } from './delegation.service.js';
+
+let orgService: ReturnType<typeof createOrgService> | null = null;
+let delegationService: ReturnType<typeof createDelegationService> | null = null;
+
+/**
+ * Initialize the module-level singleton services for the Published API functions.
+ * This is called by the Fastify plugin registration during startup, or directly
+ * inside the test suites.
+ */
+export function initializePublishedAPI(
+  db: DbClient,
+  auditService?: AuditPublicAPI,
+  policyEvaluator?: PolicyEvaluator,
+  boss?: PgBoss,
+) {
+  const repo = createOrgRepository(db);
+  orgService = createOrgService({ db, orgRepository: repo } as any);
+  delegationService = createDelegationService({
+    db,
+    orgRepository: repo,
+    eventBus: undefined as any, // overridden by plugin at startup; stubs in tests inject directly
+    auditService: auditService as AuditPublicAPI,
+    policyEvaluator: policyEvaluator as PolicyEvaluator,
+    boss: boss as PgBoss,
+  });
+}
+
+function getOrgService() {
+  if (!orgService) {
+    throw new Error('OrgService not initialized. Call initializePublishedAPI(db) first.');
+  }
+  return orgService;
+}
+
+function getDelegationService() {
+  if (!delegationService) {
+    throw new Error('DelegationService not initialized. Call initializePublishedAPI(db) first.');
+  }
+  return delegationService;
+}
+
+export async function resolveCurrentHolder(
+  positionId: string,
+  asOf?: Date,
+): Promise<UserSummary | null> {
+  return getOrgService().resolveCurrentHolder(positionId, asOf);
+}
+
+export async function getActiveDelegationForUser(
+  userId: string,
+): Promise<DelegationSummary | null> {
+  return getDelegationService().getActiveDelegationForUser(userId);
+}
+
+export async function getOfficeById(officeId: string): Promise<OfficeSummary | null> {
+  return getOrgService().getOfficeById(officeId);
+}
+
+export async function getOfficeHierarchy(): Promise<OfficeTree> {
+  return getOrgService().getOfficeHierarchy();
+}
+
+export async function getEmployeeByUserId(userId: string): Promise<EmployeeSummary | null> {
+  return getOrgService().getEmployeeByUserId(userId);
+}
+
+export async function getPrimaryOfficeForUser(
+  userId: string,
+): Promise<{ officeId: string; officeCode: string } | null> {
+  return getOrgService().getPrimaryOfficeForUser(userId);
+}
+
+export async function getCommitteeIdsForUser(userId: string): Promise<string[]> {
+  return getOrgService().getCommitteeIdsForUser(userId);
+}
+
+export async function getDelegationGrantById(
+  delegationGrantId: string,
+): Promise<{ scope: { roles: string[]; officeIds: string[]; actions: string[] } } | null> {
+  return getDelegationService().getDelegationGrantById(delegationGrantId);
+}
+
+export async function createDelegationGrant(
+  input: CreateDelegationGrantInput,
+  subject: DelegationSubject,
+): Promise<DelegationGrantRow> {
+  return getDelegationService().createDelegationGrant(input, subject);
+}
+```
+
+new_str (the entire replacement file, in full):
+```typescript
+// Re-export types
+export * from './organization.types.js';
+export { createOrgService } from './organization.service.js';
+export { createDelegationService } from './delegation.service.js';
+```
+
+Note on why the createOrgService/createDelegationService *import* lines
+(originally lines 15–16 of the old file) do not survive into the new file,
+even though the *re-export* of those same two names (originally lines
+21–22) does survive: these are two independent statements. The import
+existed only so createOrgService/createDelegationService could be used as
+values inside the `let` type annotations (line 24–25 of the old file) and
+inside initializePublishedAPI's body (lines 39–40 of the old file) — both
+being deleted. The re-export statements on lines 21–22 (`export {
+createOrgService } from './organization.service.js';`) are self-contained;
+they pull directly from organization.service.js and delegation.service.js
+and do not depend on or use the import at all. Confirm this understanding
+before editing — if in doubt, grep the OLD file for every occurrence of the
+bare names `createOrgService` and `createDelegationService` before editing,
+and verify for yourself that every occurrence outside the two `export {...}`
+lines falls inside code being deleted in this same change.
+
+## RESOLVED DRIFT-PRONE FRAGMENT — orphaned imports (do not re-derive this, it is already decided)
+
+The following JSON block is authoritative for what happens to the 12 named
+imports that become unused once Change A is applied. If any other part of
+this prompt's prose seems to describe this differently, this JSON block
+wins:
+
+```json
+{
+  "decision": "strip_all_orphaned_imports",
+  "rationale": "The whole-file replacement in Change A already omits every one of these imports from the new_str. This block exists to make explicit and unambiguous that this was a deliberate choice, not an oversight, and that no import in this list should be left in place or re-added.",
+  "orphaned_type_imports_from_organization_types_js": [
+    "UserSummary", "OfficeSummary", "OfficeTree", "EmployeeSummary",
+    "DelegationSummary", "DelegationGrantRow", "CreateDelegationGrantInput",
+    "DelegationSubject", "DbClient"
+  ],
+  "orphaned_type_imports_cross_module": [
+    "AuditPublicAPI (from ../audit/index.js)",
+    "PolicyEvaluator (from ../iam/iam.policy.js)",
+    "PgBoss (default import from 'pg-boss')"
+  ],
+  "orphaned_value_imports": [
+    "createOrgRepository (from ./organization.repository.js)"
+  ],
+  "public_surface_impact": "none — every one of the 9 names from organization.types.js remains available to barrel consumers via the retained `export * from './organization.types.js';` wildcard. AuditPublicAPI, PolicyEvaluator, and PgBoss were never re-exported by this barrel in the first place (confirmed: they were consumed only as initializePublishedAPI's parameter types), so removing them loses no public surface. createOrgRepository was never re-exported either."
+}
+```
+
+## Change B — Trim organization.scaffold.test.ts
+
+Do NOT delete this file. Two of its four tests depend on the barrel free
+functions being deleted and must be removed; the other two are unrelated to
+this task's scope and must be kept exactly as they are — they are not
+duplicated anywhere else in the test suite and deleting them would be an
+unrelated coverage loss outside this task's purpose.
+
+old_str (the entire current file, verbatim):
+```typescript
+import { describe, it, expect } from 'vitest';
+import {
+  resolveCurrentHolder,
+  getActiveDelegationForUser,
+  getOfficeById,
+  getOfficeHierarchy,
+  getEmployeeByUserId,
+  getPrimaryOfficeForUser,
+  getCommitteeIdsForUser,
+  getDelegationGrantById,
+  createOrgService,
+  createDelegationService,
+  initializePublishedAPI,
+} from '../index.js';
+import { OfficeSummarySchema } from '@batac/shared/schemas/organization';
+
+describe('Organization Module Scaffold', () => {
+  it('exposes the eight B2 Published API methods', () => {
+    expect(resolveCurrentHolder).toBeDefined();
+    expect(getActiveDelegationForUser).toBeDefined();
+    expect(getOfficeById).toBeDefined();
+    expect(getOfficeHierarchy).toBeDefined();
+    expect(getEmployeeByUserId).toBeDefined();
+    expect(getPrimaryOfficeForUser).toBeDefined();
+    expect(getCommitteeIdsForUser).toBeDefined();
+    expect(getDelegationGrantById).toBeDefined();
+  });
+
+  it('allows calling public API methods returning stub values', async () => {
+    const mockQueryBuilder = {
+      from: function () {
+        return this;
+      },
+      where: function () {
+        return this;
+      },
+      innerJoin: function () {
+        return this;
+      },
+      leftJoin: function () {
+        return this;
+      },
+      limit: function () {
+        return this;
+      },
+      then: function (resolve: any) {
+        resolve([]);
+      },
+    };
+    const mockDb = {
+      select: () => mockQueryBuilder,
+    } as any;
+    initializePublishedAPI(mockDb);
+    expect(await resolveCurrentHolder('pos-id')).toBeNull();
+    expect(await getActiveDelegationForUser('user-id')).toBeNull();
+    expect(await getOfficeById('office-id')).toBeNull();
+    expect(await getOfficeHierarchy()).toEqual({ offices: [] });
+    expect(await getEmployeeByUserId('user-id')).toBeNull();
+    expect(await getPrimaryOfficeForUser('user-id')).toBeNull();
+    expect(await getCommitteeIdsForUser('user-id')).toEqual([]);
+    expect(await getDelegationGrantById('grant-id')).toBeNull();
+  });
+
+  it('provides createOrgService and createDelegationService which return typed objects', () => {
+    const orgRepo = {} as any; // mock
+    const db = {} as any;
+    const eventBus = {} as any;
+
+    const orgService = createOrgService({ db, orgRepository: orgRepo, eventBus });
+    const delegationService = createDelegationService({ db, orgRepository: orgRepo, eventBus });
+
+    expect(orgService).toBeDefined();
+    expect(delegationService).toBeDefined();
+    expect(typeof orgService.getOfficeById).toBe('function');
+    expect(typeof delegationService.getActiveDelegationForUser).toBe('function');
+  });
+
+  it('resolves OfficeSummarySchema and validates correctly', () => {
+    const validData = {
+      officeId: '00000000-0000-4000-8000-000000000001',
+      name: 'Office of the Mayor',
+      parentOfficeId: null,
+      type: 'executive',
+    };
+
+    const parsed = OfficeSummarySchema.parse(validData);
+    expect(parsed).toEqual(validData);
+
+    const invalidData = {
+      officeId: 'invalid-uuid',
+      name: 'Invalid Office',
+      parentOfficeId: null,
+      type: 'invalid-type',
+    };
+
+    expect(() => OfficeSummarySchema.parse(invalidData)).toThrow();
+  });
+});
+```
+
+new_str (the full replacement — two tests removed, two kept unmodified, import list trimmed to match):
+```typescript
+import { describe, it, expect } from 'vitest';
+import { createOrgService, createDelegationService } from '../index.js';
+import { OfficeSummarySchema } from '@batac/shared/schemas/organization';
+
+describe('Organization Module Scaffold', () => {
+  it('provides createOrgService and createDelegationService which return typed objects', () => {
+    const orgRepo = {} as any; // mock
+    const db = {} as any;
+    const eventBus = {} as any;
+
+    const orgService = createOrgService({ db, orgRepository: orgRepo, eventBus });
+    const delegationService = createDelegationService({ db, orgRepository: orgRepo, eventBus });
+
+    expect(orgService).toBeDefined();
+    expect(delegationService).toBeDefined();
+    expect(typeof orgService.getOfficeById).toBe('function');
+    expect(typeof delegationService.getActiveDelegationForUser).toBe('function');
+  });
+
+  it('resolves OfficeSummarySchema and validates correctly', () => {
+    const validData = {
+      officeId: '00000000-0000-4000-8000-000000000001',
+      name: 'Office of the Mayor',
+      parentOfficeId: null,
+      type: 'executive',
+    };
+
+    const parsed = OfficeSummarySchema.parse(validData);
+    expect(parsed).toEqual(validData);
+
+    const invalidData = {
+      officeId: 'invalid-uuid',
+      name: 'Invalid Office',
+      parentOfficeId: null,
+      type: 'invalid-type',
+    };
+
+    expect(() => OfficeSummarySchema.parse(invalidData)).toThrow();
+  });
+});
+```
+
+Note: `createOrgService` and `createDelegationService` are still imported
+from `../index.js` in this trimmed file — this is correct and must not be
+changed. These two names remain in the barrel's public surface after Change
+A (they are the two re-export lines that survive). This import is
+unaffected by anything else in this task.
+
+## Change C — Delete org.published-api.test.ts
+
+Delete this file entirely:
+/apps/server/src/modules/organization/__tests__/org.published-api.test.ts
+
+Its coverage was fully ported to organization.service.test.ts in Step 1,
+confirmed passing 9/9 before this deletion. Do not delete this file until
+that 9/9 confirmation from Step 1 has actually happened in this same
+execution — do not assume it or skip re-confirming it immediately before
+this deletion.
+
+## Post-change verification for Step 2
+
+After Changes A, B, and C are all applied, run, in this order:
+
+1. `pnpm --filter server typecheck`
+
+   This must complete with zero errors. If it surfaces any error, do not
+   attempt to fix it by adding back a deleted export or import — report the
+   exact error text and file/line, and stop. A typecheck error here most
+   likely means either (a) some file outside this task's scope was depending
+   on one of the deleted barrel exports in a way this investigation didn't
+   find, or (b) the whole-file replacement in Change A was applied
+   incorrectly. Either way this needs to be reported, not silently patched.
+
+2. `pnpm --filter server test`
+
+   Confirm the full server test suite result. This task is expected to
+   change the total test count: the suite loses org.published-api.test.ts's
+   9 tests and organization.scaffold.test.ts's 2 removed tests (11 total
+   removed), and gains organization.service.test.ts's 9 tests (net: -2 tests
+   suite-wide from this task alone, all of it accounted for by
+   organization.scaffold.test.ts's 2 deliberately-removed redundant
+   existence-check tests — no net loss of meaningful coverage).
+
+   Do not treat a pre-existing, already-known-and-logged suite-wide test
+   failure count (if one is present when you run this — see LOG-0144 in
+   docs/development-findings-log.md if it exists in the live log by the time
+   you run this) as something this task caused. If you see failures, check
+   whether they are in a file this task touched
+   (organization.service.test.ts, organization.scaffold.test.ts, or any file
+   that imports from organization/index.ts) before concluding this task
+   introduced them. If a failure is in any file outside this task's IN SCOPE
+   list, report it as a pre-existing condition, not as something to fix here.
+
+3. Specifically confirm these three files individually:
+   - `pnpm --filter server test -- organization.service.test.ts` → 9 passed, 0 failed
+   - `pnpm --filter server test -- organization.scaffold.test.ts` → 2 passed, 0 failed
+   - Confirm org.published-api.test.ts no longer exists as a file and is
+     therefore absent from the test run entirely (not "0 tests," but genuinely
+     not present as a file).
+
+## What this task does NOT do
+
+This task does not address:
+- Any change to how organization.plugin.ts constructs or decorates its
+  services — that code path was already correct and is not touched.
+- Any change to iam.plugin.ts, workflow.router.ts, documents.router.ts, or
+  any other file that consumes fastify.organizationService /
+  fastify.delegationService — none of them depend on anything being removed
+  here.
+- Writing an ADR. J4 §3.1's "Must not contain" list forbids service factory
+  implementations in index.ts categorically; this task removes an
+  undocumented, unauthorized violation of that rule rather than seeking
+  retroactive authorization for it, since (unlike the workflow module's
+  barrel-plugin-export deviation, addressed separately) nothing in this repo
+  depends on this dead code continuing to exist.
+- The documents/tracking barrel plugin re-export removals (TASK-DOCS-025,
+  TASK-TRACK-010) or their other J4 §3.1 violations (router factory
+  re-exports, repository/service class re-exports) — those are separate,
+  already-drafted or not-yet-scoped tasks and are not affected by this one.
+- The workflow module's barrel deviation — untouched by this task.
 ````
