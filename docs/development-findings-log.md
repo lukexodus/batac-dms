@@ -4462,3 +4462,15 @@ schema gap (LOG-0148) and the workflow/index.ts barrel-export findings
 
 ---
 
+### [LOG-0153] J4 §3.1 violation removed from workflow/index.ts barrel; LOG-0150's type-only import question resolved as non-violation
+- date: 2026-07-25
+- task_id: TASK-WORKFLOW-013
+- status: proposed
+- affects: J4 §3.1
+- supersedes: none
+
+**What was done.** The service factory re-export `export { createWorkflowPublicAPI } from './workflow.public-api.js';` was removed from `apps/server/src/modules/workflow/index.ts`. A full repository search confirmed this re-export had zero consumers; the only call site (`workflow.plugin.ts`) already imported it directly from `workflow.public-api.ts`. This closes out the `createWorkflowPublicAPI` portion of the finding in `LOG-0150`.
+
+**Type-only imports are not a violation.** `LOG-0150` also noted that `workflow.public-api.ts` contained a type-only import from the barrel (`import type { ... } from './index.js';`) and left its J4 §3.1 compliance open as a question. This task explicitly resolves that question: type-only imports *from* the barrel are NOT a J4 §3.1 violation. §3.1 governs what the barrel may export, not what other files may import from it. The types in question are legitimately declared in the barrel. No action needed, and this explicitly resolves the remaining uncertainty from `LOG-0150`.
+
+**Relationship to prior findings.** This entry relates to `LOG-0150` but does not supersede it, since `LOG-0150` remains accurate historical context for how this finding was discovered.
