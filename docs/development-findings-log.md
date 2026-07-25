@@ -3757,3 +3757,165 @@ upload — file contents, tsconfig contents, import graphs, and the
 compiler behavior test. Nothing here is carried forward from the earlier
 diagnostic without independent re-verification.
 
+---
+
+### [LOG-0139] Executor-reported TS2322/never type-erosion on LogSignatureInputSchema not reproduced by live `pnpm typecheck`
+
+- date: 2026-07-25
+- task_id: TASK-DOCS-SHARED-008
+- status: proposed
+- affects: none
+- resolved_in: (omit)
+- supersedes: (omit)
+
+During TASK-DOCS-SHARED-008 (migrating `LogSignatureInputSchema` in
+`packages/shared/src/schemas/documents.ts` to
+`createInsertSchema(signatures).pick({...}).extend({...})`), the executing
+agent reported that `packages/shared` failed typecheck with `TS2322` errors
+at every `.pick()` key (`Type 'true' is not assignable to type 'never'`),
+and that the resulting inferred type for `LogSignatureInputSchema` silently
+dropped all seven `.pick()`-ed fields, retaining only the three fields
+supplied via `.extend()`. The agent additionally reported that
+`CreateDocumentInputSchema` and `UpdateDocumentInputSchema` (from the earlier
+TASK-DOCS-SHARED-004/004B) exhibited the identical failure.
+
+This was not reproduced. A full `pnpm typecheck` run against the live repo
+(via `turbo run typecheck`, all 7 packages, real tsc invocations behind
+cache keys rather than replayed-stale results) shows `@batac/shared:typecheck`
+and `server:typecheck` — along with all 5 other packages — passing with zero
+errors. The committed `LogSignatureInputSchema` code was independently
+confirmed, by direct file inspection, to match its task specification exactly.
+
+The executing agent's own transcript shows it verified its finding using two
+methods: (1) `pnpm run typecheck` at the workspace root, and (2) `npx tsc
+--noEmit` invoked directly against standalone scratch files (e.g.
+`src/type-scratch-full.ts`) placed inside `packages/shared/src`, outside any
+`.pick()`/`.extend()` chain's real consuming context. [Speculation, not
+tested directly] The likely mechanism is that a bare `tsc --noEmit
+somefile.ts` invocation, run without `-p tsconfig.json`, does not pick up
+the package's real `moduleResolution`/`skipLibCheck`/path-mapping
+configuration, and can resolve `drizzle-zod`'s generic types differently
+than the properly-configured build does — producing a false failure signal
+that a scratch file does not actually represent the real compiled output.
+This has not been confirmed by isolating and re-running the exact failing
+scratch-file scenario; it is offered as the most likely explanation given
+what's visible in the transcript, not as a diagnosed root cause. An
+alternative, equally unconfirmed possibility is that the agent's
+interleaved `pnpm run typecheck` result was itself misread or conflated
+with the scratch-file result in its final summary.
+
+No code change resulted from this entry. The purpose of this entry is
+narrow: if a future agent (in this task family or elsewhere in the
+codebase) sees a `.pick()`-after-`createInsertSchema`/`createUpdateSchema`
+call throw `TS2322`/collapse to `never` during an ad hoc, single-file `tsc`
+invocation, the first step should be reproducing it via the real workspace
+typecheck command (`pnpm typecheck` / `turbo run typecheck` from the
+relevant package or root) before treating it as a genuine defect in the
+schema or in the `drizzle-zod@0.8.3`/`zod@^4.4.3` pairing — a scratch-file
+result that disagrees with the real build output is not on its own
+sufficient evidence of a real bug.
+
+**Recommendation:** if this recurs, isolating whether a scratch file run
+with `-p <path-to-real-tsconfig.json>` (rather than a bare `tsc --noEmit
+file.ts`) still reproduces the error would meaningfully narrow down whether
+the scratch-file method itself is the variable, without needing to touch
+any schema code to test it.
+
+---
+
+### [LOG-0140] documents and tracking index.ts plugin re-exports scoped for
+removal (TASK-DOCS-025, TASK-TRACK-010); workflow and organization
+explicitly deferred, not resolved by this entry
+
+- date: 2026-07-25
+- task_id: none — investigation and decision made directly, follow-on to LOG-0138
+- status: proposed
+- affects: J4 (§3.1, §8), B2 (Enforcement Mechanisms), TASK-DOCS-025 (new),
+  TASK-TRACK-010 (new)
+
+**Decision.** LOG-0138 identified that documents/index.ts, tracking/index.ts,
+and workflow/index.ts all re-export their plugin's default export, a
+deviation from J4 §3.1/§8 and B2's Enforcement Mechanisms, and flagged two
+possible directions without resolving between them: bring the three modules
+into compliance, or write a retroactive ADR accepting the deviation. A human
+has now selected the compliance direction for documents and tracking
+specifically. workflow is explicitly NOT included in this decision — its
+deviation is structurally different (app.ts depends on workflow/index.ts's
+re-export directly, unlike documents and tracking, where app.ts already
+imports the plugin file directly and the re-export is inert) and is
+deliberately deferred to its own future task, not resolved here.
+
+**Verification performed before scoping the fix.** Independently confirmed,
+against the current upload, that neither documents.plugin.ts nor
+tracking.plugin.ts imports from their own index.ts in any form (value or
+type-only) — closing a gap LOG-0138 had left open for tracking specifically.
+Also confirmed no test file or production file anywhere in the repo depends
+on either module's index.ts re-exporting the plugin's default export
+specifically (documents.scaffold.test.ts and trpc/root.ts both import
+named exports from documents/index.ts unrelated to the plugin default;
+tracking.service.test.ts and tracking.public-handler.test.ts both import
+type-only interfaces declared directly in tracking/index.ts, also unrelated
+to the plugin default). On this basis, TASK-DOCS-025 and TASK-TRACK-010 were
+written as standalone executor prompts for a one-line deletion each.
+
+**Scope explicitly excluded from these two tasks, left for future work.**
+documents/index.ts also re-exports four router factory functions and the
+DocumentPolicyGuard class; tracking/index.ts also re-exports
+TrackingRepository, QrCodeService, and createTrackingService wholesale —
+all additional J4 §3.1 "Must not contain" violations beyond the plugin
+re-export, not addressed by TASK-DOCS-025 or TASK-TRACK-010. Separately,
+organization/index.ts was found to contain a complete, disconnected-from-
+production Published API implementation (module-level singleton services,
+an initializePublishedAPI() initializer, and free-function exports
+duplicating fastify.organizationService's method names) — confirmed dead in
+production; every real caller (iam.plugin.ts, workflow.router.ts,
+documents.router.ts, documents.plugin.ts, app.ts) goes through
+fastify.organizationService / fastify.delegationService, built independently
+by organization.plugin.ts. Only two test files
+(organization.scaffold.test.ts, org.published-api.test.ts) exercise
+index.ts's parallel implementation. This is explicitly scoped as a fully
+separate task, not folded into TASK-DOCS-025 / TASK-TRACK-010, per explicit
+human instruction to keep barrel-fix and dead-code-removal work in separate
+commits for review and rollback hygiene.
+
+**Also unresolved by this entry.** B2's Enforcement Mechanisms and P2
+describe an "automated coupling test suite" that statically analyses
+cross-module import paths on every PR. No such test suite, lint rule, or
+tool (dependency-cruiser, madge, custom vitest suite, or otherwise) was
+found anywhere in this repository as of this upload — server's package.json
+defines no lint script at all. This is a gap between B2's description and
+reality, independent of the plugin-barrel question, and is not addressed by
+TASK-DOCS-025 or TASK-TRACK-010.
+
+[Confirmed]: every claim above was checked directly against this exact
+upload, including a fresh re-check of the "no ADR exists" claim across all
+71 ADR files currently in the repository (none reference module structure,
+barrel exports, or plugin placement).
+### [LOG-0141] AttachmentSelectSchema.s3Key widen to nullable
+
+- date: 2026-07-25
+- task_id: TASK-DOCS-SHARED-009
+- status: proposed
+- affects: none
+- supersedes: LOG-0113
+
+The `AttachmentSelectSchema.s3Key` field was widened to `.nullable()`. The `ck_attachments_file_or_source` CHECK constraint on the `attachments` table enforces that an attachment must have either a `file_key` or a `source_document_id`, making reference-only attachments (where `file_key` is null) a deliberate database design feature. There were no live consumers of `AttachmentSelectSchema` at the time of this change.
+
+### [LOG-0142] PanlalawiganReviewSelectSchema.dateReferred field drop maintained
+
+- date: 2026-07-25
+- task_id: TASK-DOCS-SHARED-009
+- status: proposed
+- affects: none
+- supersedes: LOG-0114
+
+The `dateReferred` field remains excluded from `PanlalawiganReviewSelectSchema`. No `dateReferred` column exists in the underlying `panlalawiganReviews` Drizzle table, and chronological data is already adequately covered by existing fields (`transmittedAt`, `receivedAt`, `actionDeadline`, `responseDate`). Restoring the field would require an unjustified database migration.
+
+### [LOG-0143] Hardcoded dateReferred null field removed from getPanlalawiganReview
+
+- date: 2026-07-25
+- task_id: TASK-DOCS-SHARED-009
+- status: proposed
+- affects: none
+
+The `getPanlalawiganReview` procedure returned a hardcoded `dateReferred: null` key that predated the removal of `dateReferred` from the shared schema. This dead-weight field was removed to eliminate inconsistency between the actual API response and the shared schema. The procedure has no `.output()` binding and is not called by any `apps/web` consumer, making this removal safe.

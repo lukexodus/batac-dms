@@ -433,17 +433,8 @@ export const AttachmentSelectSchema = z.object({
   // search: no live code depends on the OLD Drizzle-matching name
   // (`fileKey` is not referenced as a property access on any
   // attachment-shaped object outside this file), so this is a safe
-  // rename. The underlying Drizzle column is nullable
-  // (`fileKey: uuid('file_key')`, no `.notNull()`), but this schema's
-  // existing consumers expect a non-nullable string — preserved as-is
-  // below rather than silently widening to nullable, since that would be
-  // a behavior change beyond this task's scope. If a genuinely
-  // attachment-without-a-file-key row can exist (the Drizzle comment for
-  // `sourceDocumentId` below suggests one can — a Certification of
-  // Urgency attachment referencing a source document instead of its own
-  // file), this non-nullable override may be WRONG and is flagged here
-  // as a finding, not silently resolved:
-  s3Key: z.string(),
+  // rename.
+  s3Key: z.string().nullable(),
   sourceDocumentId: UuidSchema.nullable(),
   description: z.string().nullable(),
   fileSizeBytes: z.number().int().positive(),

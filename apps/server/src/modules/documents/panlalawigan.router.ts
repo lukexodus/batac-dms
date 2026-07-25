@@ -225,7 +225,6 @@ export function createPanlalawiganProcedures() {
           createdAt: review.createdAt.toISOString(),
           updatedAt: review.updatedAt.toISOString(),
           receivedAt: review.receivedAt?.toISOString() ?? null,
-          dateReferred: null,
           panlalawiganResolutionNumber: review.resolutionNumber,
           daysElapsed: review.daysElapsed,
         };
