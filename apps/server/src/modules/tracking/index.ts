@@ -36,6 +36,4 @@ export interface RoutingEntry {
   timestamp: Date;
 }
 
-export { TrackingRepository } from './tracking.repository.js';
-export { QrCodeService } from './tracking.qr-service.js';
-export { createTrackingService } from './tracking.service.js';
+

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createDocumentsService } from '../documents.service.js';
 import { DocumentsRepository } from '../documents.repository.js';
-import { createDocumentsRouter } from '../index.js';
+import { createDocumentsRouter } from '../documents.router.js';
 
 vi.mock('../../../config/env.js', () => ({
   env: {},
