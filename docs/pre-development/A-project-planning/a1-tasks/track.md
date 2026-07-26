@@ -323,7 +323,7 @@ Deliverables:
   - /apps/server/src/modules/tracking/tracking.service.ts — createTrackingService factory stub returning a TrackingPublicAPI with `throw new Error('not implemented')` bodies
   - /apps/server/src/modules/tracking/tracking.router.ts — trackingRouter tRPC router stub with five named procedure stubs (getTrackingRecord, printQrCoverSheet, getRoutingHistory, logRoutingEntry, scanQrCodeAuthenticated); all input/output z.unknown() at this stage
   - /apps/server/src/modules/tracking/tracking.public-handler.ts — publicLookupHandler Fastify route handler stub returning 501 Not Implemented
-  - /apps/server/src/modules/tracking/tracking.plugin.ts — Fastify plugin stub (logs 'tracking.module.stub', no wiring yet); declares dependency on 'documents-plugin'
+  - /apps/server/src/modules/tracking/tracking.plugin.ts — Fastify plugin stub (logs 'tracking.module.stub', no wiring yet); declares dependency on 'documents'
   - /apps/server/src/modules/tracking/__tests__/.gitkeep — empty placeholder; test files added by later tasks
 Acceptance Criteria:
   - [ ] `pnpm typecheck` passes with all stubs in place
@@ -409,8 +409,8 @@ AI Prompt: |
   };
 
   export default fp(trackingPlugin, {
-    name: 'tracking-plugin',
-    dependencies: ['documents-plugin'],
+    name: 'tracking',
+    dependencies: ['documents'],
   });
   ```
 
@@ -1346,8 +1346,8 @@ AI Prompt: |
   };
 
   export default fp(trackingPlugin, {
-    name: 'tracking-plugin',
-    dependencies: ['documents-plugin', 'iam-plugin'],
+    name: 'tracking',
+    dependencies: ['documents', 'iam'],
   });
   ```
 
