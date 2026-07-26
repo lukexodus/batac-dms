@@ -19767,3 +19767,264 @@ When done, report:
 
 ---
 
+# TASK-TRACK-NAMING-001 — Fix tracking.plugin.ts registered plugin name to match sibling convention
+
+````
+TASK-TRACK-NAMING-001 — Fix tracking.plugin.ts registered plugin name to match sibling convention
+
+═══════════════════════════════════════════
+CONTEXT (for a reader with zero prior context on this conversation)
+═══════════════════════════════════════════
+This project wraps every Fastify module plugin with `fp()` from the
+`fastify-plugin` package, passing an explicit `name` and `dependencies`
+array. The architecture document
+`docs/pre-development/J-software-design-patterns-and-standards/j1-software-design-patterns.md`
+(§ "Rules", line 896) states: "The `name` string must match the string
+used in other plugins' `dependencies` arrays exactly." J1's own canonical
+example registers `database.plugin.ts` as `name: 'database'` — the bare
+module identifier, with no suffix.
+
+Every module plugin in this codebase follows that bare-identifier
+convention except one: `tracking.plugin.ts` currently registers itself as
+`name: 'tracking-plugin'`, appending a `-plugin` suffix that no sibling
+plugin uses. This is a naming inconsistency with the codebase's own
+established convention. It causes no active failure today (verified: no
+`dependencies` array anywhere in the codebase currently references
+`'tracking'` or `'tracking-plugin'`), but if a future module were added
+that needed to depend on tracking, an author following the sibling
+convention would write `dependencies: ['tracking']` (bare name) and
+Fastify's dependency resolution would fail to find a plugin registered
+under that exact string, since the actual registered name is
+`'tracking-plugin'`.
+
+═══════════════════════════════════════════
+EXACT FILE AND LINES TO CHANGE
+═══════════════════════════════════════════
+File: apps/server/src/modules/tracking/tracking.plugin.ts
+
+Current content, lines 150–153 (verified exact, current as of this
+prompt):
+
+old_str:
+export default fp(trackingPlugin, {
+  name: 'tracking-plugin',
+  dependencies: ['documents'],
+});
+
+new_str:
+export default fp(trackingPlugin, {
+  name: 'tracking',
+  dependencies: ['documents'],
+});
+
+This is the only change. The `dependencies: ['documents']` line is
+UNCHANGED — do not touch it, do not add, remove, or reorder any entries
+in it. (Note: there is a separate, known question about whether this
+array is missing an `'iam'` entry, tracked independently — see SCOPE
+BOUNDARIES below. Do not address it as part of this task.)
+
+═══════════════════════════════════════════
+SCOPE BOUNDARIES
+═══════════════════════════════════════════
+IN SCOPE:
+- `apps/server/src/modules/tracking/tracking.plugin.ts` — change the
+  `name` field only, exactly as shown above.
+
+OUT OF SCOPE (do not touch even though related):
+- `apps/server/src/modules/tracking/tracking.plugin.ts`'s
+  `dependencies` array — leave `['documents']` exactly as it is. A
+  separate, already-identified question about whether this array is
+  missing an `'iam'` entry is being handled as its own decision; do not
+  add, infer, or "helpfully" complete it here.
+- `docs/pre-development/A-project-planning/a1-tasks/track.md` — this
+  file currently contains two stale references to `name:
+  'tracking-plugin'` (lines 412 and 1349) and to a `-plugin`-suffixed
+  dependencies convention. Per this project's AGENTS.md, agents never
+  edit Group B–L or A1 task-list source documents as a result of
+  something learned during execution — a human decides whether that
+  document gets corrected. Do not edit track.md.
+- Any `.bak` file. Do not open or read any `.bak` file as part of this
+  task.
+- Any other module's `.plugin.ts` file. This task touches tracking only.
+
+═══════════════════════════════════════════
+VERIFICATION AFTER THE CHANGE
+═══════════════════════════════════════════
+1. Confirm no other file in the repository (excluding
+   `docs/pre-development/A-project-planning/a1-tasks/track.md`, which is
+   explicitly out of scope per above) references the literal string
+   `'tracking-plugin'`. A repo-wide search for `tracking-plugin` should,
+   after this change, return zero hits inside `apps/server/src/**` (a
+   hit inside `track.md` is expected and is not a failure — that file is
+   intentionally left untouched).
+2. Confirm `apps/server/src/modules/tracking/__tests__/tracking.plugin.test.ts`
+   still passes unmodified — this test does not currently assert on the
+   `name` string literal, so no test changes should be required. If it
+   turns out this test (or any other test) DOES fail because of this
+   change, stop and report that back rather than editing the test to
+   make it pass — that would be a scope expansion beyond what this
+   prompt authorizes.
+3. Run the project's typecheck (`pnpm typecheck` or equivalent per this
+   repo's actual package.json scripts — check, don't assume the exact
+   command) to confirm no type errors were introduced. A `name` string
+   literal change should not affect typecheck, but confirm rather than
+   assume.
+
+═══════════════════════════════════════════
+WHAT SUCCESS LOOKS LIKE
+═══════════════════════════════════════════
+- `tracking.plugin.ts` registers with `name: 'tracking'`.
+- `dependencies: ['documents']` is byte-for-byte unchanged.
+- No other file under `apps/server/src` is modified.
+- `track.md` is not modified.
+- Existing tests pass without modification.
+Report back: whether the change was applied cleanly, the result of the
+repo-wide search in verification step 1, and the result of the typecheck
+in step 3.
+
+commit after. put the walkthrough into the commit description.
+````
+
+---
+
+# TASK-TRACK-NAMING-001 — Fix tracking.plugin.ts registered name and complete its dependencies array
+
+````
+TASK-TRACK-NAMING-001 — Fix tracking.plugin.ts registered name and complete its dependencies array
+
+═══════════════════════════════════════════
+CONTEXT (for a reader with zero prior context on this conversation)
+═══════════════════════════════════════════
+This project wraps every Fastify module plugin with `fp()` from the
+`fastify-plugin` package, passing an explicit `name` and `dependencies`
+array. `docs/pre-development/J-software-design-patterns-and-standards/j1-software-design-patterns.md`
+(§ "Rules", line 896) states: "The `name` string must match the string
+used in other plugins' `dependencies` arrays exactly." J1's canonical
+example registers `database.plugin.ts` as `name: 'database'` — the bare
+module identifier, no suffix.
+
+Every module plugin in this codebase follows that bare-identifier
+convention except one: `tracking.plugin.ts` currently registers itself
+as `name: 'tracking-plugin'`. This task fixes two things in the same
+file, found during the same investigation:
+
+1. The `name` field uses a `-plugin` suffix no sibling plugin uses.
+2. The `dependencies` array is missing a real runtime dependency: this
+   module's own router code reads `ctx.req.server.iamService` at
+   request time (see `tracking.router.ts`, function `getIamService` at
+   lines 105-106, called at line 183), which is decorated onto the
+   Fastify instance by the `iam` module's plugin (registered name:
+   `'iam'`, confirmed in `apps/server/src/modules/iam/iam.plugin.ts`).
+   The current `dependencies` array does not list `'iam'`. This works
+   today only because `apps/server/src/app.ts` happens to register
+   `iamPlugin` (line 218) before `trackingPlugin` (line 230) — but per
+   J1's own Prohibitions table, an incomplete `dependencies` declaration
+   means "a wrong registration order will silently fail at runtime
+   rather than crashing immediately with a clear message at startup."
+   Declaring the dependency explicitly removes that risk regardless of
+   registration order.
+
+Neither issue causes an active failure today. Both are being fixed now
+because the naming mismatch is a landmine for any future plugin author
+who writes `dependencies: ['tracking']` following the sibling
+convention, and the missing `iam` entry is a landmine for any future
+reordering of `app.ts`'s registration sequence.
+
+═══════════════════════════════════════════
+EXACT FILE AND LINES TO CHANGE
+═══════════════════════════════════════════
+File: apps/server/src/modules/tracking/tracking.plugin.ts
+
+Current content, lines 150–153 (verified exact, current as of this
+prompt):
+
+old_str:
+export default fp(trackingPlugin, {
+  name: 'tracking-plugin',
+  dependencies: ['documents'],
+});
+
+new_str:
+export default fp(trackingPlugin, {
+  name: 'tracking',
+  dependencies: ['documents', 'iam'],
+});
+
+This is the only change in this file.
+
+═══════════════════════════════════════════
+SCOPE BOUNDARIES
+═══════════════════════════════════════════
+IN SCOPE:
+- `apps/server/src/modules/tracking/tracking.plugin.ts` — change the
+  `name` field and the `dependencies` array exactly as shown above.
+  Nothing else in this file changes.
+
+OUT OF SCOPE (do not touch even though related):
+- `docs/pre-development/A-project-planning/a1-tasks/track.md` — this
+  file has ALREADY been corrected by a human in a separate action prior
+  to this prompt (three locations: line 326, lines 412-413, lines
+  1349-1350, all now reading the bare `'documents'` / `'tracking'` /
+  `'iam'` forms). Do not re-edit it, do not verify it as part of this
+  task's scope — it is already done and not your responsibility here.
+- `docs/development-findings-log.md` — a findings-log entry
+  (LOG-0155) for this exact issue has already been appended by a human
+  in a separate action prior to this prompt. Do not append a duplicate
+  entry for this same finding.
+- Any other module's `.plugin.ts` file. This task touches
+  `tracking.plugin.ts` only.
+- Any `.bak` file. Do not open or read any `.bak` file as part of this
+  task.
+- `apps/server/src/app.ts` — the registration order of plugins in this
+  file is NOT being changed by this task. `iamPlugin` already registers
+  before `trackingPlugin` today (line 218 vs line 230); this task only
+  makes tracking's OWN dependency declaration match that existing,
+  already-correct reality. Do not reorder anything in app.ts.
+
+═══════════════════════════════════════════
+VERIFICATION AFTER THE CHANGE
+═══════════════════════════════════════════
+1. Confirm no other file under `apps/server/src/**` references the
+   literal string `'tracking-plugin'` (a repo-wide search excluding
+   `docs/**` should return zero hits — a hit inside `docs/**` is
+   expected to be pre-existing history in `track.md`'s surrounding prose
+   or the findings log and is not a failure condition for this task).
+2. Confirm `apps/server/src/modules/tracking/__tests__/tracking.plugin.test.ts`
+   still passes unmodified. This test does not currently assert on
+   either the `name` string literal or the exact contents of the
+   `dependencies` array (verified: no occurrence of either in that
+   test file as of this prompt), so no test changes should be required.
+   If this test, or any other test, fails because of this change, stop
+   and report that back rather than editing the test to make it pass —
+   that would be a scope expansion beyond what this prompt authorizes.
+3. Run this repo's actual typecheck command (check package.json's
+   scripts for the correct command rather than assuming `pnpm
+   typecheck` is exactly right) to confirm no type errors were
+   introduced. A string-literal and array-contents change should not
+   affect typecheck, but confirm rather than assume.
+4. Fastify's runtime dependency check (triggered when the server
+   actually boots — e.g. via whatever this repo's dev/start script is)
+   is the strongest confirmation that adding `'iam'` to the
+   dependencies array does not break plugin resolution, since `iam` is
+   already confirmed to register before `tracking` in the existing
+   `app.ts` order. If you have a way to boot the server (or run
+   whatever integration/smoke test exercises full plugin registration)
+   as part of this task's verification, do so and report the result.
+   If not, say so explicitly rather than asserting the boot succeeds
+   without having checked.
+
+═══════════════════════════════════════════
+WHAT SUCCESS LOOKS LIKE
+═══════════════════════════════════════════
+- `tracking.plugin.ts` registers with `name: 'tracking'` and
+  `dependencies: ['documents', 'iam']`.
+- No other file is modified by this task (track.md and the findings
+  log were already handled outside this prompt).
+- Existing tests pass without modification.
+Report back: whether the change was applied cleanly, the result of the
+repo-wide search in verification step 1, the result of the typecheck in
+step 3, and whether/how you verified step 4 (server boot / plugin
+resolution), including if you were unable to perform that check.
+
+commit after. put the walkthrough into the commit description.
+````
