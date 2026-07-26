@@ -148,6 +148,6 @@ export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
 };
 
 export default fp(trackingPlugin, {
-  name: 'tracking-plugin',
+  name: 'tracking',
   dependencies: ['documents'],
 });
