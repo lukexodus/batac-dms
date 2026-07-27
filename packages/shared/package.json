@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./query-keys": "./src/query-keys/index.ts",
     "./event-bus": "./src/event-bus.ts",
     "./events/domain-event": "./src/events/domain-event.ts",
     "./events/event-payload-map": "./src/events/event-payload-map.ts",
