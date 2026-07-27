@@ -19,6 +19,7 @@ export function MayorLapseConfirmationPanel({
     onSuccess: () => {
       toast.success('10-day lapse confirmed.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
       void utils.documents.get.invalidate({ documentId: instance.documentId });
       void utils.documents.list.invalidate();
       navigate('/workflow/steps');

@@ -19,6 +19,7 @@ export function GenericActionPanel({
     onSuccess: () => {
       toast.success('Action step completed successfully.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
       void utils.workflow.listMyAssignedSteps.invalidate();
       void utils.documents.get.invalidate({ documentId: instance.documentId });
       void utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });

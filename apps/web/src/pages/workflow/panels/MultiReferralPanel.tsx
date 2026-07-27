@@ -59,6 +59,7 @@ export function MultiReferralPanel({
     onSuccess: () => {
       toast.success('Committee report submitted.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
       void utils.workflow.listMyAssignedSteps.invalidate();
       void utils.session.getOrderOfBusiness.invalidate();
     },
@@ -78,6 +79,7 @@ export function MultiReferralPanel({
     onSuccess: () => {
       toast.success('Step advanced.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
       void utils.workflow.listMyAssignedSteps.invalidate();
       void utils.session.getOrderOfBusiness.invalidate();
       navigate('/workflow/steps');

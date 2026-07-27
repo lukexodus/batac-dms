@@ -22,6 +22,7 @@ export function VetoOverrideRecordingPanel({
     onSuccess: () => {
       toast.success('Veto override vote recorded.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
       void utils.workflow.listMyAssignedSteps.invalidate();
       void utils.documents.get.invalidate({ documentId: instance.documentId });
       navigate('/workflow/steps');

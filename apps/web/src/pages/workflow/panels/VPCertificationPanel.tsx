@@ -19,6 +19,7 @@ export function VPCertificationPanel({
     onSuccess: () => {
       toast.success('Document certified successfully.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
       void utils.workflow.listMyAssignedSteps.invalidate();
       void utils.documents.get.invalidate({ documentId: instance.documentId });
       navigate('/workflow/steps');
