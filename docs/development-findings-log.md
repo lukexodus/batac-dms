@@ -4691,3 +4691,25 @@ This entry supersedes LOG-0163. The job has now been successfully wired to the `
 **Correction:** LOG-0166 correctly noted that LOG-0162 cited the wrong fields for `workflow.step.started` (it should be `stepKey`, `assignedTo`, `documentId`, `dueAt` per B3 §7.11, not `assigneeId` and `dueDate`). However, LOG-0166 also stated that `assignedTo` was changed to an array of UUIDs and flagged the B3 spec to be updated to match this code deviation. This array-widening was an unauthorized change based on a guess about concurrent multi-assignees, rather than a verified requirement, violating the strict rule against silent schema changes.
 
 This entry supersedes LOG-0166 entirely. The `assignedTo` field has been reverted to `string | null` to strictly match the B3 §7.11 specification. `step-resolution.ts` has been reverted to select a single UUID (`assignees[0]?.user_id ?? null`) as a temporary placeholder. A question has been raised for the human maintainer regarding whether multiple concurrent assignees are actually intended for a single step (requiring a formal spec update) or if `assignees` should be reduced to a single representative before emission. Do not alter the B3 spec until this is answered.
+
+### [LOG-0169] Decision: workflow.step.started assignedTo is multi-assignee array
+
+- date: 2026-07-28
+- task_id: TASK-WF-EVT-004
+- status: proposed
+- affects: LOG-0168, B3 (§7.11)
+
+**Decision:** Per Luke (2026-07-28), the  field in  must support an array of UUIDs () instead of a single string. This reverses LOG-0168. The architectural reason is that reducing a step to one assignee is incompatible with how committee and role-based review actually works (e.g.  or  branches in  which intrinsically return multiple concurrent assignees).
+
+**Action:** The runtime payload array-widening has been re-applied and is authorized. B3 §7.11 must be updated by a human to reflect this (). Note: Consumers like  or  must be written to handle an array if they map from this field.
+
+### [LOG-0169] Decision: workflow.step.started assignedTo is multi-assignee array
+
+- date: 2026-07-28
+- task_id: TASK-WF-EVT-004
+- status: proposed
+- affects: LOG-0168, B3 (§7.11)
+
+**Decision:** Per Luke (2026-07-28), the `assignedTo` field in `workflow.step.started` must support an array of UUIDs (`string[] | null`) instead of a single string. This reverses LOG-0168. The architectural reason is that reducing a step to one assignee is incompatible with how committee and role-based review actually works (e.g. `role:sp_secretary` or `delegation_aware:` branches in `assignee-resolution.ts` which intrinsically return multiple concurrent assignees).
+
+**Action:** The runtime payload array-widening has been re-applied and is authorized. B3 §7.11 must be updated by a human to reflect this (`assignedTo: z.array(z.string().uuid()).nullable()`). Note: Consumers like `notifications` or `audit` must be written to handle an array if they map from this field.

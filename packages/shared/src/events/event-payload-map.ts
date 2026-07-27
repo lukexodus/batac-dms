@@ -92,7 +92,9 @@ export interface WorkflowStepStartedPayload {
   stepType: string;
   stepKey: string;
   documentId: string;
-  assignedTo: string | null;
+  // TASK-WF-EVT-004: Deliberate design choice per Luke (2026-07-28) to support
+  // concurrent multi-assignees (e.g. committee, roles). B3 §7.11 to be updated.
+  assignedTo: string[] | null;
   dueAt: Date | null;
 }
 
