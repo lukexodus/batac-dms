@@ -21473,3 +21473,357 @@ the monorepo-wide result if that's what you run), confirmation of which
 acceptance criteria passed, and — if the empty-named-import form triggers
 any lint warning — flag it explicitly rather than resolving it yourself.
 ````
+
+---
+
+# TASK-WF-EVT-001 — Event-Payload Type-Erasure: Verify, Decide, Fix
+
+## Your role and authority
+
+You have live repo access. This prompt is standalone — treat it as the only thing you'll ever see about this investigation. Everything below is either **[Confirmed]** (I ran it myself, this session, against your current snapshot, in the last hour) or **[Needs your re-verification]** (claimed in prior investigation rounds, not independently re-checked by me this session). Do not trust the second category without checking. Two prior handoff documents on this same investigation contradicted each other on multiple points that turned out to matter — treat that as a standing reason for suspicion, not a one-time anomaly now resolved.
+
+**Before touching anything:** read `AGENTS.md` in full, live, from your snapshot. Do not rely on any paraphrase of it below.
+
+## Mandatory first step: process question to the human (Luke), not to you
+
+AGENTS.md Section 1 defines a document-conflict resolution hierarchy but is confirmed (by direct read) to say **nothing about delegation** — no text addresses whether a human granting you decision authority changes which AGENTS.md section governs a question. Separately, AGENTS.md Section 3 governs tasks "not in the table" (Section 2's Task→Documents table), and Section 4 governs runtime-only questions that no document can answer — confirmed by direct read of `docs/pre-development/document-list.md`'s "What Can Only Be Determined During Development" list (lines 381–394) that this investigation's open questions (Q1–Q4 below) are **not** on that list.
+
+What's unresolved: this investigation was triggered by "Implement audit logging for a new event type" (AGENTS.md Section 2, row: `B3 → I3 → ADR-B2-2`), but what actually happened was discovering the *existing* audit-logging emit path is broken, before any new event type was added. Whether that makes this a Section 2 task (with an internal Section 1 document conflict to resolve) or a genuinely unlisted Section 3 task is not settled by AGENTS.md's text either way.
+
+**Ask Luke this directly, before proceeding with Q1–Q4 resolution below:** "Does this investigation fall under AGENTS.md Section 2 (the 'implement audit logging' row, with a Section 1 conflict inside it) or Section 3 (unlisted task)? This affects whether I should be resolving Q1–Q4 as part of an existing task row or flagging them as a fresh unlisted-task scoping question." Do not infer an answer from adjacent documents — Section 3's own text explicitly prohibits that.
+
+## Corrections to carry forward — do not re-derive, do not re-open
+
+These are settled by direct execution or direct read this session. Re-verify only if your own snapshot check produces a different result than stated here.
+
+**1. The `iamService` dependency-injection gap (LOG-0117, corrected by LOG-0125) is not currently open.**
+- [Confirmed] `pnpm --filter server typecheck` — exit code 0, zero errors, run directly this session.
+- [Confirmed] `step-resolution.ts` line 19: `iamService: IamPublicAPI` is still a required (non-optional) field on `StepResolutionDeps` — the gap wasn't closed by weakening the type.
+- [Confirmed] `certified-urgent-bypass.handler.ts` (198 lines) never constructs a `CertifiedUrgentBypassDeps` object literal — it only receives `deps` as a function parameter and forwards it. Its sole caller, `workflow.plugin.ts` line 54 (`processCertificationUrgencyEvent(event.payload, stepDeps)`), passes `stepDeps`, which is fully typed and includes `iamService` per LOG-0118. LOG-0125's claim of an error at this file's line 152 does not hold against the file as it exists now — line 152 today sits inside a `createPendingBypass` call, unrelated to `iamService`.
+- **What this means for your work:** do not treat the 16 original `workflow.router.ts` sites or the `certified-urgent-bypass.handler.ts` site as open work items. If your own fresh `pnpm --filter server typecheck` run (do run it — don't skip re-verifying this) also shows 0 errors, this thread is closed; note it as closed with a one-line pointer in your findings-log entry, don't re-investigate root cause or reconstruct when it was fixed. Nobody currently knows when or by whom it was fixed between 2026-07-20 and now, and reconstructing that is not required for this task.
+
+**2. Correct pnpm filter names — verify these yourself, don't assume either prior document had it right:**
+```json
+{
+  "server_package_name": "server",
+  "web_package_name": "@batac/web",
+  "shared_package_name": "@batac/shared",
+  "note": "server is unscoped; web and shared are both @batac/-scoped. A prior investigation document claimed all three were unscoped — that claim was checked directly and is wrong for two of the three. Confirm this table against your own snapshot's package.json files before using any filter command."
+}
+```
+
+**3. Two separate ADR-naming discrepancies exist — do not treat one as precedent that resolves the other:**
+```json
+{
+  "discrepancy_1": {
+    "location": "AGENTS.md, Section 2 table, literal line text",
+    "shorthand_string": "ADR-B2-2",
+    "real_file": "docs/pre-development/B-architecture-documents/b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-002-audit-log-design.md",
+    "status": "still live/unfixed in AGENTS.md as of last direct read; not a task to fix as part of this work, only to cite the real filename instead of the shorthand"
+  },
+  "discrepancy_2": {
+    "location": "docs/development-findings-log.md, LOG-0079's body text",
+    "shorthand_string": "ADR-B2-3",
+    "real_file": "docs/pre-development/B-architecture-documents/b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-003-secretariat-decision-entry-point.md",
+    "status": "resolved — LOG-0079's body was edited in place per explicit human request; LOG-0126 (status: confirmed) documents this"
+  },
+  "relationship": "same informal-shorthand pattern, different strings, different target files, different documents. LOG-0126 fixing discrepancy_2 is not evidence discrepancy_1 was ever addressed. Do not cite one as precedent for the other being safe to ignore or already handled."
+}
+```
+When citing the audit-logging ADR anywhere in your work (code comments, findings-log entries, etc.), use `ADR-API-002-audit-log-design.md` — the real filename — never `ADR-B2-2`.
+
+## Everything below this line: re-verify before use, then proceed
+
+The following is compiled from prior investigation rounds. I have **not** re-executed these checks myself this session beyond what's stated above. Treat every claim below as `[Unverified/Stale]` until your own direct check confirms it, per AGENTS.md's own verification-labeling convention. Where a claim turned out wrong in the corrections above, assume similar drift is possible anywhere else in this list — re-check line numbers, key counts, and file states directly rather than trusting the summary.
+
+### Findings-log — check current state first
+`docs/development-findings-log.md` was last directly confirmed at 4607 lines, running to at least LOG-0160 (header format is `### [LOG-XXXX] title`, not `## LOG-XXXX` — a plain `grep -n "^## LOG-"` will undercount; use `grep -noE "LOG-[0-9]{4}"` or search for the triple-hash bracket form). Re-run this count — more entries may exist since. Scan headers for anything naming "EventPayloadMap," "eventBus," "workflow.router.ts emit," or event-name gaps specifically — as of the last check, no entry does, meaning this defect is unscoped in the project's own record. Confirm that's still true before treating the field as clear.
+
+### EventPayloadMap (`packages/shared/src/events/event-payload-map.ts`)
+Claimed: 36 keys total (verify programmatically, not by eyeballing — the file's own header comment claims "18 typed entries," confirmed stale). Three copies claimed to exist (source `.ts`, plus two `.d.ts` build copies) and claimed byte-identical via diff. Re-run the diff yourself.
+
+Claimed key inventory for the step-completion cluster — **this needs your own fresh check, since two prior passes disagreed on whether this is a 2-key or 3-key cluster**:
+- `'workflow.step_assigned'` — underscore, stub, no fields
+- `'workflow.step_completed'` — underscore, `WorkflowStepCompletedPayload`, 9 fields (`documentId, instanceId, stepId, stepType, fromOfficeId, toOfficeId, actorId, actionDescription, cityId`)
+- `'workflow.step.completed'` — dot notation, inline type, 6 fields (`instanceId, stepInstanceId, stepId, stepType, outcome, comment`)
+
+If a 3-key inventory is confirmed, then which literal key(s) the audit consumer (`audit.event-consumer.ts`) and `tracking.event-consumer.ts` actually subscribe to must be checked precisely — the difference between `workflow.step_completed` and `workflow.step.completed` is not cosmetic; they are different literal strings and a subscription to one will never fire on an emit to the other.
+
+Claimed absent from the map (verify via exact-string search, not fuzzy match): `workflow.approval.lapsed`, `workflow.sla.breached`, `workflow.sla.warning`, `workflow.sla.critical`, `workflow.certification_urgency.bypass_applied`, `workflow.multi_referral.secretary_advanced`, `workflow.panlalawigan.deemed_approved` (note: `document.panlalawigan.deemed_approved`, a *different* string, is claimed present).
+
+**Note found this session, not yet reconciled with the above:** `certified-urgent-bypass.handler.ts` (read in full above, for an unrelated reason) contains its own `createWorkflowEvent` calls using these literal `eventType` strings: `workflow.certification_urgency.already_inactive`, `workflow.context.updated`, `workflow.step.bypassed`, `workflow.certification_urgency.bypass_applied`, `workflow.certification_urgency.bypass_deferred`, `workflow.certification_urgency.already_past_referral`. These go through `deps.workflowRepository.createWorkflowEvent(...)` — the same DB-write mechanism (not `EventBus.emit`) flagged elsewhere in this investigation for the timer jobs. Check whether any of these six strings need to be added to `EventPayloadMap` as part of your fix scope, and whether this file has the same "typed EventBus available via `StepResolutionDeps`, unused" pattern claimed for the timer jobs — I did not check that specifically, I only read this file for the iamService question above.
+
+### `workflow.router.ts` — casts and emits
+Confirmed this session: file is exactly 2747 lines.
+
+Not re-verified this session: the claimed 21 emit call sites (17 to `'workflow.step.completed'`, 4 to unlisted names), and the claimed 21 `as any` server-cast declarations — with one prior pass describing these as "1 canonical declaration + 3 named variants" and a later pass correcting that to "18 independently-scoped declarations + 3 more, all named `server` or `server2`/`server3`/`server4`, none sharing a single declaration." **If you need to fix this pattern, confirm the decomposition yourself before scoping the fix** — "1 + 3" and "18 + 3" imply very different remediation shapes (patch one declaration vs. refactor a repeated pattern or touch 21 independent sites).
+
+Reference-correct pattern claimed to exist at `documents.plugin.ts` line 145: `fastify.eventBus.emit(...)` using the typed `fastify` instance directly, no `any` cast. Confirm this still holds and use it as the target shape for any fix.
+
+### `evaluate-sla-breaches.ts`
+Claimed: 6 unlisted event names across two passes (3 step-level, 3 instance-level), entirely internal fix scope, no plugin-level widening needed since `workflow.plugin.ts` already passes `eventBus` correctly at the registration site. Not verified this session — confirm before scoping.
+
+### Timer jobs (`evaluate-mayor-lapse-timers.ts`, `evaluate-panlalawigan-timers.ts`, `evaluate-thursday-cutoffs.ts`)
+Claimed: mayor-lapse and panlalawigan both write via `workflowRepository.createWorkflowEvent(...)` rather than `EventBus.emit`, despite having `eventBus` fully typed and available via `StepResolutionDeps`. Both claimed to be genuinely live, cron-scheduled (hourly and daily respectively), running on every server boot where pg-boss connects — meaning RA 7160 §56(d) and §47 statutory events are claimed to be firing right now with no EventBus path. **This is a compliance-relevant claim — verify it directly and carefully before repeating it to Luke as fact.** Thursday-cutoffs claimed architecturally different: no `eventBus` in its deps type at all, by exclusion at the plugin call site, not by oversight — confirm this distinction holds before treating all three jobs as one fix pattern.
+
+### Audit event consumer + second consumer
+`audit.event-consumer.ts` claimed to use a `makeHandler<K extends keyof EventPayloadMap>` wrapper, subscribing to stale/underscore legacy workflow event names exclusively (zero canonical dot-notation workflow subscriptions), while correctly typed against those stale names — meaning it typechecks clean without the naming problem being fixed. Not independently re-verified this session.
+
+`tracking.event-consumer.ts` — claimed to exist, be real non-stub code, correctly typed against `EventPayloadMap['workflow.step_completed']`, with a corresponding test file, but not yet read in full by any prior pass. **Read this file in full as part of your work** — it's a confirmed gap in prior coverage, not a maybe.
+
+### Documents not yet read by any prior pass — read before treating investigation scope as closed
+- `ADR-EVT-001-document-request-form-approval-modeling.md`
+- `ADR-API-003-secretariat-decision-entry-point.md` (now confirmed to genuinely exist and be referenced by 8+ other project documents, per LOG-0126 above — no longer just "plausibly relevant," it's a real, findable file)
+- ~11 of B3 §8's claimed 41 live canonical events, never checked against actual code
+
+## Open questions requiring human decision — ask Luke directly, do not infer
+
+Per AGENTS.md Section 3's explicit text ("say so explicitly and ask the human before proceeding, rather than inferring scope from adjacent documents") and Section 1's explicit text (state conflicts, never average or guess). These are not yours to resolve regardless of how much time pressure exists or whether you're told to "just continue":
+
+**Q1 — Is I3 §9.3's snake_case audit-category taxonomy still live, or stale/superseded?** Bears directly on whether `secretariat_decision_approved`/`_rejected`/`_amended` (claimed present in I3 §9.3) conflicts with B3 §6.4's claimed removal of `document.secretariat_decision`. Read `ADR-API-003-secretariat-decision-entry-point.md` first — it's unexamined and may settle this on its own.
+
+**Q2 — Canonical shape for `workflow.step.completed`.** If the 2-vs-3-key step-completion cluster question above resolves to "genuinely two different data shapes attached to one conceptual event," a decision is needed on which is canonical, what happens to consumers expecting the other shape, and whether Zod runtime enforcement should be added to `outcome`/`comment`.
+
+**Q3 — Timer-job EventBus wiring architecture and key naming.** Should mayor-lapse and panlalawigan switch to `deps.eventBus.emit(...)`, and under what canonical key names (the current DB-write `eventType` strings are not automatically the correct bus keys)? Should Thursday-cutoffs be wired to the bus at all, given no sign of an abandoned attempt to add `eventBus` to its deps? If the "currently live and firing with no bus path" claim is confirmed, tell Luke this is a present, not hypothetical, compliance gap, and let them weigh in on priority.
+
+**Q4 — `workflow.step.started` field gap.** If B3 §7.11's claimed required fields (`stepKey`, `assignedTo`, `documentId`) genuinely don't match the actual `WorkflowStepStartedPayload` (claimed to have none of them, plus an unlisted `stepId`), a decision is needed on whether `stepId`/`stepKey` are the same concept renamed or genuinely different fields, before any schema change is made.
+
+## Findings-log entry requirements
+
+Per AGENTS.md Section 4.5, confirmed by direct read: your entry is `status: proposed` by default — you cannot self-confirm. Use the verification labels from AGENTS.md's own convention: `[Confirmed]` (checked directly this session), `[Inference]` (reasoned from confirmed facts), `[Speculation]` (flagged guess), `[Unverified]` (stated by a doc or prior pass, not independently checked). Do not claim any fix "guarantees," "ensures," or "prevents" a behavior unless a document explicitly uses that language — describe your own code as implemented, not as something the system ensures.
+
+## What you can proceed on without waiting for Q1–Q4
+
+Only after the Section 2/Section 3 process question above is answered by Luke:
+1. Re-verify the SLA-breach unlisted event names and fix scope — internal to `evaluate-sla-breaches.ts`, but hold the actual target key names until Q3 is answered.
+2. Re-verify the `workflow.router.ts` cast pattern and refactor to eliminate `any`-erasure — this does not depend on Q1–Q4, only on your own fresh count of the cast/emit sites.
+3. Add test coverage for erasure-affected emit sites once the above is fixed.
+4. Read `tracking.event-consumer.ts`, `ADR-EVT-001`, and `ADR-API-003` in full — none of these depend on Q1–Q4 either.
+
+Do not encode a guess at Q1–Q4's answers into any code or findings-log entry. An encoded guess inside a "standalone" deliverable is a standalone guess, not a standalone fix.
+
+---
+
+# TASK-WF-EVT-001 — Event-Payload Type-Erasure Fix
+
+## Background
+
+The workflow module's event emit path is broken by type-erasure: `workflow.router.ts` uses `const server = ctx.req.server as any` (21 declarations, 79 total `as any` casts) to access `server.eventBus`, bypassing the typed `EventBus.emit<K extends keyof EventPayloadMap>()` signature. This hides two additional defects:
+
+1. **Key mismatch**: Router emits 17 calls to `'workflow.step.completed'` (dot notation). Audit consumer and tracking consumer subscribe to `'workflow.step_completed'` (underscore). These are different literal strings — **zero step-completion events reach either consumer**.
+2. **Missing event names**: B3 §8 defines 29 canonical workflow event names. Only 14 exist in `EventPayloadMap`. The 15 absent names can only be emitted via `as any` casts.
+3. **Timer jobs**: Three cron-scheduled jobs write statutory-deadline events to the DB only, with no EventBus emit, making them invisible to audit.
+
+**Authoritative documents** (per Luke's Section 3 scoping): B3, B2, ADR-API-002.
+
+---
+
+## Q1–Q4 Resolution (Conservative Defaults)
+
+### Q1 — I3 §9.3 snake_case taxonomy: **STALE**
+
+[Inference] I3 §9.3's `secretariat_decision_approved/rejected/amended` event names are stale. Evidence:
+- B3 §6.4 explicitly marks `document.secretariat_decision` as **removed** per ADR-B2-3
+- ADR-API-003 mandates Secretariat decisions route through the Workflow Router, emitting `workflow.step.completed` with `outcome` carrying the decision result
+- I3 §9.3 has not been updated to reflect this consolidation
+
+**Decision**: Do not add `secretariat_decision_*` event names to EventPayloadMap. They are superseded by `workflow.step.completed` with outcome-based discrimination. Log this as a findings-log entry flagging the I3 staleness.
+
+### Q2 — Canonical step-completed shape: **CONSOLIDATE TO DOT NOTATION**
+
+[Inference] B3 §8's Master Event Registry lists `workflow.step.completed` (dot notation) as canonical. B2's Master Event Bus Registry also lists `workflow.step.completed` (dot). The underscore variant `workflow.step_completed` appears only in B2's registry as `workflow.step_assigned` + `workflow.step.completed` (note: B2 lists dot form for completed).
+
+**Decision**:
+- `workflow.step.completed` (dot) is the **canonical key** — matches B3 §8, matches what the router already emits
+- `workflow.step_completed` (underscore) is a **legacy key** — keep in EventPayloadMap temporarily as an alias to avoid breaking consumers, but mark deprecated
+- Migrate audit consumer and tracking consumer to subscribe to the dot-notation key
+- Both payload shapes need reconciliation: the dot-notation inline type has 6 step-centric fields (`instanceId, stepInstanceId, stepId, stepType, outcome, comment`), while the underscore version has 9 document-centric fields. The consumers need `documentId`, `actorId`, etc. from the underscore shape. **The fix**: expand the dot-notation payload type to include the fields consumers actually need, then update emit sites to populate them.
+
+### Q3 — Timer job EventBus wiring: **ADD EMIT, PRESERVE CURRENT KEY NAMES**
+
+[Inference] The three timer jobs already use event names that match B3 §8's canonical list exactly:
+- `workflow.approval.lapsed` ✓ (B3 §8)
+- `workflow.panlalawigan.deemed_approved` ✓ (B3 §8)
+- `workflow.multi_referral.cutoff_missed` ✓ (B3 §8)
+- `workflow.multi_referral.second_reading_eligible` ✓ (B3 §8)
+
+**Decision**:
+- Add these event names to EventPayloadMap with typed payloads
+- Add EventBus emit calls to mayor-lapse and panlalawigan timer jobs (they already have `eventBus` in deps via `StepResolutionDeps`)
+- Thursday-cutoffs: **do not add EventBus wiring** — its deps type intentionally excludes `eventBus`. Log this as a findings-log entry for human review on whether it should be wired.
+
+### Q4 — `workflow.step.started` field gap: **LOG ONLY, DO NOT FIX**
+
+[Inference] B3 §7.11 specifies fields `stepKey`, `assignedTo`, `documentId` for `WorkflowStepStartedPayload`. The actual implementation has `stepId` (not `stepKey`), no `assignedTo`, no `documentId`. Whether `stepId` = `stepKey` is ambiguous.
+
+**Decision**: This is a payload-shape discrepancy, not a type-erasure issue. It does not cause runtime failures (the payload type is already in EventPayloadMap, just with different fields). Log it as a findings-log entry for human review. Do not change the payload shape as part of this task.
+
+---
+
+## Proposed Changes
+
+### EventPayloadMap (`packages/shared/src/events/event-payload-map.ts`)
+
+#### [MODIFY] [event-payload-map.ts](file:///home/lukexodus/projects/batac-dms/packages/shared/src/events/event-payload-map.ts)
+
+1. **Expand `workflow.step.completed` payload** to include fields consumers need:
+   ```typescript
+   'workflow.step.completed': {
+     instanceId: string;
+     stepInstanceId: string;
+     stepId: string;
+     stepType: string;
+     outcome: string;
+     comment: string | null;
+     // Fields needed by audit + tracking consumers:
+     documentId: string;
+     actorId: string;
+     fromOfficeId: string | null;
+     toOfficeId: string | null;
+     actionDescription: string;
+     cityId: string;
+   };
+   ```
+
+2. **Mark `workflow.step_completed` deprecated** with a comment pointing to dot notation:
+   ```typescript
+   /** @deprecated Use 'workflow.step.completed' — this underscore variant is retained for backward compatibility only. */
+   'workflow.step_completed': WorkflowStepCompletedPayload;
+   ```
+
+3. **Add 15 missing canonical event names** from B3 §8 with appropriate payload types:
+   - `workflow.instance.cancelled`: `{ instanceId, documentId, reason, cancelledBy }`
+   - `workflow.instance.suspended`: `Stub`
+   - `workflow.instance.resumed`: `Stub`
+   - `workflow.instance.migration.started`: `{ instanceId, documentId, fromDefinitionVersionId, toDefinitionVersionId }`
+   - `workflow.instance.migration.completed`: `{ instanceId, documentId }`
+   - `workflow.instance.migration.reversed`: `Stub`
+   - `workflow.step.bypassed`: `{ instanceId, stepInstanceId, stepId, outcomeCode, actorId }`
+   - `workflow.multi_referral.committee_submitted`: `Stub`
+   - `workflow.multi_referral.all_submitted`: `Stub`
+   - `workflow.multi_referral.cutoff_missed`: `{ instanceId, stepInstanceId }`
+   - `workflow.multi_referral.second_reading_eligible`: `{ instanceId, stepInstanceId }`
+   - `workflow.multi_referral.secretary_advanced`: `Stub`
+   - `workflow.approval.lapsed`: `{ instanceId, stepInstanceId }`
+   - `workflow.panlalawigan.deemed_approved`: `{ instanceId, documentId }`
+   - `workflow.certification_urgency.bypass_applied`: `{ instanceId, stepInstanceId }`
+   - `workflow.certification_urgency.bypass_deferred`: `{ instanceId }`
+   - `workflow.certification_urgency.already_past_referral`: `{ instanceId }`
+   - `workflow.certification_urgency.already_inactive`: `{ instanceId }`
+
+4. **Add 6 SLA event names** (3 step-level + 3 instance-level):
+   - `workflow.sla.warning`: `{ stepInstanceId, slaDeadline, percentElapsed }`
+   - `workflow.sla.breached`: `{ stepInstanceId, slaDeadline, breachDetectedAt, breachedAt }`
+   - `workflow.sla.critical`: `{ stepInstanceId, slaDeadline }`
+   - `workflow.instance.sla.warning`: `{ slaDeadline, percentElapsed }`
+   - `workflow.instance.sla.breached`: `{ slaDeadline, breachDetectedAt, breachedAt }`
+   - `workflow.instance.sla.critical`: `{ slaDeadline }`
+
+5. **Update header comment** from "18 typed entries" to reflect actual count.
+
+---
+
+### workflow.router.ts (`apps/server/src/modules/workflow/workflow.router.ts`)
+
+#### [MODIFY] [workflow.router.ts](file:///home/lukexodus/projects/batac-dms/apps/server/src/modules/workflow/workflow.router.ts)
+
+1. **Replace 21 `const server = ctx.req.server as any` declarations** with typed access. The reference pattern from [documents.plugin.ts](file:///home/lukexodus/projects/batac-dms/apps/server/src/modules/documents/documents.plugin.ts) line 145 uses `fastify.eventBus.emit(...)` directly. In tRPC router context, the equivalent is `ctx.req.server.eventBus` — but we need the Fastify instance to be properly typed with `eventBus`.
+
+   **Approach**: Import the `EventBus` type, then access `(ctx.req.server as FastifyInstance).eventBus` or — if Fastify decoration typing is already set up — use `ctx.req.server.eventBus` directly. This eliminates the `as any` specifically for eventBus access. Other `as any` casts (e.g., `tx as any` for Drizzle transaction typing) are out of scope for this task.
+
+2. **Update all 17 `workflow.step.completed` emit payloads** to include the expanded fields (`documentId`, `actorId`, `fromOfficeId`, `toOfficeId`, `actionDescription`, `cityId`) that the audit and tracking consumers expect. These values should be available in the procedure's local scope from the step context fetched earlier in each procedure.
+
+3. **Update the 4 non-step-completed emits** (`workflow.instance.cancelled`, `workflow.step.bypassed`, `workflow.instance.migration.started`, `workflow.instance.migration.completed`) to use the now-listed EventPayloadMap keys without `as any`.
+
+---
+
+### SLA Breaches (`apps/server/src/modules/workflow/jobs/evaluate-sla-breaches.ts`)
+
+#### [MODIFY] [evaluate-sla-breaches.ts](file:///home/lukexodus/projects/batac-dms/apps/server/src/modules/workflow/jobs/evaluate-sla-breaches.ts)
+
+1. **Remove `as any` cast** from `deps.eventBus.emit(evt.type as any, ...)` — once the 6 SLA event names are added to EventPayloadMap, the cast is no longer needed.
+2. **Type the `emittedEvents` array** instead of `Array<{ type: string; payload: any }>`.
+3. **Make `eventBus` non-optional** in `EvaluateSlaBreachesDeps` if the plugin call site always provides it (verify).
+
+---
+
+### Timer Jobs
+
+#### [MODIFY] [evaluate-mayor-lapse-timers.ts](file:///home/lukexodus/projects/batac-dms/apps/server/src/modules/workflow/jobs/evaluate-mayor-lapse-timers.ts)
+Add `deps.eventBus.emit('workflow.approval.lapsed', envelope)` after the `createWorkflowEvent` call, following the same post-transaction pattern as `evaluate-sla-breaches.ts`.
+
+#### [MODIFY] [evaluate-panlalawigan-timers.ts](file:///home/lukexodus/projects/batac-dms/apps/server/src/modules/workflow/jobs/evaluate-panlalawigan-timers.ts)
+Add `deps.eventBus.emit('workflow.panlalawigan.deemed_approved', envelope)` after the `createWorkflowEvent` call.
+
+#### evaluate-thursday-cutoffs.ts — **NO CHANGE**
+Its deps type intentionally excludes `eventBus`. Wiring it would require a plugin-level change. Logged for human review.
+
+---
+
+### Audit Consumer (`apps/server/src/modules/audit/audit.event-consumer.ts`)
+
+#### [MODIFY] [audit.event-consumer.ts](file:///home/lukexodus/projects/batac-dms/apps/server/src/modules/audit/audit.event-consumer.ts)
+
+1. **Change `workflow.step_completed` subscription to `workflow.step.completed`** (dot notation) — the canonical key.
+2. **Update field access** in the handler to match the expanded payload shape (e.g., `getString(e.payload, 'actorId')` instead of `getString(e.payload, 'completerId', 'actorId')`).
+3. **Add subscriptions for new event names** that should generate audit entries: `workflow.approval.lapsed`, `workflow.panlalawigan.deemed_approved`, `workflow.instance.cancelled`, `workflow.step.bypassed`. These are compliance-relevant events per B3 §8.
+
+---
+
+### Tracking Consumer (`apps/server/src/modules/tracking/tracking.event-consumer.ts`)
+
+#### [MODIFY] [tracking.event-consumer.ts](file:///home/lukexodus/projects/batac-dms/apps/server/src/modules/tracking/tracking.event-consumer.ts)
+Change subscription from `workflow.step_completed` to `workflow.step.completed`.
+
+#### [MODIFY] [tracking.plugin.ts](file:///home/lukexodus/projects/batac-dms/apps/server/src/modules/tracking/tracking.plugin.ts)
+Update the event name string in the plugin registration.
+
+---
+
+## Out of Scope
+
+> [!IMPORTANT]
+> The following items are explicitly **not** in scope for this fix. Each gets a findings-log entry.
+
+| Item | Reason |
+|------|--------|
+| Pattern A/B/C structural refactor (LOG-0059) | Broad architecture change — separate task |
+| `workflow.step.started` field gap vs B3 §7.11 (Q4) | Payload-shape discrepancy, not type-erasure |
+| Thursday-cutoffs EventBus wiring | Intentional deps exclusion — needs human decision |
+| `certified-urgent-bypass.handler.ts` EventBus wiring | Uses `createWorkflowEvent` intentionally (transactional); different pattern from router |
+| I3 §9.3 `secretariat_decision_*` taxonomy update | Stale document section — needs human-initiated doc edit |
+| `tx as any` casts (Drizzle transaction typing) | Separate typing issue, not event-related |
+
+---
+
+## Verification Plan
+
+### Automated Tests
+```bash
+# Type safety — the primary gate for this fix
+pnpm --filter server typecheck
+pnpm --filter @batac/shared typecheck
+
+# Existing tests must still pass
+pnpm --filter server test
+
+# Specific consumer tests
+pnpm --filter server test -- --grep "audit.event-consumer"
+pnpm --filter server test -- --grep "tracking"
+```
+
+### Manual Verification
+1. Verify that `grep -c 'as any' workflow.router.ts` count decreases by at least 21 (the server casts)
+2. Verify that `grep 'workflow.step_completed' audit.event-consumer.ts` returns 0 (migrated to dot notation)
+3. Verify that all event names in B3 §8's canonical list have a corresponding key in `EventPayloadMap`
+4. Verify that `grep -c 'as any' evaluate-sla-breaches.ts` returns 0
+
+### Findings-Log Entries
+Append entries for:
+- Q1: I3 §9.3 staleness finding
+- Q4: `workflow.step.started` field gap
+- Thursday-cutoffs EventBus exclusion
+- B2 header comment staleness in EventPayloadMap
+
+---
+
