@@ -14,7 +14,7 @@ export const workflowKeys = {
 
   // ── workflow.listMyAssignedSteps ──────────────────────────────────────────
   mySteps: () => [['workflow', 'listMyAssignedSteps']] as const,
-  myStepsList: (input: { cursor?: string | null; pageSize?: number; stepKeyIn?: string[] }) =>
+  myStepsList: (input: { cursor?: string | null; limit?: number; stepKeyIn?: string[] }) =>
     [['workflow', 'listMyAssignedSteps'], { input, type: 'query' as const }] as const,
 
   // ── workflow.getSlaComplianceData ─────────────────────────────────────────

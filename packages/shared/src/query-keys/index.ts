@@ -1,5 +1,5 @@
 export { iamKeys } from './iam.keys.js';
-export { orgKeys } from './org.keys.js';
+export { orgKeys } from './organization.keys.js';
 export { documentKeys } from './document.keys.js';
 export { workflowKeys } from './workflow.keys.js';
 export { trackingKeys } from './tracking.keys.js';
@@ -8,4 +8,4 @@ export { recordsKeys } from './records.keys.js';
 export { notificationKeys } from './notification.keys.js';
 export { auditKeys } from './audit.keys.js';
 export { complaintKeys } from './complaint.keys.js';
-export { documentRequestKeys } from './document-request.keys.js';
+export { documentRequestKeys } from './documentRequest.keys.js';

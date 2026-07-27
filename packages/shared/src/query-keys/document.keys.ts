@@ -50,4 +50,18 @@ export const documentKeys = {
   scanQualities: () => [['documents', 'getScanQualityIndicator']] as const,
   scanQuality: (versionId: string) =>
     [['documents', 'getScanQualityIndicator'], { input: { versionId }, type: 'query' as const }] as const,
+
+  // ── documents.getPanlalawiganReview ───────────────────────────────────────
+  // Not in F3's original documentKeys spec — added because the procedure
+  // exists in the live router and was previously uncovered.
+  panlalawiganReviews: () => [['documents', 'getPanlalawiganReview']] as const,
+  panlalawiganReview: (documentId: string) =>
+    [['documents', 'getPanlalawiganReview'], { input: { documentId }, type: 'query' as const }] as const,
+
+  // ── documents.getSignatureRecords ─────────────────────────────────────────
+  // Not in F3's original documentKeys spec — added because the procedure
+  // exists in the live router and was previously uncovered.
+  signatureRecordsList: () => [['documents', 'getSignatureRecords']] as const,
+  signatureRecords: (documentId: string) =>
+    [['documents', 'getSignatureRecords'], { input: { documentId }, type: 'query' as const }] as const,
 } as const;
