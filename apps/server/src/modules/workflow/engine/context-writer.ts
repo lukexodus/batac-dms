@@ -58,7 +58,7 @@ export async function writeTimerContextIfTriggered(
   const previousValues = instance.context as Record<string, unknown>;
 
   // Merge the new values into the instance context using repository JSONB merge
-  await deps.workflowRepository.updateInstanceContext(instance.id, newValues, trx as any);
+  await deps.workflowRepository.updateInstanceContext(instance.id, newValues, trx);
 
   // Emit workflow.context.updated within the same transaction
   await deps.workflowRepository.createWorkflowEvent(
@@ -78,6 +78,6 @@ export async function writeTimerContextIfTriggered(
         actorId,
       },
     },
-    trx as any,
+    trx,
   );
 }

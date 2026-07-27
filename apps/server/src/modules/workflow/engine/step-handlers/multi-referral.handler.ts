@@ -22,7 +22,7 @@ export async function submitCommitteeReport(
 
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any,
+    trx,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
@@ -64,7 +64,7 @@ export async function submitCommitteeReport(
   }
   metadata['submissions'] = submissions;
 
-  await deps.workflowRepository.updateStepInstance(stepInstance.id, { metadata }, trx as any);
+  await deps.workflowRepository.updateStepInstance(stepInstance.id, { metadata }, trx);
 
   await deps.workflowRepository.createWorkflowEvent(
     {
@@ -79,7 +79,7 @@ export async function submitCommitteeReport(
         contributionDocumentId: contributionDocId,
       },
     },
-    trx as any,
+    trx,
   );
 
   if (isLast) {
@@ -95,7 +95,7 @@ export async function submitCommitteeReport(
           allSubmittedAt: metadata['all_submitted_at'],
         },
       },
-      trx as any,
+      trx,
     );
   }
 }
@@ -116,7 +116,7 @@ export async function submitStepMultiReferral(
 
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any,
+    trx,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
@@ -154,7 +154,7 @@ export async function submitStepMultiReferral(
     if (metadata['second_reading_eligible_date']) {
       const context = { ...(instance.context as Record<string, any>) };
       context['second_reading_eligible_date'] = metadata['second_reading_eligible_date'];
-      await deps.workflowRepository.updateInstanceContext(instance.id, context, trx as any);
+      await deps.workflowRepository.updateInstanceContext(instance.id, context, trx);
       // Wait, updateInstanceContext merges using ||, so this is fine.
     }
 
@@ -167,7 +167,7 @@ export async function submitStepMultiReferral(
         completedAt: now,
         metadata,
       },
-      trx as any,
+      trx,
     );
   } else if (outcome === 'SECRETARY_ADVANCED') {
     if (config['allow_secretary_advance'] !== true) {
@@ -205,7 +205,7 @@ export async function submitStepMultiReferral(
         completedAt: now,
         metadata,
       },
-      trx as any,
+      trx,
     );
 
     await deps.workflowRepository.createWorkflowEvent(
@@ -222,7 +222,7 @@ export async function submitStepMultiReferral(
           metadataSnapshot: metadata,
         },
       },
-      trx as any,
+      trx,
     );
   } else if (outcome === 'BYPASSED_CERTIFIED_URGENT') {
     await deps.workflowRepository.updateStepInstance(
@@ -233,7 +233,7 @@ export async function submitStepMultiReferral(
         outcomeComment: comment,
         completedAt: now,
       },
-      trx as any,
+      trx,
     );
   } else {
     throw new Error(
@@ -256,12 +256,12 @@ export async function submitStepMultiReferral(
         comment,
       },
     },
-    trx as any,
+    trx,
   );
 
   const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
     stepInstance.id,
-    trx as any,
+    trx,
   );
   if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 
@@ -291,5 +291,5 @@ export async function updateAssignedCommittees(
 
   metadata['assigned_committees'] = newAssignedCommittees;
 
-  await deps.workflowRepository.updateStepInstance(stepInstance.id, { metadata }, trx as any);
+  await deps.workflowRepository.updateStepInstance(stepInstance.id, { metadata }, trx);
 }

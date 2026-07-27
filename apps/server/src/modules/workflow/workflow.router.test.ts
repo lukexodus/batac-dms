@@ -1151,7 +1151,7 @@ describe('TASK-WF-021 Procedures', () => {
 
     it('is idempotent: second call returns success without creating a duplicate audit entry', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
-      const caller = callerFor(ctx as any);
+      const caller = callerFor(ctx);
 
       // Already-confirmed metadata
       const alreadyConfirmedMetadata = { lapse_confirmed_at: new Date().toISOString() };
@@ -1176,7 +1176,7 @@ describe('TASK-WF-021 Procedures', () => {
 
     it('writes audit metadata and creates workflow event on first confirmation', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
-      const caller = callerFor(ctx as any);
+      const caller = callerFor(ctx);
 
       // No previous confirmation
       mockLockStepInstanceForUpdate.mockResolvedValue({
@@ -1411,7 +1411,7 @@ describe('TASK-WF-021 Procedures', () => {
 
     it('resolve_as_is → maps to RESOLVED_IN_PLACE outcome and is audit-logged', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
-      const caller = callerFor(ctx as any);
+      const caller = callerFor(ctx);
       setupResolveValidInPartMocks('resolve_as_is');
 
       const result = await caller.resolveValidInPart({
@@ -1438,7 +1438,7 @@ describe('TASK-WF-021 Procedures', () => {
 
     it('route_to_legal → maps to ROUTED_TO_LEGAL outcome', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
-      const caller = callerFor(ctx as any);
+      const caller = callerFor(ctx);
       setupResolveValidInPartMocks('route_to_legal');
 
       const result = await caller.resolveValidInPart({
@@ -1457,7 +1457,7 @@ describe('TASK-WF-021 Procedures', () => {
       (ctx.req.server as any).organizationService.getCommitteeChair = vi
         .fn()
         .mockResolvedValue({ userId: CHAIR_USER_ID });
-      const caller = callerFor(ctx as any);
+      const caller = callerFor(ctx);
       setupResolveValidInPartMocks('route_to_committee');
 
       const result = await caller.resolveValidInPart({
@@ -1478,7 +1478,7 @@ describe('TASK-WF-021 Procedures', () => {
 
     it('implement_directly → maps to REVISED_DIRECTLY outcome', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
-      const caller = callerFor(ctx as any);
+      const caller = callerFor(ctx);
       setupResolveValidInPartMocks('implement_directly');
 
       const result = await caller.resolveValidInPart({
@@ -1675,7 +1675,7 @@ describe('TASK-WF-021 Procedures', () => {
 
     it('writes publication_date and publication_newspaper to context for SP_ORDINANCE', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
-      const caller = callerFor(ctx as any);
+      const caller = callerFor(ctx);
       mockGetActiveInstanceForDocument.mockResolvedValue({
         id: INSTANCE_ID,
         documentId: DOCUMENT_ID,

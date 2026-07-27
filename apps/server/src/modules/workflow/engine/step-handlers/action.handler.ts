@@ -28,7 +28,7 @@ export async function submitStepAction(
 
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any,
+    trx,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
@@ -48,7 +48,7 @@ export async function submitStepAction(
   await deps.workflowRepository.updateStepInstance(
     stepInstance.id,
     { status: 'completed', completedAt: now, outcome: 'DONE' },
-    trx as any,
+    trx,
   );
 
   // Invoke context writer (for timer flags, etc.)
@@ -69,13 +69,13 @@ export async function submitStepAction(
         comment,
       },
     },
-    trx as any,
+    trx,
   );
 
   // Refresh stepInstance state before resolving next step
   const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
     stepInstance.id,
-    trx as any,
+    trx,
   );
   if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 
@@ -90,7 +90,7 @@ export async function autoCompleteActionStep(
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any,
+    trx,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
@@ -102,7 +102,7 @@ export async function autoCompleteActionStep(
   await deps.workflowRepository.updateStepInstance(
     stepInstance.id,
     { status: 'completed', completedAt: now, outcome: 'DONE' },
-    trx as any,
+    trx,
   );
 
   // Invoke context writer (for timer flags, etc.), actorId is null for system
@@ -123,12 +123,12 @@ export async function autoCompleteActionStep(
         comment: null,
       },
     },
-    trx as any,
+    trx,
   );
 
   const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
     stepInstance.id,
-    trx as any,
+    trx,
   );
   if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 

@@ -24,7 +24,7 @@ export async function submitStepApproval(
 
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any,
+    trx,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
@@ -106,13 +106,13 @@ export async function submitStepApproval(
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
       { status: 'returned', completedAt: now, outcome, outcomeComment: comment },
-      trx as any,
+      trx,
     );
   } else {
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
       { status: 'completed', completedAt: now, outcome, outcomeComment: comment },
-      trx as any,
+      trx,
     );
   }
 
@@ -131,12 +131,12 @@ export async function submitStepApproval(
         comment,
       },
     },
-    trx as any,
+    trx,
   );
 
   const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
     stepInstance.id,
-    trx as any,
+    trx,
   );
   if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 

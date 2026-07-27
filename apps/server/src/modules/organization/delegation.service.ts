@@ -285,28 +285,6 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
         },
       });
 
-      // ── Step 7: Write audit event directly ─────────────────────────────────
-      // Direct call approved by AuditPublicAPI docs for callers that need
-      // atomicity guarantees between their write and the audit record.
-      // Source: TASK-ORG-005 AI Prompt; audit/index.ts AuditPublicAPI comment.
-      await deps.auditService.writeEvent({
-        eventType: 'delegation_grant.created',
-        actorId: subject.userId,
-        targetId: grant.id,
-        targetType: 'delegation_grant',
-        resourceOfficeId: null, // cross-office grants have no single owning office
-        payload: {
-          delegationId: grant.id,
-          designationDocumentId: grant.designationDocumentId,
-          delegatingEmployeeId: grant.delegatingEmployeeId,
-          delegatedToEmployeeId: grant.delegatedToEmployeeId,
-          officeId: grant.officeId,
-          positionId: grant.positionId,
-          startDate: grant.startDate,
-          endDate: grant.endDate,
-        },
-        cityId: input.cityId,
-      });
 
       // ── Step 8: Schedule expiry job ─────────────────────────────────────────
       await deps.boss.send(
@@ -431,26 +409,6 @@ export function createDelegationService(deps: DelegationServiceDeps): Delegation
         },
       });
 
-      // Step 4: Write audit event directly
-      await deps.auditService.writeEvent({
-        eventType: 'delegation_grant.revoked_early',
-        actorId: subject.userId,
-        targetId: grant.id,
-        targetType: 'delegation_grant',
-        resourceOfficeId: grant.officeId, // cross-office grants have no single owning office
-        payload: {
-          delegationId: grant.id,
-          designationDocumentId: grant.designationDocumentId,
-          writtenInstructionReference: input.writtenInstructionReference,
-          delegatingEmployeeId: grant.delegatingEmployeeId,
-          delegatedToEmployeeId: grant.delegatedToEmployeeId,
-          officeId: grant.officeId,
-          positionId: grant.positionId,
-          revokedAt: now.toISOString(),
-          revokedBy: subject.userId,
-        },
-        cityId: grant.cityId,
-      });
 
       return updatedGrant as DelegationGrantRow;
     },

@@ -73,20 +73,6 @@ export async function registerDelegationExpiryJob(deps: {
         },
       });
 
-      // 4. Emit audit event
-      await auditService.writeEvent({
-        eventType: 'delegation_grant.expired',
-        actorId: null, // system-initiated
-        targetId: grant.id,
-        targetType: 'delegation_grant',
-        resourceOfficeId: null, // cross-office grants have no single owning office
-        payload: {
-          delegationId: grant.id,
-          designationDocumentId: grant.designationDocumentId,
-          expiredAt: now.toISOString(),
-        },
-        cityId: grant.cityId,
-      });
     });
   });
 }

@@ -25,3 +25,14 @@ import { drizzle } from 'drizzle-orm/postgres-js';
  *   ```
  */
 export type AppDb = ReturnType<typeof drizzle>;
+
+/**
+ * The Drizzle transaction type inferred from AppDb's transaction callback.
+ */
+export type AppTx = Parameters<Parameters<AppDb['transaction']>[0]>[0];
+
+/**
+ * Union type for methods that can accept either the root AppDb or an active transaction.
+ * Use this to avoid `tx as any` casting in repositories and routers.
+ */
+export type TxOrDb = AppDb | AppTx;

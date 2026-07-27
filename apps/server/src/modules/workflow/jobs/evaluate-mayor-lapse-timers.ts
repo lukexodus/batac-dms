@@ -107,7 +107,7 @@ export async function evaluateMayorLapseTimers(
       if (!updatedInstance) throw new Error('Instance not found during lapse execution');
 
       // 6. Run step resolution
-      await resolveNextStep(updatedInstance, updatedStepInstance, 'LAPSED', deps, tx as any);
+      await resolveNextStep(updatedInstance, updatedStepInstance, 'LAPSED', deps, tx);
       
       didLapse = true;
     });

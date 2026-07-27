@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { WorkflowRepository } from '../workflow.repository.js';
 import { resolveNextStep, type StepResolutionDeps } from './step-resolution.js';
 
@@ -20,8 +21,10 @@ export async function processCertificationUrgencyEvent(
 
   for (const instanceId of associatedInstanceIds) {
     try {
+      const emittedEvents: Array<{ type: string; payload: any; cityId: string }> = [];
+
       await deps.db.transaction(async (trx) => {
-        const instance = await deps.workflowRepository.getInstanceById(instanceId, trx as any);
+        const instance = await deps.workflowRepository.getInstanceById(instanceId, trx);
         if (!instance) {
           throw new Error(`Instance ${instanceId} not found`);
         }
@@ -39,8 +42,18 @@ export async function processCertificationUrgencyEvent(
                 certificationDocumentId,
               },
             },
-            trx as any,
+            trx,
           );
+          
+          emittedEvents.push({
+            type: 'workflow.certification_urgency.already_inactive',
+            cityId: instance.cityId,
+            payload: {
+              instanceId,
+              instanceStatus: instance.status,
+              certificationDocumentId,
+            }
+          });
           return;
         }
 
@@ -49,7 +62,7 @@ export async function processCertificationUrgencyEvent(
           certified_urgent: true,
           certified_urgent_document_id: certificationDocumentId,
         };
-        await deps.workflowRepository.updateInstanceContext(instanceId, patch, trx as any);
+        await deps.workflowRepository.updateInstanceContext(instanceId, patch, trx);
 
         await deps.workflowRepository.createWorkflowEvent(
           {
@@ -68,19 +81,34 @@ export async function processCertificationUrgencyEvent(
               actorId: loggedBy,
             },
           },
-          trx as any,
+          trx,
         );
+
+        emittedEvents.push({
+          type: 'workflow.context.updated',
+          cityId: instance.cityId,
+          payload: {
+            instanceId,
+            updatedKeys: ['certified_urgent', 'certified_urgent_document_id'],
+            previousValues: {
+              certified_urgent: false,
+              certified_urgent_document_id: null,
+            },
+            newValues: patch,
+            actorId: loggedBy,
+          }
+        });
 
         // We must re-fetch instance to pass the updated one to resolveNextStep, if Case A fires
         const updatedInstance = await deps.workflowRepository.getInstanceById(
           instanceId,
-          trx as any,
+          trx,
         );
         if (!updatedInstance) throw new Error('Failed to retrieve updated instance');
 
         const stepInstance = await deps.workflowRepository.getMultiReferralStepInstanceForInstance(
           instanceId,
-          trx as any,
+          trx,
         );
         if (!stepInstance) {
           throw new Error(`No multi_referral step found for instance ${instanceId}`);
@@ -98,7 +126,7 @@ export async function processCertificationUrgencyEvent(
               bypassReason: 'CERTIFIED_URGENT',
               outcome: 'BYPASSED_CERTIFIED_URGENT',
             },
-            trx as any,
+            trx,
           );
 
           await deps.workflowRepository.createWorkflowEvent(
@@ -114,8 +142,19 @@ export async function processCertificationUrgencyEvent(
                 bypassedBy: null,
               },
             },
-            trx as any,
+            trx,
           );
+
+          emittedEvents.push({
+            type: 'workflow.step.bypassed',
+            cityId: instance.cityId,
+            payload: {
+              instanceId,
+              stepInstanceId: stepInstance.id,
+              bypassReason: 'CERTIFIED_URGENT',
+              bypassedBy: null,
+            }
+          });
 
           await deps.workflowRepository.createWorkflowEvent(
             {
@@ -129,12 +168,22 @@ export async function processCertificationUrgencyEvent(
                 certificationDocumentId,
               },
             },
-            trx as any,
+            trx,
           );
+
+          emittedEvents.push({
+            type: 'workflow.certification_urgency.bypass_applied',
+            cityId: instance.cityId,
+            payload: {
+              instanceId,
+              stepInstanceId: stepInstance.id,
+              certificationDocumentId,
+            }
+          });
 
           const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
             stepInstance.id,
-            trx as any,
+            trx,
           );
           if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 
@@ -143,7 +192,7 @@ export async function processCertificationUrgencyEvent(
             updatedStepInstance,
             'BYPASSED_CERTIFIED_URGENT',
             deps,
-            trx as any,
+            trx,
           );
         } else if (stepInstance.status === 'pending') {
           // CASE B
@@ -153,7 +202,7 @@ export async function processCertificationUrgencyEvent(
               stepKey: 'committee_referral',
               certificationDocumentId,
             },
-            trx as any,
+            trx,
           );
 
           await deps.workflowRepository.createWorkflowEvent(
@@ -167,8 +216,17 @@ export async function processCertificationUrgencyEvent(
                 certificationDocumentId,
               },
             },
-            trx as any,
+            trx,
           );
+
+          emittedEvents.push({
+            type: 'workflow.certification_urgency.bypass_deferred',
+            cityId: instance.cityId,
+            payload: {
+              instanceId,
+              certificationDocumentId,
+            }
+          });
         } else if (
           stepInstance.status === 'completed' ||
           stepInstance.status === 'bypassed' ||
@@ -186,10 +244,31 @@ export async function processCertificationUrgencyEvent(
                 certificationDocumentId,
               },
             },
-            trx as any,
+            trx,
           );
+
+          emittedEvents.push({
+            type: 'workflow.certification_urgency.already_past_referral',
+            cityId: instance.cityId,
+            payload: {
+              instanceId,
+              certificationDocumentId,
+            }
+          });
         }
       });
+      
+      for (const evt of emittedEvents) {
+        deps.eventBus.emit(evt.type as any, {
+          eventId: randomUUID(),
+          eventType: evt.type,
+          occurredAt: new Date().toISOString(),
+          cityId: evt.cityId,
+          schemaVersion: 1,
+          payload: evt.payload,
+        } as any);
+      }
+
     } catch (error) {
       // One failure should not block others. Log the error.
       console.error(`Failed to process Certified Urgent bypass for instance ${instanceId}:`, error);

@@ -892,8 +892,8 @@ export function createWorkflowRouter() {
             stepInstance,
             ctx.auth!.userId,
             comment,
-            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
           );
         });
 
@@ -979,8 +979,8 @@ export function createWorkflowRouter() {
             'user',
             'APPROVED',
             comment,
-            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
           );
         });
 
@@ -1077,8 +1077,8 @@ export function createWorkflowRouter() {
             'user',
             outcome,
             remarks,
-            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
           );
         });
 
@@ -1161,8 +1161,8 @@ export function createWorkflowRouter() {
             'user',
             'REJECTED',
             comment,
-            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
           );
         });
 
@@ -1245,8 +1245,8 @@ export function createWorkflowRouter() {
             'user',
             'RETURNED_FOR_REVISION',
             comment,
-            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
           );
         });
 
@@ -1332,7 +1332,7 @@ export function createWorkflowRouter() {
         let isCompleted = false;
 
         await ctx.db.transaction(async (tx) => {
-          const txWorkflowRepo = new WorkflowRepository(tx as any);
+          const txWorkflowRepo = new WorkflowRepository(tx);
 
           await engineSubmitCommitteeReport(
             instance,
@@ -1340,8 +1340,8 @@ export function createWorkflowRouter() {
             committeeId,
             ctx.auth!.userId,
             contributionDocId,
-            { ...deps, db: tx as any, workflowRepository: txWorkflowRepo },
-            tx as any,
+            { ...deps, db: tx, workflowRepository: txWorkflowRepo },
+            tx,
           );
 
           // After submitting, check if all committees have submitted.
@@ -1349,7 +1349,7 @@ export function createWorkflowRouter() {
           // inside this transaction to check the updated submissions array.
           const freshStepInstance = await txWorkflowRepo.getStepInstanceById(
             stepInstanceId,
-            tx as any,
+            tx,
           );
           if (!freshStepInstance) {
             throw new TRPCError({
@@ -1426,11 +1426,11 @@ export function createWorkflowRouter() {
         };
 
         await ctx.db.transaction(async (tx) => {
-          const txWorkflowRepo = new WorkflowRepository(tx as any);
+          const txWorkflowRepo = new WorkflowRepository(tx);
 
           const freshStepInstance = await txWorkflowRepo.getStepInstanceById(
             stepInstanceId,
-            tx as any,
+            tx,
           );
           if (!freshStepInstance) {
             throw new TRPCError({
@@ -1445,7 +1445,7 @@ export function createWorkflowRouter() {
           await txWorkflowRepo.updateStepInstance(
             stepInstanceId,
             { metadata: freshMetadata },
-            tx as any,
+            tx,
           );
 
           await submitStepMultiReferral(
@@ -1455,8 +1455,8 @@ export function createWorkflowRouter() {
             'user',
             'REPORT_ACCEPTED',
             null,
-            { ...deps, db: tx as any, workflowRepository: txWorkflowRepo },
-            tx as any,
+            { ...deps, db: tx, workflowRepository: txWorkflowRepo },
+            tx,
           );
         });
 
@@ -1539,8 +1539,8 @@ export function createWorkflowRouter() {
             'user',
             'SECRETARY_ADVANCED',
             mandatoryComment,
-            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
           );
         });
 
@@ -1625,8 +1625,8 @@ export function createWorkflowRouter() {
             'user',
             'SIGNED',
             null,
-            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
           );
         });
 
@@ -1707,8 +1707,8 @@ export function createWorkflowRouter() {
             'user',
             'SIGNED',
             null,
-            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
           );
         });
 
@@ -1794,8 +1794,8 @@ export function createWorkflowRouter() {
             'user',
             'VETOED',
             input.objectionsText,
-            { ...deps, db: tx as any, workflowRepository: new WorkflowRepository(tx as any) },
-            tx as any,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
           );
         });
 
@@ -1855,10 +1855,10 @@ export function createWorkflowRouter() {
 
         return await ctx.db.transaction(async (tx) => {
           // Re-fetch with lock to prevent race conditions
-          const txRepo = new WorkflowRepository(tx as any);
+          const txRepo = new WorkflowRepository(tx);
           const lockedStepInstance = await txRepo.lockStepInstanceForUpdate(
             stepInstance.id,
-            tx as any,
+            tx,
           );
           if (!lockedStepInstance) {
             throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
@@ -1876,7 +1876,7 @@ export function createWorkflowRouter() {
           await txRepo.updateStepInstance(
             lockedStepInstance.id,
             { metadata: lockedMetadata },
-            tx as any,
+            tx,
           );
 
           await txRepo.createWorkflowEvent(
@@ -1894,7 +1894,7 @@ export function createWorkflowRouter() {
                 comment: 'Mayor lapse confirmed by SP Secretary',
               },
             },
-            tx as any,
+            tx,
           );
 
           const server = ctx.req.server as any;
@@ -1962,7 +1962,7 @@ export function createWorkflowRouter() {
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
             ...deps,
-            workflowRepository: new WorkflowRepository(tx as any),
+            workflowRepository: new WorkflowRepository(tx),
           };
 
           const patch: Record<string, any> = {
@@ -1974,12 +1974,12 @@ export function createWorkflowRouter() {
           await txDeps.workflowRepository.updateInstanceContext(
             stepContext.instance.id,
             patch,
-            tx as any,
+            tx,
           );
 
           const updatedInstance = await txDeps.workflowRepository.getInstanceById(
             stepContext.instance.id,
-            tx as any,
+            tx,
           );
           if (!updatedInstance) throw new Error('Instance not found');
 
@@ -1991,7 +1991,7 @@ export function createWorkflowRouter() {
             outcome,
             null, // comment — require_comment_on: [] for this step
             txDeps,
-            tx as any,
+            tx,
           );
         });
 
@@ -2047,7 +2047,7 @@ export function createWorkflowRouter() {
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
             ...deps,
-            workflowRepository: new WorkflowRepository(tx as any),
+            workflowRepository: new WorkflowRepository(tx),
           };
 
           await submitStepAction(
@@ -2056,7 +2056,7 @@ export function createWorkflowRouter() {
             ctx.auth.userId,
             null, // comment
             txDeps,
-            tx as any,
+            tx,
           );
         });
 
@@ -2122,7 +2122,7 @@ export function createWorkflowRouter() {
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
             ...deps,
-            workflowRepository: new WorkflowRepository(tx as any),
+            workflowRepository: new WorkflowRepository(tx),
           };
 
           const patch: Record<string, any> = {
@@ -2134,12 +2134,12 @@ export function createWorkflowRouter() {
             patch['panlalawigan_resolution_number'] = input.panlalawiganResolutionNumber;
           if (input.remarks !== undefined) patch['panlalawigan_remarks'] = input.remarks;
 
-          await txDeps.workflowRepository.updateInstanceContext(instance.id, patch, tx as any);
+          await txDeps.workflowRepository.updateInstanceContext(instance.id, patch, tx);
 
           // Refresh instance to get updated context
           const updatedInstance = await txDeps.workflowRepository.getInstanceById(
             instance.id,
-            tx as any,
+            tx,
           );
           if (!updatedInstance) throw new Error('Instance not found');
 
@@ -2151,7 +2151,7 @@ export function createWorkflowRouter() {
             input.outcome,
             input.remarks ?? null,
             txDeps,
-            tx as any,
+            tx,
           );
         });
 
@@ -2255,7 +2255,7 @@ export function createWorkflowRouter() {
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
             ...deps,
-            workflowRepository: new WorkflowRepository(tx as any),
+            workflowRepository: new WorkflowRepository(tx),
           };
 
           if (input.resolutionPath === 'route_to_committee') {
@@ -2302,7 +2302,7 @@ export function createWorkflowRouter() {
                 {
                   referred_committee_chair_id: chair.userId,
                 },
-                tx as any,
+                tx,
               );
             }
           }
@@ -2310,7 +2310,7 @@ export function createWorkflowRouter() {
           // Refresh instance to get updated context (e.g. if we set referred_committee_chair_id)
           const updatedInstance = await txDeps.workflowRepository.getInstanceById(
             instance.id,
-            tx as any,
+            tx,
           );
           if (!updatedInstance) throw new Error('Instance not found');
 
@@ -2322,7 +2322,7 @@ export function createWorkflowRouter() {
             outcome,
             input.mandatoryComment,
             txDeps,
-            tx as any,
+            tx,
           );
         });
 
@@ -2388,10 +2388,10 @@ export function createWorkflowRouter() {
         const server = ctx.req.server as any;
 
         return await ctx.db.transaction(async (tx) => {
-          const txRepo = new WorkflowRepository(tx as any);
+          const txRepo = new WorkflowRepository(tx);
           const lockedStepInstance = await txRepo.lockStepInstanceForUpdate(
             stepInstance.id,
-            tx as any,
+            tx,
           );
           if (!lockedStepInstance) {
             throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
@@ -2408,7 +2408,7 @@ export function createWorkflowRouter() {
           await txRepo.updateStepInstance(
             lockedStepInstance.id,
             { metadata: lockedMetadata },
-            tx as any,
+            tx,
           );
 
           await txRepo.createWorkflowEvent(
@@ -2426,7 +2426,7 @@ export function createWorkflowRouter() {
                 comment: 'Panlalawigan deemed approval confirmed by SP Secretary',
               },
             },
-            tx as any,
+            tx,
           );
 
           if (ctx.req.server.eventBus) {
@@ -2555,7 +2555,7 @@ export function createWorkflowRouter() {
         await ctx.db.transaction(async (tx) => {
           const txDeps = {
             ...deps,
-            workflowRepository: new WorkflowRepository(tx as any),
+            workflowRepository: new WorkflowRepository(tx),
           };
 
           await txDeps.workflowRepository.updateInstanceContext(
@@ -2564,7 +2564,7 @@ export function createWorkflowRouter() {
               publication_date: input.publicationDate.toISOString().split('T')[0],
               publication_newspaper: input.newspaperName,
             },
-            tx as any,
+            tx,
           );
 
           await submitStepAction(
@@ -2573,7 +2573,7 @@ export function createWorkflowRouter() {
             ctx.auth.userId,
             null, // comment
             txDeps,
-            tx as any,
+            tx,
           );
         });
 
@@ -2650,8 +2650,8 @@ export function createWorkflowRouter() {
         const server = ctx.req.server as any;
         await ctx.db.transaction(async (tx) => {
           const deps = {
-            db: tx as any,
-            workflowRepository: new WorkflowRepository(tx as any),
+            db: tx,
+            workflowRepository: new WorkflowRepository(tx),
             documentsService: server.documentsService,
             eventBus: ctx.req.server.eventBus,
             orgService: server.organizationService,
@@ -2701,8 +2701,8 @@ export function createWorkflowRouter() {
         const server = ctx.req.server as any;
         await ctx.db.transaction(async (tx) => {
           const deps = {
-            db: tx as any,
-            workflowRepository: new WorkflowRepository(tx as any),
+            db: tx,
+            workflowRepository: new WorkflowRepository(tx),
             documentsService: server.documentsService,
             eventBus: ctx.req.server.eventBus,
             orgService: server.organizationService,
@@ -2770,8 +2770,8 @@ export function createWorkflowRouter() {
 
         await ctx.db.transaction(async (tx) => {
           const deps = {
-            db: tx as any,
-            workflowRepository: new WorkflowRepository(tx as any),
+            db: tx,
+            workflowRepository: new WorkflowRepository(tx),
             documentsService: server.documentsService,
             eventBus: ctx.req.server.eventBus,
             orgService: server.organizationService,

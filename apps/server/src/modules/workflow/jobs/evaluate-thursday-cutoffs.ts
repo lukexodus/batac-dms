@@ -1,7 +1,10 @@
+import type { EventBus } from '@batac/shared';
 import type { WorkflowRepository } from '../workflow.repository.js';
+import { randomUUID } from 'node:crypto';
 
 export type EvaluateThursdayCutoffsDeps = {
   workflowRepository: WorkflowRepository;
+  eventBus: EventBus;
 };
 
 /**
@@ -56,6 +59,8 @@ export async function evaluateThursdayCutoffs(
       configValue: 'true',
     });
 
+  const emittedEvents: Array<{ type: string; payload: any; cityId: string }> = [];
+
   for (const { instance, stepInstance } of instancesAndSteps) {
     const metadata = (stepInstance.metadata as Record<string, any>) || {};
 
@@ -97,6 +102,17 @@ export async function evaluateThursdayCutoffs(
           cutoffNumber: missedCount,
         },
       });
+
+      emittedEvents.push({
+        type: 'workflow.multi_referral.cutoff_missed',
+        cityId: instance.cityId,
+        payload: {
+          stepInstanceId: stepInstance.id,
+          cutoffTimestamp: cutoffTs.toISOString(),
+          missingCommitteeIds,
+          cutoffNumber: missedCount,
+        },
+      });
     } else {
       const allSubmittedAt = new Date(allSubmittedAtStr);
       // K2 THU-02: <= means exactly-23:59:59 submissions count as before cutoff
@@ -125,7 +141,29 @@ export async function evaluateThursdayCutoffs(
             cutoffTimestampCleared: cutoffTs.toISOString(),
           },
         });
+
+        emittedEvents.push({
+          type: 'workflow.multi_referral.second_reading_eligible',
+          cityId: instance.cityId,
+          payload: {
+            stepInstanceId: stepInstance.id,
+            eligibleDate,
+            cutoffTimestampCleared: cutoffTs.toISOString(),
+          },
+        });
       }
     }
+  }
+
+  for (const evt of emittedEvents) {
+    // TASK-WF-EVT-002: Dynamic dispatch via EventPayloadMap
+    deps.eventBus.emit(evt.type as any, {
+      eventId: randomUUID(),
+      eventType: evt.type,
+      occurredAt: new Date().toISOString(),
+      cityId: evt.cityId,
+      schemaVersion: 1,
+      payload: evt.payload,
+    } as any);
   }
 }

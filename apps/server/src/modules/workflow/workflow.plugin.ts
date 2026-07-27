@@ -136,7 +136,7 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
     await fastify.boss.schedule('evaluateThursdayCutoffs', '0 0 * * 4', {});
     fastify.boss.work('evaluateThursdayCutoffs', async () => {
       try {
-        await evaluateThursdayCutoffs({ workflowRepository });
+        await evaluateThursdayCutoffs({ workflowRepository, eventBus: fastify.eventBus });
       } catch (err) {
         fastify.log.error({ err }, '[Thursday Cutoff] Failed to evaluate cutoffs');
       }

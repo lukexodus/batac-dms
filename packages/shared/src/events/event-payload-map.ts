@@ -89,8 +89,12 @@ export interface WorkflowInstanceCreatedPayload {
 export interface WorkflowStepStartedPayload {
   instanceId: string;
   stepInstanceId: string;
-  stepId: string;
   stepType: string;
+  stepKey: string;
+  documentId: string;
+  // FLAG for B3 §7.11 update: assignedTo is passed as an array of UUIDs (or null)
+  // to avoid data loss for concurrent multi-assignee steps, contrary to B3's current single string requirement.
+  assignedTo: string[] | null;
   dueAt: Date | null;
 }
 

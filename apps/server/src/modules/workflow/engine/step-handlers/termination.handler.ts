@@ -20,7 +20,7 @@ export async function executeTerminationStep(
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any,
+    trx,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
@@ -38,11 +38,11 @@ export async function executeTerminationStep(
     // in the same transaction as the instance status update below.
     await deps.workflowRepository.cancelActiveAndPendingStepInstancesForInstance(
       instance.id,
-      trx as any,
+      trx,
     );
 
     // Mark instance as completed
-    await deps.workflowRepository.updateInstanceStatus(instance.id, 'completed', now, trx as any);
+    await deps.workflowRepository.updateInstanceStatus(instance.id, 'completed', now, trx);
 
     // Emit workflow.instance.completed
     await deps.workflowRepository.createWorkflowEvent(
@@ -58,7 +58,7 @@ export async function executeTerminationStep(
           finalDocumentStatus: null,
         },
       },
-      trx as any,
+      trx,
     );
   } else if (outcomeCode === 'REPASSED') {
     // DO NOT set instances.status = 'Completed'
@@ -66,7 +66,7 @@ export async function executeTerminationStep(
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
       { status: 'completed', completedAt: now, outcome: outcomeCode },
-      trx as any,
+      trx,
     );
 
     // Emit workflow.instance.repassed
@@ -81,17 +81,17 @@ export async function executeTerminationStep(
           documentId: instance.documentId,
         },
       },
-      trx as any,
+      trx,
     );
   } else {
     // Standard terminal outcomes (APPROVED_AND_RELEASED, etc.)
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
       { status: 'completed', completedAt: now, outcome: outcomeCode },
-      trx as any,
+      trx,
     );
 
-    await deps.workflowRepository.updateInstanceStatus(instance.id, 'completed', now, trx as any);
+    await deps.workflowRepository.updateInstanceStatus(instance.id, 'completed', now, trx);
 
     if (finalDocumentStatus) {
       try {
@@ -103,7 +103,7 @@ export async function executeTerminationStep(
             finalDocumentStatus,
             'SYSTEM',
             undefined,
-            trx as any,
+            trx,
           );
         }
       } catch (err) {
@@ -130,7 +130,7 @@ export async function executeTerminationStep(
           finalDocumentStatus,
         },
       },
-      trx as any,
+      trx,
     );
   }
 }

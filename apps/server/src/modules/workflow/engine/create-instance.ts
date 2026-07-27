@@ -172,8 +172,10 @@ export async function createInstance(
         payload: {
           instanceId: instance.id,
           stepInstanceId: stepInstance.id,
-          stepId: startStep.id,
           stepType: startStep.stepType,
+          stepKey: startStep.stepKey,
+          documentId,
+          assignedTo: null,
           dueAt: null,
         },
       },

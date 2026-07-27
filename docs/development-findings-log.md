@@ -4649,3 +4649,34 @@ B3 §8 lists `workflow.thursday_cutoff.evaluating` and `workflow.thursday_cutoff
 Prior to this task, `EventPayloadMap`'s header comment was stale and it was incomplete. Furthermore, dynamic dispatch in timer SLA jobs necessitated `as any` casts, obscuring type safety.
 
 [Tested]: `EventPayloadMap` has been expanded to include all SLA events and all B3 canonical events. It is now the definitive runtime payload map. `as any` casting for emit calls in `workflow.router.ts` was entirely removed, proving `EventPayloadMap` correctly models all emitted payloads. (The `as any` in `evaluate-sla-breaches.ts` was kept but explicitly documented as being required for dynamic dispatch, not due to missing definitions).
+
+### [LOG-0165] I3 §9.3 Taxonomy is Stale
+
+- date: 2026-07-28
+- task_id: TASK-WF-EVT-002
+- status: proposed
+- affects: I3 (§9.3)
+
+**Context:** The event payload taxonomy in I3 §9.3 lists `secretariat_decision_approved`, `secretariat_decision_rejected`, and `secretariat_decision_amended` as standalone event types. However, ADR-API-003 formally removes the `document.secretariat_decision` event family and dictates that the outcome is carried within the `workflow.step.completed` payload instead.
+
+**Finding:** I3 §9.3 was not updated during the B3 v1.3 reconciliation or when ADR-API-003 was accepted. It is definitively stale. Do not implement the `secretariat_decision_*` snake_case events listed in I3. Rely on `workflow.step.completed` with the `outcome` field as documented in B3 and ADR-API-003. No new code is required for these deprecated events.
+
+### [LOG-0166] Correction to LOG-0162 (workflow.step.started fields)
+
+- date: 2026-07-28
+- task_id: TASK-WF-EVT-002
+- status: proposed
+- affects: LOG-0162, B3 (§7.11)
+
+**Correction:** LOG-0162 stated incorrect required fields (`assigneeId` and `dueDate`) based on B3 §8. The authoritative section for the payload is B3 §7.11, which requires `stepKey`, `assignedTo`, `documentId`, and `dueAt`. 
+This entry supersedes the claims in LOG-0162. The runtime payload has been corrected to use `stepKey` and `documentId`. Additionally, `assignedTo` has been updated to pass an array of UUIDs instead of a single string, to support concurrent multi-assignees. A spec change flag has been added for B3 §7.11 to formally accept an array of UUIDs for assignees.
+
+### [LOG-0167] Correction to LOG-0163 (Thursday-cutoffs mechanism)
+
+- date: 2026-07-28
+- task_id: TASK-WF-EVT-002
+- status: proposed
+- affects: LOG-0163
+
+**Correction:** LOG-0163 misunderstood the mechanism for Thursday-cutoffs. The events `workflow.multi_referral.cutoff_missed` and `workflow.multi_referral.second_reading_eligible` are indeed emitted by the `evaluate-thursday-cutoffs.ts` job, not the cron job lifecycle events.
+This entry supersedes LOG-0163. The job has now been successfully wired to the `EventBus` to emit these events following the post-transaction commit pattern (similar to panlalawigan timers), restoring observability.

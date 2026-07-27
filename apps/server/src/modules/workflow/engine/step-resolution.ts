@@ -32,7 +32,7 @@ export async function resolveNextStep(
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any,
+    trx,
   );
 
   if (!versionData) {
@@ -51,7 +51,7 @@ export async function resolveNextStep(
   const nextStepId = evaluateTransitionRules(rulesForCurrentStep, outcome, context);
 
   if (!nextStepId) {
-    await deps.workflowRepository.updateInstanceStatus(instance.id, 'stuck', undefined, trx as any);
+    await deps.workflowRepository.updateInstanceStatus(instance.id, 'stuck', undefined, trx);
     await deps.workflowRepository.createWorkflowEvent(
       {
         instanceId: instance.id,
@@ -65,7 +65,7 @@ export async function resolveNextStep(
           contextSnapshot: context,
         },
       },
-      trx as any,
+      trx,
     );
     return;
   }
@@ -80,7 +80,7 @@ export async function resolveNextStep(
   }
 
   if (nextStep.stepType === 'parallel_split' || nextStep.stepType === 'parallel_join') {
-    await deps.workflowRepository.updateInstanceStatus(instance.id, 'stuck', undefined, trx as any);
+    await deps.workflowRepository.updateInstanceStatus(instance.id, 'stuck', undefined, trx);
     await deps.workflowRepository.createWorkflowEvent(
       {
         instanceId: instance.id,
@@ -95,7 +95,7 @@ export async function resolveNextStep(
           errorMessage: 'parallel_split and parallel_join are Phase 2 reserved step types',
         },
       },
-      trx as any,
+      trx,
     );
     throw new Error('STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1');
   }
@@ -107,7 +107,7 @@ export async function resolveNextStep(
       status: 'active',
       startedAt: new Date(),
     },
-    trx as any,
+    trx,
   );
 
   const config = (nextStep.config as Record<string, any>) || {};
@@ -117,7 +117,7 @@ export async function resolveNextStep(
     await deps.workflowRepository.updateStepInstance(
       newStepInstance.id,
       { assignedTo: assignees },
-      trx as any,
+      trx,
     );
   }
 
@@ -130,25 +130,27 @@ export async function resolveNextStep(
       payload: {
         instanceId: instance.id,
         stepInstanceId: newStepInstance.id,
-        stepId: nextStep.id,
         stepType: nextStep.stepType,
+        stepKey: nextStep.stepKey,
+        documentId: instance.documentId,
+        assignedTo: assignees.length > 0 ? assignees.map((a) => a.user_id) : null,
         dueAt: null,
       },
     },
-    trx as any,
+    trx,
   );
 
   if (nextStep.stepType === 'multi_referral') {
     const pendingBypass = await deps.workflowRepository.getPendingBypassForInstance(
       instance.id,
       nextStep.stepKey,
-      trx as any,
+      trx,
     );
     if (pendingBypass && !pendingBypass.appliedAt) {
       await deps.workflowRepository.markBypassApplied(
         pendingBypass.id,
         newStepInstance.id,
-        trx as any,
+        trx,
       );
 
       await deps.workflowRepository.updateStepInstance(
@@ -160,7 +162,7 @@ export async function resolveNextStep(
           bypassReason: 'CERTIFIED_URGENT',
           outcome: 'BYPASSED_CERTIFIED_URGENT',
         },
-        trx as any,
+        trx,
       );
 
       await deps.workflowRepository.createWorkflowEvent(
@@ -176,7 +178,7 @@ export async function resolveNextStep(
             bypassedBy: null,
           },
         },
-        trx as any,
+        trx,
       );
 
       await deps.workflowRepository.createWorkflowEvent(
@@ -191,12 +193,12 @@ export async function resolveNextStep(
             certificationDocumentId: pendingBypass.certificationDocumentId,
           },
         },
-        trx as any,
+        trx,
       );
 
       const bypassedStepInstance = await deps.workflowRepository.getStepInstanceById(
         newStepInstance.id,
-        trx as any,
+        trx,
       );
       if (!bypassedStepInstance) throw new Error('Failed to retrieve bypassed step instance');
 

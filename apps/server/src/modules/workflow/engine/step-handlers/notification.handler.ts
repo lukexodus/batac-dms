@@ -18,7 +18,7 @@ export async function executeNotificationStep(
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx as any,
+    trx,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
@@ -74,7 +74,7 @@ export async function executeNotificationStep(
   await deps.workflowRepository.updateStepInstance(
     stepInstance.id,
     { status: 'completed', completedAt: now, outcome },
-    trx as any,
+    trx,
   );
 
   await deps.workflowRepository.createWorkflowEvent(
@@ -92,12 +92,12 @@ export async function executeNotificationStep(
         comment: null,
       },
     },
-    trx as any,
+    trx,
   );
 
   const updatedStepInstance = await deps.workflowRepository.getStepInstanceById(
     stepInstance.id,
-    trx as any,
+    trx,
   );
   if (!updatedStepInstance) throw new Error('Failed to retrieve updated step instance');
 

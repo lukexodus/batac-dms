@@ -127,7 +127,7 @@ export async function bypassStep(
 
     // B4 invariant #12: if outcomeCode doesn't match an outcome filter in target version, resolveNextStep
     // will leave the instance stuck and emit workflow.instance.stuck.
-    await resolveNextStep(instance, updatedStepInstance, outcomeCode, deps, trx as any);
+    await resolveNextStep(instance, updatedStepInstance, outcomeCode, deps, trx);
   });
 }
 
@@ -156,7 +156,7 @@ export async function migrateInstance(
     // 1. targetVersionId must be a published version for the same definition_id
     const targetVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
       targetVersionId,
-      trx as any,
+      trx,
     );
     if (!targetVersionData) throw new Error(`Target version ${targetVersionId} not found`);
     if (!targetVersionData.version.publishedAt) {
@@ -165,7 +165,7 @@ export async function migrateInstance(
 
     const currentVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
       instance.definitionVersionId,
-      trx as any,
+      trx,
     );
     if (!currentVersionData)
       throw new Error(`Current version ${instance.definitionVersionId} not found`);
@@ -379,7 +379,7 @@ export async function reverseMigration(
 
     const targetVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
       targetVersionId,
-      trx as any,
+      trx,
     );
     if (!targetVersionData) throw new Error(`Target version ${targetVersionId} not found`);
 
@@ -388,7 +388,7 @@ export async function reverseMigration(
 
     const currentVersionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
       instance.definitionVersionId,
-      trx as any,
+      trx,
     );
     if (!currentVersionData)
       throw new Error(`Current version ${instance.definitionVersionId} not found`);

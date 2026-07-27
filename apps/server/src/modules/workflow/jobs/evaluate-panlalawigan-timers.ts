@@ -111,7 +111,7 @@ export async function evaluatePanlalawiganTimers(
         updatedStepInstance,
         'DEEMED_APPROVED',
         deps,
-        tx as any,
+        tx,
       );
       
       didLapse = true;
