@@ -20028,3 +20028,1227 @@ resolution), including if you were unable to perform that check.
 
 commit after. put the walkthrough into the commit description.
 ````
+
+---
+
+# TASK-WF-FE-014
+
+**Phase:** 1
+**Module:** WF
+**Title:** Complete cache invalidation for 18 workflow/document mutations across 10 panel files
+
+**Prerequisites:** [NONE — all files, procedures, and query hooks referenced below already exist in the current repo]
+
+---
+
+## Context (why this task exists — no need to read anything outside this prompt)
+
+`/apps/web/src/pages/workflow/panels/` contains 10 React components, each wired to one or more tRPC mutations via `useMutation`. Every one of these mutations' `onSuccess` callback currently calls **only** `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` — regardless of what else actually needs to be refreshed. This under-invalidates: after a mutation succeeds, other screens reading from TanStack Query's cache (the "My Assigned Steps" inbox, the Order of Business view, the document detail page, the document list, the routing-history timeline) keep showing pre-mutation data until something unrelated happens to trigger a refetch (full remount, window refocus, or the 5-minute garbage-collection window). This is a real, live bug: a step can show as still-pending in a user's inbox after it was already completed from a different panel.
+
+The fix is to add the additional `.invalidate()` calls each mutation actually needs, alongside — not instead of — the existing `getInstance` call, which stays in every case.
+
+**Architectural note, stated explicitly so you don't second-guess it:** the project's F3 specification document (`docs/pre-development/F-frontend-architecture/f3-tanstack-query-key-factory-specification.md`) describes a centralized query-key factory package that all invalidation calls are supposed to route through. That package does not exist anywhere in this repo — confirmed by direct inspection: no `packages/shared/src/query-keys/` directory, no export of any kind from `packages/shared/src/index.ts`. Every existing `.invalidate()` call site in `apps/web/src` (31 of them, 100%) instead calls `utils.<router>.<procedure>.invalidate(...)` directly via `trpc.useUtils()`. **This task follows that existing 100%-adopted convention — direct `utils.*.invalidate()` calls — not the F3 factory pattern.** This was an explicit, authorized decision (see `docs/development-findings-log.md`, entry `[LOG-0156]`, for the full reasoning) made for this specific task. Do not introduce a query-key factory import. Do not create any file under `packages/shared/src/query-keys/`. If you notice this contradicts F3's text, that contradiction is already known and logged — do not attempt to resolve it yourself by building the factory; that is explicitly out of scope for this task.
+
+---
+
+## Scope
+
+```
+IN SCOPE (edit only the onSuccess callbacks in these 10 files — no other changes):
+  apps/web/src/pages/workflow/panels/MultiReferralPanel.tsx
+  apps/web/src/pages/workflow/panels/GenericActionPanel.tsx
+  apps/web/src/pages/workflow/panels/GenericApprovalPanel.tsx
+  apps/web/src/pages/workflow/panels/DocketingPanel.tsx
+  apps/web/src/pages/workflow/panels/MayorDecisionPanel.tsx
+  apps/web/src/pages/workflow/panels/MayorLapseConfirmationPanel.tsx
+  apps/web/src/pages/workflow/panels/VPCertificationPanel.tsx
+  apps/web/src/pages/workflow/panels/VetoOverrideRecordingPanel.tsx
+  apps/web/src/pages/workflow/panels/PanlalawiganOutcomePanel.tsx
+  apps/web/src/pages/workflow/panels/PublicationDatePanel.tsx
+  apps/web/src/pages/workflow/panels/SecretariatDecisionPanel.tsx
+
+OUT OF SCOPE (do not touch even though related):
+  - packages/shared/src/query-keys/ (do not create — see architectural note above)
+  - packages/shared/src/index.ts (do not add any export)
+  - Any mutation's input shape, validation logic, button text, toast message,
+    or navigate() call — these are all correct as-is and are not part of this task
+  - workflow.router.ts, session.router.ts, documents.router.ts, tracking.router.ts
+    (server-side; read-only reference for this task, not edit targets)
+  - Any file NOT listed in the IN SCOPE list above, even if it also calls
+    utils.workflow.getInstance.invalidate — e.g. do not touch files outside
+    apps/web/src/pages/workflow/panels/ even if they show the same pattern;
+    this task's scope is exactly the 10 files listed, no more, no less
+  - `workflow.cancelInstance`, `workflow.bypassStep`, and
+    `workflow.migrateInstanceToNewDefinitionVersion` — these three workflow
+    mutations exist server-side but have no frontend call site anywhere in
+    apps/web/src (confirmed by repo-wide grep). Do not add UI for them; they
+    are unrelated to this task.
+```
+
+---
+
+## Authoritative before/after table
+
+This table is the literal source of truth for every edit in this task. If any prose elsewhere in this prompt appears to conflict with a row below, this table wins. Every `utils.*` call listed as "ADD" is a call that does **not** currently exist in the file and must be added inside the same `onSuccess` callback, alongside the existing `getInstance` call (which is never removed). Every procedure name and input field below was verified directly against the live router source in this repo before being written here — they are not paraphrased from any specification document.
+
+| # | File | Mutation (`trpc.workflow.X` / `trpc.session.X` unless noted) | Existing call (keep, do not remove) | ADD these calls (all, inside same `onSuccess`) |
+|---|---|---|---|---|
+| 1 | `MultiReferralPanel.tsx` | `submitCommitteeReport` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.workflow.listMyAssignedSteps.invalidate();` `utils.session.getOrderOfBusiness.invalidate();` |
+| 2 | `MultiReferralPanel.tsx` | `session.enterCommitteeHearingDate` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.session.getOrderOfBusiness.invalidate();` |
+| 3 | `MultiReferralPanel.tsx` | `manuallyAdvanceMultiReferralStep` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.workflow.listMyAssignedSteps.invalidate();` `utils.session.getOrderOfBusiness.invalidate();` |
+| 4 | `GenericActionPanel.tsx` | `completeActionStep` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.workflow.listMyAssignedSteps.invalidate();` `utils.documents.get.invalidate({ documentId: instance.documentId });` `utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });` |
+| 5 | `GenericApprovalPanel.tsx` | `approveStep` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.workflow.listMyAssignedSteps.invalidate();` `utils.documents.get.invalidate({ documentId: instance.documentId });` `utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });` `utils.documents.list.invalidate();` |
+| 6 | `GenericApprovalPanel.tsx` | `rejectStep` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.workflow.listMyAssignedSteps.invalidate();` `utils.documents.get.invalidate({ documentId: instance.documentId });` `utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });` |
+| 7 | `GenericApprovalPanel.tsx` | `returnStepForRevision` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.workflow.listMyAssignedSteps.invalidate();` `utils.documents.get.invalidate({ documentId: instance.documentId });` `utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });` |
+| 8 | `DocketingPanel.tsx` | `logDocketingCompletion` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.workflow.listMyAssignedSteps.invalidate();` `utils.documents.get.invalidate({ documentId: instance.documentId });` |
+| 9 | `MayorDecisionPanel.tsx` | `mayorSign` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.workflow.listMyAssignedSteps.invalidate();` `utils.documents.get.invalidate({ documentId: instance.documentId });` `utils.documents.list.invalidate();` |
+| 10 | `MayorDecisionPanel.tsx` | `mayorVeto` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.workflow.listMyAssignedSteps.invalidate();` `utils.documents.get.invalidate({ documentId: instance.documentId });` |
+| 11 | `MayorLapseConfirmationPanel.tsx` | `logMayorLapseConfirmation` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.documents.get.invalidate({ documentId: instance.documentId });` `utils.documents.list.invalidate();` — **do NOT add** `listMyAssignedSteps` here (see Edge Case 1 below) |
+| 12 | `VPCertificationPanel.tsx` | `certifyAsPresidingOfficer` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.workflow.listMyAssignedSteps.invalidate();` `utils.documents.get.invalidate({ documentId: instance.documentId });` |
+| 13 | `VetoOverrideRecordingPanel.tsx` | `recordVetoOverrideVote` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.workflow.listMyAssignedSteps.invalidate();` `utils.documents.get.invalidate({ documentId: instance.documentId });` |
+| 14 | `PanlalawiganOutcomePanel.tsx` | `recordPanlalawiganOutcome` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.documents.get.invalidate({ documentId: instance.documentId });` — **do NOT add** `listMyAssignedSteps` here (see Edge Case 1 below) |
+| 15 | `PanlalawiganOutcomePanel.tsx` | `resolveValidInPart` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.documents.get.invalidate({ documentId: instance.documentId });` |
+| 16 | `PanlalawiganOutcomePanel.tsx` | `confirmPanlalawiganDeemedApproved` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.documents.get.invalidate({ documentId: instance.documentId });` `utils.documents.list.invalidate();` — **do NOT add** `listMyAssignedSteps` here (see Edge Case 1 below) |
+| 17 | `PublicationDatePanel.tsx` | `recordNewspaperPublicationDate` | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` (keep — do not remove even though see Edge Case 2 below) | `utils.documents.get.invalidate({ documentId: instance.documentId });` |
+| 18 | `SecretariatDecisionPanel.tsx` | `documents.logSecretariatDecision` (note: `trpc.documents.logSecretariatDecision`, not `trpc.workflow.*` — different router) | `utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId })` | `utils.documents.get.invalidate({ documentId: instance.documentId });` `utils.documents.list.invalidate();` `utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });` `utils.workflow.listMyAssignedSteps.invalidate();` `utils.session.getOrderOfBusiness.invalidate();` |
+
+**All `documentId` arguments above use `instance.documentId`** — this field exists and is non-nullable on every panel's `instance` prop (`RouterOutputs['workflow']['getInstance']`), already in scope in every one of these 10 files with no new prop threading required.
+
+---
+
+## Two edge cases — explicit resolutions, do not infer a different rule from the surrounding pattern
+
+**Edge Case 1 — three mutations do NOT get `listMyAssignedSteps` invalidation, even though most others in this table do.**
+
+Rows 11, 14, and 16 (`logMayorLapseConfirmation`, `recordPanlalawiganOutcome`, `confirmPanlalawiganDeemedApproved`) are deliberately excluded from the `utils.workflow.listMyAssignedSteps.invalidate()` addition that every other row gets. This is not an oversight in this table — it is the literal, checked spec. Do not "fix" this by adding it to match the majority pattern. If you believe this is inconsistent, that's expected; flag it in your PR notes rather than changing it.
+
+**Edge Case 2 — `PublicationDatePanel.tsx` keeps an invalidation call it arguably doesn't need, and gains the one it's actually missing.**
+
+Row 17 is the one file in this table where the existing `getInstance` call isn't strictly required by the underlying specification for that mutation — but the instruction is still to leave it in place unchanged and only add `utils.documents.get.invalidate(...)` alongside it. Do not remove the existing `getInstance` call from this file. The scope of this task is additive only — adding missing invalidations — not also pruning invalidations that may be superfluous. That is a separate judgment call outside this task's scope.
+
+---
+
+## Mechanical pattern to follow for every edit
+
+Each edit follows this exact shape — locate the `onSuccess: () => { ... }` block for the named mutation, and add the new `.invalidate()` call(s) as additional statements inside it, in the same style already used in the file (a bare statement, not `void`-prefixed unless the existing `getInstance` call in that same file already uses `void` — match whatever prefix convention is already present in that specific file for that specific mutation's `getInstance` call, since some files may differ).
+
+Example (illustrative only — this exact block does not correspond to any single row above; follow the before/after table for the real edits):
+
+```typescript
+// Before:
+const someMutation = trpc.workflow.someMutation.useMutation({
+  onSuccess: () => {
+    toast.success('Done.');
+    void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+    navigate('/workflow/steps');
+  },
+  onError: (err) => toast.error(err.message || 'Failed.'),
+});
+
+// After (adding two calls, matching the existing void-prefix style in this example):
+const someMutation = trpc.workflow.someMutation.useMutation({
+  onSuccess: () => {
+    toast.success('Done.');
+    void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+    void utils.workflow.listMyAssignedSteps.invalidate();
+    void utils.documents.get.invalidate({ documentId: instance.documentId });
+    navigate('/workflow/steps');
+  },
+  onError: (err) => toast.error(err.message || 'Failed.'),
+});
+```
+
+Do not reorder existing statements. Do not change `toast.success` text, the `onError` handler, or the position of `navigate(...)` relative to the invalidation calls (new invalidation calls go before `navigate`, alongside the existing `getInstance` call, matching this example's ordering).
+
+---
+
+## Acceptance Criteria
+
+- [ ] `pnpm --filter @batac/web typecheck` passes with no new errors introduced by this change (pre-existing unrelated errors, if any, are not this task's concern — only confirm no *new* errors appear that reference any of the 10 files touched)
+- [ ] All 18 mutations listed in the before/after table above have exactly the ADD calls specified for their row, in addition to their existing (unmodified) `getInstance` call — no more, no fewer
+- [ ] Rows 11, 14, and 16 do NOT contain a `listMyAssignedSteps` invalidation call (Edge Case 1)
+- [ ] `PublicationDatePanel.tsx`'s existing `getInstance` invalidation call is still present, unmodified (Edge Case 2)
+- [ ] No file outside the 10 listed in IN SCOPE was modified
+- [ ] No new file was created under `packages/shared/src/query-keys/` or anywhere else
+- [ ] `packages/shared/src/index.ts` was not modified
+- [ ] Manual spot-check: in `GenericApprovalPanel.tsx`, the `approveStep` mutation's `onSuccess` callback contains exactly 4 `utils.*.invalidate(...)` calls after this change (the original `getInstance` plus the three added in row 5) — this is the highest-invalidation-count row in the table and is a good single-file check that the pattern was applied correctly rather than partially
+
+Before submitting this PR, confirm each item above independently — a reviewer will check each one.
+
+---
+
+# Standalone Executor Prompt — TASK-DOCS-024
+
+Copy everything below this line as the complete, self-contained prompt for the local agent. Nothing outside this block is required for the agent to execute the task correctly.
+
+---
+
+````
+```
+TASK-DOCS-024
+
+Phase:          1
+Module:         DOCS
+Title:          Build the F3 TanStack Query Key Factory package (foundation only, no consumers)
+Prerequisites:  [NONE]
+```
+
+## Context
+
+This project's pre-development specification `docs/pre-development/F-frontend-architecture/f3-tanstack-query-key-factory-specification.md` (document ID **F3**) defines a TanStack Query cache-key factory package intended to live at `/packages/shared/src/query-keys/`. This package **does not currently exist anywhere in the repository** — it has never been built. This task builds it for the first time.
+
+**This is a foundation-only task.** Do not modify, import from, or reference this new package from any file under `/apps/web/src/pages/` or any other existing frontend page/component in this task. No existing frontend file should change as a result of this task. The package is being built so it exists and is ready for **future, separate, opt-in adoption** by individual pages — that adoption work is out of scope here and will be done in later, separate tasks. If you find yourself about to edit any file outside `/packages/shared/src/query-keys/` and `/packages/shared/package.json`, stop — that file is out of scope for this task.
+
+## What to build
+
+Read `docs/pre-development/F-frontend-architecture/f3-tanstack-query-key-factory-specification.md` in full before starting. It specifies eleven key-factory objects, one per tRPC router, each in its own file, plus a barrel re-export file. Build all eleven factory files plus the barrel, exactly as F3 lays out:
+
+```json
+{
+  "files_to_create": [
+    "/packages/shared/src/query-keys/iam.keys.ts",
+    "/packages/shared/src/query-keys/organization.keys.ts",
+    "/packages/shared/src/query-keys/document.keys.ts",
+    "/packages/shared/src/query-keys/workflow.keys.ts",
+    "/packages/shared/src/query-keys/tracking.keys.ts",
+    "/packages/shared/src/query-keys/session.keys.ts",
+    "/packages/shared/src/query-keys/records.keys.ts",
+    "/packages/shared/src/query-keys/notification.keys.ts",
+    "/packages/shared/src/query-keys/audit.keys.ts",
+    "/packages/shared/src/query-keys/complaint.keys.ts",
+    "/packages/shared/src/query-keys/documentRequest.keys.ts",
+    "/packages/shared/src/query-keys/index.ts"
+  ],
+  "files_to_modify": [
+    "/packages/shared/package.json"
+  ],
+  "do_not_touch": [
+    "any file under /apps/web/",
+    "any file under /apps/server/",
+    "any existing file under /packages/shared/src/ other than package.json",
+    "docs/pre-development/F-frontend-architecture/f3-tanstack-query-key-factory-specification.md — read-only reference, do not edit"
+  ]
+}
+```
+
+The JSON block above is authoritative for file scope. If anything else in this prompt's prose appears to suggest touching a file not listed under `files_to_create` or `files_to_modify`, the JSON block wins.
+
+## Structure and naming: follow F3 exactly
+
+For each of the eleven factory files:
+
+- **Object name** (`iamKeys`, `orgKeys`, `documentKeys`, `workflowKeys`, `trackingKeys`, `sessionKeys`, `recordsKeys`, `notificationKeys`, `auditKeys`, `complaintKeys`, `documentRequestKeys`) — use exactly the name F3 gives each factory. Do not rename, do not "improve," do not merge two factories into one file even if their routers seem related.
+- **Function names within each factory** (e.g. `documentKeys.details`, `documentKeys.detail`, `documentKeys.lists`, `documentKeys.list`, `documentKeys.searches`, `documentKeys.search`, and so on for every function in every factory) — use exactly the names F3 gives, including F3's occasional departures from its own general plural/singular convention. Two specific examples where F3 deliberately does NOT follow the general `x()`/`xSingular(input)` pattern, confirmed present in the current F3 text — reproduce these exactly as shown, do not "normalize" them to match other factories:
+  - `notificationKeys.mine()` / `notificationKeys.mineList(input)` — note `mineList`, not `mine` + a bare singular form.
+  - `auditKeys.chainIntegrity(input?)` and `sessionKeys.orderOfBusiness(input?)` — both take a single function with an *optional* parameter that branches internally (returns a procedure-scope key shape when called with no argument, an instance-key shape when called with an argument), rather than being split into two separately-named functions the way most other parameterized entries are. Preserve this exact conditional-return structure for both of these two functions specifically.
+- **The three-level key hierarchy** (router scope / procedure scope / instance key) described in F3's "Conventions" section — every factory's `all()` function is router scope; procedure-scope and instance-key functions follow F3's stated pattern of `[['router', 'procedure'], { type: 'query' as const }]` for the parameterless case and `[['router', 'procedure'], { input, type: 'query' as const }]` for the parameterized case. Follow this literally for every function — this is what makes the generated keys compatible with tRPC v11's own `getQueryKey` output, which is required for correctness, not a stylistic preference.
+- **Inline comments**: reproduce F3's per-function explanatory comments (e.g. the OCR versionId-vs-documentId note under `documentKeys`, the ephemeral-URL warnings under `trackingKeys.qrCoverSheet` and `documentRequestKeys.printableForm`, the append-only/no-deletion note under `auditKeys`). These comments carry real operational meaning for future consumers of this package and should not be dropped for brevity.
+
+## Schema verification: do NOT trust F3's parameter shapes blindly
+
+**This is the most important part of this task.** F3 was written from an earlier version of `docs/pre-development/E-api-design/e1-trpc-router-and-procedure-catalog.md` (document ID E1), and E1 itself has, in at least two confirmed places, drifted from what the live backend routers actually implement. Two specific, already-confirmed cases are given below as hardcoded fixes. Beyond those two, you must independently verify every other function's TypeScript parameter shape against the real router before writing it — do not assume F3's other ~35 functions are correct just because these two are the ones caught so far.
+
+**For every factory function that takes an `input` parameter, before writing that function:**
+1. Find the router file for that function's router under `/apps/server/src/modules/`. Router files follow the pattern `{module}.router.ts` — e.g. `documents.router.ts`, `workflow.router.ts`, `iam.router.ts`, `organization.router.ts`, `tracking.router.ts`, `session.router.ts` (note: session procedures live in `workflow/session.router.ts`, not a separate `session/` module directory), `records.router.ts` if present, `notifications.router.ts` if present, `audit.router.ts`, `complaints.router.ts`, `document-requests.router.ts`.
+2. Locate the specific procedure (e.g. `documents.list`, `workflow.getSlaComplianceData`) and read its `.input(...)` schema — either inline or via whatever Zod schema it references.
+3. Use the **actual field names from that live schema** as the factory function's TypeScript parameter names — not F3's field names, if they differ.
+4. If a live procedure's input schema cannot be found at all (the procedure doesn't exist yet, or the router file doesn't exist), do not invent a plausible-looking signature. Stop building that one specific function, leave a `// TODO: procedure {router}.{procedure} not found in live router — factory function not built, needs a decision` comment in its place inside the file, and record it as a Module Summary item in your final report. Continue building every other function normally — one missing procedure does not block the rest of the file.
+
+### Hardcoded fix #1 — `documentKeys.list` and `documentKeys.search`, in `document.keys.ts`
+
+F3's current text for these two functions (in `docs/pre-development/F-frontend-architecture/f3-tanstack-query-key-factory-specification.md`, under the `documentKeys` factory) reads:
+
+```typescript
+list: (input: {
+  cursor?: string | null;
+  pageSize?: number;
+  documentTypeId?: string;
+  lifecycleState?: string;
+  officeId?: string;
+  from?: Date | null;
+  to?: Date | null;
+}) =>
+  [['documents', 'list'], { input, type: 'query' as const }] as const,
+
+search: (input: {
+  cursor?: string | null;
+  pageSize?: number;
+  queryText: string;
+  documentTypeIds?: string[];
+  classificationLevels?: string[];
+  from?: Date | null;
+  to?: Date | null;
+}) =>
+  [['documents', 'search'], { input, type: 'query' as const }] as const,
+```
+
+This is confirmed wrong against the live `documents.router.ts`. Do NOT write it as shown above. Instead, `pageSize` must be renamed to `limit`, and `from`/`to` must be renamed to `dateFrom`/`dateTo`, in both functions — `cursor`, and every other field in both functions, stays as F3 has it (only these three field names change, and only in these two functions). Confirm this against `/apps/server/src/modules/documents/documents.router.ts`'s actual `documents.list` and `documents.search` procedure input schemas as you write the file — the live schema is the source of truth; this instruction states what was already found there as of this task's planning, but re-confirm it directly against the current file rather than only trusting this description, in case the router has changed since.
+
+**One additional item in this same function you must resolve independently, which was noticed but not fixed during planning:** F3's `documentKeys.list` comment lists `lifecycleState` enum values including `under_review`, `approved`, and `rejected`. There is reason to believe (from a separate, unrelated file's docstring, not independently confirmed against the router itself) that these three values do not exist in the live `lifecycleState` enum, and that the real enum has 11 different values. This has NOT been verified against `documents.router.ts` or the underlying Drizzle schema during planning — treat it as unverified, not as a second hardcoded fix. Check the actual enum values `documents.router.ts` (and/or `documents.list`'s Zod input schema) accepts for `lifecycleState`, and use the real enum values in the parameter type and in the inline comment listing them. This is exactly the same live-schema-verification requirement as every other function in this package — it is called out individually here only because it was specifically noticed during planning, not because it warrants different handling than any other unverified field.
+
+### Hardcoded fix #2 — `workflowKeys.slaCompliance`, in `workflow.keys.ts`
+
+F3's current text for this function reads:
+
+```typescript
+slaCompliance: (input: {
+  officeId?: string;
+  documentTypeId?: string;
+  breachedOnly?: boolean;
+  from?: Date | null;
+  to?: Date | null;
+}) =>
+  [
+    ['workflow', 'getSlaComplianceData'],
+    { input, type: 'query' as const },
+  ] as const,
+```
+
+This is confirmed wrong on one field against the live `workflow.router.ts`: `pageSize` does not appear in this specific function's parameter list as F3 wrote it (there is no `pageSize` field here to begin with), but the live `workflow.router.ts` uses `limit` rather than `pageSize` as its pagination-style field name elsewhere in this same router (confirmed at a different procedure in the same file, not this one specifically). Before writing `workflowKeys.slaCompliance`, check `/apps/server/src/modules/workflow/workflow.router.ts`'s actual `workflow.getSlaComplianceData` procedure input schema directly — do not assume it matches F3's text above without checking, and do not assume it needs the same `limit`/`dateFrom`/`dateTo` correction as the `documentKeys` fix above just because both are in a router confirmed to use `limit` for a different procedure. `from`/`to` (not `dateFrom`/`dateTo`) were separately confirmed elsewhere in this same `workflow.router.ts` file as matching F3's naming exactly, unlike `documents.router.ts` — so do not apply the `dateFrom`/`dateTo` rename here unless you independently confirm this specific procedure's schema actually uses those names. This function needs individual verification, not a blanket assumption in either direction.
+
+## Package mechanics — required, not optional
+
+Two build-system details that F3 itself does not mention (F3 describes the target file layout only, not packaging):
+
+**1. `package.json` exports map.** `/packages/shared/package.json` currently has an explicit, manually-maintained `exports` map — every importable subpath is listed individually; there is no wildcard export. You must add an entry for the new package so `@batac/shared/query-keys` actually resolves for future consumers:
+
+```json
+{
+  "add_to_exports_map": {
+    "./query-keys": "./src/query-keys/index.ts"
+  },
+  "insert_after_key": "./workflow",
+  "authoritative": true
+}
+```
+
+The JSON above is authoritative for the exact key/value pair to add. Add it to the existing `exports` object in `/packages/shared/package.json`, following the same formatting/comma style already used by the other entries in that object. Do not reorder or modify any existing entry in that object.
+
+**2. `.js` extensions in the barrel file's relative imports.** F3's own "Index Re-export" code block writes its barrel imports without file extensions (e.g. `export { iamKeys } from './iam.keys';`). This does NOT match this project's actual convention — this project uses Node16/ESM module resolution (`"module": "Node16"` in `packages/shared/tsconfig.json`, `"type": "module"` in `packages/shared/package.json`), which requires explicit `.js` extensions on relative import specifiers even though the source files are `.ts`. The existing barrel at `/packages/shared/src/index.ts` demonstrates this correctly, e.g. `export * from './schemas/organization.js';`. Do NOT reproduce F3's extensionless import style. Every relative import in the new `/packages/shared/src/query-keys/index.ts` barrel must end in `.js`, matching the existing barrel's convention exactly:
+
+```typescript
+old_str (F3's literal text, do not use):
+export { iamKeys } from './iam.keys';
+
+new_str (what to actually write):
+export { iamKeys } from './iam.keys.js';
+```
+
+Apply this `.js`-extension pattern to all eleven re-exports in the new barrel file, not just the one shown above.
+
+**Do NOT add an entry to `/packages/shared/src/index.ts` (the top-level package barrel) for the new query-keys module.** F3 specifies `@batac/shared/query-keys` as its own separate subpath export (handled above via the `package.json` exports map), not as something re-exported through the main `@batac/shared` barrel. Leave `/packages/shared/src/index.ts` completely untouched.
+
+## Acceptance Criteria
+
+```
+- [ ] All eleven factory files exist at the exact paths listed in files_to_create above, each exporting exactly one const object named per F3.
+- [ ] The barrel file /packages/shared/src/query-keys/index.ts exists and re-exports all eleven factory objects, using .js-suffixed relative import paths.
+- [ ] /packages/shared/package.json's exports map contains an added "./query-keys": "./src/query-keys/index.ts" entry, with every pre-existing entry unchanged.
+- [ ] /packages/shared/src/index.ts (the main package barrel) is byte-for-byte unchanged from its current state.
+- [ ] documentKeys.list and documentKeys.search use limit (not pageSize) and dateFrom/dateTo (not from/to) as their parameter names, confirmed by you against the live documents.router.ts as part of this task, not merely copied from this prompt's description of the fix.
+- [ ] documentKeys.list's lifecycleState parameter type and inline comment reflect the real live enum values from documents.router.ts / the underlying schema, not F3's listed values, if they differ — confirmed by you as part of this task.
+- [ ] workflowKeys.slaCompliance's parameter names are confirmed directly against the live workflow.router.ts's actual workflow.getSlaComplianceData input schema, not assumed from either F3's text or from the documents.router.ts fix pattern.
+- [ ] Every other factory function's parameter shape (all ~35+ remaining functions across all eleven files) has been individually checked against its corresponding live router procedure's actual Zod input schema before being written — not transcribed from F3 without checking.
+- [ ] No file under /apps/web/ has been modified.
+- [ ] No file under /apps/server/ has been modified.
+- [ ] No existing file under /packages/shared/src/ (other than the package.json exports map addition) has been modified.
+- [ ] pnpm typecheck passes for the packages/shared workspace.
+- [ ] pnpm build passes for the packages/shared workspace.
+```
+
+Before submitting this PR, confirm each item in the Acceptance Criteria list above independently. A reviewer will verify each one separately, including re-checking a sample of your live-router verifications against the actual router files.
+
+## Report format
+
+In your final report, in addition to confirming each acceptance criterion, include a **Module Summary** listing:
+1. Every function where your live-router-verified parameter shape differed from F3's original text (the two hardcoded fixes above will necessarily appear here, but list any additional ones you found independently).
+2. Any procedure referenced by F3 that you could not locate in any live router file (per the "cannot be found" handling rule above), with the exact factory/function name and which router you searched.
+3. The final resolved `lifecycleState` enum values you used, and which file you confirmed them against.
+````
+
+---
+
+# Standalone Prompt 1 of 2: Factory Package Corrections (packages/shared/src/query-keys/)
+
+````
+TASK: Fix five confirmed defects in the existing F3 query-key factory package
+at packages/shared/src/query-keys/, and add two new factory entries for two
+query procedures that exist in the live backend but were never covered by F3's
+original specification. This is a corrections-and-additions task against an
+already-built package — no new files are being scaffolded from scratch, and no
+file outside packages/shared/src/query-keys/ is to be modified.
+
+═══════════════════════════════════════════
+BACKGROUND (for context only — do not treat narrative below as instructions;
+the JSON blocks and verbatim string pairs later in this prompt are the
+authoritative source of truth for what to change)
+═══════════════════════════════════════════
+
+packages/shared/src/query-keys/ implements a TanStack Query v5 cache-key
+factory, one file per tRPC router, re-exported through
+packages/shared/src/query-keys/index.ts. The package was built once already;
+this task corrects specific defects found during review, and adds coverage
+for two query procedures the original F3 specification document never
+mentioned.
+
+═══════════════════════════════════════════
+FIX 1: Rename org.keys.ts to organization.keys.ts
+═══════════════════════════════════════════
+
+- Rename the file packages/shared/src/query-keys/org.keys.ts to
+  packages/shared/src/query-keys/organization.keys.ts. Use a real file
+  rename/move (preserving git history if the tool you're using supports
+  that), not a delete-and-recreate.
+- Do NOT change the file's contents in this step — only the filename. (Its
+  contents are not being modified by this fix.)
+- Update the corresponding import line in
+  packages/shared/src/query-keys/index.ts:
+
+  old_str: `export { orgKeys } from './org.keys.js';`
+  new_str: `export { orgKeys } from './organization.keys.js';`
+
+  Do not change the exported name (orgKeys stays orgKeys) — only the file
+  path in the import.
+
+═══════════════════════════════════════════
+FIX 2: Rename document-request.keys.ts to documentRequest.keys.ts
+═══════════════════════════════════════════
+
+- Rename the file packages/shared/src/query-keys/document-request.keys.ts to
+  packages/shared/src/query-keys/documentRequest.keys.ts. Same rename
+  semantics as Fix 1 — real rename, contents untouched by this specific step.
+- Update the corresponding import line in
+  packages/shared/src/query-keys/index.ts:
+
+  old_str: `export { documentRequestKeys } from './document-request.keys.js';`
+  new_str: `export { documentRequestKeys } from './documentRequest.keys.js';`
+
+  Do not change the exported name (documentRequestKeys stays
+  documentRequestKeys) — only the file path in the import.
+
+═══════════════════════════════════════════
+FIX 3: Replace the false "not found" TODO in complaint.keys.ts with a real
+function
+═══════════════════════════════════════════
+
+The current file packages/shared/src/query-keys/complaint.keys.ts reads
+exactly as follows in full:
+
+```typescript
+export const complaintKeys = {
+  // ── Router scope ──────────────────────────────────────────────────────────
+  all: () => [['complaints']] as const,
+
+  // TODO: procedure complaints.listAll not found in live router — factory function not built, needs a decision
+} as const;
+```
+
+This TODO is incorrect. The procedure exists at
+apps/server/src/modules/documents/complaints.router.ts under the name
+listAllComplaints (not "listAll" — the TODO's assumed name was wrong), with
+this confirmed input schema:
+
+```typescript
+PaginationInputSchema.extend({
+  outcomeState: z
+    .enum(['pending_hearing', 'received_seen', 'dismissed', 'resolved'])
+    .optional(),
+})
+```
+
+PaginationInputSchema (from packages/shared/src/schemas/common.ts) is
+`{ cursor: UuidSchema.optional(), limit: z.number().int().min(1).max(100).default(25) }`
+— note the field is `limit`, not `pageSize`.
+
+Replace the entire file content with:
+
+```typescript
+export const complaintKeys = {
+  // ── Router scope ──────────────────────────────────────────────────────────
+  all: () => [['complaints']] as const,
+
+  // ── complaints.listAllComplaints ──────────────────────────────────────────
+  lists: () => [['complaints', 'listAllComplaints']] as const,
+  list: (input: {
+    cursor?: string;
+    limit?: number;
+    outcomeState?: 'pending_hearing' | 'received_seen' | 'dismissed' | 'resolved';
+  }) => [['complaints', 'listAllComplaints'], { input, type: 'query' as const }] as const,
+} as const;
+```
+
+The following JSON block is the authoritative source for this function's
+signature — if anything in the prose above conflicts with it, the JSON block
+wins:
+
+```json
+{
+  "file": "packages/shared/src/query-keys/complaint.keys.ts",
+  "function_name": "list",
+  "scope_function_name": "lists",
+  "tRPC_path": ["complaints", "listAllComplaints"],
+  "input_fields": {
+    "cursor": "string, optional",
+    "limit": "number, optional",
+    "outcomeState": "enum('pending_hearing' | 'received_seen' | 'dismissed' | 'resolved'), optional"
+  },
+  "do_not_add_fields_beyond_this_list": true
+}
+```
+
+═══════════════════════════════════════════
+FIX 4: Replace the false "not found" TODO in documentRequest.keys.ts (the file
+you just renamed in Fix 2) with a real function
+═══════════════════════════════════════════
+
+After Fix 2's rename, packages/shared/src/query-keys/documentRequest.keys.ts
+reads exactly as follows in full:
+
+```typescript
+export const documentRequestKeys = {
+  // ── Router scope ──────────────────────────────────────────────────────────
+  all: () => [['documentRequests']] as const,
+
+  // ── documentRequests.generatePrintableForm ────────────────────────────────
+  printableForms: () => [['documentRequests', 'generatePrintableForm']] as const,
+  printableForm: (requestId: string) =>
+    [['documentRequests', 'generatePrintableForm'], { input: { requestId }, type: 'query' as const }] as const,
+
+  // TODO: procedure documentRequests.listAll not found in live router — factory function not built, needs a decision
+} as const;
+```
+
+This TODO is incorrect. The procedure exists at
+apps/server/src/modules/documents/document-requests.router.ts under the name
+listAllDocumentRequests (not "listAll"), with this confirmed input schema:
+
+```typescript
+PaginationInputSchema.extend({
+  requesterName: z.string().optional(),
+  documentNumber: z.string().optional(),
+})
+```
+
+Decision on scope (already made — do not re-litigate): the factory function
+MUST include requesterName and documentNumber, even though F3's own written
+specification for this function (F3 document, "documentRequestKeys" section)
+only specifies `{ cursor?: string | null; pageSize?: number }` with neither
+field. This is a deliberate, confirmed departure from F3's literal text,
+because F3 has drifted from the live backend on this specific procedure and
+building strictly to F3's outdated text would produce a factory function that
+cannot express filters the live query actually supports. Do not omit these
+two fields on the reasoning that "F3 doesn't mention them" — that reasoning
+has already been considered and rejected.
+
+Replace the `// TODO: procedure documentRequests.listAll...` line (only that
+line — leave printableForms/printableForm exactly as they are) with:
+
+```typescript
+  // ── documentRequests.listAllDocumentRequests ──────────────────────────────
+  // Extended beyond F3's original spec: requesterName and documentNumber are
+  // real live filter fields (document-requests.router.ts) that F3's written
+  // text never specified. Included deliberately — do not remove.
+  lists: () => [['documentRequests', 'listAllDocumentRequests']] as const,
+  list: (input: {
+    cursor?: string;
+    limit?: number;
+    requesterName?: string;
+    documentNumber?: string;
+  }) => [['documentRequests', 'listAllDocumentRequests'], { input, type: 'query' as const }] as const,
+```
+
+Authoritative JSON block for this function:
+
+```json
+{
+  "file": "packages/shared/src/query-keys/documentRequest.keys.ts",
+  "function_name": "list",
+  "scope_function_name": "lists",
+  "tRPC_path": ["documentRequests", "listAllDocumentRequests"],
+  "input_fields": {
+    "cursor": "string, optional",
+    "limit": "number, optional",
+    "requesterName": "string, optional",
+    "documentNumber": "string, optional"
+  },
+  "requesterName_and_documentNumber_are_intentional_deviations_from_F3_text": true,
+  "do_not_add_fields_beyond_this_list": true
+}
+```
+
+═══════════════════════════════════════════
+FIX 5: Correct the pagination field name in workflow.keys.ts's myStepsList
+═══════════════════════════════════════════
+
+The current file packages/shared/src/query-keys/workflow.keys.ts contains
+this function (do not touch anything else in this file for this specific
+fix — see Fix 6 below for the one other thing that does NOT change in this
+file):
+
+```typescript
+  // ── workflow.listMyAssignedSteps ──────────────────────────────────────────
+  mySteps: () => [['workflow', 'listMyAssignedSteps']] as const,
+  myStepsList: (input: { cursor?: string | null; pageSize?: number; stepKeyIn?: string[] }) =>
+    [['workflow', 'listMyAssignedSteps'], { input, type: 'query' as const }] as const,
+```
+
+The live procedure (apps/server/src/modules/workflow/workflow.router.ts) uses
+a router-local schema defined as:
+
+```typescript
+const paginationInput = z.object({
+  cursor: z.string().nullish(),
+  limit: z.number().int().min(1).max(100).default(50),
+});
+```
+
+...extended with `.extend({ stepKeyIn: z.array(z.string()).optional() })` for
+this specific procedure. The field is `limit`, not `pageSize`. stepKeyIn is
+already correct and must not change.
+
+old_str: `myStepsList: (input: { cursor?: string | null; pageSize?: number; stepKeyIn?: string[] }) =>`
+new_str: `myStepsList: (input: { cursor?: string | null; limit?: number; stepKeyIn?: string[] }) =>`
+
+Do not change the function name (myStepsList stays myStepsList), the
+tRPC_path tuple, or the stepKeyIn field.
+
+═══════════════════════════════════════════
+FIX 6 — EXPLICIT NON-FIX: getSlaComplianceData's name stays exactly as-is
+═══════════════════════════════════════════
+
+Also in workflow.keys.ts, this function exists:
+
+```typescript
+  // ── workflow.getSlaComplianceData ─────────────────────────────────────────
+  slaComplianceData: () => [['workflow', 'getSlaComplianceData']] as const,
+  getSlaComplianceData: (input: {
+    officeId?: string;
+    documentTypeId?: string;
+    breachedOnly?: boolean;
+    from?: Date | null;
+    to?: Date | null;
+  }) => [['workflow', 'getSlaComplianceData'], { input, type: 'query' as const }] as const,
+```
+
+Do NOT rename getSlaComplianceData to slaCompliance, or to any other name.
+This has been explicitly evaluated and the decision is to keep the name
+matching the live tRPC procedure name (workflow.getSlaComplianceData)
+verbatim, for cross-team traceability — searching the codebase for
+"getSlaComplianceData" should find both the backend procedure and this
+frontend factory function without needing to know a separate, shorter alias.
+Do not "improve" or shorten this name even though the plural/singular
+pattern used by sibling functions in this same file (e.g. mySteps/
+myStepsList, details/detail) might suggest a shorter name would be more
+consistent. This function's parameter shape is already correct — no other
+change needed here at all. This fix item exists in this prompt only to
+prevent the renaming from happening as an unintended side effect of Fix 5
+being applied to the same file; take no action on this specific function.
+
+═══════════════════════════════════════════
+FIX 7: Add two new factory entries to document.keys.ts for procedures F3
+never specified
+═══════════════════════════════════════════
+
+Two query procedures exist in the live backend under the documents.* tRPC
+namespace (merged into apps/server/src/modules/documents/documents.router.ts
+from separate source files, panlalawigan.router.ts and signatures.router.ts,
+via spread syntax — but both are exposed to the frontend as documents.* since
+that's the namespace they're merged into) that are not covered by F3's
+written specification for documentKeys and are not currently present in
+packages/shared/src/query-keys/document.keys.ts:
+
+1. documents.getPanlalawiganReview — input `{ documentId: string }` (UUID),
+   confirmed at apps/server/src/modules/documents/panlalawigan.router.ts,
+   line 189-190 (`.input(DocumentIdInputSchema)`, where
+   DocumentIdInputSchema = `z.object({ documentId: UuidSchema })` from
+   packages/shared/src/schemas/documents.ts).
+2. documents.getSignatureRecords — input `{ documentId: string }` (UUID),
+   confirmed at apps/server/src/modules/documents/signatures.router.ts, line
+   115-119 (`.input(z.object({ documentId: z.string().uuid() }))`).
+
+Both are single-parameter, documentId-keyed query procedures — structurally
+identical in shape to documentKeys.detail/details already in this file. Add
+two new plural/singular pairs following that exact same pattern. Append them
+at the end of the documentKeys object, after the existing scanQualities/
+scanQuality pair and before the closing `} as const;`. Do not reorder or
+modify any of the seven existing entries in this file.
+
+```typescript
+  // ── documents.getPanlalawiganReview ───────────────────────────────────────
+  // Not in F3's original documentKeys spec — added because the procedure
+  // exists in the live router and was previously uncovered.
+  panlalawiganReviews: () => [['documents', 'getPanlalawiganReview']] as const,
+  panlalawiganReview: (documentId: string) =>
+    [['documents', 'getPanlalawiganReview'], { input: { documentId }, type: 'query' as const }] as const,
+
+  // ── documents.getSignatureRecords ─────────────────────────────────────────
+  // Not in F3's original documentKeys spec — added because the procedure
+  // exists in the live router and was previously uncovered.
+  signatureRecordsList: () => [['documents', 'getSignatureRecords']] as const,
+  signatureRecords: (documentId: string) =>
+    [['documents', 'getSignatureRecords'], { input: { documentId }, type: 'query' as const }] as const,
+```
+
+Authoritative JSON block:
+
+```json
+{
+  "file": "packages/shared/src/query-keys/document.keys.ts",
+  "new_functions": [
+    {
+      "scope_function_name": "panlalawiganReviews",
+      "instance_function_name": "panlalawiganReview",
+      "tRPC_path": ["documents", "getPanlalawiganReview"],
+      "instance_param": "documentId: string"
+    },
+    {
+      "scope_function_name": "signatureRecordsList",
+      "instance_function_name": "signatureRecords",
+      "tRPC_path": ["documents", "getSignatureRecords"],
+      "instance_param": "documentId: string"
+    }
+  ],
+  "existing_seven_entries_in_this_file_are_unchanged": true
+}
+```
+
+Naming note: "signatureRecordsList" (not the shorter "signatureRecords" for
+the scope function) is used to avoid a name collision with the instance
+function "signatureRecords" — this deliberately breaks from the exact
+plural/singular pattern used elsewhere (e.g. details/detail) because
+"signatureRecord"/"signatureRecords" as a singular/plural pair doesn't fit
+this procedure (it returns an array per document, not a single record keyed
+some other way), and "records"/"record" was already inapplicable since the
+procedure name itself is already plural (getSignatureRecords). If you find a
+naming collision or a cleaner name, do not silently rename — flag it instead,
+since this specific naming choice has been made deliberately, not casually.
+
+═══════════════════════════════════════════
+SCOPE BOUNDARIES
+═══════════════════════════════════════════
+
+IN SCOPE (only these files may be touched):
+- packages/shared/src/query-keys/org.keys.ts (renamed to organization.keys.ts)
+- packages/shared/src/query-keys/document-request.keys.ts (renamed to documentRequest.keys.ts)
+- packages/shared/src/query-keys/complaint.keys.ts
+- packages/shared/src/query-keys/documentRequest.keys.ts (contents, after the Fix 2 rename)
+- packages/shared/src/query-keys/workflow.keys.ts
+- packages/shared/src/query-keys/document.keys.ts
+- packages/shared/src/query-keys/index.ts (two import-path line updates only)
+
+OUT OF SCOPE (do not touch even if related):
+- packages/shared/src/index.ts — must remain byte-identical; the query-keys
+  module is never re-exported from the main package barrel.
+- packages/shared/package.json — the exports map already has the correct
+  "./query-keys" entry; do not modify it.
+- Any file under apps/web/ — this task does not wire the factory into any
+  consumer. Zero consumers exist currently and that remains true after this
+  task.
+- Any file under apps/server/ — read-only reference for this task; you are
+  verifying against live router code, never modifying it.
+- packages/shared/src/query-keys/iam.keys.ts, tracking.keys.ts,
+  session.keys.ts, records.keys.ts, notification.keys.ts, audit.keys.ts —
+  these five files are confirmed correct as-is and are not part of this task.
+  Do not "helpfully" apply similar-looking fixes to them.
+
+═══════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════
+
+- pnpm --filter @batac/shared typecheck (or pnpm --filter @batac/shared build,
+  whichever the project's actual scripts support — check package.json)
+  passes with no new errors.
+- File packages/shared/src/query-keys/org.keys.ts no longer exists;
+  packages/shared/src/query-keys/organization.keys.ts exists with identical
+  content to the old org.keys.ts.
+- File packages/shared/src/query-keys/document-request.keys.ts no longer
+  exists; packages/shared/src/query-keys/documentRequest.keys.ts exists,
+  containing the original printableForms/printableForm pair unchanged, plus
+  the new list/lists pair from Fix 4.
+- complaint.keys.ts's TODO comment is gone, replaced by a working
+  list/lists pair per Fix 3's JSON block.
+- workflow.keys.ts's myStepsList uses limit, not pageSize; every other
+  field and function in workflow.keys.ts (including getSlaComplianceData,
+  verbatim, unrenamed) is unchanged.
+- document.keys.ts has nine total entry-pairs (its original seven plus the
+  two new ones from Fix 7); the original seven are byte-identical to before.
+- index.ts's two import lines point to organization.keys.js and
+  documentRequest.keys.js respectively; all other lines in index.ts are
+  unchanged.
+- Zero files under apps/web/ or apps/server/ were modified.
+- packages/shared/src/index.ts is byte-identical before and after.
+- packages/shared/package.json is byte-identical before and after.
+- notification.keys.ts, records.keys.ts, iam.keys.ts, tracking.keys.ts,
+  session.keys.ts, audit.keys.ts are all byte-identical before and after.
+
+Report back: which acceptance criteria passed, which (if any) failed and
+why, and the exact typecheck/build output.
+````
+
+---
+
+# Standalone Prompt 2 of 2: New Task — `getActiveInstanceForDocument` Invalidation Gap
+
+````
+TASK ID: TASK-WF-FE-015 (tentative — see numbering note below)
+
+Before doing anything else: grep the repository for "TASK-WF-FE-015" across
+docs/pre-development/A-project-planning/a1-tasks/fix.md and any other task
+tracking files. If that ID is already in use by unrelated work, use the next
+genuinely free TASK-WF-FE-NNN number instead and note in your report which
+number you actually used and why. This task is a fresh addition, not a
+continuation of TASK-WF-FE-014 — TASK-WF-FE-014 is already closed with
+signed-off acceptance criteria and must not be reopened or referenced as
+"revised" anywhere in code comments, commit messages, or this task's own
+eventual record. If you add a comment referencing this task's origin, cite
+this task's own ID, not TASK-WF-FE-014.
+
+═══════════════════════════════════════════
+BACKGROUND
+═══════════════════════════════════════════
+
+TASK-WF-FE-014 (already completed, separately) added cache-invalidation
+calls to 18 mutations across 11 files under
+apps/web/src/pages/workflow/panels/, fixing a stale-cache bug for the "My
+Assigned Steps" inbox and Order of Business views. That task's own
+specification derived its invalidation targets from F3
+(docs/pre-development/F-frontend-architecture/f3-tanstack-query-key-factory-specification.md),
+specifically its Mutation Invalidation Matrix section (Workflow Mutations
+table).
+
+Re-checking that same F3 matrix against the actually-implemented code
+afterward found one systematic gap that TASK-WF-FE-014 missed: F3's matrix
+specifies workflowKeys.forDocument(documentId) — which corresponds to the
+tRPC call utils.workflow.getActiveInstanceForDocument.invalidate({
+documentId }) — as a required same-module invalidation target for nearly
+every workflow mutation in this file set. That call is currently present in
+exactly one of the eleven panel files (SecretariatDecisionPanel.tsx) and
+missing from the other files whose mutations require it per F3's matrix.
+
+workflow.getActiveInstanceForDocument is a real, live-consumed query: it is
+called via useQuery in apps/web/src/pages/documents/DocumentDetailPage.tsx
+(around line 268) and its result — including a panelHint field — determines
+which workflow action panel that page renders for a document's current step.
+Without this invalidation, a user who completes a step from one of the
+affected panels and then views or already has open
+DocumentDetailPage.tsx for that same document may see the wrong (stale)
+panel/step data until an unrelated trigger (full remount, window refocus, or
+TanStack Query's 5-minute garbage-collection window) forces a refetch. This
+is the same category of bug TASK-WF-FE-014 fixed for listMyAssignedSteps and
+getOrderOfBusiness, recurring for a different consumer that F3's matrix
+covers but that task's implementation did not.
+
+═══════════════════════════════════════════
+SCOPE: EXACTLY 9 FILES, EXACTLY THESE MUTATIONS
+═══════════════════════════════════════════
+
+The following table is authoritative. Add exactly one new line —
+`void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });`
+— to each onSuccess block listed. Do not add it anywhere else, including in
+this same file set's mutations not listed below.
+
+```json
+{
+  "files_and_mutations_to_edit": [
+    {
+      "file": "apps/web/src/pages/workflow/panels/MultiReferralPanel.tsx",
+      "mutations": ["submitReportMutation (trpc.workflow.submitCommitteeReport)", "advanceMutation (trpc.workflow.manuallyAdvanceMultiReferralStep)"],
+      "explicitly_excluded_in_this_file": "hearingDateMutation (trpc.session.enterCommitteeHearingDate) — F3's Session Mutations table does not list workflowKeys.forDocument for this mutation, only sessionKeys.orderOfBusinesses() and workflowKeys.detail(instanceId), both already present. Do not touch this mutation."
+    },
+    {
+      "file": "apps/web/src/pages/workflow/panels/GenericActionPanel.tsx",
+      "mutations": ["completeMutation (trpc.workflow.completeActionStep)"]
+    },
+    {
+      "file": "apps/web/src/pages/workflow/panels/GenericApprovalPanel.tsx",
+      "mutations": ["approveMutation (trpc.workflow.approveStep)", "rejectMutation (trpc.workflow.rejectStep)", "returnMutation (trpc.workflow.returnStepForRevision)"]
+    },
+    {
+      "file": "apps/web/src/pages/workflow/panels/DocketingPanel.tsx",
+      "mutations": ["logMutation (trpc.workflow.logDocketingCompletion)"]
+    },
+    {
+      "file": "apps/web/src/pages/workflow/panels/MayorDecisionPanel.tsx",
+      "mutations": ["signMutation (trpc.workflow.mayorSign)", "vetoMutation (trpc.workflow.mayorVeto)"]
+    },
+    {
+      "file": "apps/web/src/pages/workflow/panels/MayorLapseConfirmationPanel.tsx",
+      "mutations": ["confirmMutation (trpc.workflow.logMayorLapseConfirmation)"]
+    },
+    {
+      "file": "apps/web/src/pages/workflow/panels/VPCertificationPanel.tsx",
+      "mutations": ["certifyMutation (trpc.workflow.certifyAsPresidingOfficer)"]
+    },
+    {
+      "file": "apps/web/src/pages/workflow/panels/VetoOverrideRecordingPanel.tsx",
+      "mutations": ["recordMutation (trpc.workflow.recordVetoOverrideVote)"]
+    },
+    {
+      "file": "apps/web/src/pages/workflow/panels/PanlalawiganOutcomePanel.tsx",
+      "mutations": ["recordMutation (trpc.workflow.recordPanlalawiganOutcome)", "resolveMutation (trpc.workflow.resolveValidInPart)", "confirmDeemedMutation (trpc.workflow.confirmPanlalawiganDeemedApproved)"]
+    }
+  ],
+  "files_explicitly_not_touched": [
+    "apps/web/src/pages/workflow/panels/PublicationDatePanel.tsx — F3's matrix lists no same-module invalidation at all for recordNewspaperPublicationDate ('writes to document metadata'). Do not add forDocument here.",
+    "apps/web/src/pages/workflow/panels/SecretariatDecisionPanel.tsx — already has this exact call (utils.workflow.getActiveInstanceForDocument.invalidate) implemented. Do not add a duplicate."
+  ]
+}
+```
+
+═══════════════════════════════════════════
+EXACT EDITS, PER FILE
+═══════════════════════════════════════════
+
+For each edit below, add the new line immediately after the existing
+`void utils.workflow.getInstance.invalidate(...)` line in that specific
+onSuccess block (i.e., as the second invalidation call, before whichever
+calls currently follow it), matching this file's existing void-prefix
+convention (every file in this set already uses void-prefixed calls
+throughout — do not introduce a different convention).
+
+--- apps/web/src/pages/workflow/panels/MultiReferralPanel.tsx ---
+
+Edit A (submitReportMutation):
+old_str:
+```
+  const submitReportMutation = trpc.workflow.submitCommitteeReport.useMutation({
+    onSuccess: () => {
+      toast.success('Committee report submitted.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
+    },
+```
+new_str:
+```
+  const submitReportMutation = trpc.workflow.submitCommitteeReport.useMutation({
+    onSuccess: () => {
+      toast.success('Committee report submitted.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
+    },
+```
+
+Edit B (advanceMutation):
+old_str:
+```
+  const advanceMutation = trpc.workflow.manuallyAdvanceMultiReferralStep.useMutation({
+    onSuccess: () => {
+      toast.success('Step advanced.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
+      navigate('/workflow/steps');
+    },
+```
+new_str:
+```
+  const advanceMutation = trpc.workflow.manuallyAdvanceMultiReferralStep.useMutation({
+    onSuccess: () => {
+      toast.success('Step advanced.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
+      navigate('/workflow/steps');
+    },
+```
+
+Do NOT touch hearingDateMutation in this file (the block starting
+`const hearingDateMutation = trpc.session.enterCommitteeHearingDate.useMutation`) —
+per the JSON scope block above, this mutation is explicitly excluded.
+
+--- apps/web/src/pages/workflow/panels/GenericActionPanel.tsx ---
+
+old_str:
+```
+  const completeMutation = trpc.workflow.completeActionStep.useMutation({
+    onSuccess: () => {
+      toast.success('Action step completed successfully.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });
+      navigate('/workflow/steps');
+    },
+```
+new_str:
+```
+  const completeMutation = trpc.workflow.completeActionStep.useMutation({
+    onSuccess: () => {
+      toast.success('Action step completed successfully.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });
+      navigate('/workflow/steps');
+    },
+```
+
+--- apps/web/src/pages/workflow/panels/GenericApprovalPanel.tsx ---
+
+This file has three mutations with near-identical bodies. Anchor each edit
+using the distinct toast.success text shown below to avoid ambiguity —
+do not attempt a plain find-and-replace on the invalidate lines alone, since
+that fragment is not unique in this file.
+
+Edit A (approveMutation — anchor: 'Step approved.'):
+old_str:
+```
+      toast.success('Step approved.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+new_str:
+```
+      toast.success('Step approved.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+
+Edit B (rejectMutation — anchor: 'Step rejected.'):
+old_str:
+```
+      toast.success('Step rejected.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+new_str:
+```
+      toast.success('Step rejected.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+
+Edit C (returnMutation — anchor: 'Step returned for revision.'):
+old_str:
+```
+      toast.success('Step returned for revision.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+new_str:
+```
+      toast.success('Step returned for revision.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+
+--- apps/web/src/pages/workflow/panels/DocketingPanel.tsx ---
+
+old_str:
+```
+      toast.success('Docketing completed.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+new_str:
+```
+      toast.success('Docketing completed.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+
+--- apps/web/src/pages/workflow/panels/MayorDecisionPanel.tsx ---
+
+Edit A (signMutation — anchor: 'Document signed.'):
+old_str:
+```
+      toast.success('Document signed.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+new_str:
+```
+      toast.success('Document signed.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+
+Edit B (vetoMutation — anchor: 'Document vetoed.'):
+old_str:
+```
+      toast.success('Document vetoed.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+new_str:
+```
+      toast.success('Document vetoed.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+
+--- apps/web/src/pages/workflow/panels/MayorLapseConfirmationPanel.tsx ---
+
+old_str:
+```
+      toast.success('10-day lapse confirmed.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+```
+new_str:
+```
+      toast.success('10-day lapse confirmed.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+```
+
+Note: this mutation has no listMyAssignedSteps call (correctly excluded per
+TASK-WF-FE-014's Edge Case 1 — this remains correct and is not part of this
+task). Insert the new line directly after getInstance, before the existing
+documents.get call.
+
+--- apps/web/src/pages/workflow/panels/VPCertificationPanel.tsx ---
+
+old_str:
+```
+      toast.success('Document certified successfully.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+new_str:
+```
+      toast.success('Document certified successfully.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+
+--- apps/web/src/pages/workflow/panels/VetoOverrideRecordingPanel.tsx ---
+
+old_str:
+```
+      toast.success('Veto override vote recorded.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+new_str:
+```
+      toast.success('Veto override vote recorded.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+```
+
+--- apps/web/src/pages/workflow/panels/PanlalawiganOutcomePanel.tsx ---
+
+This file has three mutations. None currently has listMyAssignedSteps (all
+three are correctly excluded from it per TASK-WF-FE-014's Edge Case 1 — not
+part of this task, do not add it). Anchor each edit by its distinct
+toast.success text.
+
+Edit A (recordMutation — anchor: 'Outcome recorded.'):
+old_str:
+```
+      toast.success('Outcome recorded.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+```
+new_str:
+```
+      toast.success('Outcome recorded.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+```
+
+Edit B (resolveMutation — anchor: 'Valid-in-part resolved.'):
+old_str:
+```
+      toast.success('Valid-in-part resolved.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+```
+new_str:
+```
+      toast.success('Valid-in-part resolved.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+```
+
+Edit C (confirmDeemedMutation — anchor: 'Deemed approved confirmed.'):
+old_str:
+```
+      toast.success('Deemed approved confirmed.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.documents.list.invalidate();
+```
+new_str:
+```
+      toast.success('Deemed approved confirmed.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.documents.list.invalidate();
+```
+
+═══════════════════════════════════════════
+SCOPE BOUNDARIES
+═══════════════════════════════════════════
+
+IN SCOPE: exactly the 9 files and exactly the mutations listed in the JSON
+block and the 13 individual edits above (MultiReferralPanel: 2 edits,
+GenericActionPanel: 1, GenericApprovalPanel: 3, DocketingPanel: 1,
+MayorDecisionPanel: 2, MayorLapseConfirmationPanel: 1, VPCertificationPanel:
+1, VetoOverrideRecordingPanel: 1, PanlalawiganOutcomePanel: 3 — total 15
+edits across 9 files, matching the 9-file/one-new-line-per-listed-mutation
+count above; note MultiReferralPanel and GenericApprovalPanel and
+PanlalawiganOutcomePanel each contribute more than one edit).
+
+OUT OF SCOPE:
+- PublicationDatePanel.tsx, SecretariatDecisionPanel.tsx — explicitly
+  excluded, see JSON block.
+- hearingDateMutation inside MultiReferralPanel.tsx — explicitly excluded,
+  see JSON block.
+- Any mutation's toast text, input validation, button text, or navigate()
+  call — this task adds exactly one invalidate line per listed mutation and
+  nothing else.
+- Any of the existing invalidate calls in any of these files — none are
+  removed, reordered, or modified. This task is purely additive.
+- packages/shared/src/query-keys/ — not part of this task even though a
+  related factory-corrections task may be running separately. Do not import
+  from @batac/shared/query-keys in this task; continue using the existing
+  utils.*.invalidate() pattern these files already use throughout, exactly
+  as done for the new line.
+- Any file not named in the 9-file list above.
+
+═══════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════
+
+- pnpm --filter @batac/web typecheck passes with no new errors introduced in
+  any of the 9 touched files (pre-existing unrelated errors elsewhere in the
+  codebase are not this task's concern).
+- Each of the 9 files contains exactly one new
+  `void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });`
+  line per listed mutation (15 new lines total across 9 files), positioned
+  immediately after that mutation's existing getInstance invalidate call.
+- PublicationDatePanel.tsx and SecretariatDecisionPanel.tsx are byte-identical
+  before and after.
+- hearingDateMutation's block inside MultiReferralPanel.tsx is byte-identical
+  before and after.
+- No existing invalidate call in any of the 9 files was removed or reordered.
+- No file outside the 9 listed was modified.
+- Spot-check: GenericApprovalPanel.tsx's approveStep onSuccess contains
+  exactly 6 total .invalidate() calls after this change (5 existing, per
+  TASK-WF-FE-014's own acceptance criteria, plus 1 new).
+
+Report back: the actual task ID used (per the numbering-check instruction at
+the top of this prompt), which acceptance criteria passed, which (if any)
+failed and why, and the exact typecheck output.
+````
+
+---
