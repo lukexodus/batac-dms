@@ -4699,17 +4699,50 @@ This entry supersedes LOG-0166 entirely. The `assignedTo` field has been reverte
 - status: proposed
 - affects: LOG-0168, B3 (§7.11)
 
-**Decision:** Per Luke (2026-07-28), the  field in  must support an array of UUIDs () instead of a single string. This reverses LOG-0168. The architectural reason is that reducing a step to one assignee is incompatible with how committee and role-based review actually works (e.g.  or  branches in  which intrinsically return multiple concurrent assignees).
-
-**Action:** The runtime payload array-widening has been re-applied and is authorized. B3 §7.11 must be updated by a human to reflect this (). Note: Consumers like  or  must be written to handle an array if they map from this field.
-
-### [LOG-0169] Decision: workflow.step.started assignedTo is multi-assignee array
-
-- date: 2026-07-28
-- task_id: TASK-WF-EVT-004
-- status: proposed
-- affects: LOG-0168, B3 (§7.11)
-
 **Decision:** Per Luke (2026-07-28), the `assignedTo` field in `workflow.step.started` must support an array of UUIDs (`string[] | null`) instead of a single string. This reverses LOG-0168. The architectural reason is that reducing a step to one assignee is incompatible with how committee and role-based review actually works (e.g. `role:sp_secretary` or `delegation_aware:` branches in `assignee-resolution.ts` which intrinsically return multiple concurrent assignees).
 
 **Action:** The runtime payload array-widening has been re-applied and is authorized. B3 §7.11 must be updated by a human to reflect this (`assignedTo: z.array(z.string().uuid()).nullable()`). Note: Consumers like `notifications` or `audit` must be written to handle an array if they map from this field.
+
+---
+
+### [LOG-0170] Architectural Decision - Standardize on Collect-and-Emit Pattern
+
+- date: 2026-07-28
+- task_id: TASK-AUDIT-PATTERN-001
+- status: confirmed
+- affects: LOG-0059, workflow.router.ts, iam.service.ts, documents.router.ts, etc.
+
+**What was found:**
+An investigation into LOG-0059 confirmed that the codebase currently uses three inconsistent patterns for event and audit routing: Pattern A (TRPC Duplicate Emit), Pattern B (Direct Audit Write, bypassing `EventBus`), and Pattern C (Engine DB-Only Events, which create silent audit gaps by bypassing `EventBus`). 
+
+**Decision:**
+Per Yalzea (2026-07-28), the codebase will standardize codebase-wide on the "Collect and Emit" pattern. 
+1. Direct `auditService` writes outside of the audit consumer (Pattern B) are deprecated and must be migrated to emit Domain Events instead.
+2. State-mutating handlers (like engine functions) should return arrays of domain events, which the caller/transaction-runner then emits to the `EventBus`, resolving Pattern A and Pattern C simultaneously.
+
+**Action:**
+This decision is logged for execution. Subsequent tasks will rewrite `workflow.router.ts`, `iam.service.ts`, and other routers/handlers to adopt this standardized event collection and emission model.
+
+---
+
+### [LOG-0171] I3 §9.3 Taxonomy Verification - Stale Event Names Replaced by Consolidated Events
+
+- date: 2026-07-28
+- task_id: TASK-I3-TAXONOMY-001
+- status: proposed
+- affects: LOG-0165, I3 (§9.3)
+
+**What was found:**
+1. **Verification of LOG-0165:** ADR-API-003 explicitly addresses the removal of the `document.secretariat_decision` event and explicitly delegates the recording of Approve/Reject/Amended decisions to the `workflow.step.completed` event's `outcome` field. Thus, LOG-0165's conclusion that `secretariat_decision_*` are stale event names superseded by `workflow.step.completed` is a direct, confirmed consequence of ADR-API-003.
+2. **Investigation of the 8 unmapped names in I3 §9.3:** 
+   An independent codebase-wide search confirmed none of the remaining eight unmatched I3 §9.3 event names are missing compliance implementations. They are all casing drift or stale taxonomy that was superseded by standardized, consolidated event emission.
+   - `certification_of_urgency_logged` is LIVE as `document.certification_urgency.logged`.
+   - `workflow_instance_migrated` is LIVE as `workflow.instance.migration.started` and `.completed`.
+   - `document_submitted` is STALE, superseded by `document.state_changed` with `toState: 'submitted'`.
+   - `document_number_promoted` is STALE, superseded by `document.number_assigned` with `numberType: 'final'`.
+   - `document_cancelled` is STALE, superseded by `document.state_changed` with `toState: 'cancelled'` (explicitly confirmed via comments in `documents.router.ts`).
+   - `document_archived` and `document_disposed` are STALE, superseded by `document.state_changed` with `toState: 'archived'` and `toState: 'disposed'` respectively.
+   - `workflow_step_advanced_manually` is STALE, superseded by the SP Secretary override functionality emitting `workflow.step.completed` with `outcome: 'SECRETARY_ADVANCED'`.
+
+**Conclusion:**
+There are no missing statutory or compliance-mandatory event implementations stemming from I3 §9.3's list. The audit consumer correctly subscribes to `document.state_changed`, `document.number_assigned`, and `workflow.step.completed`, which collectively handle all the lifecycle requirements previously broken out as separate hypothetical event names in I3 §9.3.
