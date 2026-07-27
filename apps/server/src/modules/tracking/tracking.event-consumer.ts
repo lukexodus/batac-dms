@@ -63,7 +63,7 @@ export class TrackingEventConsumer {
   }
 
   async handleWorkflowStepCompleted(
-    event: DomainEvent<EventPayloadMap['workflow.step_completed']>,
+    event: DomainEvent<EventPayloadMap['workflow.step.completed']>,
   ): Promise<void> {
     const payload = event.payload as WorkflowStepCompletedPayload;
 
@@ -74,7 +74,7 @@ export class TrackingEventConsumer {
     if (!trackingRecord) {
       this.logger.warn(
         { documentId: payload.documentId, eventId: event.eventId },
-        'tracking: workflow.step_completed — no tracking record found for document, skipping',
+        'tracking: workflow.step.completed — no tracking record found for document, skipping',
       );
       return; // not an error — may be a document type without tracking
     }

@@ -100,7 +100,7 @@ describe('tracking.plugin', () => {
       'tracking',
     );
     expect(fastify.eventBus.on).toHaveBeenCalledWith(
-      'workflow.step_completed',
+      'workflow.step.completed',
       expect.any(Function),
       'tracking',
     );

@@ -1,17 +1,22 @@
 /**
  * EventPayloadMap — Phase 1 Master Event Bus Registry
  *
- * 18 typed entries covering all domain events confirmed in B2 §"Master Event
- * Bus Registry". Each payload is a stub `Record<string, unknown>` until the
- * owning module's task fills it in with a concrete type.
+ * Typed entries covering all domain events confirmed in B2 §"Master Event
+ * Bus Registry" and B3 §8 "Master Event Registry". Each payload is a stub
+ * `Record<string, unknown>` until the owning module's task fills it in with
+ * a concrete type.
  *
  * Compiler rules (ADR-API-001 §6):
  *   - `bus.emit()` and `bus.on()` accept only keys defined in this interface.
  *   - Using an unlisted event name is a TypeScript compile error, not a runtime error.
- *   - Any new domain event added to B2 §"Master Event Bus Registry" must also be
- *     added here in the same PR, or the build fails.
+ *   - Any new domain event added to B2/B3 must also be added here in the same
+ *     PR, or the build fails.
  *
- * Sources: B2 §"Master Event Bus Registry"; ADR-B2-1; B1 Appendix A.
+ * Sources: B2 §"Master Event Bus Registry"; B3 §8; ADR-B2-1; B1 Appendix A.
+ *
+ * TASK-WF-EVT-001: expanded from 36 to 57 entries to cover all B3 §8
+ * canonical workflow events and SLA events. Deprecated underscore-notation
+ * workflow keys in favour of dot-notation canonical keys.
  */
 
 // Stub until each owning module's task fills in the concrete payload type.
@@ -155,13 +160,30 @@ export interface EventPayloadMap {
   };
 
   // ── Workflow module ────────────────────────────────────────────────────────
-  'workflow.instance.created': WorkflowInstanceCreatedPayload;
-  'workflow.step.started': WorkflowStepStartedPayload;
-  'workflow.instance.stuck': WorkflowInstanceStuckPayload;
-  'workflow.context.updated': WorkflowContextUpdatedPayload;
 
-  'workflow.step_assigned': Stub;
-  'workflow.step_completed': WorkflowStepCompletedPayload;
+  // Instance lifecycle (B3 §7)
+  'workflow.instance.created': WorkflowInstanceCreatedPayload;
+  'workflow.instance.completed': {
+    instanceId: string;
+    documentId: string;
+    outcomeCode: string;
+    finalDocumentStatus: string | null;
+  };
+  'workflow.instance.cancelled': {
+    instanceId: string;
+    cancelledBy: string;
+    cancellationReason: string | null;
+  };
+  'workflow.instance.stuck': WorkflowInstanceStuckPayload;
+  'workflow.instance.repassed': { instanceId: string; documentId: string };
+  'workflow.instance.suspended': Stub;
+  'workflow.instance.resumed': Stub;
+  'workflow.instance.migration.started': Record<string, unknown>;
+  'workflow.instance.migration.completed': Record<string, unknown>;
+  'workflow.instance.migration.reversed': Stub;
+
+  // Step lifecycle (B3 §7)
+  'workflow.step.started': WorkflowStepStartedPayload;
   'workflow.step.completed': {
     instanceId: string;
     stepInstanceId: string;
@@ -169,6 +191,19 @@ export interface EventPayloadMap {
     stepType: string;
     outcome: string;
     comment: string | null;
+    documentId: string;
+    actorId: string;
+    fromOfficeId: string | null;
+    toOfficeId: string | null;
+    actionDescription: string;
+    cityId: string;
+  };
+  'workflow.step.bypassed': {
+    instanceId: string;
+    stepInstanceId: string;
+    bypassReason: string;
+    bypassedBy: string;
+    comment: string;
   };
   'workflow.step.failed': {
     instanceId: string;
@@ -177,16 +212,88 @@ export interface EventPayloadMap {
     errorCode: string;
     errorMessage: string;
   };
+  'workflow.context.updated': WorkflowContextUpdatedPayload;
+
+  // Multi-referral events (B3 §8)
+  'workflow.multi_referral.committee_submitted': Stub;
+  'workflow.multi_referral.all_submitted': Stub;
+  'workflow.multi_referral.cutoff_missed': {
+    instanceId: string;
+    stepInstanceId: string;
+  };
+  'workflow.multi_referral.second_reading_eligible': {
+    instanceId: string;
+    stepInstanceId: string;
+  };
+  'workflow.multi_referral.secretary_advanced': Stub;
+
+  // Statutory-deadline events (B3 §8)
+  'workflow.approval.lapsed': {
+    instanceId: string;
+    stepInstanceId: string;
+  };
+  'workflow.panlalawigan.deemed_approved': {
+    instanceId: string;
+    documentId: string;
+  };
+
+  // Certification urgency events (B3 §8)
+  'workflow.certification_urgency.bypass_applied': {
+    instanceId: string;
+    stepInstanceId: string;
+  };
+  'workflow.certification_urgency.bypass_deferred': {
+    instanceId: string;
+  };
+  'workflow.certification_urgency.already_past_referral': {
+    instanceId: string;
+  };
+  'workflow.certification_urgency.already_inactive': {
+    instanceId: string;
+  };
+
+  // SLA events (evaluate-sla-breaches.ts — step-level)
+  'workflow.sla.warning': {
+    stepInstanceId: string;
+    slaDeadline: string;
+    percentElapsed: number;
+  };
+  'workflow.sla.breached': {
+    stepInstanceId: string;
+    slaDeadline: string;
+    breachDetectedAt: string;
+    breachedAt: string;
+  };
+  'workflow.sla.critical': {
+    stepInstanceId: string;
+    slaDeadline: string;
+  };
+
+  // SLA events (evaluate-sla-breaches.ts — instance-level)
+  'workflow.instance.sla.warning': {
+    slaDeadline: string;
+    percentElapsed: number;
+  };
+  'workflow.instance.sla.breached': {
+    slaDeadline: string;
+    breachDetectedAt: string;
+    breachedAt: string;
+  };
+  'workflow.instance.sla.critical': {
+    slaDeadline: string;
+  };
+
+  // ── Legacy / deprecated workflow keys ─────────────────────────────────────
+  // These underscore-notation keys predate the B3 §8 dot-notation convention.
+  // Consumers should migrate to the canonical dot-notation equivalents above.
+
+  /** @deprecated Use 'workflow.step.completed' — retained for backward compat only. */
+  'workflow.step_assigned': Stub;
+  /** @deprecated Use 'workflow.step.completed' — retained for backward compat only. */
+  'workflow.step_completed': WorkflowStepCompletedPayload;
   'workflow.lapsed': Stub;
   'workflow.escalated': Stub;
   'workflow.certified_urgent_applied': Stub;
   'workflow.manually_advanced': Stub;
   'workflow.completed': Stub;
-  'workflow.instance.completed': {
-    instanceId: string;
-    documentId: string;
-    outcomeCode: string;
-    finalDocumentStatus: string | null;
-  };
-  'workflow.instance.repassed': { instanceId: string; documentId: string };
 }

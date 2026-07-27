@@ -880,7 +880,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository,
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -898,8 +898,8 @@ export function createWorkflowRouter() {
         });
 
         // Emit to event bus so audit consumer can create an audit log entry.
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -912,6 +912,12 @@ export function createWorkflowRouter() {
               stepType: step.stepType,
               outcome: 'DONE',
               comment,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${step.stepType} DONE`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -959,7 +965,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository,
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -978,8 +984,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -992,6 +998,12 @@ export function createWorkflowRouter() {
               stepType: step.stepType,
               outcome: 'APPROVED',
               comment,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${step.stepType} APPROVED`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -1051,7 +1063,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository,
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -1070,8 +1082,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -1084,6 +1096,12 @@ export function createWorkflowRouter() {
               stepType: step.stepType,
               outcome,
               comment: remarks,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${step.stepType} DONE`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -1129,7 +1147,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository,
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -1148,8 +1166,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -1162,6 +1180,12 @@ export function createWorkflowRouter() {
               stepType: step.stepType,
               outcome: 'REJECTED',
               comment,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${step.stepType} REJECTED`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -1207,7 +1231,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository,
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -1226,8 +1250,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -1240,6 +1264,12 @@ export function createWorkflowRouter() {
               stepType: step.stepType,
               outcome: 'RETURNED_FOR_REVISION',
               comment,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${step.stepType} RETURNED_FOR_REVISION`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -1289,7 +1319,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository,
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -1389,7 +1419,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository,
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -1430,8 +1460,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -1444,6 +1474,12 @@ export function createWorkflowRouter() {
               stepType: found.step.stepType,
               outcome: 'REPORT_ACCEPTED',
               comment: null,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${found.step.stepType} REPORT_ACCEPTED`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -1489,7 +1525,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository,
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -1508,8 +1544,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -1522,6 +1558,12 @@ export function createWorkflowRouter() {
               stepType: step.stepType,
               outcome: 'SECRETARY_ADVANCED',
               comment: mandatoryComment,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${step.stepType} SECRETARY_ADVANCED`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -1545,7 +1587,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository: new WorkflowRepository(ctx.db),
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -1588,8 +1630,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -1602,7 +1644,12 @@ export function createWorkflowRouter() {
               stepType: step.stepType,
               outcome: 'SIGNED',
               comment: null,
-              userId: ctx.auth.userId,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${step.stepType} SIGNED`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -1626,7 +1673,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository: new WorkflowRepository(ctx.db),
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -1665,8 +1712,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -1679,7 +1726,12 @@ export function createWorkflowRouter() {
               stepType: step.stepType,
               outcome: 'SIGNED',
               comment: null,
-              userId: ctx.auth.userId,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${step.stepType} SIGNED`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -1708,7 +1760,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository: new WorkflowRepository(ctx.db),
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -1747,8 +1799,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -1761,7 +1813,12 @@ export function createWorkflowRouter() {
               stepType: step.stepType,
               outcome: 'VETOED',
               comment: input.objectionsText,
-              userId: ctx.auth.userId,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${step.stepType} VETOED`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -1841,8 +1898,8 @@ export function createWorkflowRouter() {
           );
 
           const server = ctx.req.server as any;
-          if (server.eventBus) {
-            server.eventBus.emit('workflow.step.completed', {
+          if (ctx.req.server.eventBus) {
+            ctx.req.server.eventBus.emit('workflow.step.completed', {
               eventId: randomUUID(),
               eventType: 'workflow.step.completed',
               occurredAt: new Date().toISOString(),
@@ -1855,6 +1912,12 @@ export function createWorkflowRouter() {
                 stepType: stepContext.step.stepType,
                 outcome: 'LAPSED_CONFIRMED',
                 comment: 'Mayor lapse confirmed by SP Secretary',
+                documentId: instance.documentId,
+                actorId: ctx.auth!.userId,
+                fromOfficeId: null,
+                toOfficeId: null,
+                actionDescription: `${stepContext.step.stepType} ${'LAPSED_CONFIRMED'}`,
+                cityId: ctx.auth!.cityId,
               },
             });
           }
@@ -1890,7 +1953,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository: new WorkflowRepository(ctx.db),
           documentsService: server4.documentsService,
-          eventBus: server4.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server4.organizationService,
           delegationService: server4.delegationService,
           iamService: server4.iamService,
@@ -1932,8 +1995,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server4.eventBus) {
-          server4.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -1946,6 +2009,12 @@ export function createWorkflowRouter() {
               stepType: stepContext.step.stepType,
               outcome,
               comment: null,
+              documentId: stepContext.instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${stepContext.step.stepType} DONE`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -1969,7 +2038,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository: new WorkflowRepository(ctx.db),
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -1991,8 +2060,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -2005,6 +2074,12 @@ export function createWorkflowRouter() {
               stepType: stepContext.step.stepType,
               outcome: 'DONE',
               comment: null,
+              documentId: stepContext.instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${stepContext.step.stepType} DONE`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -2038,7 +2113,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository: new WorkflowRepository(ctx.db),
           documentsService: server2.documentsService,
-          eventBus: server2.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server2.organizationService,
           delegationService: server2.delegationService,
           iamService: server2.iamService,
@@ -2080,8 +2155,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server2.eventBus) {
-          server2.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -2094,6 +2169,12 @@ export function createWorkflowRouter() {
               stepType: stepContext.step.stepType,
               outcome: input.outcome,
               comment: input.remarks ?? null,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${stepContext.step.stepType} ${input.outcome}`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -2159,7 +2240,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository,
           documentsService: server3.documentsService,
-          eventBus: server3.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server3.organizationService,
           delegationService: server3.delegationService,
           iamService: server3.iamService,
@@ -2245,8 +2326,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server3.eventBus) {
-          server3.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -2259,6 +2340,12 @@ export function createWorkflowRouter() {
               stepType: stepContext.step.stepType,
               outcome,
               comment: input.mandatoryComment,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${stepContext.step.stepType} DONE`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -2342,8 +2429,8 @@ export function createWorkflowRouter() {
             tx as any,
           );
 
-          if (server.eventBus) {
-            server.eventBus.emit('workflow.step.completed', {
+          if (ctx.req.server.eventBus) {
+            ctx.req.server.eventBus.emit('workflow.step.completed', {
               eventId: randomUUID(),
               eventType: 'workflow.step.completed',
               occurredAt: new Date().toISOString(),
@@ -2356,6 +2443,12 @@ export function createWorkflowRouter() {
                 stepType: stepContext.step.stepType,
                 outcome: 'DEEMED_APPROVED_CONFIRMED',
                 comment: 'Panlalawigan deemed approval confirmed by SP Secretary',
+                documentId: instance.documentId,
+                actorId: ctx.auth!.userId,
+                fromOfficeId: null,
+                toOfficeId: null,
+                actionDescription: `${stepContext.step.stepType} ${'DEEMED_APPROVED_CONFIRMED'}`,
+                cityId: ctx.auth!.cityId,
               },
             });
           }
@@ -2453,7 +2546,7 @@ export function createWorkflowRouter() {
           db: ctx.db,
           workflowRepository,
           documentsService: server.documentsService,
-          eventBus: server.eventBus,
+          eventBus: ctx.req.server.eventBus,
           orgService: server.organizationService,
           delegationService: server.delegationService,
           iamService: server.iamService,
@@ -2484,8 +2577,8 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.step.completed', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.completed',
             occurredAt: new Date().toISOString(),
@@ -2498,6 +2591,12 @@ export function createWorkflowRouter() {
               stepType: stepContext.step.stepType,
               outcome: 'DONE',
               comment: null,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${stepContext.step.stepType} DONE`,
+              cityId: ctx.auth!.cityId,
             },
           });
         }
@@ -2554,7 +2653,7 @@ export function createWorkflowRouter() {
             db: tx as any,
             workflowRepository: new WorkflowRepository(tx as any),
             documentsService: server.documentsService,
-            eventBus: server.eventBus,
+            eventBus: ctx.req.server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
             getApprovalGrant: (instanceId: string, versionId: string) =>
@@ -2565,8 +2664,8 @@ export function createWorkflowRouter() {
           await cancelInstance(input.instanceId, ctx.auth!.userId, input.reason, deps);
         });
 
-        if (server.eventBus) {
-          server.eventBus.emit('workflow.instance.cancelled', {
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.instance.cancelled', {
             eventId: randomUUID(),
             eventType: 'workflow.instance.cancelled',
             occurredAt: new Date().toISOString(),
@@ -2605,7 +2704,7 @@ export function createWorkflowRouter() {
             db: tx as any,
             workflowRepository: new WorkflowRepository(tx as any),
             documentsService: server.documentsService,
-            eventBus: server.eventBus,
+            eventBus: ctx.req.server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
             iamService: server.iamService,
@@ -2630,8 +2729,8 @@ export function createWorkflowRouter() {
           .where(eq(stepInstances.id, input.stepInstanceId))
           .limit(1);
 
-        if (server.eventBus && stepInstance) {
-          server.eventBus.emit('workflow.step.bypassed', {
+        if (ctx.req.server.eventBus && stepInstance) {
+          ctx.req.server.eventBus.emit('workflow.step.bypassed', {
             eventId: randomUUID(),
             eventType: 'workflow.step.bypassed',
             occurredAt: new Date().toISOString(),
@@ -2674,7 +2773,7 @@ export function createWorkflowRouter() {
             db: tx as any,
             workflowRepository: new WorkflowRepository(tx as any),
             documentsService: server.documentsService,
-            eventBus: server.eventBus,
+            eventBus: ctx.req.server.eventBus,
             orgService: server.organizationService,
             delegationService: server.delegationService,
             getApprovalGrant: (instanceId: string, versionId: string) =>
@@ -2691,7 +2790,7 @@ export function createWorkflowRouter() {
           );
         });
 
-        if (server.eventBus) {
+        if (ctx.req.server.eventBus) {
           const [startedEvent] = await ctx.db
             .select()
             .from(workflowEvents)
@@ -2705,13 +2804,13 @@ export function createWorkflowRouter() {
             .limit(1);
 
           if (startedEvent) {
-            server.eventBus.emit('workflow.instance.migration.started', {
+            ctx.req.server.eventBus.emit('workflow.instance.migration.started', {
               eventId: randomUUID(),
               eventType: 'workflow.instance.migration.started',
               occurredAt: new Date().toISOString(),
               cityId: ctx.auth.cityId,
               schemaVersion: 1,
-              payload: startedEvent.payload,
+              payload: startedEvent.payload as Record<string, unknown>,
             });
           }
 
@@ -2728,13 +2827,13 @@ export function createWorkflowRouter() {
             .limit(1);
 
           if (completedEvent) {
-            server.eventBus.emit('workflow.instance.migration.completed', {
+            ctx.req.server.eventBus.emit('workflow.instance.migration.completed', {
               eventId: randomUUID(),
               eventType: 'workflow.instance.migration.completed',
               occurredAt: new Date().toISOString(),
               cityId: ctx.auth.cityId,
               schemaVersion: 1,
-              payload: completedEvent.payload,
+              payload: completedEvent.payload as Record<string, unknown>,
             });
           }
         }

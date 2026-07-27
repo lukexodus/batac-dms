@@ -129,12 +129,12 @@ export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.eventBus.on(
-    'workflow.step_completed',
+    'workflow.step.completed',
     (event) => {
       eventConsumer.handleWorkflowStepCompleted(event).catch((err) => {
         fastify.log.error(
           { err, eventId: event.eventId },
-          'tracking: workflow.step_completed handler failed',
+          'tracking: workflow.step.completed handler failed',
         );
       });
     },

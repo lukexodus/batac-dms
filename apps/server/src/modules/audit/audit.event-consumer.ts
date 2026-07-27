@@ -168,12 +168,12 @@ export function registerAuditEventConsumer(
     cityId: e.cityId,
   }));
 
-  makeHandler('workflow.step_completed', (e) => ({
-    eventType: 'workflow.step_completed',
-    actorId: getString(e.payload, 'completerId', 'actorId'),
+  makeHandler('workflow.step.completed', (e) => ({
+    eventType: 'workflow.step.completed',
+    actorId: getString(e.payload, 'actorId'),
     targetId: getString(e.payload, 'documentId'),
     targetType: 'document',
-    resourceOfficeId: getString(e.payload, 'officeId'),
+    resourceOfficeId: getString(e.payload, 'fromOfficeId'),
     payload: e.payload as unknown as Record<string, unknown>,
     cityId: e.cityId,
   }));
@@ -225,6 +225,46 @@ export function registerAuditEventConsumer(
     targetType: 'document',
     resourceOfficeId: getString(e.payload, 'officeId'),
     payload: e.payload as Record<string, unknown>,
+    cityId: e.cityId,
+  }));
+
+  makeHandler('workflow.step.bypassed', (e) => ({
+    eventType: 'workflow.step.bypassed',
+    actorId: getString(e.payload, 'actorId'),
+    targetId: getString(e.payload, 'stepInstanceId'),
+    targetType: 'workflow_step',
+    resourceOfficeId: null,
+    payload: e.payload as unknown as Record<string, unknown>,
+    cityId: e.cityId,
+  }));
+
+  makeHandler('workflow.instance.cancelled', (e) => ({
+    eventType: 'workflow.instance.cancelled',
+    actorId: getString(e.payload, 'cancelledBy'),
+    targetId: getString(e.payload, 'documentId'),
+    targetType: 'document',
+    resourceOfficeId: null,
+    payload: e.payload as unknown as Record<string, unknown>,
+    cityId: e.cityId,
+  }));
+
+  makeHandler('workflow.approval.lapsed', (e) => ({
+    eventType: 'workflow.approval.lapsed',
+    actorId: null, // system-generated
+    targetId: getString(e.payload, 'instanceId'),
+    targetType: 'workflow_instance',
+    resourceOfficeId: null,
+    payload: e.payload as unknown as Record<string, unknown>,
+    cityId: e.cityId,
+  }));
+
+  makeHandler('workflow.panlalawigan.deemed_approved', (e) => ({
+    eventType: 'workflow.panlalawigan.deemed_approved',
+    actorId: null, // system-generated
+    targetId: getString(e.payload, 'documentId'),
+    targetType: 'document',
+    resourceOfficeId: null,
+    payload: e.payload as unknown as Record<string, unknown>,
     cityId: e.cityId,
   }));
 }

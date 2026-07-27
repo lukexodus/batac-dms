@@ -1,5 +1,6 @@
 import type { WorkflowRepository } from '../workflow.repository.js';
 import { resolveNextStep } from '../engine/step-resolution.js';
+import { randomUUID } from 'node:crypto';
 
 import type { StepResolutionDeps } from '../engine/step-resolution.js';
 
@@ -48,6 +49,7 @@ export async function evaluateMayorLapseTimers(
     }
 
     // Deadline passed, execute lapse in a transaction
+    let didLapse = false;
     await deps.workflowRepository.runInTransaction(async (tx) => {
       // 1. Lock the step instance
       const lockedStepInstance = await deps.workflowRepository.lockStepInstanceForUpdate(
@@ -106,6 +108,22 @@ export async function evaluateMayorLapseTimers(
 
       // 6. Run step resolution
       await resolveNextStep(updatedInstance, updatedStepInstance, 'LAPSED', deps, tx as any);
+      
+      didLapse = true;
     });
+
+    if (didLapse && deps.eventBus) {
+      deps.eventBus.emit('workflow.approval.lapsed', {
+        eventId: randomUUID(),
+        eventType: 'workflow.approval.lapsed',
+        occurredAt: new Date().toISOString(),
+        cityId: instance.cityId,
+        schemaVersion: 1,
+        payload: {
+          instanceId: instance.id,
+          stepInstanceId: stepInstance.id,
+        },
+      });
+    }
   }
 }

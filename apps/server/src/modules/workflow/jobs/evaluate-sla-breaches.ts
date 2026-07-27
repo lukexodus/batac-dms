@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 
 export interface EvaluateSlaBreachesDeps {
   workflowRepository: WorkflowRepository;
-  eventBus?: EventBus;
+  eventBus: EventBus;
 }
 
 export async function evaluateSlaBreaches(
@@ -153,8 +153,11 @@ export async function evaluateSlaBreaches(
       }
     });
 
-    if (deps.eventBus && emittedEvents.length > 0) {
+    if (emittedEvents.length > 0) {
       for (const evt of emittedEvents) {
+        // TASK-WF-EVT-001: SLA event names are registered in EventPayloadMap.
+        // The `as any` here is required for dynamic dispatch (evt.type is determined
+        // at runtime from SLA evaluation logic), not from missing type registrations.
         deps.eventBus.emit(evt.type as any, {
           eventId: randomUUID(),
           eventType: evt.type,
@@ -288,8 +291,11 @@ export async function evaluateSlaBreaches(
       }
     });
 
-    if (deps.eventBus && emittedEvents.length > 0) {
+    if (emittedEvents.length > 0) {
       for (const evt of emittedEvents) {
+        // TASK-WF-EVT-001: SLA event names are registered in EventPayloadMap.
+        // The `as any` here is required for dynamic dispatch (evt.type is determined
+        // at runtime from SLA evaluation logic), not from missing type registrations.
         deps.eventBus.emit(evt.type as any, {
           eventId: randomUUID(),
           eventType: evt.type,

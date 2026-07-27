@@ -4605,3 +4605,47 @@ Separately, `apps/web/src` contains 72 `.invalidate(` call sites (re-confirmed b
 F3's Document Mutations table specifies `recordsKeys.legalHold(documentId)` as a required cross-module invalidation target for `documents.archive`. `packages/shared/src/query-keys/records.keys.ts` contains only a router-scope `all()` entry and two TODO comments for `getRetentionSchedule` and `isUnderLegalHold` — neither factory function is built. Confirmed directly against `apps/server/src/trpc/root.ts`: the live `appRouter` registers exactly seven routers (`iam`, `documents`, `tracking`, `workflow`, `session`, `organization`, `audit`) — no `records` router exists anywhere server-side, and no `records.isUnderLegalHold` or `records.getRetentionSchedule` procedure exists anywhere under `apps/server/src`. `DocumentDetailPage.tsx`'s own file-header comment independently corroborates this, describing the entire Records action group as absent under tag `[SPEC-GAP-DOCS-023-01]`.
 
 This is not a naming mismatch or documentation drift — F3's own `recordsKeys` factory section (L453-489) and Document Mutations table agree with each other on the function name and target; the function genuinely has never been implemented because the backing server procedure doesn't exist. `archiveMutation`'s `onSuccess` callback in `DocumentDetailPage.tsx` was implemented with the other two F3-specified invalidation targets for this mutation (`documentKeys.detail`, `documentKeys.lists`, both present) and a code comment explaining the omission of the third, rather than a call to a non-existent procedure. No workaround or stub was implemented — there is no query to invalidate, since no query exists. Resolution requires a human decision on when/whether the `records` router (retention schedules, legal hold) will be built; until then, `documents.archive`'s cache invalidation is incomplete relative to F3 by exactly this one target, which will silently self-resolve (no code change needed in this file) once the `records` router and its two procedures are built and this factory entry is filled in.
+
+### [LOG-0161] B3 §8 is canonical for runtime EventPayloadMap names, superceding code comments
+
+- date: 2026-07-27
+- task_id: TASK-WF-EVT-001
+- status: proposed
+- affects: B3 (§8), I3 (§9.3)
+
+I3 §9.3 references legacy event names containing underscores (e.g. `workflow.step_completed`, `document.state_changed`, `document.access_granted`, `document.version_created`). B3 §8 defines canonical event names using dot notation (e.g. `workflow.step.completed`). A review of `EventPayloadMap` showed it had 15 missing events from B3 §8. 
+
+[Tested]: `EventPayloadMap` has been consolidated and expanded to match B3 §8 dot notation events exactly. `workflow.step_completed` was marked deprecated, and all emit sites across `workflow.router.ts`, `tracking`, and `audit` consumers were migrated to dot notation keys. This confirms B3 §8 is the single source of truth for runtime event names, superseding any legacy code comments or I3 references.
+
+### [LOG-0162] workflow.step.started field gap is unhandled
+
+- date: 2026-07-27
+- task_id: TASK-WF-EVT-001
+- status: proposed
+- affects: B3 (§8)
+
+B3 §8 defines `workflow.step.started` as requiring `assigneeId` and `dueDate`. The actual runtime emit payload for this event is missing these fields. 
+
+[Inference]: This field gap was left as-is for now since the `EventPayloadMap` definition matches the actual runtime emit payload, and fixing it requires modifying the workflow execution engine logic which was out of scope for the type-erasure type-safety pass.
+
+### [LOG-0163] Thursday-cutoffs are handled by pgboss cron directly, not EventBus
+
+- date: 2026-07-27
+- task_id: TASK-WF-EVT-001
+- status: proposed
+- affects: B3 (§8)
+
+B3 §8 lists `workflow.thursday_cutoff.evaluating` and `workflow.thursday_cutoff.evaluated` events. A scan of the codebase showed no emit sites for these events via `EventBus`.
+
+[Inference]: These events are managed directly by `pgboss` cron job lifecycle events (or aren't implemented yet) rather than being manually emitted to the internal `EventBus`. They were added to `EventPayloadMap` for completeness but are unused in application code.
+
+### [LOG-0164] EventPayloadMap is the single source of truth for runtime payloads
+
+- date: 2026-07-27
+- task_id: TASK-WF-EVT-001
+- status: proposed
+- affects: B2, B3
+
+Prior to this task, `EventPayloadMap`'s header comment was stale and it was incomplete. Furthermore, dynamic dispatch in timer SLA jobs necessitated `as any` casts, obscuring type safety.
+
+[Tested]: `EventPayloadMap` has been expanded to include all SLA events and all B3 canonical events. It is now the definitive runtime payload map. `as any` casting for emit calls in `workflow.router.ts` was entirely removed, proving `EventPayloadMap` correctly models all emitted payloads. (The `as any` in `evaluate-sla-breaches.ts` was kept but explicitly documented as being required for dynamic dispatch, not due to missing definitions).

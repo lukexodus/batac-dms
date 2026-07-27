@@ -1,5 +1,6 @@
 import type { StepResolutionDeps } from '../engine/step-resolution.js';
 import { resolveNextStep } from '../engine/step-resolution.js';
+import { randomUUID } from 'node:crypto';
 
 export type EvaluatePanlalawiganTimersDeps = StepResolutionDeps;
 
@@ -46,6 +47,7 @@ export async function evaluatePanlalawiganTimers(
     }
 
     // Deadline passed, execute lapse in a transaction
+    let didLapse = false;
     await deps.workflowRepository.runInTransaction(async (tx) => {
       // 1. Lock the step instance
       const lockedStepInstance = await deps.workflowRepository.lockStepInstanceForUpdate(
@@ -111,6 +113,22 @@ export async function evaluatePanlalawiganTimers(
         deps,
         tx as any,
       );
+      
+      didLapse = true;
     });
+
+    if (didLapse && deps.eventBus) {
+      deps.eventBus.emit('workflow.panlalawigan.deemed_approved', {
+        eventId: randomUUID(),
+        eventType: 'workflow.panlalawigan.deemed_approved',
+        occurredAt: new Date().toISOString(),
+        cityId: instance.cityId,
+        schemaVersion: 1,
+        payload: {
+          instanceId: instance.id,
+          documentId: instance.documentId,
+        },
+      });
+    }
   }
 }
