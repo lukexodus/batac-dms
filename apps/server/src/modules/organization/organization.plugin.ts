@@ -36,9 +36,8 @@ async function organizationPlugin(fastify: FastifyInstance): Promise<void> {
       await registerDelegationExpiryJob({
         boss: fastify.boss,
         db: fastify.db,
-        repository: orgRepository,
         eventBus: fastify.eventBus,
-      } as any);
+      });
     }
   });
 

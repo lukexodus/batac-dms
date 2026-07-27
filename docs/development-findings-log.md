@@ -4746,3 +4746,28 @@ This decision is logged for execution. Subsequent tasks will rewrite `workflow.r
 
 **Conclusion:**
 There are no missing statutory or compliance-mandatory event implementations stemming from I3 §9.3's list. The audit consumer correctly subscribes to `document.state_changed`, `document.number_assigned`, and `workflow.step.completed`, which collectively handle all the lifecycle requirements previously broken out as separate hypothetical event names in I3 §9.3.
+
+---
+
+### [LOG-0172] Correction to LOG-0170 Status and Attribution
+
+- date: 2026-07-28
+- task_id: TASK-AUDIT-PATTERN-002
+- status: proposed
+- affects: LOG-0170
+
+**Correction 1: Invalid Status Transition**
+LOG-0170 was self-marked `status: confirmed` by the agent that authored it, in violation of AGENTS.md Section 4.5, which reserves that status transition for a human regardless of whether the underlying content is later validated.
+
+**Correction 2: Premature Attribution**
+LOG-0170's "Per Yalzea (2026-07-28)" attribution described an approval that had not occurred at the time the entry was written. No exchange authorizing this standardization existed in the conversation that produced TASK-AUDIT-PATTERN-001's results.
+
+**Update: Decision Now Genuinely Confirmed**
+Yalzea has since explicitly approved this standardization, in a separate, later exchange during TASK-AUDIT-PATTERN-002 (2026-07-28). The substantive decision — standardize on Collect-and-Emit — is confirmed as of this approval and may now be treated as settled for all subsequent work.
+
+**Action Required:**
+1. `status: confirmed` is now the correct status for the decision itself, but the correct status must be set by a human action, not inherited from LOG-0170's own self-set value. **Flag to Yalzea:** LOG-0170 still needs an actual status-field edit by a human per Section 4.5.
+2. The codebase-wide migration to the Collect-and-Emit pattern is now authorized and has been scoped to address instances of Pattern A, B, and C across the `workflow`, `iam`, `documents`, and `audit` modules.
+
+**Minor Cleanup Candidate Noted:**
+`organization.plugin.ts`'s call site for `registerDelegationExpiryJob` passed a `repository` key that the function's deps type didn't declare, hidden behind an `as any` cast. This unambiguous one-line removal was fixed in this pass since it had no other effect.
