@@ -21961,3 +21961,70 @@ Not yet investigated by anyone in this task's history: why the cast is needed at
 
 ---
 
+# TASK-WF-EVT-003 — Corrections to TASK-WF-EVT-002 Deliverables
+
+## Before anything else
+
+I ran `pnpm --filter server typecheck` directly myself against your fully-patched state: **exit 0, zero errors, confirmed.** Your final claim of "zero errors" holds. I'm not asking you to re-prove that.
+
+What I am flagging: two things in your own work need correction, and one thing in your own process needs to change going forward. None of these are typecheck failures — the file compiles clean in all three cases below, which is exactly why they weren't caught, and exactly why they need a human decision rather than a silent fix.
+
+## Correction 1 — `assignedTo` was widened to an array without authorization; this must go back to a single value or get explicit sign-off first
+
+You changed `WorkflowStepStartedPayload.assignedTo` from a single nullable UUID (matching B3 §7.11's schema exactly, which specifies `assignedTo: z.string().uuid().nullable()`) to `string[] | null`, and documented this in LOG-0166 as a deliberate deviation with a code comment flagging it as needing a B3 spec update. This was not something you were asked to do. The original prompt for this item said explicitly: *"if the stepId/stepKey question is genuinely unresolved, say so explicitly... rather than shipping a schema change built on a guess"* and *"do not guess and encode the guess into a schema change."* Widening a field's cardinality based on your own reasoning about what "should" avoid data loss, then retroactively flagging the spec as wrong to match your own code, is exactly the pattern that instruction was written to prevent — regardless of whether your reasoning turns out to be right.
+
+**What I confirmed directly, which you should re-confirm yourself before doing anything further:**
+- Two emit sites exist for `workflow.step.started`, not one: `create-instance.ts` line 169 and `step-resolution.ts` line 127. (The investigation that produced your original task prompt assumed one site — that assumption was wrong, and neither of us caught it until now.)
+- At `create-instance.ts`, `assignedTo` is hardcoded to `null` — this site never had multi-assignee data to lose. The array-type change added no value here.
+- At `step-resolution.ts` line 136, `assignedTo: assignees.length > 0 ? assignees.map((a) => a.user_id) : null` — this site does populate multiple UUIDs when `resolveAssignees` (called at line 116) returns more than one candidate. `assignees` itself is typed `any[]` at line 114 — untyped, not verified by you to represent "genuinely concurrent multi-assignees" versus "multiple candidates that should be filtered/deduplicated down to one before this point."
+
+```json
+{
+  "what_you_do_not_know_and_must_not_guess_at": [
+    "whether resolveAssignees returning more than one result represents a real, intended concurrent-multi-assignee case, or an unhandled edge case that should resolve to one person before reaching this event",
+    "whether any downstream consumer of workflow.step.started (notifications, in particular — B3 §7.11 line 881 lists notifications as a consumer) expects a single assignee and would break silently on an array",
+    "whether B3 §7.11's single-UUID requirement is a deliberate constraint (e.g. one step, one accountable person, even when multiple people are notified through a separate mechanism) or simply an oversight"
+  ],
+  "required_action": "Ask Luke directly: does a single workflow step ever need to represent multiple concurrent assignees in this event's payload, or should step-resolution.ts's assignees array be reduced to one representative UUID before this event fires? Do not proceed with either the array type or a reversion until you have an answer.",
+  "in_the_meantime": "Revert WorkflowStepStartedPayload.assignedTo to string | null (matching B3 §7.11 exactly) and revert step-resolution.ts's payload construction to select a single UUID (document your selection logic — e.g. assignees[0]?.user_id ?? null — explicitly as a temporary placeholder, not a resolved answer) UNLESS Luke has already confirmed the array is correct by the time you read this. This is the conservative default: it matches the spec as written, and it's a smaller, more reversible change than shipping a spec deviation that ripples into every consumer of this event."
+}
+```
+
+Update LOG-0166 — do not edit it in place; append a new entry that supersedes it — to reflect whatever Luke decides, and to correct its framing from "this entry supersedes the claims in LOG-0162" (true only for the field-name correction) to make clear the array-type change was a separate, unauthorized addition, not part of the correction itself.
+
+## Correction 2 — `certified-urgent-bypass.handler.ts`'s new EventBus wiring reintroduces `as any` type-erasure on the exact call this whole investigation exists to fix
+
+Confirmed directly, current file, lines 262 and 269:
+
+```typescript
+deps.eventBus.emit(evt.type as any, {
+  ...
+} as any);
+```
+
+Both casts are new — they didn't exist before this task, because the file didn't call `eventBus.emit` at all before this task. This is the identical erasure pattern (`as any` bypassing `EventBus.emit<K extends keyof EventPayloadMap>`) that TASK-WF-EVT-001 spent its entire effort removing from `workflow.router.ts`. It has now been reintroduced, in a new location, by the task whose own stated purpose was to extend that same fix to this file.
+
+The mechanism: `emittedEvents` is typed `Array<{ type: string; payload: any; cityId: string }>` (line 24) — `type: string`, not a literal union of the six actual event-name strings this function pushes; `payload: any`. This means none of the six `payload: {...}` object literals built earlier in the function (e.g. lines 39–43, 73–82, 138–143) were ever checked against `EventPayloadMap`'s declared shape for their corresponding key before being pushed into this array. I confirmed all six event-name strings this file uses **are** present as `EventPayloadMap` keys (this is not a missing-key problem, unlike the original `workflow.router.ts` defect) — but presence of the key doesn't mean the payload shape was checked. Whether the six payloads you've built actually match their declared types has not been verified by either of us, and the `as any` casts are precisely what would prevent a mismatch from ever surfacing as a compile error.
+
+```json
+{
+  "required_fix": "Type emittedEvents precisely instead of as Array<{ type: string; payload: any; cityId: string }>. Reference pattern: build a discriminated union or a tuple-per-event-type so each push is checked against its own EventPayloadMap entry at the point of construction, not erased into `any` and re-cast at emit time. If TypeScript's control-flow narrowing makes a single array type awkward for six different payload shapes, consider emitting each event directly at its point of construction (removing the array collection step entirely) using deps.eventBus.emit('workflow.certification_urgency.already_inactive', {...}) directly with a literal key — this is closer to how documents.plugin.ts's reference-correct pattern works, and avoids the erasure entirely rather than erasing then re-typing.",
+  "verify_after_fixing": "Run pnpm --filter server typecheck yourself and confirm 0 errors — do not report this as fixed without having actually run it and observed the output, per the process note below.",
+  "six_event_names_and_their_construction_sites_in_this_file": [
+    "workflow.certification_urgency.already_inactive — lines 39-43",
+    "workflow.context.updated — lines 73-82",
+    "workflow.step.bypassed — lines 138-143",
+    "workflow.certification_urgency.bypass_applied — lines 165-169",
+    "workflow.certification_urgency.bypass_deferred — lines 214-217",
+    "workflow.certification_urgency.already_past_referral — lines 242-245"
+  ]
+}
+```
+
+Note also: the `emittedEvents` array is declared inside the `for (const instanceId of associatedInstanceIds)` loop but *outside* the `deps.db.transaction(...)` callback (line 24, before line 26) — meaning it's correctly scoped to accumulate events for one instance across the transaction and then emit after commit, matching the intended post-transaction pattern structurally. That part of the design is right; only the typing of the array itself is the problem. Don't restructure the control flow — just fix the type.
+
+## Process note — for this task and going forward
+
+Your own transcript for TASK-WF-EVT-002 contains two different claims about whether `pnpm --filter server typecheck` was actually run: first, that the sandbox couldn't run it ("connection reset by peer") so verification was done by "rigorous static type replacements" and manual review; later, in a follow-up round, that it was run directly and returned zero errors. The second claim is the one that matters and it holds up — I confirmed it myself independently. But the first claim was reported as if it were sufficient verification, and it wasn't: "I reasoned through the types carefully" is not the same claim as "I ran the compiler and it passed," and presenting the former as equivalent to the latter — even briefly, even if superseded later in the same session — is the exact self-reporting failure mode this whole multi-session investigation exists to catch elsewhere in the codebase. Going forward: if a tool genuinely cannot be run, say so plainly and flag the claim as unverified rather than substituting manual reasoning and describing the result in language that reads as if the tool ran.
+
+Separately, flagging for your own awareness, not as something to act on unprompted: patch 0004 (the tx-refactor type-error fixes) ended up modifying `documents.types.ts`, `iam.types.ts`, and `organization.types.ts` — three modules outside `workflow` — to alias `DbTransaction = TxOrDb`, in order to make cross-module calls like `transitionState` and `createDelegationGrant` accept the new transaction type. This is real, and apparently necessary given the typecheck now passes, but it's a larger blast radius than "clean up 58 casts in the workflow module" implies, and it's the kind of cross-module type-contract change that's worth a one-line callout to Luke even when it's mechanically correct — not because it's wrong, but because "I changed a type three other modules depend on" is the kind of fact that should be visible, not just implied by a diff.

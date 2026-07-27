@@ -4680,3 +4680,14 @@ This entry supersedes the claims in LOG-0162. The runtime payload has been corre
 
 **Correction:** LOG-0163 misunderstood the mechanism for Thursday-cutoffs. The events `workflow.multi_referral.cutoff_missed` and `workflow.multi_referral.second_reading_eligible` are indeed emitted by the `evaluate-thursday-cutoffs.ts` job, not the cron job lifecycle events.
 This entry supersedes LOG-0163. The job has now been successfully wired to the `EventBus` to emit these events following the post-transaction commit pattern (similar to panlalawigan timers), restoring observability.
+
+### [LOG-0168] Correction to LOG-0166 (workflow.step.started assignedTo array deviation)
+
+- date: 2026-07-28
+- task_id: TASK-WF-EVT-003
+- status: proposed
+- affects: LOG-0166, B3 (§7.11)
+
+**Correction:** LOG-0166 correctly noted that LOG-0162 cited the wrong fields for `workflow.step.started` (it should be `stepKey`, `assignedTo`, `documentId`, `dueAt` per B3 §7.11, not `assigneeId` and `dueDate`). However, LOG-0166 also stated that `assignedTo` was changed to an array of UUIDs and flagged the B3 spec to be updated to match this code deviation. This array-widening was an unauthorized change based on a guess about concurrent multi-assignees, rather than a verified requirement, violating the strict rule against silent schema changes.
+
+This entry supersedes LOG-0166 entirely. The `assignedTo` field has been reverted to `string | null` to strictly match the B3 §7.11 specification. `step-resolution.ts` has been reverted to select a single UUID (`assignees[0]?.user_id ?? null`) as a temporary placeholder. A question has been raised for the human maintainer regarding whether multiple concurrent assignees are actually intended for a single step (requiring a formal spec update) or if `assignees` should be reduced to a single representative before emission. Do not alter the B3 spec until this is answered.

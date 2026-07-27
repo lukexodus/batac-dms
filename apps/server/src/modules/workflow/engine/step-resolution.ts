@@ -133,7 +133,9 @@ export async function resolveNextStep(
         stepType: nextStep.stepType,
         stepKey: nextStep.stepKey,
         documentId: instance.documentId,
-        assignedTo: assignees.length > 0 ? assignees.map((a) => a.user_id) : null,
+        // TODO(temporary placeholder): Needs clarification from Luke whether multiple
+        // concurrent assignees are intended here. Reverting to single UUID to match B3 exactly.
+        assignedTo: assignees.length > 0 ? assignees[0].user_id : null,
         dueAt: null,
       },
     },

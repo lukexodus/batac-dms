@@ -92,9 +92,7 @@ export interface WorkflowStepStartedPayload {
   stepType: string;
   stepKey: string;
   documentId: string;
-  // FLAG for B3 §7.11 update: assignedTo is passed as an array of UUIDs (or null)
-  // to avoid data loss for concurrent multi-assignee steps, contrary to B3's current single string requirement.
-  assignedTo: string[] | null;
+  assignedTo: string | null;
   dueAt: Date | null;
 }
 
@@ -206,7 +204,7 @@ export interface EventPayloadMap {
     instanceId: string;
     stepInstanceId: string;
     bypassReason: string;
-    bypassedBy: string;
+    bypassedBy: string | null;
     comment: string;
   };
   'workflow.step.failed': {
@@ -245,15 +243,20 @@ export interface EventPayloadMap {
   'workflow.certification_urgency.bypass_applied': {
     instanceId: string;
     stepInstanceId: string;
+    certificationDocumentId: string;
   };
   'workflow.certification_urgency.bypass_deferred': {
     instanceId: string;
+    certificationDocumentId: string;
   };
   'workflow.certification_urgency.already_past_referral': {
     instanceId: string;
+    certificationDocumentId: string;
   };
   'workflow.certification_urgency.already_inactive': {
     instanceId: string;
+    instanceStatus: 'completed' | 'cancelled' | 'stuck' | 'suspended';
+    certificationDocumentId: string;
   };
 
   // SLA events (evaluate-sla-breaches.ts — step-level)

@@ -1,3 +1,4 @@
+import type { EventPayloadMap } from '@batac/shared';
 import { randomUUID } from 'node:crypto';
 import type { WorkflowRepository } from '../workflow.repository.js';
 import { resolveNextStep, type StepResolutionDeps } from './step-resolution.js';
@@ -13,6 +14,14 @@ interface CertificationUrgencyPayload {
   loggedAt: string;
 }
 
+type BypassEmittedEvent = {
+  [K in keyof EventPayloadMap]: {
+    type: K;
+    payload: EventPayloadMap[K];
+    cityId: string;
+  };
+}[keyof EventPayloadMap];
+
 export async function processCertificationUrgencyEvent(
   payload: CertificationUrgencyPayload,
   deps: CertifiedUrgentBypassDeps,
@@ -21,7 +30,7 @@ export async function processCertificationUrgencyEvent(
 
   for (const instanceId of associatedInstanceIds) {
     try {
-      const emittedEvents: Array<{ type: string; payload: any; cityId: string }> = [];
+      const emittedEvents: Array<BypassEmittedEvent> = [];
 
       await deps.db.transaction(async (trx) => {
         const instance = await deps.workflowRepository.getInstanceById(instanceId, trx);
@@ -140,6 +149,7 @@ export async function processCertificationUrgencyEvent(
                 stepInstanceId: stepInstance.id,
                 bypassReason: 'CERTIFIED_URGENT',
                 bypassedBy: null,
+                comment: 'System bypass via Certified Urgent',
               },
             },
             trx,
@@ -153,6 +163,7 @@ export async function processCertificationUrgencyEvent(
               stepInstanceId: stepInstance.id,
               bypassReason: 'CERTIFIED_URGENT',
               bypassedBy: null,
+              comment: 'System bypass via Certified Urgent',
             }
           });
 
