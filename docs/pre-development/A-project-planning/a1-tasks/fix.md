@@ -21827,3 +21827,137 @@ Append entries for:
 
 ---
 
+# TASK-WF-EVT-002 — Post-TASK-WF-EVT-001 Follow-Up Items
+
+## Before anything else
+
+Two findings-log entries from the immediately preceding task (TASK-WF-EVT-001) contain factual errors, confirmed by direct comparison against the live source documents they cite. Read the corrections section below before treating either entry as reliable. This is not a hypothetical caution — both were checked against the actual repo text in the same session this prompt was written, and both were wrong.
+
+Re-verify every file path, line number, and quoted string below against your own live snapshot before acting on it. Nothing here should be treated as pre-confirmed for you.
+
+## Corrections to two existing findings-log entries — read first
+
+**LOG-0162 ("`workflow.step.started` field gap is unhandled") states the wrong field names.** It claims B3 §8 requires `assigneeId` and `dueDate`. Direct read of `docs/pre-development/B-architecture-documents/b3-internal-domain-event-catalog-v1.3.md`, §7.11 (line 874), shows the actual required fields in the merged `WorkflowStepStartedPayloadSchema` are `stepKey: z.string()`, `assignedTo: z.string().uuid().nullable()`, `documentId: z.string().uuid()`, and `dueAt` (nullable value, required field — not optional). Neither `assigneeId` nor `dueDate` appears anywhere in that schema. LOG-0162 also never mentions `stepKey` at all, despite it being one of the three genuinely-missing required fields, and despite the actual code (`WorkflowStepStartedPayload` in `packages/shared/src/events/event-payload-map.ts`, confirmed unchanged at lines 89–95: `instanceId, stepInstanceId, stepId, stepType, dueAt`) having an unexplained `stepId` field that appears nowhere in B3's schema. Do not use LOG-0162 as a reliable description of the gap — read B3 §7.11 directly yourself.
+
+**LOG-0163 ("Thursday-cutoffs are handled by pgboss cron directly, not EventBus") cites event names that do not exist.** It claims B3 §8 defines `workflow.thursday_cutoff.evaluating` and `workflow.thursday_cutoff.evaluated`, and that no emit sites exist for them. Confirmed by direct search: **neither string appears anywhere in the codebase, in any file**, and neither appears anywhere in B3 (`grep -in "thursday" b3-internal-domain-event-catalog-v1.3.md` returns no such strings). What B3 actually names for this cluster (§7.E, ToC line 43; full definitions around lines 1047–1177) is `workflow.multi_referral.cutoff_missed` and `workflow.multi_referral.second_reading_eligible` — and those two strings **are** implemented, confirmed directly in `apps/server/src/modules/workflow/jobs/evaluate-thursday-cutoffs.ts` at lines 90 and 119 respectively, via `workflowRepository.createWorkflowEvent(...)`. LOG-0163's actual underlying point (that these events exist but never reach the EventBus) is directionally correct and matches this task's item 3 below — but the entry names the wrong event strings while making that point, which will misdirect anyone who searches the codebase for the names it gives.
+
+Neither of these entries should be edited by you directly — per `AGENTS.md` Section 4.5, agents append, they don't edit existing findings-log entries (that section's rules apply to Group B–L documents; whether they extend to editing another agent's own findings-log entry is itself unclear and not for you to resolve unilaterally). Append new entries that state the correction and supersede the relevant claims; do not silently rewrite LOG-0162 or LOG-0163.
+
+## Item 1 — Pattern A/B/C structural refactor (LOG-0059)
+
+`docs/development-findings-log.md`, entry at line 1474 (header format `### LOG-0059:`, no brackets — differs from later entries' `### [LOG-XXXX]` format; a bracket-only search will miss it). Dated 2026-07-09, `status: proposed`, no `task_id`.
+
+Defines three disjoint patterns for writing to the audit trail:
+- **Pattern A (TRPC Duplicate Emit)** — TRPC mutations call the engine, then separately emit to `EventBus`; `audit.event-consumer.ts` listens. Example cited: `workflow.router.ts`.
+- **Pattern B (Direct Audit Write)** — background jobs call `auditService.writeEvent()` directly, bypassing `EventBus` entirely. Example cited: `delegation-expiry.job.ts`.
+- **Pattern C (Engine DB-Only Events)** — engine handlers call `createWorkflowEvent` to write straight to `workflow.workflow_events`, without publishing to `EventBus` or calling `auditService`.
+
+The entry's core observation: a new entrypoint that forgets to wire in Pattern A or B produces silent audit gaps. It references LOG-0050 as having suggested moving event-bus publication inside engine repositories/handlers as a structural fix, but that suggestion was never implemented.
+
+**A discrepancy found this session, not reflected in LOG-0059 itself:** Pattern B's own cited example, `apps/server/src/modules/organization/delegation-expiry.job.ts`, currently does **both** Pattern A and Pattern B for what appears to be the same real-world occurrence, in the same database transaction — not "bypassing the EventBus" as LOG-0059 characterizes it. Confirmed directly: line 62 calls `eventBus.emit('delegation.expired', {...})`, and line 77 (in the same transaction, immediately after) calls `auditService.writeEvent({ eventType: 'delegation_grant.expired', ... })`. Separately confirmed: `audit.event-consumer.ts` (lines 107–116) already subscribes to `delegation.expired` via `makeHandler`, meaning the bus-emit at line 62 already produces an audit-consumer-driven write. If `auditService.writeEvent` and the audit-consumer's write path both land in the same underlying audit table, this file may currently be double-writing an audit record for a single delegation-expiry occurrence, under two different `eventType` strings (`delegation.expired` via the consumer, `delegation_grant.expired` via the direct call) — the opposite problem from what LOG-0059 describes (a coverage gap), and one LOG-0059 doesn't mention. This has not been confirmed as an actual duplicate-write bug — only as a structural fact (both paths fire) that raises the question. Investigate directly: read what `auditService.writeEvent` and the consumer's audit-write path each actually persist, and determine whether this is intentional (e.g., the direct write carries `designationDocumentId`, a field the bus payload doesn't have, and is deliberately supplementary) or a genuine duplicate.
+
+**Your task:** Investigate current state of Patterns A, B, and C across the codebase (not just the three example files LOG-0059 names — search broadly for other instances of each pattern), assess whether TASK-WF-EVT-001's changes to `workflow.router.ts` changed Pattern A's shape in a way relevant to this broader question, resolve the `delegation-expiry.job.ts` double-write question above, and produce a standalone remediation plan or explicitly recommend no action with reasoning. This is a design/architecture question — if resolving it requires a decision about which pattern should become the standard going forward, that decision belongs to Yalzea, not to you; surface it rather than picking one.
+
+## Item 2 — `workflow.step.started` field gap vs B3 §7.11
+
+Confirmed this session, directly: current `WorkflowStepStartedPayload` (`packages/shared/src/events/event-payload-map.ts`, lines 89–95) has `instanceId, stepInstanceId, stepId, stepType, dueAt`. B3 §7.11's merged schema (confirmed directly, lines 888–898) requires `instanceId, stepInstanceId, stepType, stepKey, assignedTo, documentId, dueAt` — meaning `stepKey`, `assignedTo`, and `documentId` are genuinely absent from the runtime type, and the runtime type has a `stepId` field with no B3 counterpart at all.
+
+```json
+{
+  "b3_required_fields_confirmed_absent_from_code": ["stepKey", "assignedTo", "documentId"],
+  "code_field_with_no_b3_counterpart": "stepId",
+  "b3_source": "docs/pre-development/B-architecture-documents/b3-internal-domain-event-catalog-v1.3.md, lines 888-898",
+  "code_source": "packages/shared/src/events/event-payload-map.ts, lines 89-95",
+  "note": "LOG-0162 exists but states the wrong field names (assigneeId, dueDate) and does not mention stepKey at all — do not use it as your source for what's missing; use the two locations cited above directly."
+}
+```
+
+**Open question, not yours to resolve unilaterally:** is `stepId` the same concept as B3's `stepKey`, renamed at some point, or are they genuinely different fields serving different purposes? Check where `stepId` is populated at the current single emit site for `workflow.step.started` (search the codebase for the emit call) and check B4 Appendix A's definition of `stepKey` (B3 §7.11 line 882 cites B4 Appendix A as `stepKey`'s source document) to see if there's enough evidence to answer this confidently, or if it's a genuine ambiguity requiring Yalzea's input. If ambiguous, ask directly — do not guess and encode the guess into a schema change.
+
+**Your task:** Determine the actual answer to the stepId/stepKey question if the evidence supports it; if it does, produce a standalone prompt (or execute directly, if this task format allows you to) to bring the runtime payload in line with B3 §7.11 — including updating the single emit site to supply `assignedTo` and `documentId` (both should be available in the engine context at the point this event fires, but confirm before assuming), and appending a corrected findings-log entry that supersedes LOG-0162's wrong field names. If the stepId/stepKey question is genuinely unresolved, say so explicitly to Yalzea and describe what's needed to resolve it, rather than shipping a schema change built on a guess.
+
+## Item 3 — Thursday-cutoffs EventBus wiring
+
+Confirmed this session: `evaluate-thursday-cutoffs.ts`'s `EvaluateThursdayCutoffsDeps` type has no `eventBus` field, and the file has no `EventBus` import — unchanged by TASK-WF-EVT-001, which did not touch this file. The two real event names this file writes via `createWorkflowEvent` (not `EventBus.emit`) are `workflow.multi_referral.cutoff_missed` (line 90) and `workflow.multi_referral.second_reading_eligible` (line 119) — see the LOG-0163 correction above; do not use LOG-0163's cited names.
+
+This is explicitly a human decision, not yours to make: should this job be wired to the EventBus at all? Prior investigation (not independently re-verified by you yet) found no sign of an abandoned attempt to add `eventBus` to this file's deps — unlike the mayor-lapse and panlalawigan timer jobs, which had commented markers suggesting an intended-but-misrouted bus emit. That absence is itself informative but not decisive.
+
+```json
+{
+  "call_site_to_change_if_yes": "apps/server/src/modules/workflow/workflow.plugin.ts, the object currently passed as this job's deps — confirm current exact line number and content, do not assume it matches any prior description",
+  "reference_pattern_now_live_in_codebase": "evaluate-panlalawigan-timers.ts lines 120-121: `if (didLapse && deps.eventBus) { deps.eventBus.emit('workflow.panlalawigan.deemed_approved', {...}); }` — called alongside, not instead of, the existing createWorkflowEvent write. This is TASK-WF-EVT-001's actual landed pattern; if Yalzea decides to wire this job, this is the direct precedent to follow.",
+  "target_key_names_if_wired": ["workflow.multi_referral.cutoff_missed", "workflow.multi_referral.second_reading_eligible"],
+  "current_EventPayloadMap_status_of_these_two_keys": "confirm directly — do not assume either presence or absence without checking packages/shared/src/events/event-payload-map.ts yourself"
+}
+```
+
+**Your task:** Ask Yalzea directly whether this job should be wired to the bus. Do not proceed with either wiring it or leaving it unwired as if the decision were already made. If Yalzea says yes, the panlalawigan pattern above is your template. If no, append a findings-log entry documenting the decision and reasoning, superseding LOG-0163's incorrect version.
+
+## Item 4 — `certified-urgent-bypass.handler.ts` EventBus wiring
+
+Confirmed this session, directly, full file read: 198 lines, unchanged by TASK-WF-EVT-001. `deps: CertifiedUrgentBypassDeps` (defined in this file, `extends StepResolutionDeps`) has `eventBus: EventBus` typed and available via inheritance — but the file never calls `deps.eventBus.emit(...)` anywhere. It uses `deps.workflowRepository.createWorkflowEvent(...)` exclusively, 6 times, for these literal `eventType` strings: `workflow.certification_urgency.already_inactive`, `workflow.context.updated`, `workflow.step.bypassed`, `workflow.certification_urgency.bypass_applied`, `workflow.certification_urgency.bypass_deferred`, `workflow.certification_urgency.already_past_referral`.
+
+This file's sole caller is `workflow.plugin.ts` line 54: `processCertificationUrgencyEvent(event.payload, stepDeps)` — `stepDeps` is the same fully-typed object (including `eventBus`) used elsewhere in the plugin, confirmed correct.
+
+```json
+{
+  "reference_pattern_now_live_in_codebase": "evaluate-panlalawigan-timers.ts lines 120-121 — same as item 3 above",
+  "six_event_types_in_this_file": [
+    "workflow.certification_urgency.already_inactive",
+    "workflow.context.updated",
+    "workflow.step.bypassed",
+    "workflow.certification_urgency.bypass_applied",
+    "workflow.certification_urgency.bypass_deferred",
+    "workflow.certification_urgency.already_past_referral"
+  ],
+  "note": "workflow.step.bypassed and workflow.certification_urgency.bypass_applied are the two of these six most likely to already be relevant to TASK-WF-EVT-001's EventPayloadMap additions — check directly whether they're already present as keys before assuming any of the six need new map entries."
+}
+```
+
+Unlike item 3, this item's own listed "reason" in the original scope table says the current pattern is used "intentionally (transactional)" — meaning there may already be a considered reason all 6 writes stay DB-only rather than also hitting the bus (e.g., avoiding a mid-transaction side effect that a bus subscriber might act on before the transaction commits). This reasoning was asserted in a prior document, not verified by you. Confirm whether this reasoning is documented anywhere (check for a code comment, an ADR, or a findings-log entry) or whether it's an assumption that itself needs to be checked with Yalzea before treating "leave it DB-only" as settled.
+
+**Your task:** Determine whether the "intentional, transactional" reasoning for this file's DB-only pattern is documented or assumed. If assumed, ask Yalzea whether it should be wired the way the timer jobs now are, or left as-is, and why. If documented, cite the source and treat it as settled unless it directly conflicts with something else you find.
+
+## Item 5 — I3 §9.3 `secretariat_decision_*` taxonomy update
+
+Confirmed this session, direct read of `docs/pre-development/I-security-and-authorization/i3-security-design-document.md`:
+
+- §9.1 (line 773), the "Events that CANNOT be disabled" list, line 781: `"All approval actions (VP certification, Mayor signature, SP Secretary decision logging — Approve/Reject/Amended)"`.
+- §9.3 (line 823), Audit Event Categories table, row "SP Secretary Decisions" (line 835): `secretariat_decision_approved`, `secretariat_decision_rejected`, `secretariat_decision_amended`.
+
+Both confirmed to directly conflict with B3 §6.4's confirmed removal of `document.secretariat_decision` (established in prior investigation rounds, not re-verified in this pass — re-confirm directly before relying on it) — B3 says these three outcomes now live inside `workflow.step.completed`'s `outcome` field rather than as a standalone event.
+
+**New observation from this session's read, not previously noted:** §9.3's entire table (13 rows, lines 825–839) uses flat snake_case throughout — not just the SP Secretary row. Several other rows in that same table name concepts that are confirmed to already exist and work correctly under different, canonical dot-notation names in the live audit consumer (e.g., the table's `role_assigned`/`role_revoked` row corresponds to the consumer's confirmed `role.assigned`/`role.revoked` subscriptions; the table's document-lifecycle row's `document_number_assigned` corresponds to the consumer's confirmed `document.number_assigned` subscription — verify these correspondences directly yourself rather than trusting this summary). If the rest of the table is confirmed to be a purely descriptive naming layer over already-functioning dot-notation events, that's suggestive context for reading the SP-Secretary row the same way (a stale naming convention, not a call for new code) — but this is offered as context for your investigation, not as a resolution of Q1. It does not replace reading `ADR-API-003-secretariat-decision-entry-point.md` directly, which no prior pass in this investigation's history has done.
+
+**Your task:** Read `docs/pre-development/B-architecture-documents/b2-module-boundary-and-internal-api-contracts-adrs/ADR-API-003-secretariat-decision-entry-point.md` in full — locate it yourself, confirm the exact path first. Use it, plus a direct row-by-row comparison of I3 §9.3 against the audit consumer's actual subscriptions, to determine whether §9.3 is: (a) meant to be literal event-bus strings that should exist and currently don't, (b) a separate descriptive/reporting taxonomy never meant to map 1:1 onto bus strings, or (c) simply stale, predating B3 v1.3's reconciliation. This is a genuine document-intent question — if the ADR and a full table comparison don't settle it decisively, ask Yalzea directly rather than picking the most convenient of the three readings. Do not edit I3 yourself regardless of what you conclude; append a findings-log entry with your conclusion and let a human decide whether I3 itself gets edited.
+
+## Item 6 — `tx as any` casts (Drizzle transaction typing)
+
+Confirmed this session, by count only — not investigated further, by design, since root-causing this is your task, not a pre-solved fact to hand you. `grep -c "tx as any"` returns 58 in `workflow.router.ts` alone. The pattern also appears in `evaluate-panlalawigan-timers.ts` and `evaluate-mayor-lapse-timers.ts` — confirmed via `grep -rl "tx as any" apps/server/src --include="*.ts"` (excluding test files), which returned exactly these three files and no others.
+
+```json
+{
+  "files_confirmed_to_contain_pattern": [
+    "apps/server/src/modules/workflow/workflow.router.ts",
+    "apps/server/src/modules/workflow/jobs/evaluate-panlalawigan-timers.ts",
+    "apps/server/src/modules/workflow/jobs/evaluate-mayor-lapse-timers.ts"
+  ],
+  "count_in_workflow_router_ts": 58,
+  "note": "Counts and file list are current as of this session's direct check. Re-run both greps yourself before scoping — do not assume these numbers hold if any of these files have changed since."
+}
+```
+
+Not yet investigated by anyone in this task's history: why the cast is needed at all (most likely Drizzle ORM's transaction-callback parameter typing not narrowing the way call sites expect — this is a guess, label it as such if you repeat it, do not state it as established), whether it represents a real type-safety gap analogous to the `EventBus` erasure this whole investigation started from, or whether it's a benign, unavoidable consequence of how Drizzle's `db.transaction(async (tx) => {...})` callback is typed and effectively unfixable without a Drizzle-side change.
+
+**Your task:** Investigate root cause directly — read Drizzle's relevant type definitions if needed, or find a call site where a properly-typed alternative to `tx as any` already exists elsewhere in the codebase (if one does) as a reference pattern. Determine whether this is fixable the way `EventBus`'s erasure was, and if so, scope a remediation plan. If it's a Drizzle-level limitation with no clean fix, say so plainly and recommend no action rather than a partial or cosmetic one.
+
+## Standing instructions for all six items
+
+- Every claim you make should carry a verification label per `AGENTS.md`'s own convention: `[Confirmed]` (checked directly this session), `[Inference]`, `[Speculation]`, `[Unverified]`. Do not present one as another.
+- Whenever an item above says something is "yours to resolve" vs. "not yours to resolve unilaterally," follow that distinction. For anything marked as a human decision, **ask Yalzea directly in conversation** before proceeding — do not infer an answer from adjacent documents, prior patterns, or convenience, and do not encode a guess into code, a schema, or a findings-log entry and present it as settled.
+- Findings-log entries you append are `status: proposed` by default — you cannot self-confirm, per `AGENTS.md` Section 4.5.
+- Where this prompt corrects a claim from LOG-0162 or LOG-0163, append new entries stating the correction rather than editing the originals.
+- If you find, in the course of this work, that any fact stated in this prompt itself doesn't hold against your live snapshot — a line number shifted, a file changed, a count is off — treat that as expected drift, not a reason to distrust the whole prompt, and note the discrepancy in your own report back.
+
+---
+
