@@ -298,6 +298,7 @@ export function OrganizationPage() {
     onSuccess: () => {
       toast.success('Position created');
       setPositionDialog(false);
+      invalidateHierarchy();
     },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
@@ -321,6 +322,9 @@ export function OrganizationPage() {
     onSuccess: () => {
       toast.success('Assignment created');
       setAssignDialog(false);
+      invalidateHierarchy();
+      invalidateEmployees();
+      void utils.iam.listUserDirectory.invalidate();
     },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
