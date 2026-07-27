@@ -1,7 +1,6 @@
 import type PgBoss from 'pg-boss';
 import type { DbClient } from './organization.types.js';
 import type { EventBus } from '@batac/shared';
-import type { AuditPublicAPI } from '../audit/index.js';
 import { eq, and, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { delegationGrants, employees } from '@batac/database/schema/organization.schema.js';
@@ -11,9 +10,8 @@ export async function registerDelegationExpiryJob(deps: {
   boss: PgBoss;
   db: DbClient;
   eventBus: EventBus;
-  auditService: AuditPublicAPI;
 }): Promise<void> {
-  const { boss, db, eventBus, auditService } = deps;
+  const { boss, db, eventBus } = deps;
 
   await boss.work('delegation.expire', async ([job]) => {
     if (!job) return;

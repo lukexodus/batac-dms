@@ -4,7 +4,6 @@ import { registerDelegationExpiryJob } from '../delegation-expiry.job.js';
 describe('delegation-expiry.job', () => {
   let mockBoss: any;
   let mockEventBus: any;
-  let mockAuditService: any;
   let jobHandler: (job: any) => Promise<void>;
 
   beforeEach(() => {
@@ -14,7 +13,6 @@ describe('delegation-expiry.job', () => {
       }),
     };
     mockEventBus = { emit: vi.fn() };
-    mockAuditService = { writeEvent: vi.fn().mockResolvedValue(undefined) };
   });
 
   function setupDb(updateResult: any[], empRowResult?: any) {
@@ -49,7 +47,6 @@ describe('delegation-expiry.job', () => {
       boss: mockBoss,
       db: mockDb as any,
       eventBus: mockEventBus,
-      auditService: mockAuditService,
     });
 
     expect(mockBoss.work).toHaveBeenCalledWith('delegation.expire', expect.any(Function));
@@ -61,18 +58,16 @@ describe('delegation-expiry.job', () => {
       boss: mockBoss,
       db: mockDb as any,
       eventBus: mockEventBus,
-      auditService: mockAuditService,
     });
 
     await jobHandler([{ data: { delegationGrantId: 'test-grant-id' } }]);
 
     expect(mockDb._trx.update).toHaveBeenCalled();
-    // Event and audit should NOT be called
+    // Event should NOT be called
     expect(mockEventBus.emit).not.toHaveBeenCalled();
-    expect(mockAuditService.writeEvent).not.toHaveBeenCalled();
   });
 
-  it('deactivates the grant, emits domain event, and writes audit event on success', async () => {
+  it('deactivates the grant and emits domain event on success', async () => {
     const mockGrant = {
       id: 'test-grant-id',
       delegatingEmployeeId: 'emp-1',
@@ -91,7 +86,6 @@ describe('delegation-expiry.job', () => {
       boss: mockBoss,
       db: mockDb as any,
       eventBus: mockEventBus,
-      auditService: mockAuditService,
     });
 
     await jobHandler([{ data: { delegationGrantId: 'test-grant-id' } }]);
@@ -113,20 +107,6 @@ describe('delegation-expiry.job', () => {
           delegatingUserId: 'user-1',
           delegatedToUserId: 'user-2',
           expiredAt: expect.any(String),
-        }),
-      }),
-    );
-
-    expect(mockAuditService.writeEvent).toHaveBeenCalledTimes(1);
-    expect(mockAuditService.writeEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventType: 'delegation_grant.expired',
-        actorId: null,
-        targetId: 'test-grant-id',
-        targetType: 'delegation_grant',
-        payload: expect.objectContaining({
-          delegationId: 'test-grant-id',
-          designationDocumentId: 'doc-1',
         }),
       }),
     );

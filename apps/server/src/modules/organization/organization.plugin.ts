@@ -37,7 +37,6 @@ async function organizationPlugin(fastify: FastifyInstance): Promise<void> {
         boss: fastify.boss,
         db: fastify.db,
         repository: orgRepository,
-        auditService: fastify.auditService,
         eventBus: fastify.eventBus,
       } as any);
     }
