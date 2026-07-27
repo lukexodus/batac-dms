@@ -274,7 +274,12 @@ export default function DocumentDetailPage() {
   const submitMutation = trpc.documents.submit.useMutation({
     onSuccess: () => {
       toast.success('Document submitted');
-      void refetchDocument();
+      void utils.documents.get.invalidate({ documentId: documentId! });
+      void utils.documents.list.invalidate();
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: documentId! });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.tracking.getTrackingRecord.invalidate({ documentId: documentId! });
+      void utils.session.getOrderOfBusiness.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -282,7 +287,9 @@ export default function DocumentDetailPage() {
   const assignPreliminaryMutation = trpc.documents.assignPreliminaryNumber.useMutation({
     onSuccess: () => {
       toast.success('Preliminary number assigned');
-      void refetchDocument();
+      void utils.documents.get.invalidate({ documentId: documentId! });
+      void utils.documents.list.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -290,7 +297,8 @@ export default function DocumentDetailPage() {
   const assignFinalMutation = trpc.documents.assignFinalNumber.useMutation({
     onSuccess: () => {
       toast.success('Final number assigned');
-      void refetchDocument();
+      void utils.documents.get.invalidate({ documentId: documentId! });
+      void utils.documents.list.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -298,7 +306,16 @@ export default function DocumentDetailPage() {
   const archiveMutation = trpc.documents.archive.useMutation({
     onSuccess: () => {
       toast.success('Document archived');
-      void refetchDocument();
+      void utils.documents.get.invalidate({ documentId: documentId! });
+      void utils.documents.list.invalidate();
+      // F3 (docs/pre-development/F-frontend-architecture/f3-tanstack-query-key-factory-specification.md,
+      // Document Mutations table, L728) also specifies recordsKeys.legalHold(documentId) as a
+      // cross-module invalidation target here. Intentionally omitted: no `records` router is
+      // registered in apps/server/src/trpc/root.ts, and no `records.isUnderLegalHold` or
+      // `records.getRetentionSchedule` procedure exists anywhere under apps/server/src — the
+      // backing feature has not been built yet. There is nothing to invalidate. Logged as
+      // docs/development-findings-log.md [LOG-0160]. Do not add a call to
+      // utils.records.isUnderLegalHold.invalidate(...) or anything similar until that router exists.
     },
     onError: (e) => toast.error(e.message),
   });
@@ -306,7 +323,7 @@ export default function DocumentDetailPage() {
   const publishMutation = trpc.documents.publishToPortal.useMutation({
     onSuccess: () => {
       toast.success('Published to portal');
-      void refetchDocument();
+      void utils.documents.get.invalidate({ documentId: documentId! });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -314,7 +331,7 @@ export default function DocumentDetailPage() {
   const unpublishMutation = trpc.documents.unpublishFromPortal.useMutation({
     onSuccess: () => {
       toast.success('Unpublished from portal');
-      void refetchDocument();
+      void utils.documents.get.invalidate({ documentId: documentId! });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -322,7 +339,8 @@ export default function DocumentDetailPage() {
   const triggerReOcrMutation = trpc.documents.triggerManualReOcr.useMutation({
     onSuccess: () => {
       toast.success('Re-OCR queued');
-      void refetchVersions();
+      void utils.documents.getOcrText.invalidate();
+      void utils.documents.getScanQualityIndicator.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -332,7 +350,8 @@ export default function DocumentDetailPage() {
       toast.success('Flagged for manual verification');
       setShowFlagDialog(false);
       setFlagReason('');
-      void refetchVersions();
+      void utils.documents.getVersionHistory.invalidate({ documentId: documentId! });
+      void utils.documents.get.invalidate({ documentId: documentId! });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -340,7 +359,8 @@ export default function DocumentDetailPage() {
   const acceptScannedBackMutation = trpc.documents.acceptScannedBackAsOfficial.useMutation({
     onSuccess: () => {
       toast.success('Accepted as official scanned back');
-      void refetchVersions();
+      void utils.documents.getVersionHistory.invalidate({ documentId: documentId! });
+      void utils.documents.get.invalidate({ documentId: documentId! });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -355,7 +375,8 @@ export default function DocumentDetailPage() {
   const logRoutingEntryMutation = trpc.tracking.logRoutingEntry.useMutation({
     onSuccess: () => {
       toast.success('Routing entry logged');
-      void refetchDocument();
+      void utils.tracking.getRoutingHistory.invalidate({ documentId: documentId! });
+      void utils.tracking.getTrackingRecord.invalidate({ documentId: documentId! });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -374,7 +395,10 @@ export default function DocumentDetailPage() {
       toast.success('Document cancelled');
       setShowCancelDialog(false);
       setCancelReason('');
-      void refetchDocument();
+      void utils.documents.get.invalidate({ documentId: documentId! });
+      void utils.documents.list.invalidate();
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: documentId! });
+      void utils.workflow.listMyAssignedSteps.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -383,6 +407,8 @@ export default function DocumentDetailPage() {
   const deleteMutation = trpc.documents.delete.useMutation({
     onSuccess: () => {
       toast.success('Document deleted');
+      void utils.documents.get.invalidate({ documentId: documentId! });
+      void utils.documents.list.invalidate();
       navigate('/documents');
     },
     onError: (e) => toast.error(e.message),
@@ -397,10 +423,11 @@ export default function DocumentDetailPage() {
   const [uploadFileError, setUploadFileError] = useState<string | null>(null);
   const requestUploadUrlMutation = trpc.documents.requestUploadUrl.useMutation();
   const confirmUploadMutation = trpc.documents.confirmUpload.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('New version uploaded — OCR is running in the background');
       setUploadFile(null);
-      void refetchVersions();
+      void utils.documents.getVersionHistory.invalidate({ documentId: documentId! });
+      void utils.documents.getScanQualityIndicator.invalidate({ versionId: data.versionId });
     },
     onError: (e) => toast.error(e.message),
   });

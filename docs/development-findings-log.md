@@ -4594,3 +4594,14 @@ Separately, `apps/web/src` contains 72 `.invalidate(` call sites (re-confirmed b
 
 ---
 
+
+### [LOG-0160] documents.archive cannot invalidate recordsKeys.legalHold(documentId) — records module not built
+
+- date: 2026-07-27
+- task_id: TASK-DOCS-DETAIL-INVALIDATION-001
+- status: proposed
+- affects: F3 (Document Mutations table, L728; recordsKeys factory section, L453-489; Records Mutations table, L780-790)
+
+F3's Document Mutations table specifies `recordsKeys.legalHold(documentId)` as a required cross-module invalidation target for `documents.archive`. `packages/shared/src/query-keys/records.keys.ts` contains only a router-scope `all()` entry and two TODO comments for `getRetentionSchedule` and `isUnderLegalHold` — neither factory function is built. Confirmed directly against `apps/server/src/trpc/root.ts`: the live `appRouter` registers exactly seven routers (`iam`, `documents`, `tracking`, `workflow`, `session`, `organization`, `audit`) — no `records` router exists anywhere server-side, and no `records.isUnderLegalHold` or `records.getRetentionSchedule` procedure exists anywhere under `apps/server/src`. `DocumentDetailPage.tsx`'s own file-header comment independently corroborates this, describing the entire Records action group as absent under tag `[SPEC-GAP-DOCS-023-01]`.
+
+This is not a naming mismatch or documentation drift — F3's own `recordsKeys` factory section (L453-489) and Document Mutations table agree with each other on the function name and target; the function genuinely has never been implemented because the backing server procedure doesn't exist. `archiveMutation`'s `onSuccess` callback in `DocumentDetailPage.tsx` was implemented with the other two F3-specified invalidation targets for this mutation (`documentKeys.detail`, `documentKeys.lists`, both present) and a code comment explaining the omission of the third, rather than a call to a non-existent procedure. No workaround or stub was implemented — there is no query to invalidate, since no query exists. Resolution requires a human decision on when/whether the `records` router (retention schedules, legal hold) will be built; until then, `documents.archive`'s cache invalidation is incomplete relative to F3 by exactly this one target, which will silently self-resolve (no code change needed in this file) once the `records` router and its two procedures are built and this factory entry is filled in.

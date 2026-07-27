@@ -2401,7 +2401,7 @@ export function useScanQualityPolling(versionId: string | undefined) {
   return trpc.documents.getScanQualityIndicator.useQuery(
     { versionId: versionId! },
     {
-      enabled: !!versionId,
+      enabled: !!versionId,Optimistic updates: documented as a target, not yet used
       refetchInterval: (query) => {
         const data = query.state.data;
         if (!data || data.scanQualityCategory === null) {
@@ -2416,7 +2416,7 @@ export function useScanQualityPolling(versionId: string | undefined) {
 
 Two customizations, both deliberate. `enabled: !!versionId` disables the query entirely until a real `versionId` exists — a genuinely common pattern for a query whose input depends on data another query hasn't returned yet (in this hook's actual caller, `DocumentDetailPage.tsx`, `versionId` comes from `versions`, itself the result of a separate `getVersionHistory` query that has to resolve first). And `refetchInterval` — normally absent by default, meaning "never poll" — is set here as a *function*, not a static number: it receives the query object, checks whether `scanQualityCategory` is still `null` (OCR hasn't finished), and returns `3000` (poll again in three seconds) if so, or `false` (stop polling entirely) once a real category has arrived. This matches, closely but not identically, the exact pattern f3's OCR Processing Poll Pattern note describes — f3 recommends `refetchInterval: 2000` and a condition of `!data?.scanQualityCategory`; the real hook uses `3000` and `!data || data.scanQualityCategory === null`. Functionally equivalent — both stop polling the instant a non-null category shows up — but not a byte-for-byte match to what f3 wrote, worth knowing if you're the one updating either document later and expect them to agree exactly.
 
-## E. Optimistic updates: documented as a target, not yet used
+## E. ==Optimistic updates: documented as a target, not yet used==
 
 f3 mentions `setQueryData` in passing, in the context of instance keys ("Use with `queryClient.setQueryData` for optimistic updates"). The official v5 docs describe the mechanism in detail: `onMutate` runs *before* the mutation's network request resolves, gets a chance to snapshot the current cache value, write an optimistic value directly into the cache with `setQueryData`, and return that snapshot so `onError` can roll back to it if the mutation ultimately fails.
 
