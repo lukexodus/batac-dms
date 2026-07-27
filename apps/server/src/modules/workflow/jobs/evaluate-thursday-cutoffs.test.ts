@@ -56,6 +56,7 @@ describe('Thursday Cutoff Scheduler Job', () => {
       return evaluateThursdayCutoffs(
         {
           workflowRepository: mockWorkflowRepository as WorkflowRepository,
+          eventBus: { emit: vi.fn() } as any,
         },
         { cutoffTs },
       );

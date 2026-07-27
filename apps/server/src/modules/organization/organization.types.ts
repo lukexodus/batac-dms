@@ -1,4 +1,4 @@
-import type { AppDb } from '../../db.js';
+import type { AppDb, TxOrDb } from '../../db.js';
 import type { EventBus } from '@batac/shared';
 import type { InferSelectModel } from 'drizzle-orm';
 import type { AuditPublicAPI } from '../audit/index.js';
@@ -16,7 +16,7 @@ import {
 import type { OrgRepository } from './organization.repository.js';
 
 export type DbClient = AppDb;
-export type DbTransaction = Parameters<Parameters<AppDb['transaction']>[0]>[0];
+export type DbTransaction = TxOrDb;
 
 // Drizzle Row Types
 export type OfficeRow = InferSelectModel<typeof offices>;

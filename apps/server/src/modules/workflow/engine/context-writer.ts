@@ -1,6 +1,6 @@
 import type { StepRow, InstanceRow } from './types.js';
 import type { WorkflowRepository } from '../workflow.repository.js';
-import type { DbTransaction } from '../../documents/documents.types.js';
+import type { TxOrDb } from '../../../db.js';
 
 export interface ContextWriterDeps {
   workflowRepository: WorkflowRepository;
@@ -22,7 +22,7 @@ export async function writeTimerContextIfTriggered(
   actorId: string | null,
   actorType: 'user' | 'system',
   deps: ContextWriterDeps,
-  trx?: DbTransaction,
+  trx?: TxOrDb,
 ): Promise<void> {
   const config = step.config as Record<string, any> | null;
   if (!config) return;

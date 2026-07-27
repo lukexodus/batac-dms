@@ -1,6 +1,6 @@
 import type { InstanceRow, StepInstanceRow } from '../types.js';
 import type { WorkflowRepository } from '../../workflow.repository.js';
-import type { DbTransaction } from '../../../documents/documents.types.js';
+import type { TxOrDb } from '../../../../db.js';
 import { writeTimerContextIfTriggered } from '../context-writer.js';
 import { resolveNextStep, type StepResolutionDeps } from '../step-resolution.js';
 
@@ -14,7 +14,7 @@ export async function submitStepAction(
   actorId: string,
   comment: string | null,
   deps: ActionHandlerDeps,
-  trx?: DbTransaction,
+  trx?: TxOrDb,
 ): Promise<void> {
   if (stepInstance.status !== 'active') {
     throw new Error('CONFLICT: step is not active');
@@ -86,7 +86,7 @@ export async function autoCompleteActionStep(
   instance: InstanceRow,
   stepInstance: StepInstanceRow,
   deps: ActionHandlerDeps,
-  trx?: DbTransaction,
+  trx?: TxOrDb,
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,

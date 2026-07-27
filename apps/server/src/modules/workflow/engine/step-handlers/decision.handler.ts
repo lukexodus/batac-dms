@@ -1,5 +1,5 @@
 import type { InstanceRow, StepInstanceRow } from '../types.js';
-import type { DbTransaction } from '../../../documents/documents.types.js';
+import type { TxOrDb } from '../../../../db.js';
 import { resolveNextStep, type StepResolutionDeps } from '../step-resolution.js';
 import jsonLogic from 'json-logic-js';
 
@@ -7,7 +7,7 @@ export async function executeDecisionStep(
   instance: InstanceRow,
   stepInstance: StepInstanceRow,
   deps: StepResolutionDeps,
-  trx?: DbTransaction,
+  trx?: TxOrDb,
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,

@@ -1,6 +1,6 @@
 import type { InstanceRow, StepInstanceRow } from '../types.js';
 import type { WorkflowRepository } from '../../workflow.repository.js';
-import type { DbTransaction } from '../../../documents/documents.types.js';
+import type { TxOrDb } from '../../../../db.js';
 import { resolveNextStep, type StepResolutionDeps } from '../step-resolution.js';
 
 export interface MultiReferralHandlerDeps extends StepResolutionDeps {
@@ -14,7 +14,7 @@ export async function submitCommitteeReport(
   actorId: string,
   contributionDocId: string,
   deps: MultiReferralHandlerDeps,
-  trx?: DbTransaction,
+  trx?: TxOrDb,
 ): Promise<void> {
   if (stepInstance.status !== 'active') {
     throw new Error('CONFLICT: step is not active');
@@ -108,7 +108,7 @@ export async function submitStepMultiReferral(
   outcome: string,
   comment: string | null,
   deps: MultiReferralHandlerDeps,
-  trx?: DbTransaction,
+  trx?: TxOrDb,
 ): Promise<void> {
   if (stepInstance.status !== 'active') {
     throw new Error('CONFLICT: step is not active');
@@ -274,7 +274,7 @@ export async function updateAssignedCommittees(
   isBypass: boolean,
   comment: string | null,
   deps: MultiReferralHandlerDeps,
-  trx?: DbTransaction,
+  trx?: TxOrDb,
 ): Promise<void> {
   const metadata = (stepInstance.metadata as Record<string, any>) || {};
   const submissions = (metadata['submissions'] as Array<any>) || [];

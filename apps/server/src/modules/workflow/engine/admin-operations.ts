@@ -1,4 +1,4 @@
-import type { AppDb } from '../../../db.js';
+import type { AppDb, TxOrDb } from '../../../db.js';
 import { eq, and, isNull } from 'drizzle-orm';
 import { workflowEvents } from '@batac/database/schema/workflow.schema.js';
 import type { WorkflowRepository } from '../workflow.repository.js';
@@ -13,7 +13,7 @@ import {
 import { resolveNextStep, type StepResolutionDeps } from './step-resolution.js';
 
 export interface AdminOperationsDeps {
-  db: AppDb;
+  db: TxOrDb;
   workflowRepository: WorkflowRepository;
 }
 

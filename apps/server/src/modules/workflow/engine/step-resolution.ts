@@ -6,11 +6,11 @@ import { resolveAssignees } from './assignee-resolution.js';
 import type { OrgService, DelegationService } from '../../organization/organization.types.js';
 import type { IamPublicAPI } from '../../iam/iam.types.js';
 import type { DbTransaction } from '../../documents/documents.types.js';
-import type { AppDb } from '../../../db.js';
+import type { AppDb, TxOrDb } from '../../../db.js';
 import type { DocumentsPublicAPI } from '../../documents/documents.types.js';
 
 export interface StepResolutionDeps {
-  db: AppDb;
+  db: TxOrDb;
   workflowRepository: WorkflowRepository;
   documentsService: DocumentsPublicAPI;
   eventBus: EventBus;
@@ -28,7 +28,7 @@ export async function resolveNextStep(
   currentStepInstance: StepInstanceRow,
   outcome: string | null,
   deps: StepResolutionDeps,
-  trx?: DbTransaction,
+  trx?: TxOrDb,
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
@@ -111,7 +111,7 @@ export async function resolveNextStep(
   );
 
   const config = (nextStep.config as Record<string, any>) || {};
-  let assignees = [];
+  let assignees: any[] = [];
   if (config['assignee']) {
     assignees = await resolveAssignees(config['assignee'], context, deps);
     await deps.workflowRepository.updateStepInstance(

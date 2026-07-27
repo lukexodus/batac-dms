@@ -446,7 +446,7 @@ export class WorkflowRepository {
 
   async cancelActiveAndPendingStepInstancesForInstance(
     instanceId: string,
-    tx: AppDb, // required — must run in the same transaction as the instance status update
+    tx: TxOrDb, // required — must run in the same transaction as the instance status update
   ): Promise<void> {
     await tx
       .update(stepInstances)
@@ -462,7 +462,7 @@ export class WorkflowRepository {
 
   async lockStepInstanceForUpdate(
     id: string,
-    tx: AppDb, // tx is required for FOR UPDATE
+    tx: TxOrDb, // tx is required for FOR UPDATE
   ): Promise<StepInstanceRow | null> {
     const [row] = await tx
       .select()
@@ -474,7 +474,7 @@ export class WorkflowRepository {
 
   async lockInstanceForUpdate(
     id: string,
-    tx: AppDb, // tx is required for FOR UPDATE
+    tx: TxOrDb, // tx is required for FOR UPDATE
   ): Promise<InstanceRow | null> {
     const [row] = await tx
       .select()

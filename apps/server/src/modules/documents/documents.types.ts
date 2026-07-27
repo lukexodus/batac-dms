@@ -1,7 +1,7 @@
-import type { AppDb } from '../../db.js';
+import type { AppDb, TxOrDb } from '../../db.js';
 
 export type DbClient = AppDb;
-export type DbTransaction = Parameters<Parameters<AppDb['transaction']>[0]>[0];
+export type DbTransaction = TxOrDb;
 
 export type DocumentLifecycleState =
   | 'draft'

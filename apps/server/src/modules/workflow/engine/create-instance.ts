@@ -4,7 +4,7 @@ import type { DocumentsPublicAPI } from '../../documents/documents.types.js';
 import type { OrgService, DelegationService } from '../../organization/organization.types.js';
 import type { IamPublicAPI } from '../../iam/iam.types.js';
 import type { EventBus } from '@batac/shared';
-import type { AppDb } from '../../../db.js';
+import type { AppDb, TxOrDb } from '../../../db.js';
 import { resolveAssignees } from './assignee-resolution.js';
 import { resolveNextStep } from './step-resolution.js';
 
@@ -12,7 +12,7 @@ import { eq, and, isNotNull } from 'drizzle-orm';
 import { definitionVersions, definitions } from '@batac/database/schema/workflow.schema.js';
 
 export interface CreateInstanceDeps {
-  db: AppDb;
+  db: TxOrDb;
   workflowRepository: WorkflowRepository;
   documentsService: DocumentsPublicAPI;
   orgService: OrgService;

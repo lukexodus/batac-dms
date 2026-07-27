@@ -1,5 +1,5 @@
 import type { InstanceRow, StepInstanceRow } from '../types.js';
-import type { DbTransaction } from '../../../documents/documents.types.js';
+import type { TxOrDb } from '../../../../db.js';
 import { resolveNextStep, type StepResolutionDeps } from '../step-resolution.js';
 import { resolveAssignees } from '../assignee-resolution.js';
 import type { WorkflowRepository } from '../../workflow.repository.js';
@@ -14,7 +14,7 @@ export async function executeNotificationStep(
   instance: InstanceRow,
   stepInstance: StepInstanceRow,
   deps: NotificationHandlerDeps,
-  trx?: DbTransaction,
+  trx?: TxOrDb,
 ): Promise<void> {
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,

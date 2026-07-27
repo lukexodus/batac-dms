@@ -1,5 +1,5 @@
 import type { FastifyRequest } from 'fastify';
-import type { AppDb } from '../../db.js';
+import type { AppDb, TxOrDb } from '../../db.js';
 import type { InferSelectModel } from 'drizzle-orm';
 import {
   users,
@@ -19,7 +19,7 @@ import type { PolicyEvaluator } from './iam.policy.js';
 import type { iamRouter } from './iam.router.js';
 
 export type DbClient = AppDb;
-export type DbTransaction = Parameters<Parameters<AppDb['transaction']>[0]>[0];
+export type DbTransaction = TxOrDb;
 
 export type UserRow = InferSelectModel<typeof users>;
 export type CredentialRow = InferSelectModel<typeof credentials>;

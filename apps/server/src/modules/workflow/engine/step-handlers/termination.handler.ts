@@ -3,10 +3,10 @@ import type { DbTransaction } from '../../../documents/documents.types.js';
 import type { WorkflowRepository } from '../../workflow.repository.js';
 import type { DocumentsPublicAPI } from '../../../documents/documents.types.js';
 import type { EventBus } from '@batac/shared';
-import type { AppDb } from '../../../../db.js';
+import type { AppDb, TxOrDb } from '../../../../db.js';
 
 export interface TerminationHandlerDeps {
-  db: AppDb;
+  db: TxOrDb;
   workflowRepository: WorkflowRepository;
   documentsService: DocumentsPublicAPI;
   eventBus: EventBus;
@@ -16,11 +16,12 @@ export async function executeTerminationStep(
   instance: InstanceRow,
   stepInstance: StepInstanceRow,
   deps: TerminationHandlerDeps,
-  trx?: DbTransaction,
+  trx?: TxOrDb,
 ): Promise<void> {
+  const tx = trx || deps.db;
   const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(
     instance.definitionVersionId,
-    trx,
+    tx,
   );
   if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
@@ -38,11 +39,11 @@ export async function executeTerminationStep(
     // in the same transaction as the instance status update below.
     await deps.workflowRepository.cancelActiveAndPendingStepInstancesForInstance(
       instance.id,
-      trx,
+      tx,
     );
 
     // Mark instance as completed
-    await deps.workflowRepository.updateInstanceStatus(instance.id, 'completed', now, trx);
+    await deps.workflowRepository.updateInstanceStatus(instance.id, 'completed', now, tx);
 
     // Emit workflow.instance.completed
     await deps.workflowRepository.createWorkflowEvent(
@@ -58,7 +59,7 @@ export async function executeTerminationStep(
           finalDocumentStatus: null,
         },
       },
-      trx,
+      tx,
     );
   } else if (outcomeCode === 'REPASSED') {
     // DO NOT set instances.status = 'Completed'
@@ -66,7 +67,7 @@ export async function executeTerminationStep(
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
       { status: 'completed', completedAt: now, outcome: outcomeCode },
-      trx,
+      tx,
     );
 
     // Emit workflow.instance.repassed
@@ -81,17 +82,17 @@ export async function executeTerminationStep(
           documentId: instance.documentId,
         },
       },
-      trx,
+      tx,
     );
   } else {
     // Standard terminal outcomes (APPROVED_AND_RELEASED, etc.)
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
       { status: 'completed', completedAt: now, outcome: outcomeCode },
-      trx,
+      tx,
     );
 
-    await deps.workflowRepository.updateInstanceStatus(instance.id, 'completed', now, trx);
+    await deps.workflowRepository.updateInstanceStatus(instance.id, 'completed', now, tx);
 
     if (finalDocumentStatus) {
       try {
@@ -103,7 +104,7 @@ export async function executeTerminationStep(
             finalDocumentStatus,
             'SYSTEM',
             undefined,
-            trx,
+            tx,
           );
         }
       } catch (err) {
@@ -130,7 +131,7 @@ export async function executeTerminationStep(
           finalDocumentStatus,
         },
       },
-      trx,
+      tx,
     );
   }
 }

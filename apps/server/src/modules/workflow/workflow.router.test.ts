@@ -1082,6 +1082,7 @@ describe('TASK-WF-021 Procedures', () => {
     return {
       auth: subject,
       db: db as any,
+      requestId: 'test-req',
       req: {
         server: {
           eventBus: { emit: vi.fn() },
