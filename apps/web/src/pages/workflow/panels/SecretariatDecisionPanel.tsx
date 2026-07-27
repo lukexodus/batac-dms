@@ -25,6 +25,11 @@ export function SecretariatDecisionPanel({
     onSuccess: () => {
       toast.success('Decision logged successfully.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.documents.list.invalidate();
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to log decision.'),

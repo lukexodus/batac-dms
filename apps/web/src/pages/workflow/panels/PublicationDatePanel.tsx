@@ -21,6 +21,7 @@ export function PublicationDatePanel({
     onSuccess: () => {
       toast.success('Publication date recorded.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to record publication date.'),

@@ -43,6 +43,7 @@ export function PanlalawiganOutcomePanel({
     onSuccess: () => {
       toast.success('Outcome recorded.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to record outcome.'),
@@ -52,6 +53,7 @@ export function PanlalawiganOutcomePanel({
     onSuccess: () => {
       toast.success('Valid-in-part resolved.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to resolve valid-in-part.'),
@@ -61,6 +63,8 @@ export function PanlalawiganOutcomePanel({
     onSuccess: () => {
       toast.success('Deemed approved confirmed.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.documents.list.invalidate();
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to confirm deemed approved.'),

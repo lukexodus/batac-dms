@@ -59,6 +59,8 @@ export function MultiReferralPanel({
     onSuccess: () => {
       toast.success('Committee report submitted.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
     },
     onError: (err) => toast.error(err.message || 'Failed to submit report.'),
   });
@@ -67,6 +69,7 @@ export function MultiReferralPanel({
     onSuccess: () => {
       toast.success('Hearing date recorded.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.session.getOrderOfBusiness.invalidate();
     },
     onError: (err) => toast.error(err.message || 'Failed to enter hearing date.'),
   });
@@ -75,6 +78,8 @@ export function MultiReferralPanel({
     onSuccess: () => {
       toast.success('Step advanced.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to advance step.'),

@@ -21,6 +21,9 @@ export function MayorDecisionPanel({
     onSuccess: () => {
       toast.success('Document signed.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.documents.list.invalidate();
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to sign.'),
@@ -30,6 +33,8 @@ export function MayorDecisionPanel({
     onSuccess: () => {
       toast.success('Document vetoed.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to veto.'),

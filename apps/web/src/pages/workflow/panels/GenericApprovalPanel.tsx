@@ -19,6 +19,10 @@ export function GenericApprovalPanel({
     onSuccess: () => {
       toast.success('Step approved.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });
+      void utils.documents.list.invalidate();
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to approve.'),
@@ -28,6 +32,9 @@ export function GenericApprovalPanel({
     onSuccess: () => {
       toast.success('Step rejected.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to reject.'),
@@ -37,6 +44,9 @@ export function GenericApprovalPanel({
     onSuccess: () => {
       toast.success('Step returned for revision.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to return for revision.'),
