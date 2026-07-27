@@ -2259,13 +2259,13 @@ const submitReportMutation = trpc.workflow.submitCommitteeReport.useMutation({
 
 `GenericApprovalPanel.tsx`, `GenericActionPanel.tsx`, `MayorDecisionPanel.tsx`, and `DocketingPanel.tsx` — every mutation-bearing file in `workflow/panels/` — follow the identical shape: `utils.workflow.getInstance.invalidate({ instanceId })`, called from `onSuccess`, one line, matching f3's stated preference exactly.
 
-### A gap worth naming precisely: same pattern, incomplete blast radius
+### ==A gap worth naming precisely: same pattern, incomplete blast radius==
 
 Here's where "follows the pattern" and "does what f3's matrix says this specific mutation should do" turn out to be two different claims. f3's Workflow Mutations table lists `submitCommitteeReport`'s invalidation targets as `workflowKeys.detail(instanceId)`, `workflowKeys.forDocument(documentId)`, *and* `workflowKeys.mySteps()` in the same-module column, plus `sessionKeys.orderOfBusinesses()` cross-module — because, as f3's own Committee Report Status Chain note explains, the Order of Business view is a derived computation over both the `documents` and `workflow` schemas, and "TanStack Query has no way to know it is stale without an explicit invalidation signal."
 
 `MultiReferralPanel.tsx`'s real code invalidates exactly one of those four: `workflowKeys.detail`, via `utils.workflow.getInstance.invalidate(...)`. It does not touch `mySteps()` or `orderOfBusinesses()`. Every sibling file in that same directory shows the identical narrowing — one `getInstance` invalidation, nothing broader — even for mutations like `approveStep` that f3's matrix says should additionally invalidate `documentKeys.lists()` because "lifecycle state may change." The practical consequence, if this is genuinely the current state and not something covered elsewhere: a user's "My Assigned Steps" inbox (`workflowKeys.mySteps()`, the exact query backing `MyAssignedStepsPage.tsx`) may keep showing a step as pending after that step has actually been completed from a different panel, until something else — a full remount, a window refocus, the 5-minute garbage-collection window — happens to trigger a fresh fetch. That's precisely the "looks right on first load... only reveals itself as wrong later" failure mode f3's own opening paragraph warns about.
 
-### A different pattern entirely: `refetch()` instead of `invalidate()`
+### ==A different pattern entirely: `refetch()` instead of `invalidate()`==
 
 `/apps/web/src/pages/documents/DocumentDetailPage.tsx` takes a genuinely different approach — not a smaller version of the `utils.*` pattern, a different mechanism altogether. It does declare `const utils = trpc.useUtils();` at the top of the component. But across all twelve of its mutations, `utils` is used for cache invalidation exactly **zero** times. Instead, every mutation's `onSuccess` calls the `refetch` function returned directly by a sibling `useQuery` call:
 
@@ -2299,7 +2299,7 @@ const result = await utils.tracking.printQrCoverSheet.fetch({
 
 `printQrCoverSheet` is typed as a `query` in the router but returns a short-lived presigned PDF URL — f3's own note on this exact procedure says "Configure `staleTime: 0` and `gcTime: 0`... Do not use this key for `setQueryData` — the URL expires and caching it is harmful." Calling `.fetch()` through `utils` here — an imperative one-shot fetch, bypassing `useQuery` and its cache entirely — is precisely the right tool for data that shouldn't be cached at all. This is the one place in the file where `utils` gets used, and it's used correctly, for exactly the case f3 flagged as an exception to normal caching.
 
-### A third pattern: named helper functions wrapping `invalidate()`
+### ==A third pattern: named helper functions wrapping `invalidate()`==
 
 `/apps/web/src/pages/organization/OrganizationPage.tsx` shows a third variant — not a different mechanism this time, but a different way of organizing the same `utils.*.invalidate()` call so it isn't repeated inline at every call site:
 

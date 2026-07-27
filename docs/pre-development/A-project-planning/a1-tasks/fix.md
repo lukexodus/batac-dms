@@ -21252,3 +21252,224 @@ failed and why, and the exact typecheck output.
 ````
 
 ---
+
+# Standalone Executor Prompt — apps/web typecheck: missing Fastify augmentation reachability for documents and tracking modules
+
+````
+TASK: Fix a TypeScript module-augmentation reachability gap that causes
+`apps/web`'s `tsc --noEmit` to fail with 12 `TS2339` errors, all reporting
+that properties decorated onto `FastifyInstance` at runtime (via
+`fastify.decorate(...)` in two plugin files) "do not exist" on the type. The
+decorations are real and correct; the problem is that the `declare module
+'fastify'` blocks describing them, in `documents.plugin.ts` and
+`tracking.plugin.ts`, are never included in the specific TypeScript
+compilation `apps/web` runs, so its type-checker never sees them. This task
+adds two `import type` statements to make those declarations reachable. It
+does not change any runtime behavior, any decoration, any router logic, or
+any type shape beyond making existing correct types visible where they are
+currently invisible.
+
+═══════════════════════════════════════════
+ROOT CAUSE (context only — the JSON block and old_str/new_str pairs below are
+authoritative for what to actually change; this section explains why, so you
+don't "fix" this a different way)
+═══════════════════════════════════════════
+
+`apps/web/src/lib/trpc.ts` imports `AppRouter`'s type from
+`server/src/trpc/root.ts` (`import type { AppRouter } from
+'server/src/trpc/root.js';`). To resolve that type, TypeScript's checker
+walks every file `root.ts` imports, transitively — this is how the 6
+erroring router files (`documents.router.ts`, `complaints.router.ts`,
+`document-requests.router.ts`, `panlalawigan.router.ts`,
+`signatures.router.ts`, `tracking.router.ts`) end up inside `apps/web`'s
+compilation even though `apps/web`'s own `tsconfig.json` (`include: ["src",
+"vite.config.ts"]`) never mentions them directly.
+
+Those 6 router files read decorated properties off `ctx.req.server`
+(`documentsRepository`, `documentsPolicyGuard`, `numberingService`,
+`designationHandler`, `qrCodeService`, `trackingService`). The `declare
+module 'fastify'` blocks that describe these properties on `FastifyInstance`
+live in `apps/server/src/modules/documents/documents.plugin.ts` (lines
+32-38) and `apps/server/src/modules/tracking/tracking.plugin.ts` (lines
+21-27) — confirmed present and correct in both files. Neither plugin file is
+imported, directly or transitively, by `root.ts` or by any of the 6 router
+files themselves — plugin files are runtime registration code, imported
+only from the Fastify app-bootstrap chain (`apps/server/src/index.ts` and
+similar), which `apps/web` never touches. So the augmentation exists,
+compiles fine inside `apps/server`'s own `tsc --noEmit` run (which passes),
+but is simply absent from the file set `apps/web`'s `tsc --noEmit` walks.
+
+This same mechanism already works correctly elsewhere in this codebase for a
+different property: `organizationService` is declared via `declare module
+'fastify'` in `apps/server/src/modules/organization/organization.types.ts`,
+which is transitively reachable from `root.ts` through
+`workflow.router.ts` → (workflow engine files) → `organization.types.ts` —
+confirmed via `apps/server/src/modules/workflow/engine/step-resolution.ts`
+and sibling files importing it directly. `organizationService` produces zero
+type errors anywhere in the current `apps/web` typecheck output, which is
+the working version of the exact pattern this task is restoring for the two
+broken modules.
+
+`apps/web/tsconfig.json` extends `packages/config/tsconfig.base.json`, which
+sets `"verbatimModuleSyntax": true`. Under this setting, a plain `import
+type { X } from './foo.js'` still merges any ambient `declare module`
+augmentation present in `foo.js`, even though the type-only binding itself
+is erased at compile time — ambient/global augmentations are not subject to
+the same erasure as named type imports. This is why `import type` is the
+correct form here, not a bare side-effect import (`import './foo.js';`) and
+not adding the plugin files to `apps/web`'s own `include` array (which would
+pull in unrelated runtime-only code from those files unnecessarily, since
+`apps/web` never executes server code).
+
+═══════════════════════════════════════════
+THE FIX — exactly one file changed, two lines added
+═══════════════════════════════════════════
+
+File: `apps/server/src/trpc/root.ts`
+
+The full current content of this file is:
+
+```typescript
+import { router } from './trpc.js';
+import { iamRouter } from '../modules/iam/iam.router.js';
+import { createDocumentsAppRouter } from '../modules/documents/documents.app.router.js';
+import { createTrackingRouter } from '../modules/tracking/tracking.router.js';
+import { workflowRouter } from '../modules/workflow/workflow.router.js';
+import { sessionRouter } from '../modules/workflow/session.router.js';
+
+import { createOrgRouter } from '../modules/organization/organization.router.js';
+import { createAuditTrpcRouter } from '../modules/audit/audit.router.js';
+
+export const appRouter = router({
+  iam: iamRouter,
+  documents: createDocumentsAppRouter(),
+  tracking: createTrackingRouter(),
+  workflow: workflowRouter,
+  session: sessionRouter,
+  organization: createOrgRouter(),
+  audit: createAuditTrpcRouter(),
+});
+
+export type AppRouter = typeof appRouter;
+```
+
+old_str:
+```
+import { createDocumentsAppRouter } from '../modules/documents/documents.app.router.js';
+import { createTrackingRouter } from '../modules/tracking/tracking.router.js';
+```
+
+new_str:
+```
+import { createDocumentsAppRouter } from '../modules/documents/documents.app.router.js';
+import { createTrackingRouter } from '../modules/tracking/tracking.router.js';
+
+// Type-only imports: pull in the `declare module 'fastify'` augmentations
+// for documentsRepository/documentsPolicyGuard/numberingService/
+// designationHandler (documents.plugin.ts) and trackingService/
+// qrCodeService (tracking.plugin.ts). These augmentations already exist and
+// are already correct; they are not otherwise reachable from this file's
+// import graph, which is what apps/web's tsc walks to resolve AppRouter's
+// type. Do not remove — removing these re-introduces 12 TS2339 errors in
+// apps/web's typecheck. See root.ts's own git history / commit message for
+// this line for the full root-cause trace if this comment is ever
+// insufficient context on its own.
+import type {} from '../modules/documents/documents.plugin.js';
+import type {} from '../modules/tracking/tracking.plugin.js';
+```
+
+This is the only change in the only file this task touches.
+
+═══════════════════════════════════════════
+SCOPE BOUNDARIES
+═══════════════════════════════════════════
+
+```json
+{
+  "in_scope_file": "apps/server/src/trpc/root.ts",
+  "exact_change": "insert exactly two import type lines (plus a comment block) after the existing createTrackingRouter import line and before the blank line that precedes the createOrgRouter import — per the old_str/new_str pair above",
+  "out_of_scope_do_not_touch": [
+    "apps/server/src/modules/documents/documents.plugin.ts — its declare module block is already correct; do not add, remove, or reorder any property in it",
+    "apps/server/src/modules/tracking/tracking.plugin.ts — same: already correct, do not modify",
+    "apps/server/src/modules/documents/documents.types.ts — already correct (documentsService, documentsTrpcRouter), unrelated to this fix, do not touch",
+    "apps/server/src/modules/organization/organization.types.ts — the working reference pattern this fix restores; read-only, do not modify",
+    "any of the 6 router files that produce the errors (complaints.router.ts, document-requests.router.ts, documents.router.ts, panlalawigan.router.ts, signatures.router.ts, tracking.router.ts) — these are correct as written; the properties they read really do exist at runtime, the errors are purely a type-visibility gap now fixed at the root.ts import level",
+    "apps/web/tsconfig.json — do not add documents.plugin.ts/tracking.plugin.ts to its include array; that is a different, broader-blast-radius fix than the one specified here and is not what this task does",
+    "apps/web/src/lib/trpc.ts — do not modify its AppRouter import; it is already correct and is the entry point this fix restores visibility for, not a file that itself needs changing",
+    "any file under apps/web/src/pages/ — unrelated to this task",
+    "packages/shared/src/query-keys/ — unrelated to this task"
+  ],
+  "do_not_add_new_properties_to_either_declare_module_block": true,
+  "do_not_relocate_either_declare_module_block_to_a_different_file": true
+}
+```
+
+The JSON block above is authoritative. This task adds exactly two lines of
+new import statements (plus their explanatory comment) to exactly one file.
+It does not touch either `.plugin.ts` file, does not touch any router file,
+does not touch any `.tsx` file, and does not touch either `tsconfig.json`.
+
+═══════════════════════════════════════════
+WHY NOT A DIFFERENT FIX
+═══════════════════════════════════════════
+
+Two alternative fixes were considered and rejected — stated here so you
+don't second-guess this approach and substitute one of these instead:
+
+1. **Adding `documents.plugin.ts` and `tracking.plugin.ts` to
+   `apps/web/tsconfig.json`'s `include` array.** Rejected: this would pull
+   both files' full runtime content (AWS SDK client construction, env-config
+   reads, `fastify-plugin` wrapping) into `apps/web`'s compilation unit for
+   no reason beyond the two-line augmentation each file happens to also
+   contain — broader blast radius than necessary, and inconsistent with how
+   `organizationService`'s equivalent gap is already solved elsewhere in
+   this codebase (via ordinary transitive import, not tsconfig `include`
+   expansion).
+2. **Moving the `declare module 'fastify'` blocks out of the `.plugin.ts`
+   files into each module's `.types.ts` file.** Rejected: `documents.plugin.ts`
+   contains an explicit `[Inference — TASK-DOCS-011]`-tagged comment
+   (lines 15-27 of that file, currently) stating this augmentation was
+   deliberately placed in the plugin file rather than `documents.types.ts`
+   specifically to avoid a circular import (`documents.types.ts` is imported
+   *by* `documents.repository.ts` and `documents.policy.ts`, which the
+   plugin file also imports). Relocating it would either reintroduce that
+   circular-import problem or require re-deriving why it was avoided in the
+   first place — out of scope for what is otherwise a two-line fix, and
+   risks undoing a previously-reasoned decision without the context that
+   produced it. `tracking.plugin.ts` has no separate `.types.ts` file at
+   all, so this alternative doesn't even apply symmetrically to both
+   modules.
+
+═══════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════
+
+- `pnpm --filter @batac/web typecheck` (or the monorepo-wide `pnpm
+  typecheck` via turbo, whichever you run) passes with zero errors — the
+  full 12-error list (all `TS2339`, all in `complaints.router.ts`,
+  `document-requests.router.ts`, `documents.router.ts`,
+  `panlalawigan.router.ts`, `signatures.router.ts`, `tracking.router.ts`) is
+  gone.
+- `pnpm --filter server typecheck` (or the server package's own typecheck)
+  still passes — this fix must not regress a currently-passing check.
+- `apps/server/src/trpc/root.ts` contains exactly the two new `import type
+  {}` lines shown in new_str above, in the position shown, with the existing
+  6 import lines and the `appRouter`/`AppRouter` definitions below them
+  completely unchanged.
+- `apps/server/src/modules/documents/documents.plugin.ts` and
+  `apps/server/src/modules/tracking/tracking.plugin.ts` are byte-identical
+  before and after this change.
+- No file other than `apps/server/src/trpc/root.ts` was modified.
+- The two new import lines produce no new lint or typecheck errors of their
+  own (an `import type {}` with an empty binding list from a module that
+  has no default or named exports being consumed is valid TypeScript and
+  should not itself trigger an unused-import warning under this project's
+  lint config — if it does, report that as a finding rather than silently
+  changing the import form, since the specific form used here was chosen
+  deliberately per the Root Cause section above).
+
+Report back: full typecheck output for both `@batac/web` and `server` (or
+the monorepo-wide result if that's what you run), confirmation of which
+acceptance criteria passed, and — if the empty-named-import form triggers
+any lint warning — flag it explicitly rather than resolving it yourself.
+````
