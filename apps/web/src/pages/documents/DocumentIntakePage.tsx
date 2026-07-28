@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import React, { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch, useFieldArray } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -19,10 +19,133 @@ import {
   CardTitle,
   CardContent,
   CardFooter,
+  Checkbox,
 } from '@batac/ui';
 
 import { IntakeFormSchema, type IntakeFormValues } from '@/lib/intake-schema';
 import { trpc } from '@/lib/trpc';
+
+function DynamicArrayField({ name, prop, control, register, label, isRequired }: any) {
+  const { fields, append, remove } = useFieldArray({ control, name });
+  
+  return (
+    <div className="space-y-4 border rounded-md p-4 bg-muted/10">
+      <div className="flex justify-between items-center">
+        <h4 className="font-medium text-sm">{label} {isRequired && <span className="text-danger-500">*</span>}</h4>
+        <Button type="button" variant="outline" size="sm" onClick={() => append({})}>
+          Add {label}
+        </Button>
+      </div>
+      {fields.length === 0 && <p className="text-sm text-muted-foreground">No items added.</p>}
+      {fields.map((field, index) => (
+        <div key={field.id} className="relative space-y-4 border-t pt-4 mt-4">
+           <div className="flex justify-between items-center mb-2">
+             <h5 className="text-xs font-semibold text-muted-foreground uppercase">Item {index + 1}</h5>
+             <Button type="button" variant="ghost" size="sm" className="h-6 text-xs text-danger-500 hover:text-danger-600" onClick={() => remove(index)}>Remove</Button>
+           </div>
+           {Object.entries(prop.items.properties || {}).map(([subKey, subProp]) => {
+              const subIsRequired = prop.items.required?.includes(subKey);
+              const subLabel = subKey.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+              return (
+                <DynamicField 
+                  key={subKey} 
+                  name={`${name}.${index}.${subKey}`} 
+                  prop={subProp} 
+                  control={control} 
+                  register={register} 
+                  label={subLabel} 
+                  isRequired={subIsRequired} 
+                />
+              );
+           })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DynamicField({ name, prop, control, register, label, isRequired }: any) {
+  if (prop.type === 'boolean') {
+    return (
+      <div className="flex items-center space-x-2">
+        <Controller
+          name={name}
+          control={control}
+          render={({ field }) => (
+            <Checkbox
+              id={`meta-${name}`}
+              checked={field.value === true}
+              onCheckedChange={field.onChange}
+            />
+          )}
+        />
+        <Label htmlFor={`meta-${name}`} className="font-normal cursor-pointer">
+          {label} {isRequired && <span className="text-danger-500">*</span>}
+        </Label>
+      </div>
+    );
+  }
+
+  if (prop.type === 'object' && prop.properties) {
+    return (
+      <div className="space-y-4 border rounded-md p-4 bg-muted/10">
+        <h4 className="font-medium text-sm">{label} {isRequired && <span className="text-danger-500">*</span>}</h4>
+        {Object.entries(prop.properties).map(([subKey, subProp]) => {
+           const subIsRequired = prop.required?.includes(subKey);
+           const subLabel = subKey.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+           return (
+             <DynamicField 
+               key={subKey} 
+               name={`${name}.${subKey}`} 
+               prop={subProp} 
+               control={control} 
+               register={register} 
+               label={subLabel} 
+               isRequired={subIsRequired} 
+             />
+           );
+        })}
+      </div>
+    );
+  }
+
+  if (prop.type === 'array' && prop.items?.type === 'object') {
+    return (
+      <DynamicArrayField 
+        name={name} 
+        prop={prop} 
+        control={control} 
+        register={register} 
+        label={label} 
+        isRequired={isRequired} 
+      />
+    );
+  }
+
+  if (prop.type === 'array') {
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={`meta-${name}`}>
+          {label} (comma separated) {isRequired && <span className="text-danger-500">*</span>}
+        </Label>
+        <Input
+          id={`meta-${name}`}
+          {...register(name)}
+          placeholder="e.g. John Doe, Jane Smith"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`meta-${name}`}>
+        {label} {isRequired && <span className="text-danger-500">*</span>}
+      </Label>
+      <Input id={`meta-${name}`} {...register(name)} />
+    </div>
+  );
+}
 
 export default function DocumentIntakePage() {
   const navigate = useNavigate();
@@ -39,14 +162,23 @@ export default function DocumentIntakePage() {
     control,
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<IntakeFormValues>({
     resolver: zodResolver(IntakeFormSchema),
     defaultValues: {
       documentTypeId: '',
       title: '',
+      metadata: {},
     },
   });
+
+  const selectedDocumentTypeId = useWatch({ control, name: 'documentTypeId' });
+  const selectedType = documentTypes?.find((t) => t.id === selectedDocumentTypeId);
+  const metadataSchema = selectedType?.metadataSchema as {
+    properties?: Record<string, any>;
+    required?: string[];
+  } | null | undefined;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -89,11 +221,31 @@ export default function DocumentIntakePage() {
     try {
       setIsUploading(true);
 
+      // Clean metadata based on schema if array type is string
+      const cleanMetadata = { ...data.metadata } as Record<string, any>;
+      
+      const cleanRecursive = (schemaProps: any, obj: any) => {
+        if (!schemaProps || !obj) return;
+        for (const [key, prop] of Object.entries(schemaProps) as [string, any][]) {
+          if (prop.type === 'array' && typeof obj[key] === 'string') {
+             // Split comma separated list
+             obj[key] = obj[key]
+               .split(',')
+               .map((s: string) => s.trim())
+               .filter(Boolean);
+          } else if (prop.type === 'object' && prop.properties && typeof obj[key] === 'object') {
+             cleanRecursive(prop.properties, obj[key]);
+          }
+        }
+      };
+      
+      cleanRecursive(metadataSchema?.properties, cleanMetadata);
+
       // 1. Create document draft
       const { documentId } = await createDocument.mutateAsync({
         documentTypeId: data.documentTypeId,
         title: data.title,
-        metadata: {},
+        metadata: cleanMetadata,
       });
 
       // 2. Request upload URL
@@ -147,7 +299,13 @@ export default function DocumentIntakePage() {
                 name="documentTypeId"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={(val) => {
+                      field.onChange(val);
+                      setValue('metadata', {}); // Reset metadata on type change
+                    }}
+                    value={field.value}
+                  >
                     <SelectTrigger id="documentTypeId">
                       <SelectValue placeholder="Select document type" />
                     </SelectTrigger>
@@ -172,7 +330,34 @@ export default function DocumentIntakePage() {
               {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
             </div>
 
-            <div className="space-y-2">
+            {metadataSchema?.properties && (
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="text-sm font-semibold tracking-wider text-neutral-500 uppercase">
+                  Additional Information
+                </h3>
+                {Object.entries(metadataSchema.properties).map(([key, prop]) => {
+                  const isRequired = metadataSchema.required?.includes(key);
+                  const label = key
+                    .split('_')
+                    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' ');
+
+                  return (
+                    <DynamicField 
+                      key={key} 
+                      name={`metadata.${key}`} 
+                      prop={prop} 
+                      control={control} 
+                      register={register} 
+                      label={label} 
+                      isRequired={isRequired} 
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="space-y-2 border-t pt-4">
               <Label htmlFor="file">File (PDF, JPEG, PNG, max 25MiB)</Label>
               <Input
                 id="file"
