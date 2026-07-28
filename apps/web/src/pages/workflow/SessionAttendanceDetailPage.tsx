@@ -10,7 +10,6 @@ import {
   CardContent,
   Button,
   Badge,
-  Input,
   Select,
   SelectTrigger,
   SelectValue,
@@ -20,6 +19,8 @@ import {
   Label,
   PageHeader,
 } from '@batac/ui';
+
+import { EmployeePicker } from '../../components/EmployeePicker';
 
 import { trpc } from '../../lib/trpc';
 
@@ -199,14 +200,12 @@ export function SessionAttendanceDetailPage() {
                         <div key={idx} className="flex items-start gap-2 rounded-md border p-3">
                           <div className="grid flex-1 gap-2">
                             <div>
-                              <Label className="text-xs">Employee ID (UUID)</Label>
-                              <Input
-                                placeholder="00000000-0000-0000-0000-000000000000"
-                                value={absence.councilorEmployeeId}
-                                onChange={(e) =>
-                                  handleUpdateAbsence(idx, 'councilorEmployeeId', e.target.value)
+                              <Label className="text-xs">Employee</Label>
+                              <EmployeePicker
+                                value={absence.councilorEmployeeId || null}
+                                onChange={(val) =>
+                                  handleUpdateAbsence(idx, 'councilorEmployeeId', val ?? '')
                                 }
-                                required
                               />
                             </div>
                             <div>

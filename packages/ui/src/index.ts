@@ -19,6 +19,7 @@ export * from './components/ui/sonner';
 export * from './components/ui/table';
 export * from './components/ui/textarea';
 export * from './components/ui/tooltip';
+export * from './components/ui/combobox';
 
 // Tier 2 Overrides
 export * from './components/ui/button';

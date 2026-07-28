@@ -43,7 +43,10 @@ import {
   DialogTitle,
   DialogFooter,
   cn,
+  Combobox,
 } from '@batac/ui';
+
+import { DocumentPicker } from '@/components/DocumentPicker';
 
 import type { RouterOutputs } from '@/lib/trpc';
 
@@ -417,13 +420,22 @@ function EnterHearingDateDialog({
   documentTitle,
   onSuccess,
 }: EnterHearingDateDialogProps) {
-  const [stepInstanceId, setStepInstanceId] = useState('');
+  const [stepInstanceId, setStepInstanceId] = useState<string | null>(null);
   const [hearingDate, setHearingDate] = useState('');
+  const [stepSearch, setStepSearch] = useState('');
+
+  const { data: assignedSteps, isLoading: stepsLoading } =
+    trpc.workflow.listMyAssignedSteps.useQuery({
+      limit: 25,
+      stepKeyIn: ['multi_referral_hearing'],
+    });
+
+  const stepItems = assignedSteps?.items ?? [];
 
   const mutation = trpc.session.enterCommitteeHearingDate.useMutation({
     onSuccess() {
       toast.success('Hearing date updated successfully.');
-      setStepInstanceId('');
+      setStepInstanceId(null);
       setHearingDate('');
       onClose();
       onSuccess();
@@ -435,8 +447,8 @@ function EnterHearingDateDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!stepInstanceId.trim()) {
-      toast.error('Step Instance ID is required.');
+    if (!stepInstanceId) {
+      toast.error('A step instance must be selected.');
       return;
     }
     mutation.mutate({
@@ -447,8 +459,8 @@ function EnterHearingDateDialog({
   }
 
   function handleClearDate() {
-    if (!stepInstanceId.trim()) {
-      toast.error('Step Instance ID is required.');
+    if (!stepInstanceId) {
+      toast.error('A step instance must be selected.');
       return;
     }
     mutation.mutate({
@@ -478,19 +490,22 @@ function EnterHearingDateDialog({
 
         <form id="hearing-date-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="hearing-step-instance-id" className="text-xs">
-              Step Instance ID <span className="text-danger-500">*</span>
+            <Label className="text-xs">
+              Step Instance <span className="text-danger-500">*</span>
             </Label>
-            <Input
-              id="hearing-step-instance-id"
-              placeholder="UUID of the active multi-referral step instance"
+            <Combobox
               value={stepInstanceId}
-              onChange={(e) => setStepInstanceId(e.target.value)}
-              required
+              onChange={setStepInstanceId}
+              items={stepItems}
+              getItemId={(item) => item.stepInstanceId}
+              getItemLabel={(item) => item.documentTitle}
+              getItemSublabel={(item) => `${item.stepType} · ${item.stepKey}`}
+              onSearchChange={setStepSearch}
+              isLoading={stepsLoading}
+              placeholder="Pick a step instance…"
+              searchPlaceholder="Filter by document title…"
+              emptyText="No assigned steps found."
             />
-            <p className="text-text-muted text-xs">
-              Find this in the workflow step action page for this document.
-            </p>
           </div>
 
           <div className="space-y-1.5">
@@ -516,7 +531,7 @@ function EnterHearingDateDialog({
               variant="outline"
               size="sm"
               onClick={handleClearDate}
-              disabled={mutation.isPending || !stepInstanceId.trim()}
+              disabled={mutation.isPending || !stepInstanceId}
               className="border-neutral-200"
             >
               Clear Date
@@ -526,7 +541,7 @@ function EnterHearingDateDialog({
             form="hearing-date-form"
             type="submit"
             size="sm"
-            disabled={mutation.isPending || !stepInstanceId.trim()}
+            disabled={mutation.isPending || !stepInstanceId}
           >
             {mutation.isPending ? 'Saving…' : 'Save Hearing Date'}
           </Button>
@@ -551,14 +566,23 @@ function ManuallyAdvanceDialog({
   documentTitle,
   onSuccess,
 }: ManuallyAdvanceDialogProps) {
-  const [stepInstanceId, setStepInstanceId] = useState('');
+  const [stepInstanceId, setStepInstanceId] = useState<string | null>(null);
   const [mandatoryComment, setMandatoryComment] = useState('');
+  const [stepSearch, setStepSearch] = useState('');
+
+  const { data: assignedSteps, isLoading: stepsLoading } =
+    trpc.workflow.listMyAssignedSteps.useQuery({
+      limit: 25,
+      stepKeyIn: ['multi_referral_hearing'],
+    });
+
+  const stepItems = assignedSteps?.items ?? [];
 
   // workflow.manuallyAdvanceMultiReferralStep lives in the workflow router (not session)
   const mutation = trpc.workflow.manuallyAdvanceMultiReferralStep.useMutation({
     onSuccess() {
       toast.success('Step manually advanced. The workflow has moved forward.');
-      setStepInstanceId('');
+      setStepInstanceId(null);
       setMandatoryComment('');
       onClose();
       onSuccess();
@@ -570,8 +594,8 @@ function ManuallyAdvanceDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!stepInstanceId.trim()) {
-      toast.error('Step Instance ID is required.');
+    if (!stepInstanceId) {
+      toast.error('A step instance must be selected.');
       return;
     }
     if (!mandatoryComment.trim()) {
@@ -610,15 +634,21 @@ function ManuallyAdvanceDialog({
 
         <form id="advance-step-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="advance-step-instance-id" className="text-xs">
-              Step Instance ID <span className="text-danger-500">*</span>
+            <Label className="text-xs">
+              Step Instance <span className="text-danger-500">*</span>
             </Label>
-            <Input
-              id="advance-step-instance-id"
-              placeholder="UUID of the active multi-referral step instance"
+            <Combobox
               value={stepInstanceId}
-              onChange={(e) => setStepInstanceId(e.target.value)}
-              required
+              onChange={setStepInstanceId}
+              items={stepItems}
+              getItemId={(item) => item.stepInstanceId}
+              getItemLabel={(item) => item.documentTitle}
+              getItemSublabel={(item) => `${item.stepType} · ${item.stepKey}`}
+              onSearchChange={setStepSearch}
+              isLoading={stepsLoading}
+              placeholder="Pick a step instance…"
+              searchPlaceholder="Filter by document title…"
+              emptyText="No assigned steps found."
             />
           </div>
 
@@ -647,7 +677,7 @@ function ManuallyAdvanceDialog({
             type="submit"
             size="sm"
             variant="destructive"
-            disabled={mutation.isPending || !stepInstanceId.trim() || !mandatoryComment.trim()}
+            disabled={mutation.isPending || !stepInstanceId || !mandatoryComment.trim()}
           >
             {mutation.isPending ? 'Advancing…' : 'Override & Advance'}
           </Button>
@@ -671,7 +701,7 @@ function ScheduleForFirstReadingPanel({
   sessionDate?: Date;
   onSuccess: () => void;
 }) {
-  const [documentId, setDocumentId] = useState('');
+  const [documentId, setDocumentId] = useState<string | null>(null);
   const [targetDate, setTargetDate] = useState(
     sessionDate ? sessionDate.toISOString().substring(0, 10) : '',
   );
@@ -681,7 +711,7 @@ function ScheduleForFirstReadingPanel({
       toast.success(
         'Document scheduled for First Reading. The backend has resolved the actual session date.',
       );
-      setDocumentId('');
+      setDocumentId(null);
       onSuccess();
     },
     onError(err) {
@@ -691,8 +721,8 @@ function ScheduleForFirstReadingPanel({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!documentId.trim()) {
-      toast.error('Document ID is required.');
+    if (!documentId) {
+      toast.error('A document must be selected.');
       return;
     }
     if (!targetDate) {
@@ -724,15 +754,12 @@ function ScheduleForFirstReadingPanel({
           className="flex flex-wrap items-end gap-4"
         >
           <div className="flex min-w-48 flex-1 flex-col gap-1.5">
-            <Label htmlFor="schedule-doc-id" className="text-xs">
-              Document ID (UUID) <span className="text-danger-500">*</span>
+            <Label className="text-xs">
+              Document <span className="text-danger-500">*</span>
             </Label>
-            <Input
-              id="schedule-doc-id"
-              placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000"
+            <DocumentPicker
               value={documentId}
-              onChange={(e) => setDocumentId(e.target.value)}
-              required
+              onChange={setDocumentId}
             />
           </div>
 
@@ -756,7 +783,7 @@ function ScheduleForFirstReadingPanel({
           <Button
             type="submit"
             size="sm"
-            disabled={mutation.isPending || !documentId.trim() || !targetDate}
+            disabled={mutation.isPending || !documentId || !targetDate}
           >
             {mutation.isPending ? 'Scheduling…' : 'Schedule for First Reading'}
           </Button>
