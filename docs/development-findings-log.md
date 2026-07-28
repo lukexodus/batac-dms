@@ -4822,3 +4822,17 @@ change, no further task dispatched.
 
 ---
 
+### [LOG-0175] Popover and Select dropdown menus transparent background fixed via Tailwind v4 @theme color mapping
+
+- date: 2026-07-28
+- task_id: FIX-UI-SELECT-TRANSPARENT
+- status: proposed
+- affects: F5, DESIGN.md, packages/ui/src/styles/globals.css
+
+**What was found:**
+Dropdown select menus (e.g. `DocumentType` select on `DocumentIntakePage`) and popover primitives rendered with transparent backgrounds, revealing form elements beneath the menu. In Tailwind CSS v4, `--color-popover`, `--color-card`, `--color-background`, etc. were not mapped inside `@theme` in `packages/ui/src/styles/globals.css`, causing utility classes like `bg-popover` to not emit CSS declarations. Additionally, `@source` paths needed relative resolution entries for workspace component scanning when compiled via `apps/web`.
+
+**What was implemented:**
+1. Added full shadcn HSL color mappings (`--color-popover: hsl(var(--popover))`, `--color-card: hsl(var(--card))`, `--color-background: hsl(var(--background))`, etc.) to `@theme` in `packages/ui/src/styles/globals.css`.
+2. Added `bg-surface-overlay` (white `#ffffff` per DESIGN.md §3) to `SelectContent`, `PopoverContent`, `TooltipContent`, and `Command` components in `packages/ui/src/components/ui/` to guarantee solid non-transparent background overlays.
+3. Updated `@source` entries in `globals.css` with relative paths covering both `apps/web` and `packages/ui` build contexts.
