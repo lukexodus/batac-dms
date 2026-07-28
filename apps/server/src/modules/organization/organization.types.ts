@@ -172,6 +172,9 @@ export interface OrgService {
   getPrimaryOfficeForUser(userId: string): Promise<{ officeId: string; officeCode: string } | null>;
   getCommitteeIdsForUser(userId: string): Promise<string[]>;
   getCommitteeChair(committeeId: string): Promise<UserSummary | null>;
+  listSpMembers(cityId: string): Promise<EmployeeSummary[]>;
+  listAllEmployees(cityId: string): Promise<EmployeeSummary[]>;
+  listAllOffices(): Promise<{ id: string; name: string }[]>;
   listEmployees(
     cityId: string,
     limit: number,

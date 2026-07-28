@@ -25,7 +25,89 @@ import {
 import { IntakeFormSchema, type IntakeFormValues } from '@/lib/intake-schema';
 import { trpc } from '@/lib/trpc';
 
-function DynamicArrayField({ name, prop, control, register, label, isRequired }: any) {
+function SponsorsArrayField({ name, prop, control, label, isRequired, setValue }: any) {
+  const { fields, append, remove } = useFieldArray({ control, name });
+  const { data: spMembers } = trpc.organization.listSpMembers.useQuery(undefined, {
+    staleTime: Infinity,
+  });
+
+  return (
+    <div className="space-y-4 border rounded-md p-4 bg-muted/10">
+      <div className="flex justify-between items-center">
+        <h4 className="font-medium text-sm">{label} {isRequired && <span className="text-danger-500">*</span>}</h4>
+        <Button type="button" variant="outline" size="sm" onClick={() => append({ role: 'author' })}>
+          Add Sponsor
+        </Button>
+      </div>
+      {fields.length === 0 && <p className="text-sm text-muted-foreground">No sponsors added.</p>}
+      {fields.map((field, index) => (
+        <div key={field.id} className="relative space-y-4 border-t border-muted-foreground/20 pt-4 mt-4">
+           <div className="flex justify-between items-center mb-2">
+             <h5 className="text-xs font-semibold text-muted-foreground uppercase">Sponsor {index + 1}</h5>
+             <Button type="button" variant="ghost" size="sm" className="h-6 text-xs text-danger-500 hover:text-danger-600" onClick={() => remove(index)}>Remove</Button>
+           </div>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="space-y-2">
+               <Label>Member <span className="text-danger-500">*</span></Label>
+               <Controller
+                 name={`${name}.${index}.person_id`}
+                 control={control}
+                 render={({ field: selectField }) => (
+                   <Select 
+                     onValueChange={(val) => {
+                       selectField.onChange(val);
+                       const member = spMembers?.find(m => m.employeeId === val);
+                       if (member) {
+                         setValue(`${name}.${index}.display_name`, member.displayName, { shouldValidate: true });
+                       }
+                     }} 
+                     value={selectField.value || ''}
+                   >
+                     <SelectTrigger>
+                       <SelectValue placeholder="Select member" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       {spMembers?.map((member) => (
+                         <SelectItem key={member.employeeId} value={member.employeeId}>
+                           {member.displayName}
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 )}
+               />
+               <input type="hidden" {...control.register(`${name}.${index}.display_name`)} />
+             </div>
+             
+             <div className="space-y-2">
+               <Label>Role <span className="text-danger-500">*</span></Label>
+               <Controller
+                 name={`${name}.${index}.role`}
+                 control={control}
+                 render={({ field: roleField }) => (
+                   <Select onValueChange={roleField.onChange} value={roleField.value || ''}>
+                     <SelectTrigger>
+                       <SelectValue placeholder="Select role" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       {(prop.items.properties?.role?.enum || ['author', 'co_author']).map((opt: string) => (
+                         <SelectItem key={opt} value={opt}>
+                           {opt.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 )}
+               />
+             </div>
+           </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DynamicArrayField({ name, prop, control, register, label, isRequired, setValue }: any) {
   const { fields, append, remove } = useFieldArray({ control, name });
   
   return (
@@ -55,6 +137,7 @@ function DynamicArrayField({ name, prop, control, register, label, isRequired }:
                   register={register} 
                   label={subLabel} 
                   isRequired={subIsRequired} 
+                  setValue={setValue}
                 />
               );
            })}
@@ -64,7 +147,114 @@ function DynamicArrayField({ name, prop, control, register, label, isRequired }:
   );
 }
 
-function DynamicField({ name, prop, control, register, label, isRequired }: any) {
+function UserPickerField({ name, control, label, isRequired, setValue }: any) {
+  const { data: users, isLoading } = trpc.iam.listAllUsers.useQuery(undefined, {
+    staleTime: Infinity,
+  });
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`meta-${name}`}>
+        {label} {isRequired && <span className="text-danger-500">*</span>}
+      </Label>
+      <Controller
+        name={name}
+        control={control}
+        render={({ field }) => (
+          <Select 
+            onValueChange={(val) => {
+              field.onChange(val);
+              const user = users?.find(u => u.id === val);
+              if (user) {
+                // Try to set display name if the schema expects it
+                const displayNameField = name.replace(/_user_id$/, '_display_name');
+                setValue(displayNameField, user.displayName, { shouldValidate: true, shouldDirty: true });
+              }
+            }} 
+            value={field.value || ''}
+            disabled={isLoading}
+          >
+            <SelectTrigger id={`meta-${name}`}>
+              <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {users?.map((user) => (
+                <SelectItem key={user.id} value={user.id}>
+                  {user.displayName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      />
+    </div>
+  );
+}
+
+function OfficePickerField({ name, control, label, isRequired }: any) {
+  const { data: offices, isLoading } = trpc.organization.listAllOffices.useQuery(undefined, {
+    staleTime: Infinity,
+  });
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`meta-${name}`}>
+        {label} {isRequired && <span className="text-danger-500">*</span>}
+      </Label>
+      <Controller
+        name={name}
+        control={control}
+        render={({ field }) => (
+          <Select onValueChange={field.onChange} value={field.value || ''} disabled={isLoading}>
+            <SelectTrigger id={`meta-${name}`}>
+              <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {offices?.map((office) => (
+                <SelectItem key={office.id} value={office.id}>
+                  {office.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      />
+    </div>
+  );
+}
+
+function DynamicField({ name, prop, control, register, label, isRequired, setValue }: any) {
+  if (prop.enum) {
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={`meta-${name}`}>
+          {label} {isRequired && <span className="text-danger-500">*</span>}
+        </Label>
+        <Controller
+          name={name}
+          control={control}
+          render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value || ''}>
+              <SelectTrigger id={`meta-${name}`}>
+                <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
+              </SelectTrigger>
+              <SelectContent>
+                {prop.enum.map((opt: string | null) => {
+                  if (opt === null) return null; // Or handle null if needed
+                  return (
+                    <SelectItem key={opt} value={opt}>
+                      {opt.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </div>
+    );
+  }
+
   if (prop.type === 'boolean') {
     return (
       <div className="flex items-center space-x-2">
@@ -102,6 +292,7 @@ function DynamicField({ name, prop, control, register, label, isRequired }: any)
                register={register} 
                label={subLabel} 
                isRequired={subIsRequired} 
+               setValue={setValue}
              />
            );
         })}
@@ -110,6 +301,19 @@ function DynamicField({ name, prop, control, register, label, isRequired }: any)
   }
 
   if (prop.type === 'array' && prop.items?.type === 'object') {
+    if (name === 'metadata.sponsors') {
+      return (
+        <SponsorsArrayField 
+          name={name} 
+          prop={prop} 
+          control={control} 
+          label={label} 
+          isRequired={isRequired} 
+          setValue={setValue}
+        />
+      );
+    }
+
     return (
       <DynamicArrayField 
         name={name} 
@@ -118,6 +322,7 @@ function DynamicField({ name, prop, control, register, label, isRequired }: any)
         register={register} 
         label={label} 
         isRequired={isRequired} 
+        setValue={setValue}
       />
     );
   }
@@ -134,6 +339,31 @@ function DynamicField({ name, prop, control, register, label, isRequired }: any)
           placeholder="e.g. John Doe, Jane Smith"
         />
       </div>
+    );
+  }
+
+  // Handle _user_id and _office_id properties
+  const keyName = name.split('.').pop() || name;
+  if (keyName.endsWith('_user_id')) {
+    return (
+      <UserPickerField 
+        name={name} 
+        control={control} 
+        label={label} 
+        isRequired={isRequired} 
+        setValue={setValue} 
+      />
+    );
+  }
+  
+  if (keyName.endsWith('_office_id')) {
+    return (
+      <OfficePickerField 
+        name={name} 
+        control={control} 
+        label={label} 
+        isRequired={isRequired} 
+      />
     );
   }
 
@@ -165,7 +395,7 @@ export default function DocumentIntakePage() {
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<IntakeFormValues>({
-    resolver: zodResolver(IntakeFormSchema),
+    resolver: zodResolver(IntakeFormSchema) as any,
     defaultValues: {
       documentTypeId: '',
       title: '',
@@ -291,7 +521,7 @@ export default function DocumentIntakePage() {
         <CardHeader>
           <CardTitle>Intake New Document</CardTitle>
         </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit as any)}>
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="documentTypeId">Document Type</Label>
@@ -351,6 +581,7 @@ export default function DocumentIntakePage() {
                       register={register} 
                       label={label} 
                       isRequired={isRequired} 
+                      setValue={setValue}
                     />
                   );
                 })}

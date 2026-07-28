@@ -58,11 +58,11 @@ describe('OcrService', () => {
 
   describe('enqueueOcrJob', () => {
     it('should enqueue an ocr.process job with correct options', async () => {
-      await ocrService.enqueueOcrJob('ver-1', 's3-key-1', 'doc-1');
+      await ocrService.enqueueOcrJob('v1', 'test/doc.pdf', 'doc1');
       expect(pgBossMock.send).toHaveBeenCalledWith(
         'ocr.process',
-        { versionId: 'ver-1', s3Key: 's3-key-1', documentId: 'doc-1' },
-        { retryLimit: 3, retryDelay: 30, expireInHours: 24 },
+        { versionId: 'v1', s3Key: 'test/doc.pdf', documentId: 'doc1' },
+        { retryLimit: 3, retryDelay: 30, expireInHours: 12 },
       );
     });
   });

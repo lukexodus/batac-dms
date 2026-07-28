@@ -6,7 +6,7 @@ export const IntakeFormSchema = z.object({
     .string()
     .min(1, { message: 'Title is required' })
     .max(255, { message: 'Title is too long' }),
-  metadata: z.record(z.unknown()).default({}),
+  metadata: z.record(z.string(), z.any()).default({}),
 });
 
 export type IntakeFormValues = z.infer<typeof IntakeFormSchema>;

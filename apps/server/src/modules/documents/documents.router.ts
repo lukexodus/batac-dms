@@ -330,6 +330,7 @@ export function createDocumentsRouter() {
         return rows.map((row) => ({
           ...row,
           classificationDefault: row.classificationDefault,
+          metadataSchema: row.metadataSchema as any,
         }));
       }),
 

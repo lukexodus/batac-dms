@@ -22156,3 +22156,485 @@ Note the count split: 9 of the 10 sites land in `iam.service.ts` (sites 1–9), 
 **Check for consumers before finishing:** search `apps/server/src/modules/audit/audit.event-consumer.ts` and `apps/server/src/modules/tracking/` for any existing subscription to the *old* literal `eventType` strings these 10 sites used to emit under `auditService.writeEvent`. If any consumer matched on those raw strings (rather than going through `auditService`'s own internal write path), that subscription needs updating to the new `IAM_EVENTS` constant's string value — report which, if any, needed this, do not silently update them without reporting it as a finding.
 
 **If any of the "verify exact string" placeholders above turn out to reveal two sites are NOT the same event despite similar code comments** (e.g., site #1 and site #7's "logout" comments turn out to guard genuinely different literal strings), stop and report that as a finding rather than picking one of the two possible resolutions yourself.
+
+---
+
+# TASK-EVT-TYPE-001 — Type 23 Stub-Typed EventPayloadMap Entries
+
+````
+# TASK-EVT-TYPE-001 — Type 23 Stub-Typed EventPayloadMap Entries
+
+## Scope
+
+File to edit: `packages/shared/src/events/event-payload-map.ts`
+
+This task replaces 23 `Stub`-typed (or raw `Record<string, unknown>`-typed)
+keys in the `EventPayloadMap` interface with concrete field-checked types.
+`Stub` is defined at the top of the file as `type Stub = Record<string,
+unknown>` — it currently provides zero payload-shape safety for these keys.
+
+### IN SCOPE — exactly these 23 keys
+
+```json
+{
+  "in_scope_keys": [
+    "user.login", "user.logout", "session.terminated",
+    "role.assigned", "role.revoked", "user.created",
+    "password.changed", "session.locked", "session.unlocked",
+    "logout.success", "login.failed", "session.replaced",
+    "login.success", "token.reuse_detected", "session.forced_logout",
+    "abac.denial",
+    "delegation.granted",
+    "workflow.instance.suspended", "workflow.instance.resumed",
+    "workflow.instance.migration.reversed",
+    "workflow.multi_referral.committee_submitted",
+    "workflow.multi_referral.all_submitted",
+    "workflow.multi_referral.secretary_advanced"
+  ],
+  "count": 23
+}
+```
+
+### OUT OF SCOPE — do not touch, even though they are also Stub/untyped
+
+```json
+{
+  "out_of_scope_keys": [
+    "workflow.step_assigned",
+    "workflow.lapsed",
+    "workflow.escalated",
+    "workflow.certified_urgent_applied",
+    "workflow.manually_advanced",
+    "workflow.completed",
+    "workflow.instance.migration.started",
+    "workflow.instance.migration.completed"
+  ],
+  "reason": "Deferred to a separate follow-up task. The first 6 are explicitly marked @deprecated in the source file and are legacy underscore-notation keys being phased out. The last 2 are typed as raw Record<string, unknown> (not via the Stub alias) and represent the same underlying problem in a different spelling — also deferred. Do not type these, do not remove their @deprecated markers, do not touch their surrounding comments."
+}
+```
+
+**This JSON block is authoritative.** If any prose elsewhere in this prompt
+appears to conflict with the in/out lists above, the JSON block wins.
+
+---
+
+## What NOT to do
+
+- Do not rename any field at any emit site to normalize casing. Naming
+  across these payloads is genuinely inconsistent (snake_case in some
+  events, camelCase in others, and `abac.denial` mixes both within a
+  single payload) — this is a pre-existing, deliberate-scope-exclusion.
+  Type each field to match its real current name exactly. If you notice
+  yourself wanting to rename a field to make the type "cleaner," don't —
+  report it as a separate finding instead.
+- Do not add fields to any payload that aren't already present at the
+  real emit site(s), even if you believe a field is "obviously missing."
+  If you believe something is missing, flag it as a finding — do not add
+  it silently.
+- Do not modify any emit site's actual runtime behavior. This is a types-
+  only task. If typing correctly requires touching a `.ts` file other
+  than `event-payload-map.ts` (e.g. adding an explicit return type
+  annotation somewhere to make a source type traceable), that is
+  acceptable, but do not change any object literal's field contents,
+  add/remove any field from what is actually sent over the wire, or
+  change any `void`/`await` call-site behavior.
+- Do not touch the `role.assigned` / `role.revoked` consumer-side
+  `resourceOfficeId` gap in `audit.event-consumer.ts`. This is a known,
+  separate, already-flagged runtime bug (the emitted payload has no
+  office-related field for the consumer's `getString(e.payload,
+  'officeId')` to read, even though `officeScopeId` is available and
+  unused at the `role.assigned` emit site in
+  `apps/server/src/modules/iam/iam.service.ts` around line 828). Fixing
+  it changes what is actually emitted, which is out of scope for a
+  typing-only task. Leave the consumer file entirely untouched.
+
+---
+
+## Per-entry type specifications
+
+For each entry below: the exact literal type to write, the real emit
+site(s) it must match, and — where applicable — an explicit note on
+inference basis. Where a type is `[Confirmed]`, it was traced to a real,
+live emit site or a real Drizzle/Zod schema definition, not inferred from
+a single object literal glance. Where a type is `[Unverified,
+spec-derived]`, no producer or consumer currently exists in the codebase;
+the type is taken directly from the B3 architecture document instead.
+
+### 1–13: IAM entries with a real, live emit site — `[Confirmed]`
+
+Emit sites: `apps/server/src/modules/iam/iam.service.ts` (unless noted),
+using the `IAM_EVENTS` constants from
+`apps/server/src/modules/iam/iam.events.ts`.
+
+```typescript
+'logout.success': {
+  user_id: string;
+  session_id: string;
+};
+
+'login.failed': {
+  attempted_identifier_hash: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  failure_reason: 'no_credential' | 'wrong_password';
+};
+
+'session.replaced': {
+  user_id: string;
+  old_session_id: string;
+  new_ip_address: string | null;
+};
+
+'login.success': {
+  user_id: string;
+  session_id: string;
+  ip_address: string | null;
+  user_agent: string | null;
+};
+
+'token.reuse_detected': {
+  user_id: string;
+  session_id: string;
+  action_taken: string;
+};
+
+'session.forced_logout': {
+  user_id: string;
+  session_id: string;
+  admin_user_id: string;
+};
+
+'session.locked': {
+  user_id: string;
+  session_id: string;
+};
+
+'session.unlocked': {
+  user_id: string;
+  session_id: string;
+};
+
+'role.assigned': {
+  actorId: string;
+  targetUserId: string;
+  roleId: string;
+  roleName: string;
+};
+
+'role.revoked': {
+  actorId: string;
+  targetUserId: string;
+  roleId: string;
+  roleName: string;
+  reason: string;
+};
+```
+
+**⚠ Verification checkpoint before writing the above:** the exact field
+names and types for `logout.success`, `session.replaced`,
+`token.reuse_detected`, `session.forced_logout`, `session.locked`,
+`session.unlocked` were confirmed in a prior planning-layer pass but the
+literal object shapes were not re-pasted into this prompt verbatim from
+that pass — **before writing these 6 entries' types, open the actual
+emit-site code** (search `iam.service.ts` for `IAM_EVENTS.LOGOUT_SUCCESS`,
+`IAM_EVENTS.SESSION_REPLACED`, `IAM_EVENTS.TOKEN_REUSE_DETECTED`,
+`IAM_EVENTS.FORCED_LOGOUT`, `IAM_EVENTS.SESSION_LOCKED`,
+`IAM_EVENTS.SESSION_UNLOCKED`) and confirm the payload literal at each
+site matches what's written above field-for-field before committing to
+it. If any of the 6 above don't match the real code, **the real code
+wins** — use the actual literal, and separately report the mismatch
+between this prompt and the real code as a finding.
+
+`abac.denial` (route handler, not service method — different file):
+
+```typescript
+'abac.denial': {
+  actorId: string;
+  targetId: string | null;
+  action: string;
+  denial_reason: string;
+};
+```
+
+Emit site: `apps/server/src/modules/iam/iam.routes.ts`, around line 551,
+using `protectedApp.eventBus` (not `ctx.req.server`). Confirm the exact
+field set and casing at this site before writing the type — this payload
+is known to mix snake_case (`denial_reason`) and camelCase (`actorId`,
+`targetId`) within the same object; do not "fix" this mixing, type it
+exactly as it is.
+
+**`role.assigned` / `role.revoked` note:** these two are corrected from
+an earlier draft that implied `assignerId`/`revokerId`/`userId` field
+names — the real emitted field names at the actual `eventBus.emit` call
+sites (`iam.service.ts`, search `IAM_EVENTS.ROLE_ASSIGNED` and
+`IAM_EVENTS.ROLE_REVOKED`) are `actorId`/`targetUserId`, not
+`assignerId`/`userId`. Confirm this directly before writing the type;
+these two names are a common trap because the *consumer's* fallback-chain
+code in `audit.event-consumer.ts` reads for `assignerId`/`userId` first
+(falling back to `actorId`/`targetUserId` only when the first key is
+absent) — do not copy the consumer's fallback-chain key order into the
+payload type. The payload type must reflect what the producer actually
+sends, not what the consumer's fallback logic happens to accept.
+
+### 14: `user.login`, `user.logout`, `session.terminated` — `[Unverified, consumer-derived]`
+
+```json
+{
+  "producer_status": "none — zero emit sites anywhere in apps/server, confirmed via search for both the IAM_EVENTS constant and the literal string",
+  "consumer_status": "live — subscribed via makeHandler in apps/server/src/modules/audit/audit.event-consumer.ts",
+  "instruction": "Infer the type from what the consumer's makeHandler callback reads via its getString() helper, not from any real emitted payload — none exists. Open audit.event-consumer.ts and read the 'user.login', 'user.logout', and 'session.terminated' makeHandler blocks directly before writing these three types."
+}
+```
+
+Suggested starting point based on what the consumer reads (verify against
+the actual consumer code before finalizing):
+
+```typescript
+'user.login': {
+  userId?: string;
+  actorId?: string;
+};
+
+'user.logout': {
+  userId?: string;
+  actorId?: string;
+};
+
+'session.terminated': {
+  adminUserId?: string;
+  userId?: string;
+  sessionId?: string;
+};
+```
+
+These are marked optional (`?`) rather than required because the
+consumer's `getString()` helper tolerates a missing key by returning
+`null` — a required field would be a stronger claim than the code
+actually supports, given there is no real producer to confirm a field is
+always present. **Label these three entries with a code comment in the
+final file** stating they are inferred from the consumer, not confirmed
+from a producer — do not present them as equally grounded as the IAM
+entries above. Example comment to include directly above each of these 3
+keys in the file:
+
+```typescript
+// [Unverified, consumer-derived] — no live producer exists for this event
+// as of this task. Type inferred from audit.event-consumer.ts's
+// makeHandler callback, not from a real emitted payload.
+```
+
+### 15: `delegation.granted` — `[Confirmed]`
+
+Emit site: `apps/server/src/modules/organization/delegation.service.ts`,
+around line 266.
+
+```typescript
+'delegation.granted': {
+  delegationId: string;
+  designationDocumentId: string | null;
+  delegatingUserId: string;
+  delegatedToUserId: string;
+  grantorId: string;
+  scope: {
+    officeId: string;
+    positionId: string;
+  };
+  validFrom: string;
+  validUntil: string;
+};
+```
+
+Field-by-field source, for your own verification before writing this —
+do not just copy the block above without confirming against the live
+files:
+
+| Field | Real type | Confirmed source |
+|---|---|---|
+| `delegationId` | `string` | `grant.id`, `delegationGrants.id` — `uuid().primaryKey()` in `packages/database/schema/organization.schema.ts` |
+| `designationDocumentId` | `string \| null` | Same schema file — this column has **no** `.notNull()` chained, unlike the two employee-ID columns immediately above it in the same table definition. Confirm this directly; do not assume required just because most other ID-like fields in this table are required. |
+| `delegatingUserId` | `string` | Resolved via a DB join in `delegation.service.ts`; falls back to `''` if the join doesn't resolve a row (`empRow?.delegatingUserId ?? ''`) — see note below |
+| `delegatedToUserId` | `string` | Same pattern as above |
+| `grantorId` | `string` | `subject.userId` |
+| `scope.officeId` | `string` | `grant.officeId` — `.notNull()` in the schema |
+| `scope.positionId` | `string` | `grant.positionId` — `.notNull()` in the schema |
+| `validFrom` | `string` | `grant.startDate` — Drizzle `date()` column, default string mode (no `{ mode: 'date' }` override present in the schema import), `.notNull()` |
+| `validUntil` | `string` | `grant.endDate` — same column type as `startDate`, `.notNull()`. The schema has a code comment reading "Open-ended delegations prohibited (Decision 3.9)" directly above this column — this is a deliberate business rule, not an incidental non-null. |
+
+**Pre-existing condition to flag, not fix:** `delegatingUserId` and
+`delegatedToUserId` both fall back to the empty string `''` if their join
+lookup fails to resolve a row. Typing them as plain `string` is accurate
+to what the code actually does, but it means a genuine empty string and a
+real user ID are indistinguishable at the type level. This is not
+something to resolve as part of this task — it is a pre-existing
+condition in the join logic, not a typing decision. If you want it
+flagged as its own finding for a human decision (e.g., should this
+fallback exist at all, or should it throw), note it, but do not change
+the fallback or the type on your own judgment.
+
+### 16–18: `workflow.instance.suspended`, `workflow.instance.resumed` — `[Unverified, spec-derived]`
+
+```json
+{
+  "producer_status": "none — zero references anywhere in apps/server, confirmed via search for both a workflow-side event-constants object and literal strings",
+  "consumer_status": "none — no makeHandler subscription exists for either event",
+  "source": "B3 §7.6 and §7.7 (docs/pre-development/B-architecture-documents/b3-internal-domain-event-catalog-v1.3.md)",
+  "important_caveat": "B3 itself labels its own source for both these events as '[Unverified] - confirmed in B4'. This means even the authoritative document is not independently confirming this shape from its own authority — it is citing B4 Appendix A, one level further upstream, and B3's own authors flagged that citation as unverified. Type these two from the B3 schemas below, but the code comment above each type in the final file MUST say so explicitly — do not present these as being on the same footing as the [Confirmed] entries above."
+}
+```
+
+```typescript
+// [Unverified, spec-derived] — no producer or consumer exists for this
+// event in the codebase as of this task. Type taken directly from B3
+// §7.6, whose own Source row reads "[Unverified] - confirmed in B4" —
+// this is a spec claim, not a code-confirmed one, at two removes.
+'workflow.instance.suspended': {
+  instanceId: string;
+  suspendedBy: string;
+  reason: string;
+};
+
+// [Unverified, spec-derived] — same caveat as workflow.instance.suspended
+// above. Source: B3 §7.7, Source row "[Unverified] - confirmed in B4".
+'workflow.instance.resumed': {
+  instanceId: string;
+  resumedBy: string;
+};
+```
+
+### 19: `workflow.instance.migration.reversed` — location known, payload not yet pulled
+
+```json
+{
+  "status": "NOT VERIFIED — this entry was never actually read at a real emit site during planning. Do not write a type for this key from assumption or from analogy to workflow.instance.migration.started/.completed.",
+  "instruction": "Before writing this type: search the workflow module for the literal string 'workflow.instance.migration.reversed' or an equivalent constant, locate the real emit site, and read the actual payload literal there. If no real emit site exists, treat it the same way as the suspended/resumed pair above — check B3 for a schema (search for '7.10' in the ToC, migration events are in B3 §7.B) and mark it [Unverified, spec-derived] with the same kind of caveat comment if the B3 source itself carries an [Unverified] label. Do not guess a shape by analogy to the two 'started'/'completed' migration entries — those are a different pair of events (Record<string, unknown>, out of scope for this task) and their shape does not necessarily transfer to 'reversed'."
+}
+```
+
+### 20–22: `workflow.multi_referral.committee_submitted`, `.all_submitted`, `.secretary_advanced` — `[Confirmed]`, with an important caveat
+
+Emit site (all three):
+`apps/server/src/modules/workflow/engine/step-handlers/multi-referral.handler.ts`
+
+```typescript
+'workflow.multi_referral.committee_submitted': {
+  instanceId: string;
+  stepInstanceId: string;
+  committeeId: string;
+  contributionDocumentId: string;
+};
+
+'workflow.multi_referral.all_submitted': {
+  instanceId: string;
+  stepInstanceId: string;
+  allSubmittedAt: string;
+};
+
+'workflow.multi_referral.secretary_advanced': {
+  stepInstanceId: string;
+  actorId: string;
+  comment: string | null;
+  missingCommitteeIds: string[];
+  metadataSnapshot: Record<string, unknown>;
+};
+```
+
+**⚠ Important caveat — include this as a code comment above all three of
+these keys in the final file, verbatim in substance:**
+
+```typescript
+// NOTE: these three events are emitted via
+// workflowRepository.createWorkflowEvent(...) — a raw Drizzle insert
+// (InferInsertModel<typeof workflowEvents>) — not via EventBus.emit().
+// EventBus.emit()'s generic signature (emit<K extends keyof
+// EventPayloadMap>(...)) is what actually enforces EventPayloadMap at
+// compile time; createWorkflowEvent has no such constraint. Typing these
+// three entries here provides real compile-time safety for a future
+// consumer that subscribes via bus.on(), but does NOT constrain what the
+// producer above actually writes to the database — the producer bypasses
+// EventBus entirely.
+```
+
+This is not a reason to skip typing these three — the type still has
+value for any future consumer — but it must not be presented as
+equivalent in strength to the properly `EventBus.emit`-constrained
+entries elsewhere in this task. If asked to summarize what this task
+accomplished, these three should be described as "typed for future
+consumer safety" rather than "typed and now compiler-enforced," since the
+producer side is unaffected.
+
+`metadataSnapshot`'s type is `Record<string, unknown>`, not a more
+specific shape — it is a full snapshot of a step instance's `metadata`
+jsonb column, which is `Record<string, any>`-cast at the point of use in
+the handler and has no more concrete type anywhere upstream (traced to
+`StepInstanceRow.metadata`, which is `InferSelectModel`-derived from a
+jsonb column with no narrower type). Do not attempt to give this a more
+specific shape than `Record<string, unknown>` — doing so would be
+inventing structure the actual code doesn't have.
+
+---
+
+## Verification steps (run after making all edits)
+
+```bash
+pnpm --filter @batac/shared typecheck
+pnpm --filter server typecheck
+```
+
+Both must pass with exit 0. Removing `Stub` typing on entries with a real
+producer is expected to surface new, previously-hidden typecheck errors
+at those producers' emit sites if any real emitted field doesn't match
+the type you wrote — this is the desired outcome (it means the type
+change is doing its job), not evidence something went wrong. If you hit
+such an error:
+- If the mismatch is between what you wrote and what the *real, live*
+  emit-site code actually contains: the real code is correct, fix the
+  type in `event-payload-map.ts` to match the real code, not the other
+  way around.
+- If the mismatch looks like a real bug in the producer itself (i.e. the
+  producer appears to genuinely send the wrong data, not just data that
+  doesn't match this prompt's draft type): do not fix the producer. Stop
+  and report it as a finding instead — this task's scope is
+  `event-payload-map.ts` only.
+
+After typecheck passes:
+
+```bash
+grep -c ": Stub;" packages/shared/src/events/event-payload-map.ts
+```
+
+This should return exactly **6** (the 6 deprecated legacy keys explicitly
+listed as out-of-scope above — `workflow.step_assigned`,
+`workflow.lapsed`, `workflow.escalated`,
+`workflow.certified_urgent_applied`, `workflow.manually_advanced`,
+`workflow.completed`). If it returns anything other than 6, one of the
+23 in-scope entries was missed — go back and find which one.
+
+```bash
+grep -n "': Record<string, unknown>;" packages/shared/src/events/event-payload-map.ts
+```
+
+This should return exactly 2 matches, both for
+`workflow.instance.migration.started` and
+`workflow.instance.migration.completed` (both explicitly out of scope —
+do not type these). If any other key still shows raw `Record<string,
+unknown>`, one of the 23 was missed.
+
+---
+
+## Findings log
+
+If, during this task, you discover:
+- Any of the "suggested" or "not yet verified" types above turn out
+  wrong once you check the real code — this is expected and fine, just
+  use the real code and note the discrepancy in your task report.
+- A genuinely new ambiguity not covered by this prompt (e.g. a 24th Stub
+  key you didn't expect, or one of the 23 keys has more than one emit
+  site with genuinely conflicting field shapes) — do not resolve it
+  silently. Append an entry to `docs/development-findings-log.md` per
+  AGENTS.md Section 4.5, `status: proposed`. Do not mark it `confirmed`
+  — only a human does that.
+- Anything matching the `role.assigned`/`role.revoked` `resourceOfficeId`
+  pattern (a field available at emit time but not included in the
+  payload) at any of the other 21 sites — flag it as a finding, do not
+  fix it as part of this task.
+````

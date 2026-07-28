@@ -175,6 +175,7 @@ export interface IamService extends IamPublicAPI {
     committeeIds: string[];
   }>;
   logout(sessionId: string, userId: string): Promise<void>;
+  listAllUsers(cityId: string): Promise<{ id: string; username: string; displayName: string }[]>;
   refresh(
     refreshToken: string,
     ipAddress: string | null,

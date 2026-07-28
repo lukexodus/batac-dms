@@ -98,6 +98,12 @@ export const iamRouter = router({
       return { success: true };
     }),
 
+  listAllUsers: protectedProcedure.query(async ({ ctx }) => {
+    // accessible by any authenticated user for selection in document metadata
+    const service = getService(ctx);
+    return service.listAllUsers(ctx.auth.cityId);
+  }),
+
   listUserDirectory: protectedProcedure
     .input(s.ListUserDirectoryInput)
     .query(async ({ ctx, input }) => {

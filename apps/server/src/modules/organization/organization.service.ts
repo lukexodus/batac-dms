@@ -6,7 +6,7 @@ import type {
   OfficeTree,
   EmployeeSummary,
 } from './organization.types.js';
-import { eq, and, or, isNull, isNotNull, lte, gte } from 'drizzle-orm';
+import { eq, and, or, isNull, isNotNull, lte, gte, inArray } from 'drizzle-orm';
 import {
   offices,
   positions,
@@ -262,6 +262,111 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
         userId: rows[0].userId,
         displayName: `${rows[0].firstName} ${rows[0].lastName}`,
       };
+    },
+
+    async listSpMembers(cityId: string): Promise<EmployeeSummary[]> {
+      const db = deps.db;
+
+      const query = db
+        .select({
+          employeeId: employees.id,
+          userId: employees.userId,
+          firstName: employees.firstName,
+          lastName: employees.lastName,
+          positionId: assignments.positionId,
+          positionTitle: positions.title,
+          officeId: assignments.officeId,
+        })
+        .from(employees)
+        .innerJoin(
+          assignments,
+          and(
+            eq(employees.id, assignments.employeeId),
+            eq(assignments.isActive, true),
+            eq(assignments.isPrimary, true),
+            isNull(assignments.deletedAt),
+          ),
+        )
+        .innerJoin(positions, eq(assignments.positionId, positions.id))
+        .innerJoin(offices, eq(assignments.officeId, offices.id))
+        .where(
+          and(
+            eq(employees.cityId, cityId),
+            isNull(employees.deletedAt),
+            inArray(offices.code, ['SP', 'OVM']),
+          ),
+        )
+        .orderBy(employees.lastName, employees.firstName, employees.id);
+
+      const rows = await query;
+
+      return rows.map((r) => ({
+        employeeId: r.employeeId,
+        userId: r.userId || '',
+        displayName: `${r.firstName} ${r.lastName}`,
+        positionId: r.positionId,
+        positionTitle: r.positionTitle,
+        officeId: r.officeId,
+      }));
+    },
+
+    async listAllEmployees(cityId: string): Promise<EmployeeSummary[]> {
+      const db = deps.db;
+
+      const query = db
+        .select({
+          employeeId: employees.id,
+          userId: employees.userId,
+          firstName: employees.firstName,
+          lastName: employees.lastName,
+          positionId: assignments.positionId,
+          positionTitle: positions.title,
+          officeId: assignments.officeId,
+        })
+        .from(employees)
+        .leftJoin(
+          assignments,
+          and(
+            eq(employees.id, assignments.employeeId),
+            eq(assignments.isActive, true),
+            eq(assignments.isPrimary, true),
+            isNull(assignments.deletedAt),
+          ),
+        )
+        .leftJoin(positions, eq(assignments.positionId, positions.id))
+        .where(
+          and(
+            eq(employees.cityId, cityId),
+            isNull(employees.deletedAt),
+          ),
+        )
+        .orderBy(employees.lastName, employees.firstName, employees.id);
+
+      const rows = await query;
+
+      return rows.map((r) => ({
+        employeeId: r.employeeId,
+        userId: r.userId || '',
+        displayName: `${r.firstName} ${r.lastName}`,
+        positionId: r.positionId,
+        positionTitle: r.positionTitle,
+        officeId: r.officeId,
+      }));
+    },
+
+    async listAllOffices(): Promise<{ id: string; name: string }[]> {
+      const db = deps.db;
+      
+      const query = db
+        .select({
+          id: offices.id,
+          name: offices.name,
+        })
+        .from(offices)
+        .where(isNull(offices.deletedAt))
+        .orderBy(offices.name);
+        
+      return query;
     },
 
     async listEmployees(

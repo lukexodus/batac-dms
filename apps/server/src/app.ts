@@ -196,6 +196,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   const fastify = Fastify({
     ...(loggerConfig ? { loggerInstance: loggerConfig } : { logger: false }),
     genReqId: () => `req_${nanoid(12)}`,
+    maxParamLength: 10000,
     ...fastifyOpts,
   });
 

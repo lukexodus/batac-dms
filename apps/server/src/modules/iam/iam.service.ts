@@ -13,6 +13,9 @@ import { RoleCombinationForbiddenError } from './iam.errors.js';
 import { NotFoundError } from '../../errors/domain/not-found.js';
 import { IAM_EVENTS } from './iam.events.js';
 import { env } from '../../config/env.js';
+import { employees } from '@batac/database/schema/organization.schema.js';
+import { users } from '@batac/database/schema/iam.schema.js';
+import { eq, and, isNull } from 'drizzle-orm';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -588,6 +591,37 @@ export function createIamService(deps: IamServiceDeps): IamService {
      *
      * Source: TASK-IAM-007.
      */
+    async listAllUsers(cityId: string) {
+      const db = deps.db;
+      
+      const query = db
+        .select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          firstName: employees.firstName,
+          lastName: employees.lastName,
+        })
+        .from(users)
+        .leftJoin(employees, eq(users.id, employees.userId))
+        .where(
+          and(
+            eq(users.cityId, cityId),
+            isNull(users.deletedAt)
+          )
+        )
+        .orderBy(users.username);
+        
+      const rows = await query;
+      
+      return rows.map((r) => ({
+        id: r.id,
+        username: r.username,
+        email: r.email,
+        displayName: r.firstName && r.lastName ? `${r.firstName} ${r.lastName}` : r.username,
+      }));
+    },
+
     async refresh(refreshTokenValue: string, ipAddress: string | null, userAgent: string | null) {
       // 1. Parse token
       const parts = refreshTokenValue.split('.');

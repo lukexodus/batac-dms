@@ -59,7 +59,7 @@ export class OcrService {
       {
         retryLimit: 3,
         retryDelay: 30,
-        expireInHours: 24,
+        expireInHours: 12,
       },
     );
   }

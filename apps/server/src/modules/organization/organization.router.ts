@@ -342,6 +342,28 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
 
     // ───────────── employees (plat_admin only) ─────────────
 
+    listSpMembers: protectedProcedure.query(async ({ ctx }) => {
+      requireAnyRole(
+        ctx,
+        ['sp_secretary', 'sp_member', 'mayor', 'sp_presiding_officer', 'plat_admin'],
+        'Access to SP Members list is not permitted for this role.',
+      );
+      const { orgService } = getDeps(ctx);
+      return orgService.listSpMembers(ctx.auth.cityId);
+    }),
+
+    listAllEmployees: protectedProcedure.query(async ({ ctx }) => {
+      // accessible by any authenticated user for selection in document metadata
+      const { orgService } = getDeps(ctx);
+      return orgService.listAllEmployees(ctx.auth.cityId);
+    }),
+
+    listAllOffices: protectedProcedure.query(async ({ ctx }) => {
+      // accessible by any authenticated user for selection in document metadata
+      const { orgService } = getDeps(ctx);
+      return orgService.listAllOffices();
+    }),
+
     listEmployees: protectedProcedure.input(s.ListEmployeesInput).query(async ({ ctx, input }) => {
       requirePlatformAdmin(ctx);
       const { orgService } = getDeps(ctx);
