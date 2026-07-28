@@ -22077,3 +22077,82 @@ Per the standing process rule: if anything in this prompt — a line number, a f
 
 ---
 
+## Standalone Executor Prompt: TASK-IAM-EVT-001
+
+**Objective:** Replace 10 `auditService.writeEvent(...)` calls in the IAM module with direct `eventBus.emit(...)` calls to matching domain events, using the pattern already established elsewhere in the same file. This is a mechanism change only — no site's execution timing, transaction boundaries, or error-handling flow changes. Do not add `db.transaction` wrappers where none exist. Do not alter what happens on failure at any site.
+
+**Files in scope:**
+- `apps/server/src/modules/iam/iam.service.ts`
+- `apps/server/src/modules/iam/iam.routes.ts`
+
+**Files explicitly out of scope — do not touch:**
+- `apps/server/src/modules/documents/documents.router.ts` (separate, pending task — has an unrelated structural gap being addressed independently)
+- `apps/server/src/modules/workflow/workflow.router.ts`
+- Anything in `apps/server/src/modules/audit/`
+
+**Reference pattern already proven correct in this same file** — match this exactly, don't reinvent it:
+
+```typescript
+// apps/server/src/modules/iam/iam.service.ts, existing site (~line 902)
+eventBus.emit(IAM_EVENTS.ROLE_ASSIGNED, {
+  eventId: randomUUID(),
+  eventType: IAM_EVENTS.ROLE_ASSIGNED,
+  occurredAt: new Date().toISOString(),
+  cityId: <cityId in scope>,
+  schemaVersion: 1,
+  payload: { /* event-specific fields */ },
+});
+```
+
+`IAM_EVENTS` is already defined in `apps/server/src/modules/iam/iam.events.ts` and already imported in `iam.service.ts`. `eventBus` is already present and typed in `IamServiceDeps` (`apps/server/src/modules/iam/iam.types.ts`, line 144) — it is currently unused by any of the 10 sites below, but requires no new plumbing to reach.
+
+**The 10 call sites — exact current locations, exact required change:**
+
+| # | File | Current line (writeEvent call) | Current `eventType` string | Target `IAM_EVENTS` constant | Notes |
+|---|---|---|---|---|---|
+| 1 | `iam.service.ts` | 283 | (verify exact string at this site — logout) | `IAM_EVENTS.LOGOUT` if it exists; if no matching constant exists, add one following the existing enum's naming convention, do not invent an ad hoc string | Inside `void auditService.writeEvent({...})`, itself inside a `db.transaction` callback but explicitly commented as **not tied to that transaction** ("out-of-transaction best-effort write, just like login"). Keep `void`, keep it firing at the same point, keep it non-blocking. |
+| 2 | `iam.service.ts` | 371 | `login_failed` (or equivalent — verify exact string) | `IAM_EVENTS.LOGIN_FAILED` if present; add if missing | `await`ed, immediately followed by `throw`. No transaction wraps this site. Keep `await` (this write must complete before the throw, exactly as today) and keep the throw immediately after. |
+| 3 | `iam.service.ts` | 402 | `login_failed` (second occurrence — verify exact string, may differ from #2's reason code) | same constant as #2, unless the two sites use different literal `eventType` strings today — if they differ, verify why before assuming they should map to the same constant | Same shape as #2: awaited, then throw, no transaction. |
+| 4 | `iam.service.ts` | 470 | `session_replaced` (verify exact string) | `IAM_EVENTS.SESSION_REPLACED` if present; add if missing | Inside `void auditService.writeEvent({...})`, near a `db.transaction` block but explicitly commented as **intentionally decoupled from that transaction's atomicity** ("If the IAM tx fails the session_replaced event may not be written, which is acceptable — event is informational, not authoritative"). Keep `void`, keep the exact same relative position to the transaction (do not move it inside the transaction callback). |
+| 5 | `iam.service.ts` | 540 | `login_success` (verify exact string) | `IAM_EVENTS.LOGIN_SUCCESS` if present; add if missing | `await`ed. Occurs after the transaction block earlier in the same function has already closed, and after a further `resetLoginFailure` call. No transaction wraps this specific line. Keep it exactly where it is in the sequence. |
+| 6 | `iam.service.ts` | 637 | `token_reuse_detected` (verify exact string) | `IAM_EVENTS.TOKEN_REUSE_DETECTED` if present; add if missing | `void`, immediately followed by `throw`. Occurs after a nearby transaction has already committed — this write is not inside it. Keep `void` and keep it immediately before the throw. |
+| 7 | `iam.service.ts` | 966 | (verify exact string — logout-adjacent, comment says "Pattern matches logout()") | Same constant as #1, if this is genuinely the same event type as #1 — verify the literal `eventType` string matches before reusing the constant; if it's a distinct string despite the similar comment, treat as its own event | `void`, explicitly commented "best-effort; failure here does not roll back session." |
+| 8 | `iam.service.ts` | 1042 | `session_locked` or similar (verify exact string) | Check whether `IAM_EVENTS.SESSION_LOCKED` exists as a sibling to the already-present `IAM_EVENTS.SESSION_UNLOCKED` | Verify transaction relationship at this specific site directly — do not assume it matches sites #1/#4/#6/#7's shape without checking. |
+| 9 | `iam.service.ts` | 1182 | `session_unlocked` | `IAM_EVENTS.SESSION_UNLOCKED` — **this constant already exists** in `iam.events.ts` (confirmed present, used nowhere yet) | `void`. This is the one site where the target constant is confirmed to already exist and is not a "verify or add" case — use it directly. |
+| 10 | `iam.routes.ts` | 549 | `abac_denial` | Check whether an `IAM_EVENTS.ABAC_DENIAL`-equivalent constant exists; if `IAM_EVENTS` is IAM-service-specific and this is more naturally an audit/authorization-domain event, flag this specific naming question rather than picking a module to own it | `await`ed, inside a route handler (not a service method), immediately before returning a 403 response. No transaction anywhere near this site. Keep exact position and blocking behavior. |
+
+```json
+{
+  "scope_rule": "mechanism_only",
+  "forbidden_changes": [
+    "adding any new db.transaction wrapper anywhere in these two files",
+    "changing void to await or await to void at any of the 10 sites",
+    "moving any emit call to a different point in its function's execution order",
+    "collecting any of these 10 events into an array for deferred emission",
+    "changing what happens on the error path at sites 2, 3, 6, 10"
+  ],
+  "required_for_every_site": [
+    "verify the exact current eventType string literal before choosing or creating a target IAM_EVENTS constant — do not assume two sites with similar code comments share the same event type",
+    "if no matching IAM_EVENTS constant exists, add one in iam.events.ts following the existing naming convention (snake_case string value, SCREAMING_SNAKE_CASE key) rather than inventing an inline string at the call site"
+  ]
+}
+```
+
+The JSON block above is authoritative on scope boundaries. If prose elsewhere in this prompt conflicts with it, the JSON block wins.
+
+**Why sites 2, 3, 6, and 10 keep `await` and site 1, 4, 6(again—confirm void), 7, 8(pending verify), 9 keep `void`:** this is not an arbitrary site-by-site choice — it reflects each site's actual current behavior, confirmed by direct reading, and the objective of this task is to preserve that behavior exactly while changing only the call target from `auditService.writeEvent` to `eventBus.emit`. Do not "improve" consistency across sites by making them all `await` or all `void` — that would be exactly the kind of silent scope expansion this task exists to avoid.
+
+**After the change, verify:**
+```bash
+pnpm --filter server typecheck
+pnpm --filter server test -- --grep "iam"
+grep -c "auditService.writeEvent" apps/server/src/modules/iam/iam.service.ts    # should return 0
+grep -c "auditService.writeEvent" apps/server/src/modules/iam/iam.routes.ts    # should return 0
+grep -c "eventBus.emit" apps/server/src/modules/iam/iam.service.ts             # should be 16 (existing 6 + these 9)
+```
+
+Note the count split: 9 of the 10 sites land in `iam.service.ts` (sites 1–9), 1 lands in `iam.routes.ts` (site 10) — verify `iam.routes.ts`'s `eventBus.emit` count separately if it has none today.
+
+**Check for consumers before finishing:** search `apps/server/src/modules/audit/audit.event-consumer.ts` and `apps/server/src/modules/tracking/` for any existing subscription to the *old* literal `eventType` strings these 10 sites used to emit under `auditService.writeEvent`. If any consumer matched on those raw strings (rather than going through `auditService`'s own internal write path), that subscription needs updating to the new `IAM_EVENTS` constant's string value — report which, if any, needed this, do not silently update them without reporting it as a finding.
+
+**If any of the "verify exact string" placeholders above turn out to reveal two sites are NOT the same event despite similar code comments** (e.g., site #1 and site #7's "logout" comments turn out to guard genuinely different literal strings), stop and report that as a finding rather than picking one of the two possible resolutions yourself.

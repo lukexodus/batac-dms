@@ -45,8 +45,8 @@ import jwt from 'jsonwebtoken';
 
 vi.mock('../../../config/env.js', () => ({
   env: {
-    AUTH_ACCESS_TOKEN_COOKIE_NAME: '__Host-bat_at',
-    AUTH_REFRESH_TOKEN_COOKIE_NAME: '__Host-bat_rt',
+    AUTH_ACCESS_TOKEN_COOKIE_NAME: 'batac_at',
+    AUTH_REFRESH_TOKEN_COOKIE_NAME: 'batac_rt',
     AUTH_JWT_ACCESS_SECRET: 'test-secret-at-least-32-characters-long!',
     AUTH_JWT_ALGORITHM: 'HS256',
     AUTH_COOKIE_SECURE: false,
@@ -212,12 +212,12 @@ async function buildApp(
 // ─── Cookie builder ───────────────────────────────────────────────────────────
 
 function cookieHeader(token: string): string {
-  // AUTH_ACCESS_TOKEN_COOKIE_NAME defaults to '__Host-bat_at' in env.server.ts
+  // AUTH_ACCESS_TOKEN_COOKIE_NAME defaults to 'batac_at' in env.server.ts
   // but in tests we rely on what the env module resolves. Since we cannot easily
   // mock the env module (it reads process.env at import time), we use the default
   // cookie name from the env or fall back to what the code reads.
   // The tests set the cookie manually using the default name.
-  return `__Host-bat_at=${token}`;
+  return `batac_at=${token}`;
 }
 
 // ─── Hook 1 Tests ─────────────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ describe('verifyAccessToken (Hook 1)', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/protected',
-      headers: { cookie: `__Host-bat_at=${badToken}` },
+      headers: { cookie: `batac_at=${badToken}` },
     });
 
     expect(res.statusCode).toBe(401);

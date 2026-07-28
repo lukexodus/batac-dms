@@ -4705,7 +4705,7 @@ This entry supersedes LOG-0166 entirely. The `assignedTo` field has been reverte
 
 ---
 
-### [LOG-0170] Architectural Decision - Standardize on Collect-and-Emit Pattern
+### [LOG-0170] Architectural Decision - Standardize on Collect-and-Emit Pattern (Approved by Luke)
 
 - date: 2026-07-28
 - task_id: TASK-AUDIT-PATTERN-001
@@ -4771,3 +4771,54 @@ Yalzea has since explicitly approved this standardization, in a separate, later 
 
 **Minor Cleanup Candidate Noted:**
 `organization.plugin.ts`'s call site for `registerDelegationExpiryJob` passed a `repository` key that the function's deps type didn't declare, hidden behind an `as any` cast. This unambiguous one-line removal was fixed in this pass since it had no other effect.
+
+---
+
+### [LOG-0173] workflow.step.bypassed payload shape ratified as-is; historical discrepancy not investigated
+
+- date: 2026-07-28
+- task_id: none (planning-layer verification, no A1 task dispatched)
+- status: confirmed
+- affects: none
+
+**What was found:** A prior handoff document's account of TASK-WF-EVT-001
+claimed `workflow.step.bypassed`'s payload fields were corrected from
+`bypassReason`/`bypassedBy`/`comment` to `stepId`/`outcomeCode`/`actorId`.
+Direct verification against the current repo snapshot shows this is not
+the case: `EventPayloadMap`'s `'workflow.step.bypassed'` type
+(`packages/shared/src/events/event-payload-map.ts`) and both live emit
+sites (`workflow.router.ts`, `certified-urgent-bypass.handler.ts`) all
+use `bypassReason`/`bypassedBy`/`comment` consistently, with `comment`
+populated at both sites. The code is internally consistent and
+typechecks; only the historical account is contradicted.
+
+**Decision:** Per Luke (2026-07-28), `bypassReason`/`bypassedBy`/`comment`
+is ratified as the canonical field shape for this event going forward.
+No investigation into why the historical account differs will be
+conducted — no live bug or spec conflict motivates spending the time.
+The prior handoff document's claim on this specific point should be
+treated as inaccurate, superseded by this entry.
+
+**Action:** None required. This entry closes the open item; no code
+change, no further task dispatched.
+
+---
+
+### [LOG-0174] Cookie prefix (__Host-) and SameSite setting relaxed for local dev auth persistence
+
+- date: 2026-07-28
+- task_id: TASK-IAM-006
+- status: proposed
+- affects: B5, env.server.ts
+
+**What was found:**
+1. The refresh token cookie was configured as `__Host-bat_rt` with `Path=/api/auth/refresh`. RFC 6265bis specifies that cookies with the `__Host-` prefix MUST have `Path=/`. As a result, browsers rejected the Set-Cookie header for the refresh token, breaking session refresh.
+2. The access token cookie had `SameSite=Strict`. On local development environments (e.g. frontend on `http://localhost:5173` and API on `http://localhost:3000`), cross-origin fetch requests dropped the access token cookie, causing immediate 401 unauthenticated errors and redirects on navigation.
+
+**What was implemented:**
+- Updated default cookie names in `apps/server/src/config/env.server.ts` and `apps/server/.env` to `batac_at` and `batac_rt` (removing the `__Host-` prefix).
+- Relaxed default `AUTH_COOKIE_SAMESITE` to `Lax`.
+- Updated IAM middleware test suite `iam.middleware.test.ts` to reflect the updated cookie names.
+
+---
+
