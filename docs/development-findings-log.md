@@ -4592,9 +4592,90 @@ Separately, `apps/web/src` contains 72 `.invalidate(` call sites (re-confirmed b
 
 **Disposition.** Not a defect in TASK-WF-FE-014 — the fix as implemented is correct given its scope (same-client cache freshness after a user's own action). This entry exists so the cross-session staleness ceiling is documented before it's rediscovered as a confusing "why is my inbox not updating" bug report against a step that was reassigned by someone else's action, potentially against a different, future task ID. No specific remediation task is proposed here; this is a documented architectural limitation for a human to prioritize, not a scoped fix.
 
+
 ---
 
+### [LOG-0177] Full I3 §9.3 Taxonomy Verification
 
+- date: 2026-07-28
+- task_id: TASK-I3-TAXONOMY-002
+- status: proposed
+- affects: apps/server/src/modules/iam/iam.service.ts, apps/server/src/modules/iam/iam.middleware.ts, apps/server/src/modules/workflow/workflow.router.ts, etc.
+- tagged_documents: I3
+
+**What was found:**
+Completed full cross-check of the remaining 40 unverified I3 §9.3 audit taxonomy names. Most correspond accurately to `auditService.logEvent` writes in the routers or `EventBus` payloads. 
+The three UNVERIFIED_BY_THIS_TABLE rows from the prompt's matrix were confirmed implemented as follows:
+- `session_expired_inactivity`: Confirmed implemented in `iam.middleware.ts` via `SESSION_EXPIRED` return code.
+- `token_refresh`: Confirmed logic exists in `iam.service.ts` (`refresh()` method).
+- `vp_certification_signed`: Confirmed implemented in `workflow.router.ts` (`certifyAsPresidingOfficer` procedure), emitted via `workflow.step.completed` with `outcome: 'SIGNED'`.
+
+**What was implemented:**
+No code changes needed for this specific verification item. The taxonomy list in I3 §9.3 is verified against the implementations.
+
+---
+
+### [LOG-0178] Missing audit logs for complaint_logged and complaint_routed
+
+- date: 2026-07-28
+- task_id: TASK-I3-TAXONOMY-002
+- status: proposed
+- affects: apps/server/src/modules/documents/complaints.router.ts
+- tagged_documents: I3
+
+**What was found:**
+During the I3 §9.3 taxonomy cross-check, the audit events `complaint_logged` and `complaint_routed` (from the Citizen Complaints domain) were found to be missing from `complaints.router.ts`. The codebase does not emit these events to the EventBus or `auditService`. 
+
+**What was implemented:**
+No code changes. This is logged as a GAP finding so a separate ticket can be prioritized to implement the missing audit logs for complaint logging and routing.
+
+---
+
+### [LOG-0179] Duplicate event implementation for panlalawigan_deemed_approved
+
+- date: 2026-07-28
+- task_id: TASK-I3-TAXONOMY-002
+- status: proposed
+- affects: apps/server/src/modules/workflow/evaluate-panlalawigan-timers.ts, apps/server/src/modules/documents/documents.plugin.ts
+- tagged_documents: I3
+
+**What was found:**
+There is a duplicate implementation of the `panlalawigan_deemed_approved` event. It is emitted in both `evaluate-panlalawigan-timers.ts` and `documents.plugin.ts`.
+
+**What was implemented:**
+Per instructions, neither implementation was merged, deleted, or modified. This DUPLICATE_IMPLEMENTATION finding is logged so it can be resolved by a human or a future task to deduplicate the event emission.
+
+---
+
+### [LOG-0180] Removed TYPE_UNSAFE casting to any in getEventBus helpers
+
+- date: 2026-07-28
+- task_id: TASK-I3-TAXONOMY-002
+- status: proposed
+- affects: apps/server/src/modules/documents/complaints.router.ts, apps/server/src/modules/documents/document-requests.router.ts
+- tagged_documents: I3
+
+**What was found:**
+The `getEventBus` helpers in `complaints.router.ts` and `document-requests.router.ts` cast `ctx.req.server` to `any` to extract `eventBus`. This bypasses TypeScript's type-checking for the server instance and hides any potential typing issues.
+
+**What was implemented:**
+Removed the `getEventBus` helpers and changed their call sites to access `ctx.req.server.eventBus` directly, relying on Fastify's native decoration typing. Added the missing `EventPayloadMap` keys for `complaint.outcome_set`, `document_request.presiding_officer_approved`, `document_request.secretary_approved`, and `document_request.released` to `packages/shared/src/events/event-payload-map.ts`.
+
+---
+
+### [LOG-0181] Pattern-B direct audit write for audit_log_exported
+
+- date: 2026-07-28
+- task_id: TASK-I3-TAXONOMY-002
+- status: proposed
+- affects: apps/server/src/modules/audit/audit.tsa-export.ts
+- tagged_documents: I3
+
+**What was found:**
+The `audit_log_exported` event in `audit.tsa-export.ts` is implemented using "Pattern B" (direct write to `auditService.logEvent` bypassing the `EventBus`), as previously described in LOG-0059. 
+
+**What was implemented:**
+Per scope constraints ("Do not attempt the Collect-and-Emit migration for this file as part of this task"), no code changes were made to migrate this file to use the EventBus. This is logged to track the lingering Pattern-B instance.
 ### [LOG-0160] documents.archive cannot invalidate recordsKeys.legalHold(documentId) — records module not built
 
 - date: 2026-07-27

@@ -3844,7 +3844,7 @@ Six services are defined. Here's each one, in the order they appear, with what y
 ### `postgres`
 
 ```yaml
-postgres:
+postgres
   image: postgres:16-alpine
   restart: unless-stopped
   environment:

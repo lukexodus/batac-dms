@@ -44,7 +44,8 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../../config/env.js';
 import { OcrService, StubOcrProvider } from './ocr.service.js';
 import { StubPreviewProvider } from './preview.provider.js';
-import type { DocumentsRepository, DocumentRow, DocumentTypeRow } from './documents.repository.js';
+import { DocumentsRepository } from './documents.repository.js';
+import type { DocumentRow, DocumentTypeRow } from './documents.repository.js';
 import type { DocumentPolicyGuard } from './documents.policy.js';
 import type { DocumentsPublicAPI } from './documents.types.js';
 import { createPanlalawiganProcedures } from './panlalawigan.router.js';
@@ -1224,32 +1225,38 @@ export function createDocumentsRouter() {
         }
 
         const qrTrackingNumber = crypto.randomUUID();
-
-        // 1. Assign QR directly
-        await repo.updateDocumentNumbering(document.id, { qrTrackingNumber });
-
-        // 2. Assign preliminary number if supported (e.g. SP measures)
         let preliminaryNumber: string | null = null;
-        if (docType.hasPreliminaryNumbering && docType.numberSeriesId) {
-          const series = await repo.findNumberSeriesById(docType.numberSeriesId);
-          if (series) {
-            const result = await numberingService.assignPreliminaryNumber(
-              document.id,
-              series.seriesKey,
-              document.cityId,
-              subject.userId,
-            );
-            preliminaryNumber = result.numberValue;
-          }
-        }
 
-        // 3. Transition to 'submitted'
-        await service.transitionState(
-          document.id,
-          'submitted',
-          subject.userId,
-          'Document submitted',
-        );
+        await ctx.db.transaction(async (tx) => {
+          const txRepo = new DocumentsRepository(tx);
+
+          // 1. Assign QR directly
+          await txRepo.updateDocumentNumbering(document.id, { qrTrackingNumber });
+
+          // 2. Assign preliminary number if supported (e.g. SP measures)
+          if (docType.hasPreliminaryNumbering && docType.numberSeriesId) {
+            const series = await txRepo.findNumberSeriesById(docType.numberSeriesId);
+            if (series) {
+              const result = await numberingService.assignPreliminaryNumber(
+                document.id,
+                series.seriesKey,
+                document.cityId,
+                subject.userId,
+                tx,
+              );
+              preliminaryNumber = result.numberValue;
+            }
+          }
+
+          // 3. Transition to 'submitted'
+          await service.transitionState(
+            document.id,
+            'submitted',
+            subject.userId,
+            'Document submitted',
+            tx,
+          );
+        });
 
         /**
          * [Confirmed] Wired into documents.submit per explicit human
@@ -1432,20 +1439,24 @@ export function createDocumentsRouter() {
 
         const associatedInstanceIds: string[] = [];
 
-        for (const measureId of input.associatedMeasureIds) {
-          const measure = await repo.findDocumentById(measureId);
-          if (measure) {
-            if (measure.workflowInstanceId) {
-              associatedInstanceIds.push(measure.workflowInstanceId);
+        await ctx.db.transaction(async (tx) => {
+          const txRepo = new DocumentsRepository(tx);
+
+          for (const measureId of input.associatedMeasureIds) {
+            const measure = await txRepo.findDocumentById(measureId);
+            if (measure) {
+              if (measure.workflowInstanceId) {
+                associatedInstanceIds.push(measure.workflowInstanceId);
+              }
+              const currentMetadata = measure.metadata as Record<string, unknown>;
+              await txRepo.updateDocumentMetadata(measureId, {
+                ...currentMetadata,
+                certifiedUrgent: true,
+                certificationDocumentId: input.certifyingDocumentId,
+              });
             }
-            const currentMetadata = measure.metadata as Record<string, unknown>;
-            await repo.updateDocumentMetadata(measureId, {
-              ...currentMetadata,
-              certifiedUrgent: true,
-              certificationDocumentId: input.certifyingDocumentId,
-            });
           }
-        }
+        });
 
         ctx.req.server.eventBus.emit('document.certification_urgency.logged', {
           eventId: crypto.randomUUID(),

@@ -102,7 +102,7 @@ export const TerminationStepConfigSchema = z.object({
     'VALID_IN_PART_RESOLVED',
     'REPASSED',
   ]),
-  final_document_status: z.enum(['RELEASED', 'ARCHIVED', 'CANCELLED']).nullable(),
+  final_document_status: z.enum(['released', 'archived', 'cancelled']).nullable(),
   emit_event: z.string().optional(),
 });
 export type TerminationStepConfig = z.infer<typeof TerminationStepConfigSchema>;

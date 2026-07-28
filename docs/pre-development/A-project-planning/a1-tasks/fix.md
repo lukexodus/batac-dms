@@ -23552,3 +23552,1212 @@ If, and only if, Part A confirmed the live database's stored `config.assignee` f
 - If Case 1: the task stops after Part A, with a clear statement that the role-code hypothesis is ruled out and a fresh cause needs investigation (not guessed at).
 - If Case 2: Part B is completed in full, including the re-seed, the re-verification of all three `config.assignee` values, and the fresh test-instance check — all reported literally, with any destructive-data concern (step 3) surfaced rather than resolved unilaterally.
 - No source file, application module, or seed file is edited under any circumstance in this task.
+
+---
+
+# Standalone Prompt: TASK-WF-024 — One-time approval grant + real migration for 3 instances stuck on `intake_logging`
+
+## Context
+
+TASK-WF-023 published version 2 of the SP Resolution, SP Ordinance, and Appropriation Ordinance workflow definitions, correcting `intake_logging`'s `config.assignee` from `role:secretariat_staff` to `role:sp_secretary`. Per this project's workflow-engine design (B4 §7.1), instances already running when a new version publishes stay pinned to their original version — so three specific instances, already active and already stuck at `intake_logging` before version 2 existed, are unaffected by that fix and remain stuck.
+
+Moving an active instance onto a newer version is a deliberately gated operation (`engine.migrateInstance`, `apps/server/src/modules/workflow/engine/admin-operations.ts`), requiring, among other preconditions, a `workflow.admin_approval_grants` row representing a City Administrator's sign-off (B4 §7.3). **No code path exists anywhere in this repository to create that row** — `WorkflowRepository` only has `getApprovalGrant` (read) and `markApprovalGrantUsed` (mark-consumed); nothing inserts one. Building that real capability is separately-scoped, larger work, not something this task attempts.
+
+**This task is an explicit, one-time operational bypass, not a precedent.** It hand-inserts exactly the rows `migrateInstance` needs to proceed, attributed to the system rather than a real human approver (there is currently no seeded role or account representing "City Administrator" in this system — confirmed absent from all 13 seeded `iam.roles` codes), then runs the real `migrateInstance` function so that the actual step-mapping validation, the actual transaction, and the actual `workflow.instance.migration.*` audit events all fire genuinely. Only the approval-record's existence is fabricated; everything downstream of it is real.
+
+## The three instances
+
+```json
+{
+  "target_instances": [
+    "workflow.instances row whose only active intake_logging step_instance has id 4c252fd7-b652-4ade-bed9-750b4193e613",
+    "workflow.instances row whose only active intake_logging step_instance has id 74f3de63-b523-4b93-a4ca-d24ba6dda4a5",
+    "workflow.instances row whose only active intake_logging step_instance has id e414cb4c-d3e9-451a-80e5-7de65d54a397"
+  ],
+  "note": "These are step_instance IDs, not instance IDs — you must resolve each to its parent workflow.instances.id (via step_instances.instance_id or equivalent FK) before calling migrateInstance, which takes an instanceId, not a step_instance_id. Do not assume which three instances these are without querying; the exact document/instance mapping may have shifted since these IDs were last confirmed."
+}
+```
+
+## Part A — Confirm current state (read-only)
+
+Before writing anything, confirm the following still holds. Do not assume any of it from this prompt's description — a prior investigation's assumptions about live data have been wrong before in this same bug chain (an earlier hypothesis about which record was under test turned out to reference the wrong row entirely) — so re-derive each of these directly:
+
+1. For each of the three step-instance IDs above, query `workflow.step_instances` to confirm it still exists, still has `step_key = 'intake_logging'`, still has `status = 'active'`, and still has `assigned_to = []`. Report each literally. If any of the three no longer matches this description (resolved by other means, no longer active, etc.), **exclude it from the rest of this task and report why** — do not migrate an instance that isn't actually still stuck.
+
+2. For each step instance that passes check 1, resolve its parent `workflow.instances.id` and confirm that instance's current `status` is `active` (a hard precondition of `migrateInstance` itself — it will reject anything else). Report each instance ID and its status.
+
+3. For each parent instance, confirm its current `definitionVersionId` corresponds to the version-1 row (the one TASK-WF-023 set `is_current = false` on) for its definition, and identify the corresponding version-2 row's exact `id` (the one TASK-WF-023 set `is_current = true` on, for the same `definitionId`). Report both IDs for each of the three instances — these are the `instanceId`/`targetVersionId` pairs Part C's `migrateInstance` calls need, and they must come from this live query, not be assumed or reused from any earlier session's output.
+
+4. Confirm the version-2 row's `publishedAt` is non-null for each of the three definitions (this is a hard precondition inside `migrateInstance` itself, at the point where it checks `targetVersionData.version.publishedAt`) — report each value found.
+
+## Part B — Insert one approval grant per instance
+
+For each of the (up to three) instances confirmed still-stuck in Part A, insert one row into `workflow.admin_approval_grants`:
+
+```json
+{
+  "insert_values": {
+    "instanceId": "<the specific instance's id, from Part A step 2 — one row per instance, do not share one row across multiple instances>",
+    "newDefinitionVersionId": "<that instance's definition's version-2 id, from Part A step 3>",
+    "approvedBy": "00000000-0000-0000-0000-000000000001",
+    "expiresAt": "<current time + no less than 1 hour — generous enough to comfortably cover Part C running immediately after, but this is a real column with real semantics, so do not set an implausibly long expiry (e.g. years) just to be safe; 1–24 hours is reasonable>",
+    "usedAt": null
+  },
+  "authoritative_note": "approvedBy is fixed at the literal UUID shown above — this is SEED_SYSTEM_USER_ID, the same value this codebase already uses elsewhere (packages/database/src/seeds/workflow/constants.ts) to attribute seed/system actions rather than a real human. Do not substitute any other value, including your own invented placeholder, a null, or an attempt to look up a 'real' administrator — none exists in this system currently. usedAt MUST be left NULL at insert time — do not set it — because migrateInstance's own lookup (workflow.repository.ts's getApprovalGrant) filters on usedAt IS NULL, and a pre-used grant will cause migrateInstance to report 'no approval grant found' even though a row exists."
+}
+```
+
+Do this as a direct insert against `workflow.admin_approval_grants` (via Drizzle, matching the pattern TASK-WF-023's own script used for its inserts, or equivalent). This is the one and only place in this task where you write directly to a table instead of going through application code — everything in Part C after this point uses the real `migrateInstance` function, not further hand-written SQL.
+
+## Part C — Run the real migration for each instance
+
+For each instance with a grant now in place, call the real `migrateInstance` function (`apps/server/src/modules/workflow/engine/admin-operations.ts`) — do not reimplement its logic by hand, do not skip any of its internal checks, call the actual function:
+
+```json
+{
+  "call_shape": {
+    "instanceId": "<from Part A step 2>",
+    "targetVersionId": "<from Part A step 3, the version-2 id>",
+    "actorId": "00000000-0000-0000-0000-000000000001",
+    "reason": "One-time operational migration to correct intake_logging assignee role code (was role:secretariat_staff, a non-existent role, now role:sp_secretary). See TASK-WF-022/023/024 for full investigation. Approval grant for this migration was created directly rather than through a formal City Administrator approval flow, because no such flow currently exists in this codebase — see TASK-WF-024 context.",
+    "deps_note": "migrateInstance takes a deps object (AdminOperationsDeps) as its final parameter, not a raw db connection — locate how this is constructed elsewhere in the codebase (e.g. how workflow.router.ts wires it for its own admin procedures) and reuse that construction pattern rather than assembling deps from scratch by guessing at its shape."
+  },
+  "authoritative_note": "actorId is fixed at the same literal UUID as approvedBy above, for the same reason (no real Platform Administrator account is being impersonated here — this is an explicit system-attributed action). The reason string is provided verbatim above and should be used as-is, not paraphrased or shortened — it is the permanent audit-trail explanation for why this migration happened outside the normal approval flow, and needs to be legible to a human reading it months from now with no other context."
+}
+```
+
+Call this once per instance. If any call fails for a reason not anticticipated by this prompt (a precondition you haven't already ruled out in Part A), **stop immediately, do not attempt to work around the failure by modifying `migrateInstance` itself or hand-writing what it would have done, and report the exact error back.** This function's internal logic is intentionally out of scope for this task to alter under any circumstance.
+
+## Scope boundaries
+
+**IN SCOPE:**
+- Read-only queries in Part A.
+- Exactly one INSERT into `workflow.admin_approval_grants` per still-stuck instance (up to 3 total), with the exact values specified.
+- Exactly one call to the real, unmodified `migrateInstance` function per instance with a grant.
+
+**OUT OF SCOPE (do not touch even if related):**
+- `apps/server/src/modules/workflow/engine/admin-operations.ts` itself — `migrateInstance`'s logic is called, never edited, in this task.
+- Building a real `createApprovalGrant` procedure or any other lasting capability — that is separately-scoped future work, not this task.
+- Any instance or step instance other than the (up to) three identified in Part A. If you notice other `intake_logging` instances with the same symptom while doing this work, **do not migrate them as part of this task** — report them as a finding (their IDs, and that they show the same `assigned_to: []` pattern) so a human can decide whether to scope a follow-up.
+- `packages/database/src/seeds/workflow/phase1-legislative.ts` or any other seed source file.
+- Attempting to reverse, undo, or "clean up" the approval-grant row after `migrateInstance` consumes it (marks it `used_at`). A used, one-time bypass grant sitting permanently in this audit table, clearly explained by the `reason` string attached to the migration event it enabled, **is the intended final state** — do not delete it afterward under an impulse to "tidy up"; deleting rows from a table B4 describes as permanently retained for audit purposes would itself be a scope violation.
+
+## Report back
+
+1. Part A's findings for all three candidate instances — literal query results, and explicit note of any excluded from the rest of the task and why.
+2. The exact `instanceId` / `targetVersionId` pairs used for each Part B insert and Part C call.
+3. Confirmation each Part B insert used `approvedBy = 00000000-0000-0000-0000-000000000001` and `usedAt = null` exactly as specified.
+4. The literal return value (`migrationId`, `reversibleUntil`) from each successful `migrateInstance` call, or the exact error if one occurred.
+5. A final re-query of the three original step-instance IDs' `assigned_to` values (same shape as TASK-WF-022/023's verification queries) — expected to now show a populated array for however many instances were successfully migrated.
+6. Any additional `intake_logging` instances noticed with the same symptom but not touched, per the scope-boundary note above.
+
+---
+
+# TASK-DOCS-TXN-001: Wrap `submit` and `logCertificationOfUrgency` in Transaction Boundaries
+
+## Context
+
+This is a standalone task. You have no access to any prior conversation or
+planning session that produced this prompt — everything you need is below or
+in the live repository. Do not search for "the plan" or "prior discussion";
+none exists outside this document.
+
+Two mutations in `apps/server/src/modules/documents/documents.router.ts`
+currently perform multiple sequential, independently-awaited database writes
+with no shared transaction wrapping them. If a write partway through the
+sequence fails, earlier writes in the same request have already committed
+individually, leaving the system in a partially-applied state. This task
+wraps both mutations' write sequences in `ctx.db.transaction(...)` so each
+mutation's writes commit or roll back as a single atomic unit.
+
+## Scope
+
+```
+IN SCOPE:
+  apps/server/src/modules/documents/documents.router.ts
+    - the `submit` procedure (currently lines 1192-1311)
+    - the `logCertificationOfUrgency` procedure (currently lines 1399-1468)
+    - the DocumentsRepository import at the top of the file (currently line 47)
+  apps/server/src/modules/documents/numbering.service.ts
+    - the `assignPreliminaryNumber` method signature (currently lines 112-179)
+  A new test file:
+    apps/server/src/modules/documents/__tests__/documents.router.transactions.test.ts
+
+OUT OF SCOPE (do not touch even if related):
+  apps/server/src/modules/documents/numbering.service.ts
+    - `assignFinalNumber` (currently lines 195-231+) — has the identical
+      hardcoded-own-transaction pattern as assignPreliminaryNumber, but is
+      called only from a different, unrelated router procedure
+      (documents.router.ts:1388, the assignFinalNumber mutation). Do not add
+      a trx parameter to this method, do not touch its callers, do not
+      "fix it while you're in the file." If you believe it should be
+      changed too, stop and flag it in your report instead of changing it.
+  Any procedure in documents.router.ts other than `submit` and
+    `logCertificationOfUrgency`.
+  The DESIGNATION-type side effect inside `submit`
+    (`getDesignationHandler(ctx).handleDesignationLogged(...)`, currently
+    lines 1274-1288) — this runs deliberately outside the new transaction.
+    See "Designation side effect" section below for the exact required
+    placement; do not move it inside the transaction.
+  The `document.created` event emission at the end of `submit` (currently
+    line 1291) and the `document.certification_urgency.logged` emission at
+    the end of `logCertificationOfUrgency` (currently line 1450) — both
+    emit AFTER their mutation's transaction commits, matching the existing
+    convention used elsewhere in this codebase (e.g. `transitionState`'s own
+    event emission happens inside ITS OWN transaction-participation closure,
+    which is a different and already-correct case; the two emissions named
+    in this paragraph are at the OUTER router-procedure level and must stay
+    outside/after the new outer transaction). Do not move either emit call
+    inside the transaction block.
+```
+
+If the JSON/table blocks above appear to conflict with the prose elsewhere in
+this document, the blocks above are authoritative.
+
+## Required reading before you start
+
+Read these four files in full before making any change, so you understand
+the transaction-participation pattern already established in this codebase:
+
+1. `apps/server/src/modules/documents/documents.service.ts` — read
+   `transitionState` (currently lines 118-170). This method ALREADY accepts
+   an optional `trx?: DbTransaction` parameter and already does the right
+   thing in both branches (participates in a supplied `trx`, or opens its
+   own if none is given). You are not changing this method. You are simply
+   passing it a `trx` from the two router procedures above.
+2. `apps/server/src/modules/documents/documents.repository.ts` — read the
+   class declaration and constructor (currently lines 67-68):
+   `constructor(private readonly db: DbClient | DbTransaction) {}`. Every
+   method on this class (including `updateDocumentMetadata`, currently lines
+   130-140, and `updateDocumentNumbering`, currently lines 151-158) uses
+   `this.db` consistently. This means a NEW instance of this class,
+   constructed with a transaction handle, will correctly participate in that
+   transaction for every method call made on that instance.
+3. `apps/server/src/modules/workflow/workflow.router.ts` — read lines
+   1315-1345 (or search for `const txWorkflowRepo = new WorkflowRepository(tx)`)
+   as a live, working precedent for the exact pattern you are about to apply
+   to `DocumentsRepository`: construct a NEW repository instance scoped to
+   the transaction, inside the `db.transaction(...)` callback, and use that
+   instance (not the request-scoped singleton from `getRepository(ctx)`) for
+   every write inside the callback.
+4. `apps/server/src/modules/documents/numbering.service.ts` — read
+   `assignPreliminaryNumber` in full (currently lines 112-179). Note line
+   118: `return this.db.transaction(async (trx) => {...})`. This method
+   currently has NO way to participate in a caller-supplied transaction — it
+   always opens its own. You will change this (see below).
+
+## Change 1: `NumberingService.assignPreliminaryNumber` — add optional `trx`
+
+This is a recommended design pattern, mirroring `transitionState`'s exact
+shape (see required reading #1 above) — but it is a genuine signature change
+to a method with other call sites, so treat the two sub-steps below as
+mandatory, not optional, once you proceed with this task. If you disagree
+with this approach, stop and flag it rather than implementing something
+different.
+
+Current signature (in `numbering.service.ts`, currently line 112-117):
+
+```typescript
+async assignPreliminaryNumber(
+  documentId: string,
+  seriesKey: string,
+  cityId: string,
+  actorId: string,
+): Promise<NumberAssignmentResult> {
+```
+
+Required new signature — add a 5th, optional parameter:
+
+```typescript
+async assignPreliminaryNumber(
+  documentId: string,
+  seriesKey: string,
+  cityId: string,
+  actorId: string,
+  trx?: DbTransaction,
+): Promise<NumberAssignmentResult> {
+```
+
+Required behavior change to the method body (currently lines 118-179,
+`return this.db.transaction(async (trx) => { ... });`): when `trx` is
+supplied by the caller, the method must run its existing body against that
+supplied `trx` instead of opening `this.db.transaction(...)`. When `trx` is
+omitted, behavior must be byte-for-byte unchanged from today (opens its own
+transaction via `this.db.transaction(...)`, exactly as now). Follow
+`transitionState`'s exact branching shape (required reading #1) — an
+`if (trx) { ... } else { await this.db.transaction(...) }`-style split, with
+the actual method body factored into a single inner function called from
+both branches, so there is exactly one copy of the logic, not two forked
+copies.
+
+You will need to import `DbTransaction` into `numbering.service.ts` if it is
+not already imported there — check the current import block at the top of
+the file before adding a duplicate import.
+
+**Do not touch `assignFinalNumber`.** See the OUT OF SCOPE table above.
+
+## Change 2: `documents.router.ts` — import change
+
+The current import at line 47 is:
+
+```typescript
+import type { DocumentsRepository, DocumentRow, DocumentTypeRow } from './documents.repository.js';
+```
+
+This must change to split `DocumentsRepository` into a value import (because
+you will write `new DocumentsRepository(tx)` below), while
+`DocumentRow`/`DocumentTypeRow` remain type-only:
+
+```typescript
+import { DocumentsRepository } from './documents.repository.js';
+import type { DocumentRow, DocumentTypeRow } from './documents.repository.js';
+```
+
+This exact split (value import for the class, separate type-only import for
+the row types) matches how `workflow.router.ts` imports `WorkflowRepository`
+(`import { WorkflowRepository } from './workflow.repository.js';`, currently
+line 16 of that file) — confirm that file's import style directly if you
+want a second reference point.
+
+## Change 3: `submit` mutation — wrap in a transaction
+
+Current sequence (`documents.router.ts`, currently lines 1226-1252), reading
+in full for exact context:
+
+```typescript
+const qrTrackingNumber = crypto.randomUUID();
+
+// 1. Assign QR directly
+await repo.updateDocumentNumbering(document.id, { qrTrackingNumber });
+
+// 2. Assign preliminary number if supported (e.g. SP measures)
+let preliminaryNumber: string | null = null;
+if (docType.hasPreliminaryNumbering && docType.numberSeriesId) {
+  const series = await repo.findNumberSeriesById(docType.numberSeriesId);
+  if (series) {
+    const result = await numberingService.assignPreliminaryNumber(
+      document.id,
+      series.seriesKey,
+      document.cityId,
+      subject.userId,
+    );
+    preliminaryNumber = result.numberValue;
+  }
+}
+
+// 3. Transition to 'submitted'
+await service.transitionState(
+  document.id,
+  'submitted',
+  subject.userId,
+  'Document submitted',
+);
+```
+
+Required change: wrap this exact three-step sequence in `ctx.db.transaction(...)`,
+using a transaction-scoped `DocumentsRepository` instance for every repository
+call inside the block, and passing the transaction handle to both
+`assignPreliminaryNumber` (Change 1, above) and `transitionState` (which
+already accepts it — see required reading #1). Everything before this block
+(document lookup, ABAC checks, docType lookup) and everything after it (the
+DESIGNATION side effect, the `document.created` emit, the return statement)
+stays exactly where it is, unchanged, and outside the transaction — see the
+"Designation side effect" note below for the one nuance to get right.
+
+The required shape (adapt variable names/exact repo calls to match what
+already exists in the surrounding code — this is illustrative of the
+STRUCTURE, not a literal drop-in, since `series` and `preliminaryNumber`'s
+scoping needs to survive the callback):
+
+```typescript
+const qrTrackingNumber = crypto.randomUUID();
+let preliminaryNumber: string | null = null;
+
+await ctx.db.transaction(async (tx) => {
+  const txRepo = new DocumentsRepository(tx);
+
+  // 1. Assign QR directly
+  await txRepo.updateDocumentNumbering(document.id, { qrTrackingNumber });
+
+  // 2. Assign preliminary number if supported (e.g. SP measures)
+  if (docType.hasPreliminaryNumbering && docType.numberSeriesId) {
+    const series = await txRepo.findNumberSeriesById(docType.numberSeriesId);
+    if (series) {
+      const result = await numberingService.assignPreliminaryNumber(
+        document.id,
+        series.seriesKey,
+        document.cityId,
+        subject.userId,
+        tx,
+      );
+      preliminaryNumber = result.numberValue;
+    }
+  }
+
+  // 3. Transition to 'submitted'
+  await service.transitionState(
+    document.id,
+    'submitted',
+    subject.userId,
+    'Document submitted',
+    tx,
+  );
+});
+```
+
+## Designation side effect — exact required placement
+
+Immediately after the transaction block above (Change 3), the existing
+DESIGNATION-type conditional block (currently lines 1254-1288, the large
+comment plus the `if (docType.code === 'DESIGNATION') { ... }` block calling
+`getDesignationHandler(ctx).handleDesignationLogged(...)`) stays exactly
+where it is, unmodified, running AFTER the transaction above has already
+committed. Do not attempt to fold this into the new transaction. This is a
+deliberate decision, not an oversight: the existing code comment at that
+location documents a known, separately-tracked, already-resolved atomicity
+question about this specific side effect (see
+`docs/development-findings-log.md`, entry `LOG-0037`, if you want the full
+background — you do not need to read it to complete this task correctly,
+this paragraph is a complete instruction on its own).
+
+## Change 4: `logCertificationOfUrgency` mutation — wrap in a transaction
+
+Current sequence (`documents.router.ts`, currently lines 1420-1448), reading
+in full for exact context:
+
+```typescript
+for (const measureId of input.associatedMeasureIds) {
+  const measure = await repo.findDocumentById(measureId);
+  if (!measure || measure.cityId !== subject.cityId) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: `Measure ${measureId} not found` });
+  }
+  if (measure.lifecycleState !== 'in_workflow') {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: `Measure ${measureId} is not in_workflow`,
+    });
+  }
+}
+
+const associatedInstanceIds: string[] = [];
+
+for (const measureId of input.associatedMeasureIds) {
+  const measure = await repo.findDocumentById(measureId);
+  if (measure) {
+    if (measure.workflowInstanceId) {
+      associatedInstanceIds.push(measure.workflowInstanceId);
+    }
+    const currentMetadata = measure.metadata as Record<string, unknown>;
+    await repo.updateDocumentMetadata(measureId, {
+      ...currentMetadata,
+      certifiedUrgent: true,
+      certificationDocumentId: input.certifyingDocumentId,
+    });
+  }
+}
+```
+
+Required change: the FIRST loop (the read-only validation pre-pass) stays
+exactly as-is, outside any transaction — it never writes anything, and it
+must continue to throw before any writes happen if any measure fails
+validation. Only the SECOND loop (the actual write loop) gets wrapped in
+`ctx.db.transaction(...)`, using a transaction-scoped `DocumentsRepository`
+instance for the `updateDocumentMetadata` calls inside it:
+
+```typescript
+const associatedInstanceIds: string[] = [];
+
+await ctx.db.transaction(async (tx) => {
+  const txRepo = new DocumentsRepository(tx);
+
+  for (const measureId of input.associatedMeasureIds) {
+    const measure = await txRepo.findDocumentById(measureId);
+    if (measure) {
+      if (measure.workflowInstanceId) {
+        associatedInstanceIds.push(measure.workflowInstanceId);
+      }
+      const currentMetadata = measure.metadata as Record<string, unknown>;
+      await txRepo.updateDocumentMetadata(measureId, {
+        ...currentMetadata,
+        certifiedUrgent: true,
+        certificationDocumentId: input.certifyingDocumentId,
+      });
+    }
+  }
+});
+```
+
+`associatedInstanceIds` must be declared outside the transaction callback
+(as shown) so it remains accessible to the `eventBus.emit(...)` call that
+follows the transaction (currently lines 1450-1462), which stays outside the
+transaction and unchanged.
+
+## Required new tests
+
+**Neither mutation currently has any direct unit-test coverage of its own
+transaction/side-effect behavior.** This was independently confirmed: every
+existing match for "submit" or "logCertificationOfUrgency" in the three
+documents-module test files that reference either term
+(`documents.router.test.ts`, `complaints.router.test.ts`,
+`documents.policy.test.ts`) is either the unrelated `'submitted'` lifecycle
+STATE STRING, or `documents.policy.test.ts`'s tests of
+`guard.canSubmit(...)` (currently around lines 319-331 of that file) — which
+test the AUTHORIZATION GUARD, a separate module (`documents.policy.ts`), not
+the router mutation body you are changing. Because there is no existing
+safety net for this change, you must write new, focused tests, not rely on
+"existing tests still pass" as your correctness signal.
+
+Create `apps/server/src/modules/documents/__tests__/documents.router.transactions.test.ts`
+(this exact filename does not currently exist — confirmed via directory
+listing before this task was written). At minimum, cover:
+
+1. **`submit` happy path**: given a document type with
+   `hasPreliminaryNumbering: true` and a valid `numberSeriesId`, calling
+   `submit` results in all of: the QR number set, a preliminary number
+   assigned, and the lifecycle state transitioned to `'submitted'` — and all
+   three are visible in the database after the call (i.e., they actually
+   committed).
+2. **`submit` partial-failure rollback**: force a failure inside the
+   transaction block AFTER `updateDocumentNumbering` has run but BEFORE
+   `transitionState` completes (e.g., by making `assignPreliminaryNumber` or
+   `transitionState` throw, via mocking or by supplying input that causes a
+   real validation failure inside `transitionState`'s own logic — your
+   choice of mechanism, but it must be a failure genuinely inside the
+   transaction body, not before it). Assert that AFTER the call throws, the
+   QR number update from step 1 is NOT visible in the database — i.e., the
+   whole transaction rolled back, not just the step that failed.
+3. **`submit` without preliminary numbering**: a document type with
+   `hasPreliminaryNumbering: false` still successfully sets the QR number
+   and transitions state, and `preliminaryNumber` in the response is `null`.
+4. **`logCertificationOfUrgency` happy path**: given 2+ valid
+   `associatedMeasureIds`, all of their metadata rows are updated with
+   `certifiedUrgent: true` after the call.
+5. **`logCertificationOfUrgency` partial-failure rollback**: force a failure
+   partway through the write loop (e.g., the second of three measures
+   fails `updateDocumentMetadata` via a mock). Assert that the FIRST
+   measure's metadata update — which would have already run before the
+   failure — is NOT visible in the database after the call throws, i.e. the
+   whole write loop rolled back as one unit, not measure-by-measure.
+6. **`logCertificationOfUrgency` pre-existing validation-loop behavior,
+   unchanged**: confirm that if any measure fails the FIRST loop's
+   validation (not found, or not `in_workflow`), the procedure throws before
+   any `updateDocumentMetadata` call happens at all — this is existing
+   behavior this task must not break, and should have a regression test
+   confirming it still holds after your changes.
+
+Use whatever test infrastructure/mocking approach the existing files in
+`apps/server/src/modules/documents/__tests__/` already use for router-level
+tests (check `documents.router.test.ts` for the established pattern before
+writing new test scaffolding from scratch).
+
+## Verification checklist — run all of these before reporting back
+
+1. `pnpm --filter server typecheck` → must exit 0.
+2. `pnpm --filter server test -- documents.router.transactions` → new test
+   file passes in full.
+3. `pnpm --filter server test -- documents` → full documents-module test
+   suite; report the exact pass/fail/skip counts, and compare them against
+   a run of the same command BEFORE your changes (stash or diff-revert
+   temporarily if needed) so you can state definitively whether your change
+   introduced any regression versus introduced-and-expected new failures
+   (there should be none of the latter, since all new tests should pass).
+4. Grep confirmation, report the exact output of each:
+   - `grep -n "assignFinalNumber" apps/server/src/modules/documents/numbering.service.ts`
+     — confirm this method's signature is byte-for-byte unchanged from
+     before your task (4 parameters, no `trx`).
+   - `grep -rn "new DocumentsRepository(tx)" apps/server/src/modules/documents/documents.router.ts`
+     — confirm this appears in both `submit` and `logCertificationOfUrgency`,
+     nowhere else.
+   - `grep -n "getDesignationHandler" apps/server/src/modules/documents/documents.router.ts`
+     — confirm this call site is unchanged in position and content relative
+     to the transaction block you added (i.e., still after it, not moved
+     inside).
+
+## What to report back
+
+For each of the two mutations, state explicitly: (a) exact diff of what
+changed, (b) confirmation that the "out of scope" items were not touched,
+(c) the full verification-checklist output above, (d) anything you found
+during this task that contradicts a stated assumption in this prompt (for
+example, if `transitionState`'s signature or behavior differs from what
+this prompt describes when you actually read it) — do not silently work
+around such a contradiction; report it as a distinct, flagged item, in
+addition to completing what you safely can.
+
+---
+
+# TASK-I3-TAXONOMY-002: Complete I3 §9.3 Audit Taxonomy Cross-Check
+
+## Context
+
+This is a standalone task. You have no access to any prior conversation or
+planning session that produced this prompt — everything you need is below or
+in the live repository.
+
+`docs/pre-development/I-security-and-authorization/i3-security-design-document.md`
+§9.3 (currently lines 823-839) lists 13 categories and 51 audit-event names
+that the system is supposed to be able to log. A prior findings-log entry,
+`LOG-0171` (`docs/development-findings-log.md`), claims to have verified this
+entire list and concluded "there are no missing statutory or
+compliance-mandatory event implementations stemming from I3 §9.3's list" —
+but that entry's own text shows it only individually investigated 11 of the
+51 names by name (8 named in its own "8 unmapped names" section, plus 3
+more via the separate `LOG-0165` entry it references). This task completes
+the remaining 40-name verification, using the classification table below as
+your starting point, and produces the findings-log entries and code changes
+that follow directly from what the classification shows.
+
+## The 51-name classification table — AUTHORITATIVE, do not re-derive from scratch
+
+The table below was produced by direct inspection of the live repository (not
+from I3, B3, or any prior findings-log entry alone) as of this task's
+authoring. Confirm each row still holds by re-running the grep/read shown in
+its "Evidence" column against the CURRENT repository snapshot before acting
+on it — the codebase may have changed since this prompt was written. If a
+row's evidence no longer matches what you find, treat that row as an open
+question and flag it in your report rather than silently updating the
+classification yourself.
+
+Classification legend:
+- `MATCH` — I3 name has a live, correctly-typed producer and (where
+  applicable) a live consumer subscription. No action needed.
+- `NAMING_DRIFT` — I3's exact string doesn't match the live event name, but
+  the live event is confirmed to be the same real-world occurrence I3 is
+  describing. No code action needed; I3 is stale on the exact string only.
+- `STALE` — I3's named event doesn't exist as a standalone event at all;
+  the underlying occurrence is now folded into a different, broader live
+  event (usually via an `outcome` or `toState` discriminator field). No
+  code action needed; this is intentional consolidation, already-established
+  as this codebase's pattern (see `LOG-0161`, `LOG-0165`, `LOG-0171`).
+- `UNIMPLEMENTED` — no code path of any kind implements this concept yet.
+  No code action for THIS task; log only.
+- `GAP` — the concept is implemented, but has NO event/audit emission of any
+  kind associated with it. This is a real gap, not a naming question.
+- `TYPE_UNSAFE` — the event IS emitted, but through a code path that bypasses
+  `EventPayloadMap`'s compile-time type constraint entirely (via an `as any`
+  cast). This is a real type-safety gap requiring a code fix in this task.
+- `DUPLICATE_IMPLEMENTATION` — two independent, live code paths both
+  implement what appears to be the same real-world event, under two
+  different `EventPayloadMap` keys. Requires a human decision — see the
+  dedicated section below. Do not attempt to resolve this yourself.
+
+```json
+{
+  "authoritative": true,
+  "note": "If prose elsewhere in this document conflicts with this table, this table wins.",
+  "rows": [
+    {"category":"Authentication","i3_name":"login_success","classification":"MATCH","live_name":"login.success","evidence":"apps/server/src/modules/iam/iam.events.ts:17 (LOGIN_SUCCESS constant); emitted apps/server/src/modules/iam/iam.service.ts:544"},
+    {"category":"Authentication","i3_name":"login_failed","classification":"MATCH","live_name":"login.failed","evidence":"iam.events.ts:15 (LOGIN_FAILED); emitted iam.service.ts:371,404"},
+    {"category":"Authentication","i3_name":"logout","classification":"NAMING_DRIFT","live_name":"logout.success","evidence":"iam.events.ts:14 (LOGOUT_SUCCESS); emitted iam.service.ts:283. I3 says bare 'logout'; confirm no OTHER event named exactly 'logout' or similar also exists before treating this as settled."},
+    {"category":"Authentication","i3_name":"session_expired_inactivity","classification":"UNVERIFIED_BY_THIS_TABLE","live_name":null,"evidence":"No EventPayloadMap key, no IAM_EVENTS constant, and no .emit() call found for this concept as of this table's authoring. RE-CHECK: search apps/server/src/modules/iam broadly (not just iam.events.ts/iam.service.ts) for any session-inactivity-timeout logic before concluding this is a real GAP — it is possible this is implemented under a name not yet checked (e.g. as part of general session-expiry logic rather than a dedicated event)."},
+    {"category":"Authentication","i3_name":"session_replaced","classification":"MATCH","live_name":"session.replaced","evidence":"iam.events.ts:16 (SESSION_REPLACED); emitted iam.service.ts:474"},
+    {"category":"Authentication","i3_name":"forced_logout","classification":"MATCH","live_name":"session.forced_logout","evidence":"iam.events.ts:19 (FORCED_LOGOUT); emitted iam.service.ts:1004"},
+    {"category":"Authentication","i3_name":"token_refresh","classification":"UNVERIFIED_BY_THIS_TABLE","live_name":null,"evidence":"No EventPayloadMap key, no IAM_EVENTS constant, no .emit() call found for this concept as of this table's authoring. RE-CHECK before concluding GAP — refresh-token rotation logic likely exists somewhere in iam.service.ts even if it doesn't emit a distinct audit event; confirm whether that's the case and whether it should."},
+    {"category":"Authentication","i3_name":"token_reuse_detected","classification":"MATCH","live_name":"token.reuse_detected","evidence":"iam.events.ts:18 (TOKEN_REUSE_DETECTED); emitted iam.service.ts:672"},
+    {"category":"Session","i3_name":"session_locked","classification":"MATCH","live_name":"session.locked","evidence":"iam.events.ts:9 (SESSION_LOCKED); emitted iam.service.ts:1080"},
+    {"category":"Session","i3_name":"session_unlocked","classification":"MATCH","live_name":"session.unlocked","evidence":"iam.events.ts:10 (SESSION_UNLOCKED); emitted iam.service.ts:1220"},
+    {"category":"Authorization","i3_name":"abac_denial","classification":"MATCH","live_name":"abac.denial","evidence":"iam.events.ts:20 (ABAC_DENIAL); emitted apps/server/src/modules/iam/iam.routes.ts:551"},
+    {"category":"User Management","i3_name":"role_assigned","classification":"MATCH","live_name":"role.assigned","evidence":"emitted iam.service.ts:880"},
+    {"category":"User Management","i3_name":"role_revoked","classification":"MATCH","live_name":"role.revoked","evidence":"emitted iam.service.ts:940"},
+    {"category":"User Management","i3_name":"password_changed","classification":"MATCH","live_name":"password.changed","evidence":"emitted iam.service.ts:1052"},
+    {"category":"Delegation","i3_name":"delegation_grant_created","classification":"NAMING_DRIFT","live_name":"delegation.granted","evidence":"emitted apps/server/src/modules/organization/delegation.service.ts"},
+    {"category":"Delegation","i3_name":"delegation_grant_revoked","classification":"NAMING_DRIFT","live_name":"delegation.revoked","evidence":"emitted delegation.service.ts. NOTE: separately, B3 §0.2 (b3-internal-domain-event-catalog-v1.3.md, lines 67-68) flags delegation.granted/.expired vs designation.activated/.expired as an OPEN [Discrepancy] requiring team ratification — this is a different, already-tracked question about DOCUMENT framing vs DB-entity framing, not something this task needs to re-litigate. Do not create a duplicate findings-log entry for it; if relevant, reference B3 §0.2 directly."},
+    {"category":"Document Lifecycle","i3_name":"document_created","classification":"MATCH","live_name":"document.created","evidence":"emitted apps/server/src/modules/documents/documents.router.ts (submit and create procedures)"},
+    {"category":"Document Lifecycle","i3_name":"document_submitted","classification":"STALE","live_name":"document.state_changed (toState:'submitted')","evidence":"Per LOG-0171"},
+    {"category":"Document Lifecycle","i3_name":"document_number_assigned","classification":"MATCH","live_name":"document.number_assigned","evidence":"emitted apps/server/src/modules/documents/documents.service.ts"},
+    {"category":"Document Lifecycle","i3_name":"document_number_promoted","classification":"STALE","live_name":"document.number_assigned (numberType:'final')","evidence":"Per LOG-0171"},
+    {"category":"Document Lifecycle","i3_name":"document_cancelled","classification":"STALE","live_name":"document.state_changed (toState:'cancelled')","evidence":"Per LOG-0171"},
+    {"category":"Document Lifecycle","i3_name":"document_archived","classification":"STALE","live_name":"document.state_changed (toState:'archived')","evidence":"Per LOG-0171"},
+    {"category":"Document Lifecycle","i3_name":"document_disposed","classification":"STALE","live_name":"document.state_changed (toState:'disposed')","evidence":"Per LOG-0171"},
+    {"category":"Workflow","i3_name":"workflow_step_completed","classification":"NAMING_DRIFT","live_name":"workflow.step.completed","evidence":"B3 §8 canonical dot-notation, per LOG-0161"},
+    {"category":"Workflow","i3_name":"workflow_step_advanced_manually","classification":"STALE","live_name":"workflow.step.completed (outcome:'SECRETARY_ADVANCED')","evidence":"Per LOG-0171"},
+    {"category":"Workflow","i3_name":"workflow_instance_migrated","classification":"NAMING_DRIFT","live_name":"workflow.instance.migration.started AND workflow.instance.migration.completed (split into 2 events)","evidence":"Per LOG-0171"},
+    {"category":"Workflow","i3_name":"certification_of_urgency_logged","classification":"NAMING_DRIFT","live_name":"document.certification_urgency.logged","evidence":"Per LOG-0171 — note this lives under the documents module prefix, not workflow, despite I3 filing it under the Workflow category"},
+    {"category":"Approval Actions","i3_name":"vp_certification_signed","classification":"UNVERIFIED_BY_THIS_TABLE — LIKELY STALE","live_name":"workflow.step.completed (outcome:<some code>)","evidence":"apps/server/src/modules/workflow/engine/step-handlers/approval.handler.ts:119-135 shows EVERY approval-step outcome flows through workflow.step.completed's outcome field, matching the SIGNED/VETOED pattern confirmed below for mayor_signed/mayor_vetoed. The SPECIFIC outcome-code string used for VP certification specifically was NOT directly observed as of this table's authoring. RE-CHECK: search apps/server/src/modules/workflow/workflow.router.ts and any VP-certification-specific step handler for the exact outcome string (likely something like 'CERTIFIED' or 'VP_SIGNED' — do not assume, confirm the literal string) before writing the findings-log entry."},
+    {"category":"Approval Actions","i3_name":"mayor_signed","classification":"STALE","live_name":"workflow.step.completed (outcome:'SIGNED')","evidence":"apps/server/src/modules/workflow/workflow.router.ts:1626,1645,1651"},
+    {"category":"Approval Actions","i3_name":"mayor_vetoed","classification":"STALE","live_name":"workflow.step.completed (outcome:'VETOED')","evidence":"workflow.router.ts:1795,1814,1820"},
+    {"category":"Approval Actions","i3_name":"veto_override_voted","classification":"STALE","live_name":"workflow.step.completed (outcome:'OVERRIDE_SUCCEEDED' or 'OVERRIDE_FAILED')","evidence":"apps/server/src/modules/workflow/engine/step-handlers/approval.handler.ts:82-93"},
+    {"category":"Approval Actions","i3_name":"panlalawigan_outcome_recorded","classification":"MATCH","live_name":"audit.document.panlalawigan_outcome_logged","evidence":"emitted apps/server/src/modules/documents/panlalawigan.router.ts:170"},
+    {"category":"Approval Actions","i3_name":"panlalawigan_deemed_approved","classification":"DUPLICATE_IMPLEMENTATION","live_name":"workflow.panlalawigan.deemed_approved AND document.panlalawigan.deemed_approved (two separate live events)","evidence":"See dedicated 'Duplicate implementation' section below. DO NOT resolve this yourself — human decision required."},
+    {"category":"SP Secretary Decisions","i3_name":"secretariat_decision_approved","classification":"STALE","live_name":"workflow.step.completed (outcome field)","evidence":"Per LOG-0165, confirmed via ADR-API-003"},
+    {"category":"SP Secretary Decisions","i3_name":"secretariat_decision_rejected","classification":"STALE","live_name":"workflow.step.completed (outcome field)","evidence":"Per LOG-0165"},
+    {"category":"SP Secretary Decisions","i3_name":"secretariat_decision_amended","classification":"STALE","live_name":"workflow.step.completed (outcome field)","evidence":"Per LOG-0165"},
+    {"category":"Records Management","i3_name":"record_promoted","classification":"UNIMPLEMENTED","live_name":null,"evidence":"No records router/module exists anywhere server-side (confirmed: zero grep hits for 'record_promoted', 'RECORD_PROMOTED', or similar across apps/server/src, apps/web/src, packages/shared/src as of this table's authoring — re-run this grep to confirm still true)"},
+    {"category":"Records Management","i3_name":"record_archived","classification":"UNIMPLEMENTED","live_name":null,"evidence":"Same as record_promoted row"},
+    {"category":"Records Management","i3_name":"record_legal_hold_applied","classification":"UNIMPLEMENTED","live_name":null,"evidence":"Zero hits for 'legal_hold'/'legalHold'/'LegalHold' anywhere in source as of this table's authoring"},
+    {"category":"Records Management","i3_name":"record_legal_hold_removed","classification":"UNIMPLEMENTED","live_name":null,"evidence":"Same as above"},
+    {"category":"Records Management","i3_name":"record_disposition_initiated","classification":"UNIMPLEMENTED","live_name":null,"evidence":"Zero hits for 'record_disposition'/'RecordDisposition'/'disposition_initiated' as of this table's authoring"},
+    {"category":"Records Management","i3_name":"record_pii_erased","classification":"UNIMPLEMENTED","live_name":null,"evidence":"Zero hits for 'pii_erased'/'PiiErased'/'piiErasure' as of this table's authoring"},
+    {"category":"Bulk Operations","i3_name":"bulk_archive_executed","classification":"UNIMPLEMENTED","live_name":null,"evidence":"'bulk_archive' exists ONLY as an ABAC permission-rule action name (apps/server/src/modules/iam/iam.policy.ts:80, apps/server/src/database/seeds/iam.seed.ts:579) — a permission being DEFINED is not the same as a procedure existing. Zero router procedure implements bulk archive as of this table's authoring."},
+    {"category":"Bulk Operations","i3_name":"bulk_export_executed","classification":"UNIMPLEMENTED","live_name":null,"evidence":"Same pattern — 'bulk_export' is an ABAC action name only (iam.policy.ts:80, iam.seed.ts:565,580), zero procedure implementation"},
+    {"category":"Exports","i3_name":"document_exported","classification":"UNIMPLEMENTED","live_name":null,"evidence":"Zero implementation of any kind found as of this table's authoring"},
+    {"category":"Exports","i3_name":"audit_log_exported","classification":"MATCH — BUT VIA A DEPRECATED PATTERN","live_name":"audit_log_exported","evidence":"Live via apps/server/src/modules/audit/audit.tsa-export.ts:49-60 — writeService.writeEvent({eventType:'audit_log_exported',...}) inside the monthly TSA export pgboss job. This is a DIRECT write to the audit write-service, bypassing EventBus entirely (by design, since there's no natural EventBus trigger for a cron job's own completion) — so its absence from EventPayloadMap is EXPECTED, not a gap. HOWEVER: this is a live instance of the exact 'Pattern B: Direct Audit Write' that LOG-0170 (docs/development-findings-log.md) already decided should be migrated to the 'Collect-and-Emit' pattern codebase-wide. Flag this as a Pattern-B instance in your findings-log entry (see below) but do NOT change this code as part of this task — LOG-0170's migration is its own separate, already-authorized body of work with its own task ID; this task only needs to NOTE that this file is one more confirmed instance of it."},
+    {"category":"Complaint Handling","i3_name":"complaint_logged","classification":"GAP","live_name":null,"evidence":"apps/server/src/modules/documents/complaints.router.ts's createComplaintClerkAssisted procedure (currently lines 70-154) sets metadata.outcomeState:'pending_hearing' via repo.insertDocument (line 139) with ZERO event emission or audit write of any kind in the procedure. Confirm this is still true, then log it — do not add an emit call as part of this task; that is a design decision (what payload, what event name) for a human to make, not something to infer silently."},
+    {"category":"Complaint Handling","i3_name":"complaint_routed","classification":"GAP","live_name":null,"evidence":"complaints.router.ts's logAndAssign procedure (currently lines 156-195) calls service.transitionState(document.id,'submitted',...) at line 187 — this likely surfaces generically as document.state_changed, NOT as a complaint-specific event. No complaint-specific emission exists in this procedure at all. Confirm, then log — same 'do not silently add an emit call' instruction as complaint_logged above."},
+    {"category":"Complaint Handling","i3_name":"complaint_outcome_set","classification":"TYPE_UNSAFE","live_name":"complaint.outcome_set","evidence":"Emitted at complaints.router.ts:273, via a locally-defined getEventBus(ctx) helper at complaints.router.ts:19-21 that reads: `return (ctx.req.server as any).eventBus;` — the `as any` cast means EventBus's `emit<K extends keyof EventPayloadMap>` compile-time constraint is completely bypassed for this call, and confirmed: 'complaint.outcome_set' is NOT a key in packages/shared/src/events/event-payload-map.ts at all. THIS IS A REQUIRED CODE FIX for this task — see 'Required code fix' section below."},
+    {"category":"Complaint Handling","i3_name":"complaint_dismissed","classification":"TYPE_UNSAFE + DUPLICATE_EMIT_PATTERN","live_name":"complaint.outcome_set (outcome:'dismissed') PLUS a direct auditService.logEvent call","evidence":"Same setOutcome procedure (complaints.router.ts:241-300) handles this via the SAME complaint.outcome_set event as complaint_resolved (input.outcome discriminates), PLUS a separate, duplicate direct write at lines 287-297: `auditService.logEvent({... action: 'complaint.dismissed' ...})`. This second write is LOG-0170's 'Pattern A: TRPC Duplicate Emit' — already flagged as deprecated by that decision. Same required code fix as complaint_outcome_set covers the as-any issue; the DUPLICATE-WRITE issue (Pattern A) is a SEPARATE, larger migration already authorized by LOG-0170 and is OUT OF SCOPE for this task beyond logging it as one more confirmed instance — do not attempt the Collect-and-Emit migration for this file as part of this task."},
+    {"category":"Complaint Handling","i3_name":"complaint_resolved","classification":"TYPE_UNSAFE + DUPLICATE_EMIT_PATTERN","live_name":"complaint.outcome_set (outcome:'resolved') PLUS auditService.logEvent","evidence":"Same as complaint_dismissed row, action:'complaint.resolved' at complaints.router.ts:292"}
+  ]
+}
+```
+
+## Required code fix: `TYPE_UNSAFE` rows (complaint_outcome_set, complaint_dismissed, complaint_resolved)
+
+Two files each define a local `getEventBus(ctx)` helper that casts through
+`any`, defeating `EventBus`'s type safety entirely:
+
+```
+old_str (apps/server/src/modules/documents/complaints.router.ts, currently lines 19-21):
+function getEventBus(ctx: Context) {
+  return (ctx.req.server as any).eventBus;
+}
+
+old_str (apps/server/src/modules/documents/document-requests.router.ts, currently lines 44-46):
+function getEventBus(ctx: Context) {
+  return (ctx.req.server as any).eventBus;
+}
+```
+
+The fix has two parts, and BOTH are required:
+
+**Part A — add the missing `EventPayloadMap` keys.** The following event
+names are emitted with real payloads today but have no corresponding
+`EventPayloadMap` entry in `packages/shared/src/events/event-payload-map.ts`.
+Add typed entries for each, matching the exact payload shape already being
+constructed at each real emit call site (read each call site in full before
+writing its type — do not guess field names):
+
+```json
+{
+  "keys_to_add": [
+    {"key": "complaint.outcome_set", "read_payload_from": "apps/server/src/modules/documents/complaints.router.ts, the eventBus.emit call currently at lines 273-284"},
+    {"key": "document_request.presiding_officer_approved", "read_payload_from": "apps/server/src/modules/documents/document-requests.router.ts, the eventBus.emit call currently around lines 370-384"},
+    {"key": "document_request.secretary_approved", "read_payload_from": "apps/server/src/modules/documents/document-requests.router.ts, the eventBus.emit call currently around lines 475-489"},
+    {"key": "document_request.released", "read_payload_from": "apps/server/src/modules/documents/document-requests.router.ts, the eventBus.emit call currently around lines 590-595 (read further to see the full payload object, it was not fully visible in this table's investigation)"}
+  ],
+  "add_under_section_comment": "Add these under a new '// ── Complaints / Document Requests modules ─' comment block in event-payload-map.ts, following the existing per-module comment-block convention already used in that file (e.g. '// ── Documents module ───' at the existing line ~238) — do not scatter them ungrouped."
+}
+```
+
+**Part B — fix the two `getEventBus` helpers.** Once Part A is done, change
+both helpers from returning `any` to returning a properly-typed `EventBus`.
+Read how `documents.router.ts`'s own `eventBus` access is typed (it does NOT
+use a local `getEventBus` helper at all — it calls
+`ctx.req.server.eventBus.emit(...)` directly, e.g. at line 1291 and line
+1450) and confirm whether `ctx.req.server.eventBus` is ALREADY correctly
+typed as `EventBus` on the Fastify server decoration (if so, the fix is
+simply removing the `as any` cast and the helper functions entirely, calling
+`ctx.req.server.eventBus.emit(...)` directly at each call site instead, for
+consistency with `documents.router.ts`'s own convention). If it is NOT
+already properly typed at the Fastify-decoration level, report that as a
+separate, larger finding rather than inventing a local fix — that would be a
+Fastify plugin/decoration typing gap outside this task's scope.
+
+After this fix, re-run a full `pnpm --filter server typecheck` — since these
+events are now correctly typed, any place where the actual payload passed at
+the emit call site doesn't match the type you added in Part A will now
+surface as a real compile error. Fix mismatches by correcting the TYPE to
+match the actual code being emitted (the running code is real behavior;
+match the type to it), not by changing the emitted payload — unless the
+mismatch is itself a bug (e.g., a field is missing that the type correctly
+requires), in which case flag it rather than silently picking one side.
+
+## Duplicate implementation: `panlalawigan_deemed_approved` — DO NOT RESOLVE, FLAG ONLY
+
+Two independent, live implementations both handle the same statutory
+condition — RA 7160 §56(d), a 30-day Panlalawigan review deadline — and both
+emit a "deemed approved" event, but through entirely separate data models,
+under two different `EventPayloadMap` keys, on the IDENTICAL cron schedule:
+
+```json
+{
+  "implementation_A": {
+    "event_key": "workflow.panlalawigan.deemed_approved",
+    "trigger_file": "apps/server/src/modules/workflow/jobs/evaluate-panlalawigan-timers.ts",
+    "data_source": "workflow instance context field `panlalawigan_action_deadline`, set by apps/server/src/modules/workflow/engine/context-writer.ts:50-51",
+    "job_registration": "apps/server/src/modules/workflow/workflow.plugin.ts, queue name 'evaluatePanlalawiganTimers', cron '0 6 * * *' Asia/Manila (currently lines 120-125)",
+    "granularity": "per workflow step-instance"
+  },
+  "implementation_B": {
+    "event_key": "document.panlalawigan.deemed_approved",
+    "trigger_file": "apps/server/src/modules/documents/documents.plugin.ts",
+    "data_source": "documents.panlalawigan_reviews table row, via repository.findOverduePanlalawiganReviews() (apps/server/src/modules/documents/documents.repository.ts:801-816: WHERE outcome IS NULL AND transmitted_at <= now() - 30 days)",
+    "job_registration": "documents.plugin.ts, queue name 'panlalawigan.checkDeemedApproved', cron '0 6 * * *' Asia/Manila (currently lines 118-125)",
+    "granularity": "per panlalawigan_reviews row"
+  },
+  "sync_mechanism_found": "none — both write paths are independent; no code was found that keeps the workflow-context field and the panlalawigan_reviews row in sync with each other",
+  "b3_coverage": "B3 §0.2 (b3-internal-domain-event-catalog-v1.3.md, lines 65-68) documents workflow.lapsed splitting into workflow.approval.lapsed + workflow.panlalawigan.deemed_approved as an intentional, already-flagged [Discrepancy] awaiting team confirmation — but says nothing about a SECOND, documents-module-level deemed_approved event. This duplication is NOT accounted for anywhere in B3's existing naming-reconciliation tables."
+}
+```
+
+Do not merge, delete, or modify either implementation. Do not decide which
+one is "correct." This requires a human decision about system design (are
+these tracking genuinely different things that happen to share a name and
+schedule, or is one of them a redundant, should-be-removed duplicate of the
+other, or should they be unified into one). Write this up as its own
+findings-log entry (see below) with `status: proposed` and flag it
+explicitly in your final report as needing human review before any further
+workflow or documents-module Panlalawigan-related work proceeds, since
+either job could independently fire for what may be the same underlying
+document.
+
+## Rows requiring your own further verification before logging
+
+Several rows above are marked `UNVERIFIED_BY_THIS_TABLE` rather than a
+final classification. For each of these, complete the verification named in
+that row's `evidence` field before writing the findings-log entry, and
+report your findings for each individually in your final report (not folded
+silently into a blanket "confirmed" statement):
+
+- `session_expired_inactivity`
+- `token_refresh`
+- `vp_certification_signed` (specifically: confirm the exact outcome-code
+  string, do not guess)
+
+## Findings-log entries to write
+
+Follow the format and rules in `docs/development-findings-log.md`'s own
+header (read it before writing your first entry this session, per that
+file's own instructions). Write `status: proposed` on every entry — never
+`confirmed` or `superseded`, those are human-only status transitions. Use
+the next available `LOG-NNNN` number, continuing from the highest existing
+number in the file at the time you write (re-check this number directly
+before writing, since other work may have added entries since this prompt
+was authored).
+
+Write ONE entry per DISTINCT finding, not one entry for the whole task:
+
+1. One entry closing out the remaining I3 §9.3 verification, referencing
+   `LOG-0171` as `supersedes` (since this entry is a broader completion of
+   what that entry claimed to have finished), listing the final
+   classification for all 51 names (your completed version of the table
+   above, with the `UNVERIFIED_BY_THIS_TABLE` rows resolved).
+2. One entry specifically for the `complaint_logged` / `complaint_routed`
+   GAP rows (these can be one entry together, since they're the same kind
+   of gap in the same file).
+3. One entry specifically for the `panlalawigan_deemed_approved`
+   `DUPLICATE_IMPLEMENTATION` finding — this is significant enough to
+   warrant its own entry, not folded into the general taxonomy entry.
+4. One entry for the `TYPE_UNSAFE` fix you made (Part A + Part B above) —
+   describing what was found and what was implemented, per this project's
+   `[Tested]`/`[Inference]` labeling convention.
+5. One entry noting `audit_log_exported`'s Pattern-B instance in
+   `audit.tsa-export.ts`, referencing `LOG-0170` as the entry this
+   contributes evidence toward (not `supersedes`, since you are not
+   changing that decision, only adding one more confirmed instance of the
+   pattern it already addresses).
+
+## Verification checklist — run all of these before reporting back
+
+1. `pnpm --filter @batac/shared typecheck` → must exit 0 (this package
+   contains `event-payload-map.ts`).
+2. `pnpm --filter server typecheck` → must exit 0.
+3. `pnpm --filter server test -- complaints` → confirm no regression from
+   the `getEventBus` fix.
+4. `pnpm --filter server test -- document-requests` → same, for the other
+   fixed file.
+5. Re-run the exact grep `grep -n "as any).eventBus" apps/server/src/modules/documents/complaints.router.ts apps/server/src/modules/documents/document-requests.router.ts` and confirm zero matches remain (or, if the Part B fix required keeping a cast for a reason discovered during implementation, report exactly why rather than silently leaving it).
+
+## What to report back
+
+1. Full text of the row-by-row classification you produced for the three
+   `UNVERIFIED_BY_THIS_TABLE` rows.
+2. Full text of all 5 findings-log entries you wrote, with their assigned
+   `LOG-NNNN` numbers.
+3. The exact diff for the `EventPayloadMap` additions and the `getEventBus`
+   fix.
+4. Full verification-checklist output.
+5. Explicit confirmation that you did NOT: merge/modify either
+   `panlalawigan_deemed_approved` implementation, add any new emit calls for
+   `complaint_logged`/`complaint_routed`, or attempt the Pattern-A/Pattern-B
+   Collect-and-Emit migration for any file mentioned in this prompt as
+   "out of scope, log only."
+
+---
+
+# Standalone Prompt: TASK-WF-014 — Fix termination-step casing bug and add release-hop for archive transitions
+
+````
+CONTEXT: batac-dms monorepo. This task fixes a confirmed bug preventing the SP
+Resolution/Ordinance/Appropriation-Ordinance workflows from ever completing.
+
+═══════════════════════════════════════════
+BUG 1 — CASING
+═══════════════════════════════════════════
+
+File: packages/database/src/seeds/workflow/phase1-legislative.ts
+
+Four step definitions currently have config.final_document_status values in
+uppercase. These values are consumed by
+apps/server/src/modules/workflow/engine/step-handlers/termination.handler.ts
+(line 104, `finalDocumentStatus` passed as `toState` into
+`deps.documentsService.transitionState(...)`), which requires the value to
+match the DocumentLifecycleState enum defined at
+apps/server/src/modules/documents/documents.types.ts:6-17 — an 11-member,
+strictly lowercase, snake_case enum with NO case normalization anywhere in
+the transition-validation path (neither in
+apps/server/src/modules/documents/documents.service.ts's VALID_TRANSITIONS
+map, lines 30-42, nor in the Postgres trigger
+documents.check_lifecycle_transition() defined in
+packages/database/migrations/0004_documents_create_documents_schema.sql,
+lines 301-330).
+
+Make exactly these four literal changes. This JSON block is authoritative —
+if any prose elsewhere in this prompt appears to conflict with it, the JSON
+block wins:
+
+```json
+{
+  "old_to_new_literal_pairs": [
+    { "file": "packages/database/src/seeds/workflow/phase1-legislative.ts", "line": 395, "old": "final_document_status: 'ARCHIVED'", "new": "final_document_status: 'archived'" },
+    { "file": "packages/database/src/seeds/workflow/phase1-legislative.ts", "line": 404, "old": "final_document_status: 'ARCHIVED'", "new": "final_document_status: 'archived'" },
+    { "file": "packages/database/src/seeds/workflow/phase1-legislative.ts", "line": 413, "old": "final_document_status: 'CANCELLED'", "new": "final_document_status: 'cancelled'" },
+    { "file": "packages/database/src/seeds/workflow/phase1-legislative.ts", "line": 422, "old": "final_document_status: 'CANCELLED'", "new": "final_document_status: 'cancelled'" }
+  ]
+}
+```
+
+Do NOT touch `outcome_code` on any of these four steps (`APPROVED_AND_RELEASED`,
+`VALID_IN_PART_RESOLVED`, `REJECTED_AT_VOTE`, `VETOED_OVERRIDE_FAILED`) — that
+field belongs to a separate vocabulary (the workflow engine's own outcome
+matching), not the DocumentLifecycleState enum, and must stay uppercase
+exactly as it is.
+
+Because SP_ORDINANCE_WORKFLOW and APPROPRIATION_ORDINANCE_WORKFLOW (defined
+later in the same file, at the `const cloneWorkflow = ...` IIFEs starting at
+lines 789 and 933 respectively) both derive from SP_RESOLUTION_WORKFLOW via a
+JSON deep-clone (`cloneWorkflow`, lines 786-787) and neither IIFE's mutation
+logic touches these four step keys (end_approved_and_released,
+end_valid_in_part_resolved, end_rejected_at_vote, end_vetoed_override_failed),
+editing the base definition is sufficient — do NOT add separate edits inside
+either cloneWorkflow IIFE block. This has been verified directly; do not
+re-derive or second-guess it.
+
+═══════════════════════════════════════════
+BUG 2 — MISSING INTERMEDIATE HOP (completed → released → archived)
+═══════════════════════════════════════════
+
+Even with the casing fixed, a document in the 'completed' lifecycle state
+cannot transition directly to 'archived' in a single call. This is enforced
+identically at two layers — confirmed by direct comparison, both currently
+say the same thing:
+
+- apps/server/src/modules/documents/documents.service.ts, VALID_TRANSITIONS
+  map, line 36: `completed: ['released', 'cancelled']` — no 'archived' target.
+- packages/database/migrations/0004_documents_create_documents_schema.sql,
+  the check_lifecycle_transition() trigger function, line 314:
+  `WHEN 'completed' THEN NEW.lifecycle_state IN ('released','cancelled')`
+
+DECIDED RESOLUTION (human decision, binding, do not deviate): do NOT widen
+either the VALID_TRANSITIONS map or the DB trigger to allow 'completed' →
+'archived' directly. Instead, when a termination step's final_document_status
+is 'archived' AND the document's current lifecycle state is 'completed',
+insert an intermediate transitionState call to 'released' first, within the
+same transaction, before the existing call to 'archived'. Rationale (do not
+relitigate): bypassing 'released' would break the chain-of-custody record for
+government documents — 'completed' → 'released' → 'archived' must remain the
+only path, exactly as it already is for every other document type that
+reaches 'archived'.
+
+This requires no DB migration and no change to VALID_TRANSITIONS — both
+already permit completed→released (line 36 above) and released→archived
+(line 37: `released: ['archived', 'cancelled']`; trigger line 315 agrees).
+Only apps/server/src/modules/workflow/engine/step-handlers/termination.handler.ts
+needs to change.
+
+File: apps/server/src/modules/workflow/engine/step-handlers/termination.handler.ts
+
+Current relevant code (lines 97-118), for exact reference — do not
+paraphrase or reconstruct this from memory, use this as the literal
+before-state:
+
+old_str:
+```
+    if (finalDocumentStatus) {
+      try {
+        // Transition document state
+        // B2 specifies DocumentsPublicAPI has transitionState method
+        if (typeof deps.documentsService.transitionState === 'function') {
+          await deps.documentsService.transitionState(
+            instance.documentId,
+            finalDocumentStatus,
+            'SYSTEM',
+            undefined,
+            tx,
+          );
+        }
+      } catch (err) {
+        console.error(
+          `Failed to transition document ${instance.documentId} to ${finalDocumentStatus}:`,
+          err,
+        );
+        // Prompt says "Call Documents.transitionState", if it fails it should probably fail the tx
+        throw err;
+      }
+    }
+```
+
+new_str (adds the conditional intermediate hop; preserves every existing
+line, behavior, and the re-throw on failure exactly as-is):
+```
+    if (finalDocumentStatus) {
+      try {
+        // Transition document state
+        // B2 specifies DocumentsPublicAPI has transitionState method
+        if (typeof deps.documentsService.transitionState === 'function') {
+          if (finalDocumentStatus === 'archived') {
+            const currentDoc = await deps.documentsService.getDocumentById(instance.documentId);
+            if (currentDoc?.lifecycleState === 'completed') {
+              // Chain-of-custody requirement: a document may only reach
+              // 'archived' via 'released'. See TASK-WF-014 for the decision
+              // record — do not widen VALID_TRANSITIONS or the DB trigger
+              // to skip this hop instead of inserting it here.
+              await deps.documentsService.transitionState(
+                instance.documentId,
+                'released',
+                'SYSTEM',
+                undefined,
+                tx,
+              );
+            }
+          }
+          await deps.documentsService.transitionState(
+            instance.documentId,
+            finalDocumentStatus,
+            'SYSTEM',
+            undefined,
+            tx,
+          );
+        }
+      } catch (err) {
+        console.error(
+          `Failed to transition document ${instance.documentId} to ${finalDocumentStatus}:`,
+          err,
+        );
+        // Prompt says "Call Documents.transitionState", if it fails it should probably fail the tx
+        throw err;
+      }
+    }
+```
+
+Notes on this change:
+- `deps.documentsService.getDocumentById` is the correct, already-precedented
+  read channel for checking a document's current lifecycle state from within
+  the workflow engine (same method already used at
+  apps/server/src/modules/workflow/engine/create-instance.ts:60). Do not
+  introduce a different read mechanism.
+- The guard is specifically `finalDocumentStatus === 'archived' &&
+  currentDoc?.lifecycleState === 'completed'` — not a general "insert a hop
+  whenever transitionState might fail" rule. Do not apply this pattern to any
+  other finalDocumentStatus value or any other current state. If you believe
+  another termination path has an analogous gap, do NOT fix it as part of
+  this task — flag it as a separate finding instead.
+- Do not change the function's existing error handling, the outer
+  `if (outcomeCode === 'CANCELLED')` / `else if (outcomeCode === 'REPASSED')`
+  / `else` branching, or anything outside the one block shown above.
+
+═══════════════════════════════════════════
+SCOPE
+═══════════════════════════════════════════
+
+IN SCOPE:
+- packages/database/src/seeds/workflow/phase1-legislative.ts (4 literal
+  changes only, lines 395/404/413/422)
+- apps/server/src/modules/workflow/engine/step-handlers/termination.handler.ts
+  (the one block shown above)
+
+OUT OF SCOPE (do not touch even if related):
+- apps/server/src/modules/documents/documents.service.ts (VALID_TRANSITIONS
+  map — do not widen)
+- packages/database/migrations/0004_documents_create_documents_schema.sql
+  (trigger function — do not widen; no new migration needed for this task)
+- outcome_code values anywhere in the seed file
+- SP_ORDINANCE_WORKFLOW / APPROPRIATION_ORDINANCE_WORKFLOW clone-mutation
+  IIFEs (the base-definition edit already cascades to both; do not add
+  redundant edits inside either IIFE)
+- Any other termination step or handler not named above
+
+═══════════════════════════════════════════
+VERIFICATION
+═══════════════════════════════════════════
+
+After making these changes, report back:
+1. The exact diff for all 5 edits (4 literals + 1 handler block).
+2. Confirmation that `pnpm typecheck` (or the project's equivalent) passes
+   for both changed files.
+3. If a test suite covers termination.handler.ts (check for
+   apps/server/src/modules/workflow/**/*.test.ts files referencing
+   termination or executeTerminationStep) — run it and report pass/fail. Do
+   not write new tests as part of this task unless none exist at all for
+   this handler, in which case flag that gap rather than silently writing
+   tests beyond this task's scope.
+````
+
+---
+
+# Standalone Prompt: TASK-WF-015 — Set `pending_panlalawigan_review` at docketing completion
+
+````
+CONTEXT: batac-dms monorepo. This task fixes a confirmed bug where
+initiatePanlalawiganTransmittal (apps/server/src/modules/documents/panlalawigan.router.ts)
+always fails its precondition check for every SP Resolution/Ordinance/
+Appropriation-Ordinance instance, because nothing in the current codebase
+ever transitions a document's lifecycle_state to 'pending_panlalawigan_review'
+before that check runs.
+
+═══════════════════════════════════════════
+CONFIRMED CHAIN (verified by direct trace, not inference)
+═══════════════════════════════════════════
+
+The following procedures were read in full and confirmed to never call
+documentsService.transitionState, despite documentsService being injected
+into their dependencies in every case:
+
+- apps/server/src/modules/workflow/workflow.router.ts, certifyAsPresidingOfficer
+  (lines 1574-1658)
+- apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts
+  and apps/server/src/modules/workflow/engine/context-writer.ts (the generic
+  path used by the transmittal_letter_to_mayor step, an 'action'-type step —
+  packages/database/src/seeds/workflow/phase1-legislative.ts:181-195 — which
+  only writes mayor_transmittal_date/mayor_action_deadline to
+  workflow.instances.context, never to documents.documents.lifecycle_state)
+- apps/server/src/modules/workflow/workflow.router.ts, mayorSign (lines
+  1660-1740) and mayorVeto (lines 1742-1827)
+- apps/server/src/modules/workflow/workflow.router.ts, logDocketingCompletion
+  (lines 2025-2088) — THIS is the procedure this task modifies.
+
+The document's lifecycle_state is 'in_workflow' at the moment
+logDocketingCompletion runs (set earlier, during initial Secretariat intake;
+NOT by documents.submit, which sets 'submitted' — verify this is still true
+in the current repo state before proceeding, since this reflects the state
+as of this task's authoring). apps/server/src/modules/documents/documents.service.ts's
+VALID_TRANSITIONS map, line 33, confirms in_workflow → pending_panlalawigan_review
+is already a legal single-hop transition — no widening of the transitions
+map or the DB trigger (packages/database/migrations/0004_documents_create_documents_schema.sql,
+check_lifecycle_transition(), line 310-311) is needed for this task.
+
+═══════════════════════════════════════════
+THE FIX
+═══════════════════════════════════════════
+
+File: apps/server/src/modules/workflow/workflow.router.ts
+Procedure: logDocketingCompletion (currently lines 2025-2088)
+
+Current relevant code, for exact reference — do not paraphrase or
+reconstruct this from memory, use this as the literal before-state:
+
+old_str:
+```
+        await ctx.db.transaction(async (tx) => {
+          const txDeps = {
+            ...deps,
+            workflowRepository: new WorkflowRepository(tx),
+          };
+
+          await submitStepAction(
+            stepContext.instance,
+            stepContext.stepInstance,
+            ctx.auth.userId,
+            null, // comment
+            txDeps,
+            tx,
+          );
+        });
+```
+
+new_str (adds the transitionState call inside the same transaction, after
+submitStepAction completes, using the already-transaction-aware `tx` handle
+and the already-injected `deps.documentsService`):
+```
+        await ctx.db.transaction(async (tx) => {
+          const txDeps = {
+            ...deps,
+            workflowRepository: new WorkflowRepository(tx),
+          };
+
+          await submitStepAction(
+            stepContext.instance,
+            stepContext.stepInstance,
+            ctx.auth.userId,
+            null, // comment
+            txDeps,
+            tx,
+          );
+
+          // Docketing is the precondition for Panlalawigan transmission
+          // (see apps/server/src/modules/documents/panlalawigan.router.ts,
+          // initiatePanlalawiganTransmittal's precondition check). Without
+          // this call, that procedure always throws PRECONDITION_FAILED.
+          await deps.documentsService.transitionState(
+            stepContext.instance.documentId,
+            'pending_panlalawigan_review',
+            ctx.auth.userId,
+            'Docketing completed; document transmitted for Panlalawigan review',
+            tx,
+          );
+        });
+```
+
+Notes on this change:
+- The call uses `deps.documentsService`, not `txDeps.documentsService` —
+  confirm these resolve to the same object (deps.documentsService is set
+  once at the top of the procedure from server.documentsService and never
+  reassigned inside txDeps); if this is not the case in the current repo
+  state, use whichever reference is actually in scope and correctly
+  connected to `tx` for transactional consistency — documentsService itself
+  doesn't hold a repository handle the way workflowRepository does, so this
+  should not matter, but confirm rather than assume.
+- The reason string is descriptive text for the audit trail, not a literal
+  the executor should treat as drift-prone — any similarly clear,
+  human-readable description is fine.
+- This transitions the state that gates initiatePanlalawiganTransmittal.
+  It does NOT call initiatePanlalawiganTransmittal itself, and does NOT
+  create a panlalawiganReviews row — that remains a separate, later, manual
+  SP-Secretary-initiated action via the existing
+  initiatePanlalawiganTransmittal procedure. Do not conflate the two or try
+  to auto-trigger transmittal from this task's change.
+
+═══════════════════════════════════════════
+SCOPE
+═══════════════════════════════════════════
+
+IN SCOPE:
+- apps/server/src/modules/workflow/workflow.router.ts, logDocketingCompletion
+  procedure only (the one block shown above)
+
+OUT OF SCOPE (do not touch even if related):
+- mayorSign / mayorVeto (do not add a transitionState call there — the trace
+  above confirms the gap is specifically at docketing, not earlier)
+- apps/server/src/modules/documents/panlalawigan.router.ts's precondition
+  check itself (correct as-is; do not relax or remove it)
+- apps/server/src/modules/documents/panlalawigan.router.ts's
+  initiatePanlalawiganTransmittal or logPanlalawiganOutcome procedures —
+  do not modify either
+- apps/server/src/modules/documents/documents.plugin.ts's
+  panlalawigan.checkDeemedApproved scheduled job (lines 117-159) — this
+  appears to overlap with apps/server/src/modules/workflow/jobs/evaluate-panlalawigan-timers.ts,
+  both running on the same daily 6am Asia/Manila schedule from two different
+  plugins. This was noticed during investigation but not resolved. Do NOT
+  attempt to deduplicate or fix this as part of this task — flag it in your
+  report as a separate, unaddressed finding for a human to look at.
+
+═══════════════════════════════════════════
+VERIFICATION
+═══════════════════════════════════════════
+
+After making this change, report back:
+1. The exact diff.
+2. Confirmation that `pnpm typecheck` passes.
+3. If a test suite covers logDocketingCompletion or workflow.router.ts's
+   docketing flow, run it and report pass/fail.
+4. Confirm directly (re-derive, do not assume from this prompt) what
+   lifecycle_state a document is actually in immediately before
+   logDocketingCompletion runs, by tracing documents.submit and every
+   procedure between it and docketing in the CURRENT repo state at the time
+   you run this task. If you find the state is NOT 'in_workflow' as this
+   prompt assumes, STOP and report the discrepancy rather than proceeding —
+   do not silently adjust the transitionState call's expectations to match
+   what you find.
+````
+
+   

@@ -27,7 +27,7 @@
 import { sql, eq } from 'drizzle-orm';
 import { numbers } from '@batac/database/schema/documents.schema.js';
 import type { Logger } from 'pino';
-import type { DbClient } from './documents.types.js';
+import type { DbClient, DbTransaction } from './documents.types.js';
 import { DocumentsRepository } from './documents.repository.js';
 import type { NumberSeriesRow } from './documents.repository.js';
 
@@ -114,9 +114,10 @@ export class NumberingService {
     seriesKey: string,
     cityId: string,
     actorId: string,
+    trx?: DbTransaction,
   ): Promise<NumberAssignmentResult> {
-    return this.db.transaction(async (trx) => {
-      const repo = new DocumentsRepository(trx);
+    const runInTransaction = async (tx: DbTransaction | DbClient): Promise<NumberAssignmentResult> => {
+      const repo = new DocumentsRepository(tx);
 
       // Guard: no duplicate preliminary number for same document
       const existing = await repo.findCurrentNumber(documentId, 'preliminary');
@@ -133,7 +134,7 @@ export class NumberingService {
       const year = new Date().getFullYear();
 
       // Step 1: call fn_get_next_sequence_value
-      const { sequenceValue, wasCreated } = await this.callSequenceFunction(trx, seriesKey, year);
+      const { sequenceValue, wasCreated } = await this.callSequenceFunction(tx, seriesKey, year);
       if (wasCreated) {
         this.logger.warn(
           { seriesKey, year },
@@ -175,7 +176,15 @@ export class NumberingService {
         sequenceYear: numberRow.sequenceYear,
         assignedAt: numberRow.assignedAt,
       };
-    });
+    };
+
+    if (trx) {
+      return runInTransaction(trx);
+    } else {
+      return this.db.transaction(async (ownTrx) => {
+        return runInTransaction(ownTrx);
+      });
+    }
   }
 
   // -------------------------------------------------------------------------

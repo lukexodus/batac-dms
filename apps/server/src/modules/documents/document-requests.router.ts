@@ -41,9 +41,7 @@ function getRepository(ctx: Context) {
   return ctx.req.server.documentsRepository;
 }
 
-function getEventBus(ctx: Context) {
-  return (ctx.req.server as any).eventBus;
-}
+
 
 function getAuditService(ctx: Context) {
   return (ctx.req.server as any).auditService;
@@ -365,7 +363,7 @@ export function createDocumentRequestsRouter() {
         await repo.updateDocumentMetadata(document.id, mergedMeta);
 
         // Emit audit event
-        const eventBus = getEventBus(ctx);
+        const eventBus = ctx.req.server.eventBus;
         if (eventBus) {
           eventBus.emit('document_request.presiding_officer_approved', {
             eventId: crypto.randomUUID(),
@@ -470,7 +468,7 @@ export function createDocumentRequestsRouter() {
         );
 
         // Emit audit event
-        const eventBus = getEventBus(ctx);
+        const eventBus = ctx.req.server.eventBus;
         if (eventBus) {
           eventBus.emit('document_request.secretary_approved', {
             eventId: crypto.randomUUID(),
@@ -584,7 +582,7 @@ export function createDocumentRequestsRouter() {
         );
 
         // Emit notification signal for requester pickup notification
-        const eventBus = getEventBus(ctx);
+        const eventBus = ctx.req.server.eventBus;
         if (eventBus) {
           const meta = updatedMeta as Record<string, any>;
           eventBus.emit('document_request.released', {

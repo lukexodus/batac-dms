@@ -99,6 +99,22 @@ export async function executeTerminationStep(
         // Transition document state
         // B2 specifies DocumentsPublicAPI has transitionState method
         if (typeof deps.documentsService.transitionState === 'function') {
+          if (finalDocumentStatus === 'archived') {
+            const currentDoc = await deps.documentsService.getDocumentById(instance.documentId);
+            if (currentDoc?.lifecycleState === 'completed') {
+              // Chain-of-custody requirement: a document may only reach
+              // 'archived' via 'released'. See TASK-WF-014 for the decision
+              // record — do not widen VALID_TRANSITIONS or the DB trigger
+              // to skip this hop instead of inserting it here.
+              await deps.documentsService.transitionState(
+                instance.documentId,
+                'released',
+                'SYSTEM',
+                undefined,
+                tx,
+              );
+            }
+          }
           await deps.documentsService.transitionState(
             instance.documentId,
             finalDocumentStatus,

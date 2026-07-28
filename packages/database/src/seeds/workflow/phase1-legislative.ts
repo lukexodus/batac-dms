@@ -392,7 +392,7 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
         is_start: false,
         position: 24,
         legally_mandated: false,
-        config: { outcome_code: 'APPROVED_AND_RELEASED', final_document_status: 'ARCHIVED' },
+        config: { outcome_code: 'APPROVED_AND_RELEASED', final_document_status: 'archived' },
       },
       {
         step_key: 'end_valid_in_part_resolved',
@@ -401,7 +401,7 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
         is_start: false,
         position: 25,
         legally_mandated: false,
-        config: { outcome_code: 'VALID_IN_PART_RESOLVED', final_document_status: 'ARCHIVED' },
+        config: { outcome_code: 'VALID_IN_PART_RESOLVED', final_document_status: 'archived' },
       },
       {
         step_key: 'end_rejected_at_vote',
@@ -410,7 +410,7 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
         is_start: false,
         position: 26,
         legally_mandated: false,
-        config: { outcome_code: 'REJECTED_AT_VOTE', final_document_status: 'CANCELLED' },
+        config: { outcome_code: 'REJECTED_AT_VOTE', final_document_status: 'cancelled' },
       },
       {
         step_key: 'end_vetoed_override_failed',
@@ -419,7 +419,7 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
         is_start: false,
         position: 27,
         legally_mandated: false,
-        config: { outcome_code: 'VETOED_OVERRIDE_FAILED', final_document_status: 'CANCELLED' },
+        config: { outcome_code: 'VETOED_OVERRIDE_FAILED', final_document_status: 'cancelled' },
       },
       {
         step_key: 'end_repassed',

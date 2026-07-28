@@ -16,9 +16,7 @@ function getRepository(ctx: Context) {
   return ctx.req.server.documentsRepository;
 }
 
-function getEventBus(ctx: Context) {
-  return (ctx.req.server as any).eventBus;
-}
+
 
 // ---------------------------------------------------------------------------
 // Output Schemas
@@ -268,7 +266,7 @@ export function createComplaintsRouter() {
           outcomeState: input.outcome,
         });
 
-        const eventBus = getEventBus(ctx);
+        const eventBus = ctx.req.server.eventBus;
         if (eventBus) {
           eventBus.emit('complaint.outcome_set', {
             eventId: crypto.randomUUID(),

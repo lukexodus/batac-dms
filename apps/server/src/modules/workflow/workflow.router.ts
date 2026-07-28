@@ -2058,6 +2058,18 @@ export function createWorkflowRouter() {
             txDeps,
             tx,
           );
+
+          // Docketing is the precondition for Panlalawigan transmission
+          // (see apps/server/src/modules/documents/panlalawigan.router.ts,
+          // initiatePanlalawiganTransmittal's precondition check). Without
+          // this call, that procedure always throws PRECONDITION_FAILED.
+          await deps.documentsService.transitionState(
+            stepContext.instance.documentId,
+            'pending_panlalawigan_review',
+            ctx.auth.userId,
+            'Docketing completed; document transmitted for Panlalawigan review',
+            tx,
+          );
         });
 
         if (ctx.req.server.eventBus) {

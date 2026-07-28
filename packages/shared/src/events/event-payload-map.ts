@@ -235,6 +235,28 @@ export interface EventPayloadMap {
   'delegation.expired': DelegationExpiredEvent;
   'delegation.revoked': DelegationRevokedEvent;
 
+  // ── Complaints / Document Requests modules ─
+  'complaint.outcome_set': {
+    complaintId: string;
+    outcome: string;
+    notifyRespondentVia: string;
+  };
+  'document_request.presiding_officer_approved': {
+    requestId: string;
+    approvedBy: string;
+  };
+  'document_request.secretary_approved': {
+    requestId: string;
+    approvedBy: string;
+  };
+  'document_request.released': {
+    requestId: string;
+    releasedBy: string;
+    notificationChannel: string | null;
+    requesterContact: string | null;
+    requesterEmail: string | null;
+  };
+
   // ── Documents module ───────────────────────────────────────────────────────
   'document.created': DocumentCreatedPayload;
   'document.state_changed': DocumentStateChangedEvent;
