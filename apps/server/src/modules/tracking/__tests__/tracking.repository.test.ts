@@ -108,11 +108,11 @@ describe('TrackingRepository', () => {
 
   describe('getNextTrackingNumber', () => {
     it('returns sequential DTS-{YEAR}-{NNNN} values across repeated calls', async () => {
-      mockDb.execute.mockResolvedValueOnce({ rows: [{ sequence_value: 1, was_created: true }] });
+      mockDb.execute.mockResolvedValueOnce([{ sequence_value: 1, was_created: true }]);
       const first = await repo.getNextTrackingNumber(2026);
       expect(first).toBe('DTS-2026-0001');
 
-      mockDb.execute.mockResolvedValueOnce({ rows: [{ sequence_value: 2, was_created: false }] });
+      mockDb.execute.mockResolvedValueOnce([{ sequence_value: 2, was_created: false }]);
       const second = await repo.getNextTrackingNumber(2026);
       expect(second).toBe('DTS-2026-0002');
     });

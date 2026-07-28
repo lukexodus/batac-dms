@@ -166,7 +166,7 @@ export class TrackingRepository {
     const result = await db.execute<{ sequence_value: number; was_created: boolean }>(
       sql`SELECT * FROM tracking.fn_get_next_tracking_number(${year})`,
     );
-    const { sequence_value, was_created } = (result as any).rows[0];
+    const { sequence_value, was_created } = (result as any)[0];
     if (was_created) {
       // Structured log warning only (not an audit/domain event) -- same pattern
       // as documents.fn_get_next_sequence_value's was_created signal.

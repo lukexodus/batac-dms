@@ -22638,3 +22638,917 @@ If, during this task, you discover:
   payload) at any of the other 21 sites — flag it as a finding, do not
   fix it as part of this task.
 ````
+
+---
+
+# TASK-UI-COMBOBOX-001: Reusable searchable-picker component + swap 4 raw-UUID
+inputs to use it
+
+````
+# TASK-UI-COMBOBOX-001: Reusable searchable-picker component + swap 4 raw-UUID
+inputs to use it
+
+## Context
+
+Multiple frontend forms currently require the user to manually type a raw
+UUID into a plain text `<Input>` — for a document, or for an employee —
+instead of picking from a searchable dropdown. Four confirmed instances
+exist (list below, exact). This task builds one reusable generic combobox
+primitive, plus two thin domain-specific components on top of it, then
+swaps all four confirmed instances to use them.
+
+This is a Tier 1/2 + Tier 3 `packages/ui` task, per this project's routing
+convention. It also touches two `apps/web` pages that consume the new
+components.
+
+## Part 1 — Generic Combobox primitive (Tier 1/2, `packages/ui`)
+
+### File: `packages/ui/src/components/ui/combobox.tsx` (new file)
+
+Build using the EXISTING `Command`/`CommandInput`/`CommandList`/
+`CommandEmpty`/`CommandGroup`/`CommandItem` components already exported
+from `packages/ui/src/components/ui/command.tsx` (do not reimplement
+command/filter logic — compose on top of what's there), combined with the
+existing `Popover`/`PopoverTrigger`/`PopoverContent` from
+`packages/ui/src/components/ui/popover.tsx`, and the existing `Button` from
+`packages/ui/src/components/ui/button.tsx` as the trigger element.
+
+Required props (generic over an item type `T`):
+
+```typescript
+interface ComboboxProps<T> {
+  value: string | null;              // currently selected item's id, or null
+  onChange: (value: string | null) => void;
+  items: T[];                        // current page of loaded items
+  getItemId: (item: T) => string;
+  getItemLabel: (item: T) => string;  // primary display text
+  getItemSublabel?: (item: T) => string | undefined; // optional secondary line
+  onSearchChange: (query: string) => void; // debounce internally, ~300ms
+  isLoading?: boolean;
+  placeholder?: string;               // trigger button placeholder text
+  searchPlaceholder?: string;         // CommandInput placeholder text
+  emptyText?: string;                 // shown in CommandEmpty
+  disabled?: boolean;
+}
+```
+
+This component does NOT call any tRPC procedure itself and does NOT know
+about documents or employees — it is purely presentational/generic, driven
+entirely by props. The debounce on `onSearchChange` lives inside this
+component (so callers don't each reimplement debouncing), but the actual
+data-fetching that responds to `onSearchChange` happens in the caller.
+
+Export it from `packages/ui/src/index.ts` under the "Tier 1 Components"
+section (alongside the other `components/ui` exports), as:
+`export * from './components/ui/combobox';`
+
+## Part 2 — Domain-specific pickers (Tier 3, `packages/ui`)
+
+### File: `packages/ui/src/components/domain/DocumentPicker.tsx` (new file)
+
+Wraps `Combobox` for picking a document. Calls
+`trpc.documents.list.useQuery` — NOT `documents.search` (search requires
+`queryText.min(1)`, which breaks the "browse before typing" case this
+picker needs to support; `list` has no such minimum and supports
+`lifecycleState` filtering, which is the correct fit here).
+
+Exact query shape:
+
+```typescript
+trpc.documents.list.useQuery({
+  lifecycleState: 'submitted',
+  limit: 25,
+  // no queryText field exists on this procedure -- list does not support
+  // free-text search server-side. If the person needs to narrow beyond
+  // the 25 most recent submitted documents, that is a known limitation of
+  // this first pass -- do not attempt to add server-side text search to
+  // documents.list as part of this task; that is out of scope (see Scope
+  // section below).
+})
+```
+
+The `lifecycleState: 'submitted'` filter value is deliberate, not a
+placeholder — it is the exact string from `LifecycleStateSchema`
+(`packages/shared/src/schemas/documents.ts` line 39). Do not substitute a
+different lifecycle state or make it configurable via a prop unless a
+specific call site in Part 3 below explicitly asks for a different one (none
+do, in this task).
+
+Output item shape from `documents.list` (confirmed exact field names, from
+`DocumentSummarySchema`, `packages/shared/src/schemas/documents.ts` lines
+185-195): `{ id, title, documentTypeCode, lifecycleState,
+preliminaryNumber, finalNumber, qrTrackingNumber, createdAt, updatedAt }`.
+
+Props for `DocumentPicker`:
+```typescript
+interface DocumentPickerProps {
+  value: string | null;   // selected document id
+  onChange: (documentId: string | null) => void;
+  disabled?: boolean;
+}
+```
+
+Map fields into `Combobox` as:
+- `getItemId`: `(item) => item.id`
+- `getItemLabel`: `(item) => item.title`
+- `getItemSublabel`: `(item) => item.preliminaryNumber ?? item.finalNumber ?? undefined`
+
+Since `documents.list` has no server-side text query param, wire
+`onSearchChange` to filter the already-loaded 25 items client-side by
+substring match on `title` (case-insensitive) rather than triggering a new
+network request per keystroke — this is a deliberate, stated limitation of
+this first pass (see Part 1 note above), not an oversight.
+
+### File: `packages/ui/src/components/domain/EmployeePicker.tsx` (new file)
+
+Wraps `Combobox` for picking an employee/councilor. Calls
+`trpc.organization.listEmployees.useQuery`.
+
+Exact query shape:
+```typescript
+trpc.organization.listEmployees.useQuery({
+  search: debouncedSearchQuery,  // '' is valid and returns unfiltered results
+  limit: 25,
+})
+```
+
+Confirmed input schema (`apps/server/src/modules/organization/
+organization.schemas.ts` lines 139-144): `search` is
+`z.string().optional()` — no minimum length — so an empty string, unlike
+`documents.search`'s `queryText`, is a valid "browse all" call. Unlike
+`DocumentPicker` above, THIS picker's `onSearchChange` should be wired to
+actually trigger a new server query (via `search` param) on each debounced
+change, not filter client-side — because the backend already supports
+server-side search for this endpoint (confirmed via `ilike` on
+`firstName`/`lastName`, `organization.service.ts` lines 406-411).
+
+Confirmed exact output item field names (`organization.service.ts` lines
+382-390): `employeeId`, `userId`, `firstName`, `lastName`, `positionId`,
+`positionTitle`, `officeId`.
+
+Props for `EmployeePicker`:
+```typescript
+interface EmployeePickerProps {
+  value: string | null;   // selected employeeId
+  onChange: (employeeId: string | null) => void;
+  disabled?: boolean;
+}
+```
+
+Map fields into `Combobox` as:
+- `getItemId`: `(item) => item.employeeId`
+- `getItemLabel`: `(item) => \`${item.firstName} ${item.lastName}\``
+- `getItemSublabel`: `(item) => item.positionTitle ?? undefined`
+
+Export both from `packages/ui/src/index.ts`, in the "Tier 3 Domain
+Components" section, as:
+````
+
+---
+
+# TASK-WF-ENG-001 — Standalone Prompt for Local Agent
+
+## Objective
+
+Convert all 7 `createWorkflowEvent(...)` payload object literals in `apps/server/src/modules/workflow/engine/admin-operations.ts` from their current snake_case field names to camelCase, matching the convention already used by the rest of the application's `EventBus`/`EventPayloadMap` system (e.g. `workflow.router.ts`'s `eventBus.emit(...)` calls, and `certified-urgent-bypass.handler.ts`'s `createWorkflowEvent` calls, which already use camelCase).
+
+This is a **field-renaming task only**. Do not add fields that aren't already present in a payload, do not remove fields, do not change any event's `eventType` string, do not change any function's runtime logic, control flow, or transaction structure.
+
+## Background (for context only — not instructions)
+
+`createWorkflowEvent` writes directly to the `workflow_events` database table via a raw Drizzle insert (`InferInsertModel<typeof workflowEvents>`). Its `payload` field is untyped against `EventPayloadMap` — nothing enforces a casing convention on it at compile time. As a result, this file's 7 payloads drifted to snake_case while the rest of the codebase's event payloads (both `EventBus.emit` calls and other `createWorkflowEvent` calls, such as the one in `certified-urgent-bypass.handler.ts` for the same `workflow.step.bypassed` event type) use camelCase. This task brings this file in line with that convention.
+
+## File to edit
+
+`apps/server/src/modules/workflow/engine/admin-operations.ts` (474 lines)
+
+## IN SCOPE — exactly these 7 call sites, by current line number
+
+```json
+{
+  "in_scope_call_sites": [
+    {
+      "function": "cancelInstance",
+      "createWorkflowEvent_line": 55,
+      "eventType": "workflow.instance.cancelled"
+    },
+    {
+      "function": "bypassStep",
+      "createWorkflowEvent_line": 111,
+      "eventType": "workflow.step.bypassed"
+    },
+    {
+      "function": "migrateInstance",
+      "createWorkflowEvent_line": 234,
+      "eventType": "workflow.instance.migration.started",
+      "note": "payload is a separately-declared variable, startedEventPayload, defined at line 226 — rename fields on that variable's declaration, not inline at the call site"
+    },
+    {
+      "function": "migrateInstance",
+      "createWorkflowEvent_line": 262,
+      "eventType": "workflow.instance.migration.completed"
+    },
+    {
+      "function": "migrateInstance",
+      "createWorkflowEvent_line": 294,
+      "eventType": "workflow.instance.stuck",
+      "note": "this is the first of two workflow.instance.stuck sites in this file — this one is inside migrateInstance"
+    },
+    {
+      "function": "reverseMigration",
+      "createWorkflowEvent_line": 426,
+      "eventType": "workflow.instance.migration.reversed"
+    },
+    {
+      "function": "reverseMigration",
+      "createWorkflowEvent_line": 458,
+      "eventType": "workflow.instance.stuck",
+      "note": "this is the second of two workflow.instance.stuck sites in this file — this one is inside reverseMigration"
+    }
+  ],
+  "count": 7
+}
+```
+
+**This JSON block is authoritative for which 7 call sites are in scope** — if line numbers have shifted slightly due to unrelated formatting since this prompt was written, use the `function` + `eventType` + surrounding code shown in the exact old/new pairs below to locate the correct site; do not guess at a different site based on line number alone if it's drifted.
+
+## OUT OF SCOPE — do not touch
+
+```json
+{
+  "out_of_scope": [
+    {
+      "item": "Adding a `comment` field to the workflow.step.bypassed payload at line 111",
+      "reason": "certified-urgent-bypass.handler.ts's sibling payload for the same event includes `comment: string`, and bypassStep's own function signature (line 76) receives a comment parameter that is currently unused in this payload. Making this payload fully match its sibling would require adding this new field — that is a content change, not a casing change, and is explicitly out of scope for this task. Do not add it. If you believe it should be added, do not do so silently — this is being tracked as a separate, explicitly flagged item."
+    },
+    {
+      "item": "Any file other than admin-operations.ts, except the exact test files and exact lines listed in the 'Required test updates' section below",
+      "reason": "This is a rename-only task scoped to one producer file plus the test assertions that would otherwise break because of that rename. No other file should change."
+    },
+    {
+      "item": "The eventType string values themselves (e.g. 'workflow.instance.cancelled')",
+      "reason": "Only the payload object's field names change. Event type identifiers are unrelated to this task."
+    },
+    {
+      "item": "Any function's transaction boundaries, control flow, error handling, or the getWorkflowEventById `as any` cast fallback at line 329",
+      "reason": "This is a payload field-renaming task only. Do not refactor anything else you notice while in this file, even if it looks related."
+    },
+    {
+      "item": "workflow.repository.test.ts",
+      "reason": "This file's migrateInstanceVersion tests exercise a different method (WorkflowRepository.migrateInstanceVersion) and do not assert on any of the 7 payloads being changed. Confirmed via direct read — do not touch this file."
+    }
+  ]
+}
+```
+
+## Exact old/new field-name pairs, per call site
+
+**This section is authoritative — the literal strings below are the actual current code, copied verbatim. If the real file at the given line differs from what's shown here (e.g. because of drift since this prompt was written), stop and treat that as a finding to report, not something to reconcile silently — do not apply a rename to code that doesn't match what's shown here.**
+
+### Site 1 — `cancelInstance`, line 55-68, `workflow.instance.cancelled`
+
+old_str:
+```
+    await deps.workflowRepository.createWorkflowEvent(
+      {
+        instanceId,
+        eventType: 'workflow.instance.cancelled',
+        actorType: 'user',
+        actorId,
+        payload: {
+          instance_id: instanceId,
+          cancelled_by: actorId,
+          cancellation_reason: reason,
+        },
+      },
+      trx,
+    );
+```
+
+new_str:
+```
+    await deps.workflowRepository.createWorkflowEvent(
+      {
+        instanceId,
+        eventType: 'workflow.instance.cancelled',
+        actorType: 'user',
+        actorId,
+        payload: {
+          instanceId: instanceId,
+          cancelledBy: actorId,
+          cancellationReason: reason,
+        },
+      },
+      trx,
+    );
+```
+
+### Site 2 — `bypassStep`, line 111-126, `workflow.step.bypassed`
+
+old_str:
+```
+    await deps.workflowRepository.createWorkflowEvent(
+      {
+        instanceId: instance.id,
+        stepInstanceId,
+        eventType: 'workflow.step.bypassed',
+        actorType: 'user',
+        actorId,
+        payload: {
+          instance_id: instance.id,
+          step_instance_id: stepInstanceId,
+          bypass_reason: bypassReason,
+          bypassed_by: actorId,
+        },
+      },
+      trx,
+    );
+```
+
+new_str:
+```
+    await deps.workflowRepository.createWorkflowEvent(
+      {
+        instanceId: instance.id,
+        stepInstanceId,
+        eventType: 'workflow.step.bypassed',
+        actorType: 'user',
+        actorId,
+        payload: {
+          instanceId: instance.id,
+          stepInstanceId: stepInstanceId,
+          bypassReason: bypassReason,
+          bypassedBy: actorId,
+        },
+      },
+      trx,
+    );
+```
+
+### Site 3 — `migrateInstance`, `startedEventPayload` variable declaration, line 226-233, feeding into the `createWorkflowEvent` call at line 234-243 for `workflow.instance.migration.started`
+
+old_str:
+```
+    // Emit migration.started
+    const startedEventPayload = {
+      instance_id: instanceId,
+      from_version_id: instance.definitionVersionId,
+      to_version_id: targetVersionId,
+      actor_id: actorId,
+      reason,
+      step_mapping: stepMapping,
+    };
+```
+
+new_str:
+```
+    // Emit migration.started
+    const startedEventPayload = {
+      instanceId: instanceId,
+      fromVersionId: instance.definitionVersionId,
+      toVersionId: targetVersionId,
+      actorId: actorId,
+      reason,
+      stepMapping: stepMapping,
+    };
+```
+
+Note: `reason` is unchanged — it was already a valid single-word field name with no casing to normalize (it's shorthand for `reason: reason`, a property shorthand). Leave it exactly as-is.
+
+### Site 4 — `migrateInstance`, line 262-275, `workflow.instance.migration.completed`
+
+old_str:
+```
+    const completedEvent = await deps.workflowRepository.createWorkflowEvent(
+      {
+        instanceId,
+        eventType: 'workflow.instance.migration.completed',
+        actorType: 'system',
+        actorId: null,
+        payload: {
+          instance_id: instanceId,
+          from_version_id: instance.definitionVersionId,
+          to_version_id: targetVersionId,
+        },
+      },
+      trx,
+    );
+```
+
+new_str:
+```
+    const completedEvent = await deps.workflowRepository.createWorkflowEvent(
+      {
+        instanceId,
+        eventType: 'workflow.instance.migration.completed',
+        actorType: 'system',
+        actorId: null,
+        payload: {
+          instanceId: instanceId,
+          fromVersionId: instance.definitionVersionId,
+          toVersionId: targetVersionId,
+        },
+      },
+      trx,
+    );
+```
+
+**⚠ Mandatory linked change — see "Required non-test source change" below.** This payload's `from_version_id` field is read back elsewhere in this same file (in `reverseMigration`) as `(originalEvent.payload as any).from_version_id`. Renaming it here without also updating that read site will not cause a compile error (the read is behind an `as any` cast) but will break at runtime the next time a real migration is reversed, because the field will no longer exist under the old name in newly-written rows. This is addressed explicitly below — do not skip it.
+
+### Site 5 — `migrateInstance`, line 294-306, `workflow.instance.stuck` (first of two in this file)
+
+old_str:
+```
+      await deps.workflowRepository.createWorkflowEvent(
+        {
+          instanceId,
+          eventType: 'workflow.instance.stuck',
+          actorType: 'system',
+          actorId: null,
+          payload: {
+            instance_id: instanceId,
+            reason: 'Migration resulted in stale transition references (invariant #12 violation).',
+          },
+        },
+        trx,
+      );
+```
+
+new_str:
+```
+      await deps.workflowRepository.createWorkflowEvent(
+        {
+          instanceId,
+          eventType: 'workflow.instance.stuck',
+          actorType: 'system',
+          actorId: null,
+          payload: {
+            instanceId: instanceId,
+            reason: 'Migration resulted in stale transition references (invariant #12 violation).',
+          },
+        },
+        trx,
+      );
+```
+
+Note: `reason` here is a string literal value, not a variable reference — it has no casing to normalize either way. Only `instance_id` → `instanceId` changes.
+
+### Site 6 — `reverseMigration`, line 426-440, `workflow.instance.migration.reversed`
+
+old_str:
+```
+    await deps.workflowRepository.createWorkflowEvent(
+      {
+        instanceId,
+        eventType: 'workflow.instance.migration.reversed',
+        actorType: 'user',
+        actorId,
+        payload: {
+          instance_id: instanceId,
+          actor_id: actorId,
+          reversal_reason: reversalReason,
+          original_migration_event_id: originalMigrationEventId,
+        },
+      },
+      trx,
+    );
+```
+
+new_str:
+```
+    await deps.workflowRepository.createWorkflowEvent(
+      {
+        instanceId,
+        eventType: 'workflow.instance.migration.reversed',
+        actorType: 'user',
+        actorId,
+        payload: {
+          instanceId: instanceId,
+          actorId: actorId,
+          reversalReason: reversalReason,
+          originalMigrationEventId: originalMigrationEventId,
+        },
+      },
+      trx,
+    );
+```
+
+**⚠ Mandatory linked change — see "Required EventPayloadMap change" below.** This event's `EventPayloadMap` type in `packages/shared/src/events/event-payload-map.ts` currently declares this payload in snake_case (`instance_id`, `actor_id`, `reversal_reason`, `original_migration_event_id`), grounded specifically against this exact call site as it existed before this task. Renaming this producer to camelCase makes that type stale. This is addressed explicitly below — do not skip it.
+
+### Site 7 — `reverseMigration`, line 458-471, `workflow.instance.stuck` (second of two in this file)
+
+old_str:
+```
+      await deps.workflowRepository.createWorkflowEvent(
+        {
+          instanceId,
+          eventType: 'workflow.instance.stuck',
+          actorType: 'system',
+          actorId: null,
+          payload: {
+            instance_id: instanceId,
+            reason:
+              'Migration reversal resulted in stale transition references (invariant #12 violation).',
+          },
+        },
+        trx,
+      );
+```
+
+new_str:
+```
+      await deps.workflowRepository.createWorkflowEvent(
+        {
+          instanceId,
+          eventType: 'workflow.instance.stuck',
+          actorType: 'system',
+          actorId: null,
+          payload: {
+            instanceId: instanceId,
+            reason:
+              'Migration reversal resulted in stale transition references (invariant #12 violation).',
+          },
+        },
+        trx,
+      );
+```
+
+## Required non-test source change — `reverseMigration`'s read of the original migration payload
+
+At line 349 of the same file (`apps/server/src/modules/workflow/engine/admin-operations.ts`), inside `reverseMigration`, there is a read of the raw payload written by Site 4 above (`workflow.instance.migration.completed`):
+
+old_str:
+```
+    const targetVersionId = (originalEvent.payload as any).from_version_id;
+```
+
+new_str:
+```
+    const targetVersionId = (originalEvent.payload as any).fromVersionId;
+```
+
+This must change in the same commit as Site 4's rename, or `reverseMigration` will silently receive `undefined` for `targetVersionId` on any migration completed after this change ships, since the field it reads will no longer exist under the old name.
+
+## Required `EventPayloadMap` change — `workflow.instance.migration.reversed`
+
+File: `packages/shared/src/events/event-payload-map.ts`
+
+This type was typed by a prior task (TASK-EVT-TYPE-001) directly against Site 6's payload as it existed before this rename. It must be updated in the same commit as Site 6, or the type will no longer match its own producer.
+
+old_str:
+```
+  'workflow.instance.migration.reversed': {
+    instance_id: string;
+    actor_id: string;
+    reversal_reason: string;
+    original_migration_event_id: string;
+  };
+```
+
+new_str:
+```
+  'workflow.instance.migration.reversed': {
+    instanceId: string;
+    actorId: string;
+    reversalReason: string;
+    originalMigrationEventId: string;
+  };
+```
+
+**Do not touch any other entry in this file.** In particular, do not add or modify the "bypass-caveat" comment block that sits above the `workflow.multi_referral.*` entries in this same file, even though this entry has the same "producer bypasses `EventBus`" property — a decision on whether to add an equivalent comment to this specific entry is a separate, not-yet-made call and is out of scope here. If you want to flag that a caveat comment is missing here, note it as a finding in your report; do not add it yourself.
+
+## Required test updates
+
+Four test files contain assertions against these payloads' old snake_case field names. All four must be updated in the same commit, or they will fail (three of them assert on the literal old field names inside `expect.objectContaining` or an exact object literal, meaning the assertion will simply not match the new camelCase payload and the test will fail with a legitimate, expected mismatch — this is not a flaky test, it is testing the exact thing this task changes).
+
+### `apps/server/src/modules/workflow/engine/admin-operations.test.ts`
+
+**Change 1 — line 98-102 (cancel, exact object literal, not `objectContaining`):**
+
+old_str:
+```
+          payload: {
+            instance_id: 'inst-1',
+            cancelled_by: 'admin-1',
+            cancellation_reason: 'Testing cancel',
+          },
+```
+
+new_str:
+```
+          payload: {
+            instanceId: 'inst-1',
+            cancelledBy: 'admin-1',
+            cancellationReason: 'Testing cancel',
+          },
+```
+
+**Change 2 — line 169-172 (bypass, inside `expect.objectContaining`):**
+
+old_str:
+```
+          payload: expect.objectContaining({
+            bypassed_by: 'admin-1',
+            bypass_reason: 'ADMIN_OVERRIDE',
+          }),
+```
+
+new_str:
+```
+          payload: expect.objectContaining({
+            bypassedBy: 'admin-1',
+            bypassReason: 'ADMIN_OVERRIDE',
+          }),
+```
+
+**Change 3 — line 344 (migration.started, inside `expect.objectContaining`):**
+
+old_str:
+```
+          payload: expect.objectContaining({ from_version_id: 'v1', to_version_id: 'target-v2' }),
+```
+
+new_str:
+```
+          payload: expect.objectContaining({ fromVersionId: 'v1', toVersionId: 'target-v2' }),
+```
+
+**Change 4 — line 417 (mocked raw DB row read back by `reverseMigration`, VER-11 test):**
+
+old_str:
+```
+                createdAt: new Date(Date.now() - 1000), // very recently
+                payload: { from_version_id: 'v1' },
+```
+
+new_str:
+```
+                createdAt: new Date(Date.now() - 1000), // very recently
+                payload: { fromVersionId: 'v1' },
+```
+
+**Change 5 — line 476 (mocked raw DB row read back by `reverseMigration`, VER-12 test):**
+
+old_str:
+```
+                createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48h ago
+                payload: { from_version_id: 'v1' },
+```
+
+new_str:
+```
+                createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48h ago
+                payload: { fromVersionId: 'v1' },
+```
+
+**Changes 4 and 5 are required, not optional, even though they are test-mock data rather than a real payload assertion.** They exist because `reverseMigration` reads `(originalEvent.payload as any).from_version_id` at line 349 — and this prompt's "Required non-test source change" section above changes that read to `.fromVersionId`. If these two mocks are not updated, `targetVersionId` inside the test will become `undefined`, and both tests will fail for a reason unrelated to what they're meant to verify (they'd start failing on the `migrateInstanceVersion` call with `undefined` as the version ID, not because of anything about the rename itself — an confusing, misleading failure mode if not updated in the same pass).
+
+### `apps/server/src/modules/workflow/__tests__/admin-operations-migrate.test.ts`
+
+**Change 1 — line 300 (mocked raw DB row, VER-11):**
+
+old_str:
+```
+                createdAt: new Date(Date.now() - 1000), // very recent
+                payload: { from_version_id: 'v1' },
+```
+
+new_str:
+```
+                createdAt: new Date(Date.now() - 1000), // very recent
+                payload: { fromVersionId: 'v1' },
+```
+
+**Change 2 — line 356 (mocked raw DB row, VER-12):**
+
+old_str:
+```
+                createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48h ago
+                payload: { from_version_id: 'v1' },
+```
+
+new_str:
+```
+                createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48h ago
+                payload: { fromVersionId: 'v1' },
+```
+
+This file is a separate, near-duplicate test file from `admin-operations.test.ts` (same test names, VER-11/VER-12, same mock structure) — it is not imported by the other file and must be edited independently. Same rationale as Changes 4/5 above: required because of the `reverseMigration` source-code read-site change, not optional.
+
+### `apps/server/src/modules/workflow/__tests__/admin-operations-bypass.test.ts`
+
+**Change 1 — line 73-76:**
+
+old_str:
+```
+          payload: expect.objectContaining({
+            bypass_reason: 'ADMIN_OVERRIDE',
+            bypassed_by: 'admin-1',
+          }),
+```
+
+new_str:
+```
+          payload: expect.objectContaining({
+            bypassReason: 'ADMIN_OVERRIDE',
+            bypassedBy: 'admin-1',
+          }),
+```
+
+### `apps/server/src/modules/workflow/__tests__/admin-operations-cancel.test.ts`
+
+**Change 1 — line 50-54:**
+
+old_str:
+```
+          payload: expect.objectContaining({
+            instance_id: 'inst-1',
+            cancelled_by: 'admin-1',
+            cancellation_reason: 'Testing cancel',
+          }),
+```
+
+new_str:
+```
+          payload: expect.objectContaining({
+            instanceId: 'inst-1',
+            cancelledBy: 'admin-1',
+            cancellationReason: 'Testing cancel',
+          }),
+```
+
+## What NOT to do
+
+- Do not touch `apps/server/src/modules/workflow/__tests__/invariants.test.ts` — it references these functions but was confirmed (direct read) to contain no payload field-name assertions relevant to this change.
+- Do not touch `apps/server/src/modules/workflow/workflow.repository.test.ts` — confirmed unrelated (tests a different method, `WorkflowRepository.migrateInstanceVersion`, not any of these 7 payloads).
+- Do not touch `certified-urgent-bypass.handler.ts` — its `workflow.step.bypassed` payload is already camelCase and already matches the `EventPayloadMap` type; it is not part of this task's scope.
+- Do not add the `comment` field to Site 2's payload (see OUT OF SCOPE above).
+- Do not touch any `.bak` file.
+- Do not modify Table of Contents line numbers in any `.md` file (not applicable to this task's files, but stated for completeness per project convention).
+- Do not rename `reason` to anything else anywhere in this file — it was already a valid property-shorthand or literal-value field with nothing to normalize.
+
+## Verification steps
+
+```bash
+pnpm --filter @batac/shared typecheck
+pnpm --filter server typecheck
+```
+Both must pass with exit 0. The `EventPayloadMap` change should make Site 6's producer and its type agree again — if typecheck fails on this file after making both changes, the mismatch is a real finding to report, not something to paper over by further guessing at field names.
+
+```bash
+pnpm --filter server test -- admin-operations
+```
+Run the workflow module's admin-operations-related tests specifically. All tests in `admin-operations.test.ts`, `admin-operations-migrate.test.ts`, `admin-operations-bypass.test.ts`, and `admin-operations-cancel.test.ts` must pass. Do not treat any new failure in these four files as pre-existing or unrelated — if a test in one of these four files fails after this change, it is this task's responsibility, since these are exactly the four files this task edits.
+
+```bash
+grep -rn "instance_id\|cancelled_by\|cancellation_reason\|step_instance_id\|bypass_reason\|bypassed_by\|from_version_id\|to_version_id\|actor_id\|step_mapping\|reversal_reason\|original_migration_event_id" apps/server/src/modules/workflow/engine/admin-operations.ts
+```
+This should return **zero matches** after the change (all 7 sites converted). If it returns any match, either a site was missed or a match is a false positive (e.g., a comment mentioning the old name, or an unrelated variable) — inspect each match individually and report which case it is; do not assume either way.
+
+```bash
+grep -n "from_version_id" apps/server/src/modules/workflow/engine/admin-operations.ts apps/server/src/modules/workflow/engine/admin-operations.test.ts apps/server/src/modules/workflow/__tests__/admin-operations-migrate.test.ts
+```
+This should return **zero matches** across all three files (source's read-site rename plus both test files' mock updates).
+
+## Report back
+
+In your report, include:
+1. Confirmation both typecheck commands passed with exit 0.
+2. Confirmation the four targeted test files pass, with pass/fail counts.
+3. Whether the final grep commands returned zero matches as expected, or flag any unexpected match individually.
+4. Explicit confirmation that Site 2 (`bypassStep`) was **not** given a `comment` field, since this is a specific, named thing this prompt asked you not to do.
+5. Explicit confirmation that the `workflow.instance.migration.reversed` `EventPayloadMap` entry received **only** the field-name changes specified above, and no caveat comment was added.
+
+---
+
+# Standalone Prompt: TASK-DOCS-021 — Fix Drizzle result-extraction mismatch in tracking-number generation
+
+## Context
+
+`TrackingRepository.getNextTrackingNumber` in `apps/server/src/modules/tracking/tracking.repository.ts` calls a raw SQL function via Drizzle's `db.execute()` and extracts its result using a `.rows[0]` accessor. This project's Drizzle instance is configured with the `postgres-js` adapter (confirmed at `apps/server/src/db.ts:11`, `import { drizzle } from 'drizzle-orm/postgres-js';`), whose `db.execute()` returns query results as a direct array, not as an object with a `.rows` property (that wrapped shape is specific to the `node-postgres`/`pg`-driver adapter, which this project does not use). Because of this mismatch, the `.rows` access resolves to `undefined`, and `.rows[0]` throws a `TypeError` at runtime — every single time this function is called, unconditionally.
+
+This function is called from `QrCodeService.generateAndStore` (`apps/server/src/modules/tracking/tracking.qr-service.ts`), which is itself called from `TrackingEventConsumer.handleDocumentCreated` (`apps/server/src/modules/tracking/tracking.event-consumer.ts:35`) in response to every `document.created` event. Because the error is thrown before any QR code or tracking record write occurs, and is then caught by a `.catch()` block in `apps/server/src/modules/tracking/tracking.plugin.ts:120-126` that only logs it, this has silently prevented QR code and tracking record generation for every document in the system since this code was introduced — confirmed via a prior live-database check showing `tracking.qr_codes`, `tracking.tracking_records`, and `tracking.routing_entries` all globally empty (0 rows across every document).
+
+## Exact change required
+
+**File:** `apps/server/src/modules/tracking/tracking.repository.ts`
+
+**Function:** `getNextTrackingNumber`, currently at line 165 (re-verify the current line number before editing — line numbers in this file may have shifted since this prompt was written; locate the function by name, not by line number alone).
+
+old_str:
+```typescript
+    const { sequence_value, was_created } = (result as any).rows[0];
+```
+
+new_str:
+```typescript
+    const { sequence_value, was_created } = (result as any)[0];
+```
+
+This is the only line to change in this function. Do not modify the `sql` query itself (line 166-168, the `sql` template literal calling `tracking.fn_get_next_tracking_number`), the `was_created` logging branch that follows (lines 170-174), the `padded` construction (line 175), or the return statement (line 176).
+
+## Scope boundaries
+
+**IN SCOPE:** `apps/server/src/modules/tracking/tracking.repository.ts` — the single line identified above, inside `getNextTrackingNumber` only.
+
+**OUT OF SCOPE (do not touch even if related):**
+- Every other method in `tracking.repository.ts` that already uses correct array-style result extraction (e.g. `findQrCodeByTrackingId`, `findQrCodeByDocumentId`, `findTrackingRecordRowByDocumentId` — these already use `result[0]` directly, with no `.rows` accessor, and are already correct; do not alter them).
+- `apps/server/src/modules/tracking/tracking.qr-service.ts` — no changes needed here; `generateAndStore` calls `getNextTrackingNumber` correctly and will work once the extraction bug is fixed.
+- `apps/server/src/modules/tracking/tracking.event-consumer.ts` — no changes needed.
+- `apps/server/src/modules/tracking/tracking.plugin.ts` — no changes needed. Its `.catch()`-and-log behavior around the event handler is a separate, reasonable design choice (async event handlers not rolling back the triggering transaction) and is not part of this bug or this fix.
+- Any other file in the codebase using `db.execute()` with a `.rows` accessor. **If you find other instances of this same `.rows[0]` (or `.rows` in general) pattern elsewhere in the codebase while doing this work, do not fix them as part of this task.** Report them as a finding instead (file path, line number, the surrounding code) so a human can decide whether to scope a follow-up task — this task is limited to the one confirmed call site above. Do not expand scope based on "the same bug is probably elsewhere" reasoning; that determination and any resulting fix belongs to a separate, explicitly-scoped task.
+- The database schema, the `tracking.fn_get_next_tracking_number` SQL function itself (`packages/database/migrations/0005_tracking_create_tracking_schema.sql`), or any other migration file. The function is correct as written; only the TypeScript-side result extraction is wrong.
+- MinIO/S3 configuration, credentials, or bucket setup. A prior verification task confirmed these are already working correctly and are unrelated to this bug.
+
+## Verification steps (perform after making the change)
+
+1. Run the existing test suite for this module: `apps/server/src/modules/tracking/__tests__/tracking.repository.test.ts`. If this test file has a test for `getNextTrackingNumber` that mocks `db.execute()`'s return shape, check whether that mock currently mimics the old (incorrect) `.rows`-wrapped shape — if so, the mock itself needs updating to return a plain array, or the test will pass against a mock that doesn't match how `postgres-js` actually behaves, defeating the point of the test. Report what you find here explicitly; do not silently leave a mismatched mock in place, and do not change test expectations beyond what's needed to make the mock's shape accurate.
+2. Confirm the project typechecks/builds cleanly for `apps/server` after the change.
+3. **[Recommended, not required if infeasible in your environment]** If you're able to trigger a real `document.created` event through the application's normal flow (e.g. creating and submitting a test document through the actual API/UI, not by hand-constructing calls to internal repository or service classes), do so once and confirm a `tracking.qr_codes` row and a `tracking.tracking_records` row are created for that document, with no thrown error. Use a document created through this normal path — do not query, modify, or delete any pre-existing document data as part of this verification, and do not directly instantiate or call internal module classes (`TrackingRepository`, `QrCodeService`, `TrackingEventConsumer`) with hand-constructed payloads to simulate this — that approach was used in a prior task and is explicitly not what's wanted here, since it bypasses the actual code path this fix needs to be proven against and risks unintended side effects on live sequence/counter state.
+
+## Definition of done
+
+- The single line identified above is changed exactly as specified.
+- No other line in `tracking.repository.ts`, or any other file, is modified.
+- Any other `.rows`-pattern instances found elsewhere are reported as a finding, not fixed.
+- Typecheck/build passes for `apps/server`.
+- The existing test file for this repository is checked for a shape-mismatched mock, per verification step 1, and either confirmed accurate or corrected to match.
+
+---
+
+# Standalone Prompt: TASK-WF-022 — Verify and, if needed, correct live role-assignment data for `intake_logging`
+
+## Context
+
+The `intake_logging` step, defined in the SP Resolution, SP Ordinance, and Appropriation Ordinance workflow definitions, is currently failing to assign any user when a workflow instance reaches it — every observed `step_instances` row for this step has `assigned_to: []` (an empty JSONB array), which causes any user attempting to complete the step to be rejected with the error `"You are not assigned to this step."` (thrown by `apps/server/src/modules/workflow/workflow.policy.ts`, in `canCompleteActionStep`, at its `complete_action_not_assigned` gate).
+
+The step's `config.assignee` value is set via a `ROLE` constant defined in `packages/database/src/seeds/workflow/phase1-legislative.ts`, lines 15-22:
+
+```typescript
+const ROLE = {
+  // [Corrected — Category 1] 'secretariat_staff' is not a system role code;
+  // Part 3.3 of the consolidated reference names one SP Secretary at the
+  // head of this office. Affects 6 usage sites: intake_logging,
+  // amendments_logging, transmittal_letter_to_mayor, docketing,
+  // panlalawigan_transmission_logging, portal_publication.
+  SECRETARIAT_STAFF: 'role:sp_secretary',
+  SP_SECRETARY: 'role:sp_secretary',
+  ...
+```
+
+This constant, as it currently exists in the seed **source file**, already maps `SECRETARIAT_STAFF` to `'role:sp_secretary'` — the role code `sp_secretary` genuinely exists (seeded in `apps/server/src/database/seeds/iam.seed.ts`) and is the role the relevant test account (`secretary.lagura`) actually holds (seeded in `apps/server/src/database/seeds/demo-credentials.seed.ts`, `roleCode: 'sp_secretary'`). The resolution chain that consumes this value (`apps/server/src/modules/workflow/engine/step-resolution.ts` → `apps/server/src/modules/workflow/engine/assignee-resolution.ts`'s `role:` branch → `apps/server/src/modules/iam/iam.repository.ts`'s `findUsersByRoleCode`) has been confirmed correct by static reading and would resolve this value successfully.
+
+**The open question this task exists to answer:** does the running database's seed data actually reflect this corrected source file, or was the database seeded from an older version of `phase1-legislative.ts` — one that may have used a different, non-existent role code (such as a literal `'role:secretariat_staff'` string) — before this correction was made? If the latter, the fix is operational (re-seed), not a code change, because the source is already correct.
+
+## Part A: Read-only verification (perform this first, in full, before touching Part B)
+
+**Do not modify any source file, seed file, database row, or environment variable during Part A.** This part is strictly read-only.
+
+1. Query the live database directly for the current `config.assignee` value actually stored for the `intake_logging` step, for each of the three workflow definitions (SP Resolution, SP Ordinance, Appropriation Ordinance). This is stored in the `workflow.steps` table (or wherever `config` is persisted per this project's schema — locate the exact table via `packages/database/schema/workflow.schema.ts` if the table name here is imprecise). Report the literal, exact string value found for each of the three definitions — do not paraphrase or assume they're identical to each other without checking each one individually.
+
+2. Compare each literal value found in step 1 against the current seed source's value, `'role:sp_secretary'` (as quoted above from `phase1-legislative.ts` lines 15-22 — re-confirm this is still the current value in source before comparing, in case the source has changed since this prompt was written).
+
+3. State explicitly which of these two cases the evidence supports:
+   - **Case 1 — Match:** the live database's `config.assignee` for `intake_logging` already reads `'role:sp_secretary'` (or an equivalent that would resolve identically) for all three definitions. If this is the case, the seed data is already correct, and the empty `assigned_to: []` arrays must be coming from something else entirely — not a role-code problem. If you find this case, **stop here, do not proceed to Part B**, and instead report: the exact matching values found, and a recommendation that a fresh investigation is needed into a different cause (do not guess at what that cause is; simply flag that the role-code hypothesis is now ruled out).
+   - **Case 2 — Mismatch:** the live database's `config.assignee` for `intake_logging` reads something different from `'role:sp_secretary'` for one or more of the three definitions (for example, but not necessarily, a literal `'role:secretariat_staff'` string, or an `office_role:`-prefixed value). If this is the case, proceed to Part B.
+
+4. Independent of which case applies, also directly query `workflow.step_instances` for the two specific step instances checked in a prior investigation (or, if those specific rows no longer exist or aren't findable, query for any current `intake_logging`-keyed step instances with `status = 'active'`) and report their current literal `assigned_to` value. This confirms whether the empty-array symptom is still reproducing right now, independent of what the definition-level `config.assignee` shows — a definition-level fix does not retroactively update already-created step instances, so this distinction matters for Part B.
+
+Report all of the above literally — the exact queried strings, not a summary of whether they "look right."
+
+## Part B: Conditional operational fix (perform only if Part A found Case 2 above)
+
+If, and only if, Part A confirmed the live database's stored `config.assignee` for `intake_logging` does not match the current corrected source value:
+
+1. Re-run this project's seed process so that the running database's workflow-definition data is regenerated from the current, corrected `phase1-legislative.ts` source. Use whatever this project's standard seed command/script is (check `package.json` scripts or `packages/database/src/seeds/index.ts` for the canonical entry point — do not construct an ad-hoc seeding approach).
+
+2. Do not hand-write, hand-construct, or directly execute SQL to manually patch the mismatched value. The fix is to re-run the actual seed source through its actual seed process, so that whatever the seed script's real behavior is (upsert, drop-and-recreate, version-increment, or otherwise) is exercised faithfully — a manual patch would fix this one symptom without validating that the seed process itself is capable of correctly propagating this source file's other content, which is a stronger and more useful proof.
+
+3. **If re-seeding is destructive to other data you cannot recreate** (for example, if it would delete existing document instances, in-progress workflow state, or other data not related to this specific fix), **stop and report this back rather than proceeding** — this is a design/operational decision about acceptable data loss during a fix, not something to resolve unilaterally. Describe exactly what would be lost and in what way, so a human can decide whether that tradeoff is acceptable or whether a more targeted approach is needed instead.
+
+4. After re-seeding completes without needing to stop per step 3, re-query the same three `config.assignee` values checked in Part A, step 1, and confirm they now match `'role:sp_secretary'` (or the actual current source value, re-confirmed once more at time of this check).
+
+5. Create one new test workflow instance for any of the three document types (through the application's normal flow — do not hand-construct a workflow instance directly via internal service/repository classes) and confirm its `intake_logging` step instance's `assigned_to` array is populated with `secretary.lagura`'s user ID (or, if a different account holds `sp_secretary` by the time you run this, whichever account genuinely holds that role — check `iam` data for the current holder rather than assuming `secretary.lagura` specifically, since role assignments could have changed since this prompt was written).
+
+6. Do not attempt to log in as, complete a step as, or otherwise act on behalf of `secretary.lagura` or any other user account as part of this verification. Confirming the `assigned_to` array's contents via a direct database read is sufficient; actually completing the step as that user is out of scope for this task.
+
+## Explicit scope boundaries (apply to both Part A and Part B)
+
+**IN SCOPE:**
+- Read-only queries against `workflow.steps`, `workflow.step_instances`, and `iam.roles`/`iam.role_assignments` as needed for verification.
+- If Case 2 applies: running this project's standard seed process, and nothing else, to regenerate workflow-definition data from current source.
+
+**OUT OF SCOPE (do not touch even if related):**
+- Any change to `packages/database/src/seeds/workflow/phase1-legislative.ts` or any other seed source file. The source is believed to already be correct; this task verifies and, if needed, propagates it to the database — it does not edit it.
+- Any change to `apps/server/src/modules/workflow/engine/assignee-resolution.ts`, `apps/server/src/modules/workflow/engine/step-resolution.ts`, `apps/server/src/modules/iam/iam.repository.ts`, or `apps/server/src/modules/workflow/workflow.policy.ts`. All four have been confirmed correct by static reading in a prior investigation; none are implicated by this task regardless of what Part A finds.
+- Constructing or executing any manual SQL `UPDATE`/`INSERT` against `workflow.steps` or `workflow.step_instances` to directly patch values by hand, in place of running the real seed process. See Part B, step 2.
+- Directly instantiating or calling internal service/repository classes (e.g. `TrackingRepository`, `QrCodeService`, `TrackingEventConsumer`, or their `workflow`/`iam` module equivalents) with hand-constructed payloads to simulate application behavior, in place of using the application's real entry points (UI or public API). A prior task used this approach and it is explicitly not authorized here — the application's normal flow must be used wherever this prompt calls for creating or completing anything.
+- Anything related to Bug #1 (the tracking-number/QR generation issue) — that is a separate, already-authorized task and is not part of this prompt's scope.
+
+## Definition of done
+
+- Part A's three literal `config.assignee` values (one per workflow definition) are reported exactly as queried, along with an explicit statement of Case 1 or Case 2.
+- Part A's `assigned_to` check for current `intake_logging` step instances is reported exactly as queried.
+- If Case 1: the task stops after Part A, with a clear statement that the role-code hypothesis is ruled out and a fresh cause needs investigation (not guessed at).
+- If Case 2: Part B is completed in full, including the re-seed, the re-verification of all three `config.assignee` values, and the fresh test-instance check — all reported literally, with any destructive-data concern (step 3) surfaced rather than resolved unilaterally.
+- No source file, application module, or seed file is edited under any circumstance in this task.

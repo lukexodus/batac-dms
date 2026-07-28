@@ -4836,3 +4836,63 @@ Dropdown select menus (e.g. `DocumentType` select on `DocumentIntakePage`) and p
 1. Added full shadcn HSL color mappings (`--color-popover: hsl(var(--popover))`, `--color-card: hsl(var(--card))`, `--color-background: hsl(var(--background))`, etc.) to `@theme` in `packages/ui/src/styles/globals.css`.
 2. Added `bg-surface-overlay` (white `#ffffff` per DESIGN.md §3) to `SelectContent`, `PopoverContent`, `TooltipContent`, and `Command` components in `packages/ui/src/components/ui/` to guarantee solid non-transparent background overlays.
 3. Updated `@source` entries in `globals.css` with relative paths covering both `apps/web` and `packages/ui` build contexts.
+
+---
+
+### [LOG-0176] Raw-UUID text inputs used in place of searchable pickers — repo-wide audit needed
+
+- date: 2026-07-28
+- task_id: TASK-UI-COMBOBOX-001
+- status: proposed
+- affects: F4, F5, J6 (frontend page/component conventions — no single doc
+  ID owns "inputs must not require manually-typed UUIDs" as an explicit
+  rule; this is a UX gap surfaced by manual testing, not a spec violation)
+
+**What was found:**
+
+Manual testing (secretary.lagura, SP Resolution intake → Order of Business
+scheduling flow) surfaced that scheduling a document for First Reading
+requires copying a document's UUID from its detail-page URL and pasting it
+into a plain text input, with no dropdown/search alternative. A follow-up
+grep confirmed this is a repeated pattern, not a single instance: at least
+6 raw-UUID-shaped inputs exist across 3 files
+(`apps/web/src/pages/workflow/OrderOfBusinessPage.tsx` — 3 instances, one
+for a document id and two for step-instance ids;
+`apps/web/src/pages/workflow/SessionAttendanceDetailPage.tsx` — 1 instance,
+for an employee id). TASK-UI-COMBOBOX-001 addresses 2 of these 4 confirmed
+sites (the document-id and employee-id ones) by building a reusable
+`Combobox` primitive plus `DocumentPicker`/`EmployeePicker` domain
+components in `packages/ui`.
+
+The other 2 confirmed sites (step-instance-id inputs on
+`OrderOfBusinessPage.tsx`) were deliberately left unfixed in that task —
+no `StepInstancePicker` exists, and building one was out of scope for that
+pass. Additionally, this grep pass was NOT exhaustive: it searched for a
+specific placeholder-text pattern (`"e.g. 123e4567-..."` and similar) and
+for `Label` text containing "ID", across `apps/web/src/pages` only. It did
+not search `apps/web/src/components`, did not search for raw-UUID inputs
+using a different placeholder convention entirely (e.g. no placeholder
+text at all, or a differently-worded one), and did not search for the same
+underlying problem manifesting as a raw `<Select>` populated from a
+hardcoded array instead of fetched entries (a related but distinct symptom
+of the same "backend-schema-first, frontend-UX-later" gap named in the
+originating conversation).
+
+[Speculation]: given the project's own stated history (schema/backend
+built first, frontend UX being completed/refined now, per the task
+description that produced this finding), it is plausible this pattern
+recurs in modules not yet touched by recent frontend work — WF module
+pages beyond the 2 files checked, and potentially IAM, ORG, REC, or TRACK
+module pages, none of which were part of this grep pass.
+
+**What was implemented:** Nothing yet for the un-swapped or unaudited
+sites — this entry exists specifically to record that a full repo-wide
+audit is a known open item, queued as next-task material, not to describe
+a completed fix. A human should confirm whether this is prioritized as
+its own standalone investigation task (recommended: yes, as a dedicated
+"audit only, no fixes in the same pass" task — mixing discovery and
+fixing in one task risks unbounded scope, per how TASK-UI-COMBOBOX-001
+itself was deliberately scoped down from an initial broader ask).
+
+---
+
