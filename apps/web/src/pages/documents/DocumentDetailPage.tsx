@@ -92,7 +92,7 @@ function canAssignPreliminaryNumber(
   lifecycleState: string,
   preliminaryNumber: string | null,
 ): boolean {
-  if (hasRole(identity, 'sp_secretary')) return false;
+  if (!hasRole(identity, 'sp_secretary')) return false;
   return ['submitted', 'in_workflow'].includes(lifecycleState) && !preliminaryNumber;
 }
 
@@ -102,7 +102,7 @@ function canAssignFinalNumber(
   preliminaryNumber: string | null,
   finalNumber: string | null,
 ): boolean {
-  if (hasRole(identity, 'sp_secretary')) return false;
+  if (!hasRole(identity, 'sp_secretary')) return false;
   return !!preliminaryNumber && !finalNumber;
 }
 
