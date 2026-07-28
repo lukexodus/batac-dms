@@ -601,12 +601,23 @@ export class DocumentsRepository {
    * `role_code = ANY(subject.roles)`, not just the primary role).
    */
   private classificationAllowlistCondition(callerRoles: string[], cityId: string) {
+    // postgres.js binds a bare string[] in a sql`` tag as a scalar (the
+    // array's .toString()), which Postgres then parses as an array literal
+    // and fails with "malformed array literal". Build an explicit ARRAY[...]
+    // using sql.join so every element is an individually-bound $N parameter.
+    const rolesArray =
+      callerRoles.length === 0
+        ? sql`ARRAY[]::text[]`
+        : sql`ARRAY[${sql.join(
+            callerRoles.map((r) => sql`${r}`),
+            sql`, `,
+          )}]`;
     return sql`(
       ${documents.classificationLevel} NOT IN ('confidential', 'restricted')
       OR EXISTS (
         SELECT 1 FROM documents.classification_allowlists ca
         WHERE ca.document_type_id = ${documents.documentTypeId}
-          AND ca.role_code = ANY(${callerRoles})
+          AND ca.role_code = ANY(${rolesArray})
           AND ca.city_id = ${cityId}
           AND ca.deleted_at IS NULL
       )
