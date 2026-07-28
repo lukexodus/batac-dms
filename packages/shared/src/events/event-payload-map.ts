@@ -122,29 +122,116 @@ export interface DocumentCertificationUrgencyLoggedPayload {
 
 export interface EventPayloadMap {
   // ── IAM module ─────────────────────────────────────────────────────────────
-  'user.login': Stub;
-  'user.logout': Stub;
-  'session.terminated': Stub;
-  'role.assigned': Stub;
-  'role.revoked': Stub;
-  'user.created': Stub;
-  'password.changed': Stub;
-  'session.locked': Stub;
-  'session.unlocked': Stub;
+  // [Unverified, consumer-derived] — no live producer exists for this event
+  // as of this task. Type inferred from audit.event-consumer.ts's
+  // makeHandler callback, not from a real emitted payload.
+  'user.login': {
+    userId?: string;
+    actorId?: string;
+  };
+  // [Unverified, consumer-derived] — no live producer exists for this event
+  // as of this task. Type inferred from audit.event-consumer.ts's
+  // makeHandler callback, not from a real emitted payload.
+  'user.logout': {
+    userId?: string;
+    actorId?: string;
+  };
+  // [Unverified, consumer-derived] — no live producer exists for this event
+  // as of this task. Type inferred from audit.event-consumer.ts's
+  // makeHandler callback, not from a real emitted payload.
+  'session.terminated': {
+    adminUserId?: string;
+    userId?: string;
+    sessionId?: string;
+  };
+  'role.assigned': {
+    actorId: string;
+    targetUserId: string;
+    roleId: string;
+    roleName: string;
+  };
+  'role.revoked': {
+    actorId: string;
+    targetUserId: string;
+    roleId: string;
+    roleName: string;
+    reason: string;
+  };
+  'user.created': {
+    actorId: string;
+    newUserId: string;
+  };
+  'password.changed': {
+    actorId: string;
+    userId: string;
+  };
+  'session.locked': {
+    user_id: string;
+    session_id: string;
+  };
+  'session.unlocked': {
+    user_id: string;
+    session_id: string;
+  };
   'password_reset_token.generated': { actorId: string; targetUserId: string };
   'password_reset.completed': { actorId: string; targetUserId: string };
   // Added by TASK-IAM-EVT-001: mechanism change from auditService.writeEvent → eventBus.emit
-  'logout.success': Stub;
-  'login.failed': Stub;
-  'session.replaced': Stub;
-  'login.success': Stub;
-  'token.reuse_detected': Stub;
-  'session.forced_logout': Stub;
-  'abac.denial': Stub;
+  'logout.success': {
+    user_id: string;
+    session_id: string;
+  };
+  'login.failed': {
+    attempted_identifier_hash: string;
+    ip_address: string | null;
+    user_agent: string | null;
+    failure_reason: 'no_credential' | 'wrong_password';
+  };
+  'session.replaced': {
+    user_id: string;
+    old_session_id: string;
+    new_session_id: string;
+    new_ip_address: string | null;
+  };
+  'login.success': {
+    user_id: string;
+    session_id: string;
+    ip_address: string | null;
+    user_agent: string | null;
+  };
+  'token.reuse_detected': {
+    user_id: string;
+    family_id: string;
+    ip_address: string | null;
+    action_taken: string;
+  };
+  'session.forced_logout': {
+    actor_id: string;
+    target_user_id: string;
+    target_session_id: string;
+    reason: string;
+  };
+  'abac.denial': {
+    action: string;
+    denial_reason: string;
+    actorId: string;
+    targetId: string | null;
+  };
 
 
   // ── Organization module ────────────────────────────────────────────────────
-  'delegation.granted': Stub;
+  'delegation.granted': {
+    delegationId: string;
+    designationDocumentId: string | null;
+    delegatingUserId: string;
+    delegatedToUserId: string;
+    grantorId: string;
+    scope: {
+      officeId: string;
+      positionId: string;
+    };
+    validFrom: string;
+    validUntil: string;
+  };
   'delegation.expired': DelegationExpiredEvent;
   'delegation.revoked': DelegationRevokedEvent;
 
@@ -189,11 +276,29 @@ export interface EventPayloadMap {
   };
   'workflow.instance.stuck': WorkflowInstanceStuckPayload;
   'workflow.instance.repassed': { instanceId: string; documentId: string };
-  'workflow.instance.suspended': Stub;
-  'workflow.instance.resumed': Stub;
+  // [Unverified, spec-derived] — no producer or consumer exists for this
+  // event in the codebase as of this task. Type taken directly from B3
+  // §7.6, whose own Source row reads "[Unverified] - confirmed in B4" —
+  // this is a spec claim, not a code-confirmed one, at two removes.
+  'workflow.instance.suspended': {
+    instanceId: string;
+    suspendedBy: string;
+    reason: string;
+  };
+  // [Unverified, spec-derived] — same caveat as workflow.instance.suspended
+  // above. Source: B3 §7.7, Source row "[Unverified] - confirmed in B4".
+  'workflow.instance.resumed': {
+    instanceId: string;
+    resumedBy: string;
+  };
   'workflow.instance.migration.started': Record<string, unknown>;
   'workflow.instance.migration.completed': Record<string, unknown>;
-  'workflow.instance.migration.reversed': Stub;
+  'workflow.instance.migration.reversed': {
+    instance_id: string;
+    actor_id: string;
+    reversal_reason: string;
+    original_migration_event_id: string;
+  };
 
   // Step lifecycle (B3 §7)
   'workflow.step.started': WorkflowStepStartedPayload;
@@ -228,8 +333,27 @@ export interface EventPayloadMap {
   'workflow.context.updated': WorkflowContextUpdatedPayload;
 
   // Multi-referral events (B3 §8)
-  'workflow.multi_referral.committee_submitted': Stub;
-  'workflow.multi_referral.all_submitted': Stub;
+  // NOTE: these three events are emitted via
+  // workflowRepository.createWorkflowEvent(...) — a raw Drizzle insert
+  // (InferInsertModel<typeof workflowEvents>) — not via EventBus.emit().
+  // EventBus.emit()'s generic signature (emit<K extends keyof
+  // EventPayloadMap>(...)) is what actually enforces EventPayloadMap at
+  // compile time; createWorkflowEvent has no such constraint. Typing these
+  // three entries here provides real compile-time safety for a future
+  // consumer that subscribes via bus.on(), but does NOT constrain what the
+  // producer above actually writes to the database — the producer bypasses
+  // EventBus entirely.
+  'workflow.multi_referral.committee_submitted': {
+    instanceId: string;
+    stepInstanceId: string;
+    committeeId: string;
+    contributionDocumentId: string;
+  };
+  'workflow.multi_referral.all_submitted': {
+    instanceId: string;
+    stepInstanceId: string;
+    allSubmittedAt: string;
+  };
   'workflow.multi_referral.cutoff_missed': {
     instanceId: string;
     stepInstanceId: string;
@@ -238,7 +362,13 @@ export interface EventPayloadMap {
     instanceId: string;
     stepInstanceId: string;
   };
-  'workflow.multi_referral.secretary_advanced': Stub;
+  'workflow.multi_referral.secretary_advanced': {
+    stepInstanceId: string;
+    actorId: string;
+    comment: string | null;
+    missingCommitteeIds: string[];
+    metadataSnapshot: Record<string, unknown>;
+  };
 
   // Statutory-deadline events (B3 §8)
   'workflow.approval.lapsed': {
