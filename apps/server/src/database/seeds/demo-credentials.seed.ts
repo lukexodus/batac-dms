@@ -28,7 +28,7 @@ import argon2 from 'argon2';
 import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { users, credentials, roleAssignments, roles } from '@batac/database/schema/iam.schema.js';
-import { offices, employees } from '@batac/database/schema/organization.schema.js';
+import { offices, employees, positions, assignments } from '@batac/database/schema/organization.schema.js';
 import { env } from '../../config/env.js';
 
 // Same system-user sentinel used by iam.seed.ts and demo-backend.ts.
@@ -267,6 +267,58 @@ async function main() {
               `Employee number "${account.existingEmployeeNumber}" not found — ` +
                 `expected it to exist from organization.seed.ts. Run "pnpm db:seed" first.`,
             );
+          }
+        }
+
+        // ── Assign Position and Office ─────────────────────────────────────────
+        const [emp] = await tx
+          .select({ id: employees.id })
+          .from(employees)
+          .where(sql`${employees.userId} = ${userId}`)
+          .limit(1);
+
+        if (emp) {
+          // Create a dummy position for the user in this office if one doesn't exist
+          const positionCode = `POS-${account.username.toUpperCase()}`;
+          let positionId: string;
+          const [existingPosition] = await tx
+            .select({ id: positions.id })
+            .from(positions)
+            .where(sql`${positions.cityId} = ${CITY_ID} AND ${positions.code} = ${positionCode}`)
+            .limit(1);
+
+          if (existingPosition) {
+            positionId = existingPosition.id;
+          } else {
+            positionId = randomUUID();
+            await tx.insert(positions).values({
+              id: positionId,
+              cityId: CITY_ID,
+              officeId: office.id,
+              title: account.displayName.split(' (')[0] || 'Demo Position',
+              code: positionCode,
+              authorityLevel: account.roleCode === 'mayor' ? 'executive' : 'staff',
+            });
+          }
+
+          // Create the assignment linking the employee to the office and position
+          const [existingAssignment] = await tx
+            .select({ id: assignments.id })
+            .from(assignments)
+            .where(sql`${assignments.employeeId} = ${emp.id} AND ${assignments.isPrimary} = true AND ${assignments.isActive} = true`)
+            .limit(1);
+
+          if (!existingAssignment) {
+            await tx.insert(assignments).values({
+              id: randomUUID(),
+              cityId: CITY_ID,
+              employeeId: emp.id,
+              positionId,
+              officeId: office.id,
+              startDate: new Date('2026-01-01').toISOString(), // Use string to match date type
+              isPrimary: true,
+              isActive: true,
+            });
           }
         }
       });
