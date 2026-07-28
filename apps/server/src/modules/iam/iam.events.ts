@@ -10,6 +10,14 @@ export const IAM_EVENTS = {
   SESSION_UNLOCKED: 'session.unlocked',
   PASSWORD_RESET_TOKEN_GENERATED: 'password_reset_token.generated',
   PASSWORD_RESET_COMPLETED: 'password_reset.completed',
+  // Added by TASK-IAM-EVT-001: mechanism change from auditService.writeEvent → eventBus.emit
+  LOGOUT_SUCCESS: 'logout.success',
+  LOGIN_FAILED: 'login.failed',
+  SESSION_REPLACED: 'session.replaced',
+  LOGIN_SUCCESS: 'login.success',
+  TOKEN_REUSE_DETECTED: 'token.reuse_detected',
+  FORCED_LOGOUT: 'session.forced_logout',
+  ABAC_DENIAL: 'abac.denial',
 } as const;
 
 export function registerIamEventSubscriptions(): void {

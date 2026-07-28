@@ -238,8 +238,9 @@ describe('IamService - refresh', () => {
       tokenRow.familyId,
       'reuse_detected',
     );
-    expect(auditServiceStub.writeEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'token_reuse_detected' }),
+    expect(eventBusStub.emit).toHaveBeenCalledWith(
+      'token.reuse_detected',
+      expect.objectContaining({ eventType: 'token.reuse_detected' }),
     );
   });
 

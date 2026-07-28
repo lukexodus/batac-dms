@@ -133,6 +133,15 @@ export interface EventPayloadMap {
   'session.unlocked': Stub;
   'password_reset_token.generated': { actorId: string; targetUserId: string };
   'password_reset.completed': { actorId: string; targetUserId: string };
+  // Added by TASK-IAM-EVT-001: mechanism change from auditService.writeEvent → eventBus.emit
+  'logout.success': Stub;
+  'login.failed': Stub;
+  'session.replaced': Stub;
+  'login.success': Stub;
+  'token.reuse_detected': Stub;
+  'session.forced_logout': Stub;
+  'abac.denial': Stub;
+
 
   // ── Organization module ────────────────────────────────────────────────────
   'delegation.granted': Stub;

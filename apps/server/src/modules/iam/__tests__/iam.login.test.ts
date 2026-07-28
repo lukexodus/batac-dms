@@ -441,15 +441,13 @@ describe('IamService.login()', () => {
 
   // ── Wrong password ─────────────────────────────────────────────────────────
 
-  it('returns 401 when password is wrong and emits login_failed audit event with sha256 hash', async () => {
+  it('returns 401 when password is wrong and emits login_failed event on eventBus with sha256 hash', async () => {
     const user = makeUser();
     const cred = makeCredential();
-    const audit = makeAuditService();
-    const { deps, repo } = makeDeps({
+    const { deps, bus } = makeDeps({
       findUserByUsername: vi.fn().mockResolvedValue(user),
       findCredentialByUserId: vi.fn().mockResolvedValue(cred),
     });
-    deps.auditService = audit;
 
     vi.mocked(argon2.verify).mockResolvedValue(false);
 
@@ -459,15 +457,15 @@ describe('IamService.login()', () => {
     expect(err.statusCode).toBe(401);
     expect(err.code).toBe('INVALID_CREDENTIALS');
 
-    // Audit event must have been emitted with SHA-256 hash — never plaintext
-    expect(vi.mocked(audit.writeEvent)).toHaveBeenCalledOnce();
-    const auditCall = vi.mocked(audit.writeEvent).mock.calls[0]![0];
-    expect(auditCall.eventType).toBe('login_failed');
-    expect(auditCall.payload['failure_reason']).toBe('wrong_password');
+    // Event must have been emitted on eventBus with SHA-256 hash — never plaintext
+    expect(vi.mocked(bus.emit)).toHaveBeenCalledOnce();
+    const [, envelope] = vi.mocked(bus.emit).mock.calls[0]!;
+    expect(envelope.eventType).toBe('login.failed');
+    expect(envelope.payload['failure_reason']).toBe('wrong_password');
     // SHA-256 of 'testuser' — never the plaintext string
-    expect(auditCall.payload['attempted_identifier_hash']).not.toBe('testuser');
-    expect(typeof auditCall.payload['attempted_identifier_hash']).toBe('string');
-    expect((auditCall.payload['attempted_identifier_hash'] as string).length).toBe(64); // hex sha256
+    expect(envelope.payload['attempted_identifier_hash']).not.toBe('testuser');
+    expect(typeof envelope.payload['attempted_identifier_hash']).toBe('string');
+    expect((envelope.payload['attempted_identifier_hash'] as string).length).toBe(64); // hex sha256
   });
 
   // ── Lockout counter after wrong password ───────────────────────────────────
@@ -614,7 +612,7 @@ describe('IamService.login()', () => {
 
   // ── Concurrent-session replacement ────────────────────────────────────────
 
-  it('terminates old session and emits session_replaced when an active session exists', async () => {
+  it('terminates old session and emits session_replaced on eventBus when an active session exists', async () => {
     const user = makeUser();
     const cred = makeCredential();
     const oldSession = makeSession();
@@ -626,7 +624,7 @@ describe('IamService.login()', () => {
       createSession: vi.fn().mockResolvedValue(makeNewSession()),
     });
 
-    const { deps, audit } = makeDeps({
+    const { deps, bus } = makeDeps({
       findUserByUsername: vi.fn().mockResolvedValue(user),
       findCredentialByUserId: vi.fn().mockResolvedValue(cred),
       findActiveRoleAssignmentsByUserId: vi.fn().mockResolvedValue([]),
@@ -651,17 +649,17 @@ describe('IamService.login()', () => {
       'replaced',
     );
 
-    // session_replaced audit event emitted
-    const auditCalls = vi.mocked(audit.writeEvent).mock.calls;
-    const replacedEvent = auditCalls.find(([e]) => e.eventType === 'session_replaced');
-    expect(replacedEvent).toBeDefined();
-    const payload = replacedEvent![0].payload;
-    expect(payload['old_session_id']).toBe(oldSession.id);
+    // session_replaced event emitted on eventBus
+    const emitCalls = vi.mocked(bus.emit).mock.calls;
+    const replacedCall = emitCalls.find(([eventType]) => eventType === 'session.replaced');
+    expect(replacedCall).toBeDefined();
+    const envelope = replacedCall![1];
+    expect(envelope.payload['old_session_id']).toBe(oldSession.id);
   });
 
   // ── login_success audit event ─────────────────────────────────────────────
 
-  it('emits login_success audit event on a successful login', async () => {
+  it('emits login_success event on eventBus on a successful login', async () => {
     const user = makeUser();
     const cred = makeCredential();
 
@@ -670,7 +668,7 @@ describe('IamService.login()', () => {
       createSession: vi.fn().mockResolvedValue(makeNewSession()),
     });
 
-    const { deps, audit } = makeDeps({
+    const { deps, bus } = makeDeps({
       findUserByUsername: vi.fn().mockResolvedValue(user),
       findCredentialByUserId: vi.fn().mockResolvedValue(cred),
       findActiveRoleAssignmentsByUserId: vi.fn().mockResolvedValue([]),
@@ -682,10 +680,11 @@ describe('IamService.login()', () => {
     const service = createIamService(deps);
     await service.login(makeLoginInput());
 
-    const auditCalls = vi.mocked(audit.writeEvent).mock.calls;
-    const successEvent = auditCalls.find(([e]) => e.eventType === 'login_success');
-    expect(successEvent).toBeDefined();
-    expect(successEvent![0].payload['user_id']).toBe(user.id);
+    const emitCalls = vi.mocked(bus.emit).mock.calls;
+    const successCall = emitCalls.find(([eventType]) => eventType === 'login.success');
+    expect(successCall).toBeDefined();
+    const envelope = successCall![1];
+    expect(envelope.payload['user_id']).toBe(user.id);
   });
 
   // ── resetLoginFailure called after success ────────────────────────────────

@@ -14,12 +14,14 @@
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { randomUUID } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import rateLimit from '@fastify/rate-limit';
 import { env } from '../../config/env.js';
 import { LoginInputSchema, TerminateSessionInputSchema, UnlockInputSchema } from './iam.schemas.js';
 import { authMiddlewarePlugin, clearAuthCookies } from './iam.middleware.js';
 import { NotFoundError } from '../../errors/domain/not-found.js';
+import { IAM_EVENTS } from './iam.events.js';
 
 /** Access-token TTL in seconds — parsed from AUTH_JWT_ACCESS_EXPIRES_IN. */
 function parseExpiresInSeconds(expiresIn: string): number {
@@ -546,13 +548,13 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
           { reason: body.reason },
         );
         if (!result.allowed) {
-          await protectedApp.auditService.writeEvent({
-            eventType: 'abac_denial',
-            actorId: auth.userId,
-            targetId: params.id,
-            targetType: 'session',
-            payload: { action: 'force_terminate', denial_reason: result.reason },
+          await protectedApp.eventBus.emit(IAM_EVENTS.ABAC_DENIAL, {
+            eventId: randomUUID(),
+            eventType: IAM_EVENTS.ABAC_DENIAL,
+            occurredAt: new Date().toISOString(),
             cityId: auth.cityId,
+            schemaVersion: 1,
+            payload: { action: 'force_terminate', denial_reason: result.reason, actorId: auth.userId, targetId: params.id },
           });
           return reply.status(403).send({
             ok: false,

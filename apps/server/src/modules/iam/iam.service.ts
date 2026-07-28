@@ -280,12 +280,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
         await txRepo.revokeRefreshTokensBySessionId(sessionId, 'logout');
 
         // Note: out-of-transaction best-effort write, just like login.
-        void auditService.writeEvent({
-          eventType: 'logout_success',
-          actorId: userId,
-          targetId: userId,
-          targetType: 'session',
+        void eventBus.emit(IAM_EVENTS.LOGOUT_SUCCESS, {
+          eventId: randomUUID(),
+          eventType: IAM_EVENTS.LOGOUT_SUCCESS,
+          occurredAt: new Date().toISOString(),
           cityId: BATAC_CITY_ID,
+          schemaVersion: 1,
           payload: {
             user_id: userId,
             session_id: sessionId,
@@ -368,10 +368,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
       const credential = await iamRepo.findCredentialByUserId(user.id);
       if (!credential) {
         // No credential record — treat as wrong password
-        await auditService.writeEvent({
-          eventType: 'login_failed',
-          actorId: null,
+        await eventBus.emit(IAM_EVENTS.LOGIN_FAILED, {
+          eventId: randomUUID(),
+          eventType: IAM_EVENTS.LOGIN_FAILED,
+          occurredAt: new Date().toISOString(),
           cityId: BATAC_CITY_ID,
+          schemaVersion: 1,
           payload: {
             attempted_identifier_hash: sha256Hex(username),
             ip_address: ipAddress,
@@ -399,10 +401,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
         const lockedUntil = computeLockoutUntil(newCount);
         await iamRepo.updateLoginFailure(user.id, newCount, lockedUntil);
 
-        await auditService.writeEvent({
-          eventType: 'login_failed',
-          actorId: null,
+        await eventBus.emit(IAM_EVENTS.LOGIN_FAILED, {
+          eventId: randomUUID(),
+          eventType: IAM_EVENTS.LOGIN_FAILED,
+          occurredAt: new Date().toISOString(),
           cityId: BATAC_CITY_ID,
+          schemaVersion: 1,
           payload: {
             attempted_identifier_hash: sha256Hex(username),
             ip_address: ipAddress,
@@ -467,12 +471,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
         if (oldSession) {
           // Now emit session_replaced with the real new session id.
           // Out-of-transaction best-effort write.
-          void auditService.writeEvent({
-            eventType: 'session_replaced',
-            actorId: user.id,
-            targetId: user.id,
-            targetType: 'session',
+          void eventBus.emit(IAM_EVENTS.SESSION_REPLACED, {
+            eventId: randomUUID(),
+            eventType: IAM_EVENTS.SESSION_REPLACED,
+            occurredAt: new Date().toISOString(),
             cityId: BATAC_CITY_ID,
+            schemaVersion: 1,
             payload: {
               user_id: user.id,
               old_session_id: oldSession.id,
@@ -537,12 +541,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
       await iamRepo.resetLoginFailure(user.id);
 
       // ── Step 12: Audit event: login_success ───────────────────────────────
-      await auditService.writeEvent({
-        eventType: 'login_success',
-        actorId: user.id,
-        targetId: user.id,
-        targetType: 'session',
+      await eventBus.emit(IAM_EVENTS.LOGIN_SUCCESS, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.LOGIN_SUCCESS,
+        occurredAt: new Date().toISOString(),
         cityId: BATAC_CITY_ID,
+        schemaVersion: 1,
         payload: {
           user_id: user.id,
           session_id: newSessionId,
@@ -634,12 +638,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
           }
         });
 
-        void auditService.writeEvent({
-          eventType: 'token_reuse_detected',
-          actorId: tokenRow.userId,
-          targetId: tokenRow.familyId,
-          targetType: 'refresh_token_family',
+        void eventBus.emit(IAM_EVENTS.TOKEN_REUSE_DETECTED, {
+          eventId: randomUUID(),
+          eventType: IAM_EVENTS.TOKEN_REUSE_DETECTED,
+          occurredAt: new Date().toISOString(),
           cityId: BATAC_CITY_ID,
+          schemaVersion: 1,
           payload: {
             user_id: tokenRow.userId,
             family_id: tokenRow.familyId,
@@ -963,12 +967,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
 
       // Step 4: Emit forced_logout audit event — fire-and-forget, outside transaction.
       // Pattern matches logout() — best-effort; failure here does not roll back session.
-      void auditService.writeEvent({
-        eventType: 'forced_logout',
-        actorId,
-        targetId: targetSessionId,
-        targetType: 'session',
+      void eventBus.emit(IAM_EVENTS.FORCED_LOGOUT, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.FORCED_LOGOUT,
+        occurredAt: new Date().toISOString(),
         cityId,
+        schemaVersion: 1,
         payload: {
           actor_id: actorId,
           target_user_id: session.userId,
@@ -1039,12 +1043,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
       const { sessionId, userId } = input;
       await iamRepo.setSessionLocked(sessionId, new Date());
 
-      void auditService.writeEvent({
-        eventType: 'session_locked',
-        actorId: userId,
-        targetId: sessionId,
-        targetType: 'session',
+      void eventBus.emit(IAM_EVENTS.SESSION_LOCKED, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.SESSION_LOCKED,
+        occurredAt: new Date().toISOString(),
         cityId: BATAC_CITY_ID,
+        schemaVersion: 1,
         payload: {
           user_id: userId,
           session_id: sessionId,
@@ -1179,12 +1183,12 @@ export function createIamService(deps: IamServiceDeps): IamService {
         await iamRepo.updateLastActivity(sessionId);
       }
 
-      void auditService.writeEvent({
-        eventType: 'session_unlocked',
-        actorId: userId,
-        targetId: sessionId,
-        targetType: 'session',
+      void eventBus.emit(IAM_EVENTS.SESSION_UNLOCKED, {
+        eventId: randomUUID(),
+        eventType: IAM_EVENTS.SESSION_UNLOCKED,
+        occurredAt: new Date().toISOString(),
         cityId: BATAC_CITY_ID,
+        schemaVersion: 1,
         payload: {
           user_id: userId,
           session_id: sessionId,
