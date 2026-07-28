@@ -67,7 +67,7 @@ export async function executeTerminationStep(
     await deps.workflowRepository.updateStepInstance(
       stepInstance.id,
       { status: 'completed', completedAt: now, outcome: outcomeCode },
-      tx,
+      trx,
     );
 
     // Emit workflow.instance.repassed
@@ -82,7 +82,7 @@ export async function executeTerminationStep(
           documentId: instance.documentId,
         },
       },
-      tx,
+      trx,
     );
   } else {
     // Standard terminal outcomes (APPROVED_AND_RELEASED, etc.)
