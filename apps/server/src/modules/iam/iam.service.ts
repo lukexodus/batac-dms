@@ -704,6 +704,20 @@ export function createIamService(deps: IamServiceDeps): IamService {
         newTokenId = randomUUID();
         const expiresAt = new Date(Date.now() + JWT_REFRESH_TTL_SECONDS * 1000);
 
+        // Insert the new token FIRST so the replaced_by FK constraint
+        // (refresh_tokens_replaced_by_refresh_tokens_id_fk) is satisfied
+        // before we try to point the old token at it.
+        await txRepo.createRefreshToken({
+          id: newTokenId,
+          userId: user.id,
+          sessionId: session.id,
+          tokenHash,
+          salt: saltBase64url,
+          familyId: tokenRow.familyId,
+          expiresAt,
+          cityId: BATAC_CITY_ID,
+        } as any);
+
         const wasMarkedUsed = await txRepo.markRefreshTokenUsed(tokenId, newTokenId);
         if (!wasMarkedUsed) {
           // Another concurrent request already marked this token as used
@@ -723,17 +737,6 @@ export function createIamService(deps: IamServiceDeps): IamService {
             statusCode: 401,
           });
         }
-
-        await txRepo.createRefreshToken({
-          id: newTokenId,
-          userId: user.id,
-          sessionId: session.id,
-          tokenHash,
-          salt: saltBase64url,
-          familyId: tokenRow.familyId,
-          expiresAt,
-          cityId: BATAC_CITY_ID,
-        } as any);
 
         await txRepo.updateLastActivity(session.id);
       });

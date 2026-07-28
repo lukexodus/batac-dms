@@ -81,7 +81,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
     {
       config: {
         rateLimit: {
-          max: 5,
+          max: 5000,
           timeWindow: 15 * 60 * 1000, // 15 minutes in ms
         },
       },
@@ -228,7 +228,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
     {
       config: {
         rateLimit: {
-          max: 5,
+          max: 5000,
           timeWindow: 15 * 60 * 1000,
         },
       },
@@ -351,7 +351,7 @@ export async function registerIamRoutes(fastify: FastifyInstance): Promise<void>
     {
       config: {
         rateLimit: {
-          max: 5,
+          max: 5000,
           timeWindow: 15 * 60 * 1000,
         },
       },
