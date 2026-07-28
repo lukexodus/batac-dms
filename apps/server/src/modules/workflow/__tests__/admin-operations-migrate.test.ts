@@ -297,7 +297,7 @@ describe('Admin Operations — Migrate Instance (VER)', () => {
                 id: 'orig-evt',
                 eventType: 'workflow.instance.migration.completed',
                 createdAt: new Date(Date.now() - 1000), // very recent
-                payload: { from_version_id: 'v1' },
+                payload: { fromVersionId: 'v1' },
               },
             ]),
           }),
@@ -353,7 +353,7 @@ describe('Admin Operations — Migrate Instance (VER)', () => {
                 id: 'orig-evt',
                 eventType: 'workflow.instance.migration.completed',
                 createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48h ago
-                payload: { from_version_id: 'v1' },
+                payload: { fromVersionId: 'v1' },
               },
             ]),
           }),

@@ -59,9 +59,9 @@ export async function cancelInstance(
         actorType: 'user',
         actorId,
         payload: {
-          instance_id: instanceId,
-          cancelled_by: actorId,
-          cancellation_reason: reason,
+          instanceId: instanceId,
+          cancelledBy: actorId,
+          cancellationReason: reason,
         },
       },
       trx,
@@ -116,10 +116,10 @@ export async function bypassStep(
         actorType: 'user',
         actorId,
         payload: {
-          instance_id: instance.id,
-          step_instance_id: stepInstanceId,
-          bypass_reason: bypassReason,
-          bypassed_by: actorId,
+          instanceId: instance.id,
+          stepInstanceId: stepInstanceId,
+          bypassReason: bypassReason,
+          bypassedBy: actorId,
         },
       },
       trx,
@@ -224,12 +224,12 @@ export async function migrateInstance(
 
     // Emit migration.started
     const startedEventPayload = {
-      instance_id: instanceId,
-      from_version_id: instance.definitionVersionId,
-      to_version_id: targetVersionId,
-      actor_id: actorId,
+      instanceId: instanceId,
+      fromVersionId: instance.definitionVersionId,
+      toVersionId: targetVersionId,
+      actorId: actorId,
       reason,
-      step_mapping: stepMapping,
+      stepMapping: stepMapping,
     };
     await deps.workflowRepository.createWorkflowEvent(
       {
@@ -266,9 +266,9 @@ export async function migrateInstance(
         actorType: 'system',
         actorId: null,
         payload: {
-          instance_id: instanceId,
-          from_version_id: instance.definitionVersionId,
-          to_version_id: targetVersionId,
+          instanceId: instanceId,
+          fromVersionId: instance.definitionVersionId,
+          toVersionId: targetVersionId,
         },
       },
       trx,
@@ -298,7 +298,7 @@ export async function migrateInstance(
           actorType: 'system',
           actorId: null,
           payload: {
-            instance_id: instanceId,
+            instanceId: instanceId,
             reason: 'Migration resulted in stale transition references (invariant #12 violation).',
           },
         },
@@ -346,7 +346,7 @@ export async function reverseMigration(
     const completedAt = originalEvent.createdAt;
     const now = new Date();
     const reversibleUntil = new Date(completedAt.getTime() + 24 * 60 * 60 * 1000);
-    const targetVersionId = (originalEvent.payload as any).from_version_id;
+    const targetVersionId = (originalEvent.payload as any).fromVersionId;
 
     if (now > reversibleUntil) {
       const approvalGrant = await deps.workflowRepository.getApprovalGrant(
@@ -430,10 +430,10 @@ export async function reverseMigration(
         actorType: 'user',
         actorId,
         payload: {
-          instance_id: instanceId,
-          actor_id: actorId,
-          reversal_reason: reversalReason,
-          original_migration_event_id: originalMigrationEventId,
+          instanceId: instanceId,
+          actorId: actorId,
+          reversalReason: reversalReason,
+          originalMigrationEventId: originalMigrationEventId,
         },
       },
       trx,
@@ -462,7 +462,7 @@ export async function reverseMigration(
           actorType: 'system',
           actorId: null,
           payload: {
-            instance_id: instanceId,
+            instanceId: instanceId,
             reason:
               'Migration reversal resulted in stale transition references (invariant #12 violation).',
           },

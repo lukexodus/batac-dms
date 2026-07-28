@@ -294,10 +294,10 @@ export interface EventPayloadMap {
   'workflow.instance.migration.started': Record<string, unknown>;
   'workflow.instance.migration.completed': Record<string, unknown>;
   'workflow.instance.migration.reversed': {
-    instance_id: string;
-    actor_id: string;
-    reversal_reason: string;
-    original_migration_event_id: string;
+    instanceId: string;
+    actorId: string;
+    reversalReason: string;
+    originalMigrationEventId: string;
   };
 
   // Step lifecycle (B3 §7)

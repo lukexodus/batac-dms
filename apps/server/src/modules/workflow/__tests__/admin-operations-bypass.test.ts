@@ -71,8 +71,8 @@ describe('Admin Operations — Bypass Step (BYPASS)', () => {
           actorType: 'user',
           actorId: 'admin-1',
           payload: expect.objectContaining({
-            bypass_reason: 'ADMIN_OVERRIDE',
-            bypassed_by: 'admin-1',
+            bypassReason: 'ADMIN_OVERRIDE',
+            bypassedBy: 'admin-1',
           }),
         }),
         mockTrx,

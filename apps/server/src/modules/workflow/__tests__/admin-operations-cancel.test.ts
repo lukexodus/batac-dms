@@ -48,9 +48,9 @@ describe('Admin Operations — Cancel (CANCEL)', () => {
           actorType: 'user',
           actorId: 'admin-1',
           payload: expect.objectContaining({
-            instance_id: 'inst-1',
-            cancelled_by: 'admin-1',
-            cancellation_reason: 'Testing cancel',
+            instanceId: 'inst-1',
+            cancelledBy: 'admin-1',
+            cancellationReason: 'Testing cancel',
           }),
         }),
         mockTrx,

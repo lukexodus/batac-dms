@@ -96,9 +96,9 @@ describe('Admin Operations', () => {
           actorType: 'user',
           actorId: 'admin-1',
           payload: {
-            instance_id: 'inst-1',
-            cancelled_by: 'admin-1',
-            cancellation_reason: 'Testing cancel',
+            instanceId: 'inst-1',
+            cancelledBy: 'admin-1',
+            cancellationReason: 'Testing cancel',
           },
         }),
         mockTrx,
@@ -167,8 +167,8 @@ describe('Admin Operations', () => {
           actorType: 'user',
           actorId: 'admin-1',
           payload: expect.objectContaining({
-            bypassed_by: 'admin-1',
-            bypass_reason: 'ADMIN_OVERRIDE',
+            bypassedBy: 'admin-1',
+            bypassReason: 'ADMIN_OVERRIDE',
           }),
         }),
         mockTrx,
@@ -341,7 +341,7 @@ describe('Admin Operations', () => {
       expect(mockDeps.workflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: 'workflow.instance.migration.started',
-          payload: expect.objectContaining({ from_version_id: 'v1', to_version_id: 'target-v2' }),
+          payload: expect.objectContaining({ fromVersionId: 'v1', toVersionId: 'target-v2' }),
         }),
         mockTrx,
       );
@@ -414,7 +414,7 @@ describe('Admin Operations', () => {
                 id: 'orig-evt',
                 eventType: 'workflow.instance.migration.completed',
                 createdAt: new Date(Date.now() - 1000), // very recently
-                payload: { from_version_id: 'v1' },
+                payload: { fromVersionId: 'v1' },
               },
             ]),
           }),
@@ -473,7 +473,7 @@ describe('Admin Operations', () => {
                 id: 'orig-evt',
                 eventType: 'workflow.instance.migration.completed',
                 createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48h ago
-                payload: { from_version_id: 'v1' },
+                payload: { fromVersionId: 'v1' },
               },
             ]),
           }),
