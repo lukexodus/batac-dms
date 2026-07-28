@@ -168,9 +168,6 @@ export function createIamService(deps: IamServiceDeps): IamService {
       getCommitteeIds(userId),
     ]);
 
-    const permissions = await iamRepo.findPermissionsByRoleIds(activeRoles.map((ra) => ra.roleId));
-    const permCodes = permissions.map((p) => `${p.resource}:${p.action}`);
-
     return {
       registered: {
         iss: 'batac-lgu-platform',
@@ -181,7 +178,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
         uid: userId,
         oid: office?.officeId ?? null,
         rid: roleCodes,
-        perm: permCodes,
+        perm: [], // Resolved dynamically in middleware to prevent cookie bloat
         cid: committeeIds,
         dg: null, // login always starts dg null; picked up at next refresh if active
         city: BATAC_CITY_ID,
@@ -634,7 +631,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
           await txRepo.revokeRefreshTokenFamily(tokenRow.familyId, 'reuse_detected');
           const session = await txRepo.findSessionById(tokenRow.sessionId);
           if (session && session.active) {
-            await txRepo.terminateSession(session.id, 'reuse_detected', null);
+            await txRepo.terminateSession(session.id, 'forced', null);
           }
         });
 
@@ -728,7 +725,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
           await txRepo.revokeRefreshTokenFamily(tokenRow.familyId, 'reuse_detected');
           const raceSession = await txRepo.findSessionById(tokenRow.sessionId);
           if (raceSession && raceSession.active) {
-            await txRepo.terminateSession(raceSession.id, 'reuse_detected', null);
+            await txRepo.terminateSession(raceSession.id, 'forced', null);
           }
           // Note: audit event intentionally omitted from this branch.
           // Add follow-up audit write here if coverage for this race path is needed.
@@ -1139,7 +1136,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
             await txRepo.revokeRefreshTokenFamily(latestRt.familyId, 'reuse_detected');
             const raceSession = await txRepo.findSessionById(sessionId);
             if (raceSession && raceSession.active) {
-              await txRepo.terminateSession(raceSession.id, 'reuse_detected', null);
+              await txRepo.terminateSession(raceSession.id, 'forced', null);
             }
             // Note: audit event intentionally omitted from this branch.
             // Add follow-up audit write here if coverage for this race path is needed.

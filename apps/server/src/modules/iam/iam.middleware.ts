@@ -202,13 +202,20 @@ async function verifyAccessToken(
   // if a delegation grant is active. null officeId is filtered out so that
   // effectiveOfficeIds is always string[] (never contains null).
   // Source: TASK-IAM-005 Hook 2 note on effectiveOfficeIds type safety.
+  // Fetch permissions dynamically (preventing cookie bloat from large permission sets)
+  const activeRoles = await this.iamRepository.findActiveRoleAssignmentsByUserId(claims.uid);
+  const permissions = await this.iamRepository.findPermissionsByRoleIds(
+    activeRoles.map((ra) => ra.roleId),
+  );
+  const permCodes = permissions.map((p) => `${p.resource}:${p.action}`);
+
   const auth: AuthContext = {
     userId: claims.uid,
     sessionId: claims.sid,
     officeId: claims.oid,
     cityId: claims.city,
     roles: claims.rid,
-    permissions: claims.perm,
+    permissions: permCodes,
     committeeIds: claims.cid,
     delegationGrantId: claims.dg,
     effectiveOfficeIds: claims.oid !== null ? [claims.oid] : [],
