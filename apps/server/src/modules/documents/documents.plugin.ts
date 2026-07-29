@@ -1,6 +1,7 @@
 import fp from 'fastify-plugin';
 import crypto from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
+import type { WorkflowPublicAPI } from '../workflow/index.js';
 import { createDocumentsService } from './documents.service.js';
 import { createDocumentsAppRouter } from './documents.app.router.js';
 import { DocumentsRepository } from './documents.repository.js';
@@ -36,6 +37,7 @@ declare module 'fastify' {
     numberingService: NumberingService;
     designationHandler: DesignationHandler;
     ocrService: OcrService;
+    workflowService: WorkflowPublicAPI;
   }
 }
 
