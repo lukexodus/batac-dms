@@ -236,7 +236,7 @@ export default function ComplaintDetailPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="container mx-auto max-w-5xl space-y-6 py-8">
+    <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-6 py-8">
       {/* ── Breadcrumb ── */}
       <div className="text-text-muted text-sm">
         <Link to="/complaints" className="text-primary hover:underline">

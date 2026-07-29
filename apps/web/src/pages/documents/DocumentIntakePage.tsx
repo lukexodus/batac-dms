@@ -621,7 +621,7 @@ export default function DocumentIntakePage() {
   };
 
   return (
-    <div className="container mx-auto max-w-2xl py-8">
+    <div className="container mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-8">
       <Card>
         <CardHeader>
           <CardTitle>Intake New Document</CardTitle>

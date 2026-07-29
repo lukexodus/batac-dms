@@ -456,7 +456,7 @@ export default function DocumentDetailPage() {
   // ─── Loading / error states ────────────────────────────────────────────────
   if (!documentId) {
     return (
-      <div className="container py-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <p className="text-danger-600">Invalid document URL — no document ID provided.</p>
       </div>
     );
@@ -464,7 +464,7 @@ export default function DocumentDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto max-w-5xl space-y-4 py-8">
+      <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-4 py-8">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-48" />
         <Skeleton className="h-64 w-full" />
@@ -474,7 +474,7 @@ export default function DocumentDetailPage() {
 
   if (isError || !document) {
     return (
-      <div className="container space-y-4 py-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 space-y-4 py-8">
         <p className="text-danger-600">
           Document not found or you do not have permission to view it.
         </p>
@@ -581,7 +581,7 @@ export default function DocumentDetailPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="container mx-auto max-w-5xl space-y-6 py-8">
+    <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-6 py-8">
       {/* ── Breadcrumb ── */}
       <div className="text-text-muted text-sm">
         <Link to="/documents" className="text-primary hover:underline">
