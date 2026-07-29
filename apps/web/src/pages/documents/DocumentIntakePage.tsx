@@ -34,6 +34,7 @@ interface SchemaPropertyDescriptor {
   properties?: Record<string, SchemaPropertyDescriptor>;
   required?: string[];
   items?: SchemaPropertyDescriptor;
+  default?: unknown;
 }
 
 interface BaseFieldProps {
@@ -636,7 +637,28 @@ export default function DocumentIntakePage() {
                   <Select
                     onValueChange={(val) => {
                       field.onChange(val);
-                      setValue('metadata', {}); // Reset metadata on type change
+                      const type = documentTypes?.find((t) => t.id === val);
+                      const defaultMetadata: Record<string, unknown> = {};
+                      const props = (type?.metadataSchema as any)?.properties;
+                      
+                      const setDefaultsRecursive = (schemaProps: any, obj: Record<string, unknown>) => {
+                        if (!schemaProps) return;
+                        for (const [k, p] of Object.entries(schemaProps)) {
+                          const pAny = p as any;
+                          if (pAny.type === 'boolean' || (Array.isArray(pAny.type) && pAny.type.includes('boolean'))) {
+                            obj[k] = pAny.default ?? false;
+                          } else if (pAny.type === 'object' && pAny.properties) {
+                            obj[k] = {};
+                            setDefaultsRecursive(pAny.properties, obj[k] as Record<string, unknown>);
+                          }
+                        }
+                      };
+                      
+                      if (props) {
+                        setDefaultsRecursive(props, defaultMetadata);
+                      }
+                      
+                      setValue('metadata', defaultMetadata);
                     }}
                     value={field.value}
                   >
