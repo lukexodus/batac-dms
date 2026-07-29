@@ -496,11 +496,11 @@ export const SP_RESOLUTION_WORKFLOW: WorkflowDefinitionSeed = {
       },
       {
         from_step_key: 'second_reading_vote',
-        to_step_key: 'final_number_assignment',
+        to_step_key: 'amendments_logging',
         outcome_filter: 'AMENDED',
         condition_expression: null,
         priority: 1,
-        label: 'Amended — no amendments',
+        label: 'Amended — proceeds to amendments logging',
       },
       {
         from_step_key: 'second_reading_vote',

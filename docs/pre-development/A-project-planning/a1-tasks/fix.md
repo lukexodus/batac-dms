@@ -29924,3 +29924,188 @@ On error, show a toast using the same `toast.error(err.message || '<fallback>')`
 - [ ] `pnpm typecheck` (or this project's equivalent typecheck command) passes with no new errors introduced by this change.
 
 Before submitting this PR, confirm each item above independently by re-viewing the affected files after your edits — do not rely on your own memory of having made the change correctly.
+
+---
+
+# TASK-WF-026: Fix incorrect transition destination for the AMENDED outcome on
+SP Resolution's second_reading_vote step
+
+```
+TASK-WF-026: Fix incorrect transition destination for the AMENDED outcome on
+SP Resolution's second_reading_vote step
+
+CONTEXT (self-contained — no reference to any other conversation needed):
+This is a TypeScript monorepo (Fastify, tRPC, Drizzle ORM, PostgreSQL,
+React frontend). The workflow engine resolves the next step after an
+approval-type step completes by matching the step's outcome string against
+a list of transition rules filtered by `from_step_key`, using exact string
+equality on `outcome_filter` (see
+apps/server/src/modules/workflow/engine/transition-evaluation.ts:12-48 for
+the matching logic — read-only reference, do not modify this file).
+
+THE BUG:
+File: packages/database/src/seeds/workflow/phase1-legislative.ts
+Current content at lines 497-504 (verify these are still the current line
+numbers before editing — re-view the file first):
+
+  {
+    from_step_key: 'second_reading_vote',
+    to_step_key: 'final_number_assignment',
+    outcome_filter: 'AMENDED',
+    condition_expression: null,
+    priority: 1,
+    label: 'Amended — no amendments',
+  },
+
+This transition row is reachable in production: SP Secretary logs an
+"Amended" decision via the workflow.logSecretariatDecision tRPC procedure
+(apps/server/src/modules/workflow/workflow.router.ts, its outcomeMap at
+line 1194 maps the frontend's 'amended' decision string to the literal
+outcome string 'AMENDED' — this mapping is correct and must NOT be
+changed as part of this task). When that outcome fires, the row above
+sends the document straight to `final_number_assignment` — the same
+destination as an unamended `APPROVED` outcome — completely skipping the
+`amendments_logging` step, where the Secretariat is supposed to record
+what was actually amended. The row's own label
+("Amended — no amendments") is self-contradictory, which is itself a
+signal this is a copy-paste error, not an intentional design choice.
+
+WHY THIS IS THE CORRECT FIX (not a design guess):
+The identical AMENDED-outcome pattern exists for two other document types
+in this same seed file, and both are wired correctly:
+  - Ordinance's third_reading_vote: lines 838-845, to_step_key:
+    'amendments_logging', label: 'Amended at third reading'
+  - Appropriation Ordinance's third_reading_vote: lines 981-988, same
+    to_step_key and label pattern
+These two are the reference pattern this fix brings second_reading_vote
+in line with. Do not modify either of these two blocks — they are already
+correct and are cited here only as the pattern to match.
+
+THE FIX — exact old/new string pair (authoritative; if any prose above
+appears to conflict with this block, this block wins):
+
+old_str:
+```
+      {
+        from_step_key: 'second_reading_vote',
+        to_step_key: 'final_number_assignment',
+        outcome_filter: 'AMENDED',
+        condition_expression: null,
+        priority: 1,
+        label: 'Amended — no amendments',
+      },
+```
+
+new_str:
+```
+      {
+        from_step_key: 'second_reading_vote',
+        to_step_key: 'amendments_logging',
+        outcome_filter: 'AMENDED',
+        condition_expression: null,
+        priority: 1,
+        label: 'Amended — proceeds to amendments logging',
+      },
+```
+
+SCOPE TABLE:
+
+IN SCOPE (touch only this):
+- packages/database/src/seeds/workflow/phase1-legislative.ts — the single
+  transition-rule object shown above, `to_step_key` and `label` fields
+  only. Do not change `outcome_filter`, `condition_expression`, or
+  `priority` on this row — priority does not need to change (confirmed:
+  evaluateTransitionRules filters by exact outcome_filter match before
+  priority ever matters, so this row is the sole survivor of the filter
+  step for an AMENDED outcome regardless of its priority value).
+
+OUT OF SCOPE (do not touch even if related-looking):
+- `packages/database/src/seeds/workflow/phase1-legislative.ts` lines
+  531-546 (`second_reading_amended_vote`'s own AMENDED-filtered
+  transition row). This row is structurally similar but is NOT a bug —
+  for this specific step, both APPROVED and AMENDED correctly land at
+  `final_number_assignment`, since amendments have already been logged
+  by the time this vote occurs. Do not "fix" it to match the pattern
+  above; it does not need fixing.
+- `apps/server/src/modules/workflow/workflow.router.ts` — specifically
+  the `outcomeMap` inside `logSecretariatDecision` (around line
+  1191-1195). This mapping is correct as-is and must not be touched.
+- `apps/server/src/modules/workflow/engine/transition-evaluation.ts` —
+  read-only reference only, confirms the fix is sufficient; do not
+  modify.
+- `apps/server/src/modules/workflow/engine/step-handlers/approval.handler.ts`
+  (`submitStepApproval`) — its `allowed_outcomes` validation logic is
+  correct and unrelated to this bug.
+- Ordinance's and Appropriation Ordinance's `third_reading_vote`
+  transition blocks (lines 838-845 and 981-988) — already correct,
+  cited only as the reference pattern.
+- `docs/pre-development/H-domain-configuration-documents/
+  h1-phase-1-workflow-definitions-structured-data.md` — this document's
+  own `allowed_outcomes` list for `second_reading_vote` (line 662) and
+  its transition table (lines 422-424) do not currently list an AMENDED
+  outcome at all, which is a separate, pre-existing doc/seed
+  inconsistency this task does NOT resolve. Do not edit this document as
+  part of this task — flag it as a findings-log entry instead (see
+  below), since the choice of whether to update the doc or reconsider
+  the seed is a human decision, not something to resolve silently while
+  fixing the seed bug.
+
+ACCEPTANCE CRITERIA:
+- The exact old_str above no longer appears anywhere in
+  phase1-legislative.ts.
+- The exact new_str above appears in its place, at the same structural
+  position in the second_reading_vote transition-rules array (i.e., you
+  are editing the existing object in place, not adding a new one
+  elsewhere in the file).
+- Every other transition rule in the file (including the two
+  third_reading_vote blocks and second_reading_amended_vote's own
+  AMENDED row) is byte-for-byte unchanged.
+- If this project has seed re-run tooling or a workflow-definition
+  version bump mechanism that must be invoked for a seed change like
+  this to take effect on an already-seeded database, identify that
+  mechanism and report what it is — do not assume a fresh `pnpm db:seed`
+  run alone is sufficient without checking, since this touches a
+  workflow *definition*, not just data.
+- No existing test modified to force a pass; if any existing test
+  encodes an assertion on the old (incorrect) to_step_key for this
+  specific row, report it as a finding — do not edit the test to match
+  the old behavior.
+- Report back: did any test reference this specific transition row
+  before your change, and if so, what did it assert?
+
+  ADDITIONAL CONFIRMATION (higher-authority source, checked after this
+
+prompt was first drafted): docs/requirements-gathering/
+
+consolidated-architecture-and-requirements-reference-iteration-3.md,
+
+section 4.1 SP Resolution (lines 288-376), is this project's
+
+stakeholder-confirmed source of truth, ranking above H1 per AGENTS.md
+
+Section 1. Its flowchart (lines 305-360) shows exactly three exits from
+
+the Second Reading vote node — "Voted down", "Approved with amendments"
+
+(routing to "Secretariat logs amendments... prepares amended final
+
+copy" — i.e. amendments_logging), and "Approved — no amendments" — with
+
+no fourth branch. Lines 301 and 369 both confirm, verbatim: "No separate
+
+third reading for resolutions." This settles that AMENDED and
+
+RETURNED_FOR_REVISION represent the same single "Approved with
+
+amendments" concept for second_reading_vote specifically — unlike
+
+Ordinances/Appropriation Ordinances, which per section 4.2 (lines
+
+379-464) have a genuine, structurally distinct third reading, which is
+
+why AMENDED is a legitimate, separate outcome for third_reading_vote in
+
+those two document types but not for second_reading_vote.
+```
+
+---

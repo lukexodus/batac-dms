@@ -5497,3 +5497,170 @@ string-match convention (e.g. `code = 'LAWS'`) formalized and documented,
 before any auto-population logic could be written safely. A human should
 decide which approach fits the project's existing conventions before this
 becomes a standalone task.
+
+---
+
+### [LOG-0188] demo-guide-v2.md's LOG-0174 citation is incorrect; the bug it describes (Assign Preliminary Number / Finalize Number buttons not rendering) is not logged anywhere under any number, and could not be reproduced in this snapshot
+
+- date: 2026-07-30
+- task_id: none (planning-layer investigation, no A1 task dispatched)
+- status: proposed
+- affects: demo-guide-v2.md, DocumentDetailPage.tsx, auth-helpers.ts
+
+**What was found:** `demo-guide-v2.md` (Section 0, item 4) attributes a
+frontend visibility bug — the "Assign Preliminary Number" and "Finalize
+Number" buttons not appearing on the document detail page due to an
+inverted permission check — to `LOG-0174`. The actual `LOG-0174` entry in
+`docs/development-findings-log.md` (line 4888) is titled "Cookie prefix
+(__Host-) and SameSite setting relaxed for local dev auth persistence" —
+an unrelated auth-cookie fix. A full-text search of the findings log for
+"preliminary number", "finalize number", "inverted permission", "button
+hidden", and "visibility bug" returned no matches under any log number.
+
+Independently of the citation error, the underlying bug was checked
+directly against this snapshot: `apps/web/src/pages/documents/
+DocumentDetailPage.tsx` was read in full (1171 lines). `canAssignPreliminaryNumber`
+(lines 90-97) and `canAssignFinalNumber` (lines 113-122) both have
+correct, non-inverted boolean logic; both render via the same
+`{condition && <Button>}` pattern used by every other working action on
+the page (lines 660-690); the shared `hasRole` helper
+(`apps/web/src/lib/auth-helpers.ts`, read in full) is also correct. No
+inversion was found anywhere in this chain.
+
+**What was implemented:** Nothing — this is a documentation-accuracy
+finding only, surfaced because the demo guide's own text hedges with
+"Assuming LOG-0174 is patched," implying the guide's author believed this
+was a known, logged, pending fix. Since no such log entry exists, either
+the bug was already fixed by the time of this snapshot (and the guide's
+citation was simply wrong from the start), or the inversion exists
+somewhere not checked in this pass (e.g., a different code path reaching
+the same buttons). A human should decide whether demo-guide-v2.md needs
+correcting on this point before the next use of the guide.
+
+[Confirmed]: DocumentDetailPage.tsx and auth-helpers.ts contents, and the
+absence of any matching findings-log entry, checked directly against this
+session's snapshot.
+
+---
+
+### [LOG-0189] second_reading_vote's AMENDED-outcome transition row routes to the wrong step, skipping amendments_logging entirely — inconsistent with the correctly-wired equivalent pattern for Ordinance/Appropriation Ordinance third_reading_vote
+
+- date: 2026-07-30
+- task_id: TASK-WF-026 (standalone prompt drafted this session, not yet executed)
+- status: proposed
+- affects: H1, phase1-legislative.ts, workflow.router.ts, demo-guide-v2.md
+
+**What was found:** The demo guide (Act 4) describes the second-reading
+decision screen as having "three named actions — Approve, Reject, and
+Amended." The panel that actually renders for this step was traced via
+computePanelHint's office-ID-comparison logic (confirmed:
+secretary.lagura's seeded officeCode 'SPS' matches
+SP_SECRETARIAT_OFFICE_CODE, so this step resolves to panelHint
+'secretariat_decision', not 'generic_approval') to be
+`SecretariatDecisionPanel.tsx`, which does genuinely have exactly these
+three buttons (lines 66-82) — the demo guide's description of the button
+count is accurate.
+
+However, clicking "Amended" produces the outcome string 'AMENDED' (via
+logSecretariatDecision's outcomeMap, workflow.router.ts:1194, which is
+itself correct and unrelated to this bug), and the actual seed-level
+transition-rule (packages/database/src/seeds/workflow/
+phase1-legislative.ts, lines 498-503) for
+`{from_step_key: 'second_reading_vote', outcome_filter: 'AMENDED'}` routes
+to `to_step_key: 'final_number_assignment'` — the identical destination
+as an unamended APPROVED outcome — with a self-contradictory label
+("Amended — no amendments"). This means an amended SP Resolution
+receives its permanent, immutable final number immediately, silently
+skipping the `amendments_logging` step, where the Secretariat is meant to
+record what was actually amended.
+
+This is confirmed reachable and not a dead code path:
+evaluateTransitionRules (transition-evaluation.ts:12-48) filters
+transition rows by exact outcome_filter string match before priority is
+ever considered, so this single row is the sole candidate whenever the
+outcome is 'AMENDED' for this step — there is no other row it could
+match instead, and no ambiguity introduced by priority ordering.
+
+The fix's correctness (route to amendments_logging instead) is supported
+by the identical pattern being correctly implemented twice elsewhere in
+the same seed file, for the same outcome concept, on different document
+types: Ordinance's third_reading_vote (lines 838-845, to_step_key:
+'amendments_logging', label 'Amended at third reading') and Appropriation
+Ordinance's third_reading_vote (lines 981-988, same pattern). Both of
+these were confirmed correct and are NOT part of this fix.
+
+A related but separate, non-bug observation: second_reading_amended_vote's
+own AMENDED-filtered row (lines 540-546) also routes to
+final_number_assignment, identically to its own APPROVED row — but for
+this step specifically that is correct, since amendments have already
+been logged by the time this final vote occurs. This row does not need
+fixing and TASK-WF-026 explicitly excludes it from scope.
+
+**Separately noted (not part of this bug, a documentation gap):** H1
+(`h1-phase-1-workflow-definitions-structured-data.md`, lines 387-389,
+422-424) does not list AMENDED as a valid outcome for either
+second_reading_vote or second_reading_amended_vote at all, and its
+transition table has no AMENDED row for either step. This conflicts with
+the actual seed file, which includes AMENDED in both steps'
+allowed_outcomes and (for second_reading_amended_vote, and now — pending
+TASK-WF-026 — for second_reading_vote too) wires it correctly. Given
+AMENDED's consistent, correct treatment across two of three document
+types in the seed, the seed looks more likely to reflect actual intent
+than H1 does on this specific point, but this is a documentation
+inconsistency a human should resolve, not something inferred silently
+here.
+
+**What was implemented:** Nothing yet — TASK-WF-026 (standalone prompt,
+this session) specifies the fix. Awaiting execution of TASK-WF-026. The design question is resolved per
+the addendum above; no alternative interpretation remains open.
+
+**Confirmed against the top of the source-of-truth hierarchy (per
+AGENTS.md Section 1):** docs/requirements-gathering/
+consolidated-architecture-and-requirements-reference-iteration-3.md,
+section 4.1 (lines 288-376), was checked directly for this specific
+question. Its flowchart (lines 305-360) shows exactly three exits from
+the Second Reading vote node for SP Resolutions — voted down, approved
+with amendments (→ "Secretariat logs amendments... prepares amended
+final copy", i.e. amendments_logging), approved with no amendments — no
+fourth branch. Lines 301 and 369 both confirm, verbatim, "No separate
+third reading for resolutions." This resolves the open design question
+noted below: AMENDED and RETURNED_FOR_REVISION are the same single
+"Approved with amendments" concept for second_reading_vote specifically,
+not two intentionally distinct outcomes. Ordinances/Appropriation
+Ordinances are structurally different (section 4.2, lines 379-464,
+confirms a genuine third reading exists for those two document types),
+which is why the identical AMENDED pattern is legitimately a separate,
+correctly-wired outcome for third_reading_vote there but not for
+second_reading_vote. H1's omission of AMENDED from second_reading_vote's
+documented allowed_outcomes (lines 387, 422-424) is therefore the
+document that's actually correct on this point; the seed file's
+inclusion of AMENDED there (phase1-legislative.ts:124) is the artifact
+that should eventually be reconciled with H1, though that reconciliation
+is separate from and not blocking TASK-WF-026's transition-routing fix.
+
+[Confirmed]: panel routing via computePanelHint and secretary.lagura's
+office code, the exact seed transition-row content and its inconsistency
+with the two Ordinance/Appropriation-Ordinance equivalents, and
+evaluateTransitionRules' exact-match filtering behavior — all checked
+directly against this session's snapshot with file paths and line
+numbers cited inline.
+
+---
+
+### [LOG-0190] TASK-WF-026 Fix implementation and workflow definition seeding behavior
+
+- date: 2026-07-30
+- task_id: TASK-WF-026
+- status: proposed
+- affects: phase1-legislative.ts, orchestrator.ts
+- resolved_in: packages/database/src/seeds/workflow/phase1-legislative.ts
+
+**What was found:** 
+1. **Tests referencing the transition row:** A `grep_search` across `apps/server/src/modules/workflow/__tests__` and `packages/database/src/` for `second_reading_vote` revealed that no test encodes an assertion on the old incorrect `to_step_key` for the AMENDED outcome of `second_reading_vote`. The only test assertions involving `second_reading_vote` are for publication validation regarding the `REJECTED` outcome (`definition-validator.test.ts:130`).
+
+2. **Workflow Definition version bumping mechanism:** When running the orchestrator seed (`pnpm db:seed`), the script uses `.onConflictDoNothing()` when inserting `transitionRules` (in `phase1-legislative.ts`). The `id` for each rule is generated via `uuidv5` based on `versionId`, `from_step_key`, `to_step_key`, and index. Since TASK-WF-026 changed the `to_step_key` to `amendments_logging`, a new `id` is generated. Because the seed script does not delete or invalidate old rules (and there is no unique constraint on `fromStepId` + `outcomeFilter` to cause a conflict), running `pnpm db:seed` on an already-seeded database without bumping the version number will simply inject the new rule alongside the old one. Both rules will have `priority: 1`, causing an unpredictable duplicate transition path. 
+To properly bump a workflow definition version, `version_number` in `SP_RESOLUTION_WORKFLOW` must be incremented, which will generate a new `versionId`. However, the seed script unconditionally sets `isCurrent: true` on the new version (lines 1151-1158) without clearing the old version's `isCurrent` flag, which will violate the `uq_definition_versions_one_current` unique index. Thus, for a seed change like this to take effect on an already-seeded database, the database must be reset first (e.g. `pnpm run db:reset` or similar), OR manual SQL updates are required to untag the old current version before seeding, as there is currently no migration script handling version bumps gracefully in the seed.
+
+**What was implemented:** The transition rule in `packages/database/src/seeds/workflow/phase1-legislative.ts` for `second_reading_vote` with `outcome_filter: 'AMENDED'` was successfully updated to target `amendments_logging` with the correct label.
+
+[Tested]: The file modification was applied. No automated tests assert the old transition path. Seed behavior was inferred by analyzing `orchestrator.ts`, `phase1-legislative.ts` (uuidv5 generation and .onConflictDoNothing), and `schema.ts`.
