@@ -283,6 +283,14 @@ export default function DocumentDetailPage() {
     { enabled: !!documentId },
   );
 
+  const { data: offices } = trpc.organization.listAllOffices.useQuery(undefined, {
+    staleTime: Infinity,
+  });
+  
+  const { data: users } = trpc.iam.listAllUsers.useQuery(undefined, {
+    staleTime: Infinity,
+  });
+
   // ── Mutations ─────────────────────────────────────────────────────────────
   const submitMutation = trpc.documents.submit.useMutation({
     onSuccess: () => {
@@ -912,13 +920,19 @@ export default function DocumentDetailPage() {
                 )}
                 <div>
                   <span className="text-text-muted font-medium">Office (owner)</span>
-                  {/* ownedByOfficeId is a bare UUID — label it as such; name resolution
-                      would require a cross-module lookup which is out of scope here */}
-                  <p className="font-mono text-xs">{document.ownedByOfficeId}</p>
+                  <p className="text-sm">
+                    {offices?.find(o => o.id === document.ownedByOfficeId)?.name ?? (
+                      <span className="font-mono text-xs">{document.ownedByOfficeId}</span>
+                    )}
+                  </p>
                 </div>
                 <div>
                   <span className="text-text-muted font-medium">Created By</span>
-                  <p className="font-mono text-xs">{document.createdBy}</p>
+                  <p className="text-sm">
+                    {users?.find(u => u.id === document.createdBy)?.displayName ?? (
+                      <span className="font-mono text-xs">{document.createdBy}</span>
+                    )}
+                  </p>
                 </div>
                 <div>
                   <span className="text-text-muted font-medium">Created At</span>
