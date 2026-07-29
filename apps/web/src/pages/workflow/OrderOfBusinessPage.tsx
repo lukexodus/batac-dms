@@ -759,6 +759,7 @@ function ScheduleForFirstReadingPanel({
             <DocumentPicker
               value={documentId}
               onChange={setDocumentId}
+              lifecycleState="in_workflow"
             />
           </div>
 

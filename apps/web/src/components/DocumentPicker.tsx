@@ -8,13 +8,14 @@ export interface DocumentPickerProps {
   value: string | null;
   onChange: (documentId: string | null) => void;
   disabled?: boolean;
+  lifecycleState?: 'draft' | 'submitted' | 'in_workflow' | 'pending_mayor_action' | 'pending_panlalawigan_review' | 'completed' | 'released' | 'archived' | 'disposed' | 'cancelled' | 'superseded';
 }
 
-export function DocumentPicker({ value, onChange, disabled }: DocumentPickerProps) {
+export function DocumentPicker({ value, onChange, disabled, lifecycleState = 'submitted' }: DocumentPickerProps) {
   const [localQuery, setLocalQuery] = useState('');
 
   const { data, isLoading } = trpc.documents.list.useQuery({
-    lifecycleState: 'submitted',
+    lifecycleState,
     limit: 25,
   });
 
@@ -37,7 +38,7 @@ export function DocumentPicker({ value, onChange, disabled }: DocumentPickerProp
       isLoading={isLoading}
       placeholder="Pick a document…"
       searchPlaceholder="Filter by title…"
-      emptyText="No submitted documents found."
+      emptyText={`No ${lifecycleState.replace('_', ' ')} documents found.`}
       {...(disabled !== undefined ? { disabled } : {})}
     />
   );
