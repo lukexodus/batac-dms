@@ -4,14 +4,17 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
 
+import { CommitteeRevisionsDecisionPanel } from './panels/CommitteeRevisionsDecisionPanel';
 import { DocketingPanel } from './panels/DocketingPanel';
 import { GenericActionPanel } from './panels/GenericActionPanel';
 import { GenericApprovalPanel } from './panels/GenericApprovalPanel';
+import { LegalOfficeReviewDecisionPanel } from './panels/LegalOfficeReviewDecisionPanel';
 import { MayorDecisionPanel } from './panels/MayorDecisionPanel';
 import { MayorLapseConfirmationPanel } from './panels/MayorLapseConfirmationPanel';
 import { MultiReferralPanel } from './panels/MultiReferralPanel';
 import { PanlalawiganOutcomePanel } from './panels/PanlalawiganOutcomePanel';
 import { PublicationDatePanel } from './panels/PublicationDatePanel';
+import { ReturnedReviewDecisionPanel } from './panels/ReturnedReviewDecisionPanel';
 import { SecretariatDecisionPanel } from './panels/SecretariatDecisionPanel';
 import { VetoOverrideRecordingPanel } from './panels/VetoOverrideRecordingPanel';
 import { VPCertificationPanel } from './panels/VPCertificationPanel';
@@ -114,6 +117,18 @@ export function WorkflowStepActionPage() {
       case 'publication_date':
         canAct = hasRole(identity, 'sp_secretary');
         if (canAct) return <PublicationDatePanel instance={instance} />;
+        break;
+      case 'returned_review_decision':
+        canAct = hasRole(identity, 'sp_secretary');
+        if (canAct) return <ReturnedReviewDecisionPanel instance={instance} />;
+        break;
+      case 'legal_office_review_decision':
+        canAct = hasRole(identity, 'sp_secretary');
+        if (canAct) return <LegalOfficeReviewDecisionPanel instance={instance} />;
+        break;
+      case 'committee_revisions_decision':
+        canAct = hasRole(identity, 'sp_member');
+        if (canAct) return <CommitteeRevisionsDecisionPanel instance={instance} />;
         break;
       default:
         break;

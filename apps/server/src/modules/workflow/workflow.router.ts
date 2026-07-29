@@ -214,6 +214,9 @@ function computePanelHint(
   | 'docketing'
   | 'panlalawigan_outcome'
   | 'publication_date'
+  | 'returned_review_decision'
+  | 'legal_office_review_decision'
+  | 'committee_revisions_decision'
   | 'secretariat_decision'
   | 'generic_action'
   | 'generic_approval'
@@ -241,6 +244,12 @@ function computePanelHint(
     return 'panlalawigan_outcome';
   } else if (stepKey === 'newspaper_publication') {
     return 'publication_date';
+  } else if (stepKey === 'returned_review') {
+    return 'returned_review_decision';
+  } else if (stepKey === 'legal_office_review') {
+    return 'legal_office_review_decision';
+  } else if (stepKey === 'committee_revisions_review') {
+    return 'committee_revisions_decision';
   } else if (
     (currentStepType === 'action' || currentStepType === 'approval') &&
     spsOfficeId &&
@@ -291,6 +300,9 @@ export function createWorkflowRouter() {
               'docketing',
               'panlalawigan_outcome',
               'publication_date',
+              'returned_review_decision',
+              'legal_office_review_decision',
+              'committee_revisions_decision',
               'secretariat_decision',
               'generic_action',
               'generic_approval',
@@ -455,6 +467,9 @@ export function createWorkflowRouter() {
                 'docketing',
                 'panlalawigan_outcome',
                 'publication_date',
+                'returned_review_decision',
+                'legal_office_review_decision',
+                'committee_revisions_decision',
                 'secretariat_decision',
                 'generic_action',
                 'generic_approval',
