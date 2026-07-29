@@ -16,6 +16,7 @@ import { PanlalawiganOutcomePanel } from './panels/PanlalawiganOutcomePanel';
 import { PublicationDatePanel } from './panels/PublicationDatePanel';
 import { ReturnedReviewDecisionPanel } from './panels/ReturnedReviewDecisionPanel';
 import { SecretariatDecisionPanel } from './panels/SecretariatDecisionPanel';
+import { ValidInPartDecisionPanel } from './panels/ValidInPartDecisionPanel';
 import { VetoOverrideRecordingPanel } from './panels/VetoOverrideRecordingPanel';
 import { VPCertificationPanel } from './panels/VPCertificationPanel';
 
@@ -129,6 +130,10 @@ export function WorkflowStepActionPage() {
       case 'committee_revisions_decision':
         canAct = hasRole(identity, 'sp_member');
         if (canAct) return <CommitteeRevisionsDecisionPanel instance={instance} />;
+        break;
+      case 'valid_in_part_decision':
+        canAct = hasRole(identity, 'sp_secretary');
+        if (canAct) return <ValidInPartDecisionPanel instance={instance} />;
         break;
       default:
         break;

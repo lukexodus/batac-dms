@@ -217,6 +217,7 @@ function computePanelHint(
   | 'returned_review_decision'
   | 'legal_office_review_decision'
   | 'committee_revisions_decision'
+  | 'valid_in_part_decision'
   | 'secretariat_decision'
   | 'generic_action'
   | 'generic_approval'
@@ -250,6 +251,8 @@ function computePanelHint(
     return 'legal_office_review_decision';
   } else if (stepKey === 'committee_revisions_review') {
     return 'committee_revisions_decision';
+  } else if (stepKey === 'valid_in_part_decision') {
+    return 'valid_in_part_decision';
   } else if (
     (currentStepType === 'action' || currentStepType === 'approval') &&
     spsOfficeId &&
@@ -304,6 +307,7 @@ export function createWorkflowRouter() {
               'returned_review_decision',
               'legal_office_review_decision',
               'committee_revisions_decision',
+              'valid_in_part_decision',
               'secretariat_decision',
               'generic_action',
               'generic_approval',
@@ -472,6 +476,7 @@ export function createWorkflowRouter() {
                 'returned_review_decision',
                 'legal_office_review_decision',
                 'committee_revisions_decision',
+                'valid_in_part_decision',
                 'secretariat_decision',
                 'generic_action',
                 'generic_approval',
