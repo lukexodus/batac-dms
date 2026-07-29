@@ -117,7 +117,7 @@ function QueueWidget() {
                 <div className="min-w-0 flex-1">
                   <p className="text-text-primary truncate font-medium">{step.documentTitle}</p>
                   <p className="text-text-muted text-xs">
-                    {String(step.stepType).replace(/_/g, ' ')}
+                    {step.stepName || String(step.stepType).replace(/_/g, ' ')}
                     {step.dueAt && (
                       <>
                         {' '}

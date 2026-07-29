@@ -158,7 +158,7 @@ export function WorkflowStepActionPage() {
               <strong>Status:</strong> {instance.status}
             </div>
             <div>
-              <strong>Current Step Type:</strong> {instance.currentStepType}
+              <strong>Current Step:</strong> {instance.currentStepName || instance.currentStepType}
             </div>
             {instance.currentAssigneeUserId && (
               <div>

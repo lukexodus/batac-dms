@@ -83,9 +83,16 @@ export const columns: ColumnDef<AssignedStepRow>[] = [
     },
   },
   {
-    accessorKey: 'stepType',
-    header: 'Step Type',
-    cell: ({ row }) => <StepTypeBadge stepType={row.original.stepType} />,
+    accessorKey: 'stepName',
+    header: 'Step',
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <span className="font-medium text-slate-700">
+          {row.original.stepName || row.original.stepType}
+        </span>
+        <StepTypeBadge stepType={row.original.stepType} />
+      </div>
+    ),
   },
   {
     accessorKey: 'assignedAt',

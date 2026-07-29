@@ -102,7 +102,7 @@ function QueueWidget() {
                           {step.documentTitle}
                         </p>
                         <p className="text-text-muted text-xs">
-                          {step.stepType.replace(/_/g, ' ')}
+                          {step.stepName || step.stepType.replace(/_/g, ' ')}
                           {step.dueAt && (
                             <>
                               {' '}

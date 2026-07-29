@@ -291,6 +291,7 @@ export function createWorkflowRouter() {
           ]),
           currentStepInstanceId: z.string().uuid(),
           currentStepKey: z.string().nullable(),
+          currentStepName: z.string().nullable(),
           currentAssigneeUserId: z.string().uuid().nullable(),
           status: z.enum(['Active', 'Completed', 'Cancelled']),
           slaDeadline: z.coerce.date().nullable(),
@@ -357,6 +358,7 @@ export function createWorkflowRouter() {
           .select({
             stepInstanceId: stepInstances.id,
             stepType: steps.stepType,
+            stepName: steps.label,
             assignedTo: stepInstances.assignedTo,
             stepKey: steps.stepKey,
             metadata: stepInstances.metadata,
@@ -430,6 +432,7 @@ export function createWorkflowRouter() {
           documentTitle: doc.title || null,
           definitionVersionId: instance.definitionVersionId,
           currentStepType,
+          currentStepName: currentStep ? currentStep.stepName : null,
           currentStepInstanceId: currentStep
             ? currentStep.stepInstanceId
             : '00000000-0000-0000-0000-000000000000',
@@ -648,6 +651,7 @@ export function createWorkflowRouter() {
             documentId: instances.documentId,
             documentTitle: documents.title,
             stepType: steps.stepType,
+            stepName: steps.label,
             stepKey: steps.stepKey,
             assignedTo: stepInstances.assignedTo,
             createdAt: stepInstances.createdAt,
@@ -748,6 +752,7 @@ export function createWorkflowRouter() {
             documentId: item.documentId,
             documentTitle: item.documentTitle,
             stepType,
+            stepName: item.stepName,
             stepKey: item.stepKey,
             assignedAt: item.createdAt,
             dueAt: item.slaDeadline,
