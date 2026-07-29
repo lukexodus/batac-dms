@@ -339,7 +339,7 @@ describe('Session Router tRPC Procedures', () => {
       mockDb.mockResponse([{ firstName: 'Sub', lastName: 'Stitute' }]); // presiding emp lookup
 
       const result = await caller.getAttendanceRecord({ sessionDate: new Date('2026-07-14') });
-      expect(result.presentCouncilors).toEqual(['emp-1']);
+      expect(result.presentCouncilors).toEqual([{ id: 'emp-1', displayName: 'Juan Dela Cruz' }]);
       expect(result.absences).toEqual([
         {
           councilorEmployeeId: 'emp-2',

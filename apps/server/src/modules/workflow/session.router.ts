@@ -144,7 +144,7 @@ export function createSessionRouter() {
             ),
           );
 
-        const presentCouncilors: string[] = [];
+        const presentCouncilors: Array<{ id: string; displayName: string }> = [];
         const absences: Array<{
           councilorEmployeeId: string;
           councilorDisplayName: string;
@@ -162,7 +162,10 @@ export function createSessionRouter() {
 
         for (const att of attendances) {
           if (att.isPresent) {
-            presentCouncilors.push(att.employeeId);
+            presentCouncilors.push({
+              id: att.employeeId,
+              displayName: `${att.firstName} ${att.lastName}`.trim(),
+            });
           } else {
             absences.push({
               councilorEmployeeId: att.employeeId,

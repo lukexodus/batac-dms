@@ -130,9 +130,9 @@ export function SessionAttendanceDetailPage() {
                   </h4>
                   {record?.presentCouncilors.length ? (
                     <ul className="list-inside list-disc space-y-1 text-sm">
-                      {record.presentCouncilors.map((id) => (
-                        <li key={id} className="font-mono text-xs">
-                          {id}
+                      {record.presentCouncilors.map((c) => (
+                        <li key={c.id} className="text-sm">
+                          {c.displayName || c.id}
                         </li>
                       ))}
                     </ul>
