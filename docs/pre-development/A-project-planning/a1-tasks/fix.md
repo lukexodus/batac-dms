@@ -25083,3 +25083,1432 @@ new_str:
 
 ## 9. Verification
 Run `pnpm typecheck` in `apps/server` and the existing unit/integration test suites. This task does not modify or require new test fixtures, but if a test harness for `documents.plugin.ts`'s event subscriptions already exists, run it. Report the exact typecheck/test output — do not summarize as "passed" without showing it, since this is a new code path with no existing coverage.
+
+---
+
+# TASK-WF-017: Wire `documents.archive` to resolve the active `archive` workflow step
+
+**Status:** Ready to execute. Decision confirmed: use `autoCompleteActionStep` (system-driven completion), not `submitStepAction`.
+
+## 1. Context
+
+`documents.archive` (`documents.router.ts:1558-1588`) transitions the document's `lifecycle_state` to `'archived'` but never touches the workflow engine. The `archive` workflow step (`phase1-legislative.ts:359-372`, `step_type: 'action'`, `auto_complete: false`, assigned to `ROLE.RECORDS_OFFICER`) is left permanently `active` — its workflow instance can never progress past it.
+
+**Decision record — why `autoCompleteActionStep`, not `submitStepAction`:** `submitStepAction` (`action.handler.ts:11-83`) throws `FORBIDDEN` unless the calling `actorId` appears in the step instance's own `assignedTo` list — a snapshot taken when the step became active, potentially weeks earlier. `documents.policy.ts`'s `canArchive` (lines 643-651, confirmed) authorizes purely by role (`records_officer`, or `sp_secretary` + office check) — it has no relationship to that assignee snapshot. Using `submitStepAction` risks a correctly-authorized Records Officer hitting a spurious `FORBIDDEN` error. `autoCompleteActionStep` (`action.handler.ts:85-136`) skips that check, completing the step as `actorType: 'system'`. The document-level audit trail still records the real actor, via `transitionState`'s own `actorId` parameter — only the workflow step's own completion record loses per-user attribution.
+
+**Architectural finding that changes this task's scope beyond a single new method:** `autoCompleteActionStep` internally calls `resolveNextStep` (`step-resolution.ts:26`), which requires the full `StepResolutionDeps` shape (`step-resolution.ts:12-20`): `db`, `workflowRepository`, `documentsService`, `eventBus`, `orgService`, `delegationService`, `iamService`. `createWorkflowPublicAPI`'s current signature is `(db: AppDb): WorkflowPublicAPI` — it receives **only** `db`. This task must widen that signature to a deps object carrying everything `autoCompleteActionStep` needs. Confirmed via exhaustive grep: `createWorkflowPublicAPI` has exactly one call site in production code (`workflow.plugin.ts:31`) and zero references in any test file — this signature change has a fully contained blast radius.
+
+## 2. Scope
+
+```
+IN SCOPE:
+- apps/server/src/modules/workflow/workflow.repository.ts   (add getActiveStepInstanceByStepKey method)
+- apps/server/src/modules/workflow/index.ts                 (add archiveStepForDocument to WorkflowPublicAPI interface)
+- apps/server/src/modules/workflow/workflow.public-api.ts   (widen createWorkflowPublicAPI's signature to a deps object; implement archiveStepForDocument)
+- apps/server/src/modules/workflow/workflow.plugin.ts       (update the one call site to pass the new deps object)
+- apps/server/src/modules/documents/documents.router.ts     (add getWorkflowService(ctx) helper; wrap archive in a transaction; call the new method)
+
+OUT OF SCOPE (do not touch even if related):
+- apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts (submitStepAction/autoCompleteActionStep themselves — call them, do not modify them)
+- apps/server/src/modules/workflow/engine/step-resolution.ts
+- apps/server/src/modules/documents/documents.policy.ts (canArchive — already correct, do not touch)
+- packages/database/src/seeds/workflow/phase1-legislative.ts
+- Any other WorkflowPublicAPI method added by TASK-WF-016 (if it has already run when you execute this — see the interface/factory edge case below)
+```
+
+## 3. Change 1 — `workflow.repository.ts`: add `getActiveStepInstanceByStepKey`
+
+Insert immediately after the existing `getMultiReferralStepInstanceForInstance` method (current lines 399-416), which it deliberately mirrors with one difference:
+
+```json
+{
+  "deliberate_deviation_from_precedent": {
+    "precedent_method": "getMultiReferralStepInstanceForInstance",
+    "precedent_filters": ["stepInstances.instanceId = instanceId", "steps.stepType = 'multi_referral'", "stepInstances.deletedAt IS NULL"],
+    "new_method_filters": ["stepInstances.instanceId = instanceId", "steps.stepKey = <param>", "stepInstances.status = 'active'", "stepInstances.deletedAt IS NULL"],
+    "reason_for_the_extra_status_filter": "this method must find the CURRENTLY ACTIVE archive step instance specifically, not any historical stepInstance row that happens to share this stepKey — the precedent method does not need this distinction for its own use case, but this one does",
+    "authoritative": true
+  }
+}
+```
+
+```
+old_str:
+  async getMultiReferralStepInstanceForInstance(
+    instanceId: string,
+    tx: TxOrDb = this.db,
+  ): Promise<StepInstanceRow | null> {
+    const [row] = await tx
+      .select({ stepInstance: stepInstances })
+      .from(stepInstances)
+      .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+      .where(
+        and(
+          eq(stepInstances.instanceId, instanceId),
+          eq(steps.stepType, 'multi_referral'),
+          isNull(stepInstances.deletedAt),
+        ),
+      )
+      .limit(1);
+    return row ? row.stepInstance : null;
+  }
+
+new_str:
+  async getMultiReferralStepInstanceForInstance(
+    instanceId: string,
+    tx: TxOrDb = this.db,
+  ): Promise<StepInstanceRow | null> {
+    const [row] = await tx
+      .select({ stepInstance: stepInstances })
+      .from(stepInstances)
+      .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+      .where(
+        and(
+          eq(stepInstances.instanceId, instanceId),
+          eq(steps.stepType, 'multi_referral'),
+          isNull(stepInstances.deletedAt),
+        ),
+      )
+      .limit(1);
+    return row ? row.stepInstance : null;
+  }
+
+  /**
+   * Finds the currently-ACTIVE step instance within a workflow instance
+   * whose step has the given `stepKey`. Added for TASK-WF-017 (archive
+   * step resolution) but written generically over `stepKey` rather than
+   * hardcoded to 'archive', for reuse by any future similar need.
+   */
+  async getActiveStepInstanceByStepKey(
+    instanceId: string,
+    stepKey: string,
+    tx: TxOrDb = this.db,
+  ): Promise<StepInstanceRow | null> {
+    const [row] = await tx
+      .select({ stepInstance: stepInstances })
+      .from(stepInstances)
+      .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+      .where(
+        and(
+          eq(stepInstances.instanceId, instanceId),
+          eq(steps.stepKey, stepKey),
+          eq(stepInstances.status, 'active'),
+          isNull(stepInstances.deletedAt),
+        ),
+      )
+      .limit(1);
+    return row ? row.stepInstance : null;
+  }
+```
+No new imports required — same rationale as TASK-WF-016 Change 1: `eq`, `and`, `isNull`, `steps`, `stepInstances` are already imported in this file.
+
+## 4. Change 2 — `workflow/index.ts`: add `archiveStepForDocument`
+
+```
+old_str:
+  getWorkflowSLAData(filter: WorkflowSLAFilter): Promise<WorkflowSLAData[]>;
+}
+
+new_str:
+  getWorkflowSLAData(filter: WorkflowSLAFilter): Promise<WorkflowSLAData[]>;
+  /**
+   * Finds the document's active workflow instance, locates its currently
+   * active step instance matching `stepKey`, and completes that step
+   * (system-driven — see TASK-WF-017's decision record for why
+   * autoCompleteActionStep was chosen over submitStepAction). Returns
+   * `{ resolved: false }` gracefully — does not throw — if there is no
+   * active instance for the document, or no active step instance matching
+   * `stepKey` within it. This is a deliberate design choice: workflow-step
+   * resolution is a secondary side effect of whatever primary action the
+   * caller is taking (e.g. documents.archive's lifecycle transition); it
+   * must not block that primary action if there is nothing to resolve.
+   */
+  archiveStepForDocument(
+    documentId: string,
+    stepKey: string,
+    tx?: TxOrDb,
+  ): Promise<{ resolved: boolean }>;
+}
+```
+**Note on the `TxOrDb` import:** if TASK-WF-016 has already run against this file, it will have already added `import type { TxOrDb } from '../../db.js';` at the top. Do not add a duplicate import — check first. If TASK-WF-016 has not yet run, add that same import line at the top of the file.
+
+**Edge case — sequencing with TASK-WF-016:** if TASK-WF-016 has already added `getStepKeyById` to this interface, insert `archiveStepForDocument` as an additional member alongside it. Order does not matter.
+
+## 5. Change 3 — `workflow.public-api.ts`: widen the factory signature and implement the new method
+
+**Part A — widen imports and the deps type.** Current imports (lines 1-13):
+```
+old_str:
+import { eq, and, isNull, or, gte, lte, sql } from 'drizzle-orm';
+import type { AppDb } from '../../db.js';
+import type {
+  WorkflowPublicAPI,
+  WorkflowInstanceSummary,
+  WorkflowSLAFilter,
+  WorkflowSLAData,
+  WorkflowStepType,
+} from './index.js';
+import { WorkflowRepository } from './workflow.repository.js';
+import { SlaService } from './services/sla.service.js';
+import { instances, steps, definitionVersions } from '@batac/database/schema/workflow.schema.js';
+import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
+
+new_str:
+import { eq, and, isNull, or, gte, lte, sql } from 'drizzle-orm';
+import type { AppDb, TxOrDb } from '../../db.js';
+import type {
+  WorkflowPublicAPI,
+  WorkflowInstanceSummary,
+  WorkflowSLAFilter,
+  WorkflowSLAData,
+  WorkflowStepType,
+} from './index.js';
+import { WorkflowRepository } from './workflow.repository.js';
+import { SlaService } from './services/sla.service.js';
+import { instances, steps, definitionVersions } from '@batac/database/schema/workflow.schema.js';
+import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
+import { autoCompleteActionStep } from './engine/step-handlers/action.handler.js';
+import type { DocumentsPublicAPI } from '../documents/documents.types.js';
+import type { OrgService, DelegationService } from '../organization/organization.types.js';
+import type { IamPublicAPI } from '../iam/iam.types.js';
+import type { EventBus } from '@batac/shared';
+
+export interface WorkflowPublicAPIDeps {
+  db: AppDb;
+  documentsService: DocumentsPublicAPI;
+  eventBus: EventBus;
+  orgService: OrgService;
+  delegationService: DelegationService;
+  iamService: IamPublicAPI;
+}
+```
+
+**Part B — change the factory's own signature.** Current line 15:
+```
+old_str:
+export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
+  const repository = new WorkflowRepository(db);
+  const slaService = new SlaService();
+
+new_str:
+export function createWorkflowPublicAPI(deps: WorkflowPublicAPIDeps): WorkflowPublicAPI {
+  const { db } = deps;
+  const repository = new WorkflowRepository(db);
+  const slaService = new SlaService();
+```
+**Confirmed safe:** every other place in this file's function body already references the bare identifier `db` (e.g. `getWorkflowSLAData`'s `const rows = await db.select(...)`, line 109 in the current file). Destructuring `const { db } = deps;` as the first line preserves that identifier unchanged — no other line in this file needs to change because of this signature widening.
+
+**Part C — add the new method.** Insert after `getWorkflowSLAData`'s closing `},` (same anchor as TASK-WF-016 Change 3, adjust if that task has already run — see edge case below):
+```
+old_str:
+      return result;
+    },
+  };
+}
+
+new_str:
+      return result;
+    },
+
+    async archiveStepForDocument(
+      documentId: string,
+      stepKey: string,
+      tx?: TxOrDb,
+    ): Promise<{ resolved: boolean }> {
+      const scopedDb: AppDb | TxOrDb = tx ?? db;
+      const scopedRepository = tx ? new WorkflowRepository(tx) : repository;
+
+      const instance = await scopedRepository.getActiveInstanceForDocument(documentId, tx);
+      if (!instance) return { resolved: false };
+
+      const stepInstance = await scopedRepository.getActiveStepInstanceByStepKey(
+        instance.id,
+        stepKey,
+        tx,
+      );
+      if (!stepInstance) return { resolved: false };
+
+      await autoCompleteActionStep(
+        instance,
+        stepInstance,
+        {
+          db: scopedDb,
+          workflowRepository: scopedRepository,
+          documentsService: deps.documentsService,
+          eventBus: deps.eventBus,
+          orgService: deps.orgService,
+          delegationService: deps.delegationService,
+          iamService: deps.iamService,
+        },
+        tx,
+      );
+
+      return { resolved: true };
+    },
+  };
+}
+```
+**Edge case — sequencing with TASK-WF-016:** if that task has already added `getStepKeyById` to this same `return { ... }` block, insert `archiveStepForDocument` as an additional member, don't conflict with or revert it.
+
+```json
+{
+  "edge_case_decision_table": [
+    {"case": "no active workflow instance exists for documentId", "required_behavior": "return { resolved: false }, do not throw"},
+    {"case": "active instance exists but no active step instance matches stepKey", "required_behavior": "return { resolved: false }, do not throw"},
+    {"case": "both found", "required_behavior": "call autoCompleteActionStep, return { resolved: true }"},
+    {"case": "autoCompleteActionStep itself throws", "required_behavior": "let it propagate — do not catch it here; the caller (documents.router.ts's archive procedure) is responsible for deciding what a thrown error means for the surrounding transaction"}
+  ],
+  "authoritative": true
+}
+```
+
+## 6. Change 4 — `workflow.plugin.ts`: update the one call site
+
+```
+old_str:
+  const workflowRepository = new WorkflowRepository(db);
+  const workflowService = createWorkflowPublicAPI(db);
+  fastify.decorate('workflowService', workflowService);
+
+new_str:
+  const workflowRepository = new WorkflowRepository(db);
+  const workflowService = createWorkflowPublicAPI({
+    db,
+    documentsService: fastify.documentsService,
+    eventBus: fastify.eventBus,
+    orgService: fastify.organizationService,
+    delegationService: fastify.delegationService,
+    iamService: fastify.iamService,
+  });
+  fastify.decorate('workflowService', workflowService);
+```
+**Confirmed safe:** at this exact point in `workflowPlugin`'s registration function, `fastify.documentsService`, `fastify.eventBus`, `fastify.organizationService`, `fastify.delegationService`, `fastify.iamService` are all already decorated — confirmed by `workflowPlugin`'s own `dependencies` array (`workflow.plugin.ts:158`: `['database', 'event-bus', 'audit', 'organization', 'documents', 'iam']`), and independently confirmed because this exact same file already builds an identically-shaped `stepDeps` object using these same accessors a few lines later (current lines 41-49).
+
+**`createWorkflowPublicAPI`'s import statement in this file does not need to change** — it already imports the function itself (`import { createWorkflowPublicAPI } from './workflow.public-api.js';`, current line 6); only the call-site arguments change, not the import.
+
+## 7. Change 5 — `documents.router.ts`: add helper, wrap `archive` in a transaction, call the new method
+
+**Part A — add the helper**, following this file's own established one-line-per-accessor pattern exactly (current helpers at lines 80-98):
+```
+old_str:
+function getOrgService(ctx: Context) {
+  return ctx.req.server.organizationService;
+}
+
+new_str:
+function getOrgService(ctx: Context) {
+  return ctx.req.server.organizationService;
+}
+
+function getWorkflowService(ctx: Context) {
+  return ctx.req.server.workflowService;
+}
+```
+**Confirmed safe to reference `ctx.req.server.workflowService` from this file even though `documents` does not declare a plugin dependency on `workflow`:** this is a request-time procedure body, not plugin-registration-time code — by the time any HTTP request reaches a tRPC procedure, all plugins (including `workflow`) have already finished registering, regardless of the `documents`/`workflow` registration order. The `declare module 'fastify'` augmentation for `workflowService` (`workflow.plugin.ts:16-22`) is a global ambient type, visible to this file's type-checker without any import.
+
+**Part B — rewrite the `archive` procedure.** Current exact content:
+```
+old_str:
+    archive: protectedProcedure
+      .input(ArchiveDocumentInputSchema)
+      .output(SuccessOutputSchema)
+      .mutation(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+        const service = getService(ctx);
+
+        const document = await repo.findDocumentById(input.documentId);
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const spsOffice = await getOrgService(ctx).getOfficeByCode(
+          SP_SECRETARIAT_OFFICE_CODE,
+          subject.cityId,
+        );
+        const isSp = spsOffice ? subject.effectiveOfficeIds.includes(spsOffice.officeId) : false;
+
+        const allowed = guard.canArchive(subject, {
+          lifecycleState: document.lifecycleState,
+          ownedByOfficeId: document.ownedByOfficeId,
+          isSpSecretariatOffice: isSp,
+        });
+        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+
+        await service.transitionState(document.id, 'archived', subject.userId, 'Document archived');
+
+        return { success: true };
+      }),
+
+new_str:
+    archive: protectedProcedure
+      .input(ArchiveDocumentInputSchema)
+      .output(SuccessOutputSchema)
+      .mutation(async ({ ctx, input }) => {
+        const subject = ctx.auth;
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+        const service = getService(ctx);
+        const workflowService = getWorkflowService(ctx);
+
+        const document = await repo.findDocumentById(input.documentId);
+        if (!document || document.cityId !== subject.cityId) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const spsOffice = await getOrgService(ctx).getOfficeByCode(
+          SP_SECRETARIAT_OFFICE_CODE,
+          subject.cityId,
+        );
+        const isSp = spsOffice ? subject.effectiveOfficeIds.includes(spsOffice.officeId) : false;
+
+        const allowed = guard.canArchive(subject, {
+          lifecycleState: document.lifecycleState,
+          ownedByOfficeId: document.ownedByOfficeId,
+          isSpSecretariatOffice: isSp,
+        });
+        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+
+        await ctx.db.transaction(async (tx) => {
+          await service.transitionState(
+            document.id,
+            'archived',
+            subject.userId,
+            'Document archived',
+            tx,
+          );
+          await workflowService.archiveStepForDocument(document.id, 'archive', tx);
+        });
+
+        return { success: true };
+      }),
+```
+**Confirmed precedent for `ctx.db.transaction(async (tx) => {...})`:** this exact pattern is already used elsewhere in this same file (the `submit` procedure, current lines ~1225-1259).
+
+```json
+{
+  "scope_reminder": "this task adds a transaction wrapper to archive where none existed before — this is a materially bigger change than inserting one line into an existing transaction. Confirm ctx.db.transaction(...) is available in this file's Context type (it is, per the submit procedure's existing precedent) before assuming it needs importing.",
+  "authoritative": true
+}
+```
+
+## 8. What NOT to do
+- Do not use `submitStepAction` — the decision is `autoCompleteActionStep`, per §1.
+- Do not modify `canArchive` or its authorization logic.
+- Do not modify `action.handler.ts` or `step-resolution.ts` themselves.
+- Do not let `archiveStepForDocument` throw when no active instance/step instance is found — it must return `{ resolved: false }` gracefully (§5's decision table).
+- Do not add a second, positional-parameter overload of `createWorkflowPublicAPI` for backward compatibility — update the one call site directly.
+
+## 9. Verification
+Run `pnpm typecheck` in `apps/server`. This task changes a public factory function's signature — typecheck will immediately catch any missed call site, but the exhaustive grep in §1 found only one, so this should be clean. Run existing unit/integration tests. Report exact output.
+
+---
+
+# TASK-WF-018: Synchronize `documents.lifecycle_state` with workflow-instance creation
+
+**Status:** Ready to execute. Investigates and closes the gap logged as `LOG-0183` (`docs/development-findings-log.md`).
+
+## 1. Context — why neither of the two originally-proposed approaches, as literally stated, is correct
+
+Two approaches were proposed for closing this gap: (a) have `documents.submit` transition straight to `'in_workflow'`, bypassing `'submitted'` entirely; or (b) wire the same event that wakes the workflow engine to simultaneously push the document to `'in_workflow'`. Investigation confirmed **(a), taken literally, is unsafe**, and **(b) is correct once implemented at the right layer** — not as a bolt-on step in the event handler, but inside `createInstance`'s own transaction.
+
+**Why (a) is unsafe:** `workflow.plugin.ts`'s `document.created` handler (lines 64-104) explicitly skips workflow-instance creation for document types with no active workflow definition (confirmed comment, line 74: `NO_ACTIVE_VERSION: expected inert failure in Phase 1 for DOCUMENT_REQUEST_FORM`). If `documents.submit` unconditionally transitioned to `'in_workflow'`, a `DOCUMENT_REQUEST_FORM` document (or any future document type without a workflow definition) would claim to be "in a workflow" while zero workflow instance exists for it — actively misleading, and it would make `documents.policy.ts:611`'s and `document-requests.router.ts:57`'s existing checks (which treat `'submitted'` and `'in_workflow'` as distinct, both-observable states) silently vacuous for the `'submitted'` branch, since no document would ever actually be observed sitting at that state anymore.
+
+**The correct design:** leave `documents.submit` completely untouched. Add the new `transitionState(..., 'in_workflow', ...)` call **inside `createInstance`'s own existing internal transaction** (`create-instance.ts:56`'s `deps.db.transaction(async (trx) => {...})` block), immediately after the instance row is created. This achieves:
+- Full atomicity: if anything later in this same transaction throws (e.g. the `STEP_TYPE_NOT_AVAILABLE_IN_PHASE_1` case at line 122), the state transition rolls back together with the instance/step-instance/event rows.
+- Correct handling of the no-active-definition case for free, with zero special-casing: `createInstance` is only ever invoked after `workflow.plugin.ts`'s handler has already confirmed an active definition exists (its own early-return at lines 73-80 prevents `createInstance` from being called at all otherwise) — so a document type with no workflow definition simply never reaches this new code, and correctly stays at `'submitted'` indefinitely.
+
+**Confirmed: no database migration required.** Both independent enforcement layers already permit this exact transition and have since this schema was written:
+- TS-level: `documents.service.ts:32`, `submitted: ['in_workflow', 'cancelled']`.
+- DB-level trigger: `packages/database/migrations/0004_documents_create_documents_schema.sql:309`, `WHEN 'submitted' THEN NEW.lifecycle_state IN ('in_workflow','cancelled')`.
+
+## 2. Scope
+
+```
+IN SCOPE:
+- apps/server/src/modules/workflow/engine/create-instance.ts               (add the transitionState call)
+- apps/server/src/modules/workflow/__tests__/create-instance.test.ts       (add transitionState mock; add new assertion test)
+
+OUT OF SCOPE (do not touch even if related):
+- apps/server/src/modules/documents/documents.router.ts (submit procedure — must remain completely unchanged; still transitions to 'submitted', still emits document.created exactly as today)
+- apps/server/src/modules/workflow/workflow.plugin.ts (the document.created handler itself — do not add logic there; the fix belongs inside createInstance, not its caller)
+- apps/server/src/modules/workflow/workflow.plugin.test.ts (confirmed unaffected — createInstance is mocked at the module level in this file, so the real implementation with this change is never exercised there)
+- apps/server/src/modules/documents/__tests__/documents.router.transactions.test.ts (confirmed unaffected — tests documents.submit in isolation; document.created's downstream handler is never wired up or exercised in this file's test setup)
+- Any other document lifecycle state or transition
+```
+
+## 3. Change 1 — `create-instance.ts`: add the transition call
+
+Current exact content at the target location:
+```
+old_str:
+    const instance = await deps.workflowRepository.createInstance(
+      {
+        definitionVersionId: versionId,
+        documentId,
+        status: 'active',
+        createdBy: actorId,
+        context: {
+          document_id: documentId,
+          document_type: documentTypeCode,
+          created_by: actorId,
+          certified_urgent: false,
+          certified_urgent_document_id: null,
+          sla_paused: false,
+          requires_publication: requiresPublication,
+        },
+        slaDeadline,
+      },
+      trx,
+    );
+
+    const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(versionId, trx);
+
+new_str:
+    const instance = await deps.workflowRepository.createInstance(
+      {
+        definitionVersionId: versionId,
+        documentId,
+        status: 'active',
+        createdBy: actorId,
+        context: {
+          document_id: documentId,
+          document_type: documentTypeCode,
+          created_by: actorId,
+          certified_urgent: false,
+          certified_urgent_document_id: null,
+          sla_paused: false,
+          requires_publication: requiresPublication,
+        },
+        slaDeadline,
+      },
+      trx,
+    );
+
+    // TASK-WF-018: synchronize documents.lifecycle_state with the workflow
+    // engine at the moment a workflow instance is actually created for
+    // this document -- not before, and not unconditionally in
+    // documents.submit (see TASK-WF-018's decision record for why:
+    // document types with no active workflow definition never reach this
+    // point at all, since the caller's own early-return prevents
+    // createInstance from being invoked for them -- so they correctly
+    // never transition past 'submitted'). Sharing `trx` means: if
+    // anything below this point in this same transaction throws, this
+    // transition rolls back together with the instance/step-instance/
+    // event rows created here.
+    await deps.documentsService.transitionState(
+      documentId,
+      'in_workflow',
+      actorId,
+      'Workflow instance created',
+      trx,
+    );
+
+    const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(versionId, trx);
+```
+No new imports required — `deps.documentsService` is already a parameter of this function (`CreateInstanceDeps.documentsService: DocumentsPublicAPI`, current line 17), and is already called within this same transaction two lines earlier at `getDocumentById` (current line 60).
+
+```json
+{
+  "placement_decision": {
+    "chosen_anchor": "immediately after instance creation succeeds, before getDefinitionVersionWithSteps",
+    "reason": "earliest point at which it's confirmed a real instance now exists; placing it early means any later failure in this function correctly rolls back this transition too, since everything shares one transaction",
+    "alternative_considered_and_rejected": "placing it at the very end of the function, just before `return instance;` -- rejected because it adds no correctness benefit (the whole block is one transaction regardless of where within it this call sits) and makes the code read less clearly (the state transition would be separated from the instance-creation code it's conceptually tied to)",
+    "authoritative": true
+  }
+}
+```
+
+## 4. Change 2 — `create-instance.test.ts`: fix the mock, add a new test
+
+**Part A — add the missing mock method.** Without this, every existing test in this file will fail with a TypeError once Change 1 lands, because `deps.documentsService.transitionState` would be called on an object that doesn't define it.
+```
+old_str:
+      documentsService: {
+        getDocumentById: vi.fn().mockResolvedValue({
+          id: 'doc-1',
+          documentTypeCode: 'RESOLUTION',
+          hasPenaltyProvision: false,
+        }),
+      },
+
+new_str:
+      documentsService: {
+        getDocumentById: vi.fn().mockResolvedValue({
+          id: 'doc-1',
+          documentTypeCode: 'RESOLUTION',
+          hasPenaltyProvision: false,
+        }),
+        transitionState: vi.fn().mockResolvedValue(undefined),
+      },
+```
+
+**Part B — add a new test asserting the new behavior**, following this file's existing `CI-0X` naming convention:
+```
+old_str:
+  it('CI-05: slaDeadline is set 9 days from creation', async () => {
+    const before = new Date();
+    await createInstance('doc-1', 'def-1', 'user-encoder', mockDeps);
+    const after = new Date();
+
+    const callArgs = mockRepo.createInstance.mock.calls[0][0];
+    const sla = new Date(callArgs.slaDeadline);
+    const expectedMin = new Date(before.getTime() + 8 * 24 * 60 * 60 * 1000);
+    const expectedMax = new Date(after.getTime() + 10 * 24 * 60 * 60 * 1000);
+    expect(sla.getTime()).toBeGreaterThanOrEqual(expectedMin.getTime());
+    expect(sla.getTime()).toBeLessThanOrEqual(expectedMax.getTime());
+  });
+});
+
+new_str:
+  it('CI-05: slaDeadline is set 9 days from creation', async () => {
+    const before = new Date();
+    await createInstance('doc-1', 'def-1', 'user-encoder', mockDeps);
+    const after = new Date();
+
+    const callArgs = mockRepo.createInstance.mock.calls[0][0];
+    const sla = new Date(callArgs.slaDeadline);
+    const expectedMin = new Date(before.getTime() + 8 * 24 * 60 * 60 * 1000);
+    const expectedMax = new Date(after.getTime() + 10 * 24 * 60 * 60 * 1000);
+    expect(sla.getTime()).toBeGreaterThanOrEqual(expectedMin.getTime());
+    expect(sla.getTime()).toBeLessThanOrEqual(expectedMax.getTime());
+  });
+
+  it('CI-06: transitions document to in_workflow within the same transaction as instance creation', async () => {
+    await createInstance('doc-1', 'def-1', 'user-encoder', mockDeps);
+    expect(mockDeps.documentsService.transitionState).toHaveBeenCalledWith(
+      'doc-1',
+      'in_workflow',
+      'user-encoder',
+      expect.any(String),
+      mockTrx,
+    );
+  });
+
+  it('CI-07: does not attempt in_workflow transition when NO_ACTIVE_VERSION is thrown before the transaction starts', async () => {
+    mockDeps.db.select.mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        innerJoin: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue({
+              then: vi.fn((fn: any) => Promise.resolve(fn([]))),
+            }),
+          }),
+        }),
+      }),
+    });
+
+    await expect(createInstance('doc-1', 'def-1', 'user-encoder', mockDeps)).rejects.toThrow(
+      'NO_ACTIVE_VERSION',
+    );
+    expect(mockDeps.documentsService.transitionState).not.toHaveBeenCalled();
+  });
+});
+```
+CI-06 asserts the new call happens with the correct arguments and — critically — with `mockTrx` specifically (the same sentinel object the test's mocked `db.transaction` callback receives), verifying transactional participation rather than a separate, unscoped call. CI-07 reuses the exact same NO_ACTIVE_VERSION setup as the existing CI-04 test to confirm the new transition correctly never fires when instance creation is short-circuited before the transaction even begins.
+
+## 5. What NOT to do
+- Do not modify `documents.router.ts`'s `submit` procedure in any way.
+- Do not add any logic to `workflow.plugin.ts`'s `document.created` handler — the fix belongs inside `createInstance` itself.
+- Do not widen `VALID_TRANSITIONS` or touch any migration file — both enforcement layers already permit this transition.
+- Do not modify `workflow.plugin.test.ts` or `documents.router.transactions.test.ts` — confirmed unaffected, per §2.
+
+## 6. Verification
+Run `pnpm typecheck` and existing unit/integration tests, including the two new `create-instance.test.ts` cases. Report exact output.
+
+---
+
+# STANDALONE PROMPT 1 of 4 — TASK-WF-FE-019
+
+````
+# TASK-WF-FE-019 — Backend: generic outcome-submission procedure for outcome-mismatched approval steps
+
+## Context (self-contained — no prior conversation needed)
+
+This is a TypeScript monorepo (`batac-dms`) using Fastify, tRPC v11, Drizzle ORM,
+PostgreSQL. The workflow engine is defined in
+`apps/server/src/modules/workflow/`. Workflow step definitions (which steps
+exist, their `step_type`, their `assignee`, and their `allowed_outcomes`) live
+in `packages/database/src/seeds/workflow/phase1-legislative.ts`.
+
+Three `approval`-type steps in the SP Resolution workflow definition have no
+tRPC procedure that can complete them with their actual configured outcomes:
+
+| `stepKey` | `allowed_outcomes` (verbatim from the seed) |
+|---|---|
+| `returned_review` | `['REPASS', 'RESOLVED_DIRECTLY']` |
+| `legal_office_review` | `['RESOLVED_IN_PLACE']` |
+| `committee_revisions_review` | `['RESOLVED_IN_PLACE']` |
+
+Every existing procedure in `apps/server/src/modules/workflow/workflow.router.ts`
+that completes an `approval`-type step hardcodes its own outcome literal(s)
+server-side — e.g. `approveStep` always sends `'APPROVED'`, `rejectStep` always
+sends `'REJECTED'`. None of these match the three outcome sets above. There is
+no existing generic "submit an arbitrary outcome for this step" procedure.
+
+## The fix
+
+Add ONE new tRPC mutation procedure, `workflow.submitApprovalOutcome`, to
+`apps/server/src/modules/workflow/workflow.router.ts`, that accepts an
+arbitrary outcome string and delegates to the existing `submitStepApproval`
+handler (`apps/server/src/modules/workflow/engine/step-handlers/approval.handler.ts`),
+which already validates the submitted outcome against the step's own
+`config.allowed_outcomes` (see that file, the `allowedOutcomes.includes(outcome)`
+check — do not duplicate this validation in the router; let the handler do it,
+exactly as every other outcome-submitting procedure in this router already
+does).
+
+### Exact procedure to add
+
+Insert this new procedure into the `createWorkflowRouter()` router object in
+`apps/server/src/modules/workflow/workflow.router.ts`. Placement: immediately
+after the existing `returnStepForRevision` procedure (so it sits alongside the
+other step-completion procedures, not scattered elsewhere in the file).
+
+```typescript
+/**
+ * `workflow.submitApprovalOutcome`
+ *
+ * Generic outcome-submission procedure for `approval`-type steps whose
+ * `allowed_outcomes` do not match any of the hardcoded-outcome procedures
+ * (`approveStep`, `rejectStep`, `returnStepForRevision`, `logSecretariatDecision`).
+ * The outcome string is validated against the step's own
+ * `config.allowed_outcomes` by `submitStepApproval` itself — this procedure
+ * does not hardcode or restrict which outcome strings are acceptable beyond
+ * requiring a non-empty string; the workflow engine is the source of truth
+ * for what's valid on a given step.
+ *
+ * ABAC: identical to `approveStep`/`rejectStep`/`returnStepForRevision` —
+ * reuses `workflowPolicy.canApproveStep` unchanged (role + step-type +
+ * step-status + assignment gates; step-key-agnostic).
+ *
+ * Added by TASK-WF-FE-019 to cover `returned_review`, `legal_office_review`,
+ * and `committee_revisions_review`, none of which fit any existing procedure's
+ * hardcoded outcome set.
+ */
+submitApprovalOutcome: protectedProcedure
+  .input(
+    z.object({
+      stepInstanceId: z.string().uuid(),
+      outcome: z.string().min(1),
+      comment: z.string().optional(),
+    }),
+  )
+  .mutation(async ({ input, ctx }) => {
+    if (!ctx.auth) {
+      throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+    }
+
+    const { stepInstanceId, outcome, comment = null } = input;
+
+    const found = await fetchStepContext(stepInstanceId, ctx);
+    if (!found) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+    }
+
+    const { stepInstance, step, instance, stepAttrs } = found;
+
+    workflowPolicy.canApproveStep(ctx.auth, stepAttrs);
+
+    const workflowRepository = new WorkflowRepository(ctx.db);
+    const server = ctx.req.server as any;
+
+    const deps = {
+      db: ctx.db,
+      workflowRepository,
+      documentsService: server.documentsService,
+      eventBus: ctx.req.server.eventBus,
+      orgService: server.organizationService,
+      delegationService: server.delegationService,
+      iamService: server.iamService,
+    };
+
+    await ctx.db.transaction(async (tx) => {
+      await submitStepApproval(
+        instance,
+        stepInstance,
+        ctx.auth!.userId,
+        'user',
+        outcome,
+        comment,
+        { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+        tx,
+      );
+    });
+
+    if (ctx.req.server.eventBus) {
+      ctx.req.server.eventBus.emit('workflow.step.completed', {
+        eventId: randomUUID(),
+        eventType: 'workflow.step.completed',
+        occurredAt: new Date().toISOString(),
+        cityId: ctx.auth.cityId,
+        schemaVersion: 1,
+        payload: {
+          instanceId: instance.id,
+          stepInstanceId,
+          stepId: step.id,
+          stepType: step.stepType,
+          outcome,
+          comment,
+          documentId: instance.documentId,
+          actorId: ctx.auth!.userId,
+          fromOfficeId: null,
+          toOfficeId: null,
+          actionDescription: `${step.stepType} ${outcome}`,
+          cityId: ctx.auth!.cityId,
+        },
+      });
+    }
+
+    return { success: true as const };
+  }),
+```
+
+This is a direct structural copy of the existing `rejectStep`/`returnStepForRevision`
+procedures in the same file (same `fetchStepContext` call, same
+`workflowPolicy.canApproveStep` guard, same transaction wrapper, same event-emit
+shape) with the outcome literal made into an input field instead of a hardcoded
+string. Match the surrounding file's exact formatting/indentation style — do
+not introduce a different code style for this one procedure.
+
+### What this does NOT change
+
+```
+IN SCOPE: apps/server/src/modules/workflow/workflow.router.ts (one new procedure only)
+OUT OF SCOPE (do not touch even if related):
+  - approval.handler.ts (submitStepApproval) — already validates outcomes correctly, no change needed
+  - approveStep, rejectStep, returnStepForRevision, logSecretariatDecision — do not modify, do not remove, do not deduplicate against the new procedure
+  - workflow.policy.ts — canApproveStep is reused unchanged; do not add a new policy method
+  - Any step definition in phase1-legislative.ts — allowed_outcomes values are not being changed
+  - Any other workflow router procedure not named above
+```
+
+## Edge cases (authoritative — do not infer a different behavior)
+
+| Case | Required behavior |
+|---|---|
+| `outcome` is an empty string | Rejected by the Zod schema (`z.string().min(1)`) before the handler runs — client gets a standard tRPC input-validation error. |
+| `outcome` is a non-empty string that isn't in the target step's `allowed_outcomes` | `submitStepApproval` throws `Error('VALIDATION_FAILED: outcome not allowed')` — this propagates as-is. Do not catch or reword it in the new procedure. |
+| Caller is not assigned to the step (wrong user, wrong office) | `canApproveStep` throws `TRPCError({ code: 'FORBIDDEN', ... })` before any DB write — identical to every other outcome procedure in this file. |
+| Step is not `approval` type | `canApproveStep`'s Gate 1b throws `FORBIDDEN` — identical to existing procedures. |
+| `comment` omitted when the step's `config.require_comment_on` includes the submitted outcome | `submitStepApproval` throws `Error('VALIDATION_FAILED: comment is required')` — propagates as-is, not caught here. |
+
+## Verification
+
+After making this change, run:
+```bash
+pnpm --filter server typecheck
+pnpm --filter server test -- workflow.router
+```
+Confirm no existing test in `apps/server/src/modules/workflow/__tests__/` fails.
+No new test file is required by this task (frontend integration tests covering
+the three specific steps are TASK-WF-FE-020's responsibility, not this one's) —
+but if you want to add a minimal unit test for the new procedure alone
+(happy path: valid outcome for `returned_review` → step completes; unhappy
+path: invalid outcome → throws), place it in
+`apps/server/src/modules/workflow/__tests__/workflow.router.test.ts` if that
+file exists, or note in your report if it doesn't and a new test file would be
+needed — do not create a new test file without flagging this first, since I
+have not confirmed whether that file currently exists in the live tree.
+
+## Report back
+
+State exactly which line number the new procedure was inserted at, and confirm
+the typecheck and test commands above passed cleanly.
+````
+
+---
+
+# TASK-WF-FE-020 — Frontend: panel coverage for outcome-mismatched approval steps
+
+## Prerequisite
+
+This task requires TASK-WF-FE-019 (backend: `workflow.submitApprovalOutcome`
+procedure) to be completed and merged first. Before starting, confirm
+`workflow.submitApprovalOutcome` exists in
+`apps/server/src/modules/workflow/workflow.router.ts` and that the tRPC client
+types have picked it up (check `apps/web/src/lib/trpc.ts`'s generated
+`RouterOutputs`/`AppRouter` type resolves it — if your editor/build shows a
+type error calling `trpc.workflow.submitApprovalOutcome`, the backend task has
+not actually landed yet; stop and report this rather than proceeding).
+
+## Context (self-contained — no prior conversation needed)
+
+This is a TypeScript monorepo (`batac-dms`) — React 18, React Router DOM v6,
+TanStack Query v5, tRPC v11, shadcn/ui, Tailwind. Workflow step panels live in
+`apps/web/src/pages/workflow/panels/`. The panel-selection logic lives in
+`apps/web/src/pages/workflow/WorkflowStepActionPage.tsx`, which switches on a
+server-computed `instance.panelHint` string (computed by
+`computePanelHint()` in `apps/server/src/modules/workflow/workflow.router.ts`,
+lines ~202-257).
+
+Three `approval`-type workflow steps currently fall through
+`computePanelHint`'s `else if` chain to the generic `'generic_approval'` hint,
+which renders `GenericApprovalPanel.tsx`. That panel only submits the literal
+outcomes `APPROVED`/`REJECTED`/`RETURNED_FOR_REVISION` via
+`workflow.approveStep`/`rejectStep`/`returnStepForRevision`. None of these
+three steps' actual `allowed_outcomes` (defined in
+`packages/database/src/seeds/workflow/phase1-legislative.ts`) match those
+literals, so any action taken via `GenericApprovalPanel` on these steps is
+currently rejected by the backend with `VALIDATION_FAILED: outcome not
+allowed`.
+
+## Exact scope: three steps, verbatim outcome sets (authoritative — do not
+## infer additional outcomes or drop any of these)
+
+```json
+{
+  "returned_review": {
+    "allowed_outcomes": ["REPASS", "RESOLVED_DIRECTLY"],
+    "require_comment_on": ["REPASS", "RESOLVED_DIRECTLY"],
+    "assignee_role": "sp_secretary"
+  },
+  "legal_office_review": {
+    "allowed_outcomes": ["RESOLVED_IN_PLACE"],
+    "require_comment_on": ["RESOLVED_IN_PLACE"],
+    "assignee_role": "sp_secretary",
+    "note": "This step's config.assignee is a temporary role-based proxy to sp_secretary pending a real legal_officer IAM role (see the TODO comment directly above this step's config block in phase1-legislative.ts, and findings-log LOG-0120). Gate the panel on sp_secretary for now, matching the step's actual current assignee — do not attempt to introduce a new role check ahead of the IAM change; that is a separate, not-yet-scoped task."
+  },
+  "committee_revisions_review": {
+    "allowed_outcomes": ["RESOLVED_IN_PLACE"],
+    "require_comment_on": ["RESOLVED_IN_PLACE"],
+    "assignee_role": "committee_chair"
+  }
+}
+```
+
+The JSON block above is authoritative. If anything below appears to conflict
+with it, the JSON block wins.
+
+## Step 1 — Extend `computePanelHint` (backend)
+
+File: `apps/server/src/modules/workflow/workflow.router.ts`
+
+Add three new branches to `computePanelHint`'s `else if` chain, and add three
+new literals to its return-type union. Insert the new branches BEFORE the
+existing generic `action`/`approval` fallback branches (the last two `else if`
+arms in the current chain), so these three specific step keys are checked
+before the function falls through to the generic hints — this ordering
+matters because the generic fallback would otherwise still match first for
+these `step_type: 'approval'` steps.
+
+Exact current end of the chain (for locating the insertion point):
+```typescript
+  } else if (
+    (currentStepType === 'action' || currentStepType === 'approval') &&
+    spsOfficeId &&
+    (currentStep.assignedTo as Array<any>)?.[0]?.office_id === spsOfficeId
+  ) {
+    return 'secretariat_decision';
+  } else if (currentStepType === 'action') {
+    return 'generic_action';
+  } else if (currentStepType === 'approval') {
+    return 'generic_approval';
+  }
+
+  return null;
+}
+```
+
+Replace it with:
+```typescript
+  } else if (stepKey === 'returned_review') {
+    return 'returned_review_decision';
+  } else if (stepKey === 'legal_office_review') {
+    return 'legal_office_review_decision';
+  } else if (stepKey === 'committee_revisions_review') {
+    return 'committee_revisions_decision';
+  } else if (
+    (currentStepType === 'action' || currentStepType === 'approval') &&
+    spsOfficeId &&
+    (currentStep.assignedTo as Array<any>)?.[0]?.office_id === spsOfficeId
+  ) {
+    return 'secretariat_decision';
+  } else if (currentStepType === 'action') {
+    return 'generic_action';
+  } else if (currentStepType === 'approval') {
+    return 'generic_approval';
+  }
+
+  return null;
+}
+```
+
+Also update the function's return-type union (the `:` block immediately
+before the function body, listing the string literals it can return) to add
+the three new literals `'returned_review_decision' | 'legal_office_review_decision' |
+'committee_revisions_decision'` to the existing union. Match the existing
+literals' naming style (all lowercase, underscore-separated) exactly.
+
+There is a second, separate `panelHint` Zod schema (`z.enum([...])` or similar)
+used to validate `getInstance`'s output shape, likely near lines 284 and 448 of
+this same file (there are two occurrences of `panelHint: z` in the file —
+confirm both before editing, since `getInstance` may define its output schema
+independently of `computePanelHint`'s TypeScript return type, and both need
+the three new literal values added for the API contract to actually allow
+these values through). Update both if they are indeed separate schemas; if
+they turn out to be the same schema referenced twice, update it once and note
+this in your report.
+
+## Step 2 — New panel components (frontend)
+
+Create three new files under `apps/web/src/pages/workflow/panels/`:
+
+### `ReturnedReviewDecisionPanel.tsx`
+
+Two buttons: "Repass to Drafting" (outcome `REPASS`) and "Resolve Directly"
+(outcome `RESOLVED_DIRECTLY`). Both require a comment (per the JSON block's
+`require_comment_on`). Structurally mirror `SecretariatDecisionPanel.tsx` —
+same imports, same `Card`/`CardHeader`/`CardTitle`/`CardContent`/`Button`/
+`Textarea` composition, same `toast`/`navigate('/workflow/steps')`/query-
+invalidation pattern on success — but call `trpc.workflow.submitApprovalOutcome`
+instead of `trpc.workflow.logSecretariatDecision`, passing
+`{ stepInstanceId: instance.currentStepInstanceId, outcome: 'REPASS' | 'RESOLVED_DIRECTLY', comment }`.
+
+Invalidate the same query set `PanlalawiganOutcomePanel.tsx` invalidates on
+success (`workflow.getInstance`, `workflow.getActiveInstanceForDocument`,
+`documents.get`) since this step also sits inside the Panlalawigan-review
+branch of the workflow and the same downstream views need to refresh.
+
+### `LegalOfficeReviewDecisionPanel.tsx`
+
+One button: "Resolve In Place" (outcome `RESOLVED_IN_PLACE`, comment required).
+Same structural pattern as above, single-outcome instead of two.
+
+### `CommitteeRevisionsDecisionPanel.tsx`
+
+One button: "Resolve In Place" (outcome `RESOLVED_IN_PLACE`, comment required).
+Same structural pattern.
+
+All three: use `trpc.workflow.submitApprovalOutcome`, not any existing
+procedure. Do not reuse `GenericApprovalPanel`'s component — these need
+different button labels/outcome literals than that component hardcodes, and
+editing `GenericApprovalPanel` to be outcome-configurable is explicitly out of
+scope for this task (see Scope table below).
+
+## Step 3 — Wire the new panels into `WorkflowStepActionPage.tsx`
+
+File: `apps/web/src/pages/workflow/WorkflowStepActionPage.tsx`
+
+Add three new `case` branches to the `switch (instance.panelHint)` block,
+following the exact structural pattern of the existing cases (role check via
+`hasRole`, conditional render, `break` on failure to fall through to the
+summary card).
+
+```json
+{
+  "returned_review_decision": { "role_check": ["sp_secretary"], "component": "ReturnedReviewDecisionPanel" },
+  "legal_office_review_decision": { "role_check": ["sp_secretary"], "component": "LegalOfficeReviewDecisionPanel" },
+  "committee_revisions_decision": { "role_check": ["committee_chair"], "component": "CommitteeRevisionsDecisionPanel" }
+}
+```
+
+The JSON block above is authoritative for role checks and component names.
+Add the corresponding three `import` statements at the top of the file,
+alongside the existing panel imports, in the same alphabetical-ish grouping
+the file currently uses (check the existing import block's ordering before
+inserting — match it, don't impose a new ordering).
+
+**On `committee_chair` as a role literal**: confirm this exact string exists
+in whatever role-constant list `hasRole` checks against in this codebase
+(check `apps/web/src/lib/auth-helpers.ts` and/or wherever role codes are
+enumerated, e.g. `apps/web/src/stores` or a shared roles constant) before
+using it. If the actual role code differs from `committee_chair` (e.g. it
+might be `sp_member` with a committee-chair sub-attribute, or a differently-
+spelled code), use the actual current value and note the discrepancy in your
+report — do not guess and do not silently substitute a different role without
+flagging it.
+
+## Scope
+
+```
+IN SCOPE:
+  apps/server/src/modules/workflow/workflow.router.ts (computePanelHint + panelHint output schema(s) only)
+  apps/web/src/pages/workflow/panels/ReturnedReviewDecisionPanel.tsx (new file)
+  apps/web/src/pages/workflow/panels/LegalOfficeReviewDecisionPanel.tsx (new file)
+  apps/web/src/pages/workflow/panels/CommitteeRevisionsDecisionPanel.tsx (new file)
+  apps/web/src/pages/workflow/WorkflowStepActionPage.tsx (three new switch cases + three new imports)
+
+OUT OF SCOPE (do not touch even if related):
+  GenericApprovalPanel.tsx — do not modify to become outcome-configurable; that is a
+    different, larger refactor (would affect every step currently using this panel)
+    and is not what this task asks for
+  SecretariatDecisionPanel.tsx — do not modify; only used as a structural reference
+  second_reading_vote / second_reading_amended_vote panel routing — NOT part of this
+    task. Their panelHint resolution (secretariat_decision vs. generic_approval) is a
+    separate open question not yet resolved; do not attempt to fix it as part of this
+    task, and do not let any change here alter their existing behavior.
+  approval.handler.ts, workflow.policy.ts — no changes needed or wanted here
+  Any step definition in phase1-legislative.ts — outcome sets are not changing, only
+    which panel renders for them
+```
+
+## Edge cases (authoritative)
+
+| Case | Required behavior |
+|---|---|
+| User has the correct role but is not the actual assignee of this specific step instance | Backend's `canApproveStep` (already reused unchanged by `submitApprovalOutcome`, per TASK-WF-FE-019) rejects with `FORBIDDEN`. Frontend should NOT attempt to pre-check this client-side beyond the role gate already in `WorkflowStepActionPage.tsx`'s switch — let the backend be the source of truth, same as every other panel in this file already does. |
+| Comment left empty when submitting `REPASS`, `RESOLVED_DIRECTLY`, or `RESOLVED_IN_PLACE` | Panel must block the mutation client-side with a `toast.error` (matching `SecretariatDecisionPanel.tsx`'s existing `requireRemarks` pattern) before calling the mutation — do not rely solely on the backend's `require_comment_on` check, since that produces a less friendly error. This mirrors the existing UX pattern already used by every other panel with required-comment outcomes in this codebase. |
+| `workflow.submitApprovalOutcome` doesn't exist yet (TASK-WF-FE-019 not landed) | Do not attempt to work around this by calling a different procedure. Stop and report — this is a hard prerequisite, not a soft one. |
+
+## Verification
+
+```bash
+pnpm --filter web typecheck
+pnpm --filter server typecheck
+```
+Both must pass cleanly (the server typecheck confirms `computePanelHint`'s
+return type change didn't break anything downstream that consumes it).
+
+No existing automated test currently covers panel selection for these three
+step keys (confirmed absent from the repo at the time this prompt was
+written) — do not assume otherwise. If you want to add Playwright or unit
+coverage, note this as a suggestion in your report rather than doing it
+silently, since test-writing conventions for this area (K2/K3 per this
+project's AGENTS.md) may require reading additional documents first that are
+outside this prompt's scope.
+
+## Report back
+
+For each of the three new panels, confirm: which outcome(s) it submits, that
+the comment-required client-side guard is in place, and that the role check in
+`WorkflowStepActionPage.tsx` matches an actual, existing role code (flag if
+`committee_chair` needed correction). Confirm both typecheck commands passed.
+
+---
+
+# TASK-DOCS-FE-021 — Final-number idempotency error handling + frontend awareness of automatic numbering
+
+## Context (self-contained — no prior conversation needed)
+
+This is a TypeScript monorepo (`batac-dms`). A prior task (TASK-WF-016)
+implemented automatic final-number assignment for SP Resolutions: when a
+`second_reading_vote` or `second_reading_amended_vote` workflow step
+completes with outcome `APPROVED`, an event subscriber in
+`apps/server/src/modules/documents/documents.plugin.ts` (search for
+`SP_RESOLUTION_FINAL_NUMBERING_STEP_KEYS`) automatically calls
+`documentsService.assignFinalNumber`.
+
+The frontend's manual "Finalize Number" button
+(`apps/web/src/pages/documents/DocumentDetailPage.tsx`, line 100
+`canAssignFinalNumber`, line 297 `assignFinalMutation`, line 651-665 render)
+has no awareness of this automation and remains visible/clickable for SP
+Resolutions whose number was already auto-assigned. If clicked in that state,
+`NumberingService.assignFinalNumber`
+(`apps/server/src/modules/documents/numbering.service.ts`, line ~219) throws a
+plain `Error('final number already assigned')`. This is not currently caught
+by the tRPC procedure that calls it
+(`apps/server/src/modules/documents/documents.router.ts`, the
+`assignFinalNumber` procedure), so it surfaces to the frontend as tRPC's
+generic `INTERNAL_SERVER_ERROR`, not a clean, recognizable error.
+
+This task has two parts. Part 1 (backend) fixes the error shape. Part 2
+(frontend) makes the manual button aware of automatic numbering for SP
+Resolutions specifically.
+
+## Part 1 — Backend: proper `AppError` for the idempotency case
+
+This codebase has an established convention for domain-specific errors:
+`AppError` subclasses under `apps/server/src/errors/domain/`, one file per
+module, each with `code`/`httpStatus`/`trpcCode` fields, thrown from the
+service/engine layer (not the router layer) and left uncaught to propagate —
+tRPC's own error handling wraps them and the global `errorFormatter`
+(`apps/server/src/trpc/trpc.ts`) exposes `error.cause instanceof AppError` as
+a structured `domainError` field automatically. See
+`apps/server/src/errors/domain/workflow.ts`'s `InvalidWorkflowTransitionError`
+for the exact pattern to follow — do not invent a different pattern.
+
+### Step 1.1 — Add a new domain error code
+
+File: `packages/shared/src/errors.ts`
+
+Add one new entry to the `DOMAIN_ERROR_CODES` object. Exact current end of
+that object:
+```typescript
+  VALIDATION_FAILED: 'VALIDATION_FAILED',
+  NO_ADMIN_APPROVAL: 'NO_ADMIN_APPROVAL',
+  APPROVAL_EXPIRED: 'APPROVAL_EXPIRED',
+  INSTANCE_NOT_ACTIVE: 'INSTANCE_NOT_ACTIVE',
+  STEP_KEY_NOT_FOUND_IN_TARGET_VERSION: 'STEP_KEY_NOT_FOUND_IN_TARGET_VERSION',
+} as const;
+```
+
+Add one new line before the closing `} as const;`:
+```typescript
+  FINAL_NUMBER_ALREADY_ASSIGNED: 'FINAL_NUMBER_ALREADY_ASSIGNED',
+```
+
+Do not rename, remove, or modify `NUMBER_IS_IMMUTABLE` — it is unrelated to
+this fix (it's currently unused anywhere in the codebase, and this task
+deliberately does not repurpose it, since its intended semantics — likely
+around a *committed* number being unchangeable — differ from this case's
+semantics, which is "this action was already completed, not an error state at
+all").
+
+### Step 1.2 — New domain error file
+
+Create `apps/server/src/errors/domain/documents.ts` (this file does not exist
+yet — confirm this before creating it; if it does exist, add to it instead of
+overwriting, matching its existing style):
+
+```typescript
+import { AppError } from '../AppError.js';
+import type { TRPC_ERROR_CODE_KEY } from '../AppError.js';
+import type { DomainErrorCode } from '@batac/shared';
+
+/**
+ * Thrown by NumberingService.assignFinalNumber when the target document
+ * already has a non-null final_number. This is an idempotency guard, not
+ * a true failure state — callers that treat this as expected (e.g. the
+ * TASK-WF-016 automatic-numbering event subscriber in documents.plugin.ts)
+ * should catch this specific error type and treat it as a no-op. Callers
+ * that don't expect it (e.g. a manual "Finalize Number" button click on an
+ * already-numbered document) should surface it as a clear, non-alarming
+ * message to the user rather than a generic server error.
+ *
+ * Added by TASK-DOCS-FE-021.
+ */
+export class FinalNumberAlreadyAssignedError extends AppError {
+  readonly code: DomainErrorCode = 'FINAL_NUMBER_ALREADY_ASSIGNED';
+  readonly httpStatus = 409;
+  readonly trpcCode: TRPC_ERROR_CODE_KEY = 'CONFLICT';
+
+  constructor(documentId: string, existingFinalNumber: string) {
+    super(`Document ${documentId} already has a final number: ${existingFinalNumber}`, {
+      documentId,
+      existingFinalNumber,
+    });
+  }
+}
+```
+
+### Step 1.3 — Throw the new error instead of a plain `Error`
+
+File: `apps/server/src/modules/documents/numbering.service.ts`
+
+Exact current text (in the `assignFinalNumber` method):
+```typescript
+      if (doc.finalNumber !== null) {
+        throw new Error('final number already assigned');
+      }
+```
+
+Replace with:
+```typescript
+      if (doc.finalNumber !== null) {
+        throw new FinalNumberAlreadyAssignedError(documentId, doc.finalNumber);
+      }
+```
+
+Add the import at the top of this file, alongside the other relative imports
+(near the existing `import { DocumentsRepository } from './documents.repository.js';`
+line):
+```typescript
+import { FinalNumberAlreadyAssignedError } from '../../errors/domain/documents.js';
+```
+
+### Step 1.4 — Update the existing idempotency catch to match on type, not string
+
+File: `apps/server/src/modules/documents/documents.plugin.ts`
+
+This is the critical cross-cutting piece — TASK-WF-016's automatic-numbering
+subscriber currently catches this error by matching the literal string
+`'final number already assigned'`. Since Step 1.3 changes what's thrown, this
+catch must be updated in the same change or TASK-WF-016's idempotent-swallow
+behavior will break (every automatic double-fire would then log as a real
+error via `fastify.log.error` instead of being silently swallowed as
+designed).
+
+Exact current text:
+```typescript
+        try {
+          await service.assignFinalNumber(event.payload.documentId, event.payload.actorId);
+        } catch (err) {
+          if (err instanceof Error && err.message === 'final number already assigned') {
+            // Idempotent no-op, not a failure: this document already has a
+            // final number. Swallow silently -- do not log as an error.
+            return;
+          }
+          throw err;
+        }
+```
+
+Replace with:
+```typescript
+        try {
+          await service.assignFinalNumber(event.payload.documentId, event.payload.actorId);
+        } catch (err) {
+          if (err instanceof FinalNumberAlreadyAssignedError) {
+            // Idempotent no-op, not a failure: this document already has a
+            // final number. Swallow silently -- do not log as an error.
+            return;
+          }
+          throw err;
+        }
+```
+
+Add the import at the top of this file, alongside the other relative imports:
+```typescript
+import { FinalNumberAlreadyAssignedError } from '../../errors/domain/documents.js';
+```
+
+Do not change anything else in this file's TASK-WF-016 subscriber block — the
+step-key filtering, the `outcome !== 'APPROVED'` early return, and the
+outer `run().catch(...)` fallback logging are all correct as-is and are out of
+scope for this task.
+
+### Step 1.5 — No change needed to `documents.router.ts`
+
+Confirmed: this codebase's existing convention (see
+`apps/server/src/modules/workflow/engine/admin-operations.ts`, which throws
+`AppError` subclasses with zero try/catch in the router that calls it) relies
+on tRPC's native behavior of setting `error.cause` to any bare thrown error,
+which the `errorFormatter` in `apps/server/src/trpc/trpc.ts` already checks
+via `error.cause instanceof AppError`. **Do not add a try/catch to the
+`assignFinalNumber` procedure in `documents.router.ts` — this would deviate
+from the established pattern and is unnecessary.** If you find, on inspection
+of the current tree, that this assumption doesn't hold (e.g. some other layer
+between the service and tRPC is swallowing or rewrapping errors in a way that
+would prevent `error.cause` from being set correctly), stop and report this
+rather than adding a workaround — this would indicate the established pattern
+itself has a gap that needs a decision, not a silent local fix.
+
+## Part 2 — Frontend: hide "Finalize Number" for auto-numbered SP Resolutions
+
+### Step 2.1 — Update `canAssignFinalNumber`
+
+File: `apps/web/src/pages/documents/DocumentDetailPage.tsx`
+
+Exact current text (line 99-107):
+```typescript
+/** documents.assignFinalNumber: callable-by sp_secretary only */
+function canAssignFinalNumber(
+  identity: ActiveUserIdentity | null,
+  preliminaryNumber: string | null,
+  finalNumber: string | null,
+): boolean {
+  if (!hasRole(identity, 'sp_secretary')) return false;
+  return !!preliminaryNumber && !finalNumber;
+}
+```
+
+Replace with:
+```typescript
+/**
+ * documents.assignFinalNumber: callable-by sp_secretary only.
+ *
+ * SP Resolutions receive their final number automatically when the
+ * second_reading_vote or second_reading_amended_vote workflow step
+ * completes with outcome APPROVED (TASK-WF-016). The manual button is
+ * hidden for this document type to avoid a confusing double-assignment
+ * click — this is a values-based frontend check mirroring the same
+ * hardcoded step-key set the backend subscriber uses
+ * (documents.plugin.ts's SP_RESOLUTION_FINAL_NUMBERING_STEP_KEYS), not a
+ * schema-driven flag. No `hasFinalNumbering` field exists on the document
+ * type yet — if one is added later, this check should be updated to use
+ * it instead of the hardcoded documentTypeCode comparison below.
+ */
+function canAssignFinalNumber(
+  identity: ActiveUserIdentity | null,
+  preliminaryNumber: string | null,
+  finalNumber: string | null,
+  documentTypeCode: string,
+): boolean {
+  if (!hasRole(identity, 'sp_secretary')) return false;
+  if (documentTypeCode === 'SP_RESOLUTION') return false;
+  return !!preliminaryNumber && !finalNumber;
+}
+```
+
+### Step 2.2 — Update the call site
+
+Exact current text (around line 652-656):
+```typescript
+            {canAssignFinalNumber(
+              identity,
+              document.preliminaryNumber ?? null,
+              document.finalNumber ?? null,
+            ) && (
+```
+
+Replace with:
+```typescript
+            {canAssignFinalNumber(
+              identity,
+              document.preliminaryNumber ?? null,
+              document.finalNumber ?? null,
+              document.documentType?.code ?? '',
+            ) && (
+```
+
+Confirm `document.documentType?.code` is actually the correct accessor path
+before making this change — check the `documents.get` output shape (search
+`toDocumentTypeSummary` in `apps/server/src/modules/documents/documents.router.ts`)
+to verify the field is named `code` and is present on the nested
+`documentType` object as read by this page. If the accessor path differs from
+what's written above, use the actual correct path and note the correction in
+your report.
+
+### Step 2.3 — Do NOT hide the "Finalize Number" button for non-SP_RESOLUTION types
+
+```json
+{
+  "SP_RESOLUTION": "hide button — auto-numbered per TASK-WF-016",
+  "SP_ORDINANCE": "keep button visible — uses third_reading_vote, not covered by TASK-WF-016's automation",
+  "SP_APPROPRIATION_ORDINANCE": "keep button visible — same reason as SP_ORDINANCE",
+  "all_other_document_types": "keep button visible — no automatic numbering exists for any other type"
+}
+```
+The JSON block above is authoritative. Only `SP_RESOLUTION` is affected by
+this change.
+
+## Scope
+
+```
+IN SCOPE:
+  packages/shared/src/errors.ts (one new DOMAIN_ERROR_CODES entry)
+  apps/server/src/errors/domain/documents.ts (new file, or addition to existing)
+  apps/server/src/modules/documents/numbering.service.ts (one throw statement + one import)
+  apps/server/src/modules/documents/documents.plugin.ts (one catch condition + one import)
+  apps/web/src/pages/documents/DocumentDetailPage.tsx (canAssignFinalNumber + its one call site)
+
+OUT OF SCOPE (do not touch even if related):
+  documents.router.ts's assignFinalNumber procedure — no try/catch needed, see Step 1.5
+  final_number_assignment workflow step / its GenericActionPanel rendering — this is a
+    separate, real UX gap (the step becomes a no-op formality click for SP Resolutions
+    post-automation) but is NOT part of this task's scope. Do not attempt to fix it here.
+  Any document type's metadataSchema — unrelated to this fix
+  NUMBER_IS_IMMUTABLE — do not repurpose or modify this existing, unused code
+  Any other document lifecycle action button on DocumentDetailPage.tsx (Submit, Archive,
+    Assign Preliminary Number, Cancel, etc.) — not part of this task
+```
+
+## Verification
+
+```bash
+pnpm --filter shared typecheck
+pnpm --filter server typecheck
+pnpm --filter web typecheck
+pnpm --filter server test -- numbering.service
+```
+
+Confirm `numbering.service.test.ts`'s existing test (`'throws "final number
+already assigned" if documents.final_number is not null'`, currently asserting
+via `.rejects.toThrow('final number already assigned')`) is updated to match
+the new error — either by asserting `.rejects.toThrow(FinalNumberAlreadyAssignedError)`
+or by checking the error's `.message`, which per Step 1.2's constructor will
+now read `` `Document ${documentId} already has a final number: ${existingFinalNumber}` ``
+rather than the literal old string. Update this test as part of this task — a
+test asserting the old plain-string behavior will fail once Step 1.3 lands,
+and leaving it failing is not an acceptable outcome of this task.
+
+## Report back
+
+Confirm all four verification commands pass. Confirm whether
+`document.documentType?.code` was the correct accessor path or needed
+correction. Confirm the existing `numbering.service.test.ts` test was updated
+and passes.
+
+---
+
