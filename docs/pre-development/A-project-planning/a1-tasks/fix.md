@@ -29560,8 +29560,126 @@ intended lifespan.
 **What was implemented:** Nothing. This requires a developer decision
 (delete as throwaway, or convert into a permanent test file) that cannot be
 inferred from the repository alone.
-```
+````
 
 ---
 
-Given your preference for output over files, everything above — the four standalone prompts and the four findings-log entries — is delivered inline in this response. If you'd like, I can also produce a consolidated ordering/dependency note (e.g., "run TASK-WEB-LINT-001 before 002 and 003, since both assume import ordering is already settled") as a fifth short artifact, but I've folded that sequencing directly into each prompt's "Context" section instead, so it shouldn't be necessary unless you want it spelled out separately.
+# Standalone prompt for the local agent — fixing the confirmed inversion (`canPublishToPortal`)
+
+This addresses **Finding 3 only**. It does not address the buttons described in the original task, because — per Findings 1–2 above — no inversion exists on those two functions to fix. Do not run this prompt expecting it to resolve the "Assign Preliminary Number" / "Finalize Number" visibility issue; it will not, because that issue (if real) is not caused by anything this prompt touches.
+
+```
+TASK-DOCS-FIX-001
+
+Title: Fix inverted sp_secretary role check in canPublishToPortal on DocumentDetailPage
+
+═══════════════════════════════════════════
+FILE
+═══════════════════════════════════════════
+apps/web/src/pages/documents/DocumentDetailPage.tsx
+
+═══════════════════════════════════════════
+CONTEXT
+═══════════════════════════════════════════
+This file defines a set of local helper functions, one per action button on the
+document detail page, each checking whether the current user's role permits
+that action. Every one of these helpers follows the same pattern: deny access
+if the required role is ABSENT, using `if (!hasRole(identity, <role>)) return
+false;` at the top of the function body.
+
+`canPublishToPortal` breaks this pattern. Its role check currently denies
+access if the required role IS present, which is the exact opposite of every
+sibling function in this file and the opposite of its own doc comment.
+
+The function's doc comment, immediately above it, already states the correct
+intended behavior:
+`/** documents.publishToPortal / unpublishFromPortal: callable-by sp_secretary
+only */`
+
+═══════════════════════════════════════════
+EXACT CHANGE (verbatim old/new — this is the literal source of truth; if any
+prose elsewhere in this prompt appears to conflict with it, this block wins)
+═══════════════════════════════════════════
+
+old_str:
+```
+/** documents.publishToPortal / unpublishFromPortal: callable-by sp_secretary only */
+function canPublishToPortal(identity: ActiveUserIdentity | null, lifecycleState: string): boolean {
+  if (hasRole(identity, 'sp_secretary')) return false;
+  return ['released', 'superseded'].includes(lifecycleState);
+}
+```
+
+new_str:
+```
+/** documents.publishToPortal / unpublishFromPortal: callable-by sp_secretary only */
+function canPublishToPortal(identity: ActiveUserIdentity | null, lifecycleState: string): boolean {
+  if (!hasRole(identity, 'sp_secretary')) return false;
+  return ['released', 'superseded'].includes(lifecycleState);
+}
+```
+
+The only change is `if (hasRole(...))` → `if (!hasRole(...))` — a single added
+`!` character. Nothing else in the function, the surrounding comment, or the
+rest of the file changes.
+
+═══════════════════════════════════════════
+SCOPE
+═══════════════════════════════════════════
+
+IN SCOPE: `apps/web/src/pages/documents/DocumentDetailPage.tsx` — the single
+line identified above, inside the `canPublishToPortal` function body only.
+
+OUT OF SCOPE (do not touch even if related):
+- `canAssignPreliminaryNumber` (same file, lines ~89-97) — already correct,
+  do not modify.
+- `canAssignFinalNumber` (same file, lines ~99-122) — already correct, do not
+  modify.
+- Any other `can*` helper function in this file — all other helpers already
+  follow the correct `if (!hasRole(...)) return false;` pattern and must not
+  be changed.
+- `apps/web/src/lib/auth-helpers.ts` (`hasRole` itself) — already correct, do
+  not modify.
+- `apps/server/src/modules/documents/documents.policy.ts` or any backend
+  policy/guard file — the backend is not in scope for this task and is not
+  affected by this bug (the bug is frontend-only visibility logic; the
+  backend already independently enforces the correct authorization and is
+  not to be touched).
+- Any test file. If an existing test currently asserts the incorrect
+  (inverted) behavior of `canPublishToPortal`, do not modify that test as
+  part of this task — flag it in your PR description instead so a human can
+  review whether the test needs a corresponding update, since a test
+  asserting wrong behavior is itself a separate finding, not something to
+  silently correct here.
+
+═══════════════════════════════════════════
+WHY THIS IS SAFE
+═══════════════════════════════════════════
+This is a single-character diff (`hasRole` → `!hasRole`) that brings this one
+function into the same pattern already used by every other permission-check
+helper in this file. It requires no new imports, no signature change, no
+change to any call site (the two call sites at the JSX render location for
+"Publish to Portal" / "Unpublish from Portal" buttons are unaffected — they
+already call `canPublishToPortal(identity, lifecycleState)` the same way they
+call every other helper, and do not need any change).
+
+═══════════════════════════════════════════
+ACCEPTANCE CRITERIA
+═══════════════════════════════════════════
+- [ ] The single line inside `canPublishToPortal` reads
+      `if (!hasRole(identity, 'sp_secretary')) return false;` — confirm by
+      viewing the file after the edit, not by re-deriving from memory.
+- [ ] No other line in `DocumentDetailPage.tsx` changed.
+- [ ] No other file changed.
+- [ ] `pnpm typecheck` (or the project's equivalent typecheck command) passes
+      with no new errors introduced by this change.
+- [ ] If an existing test file directly exercises `canPublishToPortal` and
+      currently expects the old (inverted) behavior, do not edit it — report
+      its exact file path and the specific assertion that now fails, in your
+      PR description, so a human can decide how to update it.
+
+Before submitting this PR, confirm each item above independently. A reviewer
+will verify each one independently.
+````
+
+---

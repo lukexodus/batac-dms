@@ -182,7 +182,7 @@ function canLogCertificationOfUrgency(identity: ActiveUserIdentity | null): bool
 
 /** documents.publishToPortal / unpublishFromPortal: callable-by sp_secretary only */
 function canPublishToPortal(identity: ActiveUserIdentity | null, lifecycleState: string): boolean {
-  if (hasRole(identity, 'sp_secretary')) return false;
+  if (!hasRole(identity, 'sp_secretary')) return false;
   return ['released', 'superseded'].includes(lifecycleState);
 }
 
