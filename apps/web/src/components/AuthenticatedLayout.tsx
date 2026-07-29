@@ -97,6 +97,24 @@ export function AuthenticatedLayout() {
   const navItems = useMemo(() => {
     const items = [];
 
+    // Role-specific Dashboards
+    if (hasRole(identity, 'sp_secretary')) {
+      items.push({
+        id: 'secretary-dashboard',
+        icon: LayoutDashboard,
+        label: 'Secretary Dashboard',
+        href: '/secretary',
+      });
+    }
+    if (hasRole(identity, 'mayor')) {
+      items.push({
+        id: 'mayor-dashboard',
+        icon: LayoutDashboard,
+        label: 'Mayor Dashboard',
+        href: '/mayor',
+      });
+    }
+
     // Documents
     if (
       hasRole(
@@ -176,24 +194,6 @@ export function AuthenticatedLayout() {
     // Organization
     if (hasRole(identity, 'plat_admin', 'records_officer', 'sp_secretary')) {
       items.push({ id: 'organization', icon: Users, label: 'Organization', href: '/organization' });
-    }
-
-    // Role-specific Dashboards
-    if (hasRole(identity, 'sp_secretary')) {
-      items.push({
-        id: 'secretary-dashboard',
-        icon: LayoutDashboard,
-        label: 'Secretary Dashboard',
-        href: '/secretary',
-      });
-    }
-    if (hasRole(identity, 'mayor')) {
-      items.push({
-        id: 'mayor-dashboard',
-        icon: LayoutDashboard,
-        label: 'Mayor Dashboard',
-        href: '/mayor',
-      });
     }
 
     // System/Platform Admin
