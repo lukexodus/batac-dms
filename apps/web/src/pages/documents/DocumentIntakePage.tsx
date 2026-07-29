@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useForm, Controller, useWatch, useFieldArray } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -224,7 +224,7 @@ function OfficePickerField({ name, control, label, isRequired }: any) {
   );
 }
 
-function DynamicField({ name, prop, control, register, label, isRequired, setValue }: any) {
+function DynamicField({ name, prop, control, register, label, isRequired, setValue, errors }: any) {
   if (prop.enum) {
     return (
       <div className="space-y-2">
@@ -252,6 +252,7 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
             </Select>
           )}
         />
+        {errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}
       </div>
     );
   }
@@ -273,6 +274,7 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
         <Label htmlFor={`meta-${name}`} className="font-normal cursor-pointer">
           {label} {isRequired && <span className="text-danger-500">*</span>}
         </Label>
+        {errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}
       </div>
     );
   }
@@ -339,6 +341,7 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
           {...register(name)}
           placeholder="e.g. John Doe, Jane Smith"
         />
+        {errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}
       </div>
     );
   }
@@ -374,6 +377,7 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
         {label} {isRequired && <span className="text-danger-500">*</span>}
       </Label>
       <Input id={`meta-${name}`} {...register(name)} />
+      {errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}
     </div>
   );
 }
@@ -591,6 +595,7 @@ export default function DocumentIntakePage() {
                       label={label} 
                       isRequired={isRequired} 
                       setValue={setValue}
+                      errors={errors}
                     />
                   );
                 })}

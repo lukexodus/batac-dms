@@ -85,7 +85,7 @@ export function buildMetadataZodSchema(
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: reason,
-        path: ['metadata', ...segments],
+        path: segments,
       });
     }
   });
