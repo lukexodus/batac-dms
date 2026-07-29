@@ -10,7 +10,7 @@ import {
   workflowEvents,
 } from '@batac/database/schema/workflow.schema.js';
 import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
-import { offices } from '@batac/database/schema/organization.schema.js';
+import { offices, employees } from '@batac/database/schema/organization.schema.js';
 import { users } from '@batac/database/schema/iam.schema.js';
 import { eq, and, or, isNull, inArray, notInArray, desc, gte, lte } from 'drizzle-orm';
 import { SlaService } from './services/sla.service.js';
@@ -35,6 +35,25 @@ const SP_SECRETARIAT_OFFICE_CODE = 'SPS';
 
 function getOrgService(ctx: Context) {
   return ctx.req.server.organizationService;
+}
+
+async function resolveAssigneeName(db: any, assigneeId: string): Promise<string> {
+  const [userRec] = await db
+    .select({
+      username: users.username,
+      firstName: employees.firstName,
+      lastName: employees.lastName,
+    })
+    .from(users)
+    .leftJoin(employees, eq(users.id, employees.userId))
+    .where(eq(users.id, assigneeId))
+    .limit(1);
+
+  if (!userRec) return assigneeId;
+  if (userRec.firstName && userRec.lastName) {
+    return `${userRec.firstName} ${userRec.lastName}`;
+  }
+  return userRec.username || assigneeId;
 }
 
 async function checkWorkflowInstanceReadPermission(
@@ -415,16 +434,7 @@ export function createWorkflowRouter() {
           const firstAssignee = assignedUsers[0];
           if (firstAssignee.user_id) {
             currentAssigneeUserId = firstAssignee.user_id;
-            const [userRec] = await ctx.db
-              .select({ name: users.displayName, username: users.username })
-              .from(users)
-              .where(eq(users.id, firstAssignee.user_id))
-              .limit(1);
-            if (userRec) {
-              currentAssigneeName = userRec.name || userRec.username || firstAssignee.user_id;
-            } else {
-              currentAssigneeName = firstAssignee.user_id;
-            }
+            currentAssigneeName = await resolveAssigneeName(ctx.db, firstAssignee.user_id);
           } else if (firstAssignee.office_id) {
             currentAssigneeUserId = firstAssignee.office_id;
             const [officeRec] = await ctx.db
@@ -682,7 +692,7 @@ export function createWorkflowRouter() {
             ? currentStep.stepInstanceId
             : '00000000-0000-0000-0000-000000000000',
           currentAssigneeUserId,
-          currentAssigneeName: currentAssigneeUserId ? await workflowEngine.resolveAssigneeName({ currentAssigneeUserId }, ctx.db) : null,
+          currentAssigneeName: currentAssigneeUserId ? await resolveAssigneeName(ctx.db, currentAssigneeUserId) : null,
           status,
           slaDeadline: instance.slaDeadline,
           lapseStatus,
