@@ -74,7 +74,6 @@ type OobItem = RouterOutputs['session']['getOrderOfBusiness']['items'][number];
 
 export function OrderOfBusinessPage() {
   const identity = useSessionStore((s) => s.identity);
-  const roleCodes = identity?.roleCodes ?? [];
 
   if (!hasRole(identity, ...VIEW_ROLES)) {
     return (

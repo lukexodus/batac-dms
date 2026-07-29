@@ -106,7 +106,6 @@ function canSetOutcome(
 export default function ComplaintDetailPage() {
   const { complaintId } = useParams<{ complaintId: string }>();
   const identity = useSessionStore((s) => s.identity);
-  const roles = identity?.roleCodes ?? [];
 
   // ── Read: documents.getComplaint ────────────────────────────────────────
   const {

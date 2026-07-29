@@ -12,7 +12,7 @@ import {
   Users,
 } from 'lucide-react';
 import React, { useMemo } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
 import { AppShell, Sidebar, Topbar } from '@batac/ui';
 

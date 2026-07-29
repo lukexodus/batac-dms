@@ -1,7 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
-import { useAuthActions } from '@/hooks/useAuthActions';
 import { useSessionStore } from '@/stores';
 
 export function RequireAuth({ children }: { children?: React.ReactNode }) {

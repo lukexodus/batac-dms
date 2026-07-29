@@ -23,6 +23,14 @@ interface AuthEnvelope {
   data: AuthResponseData;
 }
 
+interface UnlockErrorResponse {
+  ok: false;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+}
+
 export function useAuthActions() {
   const login = useCallback(async (username: string, password: string) => {
     const { verifier, challenge } = await generatePkcePair();
@@ -82,7 +90,7 @@ export function useAuthActions() {
     password: string
   ): Promise<
     | { ok: true }
-    | { ok: false; code: 'INVALID_PASSWORD' | 'REFRESH_REQUIRED'; message?: string }
+    | { ok: false; code: 'INVALID_PASSWORD' | 'REFRESH_REQUIRED'; message?: string | undefined }
   > => {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/unlock`, {
       method: 'POST',
@@ -90,7 +98,7 @@ export function useAuthActions() {
       credentials: 'include',
       body: JSON.stringify({ password }),
     });
-    const data = await response.json();
+    const data = (await response.json()) as UnlockErrorResponse;
     if (!response.ok) {
       if (data.error?.code === 'REFRESH_REQUIRED') {
         return { ok: false, code: 'REFRESH_REQUIRED', message: data.error?.message };

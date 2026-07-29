@@ -22,6 +22,13 @@ interface AuthEnvelope {
   data: AuthResponseData;
 }
 
+interface AuthErrorEnvelope {
+  ok: false;
+  error?: {
+    traceId?: string;
+  };
+}
+
 export function SessionHydrator() {
   useEffect(() => {
     let mounted = true;
@@ -36,7 +43,7 @@ export function SessionHydrator() {
         if (!response.ok) {
           let traceId: string | undefined;
           try {
-            const errorBody = await response.json();
+            const errorBody = (await response.json()) as AuthErrorEnvelope;
             traceId = errorBody?.error?.traceId;
           } catch {
             // Response body wasn't valid JSON — proceed without a traceId

@@ -43,7 +43,7 @@ export const useShellStore = create<ShellState & ShellActions>()(
       name: 'batac-dms:layout', // Keep existing localStorage key from old layout.store
       version: 1,
       // Persist ONLY sidebarCollapsed, per F2 Persistence Rules
-      partialize: (state) => ({ sidebarCollapsed: state.sidebarCollapsed }) as any,
+      partialize: (state) => ({ sidebarCollapsed: state.sidebarCollapsed }),
     },
   ),
 );

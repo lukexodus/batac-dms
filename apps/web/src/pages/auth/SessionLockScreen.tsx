@@ -12,7 +12,6 @@ export function SessionLockScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const identity = useSessionStore((state) => state.identity);
-  const setIsLocked = useSessionStore((state) => state.setIsLocked);
   const { logout, unlock } = useAuthActions();
   const navigate = useNavigate();
 
@@ -41,8 +40,8 @@ export function SessionLockScreen() {
 
       // Success
       setPassword('');
-    } catch (err: any) {
-      setError(err.message || 'An error occurred. Please try again.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

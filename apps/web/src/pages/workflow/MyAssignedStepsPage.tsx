@@ -47,7 +47,6 @@ const PAGE_ALLOWED_ROLES = [
 
 export function MyAssignedStepsPage() {
   const identity = useSessionStore((s) => s.identity);
-  const roleCodes: string[] = identity?.roleCodes ?? [];
 
   // ── Role gate: render nothing (or a lightweight denial) for unauthorised
   //    users. Server also enforces this — the client gate is a UX measure only.

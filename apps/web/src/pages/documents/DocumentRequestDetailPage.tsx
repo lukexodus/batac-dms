@@ -72,7 +72,6 @@ type RequestDetail = RouterOutputs['documents']['getDocumentRequest'];
 
 export function DocumentRequestDetailPage() {
   const identity = useSessionStore((s) => s.identity);
-  const roleCodes = identity?.roleCodes ?? [];
 
   if (!hasRole(identity, ...VIEW_ROLES)) {
     return (
@@ -90,7 +89,6 @@ export function DocumentRequestDetailPage() {
 function DocumentRequestDetailContent() {
   const { requestId } = useParams<{ requestId: string }>();
   const identity = useSessionStore((s) => s.identity);
-  const roleCodes = identity?.roleCodes ?? [];
 
   const isSecretary = hasRole(identity, 'sp_secretary');
   const isPresidingOfficer = hasRole(identity, 'sp_presiding_officer');

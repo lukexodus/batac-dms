@@ -71,7 +71,7 @@ export function EnvironmentConfigPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {data.map((item: any) => (
+                  {data.map((item) => (
                     <tr key={item.key} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-mono text-xs font-medium text-slate-700 dark:text-slate-300">
                         {item.key}

@@ -22,7 +22,6 @@ const PAGE_ALLOWED_ROLES = ['sp_secretary'] as const;
 
 export function SecretaryDashboardPage() {
   const identity = useSessionStore((s) => s.identity);
-  const roleCodes = identity?.roleCodes ?? [];
 
   if (!hasRole(identity, ...PAGE_ALLOWED_ROLES)) {
     return (

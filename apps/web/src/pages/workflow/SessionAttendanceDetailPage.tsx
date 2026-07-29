@@ -15,7 +15,6 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Checkbox,
   Label,
   PageHeader,
 } from '@batac/ui';

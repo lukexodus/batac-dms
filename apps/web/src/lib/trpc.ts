@@ -11,6 +11,15 @@ export const trpc = createTRPCReact<AppRouter>();
 export type RouterInputs = inferRouterInputs<AppRouter>;
 export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
+interface TRPCBatchErrorEnvelope {
+  error?: {
+    json?: {
+      data?: {
+        traceId?: string;
+      };
+    };
+  };
+}
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
@@ -47,7 +56,7 @@ export const trpcClient = trpc.createClient({
         try {
           if (!response.ok) {
             const cloned = response.clone();
-            const json = await cloned.json();
+            const json = (await cloned.json()) as TRPCBatchErrorEnvelope | TRPCBatchErrorEnvelope[];
             if (Array.isArray(json)) {
               traceId = json[0]?.error?.json?.data?.traceId;
             } else {

@@ -3,7 +3,6 @@ import { Navigate, Link } from 'react-router-dom';
 
 import { PageHeader, Card, CardHeader, CardTitle, CardContent } from '@batac/ui';
 
-import { useAuthActions } from '@/hooks/useAuthActions';
 import { useSessionStore } from '@/stores';
 
 export function HomePage() {

@@ -12,7 +12,6 @@ const PAGE_ALLOWED_ROLES = ['mayor'] as const;
 
 export function MayorDashboardPage() {
   const identity = useSessionStore((s) => s.identity);
-  const roleCodes = identity?.roleCodes ?? [];
 
   if (!hasRole(identity, ...PAGE_ALLOWED_ROLES)) {
     return (

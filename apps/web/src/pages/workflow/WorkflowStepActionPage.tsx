@@ -62,7 +62,6 @@ export function WorkflowStepActionPage() {
   }
 
   const renderPanel = () => {
-    const roles = identity?.roleCodes ?? [];
     let canAct = false;
 
     switch (instance.panelHint) {

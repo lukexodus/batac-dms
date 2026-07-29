@@ -242,18 +242,16 @@ export default function DocumentDetailPage() {
   const identity = useSessionStore((s) => s.identity);
   const navigate = useNavigate();
   const utils = trpc.useUtils();
-  const roles = identity?.roleCodes ?? [];
 
   // ── Read group: documents.get ──────────────────────────────────────────────
   const {
     data: document,
     isLoading,
     isError,
-    refetch: refetchDocument,
   } = trpc.documents.get.useQuery({ documentId: documentId! }, { enabled: !!documentId });
 
   // ── Read group: documents.getVersionHistory ────────────────────────────────
-  const { data: versions, refetch: refetchVersions } = trpc.documents.getVersionHistory.useQuery(
+  const { data: versions } = trpc.documents.getVersionHistory.useQuery(
     { documentId: documentId! },
     { enabled: !!documentId },
   );

@@ -37,7 +37,6 @@ export function MultiReferralPanel({
   const utils = trpc.useUtils();
   const identity = useSessionStore((s) => s.identity);
 
-  const roleCodes: string[] = identity?.roleCodes ?? [];
   const isSpSecretary = hasRole(identity, 'sp_secretary');
   const isSpMember = hasRole(identity, 'sp_member');
 
