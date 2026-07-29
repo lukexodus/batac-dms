@@ -96,13 +96,28 @@ function canAssignPreliminaryNumber(
   return ['submitted', 'in_workflow'].includes(lifecycleState) && !preliminaryNumber;
 }
 
-/** documents.assignFinalNumber: callable-by sp_secretary only */
+/**
+ * documents.assignFinalNumber: callable-by sp_secretary only.
+ *
+ * SP Resolutions receive their final number automatically when the
+ * second_reading_vote or second_reading_amended_vote workflow step
+ * completes with outcome APPROVED (TASK-WF-016). The manual button is
+ * hidden for this document type to avoid a confusing double-assignment
+ * click — this is a values-based frontend check mirroring the same
+ * hardcoded step-key set the backend subscriber uses
+ * (documents.plugin.ts's SP_RESOLUTION_FINAL_NUMBERING_STEP_KEYS), not a
+ * schema-driven flag. No `hasFinalNumbering` field exists on the document
+ * type yet — if one is added later, this check should be updated to use
+ * it instead of the hardcoded documentTypeCode comparison below.
+ */
 function canAssignFinalNumber(
   identity: ActiveUserIdentity | null,
   preliminaryNumber: string | null,
   finalNumber: string | null,
+  documentTypeCode: string,
 ): boolean {
   if (!hasRole(identity, 'sp_secretary')) return false;
+  if (documentTypeCode === 'SP_RESOLUTION') return false;
   return !!preliminaryNumber && !finalNumber;
 }
 
@@ -653,6 +668,7 @@ export default function DocumentDetailPage() {
               identity,
               document.preliminaryNumber ?? null,
               document.finalNumber ?? null,
+              document.documentType?.code ?? '',
             ) && (
               <Button
                 size="sm"

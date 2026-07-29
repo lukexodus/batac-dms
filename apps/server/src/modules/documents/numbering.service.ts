@@ -26,6 +26,7 @@
 
 import { sql, eq } from 'drizzle-orm';
 import { numbers } from '@batac/database/schema/documents.schema.js';
+import { FinalNumberAlreadyAssignedError } from '../../errors/domain/documents.js';
 import type { Logger } from 'pino';
 import type { DbClient, DbTransaction } from './documents.types.js';
 import { DocumentsRepository } from './documents.repository.js';
@@ -216,7 +217,7 @@ export class NumberingService {
         throw new Error(`document not found: ${documentId}`);
       }
       if (doc.finalNumber !== null) {
-        throw new Error('final number already assigned');
+        throw new FinalNumberAlreadyAssignedError(documentId, doc.finalNumber);
       }
 
       // Resolve series

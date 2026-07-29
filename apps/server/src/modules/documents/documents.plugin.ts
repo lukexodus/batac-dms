@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin';
 import crypto from 'node:crypto';
+import { FinalNumberAlreadyAssignedError } from '../../errors/domain/documents.js';
 import type { FastifyInstance } from 'fastify';
 import type { WorkflowPublicAPI } from '../workflow/index.js';
 import { createDocumentsService } from './documents.service.js';
@@ -184,7 +185,7 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
         try {
           await service.assignFinalNumber(event.payload.documentId, event.payload.actorId);
         } catch (err) {
-          if (err instanceof Error && err.message === 'final number already assigned') {
+          if (err instanceof FinalNumberAlreadyAssignedError) {
             // Idempotent no-op, not a failure: this document already has a
             // final number. Swallow silently -- do not log as an error.
             return;

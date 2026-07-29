@@ -25,6 +25,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NumberingService } from '../numbering.service.js';
+import { FinalNumberAlreadyAssignedError } from '../../../errors/domain/documents.js';
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -227,7 +228,7 @@ describe('NumberingService', () => {
 
       await expect(
         svc.assignFinalNumber('doc-1', 'sp_resolution', 'city-1', 'actor-1'),
-      ).rejects.toThrow('final number already assigned');
+      ).rejects.toThrow(FinalNumberAlreadyAssignedError);
 
       expect(trx.insert).not.toHaveBeenCalled();
     });
