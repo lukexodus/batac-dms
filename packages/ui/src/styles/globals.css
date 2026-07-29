@@ -333,18 +333,20 @@
   }
 
   /* Touch target minimum — 44×44px (DESIGN.md §5, §8 Rule 11) */
-  button,
-  [role='button'],
-  input[type='checkbox'],
-  input[type='radio'],
+  button:not([role='checkbox']):not([role='radio']),
+  [role='button']:not([role='checkbox']):not([role='radio']),
   select,
   a {
     min-height: 44px;
     min-width: 44px;
   }
 
-  /* Exception: decorative/non-actionable chips (DESIGN.md §5) */
-  .touch-exempt {
+  /* Exception: checkboxes, radios, decorative/non-actionable chips (DESIGN.md §5) */
+  .touch-exempt,
+  input[type='checkbox'],
+  input[type='radio'],
+  [role='checkbox'],
+  [role='radio'] {
     min-height: unset;
     min-width: unset;
   }

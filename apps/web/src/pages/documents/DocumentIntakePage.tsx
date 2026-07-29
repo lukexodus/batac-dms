@@ -259,7 +259,7 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
 
   if (prop.type === 'boolean') {
     return (
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2.5 py-1">
         <Controller
           name={name}
           control={control}
@@ -271,7 +271,7 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
             />
           )}
         />
-        <Label htmlFor={`meta-${name}`} className="font-normal cursor-pointer">
+        <Label htmlFor={`meta-${name}`} className="text-sm font-medium text-text-primary cursor-pointer select-none">
           {label} {isRequired && <span className="text-danger-500">*</span>}
         </Label>
         {errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}
