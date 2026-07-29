@@ -1278,6 +1278,103 @@ export function createWorkflowRouter() {
       }),
 
     /**
+     * `workflow.submitApprovalOutcome`
+     *
+     * Generic outcome-submission procedure for `approval`-type steps whose
+     * `allowed_outcomes` do not match any of the hardcoded-outcome procedures
+     * (`approveStep`, `rejectStep`, `returnStepForRevision`, `logSecretariatDecision`).
+     * The outcome string is validated against the step's own
+     * `config.allowed_outcomes` by `submitStepApproval` itself — this procedure
+     * does not hardcode or restrict which outcome strings are acceptable beyond
+     * requiring a non-empty string; the workflow engine is the source of truth
+     * for what's valid on a given step.
+     *
+     * ABAC: identical to `approveStep`/`rejectStep`/`returnStepForRevision` —
+     * reuses `workflowPolicy.canApproveStep` unchanged (role + step-type +
+     * step-status + assignment gates; step-key-agnostic).
+     *
+     * Added by TASK-WF-FE-019 to cover `returned_review`, `legal_office_review`,
+     * and `committee_revisions_review`, none of which fit any existing procedure's
+     * hardcoded outcome set.
+     */
+    submitApprovalOutcome: protectedProcedure
+      .input(
+        z.object({
+          stepInstanceId: z.string().uuid(),
+          outcome: z.string().min(1),
+          comment: z.string().optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const { stepInstanceId, outcome, comment = null } = input;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, step, instance, stepAttrs } = found;
+
+        workflowPolicy.canApproveStep(ctx.auth, stepAttrs);
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: ctx.req.server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+          iamService: server.iamService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          await submitStepApproval(
+            instance,
+            stepInstance,
+            ctx.auth!.userId,
+            'user',
+            outcome,
+            comment,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
+          );
+        });
+
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome,
+              comment,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: `${step.stepType} ${outcome}`,
+              cityId: ctx.auth!.cityId,
+            },
+          });
+        }
+
+        return { success: true as const };
+      }),
+
+    /**
      * `workflow.submitCommitteeReport`
      *
      * Submits a committee report contribution for a multi-referral step.
