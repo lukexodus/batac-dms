@@ -24760,4 +24760,326 @@ After making this change, report back:
    what you find.
 ````
 
-   
+# TASK-WF-016: Automate final-number assignment on SP Resolution second-reading approval
+
+**Status:** Ready to execute. All facts below were independently re-verified against the current repo upload (2026-07-29 session). File paths, line numbers, and existing code shown as "current" are exact quotes — not paraphrased — as of that upload.
+
+## 1. Context (why this task exists)
+
+`documents.plugin.ts` line 162 contains an unimplemented TODO:
+```typescript
+  // TODO(WF-INTEGRATION): fastify.eventBus.subscribe('workflow.step.completed', ...)
+```
+No document ever receives its **final** number automatically. (Preliminary numbering already works correctly, via `documents.submit` → `assignPreliminaryNumber` — that is out of scope and must not be touched.) This task wires final-number assignment to fire automatically when an SP Resolution passes its second-reading vote.
+
+**Architecture you must respect:** `documents` module code must never import from `workflow.repository.ts` or `workflow/engine/step-handlers/*` directly. All access to workflow-module data goes through the typed `WorkflowPublicAPI` interface (`apps/server/src/modules/workflow/index.ts`). This task adds one new method to that interface for this purpose.
+
+**Plugin registration order — this determines how you must write the subscriber:**
+`documentsPlugin`'s own `dependencies` array (`apps/server/src/modules/documents/documents.plugin.ts:169`, current value `['database', 'event-bus', 'audit', 'organization']`) does **not** include `'workflow'`. Conversely, `workflowPlugin`'s dependency array (`apps/server/src/modules/workflow/workflow.plugin.ts:158`, current value `['database', 'event-bus', 'audit', 'organization', 'documents', 'iam']`) **does** include `'documents'`. This means `documents` registers before `workflow`. Consequence:
+
+```json
+{
+  "constraint": "do_not_add_workflow_to_documents_dependencies",
+  "reason": "workflow already depends on documents; adding documents' dependency on workflow would create a circular plugin dependency",
+  "correct_pattern": "reference fastify.workflowService lazily, inside the event handler callback body only — never as a local const hoisted to the top of the documentsPlugin registration function",
+  "why_this_works": "the callback body only executes when a real event fires, which happens after the entire plugin chain has finished registering (workflow included) — registration order only constrains code that runs synchronously during a plugin's own registration function body, not code inside callbacks registered for later",
+  "precedent": "workflow.plugin.ts:64-101 already does exactly this in the other direction — its document.created handler references fastify.documentsService lazily inside the callback, even though at THAT registration time database/event-bus/audit/organization/documents/iam must already be registered per its own dependency array — the same lazy-reference pattern is what you must use here for the reverse direction",
+  "authoritative": true
+}
+```
+
+## 2. Scope
+
+```
+IN SCOPE:
+- apps/server/src/modules/workflow/workflow.repository.ts   (add getStepById method)
+- apps/server/src/modules/workflow/index.ts                 (add TxOrDb import + getStepKeyById to WorkflowPublicAPI interface)
+- apps/server/src/modules/workflow/workflow.public-api.ts   (implement getStepKeyById)
+- apps/server/src/modules/documents/documents.plugin.ts     (implement the subscriber, replacing the line-162 TODO)
+
+OUT OF SCOPE (do not touch even if related):
+- apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts
+- apps/server/src/modules/workflow/engine/step-handlers/approval.handler.ts
+- apps/server/src/modules/documents/documents.router.ts (DocumentIntakePage/preliminary numbering path — already correct)
+- apps/web/src/pages/documents/DocumentIntakePage.tsx
+- packages/database/src/seeds/workflow/phase1-legislative.ts (SP_ORDINANCE_WORKFLOW / APPROPRIATION_ORDINANCE_WORKFLOW use 'third_reading_vote', not 'second_reading_vote' — do not extend this task's trigger to cover them)
+- apps/server/src/modules/documents/numbering.service.ts (NumberingService.assignFinalNumber — never call this directly; always go through documentsService.assignFinalNumber, the 2-arg wrapper)
+```
+
+## 3. Trigger condition — authoritative
+
+```json
+{
+  "trigger_condition": {
+    "stepKey_in": ["second_reading_vote", "second_reading_amended_vote"],
+    "outcome_equals": "APPROVED",
+    "both_conditions_required": true
+  },
+  "authoritative": true,
+  "note": "If prose elsewhere in this prompt appears to conflict with this block, this block wins."
+}
+```
+Both step keys confirmed present in `packages/database/src/seeds/workflow/phase1-legislative.ts` at lines 116 and 144 respectively. `'APPROVED'` confirmed as the exact literal outcome string emitted by the `approveStep` procedure (`apps/server/src/modules/workflow/workflow.router.ts:999`).
+
+## 4. Change 1 — `workflow.repository.ts`: add `getStepById`
+
+Add this new method to the `WorkflowRepository` class. Insert it immediately after the existing `getStepInstanceById` method (current lines 391-397), which it mirrors exactly:
+
+```
+old_str:
+  async getStepInstanceById(id: string, tx: TxOrDb = this.db): Promise<StepInstanceRow | null> {
+    const [row] = await tx
+      .select()
+      .from(stepInstances)
+      .where(and(eq(stepInstances.id, id), isNull(stepInstances.deletedAt)));
+    return row || null;
+  }
+
+new_str:
+  async getStepInstanceById(id: string, tx: TxOrDb = this.db): Promise<StepInstanceRow | null> {
+    const [row] = await tx
+      .select()
+      .from(stepInstances)
+      .where(and(eq(stepInstances.id, id), isNull(stepInstances.deletedAt)));
+    return row || null;
+  }
+
+  /**
+   * Resolves a single step definition row by its ID. Added for TASK-WF-016
+   * — `workflow.step.completed` event payloads carry `stepId` (a UUID) but
+   * not `stepKey`, so any event subscriber that needs to know which named
+   * step just completed must resolve it via this method (through
+   * WorkflowPublicAPI.getStepKeyById) rather than reading this table
+   * directly from outside the workflow module.
+   */
+  async getStepById(id: string, tx: TxOrDb = this.db): Promise<StepRow | null> {
+    const [row] = await tx
+      .select()
+      .from(steps)
+      .where(and(eq(steps.id, id), isNull(steps.deletedAt)));
+    return row || null;
+  }
+```
+No new imports required — `eq`, `and`, `isNull`, `steps`, and the local `StepRow` type alias are all already present in this file (confirmed: `eq/and/isNull` at line 1's import statement, `steps` in the multi-line import block starting line 4, `StepRow` as a local type alias at line 28).
+
+## 5. Change 2 — `workflow/index.ts`: add `getStepKeyById` to the interface
+
+Current full file content (50 lines, confirmed, reproduced here in full since the file is small and precision matters — if what you find on disk differs from this, STOP and treat it as a finding to surface, not something to silently reconcile):
+
+```typescript
+export interface WorkflowPublicAPI {
+  getInstanceById(instanceId: string): Promise<WorkflowInstanceSummary | null>;
+  getActiveInstanceForDocument(documentId: string): Promise<WorkflowInstanceSummary | null>;
+  getWorkflowSLAData(filter: WorkflowSLAFilter): Promise<WorkflowSLAData[]>;
+}
+
+export interface WorkflowInstanceSummary {
+  instanceId: string;
+  documentId: string;
+  definitionId: string;
+  definitionVersionId: string; // pinned at creation; immutable except via migrateInstance
+  currentStepType: WorkflowStepType;
+  currentStepInstanceId: string;
+  currentAssigneeUserId: string | null;
+  status: 'Active' | 'Completed' | 'Cancelled'; // B2 Published API surface; maps from internal DB enum ('Running'→'Active', 'Paused'→'Active', 'Stuck'→'Active')
+  slaDeadline: Date | null;
+  lapseStatus: 'mayor_10_day_lapsed' | 'panlalawigan_30_day_deemed' | null;
+  createdAt: Date;
+}
+
+export type WorkflowStepType =
+  | 'action'
+  | 'approval'
+  | 'multi_referral'
+  | 'decision'
+  | 'notification'
+  | 'termination'
+  | 'parallel_split'
+  | 'parallel_join';
+
+export interface WorkflowSLAFilter {
+  officeId?: string;
+  documentTypeId?: string;
+  from?: Date;
+  to?: Date;
+  breachedOnly?: boolean;
+}
+
+export interface WorkflowSLAData {
+  instanceId: string;
+  documentId: string;
+  documentTypeId: string;
+  slaClassification: 'simple' | 'complex' | 'highly_technical';
+  slaThresholdDays: number;
+  elapsedWorkingDays: number;
+  isBreached: boolean;
+  breachedAt: Date | null;
+  currentAssigneeOfficeId: string | null;
+}
+```
+
+Apply this exact change:
+```
+old_str:
+export interface WorkflowPublicAPI {
+  getInstanceById(instanceId: string): Promise<WorkflowInstanceSummary | null>;
+  getActiveInstanceForDocument(documentId: string): Promise<WorkflowInstanceSummary | null>;
+  getWorkflowSLAData(filter: WorkflowSLAFilter): Promise<WorkflowSLAData[]>;
+}
+
+new_str:
+import type { TxOrDb } from '../../db.js';
+
+export interface WorkflowPublicAPI {
+  getInstanceById(instanceId: string): Promise<WorkflowInstanceSummary | null>;
+  getActiveInstanceForDocument(documentId: string): Promise<WorkflowInstanceSummary | null>;
+  getWorkflowSLAData(filter: WorkflowSLAFilter): Promise<WorkflowSLAData[]>;
+  /**
+   * Resolves a step's `stepKey` from its `stepId`. Added for TASK-WF-016.
+   * `tx`, when supplied, participates in the caller's transaction (Option B
+   * pattern, see TASK-WF-016's decision record); omit it for a standalone
+   * read against the live connection — this is the expected usage for an
+   * event-bus subscriber, since by the time `workflow.step.completed`
+   * fires, the originating transaction has already committed.
+   */
+  getStepKeyById(stepId: string, tx?: TxOrDb): Promise<string | null>;
+}
+```
+**Edge case — sequencing with TASK-WF-017:** if `TASK-WF-017` (a separate, not-yet-written task) has already run and this interface already contains a different new method added by that task, insert `getStepKeyById` as an additional member alongside it — do not revert or conflict with that edit. Order of members within the interface does not matter.
+
+## 6. Change 3 — `workflow.public-api.ts`: implement `getStepKeyById`
+
+Current relevant end-of-file content (confirmed, lines 176-185):
+```typescript
+        result.push({
+          instanceId: row.instanceId,
+          documentId: row.documentId,
+          documentTypeId: row.documentTypeId,
+          slaClassification,
+          slaThresholdDays,
+          elapsedWorkingDays,
+          isBreached,
+          breachedAt,
+          currentAssigneeOfficeId: row.currentAssigneeOfficeId,
+        });
+      }
+
+      return result;
+    },
+  };
+}
+```
+Apply this exact change:
+```
+old_str:
+      return result;
+    },
+  };
+}
+
+new_str:
+      return result;
+    },
+
+    async getStepKeyById(stepId: string, tx?: TxOrDb): Promise<string | null> {
+      const scopedRepository = tx ? new WorkflowRepository(tx) : repository;
+      const step = await scopedRepository.getStepById(stepId, tx);
+      return step?.stepKey ?? null;
+    },
+  };
+}
+```
+This file already imports `WorkflowRepository` (current line 10: `import { WorkflowRepository } from './workflow.repository.js';`) and already imports `AppDb` as a type (current line 2) — you additionally need `TxOrDb`. Apply this exact change to the top-of-file import:
+```
+old_str:
+import type { AppDb } from '../../db.js';
+
+new_str:
+import type { AppDb, TxOrDb } from '../../db.js';
+```
+**Edge case — sequencing with TASK-WF-017:** same as Change 2 — if TASK-WF-017 has already added its own method to this same `return { ... }` block, insert `getStepKeyById` as an additional member, don't conflict with or revert that edit.
+
+## 7. Change 4 — `documents.plugin.ts`: implement the subscriber
+
+Current exact content at the target location (confirmed, lines 160-165):
+```typescript
+  }
+
+  // TODO(WF-INTEGRATION): fastify.eventBus.subscribe('workflow.step.completed', ...)
+
+  fastify.log.info('documents.module.ready');
+}
+```
+Apply this exact change:
+```
+old_str:
+  // TODO(WF-INTEGRATION): fastify.eventBus.subscribe('workflow.step.completed', ...)
+
+  fastify.log.info('documents.module.ready');
+
+new_str:
+  // TASK-WF-016: automatic final-number assignment on SP Resolution
+  // second-reading approval. See docs/development-findings-log.md and
+  // TASK-WF-016's own prompt for the full decision record (fire-and-forget
+  // failure mode; do not add 'workflow' to this plugin's dependencies
+  // array — fastify.workflowService is referenced lazily below precisely
+  // to avoid needing that, since workflow already depends on documents).
+  const SP_RESOLUTION_FINAL_NUMBERING_STEP_KEYS = new Set<string>([
+    'second_reading_vote',
+    'second_reading_amended_vote',
+  ]);
+
+  fastify.eventBus.on(
+    'workflow.step.completed',
+    (event) => {
+      const run = async () => {
+        if (event.payload.outcome !== 'APPROVED') return;
+
+        const stepKey = await fastify.workflowService.getStepKeyById(event.payload.stepId);
+        if (!stepKey || !SP_RESOLUTION_FINAL_NUMBERING_STEP_KEYS.has(stepKey)) return;
+
+        try {
+          await service.assignFinalNumber(event.payload.documentId, event.payload.actorId);
+        } catch (err) {
+          if (err instanceof Error && err.message === 'final number already assigned') {
+            // Idempotent no-op, not a failure: this document already has a
+            // final number. Swallow silently -- do not log as an error.
+            return;
+          }
+          throw err;
+        }
+      };
+      run().catch((err) => {
+        fastify.log.error(
+          { err, eventId: event.eventId, documentId: event.payload.documentId },
+          'documents: workflow.step.completed handler failed (final numbering)',
+        );
+      });
+    },
+    'documents',
+  );
+
+  fastify.log.info('documents.module.ready');
+```
+
+**Edge-case decision table — authoritative:**
+
+| Case | Condition | Required behavior |
+|---|---|---|
+| 1 | `event.payload.outcome !== 'APPROVED'` | Return immediately, no numbering call, no log |
+| 2 | `stepKey` resolves to `null` (step not found), or resolves but is not in the trigger set | Return immediately, no numbering call, no log |
+| 3 | `assignFinalNumber` throws `Error` with message exactly `'final number already assigned'` | Swallow silently, return — this is NOT a failure |
+| 4 | `assignFinalNumber` throws any other error | Re-throw, let it reach the outer `run().catch(...)`, log via `fastify.log.error` with the shown fields — do not swallow, do not retry, do not roll anything back |
+| 5 | Handler succeeds | No log needed (matches existing precedent in this same file — the `panlalawigan.checkDeemedApproved` job above does not log on success either) |
+
+**Why this specific error-swallowing pattern (`run().catch(fastify.log.error)`), not the EventBus's own built-in dead-letter mechanism:** `EventBus.emit()` (`packages/shared/src/event-bus.ts:74-93`) only routes a handler's failure to its own dead-letter/logging path if the registered handler function itself returns a Promise that rejects. The pattern used here — an inner `async run()` function called without `return`, with its own `.catch(...)` attached — means the OUTER handler function passed to `.on()` returns `undefined` synchronously, so `EventBus`'s own dead-letter mechanism never sees this handler's async work at all. This is not an oversight; it is the existing, established pattern already used by both event handlers in `workflow.plugin.ts` (lines 64-101 and the `document.certification_urgency.logged` handler above it) — this task follows that same precedent for consistency, which is why the failure mode routes through `fastify.log.error` rather than the dead-letter table.
+
+## 8. What NOT to do
+- Do not add `'workflow'` to `documentsPlugin`'s `dependencies` array (§1 above — circular dependency).
+- Do not call `NumberingService.assignFinalNumber` directly; always go through `documentsService.assignFinalNumber` (documentsService, not numberingService — the local variable in this file is named `service`).
+- Do not extend the trigger condition to `third_reading_vote` or otherwise touch `SP_ORDINANCE_WORKFLOW`/`APPROPRIATION_ORDINANCE_WORKFLOW`.
+- Do not modify `action.handler.ts` or `approval.handler.ts`.
+- Do not weaken or bypass `assignFinalNumber`'s existing `'final number already assigned'` idempotency guard — the correct handling is to catch and swallow it in the subscriber (§7), not to change the guard itself.
+
+## 9. Verification
+Run `pnpm typecheck` in `apps/server` and the existing unit/integration test suites. This task does not modify or require new test fixtures, but if a test harness for `documents.plugin.ts`'s event subscriptions already exists, run it. Report the exact typecheck/test output — do not summarize as "passed" without showing it, since this is a new code path with no existing coverage.

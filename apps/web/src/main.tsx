@@ -10,6 +10,7 @@ import { SessionHydrator } from './components/SessionHydrator';
 import { queryClient } from './lib/query-client.js';
 import { trpc, trpcClient } from './lib/trpc.js';
 import { openobserveRum as rum } from '@openobserve/browser-rum';
+import { openobserveLogs as logs } from '@openobserve/browser-logs';
 import { useLocation, Outlet } from 'react-router-dom';
 import { useEffect } from 'react';
 import { PlatformAdminHomePage } from './pages/admin/PlatformAdminHomePage';
@@ -74,12 +75,42 @@ rum.init({
   insecureHTTP: false,
   service: 'batac-web',
   env: import.meta.env['MODE'],
+  version: '0.0.1',
   trackViewsManually: true,
   trackUserInteractions: true,
   trackResources: true,
   trackLongTasks: true,
   defaultPrivacyLevel: 'mask-user-input',
+  allowedTracingUrls: [
+    {
+      match: import.meta.env['VITE_API_URL'],
+      propagatorTypes: ['openobserve', 'tracecontext'],
+    },
+  ],
+  sessionSampleRate: 100,
+  sessionReplaySampleRate: 100,
 });
+
+logs.init({
+  clientToken: import.meta.env['VITE_OTEL_RUM_CLIENT_TOKEN'],
+  site: import.meta.env['VITE_OTEL_RUM_SITE'],
+  organizationIdentifier: import.meta.env['VITE_OTEL_RUM_ORGANIZATION'],
+  service: 'batac-web',
+  env: import.meta.env['MODE'],
+  version: '0.0.1',
+  forwardErrorsToLogs: true,
+  insecureHTTP: false,
+  apiVersion: 'v1',
+});
+
+// You can set a user context
+rum.setUser({
+  id: "1",
+  name: "Captain Hook",
+  email: "captainhook@example.com",
+});
+
+rum.startSessionReplayRecording();
 
 function RouteTracker() {
   const location = useLocation();
