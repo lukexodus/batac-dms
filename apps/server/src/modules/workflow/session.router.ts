@@ -424,6 +424,7 @@ export function createSessionRouter() {
             and(
               eq(orderOfBusinessItems.orderOfBusinessId, oob.id),
               isNull(orderOfBusinessItems.deletedAt),
+              isNull(documents.deletedAt),
             ),
           )
           .orderBy(asc(orderOfBusinessItems.itemOrder));

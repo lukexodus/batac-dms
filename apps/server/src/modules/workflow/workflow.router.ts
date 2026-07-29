@@ -661,6 +661,7 @@ export function createWorkflowRouter() {
               inArray(stepInstances.status, ['active', 'pending']),
               isNull(stepInstances.deletedAt),
               isNull(instances.deletedAt),
+              isNull(documents.deletedAt),
             ),
           )
           .orderBy(desc(stepInstances.createdAt));
@@ -768,7 +769,7 @@ export function createWorkflowRouter() {
       .query(async ({ input, ctx }) => {
         workflowPolicy.canAccessSlaData(ctx.auth);
 
-        const conditions = [eq(instances.cityId, ctx.auth.cityId), isNull(instances.deletedAt)];
+        const conditions = [eq(instances.cityId, ctx.auth.cityId), isNull(instances.deletedAt), isNull(documents.deletedAt)];
 
         if (input.documentTypeId) {
           conditions.push(eq(documents.documentTypeId, input.documentTypeId));
