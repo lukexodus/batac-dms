@@ -5266,3 +5266,143 @@ duplicate `LOG-0177` and the out-of-sequence block for human review, in the
 same spirit as the pre-existing `LOG-0112` duplicate-entry note — this one is
 larger in scope (a block of four sequential numbers appended before a lower
 number continues) and was not previously logged anywhere.
+### [LOG-0182] apps/web/eslint.config.cjs turns off explicit-module-boundary-types for the whole app, undocumented in J3
+
+- date: 2026-07-29
+- task_id: none — discovered while investigating a repo-wide lint-error-fix request
+- status: proposed
+- affects: J3 (Coding Standards and Conventions), apps/web/eslint.config.cjs
+
+**What was found:** `apps/web/eslint.config.cjs` line 29 sets
+`'@typescript-eslint/explicit-module-boundary-types': 'off'` with an inline
+comment "Only required for packages, not apps." J3 §7.3 documents this rule
+as `'error'` in the shared base config
+(`packages/config/eslint.base.js`, confirmed to match J3 exactly) and never
+mentions an app-level override turning it off. J3 §7.5 (React-Specific
+Rules) also does not mention this override. Confirmed the override is
+actually in effect (not merely present but unused): zero
+`explicit-module-boundary-types` violations appear anywhere in a recent
+full `apps/web` lint run of 338 total problems, which is consistent with
+the rule being off.
+
+**Note:** [Inference] The override's rationale (React page/component
+functions aren't "module boundaries" the way exported `packages/*` library
+functions are, since app-level components aren't consumed by other
+packages) is plausible on its face, but this is a judgment call for a human
+to confirm, not something I can settle by reading the code alone. No fix
+was applied — this entry only documents the discrepancy for a human to
+decide whether J3 needs a documented exception added, or whether the
+override itself should be removed for consistency with the documented spec.
+
+---
+
+### [LOG-0183] SecurityAuditLedgerPage.tsx's any-typing lint error traces to a deliberate any-bypass in apps/server's audit.router.ts, not a frontend issue
+
+- date: 2026-07-29
+- task_id: none — discovered while investigating a repo-wide lint-error-fix request
+- status: proposed
+- affects: none (implementation-only finding, not tied to a specific Group B–L document)
+
+**What was found:** `apps/web/src/pages/sysadmin/SecurityAuditLedgerPage.tsx`
+line 64 (`eventTypes?.map((et) => ...)`) is flagged by
+`@typescript-eslint/no-unsafe-member-access`-family rules despite having no
+explicit `any` annotation anywhere in the frontend file itself. Traced the
+root cause: `eventTypes` originates from
+`trpc.audit.getSecurityLedgerEventTypes.useQuery()`
+(`apps/web/src/pages/sysadmin/SecurityAuditLedgerPage.tsx` line 32), and the
+corresponding server procedure
+(`apps/server/src/modules/audit/audit.router.ts`, `getSecurityLedgerEventTypes`,
+starting at line 660 in the current repository state) contains two explicit
+`any` casts: `(ctx.req.server as any).auditService` (line 665) and
+`result.map((r: any) => r.eventType)` (line 675), with an inline comment
+confirming this was deliberate ("We bypass the AuditPublicAPI interface here
+to avoid modifying the core domain interfaces for a UI-specific dropdown
+requirement"). Because tRPC infers client-side types directly from server
+procedure return types, this server-side `any` propagates to the frontend
+automatically. This was NOT caught by any existing lint run, because the
+`server` package (verified via its `package.json`) has no `lint` script
+defined at all — only `@batac/web` does.
+
+**What was implemented:** Nothing. Left both the frontend consumption site
+and the server-side procedure untouched. Fixing this properly requires
+either extending `AuditPublicAPI`'s domain interface (the thing the original
+comment says was deliberately avoided) or narrowly typing the two casts —
+either is a J1/J4 domain-boundary design decision, not a mechanical lint
+fix, and out of scope for a task framed as "fix apps/web lint errors."
+
+**Note:** [Confirmed] via direct read of both files. A human should decide
+whether to (a) accept the current server-side workaround as a permanent,
+documented exception, (b) extend `AuditPublicAPI` properly, or (c) at
+minimum narrow the two `any` casts without a full interface extension. This
+also raises a broader open question: since `server` has no lint script at
+all, other `any`-typed or otherwise lint-violating code may exist elsewhere
+in `apps/server` without ever being caught — this entry surfaces one
+instance found incidentally, not the result of a systematic audit of the
+server package.
+
+---
+
+### [LOG-0184] Rules-of-hooks-shaped pattern (access-gate before data-fetching hooks) appears in 6 sysadmin pages; only 1 flagged by a recent lint run
+
+- date: 2026-07-29
+- task_id: none — discovered while investigating a repo-wide lint-error-fix request
+- status: proposed
+- affects: none (implementation-only finding)
+
+**What was found:** `apps/web/src/pages/sysadmin/SystemLogsPage.tsx` was
+flagged by `react-hooks/rules-of-hooks` for calling a data-fetching hook
+(`trpc.audit.queryRuntimeLogs.useInfiniteQuery`, and later `useEffect`)
+lexically after a conditional early-return
+(`if (!identity?.roleCodes.includes('sys_admin')) { return <AccessDenied />;
+}`). On checking sibling files for the same shape, found the identical
+pattern (role-gate early-return positioned before one or more hook calls)
+in `apps/web/src/pages/sysadmin/ActiveSessionsPage.tsx` (useState/useMutation
+before the gate at line 113, useQuery after, at line 117),
+`DatabasePerformancePage.tsx` (gate at line 24, useQuery after at line 29),
+`EnvironmentConfigPage.tsx` (gate at line 24, useQuery after at line 28),
+`SecurityAuditLedgerPage.tsx` (gate at line 28, two queries after at lines
+32 and 34), and `SystemAdminHomePage.tsx` (gate at line 75, not further
+investigated for hooks after it). Only `SystemLogsPage.tsx` was reported by
+ESLint's static `react-hooks/rules-of-hooks` check in the lint run this was
+discovered from.
+
+**What was NOT determined:** why ESLint's rule distinguished
+`SystemLogsPage.tsx` from the other five structurally similar files. One
+observed difference: `SystemLogsPage.tsx` has five hook calls before its
+gate and multiple hook calls (including a `useEffect`) after it, while most
+of the other files have exactly one hook call on each side of the gate —
+whether this difference is why only one was flagged, or whether it's
+incidental, was not established with confidence.
+
+**Note:** [Speculation] on the reason for the discrepancy; [Confirmed] on
+the presence of the identical early-return-before-hooks shape in all six
+files listed, via direct line-by-line reading of each. No fix was applied
+to any file as part of the task this was discovered during (scoped
+narrowly to the one file ESLint actually flagged). A human should decide
+whether this warrants a dedicated investigation into whether the other five
+files have a latent Rules-of-Hooks bug that simply hasn't manifested as a
+visible runtime issue yet, versus accepting that they are meaningfully
+different from `SystemLogsPage.tsx` for reasons not yet fully understood.
+
+---
+
+### [LOG-0185] apps/web/test-script.ts is a stray scratch file outside the TS project's include, causing a standalone parsing error
+
+- date: 2026-07-29
+- task_id: none — discovered while investigating a repo-wide lint-error-fix request
+- status: proposed
+- affects: none (implementation-only finding)
+
+**What was found:** `apps/web/test-script.ts` sits at the `apps/web`
+package root (not under `src/`), causing ESLint to report a parsing error
+(`parserOptions.project has been provided... The file was not found in any
+of the provided project(s)`) because `apps/web/tsconfig.json`'s `include`
+field (`["src", "vite.config.ts"]`) does not cover it. Content is a manual,
+`console.log`-based smoke test exercising `buildIntakeFormSchema` (imported
+from `./src/lib/intake-schema.js`) against a mock metadata schema, checking
+that a `safeParse` call correctly fails validation when a required field is
+missing. File modification timestamp (2026-07-29, same day as active edits
+to `DocumentIntakePage.tsx` and `intake-schema.ts`) suggests it may be an
+ad-hoc verification script from recent related work, but this is
+[Speculation] — the file itself gives no explicit indication of its
+intended lifespan.
