@@ -104,7 +104,7 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
   const allSubmitted = data?.items.filter((i) => i.committeeReportStatus === 'all_submitted') ?? [];
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
       {/* ─── Page header ─── */}
       <div className="flex flex-col gap-1">
         <h1 className="text-text-primary flex items-center gap-2 text-2xl font-bold">
@@ -759,7 +759,7 @@ function ScheduleForFirstReadingPanel({
             <DocumentPicker
               value={documentId}
               onChange={setDocumentId}
-              lifecycleState="in_workflow"
+              lifecycleState="submitted"
             />
           </div>
 

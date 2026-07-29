@@ -32,7 +32,7 @@ export function AppShell({
   return (
     <div className="bg-surface-raised min-h-screen">
       {/* Sidebar navigation slot (Desktop) */}
-      <nav aria-label="Main navigation" className="hidden md:block">
+      <nav aria-label="Main navigation" className="z-sticky fixed top-0 left-0 hidden h-screen md:block">
         {sidebarContent}
       </nav>
 

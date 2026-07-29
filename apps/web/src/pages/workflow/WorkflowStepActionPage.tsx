@@ -160,12 +160,10 @@ export function WorkflowStepActionPage() {
             <div>
               <strong>Current Step:</strong> {instance.currentStepName || instance.currentStepType}
             </div>
-            {instance.currentAssigneeUserId && (
+            {instance.currentAssigneeName && (
               <div>
                 <strong>Assignee:</strong>{' '}
-                {users?.find((u) => u.id === instance.currentAssigneeUserId)?.displayName ??
-                 users?.find((u) => u.id === instance.currentAssigneeUserId)?.username ??
-                 instance.currentAssigneeUserId}
+                {instance.currentAssigneeName}
               </div>
             )}
             {instance.slaDeadline && (
@@ -185,7 +183,7 @@ export function WorkflowStepActionPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Step Action</h1>
           <p className="text-muted-foreground mt-1">
-            {instance.documentTitle ? `Document: ${instance.documentTitle}` : `Instance: ${instance.instanceId}`}
+            Document: {instance.documentTitle || 'Untitled Document'}
           </p>
         </div>
         <Button variant="outline" onClick={() => navigate(`/documents/${instance.documentId}`)}>

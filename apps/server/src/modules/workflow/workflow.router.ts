@@ -11,6 +11,7 @@ import {
 } from '@batac/database/schema/workflow.schema.js';
 import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
 import { offices } from '@batac/database/schema/organization.schema.js';
+import { users } from '@batac/database/schema/iam.schema.js';
 import { eq, and, or, isNull, inArray, desc, gte, lte } from 'drizzle-orm';
 import { SlaService } from './services/sla.service.js';
 import { WorkflowRepository } from './workflow.repository.js';
@@ -267,6 +268,40 @@ function computePanelHint(
 
   return null;
 }
+function getHumanReadableStepName(stepName: string | null, stepKey: string | null, stepType: string | null): string | null {
+  if (!stepName) return null;
+  const lower = stepName.toLowerCase();
+  if (!['action', 'decision', 'review', 'approval', 'multi_referral'].includes(lower)) {
+    return stepName;
+  }
+  
+  if (!stepKey) return stepName;
+  
+  const map: Record<string, string> = {
+    'sec_action': 'Secretariat Action',
+    'vp_certification': 'VP Certification',
+    'mayor_review': 'Mayor Review',
+    'mayor_signature': 'Mayor Signature',
+    'veto_override_vote': 'Veto Override Vote',
+    'docketing': 'Docketing',
+    'panlalawigan_review': 'Panlalawigan Review',
+    'newspaper_publication': 'Newspaper Publication',
+    'returned_review': 'Returned Review',
+    'legal_office_review': 'Legal Office Review',
+    'committee_revisions_review': 'Committee Revisions Review',
+    'valid_in_part_decision': 'Valid In Part Decision',
+    'committee_referral': 'Committee Referral',
+    'start': 'Start',
+    'end': 'End',
+  };
+
+  if (map[stepKey]) return map[stepKey];
+
+  return stepKey
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
 
 export function createWorkflowRouter() {
   return router({
@@ -293,6 +328,7 @@ export function createWorkflowRouter() {
           currentStepKey: z.string().nullable(),
           currentStepName: z.string().nullable(),
           currentAssigneeUserId: z.string().uuid().nullable(),
+          currentAssigneeName: z.string().nullable(),
           status: z.enum(['Active', 'Completed', 'Cancelled']),
           slaDeadline: z.coerce.date().nullable(),
           lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
@@ -371,8 +407,38 @@ export function createWorkflowRouter() {
           .limit(1);
 
         const currentStep = currentSteps[0];
-        const assignedUsers = (currentStep?.assignedTo as Array<{ user_id: string }>) || [];
-        const currentAssigneeUserId = assignedUsers[0]?.user_id || null;
+        const assignedUsers = (currentStep?.assignedTo as Array<{ user_id?: string; office_id?: string }>) || [];
+        let currentAssigneeUserId: string | null = null;
+        let currentAssigneeName: string | null = null;
+
+        if (assignedUsers[0]) {
+          const firstAssignee = assignedUsers[0];
+          if (firstAssignee.user_id) {
+            currentAssigneeUserId = firstAssignee.user_id;
+            const [userRec] = await ctx.db
+              .select({ name: users.displayName, username: users.username })
+              .from(users)
+              .where(eq(users.id, firstAssignee.user_id))
+              .limit(1);
+            if (userRec) {
+              currentAssigneeName = userRec.name || userRec.username || firstAssignee.user_id;
+            } else {
+              currentAssigneeName = firstAssignee.user_id;
+            }
+          } else if (firstAssignee.office_id) {
+            currentAssigneeUserId = firstAssignee.office_id;
+            const [officeRec] = await ctx.db
+              .select({ name: offices.name })
+              .from(offices)
+              .where(eq(offices.id, firstAssignee.office_id))
+              .limit(1);
+            if (officeRec) {
+              currentAssigneeName = officeRec.name;
+            } else {
+              currentAssigneeName = firstAssignee.office_id;
+            }
+          }
+        }
 
         let lapseStatus: 'mayor_10_day_lapsed' | 'panlalawigan_30_day_deemed' | null = null;
         const allSteps = await ctx.db
@@ -432,12 +498,13 @@ export function createWorkflowRouter() {
           documentTitle: doc.title || null,
           definitionVersionId: instance.definitionVersionId,
           currentStepType,
-          currentStepName: currentStep ? currentStep.stepName : null,
+          currentStepName: currentStep ? getHumanReadableStepName(currentStep.stepName, currentStep.stepKey, currentStepType) : null,
           currentStepInstanceId: currentStep
             ? currentStep.stepInstanceId
             : '00000000-0000-0000-0000-000000000000',
           currentStepKey: currentStep?.stepKey ?? null,
           currentAssigneeUserId,
+          currentAssigneeName,
           status,
           slaDeadline: instance.slaDeadline,
           lapseStatus,
@@ -466,6 +533,7 @@ export function createWorkflowRouter() {
             currentStepName: z.string().nullable(),
             currentStepInstanceId: z.string().uuid(),
             currentAssigneeUserId: z.string().uuid().nullable(),
+            currentAssigneeName: z.string().nullable(),
             status: z.enum(['Active', 'Completed', 'Cancelled']),
             slaDeadline: z.coerce.date().nullable(),
             lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
@@ -609,11 +677,12 @@ export function createWorkflowRouter() {
           documentId: instance.documentId,
           definitionVersionId: instance.definitionVersionId,
           currentStepType,
-          currentStepName: currentStep ? currentStep.stepName : null,
+          currentStepName: currentStep ? getHumanReadableStepName(currentStep.stepName, currentStep.stepKey, currentStepType) : null,
           currentStepInstanceId: currentStep
             ? currentStep.stepInstanceId
             : '00000000-0000-0000-0000-000000000000',
           currentAssigneeUserId,
+          currentAssigneeName: currentAssigneeUserId ? await workflowEngine.resolveAssigneeName({ currentAssigneeUserId }, ctx.db) : null,
           status,
           slaDeadline: instance.slaDeadline,
           lapseStatus,
@@ -752,7 +821,7 @@ export function createWorkflowRouter() {
             documentId: item.documentId,
             documentTitle: item.documentTitle,
             stepType,
-            stepName: item.stepName,
+            stepName: getHumanReadableStepName(item.stepName, item.stepKey, stepType),
             stepKey: item.stepKey,
             assignedAt: item.createdAt,
             dueAt: item.slaDeadline,
