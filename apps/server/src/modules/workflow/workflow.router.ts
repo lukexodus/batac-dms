@@ -12,7 +12,7 @@ import {
 import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
 import { offices } from '@batac/database/schema/organization.schema.js';
 import { users } from '@batac/database/schema/iam.schema.js';
-import { eq, and, or, isNull, inArray, desc, gte, lte } from 'drizzle-orm';
+import { eq, and, or, isNull, inArray, notInArray, desc, gte, lte } from 'drizzle-orm';
 import { SlaService } from './services/sla.service.js';
 import { WorkflowRepository } from './workflow.repository.js';
 import { submitStepAction } from './engine/step-handlers/action.handler.js';
@@ -740,6 +740,7 @@ export function createWorkflowRouter() {
               isNull(stepInstances.deletedAt),
               isNull(instances.deletedAt),
               isNull(documents.deletedAt),
+              notInArray(documents.lifecycleState, ['cancelled', 'superseded', 'disposed', 'archived', 'completed']),
             ),
           )
           .orderBy(desc(stepInstances.createdAt));
