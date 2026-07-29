@@ -55,7 +55,24 @@ export function GenericApprovalPanel({
     onError: (err) => toast.error(err.message || 'Failed to return for revision.'),
   });
 
-  const busy = approveMutation.isPending || rejectMutation.isPending || returnMutation.isPending;
+  const amendMutation = trpc.workflow.submitApprovalOutcome.useMutation({
+    onSuccess: () => {
+      toast.success('Step marked as amended.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });
+      navigate('/workflow/steps');
+    },
+    onError: (err) => toast.error(err.message || 'Failed to submit amendment.'),
+  });
+
+  const busy =
+    approveMutation.isPending ||
+    rejectMutation.isPending ||
+    returnMutation.isPending ||
+    amendMutation.isPending;
 
   return (
     <Card>
@@ -110,6 +127,19 @@ export function GenericApprovalPanel({
             disabled={busy}
           >
             Return for Revision
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              amendMutation.mutate({
+                stepInstanceId: instance.currentStepInstanceId,
+                outcome: 'AMENDED',
+                comment: comment || undefined,
+              });
+            }}
+            disabled={busy}
+          >
+            Amend
           </Button>
         </div>
       </CardContent>
