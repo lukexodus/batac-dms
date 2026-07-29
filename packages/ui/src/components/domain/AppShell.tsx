@@ -32,14 +32,16 @@ export function AppShell({
   return (
     <div className="bg-surface-raised min-h-screen">
       {/* Sidebar navigation slot (Desktop) */}
-      <nav aria-label="Main navigation">{sidebarContent}</nav>
+      <nav aria-label="Main navigation" className="hidden md:block">
+        {sidebarContent}
+      </nav>
 
       {/* Mobile Navigation Drawer */}
       {sidebarOpen !== undefined && onMobileSidebarChange && (
         <Sheet open={sidebarOpen} onOpenChange={onMobileSidebarChange}>
           <SheetContent
             side="left"
-            className="bg-primary-950 border-r-primary-900 w-60 p-0 text-white [&>button]:text-white md:hidden"
+            className="bg-primary-950 border-r-primary-900 w-60 p-0 text-white [&>aside]:flex [&>aside]:relative [&>aside]:top-0 [&>aside]:left-0 [&>aside]:h-full [&>aside]:w-full [&>button]:text-white md:hidden"
           >
             <SheetTitle className="sr-only">Main Navigation</SheetTitle>
             <SheetDescription className="sr-only">Mobile navigation menu</SheetDescription>

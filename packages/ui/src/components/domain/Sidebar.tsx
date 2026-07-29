@@ -25,6 +25,7 @@ export interface SidebarProps {
   currentUser: SidebarUser;
   /** Optional callback triggered when a navigation item is clicked */
   onNavItemClick?: () => void;
+  className?: string;
 }
 
 export function Sidebar({
@@ -34,12 +35,14 @@ export function Sidebar({
   onToggle,
   currentUser,
   onNavItemClick,
+  className,
 }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'bg-primary-950 z-sticky duration-base ease-default fixed top-0 left-0 hidden h-screen flex-col transition-[width] md:flex',
+        'bg-primary-950 z-sticky duration-base ease-default fixed top-0 left-0 flex h-screen flex-col transition-[width]',
         collapsed ? 'w-14' : 'w-60',
+        className,
       )}
     >
       {/* Header / Brand & Toggle */}
