@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useForm, Controller, useWatch, useFieldArray } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -22,7 +22,8 @@ import {
   Checkbox,
 } from '@batac/ui';
 
-import { IntakeFormSchema, type IntakeFormValues } from '@/lib/intake-schema';
+import { buildIntakeFormSchema, type IntakeFormValues } from '@/lib/intake-schema';
+import { SYSTEM_SET_METADATA_FIELDS } from '@/lib/system-set-metadata-fields';
 import { trpc } from '@/lib/trpc';
 
 function SponsorsArrayField({ name, prop, control, label, isRequired, setValue }: any) {
@@ -388,6 +389,12 @@ export default function DocumentIntakePage() {
   const requestUploadUrl = trpc.documents.requestUploadUrl.useMutation();
   const confirmUpload = trpc.documents.confirmUpload.useMutation();
 
+  // Workaround for circular dependency: control -> useWatch -> selectedType -> resolver -> useForm -> control
+  const intakeResolver = (values: Record<string, unknown>, context: unknown, options: any) => {
+    const selectedType = documentTypes?.find((t) => t.id === values['documentTypeId']);
+    return zodResolver(buildIntakeFormSchema(selectedType?.metadataSchema as Record<string, unknown> | null | undefined) as any)(values, context, options);
+  };
+
   const {
     control,
     register,
@@ -395,7 +402,7 @@ export default function DocumentIntakePage() {
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<IntakeFormValues>({
-    resolver: zodResolver(IntakeFormSchema) as any,
+    resolver: intakeResolver,
     defaultValues: {
       documentTypeId: '',
       title: '',
@@ -565,7 +572,9 @@ export default function DocumentIntakePage() {
                 <h3 className="text-sm font-semibold tracking-wider text-neutral-500 uppercase">
                   Additional Information
                 </h3>
-                {Object.entries(metadataSchema.properties).map(([key, prop]) => {
+                {Object.entries(metadataSchema.properties)
+                  .filter(([key]) => !SYSTEM_SET_METADATA_FIELDS.has(key))
+                  .map(([key, prop]) => {
                   const isRequired = metadataSchema.required?.includes(key);
                   const label = key
                     .split('_')

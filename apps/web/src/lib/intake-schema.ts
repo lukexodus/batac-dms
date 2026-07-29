@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { buildMetadataZodSchema } from './metadata-schema-validator';
+
 export const IntakeFormSchema = z.object({
   documentTypeId: z.string().min(1, { message: 'Please select a document type' }),
   title: z
@@ -10,3 +12,12 @@ export const IntakeFormSchema = z.object({
 });
 
 export type IntakeFormValues = z.infer<typeof IntakeFormSchema>;
+
+export function buildIntakeFormSchema(
+  metadataJsonSchema: Record<string, unknown> | null | undefined,
+) {
+  return IntakeFormSchema.extend({
+    metadata: buildMetadataZodSchema(metadataJsonSchema),
+  });
+}
+
