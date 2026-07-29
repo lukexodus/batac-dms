@@ -391,6 +391,7 @@ function SecretaryItemActions({ item, onSuccess }: { item: OobItem; onSuccess: (
         open={hearingDateDialogOpen}
         onClose={() => setHearingDateDialogOpen(false)}
         documentTitle={item.title}
+        stepInstanceId={item.stepInstanceId}
         onSuccess={onSuccess}
       />
 
@@ -398,6 +399,7 @@ function SecretaryItemActions({ item, onSuccess }: { item: OobItem; onSuccess: (
         open={advanceDialogOpen}
         onClose={() => setAdvanceDialogOpen(false)}
         documentTitle={item.title}
+        stepInstanceId={item.stepInstanceId}
         onSuccess={onSuccess}
       />
     </div>
@@ -410,6 +412,7 @@ interface EnterHearingDateDialogProps {
   open: boolean;
   onClose: () => void;
   documentTitle: string;
+  stepInstanceId: string | null;
   onSuccess: () => void;
 }
 
@@ -417,24 +420,14 @@ function EnterHearingDateDialog({
   open,
   onClose,
   documentTitle,
+  stepInstanceId,
   onSuccess,
 }: EnterHearingDateDialogProps) {
-  const [stepInstanceId, setStepInstanceId] = useState<string | null>(null);
   const [hearingDate, setHearingDate] = useState('');
-  const [stepSearch, setStepSearch] = useState('');
-
-  const { data: assignedSteps, isLoading: stepsLoading } =
-    trpc.workflow.listMyAssignedSteps.useQuery({
-      limit: 25,
-      stepKeyIn: ['multi_referral_hearing'],
-    });
-
-  const stepItems = assignedSteps?.items ?? [];
 
   const mutation = trpc.session.enterCommitteeHearingDate.useMutation({
     onSuccess() {
       toast.success('Hearing date updated successfully.');
-      setStepInstanceId(null);
       setHearingDate('');
       onClose();
       onSuccess();
@@ -488,24 +481,6 @@ function EnterHearingDateDialog({
         </p>
 
         <form id="hearing-date-form" onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs">
-              Step Instance <span className="text-danger-500">*</span>
-            </Label>
-            <Combobox
-              value={stepInstanceId}
-              onChange={setStepInstanceId}
-              items={stepItems}
-              getItemId={(item) => item.stepInstanceId}
-              getItemLabel={(item) => item.documentTitle}
-              getItemSublabel={(item) => `${item.stepType} · ${item.stepKey}`}
-              onSearchChange={setStepSearch}
-              isLoading={stepsLoading}
-              placeholder="Pick a step instance…"
-              searchPlaceholder="Filter by document title…"
-              emptyText="No assigned steps found."
-            />
-          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="hearing-date-input" className="text-xs">
@@ -556,6 +531,7 @@ interface ManuallyAdvanceDialogProps {
   open: boolean;
   onClose: () => void;
   documentTitle: string;
+  stepInstanceId: string | null;
   onSuccess: () => void;
 }
 
@@ -563,25 +539,15 @@ function ManuallyAdvanceDialog({
   open,
   onClose,
   documentTitle,
+  stepInstanceId,
   onSuccess,
 }: ManuallyAdvanceDialogProps) {
-  const [stepInstanceId, setStepInstanceId] = useState<string | null>(null);
   const [mandatoryComment, setMandatoryComment] = useState('');
-  const [stepSearch, setStepSearch] = useState('');
-
-  const { data: assignedSteps, isLoading: stepsLoading } =
-    trpc.workflow.listMyAssignedSteps.useQuery({
-      limit: 25,
-      stepKeyIn: ['multi_referral_hearing'],
-    });
-
-  const stepItems = assignedSteps?.items ?? [];
 
   // workflow.manuallyAdvanceMultiReferralStep lives in the workflow router (not session)
   const mutation = trpc.workflow.manuallyAdvanceMultiReferralStep.useMutation({
     onSuccess() {
       toast.success('Step manually advanced. The workflow has moved forward.');
-      setStepInstanceId(null);
       setMandatoryComment('');
       onClose();
       onSuccess();
@@ -632,24 +598,6 @@ function ManuallyAdvanceDialog({
         </div>
 
         <form id="advance-step-form" onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs">
-              Step Instance <span className="text-danger-500">*</span>
-            </Label>
-            <Combobox
-              value={stepInstanceId}
-              onChange={setStepInstanceId}
-              items={stepItems}
-              getItemId={(item) => item.stepInstanceId}
-              getItemLabel={(item) => item.documentTitle}
-              getItemSublabel={(item) => `${item.stepType} · ${item.stepKey}`}
-              onSearchChange={setStepSearch}
-              isLoading={stepsLoading}
-              placeholder="Pick a step instance…"
-              searchPlaceholder="Filter by document title…"
-              emptyText="No assigned steps found."
-            />
-          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="advance-mandatory-comment" className="text-xs">
@@ -759,7 +707,7 @@ function ScheduleForFirstReadingPanel({
             <DocumentPicker
               value={documentId}
               onChange={setDocumentId}
-              lifecycleState="submitted"
+              lifecycleState="in_workflow"
             />
           </div>
 

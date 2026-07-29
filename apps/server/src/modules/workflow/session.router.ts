@@ -413,6 +413,7 @@ export function createSessionRouter() {
             preliminaryNumber: documents.preliminaryNumber,
             isRedFlagged: orderOfBusinessItems.isRedFlagged,
             stepType: steps.stepType,
+            stepInstanceId: stepInstances.id,
             stepMetadata: stepInstances.metadata,
           })
           .from(orderOfBusinessItems)
@@ -474,6 +475,7 @@ export function createSessionRouter() {
             preliminaryNumber: item.preliminaryNumber,
             committeeReportStatus,
             assignedCommittees,
+            stepInstanceId: item.stepInstanceId,
           };
         });
 
