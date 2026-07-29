@@ -4,12 +4,21 @@ import type { IamPublicAPI } from '../../iam/iam.types.js';
 export interface AssigneeSnapshot {
   user_id: string;
   resolved_via: string;
+  office_id: string | null;
 }
 
 export interface ResolveAssigneesDeps {
   orgService: OrgService;
   delegationService: DelegationService;
   iamService: IamPublicAPI;
+}
+
+async function resolvePrimaryOfficeId(
+  userId: string,
+  deps: ResolveAssigneesDeps,
+): Promise<string | null> {
+  const office = await deps.orgService.getPrimaryOfficeForUser(userId);
+  return office?.officeId ?? null;
 }
 
 /**
@@ -29,14 +38,16 @@ export async function resolveAssignees(
 ): Promise<AssigneeSnapshot[]> {
   if (assigneeExpression.startsWith('static:')) {
     const userId = assigneeExpression.replace('static:', '');
-    return [{ user_id: userId, resolved_via: assigneeExpression }];
+    const officeId = await resolvePrimaryOfficeId(userId, deps);
+    return [{ user_id: userId, resolved_via: assigneeExpression, office_id: officeId }];
   }
 
   if (assigneeExpression.startsWith('actor_from_context:')) {
     const contextKey = assigneeExpression.replace('actor_from_context:', '');
     const userId = context[contextKey];
     if (typeof userId === 'string') {
-      return [{ user_id: userId, resolved_via: assigneeExpression }];
+      const officeId = await resolvePrimaryOfficeId(userId, deps);
+      return [{ user_id: userId, resolved_via: assigneeExpression, office_id: officeId }];
     }
     return [];
   }
@@ -44,10 +55,16 @@ export async function resolveAssignees(
   if (assigneeExpression.startsWith('role:')) {
     const roleCode = assigneeExpression.replace('role:', '');
     const matchedUsers = await deps.iamService.getUsersByRole(roleCode);
-    return matchedUsers.map((u) => ({
-      user_id: u.userId,
-      resolved_via: assigneeExpression,
-    }));
+    const resolved: AssigneeSnapshot[] = [];
+    for (const u of matchedUsers) {
+      const officeId = await resolvePrimaryOfficeId(u.userId, deps);
+      resolved.push({
+        user_id: u.userId,
+        resolved_via: assigneeExpression,
+        office_id: officeId,
+      });
+    }
+    return resolved;
   }
 
   if (assigneeExpression.startsWith('office_role:')) {
@@ -68,14 +85,18 @@ export async function resolveAssignees(
         baseUser.userId,
       );
       if (activeDelegation) {
+        const officeId = await resolvePrimaryOfficeId(activeDelegation.delegatedToUserId, deps);
         resolved.push({
           user_id: activeDelegation.delegatedToUserId,
           resolved_via: `delegated_from:${baseUser.userId}`,
+          office_id: officeId,
         });
       } else {
+        const officeId = await resolvePrimaryOfficeId(baseUser.userId, deps);
         resolved.push({
           user_id: baseUser.userId,
           resolved_via: `role:${roleKey}`,
+          office_id: officeId,
         });
       }
     }
