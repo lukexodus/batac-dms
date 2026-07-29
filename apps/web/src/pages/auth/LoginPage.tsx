@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+
 import {
   Button,
   Input,
@@ -10,8 +11,9 @@ import {
   CardContent,
   CardDescription,
 } from '@batac/ui';
-import { useSessionStore } from '@/stores';
+
 import { useAuthActions } from '@/hooks/useAuthActions';
+import { useSessionStore } from '@/stores';
 
 export function LoginPage() {
   const identity = useSessionStore((s) => s.identity);

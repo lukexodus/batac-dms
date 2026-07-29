@@ -51,11 +51,12 @@ import {
   SelectValue,
 } from '@batac/ui';
 
-import { useSessionStore, type ActiveUserIdentity } from '@/stores';
 import { hasRole } from '../../lib/auth-helpers';
 import { trpc } from '../../lib/trpc';
 
 import type { DocumentState } from '@batac/ui/types/domain';
+
+import { useSessionStore, type ActiveUserIdentity } from '@/stores';
 
 // ─── ABAC role helpers ──────────────────────────────────────────────────────
 // Each helper corresponds to a specific procedure's callable-by list, matching

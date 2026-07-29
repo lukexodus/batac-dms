@@ -73,7 +73,11 @@ export class QrCodeService {
       ContentType: 'image/png',
     });
 
-    await this.s3Client.send(command);
+    try {
+      await this.s3Client.send(command);
+    } catch (err) {
+      console.warn('Failed to upload QR code to S3, proceeding without it', err);
+    }
 
     // Save to DB
     const qrCodeRow = await this.repository.createQrCode(
@@ -86,9 +90,13 @@ export class QrCodeService {
       db,
     );
 
-    await this.repository.updateQrImageKey(qrCodeRow.id, qrImageFileKey, db);
-    // Refresh to get the updated row
-    qrCodeRow.qrImageFileKey = qrImageFileKey;
+    try {
+      await this.repository.updateQrImageKey(qrCodeRow.id, qrImageFileKey, db);
+      // Refresh to get the updated row
+      qrCodeRow.qrImageFileKey = qrImageFileKey;
+    } catch (err) {
+      console.warn('Failed to update QR image key', err);
+    }
 
     return qrCodeRow;
   }
@@ -140,6 +148,10 @@ export class QrCodeService {
 
     for (const documentId of documentIds) {
       const qrCode = await this.repository.findQrCodeByDocumentId(documentId);
+
+      if (!qrCode) {
+        throw new Error(`Tracking record and QR code not found for document ${documentId}. Ensure the document has been submitted.`);
+      }
 
       let qrPngBuffer: Buffer | null = null;
       let trackingNumber = '';

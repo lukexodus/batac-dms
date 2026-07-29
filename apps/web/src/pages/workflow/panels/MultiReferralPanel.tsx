@@ -17,9 +17,9 @@ import {
   Input,
 } from '@batac/ui';
 
-import { useSessionStore } from '@/stores';
 import { hasRole } from '@/lib/auth-helpers';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
+import { useSessionStore } from '@/stores';
 
 // Per F1 §8.2 Multi-Referral role gates:
 //   submitCommitteeReport  → sp_secretary OR sp_member (committee-scoped)

@@ -4977,3 +4977,292 @@ itself was deliberately scoped down from an initial broader ask).
 
 ---
 
+### [LOG-0177] step_instances.assigned_to never carries office_id — secretariat_decision panel branch and workflow.policy.ts office-authorization guard both structurally dead
+
+- date: 2026-07-29
+- task_id: none (planning-layer investigation, no A1 task dispatched)
+- status: confirmed
+- affects: workflow.router.ts, workflow.policy.ts, assignee-resolution.ts, step-resolution.ts, create-instance.ts, SecretariatDecisionPanel.tsx
+
+**What was found:** The persisted `step_instances.assigned_to` JSONB
+column (distinct from the separately-tracked `workflow.step.started`
+*event* payload's `assignedTo` field — see LOG-0162/0166/0168/0169,
+which concern the event, not this column) is never populated with an
+`office_id`, under any assignee-resolution path, anywhere in the
+codebase.
+
+Exhaustive trace: there are exactly two write sites to this column —
+`apps/server/src/modules/workflow/engine/step-resolution.ts:117-119`
+and `apps/server/src/modules/workflow/engine/create-instance.ts:164` —
+and both write the direct return value of `resolveAssignees(...)`
+(`apps/server/src/modules/workflow/engine/assignee-resolution.ts:25`)
+without transformation. `resolveAssignees`'s return type,
+`AssigneeSnapshot` (`assignee-resolution.ts:4-7`), is
+`{ user_id: string; resolved_via: string }` — no `office_id` field
+exists on the type, and none of its five resolution branches
+(`static:`, `actor_from_context:`, `role:`, `office_role:` — which
+currently throws `NotImplemented` — `delegation_aware:`; lines 30-86)
+ever add one.
+
+Multiple call sites read `.office_id` off entries in this column as if
+it were populated:
+- `apps/server/src/modules/workflow/workflow.router.ts:145,147` —
+  destructures `assignedTo[0]?.office_id ?? null` into
+  `assigneeOfficeId`.
+- `apps/server/src/modules/workflow/workflow.router.ts:256` —
+  `computePanelHint`'s `secretariat_decision` branch condition:
+  `(currentStep.assignedTo as Array<any>)?.[0]?.office_id === spsOfficeId`.
+  Always evaluates `undefined === <uuid>`, always `false`.
+- `apps/server/src/modules/workflow/workflow.router.ts:676` — same
+  destructuring pattern, separate call site.
+- `apps/server/src/modules/workflow/workflow.policy.ts:57-58` — doc
+  comment states the authorization guard reads
+  `assignedTo.user_id`/`assignedTo.office_id`, describing the same
+  expectation for a security-relevant code path. Guard logic itself
+  was not audited as part of this finding (out of scope for the task
+  that produced it) — flagged here as likely affected by the identical
+  root cause, not confirmed broken.
+
+**Concrete confirmed consequence:** `computePanelHint`'s
+`secretariat_decision` branch cannot fire for any step in the system,
+regardless of which role or office a step's `config.assignee` names.
+Confirmed specifically for `second_reading_vote` and
+`second_reading_amended_vote`
+(`packages/database/src/seeds/workflow/phase1-legislative.ts:116-127,143-155`,
+both `config.assignee: ROLE.SP_SECRETARY` = `'role:sp_secretary'`,
+confirmed at line 22): both steps always fall through to
+`generic_approval` (`workflow.router.ts:259-262`), never
+`secretariat_decision`. `SecretariatDecisionPanel.tsx` is reachable
+only via `WorkflowStepActionPage.tsx:85`'s
+`case 'secretariat_decision':`, and that string has exactly one
+origin — this dead branch. `GenericApprovalPanel` only submits
+`APPROVED`/`REJECTED`/`RETURNED_FOR_REVISION`, so `AMENDED` — a
+declared `allowed_outcomes` member for both steps — is not
+submittable through any current UI path.
+
+**Decision:** Per Yalzea (2026-07-29), fix the root cause rather than
+work around it at the panel-routing layer: `resolveAssignees` should
+be corrected to populate `office_id` on resolved assignees (likely via
+an `orgService` lookup for the office associated with a resolved
+user, in the `role:` and `delegation_aware:` branches at minimum).
+This is expected to also correct `workflow.policy.ts`'s
+office-authorization guard, which the same root cause plausibly
+affects, though that guard's actual runtime behavior has not yet been
+independently verified as broken — confirming or ruling that out is
+part of the follow-up work, not assumed here.
+
+**Action:** Not yet implemented. A standalone task is still being
+scoped as of this entry. This finding should be treated as the
+authoritative account of the gap until a fix lands and a follow-up
+entry documents it (per this log's own convention of correction/decision
+entries rather than silent edits to this one).
+
+---
+
+### [LOG-0178] E1's `resolveValidInPart` spec is accurate and already implemented — TASK-WF-FE-023's new `ValidInPartDecisionPanel` calls the wrong procedure and silently drops committee-chair resolution
+
+- date: 2026-07-29
+- task_id: none (planning-layer investigation, no A1 task dispatched)
+- status: proposed
+- affects: E1, workflow.router.ts, workflow.policy.ts, ValidInPartDecisionPanel.tsx, PanlalawiganOutcomePanel.tsx
+
+**What was found:** A prior planning-layer pass concluded that E1's spec
+for `workflow.resolveValidInPart`
+(`docs/pre-development/E-api-design/e1-trpc-router-and-procedure-catalog.md:1033-1043`
+— input `{ documentId, resolutionPath: enum(['resolve_as_is',
+'route_to_legal','route_to_committee','implement_directly']),
+mandatoryComment: z.string().min(1) }`) described a mechanism that did not
+exist in the codebase, on the basis that no such procedure was found in an
+initial read of `workflow.router.ts` (which covered lines ~200-480 and
+~1290-1400 of that file). This was incomplete: `resolveValidInPart` is a
+fully implemented, tested procedure at `workflow.router.ts:2311-2453+`,
+matching E1's documented input shape exactly. It has its own dedicated
+authorization guard, `workflowPolicy.canResolveValidInPart`
+(`workflow.policy.ts:667-674`, sp_secretary-only, no `office_id` involved —
+this mechanism does not depend on and is not affected by the LOG-0177
+`office_id` gap), and its own frontend surface: the "Resolve Valid in
+Part" section of `PanlalawiganOutcomePanel.tsx` (lines 124-165), which
+already provides a working UI for all four `resolutionPath` values with a
+uniformly-required comment field (line 151: `if (!mandatoryComment) {
+toast.error('Comment is required'); return; }` — required for all four,
+not split 2-and-2).
+
+This corrects the earlier conclusion that E1's spec was stale
+documentation for a since-replaced mechanism (the earlier framing
+mistakenly assumed the generic `submitApprovalOutcome` procedure, used by
+three sibling steps' decision panels, was also the intended path for this
+step). It was not replaced; it coexists, unreferenced by the earlier
+investigation because the earlier `workflow.router.ts` read did not cover
+the line range where it lives.
+
+`resolveValidInPart`'s server-side implementation
+(`workflow.router.ts:2375-2453`) does real, non-generic orchestration for
+the `route_to_committee` path specifically: it looks up the original
+`committee_referral` step instance's `assigned_committees` metadata,
+resolves the primary committee's chair via
+`orgService.getCommitteeChair`, and writes
+`referred_committee_chair_id` into the workflow instance's context
+(`updateInstanceContext`, lines 2426-2433) *before* calling
+`submitStepApproval`. This context value is what the downstream
+`committee_revisions_review` step's assignee expression
+(`actor_from_context:referred_committee_chair_id`,
+`phase1-legislative.ts` — corrected per K2 ADR-03, see the existing
+`wf.md` conflict-resolution table entry #3) resolves against.
+
+**Concrete confirmed consequence:** A separate, still-open standalone
+task (locally tracked as TASK-WF-FE-023, already implemented and applied
+to this repository as of this entry) added a new dedicated panel,
+`ValidInPartDecisionPanel.tsx`, and a new `computePanelHint` branch
+(`stepKey === 'valid_in_part_decision'`) so that a user landing directly
+on an active `valid_in_part_decision` step instance sees a proper panel
+instead of falling through to `generic_approval` (which cannot handle
+this step's four outcomes at all — that part of the gap this task closed
+was real and remains correctly closed). However, the new panel's
+`mutate()` function calls the generic `trpc.workflow.submitApprovalOutcome`
+(`stepInstanceId` + `outcome` + optional `comment`), not
+`resolveValidInPart`. For the `ROUTED_TO_COMMITTEE` outcome specifically,
+this means the step advances and the outcome is recorded correctly (the
+generic `submitApprovalOutcome` → `submitStepApproval` →
+`approval.handler.ts` path validates `allowed_outcomes` and
+`require_comment_on` correctly, since those are step-config-driven and
+outcome-agnostic), but `referred_committee_chair_id` is never written to
+the instance context. The downstream `committee_revisions_review` step's
+`actor_from_context:` resolution
+(`assignee-resolution.ts:35-42`) then reads `undefined` from context and
+returns an empty assignee array — not an error, a silent zero-assignee
+step instance. Combined with the LOG-0177 `office_id` gap (no
+office-queue fallback exists either), this step becomes permanently
+unassigned and un-actionable for any instance that reaches
+`committee_revisions_review` via this new panel's "Route to Committee"
+button. The three other outcomes (`RESOLVED_IN_PLACE`, `ROUTED_TO_LEGAL`,
+`REVISED_DIRECTLY`) have no equivalent special-cased side effect in
+`resolveValidInPart` beyond the outcome mapping and comment, so those
+three are not known to be affected by this specific gap — this was
+checked by reading `resolveValidInPart`'s full transaction body
+(`workflow.router.ts:2381-2453`), which contains a side-effect branch
+only for `route_to_committee`.
+
+Additionally, the new panel's comment-gating (`RESOLVED_IN_PLACE` and
+`REVISED_DIRECTLY` required, `ROUTED_TO_LEGAL` and `ROUTED_TO_COMMITTEE`
+optional — matching the seed data's `require_comment_on` list) diverges
+from `resolveValidInPart`'s existing UI (`PanlalawiganOutcomePanel.tsx`),
+which requires a comment for all four. Both are internally consistent
+with their own backend path's actual enforcement (`approval.handler.ts`'s
+`require_comment_on` check for the new panel's path;
+`resolveValidInPart`'s unconditional `mandatoryComment: z.string().min(1)`
+Zod-level requirement for the existing path) — this is a genuine
+two-paths-same-step design question, not a bug in either path considered
+alone.
+
+**Action:** Not yet implemented. This is a correctness gap in code
+already merged, not a forward-looking scoping note — flagging for human
+decision on which of two directions to take: (a) change
+`ValidInPartDecisionPanel.tsx`'s new panel to call `resolveValidInPart`
+instead of `submitApprovalOutcome` (requires reshaping the panel's
+mutation input from `stepInstanceId`-based to `documentId`-based, and
+resolving the comment-gating divergence — likely by making the new
+panel's comment requirement uniform to match `resolveValidInPart`'s
+actual server-side enforcement, since a client-side gate that's laxer
+than the server's real requirement only produces an extra round-trip
+error, not a security or data issue, but is still worth aligning), or (b)
+leave two parallel entry points intentionally (the earlier
+`PanlalawiganOutcomePanel.tsx` path for use before/alongside
+`panlalawigan_review`, the new path for direct step-instance landing) but
+port the committee-chair-resolution side effect into the new panel's
+call path so both are correct. Recommend NOT shipping the current
+`route_to_committee` button in `ValidInPartDecisionPanel.tsx` to
+production until one of these is resolved, since it currently produces a
+silent stuck-workflow state rather than a visible error.
+
+---
+
+### [LOG-0182] Two disjoint task-numbering schemes share the `TASK-WF-NNN` prefix across `wf.md` and `fix.md`, plus a third independent collision at `TASK-WF-021`/`TASK-WF-022`
+
+- date: 2026-07-29
+- task_id: none (planning-layer investigation, no A1 task dispatched)
+- status: proposed
+- affects: wf.md, fix.md
+
+**What was found:** Two files under `docs/pre-development/A-project-planning/a1-tasks/`
+independently use the `TASK-WF-NNN` ID prefix for entirely different content, with
+directly overlapping numbers:
+
+- `wf.md` (header: `Generated: 2026-06-29`) is the original A1 pre-development master
+  task list for the WF module — 25 tasks, `TASK-WF-001` through `TASK-WF-025`,
+  describing the module's initial full build (schema, repository, engine core, step
+  handlers, timers, seed data, ABAC guard, router). Per this file: `TASK-WF-014` =
+  "Implement SLA escalation monitor" (`evaluateSlaBreaches`, lines 1374–1445);
+  `TASK-WF-015` = "Implement Version Management Option B" (lines 1446–1542);
+  `TASK-WF-016` = "Seed Phase 1 workflow definitions" (lines 1543–1622); `TASK-WF-017`
+  = "Implement WF ABAC policy guard" (lines 1623–1704); `TASK-WF-018` = "Implement
+  workflow tRPC router — read procedures" (lines 1705–1793).
+- `fix.md` (27,452 lines) is a separate, later, ongoing gap-closure/fix-task log.
+  It reuses the identical `TASK-WF-014`/`016`/`017`/`018` IDs for the actual
+  backend-fix work referenced throughout this project's recent sessions —
+  completely different content from `wf.md`'s uses of the same numbers:
+  `TASK-WF-014` (line 24378, header format `# Standalone Prompt: TASK-WF-014 —
+  Fix termination-step casing bug and add release-hop for archive transitions`),
+  `TASK-WF-016` (line 24763, `# TASK-WF-016: Automate final-number assignment on
+  SP Resolution second-reading approval`), `TASK-WF-017` (line 25089, `# TASK-WF-017:
+  Wire documents.archive to resolve the active archive workflow step`), `TASK-WF-018`
+  (line 25508, `# TASK-WF-018: Synchronize documents.lifecycle_state with
+  workflow-instance creation`).
+- **Header-format hazard, confirmed by direct reproduction:** `fix.md`'s
+  `TASK-WF-014` header uses the `# Standalone Prompt: TASK-WF-014 — ...` format,
+  while `016`/`017`/`018` use a bare `# TASK-WF-NNN: ...` format. A plain header
+  grep for `^# TASK-WF-014` misses the entry entirely; only a broader
+  content-based search surfaces it. This is not a hypothetical risk — it
+  reproduced on the first grep attempt made while investigating this finding.
+- **A third, independent collision, pre-existing in this log:** `LOG-0065`
+  (`docs/development-findings-log.md:1571-1584`, dated 2026-07-09) records
+  `task_id: TASK-WF-021` for a bug fix to `resolveValidInPart`'s audit-event
+  emission (hoisting the resolution-outcome mapping so audit logs match the
+  database) — distinct in content from both `wf.md`'s `TASK-WF-021` ("Implement
+  workflow tRPC router — Mayor/Panlalawigan/publication lapse procedures," lines
+  1958–2061) and any `fix.md` use of a similar number.
+
+**Reported human guidance on precedence (attributed, not independently verified
+by this investigation — the conversation this quote is drawn from occurred
+outside this session):** *"the task id's for the predev documents are the final
+ones. the task id's in the fix.md will be reorganized later. but the tasks in
+fix.md might be more important now because they are more related to what is
+being done."* If accurate, this means `wf.md`'s numbering is intended as the
+eventual canonical scheme, while `fix.md`'s current numbering is operationally
+more relevant in the near term pending a reorganization that has not yet
+happened. This entry records the guidance as reported; a human should confirm
+it directly if it needs to be relied on as settled.
+
+**Action:** No code or document change made or proposed. Renumbering either
+file is outside agent authority per this project's documentation-correction
+rules (agents do not edit Group B–L / pre-development documents based on
+something learned during execution). Flagging so that any future reference to
+a bare `TASK-WF-NNN` ID specifies which file it's drawn from, and so a header-only
+search for a `fix.md` task is not assumed complete without a secondary
+content-based check.
+
+**Separate, adjacent finding surfaced while verifying the above — this log's own
+numbering has an out-of-sequence duplicate:** while confirming this file's true
+highest existing entry number (needed to correctly number this entry), direct
+inspection of every `### [LOG-NNNN]`/`### LOG-NNNN:` header in the file (not just
+a numeric sort of referenced numbers, which conflates headers with in-body
+cross-references) found that `LOG-0177` exists twice — once at line 4598
+("Full I3 §9.3 Taxonomy Verification") and once at line 4980 ("step_instances.
+assigned_to never carries office_id..."). Immediately following the first
+`LOG-0177` (line 4598), the file continues in sequence through `LOG-0178`
+(line 4618), `LOG-0179` (line 4634), `LOG-0180` (line 4650), and `LOG-0181`
+(line 4666) — all four appearing exactly once, not duplicated — before dropping
+back down to `LOG-0160` (line 4679) and climbing normally through `0161`–`0176`
+up to the second, later `LOG-0177` at line 4980, which is this file's actual
+final entry as of this session. Net effect: `LOG-0177` is a genuine duplicate
+number; `LOG-0178`–`LOG-0181` are each unique but sit chronologically earlier
+in the file than `LOG-0160`–`LOG-0176`, meaning entries were not appended in
+strict numeric order at some point in this file's history. The true highest
+existing number in the file, confirmed by checking every header rather than
+assuming monotonic ordering, is **`LOG-0181`** — not `0177` as a simple tail-read
+would suggest. This entry is accordingly numbered `LOG-0182`, continuing from
+that true highest number, not from `0179` as originally expected when this
+entry was being drafted. No code or document change made; flagging the
+duplicate `LOG-0177` and the out-of-sequence block for human review, in the
+same spirit as the pre-existing `LOG-0112` duplicate-entry note — this one is
+larger in scope (a block of four sequential numbers appended before a lower
+number continues) and was not previously logged anywhere.

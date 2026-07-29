@@ -12,8 +12,8 @@ import {
   Skeleton,
 } from '@batac/ui';
 
-import { useSessionStore } from '@/stores';
 import { trpc } from '@/lib/trpc';
+import { useSessionStore } from '@/stores';
 
 // ─── Role code constants ────────────────────────────────────────────────────
 // Sourced from iam.schemas.ts roleCodeEnum — 13 values, confirmed current.

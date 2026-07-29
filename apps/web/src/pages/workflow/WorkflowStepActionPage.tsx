@@ -20,9 +20,9 @@ import { ValidInPartDecisionPanel } from './panels/ValidInPartDecisionPanel';
 import { VetoOverrideRecordingPanel } from './panels/VetoOverrideRecordingPanel';
 import { VPCertificationPanel } from './panels/VPCertificationPanel';
 
-import { useSessionStore } from '@/stores';
 import { hasRole } from '@/lib/auth-helpers';
 import { trpc } from '@/lib/trpc';
+import { useSessionStore } from '@/stores';
 
 export function WorkflowStepActionPage() {
   const { instanceId } = useParams<{ instanceId: string }>();

@@ -1,9 +1,11 @@
 import { createTRPCReact, httpBatchLink } from '@trpc/react-query';
 
+import { logger } from './logger.js';
+
 import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from 'server/src/trpc/root.js';
+
 import { useSessionStore } from '@/stores';
-import { logger } from './logger.js';
 
 export const trpc = createTRPCReact<AppRouter>();
 export type RouterInputs = inferRouterInputs<AppRouter>;

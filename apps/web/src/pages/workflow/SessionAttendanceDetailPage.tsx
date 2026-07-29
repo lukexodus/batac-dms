@@ -21,7 +21,6 @@ import {
 } from '@batac/ui';
 
 import { EmployeePicker } from '../../components/EmployeePicker';
-
 import { trpc } from '../../lib/trpc';
 
 export function SessionAttendanceDetailPage() {

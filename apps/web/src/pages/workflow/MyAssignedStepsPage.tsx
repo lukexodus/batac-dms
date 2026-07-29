@@ -14,9 +14,10 @@ import {
 } from '@batac/ui';
 
 import { columns } from './columns';
-import { useSessionStore } from '@/stores';
 import { hasRole } from '../../lib/auth-helpers';
 import { trpc } from '../../lib/trpc';
+
+import { useSessionStore } from '@/stores';
 
 // ─── Role gate ────────────────────────────────────────────────────────────────
 // Mirrors the local helper in DocumentDetailPage.tsx — not yet extracted to a

@@ -1,19 +1,23 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
+import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider , useLocation, Outlet } from 'react-router-dom';
 
 import { TooltipProvider, Toaster } from '@batac/ui';
 import '@batac/ui/styles/globals.css';
 
+import { AuthenticatedLayout } from './components/AuthenticatedLayout';
+import { RequireAuth } from './components/RequireAuth';
 import { SessionHydrator } from './components/SessionHydrator';
 import { queryClient } from './lib/query-client.js';
 import { trpc, trpcClient } from './lib/trpc.js';
+
 import { openobserveRum as rum } from '@openobserve/browser-rum';
 import { openobserveLogs as logs } from '@openobserve/browser-logs';
-import { useLocation, Outlet } from 'react-router-dom';
-import { useEffect } from 'react';
+
 import { PlatformAdminHomePage } from './pages/admin/PlatformAdminHomePage';
+import { LoginPage } from './pages/auth/LoginPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import AllComponentsPage from './pages/dev/AllComponentsPage';
 import AppShellPage from './pages/dev/AppShellPage';
 import CommitteeReferralBlockPage from './pages/dev/CommitteeReferralBlockPage';
@@ -41,7 +45,9 @@ import { DocumentListPage } from './pages/documents/DocumentListPage';
 import { DocumentRequestDetailPage } from './pages/documents/DocumentRequestDetailPage';
 import { DocumentRequestIntakeClerkAssistedPage } from './pages/documents/DocumentRequestIntakeClerkAssistedPage';
 import { DocumentRequestsListPage } from './pages/documents/DocumentRequestsListPage';
+import { HomePage } from './pages/HomePage';
 import { RoleAssignmentPage } from './pages/iam/RoleAssignmentPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { CommitteeManagementPage } from './pages/organization/CommitteeManagementPage';
 import { OrganizationPage } from './pages/organization/OrganizationPage';
 import { ActiveSessionsPage } from './pages/sysadmin/ActiveSessionsPage';
@@ -58,13 +64,6 @@ import { SecretaryDashboardPage } from './pages/workflow/SecretaryDashboardPage'
 import { SessionAttendanceDetailPage } from './pages/workflow/SessionAttendanceDetailPage';
 import { SessionAttendanceOverviewPage } from './pages/workflow/SessionAttendanceOverviewPage';
 import { WorkflowStepActionPage } from './pages/workflow/WorkflowStepActionPage';
-import { RequireAuth } from './components/RequireAuth';
-import { LoginPage } from './pages/auth/LoginPage';
-import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
-import { HomePage } from './pages/HomePage';
-import { NotFoundPage } from './pages/NotFoundPage';
-
-import { AuthenticatedLayout } from './components/AuthenticatedLayout';
 
 rum.init({
   applicationId: 'batac-dms',

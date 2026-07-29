@@ -28,6 +28,7 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { AllowedMimeTypeSchema, type AllowedMimeType } from '@batac/shared';
 import {
   StatusBadge,
   WorkflowStepIndicator,
@@ -53,13 +54,12 @@ import {
 
 import { hasRole } from '../../lib/auth-helpers';
 
-import { AllowedMimeTypeSchema, type AllowedMimeType } from '@batac/shared';
 import type { WorkflowStep, RoutingEntry } from '@batac/ui';
 
 import { useScanQualityPolling } from '@/hooks/useScanQualityPolling';
-import { useSessionStore, type ActiveUserIdentity } from '@/stores';
 import { mapLifecycleStateToDocumentState } from '@/lib/status-mapping';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
+import { useSessionStore, type ActiveUserIdentity } from '@/stores';
 
 // ─── ABAC role helpers ──────────────────────────────────────────────────────
 // Each helper corresponds to a specific procedure's callable-by list (sourced
@@ -749,6 +749,7 @@ export default function DocumentDetailPage() {
               <Button
                 size="sm"
                 variant="outline"
+                disabled={!trackingRecord}
                 onClick={async () => {
                   // printQrCoverSheet is typed as a query but issues a side-effecting
                   // presigned URL request — call via trpc utility client directly.

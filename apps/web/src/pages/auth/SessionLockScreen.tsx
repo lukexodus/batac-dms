@@ -1,9 +1,11 @@
+import { LockKeyhole, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSessionStore } from '@/stores/session.store';
+
 import { Button, Input, Label, Alert, AlertDescription } from '@batac/ui';
+
 import { useAuthActions } from '@/hooks/useAuthActions';
-import { LockKeyhole, AlertCircle } from 'lucide-react';
+import { useSessionStore } from '@/stores/session.store';
 
 export function SessionLockScreen() {
   const [password, setPassword] = useState('');

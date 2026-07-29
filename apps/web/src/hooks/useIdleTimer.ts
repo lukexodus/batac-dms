@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
+
+import { useAuthActions } from '@/hooks/useAuthActions';
 import { useSessionStore } from '@/stores/session.store';
 import { useUIStore } from '@/stores/ui.store';
-import { useAuthActions } from '@/hooks/useAuthActions';
 
 const WARNING_AT_MS = Number(
   import.meta.env['VITE_AUTH_SESSION_WARNING_MS'] || 25 * 60 * 1000,

@@ -46,13 +46,13 @@ import {
   Combobox,
 } from '@batac/ui';
 
-import { DocumentPicker } from '@/components/DocumentPicker';
 
 import type { RouterOutputs } from '@/lib/trpc';
 
-import { useSessionStore } from '@/stores';
+import { DocumentPicker } from '@/components/DocumentPicker';
 import { hasRole } from '@/lib/auth-helpers';
 import { trpc } from '@/lib/trpc';
+import { useSessionStore } from '@/stores';
 
 // ─── Role constants ───────────────────────────────────────────────────────────
 

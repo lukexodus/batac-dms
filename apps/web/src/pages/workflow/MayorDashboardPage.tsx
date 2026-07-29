@@ -4,9 +4,9 @@ import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent, EmptyState, Skeleton } from '@batac/ui';
 import { StatCard } from '@batac/ui/components/domain/StatCard';
 
-import { useSessionStore } from '@/stores';
 import { hasRole } from '@/lib/auth-helpers';
 import { trpc } from '@/lib/trpc';
+import { useSessionStore } from '@/stores';
 
 const PAGE_ALLOWED_ROLES = ['mayor'] as const;
 

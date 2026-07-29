@@ -1,5 +1,3 @@
-import React, { useMemo } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   FileText,
   CheckSquare,
@@ -13,20 +11,24 @@ import {
   Building,
   Users,
 } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { AppShell, Sidebar, Topbar } from '@batac/ui';
+
+import { hasRole } from '../lib/auth-helpers';
+
+import { IdleWarningModal } from '@/components/IdleWarningModal';
+import { useAuthActions } from '@/hooks/useAuthActions';
+import { useIdleTimer } from '@/hooks/useIdleTimer';
+import { SessionLockScreen } from '@/pages/auth/SessionLockScreen';
+import { useSessionStore , useShellStore } from '@/stores';
+
 interface BreadcrumbItem {
   label: string;
   href?: string;
 }
 
-import { useSessionStore } from '@/stores';
-import { useAuthActions } from '@/hooks/useAuthActions';
-import { hasRole } from '../lib/auth-helpers';
-import { useShellStore } from '@/stores';
-import { useIdleTimer } from '@/hooks/useIdleTimer';
-import { SessionLockScreen } from '@/pages/auth/SessionLockScreen';
-import { IdleWarningModal } from '@/components/IdleWarningModal';
 
 const ROLE_LABELS: Record<string, string> = {
   sys_admin: 'System Administrator',

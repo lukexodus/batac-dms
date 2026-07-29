@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
+
 import { generatePkcePair } from '../lib/pkce.js';
+
 import { useSessionStore } from '@/stores';
 
 // Reusing the same shape expected from the legacy context migration

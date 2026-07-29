@@ -26512,3 +26512,3056 @@ and passes.
 
 ---
 
+# TASK-DOCS-FE-022 — Intake form: client-side schema validation mirroring the backend walker + hiding system-set fields
+
+## Context (self-contained — no prior conversation needed)
+
+This is a TypeScript monorepo (`batac-dms`) using React 18, React Router DOM v6, React Hook Form + Zod, tRPC v11. The document intake form is `apps/web/src/pages/documents/DocumentIntakePage.tsx` (620 lines). Its Zod schema is `apps/web/src/lib/intake-schema.ts` (12 lines).
+
+Each document type has a per-type JSON Schema (draft-07) stored server-side on `documentTypes.metadataSchema`, fetched client-side via `trpc.documents.documentTypes.useQuery()` and already read into `DocumentIntakePage.tsx` at line 408 as `selectedType?.metadataSchema`. The intake form renders form fields dynamically from this schema (`DynamicField` and friends, from line 226) — but does **not** validate submitted data against it client-side. The only real validation gate today is server-side, inside `documents.create` (`apps/server/src/modules/documents/documents.router.ts:365-374`), which calls `validateMetadataAgainstSchema` → `validateMetadataNode` (same file, lines 178-238).
+
+This task has two independent, sequential parts. **Part 2 depends on Part 1's output** (the per-type Zod schema Part 1 builds is also what determines which fields Part 2 excludes from rendering) — do Part 1 first, confirm it typechecks, then do Part 2.
+
+---
+
+## Part 1 — Client-side schema validation mirroring the backend walker exactly
+
+### The backend walker being mirrored (read this first — this defines what "mirror exactly" means)
+
+File: `apps/server/src/modules/documents/documents.router.ts`
+
+```typescript
+// lines 166-176
+function jsonTypeOf(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}
+
+function matchesJsonType(value: unknown, type: string): boolean {
+  const actual = jsonTypeOf(value);
+  if (type === 'integer') return actual === 'number' && Number.isInteger(value as number);
+  return actual === type;
+}
+
+// lines 178-228
+function validateMetadataNode(
+  value: unknown,
+  schema: unknown,
+  path: string,
+  errors: string[],
+): void {
+  if (schema == null || typeof schema !== 'object') return;
+  const s = schema as any;
+
+  if ('type' in s) {
+    const types = Array.isArray(s.type) ? (s.type as string[]) : [s.type as string];
+    if (!types.some((t) => matchesJsonType(value, t))) {
+      errors.push(`${path}: expected type ${types.join(' | ')}, got ${jsonTypeOf(value)}`);
+      return;
+    }
+  }
+
+  if (
+    Array.isArray(s.enum) &&
+    !s.enum.some((e: any) => JSON.stringify(e) === JSON.stringify(value))
+  ) {
+    errors.push(`${path}: value not permitted by enum`);
+  }
+
+  if (jsonTypeOf(value) === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>;
+    if (Array.isArray(s.required)) {
+      for (const key of s.required as string[]) {
+        if (!(key in obj)) errors.push(`${path}.${key}: required property missing`);
+      }
+    }
+    if (s.properties && typeof s.properties === 'object') {
+      for (const [key, propSchema] of Object.entries(s.properties as Record<string, unknown>)) {
+        if (key in obj) validateMetadataNode(obj[key], propSchema, `${path}.${key}`, errors);
+      }
+    }
+    if (s.additionalProperties === false && s.properties && typeof s.properties === 'object') {
+      const allowed = new Set(Object.keys(s.properties as Record<string, unknown>));
+      for (const key of Object.keys(obj)) {
+        if (!allowed.has(key))
+          errors.push(`${path}.${key}: additional property not allowed by schema`);
+      }
+    }
+  }
+
+  if (jsonTypeOf(value) === 'array' && s.items) {
+    (value as unknown[]).forEach((item, i) =>
+      validateMetadataNode(item, s.items, `${path}[${i}]`, errors),
+    );
+  }
+}
+```
+
+Six behaviors, all six must be reproduced client-side with identical semantics:
+1. `type` (single string or union array; `integer` requires `Number.isInteger`; `null`/`array` are distinguished from `object`/generic `typeof`)
+2. `enum` (deep-equality via `JSON.stringify` comparison, not `===`)
+3. `required` (object-only; checks key *presence* via `in`, not truthiness — an explicit `null` on a required key does NOT trigger a missing-required error, only an absent key does)
+4. `properties` (recurse only into keys the value actually has — a schema `properties` entry for a key the object doesn't contain is not itself an error unless that key is also in `required`)
+5. `additionalProperties: false` (only enforced when `properties` is also present; flags any object key not in the `properties` set)
+6. `items` (recurse into every array element)
+
+Do not add validation behaviors beyond these six (e.g. do not add `minLength`/`pattern`/`format` enforcement even though some schema fields declare `format: 'uuid'` or `format: 'date'` — the backend walker does not check `format` at all, so neither should this port; matching the backend's actual behavior, not the JSON-Schema spec's full behavior, is the goal).
+
+### The fix
+
+**New file**: `apps/web/src/lib/metadata-schema-validator.ts`
+
+Port `jsonTypeOf`, `matchesJsonType`, and `validateMetadataNode` into this new file as plain functions (same logic, TypeScript types instead of `unknown`/`any` where reasonably possible — but do not let stricter typing change any runtime behavior; if a stricter type would reject something the backend's looser typing accepts, use `unknown` there instead, matching backend behavior takes priority over type strictness).
+
+Add one new exported function to the same file:
+
+```typescript
+export function buildMetadataZodSchema(
+  jsonSchema: Record<string, unknown> | null | undefined,
+): z.ZodType<Record<string, unknown>> {
+  return z.record(z.string(), z.unknown()).superRefine((metadata, ctx) => {
+    if (!jsonSchema || Object.keys(jsonSchema).length === 0) return;
+    const errors: string[] = [];
+    validateMetadataNode(metadata, jsonSchema, 'metadata', errors);
+    for (const message of errors) {
+      // message format from validateMetadataNode is "metadata.path[.sub]: reason"
+      // or "metadata[N]: reason" for array indices. Convert the dotted/bracketed
+      // path into a Zod issue path array so RHF surfaces the error on the
+      // specific field, not as a single form-level string.
+      const pathPart = message.slice('metadata'.length, message.indexOf(':'));
+      const reason = message.slice(message.indexOf(':') + 2);
+      const segments = pathPart
+        .replace(/\[(\d+)\]/g, '.$1')
+        .split('.')
+        .filter(Boolean);
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: reason,
+        path: ['metadata', ...segments],
+      });
+    }
+  });
+}
+```
+
+Design decision (already made, not left to your judgment): `validateMetadataNode`'s output is a flat list of path-qualified strings, not a field-keyed structure. Converting each one into a `ctx.addIssue({ path: [...] })` call is what makes React Hook Form surface it as a per-field error (red outline + message under the specific input) instead of one undifferentiated block of text at the top of the form. This is a deliberate improvement over the raw string-list shape, not a literal reproduction of the backend's return type — the backend returns strings because it's producing an HTTP error message, not driving form UI; the client has a UI to drive, so it should use it.
+
+**Edit**: `apps/web/src/lib/intake-schema.ts`
+
+Current full file content (verify this matches before editing — if it doesn't, stop and report the discrepancy rather than proceeding):
+
+```typescript
+import { z } from 'zod';
+
+export const IntakeFormSchema = z.object({
+  documentTypeId: z.string().min(1, { message: 'Please select a document type' }),
+  title: z
+    .string()
+    .min(1, { message: 'Title is required' })
+    .max(255, { message: 'Title is too long' }),
+  metadata: z.record(z.string(), z.any()).default({}),
+});
+
+export type IntakeFormValues = z.infer<typeof IntakeFormSchema>;
+```
+
+Replace with:
+
+```typescript
+import { z } from 'zod';
+import { buildMetadataZodSchema } from './metadata-schema-validator';
+
+export const IntakeFormSchema = z.object({
+  documentTypeId: z.string().min(1, { message: 'Please select a document type' }),
+  title: z
+    .string()
+    .min(1, { message: 'Title is required' })
+    .max(255, { message: 'Title is too long' }),
+  metadata: z.record(z.string(), z.any()).default({}),
+});
+
+export type IntakeFormValues = z.infer<typeof IntakeFormSchema>;
+
+export function buildIntakeFormSchema(
+  metadataJsonSchema: Record<string, unknown> | null | undefined,
+) {
+  return IntakeFormSchema.extend({
+    metadata: buildMetadataZodSchema(metadataJsonSchema),
+  });
+}
+```
+
+Note: `IntakeFormSchema` and `IntakeFormValues` are kept exactly as they are today (not deleted, not modified) — `buildIntakeFormSchema` is additive. This matters because `IntakeFormValues`'s static shape (`metadata: Record<string, any>`) is what's used as `useForm`'s type parameter; nothing about making the *resolver* dynamic requires making the *static TS type* dynamic too, and keeping `IntakeFormValues` as a stable static type avoids any ripple into how `data.metadata` is consumed in `onSubmit` (`DocumentIntakePage.tsx:439-479`), which already treats it as a loose `Record<string, any>` regardless (see line 455's `as Record<string, any>` cast, which stays unchanged).
+
+**Edit**: `apps/web/src/pages/documents/DocumentIntakePage.tsx`
+
+Current relevant block, exact match required before editing (imports section, near the top of the file — confirm exact current line number since this may have shifted; search for this content rather than assume a line number):
+
+```typescript
+import { IntakeFormSchema, type IntakeFormValues } from '@/lib/intake-schema';
+```
+
+Replace with:
+
+```typescript
+import { buildIntakeFormSchema, type IntakeFormValues } from '@/lib/intake-schema';
+```
+
+(`IntakeFormSchema` itself is no longer imported directly in this file — only `buildIntakeFormSchema` and the `IntakeFormValues` type. `IntakeFormSchema` stays exported from `intake-schema.ts` for potential other use, per the instruction above; this file just switches which export it consumes.)
+
+Current relevant block, `DocumentIntakePage.tsx:391-411` (confirmed current as of this session — re-verify before editing since other work may have landed since):
+
+```tsx
+  const {
+    control,
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<IntakeFormValues>({
+    resolver: zodResolver(IntakeFormSchema) as any,
+    defaultValues: {
+      documentTypeId: '',
+      title: '',
+      metadata: {},
+    },
+  });
+
+  const selectedDocumentTypeId = useWatch({ control, name: 'documentTypeId' });
+  const selectedType = documentTypes?.find((t) => t.id === selectedDocumentTypeId);
+  const metadataSchema = selectedType?.metadataSchema as {
+    properties?: Record<string, any>;
+    required?: string[];
+  } | null | undefined;
+```
+
+Replace with:
+
+```tsx
+  const {
+    control,
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<IntakeFormValues>({
+    resolver: zodResolver(IntakeFormSchema) as any,
+    defaultValues: {
+      documentTypeId: '',
+      title: '',
+      metadata: {},
+    },
+  });
+
+  const selectedDocumentTypeId = useWatch({ control, name: 'documentTypeId' });
+  const selectedType = documentTypes?.find((t) => t.id === selectedDocumentTypeId);
+  const metadataSchema = selectedType?.metadataSchema as {
+    properties?: Record<string, any>;
+    required?: string[];
+  } | null | undefined;
+
+  const intakeResolver = useMemo(
+    () => zodResolver(buildIntakeFormSchema(selectedType?.metadataSchema)) as any,
+    [selectedType?.metadataSchema],
+  );
+```
+
+Then find `useForm`'s `resolver` line specifically and change it from a static reference to the memoized dynamic one:
+
+old_str: `    resolver: zodResolver(IntakeFormSchema) as any,`
+new_str: `    resolver: intakeResolver,`
+
+**Two ordering notes, both required, neither optional:**
+- `intakeResolver` is declared *after* the `useForm` call in the snippet above only because both existed in the same edit block for readability — in the actual file, `intakeResolver` must be defined *before* `useForm` is called, since `useForm`'s `resolver` option references it. Reorder these two blocks so the `useMemo` comes first, then `useForm` references `intakeResolver` in its `resolver` field, replacing the `zodResolver(IntakeFormSchema) as any` literal shown in the "current relevant block" above.
+- Add `useMemo` to the existing `react` import at the top of the file if it isn't already imported (check first — do not add a duplicate import if `useMemo` is already present alongside `useState`).
+
+**What NOT to touch in this file as part of Part 1:**
+- `handleSubmit(onSubmit as any)` (line 524) — the `as any` cast here is pre-existing and unrelated to this task's changes; do not attempt to remove it.
+- `onSubmit`'s body (`439-500`), including `cleanRecursive`'s comma-split logic (`457-470`) — this logic runs on already-validated data and is unaffected by switching which schema validated it.
+- Every `DynamicField`/`SponsorsArrayField`/`DynamicArrayField`/`UserPickerField`/`OfficePickerField` component body — none of these perform validation themselves (confirmed: they only handle rendering and `setValue`-driven cross-field population); none need changes for Part 1.
+
+### Edge cases (authoritative — do not infer different behavior)
+
+| Case | Required behavior |
+|---|---|
+| No document type selected yet (`selectedType` is `undefined`) | `selectedType?.metadataSchema` is `undefined`; `buildMetadataZodSchema(undefined)` must produce a schema that validates any `Record<string, unknown>` with zero errors (mirrors backend's `if (!schema \|\| Object.keys(schema).length === 0) return [];` at `validateMetadataAgainstSchema`, `documents.router.ts:234`) |
+| Document type has `metadataSchema: null` (possible per `DocumentTypeSummarySchema`'s `.nullable()`) | Same as above — treat identically to `undefined` |
+| User switches `documentTypeId` after already typing values into metadata fields for the previous type | `intakeResolver`'s `useMemo` dependency array (`[selectedType?.metadataSchema]`) recomputes the resolver on type change; this is standard `zodResolver` behavior and requires no extra handling — do not add a `useEffect` to reset `metadata` on type change, that is out of scope for this task (the existing form has no such reset today and this task is not adding one) |
+| A schema-declared field is `additionalProperties: false` on a nested `object` node (e.g. `subject_matter` in `SP_RESOLUTION_SCHEMA`) but the rendered form never lets the user populate an extra key there | No behavior change needed — the walker only flags keys that are *present*; a key the UI never lets the user add can't trigger this branch |
+
+### Verification
+
+```bash
+pnpm --filter web typecheck
+pnpm --filter web exec eslint src/lib/metadata-schema-validator.ts src/lib/intake-schema.ts src/pages/documents/DocumentIntakePage.tsx
+```
+
+Both must be clean. If a test file exists for `intake-schema.ts` or `DocumentIntakePage.tsx` (check `apps/web/src/lib/__tests__/` and `apps/web/src/pages/documents/__tests__/` — do not assume either exists without checking), run it and confirm no regression. If no test file exists for either, note that in your report; do not create one unless asked.
+
+---
+
+## Part 2 — Hide system-set fields from intake rendering (all three legislative document types, by field name)
+
+### Background
+
+Two field names — `certification_of_urgency_document_id` and `transmittal_letter_document_id` — appear in three document-type metadata schemas in `apps/server/src/database/seeds/document-types.seed.ts`:
+
+```json
+{
+  "system_set_metadata_fields": [
+    "certification_of_urgency_document_id",
+    "transmittal_letter_document_id"
+  ],
+  "declared_in_schemas": [
+    { "name": "SP_RESOLUTION_SCHEMA", "lines": "16-90", "field_lines": { "certification_of_urgency_document_id": "72-77", "transmittal_letter_document_id": "78-83" } },
+    { "name": "SP_ORDINANCE_SCHEMA", "field_lines": { "certification_of_urgency_document_id": "128-133", "transmittal_letter_document_id": "160-165" } },
+    { "name": "APPROPRIATION_ORDINANCE_SCHEMA", "field_lines": { "certification_of_urgency_document_id": "215-218", "transmittal_letter_document_id": "232-237" } }
+  ]
+}
+```
+
+The above JSON block is authoritative — if any prose elsewhere in this prompt appears to describe a different field-name list or a different scope, this block wins.
+
+Each declaration's own `description` states the field is set by a later handler, not entered at intake (e.g. `"Set by the Certification of Urgency logging handler concurrently with updating certified_urgent"`, `"NULL until the transmittal action step is completed"`). Despite this, both fields currently render as free-text `<Input>` boxes on the intake form, because `DynamicField`'s generic fallback (`DocumentIntakePage.tsx:370-377`) has no way to know a `uuid`-formatted field with no `enum` is meant to be system-set — it only special-cases `_user_id`/`_office_id` suffixes and `sponsors` by name.
+
+**Scope decision (already made): this applies to all three document types that declare these fields, not only `SP_RESOLUTION`.** The exclusion is keyed by field name, not by document type — `DynamicField` doesn't know or need to know which document type it's currently rendering for, so the fix should be equally type-agnostic. This differs from how TASK-DOCS-FE-021 scoped its own `documentTypeCode === 'SP_RESOLUTION'` check (that task's fix was inherently type-specific — automatic numbering only applies to SP_RESOLUTION's workflow steps — so its scoping choice doesn't set precedent here; this task's underlying bug is not type-specific, so its fix shouldn't be either).
+
+### The fix
+
+**New file**: `apps/web/src/lib/system-set-metadata-fields.ts`
+
+```typescript
+/**
+ * Metadata field names that are set by backend handlers after intake, never
+ * entered by the user at document-creation time. Declared (with descriptions
+ * confirming this) in three schemas in
+ * apps/server/src/database/seeds/document-types.seed.ts:
+ * SP_RESOLUTION_SCHEMA, SP_ORDINANCE_SCHEMA, APPROPRIATION_ORDINANCE_SCHEMA.
+ *
+ * DynamicField (DocumentIntakePage.tsx) excludes any top-level metadata key
+ * in this set from rendering at intake, regardless of which document type is
+ * selected — the field name itself is what marks it system-set, not the
+ * document type. Added by TASK-DOCS-FE-022.
+ */
+export const SYSTEM_SET_METADATA_FIELDS = new Set([
+  'certification_of_urgency_document_id',
+  'transmittal_letter_document_id',
+]);
+```
+
+**Edit**: `apps/web/src/pages/documents/DocumentIntakePage.tsx`
+
+The exclusion must happen at the call site that iterates top-level schema properties to decide what to render — **not inside `DynamicField` itself**. `DynamicField` is called recursively for nested object properties too (see `DocumentIntakePage.tsx:283-298`, the `object`-with-`properties` branch), and `SYSTEM_SET_METADATA_FIELDS` is a set of **top-level** metadata keys only; filtering inside `DynamicField` would also (incorrectly) suppress any nested field that happened to share one of these names, which is not what's intended and not something any current schema does, but is a latent correctness trap worth avoiding by construction rather than by convention.
+
+Confirm the current top-level-properties iteration site by searching for where `metadataSchema.properties` is mapped to a list of rendered `DynamicField` calls (this is the loop the F1 handoff material describes as "genuinely schema-aware... iterates `.properties`" — find it directly in the current file rather than trust a remembered line number, since this file has had multiple edits land since that description was written). Once found, add a filter immediately before the map/iteration that excludes any key present in `SYSTEM_SET_METADATA_FIELDS`:
+
+```typescript
+import { SYSTEM_SET_METADATA_FIELDS } from '@/lib/system-set-metadata-fields';
+```
+
+Add this import alongside the other `@/lib/*` imports at the top of the file.
+
+At the top-level-properties iteration site, filter the entries before mapping — e.g. if the current code is structured as (illustrative, match to whatever the actual current structure is; the key requirement is "filter before render, at the top level only"):
+
+```typescript
+{Object.entries(metadataSchema.properties).map(([key, prop]) => (
+  <DynamicField key={key} name={`metadata.${key}`} prop={prop} ... />
+))}
+```
+
+change to:
+
+```typescript
+{Object.entries(metadataSchema.properties)
+  .filter(([key]) => !SYSTEM_SET_METADATA_FIELDS.has(key))
+  .map(([key, prop]) => (
+    <DynamicField key={key} name={`metadata.${key}`} prop={prop} ... />
+  ))}
+```
+
+Preserve every existing prop passed to `DynamicField` at this call site exactly as it currently is — this edit only adds a `.filter()` before the existing `.map()`, it does not change what's passed to `DynamicField` for the fields that do render.
+
+**Do NOT modify:**
+- `DynamicField`'s own function body (`226-378`) — no change needed there; it simply never gets called for these two keys once the caller filters them out
+- `SponsorsArrayField`, `DynamicArrayField`, `UserPickerField`, `OfficePickerField` — unaffected
+- The `document-types.seed.ts` schema definitions themselves — the fields stay declared in the schema (they're real, valid metadata fields the backend sets); only client-side *rendering* is being suppressed, not the schema's own definition of what fields exist
+
+### Interaction with Part 1 (read this before implementing Part 2)
+
+Because `SYSTEM_SET_METADATA_FIELDS`-excluded keys are never rendered, the user can never populate them through the form, so `data.metadata` submitted from this form will never contain them. This does **not** require any change to Part 1's `validateMetadataNode` port — the backend walker's `required` check only fires for keys listed in a schema node's `required` array, and neither `certification_of_urgency_document_id` nor `transmittal_letter_document_id` appears in any of the three schemas' `required` arrays (confirm this is still true in the current seed file before finishing this task — if either has been added to a `required` array since this prompt was written, STOP and report the conflict rather than silently reconciling it, since making a system-set field simultaneously required-and-unrenderable would make the form permanently unsubmittable for that document type and needs a human decision, not a silent code choice).
+
+### Edge cases (authoritative)
+
+| Case | Required behavior |
+|---|---|
+| A document type's schema has neither of these two field names (e.g. any future document type without them) | Filter has no effect; all properties render as before |
+| Both fields present in a schema but neither in `required` | Confirmed current state for all three schemas as of this session (see "Interaction with Part 1" above) — fields are simply omitted from rendering, form behaves as if the schema never declared them |
+| A field name in `SYSTEM_SET_METADATA_FIELDS` were ever added to a schema's `required` array in the future | Out of scope to handle defensively in code for this task — flagged above as a stop-and-report condition if found to already be true now, not something to code a runtime guard against for a hypothetical future edit |
+
+### Verification
+
+```bash
+pnpm --filter web typecheck
+pnpm --filter web exec eslint src/lib/system-set-metadata-fields.ts src/pages/documents/DocumentIntakePage.tsx
+```
+
+Additionally, manually confirm (via the dev server, or by reading the rendered JSX output if a relevant Playwright/RTL test exists) that selecting `SP_RESOLUTION`, `SP_ORDINANCE`, and `APPROPRIATION_ORDINANCE` as the document type each render the intake form **without** a `certification_of_urgency_document_id` or `transmittal_letter_document_id` input field, while all other declared metadata fields for each type still render as before.
+
+---
+
+## Full scope summary (authoritative)
+
+```
+IN SCOPE:
+- apps/web/src/lib/metadata-schema-validator.ts (new file)
+- apps/web/src/lib/system-set-metadata-fields.ts (new file)
+- apps/web/src/lib/intake-schema.ts (add buildIntakeFormSchema, keep existing exports)
+- apps/web/src/pages/documents/DocumentIntakePage.tsx (dynamic resolver wiring; top-level-properties filter)
+
+OUT OF SCOPE (do not touch even if related):
+- apps/server/src/modules/documents/documents.router.ts's validateMetadataNode/validateMetadataAgainstSchema — being mirrored, not modified
+- apps/server/src/database/seeds/document-types.seed.ts — schema definitions stay as-is
+- packages/shared/src/schemas/documents.ts's DocumentTypeSummarySchema — metadataSchema stays typed as z.record(z.string(), z.unknown()).nullable().optional(); tightening this to a real JSON-Schema type is a separate, larger change not part of this task
+- DocumentDetailPage.tsx or any metadata-editing UI — this task is intake-only (see handoff document §9 Group D, separately scoped, not this task)
+- documents.update or its backend validation call site (documents.router.ts:683) — unrelated to intake
+- handleSubmit(onSubmit as any) and resolver: zodResolver(IntakeFormSchema) as any's sibling cast pattern — pre-existing, unrelated `any` casts, not part of this cleanup
+- Any DynamicField/SponsorsArrayField/DynamicArrayField/UserPickerField/OfficePickerField internal logic
+```
+
+## Report back
+
+1. Confirm both parts' verification commands pass.
+2. State the exact current line number where the top-level-properties `.map()` was found and filtered (Part 2), since this prompt could not confirm it precisely without risking staleness against further-drifted line numbers.
+3. Confirm whether a test file exists for `intake-schema.ts` or `DocumentIntakePage.tsx`, and whether it was run.
+4. Confirm directly whether either `certification_of_urgency_document_id` or `transmittal_letter_document_id` has been added to any schema's `required` array in the current repo state — report this explicitly even if the answer is "no, unchanged," per the stop-and-report condition above.
+
+---
+
+# TASK-DOCS-FE-022-PART-3
+
+## Context
+
+This is a follow-up to `TASK-DOCS-FE-022` (client-side metadata schema validation + hiding system-set fields at intake), which has already landed in the repository. Two real, verified bugs remain from that patch, plus one dead import. This prompt fixes all three in a single change.
+
+**Do not re-derive or second-guess the diagnosis below — it has been independently verified by execution against this repository's exact dependency versions, not just read from a prior report.** Proceed directly to implementation.
+
+## Bug 1 — Doubled `metadata` path in Zod validation issues
+
+**File:** `apps/web/src/lib/metadata-schema-validator.ts`
+**Function:** `buildMetadataZodSchema`
+**Current line (verified at line 88 in the current file):**
+
+```typescript
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: reason,
+        path: ['metadata', ...segments],
+      });
+```
+
+**Root cause:** `buildMetadataZodSchema`'s returned schema is used as the value of the `metadata` key inside a parent `z.object(...)` (see `apps/web/src/lib/intake-schema.ts`, `IntakeFormSchema.extend({ metadata: buildMetadataZodSchema(metadataJsonSchema) })`). Zod v4 (this repo is pinned to `zod@^4.4.3`, confirmed in `apps/web/package.json`) automatically prepends the field's own key (`'metadata'`) to any path a nested `superRefine` supplies via `ctx.addIssue`. Since the code above already includes the literal `'metadata'` string as the first path segment, Zod prepends a second `'metadata'` on top of it.
+
+**Verified by direct execution** (not just static reading) against `zod@4.4.3`, reproducing this exact nesting: a `superRefine` inside `buildMetadataZodSchema` that adds an issue with `path: ['metadata', 'subject_matter']`, when that schema is used as `IntakeFormSchema.extend({ metadata: ... })` and parsed, produces a final issue path of `["metadata", "metadata", "subject_matter"]` — not `["metadata", "subject_matter"]`. This means `errors.metadata?.subject_matter` in the calling component always resolves to `undefined`; the real error object lives at `errors.metadata?.metadata?.subject_matter`, which nothing reads.
+
+**Required fix:**
+
+```typescript
+old_str:
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: reason,
+        path: ['metadata', ...segments],
+      });
+
+new_str:
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: reason,
+        path: segments,
+      });
+```
+
+Verified by direct execution that this produces the correct path: a plain required-field-missing case yields `["metadata", "subject_matter"]`; a nested array-index case (e.g. a `sponsors[0].role` enum violation) yields `["metadata", "sponsors", "0", "role"]`. Both are correctly resolvable via React Hook Form's standard dot/bracket path accessors once nested one level under the parent's own `metadata` key.
+
+**Do not change** the `pathPart`/`segments` computation logic above this line (lines ~79–84), the `jsonTypeOf`/`matchesJsonType`/`validateMetadataNode` functions, or anything else in this file. This is a single-line change: the `path` array's contents, nothing else.
+
+## Bug 2 — `errors.metadata[key]` is never rendered anywhere
+
+**File:** `apps/web/src/pages/documents/DocumentIntakePage.tsx`
+
+**Confirmed current state:** in the entire file, exactly two places read from React Hook Form's `errors` object — `errors.documentTypeId` (rendered at line 559–561) and `errors.title` (rendered at line 567). No code anywhere reads `errors.metadata` in any form. The `DynamicField` function (defined at line 227, used for every metadata-driven field including the enum/boolean/object/array/user-picker/office-picker/generic-input branches) does not currently accept `errors` as a prop at all, and its call sites do not pass one.
+
+This means: even with Bug 1 fixed, metadata validation errors are computed correctly by React Hook Form (submission is correctly blocked — `handleSubmit`'s `onSubmit` never fires when `errors` is non-empty, so no invalid document can reach the server) but are **never visible to the user**. There is no toast, no inline message, no visual indicator — the Submit button silently does nothing from the user's perspective. This is worse than the pre-`TASK-DOCS-FE-022` behavior, where an invalid submission at least reached the server and returned a generic-but-visible `toast.error(err.message)`.
+
+### Required changes
+
+**2a. Thread `errors` into `DynamicField` and its call sites.**
+
+`DynamicField`'s current signature (line 227):
+
+```typescript
+old_str:
+function DynamicField({ name, prop, control, register, label, isRequired, setValue }: any) {
+
+new_str:
+function DynamicField({ name, prop, control, register, label, isRequired, setValue, errors }: any) {
+```
+
+`DynamicField`'s only call site that renders top-level metadata fields is inside the page component's JSX, at the `.map(([key, prop]) => { ... return (<DynamicField ... />) })` block (current lines 584–595):
+
+```typescript
+old_str:
+                  return (
+                    <DynamicField 
+                      key={key} 
+                      name={`metadata.${key}`} 
+                      prop={prop} 
+                      control={control} 
+                      register={register} 
+                      label={label} 
+                      isRequired={isRequired} 
+                      setValue={setValue}
+                    />
+                  );
+
+new_str:
+                  return (
+                    <DynamicField 
+                      key={key} 
+                      name={`metadata.${key}`} 
+                      prop={prop} 
+                      control={control} 
+                      register={register} 
+                      label={label} 
+                      isRequired={isRequired} 
+                      setValue={setValue}
+                      errors={errors}
+                    />
+                  );
+```
+
+**Scope note — do NOT thread `errors` through `DynamicArrayField` or `SponsorsArrayField`, and do NOT thread it into `DynamicField`'s own recursive calls to itself** (the nested-object branch at line 288 and the array-of-objects branch that calls `DynamicArrayField`, which in turn calls `DynamicField` again at line 133). Rendering field-level errors for nested object/array sub-fields is out of scope for this fix — it would require path-construction logic (turning `metadata.sponsors.0.role` into a lookup against a nested `errors` object) that doesn't exist yet and is a larger, separate piece of work. This fix covers only the top-level metadata fields — the same fields that are already filtered by `SYSTEM_SET_METADATA_FIELDS` and rendered directly under the "Additional Information" heading. If asked to extend coverage to nested fields, treat that as new scope requiring its own prompt, not an implicit extension of this one.
+
+**2b. Render the error inside `DynamicField`'s output, matching the existing pattern exactly.**
+
+Both existing error renders in this file use this exact JSX shape (confirmed identical between `errors.documentTypeId` at line 559–561 and `errors.title` at line 567):
+
+```jsx
+{errors.X && <p className="text-destructive text-sm">{errors.X.message}</p>}
+```
+
+`DynamicField` has five return branches (enum, boolean, object-with-properties, array, generic fallback — the `_user_id`/`_office_id`-suffix branches delegate to `UserPickerField`/`OfficePickerField` and are explicitly out of scope, see below). Add the matching error render to each of the branches listed in the table below. Use `errors?.metadata?.[key]` where `key` is the last path segment of `name` (i.e. `name.split('.').pop()`), since `name` for a top-level metadata field is always `metadata.<key>` at the call site this fix covers (per the scope note in 2a, this fix does not need to handle multi-level nested `name` values).
+
+**Authoritative decision table — exactly these five locations get error rendering, no others:**
+
+| # | Branch (identified by current condition) | Location to insert render | Render this exact JSX |
+|---|---|---|---|
+| 1 | `if (prop.enum)` (line 228) | Immediately after the closing `/>` of the `Controller`, still inside the branch's returned `<div>`, before that `<div>`'s closing tag (i.e. right after line 254's `/>`, before line 255's `</div>`) | `{errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}` |
+| 2 | `if (prop.type === 'boolean')` (line 259) | Immediately after the `<Label>` closing tag, still inside the branch's returned `<div>`, before that `<div>`'s closing tag (i.e. right after line 275's closing `</Label>`, before line 276's `</div>`) | Same JSX as row 1 |
+| 3 | `if (prop.type === 'object' && prop.properties)` (line 280) | **Do not add.** This branch recurses into `DynamicField` for each sub-property and has no single scalar value of its own to attach a top-level error to — see the scope note in 2a. | N/A |
+| 4 | `if (prop.type === 'array')` (line 331, the comma-separated-string branch — **not** the array-of-objects branch above it, which delegates to `SponsorsArrayField`/`DynamicArrayField` and is out of scope per 2a) | Immediately after the `<Input>` closing tag, still inside the branch's returned `<div>`, before that `<div>`'s closing tag (i.e. right after line 341's `/>`, before line 342's `</div>`) | Same JSX as row 1 |
+| 5 | Generic fallback (line 371, the final `return` with no preceding condition) | Immediately after the `<Input>` closing tag, still inside the branch's returned `<div>`, before that `<div>`'s closing tag (i.e. right after line 376's `/>`, before line 377's `</div>`) | Same JSX as row 1 |
+
+**Explicitly out of scope, do not touch:** the `_user_id`-suffix branch (delegates to `UserPickerField`), the `_office_id`-suffix branch (delegates to `OfficePickerField`), the array-of-objects branch (delegates to `SponsorsArrayField`/`DynamicArrayField`), and the object-with-properties branch (row 3 above, recurses). None of these four render a single scalar RHF-registered value directly at the top level, so none of them get the row-1-style render in this fix. If error visibility for any of these four is wanted later, that's new scope, not an extension of this prompt.
+
+The JSON table above is authoritative for exactly which five branches get which insertion — if any prose elsewhere in this section appears to conflict with it, the table wins.
+
+## Bug 3 — Unused `useMemo` import
+
+**File:** `apps/web/src/pages/documents/DocumentIntakePage.tsx`, line 2
+
+**Confirmed:** `useMemo` is imported but never used anywhere in the file (the resolver is the hand-written `intakeResolver` function at lines 393–396, not a `useMemo` call, and no other `useMemo` usage exists). Confirmed via `pnpm --filter web lint` in the prior review producing exactly one new lint error attributable to this patch: `'useMemo' is defined but never used`.
+
+```typescript
+old_str:
+import React, { useState, useMemo } from 'react';
+
+new_str:
+import React, { useState } from 'react';
+```
+
+## Scope
+
+**IN SCOPE:** `apps/web/src/lib/metadata-schema-validator.ts`, `apps/web/src/pages/documents/DocumentIntakePage.tsx`
+
+**OUT OF SCOPE (do not touch even if related):** `apps/web/src/lib/intake-schema.ts`, `apps/web/src/lib/system-set-metadata-fields.ts`, `apps/server/src/modules/documents/documents.router.ts` (the backend walker being mirrored — do not touch), `DynamicArrayField`, `SponsorsArrayField`, `UserPickerField`, `OfficePickerField` (no changes to any of these four components), any nested/recursive error-path rendering, `documents.update` / metadata-editing UI (unrelated, tracked separately as Group D).
+
+## Verification steps (run all, report results for each)
+
+1. `pnpm --filter web typecheck` — must produce zero new errors relative to the current baseline (currently clean; must remain clean after this change).
+2. `pnpm --filter web lint` on `DocumentIntakePage.tsx` specifically — the `useMemo` unused-import error must be gone. Do not attempt to fix any of the pre-existing `any`-typed lint debt in this file (confirmed intentionally left alone by `TASK-DOCS-LINT-003`, per `fix.md`) — that is separate, unrelated scope.
+3. Write a throwaway local script or test (do not commit it, or if a test file convention doesn't exist for this file, delete the throwaway after confirming) that imports `buildIntakeFormSchema` from `apps/web/src/lib/intake-schema.ts`, builds a schema with a metadata JSON schema requiring at least one field (e.g. `{ type: 'object', required: ['subject_matter'], properties: { subject_matter: { type: 'string' } } }`), calls `.safeParse(...)` with that field missing from `metadata`, and confirms the resulting issue's `path` array is exactly `['metadata', 'subject_matter']` — not `['metadata', 'metadata', 'subject_matter']`. Report the actual array printed.
+4. Manually trace (or, if a running dev environment is available, actually exercise) the intake form for a document type whose schema has a required top-level string field (e.g. `SP_RESOLUTION`'s `subject_matter`): submit with that field empty, and confirm a red error message now appears directly under that field's input, matching the visual style of the existing `Title` field's error message.
+
+## Note on attribution
+
+The doubled-path bug in `metadata-schema-validator.ts` and the missing render-wiring gap in `DocumentIntakePage.tsx` both originate from the original `TASK-DOCS-FE-022` prompt's own specification, not from any deviation by whoever implemented that patch — the implementation matches what was specified, verbatim. This is stated here for the record, not because it changes anything about this follow-up's scope.
+
+---
+
+# TASK-WF-FE-021
+
+## Context
+
+`second_reading_vote` and `second_reading_amended_vote` (`packages/database/src/seeds/workflow/phase1-legislative.ts:116-127,143-155`) both declare `AMENDED` in their `allowed_outcomes`, but no current frontend path can submit it. This was traced and confirmed this session: `computePanelHint`'s `secretariat_decision` branch (`apps/server/src/modules/workflow/workflow.router.ts:253-257`) can never fire for any step, because the `assignedTo` structure it reads `.office_id` from is never populated with that field by any assignee-resolution path (root cause logged separately as `LOG-0177`; fixing that root cause is a larger, separate task, not part of this one). As a result, both steps always route to `generic_approval` → `GenericApprovalPanel`, which today only submits `APPROVED`, `REJECTED`, and `RETURNED_FOR_REVISION` — never `AMENDED`.
+
+`TASK-WF-FE-019` already added a generic backend procedure, `workflow.submitApprovalOutcome` (`apps/server/src/modules/workflow/workflow.router.ts:1315-1390`), that accepts an arbitrary non-empty outcome string, delegates validation to `submitStepApproval` (which checks the outcome against the current step's own `config.allowed_outcomes`), and reuses `workflowPolicy.canApproveStep` unchanged for authorization. This task wires that existing procedure into `GenericApprovalPanel` as a fourth "Amend" action.
+
+**Do not re-derive or second-guess the diagnosis above — it has been independently traced and confirmed against this repository's current code, not just read from a prior report.** Proceed directly to implementation.
+
+## Required change
+
+**File:** `apps/web/src/pages/workflow/panels/GenericApprovalPanel.tsx`
+
+Add a fourth mutation using `trpc.workflow.submitApprovalOutcome`, and a fourth button labeled "Amend" that calls it with the literal outcome string `'AMENDED'`.
+
+**Exact current mutation pattern to mirror** (confirmed at lines 45-56, the `returnMutation` — use this one as the template since it shares the same comment-required behavior you need for the new button):
+
+```typescript
+old_str:
+  const returnMutation = trpc.workflow.returnStepForRevision.useMutation({
+    onSuccess: () => {
+      toast.success('Step returned for revision.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });
+      navigate('/workflow/steps');
+    },
+    onError: (err) => toast.error(err.message || 'Failed to return for revision.'),
+  });
+
+  const busy = approveMutation.isPending || rejectMutation.isPending || returnMutation.isPending;
+
+new_str:
+  const returnMutation = trpc.workflow.returnStepForRevision.useMutation({
+    onSuccess: () => {
+      toast.success('Step returned for revision.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });
+      navigate('/workflow/steps');
+    },
+    onError: (err) => toast.error(err.message || 'Failed to return for revision.'),
+  });
+
+  const amendMutation = trpc.workflow.submitApprovalOutcome.useMutation({
+    onSuccess: () => {
+      toast.success('Step marked as amended.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.tracking.getRoutingHistory.invalidate({ documentId: instance.documentId });
+      navigate('/workflow/steps');
+    },
+    onError: (err) => toast.error(err.message || 'Failed to submit amendment.'),
+  });
+
+  const busy =
+    approveMutation.isPending ||
+    rejectMutation.isPending ||
+    returnMutation.isPending ||
+    amendMutation.isPending;
+```
+
+**Button placement** — add immediately after the existing "Return for Revision" button, inside the same `<div className="flex space-x-2">`:
+
+```typescript
+old_str:
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (!comment) {
+                toast.error('A comment is required when returning for revision');
+                return;
+              }
+              returnMutation.mutate({ stepInstanceId: instance.currentStepInstanceId, comment });
+            }}
+            disabled={busy}
+          >
+            Return for Revision
+          </Button>
+        </div>
+
+new_str:
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (!comment) {
+                toast.error('A comment is required when returning for revision');
+                return;
+              }
+              returnMutation.mutate({ stepInstanceId: instance.currentStepInstanceId, comment });
+            }}
+            disabled={busy}
+          >
+            Return for Revision
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              amendMutation.mutate({
+                stepInstanceId: instance.currentStepInstanceId,
+                outcome: 'AMENDED',
+                comment: comment || undefined,
+              });
+            }}
+            disabled={busy}
+          >
+            Amend
+          </Button>
+        </div>
+```
+
+## Authoritative decision table
+
+| Case | Required behavior |
+|---|---|
+| Comment required for "Amend"? | **No.** Match `approveMutation`'s existing behavior (comment optional, sent as `comment \|\| undefined`), not `rejectMutation`'s/`returnMutation`'s (comment required, blocked client-side if empty). `AMENDED` is not in this file's existing `require_comment_on` pattern for any step, and the backend does not require one for this outcome. |
+| Outcome literal string | Exactly `'AMENDED'` — uppercase, matching the literal already declared in both steps' `allowed_outcomes` arrays in the seed file. Do not use `'Amended'`, `'amended'`, or any other casing. |
+| Button visible on steps that don't support `AMENDED`? | **Yes, always visible when this panel renders at all — this is intentional, not an oversight.** `GenericApprovalPanel` receives only `instance: RouterOutputs['workflow']['getInstance']`, and `getInstance`'s `.output()` Zod schema (`workflow.router.ts:273-311`) does not expose the current step's `allowed_outcomes` or raw `config` to the frontend — confirmed the query selects `config: steps.config` internally for `computePanelHint`'s own use (line 357) but that field is stripped by the output schema before reaching the client. Making the button conditionally visible would require widening `getInstance`'s output shape, which is out of scope for this task. If clicked on a step where `AMENDED` isn't valid, the backend's `submitStepApproval` (`apps/server/src/modules/workflow/engine/step-handlers/approval.handler.ts:37-39`) throws a plain `Error('VALIDATION_FAILED: outcome not allowed')`, which surfaces via this panel's existing `onError` handler as `toast.error(err.message)` — an ugly but non-crashing, non-silent failure mode identical to what already happens today if any of the three existing buttons is clicked on a step whose `allowed_outcomes` doesn't include their respective outcome. This is not a new risk introduced by this change. |
+| Query invalidation list for the new mutation | Identical to `returnMutation`'s list, verbatim: `workflow.getInstance`, `workflow.getActiveInstanceForDocument`, `workflow.listMyAssignedSteps`, `documents.get`, `tracking.getRoutingHistory`. Do not add or omit any invalidation call relative to this list. |
+
+## Scope
+
+**IN SCOPE:** `apps/web/src/pages/workflow/panels/GenericApprovalPanel.tsx` only.
+
+**OUT OF SCOPE (do not touch even if related):** `apps/server/src/modules/workflow/workflow.router.ts` (`submitApprovalOutcome` already exists and needs no changes), `getInstance`'s output schema (widening it to expose `allowedOutcomes` is separate, larger scope — not part of this task), `computePanelHint` (routing logic is correct as traced; the dead `secretariat_decision` branch and the underlying `office_id` gap are tracked separately as `LOG-0177`, not this task), `SecretariatDecisionPanel.tsx` (left as-is; whether to remove the now-confirmed-dead component is a separate decision, not part of this task), `WorkflowStepActionPage.tsx` (already correctly routes to `GenericApprovalPanel` for `generic_approval`; no change needed), any other panel component.
+
+## Verification steps
+
+1. Typecheck (`pnpm --filter web typecheck`) — must remain clean, zero new errors.
+2. Confirm `trpc.workflow.submitApprovalOutcome` resolves correctly in the generated tRPC client types (it should, since `TASK-WF-FE-019` already landed this procedure server-side) — if it does not resolve, stop and report rather than working around it with a type cast.
+3. Manually trace or exercise: open a document at `second_reading_vote` or `second_reading_amended_vote` as a user who passes `canApproveStep`'s authorization, click "Amend" with no comment entered, and confirm the mutation succeeds and the UI navigates to `/workflow/steps` with a success toast — exactly matching the existing "Approve" button's behavior pattern (optional comment, no client-side blocking).
+4. Confirm the four buttons' relative order in the rendered UI is Approve, Reject, Return for Revision, Amend — left to right, matching the order specified above.
+
+---
+
+# TASK-WF-FE-022
+
+## Context
+
+`final_number_assignment` (`packages/database/src/seeds/workflow/phase1-legislative.ts:157-170`, position 8, `step_key: 'final_number_assignment'`) is a legally-mandated `action` step that sits downstream of `second_reading_vote`/`second_reading_amended_vote` in the SP Resolution workflow. Since `TASK-WF-016` landed, the final series number for `SP_RESOLUTION` documents is already auto-assigned by an event subscriber the moment the second-reading vote outcome is `APPROVED` — before this step is ever opened.
+
+Confirmed this session: `completeActionStep` (`apps/server/src/modules/workflow/workflow.router.ts:867-935`) has no `stepKey`-awareness anywhere in its implementation — it always emits the hardcoded literal outcome `'DONE'` (line 928) regardless of which action step is being completed. `GenericActionPanel.tsx` (the only frontend surface that calls `completeActionStep`) is fully generic: its title (`"Complete Task"`, line 36) and button label (`"Complete Task"`/`"Completing..."`, line 56) are hardcoded and identical for every step this panel renders for. An SP Secretary opening this step today sees no indication that the number has already been assigned automatically — just a generic "Complete Task" button that, when clicked, does nothing more than advance the workflow.
+
+This is a UX clarity gap, not a functional bug — the step graph advances correctly either way. This task adds a conditional message so the SP Secretary isn't left wondering whether they need to do something with the number here.
+
+**Do not re-derive or second-guess the diagnosis above — it has been independently confirmed against this repository's current code, not just read from a prior report.** Proceed directly to implementation.
+
+## Required changes
+
+This requires widening `getInstance`'s output payload by exactly one field — `currentStepKey` — since neither `stepKey` nor any document-type signal is currently exposed to the frontend, and a label decision needs to know which step is active. This is the minimum surface needed; do not additionally expose `config`, `allowedOutcomes`, or any other step-internal field as part of this task (that remains out of scope, consistent with `TASK-WF-FE-021`'s scope boundary).
+
+### Part 1 — Backend: expose `currentStepKey` on `getInstance`
+
+**File:** `apps/server/src/modules/workflow/workflow.router.ts`
+
+**1a. Add `currentStepKey` to the output schema**, immediately after `currentStepInstanceId`:
+
+```typescript
+old_str:
+          currentStepType: z.enum([
+            'action',
+            'approval',
+            'multi_referral',
+            'decision',
+            'notification',
+            'termination',
+            'parallel_split',
+            'parallel_join',
+          ]),
+          currentStepInstanceId: z.string().uuid(),
+          currentAssigneeUserId: z.string().uuid().nullable(),
+          status: z.enum(['Active', 'Completed', 'Cancelled']),
+          slaDeadline: z.coerce.date().nullable(),
+          lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
+          panelHint: z
+            .enum([
+              'multi_referral',
+              'vp_certification',
+              'mayor_decision',
+              'mayor_lapse_confirmation',
+              'veto_override_recording',
+              'docketing',
+              'panlalawigan_outcome',
+              'publication_date',
+              'returned_review_decision',
+              'legal_office_review_decision',
+              'committee_revisions_decision',
+              'secretariat_decision',
+              'generic_action',
+              'generic_approval',
+            ])
+            .nullable(),
+        }),
+      )
+      .query(async ({ input, ctx }) => {
+        const { instanceId } = input;
+
+new_str:
+          currentStepType: z.enum([
+            'action',
+            'approval',
+            'multi_referral',
+            'decision',
+            'notification',
+            'termination',
+            'parallel_split',
+            'parallel_join',
+          ]),
+          currentStepInstanceId: z.string().uuid(),
+          currentStepKey: z.string().nullable(),
+          currentAssigneeUserId: z.string().uuid().nullable(),
+          status: z.enum(['Active', 'Completed', 'Cancelled']),
+          slaDeadline: z.coerce.date().nullable(),
+          lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
+          panelHint: z
+            .enum([
+              'multi_referral',
+              'vp_certification',
+              'mayor_decision',
+              'mayor_lapse_confirmation',
+              'veto_override_recording',
+              'docketing',
+              'panlalawigan_outcome',
+              'publication_date',
+              'returned_review_decision',
+              'legal_office_review_decision',
+              'committee_revisions_decision',
+              'secretariat_decision',
+              'generic_action',
+              'generic_approval',
+            ])
+            .nullable(),
+        }),
+      )
+      .query(async ({ input, ctx }) => {
+        const { instanceId } = input;
+```
+
+**IMPORTANT — this exact `old_str` block appears only once in this file at this location** (the `getInstance` procedure). A structurally similar but not identical block exists later in the same file for `getActiveInstanceForDocument`'s output schema (confirmed at approximately line 437 onward) — **do not modify that second occurrence.** This task touches only `getInstance`, not `getActiveInstanceForDocument`. If your tool reports more than one match for this `old_str`, stop and report rather than guessing which one is correct — the two blocks are similar enough that an automated tool might conflate them, but only the first (inside `getInstance`, immediately following the `.input(z.object({ instanceId: z.string().uuid() }))` line) is in scope.
+
+**1b. Add `currentStepKey` to the returned object**, immediately after `currentStepInstanceId`:
+
+```typescript
+old_str:
+        return {
+          instanceId: instance.id,
+          documentId: instance.documentId,
+          definitionVersionId: instance.definitionVersionId,
+          currentStepType,
+          currentStepInstanceId: currentStep
+            ? currentStep.stepInstanceId
+            : '00000000-0000-0000-0000-000000000000',
+          currentAssigneeUserId,
+          status,
+          slaDeadline: instance.slaDeadline,
+          lapseStatus,
+          panelHint,
+        };
+      }),
+
+    getActiveInstanceForDocument: protectedProcedure
+
+new_str:
+        return {
+          instanceId: instance.id,
+          documentId: instance.documentId,
+          definitionVersionId: instance.definitionVersionId,
+          currentStepType,
+          currentStepInstanceId: currentStep
+            ? currentStep.stepInstanceId
+            : '00000000-0000-0000-0000-000000000000',
+          currentStepKey: currentStep?.stepKey ?? null,
+          currentAssigneeUserId,
+          status,
+          slaDeadline: instance.slaDeadline,
+          lapseStatus,
+          panelHint,
+        };
+      }),
+
+    getActiveInstanceForDocument: protectedProcedure
+```
+
+`currentStep.stepKey` is already selected by this procedure's existing query (confirmed at `workflow.router.ts:355`, `stepKey: steps.stepKey`, as part of the `currentSteps` select) — no new query or join is needed, only reading a field that's already fetched but currently dropped before the response is built.
+
+### Part 2 — Frontend: conditional message in `GenericActionPanel`
+
+**File:** `apps/web/src/pages/workflow/panels/GenericActionPanel.tsx`
+
+Add a conditional informational message, shown only when `instance.currentStepKey === 'final_number_assignment'`, above the existing comment field. The button itself, its label, and the mutation are unchanged — this step still needs to be explicitly completed to advance the workflow graph; only a clarifying message is added.
+
+```typescript
+old_str:
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Complete Task</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Comment (optional)</label>
+
+new_str:
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Complete Task</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {instance.currentStepKey === 'final_number_assignment' && (
+          <p className="text-sm text-muted-foreground">
+            The final series number for this document has already been assigned automatically.
+            Complete this step to advance the workflow.
+          </p>
+        )}
+        <div>
+          <label className="mb-1 block text-sm font-medium">Comment (optional)</label>
+```
+
+## Authoritative decision table
+
+| Case | Required behavior |
+|---|---|
+| Which `stepKey` triggers the message | Exactly `'final_number_assignment'` — the literal string from `phase1-legislative.ts:157`. No other step key. |
+| Does this message apply to `SP_ORDINANCE`/`SP_APPROPRIATION_ORDINANCE`? | Not applicable to this task. Confirmed via `cloneWorkflow`'s IIFEs (`phase1-legislative.ts:789-931,933-1030`): both ordinance workflow variants replace `second_reading_amended_vote` with `third_reading_vote` and are explicitly out of scope for `TASK-WF-016`'s auto-numbering trigger (per the handoff's own confirmed trigger-condition table). Check whether `final_number_assignment` even exists as a step key in the cloned ordinance workflows before assuming this message would be wrong there — if it does not exist in those clones (or exists under a different `step_key`), this message correctly never fires for those document types regardless, since the `stepKey` check would simply never match. Do not add any document-type check on top of the `stepKey` check — the `stepKey` literal alone is sufficient and correctly scoped, since `TASK-WF-016`'s automation is tied to that same literal step-key concept, not to the document type directly. |
+| Should the button be disabled or relabeled when this message shows? | No. Button, label, and mutation behavior are unchanged. This step must still be explicitly completed by the SP Secretary to advance the workflow graph — the message is purely informational, not a change to the completion requirement. |
+| `currentStepKey` when no active step instance exists | `null` (matches the existing fallback pattern for `currentStepInstanceId`'s sentinel UUID case — when `currentStep` is undefined, `currentStep?.stepKey ?? null` correctly yields `null` rather than throwing). |
+
+## Scope
+
+**IN SCOPE:** `apps/server/src/modules/workflow/workflow.router.ts` (`getInstance` procedure only — both its `.output()` schema and its return statement), `apps/web/src/pages/workflow/panels/GenericActionPanel.tsx`.
+
+**OUT OF SCOPE (do not touch even if related):** `getActiveInstanceForDocument`'s output schema (structurally similar, must not be touched — see the explicit warning in Part 1a above), `completeActionStep` (no `stepKey`-based branching added to the mutation itself — this task is display-only), any other panel component, `computePanelHint` (unchanged — this task doesn't add a new `panelHint` value, `final_number_assignment` continues to route to `generic_action` exactly as it does today), exposing any field beyond `currentStepKey` (no `config`, `allowedOutcomes`, or `formKey` — those remain out of scope per the same boundary established in `TASK-WF-FE-021`).
+
+## Verification steps
+
+1. Typecheck (`pnpm --filter web typecheck` and the server-side equivalent) — must remain clean, zero new errors. Since `currentStepKey` is a new required field on `getInstance`'s output type, confirm no other frontend call site destructures this output in a way that would break under `exactOptionalPropertyTypes` or similar strictness settings — a quick grep for `RouterOutputs['workflow']['getInstance']` usages across `apps/web/src` should surface any such site.
+2. Confirm the `old_str` in Part 1a matches exactly once in `workflow.router.ts` before applying — if it matches more than once, stop and report rather than guessing.
+3. Manually trace or exercise: open a document at the `final_number_assignment` step for an `SP_RESOLUTION` type whose second-reading vote was already `APPROVED`, and confirm the informational message renders above the comment field, while the "Complete Task" button remains fully functional and unchanged in behavior.
+4. Confirm the message does NOT render for any other `generic_action`-hinted step (e.g. open any other action step and confirm the panel looks exactly as it did before this change).
+
+---
+
+# TASK-WF-FE-023 — Dedicated panel for `valid_in_part_decision`
+
+## Context
+
+`valid_in_part_decision` is an `approval`-type workflow step in the SP Resolution
+legislative workflow, defined at
+`packages/database/src/seeds/workflow/phase1-legislative.ts:282-297`:
+
+```typescript
+{
+  step_key: 'valid_in_part_decision',
+  step_type: 'approval',
+  label: 'VALID-IN-PART — Secretary Selects Resolution Path',
+  is_start: false,
+  position: 17,
+  legally_mandated: false,
+  config: {
+    assignee: ROLE.SP_SECRETARY,  // resolves to the literal string 'role:sp_secretary'
+    allowed_outcomes: [
+      'RESOLVED_IN_PLACE',
+      'ROUTED_TO_LEGAL',
+      'ROUTED_TO_COMMITTEE',
+      'REVISED_DIRECTLY',
+    ],
+    require_comment_on: ['RESOLVED_IN_PLACE', 'REVISED_DIRECTLY'],
+  },
+},
+```
+
+This step currently has no dedicated frontend panel. `computePanelHint`
+(`apps/server/src/modules/workflow/workflow.router.ts:202-266`) has no
+`stepKey`-based branch for `'valid_in_part_decision'`, so it falls through to
+the generic `office_id`-comparison branch (lines 253-258), which can never
+match because `step_instances.assigned_to` never carries a populated
+`office_id` under any current assignee-resolution path (a separate, already
+logged and NOT-in-scope-for-this-task defect — do not attempt to fix that
+here). The step therefore currently resolves to `panelHint: 'generic_approval'`
+and is rendered by `GenericApprovalPanel.tsx`, which only supports the
+outcomes `APPROVED`, `REJECTED`, `RETURNED_FOR_REVISION`, `AMENDED` — none of
+which are in this step's `allowed_outcomes`. This means none of this step's
+four real outcomes are currently reachable through any UI path.
+
+**Do not attempt to fix or touch the `office_id`/`secretariat_decision`
+mechanism as part of this task.** That is a separate, larger, not-yet-scoped
+piece of work with its own security-review implications. This task adds a
+new, dedicated panel and a new `stepKey`-based `computePanelHint` branch,
+exactly mirroring the pattern already used for three sibling steps
+(`returned_review`, `legal_office_review`, `committee_revisions_review`).
+
+## Required changes
+
+### Part 1 — Backend: new `computePanelHint` branch + panelHint enum widening
+
+**File:** `apps/server/src/modules/workflow/workflow.router.ts`
+
+**1a. Add a new branch to `computePanelHint`.** The function currently has
+this shape (verified current as of this task's authoring):
+
+```typescript
+old_str:
+  } else if (stepKey === 'returned_review') {
+    return 'returned_review_decision';
+  } else if (stepKey === 'legal_office_review') {
+    return 'legal_office_review_decision';
+  } else if (stepKey === 'committee_revisions_review') {
+    return 'committee_revisions_decision';
+  } else if (
+
+new_str:
+  } else if (stepKey === 'returned_review') {
+    return 'returned_review_decision';
+  } else if (stepKey === 'legal_office_review') {
+    return 'legal_office_review_decision';
+  } else if (stepKey === 'committee_revisions_review') {
+    return 'committee_revisions_decision';
+  } else if (stepKey === 'valid_in_part_decision') {
+    return 'valid_in_part_decision';
+  } else if (
+```
+
+This `old_str` block appears once in the file (inside `computePanelHint`'s
+`if`/`else if` chain). If your tool reports more than one match, stop and
+report rather than guessing.
+
+**1b. Widen `computePanelHint`'s own return-type union.** Immediately above
+the function body, the return type annotation lists every possible hint
+value:
+
+```typescript
+old_str:
+  | 'returned_review_decision'
+  | 'legal_office_review_decision'
+  | 'committee_revisions_decision'
+  | 'secretariat_decision'
+  | 'generic_action'
+  | 'generic_approval'
+  | null {
+
+new_str:
+  | 'returned_review_decision'
+  | 'legal_office_review_decision'
+  | 'committee_revisions_decision'
+  | 'valid_in_part_decision'
+  | 'secretariat_decision'
+  | 'generic_action'
+  | 'generic_approval'
+  | null {
+```
+
+This exact `old_str` appears once, immediately preceding the function body
+(the line `if (status !== 'Active' || !currentStep) return null;`).
+
+**1c. Add the new literal to `getInstance`'s `panelHint` output-schema enum.**
+This schema block currently reads (verified current):
+
+```typescript
+old_str:
+          panelHint: z
+            .enum([
+              'multi_referral',
+              'vp_certification',
+              'mayor_decision',
+              'mayor_lapse_confirmation',
+              'veto_override_recording',
+              'docketing',
+              'panlalawigan_outcome',
+              'publication_date',
+              'returned_review_decision',
+              'legal_office_review_decision',
+              'committee_revisions_decision',
+              'secretariat_decision',
+              'generic_action',
+              'generic_approval',
+            ])
+            .nullable(),
+        }),
+      )
+      .query(async ({ input, ctx }) => {
+        const { instanceId } = input;
+
+new_str:
+          panelHint: z
+            .enum([
+              'multi_referral',
+              'vp_certification',
+              'mayor_decision',
+              'mayor_lapse_confirmation',
+              'veto_override_recording',
+              'docketing',
+              'panlalawigan_outcome',
+              'publication_date',
+              'returned_review_decision',
+              'legal_office_review_decision',
+              'committee_revisions_decision',
+              'valid_in_part_decision',
+              'secretariat_decision',
+              'generic_action',
+              'generic_approval',
+            ])
+            .nullable(),
+        }),
+      )
+      .query(async ({ input, ctx }) => {
+        const { instanceId } = input;
+```
+
+**IMPORTANT — this `old_str` block, as written above (including the
+trailing `.query(async ({ input, ctx }) => { const { instanceId } = input;`
+lines), is written specifically to match ONLY the occurrence inside
+`getInstance`.** A structurally near-identical `panelHint` enum block exists
+later in the same file inside `getActiveInstanceForDocument`'s output
+schema — **that occurrence must NOT be touched as part of this task** (see
+Part 1d below, which explicitly widens it too, separately and deliberately).
+If your tool reports that this exact `old_str` (with the trailing
+`.query(...)` lines included) matches more than once, stop and report rather
+than guessing — but note that the trailing lines are specifically included
+to disambiguate from the `getActiveInstanceForDocument` occurrence, which
+does not have a `.query(...)` immediately following (it's followed by
+different code — check before assuming ambiguity).
+
+**1d. Add the new literal to `getActiveInstanceForDocument`'s `panelHint`
+output-schema enum as well.** Unlike `currentStepKey` (which is
+deliberately NOT present on this second procedure's output — do not add
+it, that is unrelated and out of scope), the `panelHint` enum itself must
+stay in sync across both procedures, since both can return a
+`valid_in_part_decision` hint value at runtime and Zod's output validation
+will reject an unlisted enum value. This schema block currently reads
+(verified current):
+
+```typescript
+old_str:
+            panelHint: z
+              .enum([
+                'multi_referral',
+                'vp_certification',
+                'mayor_decision',
+                'mayor_lapse_confirmation',
+                'veto_override_recording',
+                'docketing',
+                'panlalawigan_outcome',
+                'publication_date',
+                'returned_review_decision',
+                'legal_office_review_decision',
+                'committee_revisions_decision',
+                'secretariat_decision',
+                'generic_action',
+                'generic_approval',
+              ])
+              .nullable(),
+          })
+
+new_str:
+            panelHint: z
+              .enum([
+                'multi_referral',
+                'vp_certification',
+                'mayor_decision',
+                'mayor_lapse_confirmation',
+                'veto_override_recording',
+                'docketing',
+                'panlalawigan_outcome',
+                'publication_date',
+                'returned_review_decision',
+                'legal_office_review_decision',
+                'committee_revisions_decision',
+                'valid_in_part_decision',
+                'secretariat_decision',
+                'generic_action',
+                'generic_approval',
+              ])
+              .nullable(),
+          })
+```
+
+Note the indentation is one level deeper here (this block is nested one
+level further than the `getInstance` occurrence — 12 spaces before
+`panelHint` vs. 10 in Part 1c) and this `old_str` ends with a bare `})`
+rather than `}),` followed by `.query(...)` — this is what disambiguates it
+from Part 1c's target. If your tool reports this doesn't match uniquely,
+stop and report the actual surrounding content rather than guessing.
+
+**No changes are needed to `getActiveInstanceForDocument`'s return-object
+construction** — it doesn't destructure or list `panelHint`'s possible
+values anywhere else; the `computePanelHint` function itself (widened in
+1a/1b) is shared by both call sites and already returns the correct new
+value once 1a/1b are applied.
+
+### Part 2 — Frontend: new dedicated panel component
+
+**File to create:** `apps/web/src/pages/workflow/panels/ValidInPartDecisionPanel.tsx`
+
+Mirror the established multi-outcome house pattern used by
+`ReturnedReviewDecisionPanel.tsx` and `LegalOfficeReviewDecisionPanel.tsx`
+(both in the same directory): a single shared `submitApprovalOutcome`
+mutation, a typed `mutate(outcome)` helper function, one button per outcome.
+
+**Authoritative decision table — this table is authoritative; if any prose
+elsewhere in this task appears to conflict with it, this table wins:**
+
+| Outcome literal | Button label | Comment required? |
+|---|---|---|
+| `RESOLVED_IN_PLACE` | "Resolve In Place" | **Yes** |
+| `ROUTED_TO_LEGAL` | "Route to Legal Office" | No |
+| `ROUTED_TO_COMMITTEE` | "Route to Committee" | No |
+| `REVISED_DIRECTLY` | "Revise Directly" | **Yes** |
+
+This is a genuinely new situation relative to the three existing sibling
+panels: none of them has *mixed* per-outcome comment requirements within a
+single panel (each existing sibling panel's outcomes are uniformly
+all-required or — there is no all-not-required case among them). You must
+implement per-outcome comment gating: the two outcomes marked "Yes" above
+must block submission client-side with a toast error if the comment field
+is empty (mirroring the existing all-required panels' validation style,
+e.g. `if (!remarks) { toast.error('Remarks are required for this
+decision.'); return; }`), and the two marked "No" must submit successfully
+whether or not the comment field has content.
+
+Reference implementation shape (adapt variable/component names to match
+this new file, but follow this exact structure):
+
+```typescript
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
+import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
+
+import { trpc, type RouterOutputs } from '@/lib/trpc';
+
+export function ValidInPartDecisionPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
+  const navigate = useNavigate();
+  const utils = trpc.useUtils();
+  const [remarks, setRemarks] = useState('');
+
+  const submitOutcomeMutation = trpc.workflow.submitApprovalOutcome.useMutation({
+    onSuccess: () => {
+      toast.success('Decision logged successfully.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
+      navigate('/workflow/steps');
+    },
+    onError: (err) => toast.error(err.message || 'Failed to log decision.'),
+  });
+
+  const mutate = (
+    outcome: 'RESOLVED_IN_PLACE' | 'ROUTED_TO_LEGAL' | 'ROUTED_TO_COMMITTEE' | 'REVISED_DIRECTLY',
+    requireRemarks: boolean,
+  ) => {
+    if (requireRemarks && !remarks) {
+      toast.error('Remarks are required for this decision.');
+      return;
+    }
+    submitOutcomeMutation.mutate({
+      stepInstanceId: instance.currentStepInstanceId,
+      outcome,
+      comment: remarks || undefined,
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>VALID-IN-PART — Resolution Path</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Remarks</label>
+          <Textarea
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            placeholder="Enter remarks..."
+          />
+        </div>
+        <div className="flex space-x-2">
+          <Button onClick={() => mutate('RESOLVED_IN_PLACE', true)} disabled={submitOutcomeMutation.isPending}>
+            Resolve In Place
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => mutate('ROUTED_TO_LEGAL', false)}
+            disabled={submitOutcomeMutation.isPending}
+          >
+            Route to Legal Office
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => mutate('ROUTED_TO_COMMITTEE', false)}
+            disabled={submitOutcomeMutation.isPending}
+          >
+            Route to Committee
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => mutate('REVISED_DIRECTLY', true)}
+            disabled={submitOutcomeMutation.isPending}
+          >
+            Revise Directly
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+The invalidation list above is copied verbatim from
+`LegalOfficeReviewDecisionPanel.tsx`/`ReturnedReviewDecisionPanel.tsx` (both
+already include `session.getOrderOfBusiness` — carry this over even though
+its relevance to this specific step hasn't been independently re-derived;
+it's the established pattern for all `_decision` panels sharing this
+directory and this task does not revisit that choice).
+
+### Part 3 — Frontend: wire the new panel into `WorkflowStepActionPage.tsx`
+
+**File:** `apps/web/src/pages/workflow/WorkflowStepActionPage.tsx`
+
+**3a. Add the import**, alongside the other panel imports (verified
+current — the file currently imports panels in alphabetical order by
+component name):
+
+```typescript
+old_str:
+import { VetoOverrideRecordingPanel } from './panels/VetoOverrideRecordingPanel';
+import { VPCertificationPanel } from './panels/VPCertificationPanel';
+
+new_str:
+import { ValidInPartDecisionPanel } from './panels/ValidInPartDecisionPanel';
+import { VetoOverrideRecordingPanel } from './panels/VetoOverrideRecordingPanel';
+import { VPCertificationPanel } from './panels/VPCertificationPanel';
+```
+
+**3b. Add the new switch case.** Place it immediately after the
+`committee_revisions_decision` case (verified current):
+
+```typescript
+old_str:
+      case 'committee_revisions_decision':
+        canAct = hasRole(identity, 'sp_member');
+        if (canAct) return <CommitteeRevisionsDecisionPanel instance={instance} />;
+        break;
+      default:
+        break;
+
+new_str:
+      case 'committee_revisions_decision':
+        canAct = hasRole(identity, 'sp_member');
+        if (canAct) return <CommitteeRevisionsDecisionPanel instance={instance} />;
+        break;
+      case 'valid_in_part_decision':
+        canAct = hasRole(identity, 'sp_secretary');
+        if (canAct) return <ValidInPartDecisionPanel instance={instance} />;
+        break;
+      default:
+        break;
+```
+
+## Decision table — edge cases (authoritative; do not deviate or generalize a different rule from surrounding prose)
+
+| Question | Answer |
+|---|---|
+| Which role can act on this panel? | `sp_secretary` only. This is enforced client-side in `WorkflowStepActionPage.tsx`'s switch (per Part 3b) and server-side by `submitApprovalOutcome`'s reuse of `canApproveStep`, which checks `subject.roles` against a shared `APPROVAL_STEP_ROLES` set — no per-stepKey server-side role check exists or is needed; do not add one. |
+| Does the panel itself need any role-gating logic inside the component? | No. Confirmed: none of the three existing sibling panel components (`ReturnedReviewDecisionPanel.tsx`, `LegalOfficeReviewDecisionPanel.tsx`, `CommitteeRevisionsDecisionPanel.tsx`) contain any role check — this is handled entirely by the switch in `WorkflowStepActionPage.tsx`. |
+| Should this task touch `office_id`, `computePanelHint`'s `secretariat_decision` branch, or `assignee-resolution.ts`? | No. Explicitly out of scope — a separate, larger, unrelated piece of work. |
+| Should this task touch `SecretariatDecisionPanel.tsx`? | No. It is confirmed dead code (unreachable, since no `panelHint` value ever routes to it), calls a structurally incompatible procedure (`logSecretariatDecision`), and deleting it is an explicitly separate, undecided question — leave it exactly as-is. |
+| Should this task touch `GenericApprovalPanel.tsx`? | No. That panel handles a disjoint outcome set (`APPROVED`/`REJECTED`/`RETURNED_FOR_REVISION`/`AMENDED`) for steps that fall through to `generic_approval`. Once this task's `computePanelHint` branch is added, `valid_in_part_decision` will no longer reach `generic_approval` at all, so no interaction between the two panels exists. |
+| Should `require_comment_on` be read dynamically from the backend, or hardcoded in the panel as a fixed decision table? | Hardcoded, per the decision table above — matching the existing established pattern where every sibling panel hardcodes its own comment-requirement logic rather than reading `config.require_comment_on` dynamically from any exposed API field (no such field is exposed to the frontend for any step, and this task does not add one). |
+| What happens if the user submits an outcome without a required comment? | Client-side toast error, submission blocked, exactly matching the existing pattern in all three sibling panels: `toast.error('Remarks are required for this decision.'); return;` |
+| Server-side, what happens if the client-side gate is somehow bypassed and an outcome requiring a comment is submitted without one? | `submitStepApproval` → `approval.handler.ts` throws `Error('VALIDATION_FAILED: comment is required')` (confirmed at `approval.handler.ts:71-79`) — this is an existing, unmodified safety net; this task does not touch that file. |
+
+## Scope
+
+**IN SCOPE:**
+- `apps/server/src/modules/workflow/workflow.router.ts` — `computePanelHint` function body and its return-type annotation; `getInstance`'s `panelHint` output-schema enum; `getActiveInstanceForDocument`'s `panelHint` output-schema enum. No other part of this file.
+- New file: `apps/web/src/pages/workflow/panels/ValidInPartDecisionPanel.tsx`
+- `apps/web/src/pages/workflow/WorkflowStepActionPage.tsx` — the new import line and the new switch case only.
+
+**OUT OF SCOPE (do not touch even if related):**
+- `assignee-resolution.ts`, `step-resolution.ts`, `create-instance.ts`, `workflow.policy.ts` — the `office_id` root-cause gap is separate, unrelated work.
+- `SecretariatDecisionPanel.tsx` — leave exactly as-is, including its dead-code status.
+- `GenericApprovalPanel.tsx` — no changes needed or wanted.
+- `submitApprovalOutcome` procedure itself (`workflow.router.ts:1317-1392`) — it is already step-key-agnostic and needs no changes to support this new outcome set.
+- `approval.handler.ts` — its existing validation already correctly handles this step's `allowed_outcomes` and `require_comment_on` config; no changes needed.
+- `getActiveInstanceForDocument`'s **return-object construction** and its (deliberate) lack of a `currentStepKey` field — only its `panelHint` enum list needs the new literal added (Part 1d); nothing else about this procedure changes.
+- `valid_in_part_action` (the upstream `action`-type step at `phase1-legislative.ts:267-280`) — unrelated to this task, routes through the existing generic action panel already.
+- Any document under `docs/pre-development/` (including `E1`'s stale `resolveValidInPart` spec) — flagged as a finding above, not something this task authorizes fixing; documentation corrections are a separate human decision per this project's own rule that agents never edit Group B–L documents based on something learned during execution.
+
+## Verification steps
+
+1. Typecheck (`pnpm --filter web typecheck` and the server-side equivalent) — must remain clean, zero new errors.
+2. Confirm each `old_str` in Parts 1a, 1b, 1c, 1d matches exactly once before applying. If any reports more than one match, stop and report the actual surrounding content rather than guessing which occurrence is correct.
+3. Confirm the new panel file typechecks against `RouterOutputs['workflow']['getInstance']`'s actual current shape (import correctness, not a re-derivation of the type).
+4. Manually trace or exercise: reach a `valid_in_part_decision` step as an `sp_secretary`-role user and confirm all four buttons render, the two comment-required buttons block submission with an empty comment field and toast an error, and the two comment-optional buttons submit successfully with an empty comment field.
+5. Confirm a non-`sp_secretary` user viewing this same step sees the fallback "Workflow Step Summary" card (i.e., `canAct` is `false` and no panel renders) rather than the new panel — this exercises the existing `WorkflowStepActionPage.tsx` gating logic, unmodified by this task, but should still be checked since it's the actual authorization boundary for this new UI surface.
+6. Confirm `getActiveInstanceForDocument` still returns successfully (no Zod output-validation throw) when queried for a document whose active step is `valid_in_part_decision` — this specifically exercises Part 1d; if 1d is missed, this call would throw at runtime because `computePanelHint` (shared by both procedures) would return a value not present in this procedure's enum.
+7. Confirm no other existing panel's rendering or behavior changed — specifically, open a step that resolves to `generic_approval` (any step not explicitly named in `computePanelHint`'s branches) and confirm `GenericApprovalPanel.tsx` still renders exactly as before, unaffected by this task.
+
+---
+
+# Standalone Prompt for Local Agent — TASK-WF-FE-024
+
+## Context
+
+The frontend panel at `apps/web/src/pages/workflow/panels/ValidInPartDecisionPanel.tsx` currently calls the wrong backend procedure for the `valid_in_part_decision` workflow step. It calls the generic `trpc.workflow.submitApprovalOutcome`, but a dedicated, more specific procedure — `trpc.workflow.resolveValidInPart` (defined in `apps/server/src/modules/workflow/workflow.router.ts`, starting at line 2316) — already exists for this exact step and performs additional required business logic that `submitApprovalOutcome` does not.
+
+Specifically, for the `ROUTED_TO_COMMITTEE` outcome, `resolveValidInPart` looks up the original `committee_referral` step's assigned committee, resolves that committee's chair via `orgService.getCommitteeChair`, and writes the resolved chair's user ID into the workflow instance's context under the key `referred_committee_chair_id` — all before advancing the step. The downstream `committee_revisions_review` step's assignee is resolved from that exact context key (`actor_from_context:referred_committee_chair_id`). Because the current panel calls `submitApprovalOutcome` instead, that context key is never written, and the `committee_revisions_review` step ends up with zero assignees — not an error, just a step nobody can act on. This task fixes the panel to call the correct procedure so that side effect actually runs.
+
+This task changes **only** the internals of `ValidInPartDecisionPanel.tsx`. It does not touch `workflow.router.ts`, `workflow.policy.ts`, `WorkflowStepActionPage.tsx`, or `PanlalawiganOutcomePanel.tsx` — all four already work correctly and are out of scope.
+
+## Exact file to change
+
+`apps/web/src/pages/workflow/panels/ValidInPartDecisionPanel.tsx`
+
+## Current file content (verbatim, confirmed against the live repository — this is the complete file as it exists right now)
+
+```tsx
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
+import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
+
+import { trpc, type RouterOutputs } from '@/lib/trpc';
+
+export function ValidInPartDecisionPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
+  const navigate = useNavigate();
+  const utils = trpc.useUtils();
+  const [remarks, setRemarks] = useState('');
+
+  const submitOutcomeMutation = trpc.workflow.submitApprovalOutcome.useMutation({
+    onSuccess: () => {
+      toast.success('Decision logged successfully.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
+      navigate('/workflow/steps');
+    },
+    onError: (err) => toast.error(err.message || 'Failed to log decision.'),
+  });
+
+  const mutate = (
+    outcome: 'RESOLVED_IN_PLACE' | 'ROUTED_TO_LEGAL' | 'ROUTED_TO_COMMITTEE' | 'REVISED_DIRECTLY',
+    requireRemarks: boolean,
+  ) => {
+    if (requireRemarks && !remarks) {
+      toast.error('Remarks are required for this decision.');
+      return;
+    }
+    submitOutcomeMutation.mutate({
+      stepInstanceId: instance.currentStepInstanceId,
+      outcome,
+      comment: remarks || undefined,
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>VALID-IN-PART — Resolution Path</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Remarks</label>
+          <Textarea
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            placeholder="Enter remarks..."
+          />
+        </div>
+        <div className="flex space-x-2">
+          <Button onClick={() => mutate('RESOLVED_IN_PLACE', true)} disabled={submitOutcomeMutation.isPending}>
+            Resolve In Place
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => mutate('ROUTED_TO_LEGAL', false)}
+            disabled={submitOutcomeMutation.isPending}
+          >
+            Route to Legal Office
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => mutate('ROUTED_TO_COMMITTEE', false)}
+            disabled={submitOutcomeMutation.isPending}
+          >
+            Route to Committee
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => mutate('REVISED_DIRECTLY', true)}
+            disabled={submitOutcomeMutation.isPending}
+          >
+            Revise Directly
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+## Required new file content (verbatim — replace the entire file with this)
+
+```tsx
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
+import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
+
+import { trpc, type RouterOutputs } from '@/lib/trpc';
+
+export function ValidInPartDecisionPanel({
+  instance,
+}: {
+  instance: RouterOutputs['workflow']['getInstance'];
+}) {
+  const navigate = useNavigate();
+  const utils = trpc.useUtils();
+  const [mandatoryComment, setMandatoryComment] = useState('');
+
+  const resolveMutation = trpc.workflow.resolveValidInPart.useMutation({
+    onSuccess: () => {
+      toast.success('Decision logged successfully.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.documents.get.invalidate({ documentId: instance.documentId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
+      navigate('/workflow/steps');
+    },
+    onError: (err) => toast.error(err.message || 'Failed to log decision.'),
+  });
+
+  const mutate = (
+    resolutionPath: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly',
+  ) => {
+    if (!mandatoryComment) {
+      toast.error('A comment is required for this decision.');
+      return;
+    }
+    resolveMutation.mutate({
+      documentId: instance.documentId,
+      resolutionPath,
+      mandatoryComment,
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>VALID-IN-PART — Resolution Path</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Comment</label>
+          <Textarea
+            value={mandatoryComment}
+            onChange={(e) => setMandatoryComment(e.target.value)}
+            placeholder="Enter a comment..."
+          />
+        </div>
+        <div className="flex space-x-2">
+          <Button onClick={() => mutate('resolve_as_is')} disabled={resolveMutation.isPending}>
+            Resolve In Place
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => mutate('route_to_legal')}
+            disabled={resolveMutation.isPending}
+          >
+            Route to Legal Office
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => mutate('route_to_committee')}
+            disabled={resolveMutation.isPending}
+          >
+            Route to Committee
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => mutate('implement_directly')}
+            disabled={resolveMutation.isPending}
+          >
+            Revise Directly
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+## Exact, authoritative decisions this rewrite encodes — this table is the source of truth for what changes; if anything else in this prompt's prose appears to conflict with it, this table wins
+
+```json
+{
+  "procedure_call_change": {
+    "old_procedure": "trpc.workflow.submitApprovalOutcome",
+    "new_procedure": "trpc.workflow.resolveValidInPart",
+    "old_input_shape": { "stepInstanceId": "string (uuid)", "outcome": "string", "comment": "string | undefined" },
+    "new_input_shape": { "documentId": "string (uuid)", "resolutionPath": "enum", "mandatoryComment": "string, non-empty" }
+  },
+  "outcome_literal_to_resolutionPath_mapping": {
+    "RESOLVED_IN_PLACE": "resolve_as_is",
+    "ROUTED_TO_LEGAL": "route_to_legal",
+    "ROUTED_TO_COMMITTEE": "route_to_committee",
+    "REVISED_DIRECTLY": "implement_directly"
+  },
+  "comment_requirement": {
+    "old_behavior": "required only for RESOLVED_IN_PLACE and REVISED_DIRECTLY (requireRemarks flag, true/false per button)",
+    "new_behavior": "required for ALL FOUR resolution paths, unconditionally — this matches resolveValidInPart's own server-side Zod schema (mandatoryComment: z.string().min(1), no per-outcome exception), and this uniform requirement is an intentional, decided change, not an oversight. Do not preserve the old per-outcome requireRemarks distinction in any form.",
+    "reasoning_if_asked": "resolveValidInPart's Zod schema requires a non-empty comment for every resolutionPath value with no exception. A client-side gate that's looser than this server-side requirement only produces an extra failed round-trip for the two previously-optional outcomes, so making the client match the server's actual requirement is the correct fix, not a compromise."
+  },
+  "ui_structure": {
+    "keep_unchanged": "The four-button layout (one button per outcome, not a dropdown-select-plus-single-button). This mirrors the existing house pattern used by this panel and its TASK-WF-FE-020 sibling panels (ReturnedReviewDecisionPanel.tsx, LegalOfficeReviewDecisionPanel.tsx, CommitteeRevisionsDecisionPanel.tsx).",
+    "do_not_adopt": "PanlalawiganOutcomePanel.tsx's dropdown-select UI pattern for its own 'Resolve Valid in Part' section, even though that section also calls resolveValidInPart. That pattern is out of scope for this task — do not change ValidInPartDecisionPanel.tsx's UI shape to match it."
+  },
+  "invalidation_list": {
+    "keep_unchanged": "utils.workflow.getInstance, utils.documents.get, utils.workflow.getActiveInstanceForDocument, utils.workflow.listMyAssignedSteps, utils.session.getOrderOfBusiness — all five, exactly as in the current file.",
+    "known_discrepancy_not_to_resolve_here": "PanlalawiganOutcomePanel.tsx's own resolveValidInPart caller (resolveMutation, in the same repository) only invalidates three of these five (omits listMyAssignedSteps and getOrderOfBusiness). This is a pre-existing discrepancy between the two call sites, not something this task should reconcile. Keep this panel's five-item list as-is; do not narrow it to match the other panel, and do not widen the other panel's list either — that file is out of scope for this task."
+  },
+  "state_variable_rename": {
+    "old_name": "remarks",
+    "new_name": "mandatoryComment",
+    "note": "Renamed to match the field name resolveValidInPart's input schema actually uses, for clarity. This is a pure rename with no behavioral effect — do not add any other state variables."
+  }
+}
+```
+
+## Scope boundary
+
+**IN SCOPE:** `apps/web/src/pages/workflow/panels/ValidInPartDecisionPanel.tsx` — full-file rewrite as specified above.
+
+**OUT OF SCOPE (do not touch even if related):** `apps/server/src/modules/workflow/workflow.router.ts`, `apps/server/src/modules/workflow/workflow.policy.ts`, `apps/web/src/pages/workflow/WorkflowStepActionPage.tsx`, `apps/web/src/pages/workflow/panels/PanlalawiganOutcomePanel.tsx`, any of the `TASK-WF-FE-020` sibling panel files (`ReturnedReviewDecisionPanel.tsx`, `LegalOfficeReviewDecisionPanel.tsx`, `CommitteeRevisionsDecisionPanel.tsx`), `SecretariatDecisionPanel.tsx`, and `assignee-resolution.ts`. None of these need any change for this task, and none should be modified as part of it.
+
+## Verification steps to run after making the change
+
+1. Confirm the new file's `resolveMutation.mutate(...)` call passes exactly `documentId`, `resolutionPath`, `mandatoryComment` — no other fields, no `stepInstanceId`, no `outcome`, no `comment`.
+2. Confirm all four buttons' `onClick` handlers pass the correct `resolutionPath` literal per the mapping table above (`resolve_as_is`, `route_to_legal`, `route_to_committee`, `implement_directly` — lowercase snake_case, not the old uppercase outcome literals).
+3. Confirm the comment-gate check (`if (!mandatoryComment) { ... return; }`) runs unconditionally, before every one of the four calls to `mutate(...)`, with no per-button exception.
+4. Run `pnpm typecheck` for the `@batac/web` package and confirm no new type errors are introduced — `resolveValidInPart`'s input type differs from `submitApprovalOutcome`'s, so a leftover reference to `stepInstanceId`, `outcome`, or `comment` inside this file would surface as a type error against the new mutation's input type.
+5. Do not run or modify anything related to the server-side test suite as part of this task — the currently-failing tests in `assignee-resolution.test.ts`, `workflow.plugin.test.ts`, and the broader UUID-fixture-format failures across the test suite are pre-existing, unrelated to this change, and out of scope here.
+
+---
+
+# TASK-WEB-LINT-001: Fix all import/order and import/no-duplicates ESLint errors via autofix
+
+## Context
+`@batac/web`'s ESLint config (`packages/config/eslint.base.js`, extended by
+`apps/web/eslint.config.cjs`) enforces `import/order` (grouped, alphabetized,
+with `@batac/**` pinned as an internal group positioned before other internal
+imports) and `import/no-duplicates`. A full `eslint .` run in `apps/web`
+currently reports errors for both rules across many files.
+
+## Scope
+
+IN SCOPE: Run ESLint's built-in autofix against the entire `apps/web`
+package, addressing ONLY `import/order` and `import/no-duplicates`
+violations. These are the only two rules in scope for this task.
+
+OUT OF SCOPE (do not touch even if related): Any `@typescript-eslint/*`
+rule violations (no-explicit-any, no-unsafe-assignment, no-unsafe-member-access,
+no-unsafe-call, no-unsafe-return, no-unused-vars), any `react-hooks/*`
+violations, and the parsing error on `test-script.ts`. These are handled by
+separate, later tasks. Do not run autofix in any package other than
+`apps/web`.
+
+## Exact command
+
+Run from the repository root:
+
+```bash
+pnpm --filter @batac/web exec eslint . --fix
+```
+
+If that filter syntax doesn't resolve in this repo's actual pnpm/turbo
+setup, run it directly inside `apps/web`:
+
+```bash
+cd apps/web && npx eslint . --fix
+```
+
+## Special attention required: one file has a non-import declaration embedded in its import block
+
+`apps/web/src/components/AuthenticatedLayout.tsx` currently has this structure
+(verified against the current repository state):
+
+```typescript
+import React, { useMemo } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import {
+  FileText,
+  CheckSquare,
+  List,
+  Calendar,
+  AlertCircle,
+  Inbox,
+  LayoutDashboard,
+  Settings,
+  Shield,
+  Building,
+  Users,
+} from 'lucide-react';
+
+import { AppShell, Sidebar, Topbar } from '@batac/ui';
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
+import { useSessionStore } from '@/stores';
+import { useAuthActions } from '@/hooks/useAuthActions';
+import { hasRole } from '../lib/auth-helpers';
+import { useShellStore } from '@/stores';
+import { useIdleTimer } from '@/hooks/useIdleTimer';
+import { SessionLockScreen } from '@/pages/auth/SessionLockScreen';
+import { IdleWarningModal } from '@/components/IdleWarningModal';
+```
+
+Note the `interface BreadcrumbItem { ... }` declaration sitting between the
+`@batac/ui` import and the `@/stores` imports. After running `--fix` on this
+file, manually verify that:
+1. The `interface BreadcrumbItem` declaration still exists in the file,
+   unchanged, in valid TypeScript syntax.
+2. It ends up positioned either before all imports or after all imports (not
+   still interleaved mid-block) — ESLint's autofixer for `import/order`
+   generally moves contiguous import statements as a block past non-import
+   code, but this is exactly the kind of edge case worth a manual look
+   rather than assuming it worked.
+3. `useNavigate` (from the `react-router-dom` import on the original line 2)
+   is separately flagged by `@typescript-eslint/no-unused-vars` in this same
+   file — this is OUT OF SCOPE for this task (see TASK-WEB-LINT-002) and
+   must NOT be touched here. Autofix will not remove it since
+   `no-unused-vars` is not an autofixable rule; this note is just to confirm
+   you should leave it exactly as autofix leaves it.
+4. This file also has two separate `import { ... } from '@/stores';`
+   statements (one importing `useSessionStore`, one importing
+   `useShellStore`) that `import/no-duplicates` should merge into one
+   combined import statement. Confirm after autofix that exactly one
+   `from '@/stores'` import statement remains, containing both named
+   imports.
+
+## Verification after autofix
+
+Re-run lint and confirm:
+1. Zero remaining errors with rule name `import/order`.
+2. Zero remaining errors with rule name `import/no-duplicates`.
+3. The total problem count has decreased by exactly 98 from the pre-fix
+   baseline of 338 (92 `import/order` + 6 `import/no-duplicates` = 98), UNLESS
+   autofix could not resolve every instance in one pass (ESLint's own
+   reported "potentially fixable" count in the original lint run was 93, not
+   98 — a gap of 5). If after running `--fix` there are still `import/order`
+   or `import/no-duplicates` errors remaining, do NOT attempt to hand-fix
+   them as part of this task — instead, report back exactly which file(s)
+   and line(s) still show these two rules as errors after autofix, with the
+   exact current error text, so a follow-up task can address the specific
+   remaining cases (likely import statements that pull different named
+   exports from the same duplicated module path, which the autofixer cannot
+   always safely merge without knowing whether combining them changes
+   behavior).
+4. Run `pnpm --filter @batac/web typecheck` (or the equivalent typecheck
+   command for this package) after autofix completes, to confirm the
+   reordering did not break any TypeScript compilation — reordering imports
+   should never change runtime or type behavior, but this is a cheap,
+   worthwhile confirmation given the scale of the change (dozens of files).
+
+## Files known to be affected by these two rules specifically (for reference — the autofix run itself will find all instances; this list is a sanity-check reference, not an exhaustive worklist to process file-by-file)
+
+`apps/web/src/components/AuthenticatedLayout.tsx`,
+`apps/web/src/components/DocumentPicker.tsx`,
+`apps/web/src/components/EmployeePicker.tsx`,
+`apps/web/src/components/IdleWarningModal.tsx`,
+`apps/web/src/components/RequireAuth.tsx`,
+`apps/web/src/components/SessionHydrator.tsx`,
+`apps/web/src/hooks/useAuthActions.ts`,
+`apps/web/src/hooks/useIdleTimer.ts`,
+`apps/web/src/lib/trpc.ts`,
+`apps/web/src/main.tsx`,
+`apps/web/src/pages/HomePage.tsx`,
+`apps/web/src/pages/NotFoundPage.tsx`,
+`apps/web/src/pages/auth/LoginPage.tsx`,
+`apps/web/src/pages/auth/ResetPasswordPage.tsx`,
+`apps/web/src/pages/auth/SessionLockScreen.tsx`,
+`apps/web/src/pages/documents/ComplaintDetailPage.tsx`,
+`apps/web/src/pages/documents/DocumentDetailPage.tsx`,
+`apps/web/src/pages/documents/DocumentRequestDetailPage.tsx`,
+`apps/web/src/pages/iam/RoleAssignmentPage.tsx`,
+`apps/web/src/pages/organization/OrganizationPage.tsx`,
+`apps/web/src/pages/sysadmin/ActiveSessionsPage.tsx`,
+`apps/web/src/pages/sysadmin/DatabasePerformancePage.tsx`,
+`apps/web/src/pages/sysadmin/EnvironmentConfigPage.tsx`,
+`apps/web/src/pages/sysadmin/SecurityAuditLedgerPage.tsx`,
+`apps/web/src/pages/sysadmin/SystemLogsPage.tsx`,
+`apps/web/src/pages/sysadmin/UserAccountManagementPage.tsx`,
+`apps/web/src/pages/workflow/MayorDashboardPage.tsx`,
+`apps/web/src/pages/workflow/MyAssignedStepsPage.tsx`,
+`apps/web/src/pages/workflow/OrderOfBusinessPage.tsx`,
+`apps/web/src/pages/workflow/SecretaryDashboardPage.tsx`,
+`apps/web/src/pages/workflow/SessionAttendanceDetailPage.tsx`,
+`apps/web/src/pages/workflow/WorkflowStepActionPage.tsx`,
+`apps/web/src/pages/workflow/panels/MultiReferralPanel.tsx`.
+
+## Do not touch
+
+`apps/web/test-script.ts` — this file fails to parse entirely (separate
+issue, separate task) and is not part of the `src/` TypeScript project;
+autofix should naturally skip it since ESLint can't parse it, but do not
+attempt to manually fix its import ordering as a side effect of this task.
+
+---
+
+# TASK-WEB-LINT-002: Remove dead variables and eliminate straightforward `any`-typing leaks across `@batac/web`
+
+## Context
+This task addresses `@typescript-eslint/no-unused-vars`,
+`@typescript-eslint/no-explicit-any`, `@typescript-eslint/no-unsafe-assignment`,
+`@typescript-eslint/no-unsafe-member-access`, `@typescript-eslint/no-unsafe-call`,
+and `@typescript-eslint/no-unsafe-return` violations in `apps/web`, EXCLUDING
+`apps/web/src/pages/documents/DocumentIntakePage.tsx`, which is handled by a
+separate, dedicated task (TASK-WEB-LINT-003) due to its size and the design
+decisions it requires.
+
+This task assumes TASK-WEB-LINT-001 (import ordering) has already been
+completed. Do not attempt to fix any `import/order` or `import/no-duplicates`
+errors as part of this task even if you encounter them.
+
+## Scope
+
+IN SCOPE: The specific fixes enumerated below, file by file. Do NOT expand
+scope to other `any`/unused-var instances not listed here — if `eslint .`
+run after this task still reports errors in these two rule families
+anywhere outside `DocumentIntakePage.tsx`, STOP and report back rather than
+silently fixing more than what's listed (this list was built from direct
+verification against the current repository state; if the live file no
+longer matches what's described below, treat that as a signal the file has
+changed since this prompt was written, and report the discrepancy rather
+than guessing at how to proceed).
+
+OUT OF SCOPE (do not touch even if related):
+`apps/web/src/pages/documents/DocumentIntakePage.tsx` (separate task),
+`apps/web/test-script.ts` (separate task — parsing error, not a code fix),
+any `react-hooks/*` rule violations (separate task, see TASK-WEB-LINT-004),
+any `import/*` rule violations (handled by TASK-WEB-LINT-001, already done).
+
+---
+
+## Part A: Remove dead `roleCodes`/`roles` variables (identical pattern, 9 files)
+
+### Verified finding
+In every file listed below, a local variable (`roleCodes` or `roles`) is
+assigned via `const <name> = identity?.roleCodes ?? [];` (in one case,
+`const roleCodes: string[] = identity?.roleCodes ?? [];` with an explicit
+type annotation) but is never referenced again anywhere else in the file.
+The actual authorization check in every one of these files uses
+`hasRole(identity, ...)`, called directly on the `identity` object — NOT on
+the dead `roleCodes`/`roles` variable. Removing the variable does not change
+the behavior of the `hasRole` check in any of these files; this was
+independently verified by reading each file's full authorization logic, not
+inferred from the pattern alone.
+
+### The fix, file by file
+
+| File | Line | Exact current text to delete |
+|---|---|---|
+| `apps/web/src/pages/documents/ComplaintDetailPage.tsx` | 108 | `  const roles = identity?.roleCodes ?? [];` |
+| `apps/web/src/pages/documents/DocumentDetailPage.tsx` | 245 | `  const roles = identity?.roleCodes ?? [];` |
+| `apps/web/src/pages/documents/DocumentRequestDetailPage.tsx` | 75 | `  const roleCodes = identity?.roleCodes ?? [];` |
+| `apps/web/src/pages/documents/DocumentRequestDetailPage.tsx` | 93 | `  const roleCodes = identity?.roleCodes ?? [];` (a second, separate occurrence in the same file — this file has two functions, each with its own copy of the dead variable) |
+| `apps/web/src/pages/workflow/MayorDashboardPage.tsx` | 15 | `  const roleCodes = identity?.roleCodes ?? [];` |
+| `apps/web/src/pages/workflow/MyAssignedStepsPage.tsx` | 49 | `  const roleCodes: string[] = identity?.roleCodes ?? [];` |
+| `apps/web/src/pages/workflow/OrderOfBusinessPage.tsx` | 77 | `  const roleCodes = identity?.roleCodes ?? [];` |
+| `apps/web/src/pages/workflow/SecretaryDashboardPage.tsx` | 25 | `  const roleCodes = identity?.roleCodes ?? [];` |
+| `apps/web/src/pages/workflow/WorkflowStepActionPage.tsx` | 65 | `    const roles = identity?.roleCodes ?? [];` (note: 4-space indent in this file, not 2 — this line sits inside a nested function/closure, not at the top level of the component) |
+| `apps/web/src/pages/workflow/panels/MultiReferralPanel.tsx` | 40 | `  const roleCodes: string[] = identity?.roleCodes ?? [];` |
+
+For each: delete the exact line shown (including its leading whitespace/
+indentation and trailing semicolon/newline), and nothing else on that line
+or adjacent lines. Do not remove the `identity` variable itself — it is used
+elsewhere in every one of these files for the `hasRole(identity, ...)` call
+that must remain untouched.
+
+Before deleting each one, confirm via a text search of the specific file
+that the variable name (`roleCodes` or `roles`) does not appear anywhere
+else in that file outside of this one declaration line and outside of
+unrelated prose in comments. If you find any additional reference to the
+variable beyond what's described here, STOP and report it rather than
+deleting — this would mean the file has changed since this prompt was
+written and the "safe to delete" determination needs to be re-verified for
+that specific file.
+
+---
+
+## Part B: Remove other unused imports/variables (5 distinct, unrelated cases)
+
+Each of these is independent — verified individually, no shared root cause
+with Part A or with each other.
+
+**`apps/web/src/components/AuthenticatedLayout.tsx`, line 2:**
+old_str: `import { Outlet, useLocation, useNavigate } from 'react-router-dom';`
+new_str: `import { Outlet, useLocation } from 'react-router-dom';`
+(`useNavigate` is imported but never called anywhere in this file — confirmed
+via full-file search, it appears only in this one import line.)
+
+**`apps/web/src/components/RequireAuth.tsx`, line 4:**
+Delete the entire line: `import { useAuthActions } from '@/hooks/useAuthActions';`
+(confirmed unused — this import line is the only place `useAuthActions`
+appears anywhere in this 18-line file.)
+
+**`apps/web/src/pages/HomePage.tsx`, line 4:**
+Delete the entire line: `import { useAuthActions } from '@/hooks/useAuthActions';`
+(confirmed unused — same situation as `RequireAuth.tsx` above, independently
+verified in this file too.)
+
+**`apps/web/src/pages/auth/SessionLockScreen.tsx`:**
+1. Line 13: delete `  const setIsLocked = useSessionStore((state) => state.setIsLocked);`
+   — confirmed safe: `useAuthActions()`'s own `unlock` function (in
+   `apps/web/src/hooks/useAuthActions.ts`, line 98) already calls
+   `useSessionStore.getState().setIsLocked(false)` internally on a successful
+   unlock. This component does not need its own separate reference to the
+   action; the state is already updated by the time `unlock()` resolves
+   successfully. This was verified by reading `useAuthActions.ts` directly,
+   not assumed.
+2. Line 42, exact current text:
+   ```typescript
+    } catch (err: any) {
+      setError(err.message || 'An error occurred. Please try again.');
+   ```
+   Replace with:
+   ```typescript
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
+   ```
+   This follows J3 §10.2's documented convention exactly (`catch (e)` is
+   always `unknown`; narrow with `instanceof Error` before accessing
+   `.message`).
+
+**`apps/web/src/pages/workflow/panels/SessionAttendanceDetailPage.tsx`
+(note: file is actually at `apps/web/src/pages/workflow/SessionAttendanceDetailPage.tsx`,
+not under `panels/` — verify the exact path before editing), line 18:**
+Delete `  Checkbox,` from the named-import list from `@batac/ui` (it is one
+line among several imported names; delete only this one line from the
+multi-line import block, leave every other name in that import list
+untouched). Confirmed unused via full-file search — `Checkbox` does not
+appear anywhere else in this file.
+
+---
+
+## Part C: `DocumentDetailPage.tsx` — partial destructure removal (distinct from Part A's fix to the SAME file)
+
+This file has two unrelated fixes: Part A above already covers its dead
+`roles` variable at line 245. This is a SEPARATE fix, for two other unused
+bindings in the same file.
+
+Current text (verified, lines 248–258):
+```typescript
+  const {
+    data: document,
+    isLoading,
+    isError,
+    refetch: refetchDocument,
+  } = trpc.documents.get.useQuery({ documentId: documentId! }, { enabled: !!documentId });
+
+  // ── Read group: documents.getVersionHistory ────────────────────────────────
+  const { data: versions, refetch: refetchVersions } = trpc.documents.getVersionHistory.useQuery(
+    { documentId: documentId! },
+    { enabled: !!documentId },
+  );
+```
+
+Required change: remove ONLY the `refetch: refetchDocument,` binding and the
+`refetch: refetchVersions` binding. Do NOT remove `data: document`,
+`isLoading`, `isError`, or `data: versions` — these four are used elsewhere
+in the file (confirmed: `document` appears 32 times, `isLoading` 2 times,
+`isError` 2 times, `versions` 6 times, all after this destructuring point).
+
+New text:
+```typescript
+  const {
+    data: document,
+    isLoading,
+    isError,
+  } = trpc.documents.get.useQuery({ documentId: documentId! }, { enabled: !!documentId });
+
+  // ── Read group: documents.getVersionHistory ────────────────────────────────
+  const { data: versions } = trpc.documents.getVersionHistory.useQuery(
+    { documentId: documentId! },
+    { enabled: !!documentId },
+  );
+```
+
+---
+
+## Part D: Fix `any`-typing in raw `fetch()`/`response.json()` call sites (2 files, related pattern, different resolutions)
+
+### D1 — `apps/web/src/components/SessionHydrator.tsx`
+
+Current text (verified, inside the `if (!response.ok)` branch):
+```typescript
+          let traceId: string | undefined;
+          try {
+            const errorBody = await response.json();
+            traceId = errorBody?.error?.traceId;
+          } catch {
+```
+
+`response.json()` returns `Promise<any>` by default (this is the built-in
+DOM `Response.json()` type signature), so `errorBody` and the subsequent
+`.error?.traceId` access are both flagged.
+
+This file already has a working pattern for a *different* response body a
+few lines below (`const envelope = (await response.json()) as AuthEnvelope;`)
+— define a small local interface for the error-body shape and use the same
+`as` assertion technique:
+
+Add this interface near the top of the file, alongside the existing
+`AuthResponseData`/`AuthEnvelope` interfaces:
+```typescript
+interface AuthErrorEnvelope {
+  ok: false;
+  error?: {
+    traceId?: string;
+  };
+}
+```
+
+Then change:
+```typescript
+            const errorBody = await response.json();
+            traceId = errorBody?.error?.traceId;
+```
+to:
+```typescript
+            const errorBody = (await response.json()) as AuthErrorEnvelope;
+            traceId = errorBody?.error?.traceId;
+```
+
+### D2 — `apps/web/src/hooks/useAuthActions.ts`, the `unlock` function
+
+**This one requires a decision before proceeding — see Q1 in the
+investigation summary this prompt was generated alongside.** The server's
+actual error-envelope shape for this endpoint (verified directly against
+`apps/server/src/modules/iam/iam.routes.ts`, the `/api/auth/unlock` route
+handler) is:
+```typescript
+{ ok: false, error: { code: string, message: string, traceId: string } }
+```
+with the `code` field capable of being `'REFRESH_REQUIRED'`,
+`'INVALID_PASSWORD'`, or `'UNAUTHORIZED'` depending on the failure branch
+(confirmed by reading all three `reply.status(401).send({...})` call sites
+in that route handler). The frontend's current `unlock` return type only
+declares `'INVALID_PASSWORD' | 'REFRESH_REQUIRED'` as possible codes — it is
+missing `'UNAUTHORIZED'` as a documented possibility, and it never surfaces
+the `traceId` field the server actually sends.
+
+**Do not silently widen the return type to include `'UNAUTHORIZED'` or add
+`traceId` as part of this lint-fix task** — that would be a functional
+change beyond what "fix lint errors" was asked for, layered on top of a
+type-safety fix. Fix ONLY the immediate `any` leak, matching the function's
+EXISTING declared return type exactly as it is today, and flag the
+`'UNAUTHORIZED'`/`traceId` gap as a separate finding (see the
+`development-findings-log.md` entry included alongside this set of prompts,
+which already logs this — do not duplicate the log entry, just be aware the
+gap is known and intentionally out of scope here).
+
+Current text (verified, lines 79–100):
+```typescript
+  const unlock = useCallback(async (
+    password: string
+  ): Promise
+    | { ok: true }
+    | { ok: false; code: 'INVALID_PASSWORD' | 'REFRESH_REQUIRED'; message?: string }
+  > => {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/unlock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ password }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      if (data.error?.code === 'REFRESH_REQUIRED') {
+        return { ok: false, code: 'REFRESH_REQUIRED', message: data.error?.message };
+      }
+      return { ok: false, code: 'INVALID_PASSWORD', message: data.error?.message };
+    }
+    useSessionStore.getState().setIsLocked(false);
+    return { ok: true };
+  }, []);
+```
+
+Add a local interface near the top of the file (alongside the existing
+`AuthResponseData`/`AuthEnvelope` interfaces already in this file):
+```typescript
+interface UnlockErrorResponse {
+  ok: false;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+}
+```
+
+Change `const data = await response.json();` to:
+```typescript
+    const data = (await response.json()) as UnlockErrorResponse;
+```
+
+Leave every other line in this function exactly as-is — the existing
+`data.error?.code === 'REFRESH_REQUIRED'` comparison and the two `return`
+statements do not need to change, they will now simply be operating on a
+properly-typed `data` instead of an implicit `any`.
+
+---
+
+## Part E: Fix `any`-typing where a tRPC query result is redundantly re-annotated (2 files, same root cause)
+
+### E1 — `apps/web/src/pages/sysadmin/EnvironmentConfigPage.tsx`
+
+Current text (verified, line 72):
+```typescript
+                  {data.map((item: any) => (
+```
+
+`data` here comes from `trpc.iam.getEnvironmentConfigMatrix.useQuery()` (line
+28 of the same file) — a tRPC procedure, meaning its return type is already
+fully and correctly inferred end-to-end by tRPC from the server procedure's
+actual return type. The explicit `(item: any)` annotation is unnecessary and
+is actively suppressing the correct inferred type. Simply remove the
+annotation:
+
+old_str: `{data.map((item: any) => (`
+new_str: `{data.map((item) => (`
+
+After this change, verify via `pnpm typecheck` that TypeScript can still
+resolve `item.key`, `item.isSet`, `item.isMasked`, `item.value` correctly
+(all four are accessed later in this same `.map()` callback) — this should
+work automatically once tRPC's inference isn't being overridden, but confirm
+rather than assume, since if the server procedure's own return type has
+gaps, removing the `any` override could surface a different, currently-
+hidden type error rather than resolving cleanly.
+
+### E2 — `apps/web/src/pages/sysadmin/SecurityAuditLedgerPage.tsx` — DO NOT FIX AS PART OF THIS TASK, FLAG INSTEAD
+
+**This file's `any` leak has a different, more significant root cause than
+E1's — do not apply the same "just remove the annotation" fix here.**
+
+The lint output flags `eventTypes?.map((et) => ...)` at this file's line 64
+(where `eventTypes` comes from `trpc.audit.getSecurityLedgerEventTypes.useQuery()`
+at line 32). Unlike `EnvironmentConfigPage.tsx`, there is NO explicit `any`
+annotation anywhere in this frontend file for `et` or `eventTypes` — the
+`any` type is being correctly inferred by tRPC from the ACTUAL SERVER
+PROCEDURE's return type, because the server procedure itself genuinely
+returns `any`.
+
+Verified at `apps/server/src/modules/audit/audit.router.ts`, inside the
+`getSecurityLedgerEventTypes` procedure (starts at line 660 in the current
+repository state):
+```typescript
+    getSecurityLedgerEventTypes: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.auth.isItAdmin) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'System Admin access required' });
+        }
+        const service = auditService ?? ((ctx.req.server as any).auditService as AuditPublicAPI);
+        
+        // Dynamically query distinct eventType values from the table.
+        // We bypass the AuditPublicAPI interface here to avoid modifying
+        // the core domain interfaces for a UI-specific dropdown requirement.
+        const db = service._internal.repo.db;
+        const { auditEvents } = await import('@batac/database/schema/audit.schema.js');
+        const { eq } = await import('drizzle-orm');
+        
+        const result = await db
+          .selectDistinct({ eventType: auditEvents.eventType })
+          .from(auditEvents)
+          .where(eq(auditEvents.cityId, ctx.auth.cityId));
+
+        return result.map((r: any) => r.eventType);
+      }),
+```
+
+Two explicit `any` casts exist here: `(ctx.req.server as any).auditService`
+and `result.map((r: any) => r.eventType)`. The inline comment shows this was
+a DELIBERATE, acknowledged shortcut ("We bypass the AuditPublicAPI interface
+here... to avoid modifying the core domain interfaces for a UI-specific
+dropdown requirement"), not an oversight.
+
+**Do not modify this server-side file as part of an "apps/web lint fix"
+task.** This file is in `apps/server`, which was not part of the original
+lint scope (recall: the `server` package has no `lint` script defined at
+all, so this `any` was never actually caught by any lint run — it was only
+discovered here because tracing the frontend's `any` leak led to it). Fixing
+it properly would mean either: (a) extending `AuditPublicAPI`'s domain
+interface to support this query pattern properly (the exact thing the
+original comment says was deliberately avoided), or (b) at minimum typing
+the two `any` casts more narrowly. Either is a genuine design decision about
+the `audit` module's domain-interface boundary (governed by J1/J4), not a
+mechanical lint fix, and touching it back-doors a server-side architectural
+change into what was scoped as a frontend lint-cleanup task.
+
+**Action required:** leave `apps/web/src/pages/sysadmin/SecurityAuditLedgerPage.tsx`
+and `apps/server/src/modules/audit/audit.router.ts` both untouched. Report
+this finding back rather than fixing it. (A findings-log entry for this has
+already been prepared separately — do not create a duplicate.)
+
+---
+
+## Part F: `apps/web/src/lib/trpc.ts` — untyped tRPC batch-link error response
+
+Current text (verified, lines 42–57):
+```typescript
+        let response = await fetch(url, fetchOptions);
+
+        let traceId: string | undefined;
+        try {
+          if (!response.ok) {
+            const cloned = response.clone();
+            const json = await cloned.json();
+            if (Array.isArray(json)) {
+              traceId = json[0]?.error?.json?.data?.traceId;
+            } else {
+              traceId = json?.error?.json?.data?.traceId;
+            }
+          }
+        } catch {
+          // Ignore parsing errors; we just want traceId if available
+        }
+```
+
+This is reading tRPC's own internal error-response envelope shape (the
+`Array.isArray(json)` branch is characteristic of tRPC's `httpBatchLink`
+batch-error format specifically), not a bespoke shape unique to this
+codebase. **Before writing a hand-rolled interface for this shape, check
+whether `@trpc/server` or `@trpc/client` already exports a usable type for
+this envelope** (e.g., something resembling `TRPCErrorResponse` or similar —
+the exact export name needs to be checked against the actually-installed
+version of these packages, which was not verifiable in the environment this
+prompt was written in, since dependencies are not installed there). If a
+usable exported type exists, use it. If not, define a minimal local
+interface matching only the fields actually read (`error.json.data.traceId`)
+and use the same `as` pattern as the fixes above:
+
+```typescript
+interface TRPCBatchErrorEnvelope {
+  error?: {
+    json?: {
+      data?: {
+        traceId?: string;
+      };
+    };
+  };
+}
+```
+
+```typescript
+            const json = (await cloned.json()) as TRPCBatchErrorEnvelope | TRPCBatchErrorEnvelope[];
+            if (Array.isArray(json)) {
+              traceId = json[0]?.error?.json?.data?.traceId;
+            } else {
+              traceId = json?.error?.json?.data?.traceId;
+            }
+```
+
+Verify via `pnpm typecheck` after this change.
+
+---
+
+## Part G: `apps/web/src/pages/auth/SessionLockScreen.tsx` — this file also has TWO no-explicit-any related fixes already covered
+
+(Cross-reference only — do not duplicate: line 13 and line 42 fixes for this
+file are both already specified in full under Part B above. No additional
+action needed here.)
+
+---
+
+## Part H: `apps/web/src/stores/shell.store.ts` — flag, do not blindly fix
+
+Current text (verified, lines 46–51, inside the `persist()` middleware
+config):
+```typescript
+    {
+      name: 'batac-dms:layout', // Keep existing localStorage key from old layout.store
+      version: 1,
+      // Persist ONLY sidebarCollapsed, per F2 Persistence Rules
+      partialize: (state) => ({ sidebarCollapsed: state.sidebarCollapsed }) as any,
+    },
+```
+
+The `as any` here suppresses whatever type mismatch Zustand's `persist`
+middleware's `partialize` option was producing without it. Unlike the fixes
+above, this one cannot be resolved with confidence without actually
+type-checking the change, since the correct typing depends on exactly how
+`ShellState & ShellActions` interacts with `persist`'s generic constraints
+(a detail not independently verifiable without running the TypeScript
+compiler against the full, dependency-installed project).
+
+**Action required:**
+1. Remove the `as any` cast: `partialize: (state) => ({ sidebarCollapsed: state.sidebarCollapsed }),`
+2. Run `pnpm --filter @batac/web typecheck`.
+3. If it compiles cleanly without the cast, done — the cast was unnecessary
+   or stale.
+4. If it produces a type error, do NOT re-add `as any` and do NOT attempt
+   your own fix — report back the exact TypeScript error message. This is a
+   genuine Zustand-typing question (likely needing `persist<ShellState &
+   ShellActions, [], [], Partial<ShellState>>(...)`-style generic parameters
+   or similar) that should be resolved with the actual compiler error in
+   hand, not guessed at.
+
+---
+
+## Verification after this entire task
+
+Run `eslint .` in `apps/web` again. Confirm:
+1. Zero remaining `@typescript-eslint/no-unused-vars` errors anywhere
+   outside `DocumentIntakePage.tsx`.
+2. Zero remaining `@typescript-eslint/no-explicit-any`,
+   `@typescript-eslint/no-unsafe-assignment`,
+   `@typescript-eslint/no-unsafe-member-access`,
+   `@typescript-eslint/no-unsafe-call`, or
+   `@typescript-eslint/no-unsafe-return` errors anywhere outside
+   `DocumentIntakePage.tsx`, EXCEPT for `SecurityAuditLedgerPage.tsx`'s
+   `any` leak, which is explicitly and deliberately left unfixed per Part E2
+   above, and should still appear in the lint output after this task
+   completes.
+3. Run `pnpm --filter @batac/web typecheck` (or equivalent) as a final
+   check across the whole package.
+
+---
+
+# TASK-WEB-LINT-003: Eliminate `any`-typing cascade in DocumentIntakePage.tsx
+
+## Context
+`apps/web/src/pages/documents/DocumentIntakePage.tsx` (634 lines total, in
+the current repository state) accounts for 164 of the 338 total lint
+problems found in a recent `apps/web` lint run — by far the largest single
+concentration in the package. This task is scoped separately from
+TASK-WEB-LINT-002 because of its size and because it requires one upfront
+design decision (see "Required decision before starting," below) that must
+be resolved before any code is written, not discovered partway through.
+
+This task assumes TASK-WEB-LINT-001 (import ordering) is already complete.
+Do NOT touch import ordering in this file as part of this task.
+
+## Root cause (verified)
+
+This file defines five helper components, each with an `any`-typed
+destructured-props signature, all consuming a JSON-Schema-like property
+descriptor object (referred to below as a "schema property descriptor" —
+the shape has `type`, `enum`, `properties`, `required`, and `items` fields,
+matching the draft-07-style JSON Schema documented in
+`docs/development-findings-log.md` entry LOG-0034 as the real shape of
+`document_type.metadata_schema` in the database). The five functions, with
+their current exact signatures (verified against the current file state):
+
+```typescript
+// Line 29
+function SponsorsArrayField({ name, prop, control, label, isRequired, setValue }: any) {
+
+// Line 111
+function DynamicArrayField({ name, prop, control, register, label, isRequired, setValue }: any) {
+
+// Line 151
+function UserPickerField({ name, control, label, isRequired, setValue }: any) {
+
+// Line 195
+function OfficePickerField({ name, control, label, isRequired }: any) {
+
+// Line 227
+function DynamicField({ name, prop, control, register, label, isRequired, setValue, errors }: any) {
+```
+
+Note that the five signatures are NOT identical — `OfficePickerField` and
+`UserPickerField` omit some parameters the others have (`prop`, `register`,
+`setValue` vary across the five). Any typed replacement must account for
+these differences exactly as they exist; do not assume all five need
+identical prop shapes.
+
+`DynamicField` (line 227) alone accounts for roughly 110 of this file's 164
+any-related errors — it has four separate branches, each independently
+containing the identical repeated line:
+```typescript
+{errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}
+```
+at (verified) lines 255, 277, 344, and 380 — this single repeated pattern
+across four branches is why the error count is so disproportionately large
+relative to the function's actual logical complexity.
+
+The remaining ~54 any-related errors are inside the main
+`DocumentIntakePage` component itself (starting at verified line 385), at:
+- Line 397–399: an `intakeResolver` function with an explicit `any`
+  parameter and an `as any` cast — SEE "Special case" BELOW, THIS ONE HAS A
+  DIFFERENT REQUIRED APPROACH THAN THE REST OF THIS FILE.
+- Line 419–422: `metadataSchema` is cast as
+  `{ properties?: Record<string, any>; required?: string[] } | null | undefined`
+  — the `Record<string, any>` here should use the same schema property
+  descriptor type as everywhere else in this file.
+- Line 466–480: a local recursive helper `cleanRecursive(schemaProps: any,
+  obj: any)` with further `any`-typed destructuring inside its body.
+- Line 535: `handleSubmit(onSubmit as any)`.
+- Line 592: a `prop` variable (from iterating `metadataSchema.properties`)
+  passed into `<DynamicField prop={prop} ... />` — this will need to align
+  with `DynamicField`'s new typed `prop` parameter once that's fixed.
+
+## Required decision before starting
+
+**No canonical TypeScript type for "a JSON Schema property descriptor"
+exists anywhere in this codebase currently.** Two other files
+(`apps/web/src/lib/intake-schema.ts` and
+`apps/web/src/lib/metadata-schema-validator.ts`) handle the same underlying
+shape today using `Record<string, unknown>` with per-access runtime
+narrowing, not a named structural type.
+
+Confirm with the requesting developer, before writing any code, which of
+these two approaches to take:
+
+- **Option A (default if no response is given — see note below):** Define
+  the type(s) needed LOCALLY within `DocumentIntakePage.tsx` only. Smallest,
+  fastest, zero risk of touching other files' behavior. Does not address
+  the fact that `intake-schema.ts` and `metadata-schema-validator.ts` still
+  lack a named type for the same shape.
+- **Option B:** Define the type(s) in a new shared file (e.g.
+  `apps/web/src/lib/json-schema-types.ts`) so all three files could
+  eventually use the same definitions. Larger diff. Touches
+  module-organization questions that may need J4 (Module Structure
+  Template) consideration since it's a new file, not an edit to an existing
+  one.
+
+If explicit confirmation was given to use Option B instead of Option A,
+follow Option B's file-location instead of what's specified below, and
+apply the same type definitions inside `intake-schema.ts` and
+`metadata-schema-validator.ts` as a natural consequence (do not leave the
+new shared type unused by the files that already handle this shape, if you
+create it — that would be an odd, incomplete outcome). Otherwise, proceed
+with Option A as specified in full below.
+
+## The type definition (Option A — local to this file)
+
+Add near the top of `DocumentIntakePage.tsx`, after the existing imports:
+
+```typescript
+interface SchemaPropertyDescriptor {
+  type?: string | string[];
+  enum?: (string | null)[];
+  properties?: Record<string, SchemaPropertyDescriptor>;
+  required?: string[];
+  items?: SchemaPropertyDescriptor;
+}
+```
+
+This is a recursive type (properties and items both reference the same
+interface), matching the recursive nature of JSON Schema itself and the
+existing recursive handling already present in this file's
+`prop.type === 'object' && prop.properties` and
+`prop.type === 'array' && prop.items?.type === 'object'` branches (verified
+at lines 282–304 and 306–331 respectively — these branches already
+correctly recurse into `DynamicField` itself, calling it again with
+`prop={subProp}`, confirming the recursive type shape is the right model
+for what the existing logic already assumes).
+
+## Typed signatures for the five helper functions
+
+Also add these supporting types (all local to this file, per Option A):
+
+```typescript
+interface BaseFieldProps {
+  name: string;
+  label: string;
+  isRequired: boolean;
+  control: Control<IntakeFormValues>;
+  setValue: UseFormSetValue<IntakeFormValues>;
+}
+```
+
+(`Control` and `UseFormSetValue` are exported types from `react-hook-form`,
+the same package already imported at the top of this file via `useForm,
+Controller, useWatch, useFieldArray` — add `Control` and `UseFormSetValue`
+to that existing import statement rather than creating a new import line.
+Note: TASK-WEB-LINT-001 will already have reordered this import statement's
+position relative to others; add these two names into whatever the
+resulting import statement looks like after that task runs, do not assume
+the current pre-fix line content is still accurate by the time this task
+executes.)
+
+Then, the five signatures become:
+
+```typescript
+function SponsorsArrayField({
+  name,
+  prop,
+  control,
+  label,
+  isRequired,
+  setValue,
+}: BaseFieldProps & { prop: SchemaPropertyDescriptor }) {
+
+function DynamicArrayField({
+  name,
+  prop,
+  control,
+  register,
+  label,
+  isRequired,
+  setValue,
+}: BaseFieldProps & {
+  prop: SchemaPropertyDescriptor;
+  register: UseFormRegister<IntakeFormValues>;
+}) {
+
+function UserPickerField({
+  name,
+  control,
+  label,
+  isRequired,
+  setValue,
+}: BaseFieldProps) {
+
+function OfficePickerField({
+  name,
+  control,
+  label,
+  isRequired,
+}: Omit<BaseFieldProps, 'setValue'>) {
+
+function DynamicField({
+  name,
+  prop,
+  control,
+  register,
+  label,
+  isRequired,
+  setValue,
+  errors,
+}: BaseFieldProps & {
+  prop: SchemaPropertyDescriptor;
+  register: UseFormRegister<IntakeFormValues>;
+  errors: FieldErrors<IntakeFormValues>;
+}) {
+```
+
+`UseFormRegister` and `FieldErrors` are also exported types from
+`react-hook-form` — add both to the same existing import statement as
+`Control`/`UseFormSetValue` above.
+
+## Fixing the four repeated error-display lines inside `DynamicField`
+
+At each of the four locations (verified current lines 255, 277, 344, 380 —
+re-verify these line numbers before editing, since Parts A–H of
+TASK-WEB-LINT-002 may shift some line numbers elsewhere in the file, though
+none of TASK-WEB-LINT-002's changes touch this specific file, so these line
+numbers should remain accurate unless TASK-WEB-LINT-001's import-reordering
+pass happened to add or remove lines above this point — check before
+editing, don't assume):
+
+Exact current text (identical at all four locations):
+```typescript
+        {errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}
+```
+
+Once `errors` has the `FieldErrors<IntakeFormValues>` type and `name` is a
+plain `string`, this expression may still produce a narrower TypeScript
+error about indexing `errors.metadata` with a computed string key, because
+`FieldErrors<T>` is a structural type keyed by the exact field paths in `T`,
+not an open string-indexable record. If this occurs after applying the
+typed signature above, do NOT work around it with a new `any` cast or a
+type assertion that defeats the purpose of this task. Instead, extract the
+computed key into a named variable first, which usually resolves this class
+of TS narrowing issue on its own:
+
+```typescript
+        {(() => {
+          const fieldKey = name.split('.').pop() ?? name;
+          const fieldError = errors?.metadata?.[fieldKey as keyof typeof errors.metadata];
+          return fieldError && (
+            <p className="text-destructive text-sm">{fieldError.message}</p>
+          );
+        })()}
+```
+
+If this still produces a type error after trying it, STOP and report the
+exact TypeScript error text rather than substituting a cast — this is
+exactly the kind of case where confirming against the real compiler matters
+more than confidently predicting the fix from here.
+
+## Special case: the `intakeResolver` circular-dependency workaround (lines 396–400) — DO NOT ATTEMPT TO REMOVE THE `any` HERE
+
+Current text (verified):
+```typescript
+  // Workaround for circular dependency: control -> useWatch -> selectedType -> resolver -> useForm -> control
+  const intakeResolver = (values: Record<string, unknown>, context: unknown, options: any) => {
+    const selectedType = documentTypes?.find((t) => t.id === values['documentTypeId']);
+    return zodResolver(buildIntakeFormSchema(selectedType?.metadataSchema as Record<string, unknown> | null | undefined) as any)(values, context, options);
+  };
+```
+
+The existing comment documents that this `any` usage is a DELIBERATE
+workaround for a genuine circular type-dependency, not an oversight. Do NOT
+attempt to replace this with a properly-typed alternative as part of this
+task — that risks reintroducing the exact circular-inference error the
+original author was avoiding, and cannot be safely attempted without a live
+TypeScript compiler to iterate against (not available in the environment
+this prompt was authored in).
+
+**Required action instead:** add explicit ESLint disable comments
+documenting that this is intentional, rather than leaving the bare `any`
+unexplained to ESLint (even though there's a human-readable comment above
+it already, ESLint's `no-explicit-any`/`no-unsafe-*` rules don't read prose
+comments as suppression — they need an actual disable directive):
+
+```typescript
+  // Workaround for circular dependency: control -> useWatch -> selectedType -> resolver -> useForm -> control
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see comment above; a typed alternative was not found without reintroducing the circular dependency this works around
+  const intakeResolver = (values: Record<string, unknown>, context: unknown, options: any) => {
+    const selectedType = documentTypes?.find((t) => t.id === values['documentTypeId']);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- see comment above
+    return zodResolver(buildIntakeFormSchema(selectedType?.metadataSchema as Record<string, unknown> | null | undefined) as any)(values, context, options);
+  };
+```
+
+Confirm which exact rule name(s) ESLint reports for the second line once
+the first `any` is suppressed (removing one error can sometimes shift which
+specific rule is reported next on a still-partially-any expression) — the
+disable comment's rule name must match exactly what ESLint reports, or the
+disable will not suppress anything and will itself trigger an
+`eslint-comments`-family warning about an unused disable directive if the
+config enables that. Adjust the second disable comment's rule name if the
+one shown above turns out not to match.
+
+## `metadataSchema` typing (line 419–422)
+
+Current text:
+```typescript
+  const metadataSchema = selectedType?.metadataSchema as {
+    properties?: Record<string, any>;
+    required?: string[];
+  } | null | undefined;
+```
+
+Change to:
+```typescript
+  const metadataSchema = selectedType?.metadataSchema as {
+    properties?: Record<string, SchemaPropertyDescriptor>;
+    required?: string[];
+  } | null | undefined;
+```
+
+## `cleanRecursive` helper (lines 466–480)
+
+Current text:
+```typescript
+      const cleanMetadata = { ...data.metadata } as Record<string, any>;
+      
+      const cleanRecursive = (schemaProps: any, obj: any) => {
+        if (!schemaProps || !obj) return;
+        for (const [key, prop] of Object.entries(schemaProps) as [string, any][]) {
+          if (prop.type === 'array' && typeof obj[key] === 'string') {
+             // Split comma separated list
+             obj[key] = obj[key]
+               .split(',')
+               .map((s: string) => s.trim())
+               .filter(Boolean);
+          } else if (prop.type === 'object' && prop.properties && typeof obj[key] === 'object') {
+             cleanRecursive(prop.properties, obj[key]);
+          }
+        }
+```
+
+Change to:
+```typescript
+      const cleanMetadata = { ...data.metadata } as Record<string, unknown>;
+
+      const cleanRecursive = (
+        schemaProps: Record<string, SchemaPropertyDescriptor> | undefined,
+        obj: Record<string, unknown> | undefined,
+      ) => {
+        if (!schemaProps || !obj) return;
+        for (const [key, prop] of Object.entries(schemaProps)) {
+          if (prop.type === 'array' && typeof obj[key] === 'string') {
+             // Split comma separated list
+             obj[key] = (obj[key] as string)
+               .split(',')
+               .map((s: string) => s.trim())
+               .filter(Boolean);
+          } else if (prop.type === 'object' && prop.properties && typeof obj[key] === 'object') {
+             cleanRecursive(prop.properties, obj[key] as Record<string, unknown>);
+          }
+        }
+```
+
+Verify via `pnpm typecheck` — the rest of this function (not shown above)
+uses `cleanMetadata` further down; confirm those later usages still
+type-check correctly now that `cleanMetadata` is `Record<string, unknown>`
+instead of `Record<string, any>` (an `unknown`-valued record requires
+narrowing before property access, unlike `any`, so if later code accesses
+`cleanMetadata[someKey].someProperty` directly without narrowing first, that
+will now be a compile error where it previously silently passed — this is
+the correct, intended outcome of removing the `any`, but it may require
+small additional narrowing at those later call sites that this prompt
+cannot fully specify without seeing them, since they were outside the
+originally-reported error lines for this file. If you encounter such cases,
+apply the same "narrow before use" principle as the rest of this fix, and
+report which additional lines needed touching beyond what's listed here.
+
+## `handleSubmit` cast (line 535)
+
+Current text:
+```typescript
+        <form onSubmit={handleSubmit(onSubmit as any)}>
+```
+
+Find the actual `onSubmit` function definition earlier in this same
+component (it is defined somewhere above line 535, not shown in the
+excerpts above — locate it directly in the current file before editing).
+Once `control`, `register`, `setValue`, `errors` all come from a properly
+typed `useForm<IntakeFormValues>()` call (this file already types `useForm`
+with `<IntakeFormValues>` at line 408, confirmed), `onSubmit`'s own
+parameter should already be correctly inferable as `IntakeFormValues`
+without needing the `as any` cast on this line at all — the cast here is
+likely defensive/unnecessary rather than resolving a real circular
+dependency (unlike the `intakeResolver` case above, there is no explanatory
+comment here suggesting this one is deliberate). Attempt removing the cast
+first:
+
+```typescript
+        <form onSubmit={handleSubmit(onSubmit)}>
+```
+
+Run `pnpm typecheck`. If this compiles cleanly, the fix is done. If it
+produces an error, report the exact error text rather than re-adding `any`
+or guessing at a different cast — this is a case worth a real compiler
+check rather than a predicted fix.
+
+## `prop` variable feeding into `<DynamicField>` (line 592)
+
+Locate the surrounding code (an iteration over
+`Object.entries(metadataSchema?.properties ?? {})`, based on the presence of
+`prop` and `key` variables at this point in the file — verify the exact
+surrounding loop structure directly before editing, it was not fully
+captured in the investigation this prompt is based on). Once
+`metadataSchema.properties` is typed as `Record<string, SchemaPropertyDescriptor>`
+(per the fix above), `prop` obtained from iterating its entries should
+already carry the `SchemaPropertyDescriptor` type automatically, and no
+separate action should be needed at this specific line — the `<DynamicField
+prop={prop} ... />` call should simply type-check now that both sides
+(the caller's `prop` and `DynamicField`'s parameter) agree. Confirm this via
+`pnpm typecheck` rather than assuming; if a mismatch remains, report the
+exact error.
+
+## Verification after this task
+
+1. Run `eslint .` in `apps/web`. Confirm zero remaining errors in
+   `apps/web/src/pages/documents/DocumentIntakePage.tsx` for any of:
+   `@typescript-eslint/no-explicit-any`,
+   `@typescript-eslint/no-unsafe-assignment`,
+   `@typescript-eslint/no-unsafe-member-access`,
+   `@typescript-eslint/no-unsafe-call`,
+   `@typescript-eslint/no-unsafe-return`,
+   EXCEPT the two explicitly-suppressed lines inside `intakeResolver`, which
+   should show as suppressed (not silently absent — confirm ESLint doesn't
+   report an "unused eslint-disable directive" warning for either of the two
+   disable comments, which would mean the rule name guessed didn't match
+   what ESLint actually reports there).
+2. Run `pnpm --filter @batac/web typecheck` (or equivalent). This file
+   involves substantial type changes across five functions and a shared
+   recursive interface — full type-checking is essential here, more so than
+   for the more mechanical fixes in TASK-WEB-LINT-002.
+3. If feasible, manually exercise the actual Document Intake form in a
+   running dev instance (create a new document of a type that has nested
+   object/array metadata fields, ideally one using the `sponsors` array
+   field specifically, since `SponsorsArrayField` has the most distinct
+   logic among the five helpers) to confirm the typed refactor didn't
+   silently change any runtime behavior — type changes alone shouldn't
+   change behavior, but this file's helper components are recursive and
+   mutually referential enough that a manual smoke test is worthwhile
+   given the scale of this specific change.
+
+---
+
+# STANDALONE PROMPT 4 — `test-script.ts` resolution (requires your Q5 decision first)
+
+````
+# TASK-WEB-LINT-004: Resolve the test-script.ts parsing error
+
+## Context
+`apps/web/test-script.ts` currently causes ESLint to report a parsing error
+(`"parserOptions.project" has been provided for @typescript-eslint/parser.
+The file was not found in any of the provided project(s): test-script.ts`).
+This is because `apps/web/tsconfig.json`'s `include` field is
+`["src", "vite.config.ts"]` (verified, line 21 of that file) — this file
+sits at the package root, outside `src/`, and was never part of the
+TypeScript project ESLint's parser resolves against.
+
+Current full content of the file (verified):
+```typescript
+import { buildIntakeFormSchema } from './src/lib/intake-schema.js';
+
+const mockMetadataSchema = {
+  type: 'object',
+  required: ['subject_matter'],
+  properties: {
+    subject_matter: { type: 'string' }
+  }
+};
+
+const schema = buildIntakeFormSchema(mockMetadataSchema);
+
+const result = schema.safeParse({
+  documentTypeId: 'test',
+  title: 'test title',
+  metadata: {} // missing subject_matter
+});
+
+if (!result.success) {
+  console.log("Validation Failed as expected. Issues:");
+  result.error.issues.forEach(issue => {
+    console.log(`Path: ${JSON.stringify(issue.path)} | Message: ${issue.message}`);
+  });
+} else {
+  console.log("Validation succeeded unexpectedly.");
+}
+```
+
+This appears to be a manual, ad-hoc smoke-test script (uses `console.log`
+for output rather than an actual test-runner assertion library, and is not
+named with a `.test.ts`/`.spec.ts` convention), most recently modified
+2026-07-29 — the same day as active work on `DocumentIntakePage.tsx` and
+`intake-schema.ts`, suggesting it may have been a scratch file used to
+manually verify `buildIntakeFormSchema`'s validation behavior while working
+on those files.
+
+**This determination could not be made with confidence from the repository
+alone — it requires the developer's actual intent, which is not discoverable
+by reading code.** Do not proceed with either option below until the
+developer has explicitly chosen one.
+
+## Option A: Delete the file
+
+If the developer confirms this was a throwaway scratch file with no ongoing
+purpose:
+
+```bash
+rm apps/web/test-script.ts
+```
+
+Re-run `eslint .` in `apps/web` to confirm the parsing error no longer
+appears and no new errors are introduced (deleting a file cannot introduce
+new lint errors elsewhere, but confirm nonetheless as a basic sanity check).
+
+## Option B: Convert it into a permanent regression test
+
+If the developer wants to preserve this verification permanently:
+
+1. Check whether this repository has an existing test runner configured for
+   `apps/web` (check `apps/web/package.json`'s `scripts` for a `test`
+   command, and check for a `vitest.config.ts` or similar at the repository
+   root or within `apps/web` — this was not verified as part of the
+   investigation that produced this prompt; confirm directly before
+   proceeding, since the correct test-file syntax depends entirely on which
+   test runner, if any, is actually configured).
+2. If a test runner exists (most likely Vitest, given this is a Vite-based
+   project): move the file's logic into a properly-located, properly-named
+   test file — likely `apps/web/src/lib/intake-schema.test.ts`, alongside
+   the `intake-schema.ts` file it's testing — and rewrite it using the test
+   runner's actual assertion API (e.g., Vitest's `describe`/`it`/`expect`)
+   rather than `console.log` statements. The specific assertions to write
+   should mirror what the script currently manually checks: that a metadata
+   object missing a property listed in the schema's `required` array fails
+   `safeParse`, and that the resulting Zod issue's `path` correctly points
+   at the missing field.
+3. Delete `apps/web/test-script.ts` from the package root after its logic
+   has been successfully relocated and converted.
+4. If no test runner is configured in this package at all, report this back
+   rather than either inventing test-runner configuration as a side effect
+   of a lint-fix task, or leaving the file in a half-migrated state — adding
+   an entire test framework to a package is a larger decision than this
+   task's scope.
+
+## Verification
+
+Regardless of which option is chosen, confirm afterward that `eslint .` run
+in `apps/web` no longer reports the `test-script.ts` parsing error, and that
+the file no longer exists at the repository-root-relative path
+`apps/web/test-script.ts` (whether because it was deleted outright, or
+because it was moved into `src/` under a new name as part of Option B).
+```
+
+---
+
+## Findings-log entries for `docs/development-findings-log.md`
+
+Per the addendum's rule, I am not editing the file directly — these are for you to copy-paste to the bottom of the file, continuing the numbering from the confirmed highest existing entry, LOG-0181.
+
+```markdown
+### [LOG-0182] apps/web/eslint.config.cjs turns off explicit-module-boundary-types for the whole app, undocumented in J3
+
+- date: 2026-07-29
+- task_id: none — discovered while investigating a repo-wide lint-error-fix request
+- status: proposed
+- affects: J3 (Coding Standards and Conventions), apps/web/eslint.config.cjs
+
+**What was found:** `apps/web/eslint.config.cjs` line 29 sets
+`'@typescript-eslint/explicit-module-boundary-types': 'off'` with an inline
+comment "Only required for packages, not apps." J3 §7.3 documents this rule
+as `'error'` in the shared base config
+(`packages/config/eslint.base.js`, confirmed to match J3 exactly) and never
+mentions an app-level override turning it off. J3 §7.5 (React-Specific
+Rules) also does not mention this override. Confirmed the override is
+actually in effect (not merely present but unused): zero
+`explicit-module-boundary-types` violations appear anywhere in a recent
+full `apps/web` lint run of 338 total problems, which is consistent with
+the rule being off.
+
+**Note:** [Inference] The override's rationale (React page/component
+functions aren't "module boundaries" the way exported `packages/*` library
+functions are, since app-level components aren't consumed by other
+packages) is plausible on its face, but this is a judgment call for a human
+to confirm, not something I can settle by reading the code alone. No fix
+was applied — this entry only documents the discrepancy for a human to
+decide whether J3 needs a documented exception added, or whether the
+override itself should be removed for consistency with the documented spec.
+
+---
+
+### [LOG-0183] SecurityAuditLedgerPage.tsx's any-typing lint error traces to a deliberate any-bypass in apps/server's audit.router.ts, not a frontend issue
+
+- date: 2026-07-29
+- task_id: none — discovered while investigating a repo-wide lint-error-fix request
+- status: proposed
+- affects: none (implementation-only finding, not tied to a specific Group B–L document)
+
+**What was found:** `apps/web/src/pages/sysadmin/SecurityAuditLedgerPage.tsx`
+line 64 (`eventTypes?.map((et) => ...)`) is flagged by
+`@typescript-eslint/no-unsafe-member-access`-family rules despite having no
+explicit `any` annotation anywhere in the frontend file itself. Traced the
+root cause: `eventTypes` originates from
+`trpc.audit.getSecurityLedgerEventTypes.useQuery()`
+(`apps/web/src/pages/sysadmin/SecurityAuditLedgerPage.tsx` line 32), and the
+corresponding server procedure
+(`apps/server/src/modules/audit/audit.router.ts`, `getSecurityLedgerEventTypes`,
+starting at line 660 in the current repository state) contains two explicit
+`any` casts: `(ctx.req.server as any).auditService` (line 665) and
+`result.map((r: any) => r.eventType)` (line 675), with an inline comment
+confirming this was deliberate ("We bypass the AuditPublicAPI interface here
+to avoid modifying the core domain interfaces for a UI-specific dropdown
+requirement"). Because tRPC infers client-side types directly from server
+procedure return types, this server-side `any` propagates to the frontend
+automatically. This was NOT caught by any existing lint run, because the
+`server` package (verified via its `package.json`) has no `lint` script
+defined at all — only `@batac/web` does.
+
+**What was implemented:** Nothing. Left both the frontend consumption site
+and the server-side procedure untouched. Fixing this properly requires
+either extending `AuditPublicAPI`'s domain interface (the thing the original
+comment says was deliberately avoided) or narrowly typing the two casts —
+either is a J1/J4 domain-boundary design decision, not a mechanical lint
+fix, and out of scope for a task framed as "fix apps/web lint errors."
+
+**Note:** [Confirmed] via direct read of both files. A human should decide
+whether to (a) accept the current server-side workaround as a permanent,
+documented exception, (b) extend `AuditPublicAPI` properly, or (c) at
+minimum narrow the two `any` casts without a full interface extension. This
+also raises a broader open question: since `server` has no lint script at
+all, other `any`-typed or otherwise lint-violating code may exist elsewhere
+in `apps/server` without ever being caught — this entry surfaces one
+instance found incidentally, not the result of a systematic audit of the
+server package.
+
+---
+
+### [LOG-0184] Rules-of-hooks-shaped pattern (access-gate before data-fetching hooks) appears in 6 sysadmin pages; only 1 flagged by a recent lint run
+
+- date: 2026-07-29
+- task_id: none — discovered while investigating a repo-wide lint-error-fix request
+- status: proposed
+- affects: none (implementation-only finding)
+
+**What was found:** `apps/web/src/pages/sysadmin/SystemLogsPage.tsx` was
+flagged by `react-hooks/rules-of-hooks` for calling a data-fetching hook
+(`trpc.audit.queryRuntimeLogs.useInfiniteQuery`, and later `useEffect`)
+lexically after a conditional early-return
+(`if (!identity?.roleCodes.includes('sys_admin')) { return <AccessDenied />;
+}`). On checking sibling files for the same shape, found the identical
+pattern (role-gate early-return positioned before one or more hook calls)
+in `apps/web/src/pages/sysadmin/ActiveSessionsPage.tsx` (useState/useMutation
+before the gate at line 113, useQuery after, at line 117),
+`DatabasePerformancePage.tsx` (gate at line 24, useQuery after at line 29),
+`EnvironmentConfigPage.tsx` (gate at line 24, useQuery after at line 28),
+`SecurityAuditLedgerPage.tsx` (gate at line 28, two queries after at lines
+32 and 34), and `SystemAdminHomePage.tsx` (gate at line 75, not further
+investigated for hooks after it). Only `SystemLogsPage.tsx` was reported by
+ESLint's static `react-hooks/rules-of-hooks` check in the lint run this was
+discovered from.
+
+**What was NOT determined:** why ESLint's rule distinguished
+`SystemLogsPage.tsx` from the other five structurally similar files. One
+observed difference: `SystemLogsPage.tsx` has five hook calls before its
+gate and multiple hook calls (including a `useEffect`) after it, while most
+of the other files have exactly one hook call on each side of the gate —
+whether this difference is why only one was flagged, or whether it's
+incidental, was not established with confidence.
+
+**Note:** [Speculation] on the reason for the discrepancy; [Confirmed] on
+the presence of the identical early-return-before-hooks shape in all six
+files listed, via direct line-by-line reading of each. No fix was applied
+to any file as part of the task this was discovered during (scoped
+narrowly to the one file ESLint actually flagged). A human should decide
+whether this warrants a dedicated investigation into whether the other five
+files have a latent Rules-of-Hooks bug that simply hasn't manifested as a
+visible runtime issue yet, versus accepting that they are meaningfully
+different from `SystemLogsPage.tsx` for reasons not yet fully understood.
+
+---
+
+### [LOG-0185] apps/web/test-script.ts is a stray scratch file outside the TS project's include, causing a standalone parsing error
+
+- date: 2026-07-29
+- task_id: none — discovered while investigating a repo-wide lint-error-fix request
+- status: proposed
+- affects: none (implementation-only finding)
+
+**What was found:** `apps/web/test-script.ts` sits at the `apps/web`
+package root (not under `src/`), causing ESLint to report a parsing error
+(`parserOptions.project has been provided... The file was not found in any
+of the provided project(s)`) because `apps/web/tsconfig.json`'s `include`
+field (`["src", "vite.config.ts"]`) does not cover it. Content is a manual,
+`console.log`-based smoke test exercising `buildIntakeFormSchema` (imported
+from `./src/lib/intake-schema.js`) against a mock metadata schema, checking
+that a `safeParse` call correctly fails validation when a required field is
+missing. File modification timestamp (2026-07-29, same day as active edits
+to `DocumentIntakePage.tsx` and `intake-schema.ts`) suggests it may be an
+ad-hoc verification script from recent related work, but this is
+[Speculation] — the file itself gives no explicit indication of its
+intended lifespan.
+
+**What was implemented:** Nothing. This requires a developer decision
+(delete as throwaway, or convert into a permanent test file) that cannot be
+inferred from the repository alone.
+```
+
+---
+
+Given your preference for output over files, everything above — the four standalone prompts and the four findings-log entries — is delivered inline in this response. If you'd like, I can also produce a consolidated ordering/dependency note (e.g., "run TASK-WEB-LINT-001 before 002 and 003, since both assume import ordering is already settled") as a fifth short artifact, but I've folded that sequencing directly into each prompt's "Context" section instead, so it shouldn't be necessary unless you want it spelled out separately.

@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
-import { useSessionStore } from '@/stores';
+
 import { logger } from '../lib/logger.js';
+
+import { useSessionStore } from '@/stores';
 
 interface AuthResponseData {
   user: {

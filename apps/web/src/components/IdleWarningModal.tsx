@@ -1,7 +1,3 @@
-import { useAuthActions } from '@/hooks/useAuthActions';
-import { useIdleTimer } from '@/hooks/useIdleTimer';
-import { useUIStore } from '@/stores/ui.store';
-import { trpc } from '@/lib/trpc';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +7,11 @@ import {
   DialogFooter,
   Button,
 } from '@batac/ui';
+
+import { useAuthActions } from '@/hooks/useAuthActions';
+import { useIdleTimer } from '@/hooks/useIdleTimer';
+import { trpc } from '@/lib/trpc';
+import { useUIStore } from '@/stores/ui.store';
 
 export function IdleWarningModal() {
   const idleWarningOpen = useUIStore((state) => state.idleWarningOpen);

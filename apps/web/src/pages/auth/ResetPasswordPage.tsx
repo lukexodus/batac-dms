@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+
 import {
   Button,
   Input,
@@ -10,6 +11,7 @@ import {
   CardContent,
   CardDescription,
 } from '@batac/ui';
+
 import { trpc } from '@/lib/trpc';
 
 export function ResetPasswordPage() {

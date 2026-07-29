@@ -33,8 +33,9 @@ import {
   SelectItem,
 } from '@batac/ui';
 
-import { useSessionStore } from '@/stores';
 import { trpc } from '../../lib/trpc';
+
+import { useSessionStore } from '@/stores';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

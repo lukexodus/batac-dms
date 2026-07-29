@@ -50,10 +50,10 @@ import {
   cn,
 } from '@batac/ui';
 
-import { useSessionStore } from '@/stores';
 import { hasRole } from '@/lib/auth-helpers';
 import { mapLifecycleStateToDocumentState } from '@/lib/status-mapping';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
+import { useSessionStore } from '@/stores';
 
 // ─── Constants mirroring backend ─────────────────────────────────────────────
 
