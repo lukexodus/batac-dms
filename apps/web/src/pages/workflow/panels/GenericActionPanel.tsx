@@ -36,6 +36,12 @@ export function GenericActionPanel({
         <CardTitle>Complete Task</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {instance.currentStepKey === 'final_number_assignment' && (
+          <p className="text-sm text-muted-foreground">
+            The final series number for this document has already been assigned automatically.
+            Complete this step to advance the workflow.
+          </p>
+        )}
         <div>
           <label className="mb-1 block text-sm font-medium">Comment (optional)</label>
           <Textarea

@@ -286,6 +286,7 @@ export function createWorkflowRouter() {
             'parallel_join',
           ]),
           currentStepInstanceId: z.string().uuid(),
+          currentStepKey: z.string().nullable(),
           currentAssigneeUserId: z.string().uuid().nullable(),
           status: z.enum(['Active', 'Completed', 'Cancelled']),
           slaDeadline: z.coerce.date().nullable(),
@@ -426,6 +427,7 @@ export function createWorkflowRouter() {
           currentStepInstanceId: currentStep
             ? currentStep.stepInstanceId
             : '00000000-0000-0000-0000-000000000000',
+          currentStepKey: currentStep?.stepKey ?? null,
           currentAssigneeUserId,
           status,
           slaDeadline: instance.slaDeadline,
