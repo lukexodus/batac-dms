@@ -72,7 +72,7 @@ rum.init({
   site: import.meta.env['VITE_OTEL_RUM_SITE'],
   organizationIdentifier: import.meta.env['VITE_OTEL_RUM_ORGANIZATION'],
   apiVersion: 'v1',
-  insecureHTTP: false,
+  insecureHTTP: true,
   service: 'batac-web',
   env: import.meta.env['MODE'],
   version: '0.0.1',
@@ -99,7 +99,7 @@ logs.init({
   env: import.meta.env['MODE'],
   version: '0.0.1',
   forwardErrorsToLogs: true,
-  insecureHTTP: false,
+  insecureHTTP: true,
   apiVersion: 'v1',
 });
 

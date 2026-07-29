@@ -12,6 +12,8 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { FastifyInstrumentation } from '@opentelemetry/instrumentation-fastify';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 import { env } from './config/env.js';
 import { parseOtlpHeaders } from './config/otlp-headers.js';
 
@@ -27,6 +29,8 @@ const traceExporter = new OTLPTraceExporter({
 const sdk = new NodeSDK({
   traceExporter,
   instrumentations: [
+    new HttpInstrumentation(),
+    new PgInstrumentation(),
     new FastifyInstrumentation(),
     new PinoInstrumentation({
       // The instrumentation automatically injects trace_id and span_id into log records.
