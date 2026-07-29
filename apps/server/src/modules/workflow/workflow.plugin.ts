@@ -28,7 +28,14 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
   }
 
   const workflowRepository = new WorkflowRepository(db);
-  const workflowService = createWorkflowPublicAPI(db);
+  const workflowService = createWorkflowPublicAPI({
+    db,
+    documentsService: fastify.documentsService,
+    eventBus: fastify.eventBus,
+    orgService: fastify.organizationService,
+    delegationService: fastify.delegationService,
+    iamService: fastify.iamService,
+  });
   fastify.decorate('workflowService', workflowService);
 
   const workflowTrpcRouter = createWorkflowRouter();

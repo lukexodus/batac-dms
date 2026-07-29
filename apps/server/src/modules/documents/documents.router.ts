@@ -93,6 +93,10 @@ function getOrgService(ctx: Context) {
   return ctx.req.server.organizationService;
 }
 
+function getWorkflowService(ctx: Context) {
+  return ctx.req.server.workflowService;
+}
+
 function getNumberingService(ctx: Context) {
   return ctx.req.server.numberingService;
 }
@@ -1563,6 +1567,7 @@ export function createDocumentsRouter() {
         const repo = getRepository(ctx);
         const guard = getPolicyGuard(ctx);
         const service = getService(ctx);
+        const workflowService = getWorkflowService(ctx);
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
@@ -1582,7 +1587,16 @@ export function createDocumentsRouter() {
         });
         if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
 
-        await service.transitionState(document.id, 'archived', subject.userId, 'Document archived');
+        await ctx.db.transaction(async (tx) => {
+          await service.transitionState(
+            document.id,
+            'archived',
+            subject.userId,
+            'Document archived',
+            tx,
+          );
+          await workflowService.archiveStepForDocument(document.id, 'archive', tx);
+        });
 
         return { success: true };
       }),

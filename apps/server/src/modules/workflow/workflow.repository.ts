@@ -431,6 +431,33 @@ export class WorkflowRepository {
     return row ? row.stepInstance : null;
   }
 
+  /**
+   * Finds the currently-ACTIVE step instance within a workflow instance
+   * whose step has the given `stepKey`. Added for TASK-WF-017 (archive
+   * step resolution) but written generically over `stepKey` rather than
+   * hardcoded to 'archive', for reuse by any future similar need.
+   */
+  async getActiveStepInstanceByStepKey(
+    instanceId: string,
+    stepKey: string,
+    tx: TxOrDb = this.db,
+  ): Promise<StepInstanceRow | null> {
+    const [row] = await tx
+      .select({ stepInstance: stepInstances })
+      .from(stepInstances)
+      .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+      .where(
+        and(
+          eq(stepInstances.instanceId, instanceId),
+          eq(steps.stepKey, stepKey),
+          eq(stepInstances.status, 'active'),
+          isNull(stepInstances.deletedAt),
+        ),
+      )
+      .limit(1);
+    return row ? row.stepInstance : null;
+  }
+
   async updateStepInstance(
     id: string,
     data: Partial<InferInsertModel<typeof stepInstances>>,

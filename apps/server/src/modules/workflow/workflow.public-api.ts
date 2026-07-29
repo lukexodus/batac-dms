@@ -11,8 +11,23 @@ import { WorkflowRepository } from './workflow.repository.js';
 import { SlaService } from './services/sla.service.js';
 import { instances, steps, definitionVersions } from '@batac/database/schema/workflow.schema.js';
 import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
+import { autoCompleteActionStep } from './engine/step-handlers/action.handler.js';
+import type { DocumentsPublicAPI } from '../documents/documents.types.js';
+import type { OrgService, DelegationService } from '../organization/organization.types.js';
+import type { IamPublicAPI } from '../iam/iam.types.js';
+import type { EventBus } from '@batac/shared';
 
-export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
+export interface WorkflowPublicAPIDeps {
+  db: AppDb;
+  documentsService: DocumentsPublicAPI;
+  eventBus: EventBus;
+  orgService: OrgService;
+  delegationService: DelegationService;
+  iamService: IamPublicAPI;
+}
+
+export function createWorkflowPublicAPI(deps: WorkflowPublicAPIDeps): WorkflowPublicAPI {
+  const { db } = deps;
   const repository = new WorkflowRepository(db);
   const slaService = new SlaService();
 
@@ -185,6 +200,42 @@ export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
       const scopedRepository = tx ? new WorkflowRepository(tx) : repository;
       const step = await scopedRepository.getStepById(stepId, tx);
       return step?.stepKey ?? null;
+    },
+
+    async archiveStepForDocument(
+      documentId: string,
+      stepKey: string,
+      tx?: TxOrDb,
+    ): Promise<{ resolved: boolean }> {
+      const scopedDb: AppDb | TxOrDb = tx ?? db;
+      const scopedRepository = tx ? new WorkflowRepository(tx) : repository;
+
+      const instance = await scopedRepository.getActiveInstanceForDocument(documentId, tx);
+      if (!instance) return { resolved: false };
+
+      const stepInstance = await scopedRepository.getActiveStepInstanceByStepKey(
+        instance.id,
+        stepKey,
+        tx,
+      );
+      if (!stepInstance) return { resolved: false };
+
+      await autoCompleteActionStep(
+        instance,
+        stepInstance,
+        {
+          db: scopedDb,
+          workflowRepository: scopedRepository,
+          documentsService: deps.documentsService,
+          eventBus: deps.eventBus,
+          orgService: deps.orgService,
+          delegationService: deps.delegationService,
+          iamService: deps.iamService,
+        },
+        tx,
+      );
+
+      return { resolved: true };
     },
   };
 }

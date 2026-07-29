@@ -5,6 +5,23 @@ export interface WorkflowPublicAPI {
   getActiveInstanceForDocument(documentId: string): Promise<WorkflowInstanceSummary | null>;
   getWorkflowSLAData(filter: WorkflowSLAFilter): Promise<WorkflowSLAData[]>;
   /**
+   * Finds the document's active workflow instance, locates its currently
+   * active step instance matching `stepKey`, and completes that step
+   * (system-driven — see TASK-WF-017's decision record for why
+   * autoCompleteActionStep was chosen over submitStepAction). Returns
+   * `{ resolved: false }` gracefully — does not throw — if there is no
+   * active instance for the document, or no active step instance matching
+   * `stepKey` within it. This is a deliberate design choice: workflow-step
+   * resolution is a secondary side effect of whatever primary action the
+   * caller is taking (e.g. documents.archive's lifecycle transition); it
+   * must not block that primary action if there is nothing to resolve.
+   */
+  archiveStepForDocument(
+    documentId: string,
+    stepKey: string,
+    tx?: TxOrDb,
+  ): Promise<{ resolved: boolean }>;
+  /**
    * Resolves a step's `stepKey` from its `stepId`. Added for TASK-WF-016.
    * `tx`, when supplied, participates in the caller's transaction (Option B
    * pattern, see TASK-WF-016's decision record); omit it for a standalone
