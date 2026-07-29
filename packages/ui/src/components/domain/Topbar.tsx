@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import { cn } from '@batac/ui/lib/utils';
 import type { SidebarUser, BreadcrumbItem } from './types';
 import { AvatarName } from '../ui/avatar';
@@ -22,6 +22,8 @@ export interface TopbarProps {
   onNotificationClick?: () => void;
   currentUser: SidebarUser;
   onUserMenuAction?: (action: 'profile' | 'logout' | 'lock') => void;
+  /** Optional callback to open mobile navigation drawer */
+  onMobileMenuToggle?: () => void;
 }
 
 export function Topbar({
@@ -31,16 +33,29 @@ export function Topbar({
   onNotificationClick,
   currentUser,
   onUserMenuAction,
+  onMobileMenuToggle,
 }: TopbarProps) {
   return (
     <header
       className={cn(
-        'border-border-default z-sticky duration-base ease-default fixed top-0 right-0 flex h-14 items-center justify-between gap-4 border-b bg-white px-6 transition-[left]',
-        sidebarCollapsed ? 'left-14' : 'left-60',
+        'border-border-default z-sticky duration-base ease-default fixed top-0 right-0 left-0 flex h-14 items-center justify-between gap-2 sm:gap-4 border-b bg-white px-3 sm:px-6 transition-[left]',
+        sidebarCollapsed ? 'md:left-14' : 'md:left-60',
       )}
     >
-      {/* Left slot: Breadcrumb trail */}
-      <Breadcrumb className="min-w-0 flex-1">
+      {/* Left slot: Mobile toggle + Breadcrumb trail */}
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {onMobileMenuToggle && (
+          <button
+            type="button"
+            onClick={onMobileMenuToggle}
+            aria-label="Open navigation menu"
+            className="text-text-secondary hover:text-text-primary focus-visible:outline-warning-500 touch-exempt flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 md:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
+
+        <Breadcrumb className="min-w-0 flex-1">
         <BreadcrumbList className="text-text-muted flex-nowrap overflow-hidden text-sm">
           {breadcrumbs.map((item, idx) => {
             const isFirst = idx === 0;
@@ -92,6 +107,7 @@ export function Topbar({
           })}
         </BreadcrumbList>
       </Breadcrumb>
+      </div>
 
       {/* Right slot: Actions */}
       <div className="flex shrink-0 items-center gap-4">

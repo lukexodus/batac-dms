@@ -38,7 +38,7 @@ export default function SidebarPage() {
           Click the toggle button in the sidebar header to test transitions. Click navigation links
           to test active state selection.
         </p>
-        <div className="border-border-default bg-surface-raised relative flex h-[600px] overflow-hidden rounded-lg border [&>aside]:relative [&>aside]:top-auto [&>aside]:left-auto [&>aside]:h-full">
+        <div className="border-border-default bg-surface-raised relative flex h-[600px] overflow-hidden rounded-lg border [&>aside]:relative [&>aside]:top-auto [&>aside]:left-auto [&>aside]:h-full [&>aside]:flex">
           <Sidebar
             items={NAV_ITEMS}
             activeItemId={activeItem}
@@ -90,7 +90,7 @@ export default function SidebarPage() {
             <h4 className="text-text-muted text-xs font-semibold tracking-wide uppercase">
               Expanded State
             </h4>
-            <div className="border-border-default bg-surface-raised relative flex h-[500px] overflow-hidden rounded-lg border [&>aside]:relative [&>aside]:top-auto [&>aside]:left-auto [&>aside]:h-full">
+            <div className="border-border-default bg-surface-raised relative flex h-[500px] overflow-hidden rounded-lg border [&>aside]:relative [&>aside]:top-auto [&>aside]:left-auto [&>aside]:h-full [&>aside]:flex">
               <Sidebar
                 items={NAV_ITEMS}
                 activeItemId="documents"
@@ -109,7 +109,7 @@ export default function SidebarPage() {
             <h4 className="text-text-muted text-xs font-semibold tracking-wide uppercase">
               Collapsed State (Icon-only)
             </h4>
-            <div className="border-border-default bg-surface-raised relative flex h-[500px] overflow-hidden rounded-lg border [&>aside]:relative [&>aside]:top-auto [&>aside]:left-auto [&>aside]:h-full">
+            <div className="border-border-default bg-surface-raised relative flex h-[500px] overflow-hidden rounded-lg border [&>aside]:relative [&>aside]:top-auto [&>aside]:left-auto [&>aside]:h-full [&>aside]:flex">
               <Sidebar
                 items={NAV_ITEMS}
                 activeItemId="documents"

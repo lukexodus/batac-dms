@@ -23,13 +23,22 @@ export interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   currentUser: SidebarUser;
+  /** Optional callback triggered when a navigation item is clicked */
+  onNavItemClick?: () => void;
 }
 
-export function Sidebar({ items, activeItemId, collapsed, onToggle, currentUser }: SidebarProps) {
+export function Sidebar({
+  items,
+  activeItemId,
+  collapsed,
+  onToggle,
+  currentUser,
+  onNavItemClick,
+}: SidebarProps) {
   return (
     <aside
       className={cn(
-        'bg-primary-950 z-sticky duration-base ease-default fixed top-0 left-0 flex h-screen flex-col transition-[width]',
+        'bg-primary-950 z-sticky duration-base ease-default fixed top-0 left-0 hidden h-screen flex-col transition-[width] md:flex',
         collapsed ? 'w-14' : 'w-60',
       )}
     >
@@ -88,6 +97,7 @@ export function Sidebar({ items, activeItemId, collapsed, onToggle, currentUser 
               aria-label={collapsed ? item.label : undefined}
               tabIndex={item.disabled ? -1 : undefined}
               className={sharedClassName}
+              onClick={onNavItemClick}
             >
               {sharedChildren}
             </Link>
@@ -98,6 +108,7 @@ export function Sidebar({ items, activeItemId, collapsed, onToggle, currentUser 
               aria-label={collapsed ? item.label : undefined}
               tabIndex={item.disabled ? -1 : undefined}
               className={sharedClassName}
+              onClick={onNavItemClick}
             >
               {sharedChildren}
             </button>

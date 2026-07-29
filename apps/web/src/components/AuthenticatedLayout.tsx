@@ -67,7 +67,13 @@ export function AuthenticatedLayout() {
   const identity = useSessionStore((s) => s.identity);
   const isLocked = useSessionStore((s) => s.isLocked);
   const { logout, lock } = useAuthActions();
-  const { sidebarCollapsed, toggleSidebar } = useShellStore();
+  const {
+    sidebarCollapsed,
+    toggleSidebarCollapsed,
+    sidebarOpen,
+    toggleSidebar,
+    closeSidebar,
+  } = useShellStore();
   const location = useLocation();
 
   const roleCodes = identity?.roleCodes ?? [];
@@ -297,14 +303,29 @@ export function AuthenticatedLayout() {
     <>
       <AppShell
         sidebarCollapsed={sidebarCollapsed}
-        onSidebarToggle={toggleSidebar}
+        onSidebarToggle={toggleSidebarCollapsed}
+        sidebarOpen={sidebarOpen}
+        onMobileSidebarChange={(open) => {
+          if (!open) closeSidebar();
+          else toggleSidebar();
+        }}
         sidebarContent={
           <Sidebar
             items={navItems}
             activeItemId={activeItemId}
             collapsed={sidebarCollapsed}
-            onToggle={toggleSidebar}
+            onToggle={toggleSidebarCollapsed}
             currentUser={currentUser}
+          />
+        }
+        sidebarContentMobile={
+          <Sidebar
+            items={navItems}
+            activeItemId={activeItemId}
+            collapsed={false}
+            onToggle={closeSidebar}
+            currentUser={currentUser}
+            onNavItemClick={closeSidebar}
           />
         }
         topbarContent={
@@ -313,6 +334,7 @@ export function AuthenticatedLayout() {
             sidebarCollapsed={sidebarCollapsed}
             currentUser={currentUser}
             notificationCount={0}
+            onMobileMenuToggle={toggleSidebar}
             onUserMenuAction={(action) => {
               if (action === 'logout') {
                 void logout();
