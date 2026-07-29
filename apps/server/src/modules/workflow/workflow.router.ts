@@ -277,6 +277,7 @@ export function createWorkflowRouter() {
         z.object({
           instanceId: z.string().uuid(),
           documentId: z.string().uuid(),
+          documentTitle: z.string().nullable(),
           definitionVersionId: z.string().uuid(),
           currentStepType: z.enum([
             'action',
@@ -426,6 +427,7 @@ export function createWorkflowRouter() {
         return {
           instanceId: instance.id,
           documentId: instance.documentId,
+          documentTitle: doc.title || null,
           definitionVersionId: instance.definitionVersionId,
           currentStepType,
           currentStepInstanceId: currentStep

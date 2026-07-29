@@ -184,7 +184,9 @@ export function WorkflowStepActionPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Step Action</h1>
-          <p className="text-muted-foreground mt-1">Instance: {instance.instanceId}</p>
+          <p className="text-muted-foreground mt-1">
+            {instance.documentTitle ? `Document: ${instance.documentTitle}` : `Instance: ${instance.instanceId}`}
+          </p>
         </div>
         <Button variant="outline" onClick={() => navigate(`/documents/${instance.documentId}`)}>
           View Document
