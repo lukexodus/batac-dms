@@ -15,6 +15,8 @@ import {
   SelectContent,
   SelectItem,
   Input,
+  Checkbox,
+  Label,
 } from '@batac/ui';
 
 import { hasRole } from '@/lib/auth-helpers';
@@ -40,6 +42,11 @@ export function MultiReferralPanel({
   const isSpSecretary = hasRole(identity, 'sp_secretary');
   const isSpMember = hasRole(identity, 'sp_member');
 
+  // Assign Committees state (sp_secretary only)
+  const [selectedCommittees, setSelectedCommittees] = useState<string[]>(
+    instance.assignedCommittees?.map((c) => c.committeeId) || []
+  );
+
   // Committee report state
   const [committeeId, setCommitteeId] = useState('');
   const [reportText, setReportText] = useState('');
@@ -52,6 +59,17 @@ export function MultiReferralPanel({
 
   const { data: committees } = trpc.organization.listCommittees.useQuery(undefined, {
     enabled: isSpSecretary || isSpMember,
+  });
+
+  const assignCommitteesMutation = trpc.workflow.assignCommittees.useMutation({
+    onSuccess: () => {
+      toast.success('Committees assigned successfully.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
+    },
+    onError: (err) => toast.error(err.message || 'Failed to assign committees.'),
   });
 
   const submitReportMutation = trpc.workflow.submitCommitteeReport.useMutation({
@@ -92,6 +110,46 @@ export function MultiReferralPanel({
         <CardTitle>Multi-Referral</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Assign Committees — sp_secretary only */}
+        {isSpSecretary && (
+          <div className="space-y-3 rounded-md border p-4">
+            <h3 className="text-sm font-medium">Assign Committees</h3>
+            <div className="space-y-2">
+              {(committees ?? []).map((c: { committeeId: string; name: string }) => (
+                <div key={c.committeeId} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`committee-${c.committeeId}`}
+                    checked={selectedCommittees.includes(c.committeeId)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedCommittees([...selectedCommittees, c.committeeId]);
+                      } else {
+                        setSelectedCommittees(selectedCommittees.filter((id) => id !== c.committeeId));
+                      }
+                    }}
+                  />
+                  <Label htmlFor={`committee-${c.committeeId}`}>{c.name}</Label>
+                </div>
+              ))}
+            </div>
+            <Button
+              onClick={() => {
+                if (selectedCommittees.length === 0) {
+                  toast.error('Select at least one committee');
+                  return;
+                }
+                assignCommitteesMutation.mutate({
+                  stepInstanceId: instance.currentStepInstanceId,
+                  committeeIds: selectedCommittees,
+                });
+              }}
+              disabled={assignCommitteesMutation.isPending}
+            >
+              Assign Committees
+            </Button>
+          </div>
+        )}
+
         {/* Submit Committee Report — sp_secretary or sp_member */}
         {(isSpSecretary || isSpMember) && (
           <div className="space-y-3 rounded-md border p-4">

@@ -582,6 +582,15 @@ export class WorkflowPolicyGuard {
     });
   }
 
+  canAssignCommittees(subject: SubjectContext): void {
+    if (subject.roles.includes('sp_secretary')) return;
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      cause: 'only_sp_secretary_may_assign_committees',
+      message: 'Only the SP Secretary may assign committees to a referral step.',
+    });
+  }
+
   // ─── 6.8 Secretariat Decision Actions ─────────────────────────────────────
 
   /**

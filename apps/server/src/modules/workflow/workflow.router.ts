@@ -10,7 +10,7 @@ import {
   workflowEvents,
 } from '@batac/database/schema/workflow.schema.js';
 import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
-import { offices, employees } from '@batac/database/schema/organization.schema.js';
+import { offices, employees, committees } from '@batac/database/schema/organization.schema.js';
 import { users } from '@batac/database/schema/iam.schema.js';
 import { eq, and, or, isNull, inArray, notInArray, desc, gte, lte } from 'drizzle-orm';
 import { SlaService } from './services/sla.service.js';
@@ -20,6 +20,7 @@ import { submitStepApproval } from './engine/step-handlers/approval.handler.js';
 import {
   submitCommitteeReport as engineSubmitCommitteeReport,
   submitStepMultiReferral,
+  updateAssignedCommittees,
 } from './engine/step-handlers/multi-referral.handler.js';
 import { workflowPolicy, MAYOR_STEP_KEYS } from './workflow.policy.js';
 import type { StepInstanceAttrs, WorkflowInstanceReadAttrs } from './workflow.policy.js';
@@ -370,6 +371,14 @@ export function createWorkflowRouter() {
               'generic_approval',
             ])
             .nullable(),
+          assignedCommittees: z
+            .array(
+              z.object({
+                committeeId: z.string().uuid(),
+                name: z.string().nullable(),
+              })
+            )
+            .nullable(),
         }),
       )
       .query(async ({ input, ctx }) => {
@@ -502,6 +511,26 @@ export function createWorkflowRouter() {
           spsOffice?.officeId,
         );
 
+        let assignedCommittees: Array<{ committeeId: string; name: string | null }> | null = null;
+        if (currentStepType === 'multi_referral' && currentStep?.metadata) {
+          const meta = currentStep.metadata as Record<string, any>;
+          const rawAssigned = meta['assigned_committees'] as Array<{ committee_id: string }>;
+          if (Array.isArray(rawAssigned) && rawAssigned.length > 0) {
+            assignedCommittees = [];
+            for (const ac of rawAssigned) {
+              const [c] = await ctx.db
+                .select({ name: committees.name })
+                .from(committees)
+                .where(eq(committees.id, ac.committee_id))
+                .limit(1);
+              assignedCommittees.push({
+                committeeId: ac.committee_id,
+                name: c?.name || null,
+              });
+            }
+          }
+        }
+
         return {
           instanceId: instance.id,
           documentId: instance.documentId,
@@ -519,6 +548,7 @@ export function createWorkflowRouter() {
           slaDeadline: instance.slaDeadline,
           lapseStatus,
           panelHint,
+          assignedCommittees,
         };
       }),
 
@@ -1485,6 +1515,87 @@ export function createWorkflowRouter() {
         }
 
         return { success: true as const };
+      }),
+
+    /**
+     * `workflow.assignCommittees`
+     *
+     * Sets the assigned committees for a multi-referral step.
+     */
+    assignCommittees: protectedProcedure
+      .input(
+        z.object({
+          stepInstanceId: z.string().uuid(),
+          committeeIds: z.array(z.string().uuid()).min(1),
+          isBypass: z.boolean().optional().default(false),
+          comment: z.string().optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const { stepInstanceId, committeeIds, isBypass, comment } = input;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, step, instance, stepAttrs } = found;
+
+        if (step.stepType !== 'multi_referral' || step.stepKey !== 'committee_referral') {
+          throw new TRPCError({ code: 'CONFLICT', message: 'This step is not a committee referral step.' });
+        }
+
+        workflowPolicy.canAssignCommittees(ctx.auth);
+
+        const resolvedCommittees: Array<{ committeeId: string; name: string }> = [];
+        const newAssignedCommittees: Array<{ committee_id: string }> = [];
+        
+        for (const committeeId of committeeIds) {
+          const [c] = await ctx.db
+            .select({ name: committees.name })
+            .from(committees)
+            .where(eq(committees.id, committeeId))
+            .limit(1);
+            
+          if (!c) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'One or more committees could not be found.' });
+          }
+          resolvedCommittees.push({ committeeId, name: c.name });
+          newAssignedCommittees.push({ committee_id: committeeId });
+        }
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: ctx.req.server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+          iamService: server.iamService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          await updateAssignedCommittees(
+            stepInstance,
+            newAssignedCommittees,
+            isBypass,
+            comment ?? null,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
+          );
+        });
+
+        return {
+          success: true as const,
+          assignedCommittees: resolvedCommittees,
+        };
       }),
 
     /**
