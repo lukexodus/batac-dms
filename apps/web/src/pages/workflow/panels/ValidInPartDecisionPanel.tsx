@@ -13,9 +13,9 @@ export function ValidInPartDecisionPanel({
 }) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
-  const [remarks, setRemarks] = useState('');
+  const [mandatoryComment, setMandatoryComment] = useState('');
 
-  const submitOutcomeMutation = trpc.workflow.submitApprovalOutcome.useMutation({
+  const resolveMutation = trpc.workflow.resolveValidInPart.useMutation({
     onSuccess: () => {
       toast.success('Decision logged successfully.');
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
@@ -29,17 +29,16 @@ export function ValidInPartDecisionPanel({
   });
 
   const mutate = (
-    outcome: 'RESOLVED_IN_PLACE' | 'ROUTED_TO_LEGAL' | 'ROUTED_TO_COMMITTEE' | 'REVISED_DIRECTLY',
-    requireRemarks: boolean,
+    resolutionPath: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly',
   ) => {
-    if (requireRemarks && !remarks) {
-      toast.error('Remarks are required for this decision.');
+    if (!mandatoryComment) {
+      toast.error('A comment is required for this decision.');
       return;
     }
-    submitOutcomeMutation.mutate({
-      stepInstanceId: instance.currentStepInstanceId,
-      outcome,
-      comment: remarks || undefined,
+    resolveMutation.mutate({
+      documentId: instance.documentId,
+      resolutionPath,
+      mandatoryComment,
     });
   };
 
@@ -50,35 +49,35 @@ export function ValidInPartDecisionPanel({
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium">Remarks</label>
+          <label className="mb-1 block text-sm font-medium">Comment</label>
           <Textarea
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-            placeholder="Enter remarks..."
+            value={mandatoryComment}
+            onChange={(e) => setMandatoryComment(e.target.value)}
+            placeholder="Enter a comment..."
           />
         </div>
         <div className="flex space-x-2">
-          <Button onClick={() => mutate('RESOLVED_IN_PLACE', true)} disabled={submitOutcomeMutation.isPending}>
+          <Button onClick={() => mutate('resolve_as_is')} disabled={resolveMutation.isPending}>
             Resolve In Place
           </Button>
           <Button
             variant="outline"
-            onClick={() => mutate('ROUTED_TO_LEGAL', false)}
-            disabled={submitOutcomeMutation.isPending}
+            onClick={() => mutate('route_to_legal')}
+            disabled={resolveMutation.isPending}
           >
             Route to Legal Office
           </Button>
           <Button
             variant="outline"
-            onClick={() => mutate('ROUTED_TO_COMMITTEE', false)}
-            disabled={submitOutcomeMutation.isPending}
+            onClick={() => mutate('route_to_committee')}
+            disabled={resolveMutation.isPending}
           >
             Route to Committee
           </Button>
           <Button
             variant="outline"
-            onClick={() => mutate('REVISED_DIRECTLY', true)}
-            disabled={submitOutcomeMutation.isPending}
+            onClick={() => mutate('implement_directly')}
+            disabled={resolveMutation.isPending}
           >
             Revise Directly
           </Button>
