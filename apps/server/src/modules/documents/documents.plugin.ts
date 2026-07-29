@@ -159,7 +159,46 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
     });
   }
 
-  // TODO(WF-INTEGRATION): fastify.eventBus.subscribe('workflow.step.completed', ...)
+  // TASK-WF-016: automatic final-number assignment on SP Resolution
+  // second-reading approval. See docs/development-findings-log.md and
+  // TASK-WF-016's own prompt for the full decision record (fire-and-forget
+  // failure mode; do not add 'workflow' to this plugin's dependencies
+  // array — fastify.workflowService is referenced lazily below precisely
+  // to avoid needing that, since workflow already depends on documents).
+  const SP_RESOLUTION_FINAL_NUMBERING_STEP_KEYS = new Set<string>([
+    'second_reading_vote',
+    'second_reading_amended_vote',
+  ]);
+
+  fastify.eventBus.on(
+    'workflow.step.completed',
+    (event) => {
+      const run = async () => {
+        if (event.payload.outcome !== 'APPROVED') return;
+
+        const stepKey = await fastify.workflowService.getStepKeyById(event.payload.stepId);
+        if (!stepKey || !SP_RESOLUTION_FINAL_NUMBERING_STEP_KEYS.has(stepKey)) return;
+
+        try {
+          await service.assignFinalNumber(event.payload.documentId, event.payload.actorId);
+        } catch (err) {
+          if (err instanceof Error && err.message === 'final number already assigned') {
+            // Idempotent no-op, not a failure: this document already has a
+            // final number. Swallow silently -- do not log as an error.
+            return;
+          }
+          throw err;
+        }
+      };
+      run().catch((err) => {
+        fastify.log.error(
+          { err, eventId: event.eventId, documentId: event.payload.documentId },
+          'documents: workflow.step.completed handler failed (final numbering)',
+        );
+      });
+    },
+    'documents',
+  );
 
   fastify.log.info('documents.module.ready');
 }

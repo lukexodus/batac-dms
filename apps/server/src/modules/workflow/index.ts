@@ -1,7 +1,18 @@
+import type { TxOrDb } from '../../db.js';
+
 export interface WorkflowPublicAPI {
   getInstanceById(instanceId: string): Promise<WorkflowInstanceSummary | null>;
   getActiveInstanceForDocument(documentId: string): Promise<WorkflowInstanceSummary | null>;
   getWorkflowSLAData(filter: WorkflowSLAFilter): Promise<WorkflowSLAData[]>;
+  /**
+   * Resolves a step's `stepKey` from its `stepId`. Added for TASK-WF-016.
+   * `tx`, when supplied, participates in the caller's transaction (Option B
+   * pattern, see TASK-WF-016's decision record); omit it for a standalone
+   * read against the live connection — this is the expected usage for an
+   * event-bus subscriber, since by the time `workflow.step.completed`
+   * fires, the originating transaction has already committed.
+   */
+  getStepKeyById(stepId: string, tx?: TxOrDb): Promise<string | null>;
 }
 
 export interface WorkflowInstanceSummary {

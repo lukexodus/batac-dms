@@ -1,5 +1,5 @@
 import { eq, and, isNull, or, gte, lte, sql } from 'drizzle-orm';
-import type { AppDb } from '../../db.js';
+import type { AppDb, TxOrDb } from '../../db.js';
 import type {
   WorkflowPublicAPI,
   WorkflowInstanceSummary,
@@ -179,6 +179,12 @@ export function createWorkflowPublicAPI(db: AppDb): WorkflowPublicAPI {
       }
 
       return result;
+    },
+
+    async getStepKeyById(stepId: string, tx?: TxOrDb): Promise<string | null> {
+      const scopedRepository = tx ? new WorkflowRepository(tx) : repository;
+      const step = await scopedRepository.getStepById(stepId, tx);
+      return step?.stepKey ?? null;
     },
   };
 }

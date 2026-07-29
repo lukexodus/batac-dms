@@ -396,6 +396,22 @@ export class WorkflowRepository {
     return row || null;
   }
 
+  /**
+   * Resolves a single step definition row by its ID. Added for TASK-WF-016
+   * — `workflow.step.completed` event payloads carry `stepId` (a UUID) but
+   * not `stepKey`, so any event subscriber that needs to know which named
+   * step just completed must resolve it via this method (through
+   * WorkflowPublicAPI.getStepKeyById) rather than reading this table
+   * directly from outside the workflow module.
+   */
+  async getStepById(id: string, tx: TxOrDb = this.db): Promise<StepRow | null> {
+    const [row] = await tx
+      .select()
+      .from(steps)
+      .where(and(eq(steps.id, id), isNull(steps.deletedAt)));
+    return row || null;
+  }
+
   async getMultiReferralStepInstanceForInstance(
     instanceId: string,
     tx: TxOrDb = this.db,
