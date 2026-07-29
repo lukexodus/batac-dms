@@ -61,6 +61,7 @@ describe('Create Instance (CI)', () => {
           documentTypeCode: 'RESOLUTION',
           hasPenaltyProvision: false,
         }),
+        transitionState: vi.fn().mockResolvedValue(undefined),
       },
       orgService: {} as any,
       delegationService: {} as any,
@@ -163,5 +164,35 @@ describe('Create Instance (CI)', () => {
     const expectedMax = new Date(after.getTime() + 10 * 24 * 60 * 60 * 1000);
     expect(sla.getTime()).toBeGreaterThanOrEqual(expectedMin.getTime());
     expect(sla.getTime()).toBeLessThanOrEqual(expectedMax.getTime());
+  });
+
+  it('CI-06: transitions document to in_workflow within the same transaction as instance creation', async () => {
+    await createInstance('doc-1', 'def-1', 'user-encoder', mockDeps);
+    expect(mockDeps.documentsService.transitionState).toHaveBeenCalledWith(
+      'doc-1',
+      'in_workflow',
+      'user-encoder',
+      expect.any(String),
+      mockTrx,
+    );
+  });
+
+  it('CI-07: does not attempt in_workflow transition when NO_ACTIVE_VERSION is thrown before the transaction starts', async () => {
+    mockDeps.db.select.mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        innerJoin: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue({
+              then: vi.fn((fn: any) => Promise.resolve(fn([]))),
+            }),
+          }),
+        }),
+      }),
+    });
+
+    await expect(createInstance('doc-1', 'def-1', 'user-encoder', mockDeps)).rejects.toThrow(
+      'NO_ACTIVE_VERSION',
+    );
+    expect(mockDeps.documentsService.transitionState).not.toHaveBeenCalled();
   });
 });

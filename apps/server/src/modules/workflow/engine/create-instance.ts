@@ -92,6 +92,25 @@ export async function createInstance(
       trx,
     );
 
+    // TASK-WF-018: synchronize documents.lifecycle_state with the workflow
+    // engine at the moment a workflow instance is actually created for
+    // this document -- not before, and not unconditionally in
+    // documents.submit (see TASK-WF-018's decision record for why:
+    // document types with no active workflow definition never reach this
+    // point at all, since the caller's own early-return prevents
+    // createInstance from being invoked for them -- so they correctly
+    // never transition past 'submitted'). Sharing `trx` means: if
+    // anything below this point in this same transaction throws, this
+    // transition rolls back together with the instance/step-instance/
+    // event rows created here.
+    await deps.documentsService.transitionState(
+      documentId,
+      'in_workflow',
+      actorId,
+      'Workflow instance created',
+      trx,
+    );
+
     const versionData = await deps.workflowRepository.getDefinitionVersionWithSteps(versionId, trx);
     if (!versionData) throw new Error('NO_ACTIVE_VERSION');
 
