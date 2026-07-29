@@ -179,9 +179,9 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
         <CardHeader className="pb-2">
           <CardTitle className="text-text-primary text-sm font-semibold">Agenda Items</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 pb-3">
           {isLoading ? (
-            <div className="space-y-2 p-4">
+            <div className="space-y-2 px-6 py-4">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="h-14 w-full" />
               ))}
@@ -248,7 +248,7 @@ function OobItemRow({ item, agendaNumber, isSecretary, onMutationSuccess }: OobI
       {/* ── Main row ── */}
       <button
         type="button"
-        className="flex w-full items-center gap-3 px-4 py-3 text-left"
+        className="flex w-full items-center gap-3 px-6 py-3 text-left"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
       >
@@ -290,7 +290,7 @@ function OobItemRow({ item, agendaNumber, isSecretary, onMutationSuccess }: OobI
 
       {/* ── Expanded detail panel ── */}
       {expanded && (
-        <div className="space-y-4 px-4 pb-4">
+        <div className="space-y-4 px-6 pb-4">
           {/* Assigned committees */}
           {item.assignedCommittees.length > 0 && (
             <div className="space-y-1.5">

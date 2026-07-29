@@ -35,6 +35,10 @@ export function WorkflowStepActionPage() {
     error,
   } = trpc.workflow.getInstance.useQuery({ instanceId: instanceId! }, { enabled: !!instanceId });
 
+  const { data: users } = trpc.iam.listAllUsers.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
+
   if (isLoading) {
     return (
       <div className="flex justify-center p-8">
@@ -158,7 +162,10 @@ export function WorkflowStepActionPage() {
             </div>
             {instance.currentAssigneeUserId && (
               <div>
-                <strong>Assignee:</strong> {instance.currentAssigneeUserId}
+                <strong>Assignee:</strong>{' '}
+                {users?.find((u) => u.id === instance.currentAssigneeUserId)?.displayName ??
+                 users?.find((u) => u.id === instance.currentAssigneeUserId)?.username ??
+                 instance.currentAssigneeUserId}
               </div>
             )}
             {instance.slaDeadline && (

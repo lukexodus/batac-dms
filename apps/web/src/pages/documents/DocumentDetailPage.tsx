@@ -520,10 +520,13 @@ export default function DocumentDetailPage() {
     ? [
         {
           id: workflowInstance.currentStepInstanceId,
-          label: workflowInstance.currentStepType,
+          label: workflowInstance.currentStepName ?? workflowInstance.currentStepType,
           state: workflowInstance.status === 'Active' ? 'active' : 'completed',
           ...(workflowInstance.currentAssigneeUserId && {
-            assigneeName: workflowInstance.currentAssigneeUserId,
+            assigneeName:
+              users?.find((u) => u.id === workflowInstance.currentAssigneeUserId)?.displayName ??
+              users?.find((u) => u.id === workflowInstance.currentAssigneeUserId)?.username ??
+              workflowInstance.currentAssigneeUserId,
           }),
         },
       ]

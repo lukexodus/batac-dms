@@ -458,6 +458,7 @@ export function createWorkflowRouter() {
               'parallel_split',
               'parallel_join',
             ]),
+            currentStepName: z.string().nullable(),
             currentStepInstanceId: z.string().uuid(),
             currentAssigneeUserId: z.string().uuid().nullable(),
             status: z.enum(['Active', 'Completed', 'Cancelled']),
@@ -530,6 +531,7 @@ export function createWorkflowRouter() {
           .select({
             stepInstanceId: stepInstances.id,
             stepType: steps.stepType,
+            stepName: steps.label,
             assignedTo: stepInstances.assignedTo,
             stepKey: steps.stepKey,
             metadata: stepInstances.metadata,
@@ -602,6 +604,7 @@ export function createWorkflowRouter() {
           documentId: instance.documentId,
           definitionVersionId: instance.definitionVersionId,
           currentStepType,
+          currentStepName: currentStep ? currentStep.stepName : null,
           currentStepInstanceId: currentStep
             ? currentStep.stepInstanceId
             : '00000000-0000-0000-0000-000000000000',
