@@ -22,12 +22,36 @@ import {
   Checkbox,
 } from '@batac/ui';
 
+import type { Control, UseFormSetValue, UseFormRegister, FieldErrors, Path } from 'react-hook-form';
+
 import { buildIntakeFormSchema, type IntakeFormValues } from '@/lib/intake-schema';
 import { SYSTEM_SET_METADATA_FIELDS } from '@/lib/system-set-metadata-fields';
 import { trpc } from '@/lib/trpc';
 
-function SponsorsArrayField({ name, prop, control, label, isRequired, setValue }: any) {
-  const { fields, append, remove } = useFieldArray({ control, name });
+interface SchemaPropertyDescriptor {
+  type?: string | string[];
+  enum?: (string | null)[];
+  properties?: Record<string, SchemaPropertyDescriptor>;
+  required?: string[];
+  items?: SchemaPropertyDescriptor;
+}
+
+interface BaseFieldProps {
+  name: string;
+  label: string;
+  isRequired: boolean;
+  control: Control<IntakeFormValues>;
+  setValue: UseFormSetValue<IntakeFormValues>;
+}
+function SponsorsArrayField({
+  name,
+  prop,
+  control,
+  label,
+  isRequired,
+  setValue,
+}: BaseFieldProps & { prop: SchemaPropertyDescriptor }) {
+  const { fields, append, remove } = useFieldArray({ control, name: name as never });
   const { data: spMembers } = trpc.organization.listSpMembers.useQuery(undefined, {
     staleTime: Infinity,
   });
@@ -51,7 +75,7 @@ function SponsorsArrayField({ name, prop, control, label, isRequired, setValue }
              <div className="space-y-2">
                <Label>Member <span className="text-danger-500">*</span></Label>
                <Controller
-                 name={`${name}.${index}.person_id`}
+                 name={`${name}.${index}.person_id` as Path<IntakeFormValues>}
                  control={control}
                  render={({ field: selectField }) => (
                    <Select 
@@ -59,10 +83,10 @@ function SponsorsArrayField({ name, prop, control, label, isRequired, setValue }
                        selectField.onChange(val);
                        const member = spMembers?.find(m => m.employeeId === val);
                        if (member) {
-                         setValue(`${name}.${index}.display_name`, member.displayName, { shouldValidate: true });
+                         setValue(`${name}.${index}.display_name` as Path<IntakeFormValues>, member.displayName, { shouldValidate: true });
                        }
                      }} 
-                     value={selectField.value || ''}
+                     value={(selectField.value as string) || ''}
                    >
                      <SelectTrigger>
                        <SelectValue placeholder="Select member" />
@@ -77,25 +101,28 @@ function SponsorsArrayField({ name, prop, control, label, isRequired, setValue }
                    </Select>
                  )}
                />
-               <input type="hidden" {...control.register(`${name}.${index}.display_name`)} />
+               <input type="hidden" {...control.register(`${name}.${index}.display_name` as Path<IntakeFormValues>)} />
              </div>
              
              <div className="space-y-2">
                <Label>Role <span className="text-danger-500">*</span></Label>
                <Controller
-                 name={`${name}.${index}.role`}
+                 name={`${name}.${index}.role` as Path<IntakeFormValues>}
                  control={control}
                  render={({ field: roleField }) => (
-                   <Select onValueChange={roleField.onChange} value={roleField.value || ''}>
+                   <Select onValueChange={roleField.onChange} value={(roleField.value as string) || ''}>
                      <SelectTrigger>
                        <SelectValue placeholder="Select role" />
                      </SelectTrigger>
                      <SelectContent>
-                       {(prop.items.properties?.role?.enum || ['author', 'co_author']).map((opt: string) => (
+                       {(prop.items?.properties?.['role']?.enum || ['author', 'co_author']).map((opt: string | null) => {
+                         if (opt === null) return null;
+                         return (
                          <SelectItem key={opt} value={opt}>
                            {opt.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                          </SelectItem>
-                       ))}
+                         );
+                       })}
                      </SelectContent>
                    </Select>
                  )}
@@ -108,8 +135,19 @@ function SponsorsArrayField({ name, prop, control, label, isRequired, setValue }
   );
 }
 
-function DynamicArrayField({ name, prop, control, register, label, isRequired, setValue }: any) {
-  const { fields, append, remove } = useFieldArray({ control, name });
+function DynamicArrayField({
+  name,
+  prop,
+  control,
+  register,
+  label,
+  isRequired,
+  setValue,
+}: BaseFieldProps & {
+  prop: SchemaPropertyDescriptor;
+  register: UseFormRegister<IntakeFormValues>;
+}) {
+  const { fields, append, remove } = useFieldArray({ control, name: name as never });
   
   return (
     <div className="space-y-4 border rounded-md p-4 bg-muted/10">
@@ -126,8 +164,8 @@ function DynamicArrayField({ name, prop, control, register, label, isRequired, s
              <h5 className="text-xs font-semibold text-muted-foreground uppercase">Item {index + 1}</h5>
              <Button type="button" variant="ghost" size="sm" className="h-6 text-xs text-danger-500 hover:text-danger-600" onClick={() => remove(index)}>Remove</Button>
            </div>
-           {Object.entries(prop.items.properties || {}).map(([subKey, subProp]) => {
-              const subIsRequired = prop.items.required?.includes(subKey);
+           {Object.entries(prop.items?.properties || {}).map(([subKey, subProp]) => {
+              const subIsRequired = prop.items?.required?.includes(subKey);
               const subLabel = subKey.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
               return (
                 <DynamicField 
@@ -137,8 +175,9 @@ function DynamicArrayField({ name, prop, control, register, label, isRequired, s
                   control={control} 
                   register={register} 
                   label={subLabel} 
-                  isRequired={subIsRequired} 
+                  isRequired={!!subIsRequired} 
                   setValue={setValue}
+                  errors={{} as FieldErrors<IntakeFormValues>}
                 />
               );
            })}
@@ -148,7 +187,13 @@ function DynamicArrayField({ name, prop, control, register, label, isRequired, s
   );
 }
 
-function UserPickerField({ name, control, label, isRequired, setValue }: any) {
+function UserPickerField({
+  name,
+  control,
+  label,
+  isRequired,
+  setValue,
+}: BaseFieldProps) {
   const { data: users, isLoading } = trpc.iam.listAllUsers.useQuery(undefined, {
     staleTime: Infinity,
   });
@@ -159,7 +204,7 @@ function UserPickerField({ name, control, label, isRequired, setValue }: any) {
         {label} {isRequired && <span className="text-danger-500">*</span>}
       </Label>
       <Controller
-        name={name}
+        name={name as Path<IntakeFormValues>}
         control={control}
         render={({ field }) => (
           <Select 
@@ -169,10 +214,10 @@ function UserPickerField({ name, control, label, isRequired, setValue }: any) {
               if (user) {
                 // Try to set display name if the schema expects it
                 const displayNameField = name.replace(/_user_id$/, '_display_name');
-                setValue(displayNameField, user.displayName, { shouldValidate: true, shouldDirty: true });
+                setValue(displayNameField as Path<IntakeFormValues>, user.displayName, { shouldValidate: true, shouldDirty: true });
               }
             }} 
-            value={field.value || ''}
+            value={(field.value as string) || ''}
             disabled={isLoading}
           >
             <SelectTrigger id={`meta-${name}`}>
@@ -192,7 +237,12 @@ function UserPickerField({ name, control, label, isRequired, setValue }: any) {
   );
 }
 
-function OfficePickerField({ name, control, label, isRequired }: any) {
+function OfficePickerField({
+  name,
+  control,
+  label,
+  isRequired,
+}: Omit<BaseFieldProps, 'setValue'>) {
   const { data: offices, isLoading } = trpc.organization.listAllOffices.useQuery(undefined, {
     staleTime: Infinity,
   });
@@ -203,10 +253,10 @@ function OfficePickerField({ name, control, label, isRequired }: any) {
         {label} {isRequired && <span className="text-danger-500">*</span>}
       </Label>
       <Controller
-        name={name}
+        name={name as Path<IntakeFormValues>}
         control={control}
         render={({ field }) => (
-          <Select onValueChange={field.onChange} value={field.value || ''} disabled={isLoading}>
+          <Select onValueChange={field.onChange} value={(field.value as string) || ''} disabled={isLoading}>
             <SelectTrigger id={`meta-${name}`}>
               <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
             </SelectTrigger>
@@ -224,7 +274,20 @@ function OfficePickerField({ name, control, label, isRequired }: any) {
   );
 }
 
-function DynamicField({ name, prop, control, register, label, isRequired, setValue, errors }: any) {
+function DynamicField({
+  name,
+  prop,
+  control,
+  register,
+  label,
+  isRequired,
+  setValue,
+  errors,
+}: BaseFieldProps & {
+  prop: SchemaPropertyDescriptor;
+  register: UseFormRegister<IntakeFormValues>;
+  errors: FieldErrors<IntakeFormValues>;
+}) {
   if (prop.enum) {
     return (
       <div className="space-y-2">
@@ -232,15 +295,15 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
           {label} {isRequired && <span className="text-danger-500">*</span>}
         </Label>
         <Controller
-          name={name}
+          name={name as Path<IntakeFormValues>}
           control={control}
           render={({ field }) => (
-            <Select onValueChange={field.onChange} value={field.value || ''}>
+            <Select onValueChange={field.onChange} value={(field.value as string) || ''}>
               <SelectTrigger id={`meta-${name}`}>
                 <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
-                {prop.enum.map((opt: string | null) => {
+                {(prop.enum || []).map((opt: string | null) => {
                   if (opt === null) return null; // Or handle null if needed
                   return (
                     <SelectItem key={opt} value={opt}>
@@ -252,7 +315,13 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
             </Select>
           )}
         />
-        {errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}
+        {(() => {
+          const fieldKey = name.split('.').pop() ?? name;
+          const fieldError = errors?.metadata?.[fieldKey as keyof typeof errors.metadata];
+          return fieldError && (
+            <p className="text-destructive text-sm">{fieldError?.message as string}</p>
+          );
+        })()}
       </div>
     );
   }
@@ -261,7 +330,7 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
     return (
       <div className="flex items-center space-x-2.5 py-1">
         <Controller
-          name={name}
+          name={name as Path<IntakeFormValues>}
           control={control}
           render={({ field }) => (
             <Checkbox
@@ -274,7 +343,13 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
         <Label htmlFor={`meta-${name}`} className="text-sm font-medium text-text-primary cursor-pointer select-none">
           {label} {isRequired && <span className="text-danger-500">*</span>}
         </Label>
-        {errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}
+        {(() => {
+          const fieldKey = name.split('.').pop() ?? name;
+          const fieldError = errors?.metadata?.[fieldKey as keyof typeof errors.metadata];
+          return fieldError && (
+            <p className="text-destructive text-sm">{fieldError?.message as string}</p>
+          );
+        })()}
       </div>
     );
   }
@@ -294,8 +369,9 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
                control={control} 
                register={register} 
                label={subLabel} 
-               isRequired={subIsRequired} 
+               isRequired={!!subIsRequired} 
                setValue={setValue}
+               errors={errors}
              />
            );
         })}
@@ -307,7 +383,7 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
     if (name === 'metadata.sponsors') {
       return (
         <SponsorsArrayField 
-          name={name} 
+          name={name as Path<IntakeFormValues>} 
           prop={prop} 
           control={control} 
           label={label} 
@@ -319,7 +395,7 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
 
     return (
       <DynamicArrayField 
-        name={name} 
+        name={name as Path<IntakeFormValues>} 
         prop={prop} 
         control={control} 
         register={register} 
@@ -338,10 +414,16 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
         </Label>
         <Input
           id={`meta-${name}`}
-          {...register(name)}
+          {...register(name as Path<IntakeFormValues>)}
           placeholder="e.g. John Doe, Jane Smith"
         />
-        {errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}
+        {(() => {
+          const fieldKey = name.split('.').pop() ?? name;
+          const fieldError = errors?.metadata?.[fieldKey as keyof typeof errors.metadata];
+          return fieldError && (
+            <p className="text-destructive text-sm">{fieldError?.message as string}</p>
+          );
+        })()}
       </div>
     );
   }
@@ -351,7 +433,7 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
   if (keyName.endsWith('_user_id')) {
     return (
       <UserPickerField 
-        name={name} 
+        name={name as Path<IntakeFormValues>} 
         control={control} 
         label={label} 
         isRequired={isRequired} 
@@ -363,7 +445,7 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
   if (keyName.endsWith('_office_id')) {
     return (
       <OfficePickerField 
-        name={name} 
+        name={name as Path<IntakeFormValues>} 
         control={control} 
         label={label} 
         isRequired={isRequired} 
@@ -376,8 +458,14 @@ function DynamicField({ name, prop, control, register, label, isRequired, setVal
       <Label htmlFor={`meta-${name}`}>
         {label} {isRequired && <span className="text-danger-500">*</span>}
       </Label>
-      <Input id={`meta-${name}`} {...register(name)} />
-      {errors?.metadata?.[name.split('.').pop()] && <p className="text-destructive text-sm">{errors.metadata[name.split('.').pop()].message}</p>}
+      <Input id={`meta-${name}`} {...register(name as Path<IntakeFormValues>)} />
+      {(() => {
+        const fieldKey = name.split('.').pop() ?? name;
+        const fieldError = errors?.metadata?.[fieldKey as keyof typeof errors.metadata];
+        return fieldError && (
+          <p className="text-destructive text-sm">{fieldError?.message as string}</p>
+        );
+      })()}
     </div>
   );
 }
@@ -394,8 +482,10 @@ export default function DocumentIntakePage() {
   const confirmUpload = trpc.documents.confirmUpload.useMutation();
 
   // Workaround for circular dependency: control -> useWatch -> selectedType -> resolver -> useForm -> control
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see comment above; a typed alternative was not found without reintroducing the circular dependency this works around
   const intakeResolver = (values: Record<string, unknown>, context: unknown, options: any) => {
     const selectedType = documentTypes?.find((t) => t.id === values['documentTypeId']);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see comment above
     return zodResolver(buildIntakeFormSchema(selectedType?.metadataSchema as Record<string, unknown> | null | undefined) as any)(values, context, options);
   };
 
@@ -417,7 +507,7 @@ export default function DocumentIntakePage() {
   const selectedDocumentTypeId = useWatch({ control, name: 'documentTypeId' });
   const selectedType = documentTypes?.find((t) => t.id === selectedDocumentTypeId);
   const metadataSchema = selectedType?.metadataSchema as {
-    properties?: Record<string, any>;
+    properties?: Record<string, SchemaPropertyDescriptor>;
     required?: string[];
   } | null | undefined;
 
@@ -463,19 +553,22 @@ export default function DocumentIntakePage() {
       setIsUploading(true);
 
       // Clean metadata based on schema if array type is string
-      const cleanMetadata = { ...data.metadata } as Record<string, any>;
-      
-      const cleanRecursive = (schemaProps: any, obj: any) => {
+      const cleanMetadata = { ...data.metadata } as Record<string, unknown>;
+
+      const cleanRecursive = (
+        schemaProps: Record<string, SchemaPropertyDescriptor> | undefined,
+        obj: Record<string, unknown> | undefined,
+      ) => {
         if (!schemaProps || !obj) return;
-        for (const [key, prop] of Object.entries(schemaProps) as [string, any][]) {
+        for (const [key, prop] of Object.entries(schemaProps)) {
           if (prop.type === 'array' && typeof obj[key] === 'string') {
              // Split comma separated list
-             obj[key] = obj[key]
+             obj[key] = (obj[key] as string)
                .split(',')
                .map((s: string) => s.trim())
                .filter(Boolean);
           } else if (prop.type === 'object' && prop.properties && typeof obj[key] === 'object') {
-             cleanRecursive(prop.properties, obj[key]);
+             cleanRecursive(prop.properties, obj[key] as Record<string, unknown>);
           }
         }
       };
@@ -532,7 +625,7 @@ export default function DocumentIntakePage() {
         <CardHeader>
           <CardTitle>Intake New Document</CardTitle>
         </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit as any)}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="documentTypeId">Document Type</Label>
@@ -579,7 +672,7 @@ export default function DocumentIntakePage() {
                 {Object.entries(metadataSchema.properties)
                   .filter(([key]) => !SYSTEM_SET_METADATA_FIELDS.has(key))
                   .map(([key, prop]) => {
-                  const isRequired = metadataSchema.required?.includes(key);
+                  const isRequired = !!metadataSchema.required?.includes(key);
                   const label = key
                     .split('_')
                     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
