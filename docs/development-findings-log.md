@@ -5406,3 +5406,94 @@ to `DocumentIntakePage.tsx` and `intake-schema.ts`) suggests it may be an
 ad-hoc verification script from recent related work, but this is
 [Speculation] — the file itself gives no explicit indication of its
 intended lifespan.
+
+---
+
+### [LOG-0186] Committee-assignment mechanism for multi_referral steps exists but was never wired to a tRPC procedure or frontend UI — not the root cause a prior planning pass reported
+
+- date: 2026-07-30
+- task_id: none (planning-layer investigation, no A1 task dispatched)
+- status: proposed
+- affects: E1, workflow.router.ts, workflow.policy.ts, multi-referral.handler.ts, MultiReferralPanel.tsx
+
+**What was found:** `updateAssignedCommittees` in
+`apps/server/src/modules/workflow/engine/step-handlers/multi-referral.handler.ts`
+(confirmed at lines 271-295) is a fully implemented, tested function matching
+B4 §4.3's documented "runtime committee override" mechanism exactly — it locks
+the committee list after first submission unless bypassed, and requires a
+mandatory comment on bypass. It has zero production callers: no tRPC procedure
+imports or calls it (confirmed via repo-wide grep), and no frontend panel
+section exists for committee assignment (`MultiReferralPanel.tsx`, 200 lines,
+read in full, has exactly three sections: Submit Committee Report, Enter
+Committee Hearing Date, Manually Advance Step — no assignment section).
+
+Separately, `committee_referral` step instances are created with
+`metadata: null` (`step-resolution.ts`'s `createStepInstance` call inside
+`resolveNextStep` passes no `metadata`; the `stepInstances.metadata` column
+has no schema-level default). No auto-population from
+`config.default_committee_roles` occurs anywhere. Net effect: every
+`committee_referral` step instance starts with zero assigned committees, and
+`submitCommitteeReport` unconditionally rejects every committee-report
+submission with `FORBIDDEN` until this task's fix lands.
+
+A prior planning-layer investigation (reported by the user in this session,
+not a logged A1 task) attributed this to `first_reading`/`completeActionStep`
+needing a new committee-assignment mutation bundled into first-reading
+completion, and claimed `computePanelHint` had a specific broken
+`first_reading` branch. Both claims were checked directly against this
+snapshot and found inaccurate: `computePanelHint` has no `first_reading`
+branch at all (it falls through to `generic_action` like most ordinary action
+steps, confirmed by reading the full function), and the actual gap is the
+disconnected `updateAssignedCommittees` function described above, not a
+missing mutation on `first_reading`.
+
+E1 (`e1-trpc-router-and-procedure-catalog.md`) does not document any
+committee-assignment procedure — confirmed by full-text search for
+"assignCommittee", "assigned_committees", "multi_referral" in that document,
+finding only `submitCommitteeReport`, `manuallyAdvanceMultiReferralStep`, and
+`enterCommitteeHearingDate`. This is a planning-layer gap, not purely an
+execution-layer one.
+
+**What was implemented:** TASK-WF-025 (standalone prompt drafted this
+session) wires `updateAssignedCommittees` to a new `workflow.assignCommittees`
+procedure, a new `canAssignCommittees` ABAC guard (sp_secretary-only,
+mirroring `canManuallyAdvanceMultiReferral`), a widened `getInstance` output
+(`assignedCommittees` field), and a new "Assign Committees" section in
+`MultiReferralPanel.tsx`. Auto-population from `config.default_committee_roles`
+was explicitly excluded from this task's scope — see LOG-0187.
+
+[Confirmed]: every claim above was checked directly against this session's
+repo snapshot, with file paths and line numbers cited inline.
+
+---
+
+### [LOG-0187] `ROLE.COMMITTEE_LAWS` role-key string has no established resolution path to a `committees.id` UUID — blocks auto-population of default committee assignments
+
+- date: 2026-07-30
+- task_id: none (planning-layer investigation, no A1 task dispatched)
+- status: proposed
+- affects: H1, B4 (§4.3), phase1-legislative.ts, organization.schema.ts
+
+**What was found:** `docs/pre-development/B-architecture-documents/b4-workflow-engine-specification.md`
+§4.3 documents `config.default_committee_roles` as the baseline list a
+`multi_referral` step's assigned committees should default from. In the
+actual seed data (`packages/database/src/seeds/workflow/phase1-legislative.ts:33,107`),
+this resolves to `ROLE.COMMITTEE_LAWS = 'role:committee_laws'` — a role-key
+string, not a `committees.id` UUID. `organization.committees`'s schema
+(`organization.schema.ts:242-261`) has no column mapping to a string of this
+shape (only `id`, `name`, `code`, `description`, `chairedByEmployeeId`) — so
+there is no established way to resolve `'role:committee_laws'` to an actual
+committee row. This was already flagged, independently, in
+`docs/pre-development/A-project-planning/a1-tasks/fix.md` (search
+"COMMITTEE_LAWS" in that file) as a mechanism not established, with an
+explicit instruction to a prior task not to modify it.
+
+**What was implemented:** Nothing — TASK-WF-025 (see LOG-0186) deliberately
+excludes auto-population as a non-goal, given this unresolved mechanism.
+
+[Inference]: resolving this would most likely need either (a) a new column
+on `organization.committees` mapping to a role-key string, or (b) a
+string-match convention (e.g. `code = 'LAWS'`) formalized and documented,
+before any auto-population logic could be written safely. A human should
+decide which approach fits the project's existing conventions before this
+becomes a standalone task.

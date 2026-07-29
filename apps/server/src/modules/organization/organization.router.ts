@@ -365,7 +365,6 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
     }),
 
     listEmployees: protectedProcedure.input(s.ListEmployeesInput).query(async ({ ctx, input }) => {
-      requirePlatformAdmin(ctx);
       const { orgService } = getDeps(ctx);
       return orgService.listEmployees(ctx.auth.cityId, input.limit, input.cursor, input.search);
     }),

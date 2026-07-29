@@ -22,6 +22,7 @@ export const serverEnvSchema = z
     APP_ENV: AppEnv,
     APP_NAME: z.string().min(1).default('Batac City LGU Platform'),
     APP_VERSION: z.string().default('0.0.0'),
+    MOCK_SYSTEM_DATE: z.string().optional(),
     APP_URL: z.string().url(),
     API_URL: z.string().url(),
     APP_PORT: z.coerce.number().int().min(1024).max(65535).default(3000),

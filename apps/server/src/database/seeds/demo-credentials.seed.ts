@@ -59,6 +59,30 @@ interface DemoAccountDef {
 //   Part 3.1 (Mayor/VM), Part 3.3 (Secretariat), Part 3.2 (SP Members)
 const DEMO_ACCOUNTS: DemoAccountDef[] = [
   {
+    username: 'it.admin',
+    email: 'it.admin@batac.gov.ph',
+    roleCode: 'sys_admin',
+    officeCode: 'OOM',
+    displayName: 'IT Administrator',
+    newEmployee: {
+      employeeNumber: 'OOM-IT-ADMIN',
+      firstName: 'IT',
+      lastName: 'Administrator',
+    },
+  },
+  {
+    username: 'plat.admin',
+    email: 'plat.admin@batac.gov.ph',
+    roleCode: 'plat_admin',
+    officeCode: 'OOM',
+    displayName: 'Platform Administrator',
+    newEmployee: {
+      employeeNumber: 'OOM-PLAT-ADMIN',
+      firstName: 'Platform',
+      lastName: 'Administrator',
+    },
+  },
+  {
     username: 'mayor.chua',
     email: 'mayor.chua@batac.gov.ph',
     roleCode: 'mayor',

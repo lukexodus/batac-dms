@@ -32,6 +32,9 @@
  *
  * Source: TASK-IAM-014.
  */
+import { applyTimeMockIfConfigured } from './mock-time.js';
+applyTimeMockIfConfigured();
+
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import {
   validatorCompiler,

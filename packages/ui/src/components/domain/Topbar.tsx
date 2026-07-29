@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Link } from 'react-router-dom';
 import { Bell, Menu } from 'lucide-react';
 import { cn } from '@batac/ui/lib/utils';
 import type { SidebarUser, BreadcrumbItem } from './types';
@@ -92,13 +93,13 @@ export function Topbar({
                     </BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink
-                      href={item.href}
+                      asChild
                       className={cn(
                         'text-text-muted hover:text-text-primary duration-fast touch-exempt transition-colors',
                         textClass,
                       )}
                     >
-                      {item.label}
+                      <Link to={item.href || '#'}>{item.label}</Link>
                     </BreadcrumbLink>
                   )}
                 </UIBreadcrumbItem>

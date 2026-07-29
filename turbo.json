@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalEnv": ["NODE_ENV", "DATABASE_URL_APP", "DATABASE_URL_AUDIT", "S3_ENDPOINT"],
+  "globalEnv": ["NODE_ENV", "DATABASE_URL_APP", "DATABASE_URL_AUDIT", "S3_ENDPOINT", "MOCK_SYSTEM_DATE"],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**", ".next/**", "out/**"] },
     "lint": { "dependsOn": [], "outputs": [] },

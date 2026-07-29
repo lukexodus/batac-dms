@@ -29683,3 +29683,244 @@ will verify each one independently.
 ````
 
 ---
+
+### [LOG-0186] Committee-assignment mechanism for multi_referral steps exists but was never wired to a tRPC procedure or frontend UI — not the root cause a prior planning pass reported
+
+- date: 2026-07-30
+- task_id: none (planning-layer investigation, no A1 task dispatched)
+- status: proposed
+- affects: E1, workflow.router.ts, workflow.policy.ts, multi-referral.handler.ts, MultiReferralPanel.tsx
+
+**What was found:** `updateAssignedCommittees` in
+`apps/server/src/modules/workflow/engine/step-handlers/multi-referral.handler.ts`
+(confirmed at lines 271-295) is a fully implemented, tested function matching
+B4 §4.3's documented "runtime committee override" mechanism exactly — it locks
+the committee list after first submission unless bypassed, and requires a
+mandatory comment on bypass. It has zero production callers: no tRPC procedure
+imports or calls it (confirmed via repo-wide grep), and no frontend panel
+section exists for committee assignment (`MultiReferralPanel.tsx`, 200 lines,
+read in full, has exactly three sections: Submit Committee Report, Enter
+Committee Hearing Date, Manually Advance Step — no assignment section).
+
+Separately, `committee_referral` step instances are created with
+`metadata: null` (`step-resolution.ts`'s `createStepInstance` call inside
+`resolveNextStep` passes no `metadata`; the `stepInstances.metadata` column
+has no schema-level default). No auto-population from
+`config.default_committee_roles` occurs anywhere. Net effect: every
+`committee_referral` step instance starts with zero assigned committees, and
+`submitCommitteeReport` unconditionally rejects every committee-report
+submission with `FORBIDDEN` until this task's fix lands.
+
+A prior planning-layer investigation (reported by the user in this session,
+not a logged A1 task) attributed this to `first_reading`/`completeActionStep`
+needing a new committee-assignment mutation bundled into first-reading
+completion, and claimed `computePanelHint` had a specific broken
+`first_reading` branch. Both claims were checked directly against this
+snapshot and found inaccurate: `computePanelHint` has no `first_reading`
+branch at all (it falls through to `generic_action` like most ordinary action
+steps, confirmed by reading the full function), and the actual gap is the
+disconnected `updateAssignedCommittees` function described above, not a
+missing mutation on `first_reading`.
+
+E1 (`e1-trpc-router-and-procedure-catalog.md`) does not document any
+committee-assignment procedure — confirmed by full-text search for
+"assignCommittee", "assigned_committees", "multi_referral" in that document,
+finding only `submitCommitteeReport`, `manuallyAdvanceMultiReferralStep`, and
+`enterCommitteeHearingDate`. This is a planning-layer gap, not purely an
+execution-layer one.
+
+**What was implemented:** TASK-WF-025 (standalone prompt drafted this
+session) wires `updateAssignedCommittees` to a new `workflow.assignCommittees`
+procedure, a new `canAssignCommittees` ABAC guard (sp_secretary-only,
+mirroring `canManuallyAdvanceMultiReferral`), a widened `getInstance` output
+(`assignedCommittees` field), and a new "Assign Committees" section in
+`MultiReferralPanel.tsx`. Auto-population from `config.default_committee_roles`
+was explicitly excluded from this task's scope — see LOG-0187.
+
+[Confirmed]: every claim above was checked directly against this session's
+repo snapshot, with file paths and line numbers cited inline.
+
+---
+
+### [LOG-0187] `ROLE.COMMITTEE_LAWS` role-key string has no established resolution path to a `committees.id` UUID — blocks auto-population of default committee assignments
+
+- date: 2026-07-30
+- task_id: none (planning-layer investigation, no A1 task dispatched)
+- status: proposed
+- affects: H1, B4 (§4.3), phase1-legislative.ts, organization.schema.ts
+
+**What was found:** `docs/pre-development/B-architecture-documents/b4-workflow-engine-specification.md`
+§4.3 documents `config.default_committee_roles` as the baseline list a
+`multi_referral` step's assigned committees should default from. In the
+actual seed data (`packages/database/src/seeds/workflow/phase1-legislative.ts:33,107`),
+this resolves to `ROLE.COMMITTEE_LAWS = 'role:committee_laws'` — a role-key
+string, not a `committees.id` UUID. `organization.committees`'s schema
+(`organization.schema.ts:242-261`) has no column mapping to a string of this
+shape (only `id`, `name`, `code`, `description`, `chairedByEmployeeId`) — so
+there is no established way to resolve `'role:committee_laws'` to an actual
+committee row. This was already flagged, independently, in
+`docs/pre-development/A-project-planning/a1-tasks/fix.md` (search
+"COMMITTEE_LAWS" in that file) as a mechanism not established, with an
+explicit instruction to a prior task not to modify it.
+
+**What was implemented:** Nothing — TASK-WF-025 (see LOG-0186) deliberately
+excludes auto-population as a non-goal, given this unresolved mechanism.
+
+[Inference]: resolving this would most likely need either (a) a new column
+on `organization.committees` mapping to a role-key string, or (b) a
+string-match convention (e.g. `code = 'LAWS'`) formalized and documented,
+before any auto-population logic could be written safely. A human should
+decide which approach fits the project's existing conventions before this
+becomes a standalone task.
+
+---
+
+# TASK-WF-025 — Wire `updateAssignedCommittees` to a new `workflow.assignCommittees` tRPC procedure and a new "Assign Committees" panel section
+
+## Context for the executor (no prior conversation reference needed)
+
+The `committee_referral` step (a `multi_referral`-type step, step key `committee_referral`) in the SP Resolution, SP Ordinance, and Appropriation Ordinance workflows is currently created with `metadata: null` (verify: `apps/server/src/modules/workflow/engine/step-resolution.ts`, the `createStepInstance` call inside `resolveNextStep` — re-verify line numbers directly, as they may have shifted since this prompt was authored). No mechanism currently populates `metadata.assigned_committees` on this step instance at any point, which means `apps/server/src/modules/workflow/engine/step-handlers/multi-referral.handler.ts`'s `submitCommitteeReport` function always finds `assignedCommittees` empty and rejects every committee-report submission with `FORBIDDEN: committee is not assigned to this step`. This blocks the demo scenario described in `demo-guide-v2.md` (Act 3) end-to-end.
+
+A function that correctly assigns committees to a `committee_referral` step instance **already exists** and is already tested: `updateAssignedCommittees` in `apps/server/src/modules/workflow/engine/step-handlers/multi-referral.handler.ts` (re-verify its current line range — it was last confirmed at lines 271-295). This function is exported from that file but currently has no caller anywhere in the codebase outside its own test files. This task's entire job is to give it a caller: one new tRPC procedure, plus one new frontend UI section that calls that procedure. **Do not reimplement or modify the logic inside `updateAssignedCommittees` itself** — it is correct and tested as-is; this task only wires it up.
+
+## Required changes
+
+### Part 1 — Backend: new tRPC procedure `workflow.assignCommittees`
+
+**File:** `apps/server/src/modules/workflow/workflow.router.ts`
+
+Add a new mutation procedure, placed near the existing `submitCommitteeReport` and `manuallyAdvanceMultiReferralStep` procedures in this same file (find their current locations and place the new one adjacent, for discoverability — do not place it elsewhere in the file).
+
+**Verbatim input/output shape (authoritative — do not paraphrase or rename fields):**
+
+```json
+{
+  "procedure_name": "assignCommittees",
+  "input_schema": {
+    "stepInstanceId": "z.string().uuid()",
+    "committeeIds": "z.array(z.string().uuid()).min(1)",
+    "isBypass": "z.boolean().optional().default(false)",
+    "comment": "z.string().optional()"
+  },
+  "output_schema": {
+    "success": "z.literal(true)",
+    "assignedCommittees": "z.array(z.object({ committeeId: z.string().uuid(), name: z.string() }))"
+  }
+}
+```
+
+**Business logic the procedure must implement, in this exact order:**
+
+1. Authenticate (`ctx.auth` must be present — follow the exact same `if (!ctx.auth) throw new TRPCError({ code: 'UNAUTHORIZED', ... })` pattern used by `completeActionStep` in this same file, re-verify its current line range before copying the pattern).
+2. Fetch the step instance and its parent workflow instance. Use the same `fetchStepContext(stepInstanceId, ctx)` helper already used by `completeActionStep` and other procedures in this file (re-verify this helper's current signature and location before calling it — do not assume its shape from this description alone).
+3. Confirm the step's `stepType` is `multi_referral` and its `stepKey` is `committee_referral`. If either check fails, throw `TRPCError({ code: 'CONFLICT', message: 'This step is not a committee referral step.' })`.
+4. Call `workflowPolicy.canAssignCommittees(ctx.auth)` — a new guard function you must add (see Part 2 below) — before doing anything else that mutates state. This must run before any database write, matching the ordering convention already used by every other mutation in this file (ABAC guard call happens before the transaction, not inside it).
+5. Look up each `committeeId` in `input.committeeIds` against the `organization.committees` table (via the existing `organization` module's repository or public API — search this codebase for how other procedures in `workflow.router.ts` already resolve organization data, e.g. `getOrgService(ctx)`, and follow that exact existing pattern rather than writing a new direct query) to get each committee's `name`. Construct the array to pass into `updateAssignedCommittees` as `newAssignedCommittees: Array<{ committee_id: string }>` — note the exact field name `committee_id` (snake_case) matches what `updateAssignedCommittees` and `submitCommitteeReport` both already expect internally; do not use `committeeId` (camelCase) for this internal array, even though the procedure's own `input.committeeIds` is camelCase. If any `committeeId` does not resolve to an existing committee, throw `TRPCError({ code: 'NOT_FOUND', message: 'One or more committees could not be found.' })` and do not proceed.
+6. Inside a database transaction (matching the `ctx.db.transaction(async (tx) => { ... })` pattern already used by `completeActionStep` in this file), call `updateAssignedCommittees(stepInstance, newAssignedCommittees, input.isBypass, input.comment ?? null, deps, tx)` — construct `deps` the same way `completeActionStep` already does in this file (re-verify its current construction, it was last confirmed to include `db`, `workflowRepository`, `documentsService`, `eventBus`, `orgService`, `delegationService`, `iamService`).
+7. `updateAssignedCommittees` will itself throw `COMMITTEE_LIST_LOCKED` (if committees were already submitted and `isBypass` is not true) or `COMMENT_REQUIRED` (if `isBypass` is true and `comment` is empty) — do not catch or reinterpret these errors; let them propagate as thrown, wrapped in whatever this file's existing error-normalization convention is (check how other procedures in this file surface errors thrown by engine-layer functions — e.g. how `completeActionStep` handles errors from `submitStepAction` — and match that exact convention, do not invent a different error-wrapping approach for this procedure alone).
+8. On success, return `{ success: true, assignedCommittees: <the resolved array of {committeeId, name}> }`.
+
+**IN SCOPE:** `apps/server/src/modules/workflow/workflow.router.ts` (add the new procedure only — do not modify `completeActionStep`, `computePanelHint`, `submitCommitteeReport`, or any other existing procedure in this file).
+
+**OUT OF SCOPE (do not touch even if related):** `apps/server/src/modules/workflow/engine/step-handlers/multi-referral.handler.ts` (the `updateAssignedCommittees` function itself — call it, do not modify its internals, its signature, or its locking/comment-requirement logic), `apps/server/src/modules/workflow/engine/step-resolution.ts` (do NOT add auto-population of `assigned_committees` from `config.default_committee_roles` on step-instance creation — this is a separate, not-yet-scoped piece of work; see the note at the end of this prompt), any procedure in `session.router.ts`, `completeActionStep`'s input schema (do not add committee-related fields to it).
+
+### Part 2 — Backend: new ABAC guard `canAssignCommittees`
+
+**File:** `apps/server/src/modules/workflow/workflow.policy.ts`
+
+Add a new guard method, placed near the existing `canManuallyAdvanceMultiReferral` guard (re-verify its current line range — it was last confirmed at lines 574-583 — and place the new guard immediately after it).
+
+**Verbatim guard logic (authoritative):**
+
+```json
+{
+  "method_name": "canAssignCommittees",
+  "allowed_roles": ["sp_secretary"],
+  "error_on_deny": {
+    "code": "FORBIDDEN",
+    "cause": "only_sp_secretary_may_assign_committees",
+    "message": "Only the SP Secretary may assign committees to a referral step."
+  }
+}
+```
+
+Follow the exact same structure as the existing `canManuallyAdvanceMultiReferral` method in this same file: a single role check (`subject.roles.includes('sp_secretary')`), returning early on success, throwing the `TRPCError` shown above on failure. Do not add office-scoping or any additional condition beyond the role check — this mirrors `canManuallyAdvanceMultiReferral` exactly, which also has no office-scoping condition, because SP Secretary is a city-wide role in this system, not an office-scoped one (confirm this assumption is still true by checking how `canManuallyAdvanceMultiReferral` itself is defined before implementing — if it has gained an office-scoping condition since this prompt was authored, treat that as a signal to pause and report back rather than silently copying an outdated pattern).
+
+**Note on documentation gap, stated explicitly so it isn't mistaken for something to fix as part of this task:** Neither `docs/pre-development/E-api-design/e1-trpc-router-and-procedure-catalog.md` nor `docs/pre-development/I-security-and-authorization/i1-abac-policy-specification.md` currently documents a procedure or ABAC rule for committee assignment — this was confirmed by a full-text search of E1 for "assignCommittee", "assigned_committees", and "multi_referral" during this task's planning phase, finding no matching entry. **Do not treat this absence as license to skip the guard or use a different one "since it isn't specified anywhere."** The guard specified above (`sp_secretary`-only, mirroring `canManuallyAdvanceMultiReferral`) is the correct one to implement, derived directly from `docs/pre-development/B-architecture-documents/b4-workflow-engine-specification.md` §4.3's line "The assigned committees default from `config.default_committee_roles` but may be modified by the SP Secretary before any submission is received" (re-verify this exact line still exists in B4 §4.3 before citing it in any code comment). If you want to flag the E1/I1 documentation gap in your PR description, do so — but do not let its absence change what you implement here.
+
+### Part 3 — Backend: widen `getInstance`'s output to expose current committee assignments
+
+**File:** `apps/server/src/modules/workflow/workflow.router.ts`
+
+The `getInstance` procedure's `.output()` Zod schema (re-verify its current line range — it was last confirmed at lines 330-374) does not currently expose `metadata` or `config` from the current step instance, even though the internal query already selects both fields (re-verify — last confirmed at lines 412-426, the `.select({ ... metadata: stepInstances.metadata, config: steps.config })` call). Without this, the new frontend panel section (Part 4 below) has no way to show which committees are currently assigned.
+
+Add a new nullable field to `getInstance`'s output schema:
+
+```json
+{
+  "new_output_field": "assignedCommittees",
+  "zod_type": "z.array(z.object({ committeeId: z.string().uuid(), name: z.string().nullable() })).nullable()",
+  "populate_when": "currentStep.metadata contains a non-empty assigned_committees array AND currentStepType === 'multi_referral'; otherwise null"
+}
+```
+
+To populate `name` for each assigned committee, resolve each `committee_id` against the `organization.committees` table the same way Part 1's procedure does (reuse the same lookup approach — do not write a second, differently-structured lookup; if it makes sense to extract a small shared helper for "resolve committee IDs to names," you may do so, but only within this file, and only if doing so doesn't require touching any other procedure's existing behavior).
+
+**IN SCOPE:** `getInstance`'s `.output()` schema and its query/response-construction logic, in `workflow.router.ts`, for this one new field only.
+
+**OUT OF SCOPE (do not touch even if related):** Any other field already in `getInstance`'s output schema (do not rename, restructure, or remove `panelHint`, `currentStepKey`, or any other existing field), `getActiveInstanceForDocument` (a structurally similar but separate procedure in this same file — do not touch its output schema as part of this task, even though it may have the same limitation), `listMyAssignedSteps`.
+
+### Part 4 — Frontend: new "Assign Committees" section in `MultiReferralPanel.tsx`
+
+**File:** `apps/web/src/pages/workflow/panels/MultiReferralPanel.tsx`
+
+Add a new section to this panel, visible only to `sp_secretary` (use the existing `isSpSecretary` boolean already computed near the top of this component — re-verify it's still computed the same way, via `hasRole(identity, 'sp_secretary')`, before reusing it). Place this new section **first**, above the existing "Submit Committee Report" section (re-verify that section's current line range — it was last confirmed to start around line 96 with the comment `{/* Submit Committee Report — sp_secretary or sp_member */}`) — committee assignment logically precedes report submission, and should appear first in reading order.
+
+**Verbatim section requirements:**
+
+```json
+{
+  "section_title": "Assign Committees",
+  "visible_to_roles": ["sp_secretary"],
+  "control_type": "multi-select (checkbox list or multi-select combobox — reuse whatever multi-select primitive already exists in @batac/ui; if none exists, use a simple list of checkboxes styled consistently with the rest of this panel's existing Select/Input usage — do not introduce a new UI library or pattern)",
+  "data_source_for_options": "trpc.organization.listCommittees.useQuery(undefined, { enabled: isSpSecretary })",
+  "pre_selected_state": "any committee already present in instance.assignedCommittees (the new field from Part 3) should appear pre-checked/pre-selected",
+  "submit_button_label": "Assign Committees",
+  "mutation": "trpc.workflow.assignCommittees.useMutation(...)",
+  "mutation_input_mapping": {
+    "stepInstanceId": "instance.currentStepInstanceId",
+    "committeeIds": "the array of currently-selected committee IDs from the multi-select control",
+    "isBypass": "false — this task does not add a bypass UI control; leave isBypass unset (defaults to false server-side) for this button",
+    "comment": "not collected by this button — leave unset"
+  },
+  "validation_before_submit": "at least one committee must be selected; if none selected, show a toast error 'Select at least one committee' and do not call the mutation — do not add any other client-side validation beyond this"
+}
+```
+
+On successful mutation, follow the exact same `onSuccess` invalidation pattern already used by this panel's other mutations (`submitReportMutation`, `hearingDateMutation`, `advanceMutation` — re-verify their current invalidation calls, last confirmed to include `utils.workflow.getInstance.invalidate(...)`, `utils.workflow.getActiveInstanceForDocument.invalidate(...)`, `utils.workflow.listMyAssignedSteps.invalidate()`, `utils.session.getOrderOfBusiness.invalidate()`) — call the same set of invalidations after a successful `assignCommittees` call, so the panel refreshes to show the updated assignment state.
+
+On error, show a toast using the same `toast.error(err.message || '<fallback>')` pattern already used by this panel's other mutations — fallback message: `'Failed to assign committees.'`
+
+**IN SCOPE:** `apps/web/src/pages/workflow/panels/MultiReferralPanel.tsx` — the new section only.
+
+**OUT OF SCOPE (do not touch even if related):** The existing "Submit Committee Report," "Enter Committee Hearing Date," and "Manually Advance Step" sections in this same file (do not modify their logic, only add the new section above them), `WorkflowStepActionPage.tsx` (already correctly routes `panelHint: 'multi_referral'` to this panel — re-verify this routing is unchanged, but no edit is needed here as part of this task), any other panel component, `apps/web/src/pages/workflow/OrderOfBusinessPage.tsx` (a separate page with its own committee-hearing-date and manual-advance dialogs already wired to different procedures — not part of this task's scope).
+
+## Explicit non-goals for this task — do not implement, even if it seems like a natural extension
+
+- **Do not auto-populate `assigned_committees` from `config.default_committee_roles`** when the `committee_referral` step instance is created. This would require resolving the role-key string `'role:committee_laws'` (confirm this exact string is still what `ROLE.COMMITTEE_LAWS` resolves to in `packages/database/src/seeds/workflow/phase1-legislative.ts` before treating this as settled) to an actual `committees.id` UUID, and no such resolution mechanism currently exists anywhere in this codebase (confirmed: `organization.committees`' schema has no column that maps to a role-key string of this shape). This is flagged in this same project's `docs/pre-development/A-project-planning/a1-tasks/fix.md` (search for "COMMITTEE_LAWS" in that file) as an explicitly unestablished mechanism that a prior task was told not to touch. Building this resolution mechanism is a separate, larger, not-yet-scoped task. If, after this task, the Secretary must manually select both "Committee on Laws" and the subject-matter committee every time (rather than seeing Committee on Laws pre-selected), that is expected and correct behavior for this task's scope — not a bug to fix here.
+- **Do not modify `first_reading`'s step configuration, `completeActionStep`, or `GenericActionPanel.tsx`** in any way. The demo narrative describes "record First Reading and set committee referral" as a single narrated beat, but the underlying mechanism is two independent steps (`first_reading` then `committee_referral`) and this task deliberately keeps that separation — do not attempt to merge them into a single combined action or panel.
+- **Do not add a bypass/override UI control for `isBypass: true`** on the new "Assign Committees" button. The existing "Manually Advance Step" section already covers the override path for after-submission scenarios (via a different procedure, `manuallyAdvanceMultiReferralStep`); this task's new button is for the normal, pre-submission assignment path only.
+
+## Acceptance criteria
+
+- [ ] `workflow.assignCommittees` procedure exists in `workflow.router.ts`, matching the input/output shape specified in Part 1 exactly (confirm by viewing the file after the edit, not by re-deriving from memory).
+- [ ] `canAssignCommittees` guard exists in `workflow.policy.ts`, matching Part 2 exactly, and is called by the new procedure before any database write.
+- [ ] `getInstance`'s output schema includes the new `assignedCommittees` field per Part 3, and existing fields are unchanged.
+- [ ] `MultiReferralPanel.tsx` has a new "Assign Committees" section per Part 4, visible only when `isSpSecretary` is true, appearing above the existing three sections.
+- [ ] Selecting committees and clicking "Assign Committees" successfully calls the new procedure and the panel reflects the updated assignment afterward (confirm this by tracing the invalidation calls, or by manual/automated test if the project's test setup supports it).
+- [ ] A Councilor (`sp_member`) logged in and viewing the same `multi_referral` step does NOT see the new "Assign Committees" section.
+- [ ] After committees are assigned, the existing "Submit Committee Report" flow (`submitCommitteeReport`) succeeds for an assigned committee's member — this is the confirmation that the root-cause chain traced in this task's context section is actually closed, not just that the new procedure runs without error.
+- [ ] No existing test in `multi-referral.handler.test.ts`, `__tests__/multi-referral.test.ts`, or `workflow.router.test.ts` is modified to make it pass — if any existing test now fails because of this change, report its exact file path and failing assertion in your PR description rather than editing the test.
+- [ ] `pnpm typecheck` (or this project's equivalent typecheck command) passes with no new errors introduced by this change.
+
+Before submitting this PR, confirm each item above independently by re-viewing the affected files after your edits — do not rely on your own memory of having made the change correctly.

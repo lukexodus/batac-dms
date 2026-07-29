@@ -18,6 +18,10 @@
  * list.
  */
 import './instrumentation.js'; // Must be first to instrument everything
+import { applyTimeMockIfConfigured } from './mock-time.js';
+
+// Apply time mock as early as possible to ensure global Date override
+applyTimeMockIfConfigured();
 
 import PgBoss from 'pg-boss';
 import { env } from './config/env.js';
