@@ -358,9 +358,36 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA audit
 REVOKE UPDATE, DELETE ON ALL TABLES IN SCHEMA audit
   FROM batac_app, batac_audit;
 
--- ── pgboss schema — full access for batac_app ─────────────────────────────
--- pgboss manages its own schema. batac_app needs ownership to run the
--- job queue. Grants all privileges on pgboss objects.
+-- ── pgboss schema — full access AND ownership for batac_app ───────────────
+-- pgboss manages its own schema (created at library initialisation, not
+-- by a Drizzle migration). batac_app needs both privilege grants (for
+-- normal job-queue DML) AND actual table/view/sequence/function
+-- OWNERSHIP (not just privileges) for one specific reason: pg-boss
+-- implements each queue as a PostgreSQL table PARTITION attached to
+-- pgboss.job, and PostgreSQL requires the role performing
+-- `ALTER TABLE ... ATTACH PARTITION` to be the OWNER of the parent
+-- table — GRANT ALL PRIVILEGES does not confer this, even though it
+-- covers every other operation pgboss needs. This was confirmed by
+-- reproducing the failure directly: `ALTER TABLE pgboss.job ATTACH
+-- PARTITION ...` failed with "must be owner of table job" under a
+-- privilege-only grant, and succeeded once ownership was transferred.
+--
+-- A two-connection alternative (routing schema/partition-management
+-- operations to batac_migrate while routing regular job-queue
+-- operations through batac_app) was investigated and found not viable
+-- with the currently installed pg-boss version: dynamic queue creation
+-- via createQueue() always executes on whichever single connection the
+-- PgBoss instance was constructed with, with no built-in support for
+-- routing specific operations to a different connection/role. Ownership
+-- transfer is therefore the supported pattern for this system, not a
+-- workaround pending a better fix.
+--
+-- PREREQUISITE: batac_migrate must be a member of batac_app for the
+-- ownership-transfer statements below to succeed (PostgreSQL requires
+-- the reassigning role to be a member of the target role, or a
+-- superuser). This membership is granted in
+-- tools/db/init/01-create-roles.sh.
+
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'pgboss') THEN
@@ -374,6 +401,33 @@ BEGIN
       'ALTER DEFAULT PRIVILEGES IN SCHEMA pgboss
        GRANT ALL PRIVILEGES ON SEQUENCES TO batac_app';
   END IF;
+END
+$$;
+
+-- Ownership transfer — required for partition-attach operations
+-- (see comment block above for why privilege grants alone are
+-- insufficient). Runs after the privilege grants above, and after
+-- pgboss has created its schema objects (owned by batac_migrate at
+-- creation time, since that is the role init-pgboss.ts connects as).
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'pgboss') LOOP
+        EXECUTE 'ALTER TABLE pgboss.' || quote_ident(r.tablename) || ' OWNER TO batac_app';
+    END LOOP;
+    FOR r IN (SELECT viewname FROM pg_views WHERE schemaname = 'pgboss') LOOP
+        EXECUTE 'ALTER VIEW pgboss.' || quote_ident(r.viewname) || ' OWNER TO batac_app';
+    END LOOP;
+    FOR r IN (SELECT sequencename FROM pg_sequences WHERE schemaname = 'pgboss') LOOP
+        EXECUTE 'ALTER SEQUENCE pgboss.' || quote_ident(r.sequencename) || ' OWNER TO batac_app';
+    END LOOP;
+    FOR r IN (SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
+              FROM pg_proc p
+              JOIN pg_namespace n ON p.pronamespace = n.oid
+              WHERE n.nspname = 'pgboss') LOOP
+        EXECUTE 'ALTER FUNCTION pgboss.' || quote_ident(r.proname) || '(' || r.args || ') OWNER TO batac_app';
+    END LOOP;
 END
 $$;
 ```

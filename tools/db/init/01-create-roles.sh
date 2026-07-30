@@ -103,11 +103,20 @@ BEGIN
     ALTER ROLE batac_readonly WITH NOLOGIN;
   END IF;
 
+  -- batac_migrate must be a MEMBER of batac_app so it can reassign
+  -- ownership of objects (specifically: the pgboss schema's tables,
+  -- views, sequences, and functions) to batac_app. PostgreSQL requires
+  -- the role performing \`ALTER ... OWNER TO <target>\` to be a member of
+  -- <target>, or a superuser. This membership is the prerequisite for
+  -- the ownership-transfer step in packages/database/scripts/migrate.ts
+  -- (run after every migration) to succeed. See L2 §"Post-migration
+  -- grants" for the full rationale on why pgboss specifically needs
+  -- true ownership transfer rather than a privilege grant.
+  GRANT batac_app TO batac_migrate;
+
 END
 \$\$;
 
 EOSQL
 
 echo "[01-create-roles] Roles batac_migrate, batac_app, batac_audit, batac_it_admin, batac_readonly created."
--- Allow batac_migrate to change owners of tables to batac_app
-GRANT batac_app TO batac_migrate;
