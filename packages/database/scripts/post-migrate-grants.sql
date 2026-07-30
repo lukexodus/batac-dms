@@ -218,13 +218,12 @@ $$;
 -- pgboss creates and manages its own schema at library initialisation — it is
 -- not created by a Drizzle migration.  batac_app needs ALL PRIVILEGES to run
 -- the job queue (create jobs, update status, manage queues).
--- The pg_namespace existence guard makes this block safe on migration passes
--- that run before the Fastify server has initialised pgboss for the first time.
+-- The pg_namespace existence guard is no longer needed since we explicitly create the schema.
 
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'pgboss') THEN
-    EXECUTE 'GRANT ALL PRIVILEGES ON SCHEMA pgboss TO batac_app';
+  CREATE SCHEMA IF NOT EXISTS pgboss;
+  EXECUTE 'GRANT ALL PRIVILEGES ON SCHEMA pgboss TO batac_app';
     EXECUTE 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA pgboss TO batac_app';
     EXECUTE 'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA pgboss TO batac_app';
     EXECUTE
@@ -233,6 +232,5 @@ BEGIN
     EXECUTE
       'ALTER DEFAULT PRIVILEGES IN SCHEMA pgboss '
       'GRANT ALL PRIVILEGES ON SEQUENCES TO batac_app';
-  END IF;
 END
 $$;
