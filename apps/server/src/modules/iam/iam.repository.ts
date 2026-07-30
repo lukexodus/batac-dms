@@ -83,13 +83,42 @@ export function createIamRepository(db: DbClient | DbTransaction): IamRepository
       // Uses iam.fn_get_credential_by_user_id (SECURITY DEFINER) instead
       // of a direct SELECT, because batac_app has no SELECT grant on
       // iam.credentials by design (0002_iam_create_iam_schema.sql line
-      // 247). The function returns the full row shape, so the result
-      // maps directly onto CredentialRow with no type changes needed.
-      const result = await db.execute<CredentialRow>(
-        sql`SELECT * FROM iam.fn_get_credential_by_user_id(${userId}::uuid)`,
-      );
-      const cred = (result as any)[0];
-      return cred || null;
+      // 247). NOTE: db.execute() on a raw sql`...` query does NOT apply
+      // Drizzle's camelCase schema mapping — that mapping only applies
+      // to Drizzle's own query-builder methods (db.select().from(...)).
+      // The SQL function's RETURNS TABLE clause
+      // (packages/database/migrations/0013_iam_get_credential.sql)
+      // returns snake_case column names as-is, so this method maps them
+      // to CredentialRow's camelCase keys explicitly, rather than
+      // relying on the db.execute<CredentialRow>(...) generic — which
+      // is a compile-time type assertion only and has no runtime
+      // effect. See docs/development-findings-log.md, [LOG entry for
+      // this bug] for the full incident this fixes.
+      const result = await db.execute<{
+        id: string;
+        city_id: string;
+        user_id: string;
+        password_hash: string;
+        last_changed_at: Date;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        deleted_by: string | null;
+      }>(sql`SELECT * FROM iam.fn_get_credential_by_user_id(${userId}::uuid)`);
+      const row = (result as any)[0];
+      if (!row) return null;
+      const cred: CredentialRow = {
+        id: row.id,
+        cityId: row.city_id,
+        userId: row.user_id,
+        passwordHash: row.password_hash,
+        lastChangedAt: row.last_changed_at,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        deletedAt: row.deleted_at,
+        deletedBy: row.deleted_by,
+      };
+      return cred;
     },
     createCredential: async (userId, passwordHash) => {
       await db.insert(credentials).values({ userId, passwordHash });
