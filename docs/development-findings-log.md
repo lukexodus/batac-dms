@@ -5664,3 +5664,89 @@ To properly bump a workflow definition version, `version_number` in `SP_RESOLUTI
 **What was implemented:** The transition rule in `packages/database/src/seeds/workflow/phase1-legislative.ts` for `second_reading_vote` with `outcome_filter: 'AMENDED'` was successfully updated to target `amendments_logging` with the correct label.
 
 [Tested]: The file modification was applied. No automated tests assert the old transition path. Seed behavior was inferred by analyzing `orchestrator.ts`, `phase1-legislative.ts` (uuidv5 generation and .onConflictDoNothing), and `schema.ts`.
+
+---
+
+### [LOG-0191] first_reading (and same-shaped action steps assigned to SP Secretariat) were misrouted to the outcome-validated decision panel; fixed in TASK-WF-027
+
+- date: 2026-07-30
+- task_id: TASK-WF-027 (executed and verified this session)
+- status: proposed
+- affects: workflow.router.ts, phase1-legislative.ts, demo-guide-v2.md
+
+**What was found:** `computePanelHint`'s Secretariat-Decision routing
+branch (`apps/server/src/modules/workflow/workflow.router.ts`, prior to
+this fix at lines 277-282) matched on
+`(currentStepType === 'action' || currentStepType === 'approval')`
+together with an office-ID comparison against the step's assignee. This
+included `'action'`-type steps, not just `'approval'`-type steps. Several
+`'action'`-type steps in the seed data
+(`packages/database/src/seeds/workflow/phase1-legislative.ts`) are
+assigned to `ROLE.SP_SECRETARY` — which resolves to `secretary.lagura`,
+whose office matches the SP Secretariat office — but have no
+`allowed_outcomes` field in their config, since action-type steps are
+normally completed via `completeActionStep`/`submitStepAction`
+(`action.handler.ts`), which does not check `allowed_outcomes`. This
+caused these steps to render `SecretariatDecisionPanel.tsx` (a 3-button
+Approve/Reject/Amended panel) instead of the generic "Complete Task"
+panel, and since their `allowed_outcomes` was always an empty array,
+every decision on the misrouted panel failed with
+`VALIDATION_FAILED: outcome not allowed`, making the step permanently
+uncompletable through that panel.
+
+**Confirmed reproduced live** against `first_reading`
+(`step_key: 'first_reading'`, `phase1-legislative.ts:85-98`) — screenshot
+showed the 3-button panel rendering in place of "Complete Task," with
+"Approve" failing with the exact error above.
+
+**Also affected, same config shape, not click-tested:**
+`final_number_assignment` (`phase1-legislative.ts:157-170`),
+`valid_in_part_action` (`phase1-legislative.ts:267-280`), and
+`order_of_business_scheduling` (`phase1-legislative.ts:70-83`, though this
+step is normally completed via a separate dedicated procedure,
+`session.scheduleDocumentForFirstReading`, and would only hit this bug if
+reached via the generic `/workflow/steps/:instanceId` route instead of
+`OrderOfBusinessPage.tsx`). `newspaper_publication` shares the same config
+shape but is unaffected, since it is intercepted by its own dedicated
+`stepKey`-specific branch earlier in the same if/else-if chain.
+
+**What was implemented:** the condition was narrowed from
+`(currentStepType === 'action' || currentStepType === 'approval')` to
+`currentStepType === 'approval'` — a single-line change
+(`workflow.router.ts`, one condition inside `computePanelHint`). Verified
+directly: no test anywhere in the repository (`__tests__/`,
+`workflow.router.test.ts`, or any other `.test.ts` file) asserts on
+`secretariat_decision`, `panelHint`, or `computePanelHint` for an
+action-type step, so no existing test encoded or relied on the old
+behavior. `pnpm typecheck` reported clean. Confirmed via code trace
+(re-derived independently, not just accepted from the implementer's
+report) that `first_reading` now resolves to `generic_action` and
+`second_reading_vote` continues to resolve to `secretariat_decision`
+exactly as before.
+
+**Not yet done:** an actual click-through in a running dev environment,
+confirming "Complete Task" now renders for `first_reading` and that
+completing it advances the workflow to `committee_referral` as expected.
+Also not yet done: click-through confirmation for
+`final_number_assignment`, `valid_in_part_action`, and
+`order_of_business_scheduling`, which share the same fix but were never
+independently reproduced as broken before this session, only inferred
+from identical config shape.
+
+**Separately noted (documentation gap, not part of this fix):**
+`demo-guide-v2.md`'s Act 2 walkthrough describes `first_reading`'s
+completion screen as a plain "Complete Task" panel — which was incorrect
+prior to this fix, and is now (as of this fix) accurate. No demo-guide
+text change is required as a result.
+
+[Confirmed]: the exact diff applied (byte-for-byte match to the
+originally specified old_str/new_str), the absence of the old condition
+anywhere else in the file, the absence of any test referencing the
+affected identifiers anywhere in the repository, and the corrected
+function's behavior for both `first_reading` and `second_reading_vote` —
+all independently re-verified this session by applying the patch to a
+clean baseline extraction and re-reading the resulting file directly,
+not solely from the implementer's own report.
+
+---
+

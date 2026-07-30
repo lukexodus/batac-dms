@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { offices, employees, committees } from '@batac/database/schema/organization.schema.js';
+import { offices, employees, committees, committeeMemberships } from '@batac/database/schema/organization.schema.js';
 import { sql } from 'drizzle-orm';
 
 // ────────── CONSTANTS ────────────────────────────────────────────────────────
@@ -27,6 +27,8 @@ interface CommitteeDef {
   code: string;
   name: string;
   chairEmployeeNumber: string;
+  viceChairEmployeeNumber: string;
+  memberEmployeeNumber: string;
 }
 
 // ────────── OFFICE DEFINITIONS ────────────────────────────────────────────────
@@ -91,100 +93,138 @@ const COMMITTEES: CommitteeDef[] = [
     code: 'CLREP',
     name: 'Committee on Laws, Rules, Ethics & Privileges',
     chairEmployeeNumber: 'SP-FLOJO',
+    viceChairEmployeeNumber: 'SP-DAGUIO',
+    memberEmployeeNumber: 'SP-BORLEO',
   },
   {
     code: 'CPOPSD',
     name: 'Committee on Peace and Order & Public Safety & Dangerous Drugs',
     chairEmployeeNumber: 'SP-AGUINALDO',
+    viceChairEmployeeNumber: 'SP-FLOJO',
+    memberEmployeeNumber: 'SP-SALAMANGKIT',
   },
   {
     code: 'CSWDPS',
     name: 'Committee on Social Welfare Development & Public Service & Calamities',
     chairEmployeeNumber: 'SP-PUNGTILAN',
+    viceChairEmployeeNumber: 'SP-SALAMANGKIT',
+    memberEmployeeNumber: 'SP-DAGUIO',
   },
   {
     code: 'CECST',
     name: 'Committee on Education, Culture, Science & Technology',
     chairEmployeeNumber: 'SP-DAGUIO',
+    viceChairEmployeeNumber: 'SP-PUNGTILAN',
+    memberEmployeeNumber: 'SP-MIRASOL',
   },
   {
     code: 'CHSP',
     name: 'Committee on Health and Sanitation & Public Welfare',
     chairEmployeeNumber: 'SP-BORLEO',
+    viceChairEmployeeNumber: 'SP-DAGUIO',
+    memberEmployeeNumber: 'SP-MIRASOL',
   },
   {
     code: 'CAFWM',
     name: 'Committee on Appropriations and Finance & Ways and Means',
     chairEmployeeNumber: 'SP-BORLEO',
+    viceChairEmployeeNumber: 'SP-DAGUIO',
+    memberEmployeeNumber: 'SP-SALAMANGKIT',
   },
-  { code: 'CHRCS', name: 'Committee on Human Rights & CSOs', chairEmployeeNumber: 'SP-QUIDANG' },
+  { code: 'CHRCS', name: 'Committee on Human Rights & CSOs', chairEmployeeNumber: 'SP-QUIDANG', viceChairEmployeeNumber: 'SP-BUNYE', memberEmployeeNumber: 'SP-FLOJO' },
   {
     code: 'CSPCA',
     name: 'Committee on Special Projects & Corporate Affairs',
     chairEmployeeNumber: 'SP-AGUINALDO',
+    viceChairEmployeeNumber: 'SP-BORLEO',
+    memberEmployeeNumber: 'SP-NALUPTA',
   },
-  { code: 'CBA', name: 'Committee on Barangay Affairs', chairEmployeeNumber: 'SP-MEDINA' },
+  { code: 'CBA', name: 'Committee on Barangay Affairs', chairEmployeeNumber: 'SP-MEDINA', viceChairEmployeeNumber: 'SP-SALAMANGKIT', memberEmployeeNumber: 'SP-CASTILLO' },
   {
     code: 'CTC',
     name: 'Committee on Transportation and Communication',
     chairEmployeeNumber: 'SP-MEDINA',
+    viceChairEmployeeNumber: 'SP-AGUINALDO',
+    memberEmployeeNumber: 'SP-PUNGTILAN',
   },
   {
     code: 'CTPI',
     name: 'Committee on Tourism & Public Information',
     chairEmployeeNumber: 'SP-DAGUIO',
+    viceChairEmployeeNumber: 'SP-SALAMANGKIT',
+    memberEmployeeNumber: 'SP-BORLEO',
   },
-  { code: 'CGA', name: 'Committee on Games and Amusements', chairEmployeeNumber: 'SP-MIRASOL' },
-  { code: 'CSCN', name: 'Committee on Senior Citizens & NGOs', chairEmployeeNumber: 'SP-CASTILLO' },
+  { code: 'CGA', name: 'Committee on Games and Amusements', chairEmployeeNumber: 'SP-MIRASOL', viceChairEmployeeNumber: 'SP-FLOJO', memberEmployeeNumber: 'SP-QUIDANG' },
+  { code: 'CSCN', name: 'Committee on Senior Citizens & NGOs', chairEmployeeNumber: 'SP-CASTILLO', viceChairEmployeeNumber: 'SP-PUNGTILAN', memberEmployeeNumber: 'SP-AGUINALDO' },
   {
     code: 'CEEMS',
     name: 'Committee on Economic Enterprise, Market & Slaughterhouse',
     chairEmployeeNumber: 'SP-FLOJO',
+    viceChairEmployeeNumber: 'SP-AGUINALDO',
+    memberEmployeeNumber: 'SP-PUNGTILAN',
   },
   {
     code: 'CLEA',
     name: 'Committee on Landed Estates & Assessments',
     chairEmployeeNumber: 'SP-NALUPTA',
+    viceChairEmployeeNumber: 'SP-QUIDANG',
+    memberEmployeeNumber: 'SP-DAGUIO',
   },
   {
     code: 'CGGE',
     name: 'Committee on Good Government/Public Ethics and Accountability',
     chairEmployeeNumber: 'SP-BUNYE',
+    viceChairEmployeeNumber: 'SP-NALUPTA',
+    memberEmployeeNumber: 'SP-FLOJO',
   },
   {
     code: 'CPWIH',
     name: 'Committee on Public Works, Infrastructure, Housing & Urban Development',
     chairEmployeeNumber: 'SP-SALAMANGKIT',
+    viceChairEmployeeNumber: 'SP-MEDINA',
+    memberEmployeeNumber: 'SP-AGUINALDO',
   },
   {
     code: 'CAFCL',
     name: 'Committee on Agriculture, Food, Cooperatives and Livelihood',
     chairEmployeeNumber: 'SP-SALAMANGKIT',
+    viceChairEmployeeNumber: 'SP-PUNGTILAN',
+    memberEmployeeNumber: 'SP-MIRASOL',
   },
   {
     code: 'CENR',
     name: 'Committee on Environment, Natural Resources, Climate Change Adaptation, Water Sustainability & Energy',
     chairEmployeeNumber: 'SP-SALAMANGKIT',
+    viceChairEmployeeNumber: 'SP-CASTILLO',
+    memberEmployeeNumber: 'SP-MEDINA',
   },
   {
     code: 'CTCI',
     name: 'Committee on Trade, Commerce & Industry',
     chairEmployeeNumber: 'SP-AGUINALDO',
+    viceChairEmployeeNumber: 'SP-SALAMANGKIT',
+    memberEmployeeNumber: 'SP-BUNYE',
   },
   {
     code: 'CWCF',
     name: 'Committee on Women, Children & Family Relations & Indigenous Peoples',
     chairEmployeeNumber: 'SP-PUNGTILAN',
+    viceChairEmployeeNumber: 'SP-BORLEO',
+    memberEmployeeNumber: 'SP-FLOJO',
   },
   {
     code: 'CLEC',
     name: 'Committee on Labor, Employment & Civil Service',
     chairEmployeeNumber: 'SP-FLOJO',
+    viceChairEmployeeNumber: 'SP-MIRASOL',
+    memberEmployeeNumber: 'SP-BORLEO',
   },
   {
     code: 'CYSD',
     name: 'Committee on Youth & Sports Development',
     chairEmployeeNumber: 'SP-MIRASOL',
+    viceChairEmployeeNumber: 'SP-DAGUIO',
+    memberEmployeeNumber: 'SP-PUNGTILAN',
   },
 ];
 
@@ -315,6 +355,59 @@ export async function seedOrganization(db: any) {
     }
 
     console.log(`[seed:org] Upserted ${committeesSeeded} standing committees.`);
+
+    // ── Step 4: Upsert committee memberships ─────────────────────────────────
+    console.log('[seed:org] Step 4: Upserting committee memberships...');
+    let membershipsSeeded = 0;
+
+    const seededCommitteeIds: Record<string, string> = {};
+    const committeeRows = await tx.select({ id: committees.id, code: committees.code }).from(committees).where(sql`${committees.cityId} = ${CITY_ID}`);
+    for (const row of committeeRows) {
+      seededCommitteeIds[row.code] = row.id;
+    }
+
+    for (const committee of COMMITTEES) {
+      const committeeId = seededCommitteeIds[committee.code];
+      const chairId = seededEmployeeIds[committee.chairEmployeeNumber];
+      const viceChairId = seededEmployeeIds[committee.viceChairEmployeeNumber];
+      const memberId = seededEmployeeIds[committee.memberEmployeeNumber];
+
+      const rolesToAssign = [
+        { empId: chairId, role: 'chairman' },
+        { empId: viceChairId, role: 'vice_chairman' },
+        { empId: memberId, role: 'member' },
+      ];
+
+      for (const { empId, role } of rolesToAssign) {
+        if (!empId) continue;
+
+        const [existing] = await tx
+          .select({ id: committeeMemberships.id })
+          .from(committeeMemberships)
+          .where(
+            sql`${committeeMemberships.committeeId} = ${committeeId} AND ${committeeMemberships.employeeId} = ${empId} AND ${committeeMemberships.isActive} = true AND ${committeeMemberships.deletedAt} IS NULL`,
+          )
+          .limit(1);
+
+        if (existing) {
+          await tx
+            .update(committeeMemberships)
+            .set({ committeeRole: role, updatedAt: new Date() })
+            .where(sql`${committeeMemberships.id} = ${existing.id}`);
+        } else {
+          await tx.insert(committeeMemberships).values({
+            cityId: CITY_ID,
+            committeeId,
+            employeeId: empId,
+            committeeRole: role,
+            startDate: new Date('2026-01-01').toISOString(),
+          });
+        }
+        membershipsSeeded++;
+      }
+    }
+
+    console.log(`[seed:org] Upserted ${membershipsSeeded} committee memberships.`);
   });
 }
 

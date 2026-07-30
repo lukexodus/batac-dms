@@ -1148,6 +1148,12 @@ export async function seedPhase1WorkflowDefinitions(
     }
 
     // Validation passed — mark published and activate.
+    // Ensure idempotency: clear isCurrent flag on any existing versions for this definition
+    await transaction
+      .update(definitionVersions)
+      .set({ isCurrent: false })
+      .where(eq(definitionVersions.definitionId, defId));
+
     await transaction
       .update(definitionVersions)
       .set({

@@ -19,7 +19,7 @@ import {
   delegationGrants,
 } from '@batac/database/schema/organization.schema.js';
 import { documents } from '@batac/database/schema/documents.schema.js';
-import { eq, and, or, ilike, isNull, sql, lte, gte, asc } from 'drizzle-orm';
+import { eq, and, or, ilike, isNull, sql, lte, gte, asc, ne } from 'drizzle-orm';
 import type { Context } from '../iam/iam.types.js';
 
 const dateRangeInput = z.object({
@@ -429,6 +429,7 @@ export function createSessionRouter() {
               eq(orderOfBusinessItems.orderOfBusinessId, oob.id),
               isNull(orderOfBusinessItems.deletedAt),
               isNull(documents.deletedAt),
+              ne(documents.lifecycleState, 'cancelled'),
             ),
           )
           .orderBy(asc(orderOfBusinessItems.itemOrder));
