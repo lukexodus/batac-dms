@@ -33,4 +33,8 @@ const grantsSQL = readFileSync(join(__dirname, './post-migrate-grants.sql'), 'ut
 await client.unsafe(grantsSQL);
 await client.end();
 
+console.log('[migrate] Initialising PgBoss schema (if needed)...');
+import { execSync } from 'node:child_process';
+execSync('pnpm --filter server exec tsx src/database/seeds/init-pgboss.ts', { stdio: 'inherit', cwd: join(__dirname, '../../..') });
+
 console.log('[migrate] Done.');
