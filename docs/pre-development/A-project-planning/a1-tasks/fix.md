@@ -30109,3 +30109,243 @@ those two document types but not for second_reading_vote.
 ```
 
 ---
+
+# Standalone Fix Prompt — TASK-WF-027
+
+````
+TASK-WF-027: Scope computePanelHint's Secretariat-Decision routing to
+approval-type steps only, so action-type steps no longer render the
+outcome-validated decision panel
+
+CONTEXT (self-contained — no reference to any other conversation needed):
+This is a TypeScript monorepo (Fastify, tRPC, Drizzle ORM, PostgreSQL,
+React frontend). The server function computePanelHint
+(apps/server/src/modules/workflow/workflow.router.ts) tells the frontend
+which panel component to render for the current step of a workflow
+instance. It is called from two places in this file (currently lines 506
+and 707 — verify these are still the current line numbers before editing,
+but you are not editing either call site, only the function body itself).
+
+THE BUG:
+File: apps/server/src/modules/workflow/workflow.router.ts
+Current content at lines 277-282 (verify these are still the current line
+numbers before editing — re-view the file first):
+
+  } else if (
+    (currentStepType === 'action' || currentStepType === 'approval') &&
+    spsOfficeId &&
+    (currentStep.assignedTo as Array<any>)?.[0]?.office_id === spsOfficeId
+  ) {
+    return 'secretariat_decision';
+
+This condition matches BOTH 'action'-type and 'approval'-type steps
+whenever the step's assignee resolves to the SP Secretariat office. When
+it matches, the frontend renders SecretariatDecisionPanel.tsx (a 3-button
+Approve/Reject/Amended panel that calls the workflow.logSecretariatDecision
+tRPC procedure, which internally calls submitStepApproval,
+apps/server/src/modules/workflow/engine/step-handlers/approval.handler.ts).
+submitStepApproval validates the submitted outcome against
+config['allowed_outcomes'] (approval.handler.ts:36-39) and throws
+`VALIDATION_FAILED: outcome not allowed` if the outcome is not in that
+list — do not modify this validation logic, it is correct and unrelated
+to this bug.
+
+The actual bug: several 'action'-type steps in this project's seed data
+(packages/database/src/seeds/workflow/phase1-legislative.ts) are assigned
+to ROLE.SP_SECRETARY (which resolves to a user in the SP Secretariat
+office) but have NO allowed_outcomes field in their config at all, because
+action-type steps are normally completed via a different procedure
+(workflow.completeActionStep → submitStepAction,
+apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts)
+which does not check allowed_outcomes and does not need it. Because these
+steps' assignee happens to match the Secretariat office, the condition
+above incorrectly routes them to SecretariatDecisionPanel instead of the
+generic GenericActionPanel.tsx ("Complete Task" button, no outcome
+validation). Since their config['allowed_outcomes'] is undefined, the
+check in submitStepApproval always evaluates against an empty array, so
+EVERY decision on the misrouted panel (Approve, Reject, or Amended) fails
+with `VALIDATION_FAILED: outcome not allowed` — the step can never be
+completed through this panel, regardless of which button is clicked.
+
+CONFIRMED REPRODUCED: this was reported live against the
+'first_reading' step (step_key: 'first_reading',
+phase1-legislative.ts:85-98) — an ordinary, ceremonial action step ("First
+Reading — SP Session") assigned to ROLE.SP_SECRETARY. It renders the
+3-button panel instead of "Complete Task", and clicking Approve fails with
+the exact error above.
+
+ALSO LIKELY AFFECTED, SAME SHAPE, NOT YET CLICK-TESTED (fix this
+regardless — they share the identical config shape as first_reading:
+step_type 'action', assignee ROLE.SP_SECRETARY, no allowed_outcomes):
+  - final_number_assignment (phase1-legislative.ts:157-170)
+  - valid_in_part_action (phase1-legislative.ts:267-280)
+  - order_of_business_scheduling (phase1-legislative.ts:70-83) — in
+    practice this step is normally completed via a separate dedicated
+    procedure (session.scheduleDocumentForFirstReading,
+    apps/server/src/modules/workflow/session.router.ts:763-945, which
+    does not call submitStepApproval or submitStepAction at all and is
+    therefore unaffected by this bug through its normal path) — but if a
+    user reaches this step instance through the generic
+    /workflow/steps/:instanceId route instead of through
+    OrderOfBusinessPage.tsx, the same misrouting and failure would occur.
+  Do not treat these three differently from first_reading in the fix
+  below — the fix in THE ACTUAL FIX section below is a single change to
+  computePanelHint that corrects the routing for all steps sharing this
+  shape at once. Do not add any step-key-specific exclusion list as an
+  alternative — see SCOPE TABLE below for why.
+
+NOT AFFECTED, CONFIRMED SAFE (do not need any change, listed here so you
+don't second-guess or re-fix them):
+  - newspaper_publication (phase1-legislative.ts:871-884) — also
+    step_type 'action', assignee ROLE.SP_SECRETARY, no allowed_outcomes,
+    but it is intercepted by its own dedicated
+    `stepKey === 'newspaper_publication'` branch earlier in
+    computePanelHint's if/else-if chain (line 267-268 as currently
+    written), which returns before the office-ID-comparison branch is
+    ever reached. This step is already correctly routed to a different
+    panel ('publication_date') and needs no change.
+  - second_reading_vote and every other 'approval'-type step assigned to
+    the Secretariat office — these must continue to resolve to
+    'secretariat_decision' exactly as they do now. The fix below
+    preserves this: it narrows the condition to approval-type steps
+    only, it does not remove the branch.
+
+THE ACTUAL FIX — exact old/new string pair (authoritative; if any prose
+elsewhere in this prompt appears to conflict with this block, this block
+wins):
+
+old_str:
+```
+  } else if (
+    (currentStepType === 'action' || currentStepType === 'approval') &&
+    spsOfficeId &&
+    (currentStep.assignedTo as Array<any>)?.[0]?.office_id === spsOfficeId
+  ) {
+    return 'secretariat_decision';
+```
+
+new_str:
+```
+  } else if (
+    currentStepType === 'approval' &&
+    spsOfficeId &&
+    (currentStep.assignedTo as Array<any>)?.[0]?.office_id === spsOfficeId
+  ) {
+    return 'secretariat_decision';
+```
+
+This is the ONLY change: the disjunction
+`(currentStepType === 'action' || currentStepType === 'approval')` becomes
+the single condition `currentStepType === 'approval'`. Nothing else in the
+function changes.
+
+WHY THIS IS THE CORRECT FIX AND NOT A DESIGN GUESS:
+1. The steps this affects (first_reading, final_number_assignment,
+   valid_in_part_action, order_of_business_scheduling) are all
+   ceremonial/procedural action steps — recording that a reading
+   happened, assigning a number, scheduling a session, documenting a
+   Panlalawigan outcome. None of them represents a genuine
+   approve/reject/amend decision the way second_reading_vote does. There
+   is no config['allowed_outcomes'] for any of them anywhere in the seed
+   file, and inventing one would be fabricating business logic that was
+   never specified anywhere in this project's design documents.
+2. Multiple independent parts of this codebase already assumed these
+   steps render as GenericActionPanel ("Complete Task"): a source comment
+   in apps/web/src/pages/workflow/panels/GenericActionPanel.tsx (around
+   line 39, a note specifically about final_number_assignment) and this
+   project's own demo-guide documentation both describe this behavior as
+   already correct, which it was never actually rendering as until this
+   fix.
+3. submitStepAction (action.handler.ts) — the procedure that
+   GenericActionPanel actually calls — has no allowed_outcomes check at
+   all; it hardcodes outcome: 'DONE' and only checks
+   config['require_comment']. Confirmed: none of the four affected
+   steps' outgoing transition rules use outcome_filter (each is either
+   null or otherwise not gated on a specific outcome string), so routing
+   these steps to submitStepAction's 'DONE' outcome will resolve their
+   next step correctly with no further changes needed elsewhere.
+4. This project's own findings log already contains an entry (LOG-0092,
+   docs/development-findings-log.md) noting that whether this exact
+   condition was ever meant to include 'action'-type steps "is not
+   something [a prior] task investigated and is left for human review" —
+   this fix is that human review's resolution: the answer is no, it was
+   not meant to include action-type steps as a blanket rule alongside a
+   specific per-step opt-in mechanism; it should be approval-type steps
+   only.
+
+SCOPE TABLE:
+IN SCOPE (touch only this):
+- apps/server/src/modules/workflow/workflow.router.ts — the single
+  condition shown in the old_str/new_str above, inside computePanelHint.
+  This is the only file and the only line range to change.
+
+OUT OF SCOPE (do not touch even if related-looking):
+- Any of the four affected steps' config blocks in
+  packages/database/src/seeds/workflow/phase1-legislative.ts
+  (first_reading, final_number_assignment, valid_in_part_action,
+  order_of_business_scheduling). Do NOT add allowed_outcomes to any of
+  them as an alternative or supplementary fix — that would be the
+  rejected design alternative (treating the panel routing as correct and
+  the missing config as the bug), not this fix.
+- apps/server/src/modules/workflow/engine/step-handlers/approval.handler.ts
+  — submitStepApproval's allowed_outcomes check is correct and unrelated;
+  do not modify it.
+- apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts
+  — submitStepAction is correct as-is; do not modify it.
+- apps/web/src/pages/workflow/panels/SecretariatDecisionPanel.tsx and
+  apps/web/src/pages/workflow/panels/GenericActionPanel.tsx — neither
+  frontend panel component needs any change; the fix is entirely in
+  which panel gets selected server-side, not in either panel's own code.
+  Do NOT remove or edit the source comment inside GenericActionPanel.tsx
+  referencing final_number_assignment (around line 39) as part of this
+  task — that comment becomes accurate once this fix lands, it does not
+  need editing.
+- computePanelHint's other stepKey-specific branches (vp_certification,
+  mayor_review/mayor_signature, veto_override_vote, docketing,
+  panlalawigan_review, newspaper_publication, returned_review,
+  legal_office_review, committee_revisions_review,
+  valid_in_part_decision) — none of these are affected by this change,
+  since each already returns earlier in the if/else-if chain, before the
+  line being changed is ever reached. Do not add, remove, or reorder any
+  of these branches.
+- The two call sites of computePanelHint (currently lines 506 and 707) —
+  do not change how either one invokes the function; only the function
+  body itself changes.
+- session.router.ts's scheduleDocumentForFirstReading procedure — this
+  does not call submitStepApproval or submitStepAction at all and is
+  unrelated to this fix; do not touch it.
+- Do NOT add a step-key-based exclusion list (e.g. a hardcoded array of
+  step keys to exclude from secretariat_decision routing) as an
+  alternative implementation. The single-condition fix above is
+  authoritative; a step-key exclusion list would need to be manually
+  kept in sync with the seed file forever and is explicitly rejected as
+  an approach for this task.
+
+ACCEPTANCE CRITERIA:
+- The exact old_str above no longer appears anywhere in
+  workflow.router.ts.
+- The exact new_str above appears in its place, at the same structural
+  position inside computePanelHint (i.e., you are editing the existing
+  function body in place, not adding a new branch elsewhere).
+- Every other branch inside computePanelHint is byte-for-byte unchanged,
+  including their relative order.
+- No existing test modified to force a pass; if any existing test
+  encodes an assertion that currently expects an 'action'-type step
+  assigned to the Secretariat office to resolve to
+  panelHint: 'secretariat_decision' (as opposed to 'generic_action'),
+  report it as a finding — do not edit the test to match the old
+  (incorrect) behavior. Search specifically in
+  apps/server/src/modules/workflow/workflow.router.test.ts and any other
+  test file referencing computePanelHint or panelHint.
+- Report back explicitly: did any test reference this specific branch or
+  assert on 'secretariat_decision' for an action-type step before your
+  change, and if so, what did it assert?
+- `pnpm typecheck` (or this project's equivalent typecheck command)
+  passes with no new errors introduced by this change.
+- This is a pure server-side routing fix; no database seed change, no
+  migration, and no frontend change are required for this fix to take
+  effect. Report explicitly whether a server restart alone is sufficient
+  to pick up this change in a running dev environment, or whether
+  anything else needs to be done (e.g. clearing a cached panelHint value
+  on the client) — do not assume without checking.
+````

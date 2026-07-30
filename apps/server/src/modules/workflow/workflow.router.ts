@@ -275,7 +275,7 @@ function computePanelHint(
   } else if (stepKey === 'valid_in_part_decision') {
     return 'valid_in_part_decision';
   } else if (
-    (currentStepType === 'action' || currentStepType === 'approval') &&
+    currentStepType === 'approval' &&
     spsOfficeId &&
     (currentStep.assignedTo as Array<any>)?.[0]?.office_id === spsOfficeId
   ) {
