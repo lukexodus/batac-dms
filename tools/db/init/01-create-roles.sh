@@ -109,3 +109,5 @@ END
 EOSQL
 
 echo "[01-create-roles] Roles batac_migrate, batac_app, batac_audit, batac_it_admin, batac_readonly created."
+-- Allow batac_migrate to change owners of tables to batac_app
+GRANT batac_app TO batac_migrate;

@@ -28,13 +28,38 @@ const db = drizzle(client);
 console.log('[migrate] Applying Drizzle migrations...');
 await migrate(db, { migrationsFolder: join(__dirname, '../migrations') });
 
-console.log('[migrate] Applying post-migrate grants...');
-const grantsSQL = readFileSync(join(__dirname, './post-migrate-grants.sql'), 'utf-8');
-await client.unsafe(grantsSQL);
-await client.end();
-
 console.log('[migrate] Initialising PgBoss schema (if needed)...');
 import { execSync } from 'node:child_process';
 execSync('pnpm --filter server exec tsx src/database/seeds/init-pgboss.ts', { stdio: 'inherit', cwd: join(__dirname, '../../..') });
 
+console.log('[migrate] Applying post-migrate grants...');
+const grantsSQL = readFileSync(join(__dirname, './post-migrate-grants.sql'), 'utf-8');
+await client.unsafe(grantsSQL);
+
+console.log('[migrate] Transferring PgBoss schema ownership to batac_app...');
+await client.unsafe(`
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'pgboss') LOOP
+        EXECUTE 'ALTER TABLE pgboss.' || quote_ident(r.tablename) || ' OWNER TO batac_app';
+    END LOOP;
+    FOR r IN (SELECT viewname FROM pg_views WHERE schemaname = 'pgboss') LOOP
+        EXECUTE 'ALTER VIEW pgboss.' || quote_ident(r.viewname) || ' OWNER TO batac_app';
+    END LOOP;
+    FOR r IN (SELECT sequencename FROM pg_sequences WHERE schemaname = 'pgboss') LOOP
+        EXECUTE 'ALTER SEQUENCE pgboss.' || quote_ident(r.sequencename) || ' OWNER TO batac_app';
+    END LOOP;
+    FOR r IN (SELECT p.proname, pg_get_function_identity_arguments(p.oid) as args 
+              FROM pg_proc p 
+              JOIN pg_namespace n ON p.pronamespace = n.oid 
+              WHERE n.nspname = 'pgboss') LOOP
+        EXECUTE 'ALTER FUNCTION pgboss.' || quote_ident(r.proname) || '(' || r.args || ') OWNER TO batac_app';
+    END LOOP;
+END
+$$;
+`);
+
+await client.end();
 console.log('[migrate] Done.');
