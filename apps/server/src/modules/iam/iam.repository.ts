@@ -1,4 +1,4 @@
-import { eq, and, or, isNull, desc, inArray, ilike } from 'drizzle-orm';
+import { eq, and, or, isNull, desc, inArray, ilike, sql } from 'drizzle-orm';
 import {
   users,
   credentials,
@@ -11,7 +11,7 @@ import {
   roleAssignments,
   mfaRecords,
 } from '@batac/database/schema/iam.schema.js';
-import type { IamRepository, DbClient, DbTransaction } from './iam.types.js';
+import type { IamRepository, DbClient, DbTransaction, CredentialRow } from './iam.types.js';
 
 export function createIamRepository(db: DbClient | DbTransaction): IamRepository {
   return {
@@ -80,10 +80,15 @@ export function createIamRepository(db: DbClient | DbTransaction): IamRepository
     },
 
     findCredentialByUserId: async (userId) => {
-      const [cred] = await db
-        .select()
-        .from(credentials)
-        .where(and(eq(credentials.userId, userId), isNull(credentials.deletedAt)));
+      // Uses iam.fn_get_credential_by_user_id (SECURITY DEFINER) instead
+      // of a direct SELECT, because batac_app has no SELECT grant on
+      // iam.credentials by design (0002_iam_create_iam_schema.sql line
+      // 247). The function returns the full row shape, so the result
+      // maps directly onto CredentialRow with no type changes needed.
+      const result = await db.execute<CredentialRow>(
+        sql`SELECT * FROM iam.fn_get_credential_by_user_id(${userId}::uuid)`,
+      );
+      const cred = (result as any)[0];
       return cred || null;
     },
     createCredential: async (userId, passwordHash) => {
