@@ -12,6 +12,7 @@ Labels used throughout, per this project's convention: `[Confirmed]` = checked d
 
 1. **Run the seeds, in this order** (confirmed exact commands from `package.json` and the seed script's own header):
    ```
+   pnpm --filter database db:migrate
    pnpm db:seed
    pnpm --filter server exec tsx src/database/seeds/demo-credentials.seed.ts
    ```
@@ -83,6 +84,46 @@ Log in as `councilor.flojo` (Chair, Committee on Laws). Navigate to **My Assigne
 Switch back to `secretary.lagura`. On the same Multi-Referral screen, the Secretary sees two additional sections a Councilor doesn't — entering the hearing date, and a "manually advance" override (that's Section 5, below). Once all assigned committees have reported, click through to accept the unified report. The workflow moves forward.
 
 One detail worth saying out loud here, even though it won't visibly change anything on screen: if one of the referred committees is absent for the hearing, that doesn't block anything — the hearing continues, and the system doesn't even log which individual committee members were absent. It's only a missing *report* that holds up the workflow, not attendance at the hearing itself.
+
+#### How to Perform Act 2 and Act 3 By Hand (Teaching Walkthrough)
+
+##### Act 2 — Scheduling and First Reading (as SP Secretary, `secretary.lagura`)
+
+This is genuinely **two separate actions on two separate screens** — the demo guide's single sentence ("open the step from your inbox, schedule it... then record First Reading and set committee referral") reads like one motion but is actually **three** distinct screens in sequence.
+
+**Step 2a — Schedule for Order of Business**
+- **Page:** `/order-of-business` (`OrderOfBusinessPage.tsx`)
+- **Component:** the "Schedule Document for First Reading" card at the bottom of the page — labeled `ScheduleForFirstReadingPanel`, only visible because `secretary.lagura` holds `sp_secretary`
+- **What to click:** pick the document from the **Document** dropdown (a searchable combobox), pick a **Requested Session Date**, click **"Schedule for First Reading."**
+- **Gotcha (traced, not a real blocker in practice):** the document dropdown (`DocumentPicker`, confirmed at `DocumentPicker.tsx:14-20`) only shows documents whose lifecycle state is `in_workflow` — not `draft` or `submitted` (`OrderOfBusinessPage.tsx:710` hard-codes `lifecycleState="in_workflow"`). This isn't something to wait on: the transition to `in_workflow` happens automatically, in the same transaction, the moment a workflow instance is created for the document (confirmed via an explicit code comment at `create-instance.ts:106-112`), which happens as part of Act 1's Submit for an SP Resolution. So right after Act 1, the document should already be pickable here — worth knowing so a missing document doesn't cause confusion ("I just submitted it, why can't I find it in the scheduler?").
+- **Backend:** `session.scheduleDocumentForFirstReading` (`session.router.ts:763`, confirmed input `{documentId: uuid, sessionDate: coerced date}`, guard `enforceRoles(ctx, ['sp_secretary'])`) — you don't need to get the date exactly right; the server snaps it to the next valid Tuesday and applies Thursday-cutoff logic itself.
+
+**Step 2b — Record First Reading**
+- **Page:** `/workflow/steps` → open the assigned step (or navigate directly to `/workflow/steps/:instanceId`)
+- **Component:** `GenericActionPanel` — a plain card titled **"Complete Task"** with an optional comment box and a single **"Complete Task"** button
+- **What to click:** optionally type a comment, click **"Complete Task."**
+- This is a fully generic panel shared by many unrelated action steps — no special first-reading-specific UI, by design.
+
+**Step 2c — Assign committees (the second half of "set committee referral")**
+Once First Reading completes, the workflow automatically advances to `committee_referral`.
+- **Page:** same `/workflow/steps/:instanceId` URL, now showing a different panel since the step type changed
+- **Component:** `MultiReferralPanel`, specifically its **"Assign Committees"** section at the top — a checkbox list, one row per committee, visible only to `sp_secretary`
+- **What to click:** check the boxes for **Committee on Laws** plus the chosen subject-matter committee, click **"Assign Committees."**
+
+##### Act 3 — Committee work (switch logins)
+
+**Step 3a — Councilor submits the report**
+- **Login as:** `councilor.flojo`
+- **Page:** `/workflow/steps` → open the referral step from the inbox
+- **Component:** `MultiReferralPanel` again, but this account only sees the **"Submit Committee Report"** section (the "Assign Committees" section is hidden — gated to `sp_secretary` only; this account holds `sp_member`)
+- **What to click:** select **Committee on Laws** from the dropdown, write report text, click **"Submit Report."** Confirmed: this dropdown and the Secretary's assignment checkboxes both read from the exact same `organization.listCommittees` query result — no possibility of committee-ID mismatch.
+
+**Step 3b — Secretary sees the additional sections**
+- **Login as:** `secretary.lagura`
+- Same panel, same step — this account additionally sees **"Enter Committee Hearing Date"** and **"Manually Advance Step,"** neither visible to the Councilor's account.
+- Once all assigned committees have reported, the step should complete on its own the moment the last one submits — the full completion-orchestration chain wasn't re-traced this session (it wasn't in question), but the prior session's investigation confirmed this end-to-end chain closes correctly, and nothing found this session contradicts that.
+
+---
 
 ### Act 4 — Second Reading and Numbering (as SP Secretary)
 
