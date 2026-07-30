@@ -8,7 +8,7 @@ import { seedDocumentTypes } from './document-types.seed.js';
 import { seedPhase1WorkflowDefinitions } from '../../../../../packages/database/src/seeds/workflow/phase1-legislative.js';
 
 async function main() {
-  const databaseUrl = process.env['DATABASE_URL_APP'] || process.env['DATABASE_URL_MIGRATE'];
+  const databaseUrl = process.env['DATABASE_URL_MIGRATE'];
   if (!databaseUrl) {
     console.error(
       '[seed:orchestrator] Error: DATABASE_URL_MIGRATE or DATABASE_URL_APP environment variable is not set.',
