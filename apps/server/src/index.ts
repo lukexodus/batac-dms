@@ -48,6 +48,19 @@ async function main(): Promise<void> {
   // this is threaded through.
   console.log('Starting PgBoss...');
   const boss = new PgBoss(env.DATABASE_URL_APP);
+  // Without this listener, any 'error' event PgBoss's underlying
+  // pg-pool connection emits (e.g. SQLSTATE 57P01 when the Postgres
+  // backend is terminated, such as during `docker compose down`)
+  // crashes the entire Node process via Node's default unhandled-
+  // 'error'-event behavior. This listener logs the error and allows
+  // the process to keep running instead. This does not implement
+  // reconnect logic — if PgBoss's internal pool does not recover on
+  // its own, job processing may remain degraded after this event even
+  // though the process itself survives. See docs/development-findings
+  // -log.md, [LOG entry for this bug] for the full incident.
+  boss.on('error', (err) => {
+    console.error('[PgBoss] error event:', err);
+  });
   await boss.start();
 
   const app = await buildApp({ boss });
