@@ -30349,3 +30349,1424 @@ ACCEPTANCE CRITERIA:
   anything else needs to be done (e.g. clearing a cached panelHint value
   on the client) — do not assume without checking.
 ````
+---
+
+# TASK-IAM-FIX-001 — Add a SECURITY DEFINER function for narrow, audited
+credential-hash reads by batac_app, matching the existing
+documents.fn_get_next_sequence_value pattern, and update
+findCredentialByUserId to use it.
+
+````
+TASK-IAM-FIX-001 — Add a SECURITY DEFINER function for narrow, audited
+credential-hash reads by batac_app, matching the existing
+documents.fn_get_next_sequence_value pattern, and update
+findCredentialByUserId to use it.
+
+═══════════════════════════════════════════
+BACKGROUND (context only, not instructions)
+═══════════════════════════════════════════
+packages/database/migrations/0002_iam_create_iam_schema.sql line 247
+contains `REVOKE SELECT ON iam.credentials FROM batac_app;` — already
+applied, already correct, human-ratified design (do not touch this
+migration file or this statement; see Scope below). This is intentional:
+batac_app should never be able to do a blanket SELECT across the whole
+credentials table.
+
+However, no access mechanism exists anywhere in the codebase for the one
+legitimate case that needs it: the login flow's password verification,
+which currently calls a plain `db.select().from(credentials)` as
+batac_app (apps/server/src/modules/iam/iam.repository.ts, current
+findCredentialByUserId implementation below) and fails with "permission
+denied for table credentials" because of the REVOKE above.
+
+This task adds a SECURITY DEFINER PL/pgSQL function — owned by
+batac_migrate, callable by batac_app — that performs the single lookup
+internally, so batac_app gets a narrow, single-purpose, auditable path
+to this one row instead of unrestricted table access. This mirrors the
+existing pattern already used in this codebase for
+documents.fn_get_next_sequence_value (packages/database/migrations/0004_documents_create_documents_schema.sql,
+lines 358-391) and tracking.fn_get_next_tracking_number.
+
+═══════════════════════════════════════════
+FILE 1 of 3 — NEW migration file
+═══════════════════════════════════════════
+
+Per C5 §2.2 ("Never write a migration SQL file by hand" for schema
+changes that should go through Drizzle Kit, but this function is not a
+schema/table change — no Drizzle table definition changes) — run:
+
+    pnpm --filter database db:generate
+
+This should produce an EMPTY (or near-empty) migration file since no
+Drizzle schema.ts changes are being made. If `pnpm db:generate` produces
+a non-empty diff unrelated to this task, STOP and report that finding
+instead of proceeding — it means there is uncommitted schema drift
+unrelated to this task, and that needs to be resolved separately before
+this task continues. Do not fold an unrelated schema diff into this
+migration.
+
+Confirm the generated file is at
+packages/database/migrations/0013_<generated-name>.sql (the next
+sequential number after the current highest, 0012_last_marten_broadcloak.sql
+— confirm 0012 is still the highest-numbered file before generating;
+report the actual generated filename in your response since the
+auto-generated word-pair name cannot be predicted in advance).
+
+Add the following content to that generated file, following the exact
+delimiting-comment convention already used in
+0004_documents_create_documents_schema.sql line 358 ("SECURITY DEFINER
+owned by batac_migrate... so that batac_app... can... without DDL
+privileges."):
+
+```sql
+-- SECURITY DEFINER owned by batac_migrate (the DDL-owning role, per C5
+-- Addendum) so that batac_app (runtime) can perform a single, narrow
+-- credential-hash lookup without needing a blanket SELECT grant on
+-- iam.credentials, which is intentionally revoked (see
+-- 0002_iam_create_iam_schema.sql line 247). This function returns the
+-- full credentials row (matching the CredentialRow type already used by
+-- findCredentialByUserId's callers) rather than just the password hash,
+-- so no caller-side type or contract changes are needed — only the
+-- internal query implementation changes.
+CREATE OR REPLACE FUNCTION iam.fn_get_credential_by_user_id(
+    p_user_id UUID
+)
+RETURNS TABLE (
+    id              UUID,
+    city_id         UUID,
+    user_id         UUID,
+    password_hash   TEXT,
+    last_changed_at TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ,
+    updated_at      TIMESTAMPTZ,
+    deleted_at      TIMESTAMPTZ,
+    deleted_by      UUID
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $fn$
+BEGIN
+    RETURN QUERY
+    SELECT
+        c.id,
+        c.city_id,
+        c.user_id,
+        c.password_hash,
+        c.last_changed_at,
+        c.created_at,
+        c.updated_at,
+        c.deleted_at,
+        c.deleted_by
+    FROM iam.credentials c
+    WHERE c.user_id = p_user_id
+      AND c.deleted_at IS NULL;
+END;
+$fn$;
+
+GRANT EXECUTE ON FUNCTION iam.fn_get_credential_by_user_id(UUID) TO batac_app;
+```
+
+Do not add anything else to this migration file beyond the SQL above and
+the `--> statement-breakpoint` markers Drizzle Kit's own tooling inserts
+between statements if this were multi-statement (check the generated
+file's existing format for the exact breakpoint convention used in this
+project — 0004's file uses `--> statement-breakpoint` between top-level
+statements; follow whatever the freshly-generated file already contains
+for its own header, and only append the block above after it).
+
+═══════════════════════════════════════════
+FILE 2 of 3 — apps/server/src/modules/iam/iam.repository.ts
+═══════════════════════════════════════════
+
+old_str (exact, must match uniquely — current imports at top of file):
+```
+import { eq, and, or, isNull, desc, inArray, ilike } from 'drizzle-orm';
+```
+
+new_str:
+```
+import { eq, and, or, isNull, desc, inArray, ilike, sql } from 'drizzle-orm';
+```
+
+---
+
+old_str (exact, must match uniquely — current findCredentialByUserId):
+```
+    findCredentialByUserId: async (userId) => {
+      const [cred] = await db
+        .select()
+        .from(credentials)
+        .where(and(eq(credentials.userId, userId), isNull(credentials.deletedAt)));
+      return cred || null;
+    },
+```
+
+new_str:
+```
+    findCredentialByUserId: async (userId) => {
+      // Uses iam.fn_get_credential_by_user_id (SECURITY DEFINER) instead
+      // of a direct SELECT, because batac_app has no SELECT grant on
+      // iam.credentials by design (0002_iam_create_iam_schema.sql line
+      // 247). The function returns the full row shape, so the result
+      // maps directly onto CredentialRow with no type changes needed.
+      const result = await db.execute<CredentialRow>(
+        sql`SELECT * FROM iam.fn_get_credential_by_user_id(${userId}::uuid)`,
+      );
+      const cred = result.rows?.[0] ?? (Array.isArray(result) ? result[0] : undefined);
+      return cred || null;
+    },
+```
+
+NOTE ON THE RESULT-EXTRACTION LINE ABOVE: this codebase's postgres-js /
+drizzle-orm version has an established, confirmed inconsistency in
+whether `db.execute()` returns a plain array or a `{ rows: [...] }`
+wrapper — this exact ambiguity is independently documented and already
+fixed elsewhere in this codebase for a different function
+(tracking.fn_get_next_tracking_number's TypeScript-side result
+extraction; see docs/development-findings-log.md for the corresponding
+entry if you want the full history). The line above defensively handles
+both shapes. Do NOT simplify this to only one shape (e.g. `result[0]` or
+`result.rows[0]` alone) without first checking which shape THIS
+project's actual installed postgres-js version returns for `db.execute()`
+— check apps/server/src/modules/tracking/tracking.repository.ts for
+however that file resolved the same ambiguity, and match its resolution
+exactly here rather than re-deciding independently. If tracking.repository.ts
+uses a single, non-defensive extraction (e.g. always `.rows` OR always a
+plain array, not both), replace the defensive line above with that exact
+same pattern instead, for consistency — report which one you used and
+why in your response.
+
+═══════════════════════════════════════════
+FILE 3 of 3 — VERIFICATION ONLY, no file changes
+═══════════════════════════════════════════
+
+apps/server/src/modules/iam/iam.types.ts: CONFIRM (do not modify) that
+CredentialRow (line 25: `export type CredentialRow =
+InferSelectModel<typeof credentials>;`) and the findCredentialByUserId
+signature (line 352: `findCredentialByUserId(userId: string):
+Promise<CredentialRow | null>;`) remain unchanged and still typecheck
+against the new implementation. This file should need ZERO edits — if
+you find yourself needing to change it to make this task work, STOP and
+report that as an unexpected finding rather than proceeding, since it
+would mean the SECURITY DEFINER function's return shape doesn't actually
+match CredentialRow and something above needs correcting instead.
+
+═══════════════════════════════════════════
+OUT OF SCOPE — do not touch as part of this task
+═══════════════════════════════════════════
+- packages/database/migrations/0002_iam_create_iam_schema.sql — already
+  applied; the REVOKE SELECT statement at line 247 is correct and
+  intentional and must not be modified, reverted, or commented out.
+- apps/server/src/modules/iam/iam.service.ts — no changes needed here;
+  it calls iamRepo.findCredentialByUserId(...) and receives the same
+  CredentialRow shape as before, so its own logic (argon2.verify, etc.)
+  is unaffected by this change.
+- createCredential and updateCredentialHash in iam.repository.ts — these
+  use INSERT/UPDATE, which batac_app already has via the standard
+  schema-wide grant (post-migrate-grants.sql's app_schemas loop); they
+  are unaffected by the REVOKE (which only targets SELECT) and need no
+  changes.
+- Any other repository file, any other REVOKE statement, any other
+  table's access pattern. This task is scoped to exactly one function
+  and exactly one repository method.
+- packages/database/scripts/post-migrate-grants.sql — the new function's
+  GRANT EXECUTE is included directly in the new migration file (per the
+  established pattern for fn_get_next_sequence_value, which also grants
+  inline in its own migration rather than in post-migrate-grants.sql);
+  do not additionally add anything about this function to
+  post-migrate-grants.sql.
+
+═══════════════════════════════════════════
+VERIFICATION STEPS
+═══════════════════════════════════════════
+1. `pnpm --filter database db:migrate` completes with no errors and
+   applies the new migration (confirm the new migration's filename
+   appears in the migrate.ts output).
+2. `pnpm typecheck` passes at the workspace root — confirms
+   CredentialRow compatibility without needing to touch iam.types.ts.
+3. Attempt an actual login through the running application (start via
+   `pnpm dev`, then a real POST to /api/auth/login with valid demo
+   credentials from demo-credentials.seed.ts) and confirm it succeeds
+   (200 response, not the previous "permission denied for table
+   credentials" 500 error). Report the exact response status and body
+   received.
+4. As a defense-in-depth sanity check (not required to pass/fail the
+   task, but report the result): connect directly as batac_app via psql
+   and confirm a direct `SELECT * FROM iam.credentials LIMIT 1;` still
+   fails with permission denied (confirming the REVOKE is still in
+   effect and this fix did not accidentally widen it), while `SELECT *
+   FROM iam.fn_get_credential_by_user_id('<any-real-user-id>'::uuid);`
+   succeeds.
+````
+
+---
+
+# Prompt 1 — End-to-end HTTP login test with valid PKCE
+
+````
+TASK-IAM-VERIFY-001 — Run a genuine end-to-end HTTP login test that
+actually reaches the credential-lookup code path, to close a gap in the
+verification for TASK-IAM-FIX-001.
+
+═══════════════════════════════════════════
+BACKGROUND (context only, not instructions)
+═══════════════════════════════════════════
+TASK-IAM-FIX-001 added a SECURITY DEFINER function
+(iam.fn_get_credential_by_user_id) so the login flow can read
+iam.credentials despite batac_app having no direct SELECT grant on that
+table. The prior verification attempt sent a login request with a
+DELIBERATELY MISMATCHED PKCE code_verifier/code_challenge pair and
+received a 400 PKCE_MISMATCH response, then treated that as confirmation
+the credential fix works. This is not valid evidence: PKCE verification
+is Step 1 of the login flow (apps/server/src/modules/iam/iam.service.ts,
+lines 328-335) and happens BEFORE the credential lookup at Step 6 (same
+file, line 368). A PKCE_MISMATCH response proves only that Step 1
+failed — it is fully consistent with Step 6 never having been reached
+at all, regardless of whether the credential fix works or not.
+
+This task sends a request with a VALID, correctly-computed PKCE pair, so
+the request actually passes Step 1 and reaches Step 6, producing a real
+pass/fail signal for the fix.
+
+═══════════════════════════════════════════
+EXACT PKCE ALGORITHM — this is the literal, current implementation this
+codebase checks against. Do not substitute a different PKCE library
+default, a different hash, or a different encoding — any deviation will
+produce a code_challenge that does not match what the server computes,
+resulting in a false PKCE_MISMATCH that would incorrectly look like this
+task failed.
+═══════════════════════════════════════════
+
+Source: apps/server/src/modules/iam/iam.service.ts, lines 79-81:
+
+    function sha256Base64url(input: string): string {
+      return createHash('sha256').update(input, 'ascii').digest('base64url');
+    }
+
+And the comparison at lines 331-334:
+
+    const expectedChallenge = sha256Base64url(code_verifier);
+    if (expectedChallenge !== code_challenge) { ... }
+
+This means, precisely:
+  1. Generate a code_verifier: an ASCII string, LENGTH BETWEEN 43 AND 128
+     CHARACTERS INCLUSIVE (enforced by LoginInputSchema in
+     apps/server/src/modules/iam/iam.schemas.ts, line 11:
+     `code_verifier: z.string().min(43).max(128)`). RFC 7636 restricts
+     valid characters to [A-Z] [a-z] [0-9] and "-._~" — stay within this
+     set to avoid any ambiguity, even though the server-side check above
+     does not itself enforce the character-set restriction.
+  2. Compute code_challenge = SHA256(code_verifier), encoded as
+     base64url WITH NO PADDING. Node's built-in
+     `createHash('sha256').update(code_verifier, 'ascii').digest('base64url')`
+     already produces unpadded base64url — do not additionally strip
+     characters or do a manual base64-to-base64url conversion, since
+     Node's native 'base64url' encoding already handles this correctly
+     and manual post-processing risks introducing an off-by-one or
+     wrong-character-set error.
+  3. code_challenge_method must be the literal string "S256"
+     (LoginInputSchema line 13: `code_challenge_method: z.literal('S256')`).
+
+If you have Node available in your execution environment (you should,
+since this is a Node/TypeScript project), the simplest way to generate a
+valid pair is to actually run the exact function this codebase uses,
+rather than reimplementing it in a different language or tool where a
+subtle difference could creep in:
+
+    node -e "
+    const { createHash, randomBytes } = require('crypto');
+    const verifier = randomBytes(64).toString('base64url'); // ~86 chars, valid range
+    const challenge = createHash('sha256').update(verifier, 'ascii').digest('base64url');
+    console.log('code_verifier=' + verifier);
+    console.log('code_challenge=' + challenge);
+    "
+
+Confirm the printed code_verifier length is between 43 and 128 characters
+before using it (randomBytes(64).toString('base64url') produces 86
+characters, which is safely in range). Report the actual generated
+values you use in your response so the request can be reproduced if
+needed.
+
+═══════════════════════════════════════════
+REQUEST DETAILS
+═══════════════════════════════════════════
+
+Endpoint: POST /api/auth/login (apps/server/src/modules/iam/iam.routes.ts,
+line 80). Confirm the actual base URL/port the server is running on in
+your environment (check apps/server's running dev output or .env for
+the PORT the Fastify server binds to) rather than assuming a specific
+port — do not hardcode a guessed port number.
+
+Request body (exact field names, per LoginInputSchema,
+apps/server/src/modules/iam/iam.schemas.ts lines 8-14):
+```json
+{
+  "username": "it.admin",
+  "password": "BatacDemo2026!",
+  "code_verifier": "<the code_verifier you generated above>",
+  "code_challenge": "<the code_challenge you generated above>",
+  "code_challenge_method": "S256"
+}
+```
+
+username/password source: apps/server/src/database/seeds/demo-credentials.seed.ts,
+DEMO_PASSWORD constant and the 'it.admin' entry in DEMO_ACCOUNTS — confirmed
+present in the current repo state as of this task being written. Before
+sending the request, confirm this account genuinely exists in the
+CURRENTLY RUNNING database (it depends on demo-credentials.seed.ts
+having been run against the current database instance, which is a
+runtime/data fact this investigation cannot confirm from the source
+tree alone) — e.g. via
+`PGPASSWORD=<migrate password from .env> psql -h localhost -p <port>
+-U batac_migrate -d batac_lgu -c "SELECT username FROM iam.users WHERE
+username = 'it.admin';"` should return exactly one row. If it returns
+zero rows, STOP and report that the demo seed has not been run in this
+environment — do not proceed with a login attempt against a
+non-existent account, since that would fail at Step 3 (user lookup) and
+be just as invalid a test as the PKCE mismatch was, for the same reason
+(failing before reaching Step 6).
+
+Example curl command (adjust the port/host to match your actual running
+server):
+```bash
+curl -i -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "it.admin",
+    "password": "BatacDemo2026!",
+    "code_verifier": "<generated verifier>",
+    "code_challenge": "<generated challenge>",
+    "code_challenge_method": "S256"
+  }'
+```
+
+═══════════════════════════════════════════
+WHAT COUNTS AS SUCCESS FOR THIS VERIFICATION
+═══════════════════════════════════════════
+
+Report the EXACT response received — full status code and full response
+body — do not summarize or paraphrase it. Then classify the result
+against this table (this table is authoritative; if your result doesn't
+fit cleanly into one row, report the raw response and flag the
+ambiguity rather than picking the closest-seeming row):
+
+| Response | What it means | Does it confirm the credential fix works? |
+|---|---|---|
+| 200, body matches AuthResponseSchema shape (user object, sessionId, expiresAt, roleCodes, officeScopeId, officeCode) | Full login success — reached and passed every step including Step 6 | YES — this is the target outcome |
+| 401, code INVALID_CREDENTIALS | Could mean Step 6 was reached and the password was wrong, OR Step 3 failed (user not found) — check which by confirming the demo account pre-check above passed; if it passed, an INVALID_CREDENTIALS here with the correct password is itself a NEW finding worth reporting (would suggest the password hash retrieved doesn't match, which would be a genuine problem, not a test-methodology gap) | Ambiguous — do not treat this as a pass; report it and flag for further investigation, do not just fold in a fix on your own since this would be a new, different problem than the one this task set out to verify |
+| 429, code ACCOUNT_LOCKED | The account is currently locked out from prior failed attempts (possibly from earlier testing in this same session) | Inconclusive — this means Step 6 in a PRIOR request was reached, which is indirectly useful evidence, but this specific request didn't get a clean pass/fail; report the retryAfter value and consider waiting or checking iam.users.login_locked_until directly | 
+| 500, any error mentioning "credentials" or "permission denied" | The original bug is NOT actually fixed | NO — if you see this, the fix has NOT resolved the issue; report the full error and do not attempt to fix it yourself, report back only |
+| 400, code PKCE_MISMATCH | The generated PKCE pair was computed incorrectly | NO — this means the test itself is invalid, not that the fix failed; re-check the PKCE generation steps above for an error rather than concluding anything about the credential fix |
+| Any other response | Unexpected | Report in full; do not guess at what it means |
+
+Do not proceed to declare success or failure based on partial output
+(e.g. just the status code without the body, or vice versa) — report
+both in full.
+
+═══════════════════════════════════════════
+WHAT NOT TO DO
+═══════════════════════════════════════════
+- Do not modify any application code, migration, or configuration file
+  as part of this task. This is a verification-only task.
+- Do not retry with a different account if it.admin's login fails for a
+  reason other than what's listed in the table above — report the
+  actual result instead of substituting a different test to get a
+  passing result.
+- Do not modify demo-credentials.seed.ts or re-run it "just in case"
+  without first confirming (per the pre-check above) that it actually
+  needs to be run — if the account already exists, re-running the seed
+  script is out of scope for this task and may have unintended side
+  effects on existing session/lockout state for that account.
+````
+
+---
+
+# Prompt 2 — Fix the ownership-transfer dependency, then document it as the official pattern in L2
+
+````
+TASK-INFRA-DOC-001 — Fix a latent dependency bug in the existing pgboss
+ownership-transfer workaround, then formally document that workaround as
+the official supported pattern in L2's specification, replacing the
+doc's current (incorrect) description of a privilege-only grant.
+
+═══════════════════════════════════════════
+DECISION ALREADY MADE — do not re-derive or second-guess this
+═══════════════════════════════════════════
+A human has decided: the existing workaround — transferring ownership of
+pgboss schema objects to batac_app after each migration run (currently
+implemented inline in packages/database/scripts/migrate.ts, lines
+39-62) — is to be KEPT and made the officially documented pattern for
+this system, rather than replaced with a different architecture (a
+two-connection pg-boss setup was investigated and confirmed NOT viable
+for this pg-boss version — see the accompanying investigation report if
+you want that background; you do not need to re-investigate it as part
+of this task). Do not propose or implement an alternative architecture.
+This task is about (a) fixing a real prerequisite bug that the current
+workaround silently depends on, and (b) bringing the documentation in
+line with what is actually implemented and actually necessary.
+
+═══════════════════════════════════════════
+PART A — Fix tools/db/init/01-create-roles.sh (prerequisite for Part B
+to be honestly documented)
+═══════════════════════════════════════════
+
+CURRENT STATE (verbatim, the file's last 5 lines):
+```
+END
+\$\$;
+
+EOSQL
+
+echo "[01-create-roles] Roles batac_migrate, batac_app, batac_audit, batac_it_admin, batac_readonly created."
+-- Allow batac_migrate to change owners of tables to batac_app
+GRANT batac_app TO batac_migrate;
+```
+
+PROBLEM: `GRANT batac_app TO batac_migrate;` and the comment line above
+it sit AFTER the heredoc closes (EOSQL) and after the echo statement —
+they execute as bash, not SQL. Bash interprets the `--` comment line as
+an attempted command invocation and fails ("command not found"). This
+script is a docker-entrypoint-initdb.d hook (compose.yml, the postgres
+service's volumes section mounts ./tools/db/init to
+/docker-entrypoint-initdb.d:ro) that runs once against a fresh
+postgres_data volume — since `set -euo pipefail` is active for this
+whole script, this failure aborts the entire script, which means
+Postgres container initialization fails on the next
+`docker compose down -v && docker compose up -d`.
+
+This specific grant — batac_migrate being a MEMBER of batac_app — is a
+hard prerequisite for the ownership-transfer loop in migrate.ts (lines
+39-62) to succeed: PostgreSQL requires the role performing an `ALTER ...
+OWNER TO <target>` to be a member of <target> (or a superuser). Without
+this grant durably applied via the init script, the ownership-transfer
+loop will fail on any environment that goes through a genuinely fresh
+container initialization — even though it currently appears to work,
+because this grant was previously applied via a one-off manual `psql`
+command directly against the currently-running container, which will
+not survive a volume wipe.
+
+REQUIRED FIX: move the GRANT statement inside the existing DO $$ ... END
+$$; block, before it closes, so it runs through psql along with
+everything else.
+
+old_str (exact, must match uniquely):
+```
+  -- ── batac_readonly: read-only monitoring/reporting ───────────────────────────
+  -- NOLOGIN; no password. Connected to via SET ROLE after batac_app login.
+  -- Schema-level SELECT grants applied by post-migrate-grants.sql.
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_readonly') THEN
+    CREATE ROLE batac_readonly WITH NOLOGIN;
+  ELSE
+    ALTER ROLE batac_readonly WITH NOLOGIN;
+  END IF;
+
+END
+\$\$;
+
+EOSQL
+
+echo "[01-create-roles] Roles batac_migrate, batac_app, batac_audit, batac_it_admin, batac_readonly created."
+-- Allow batac_migrate to change owners of tables to batac_app
+GRANT batac_app TO batac_migrate;
+```
+
+new_str (exact replacement):
+```
+  -- ── batac_readonly: read-only monitoring/reporting ───────────────────────────
+  -- NOLOGIN; no password. Connected to via SET ROLE after batac_app login.
+  -- Schema-level SELECT grants applied by post-migrate-grants.sql.
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'batac_readonly') THEN
+    CREATE ROLE batac_readonly WITH NOLOGIN;
+  ELSE
+    ALTER ROLE batac_readonly WITH NOLOGIN;
+  END IF;
+
+  -- batac_migrate must be a MEMBER of batac_app so it can reassign
+  -- ownership of objects (specifically: the pgboss schema's tables,
+  -- views, sequences, and functions) to batac_app. PostgreSQL requires
+  -- the role performing `ALTER ... OWNER TO <target>` to be a member of
+  -- <target>, or a superuser. This membership is the prerequisite for
+  -- the ownership-transfer step in packages/database/scripts/migrate.ts
+  -- (run after every migration) to succeed. See L2 §"Post-migration
+  -- grants" for the full rationale on why pgboss specifically needs
+  -- true ownership transfer rather than a privilege grant.
+  GRANT batac_app TO batac_migrate;
+
+END
+\$\$;
+
+EOSQL
+
+echo "[01-create-roles] Roles batac_migrate, batac_app, batac_audit, batac_it_admin, batac_readonly created."
+```
+
+VERIFICATION FOR PART A: run `docker compose down -v && docker compose
+up -d`, confirm the postgres container's logs
+(`docker compose logs postgres`) show no errors during initialization,
+and confirm the membership actually applied:
+`PGPASSWORD=<migrate password from .env> psql -h localhost -p <port
+from compose.yml> -U batac_migrate -d batac_lgu -c "SELECT
+pg_has_role('batac_migrate', 'batac_app', 'MEMBER');"` should return `t`.
+
+═══════════════════════════════════════════
+PART B — Update the L2 specification to document the ownership-transfer
+pattern accurately, replacing its current (incomplete) description
+═══════════════════════════════════════════
+
+FILE: docs/pre-development/L-infrastructure-and-devops/l2-docker-and-docker-compose-specification.md
+
+CURRENT STATE (verbatim, lines 361-379 as of this task being written —
+confirm the line numbers still match before editing, since this is a
+large document and other unrelated edits may have shifted line numbers
+since; if they've shifted, locate the block by its content instead and
+report the new line numbers in your response):
+
+```sql
+-- ── pgboss schema — full access for batac_app ─────────────────────────────
+-- pgboss manages its own schema. batac_app needs ownership to run the
+-- job queue. Grants all privileges on pgboss objects.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'pgboss') THEN
+    EXECUTE 'GRANT ALL PRIVILEGES ON SCHEMA pgboss TO batac_app';
+    EXECUTE 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA pgboss TO batac_app';
+    EXECUTE 'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA pgboss TO batac_app';
+    EXECUTE
+      'ALTER DEFAULT PRIVILEGES IN SCHEMA pgboss
+       GRANT ALL PRIVILEGES ON TABLES TO batac_app';
+    EXECUTE
+      'ALTER DEFAULT PRIVILEGES IN SCHEMA pgboss
+       GRANT ALL PRIVILEGES ON SEQUENCES TO batac_app';
+  END IF;
+END
+$$;
+```
+
+PROBLEM WITH CURRENT TEXT: the comment says "batac_app needs ownership,"
+but the SQL beneath it only grants privileges (GRANT ALL PRIVILEGES),
+which is NOT the same as ownership in PostgreSQL. This distinction
+matters concretely: attaching a new table partition (which pg-boss does
+internally every time the application calls `boss.createQueue()`, via
+`ALTER TABLE pgboss.job ATTACH PARTITION ...`) requires the executing
+role to be the TABLE OWNER — privilege grants, even GRANT ALL
+PRIVILEGES, do not confer this. This gap is precisely why a
+runtime `must be owner of table job` error occurred in practice. The
+doc's own stated intent ("needs ownership") was correct; its SQL just
+never implemented that intent. This edit corrects the SQL to match the
+stated intent, and updates the surrounding prose to explain why.
+
+REQUIRED CHANGE: replace this block with a two-part sequence — (1) the
+existing privilege grant (KEPT AS-IS, do not remove — it remains useful
+as a baseline/fallback and for any pgboss-internal operations that only
+need privileges, not ownership), immediately followed by (2) a NEW
+ownership-transfer block matching what is now correctly implemented in
+packages/database/scripts/migrate.ts.
+
+old_str (exact, must match uniquely — the full current block):
+```
+-- ── pgboss schema — full access for batac_app ─────────────────────────────
+-- pgboss manages its own schema. batac_app needs ownership to run the
+-- job queue. Grants all privileges on pgboss objects.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'pgboss') THEN
+    EXECUTE 'GRANT ALL PRIVILEGES ON SCHEMA pgboss TO batac_app';
+    EXECUTE 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA pgboss TO batac_app';
+    EXECUTE 'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA pgboss TO batac_app';
+    EXECUTE
+      'ALTER DEFAULT PRIVILEGES IN SCHEMA pgboss
+       GRANT ALL PRIVILEGES ON TABLES TO batac_app';
+    EXECUTE
+      'ALTER DEFAULT PRIVILEGES IN SCHEMA pgboss
+       GRANT ALL PRIVILEGES ON SEQUENCES TO batac_app';
+  END IF;
+END
+$$;
+```
+
+new_str (exact replacement):
+```
+-- ── pgboss schema — full access AND ownership for batac_app ───────────────
+-- pgboss manages its own schema (created at library initialisation, not
+-- by a Drizzle migration). batac_app needs both privilege grants (for
+-- normal job-queue DML) AND actual table/view/sequence/function
+-- OWNERSHIP (not just privileges) for one specific reason: pg-boss
+-- implements each queue as a PostgreSQL table PARTITION attached to
+-- pgboss.job, and PostgreSQL requires the role performing
+-- `ALTER TABLE ... ATTACH PARTITION` to be the OWNER of the parent
+-- table — GRANT ALL PRIVILEGES does not confer this, even though it
+-- covers every other operation pgboss needs. This was confirmed by
+-- reproducing the failure directly: `ALTER TABLE pgboss.job ATTACH
+-- PARTITION ...` failed with "must be owner of table job" under a
+-- privilege-only grant, and succeeded once ownership was transferred.
+--
+-- A two-connection alternative (routing schema/partition-management
+-- operations to batac_migrate while routing regular job-queue
+-- operations through batac_app) was investigated and found not viable
+-- with the currently installed pg-boss version: dynamic queue creation
+-- via createQueue() always executes on whichever single connection the
+-- PgBoss instance was constructed with, with no built-in support for
+-- routing specific operations to a different connection/role. Ownership
+-- transfer is therefore the supported pattern for this system, not a
+-- workaround pending a better fix.
+--
+-- PREREQUISITE: batac_migrate must be a member of batac_app for the
+-- ownership-transfer statements below to succeed (PostgreSQL requires
+-- the reassigning role to be a member of the target role, or a
+-- superuser). This membership is granted in
+-- tools/db/init/01-create-roles.sh.
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'pgboss') THEN
+    EXECUTE 'GRANT ALL PRIVILEGES ON SCHEMA pgboss TO batac_app';
+    EXECUTE 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA pgboss TO batac_app';
+    EXECUTE 'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA pgboss TO batac_app';
+    EXECUTE
+      'ALTER DEFAULT PRIVILEGES IN SCHEMA pgboss
+       GRANT ALL PRIVILEGES ON TABLES TO batac_app';
+    EXECUTE
+      'ALTER DEFAULT PRIVILEGES IN SCHEMA pgboss
+       GRANT ALL PRIVILEGES ON SEQUENCES TO batac_app';
+  END IF;
+END
+$$;
+
+-- Ownership transfer — required for partition-attach operations
+-- (see comment block above for why privilege grants alone are
+-- insufficient). Runs after the privilege grants above, and after
+-- pgboss has created its schema objects (owned by batac_migrate at
+-- creation time, since that is the role init-pgboss.ts connects as).
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'pgboss') LOOP
+        EXECUTE 'ALTER TABLE pgboss.' || quote_ident(r.tablename) || ' OWNER TO batac_app';
+    END LOOP;
+    FOR r IN (SELECT viewname FROM pg_views WHERE schemaname = 'pgboss') LOOP
+        EXECUTE 'ALTER VIEW pgboss.' || quote_ident(r.viewname) || ' OWNER TO batac_app';
+    END LOOP;
+    FOR r IN (SELECT sequencename FROM pg_sequences WHERE schemaname = 'pgboss') LOOP
+        EXECUTE 'ALTER SEQUENCE pgboss.' || quote_ident(r.sequencename) || ' OWNER TO batac_app';
+    END LOOP;
+    FOR r IN (SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
+              FROM pg_proc p
+              JOIN pg_namespace n ON p.pronamespace = n.oid
+              WHERE n.nspname = 'pgboss') LOOP
+        EXECUTE 'ALTER FUNCTION pgboss.' || quote_ident(r.proname) || '(' || r.args || ') OWNER TO batac_app';
+    END LOOP;
+END
+$$;
+```
+
+NOTE: this new_str's ownership-transfer block is a verbatim copy of what
+is already implemented in packages/database/scripts/migrate.ts (lines
+41-61 as currently written) — this task documents the existing,
+already-working implementation; it does not change its logic. Confirm
+this by diffing the DO $$ block you're adding here against the current
+content of migrate.ts's inline block before finalizing this edit — they
+should match exactly (aside from surrounding comments). If you find any
+discrepancy between the two, report it as a finding rather than
+resolving it silently — it would mean either this documentation edit or
+the live migrate.ts implementation needs correcting, and that's a
+decision, not a mechanical step.
+
+═══════════════════════════════════════════
+OUT OF SCOPE — do not touch as part of this task
+═══════════════════════════════════════════
+- packages/database/scripts/migrate.ts — the ownership-transfer logic
+  here is the one being documented, not the one being changed. Do not
+  move it into post-migrate-grants.sql or otherwise restructure where it
+  lives; this task only updates the L2 documentation to match what
+  already exists here, plus the one prerequisite fix in Part A.
+- packages/database/scripts/post-migrate-grants.sql — this is the
+  IMPLEMENTATION file; L2 is the SPEC file. This task updates the spec
+  to match the already-correct implementation pattern (privilege grants
+  live here; ownership transfer lives in migrate.ts) — it does not
+  move code between these two files.
+- Any other section of 01-create-roles.sh beyond the exact block shown
+  in Part A.
+- apps/server/src/database/seeds/init-pgboss.ts — unrelated to this
+  task; not touched.
+- The iam.credentials / SECURITY DEFINER work from TASK-IAM-FIX-001 —
+  entirely separate, not touched by this task.
+
+═══════════════════════════════════════════
+DEFINITION OF DONE
+═══════════════════════════════════════════
+1. Part A applied and verified (docker compose down -v / up -d succeeds
+   with no init errors; batac_migrate confirmed as a member of
+   batac_app).
+2. Part B applied — L2's documented SQL now matches
+   packages/database/scripts/migrate.ts's actual ownership-transfer
+   logic verbatim, confirmed by an explicit diff check as instructed
+   above, with no unexplained discrepancy.
+3. Report explicitly: did the diff check in Part B find any
+   discrepancy between the documented block and migrate.ts's actual
+   block? If yes, describe it precisely (do not resolve it) so it can
+   be triaged as its own decision.
+````
+
+---
+
+# Standalone Prompt 1 — `TASK-IAM-FIX-002`
+
+````
+TASK-IAM-FIX-002 — Fix snake_case/camelCase field-name mismatch in
+findCredentialByUserId, which causes password verification to always
+fail with a false 401 INVALID_CREDENTIALS response.
+
+═══════════════════════════════════════════
+BACKGROUND (context only, not instructions)
+═══════════════════════════════════════════
+TASK-IAM-FIX-001 introduced a SECURITY DEFINER PostgreSQL function,
+iam.fn_get_credential_by_user_id, so that the batac_app runtime role
+could read password hashes despite having no direct SELECT grant on
+iam.credentials. findCredentialByUserId in
+apps/server/src/modules/iam/iam.repository.ts was updated to call this
+function via a raw db.execute(sql`...`) query instead of Drizzle's
+query-builder methods.
+
+This introduced a bug: the SQL function's RETURNS TABLE clause names its
+columns in snake_case (e.g. password_hash), which is what postgres-js
+actually returns at runtime in the result rows. But the TypeScript type
+this result is cast to, CredentialRow, expects camelCase keys (e.g.
+passwordHash) — that casing exists only in Drizzle's schema-builder
+mapping and has no runtime effect on a raw db.execute() call. The
+generic parameter on db.execute<CredentialRow>(...) is a compile-time
+type assertion only; it performs no runtime key renaming.
+
+The practical effect: apps/server/src/modules/iam/iam.service.ts, line
+392, reads credential.passwordHash, which is undefined at runtime.
+argon2.verify(undefined, password) throws; this is caught at lines
+393-396 and treated as a wrong-password mismatch, producing a
+401 INVALID_CREDENTIALS response that is indistinguishable from an
+actually incorrect password — even when the correct password is
+supplied. This was discovered via a live login test in
+TASK-IAM-VERIFY-001 using the correct demo credentials (it.admin /
+BatacDemo2026!) and a valid PKCE pair, which should have produced a 200
+response and did not.
+
+═══════════════════════════════════════════
+DECISION ALREADY MADE — do not re-derive or second-guess this
+═══════════════════════════════════════════
+A human has chosen the field-mapping approach (explicit snake_case →
+camelCase mapping localized to this one repository method) over two
+other options that were considered and rejected for this task: (a) a
+global `transform: postgres.camel`-style option on the postgres() client
+in database.plugin.ts, which would change behavior for every raw query
+in the app and require a wider audit — out of scope here; (b) aliasing
+the columns as camelCase directly in the SQL function's RETURN QUERY
+SELECT clause in 0013_iam_get_credential.sql — also out of scope here,
+specifically because 0013_iam_get_credential.sql has, per the project's
+append-only migration convention, potentially already been applied in
+persistent environments since it was created (unlike the transactionally
+-rolled-back-and-therefore-freely-editable case that applied to an
+earlier migration in this project's history) — do not assume it's safe
+to hand-edit without independently confirming its applied-migration
+status first, and do not attempt to verify or resolve that as part of
+this task; it's moot because this task does not touch that file.
+Do not implement (a) or (b). Do not modify
+packages/database/migrations/0013_iam_get_credential.sql in any way.
+
+═══════════════════════════════════════════
+REQUIRED CHANGE
+═══════════════════════════════════════════
+FILE: apps/server/src/modules/iam/iam.repository.ts
+
+Add an explicit mapping from the raw snake_case result row to the
+CredentialRow shape, covering ALL NINE fields the SQL function returns —
+not only password_hash. This is deliberate: the other eight fields are
+not currently read anywhere that would surface as a visible bug today,
+but they are equally mismatched and would silently produce the same
+class of failure the moment any future code reads one of them (e.g.
+lastChangedAt, deletedAt). Fixing only passwordHash would leave that
+landmine in place.
+
+The following JSON block is the authoritative, literal source-of-truth
+for the field mapping. If any prose elsewhere in this prompt appears to
+describe the mapping differently, this JSON block wins:
+
+```json
+{
+  "field_mapping": [
+    { "raw_column": "id", "credential_row_key": "id" },
+    { "raw_column": "city_id", "credential_row_key": "cityId" },
+    { "raw_column": "user_id", "credential_row_key": "userId" },
+    { "raw_column": "password_hash", "credential_row_key": "passwordHash" },
+    { "raw_column": "last_changed_at", "credential_row_key": "lastChangedAt" },
+    { "raw_column": "created_at", "credential_row_key": "createdAt" },
+    { "raw_column": "updated_at", "credential_row_key": "updatedAt" },
+    { "raw_column": "deleted_at", "credential_row_key": "deletedAt" },
+    { "raw_column": "deleted_by", "credential_row_key": "deletedBy" }
+  ],
+  "do_not_add_or_drop_fields": true,
+  "do_not_rename_any_key_other_than_as_listed": true
+}
+```
+
+old_str (exact, must match uniquely — current content of
+findCredentialByUserId in apps/server/src/modules/iam/iam.repository.ts):
+```
+    findCredentialByUserId: async (userId) => {
+      // Uses iam.fn_get_credential_by_user_id (SECURITY DEFINER) instead
+      // of a direct SELECT, because batac_app has no SELECT grant on
+      // iam.credentials by design (0002_iam_create_iam_schema.sql line
+      // 247). The function returns the full row shape, so the result
+      // maps directly onto CredentialRow with no type changes needed.
+      const result = await db.execute<CredentialRow>(
+        sql`SELECT * FROM iam.fn_get_credential_by_user_id(${userId}::uuid)`,
+      );
+      const cred = (result as any)[0];
+      return cred || null;
+    },
+```
+
+new_str (exact replacement):
+```
+    findCredentialByUserId: async (userId) => {
+      // Uses iam.fn_get_credential_by_user_id (SECURITY DEFINER) instead
+      // of a direct SELECT, because batac_app has no SELECT grant on
+      // iam.credentials by design (0002_iam_create_iam_schema.sql line
+      // 247). NOTE: db.execute() on a raw sql`...` query does NOT apply
+      // Drizzle's camelCase schema mapping — that mapping only applies
+      // to Drizzle's own query-builder methods (db.select().from(...)).
+      // The SQL function's RETURNS TABLE clause
+      // (packages/database/migrations/0013_iam_get_credential.sql)
+      // returns snake_case column names as-is, so this method maps them
+      // to CredentialRow's camelCase keys explicitly, rather than
+      // relying on the db.execute<CredentialRow>(...) generic — which
+      // is a compile-time type assertion only and has no runtime
+      // effect. See docs/development-findings-log.md, [LOG entry for
+      // this bug] for the full incident this fixes.
+      const result = await db.execute<{
+        id: string;
+        city_id: string;
+        user_id: string;
+        password_hash: string;
+        last_changed_at: Date;
+        created_at: Date;
+        updated_at: Date;
+        deleted_at: Date | null;
+        deleted_by: string | null;
+      }>(sql`SELECT * FROM iam.fn_get_credential_by_user_id(${userId}::uuid)`);
+      const row = (result as any)[0];
+      if (!row) return null;
+      const cred: CredentialRow = {
+        id: row.id,
+        cityId: row.city_id,
+        userId: row.user_id,
+        passwordHash: row.password_hash,
+        lastChangedAt: row.last_changed_at,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        deletedAt: row.deleted_at,
+        deletedBy: row.deleted_by,
+      };
+      return cred;
+    },
+```
+
+═══════════════════════════════════════════
+BEFORE FINALIZING — a type-shape check you must perform yourself
+═══════════════════════════════════════════
+The inline result type used in the new_str above (the object type passed
+to db.execute<{...}>) was constructed from the RETURNS TABLE column
+types in packages/database/migrations/0013_iam_get_credential.sql as
+they existed at the time this prompt was written (UUID → string,
+TIMESTAMPTZ → Date, nullable columns as | null). Before finalizing this
+edit:
+  1. Re-open packages/database/migrations/0013_iam_get_credential.sql
+     and confirm its RETURNS TABLE clause still matches: id UUID,
+     city_id UUID, user_id UUID, password_hash TEXT, last_changed_at
+     TIMESTAMPTZ, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ,
+     deleted_at TIMESTAMPTZ, deleted_by UUID — in that order, with no
+     additions or removals.
+  2. Re-open apps/server/src/modules/iam/iam.types.ts and confirm
+     CredentialRow (InferSelectModel<typeof credentials>) still has
+     exactly these nine keys: id, cityId, userId, passwordHash,
+     lastChangedAt, createdAt, updatedAt, deletedAt, deletedBy.
+  3. If either has changed since this prompt was written (e.g. a column
+     was added), STOP and report the discrepancy rather than silently
+     adjusting the mapping to fit — this would mean the prompt itself is
+     now stale and needs re-verification against the current schema
+     before proceeding, not a judgment call for you to make silently.
+
+═══════════════════════════════════════════
+OUT OF SCOPE — do not touch as part of this task
+═══════════════════════════════════════════
+- packages/database/migrations/0013_iam_get_credential.sql — not
+  touched, per the decision above.
+- apps/server/src/infrastructure/database.plugin.ts — the postgres()
+  client instantiation here is not touched; no global transform option
+  is being added as part of this task.
+- Any other repository method in iam.repository.ts, including
+  createCredential and updateCredentialHash — these use Drizzle's
+  query-builder methods (db.insert(credentials)..., db.update
+  (credentials)...), not raw db.execute(), and are not affected by this
+  bug. Do not "clean up" or touch them.
+- apps/server/src/modules/iam/iam.service.ts — the consuming code at
+  line 392 (credential.passwordHash) does not need to change; the fix in
+  iam.repository.ts makes it correct as-is. Do not modify iam.service.ts.
+- apps/server/src/modules/iam/iam.types.ts — CredentialRow's definition
+  does not need to change; it was already correct, only the value being
+  cast to it was wrong.
+- tracking.repository.ts or any other module's use of the
+  `(result as any)[0]` extraction pattern — that pattern itself is not
+  the bug (it's just an unchecked array-index access) and is not being
+  changed elsewhere as part of this task, even though it appears
+  structurally similar.
+
+═══════════════════════════════════════════
+VERIFICATION — perform all of these, in order, and report each result
+═══════════════════════════════════════════
+1. Run `pnpm typecheck` at the workspace root. Confirm it passes with no
+   new errors introduced by this change.
+2. Restart the dev server if it is not already running (`pnpm dev`).
+3. Confirm the demo account still exists (this may have already been
+   confirmed in a prior session, but re-check since sessions can span
+   volume resets):
+   `PGPASSWORD=<migrate password from .env> psql -h localhost -p <port
+   from compose.yml> -U batac_migrate -d batac_lgu -c "SELECT username
+   FROM iam.users WHERE username = 'it.admin';"` — should return exactly
+   one row. If it returns zero rows, STOP and report that instead of
+   proceeding to step 4.
+4. Generate a fresh, valid PKCE pair using this exact command (do not
+   reuse a pair from an earlier session — code_verifier/code_challenge
+   pairs are not meant to be reused across requests):
+   ```bash
+   node -e "
+   const { createHash, randomBytes } = require('crypto');
+   const verifier = randomBytes(64).toString('base64url');
+   const challenge = createHash('sha256').update(verifier, 'ascii').digest('base64url');
+   console.log('code_verifier=' + verifier);
+   console.log('code_challenge=' + challenge);
+   "
+   ```
+5. Send: `POST /api/auth/login` with body `{"username": "it.admin",
+   "password": "BatacDemo2026!", "code_verifier": "<generated>",
+   "code_challenge": "<generated>", "code_challenge_method": "S256"}`.
+6. Report the EXACT status code and EXACT full response body — do not
+   summarize. A 200 response with a body matching AuthResponseSchema
+   (user object, sessionId, expiresAt, roleCodes, officeScopeId,
+   officeCode) is the target outcome and confirms this fix. Any other
+   response (including a repeat 401 INVALID_CREDENTIALS) is a NEW
+   finding to report in full, not a pass — do not reinterpret a
+   non-200 response as partial success.
+7. Additionally, as a secondary sanity check independent of the HTTP
+   layer: connect via psql as batac_app and run
+   `SELECT * FROM iam.fn_get_credential_by_user_id('<it.admin's actual
+   user_id — look it up via the users table query in step 3, do not
+   guess or reuse a UUID from a different session>'::uuid);` — confirm
+   the password_hash column is a non-empty argon2 hash string
+   (starts with `$argon2`).
+````
+
+---
+
+# Standalone Prompt 2 — `TASK-INFRA-DOC-002`
+
+````
+TASK-INFRA-DOC-002 — Two independent fixes: (Part A) reconcile a minor
+formatting discrepancy between L2's documented pgboss ownership-transfer
+SQL and migrate.ts's actual implementation, by editing migrate.ts to
+match L2 exactly; (Part B) add an 'error' event listener to the runtime
+server's PgBoss instance to stop it from crashing the entire Node
+process when the underlying database connection is lost.
+
+These two parts are unrelated to each other and can be done in either
+order or reported back independently, but are bundled into one prompt
+because both were discovered in the same review pass and both are small.
+
+═══════════════════════════════════════════
+PART A — Reconcile migrate.ts formatting to match L2 (documented spec is
+now the source of truth for this block; implementation was found to
+differ trivially)
+═══════════════════════════════════════════
+
+BACKGROUND: TASK-INFRA-DOC-001 added an ownership-transfer SQL block to
+docs/pre-development/L-infrastructure-and-devops/l2-docker-and-docker-
+compose-specification.md, copied from packages/database/scripts/
+migrate.ts's existing inline implementation. A required diff check
+during that task found three purely cosmetic discrepancies between the
+two (casing of a SQL keyword; two lines with trailing whitespace in
+migrate.ts absent from the L2 version). No functional/logical difference
+exists between the two blocks. A human has decided: the L2 documentation
+is the canonical spec for this block going forward; migrate.ts's
+implementation should be edited to match it exactly, not the reverse.
+
+REQUIRED CHANGE:
+
+FILE: packages/database/scripts/migrate.ts
+
+The following table is the authoritative, literal list of the three
+required changes. If prose elsewhere in this prompt describes them
+differently, this table wins:
+
+| Line (current, approx — re-locate by content if shifted) | Current text | Required text |
+|---|---|---|
+| ~54 | `FOR r IN (SELECT p.proname, pg_get_function_identity_arguments(p.oid) as args ` (note lowercase `as` and trailing space after `args`) | `FOR r IN (SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args` (uppercase `AS`, no trailing space) |
+| ~55 | `              FROM pg_proc p ` (trailing space after `p`) | `              FROM pg_proc p` (no trailing space) |
+| ~56 | `              JOIN pg_namespace n ON p.pronamespace = n.oid ` (trailing space at end) | `              JOIN pg_namespace n ON p.pronamespace = n.oid` (no trailing space) |
+
+old_str (exact, must match uniquely — the current content of this
+three-line block, including trailing whitespace, as it exists in
+packages/database/scripts/migrate.ts; note this old_str deliberately
+includes trailing spaces at the end of two of its lines — do not let
+your editor auto-trim them when constructing the search string, or the
+match will fail):
+```
+    FOR r IN (SELECT p.proname, pg_get_function_identity_arguments(p.oid) as args 
+              FROM pg_proc p 
+              JOIN pg_namespace n ON p.pronamespace = n.oid 
+              WHERE n.nspname = 'pgboss') LOOP
+```
+
+new_str (exact replacement — no trailing whitespace on any line):
+```
+    FOR r IN (SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
+              FROM pg_proc p
+              JOIN pg_namespace n ON p.pronamespace = n.oid
+              WHERE n.nspname = 'pgboss') LOOP
+```
+
+VERIFICATION FOR PART A: after this edit, do a full diff (not a visual
+skim) of the resulting migrate.ts ownership-transfer block (lines ~40-61
+as of this prompt's writing) against
+docs/pre-development/L-infrastructure-and-devops/l2-docker-and-docker-
+compose-specification.md's ownership-transfer block (lines ~412-432 as
+of this prompt's writing, the block under the "-- Ownership transfer —
+required for partition-attach operations" comment). They must now match
+exactly, including whitespace, with the sole expected difference being
+that migrate.ts's block is wrapped in a template literal
+(`client.unsafe(\`...\`)`) and L2's is bare SQL in a markdown code fence
+— i.e. the SQL content itself, line by line, should be identical. If any
+further discrepancy is found beyond what this prompt already fixed,
+report it — do not resolve it silently, since a NEW discrepancy this
+prompt didn't anticipate would mean something changed in one of the two
+files since this prompt was written, and that's worth surfacing rather
+than quietly re-reconciling on your own judgment.
+
+═══════════════════════════════════════════
+PART B — Add an 'error' listener to the runtime PgBoss instance
+═══════════════════════════════════════════
+
+BACKGROUND: apps/server/src/index.ts constructs and starts the runtime
+server's long-lived PgBoss instance with no `.on('error', ...)` listener
+attached anywhere in the codebase. pg-boss is built on pg/pg-pool, whose
+pooled clients emit an 'error' event on connection failure (e.g. when
+the underlying Postgres backend is terminated — SQLSTATE 57P01,
+"terminating connection due to administrator command" — which happens
+whenever the Postgres container is stopped, e.g. via `docker compose
+down`, while the Node dev server is still running). Node's default
+behavior for an EventEmitter's 'error' event with zero listeners is to
+throw and crash the entire process. This was observed directly: a
+`docker compose down -v` while `pnpm dev` was running crashed the whole
+server with an unhandled 'error' event originating from the PgBoss
+instance's connection pool.
+
+apps/server's dev script is `tsx watch ...` (apps/server/package.json).
+tsx watch's restart trigger is file-save detection, not process-crash
+detection — a hard crash like this does NOT get automatically restarted
+by tsx watch. Additionally, confirmed via compose.yml: there is no
+`server`/Node-application service defined in compose.yml at all (the
+Node server runs via `pnpm dev` directly on the host, outside Docker
+Compose); the only services defined are postgres, minio, minio-init,
+mailpit, meilisearch, and openobserve, and only postgres and mailpit/
+minio/meilisearch/openobserve carry `restart: unless-stopped` — none of
+that applies to the Node process itself. In short: nothing currently
+supervises or auto-restarts the Node server process on a crash in this
+environment. This makes preventing the crash (rather than relying on
+external supervision to recover from it) the correct fix for this
+environment specifically.
+
+A human has decided: attach a listener that logs the error and allows
+the process to continue running, rather than (a) intentionally exiting
+the process on this error for an external supervisor to restart — which
+would require a supervisor that does not currently exist in this
+environment and is out of scope to add as part of this task — or (b)
+implementing explicit reconnect/re-start logic on the boss instance,
+which is a larger change requiring its own testing against a real
+connection-drop scenario and is out of scope for this task. This task is
+scoped to stopping the crash only.
+
+REQUIRED CHANGE:
+
+FILE: apps/server/src/index.ts
+
+old_str (exact, must match uniquely):
+```
+  console.log('Starting PgBoss...');
+  const boss = new PgBoss(env.DATABASE_URL_APP);
+  await boss.start();
+
+  const app = await buildApp({ boss });
+```
+
+new_str (exact replacement):
+```
+  console.log('Starting PgBoss...');
+  const boss = new PgBoss(env.DATABASE_URL_APP);
+  // Without this listener, any 'error' event PgBoss's underlying
+  // pg-pool connection emits (e.g. SQLSTATE 57P01 when the Postgres
+  // backend is terminated, such as during `docker compose down`)
+  // crashes the entire Node process via Node's default unhandled-
+  // 'error'-event behavior. This listener logs the error and allows
+  // the process to keep running instead. This does not implement
+  // reconnect logic — if PgBoss's internal pool does not recover on
+  // its own, job processing may remain degraded after this event even
+  // though the process itself survives. See docs/development-findings
+  // -log.md, [LOG entry for this bug] for the full incident.
+  boss.on('error', (err) => {
+    console.error('[PgBoss] error event:', err);
+  });
+  await boss.start();
+
+  const app = await buildApp({ boss });
+```
+
+═══════════════════════════════════════════
+OUT OF SCOPE — do not touch as part of this task (either part)
+═══════════════════════════════════════════
+- apps/server/src/database/seeds/init-pgboss.ts — this is a separate,
+  short-lived PgBoss instance (connects as batac_migrate, starts, stops
+  immediately) used only during migration. It is not affected by this
+  bug (it doesn't stay running long enough for a mid-session connection
+  drop to matter the same way) and is not touched by this task.
+- apps/server/src/infrastructure/database.plugin.ts — the main
+  application's postgres() client (used for regular Drizzle queries, not
+  PgBoss) is architecturally different (postgres-js, not pg/pg-pool) and
+  was not confirmed to share this exact crash mode. Do not add a similar
+  listener here as part of this task; if this connection is later found
+  to have a comparable issue, that is a separate investigation.
+- Any reconnect, retry, or graceful-shutdown logic beyond the single
+  logging listener specified above — explicitly out of scope per the
+  decision above.
+- packages/database/scripts/post-migrate-grants.sql,
+  tools/db/init/01-create-roles.sh, and any other file touched by the
+  prior TASK-INFRA-DOC-001 — unrelated to both parts of this task, not
+  touched.
+- apps/server/src/modules/iam/ (any file) — the credential/login bug is
+  being handled by a separate, independent task (TASK-IAM-FIX-002) and
+  is not touched here.
+
+═══════════════════════════════════════════
+DEFINITION OF DONE
+═══════════════════════════════════════════
+1. Part A applied. Full-block diff (not visual skim) between migrate.ts
+   and L2 confirms exact match with no remaining discrepancy (or, if a
+   new unexpected discrepancy is found, it is reported rather than
+   silently resolved).
+2. Part B applied. Verify by: starting `pnpm dev`, confirming the
+   server starts normally and logs "Server listening at...", then
+   running `docker compose down -v` in another terminal while the dev
+   server is still running. Confirm the dev server process does NOT
+   crash (no "Unhandled 'error' event" / no process exit) — instead,
+   confirm the new `[PgBoss] error event:` log line appears in the dev
+   server's output. Then run `docker compose up -d` to bring
+   infrastructure back, and report whether the server process is still
+   alive and whether a fresh login attempt now succeeds or still fails
+   at this point (a continued failure here would be expected — the
+   Postgres restart likely requires re-running migrations/re-seeding
+   before login works again — report what you observe rather than
+   assuming either outcome).
+3. Report both results explicitly, even if one part succeeds and the
+   other doesn't — do not let a Part B verification issue block
+   reporting Part A's result, or vice versa.
+````
+
+---
+
+# TASK-INFRA-VERIFY-001 — Diagnose and, if confirmed, resolve a startup
+failure where `pnpm --filter server dev` fails with "permission denied
+for database batac_lgu" (code 42501) at PgBoss's Contractor.create.
+
+````
+TASK-INFRA-VERIFY-001 — Diagnose and, if confirmed, resolve a startup
+failure where `pnpm --filter server dev` fails with "permission denied
+for database batac_lgu" (code 42501) at PgBoss's Contractor.create.
+
+═══════════════════════════════════════════
+BACKGROUND (context only, not instructions)
+═══════════════════════════════════════════
+The most recent observed failure, verbatim:
+
+    Fatal bootstrap error: error: permission denied for database batac_lgu
+        at ... at async Contractor.create (.../pg-boss/src/contractor.js:73:7)
+        at async Contractor.start (.../pg-boss/src/contractor.js:52:7)
+        at async PgBoss.start (.../pg-boss/src/index.js:121:7)
+        at async main (apps/server/src/index.ts:64:3) {
+      code: '42501', ...
+    }
+
+This is the same failure signature this project hit earlier in its
+history, when batac_app (which lacks database-level CREATE by default
+on PostgreSQL 15+) attempted to create the pgboss schema itself on first
+run. That earlier occurrence was resolved by
+apps/server/src/database/seeds/init-pgboss.ts, which pre-creates the
+pgboss schema while connected as batac_migrate (which does have
+CREATE), before the app's own batac_app-authenticated PgBoss instance
+(constructed in apps/server/src/index.ts) ever tries to start.
+init-pgboss.ts only runs as part of packages/database/scripts/migrate.ts
+(invoked via `pnpm --filter database db:migrate` or equivalent) — it is
+NOT run automatically by `pnpm dev` / `pnpm --filter server dev`
+(confirmed: neither apps/server/package.json's "dev" script nor the root
+turbo.json's "dev" task entry has any dependency on a migrate step).
+
+The leading hypothesis is that a `docker compose down -v` was run at
+some point since the last successful `db:migrate`, wiping the
+postgres_data volume (and with it, the pgboss schema along with
+everything else), and `pnpm dev` was then run again without first
+re-running migrations against the fresh volume. This is a hypothesis to
+CONFIRM, not an assumption to act on directly — do not skip straight to
+re-running migrations without first checking Step 1 below, since if the
+actual cause turns out to be something else (e.g. a role/grant
+regression), blindly re-running migrations could mask that.
+
+═══════════════════════════════════════════
+STEP 1 — DIAGNOSE FIRST: confirm whether this is a fresh/wiped database
+═══════════════════════════════════════════
+Run this query as batac_migrate (which should always be able to connect
+and query regardless of batac_app's state):
+
+    PGPASSWORD=<migrate password from .env, DB_MIGRATE_PASSWORD> psql \
+      -h localhost -p <port from compose.yml, currently 5435> \
+      -U batac_migrate -d batac_lgu \
+      -c "SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('iam', 'documents', 'workflow', 'org', 'track', 'rec', 'notif', 'audit', 'pgboss', 'drizzle') ORDER BY schema_name;"
+
+Compare the returned rows against this JSON block, which is the
+authoritative list of what MUST exist after a fully-migrated database
+(this list is the source of truth — if prose elsewhere in this prompt
+implies a different set, this JSON wins):
+
+```json
+{
+  "expected_schemas_after_full_migration": [
+    "audit", "documents", "drizzle", "iam", "notif",
+    "org", "pgboss", "rec", "track", "workflow"
+  ]
+}
+```
+
+CLASSIFY the result:
+
+| What the query returns | What it means | What to do |
+|---|---|---|
+| Zero rows, or only `drizzle` | Genuinely fresh/wiped database — migrations have never run, or ran and were then wiped | Proceed to Step 2 (this confirms the leading hypothesis) |
+| All expected schemas present EXCEPT `pgboss` | Migrations ran, but `pgboss` specifically is missing — this is NOT the fresh-volume case; something is wrong with `init-pgboss.ts` or its invocation specifically | STOP. Do not proceed to Step 2. Report this exact result — this is a different, more concerning problem than a simple re-migrate, and needs its own investigation before any fix is attempted |
+| All expected schemas present, including `pgboss` | The database is NOT fresh/wiped — schemas already exist. The 42501 error has some OTHER cause (e.g. a role/grant regression, a connection-string mismatch, batac_app's role definition itself being broken) | STOP. Do not proceed to Step 2 — re-running migrations against an already-migrated database is unlikely to help and could mask the real cause. Report this exact result and additionally run: `PGPASSWORD=<app password, DB_APP_PASSWORD> psql -h localhost -p <port> -U batac_app -d batac_lgu -c "\du batac_app"` to check batac_app's actual current role attributes (LOGIN, CREATEDB, etc.) and report that output too |
+| Any other result (e.g. connection refused entirely) | The Postgres container itself may not be running at all | STOP. Report the exact connection error. Check `docker compose ps` and report whether the postgres service shows as running |
+
+Do not proceed past Step 1 until you have run this query and classified
+the result against the table above. Report the exact classification you
+landed on, and the exact raw query output, before doing anything else.
+
+═══════════════════════════════════════════
+STEP 2 — ONLY IF Step 1 confirmed "genuinely fresh/wiped database"
+═══════════════════════════════════════════
+Run the full migration pipeline:
+
+    pnpm --filter database db:migrate
+
+Report the full output. Confirm it completes with the final
+"[migrate] Done." log line and no errors at any stage (Drizzle
+migrations, init-pgboss, post-migrate grants, ownership transfer — all
+four stages log their own start message; confirm none of the four
+errored).
+
+Then re-seed the demo data (this project's seeding is a separate step
+from migration — confirm this is still the correct current command by
+checking apps/server/package.json's scripts before running it, since
+this prompt's author has not re-verified this specific command against
+the very latest package.json state at the moment you run this):
+
+    pnpm --filter server db:seed
+
+Report the full output.
+
+Then start the dev server:
+
+    pnpm --filter server dev
+
+Confirm it starts successfully — specifically, confirm the log line
+"Server listening at http://..." appears and there is NO repeat of the
+"permission denied for database batac_lgu" / 42501 error. Report the
+full startup log output, not just a pass/fail summary.
+
+═══════════════════════════════════════════
+STEP 3 — Regardless of which path above was taken, once the server is
+confirmed running successfully
+═══════════════════════════════════════════
+Perform a fresh end-to-end login test, since a wiped-and-remigrated
+database will have entirely new UUIDs for the it.admin user (the
+user_id used in prior sessions' testing, 4a662fce-e27d-43be-861e-
+e3bf5f66e033, is almost certainly stale if the database was actually
+wiped and re-seeded — do not reuse it):
+
+1. Confirm the demo account exists and get its CURRENT user_id (do not
+   assume it matches any UUID from a prior session):
+   `PGPASSWORD=<migrate password> psql -h localhost -p <port> -U
+   batac_migrate -d batac_lgu -c "SELECT id, username FROM iam.users
+   WHERE username = 'it.admin';"` — should return exactly one row.
+2. Generate a FRESH PKCE pair (do not reuse a pair from a prior
+   session — these are not meant to be reused across requests, and a
+   reused pair from a wiped-and-recreated session has no special
+   validity):
+```bash
+   node -e "
+   const { createHash, randomBytes } = require('crypto');
+   const verifier = randomBytes(64).toString('base64url');
+   const challenge = createHash('sha256').update(verifier, 'ascii').digest('base64url');
+   console.log('code_verifier=' + verifier);
+   console.log('code_challenge=' + challenge);
+   "
+```
+3. Send `POST /api/auth/login` with `{"username": "it.admin",
+   "password": "BatacDemo2026!", "code_verifier": "<generated>",
+   "code_challenge": "<generated>", "code_challenge_method": "S256"}`.
+4. Report the EXACT status code and EXACT full response body. A 200
+   with a body matching AuthResponseSchema is the target outcome. Any
+   other response is a finding to report in full — this may surface the
+   RLS-on-iam.sessions issue reported in the prior session
+   (TASK-IAM-FIX-002's verification hit a 500 from a row-level-security
+   violation on inserting into iam.sessions), which remains unresolved
+   and unrelated to this task — if you hit that specific error again,
+   report it as "recurrence of the previously-reported iam.sessions RLS
+   issue, not a new finding" rather than re-investigating it from
+   scratch, since it already has its own report and needs its own
+   separate task once you're ready to dispatch one for it.
+
+═══════════════════════════════════════════
+OUT OF SCOPE — do not touch as part of this task
+═══════════════════════════════════════════
+- The iam.sessions row-level-security violation reported in the prior
+  session's TASK-IAM-FIX-002 verification — this is a distinct, already-
+  known, already-reported issue. Do not attempt to diagnose or fix RLS
+  policies on iam.sessions as part of this task, even if Step 3 surfaces
+  it again. Just note its recurrence as instructed above.
+- Any change to apps/server/src/index.ts, packages/database/scripts/
+  migrate.ts, or apps/server/src/database/seeds/init-pgboss.ts — none of
+  these files are expected to need code changes for this task. If Step 1
+  lands on the "all schemas present including pgboss" row of the
+  classification table, the fix (whatever it turns out to be) is a new,
+  separate task to be scoped after that finding is reported — do not
+  attempt a fix inline as part of this diagnostic task.
+- tools/db/init/01-create-roles.sh — not touched; if Step 1's "\du
+  batac_app" check reveals a role-attribute problem, that is a finding
+  to report, not something to fix within this task.
+
+═══════════════════════════════════════════
+DEFINITION OF DONE
+═══════════════════════════════════════════
+Report, explicitly and in this order:
+1. Step 1's exact classification result and raw query output.
+2. If Step 2 was run: full output of db:migrate, db:seed, and the dev
+   server startup log, with explicit confirmation of success or failure
+   at each stage.
+3. If Step 1 landed on any row OTHER than "genuinely fresh/wiped
+   database": the exact raw output requested in that row's "what to do"
+   column, with no attempted fix.
+4. If the server was confirmed running (whether via Step 2 or because it
+   was already running): Step 3's exact login test result in full.
+````
