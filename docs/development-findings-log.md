@@ -5750,3 +5750,172 @@ not solely from the implementer's own report.
 
 ---
 
+### [LOG-0192] findCredentialByUserId returns snake_case keys, CredentialRow type expects camelCase — silent auth failure
+
+- date: 2026-07-30
+- task_id: TASK-IAM-VERIFY-001
+- status: proposed
+- affects: apps/server/src/modules/iam/iam.repository.ts, apps/server/src/modules/iam/iam.service.ts, packages/database/migrations/0013_iam_get_credential.sql
+- resolved_in: none
+
+TASK-IAM-FIX-001 (packages/database/migrations/0013_iam_get_credential.sql)
+introduced a SECURITY DEFINER function whose RETURNS TABLE clause names
+columns in snake_case (e.g. `password_hash`, line 19). This function is
+called via raw db.execute(sql`...`) in
+apps/server/src/modules/iam/iam.repository.ts:82-93, typed as
+db.execute<CredentialRow>(...). This generic is a compile-time-only type
+assertion — it does not perform runtime key renaming. CredentialRow
+(apps/server/src/modules/iam/iam.types.ts:25, InferSelectModel<typeof
+credentials>) expects camelCase keys because that's the TypeScript-side
+key Drizzle's schema builder uses (packages/database/schema/iam.schema.ts:73,
+passwordHash: text('password_hash')) — this mapping only applies to
+Drizzle's own query-builder methods, not to raw SQL execution.
+
+apps/server/src/modules/iam/iam.service.ts:392 reads
+credential.passwordHash, which is undefined at runtime because the actual
+key present is password_hash. argon2.verify(undefined, password) throws,
+is caught at lines 393-396, and passwordValid is set to false — producing
+a 401 INVALID_CREDENTIALS response indistinguishable from an actually
+wrong password.
+
+[Confirmed]: verified no transform: option exists anywhere in the
+codebase that would bridge this gap (grepped apps/server/src/ and
+packages/database/ for "transform:", zero matches); confirmed both
+postgres() client instantiations (database.plugin.ts:40, migrate.ts:21)
+omit this option.
+
+Not yet fixed as of this entry. Three options were identified (manual
+field mapping in the repository / global postgres-js `transform: camel`
+option / camelCase column aliasing in the SQL function's RETURN QUERY) —
+this is a design decision requiring human input on scope (this one query
+vs. this codebase's raw-query pattern generally), not resolved here.
+
+---
+
+### [LOG-0193] Runtime PgBoss instance has no 'error' listener — unhandled event crashes the whole Node process on backend disconnect
+
+- date: 2026-07-30
+- task_id: (discovered during review of TASK-INFRA-DOC-001's verification steps)
+- status: proposed
+- affects: apps/server/src/index.ts
+- resolved_in: none
+
+apps/server/src/index.ts:50-51 constructs and starts the runtime server's
+PgBoss instance (`new PgBoss(env.DATABASE_URL_APP)`) with no
+`boss.on('error', ...)` listener attached — confirmed via
+grep -rn "boss.on|\.on('error'" apps/server/src/ (zero matches, excluding
+tests).
+
+pg-boss is built on pg/pg-pool (confirmed via the observed crash stack
+trace's file paths: pg-pool@3.14.0, pg@8.22.0). pg-pool emits 'error' on
+a pooled client failure; per Node's default EventEmitter behavior, an
+'error' event with zero listeners throws and crashes the process. This
+was reproduced directly: killing the underlying Postgres connection (in
+this session's case, via `docker compose down -v` while `pnpm dev` was
+still running) produced SQLSTATE 57P01 ("terminating connection due to
+administrator command" — confirmed via external reference as the
+standard code for an administratively-terminated backend, e.g. a
+container shutdown), which surfaced as an unhandled 'error' event and
+crashed the whole server process (not just the affected connection).
+
+[Inference, not independently verified against library source in this
+session — node_modules was not present in the uploaded snapshot]: the
+main application database connection (database.plugin.ts:40,
+postgres(env.DATABASE_URL_APP)) likely does not share this exact crash
+mode, since postgres-js handles connection loss internally rather than
+requiring an external 'error' listener the way pg-boss's underlying
+pg-pool does. This distinction was reasoned from library architecture
+and the stack trace, not confirmed by reading either library's source.
+
+Not yet fixed as of this entry. This affects local dev stability any
+time the Postgres container is restarted (docker compose down/up, or a
+crash/OOM) while the Node server is still running. Options and
+tradeoffs are documented in the accompanying investigation report; this
+requires a decision on failure-handling strategy (log-and-continue vs.
+log-and-exit vs. full reconnect logic), not a mechanical fix.
+
+---
+
+### [LOG-0194] iam.sessions RLS: INSERT policy missing entirely, blocking all logins
+**Status:** proposed
+**Module:** IAM
+**Related task:** none yet — blocks TASK-IAM-FIX-003 (not yet written)
+**Files:** packages/database/migrations/0002_iam_create_iam_schema.sql:233-239
+
+`iam.sessions` has `ENABLE ROW LEVEL SECURITY` and exactly one policy
+(`sessions_own_or_admin`, FOR SELECT only). No INSERT or UPDATE policy
+exists. Under PostgreSQL RLS semantics, this makes INSERT unconditionally
+denied for `batac_app` (non-owner, non-BYPASSRLS role) regardless of the
+values supplied. This is the direct cause of the "new row violates
+row-level security policy for table sessions" error blocking all logins
+end-to-end. Reproduced identically on two independent databases with two
+different user UUIDs, confirming it is structural rather than
+data-dependent. Full trace and three related findings (doc conflict
+between C1/C3 on session RLS design, a second independent GUC-naming
+bug at app.city_id vs app.current_city_id, and confirmation that the
+login route runs with zero RLS session context by design) written up
+in-conversation this session — not yet resolved into a fix, pending a
+human decision on which of two conflicting spec documents (C1 Part 12
+vs C3 §6.1.3) should govern the corrected policy, and on what predicate
+an INSERT policy can use given the login route has no GUC context
+available at all.
+
+---
+
+### [LOG-0195] C1 Part 12 and C3 §6.1.3 specify conflicting iam.sessions RLS designs; live migration implements C1's (older, SELECT-only) version
+**Status:** proposed
+**Module:** IAM / Governance
+**Related task:** none yet
+**Files:**
+  docs/pre-development/C-database/c1-full-database-schema-ddl-v3.md:2097-2107
+  docs/pre-development/C-database/c3-postgresql-rls-policy-specifications.md:482-521
+  docs/pre-development/I-security-and-authorization/i1-abac-policy-specification.md:1364-1369
+  packages/database/migrations/0002_iam_create_iam_schema.sql:233-239
+
+C1 Part 12 defines a SELECT-only `sessions_own_or_admin` policy using an
+`app.current_role_tier` string variable. C3 §6.1.3 defines a full
+SELECT/INSERT/UPDATE policy set (`pol_sessions_select/insert/update`)
+using an `app.is_ita` boolean read through a helper function
+(`public.rls_is_ita()`), following C3's own stated naming/architecture
+conventions. I1 §12.2 (`session:read_all`, the ABAC rule both documents
+claim to implement) specifies the condition as `subject.is_ita = true`
+— matching C3's pattern, not C1's. C1's `current_role_tier` does not
+trace to any I1 attribute found in this session's reading of I1. The
+live migration implements C1's version verbatim (same policy name, same
+variable), meaning C3's §6.1.3 design was never applied to the database.
+Not yet known whether this same C1-vs-C3 divergence exists for other
+tables covered by C1 Part 12 (documents.documents at minimum is a
+candidate, not yet checked). Flagged for human decision per AGENTS.md
+§1 (pre-development docs implementing the same upstream source that
+conflict with each other — resolution needs a decision, not a
+silent pick).
+
+---
+
+### [LOG-0196] RLS GUC naming mismatch: app.city_id (set) vs app.current_city_id (read) — currently latent, will break any C3-style policy once applied
+**Status:** proposed
+**Module:** IAM / Database
+**Related task:** none yet
+**Files:**
+  apps/server/src/modules/iam/iam.middleware.ts:382
+  docs/pre-development/C-database/c3-postgresql-rls-policy-specifications.md:148-153
+
+Hook 3 (setDatabaseSessionVars, apps/server/src/modules/iam/iam.middleware.ts)
+sets the RLS session-context GUC as `app.city_id` (line 382). C3's tenant-
+isolation helper function `public.rls_current_city_id()` reads
+`app.current_city_id` — a different variable name. C3 states this helper
+is "the base condition in every single policy USING and WITH CHECK
+clause" it defines (C3 §2.3). This mismatch does not affect any
+currently-applied policy, because no live migration currently uses
+`rls_current_city_id()` (see the C1-vs-C3 finding above — only C1-style
+inline current_setting() policies are live, and those use different
+variable names that Hook 3 does correctly set: app.current_role_tier,
+app.is_ita, app.is_pa). This will silently and city-wide deny access the
+moment any C3-style, helper-function-based policy is applied to any
+table, since rls_current_city_id() will always resolve to NULL. Worth
+fixing independent of the C1-vs-C3 decision above, since it will
+otherwise resurface as a new, confusing bug the first time a C3-style
+policy is adopted for any schema.
+
+---
+
