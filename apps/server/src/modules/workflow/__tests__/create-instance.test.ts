@@ -62,6 +62,7 @@ describe('Create Instance (CI)', () => {
           hasPenaltyProvision: false,
         }),
         transitionState: vi.fn().mockResolvedValue(undefined),
+        setWorkflowInstance: vi.fn().mockResolvedValue(undefined),
       },
       orgService: {} as any,
       delegationService: {} as any,
@@ -173,6 +174,14 @@ describe('Create Instance (CI)', () => {
       'in_workflow',
       'user-encoder',
       expect.any(String),
+      mockTrx,
+    );
+    // LOG-0211: the inverse workflow-instance back-reference is written in
+    // the same transaction as instance creation, so
+    // documents.workflow_instance_id points at the created instance.
+    expect(mockDeps.documentsService.setWorkflowInstance).toHaveBeenCalledWith(
+      'doc-1',
+      'inst-new',
       mockTrx,
     );
   });

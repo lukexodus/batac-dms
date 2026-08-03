@@ -170,6 +170,40 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
     },
 
     /**
+     * B2 Module 3 -- called by Workflow when a workflow instance is created
+     * for a document.
+     *
+     * Sets the document's inverse workflow-instance back-reference
+     * (`documents.workflow_instance_id` → `workflow.instances.id`), the
+     * column that `documents.logCertificationOfUrgency`, `documents.get`,
+     * and the frontend "view in workflow" link read. Written inside the same
+     * transaction that creates the instance so the reference and the
+     * lifecycle transition are atomic. See development-findings-log.md
+     * LOG-0211.
+     *
+     * `trx` is an optional caller-supplied transaction handle, following the
+     * same convention as `transitionState`: when provided, this write
+     * participates in the caller's transaction.
+     */
+    async setWorkflowInstance(
+      documentId: string,
+      instanceId: string,
+      trx?: DbTransaction,
+    ): Promise<void> {
+      const run = async (tx: DbTransaction): Promise<void> => {
+        await new DocumentsRepository(tx as unknown as DbClient).updateDocumentWorkflowInstance(
+          documentId,
+          instanceId,
+        );
+      };
+      if (trx) {
+        await run(trx);
+      } else {
+        await deps.db.transaction(run);
+      }
+    },
+
+    /**
      * B2 Module 3 -- called by Workflow at correct lifecycle event.
      * Assigns a final control/series number to the document.
      */

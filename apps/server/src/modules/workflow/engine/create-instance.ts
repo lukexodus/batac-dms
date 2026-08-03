@@ -92,6 +92,13 @@ export async function createInstance(
       trx,
     );
 
+    // LOG-0211: write the inverse FK back onto the document inside the same
+    // transaction. Before this, documents.workflow_instance_id was never
+    // populated, so documents.logCertificationOfUrgency always emitted an
+    // empty associatedInstanceIds (the certification-urgency consumer was a
+    // no-op) and the frontend "view in workflow" link was dead.
+    await deps.documentsService.setWorkflowInstance(documentId, instance.id, trx);
+
     // TASK-WF-018: synchronize documents.lifecycle_state with the workflow
     // engine at the moment a workflow instance is actually created for
     // this document -- not before, and not unconditionally in

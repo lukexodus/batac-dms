@@ -107,6 +107,14 @@ export interface DocumentsPublicAPI {
   ): Promise<void>;
 
   /**
+   * B2 Module 3 -- called by Workflow when a workflow instance is created.
+   * Sets the document's inverse FK `workflow_instance_id` → instance id.
+   * `trx` optional, same convention as `transitionState`. See
+   * development-findings-log.md LOG-0211.
+   */
+  setWorkflowInstance(documentId: string, instanceId: string, trx?: DbTransaction): Promise<void>;
+
+  /**
    * B2 Module 3 -- called by Workflow at correct lifecycle event.
    * Assigns a final control/series number to the document.
    */

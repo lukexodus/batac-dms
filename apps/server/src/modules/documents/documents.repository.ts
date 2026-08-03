@@ -124,6 +124,22 @@ export class DocumentsRepository {
   }
 
   /**
+   * Set the document's inverse workflow-instance back-reference
+   * (`documents.workflow_instance_id` → `workflow.instances.id`).
+   * Written once by the workflow engine inside the same transaction that
+   * creates the instance, so the column tracks the document's current (most
+   * recent) workflow instance. See development-findings-log.md LOG-0211.
+   */
+  async updateDocumentWorkflowInstance(id: string, instanceId: string): Promise<DocumentRow | null> {
+    const [row] = await this.db
+      .update(documents)
+      .set({ workflowInstanceId: instanceId, updatedAt: new Date() })
+      .where(and(eq(documents.id, id), isNull(documents.deletedAt)))
+      .returning();
+    return row ?? null;
+  }
+
+  /**
    * Partial update of the `metadata` JSONB column (+ `updated_at`).
    * Caller is responsible for merging patch vs. full-replace at the service layer.
    */
