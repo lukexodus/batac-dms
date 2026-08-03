@@ -395,6 +395,14 @@ async function setDatabaseSessionVars(
         set_config('app.is_pa',             ${String(auth.isPlatformAdmin)}, true)
     `);
 
+      // Store the open transaction on the request so the `onRoute` handler
+      // wrapper in this plugin can re-enter the `rlsStore` ALS scope around the
+      // route handler, letting the proxied `fastify.db` delegate request
+      // queries to THIS transaction (and its SET LOCAL GUC values). This must
+      // run before `resolveGucs()` so it is guaranteed to be visible by the
+      // time the route handler executes. Source: TASK-IAM-041; LOG-0204.
+      request._rlsTx = { tx, resolve: resolveTx, reject: rejectTx };
+
       // Store the transaction handle in AsyncLocalStorage so the proxy on
       // fastify.db can access it for all downstream queries in this request.
       // The ALS scope lives for the duration of the run() callback, which
@@ -419,8 +427,12 @@ async function setDatabaseSessionVars(
   // transaction remains open — it will be committed by the `onResponse` hook.
   await gucsReady;
 
-  // Store promise bridge for the onResponse hook to call.
-  request._rlsTx = { resolve: resolveTx, reject: rejectTx };
+  // Fallback bridge — normally already populated inside the transaction
+  // callback (with the `tx` handle) before `gucsReady` resolved. Kept as a
+  // defensive no-op so the `onResponse` hook always finds a bridge even if the
+  // callback failed before storing it. `??=` deliberately avoids overwriting
+  // the `tx` the callback stored. Source: TASK-IAM-041; LOG-0204.
+  request._rlsTx ??= { resolve: resolveTx, reject: rejectTx };
 }
 
 // ─── Hook 4 — updateLastActivity ─────────────────────────────────────────────
@@ -461,6 +473,38 @@ async function updateLastActivity(
  */
 export const authMiddlewarePlugin = fp(
   async function authMiddlewarePluginFn(fastify: FastifyInstance): Promise<void> {
+    // Wrap every route registered on this scope (the tRPC adapter's
+    // /api/trpc route, registered after this plugin) so the ROUTE HANDLER runs
+    // inside the `rlsStore` AsyncLocalStorage scope whenever Hook 3 has opened
+    // a request-scoped RLS transaction.
+    //
+    // Why this is required: AsyncLocalStorage scopes entered inside a
+    // preHandler hook do NOT extend to the route handler — a promise's
+    // continuation inherits the context active where the promise was created
+    // (Hook 3's own frame), not the context where it is resolved. Without this
+    // wrapper, `rlsStore.getStore()` returns undefined during the route
+    // handler, so the `fastify.db` proxy (database.plugin.ts) falls back to a
+    // fresh pool connection carrying NO `app.*` GUCs. RLS SELECT/author
+    // policies then evaluate to false on that connection and reject rows —
+    // e.g. `documents.create`'s `INSERT ... RETURNING` fails with
+    // `new row violates row-level security policy for table "documents"`
+    // (LOG-0202/LOG-0203 symptoms persisted because the policy fix alone could
+    // not help: the GUCs never reached the connection that ran the query).
+    // Source: LOG-0204.
+    fastify.addHook('onRoute', (routeOptions) => {
+      const originalHandler = routeOptions.handler;
+      if (typeof originalHandler !== 'function') return;
+      routeOptions.handler = function (this: FastifyInstance, request, reply) {
+        const tx = (request as FastifyRequest & { _rlsTx?: { tx?: unknown } })._rlsTx?.tx;
+        if (!tx) {
+          return originalHandler.call(this, request, reply);
+        }
+        // AsyncLocalStorage.run returns the callback's return value, so the
+        // handler promise flows back to Fastify's lifecycle untouched.
+        return rlsStore.run({ tx }, () => originalHandler.call(this, request, reply));
+      };
+    });
+
     fastify.addHook('preHandler', verifyAccessToken);
     fastify.addHook('preHandler', loadDelegationContext);
     fastify.addHook('preHandler', setDatabaseSessionVars);

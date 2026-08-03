@@ -56,6 +56,7 @@ vi.mock('../../../config/env.js', () => ({
 }));
 
 import { authMiddlewarePlugin } from '../iam.middleware.js';
+import { rlsStore } from '../../../infrastructure/database.plugin.js';
 import type { AuthContext, SessionRow, IamRepository } from '../iam.types.js';
 
 // ─── Shared test secret (HS256 for test convenience) ─────────────────────────
@@ -118,6 +119,8 @@ function makeMockRepository(
   terminateSession: ReturnType<typeof vi.fn>;
   revokeRefreshTokensBySessionId: ReturnType<typeof vi.fn>;
   updateLastActivity: ReturnType<typeof vi.fn>;
+  findActiveRoleAssignmentsByUserId: ReturnType<typeof vi.fn>;
+  findPermissionsByRoleIds: ReturnType<typeof vi.fn>;
 } {
   return {
     findSessionById: vi
@@ -126,6 +129,10 @@ function makeMockRepository(
     terminateSession: vi.fn().mockResolvedValue(undefined),
     revokeRefreshTokensBySessionId: vi.fn().mockResolvedValue(undefined),
     updateLastActivity: vi.fn().mockResolvedValue(undefined),
+    // Hook 1 Step 6 fetches roles/permissions dynamically (B5 §10.1) — empty
+    // results are sufficient for tests that only assert auth identity fields.
+    findActiveRoleAssignmentsByUserId: vi.fn().mockResolvedValue([]),
+    findPermissionsByRoleIds: vi.fn().mockResolvedValue([]),
   };
 }
 
@@ -773,5 +780,90 @@ describe('TASK-IAM-042 — split-wait lifecycle', () => {
     expect(handlerDbCalled).toBe(true);
     // execute called twice: once for GUCs (Hook 3), once by the route handler
     expect(db.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it('route handler executes INSIDE the rlsStore ALS scope when _rlsTx.tx is set (LOG-0204)', async () => {
+    // Regression test for LOG-0204: before the onRoute handler wrapper existed,
+    // the route handler ran OUTSIDE the rlsStore AsyncLocalStorage scope. A
+    // proxy like database.plugin.ts's would then read getStore() === undefined
+    // and delegate to a base pool connection carrying NO app.* RLS GUCs — which
+    // is why `INSERT ... RETURNING` failed with "new row violates row-level
+    // security policy" even after the RLS policies themselves were fixed.
+    //
+    // This test uses a minimal ALS-aware db proxy that mirrors the production
+    // proxy's lookup, and asserts the handler saw the transaction in scope.
+    const app = fastify({ logger: false });
+
+    const repo = makeMockRepository();
+    const txExecute = vi.fn().mockResolvedValue([]);
+    const baseExecute = vi.fn().mockResolvedValue([]);
+    const iamService = { resolveActiveDelegationGrant: vi.fn().mockResolvedValue(null) };
+
+    const rawDb = {
+      execute: baseExecute,
+      transaction: vi.fn(
+        async (callback: (tx: { execute: ReturnType<typeof vi.fn> }) => Promise<void>) => {
+          const tx = { execute: txExecute };
+          await callback(tx);
+        },
+      ),
+    };
+    // Mirrors the get/proxy handler in database.plugin.ts (TASK-IAM-041):
+    // method calls delegate to rlsStore.getStore()?.tx when a transaction is
+    // active, else to the base client.
+    const alsProxy = new Proxy(rawDb, {
+      get(target, prop) {
+        const value = Reflect.get(target, prop);
+        if (typeof value !== 'function') return value;
+        return function (this: unknown, ...args: unknown[]) {
+          const store = rlsStore.getStore();
+          const activeTarget = store?.tx ?? target;
+          return Reflect.get(activeTarget, prop).apply(activeTarget, args);
+        };
+      },
+    });
+
+    const setupPlugin = fp(
+      async (f: FastifyInstance) => {
+        // @ts-expect-error — patching the augmented FastifyInstance for tests
+        f.decorate('iamRepository', repo);
+        // @ts-expect-error
+        f.decorate('iamService', iamService);
+        // @ts-expect-error
+        f.decorate('db', alsProxy);
+      },
+      { name: 'iam' },
+    );
+
+    await app.register(setupPlugin);
+    await app.register(authMiddlewarePlugin);
+
+    // Route handler that reads ALS directly — exactly what the production proxy
+    // does on every fastify.db call. undefined here means the onRoute wrapper
+    // failed to re-enter the scope and the query would have hit the base client.
+    let handlerScopeStore: { tx?: { execute: ReturnType<typeof vi.fn> } } | undefined;
+    app.get('/scope-probe', async () => {
+      handlerScopeStore = rlsStore.getStore();
+      return { ok: true };
+    });
+
+    await app.ready();
+
+    const token = makeToken();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/scope-probe',
+      headers: { cookie: cookieHeader(token) },
+    });
+
+    expect(res.statusCode).toBe(200);
+    // The handler must have seen the transaction in ALS scope — this is the
+    // property the proxy relies on to route request queries to the GUC-carrying
+    // transaction (LOG-0204). Before the fix this was undefined.
+    expect(handlerScopeStore?.tx).toBeDefined();
+    // The transaction handle seen by the handler is the one Hook 3 opened.
+    expect(handlerScopeStore?.tx?.execute).toBe(txExecute);
+    // The handler's implicit query must NOT have hit the base (GUC-less) client.
+    expect(baseExecute).not.toHaveBeenCalled();
   });
 });

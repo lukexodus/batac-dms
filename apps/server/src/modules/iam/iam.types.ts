@@ -443,11 +443,20 @@ declare module 'fastify' {
      */
     auth: AuthContext | null;
     /**
-     * Promise bridge pair stored by Hook 3 (`setDatabaseSessionVars`) for the
-     * request-scoped RLS transaction. `resolve` commits the transaction (called
-     * by the `onResponse` hook on success); `reject` rolls it back (called on
-     * error responses >= 400). Source: TASK-IAM-041, TASK-IAM-042.
+     * Request-scoped RLS transaction state stored by Hook 3
+     * (`setDatabaseSessionVars`) and consumed by:
+     * - the `onRoute` handler wrapper in `authMiddlewarePlugin`, which re-enters
+     *   the `rlsStore` AsyncLocalStorage scope around the route handler so the
+     *   proxied `fastify.db` delegates request queries to `tx` (whose SET LOCAL
+     *   GUC values carry the authenticated identity for RLS policies);
+     * - the `onResponse` hook, where `resolve` commits the transaction on
+     *   success and `reject` rolls it back on error responses >= 400.
+     * Source: TASK-IAM-041, TASK-IAM-042; LOG-0204.
      */
-    _rlsTx?: { resolve: () => void; reject: (err: unknown) => void };
+    _rlsTx?: {
+      tx?: TxOrDb;
+      resolve: () => void;
+      reject: (err: unknown) => void;
+    };
   }
 }
