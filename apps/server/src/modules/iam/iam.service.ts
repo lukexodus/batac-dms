@@ -433,6 +433,10 @@ export function createIamService(deps: IamServiceDeps): IamService {
       let newSessionId!: string;
 
       await db.transaction(async (tx) => {
+        // Set the context for RLS so INSERT ... RETURNING succeeds
+        const { sql } = await import('drizzle-orm');
+        await tx.execute(sql`SELECT set_config('app.current_user_id', ${user.id}, true)`);
+
         // We need a transactional repo so all ops within this block are atomic.
         // createIamRepository accepts a DbTransaction directly.
         const { createIamRepository } = await import('./iam.repository.js');
@@ -461,7 +465,7 @@ export function createIamService(deps: IamServiceDeps): IamService {
         //    satisfied; updated in step 9 once jti is known.
         const newSession = await txRepo.createSession({
           userId: user.id,
-          sessionTokenHash: 'pending', // overwritten in step 9
+          sessionTokenHash: `pending_${randomUUID()}`, // overwritten in step 9
           ipAddress,
           userAgent,
           cityId: BATAC_CITY_ID,
@@ -499,18 +503,19 @@ export function createIamService(deps: IamServiceDeps): IamService {
       // Update session_token_hash to SHA-256(jti) now that jti is known.
       const jti = claims.registered.jti;
       const sessionTokenHash = sha256Hex(jti);
-      // Best-effort UPDATE — non-transactional since the session is already
-      // committed; if this fails the session row has hash='pending' which
-      // is detectable and treated as invalid by Hook 1's verifyJwt + session check.
-      await iamRepo.updateLastActivity(newSessionId); // triggers update on row
-
-      // We need to update the session_token_hash. The IamRepository interface
-      // does not expose a direct updateSessionTokenHash method.
-      // [Inference] Use direct DB update as a workaround; a cleaner approach
-      // would add updateSessionTokenHash to IamRepository — see findings log.
-      const { sessions } = await import('@batac/database/schema/iam.schema.js');
-      const { eq } = await import('drizzle-orm');
-      await db.update(sessions).set({ sessionTokenHash }).where(eq(sessions.id, newSessionId));
+      
+      // Best-effort UPDATE — wrapped in a transaction strictly to pass RLS policy.
+      await db.transaction(async (tx) => {
+        const { sql, eq } = await import('drizzle-orm');
+        await tx.execute(sql`SELECT set_config('app.current_user_id', ${user.id}, true)`);
+        
+        const { createIamRepository } = await import('./iam.repository.js');
+        const txRepo = createIamRepository(tx);
+        await txRepo.updateLastActivity(newSessionId);
+        
+        const { sessions } = await import('@batac/database/schema/iam.schema.js');
+        await tx.update(sessions).set({ sessionTokenHash }).where(eq(sessions.id, newSessionId));
+      });
 
       // ── Step 10: Issue refresh token ──────────────────────────────────────
       // raw = crypto.randomBytes(32) → base64url

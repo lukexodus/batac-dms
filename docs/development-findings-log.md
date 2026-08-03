@@ -5919,3 +5919,17 @@ policy is adopted for any schema.
 
 ---
 
+
+### [LOG-0026] db.execute() outside tx block fails to persist GUCs for subsequent db.update() under proxy
+
+- date: 2026-08-03
+- task_id: TASK-IAM-014 (or related session debug)
+- status: proposed
+- affects: C3
+- resolved_in: none (code pattern detail)
+
+When setting PostgreSQL GUCs (like `app.current_user_id`) using `db.execute(sql`SELECT set_config(...)`)` for RLS evaluation, the `db.execute` call must be part of the same transaction context as the subsequent data mutations (e.g. `db.update`). 
+
+In the Fastify Drizzle setup, although the `db` proxy uses `AsyncLocalStorage` to route calls to the active request transaction, issuing `db.execute` outside of an explicit `db.transaction()` block (or the main middleware `tx` block) caused the GUC to be lost for the immediately following `db.update()` call, resulting in RLS evaluating `app.current_user_id` as `""` and throwing an `invalid input syntax for type uuid` error when casting it.
+
+[Tested]: Resolved by wrapping the post-session-creation JWT updates (`last_activity_at` and `session_token_hash`) inside an explicit `await db.transaction(async (tx) => { ... })` block in `iam.service.ts` (Step 9). By executing `tx.execute(sql`SELECT set_config(...)`)` followed by `tx.update(...)` within the exact same explicit transaction object, the connection context is strictly preserved and the update succeeds under the `sessions_update` RLS policy.
