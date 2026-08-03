@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --import ./src/instrumentation.ts --experimental-loader=@opentelemetry/instrumentation/hook.mjs src/index.ts",
+    "dev": "tsx watch --import @opentelemetry/instrumentation/hook.mjs --import ./src/instrumentation.ts src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "db:seed": "tsx src/database/seeds/orchestrator.ts",
