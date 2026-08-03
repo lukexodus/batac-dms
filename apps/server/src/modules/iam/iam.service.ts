@@ -790,7 +790,11 @@ export function createIamService(deps: IamServiceDeps): IamService {
       const sessionTokenHash = sha256Hex(jti);
       const { sessions } = await import('@batac/database/schema/iam.schema.js');
       const { eq } = await import('drizzle-orm');
-      await db.update(sessions).set({ sessionTokenHash }).where(eq(sessions.id, session.id));
+      const { sql } = await import('drizzle-orm');
+      await db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT set_config('app.current_user_id', ${session.userId}, true)`);
+        await tx.update(sessions).set({ sessionTokenHash }).where(eq(sessions.id, session.id));
+      });
 
       const refreshResult = {
         user: toUserSelectSchema(user) as unknown as UserRow,
@@ -1210,7 +1214,11 @@ export function createIamService(deps: IamServiceDeps): IamService {
         const sessionTokenHash = sha256Hex(jti);
         const { sessions } = await import('@batac/database/schema/iam.schema.js');
         const { eq } = await import('drizzle-orm');
-        await db.update(sessions).set({ sessionTokenHash }).where(eq(sessions.id, sessionId));
+        const { sql } = await import('drizzle-orm');
+        await db.transaction(async (tx) => {
+          await tx.execute(sql`SELECT set_config('app.current_user_id', ${userId}, true)`);
+          await tx.update(sessions).set({ sessionTokenHash }).where(eq(sessions.id, sessionId));
+        });
 
         cookies = {
           accessToken: newAccessToken,

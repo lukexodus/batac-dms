@@ -151,20 +151,54 @@ export function createIamRepository(db: DbClient | DbTransaction): IamRepository
       return session || null;
     },
     findSessionById: async (id) => {
-      const [session] = await db
-        .select()
-        .from(sessions)
-        .where(and(eq(sessions.id, id), isNull(sessions.deletedAt)));
-      return session || null;
+      // Uses iam.fn_get_session_by_id (SECURITY DEFINER) instead of a direct
+      // SELECT, because Hook 1 reads this before Hook 3 sets the RLS GUC context.
+      const result = await db.execute<{
+        id: string;
+        city_id: string;
+        user_id: string;
+        session_token_hash: string;
+        ip_address: string | null;
+        user_agent: string | null;
+        last_activity_at: string | Date;
+        locked_at: string | Date | null;
+        active: boolean;
+        created_at: string | Date;
+        terminated_at: string | Date | null;
+        terminated_by: string | null;
+        termination_reason: string | null;
+        deleted_at: string | Date | null;
+        deleted_by: string | null;
+      }>(sql`SELECT * FROM iam.fn_get_session_by_id(${id})`);
+
+      const session = result[0];
+      if (!session) return null;
+
+      return {
+        id: session.id,
+        cityId: session.city_id,
+        userId: session.user_id,
+        sessionTokenHash: session.session_token_hash,
+        ipAddress: session.ip_address,
+        userAgent: session.user_agent,
+        lastActivityAt: new Date(session.last_activity_at),
+        locked_at: session.locked_at ? new Date(session.locked_at) : null,
+        active: session.active,
+        createdAt: new Date(session.created_at),
+        terminatedAt: session.terminated_at ? new Date(session.terminated_at) : null,
+        terminatedBy: session.terminated_by,
+        terminationReason: session.termination_reason,
+        deletedAt: session.deleted_at ? new Date(session.deleted_at) : null,
+        deletedBy: session.deleted_by,
+      };
     },
     terminateSession: async (id, reason, terminatedBy) => {
-      await db
-        .update(sessions)
-        .set({ active: false, terminatedAt: new Date(), terminationReason: reason, terminatedBy })
-        .where(eq(sessions.id, id));
+      // Uses SECURITY DEFINER function to bypass RLS when called from Hook 1
+      await db.execute(sql`SELECT iam.fn_terminate_session(${id}, ${reason}, ${terminatedBy})`);
     },
     updateLastActivity: async (id) => {
-      await db.update(sessions).set({ lastActivityAt: new Date() }).where(eq(sessions.id, id));
+      // Uses SECURITY DEFINER function to bypass RLS when called from Hook 4
+      await db.execute(sql`SELECT iam.fn_update_last_activity(${id})`);
     },
     setSessionLocked: async (id, lockedAt) => {
       await db.update(sessions).set({ locked_at: lockedAt }).where(eq(sessions.id, id));
@@ -225,17 +259,8 @@ export function createIamRepository(db: DbClient | DbTransaction): IamRepository
       return updated.length > 0;
     },
     revokeRefreshTokensBySessionId: async (sessionId, reason) => {
-      await db
-        .update(refreshTokens)
-        .set({ revokedAt: new Date(), revocationReason: reason })
-        .where(
-          and(
-            eq(refreshTokens.sessionId, sessionId),
-            isNull(refreshTokens.usedAt),
-            isNull(refreshTokens.revokedAt),
-            isNull(refreshTokens.deletedAt),
-          ),
-        );
+      // Uses SECURITY DEFINER function to bypass RLS when called from Hook 1
+      await db.execute(sql`SELECT iam.fn_revoke_refresh_tokens_by_session_id(${sessionId}, ${reason})`);
     },
     revokeRefreshTokenFamily: async (familyId, reason) => {
       await db
