@@ -91,9 +91,12 @@ export class QrCodeService {
     );
 
     try {
-      await this.repository.updateQrImageKey(qrCodeRow.id, qrImageFileKey, db);
+      // qr_image_file_key is a UUID column (see tracking/index.ts: "UUID key,
+      // not a full URL") — store the trackingId; consumers derive the S3
+      // object key as `qr-codes/{uuid}.png`.
+      await this.repository.updateQrImageKey(qrCodeRow.id, trackingId, db);
       // Refresh to get the updated row
-      qrCodeRow.qrImageFileKey = qrImageFileKey;
+      qrCodeRow.qrImageFileKey = trackingId;
     } catch (err) {
       console.warn('Failed to update QR image key', err);
     }
@@ -159,13 +162,14 @@ export class QrCodeService {
       if (qrCode) {
         trackingNumber = qrCode.trackingNumber;
 
-        // Fetch QR image from S3
+        // Fetch QR image from S3 (qr_image_file_key holds the trackingId UUID;
+        // the object key is derived as `qr-codes/{uuid}.png`)
         if (qrCode.qrImageFileKey) {
           try {
             const { Body } = await this.s3Client.send(
               new GetObjectCommand({
                 Bucket: this.env.S3_BUCKET,
-                Key: qrCode.qrImageFileKey,
+                Key: `qr-codes/${qrCode.qrImageFileKey}.png`,
               }),
             );
             if (Body) {

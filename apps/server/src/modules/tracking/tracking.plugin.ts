@@ -8,7 +8,10 @@ import { createTrackingService } from './tracking.service.js';
 import { createPublicLookupHandler } from './tracking.public-handler.js';
 import { createTrackingRouter } from './tracking.router.js';
 import { S3Client } from '@aws-sdk/client-s3';
+import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
 import { env } from '../../config/env.js';
+import type { AppDb } from '../../db.js';
 import { TrackingEventConsumer } from './tracking.event-consumer.js';
 
 /**
@@ -107,11 +110,16 @@ export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
     publicLookupHandler,
   );
 
+  const eventConsumerDb: AppDb = drizzle(postgres(env.DATABASE_URL_APP, {
+    max: 2,
+    idle_timeout: 30,
+  }));
+
   const eventConsumer = new TrackingEventConsumer(
     repository,
     qrCodeService,
     fastify.log,
-    fastify.db,
+    eventConsumerDb,
   );
 
   fastify.eventBus.on(

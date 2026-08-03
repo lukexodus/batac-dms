@@ -22,7 +22,10 @@ export class TrackingEventConsumer {
     const payload = event.payload as DocumentCreatedPayload;
 
     // 1. Idempotency guard
-    const existing = await this.repository.findTrackingRecordByDocumentId(payload.documentId);
+    const existing = await this.repository.findTrackingRecordByDocumentId(
+      payload.documentId,
+      this.db,
+    );
     if (existing) {
       this.logger.info(
         { documentId: payload.documentId, eventId: event.eventId },

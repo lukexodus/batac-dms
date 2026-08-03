@@ -83,17 +83,20 @@ describe('QrCodeService', () => {
         undefined,
       );
 
-      // Verify DB update
+      // Verify DB update (stores the trackingId UUID, not the full S3 path)
       expect(mockRepo.updateQrImageKey).toHaveBeenCalledWith(
         'mock-qr-id',
-        commandArgs.input.Key,
+        expect.any(String),
         undefined,
       );
+      const updateArg = mockRepo.updateQrImageKey.mock.calls[0][1];
+      expect(updateArg).not.toMatch(/^qr-codes\//);
+      expect(updateArg).toMatch(/^[a-f0-9\-]{36}$/);
 
       expect(result).toMatchObject({
         id: 'mock-qr-id',
         trackingNumber: 'DTS-2026-0001',
-        qrImageFileKey: commandArgs.input.Key,
+        qrImageFileKey: updateArg,
       });
     });
   });
