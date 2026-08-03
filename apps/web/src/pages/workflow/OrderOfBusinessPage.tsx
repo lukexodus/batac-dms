@@ -88,11 +88,22 @@ export function OrderOfBusinessPage() {
   return <OrderOfBusinessContent isSecretary={isSecretary} />;
 }
 
+function getNextTuesdayFormatted(now: Date = new Date()): string {
+  const phtTime = new Date(now.getTime() + 8 * 3600 * 1000);
+  let daysToTuesday = 2 - phtTime.getUTCDay();
+  if (daysToTuesday < 0) daysToTuesday += 7;
+  phtTime.setUTCDate(phtTime.getUTCDate() + daysToTuesday);
+  const y = phtTime.getUTCFullYear();
+  const m = String(phtTime.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(phtTime.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // ─── Main content ─────────────────────────────────────────────────────────────
 
 function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
-  // Optional date picker state; undefined = let server default to next Tuesday
-  const [selectedDate, setSelectedDate] = useState<string>('');
+  const defaultDate = getNextTuesdayFormatted();
+  const [selectedDate, setSelectedDate] = useState<string>(defaultDate);
 
   const queryInput = selectedDate ? { sessionDate: new Date(selectedDate) } : {};
 
@@ -132,13 +143,13 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
             </div>
-            {selectedDate && (
-              <Button variant="ghost" size="sm" onClick={() => setSelectedDate('')}>
+            {selectedDate !== defaultDate && (
+              <Button variant="ghost" size="sm" onClick={() => setSelectedDate(defaultDate)}>
                 Reset to next Tuesday
               </Button>
             )}
             <div className="text-text-muted ml-auto text-xs italic">
-              {!selectedDate && 'Defaulting to next scheduled session (next Tuesday).'}
+              {selectedDate === defaultDate && 'Defaulting to scheduled session (Tuesday).'}
             </div>
           </div>
         </CardContent>
