@@ -21,6 +21,9 @@ import {
 import { documents } from '@batac/database/schema/documents.schema.js';
 import { eq, and, or, ilike, isNull, sql, lte, gte, asc, ne } from 'drizzle-orm';
 import type { Context } from '../iam/iam.types.js';
+import { submitStepAction } from './engine/step-handlers/action.handler.js';
+import { workflowPolicy, type StepInstanceAttrs } from './workflow.policy.js';
+import { WorkflowRepository } from './workflow.repository.js';
 
 const dateRangeInput = z.object({
   from: z.coerce.date().nullish(),
@@ -939,9 +942,161 @@ export function createSessionRouter() {
               isRedFlagged: false,
             });
           }
+
+          const [docRow] = await tx
+            .select({ workflowInstanceId: documents.workflowInstanceId, createdBy: documents.createdBy })
+            .from(documents)
+            .where(eq(documents.id, documentId))
+            .limit(1);
+
+          if (docRow && docRow.workflowInstanceId) {
+            const workflowInstanceId = docRow.workflowInstanceId;
+
+            const [activeStepData] = await tx
+              .select({
+                stepInstance: stepInstances,
+                step: steps,
+                instance: instances
+              })
+              .from(stepInstances)
+              .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+              .innerJoin(instances, eq(stepInstances.instanceId, instances.id))
+              .where(
+                and(
+                  eq(instances.id, workflowInstanceId),
+                  eq(steps.stepKey, 'order_of_business_scheduling'),
+                  eq(stepInstances.status, 'active'),
+                  isNull(stepInstances.deletedAt)
+                )
+              )
+              .limit(1);
+
+            if (!activeStepData) {
+              console.warn(`[OoB Scheduling] Document ${documentId} with workflow instance ${workflowInstanceId} has no active 'order_of_business_scheduling' step instance to complete.`);
+            } else {
+              const { stepInstance, step, instance } = activeStepData;
+              
+              const assignedTo = (stepInstance.assignedTo || []) as Array<{ user_id?: string; office_id?: string }>;
+              const metadata = (stepInstance.metadata || {}) as Record<string, any>;
+              const assignedCommitteeIds = ((metadata['assigned_committees'] || []) as Array<{ committee_id: string }>).map((c) => c.committee_id);
+
+              const stepAttrs: StepInstanceAttrs = {
+                stepStatus: stepInstance.status as any,
+                stepType: step.stepType as any,
+                stepKey: step.stepKey,
+                isFinalApprovalStep: (step.config as Record<string, any>)?.['is_final_approval'] === true,
+                assigneeUserId: assignedTo[0]?.user_id || null,
+                assigneeOfficeId: assignedTo[0]?.office_id || null,
+                assignedCommitteeIds,
+                instanceCreatedBy: instance.createdBy,
+                documentCreatedBy: docRow.createdBy,
+              };
+
+              workflowPolicy.canCompleteActionStep(ctx.auth, stepAttrs);
+
+              const server = (ctx.req as any).server;
+              const deps = {
+                db: tx,
+                workflowRepository: new WorkflowRepository(tx),
+                documentsService: server.documentsService,
+                eventBus: server.eventBus,
+                orgService: server.organizationService,
+                delegationService: server.delegationService,
+                iamService: server.iamService,
+              };
+
+              await submitStepAction(
+                instance,
+                stepInstance,
+                ctx.auth.userId,
+                null,
+                deps as any,
+                tx
+              );
+            }
+          }
         });
 
         return { success: true as const };
+      }),
+
+    removeFromOrderOfBusiness: protectedProcedure
+      .input(
+        z.object({
+          documentId: z.string().uuid(),
+          sessionDate: z.coerce.date(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        enforceRoles(ctx, ['sp_secretary']);
+        
+        const { documentId, sessionDate } = input;
+        const dateStr = formatDate(sessionDate);
+
+        return await ctx.db.transaction(async (tx) => {
+          const [session] = await tx
+            .select({ id: spSessions.id })
+            .from(spSessions)
+            .where(
+              and(
+                eq(spSessions.sessionDate, dateStr),
+                eq(spSessions.cityId, ctx.auth.cityId),
+                isNull(spSessions.deletedAt)
+              )
+            )
+            .limit(1);
+
+          if (!session) {
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message: 'No session found for the given date.',
+            });
+          }
+
+          const [oob] = await tx
+            .select({ id: orderOfBusiness.id })
+            .from(orderOfBusiness)
+            .where(
+              and(
+                eq(orderOfBusiness.spSessionId, session.id),
+                isNull(orderOfBusiness.deletedAt)
+              )
+            )
+            .limit(1);
+
+          if (!oob) {
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message: 'No Order of Business found for the given date.',
+            });
+          }
+
+          const [oobItem] = await tx
+            .select({ id: orderOfBusinessItems.id })
+            .from(orderOfBusinessItems)
+            .where(
+              and(
+                eq(orderOfBusinessItems.orderOfBusinessId, oob.id),
+                eq(orderOfBusinessItems.documentId, documentId),
+                isNull(orderOfBusinessItems.deletedAt)
+              )
+            )
+            .limit(1);
+
+          if (!oobItem) {
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message: 'This document is not currently on the agenda for the given date.',
+            });
+          }
+
+          await tx
+            .update(orderOfBusinessItems)
+            .set({ deletedAt: new Date(), deletedBy: ctx.auth.userId })
+            .where(eq(orderOfBusinessItems.id, oobItem.id));
+            
+          return { success: true as const };
+        });
       }),
 
     enterCommitteeHearingDate: protectedProcedure

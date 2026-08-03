@@ -5,9 +5,9 @@ import type { Context, AuthContext } from '../iam/iam.types.js';
 
 const CITY_ID = '00000000-0000-4000-8000-000000000001';
 const USER_ID = '44444444-4444-4444-4444-444444444444';
-const VALID_UUID = '11111111-1111-1111-1111-111111111111';
-const COUNCILOR_2_UUID = '22222222-2222-2222-2222-222222222222';
-const VM_EMP_UUID = '33333333-3333-3333-3333-333333333333';
+const VALID_UUID = '11111111-1111-4111-8111-111111111111';
+const COUNCILOR_2_UUID = '22222222-2222-4222-8222-222222222222';
+const VM_EMP_UUID = '33333333-3333-4333-8333-333333333333';
 
 function makeSubject(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -182,7 +182,7 @@ describe('Session Router tRPC Procedures', () => {
             reason: 'sick_leave',
           },
         ],
-        presidedByEmployeeIdOverride: '11111111-1111-1111-1111-111111111111',
+        presidedByEmployeeIdOverride: '11111111-1111-4111-8111-111111111111',
       });
 
       expect(result.success).toBe(true);
@@ -212,7 +212,7 @@ describe('Session Router tRPC Procedures', () => {
             reason: 'vacation_leave',
           },
         ],
-        presidedByEmployeeIdOverride: '11111111-1111-1111-1111-111111111111',
+        presidedByEmployeeIdOverride: '11111111-1111-4111-8111-111111111111',
       });
 
       expect(result.success).toBe(true);
@@ -240,7 +240,7 @@ describe('Session Router tRPC Procedures', () => {
               reason: 'official_business',
             },
           ],
-          presidedByEmployeeIdOverride: '11111111-1111-1111-1111-111111111111',
+          presidedByEmployeeIdOverride: '11111111-1111-4111-8111-111111111111',
         }),
       ).rejects.toThrowError(/substitute presiding officer could not be found/);
     });
@@ -266,7 +266,7 @@ describe('Session Router tRPC Procedures', () => {
               reason: 'official_business',
             },
           ],
-          presidedByEmployeeIdOverride: '11111111-1111-1111-1111-111111111111',
+          presidedByEmployeeIdOverride: '11111111-1111-4111-8111-111111111111',
         }),
       ).rejects.toThrowError(/substitute presiding officer is not eligible/);
     });
@@ -429,6 +429,7 @@ describe('Session Router tRPC Procedures', () => {
       mockDb.mockResponse([]); // check if scheduled -> empty (insert item)
       mockDb.mockResponse([{ maxOrder: 2 }]); // get maxOrder
       mockDb.mockResponse([]); // insert item
+      mockDb.mockResponse([]); // 11. docRow select (no workflow instance for this test)
 
       const result = await caller.scheduleDocumentForFirstReading({
         documentId: VALID_UUID,
@@ -456,6 +457,7 @@ describe('Session Router tRPC Procedures', () => {
       mockDb.mockResponse([]); // 8. existingItem select (check if scheduled)
       mockDb.mockResponse([{ maxOrder: 1 }]); // 9. orderRow select (max existing item order)
       mockDb.mockResponse([]); // 10. insert(orderOfBusinessItems)
+      mockDb.mockResponse([]); // 11. docRow select (no workflow instance for this test)
 
       const result = await caller.scheduleDocumentForFirstReading({
         documentId: VALID_UUID,
@@ -472,6 +474,191 @@ describe('Session Router tRPC Procedures', () => {
       );
 
       vi.useRealTimers();
+    });
+
+    it('schedules and advances active order_of_business_scheduling step', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-07-08T10:00:00Z'));
+
+      mockDb.mockResponse([]); // VM position check
+      mockDb.mockResponse([{ id: 'fallback-emp-1' }]); // first employee fallback
+      mockDb.mockResponse([{ id: 'session-id' }]); // session check -> exists
+      mockDb.mockResponse([{ id: 'oob-id' }]); // order of business check -> exists
+      mockDb.mockResponse([]); // check if scheduled -> empty (insert item)
+      mockDb.mockResponse([{ maxOrder: 2 }]); // get maxOrder
+      mockDb.mockResponse([]); // insert item
+      
+      // new step completion logic
+      mockDb.mockResponse([{ workflowInstanceId: VALID_UUID, createdBy: USER_ID }]); // docRow
+      mockDb.mockResponse([
+        {
+          stepInstance: { id: 'step-inst-1', stepId: 'step-1', status: 'active', assignedTo: [{ user_id: USER_ID }], metadata: {} },
+          step: { id: 'step-1', stepKey: 'order_of_business_scheduling', stepType: 'action', config: {} },
+          instance: { id: VALID_UUID, definitionVersionId: 'v1', createdBy: USER_ID },
+        }
+      ]); // activeStepData
+      
+      const mockVersion = [{ id: 'v1', definition: { graph: [{ source: 'step-1', target: 'step-2', event: 'DONE' }] } }];
+      const mockSteps = [
+        { id: 'step-1', stepKey: 'order_of_business_scheduling', stepType: 'action', config: {} },
+        { id: 'step-2', stepKey: 'first_reading', stepType: 'action', config: {} }
+      ];
+      const mockRules = [
+        { id: 'rule-1', fromStepId: 'step-1', toStepId: 'step-2', outcomeFilter: 'DONE', conditionExpression: null, priority: 1 }
+      ];
+      
+      // getDefinitionVersionWithSteps makes 3 queries: version, steps, transitionRules
+      mockDb.mockResponse(mockVersion); // version
+      mockDb.mockResponse(mockSteps); // steps
+      mockDb.mockResponse(mockRules); // transitionRules
+      
+      mockDb.mockResponse([]); // updateStepInstance (status: 'completed', outcome: 'DONE')
+      mockDb.mockResponse([{ id: 'mock-evt-1' }]); // createWorkflowEvent (completed)
+      mockDb.mockResponse([{ id: 'step-inst-1', stepId: 'step-1', status: 'completed' }]); // getStepInstanceById
+      
+      // resolveNextStep calls getDefinitionVersionWithSteps again
+      mockDb.mockResponse(mockVersion); // version
+      mockDb.mockResponse(mockSteps); // steps
+      mockDb.mockResponse(mockRules); // transitionRules
+      mockDb.mockResponse([{ id: 'step-inst-2' }]); // insert stepInstance for step-2
+      mockDb.mockResponse([{ id: 'mock-evt-2' }]); // createWorkflowEvent (started)
+      
+      // Add a few extra empty arrays in case of additional unexpected queries
+      mockDb.mockResponse([]);
+      mockDb.mockResponse([]);
+
+      const result = await caller.scheduleDocumentForFirstReading({
+        documentId: VALID_UUID,
+        sessionDate: new Date('2026-07-14'),
+      });
+
+      expect(result.success).toBe(true);
+
+      // Verify the active step instance was updated to 'completed' / 'DONE'
+      expect(mockDb.update).toHaveBeenCalled();
+      expect(mockDb.set).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'completed',
+        outcome: 'DONE'
+      }));
+
+      // Verify the next step was inserted (first_reading step)
+      expect(mockDb.insert).toHaveBeenCalled();
+      expect(mockDb.values).toHaveBeenCalledWith(expect.objectContaining({
+        stepId: 'step-2', // step-2 is the first_reading step
+        status: 'active'
+      }));
+      
+      vi.useRealTimers();
+    });
+
+    it('schedules document with no workflow instance without throwing', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([]); // VM position
+      mockDb.mockResponse([{ id: 'fallback-emp-1' }]); // first emp
+      mockDb.mockResponse([{ id: 'session-id' }]); // session exists
+      mockDb.mockResponse([{ id: 'oob-id' }]); // OOB exists
+      mockDb.mockResponse([]); // check existing item -> empty
+      mockDb.mockResponse([{ maxOrder: 2 }]); // maxOrder
+      mockDb.mockResponse([]); // insert item
+      mockDb.mockResponse([{ workflowInstanceId: null, createdBy: USER_ID }]); // docRow with null instance
+
+      const result = await caller.scheduleDocumentForFirstReading({
+        documentId: VALID_UUID,
+        sessionDate: new Date('2026-07-14'),
+      });
+
+      expect(result.success).toBe(true);
+      // No more mocks popped, no crash means it silently skipped
+    });
+
+    it('schedules document whose workflow instance is not at order_of_business_scheduling', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([]); // VM position
+      mockDb.mockResponse([{ id: 'fallback-emp-1' }]); // first emp
+      mockDb.mockResponse([{ id: 'session-id' }]); // session exists
+      mockDb.mockResponse([{ id: 'oob-id' }]); // OOB exists
+      mockDb.mockResponse([]); // check existing item -> empty
+      mockDb.mockResponse([{ maxOrder: 2 }]); // maxOrder
+      mockDb.mockResponse([]); // insert item
+      mockDb.mockResponse([{ workflowInstanceId: VALID_UUID, createdBy: USER_ID }]); // docRow
+      mockDb.mockResponse([]); // activeStepData returns empty (not at order_of_business_scheduling)
+
+      const result = await caller.scheduleDocumentForFirstReading({
+        documentId: VALID_UUID,
+        sessionDate: new Date('2026-07-14'),
+      });
+
+      expect(result.success).toBe(true);
+      // No step-related DB calls happened
+    });
+  });
+
+  describe('removeFromOrderOfBusiness', () => {
+    it('successfully soft-deletes the agenda item', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([{ id: 'session-id' }]); // session
+      mockDb.mockResponse([{ id: 'oob-id' }]); // oob
+      mockDb.mockResponse([{ id: 'item-id' }]); // oobItem
+      mockDb.mockResponse([]); // update item
+
+      const result = await caller.removeFromOrderOfBusiness({
+        documentId: VALID_UUID,
+        sessionDate: new Date('2026-07-14'),
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockDb.update).toHaveBeenCalled();
+      expect(mockDb.set).toHaveBeenCalledWith(expect.objectContaining({
+        deletedBy: USER_ID
+      }));
+    });
+
+    it('throws NOT_FOUND if session is missing', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([]); // no session
+
+      await expect(caller.removeFromOrderOfBusiness({
+        documentId: VALID_UUID,
+        sessionDate: new Date('2026-07-14'),
+      })).rejects.toThrow('No session found');
+    });
+
+    it('throws NOT_FOUND if order of business is missing', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([{ id: 'session-id' }]); // session
+      mockDb.mockResponse([]); // no oob
+
+      await expect(caller.removeFromOrderOfBusiness({
+        documentId: VALID_UUID,
+        sessionDate: new Date('2026-07-14'),
+      })).rejects.toThrow('No Order of Business found');
+    });
+
+    it('throws NOT_FOUND if item is not on the agenda', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([{ id: 'session-id' }]); // session
+      mockDb.mockResponse([{ id: 'oob-id' }]); // oob
+      mockDb.mockResponse([]); // no oobItem
+
+      await expect(caller.removeFromOrderOfBusiness({
+        documentId: VALID_UUID,
+        sessionDate: new Date('2026-07-14'),
+      })).rejects.toThrow('This document is not currently on the agenda');
     });
   });
 

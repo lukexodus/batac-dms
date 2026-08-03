@@ -216,6 +216,7 @@ function OrderOfBusinessContent({ isSecretary }: { isSecretary: boolean }) {
                   item={item}
                   agendaNumber={idx + 1}
                   isSecretary={isSecretary}
+                  sessionDate={data.sessionDate}
                   onMutationSuccess={() => void refetch()}
                 />
               ))}
@@ -241,10 +242,11 @@ interface OobItemRowProps {
   item: OobItem;
   agendaNumber: number;
   isSecretary: boolean;
+  sessionDate: Date | string;
   onMutationSuccess: () => void;
 }
 
-function OobItemRow({ item, agendaNumber, isSecretary, onMutationSuccess }: OobItemRowProps) {
+function OobItemRow({ item, agendaNumber, isSecretary, sessionDate, onMutationSuccess }: OobItemRowProps) {
   const [expanded, setExpanded] = useState(false);
 
   const isRedFlagged = item.committeeReportStatus === 'red_flagged';
@@ -319,7 +321,9 @@ function OobItemRow({ item, agendaNumber, isSecretary, onMutationSuccess }: OobI
           )}
 
           {/* Secretary-only actions */}
-          {isSecretary && <SecretaryItemActions item={item} onSuccess={onMutationSuccess} />}
+          {isSecretary && (
+            <SecretaryItemActions item={item} sessionDate={sessionDate} onSuccess={onMutationSuccess} />
+          )}
         </div>
       )}
     </div>
@@ -368,9 +372,18 @@ function CommitteeStatusBadge({
  * must supply it from the workflow instance. We render an input to capture it.
  * The backend will validate it exists and belongs to the document.
  */
-function SecretaryItemActions({ item, onSuccess }: { item: OobItem; onSuccess: () => void }) {
+function SecretaryItemActions({
+  item,
+  sessionDate,
+  onSuccess,
+}: {
+  item: OobItem;
+  sessionDate: Date | string;
+  onSuccess: () => void;
+}) {
   const [hearingDateDialogOpen, setHearingDateDialogOpen] = useState(false);
   const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
 
   return (
     <div className="flex flex-wrap gap-2 border-t border-neutral-100 pt-1">
@@ -398,6 +411,17 @@ function SecretaryItemActions({ item, onSuccess }: { item: OobItem; onSuccess: (
         </Button>
       )}
 
+      <Button
+        id={`btn-remove-${item.documentId}`}
+        variant="destructive"
+        size="sm"
+        className="ml-auto gap-1.5 text-xs"
+        onClick={() => setRemoveDialogOpen(true)}
+      >
+        <MinusCircle className="h-3.5 w-3.5" />
+        Remove from Agenda
+      </Button>
+
       <EnterHearingDateDialog
         open={hearingDateDialogOpen}
         onClose={() => setHearingDateDialogOpen(false)}
@@ -411,6 +435,15 @@ function SecretaryItemActions({ item, onSuccess }: { item: OobItem; onSuccess: (
         onClose={() => setAdvanceDialogOpen(false)}
         documentTitle={item.title}
         stepInstanceId={item.stepInstanceId}
+        onSuccess={onSuccess}
+      />
+
+      <RemoveFromAgendaDialog
+        open={removeDialogOpen}
+        onClose={() => setRemoveDialogOpen(false)}
+        documentId={item.documentId}
+        documentTitle={item.title}
+        sessionDate={sessionDate}
         onSuccess={onSuccess}
       />
     </div>
@@ -529,6 +562,82 @@ function EnterHearingDateDialog({
             disabled={mutation.isPending || !stepInstanceId}
           >
             {mutation.isPending ? 'Saving…' : 'Save Hearing Date'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── RemoveFromAgendaDialog ───────────────────────────────────────────────────
+
+interface RemoveFromAgendaDialogProps {
+  open: boolean;
+  onClose: () => void;
+  documentId: string;
+  documentTitle: string;
+  sessionDate: Date | string;
+  onSuccess: () => void;
+}
+
+function RemoveFromAgendaDialog({
+  open,
+  onClose,
+  documentId,
+  documentTitle,
+  sessionDate,
+  onSuccess,
+}: RemoveFromAgendaDialogProps) {
+  const mutation = trpc.session.removeFromOrderOfBusiness.useMutation({
+    onSuccess() {
+      toast.success('Item removed from the agenda.');
+      onClose();
+      onSuccess();
+    },
+    onError(err) {
+      toast.error(`Failed to remove item: ${err.message}`);
+    },
+  });
+
+  function handleConfirm() {
+    mutation.mutate({
+      documentId,
+      sessionDate: new Date(sessionDate),
+    });
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MinusCircle className="text-danger-500 h-4 w-4" />
+            Remove from Agenda
+          </DialogTitle>
+        </DialogHeader>
+
+        <p className="text-text-secondary text-sm">
+          Remove <span className="text-text-primary font-medium">{documentTitle}</span> from
+          this session&apos;s Order of Business? This only removes the agenda entry — it does
+          not change the document&apos;s current workflow step.
+        </p>
+
+        <DialogFooter className="gap-2">
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={mutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleConfirm}
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? 'Removing…' : 'Remove'}
           </Button>
         </DialogFooter>
       </DialogContent>
