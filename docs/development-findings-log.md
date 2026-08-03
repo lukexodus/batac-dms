@@ -5920,7 +5920,7 @@ policy is adopted for any schema.
 ---
 
 
-### [LOG-0026] db.execute() outside tx block fails to persist GUCs for subsequent db.update() under proxy
+### [LOG-0197] db.execute() outside tx block fails to persist GUCs for subsequent db.update() under proxy
 
 - date: 2026-08-03
 - task_id: TASK-IAM-014 (or related session debug)
@@ -5934,10 +5934,112 @@ In the Fastify Drizzle setup, although the `db` proxy uses `AsyncLocalStorage` t
 
 [Tested]: Resolved by wrapping the post-session-creation JWT updates (`last_activity_at` and `session_token_hash`) inside an explicit `await db.transaction(async (tx) => { ... })` block in `iam.service.ts` (Step 9). By executing `tx.execute(sql`SELECT set_config(...)`)` followed by `tx.update(...)` within the exact same explicit transaction object, the connection context is strictly preserved and the update succeeds under the `sessions_update` RLS policy.
 
-### [LOG-0027] Hook 1 Auth Middleware RLS Rejections Bypass
+### [LOG-0198] Hook 1 Auth Middleware RLS Rejections Bypass
 - **Date:** 2026-08-03
 - **Author:** AI Agent
 - **Status:** proposed
 - **Modules/Tags:** iam, auth, rls, middleware, I1, I2, E1, LOG-0026
 - **Finding:** Following up on LOG-0026, the \`iam.sessions\` table's RLS policy (\`sessions_own_or_admin\`) caused widespread 401 Unauthorized errors on authenticated requests. This occurred because Hook 1 (\`verifyAccessToken\`) in \`iam.middleware.ts\` attempts to query the \`iam.sessions\` table to validate the JWT BEFORE Hook 3 (\`setDatabaseSessionVars\`) has a chance to set the PostgreSQL \`app.current_user_id\` GUC for the transaction. Because the GUC is unset during Hook 1, RLS immediately filters out all rows, leading to a false 401.
 - **Resolution:** Introduced \`SECURITY DEFINER\` functions in \`0015_iam_hook1_rls_bypass.sql\` (\`iam.fn_get_session_by_id\`, \`iam.fn_terminate_session\`, \`iam.fn_revoke_refresh_tokens_by_session_id\`) to bypass RLS for Hook 1's specific internal operations. \`iam.repository.ts\` methods were updated to use \`db.execute()\` to call these functions instead of using Drizzle's query builder. Additionally, session state updates performed outside of Hook 3's context (e.g. \`updateLastActivity\` in Hook 4 and \`sessionTokenHash\` rotation in \`refresh\` / \`unlockSession\`) were fixed to either use a new \`SECURITY DEFINER\` function (\`iam.fn_update_last_activity\`) or explicitly wrap their updates in a \`db.transaction\` setting the \`app.current_user_id\` via \`SELECT set_config(...)\`.
+
+---
+
+### [LOG-0199] OTel ESM loader hook uses --import instead of --experimental-loader=
+
+**Status:** proposed
+**Module:** INFRA
+**Files:** apps/server/package.json:7, apps/server/entrypoint.sh:21
+
+Both the dev script and production entrypoint install the OpenTelemetry
+ESM auto-instrumentation loader hook via `--import @opentelemetry/instrumentation/hook.mjs`.
+OpenTelemetry's own official ESM support documentation requires
+`--experimental-loader=@opentelemetry/instrumentation/hook.mjs` for this
+purpose specifically, for every supported Node version — `--import` is
+only documented as valid for preloading the instrumentation bootstrap
+file itself (a separate flag). Since this project has zero manual span
+instrumentation anywhere, auto-instrumentation not actually patching
+Fastify/Http/Pg would mean zero traces generated for anything, matching
+the reported symptom (missing traces for multiple events including
+login). See TASK-INFRA-024 for the fix and its mandatory live-diagnosis
+first step. [Inference — not yet confirmed via live reproduction as of
+this entry; TASK-INFRA-024's own first step is designed to close that
+gap before the fix is applied.]
+
+### [LOG-0200] apps/server/entrypoint.sh production exec path may not match real tsc output
+
+**Status:** proposed
+**Module:** INFRA
+**Files:** apps/server/entrypoint.sh:21, apps/server/tsconfig.json
+
+The production startup line's compiled-output path
+(dist/apps/server/src/instrumentation.js, dist/apps/server/src/index.js)
+is nested, inconsistent with every other path in the same file (flat:
+dist/migrate.js, dist/seed.js) and with apps/server/tsconfig.json's lack
+of an explicit rootDir (which should produce a flat output given
+include: ["src/**/*"]). Not confirmed against a real build — see
+TASK-INFRA-024 Step B, which requires running the actual build and
+correcting the path to match real output before considering this closed.
+
+### [LOG-0201] RUM session identity hardcoded to placeholder for every user
+
+**Status:** proposed
+**Module:** FE / OBS
+**Files:** apps/web/src/main.tsx:106-110
+
+`rum.setUser({ id: "1", name: "Captain Hook", email: "captainhook@example.com" })`
+runs unconditionally at module load, tagging every real user's RUM
+session data with this same fake identity in OpenObserve. Needs a design
+decision on where real identity should be wired in (see chat discussion)
+— not folded into TASK-INFRA-024 since it's a different kind of problem
+(a correctness/design gap, not a mechanical config-flag fix) and isn't
+the cause of the reported missing-traces symptom.
+
+### [LOG-0202] documents.documents RLS: INSERT policy missing entirely, blocking all document creation
+
+- date: 2026-08-03
+- task_id: none
+- status: proposed
+- affects: C1 (Part 12)
+- resolved_in: packages/database/migrations/0017_documents_fix_insert_policy.sql
+- supersedes: none
+
+`documents.documents` has RLS enabled (migration 0004, line 435) and grants
+`batac_app` `SELECT, INSERT, UPDATE` (line 419), but only three policies
+exist and none is `FOR INSERT`/`FOR ALL` for `batac_app`:
+`documents_office_isolation` (SELECT), `documents_it_admin_no_confidential`
+(SELECT, batac_it_admin), and `documents_it_admin_metadata_only_update`
+(UPDATE, batac_it_admin). Migration 0016 only modifies the SELECT policy.
+Confirmed via a live server error: `PostgresError: new row violates
+row-level security policy for table "documents"` (SQLSTATE 42501), at
+documents.repository.ts:106 (insertDocument), called from
+documents.router.ts:427 (the `create` mutation). No application-layer
+change is needed — the ABAC check (guard.canCreate) already runs and
+passes before this line.
+
+This is the same bug class as LOG-0194 (missing INSERT policy on
+iam.sessions), which LOG-0195 explicitly flagged documents.documents as
+an unchecked candidate for. This entry confirms the prediction and closes
+that thread for this table specifically.
+
+Fixed following the precedent established in migration 0014
+(`sessions_insert ON iam.sessions ... WITH CHECK (true)`): a permissive
+`WITH CHECK (true)` INSERT policy for `batac_app`, since document-creation
+authorization is already enforced at the application layer
+(guard.canCreate, an ABAC check) before the insert is reached — RLS's
+role for this table is office-scoped read isolation, not write-time
+filtering. See migration 0017.
+
+[Tested]: Migration 0017 applied cleanly against the dev database via `pnpm --filter @batac/database db:migrate` (PgBoss schema & post-migrate grants applied), and database seeding succeeded cleanly via `pnpm db:seed`. A human reviewer should confirm document creation succeeds end-to-end before marking this `confirmed`.
+
+### [LOG-0203] SP Member cross-office insert RETURNING clause blocked by RLS
+
+- date: 2026-08-03
+- task_id: none
+- status: proposed
+- affects: C1 (Part 12)
+- resolved_in: packages/database/migrations/0018_documents_author_read_policy.sql
+- supersedes: none
+
+Even after `documents_insert` was added, an SP Member creating an SP Resolution (owned by the SP Secretariat office) still hit `PostgresError: new row violates row-level security policy`. The `INSERT` itself succeeded, but Drizzle's `RETURNING` clause failed because the only `SELECT` policy (`documents_office_isolation`) requires `owned_by_office_id = app.current_office_id`, which fails when an SP member creates a document owned by `SPS`. SP members also do not have `app.bypass_office_isolation` set in `iam.middleware.ts`.
+
+Fixed by adding a `documents_author_read` policy granting `SELECT` to `batac_app` where `created_by = (NULLIF(current_setting('app.current_user_id', true), ''))::uuid`. (Using `NULLIF` is critical because Postgres evaluates missing settings as empty strings `""`, which causes an `invalid input syntax for type uuid: ""` error if not handled). This aligns with `canUpdate` ABAC rules allowing authors to update their drafts, and it guarantees that any row successfully inserted can be read back by its creator during the `RETURNING` phase without breaking coarse-grained office isolation for others.
