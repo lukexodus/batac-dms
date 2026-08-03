@@ -144,6 +144,8 @@ services:
       # Default credentials for local dev
       ZO_ROOT_USER_EMAIL: admin@batac.gov.ph
       ZO_ROOT_USER_PASSWORD: ComplexPassword123!
+      # Allow frontend to send telemetry directly to OpenObserve in local dev
+      ZO_CORS_ALLOWED_ORIGINS: '*'
     volumes:
       - openobserve_data:/data
     healthcheck:
