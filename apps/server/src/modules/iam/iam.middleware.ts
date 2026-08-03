@@ -343,6 +343,12 @@ async function setDatabaseSessionVars(
       ? 'SECURITY_ADMIN'
       : 'STANDARD';
 
+  const bypassOfficeIsolation =
+    auth.roles.includes('sp_secretary') ||
+    auth.roles.includes('sp_presiding_officer') ||
+    auth.roles.includes('records_officer') ||
+    auth.roles.includes('auditor');
+
   // Promise bridge (split-wait): two promises coordinate the transaction lifecycle.
   //
   // `txOpen` — resolves when the `onResponse` hook fires, causing the
@@ -377,10 +383,14 @@ async function setDatabaseSessionVars(
       // Passing null as value sets the GUC to SQL NULL — not the string 'null'.
       await tx.execute(sql`
       SELECT
-        set_config('app.current_user_id',   ${auth.userId},   true),
-        set_config('app.current_office_id', ${auth.officeId}, true),
-        set_config('app.city_id',           ${auth.cityId},   true),
+        set_config('app.current_user_id',   NULLIF(${auth.userId}::text, ''),   true),
+        set_config('app.current_office_id', NULLIF(${auth.officeId}::text, ''), true),
+        set_config('app.current_city_id',   NULLIF(${auth.cityId}::text, ''),   true),
+        set_config('app.effective_office_ids', NULLIF(${auth.effectiveOfficeIds.join(',')}::text, ''), true),
+        set_config('app.user_roles',        NULLIF(${auth.roles.join(',')}::text, ''), true),
+        set_config('app.delegation_grant_id', NULL, true),
         set_config('app.current_role_tier', ${roleTier},      true),
+        set_config('app.bypass_office_isolation', ${String(bypassOfficeIsolation)}, true),
         set_config('app.is_ita',            ${String(auth.isItAdmin)},      true),
         set_config('app.is_pa',             ${String(auth.isPlatformAdmin)}, true)
     `);
