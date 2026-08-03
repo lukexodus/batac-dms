@@ -32,11 +32,28 @@ import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
 import { EventBus } from '@batac/shared';
 import { DeadLetterRepository } from './dead-letter.repository.js';
+import { rlsStore } from './database.plugin.js';
 
 async function eventBusPlugin(fastify: FastifyInstance): Promise<void> {
   const deadLetterRepo = new DeadLetterRepository(fastify.db);
   // fastify.log is typed as FastifyBaseLogger, which matches IEventBusLogger structurally.
   const eventBus = new EventBus(fastify.log, deadLetterRepo);
+
+  // Fire-and-forget consumers run asynchronously AFTER the emitting request's
+  // transaction has committed, but their async continuations inherit the
+  // emitting request's rlsStore ALS scope — so any consumer touching
+  // `fastify.db` (or a service bound to it) resolves against the already
+  // committed request transaction and fails (LOG-0207, LOG-0210). Dispatch
+  // every registered handler OUTSIDE that scope: the fastify.db proxy then
+  // falls back to its base connection, which is correct for the non-RLS tables
+  // consumers read, while consumers that need RLS-protected documents access
+  // use their own dedicated connection with constant system GUCs.
+  type Emit = typeof eventBus.emit;
+  const originalEmit = eventBus.emit.bind(eventBus) as Emit;
+  const wrappedEmit: Emit = (eventType, envelope) => {
+    rlsStore.exit(() => originalEmit(eventType, envelope));
+  };
+  eventBus.emit = wrappedEmit;
 
   fastify.decorate('eventBus', eventBus);
 }

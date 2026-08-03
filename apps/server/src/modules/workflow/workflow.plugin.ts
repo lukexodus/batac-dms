@@ -55,10 +55,25 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
     iamService: fastify.iamService,
   };
 
+  // Fire-and-forget consumers must NOT capture fastify.db: the EventBus runs
+  // handlers inside the emitter's RLS-scoped transaction, so a nested
+  // transaction on the same connection is silently lost (LOG-0207/LOG-0210 --
+  // this is why workflow.instances never received a row from document.created).
+  // Use the dedicated event connection + RLS-primed DocumentsService that the
+  // documents module owns (fastify.documentsEventDb / .documentsEventService).
+  const eventDb = fastify.documentsEventDb;
+  const eventWorkflowRepository = new WorkflowRepository(eventDb.db);
+  const consumerDeps = {
+    ...stepDeps,
+    db: eventDb.db,
+    workflowRepository: eventWorkflowRepository,
+    documentsService: fastify.documentsEventService,
+  };
+
   fastify.eventBus.on(
     'document.certification_urgency.logged',
     (event) => {
-      processCertificationUrgencyEvent(event.payload, stepDeps).catch((err) => {
+      processCertificationUrgencyEvent(event.payload, consumerDeps).catch((err) => {
         fastify.log.error(
           { err, eventId: event.eventId },
           'workflow: document.certification_urgency.logged handler failed',
@@ -90,9 +105,9 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
           activeDef.definition.id,
           event.payload.actorId,
           {
-            db,
-            workflowRepository,
-            documentsService: fastify.documentsService,
+            db: eventDb.db,
+            workflowRepository: eventWorkflowRepository,
+            documentsService: fastify.documentsEventService,
             orgService: fastify.organizationService,
             delegationService: fastify.delegationService,
             iamService: fastify.iamService,

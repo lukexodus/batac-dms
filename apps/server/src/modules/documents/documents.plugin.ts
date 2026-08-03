@@ -13,6 +13,11 @@ import { OcrService, StubOcrProvider } from './ocr.service.js';
 import { StubPreviewProvider } from './preview.provider.js';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { env } from '../../config/env.js';
+import {
+  createEventConsumerDb,
+  type EventConsumerDb,
+} from '../../infrastructure/event-consumer-db.js';
+import type { DocumentsPublicAPI } from './documents.types.js';
 
 /**
  * [Inference — TASK-DOCS-011] `documentsRepository` and `documentsPolicyGuard`
@@ -39,6 +44,15 @@ declare module 'fastify' {
     designationHandler: DesignationHandler;
     ocrService: OcrService;
     workflowService: WorkflowPublicAPI;
+    /**
+     * Dedicated connection + RLS-primed DocumentsService for fire-and-forget
+     * event consumers (LOG-0207/LOG-0210). Consumer handlers must never
+     * capture `fastify.db`: they run inside the emitter's ALS/RLS transaction
+     * and nested transactions on the same connection are lost. See
+     * apps/server/src/infrastructure/event-consumer-db.ts.
+     */
+    documentsEventDb: EventConsumerDb;
+    documentsEventService: DocumentsPublicAPI;
   }
 }
 
@@ -117,6 +131,33 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
   fastify.decorate('designationHandler', designationHandler);
   fastify.decorate('ocrService', ocrService);
 
+  // Dedicated connection for fire-and-forget event consumers (LOG-0207/LOG-0210).
+  // The consumer service must use its own connection: the EventBus runs handlers
+  // inside the emitter's RLS-scoped transaction, so a consumer writing via
+  // `fastify.db` hits a nested-transaction loss (the workflow consumer lost every
+  // instance because of this). The event connection is primed with a constant
+  // system RLS context at creation (see createEventConsumerDb).
+  const eventConsumerDb = await createEventConsumerDb();
+  const eventRepository = new DocumentsRepository(eventConsumerDb.db);
+  const eventNumberingService = new NumberingService({
+    db: eventConsumerDb.db,
+    logger: fastify.log as any,
+  });
+  const eventService = createDocumentsService({
+    db: eventConsumerDb.db,
+    documentsRepository: eventRepository,
+    numberingService: eventNumberingService,
+    s3Client,
+    env,
+    eventBus: fastify.eventBus,
+    auditService: (fastify as any).auditService,
+  });
+  fastify.decorate('documentsEventDb', eventConsumerDb);
+  fastify.decorate('documentsEventService', eventService);
+  fastify.addHook('onClose', async () => {
+    await eventConsumerDb.close();
+  });
+
   if ((fastify as any).boss) {
     const SYSTEM_ACTOR_ID = '00000000-0000-4000-8000-000000000000';
     const boss = (fastify as any).boss; // pg-boss instance
@@ -183,7 +224,7 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
         if (!stepKey || !SP_RESOLUTION_FINAL_NUMBERING_STEP_KEYS.has(stepKey)) return;
 
         try {
-          await service.assignFinalNumber(event.payload.documentId, event.payload.actorId);
+          await eventService.assignFinalNumber(event.payload.documentId, event.payload.actorId);
         } catch (err) {
           if (err instanceof FinalNumberAlreadyAssignedError) {
             // Idempotent no-op, not a failure: this document already has a
