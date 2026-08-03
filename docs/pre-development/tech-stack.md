@@ -62,7 +62,7 @@
 | Search                  | Meilisearch (Phase 2+)                                                                                       | Typo tolerance required for Filipino proper names; PostgreSQL FTS acceptable in Phase 1                                       |
 | Real-time notifications | Server-Sent Events (SSE)                                                                                     | One-directional push; no WebSocket infrastructure needed                                                                      |
 | File storage            | S3-compatible (streamed) — Cloudflare R2 (Phase 1); MinIO (on-premise path)                                  | Files never touch disk; app stays stateless; migration = endpoint URL change only; no provider-specific SDK imports permitted |
-| OCR                     | **Open decision** — `tesseract.js` (preferred) or self-hosted cloud OCR alternative — see OCR Strategy below | Must be self-hostable; no cloud-vendor dependency; on-premise constraint applies; required Phase 1                            |
+| OCR                     | `tesseract.js` (human decision)                                                                              | Must be self-hostable; no cloud-vendor dependency; on-premise constraint applies; required Phase 1                            |
 | Audit log crypto        | Node built-in `crypto` (SHA-256 hash chain + HMAC per entry)                                                 | No external library; runs server-side only; see Audit Log Integrity below                                                     |
 | Logging                 | Pino (built into Fastify) + OpenTelemetry → OpenObserve (self-hosted, OSS)   | Structured JSON; natively ingested via OTLP; full trace correlation                                                           |
 | Error tracking          | **Open decision** — OpenObserve RUM (active choice) or Sentry (future)       | OpenObserve unified with logs/traces; Sentry remains an option if specific issue-grouping UX is later needed                  |
@@ -164,14 +164,11 @@ Design the search interface as an abstraction layer in the application from day 
 
 OCR is a confirmed Phase 1 requirement. All uploaded documents are scanned automatically on upload and a scan quality indicator is always shown to the user so they can decide whether to re-scan before the document is formally logged.
 
-**Open technical decision:** The specific OCR library has not been confirmed. Evaluate in this order:
-
-1. **`tesseract.js`** — Pure Node.js; no native system dependencies; self-hostable; no cloud vendor required. Preferred given the on-premise deployment constraint. Primary concern: accuracy on scanned Filipino government documents, which may have variable scan quality and mixed-language text (Filipino/English/Ilocano).
-2. **Self-hosted cloud OCR alternative** — Only if `tesseract.js` accuracy is found to be insufficient after testing against real SP Secretariat document samples. Must still be self-hostable with no external API calls. Cloud OCR services that send data off-premise are excluded — RA 10173 (Data Privacy Act) compliance and LGU data sovereignty requirements prohibit sending citizen document content to external vendors.
-
-**Decision trigger:** Test `tesseract.js` against a representative sample of scanned SP Secretariat documents (letters, memos, resolutions) before the first OCR-dependent feature is implemented. If accuracy meets the threshold required for reliable full-text search indexing, the decision is closed. If not, evaluate alternatives under the self-hostable constraint.
-
-**Architectural requirement regardless of library chosen:** The OCR processing call must be wrapped behind a service interface in `/server` so the underlying library is swappable without touching call sites. Do not call the OCR library directly from upload handlers.
+**Decision closed:** The OCR library has been confirmed by human decision (August 2026).
+ 
+ 1. **`tesseract.js`** — Pure Node.js; no native system dependencies; self-hostable; no cloud vendor required. Selected given the on-premise deployment constraint.
+ 
+ **Architectural requirement regardless of library chosen:** The OCR processing call must be wrapped behind a service interface in `/server` so the underlying library is swappable without touching call sites. Do not call the OCR library directly from upload handlers.
 
 **Phase 4 note:** Basic OCR with quality indicator is Phase 1. Advanced OCR capabilities (bulk historical processing, quality improvement workflows for legacy scanned content) are Phase 4.
 

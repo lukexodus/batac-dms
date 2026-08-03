@@ -10,6 +10,7 @@ import { DocumentPolicyGuard } from './documents.policy.js';
 import { NumberingService } from './numbering.service.js';
 import { DesignationHandler } from './designation.handler.js';
 import { OcrService, StubOcrProvider } from './ocr.service.js';
+import { TesseractOcrProvider } from './tesseract-ocr.provider.js';
 import { StubPreviewProvider } from './preview.provider.js';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { env } from '../../config/env.js';
@@ -116,7 +117,7 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
 
   const ocrService = new OcrService(
     (fastify as any).boss,
-    new StubOcrProvider(),
+    new TesseractOcrProvider(s3Client, env.S3_BUCKET || 'batac-dms-assets'),
     new StubPreviewProvider(),
     ocrS3Client,
     env.S3_BUCKET || 'batac-dms-assets',

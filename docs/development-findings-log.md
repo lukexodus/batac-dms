@@ -6410,3 +6410,11 @@ committee_referral step → measure context `certified_urgent=true`,
 create-instance.test.ts extended (CI-06 asserts `setWorkflowInstance` called
 with instance id + trx); workflow+documents suite back to its 146-failure
 baseline with no new failures.
+
+### LOG-0248: OCR Engine Selection
+
+- **date:** 2026-08-04
+- **author:** AI Agent
+- **status:** proposed
+- **affects:** tech-stack.md
+- **note:** [Confirmed] Per explicit human instruction, `tesseract.js` has been selected as the OCR engine, closing the open technical decision in `tech-stack.md`. The `TesseractOcrProvider` has been implemented and replaces `StubOcrProvider`.
