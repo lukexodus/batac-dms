@@ -24,6 +24,22 @@
  * [SPEC GAP — DOCS-023-03].
  */
 
+import {
+  AlertTriangle,
+  Archive,
+  BadgeCheck,
+  Ban,
+  EyeOff,
+  FileText,
+  Files,
+  Globe,
+  Hash,
+  History,
+  Printer,
+  Route,
+  Send,
+  Trash2,
+} from 'lucide-react';
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -638,262 +654,370 @@ export default function DocumentDetailPage() {
         )}
       </Card>
 
-      {/* ── Action buttons ── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {/* Submit */}
-            {canSubmit(identity, lifecycleState) && (
-              <Button
-                size="sm"
-                onClick={() => submitMutation.mutate({ documentId })}
-                disabled={submitMutation.isPending}
-              >
-                Submit
-              </Button>
-            )}
+      {/* ── Actions & Tracking panels (2-column layout on large screens when tracking exists) ── */}
+      <div className={trackingRecord ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 items-start' : ''}>
+        {/* ── Action buttons ── */}
+        {(() => {
+          const showSubmit = canSubmit(identity, lifecycleState);
+          const showAssignPrelim = canAssignPreliminaryNumber(
+            identity,
+            lifecycleState,
+            document.preliminaryNumber ?? null,
+          );
+          const showAssignFinal = canAssignFinalNumber(
+            identity,
+            document.preliminaryNumber ?? null,
+            document.finalNumber ?? null,
+            document.documentType?.code ?? '',
+          );
+          const showArchive = canArchive(identity, lifecycleState);
+          const showPublish = canPublishToPortal(identity, lifecycleState);
+          const showCertUrgency = canLogCertificationOfUrgency(identity);
+          const showCancel = canCancel(identity, lifecycleState, document.workflowInstanceId);
+          const showDelete = canDelete(identity, lifecycleState, document.workflowInstanceId);
+          const showPrintQr = canPrintQrCoverSheet(identity);
+          const showLogRouting = canLogRoutingEntry(identity);
 
-            {/* Assign Preliminary Number */}
-            {canAssignPreliminaryNumber(
-              identity,
-              lifecycleState,
-              document.preliminaryNumber ?? null,
-            ) && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => assignPreliminaryMutation.mutate({ documentId })}
-                disabled={assignPreliminaryMutation.isPending}
-              >
-                Assign Preliminary Number
-              </Button>
-            )}
+          const hasWorkflowGroup = showSubmit || showCertUrgency;
+          const hasNumberingGroup = showAssignPrelim || showAssignFinal;
+          const hasTrackingGroup = showPrintQr || showLogRouting;
+          const hasPortalGroup = showPublish || showArchive;
+          const hasDangerGroup = showCancel || showDelete;
 
-            {/* Assign Final Number */}
-            {canAssignFinalNumber(
-              identity,
-              document.preliminaryNumber ?? null,
-              document.finalNumber ?? null,
-              document.documentType?.code ?? '',
-            ) && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => assignFinalMutation.mutate({ documentId })}
-                disabled={assignFinalMutation.isPending}
-              >
-                Finalize Number
-              </Button>
-            )}
+          const hasAnyActions =
+            hasWorkflowGroup ||
+            hasNumberingGroup ||
+            hasTrackingGroup ||
+            hasPortalGroup ||
+            hasDangerGroup;
 
-            {/* Archive */}
-            {canArchive(identity, lifecycleState) && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => archiveMutation.mutate({ documentId })}
-                disabled={archiveMutation.isPending}
-              >
-                Archive
-              </Button>
-            )}
+          return (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!hasAnyActions && (
+                  <p className="text-xs text-text-muted italic">
+                    No actions available for this document state and user role.
+                  </p>
+                )}
 
-            {/* Publish / Unpublish Portal */}
-            {canPublishToPortal(identity, lifecycleState) && (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => publishMutation.mutate({ documentId })}
-                  disabled={publishMutation.isPending}
-                >
-                  Publish to Portal
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => unpublishMutation.mutate({ documentId })}
-                  disabled={unpublishMutation.isPending}
-                >
-                  Unpublish from Portal
-                </Button>
-              </>
-            )}
+                {/* Group 1: Workflow & Lifecycle */}
+                {hasWorkflowGroup && (
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+                      Workflow &amp; Lifecycle
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {showSubmit && (
+                        <Button
+                          size="sm"
+                          onClick={() => submitMutation.mutate({ documentId })}
+                          disabled={submitMutation.isPending}
+                        >
+                          <Send />
+                          Submit
+                        </Button>
+                      )}
+                      {showCertUrgency && (
+                        <Button size="sm" variant="outline" disabled>
+                          <AlertTriangle />
+                          Log Certification of Urgency
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-            {/* Certification of Urgency — sp_secretary only */}
-            {canLogCertificationOfUrgency(identity) && (
-              <Button size="sm" variant="outline" disabled>
-                Log Certification of Urgency
-              </Button>
-            )}
+                {/* Group 2: Document Numbering */}
+                {hasNumberingGroup && (
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+                      Document Numbering
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {showAssignPrelim && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => assignPreliminaryMutation.mutate({ documentId })}
+                          disabled={assignPreliminaryMutation.isPending}
+                        >
+                          <Hash />
+                          Assign Preliminary Number
+                        </Button>
+                      )}
+                      {showAssignFinal && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => assignFinalMutation.mutate({ documentId })}
+                          disabled={assignFinalMutation.isPending}
+                        >
+                          <BadgeCheck />
+                          Finalize Number
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-            {/* Cancel */}
-            {canCancel(identity, lifecycleState, document.workflowInstanceId) && (
-              <Button size="sm" variant="destructive" onClick={() => setShowCancelDialog(true)}>
-                Cancel
-              </Button>
-            )}
+                {/* Group 3: Tracking & Routing */}
+                {hasTrackingGroup && (
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+                      Tracking &amp; Routing
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {showPrintQr && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!trackingRecord}
+                          onClick={async () => {
+                            try {
+                              const result = await utils.tracking.printQrCoverSheet.fetch({
+                                documentIds: [documentId],
+                                layout: 'single',
+                              });
+                              window.open(result.pdfPresignedUrl, '_blank');
+                            } catch (e) {
+                              toast.error(
+                                e instanceof Error
+                                  ? e.message
+                                  : 'Failed to print QR cover sheet',
+                              );
+                            }
+                          }}
+                        >
+                          <Printer />
+                          Print QR Cover Sheet
+                        </Button>
+                      )}
+                      {showLogRouting && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowRoutingDialog(true)}
+                        >
+                          <Route />
+                          Log Routing Entry
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-            {/* Delete */}
-            {canDelete(identity, lifecycleState, document.workflowInstanceId) && (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => {
-                  if (confirm('Permanently delete this document? This cannot be undone.')) {
-                    deleteMutation.mutate({ documentId });
-                  }
-                }}
-                disabled={deleteMutation.isPending}
-              >
-                Delete
-              </Button>
-            )}
+                {/* Group 4: Portal & Archiving */}
+                {hasPortalGroup && (
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+                      Portal &amp; Archiving
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {showPublish && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => publishMutation.mutate({ documentId })}
+                            disabled={publishMutation.isPending}
+                          >
+                            <Globe />
+                            Publish to Portal
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => unpublishMutation.mutate({ documentId })}
+                            disabled={unpublishMutation.isPending}
+                          >
+                            <EyeOff />
+                            Unpublish from Portal
+                          </Button>
+                        </>
+                      )}
+                      {showArchive && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => archiveMutation.mutate({ documentId })}
+                          disabled={archiveMutation.isPending}
+                        >
+                          <Archive />
+                          Archive
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-            {/* Print QR Cover Sheet — sp_secretary only */}
-            {canPrintQrCoverSheet(identity) && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!trackingRecord}
-                onClick={async () => {
-                  // printQrCoverSheet is typed as a query but issues a side-effecting
-                  // presigned URL request — call via trpc utility client directly.
-                  try {
-                    const result = await utils.tracking.printQrCoverSheet.fetch({
-                      documentIds: [documentId],
-                      layout: 'single',
-                    });
-                    window.open(result.pdfPresignedUrl, '_blank');
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : 'Failed to print QR cover sheet');
-                  }
-                }}
-              >
-                Print QR Cover Sheet
-              </Button>
-            )}
+                {/* Group 5: Destructive Actions */}
+                {hasDangerGroup && (
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-danger-600">
+                      Danger Zone
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {showCancel && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setShowCancelDialog(true)}
+                        >
+                          <Ban />
+                          Cancel
+                        </Button>
+                      )}
+                      {showDelete && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            if (
+                              confirm(
+                                'Permanently delete this document? This cannot be undone.',
+                              )
+                            ) {
+                              deleteMutation.mutate({ documentId });
+                            }
+                          }}
+                          disabled={deleteMutation.isPending}
+                        >
+                          <Trash2 />
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-            {/* Log Routing Entry — sp_secretary only */}
-            {canLogRoutingEntry(identity) && (
-              <Button size="sm" variant="outline" onClick={() => setShowRoutingDialog(true)}>
-                Log Routing Entry
-              </Button>
-            )}
-          </div>
+                {/* Cancel dialog (inline) */}
+                {showCancelDialog && (
+                  <div className="bg-danger-50 mt-4 space-y-3 rounded-md border p-4">
+                    <p className="text-danger-700 text-sm font-medium">
+                      Provide a cancellation reason (required):
+                    </p>
+                    <Textarea
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      placeholder="Reason for cancellation"
+                      className="min-h-[80px]"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() =>
+                          cancelReason.trim() &&
+                          cancelMutation.mutate({ documentId, reason: cancelReason.trim() })
+                        }
+                        disabled={!cancelReason.trim() || cancelMutation.isPending}
+                      >
+                        Confirm Cancellation
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setShowCancelDialog(false);
+                          setCancelReason('');
+                        }}
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-          {/* Cancel dialog (inline) */}
-          {showCancelDialog && (
-            <div className="bg-danger-50 mt-4 space-y-3 rounded-md border p-4">
-              <p className="text-danger-700 text-sm font-medium">
-                Provide a cancellation reason (required):
-              </p>
-              <Textarea
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Reason for cancellation"
-                className="min-h-[80px]"
-              />
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() =>
-                    cancelReason.trim() &&
-                    cancelMutation.mutate({ documentId, reason: cancelReason.trim() })
-                  }
-                  disabled={!cancelReason.trim() || cancelMutation.isPending}
-                >
-                  Confirm Cancellation
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setShowCancelDialog(false);
-                    setCancelReason('');
-                  }}
-                >
-                  Dismiss
-                </Button>
+                {/* Routing entry dialog (inline) */}
+                {showRoutingDialog && (
+                  <div className="bg-info-50 mt-4 space-y-3 rounded-md border p-4">
+                    <p className="text-info-700 text-sm font-medium">Log a routing entry:</p>
+                    <Input
+                      value={routingActionDesc}
+                      onChange={(e) => setRoutingActionDesc(e.target.value)}
+                      placeholder="Action description (e.g. Transmitted to SP Office)"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (!routingActionDesc.trim()) return;
+                          logRoutingEntryMutation.mutate({
+                            documentId,
+                            toOfficeId: null,
+                            actionDescription: routingActionDesc.trim(),
+                          });
+                          setShowRoutingDialog(false);
+                          setRoutingActionDesc('');
+                        }}
+                        disabled={!routingActionDesc.trim() || logRoutingEntryMutation.isPending}
+                      >
+                        Save Entry
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowRoutingDialog(false)}
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        {/* ── QR Code + tracking info ── */}
+        {trackingRecord && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Tracking</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6 sm:flex-row">
+              <div className="w-40 shrink-0">
+                <QRCodeDisplay
+                  trackingId={trackingRecord.qrCodeS3Key ?? trackingRecord.trackingId}
+                  documentNumber={displayNumber ?? trackingRecord.trackingNumber}
+                  title={document.title}
+                />
               </div>
-            </div>
-          )}
-
-          {/* Routing entry dialog (inline) */}
-          {showRoutingDialog && (
-            <div className="bg-info-50 mt-4 space-y-3 rounded-md border p-4">
-              <p className="text-info-700 text-sm font-medium">Log a routing entry:</p>
-              <Input
-                value={routingActionDesc}
-                onChange={(e) => setRoutingActionDesc(e.target.value)}
-                placeholder="Action description (e.g. Transmitted to SP Office)"
-              />
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    if (!routingActionDesc.trim()) return;
-                    logRoutingEntryMutation.mutate({
-                      documentId,
-                      toOfficeId: null,
-                      actionDescription: routingActionDesc.trim(),
-                    });
-                    setShowRoutingDialog(false);
-                    setRoutingActionDesc('');
-                  }}
-                  disabled={!routingActionDesc.trim() || logRoutingEntryMutation.isPending}
-                >
-                  Save Entry
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowRoutingDialog(false)}>
-                  Dismiss
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── QR Code + tracking info ── */}
-      {trackingRecord && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Tracking</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6 md:flex-row">
-            <div className="w-40 shrink-0">
-              <QRCodeDisplay
-                trackingId={trackingRecord.qrCodeS3Key ?? trackingRecord.trackingId}
-                documentNumber={displayNumber ?? trackingRecord.trackingNumber}
-                title={document.title}
-              />
-            </div>
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="text-text-muted font-medium">Tracking Number:</span>{' '}
-                <span className="font-mono">{trackingRecord.trackingNumber}</span>
-              </div>
-              {trackingRecord.physicalLocation && (
+              <div className="space-y-2 text-sm">
                 <div>
-                  <span className="text-text-muted font-medium">Physical Location:</span>{' '}
-                  {trackingRecord.physicalLocation}
+                  <span className="text-text-muted font-medium">Tracking Number:</span>{' '}
+                  <span className="font-mono">{trackingRecord.trackingNumber}</span>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                {trackingRecord.physicalLocation && (
+                  <div>
+                    <span className="text-text-muted font-medium">Physical Location:</span>{' '}
+                    {trackingRecord.physicalLocation}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* ── Tabs: Detail / Files & OCR / Routing History ── */}
       <Tabs defaultValue="details">
         <TabsList>
-          <TabsTrigger value="details">Document Details</TabsTrigger>
-          <TabsTrigger value="files">Files & OCR</TabsTrigger>
-          <TabsTrigger value="history">Routing History</TabsTrigger>
+          <TabsTrigger value="details" className="gap-2">
+            <FileText className="h-4 w-4" />
+            Document Details
+          </TabsTrigger>
+          <TabsTrigger value="files" className="gap-2">
+            <Files className="h-4 w-4" />
+            Files &amp; OCR
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-2">
+            <History className="h-4 w-4" />
+            Routing History
+          </TabsTrigger>
         </TabsList>
 
         {/* Details tab */}
