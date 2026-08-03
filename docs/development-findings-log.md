@@ -6043,3 +6043,370 @@ filtering. See migration 0017.
 Even after `documents_insert` was added, an SP Member creating an SP Resolution (owned by the SP Secretariat office) still hit `PostgresError: new row violates row-level security policy`. The `INSERT` itself succeeded, but Drizzle's `RETURNING` clause failed because the only `SELECT` policy (`documents_office_isolation`) requires `owned_by_office_id = app.current_office_id`, which fails when an SP member creates a document owned by `SPS`. SP members also do not have `app.bypass_office_isolation` set in `iam.middleware.ts`.
 
 Fixed by adding a `documents_author_read` policy granting `SELECT` to `batac_app` where `created_by = (NULLIF(current_setting('app.current_user_id', true), ''))::uuid`. (Using `NULLIF` is critical because Postgres evaluates missing settings as empty strings `""`, which causes an `invalid input syntax for type uuid: ""` error if not handled). This aligns with `canUpdate` ABAC rules allowing authors to update their drafts, and it guarantees that any row successfully inserted can be read back by its creator during the `RETURNING` phase without breaking coarse-grained office isolation for others.
+
+### [LOG-0204] route handler runs outside the rlsStore ALS scope, so request queries never hit the GUC-carrying transaction
+
+- date: 2026-08-03
+- task_id: none
+- status: proposed
+- affects: B4, B5 (TASK-IAM-005 Hook 3, TASK-IAM-041/TASK-IAM-042)
+- resolved_in: apps/server/src/modules/iam/iam.middleware.ts (authMiddlewarePlugin `onRoute` wrapper)
+- supersedes: none
+
+LOG-0202 and LOG-0203 treated the document-creation RLS failure as a
+policies-only problem (missing INSERT policy, then RETURNING blocked by the
+SELECT policies). Both were real, but neither fixed the symptom end-to-end:
+after 0017/0018 were applied, `documents.create` still failed. Root cause found
+during end-to-end verification: the route handler does not run inside the
+`rlsStore` AsyncLocalStorage scope that Hook 3 (`setDatabaseSessionVars`) enters.
+
+Hook 3 opens a PostgreSQL transaction, sets the `app.*` RLS GUCs inside it via
+SET LOCAL, and enters `rlsStore.run({ tx }, ...)` — but that scope is entered
+inside the preHandler hook's own promise chain, and the hook suspends (awaiting
+`txOpen`) and returns. When the ROUTE HANDLER subsequently runs, it is a fresh
+promise continuation whose AsyncLocalStorage context is the request's creation
+site, NOT Hook 3's scope. So `rlsStore.getStore()` returned `undefined` during
+the handler, and the `fastify.db` proxy (database.plugin.ts) fell back to a
+base pool connection carrying no GUCs. The INSERT then failed RLS on its
+`RETURNING` clause no matter how correct the policies were — the GUCs simply
+never reached the connection running the query.
+
+This is the exact class of bug AGENTS.md §4's "What Can Only Be Determined
+During Development" list warns about: Fastify hook-vs-handler AsyncLocalStorage
+propagation is not specified by any pre-development document (B5 §10.1 describes
+the hook sequence, not ALS semantics).
+
+Fix implemented in `authMiddlewarePlugin`: an `onRoute` hook wraps every route
+handler registered on the protected scope so that, when `request._rlsTx.tx` is
+present (Hook 3 stored the open transaction handle on the request before
+resolving `gucsReady`), the handler is invoked inside a fresh
+`rlsStore.run({ tx }, ...)` scope. AsyncLocalStorage scopes nest, so the handler
+then sees the transaction, the proxy delegates request queries to it, and the
+INSERT ... RETURNING (and any later workflow/numbering query) runs with the RLS
+GUCs set. `request._rlsTx` gained a `tx` field; the post-`gucsReady` bridge
+assignment became `??=` so it no longer overwrites the handle Hook 3 stored.
+
+[Tested] Verified three ways: (1) new unit test in
+apps/server/src/modules/iam/__tests__/iam.middleware.test.ts
+("route handler executes INSIDE the rlsStore ALS scope when _rlsTx.tx is set")
+that builds an ALS-aware db proxy mirroring database.plugin.ts's — it fails
+(handlerScopeStore.tx undefined) with the fix reverted and passes with it;
+(2) real end-to-end run against the dev database booting the full `buildApp()`:
+POST /api/trpc/documents.create as secretary.lagura returned 200 with a
+documentId, and the row was observed committed afterwards; (3) the same INSERT
+executed directly as `batac_app` WITHOUT the GUCs reproduced the original error
+`new row violates row-level security policy for table "documents"`.
+
+Also noted while verifying: apps/server/src/modules/iam/__tests__/iam.middleware.test.ts
+was failing 17/25 on master before this task because Hook 1 Step 6
+(`verifyAccessToken` fetching role assignments/permissions dynamically) calls
+`iamRepository.findActiveRoleAssignmentsByUserId` and `findPermissionsByRoleIds`,
+which `makeMockRepository` did not stub. Added both stubs (empty results) to
+restore the suite to green (26/26 after adding the LOG-0204 regression test).
+
+[Inference] The `onRoute` wrapper applies to every route registered on the
+protected scope, not just the tRPC route. Any future route that skips Hook 3 has
+no `_rlsTx` and falls through to the original handler unchanged — verified by
+the unit tests' unauthenticated paths, but the general claim is inferred from
+the code's structure, not exhaustively tested.
+
+### [LOG-0205] drizzle `__drizzle_migrations` stored hash for migration 0018 does not match the repo SQL file — inert for `migrate()`
+
+- date: 2026-08-03
+- task_id: none
+- status: proposed
+- affects: C1 (migrations)
+- supersedes: none
+
+While reconciling migration state for 0016/0017/0018, the row recorded for
+migration 0018 (`drizzle.__drizzle_migrations` id 19, hash
+`9ef0ea8c…`) does not match a sha256 of the current repo file
+`packages/database/migrations/0018_documents_author_read_policy.sql`
+(`a9246199…`), nor of that file minus its trailing newline. The 0018 file has
+not been touched since commit 42ef39f. The live DB policy
+(`pg_policies.documents_author_read`) is nonetheless semantically identical to
+the file (both use `NULLIF(current_setting('app.current_user_id', true), '')::uuid`),
+so the applied state is correct — the stored hash appears to come from an
+earlier iteration of the file that no longer exists in the repo.
+
+This is inert for `db:migrate`: drizzle's programmatic `migrate()`
+(pg-core/dialect.js) decides what to apply by comparing the maximum
+`created_at` in `__drizzle_migrations` against each journal entry's `when`
+(folderMillis), not by comparing hashes. The journal `when` values for
+0016/0017/0018 (1785756264917/1785756264918/1785756264919) exactly match the
+recorded `created_at`, so nothing is re-applied. Verified against
+drizzle-orm@0.45.2's source and by the live table contents.
+
+[Tested] Compared journal hashes (0016, 0017 match their DB records; only 0018
+differs), journal `when` vs DB `created_at` (all match), and `pg_policies`
+content vs the SQL files (0018 semantically identical). No corrective action
+taken — migration state is left as-is for the human reviewer to decide whether
+the 0018 hash should ever be reconciled.
+
+### [LOG-0206] documents.documents has no UPDATE policy for batac_app — submit returns 200 but every UPDATE silently affects 0 rows
+
+- date: 2026-08-03
+- task_id: none
+- status: proposed
+- affects: C3 (pol_documents_update), C1 (Part 12), I1 §3.3
+- resolved_in: packages/database/migrations/0019_documents_update_policy.sql
+- supersedes: none
+
+`documents.submit` returned 200 with `{"lifecycleState":"submitted",...}` but
+the DB row stayed `draft` and no `documents.numbers` row appeared. Root cause:
+`documents.documents` had no `UPDATE` policy for `batac_app` — only
+`documents_office_isolation` (SELECT), `documents_insert` (INSERT WITH CHECK
+true), `documents_author_read` (SELECT), plus two `batac_it_admin` policies.
+Every UPDATE by `batac_app` matched no policy and silently affected 0 rows;
+Postgres does not error on a policy-filtered UPDATE, and Drizzle does not check
+`rowCount`, so the handler reported success. C3 §10.2 specifies
+`pol_documents_update` but it had never been migrated.
+
+Fixed in 0019 with a `documents_update` policy for `batac_app`: `USING`
+restricts rows to the current office scope, `bypass_office_isolation`, or the
+acting user's own authored drafts; `WITH CHECK` pins `city_id` to
+`app.current_city_id` and repeats the office/author scope so a user cannot
+re-home a document to another office or city via UPDATE. This is deliberately
+wider than I1 §3.3's "draft-only" transition constraint because the workflow
+engine drives lifecycle transitions; the state-machine gates live in the
+service layer, not the policy. (The policy permits a future direct UPDATE to a
+non-draft row; the workflow layer is the only caller allowed to do so.)
+
+[Tested] Live reproduction before the fix: submit → 200, DB unchanged. After
+applying 0019: fresh create+submit → `lifecycle_state='submitted'`,
+`preliminary_number` persisted, `documents.numbers` row present, and the whole
+flow verified via tRPC.
+
+### [LOG-0207] Fire-and-forget event consumers writing through the request-scoped db proxy lose their writes to the request COMMIT race
+
+- date: 2026-08-03
+- task_id: none
+- status: proposed
+- affects: E1 (event-bus), B4, B5, database.plugin.ts ALS proxy, tracking + documents + workflow modules
+- resolved_in: apps/server/src/modules/tracking/tracking.plugin.ts (dedicated consumer DB)
+- supersedes: none
+
+The tracking `document.created` consumer never created QR/tracking rows even
+though the submit handler emitted the event. `EventBus.emit` is fire-and-forget
+(not awaited), so the consumer's `qr_codes`/`tracking_records` INSERTs ran
+inside the same request-scoped RLS transaction as the submit handler (the
+consumer's `db` was `fastify.db`, the ALS proxy that delegates to the open
+request tx). The request COMMITs via `onResponse` and releases the connection
+with a ROLLBACK when a concurrent write aborts the shared tx; the consumer's
+writes were either rolled back or committed out of order and lost. The
+dead-letter table stayed empty because the dead-letter write itself failed on
+the same aborted/shared tx.
+
+Fix (matches the audit module's existing pattern): `TrackingEventConsumer` now
+gets its own dedicated `drizzle(postgres(DATABASE_URL_APP))` connection created
+in `tracking.plugin.ts`, and every repository method already accepted an
+override `db` param, so all consumer writes (idempotency read, qr_codes,
+tracking_records, routing_entries, custodian update) run on a connection with
+no request-scoped transaction. This is the correct ownership model: consumers
+must never write through the request-scoped proxy because the request may
+commit/rollback before or during their async work.
+
+[Inference] The SAME latent bug exists in the other fire-and-forget consumers
+that still use `fastify.db` as their `db`:
+`documents.plugin.ts`'s `workflow.step.completed` handler
+(`service.assignFinalNumber`/transition work after second reading approval)
+and `workflow.plugin.ts`'s two event handlers. These were NOT changed in this
+pass (out of scope for the tracking-404 fix). If a workflow step completion
+"fires" but final numbers/state transitions never persist, the fix is to give
+those consumers a dedicated connection too. Flagging for the human reviewer.
+
+[Tested] Live: before the fix, submit → no tracking rows, dead-letter empty.
+After the fix: fresh create+submit → `tracking.qr_codes`,
+`tracking.tracking_records`, `tracking.routing_entries` all present, and
+`tracking.getTrackingRecord` returns the record.
+
+### [LOG-0208] tracking.qr_codes.qr_image_file_key is a UUID column but QrCodeService wrote the full `qr-codes/{uuid}.png` path into it
+
+- date: 2026-08-03
+- task_id: none
+- status: proposed
+- affects: C1 (Part 12 migration 0005), tracking module
+- resolved_in: apps/server/src/modules/tracking/tracking.qr-service.ts + __tests__/tracking.qr-service.test.ts
+- supersedes: none
+
+The `qr_image_file_key` column is `uuid` (migration 0005), and
+`tracking/index.ts:22` documents the intent: "(UUID key, not a full URL)" —
+store the trackingId UUID, derive the S3 object key as `qr-codes/{uuid}.png`.
+But `QrCodeService.generateAndStore` called
+`updateQrImageKey(qrCodeRow.id, 'qr-codes/${trackingId}.png', db)`. Postgres
+rejected the string into the UUID column with `invalid input syntax for type
+uuid`, and the call was wrapped in a `try/catch` that swallowed it, so
+`qr_image_file_key` stayed null even though the S3 upload succeeded. The
+`generateCoverSheetPdf` fetch also used the raw column value as the S3 Key
+(which would have missed the `qr-codes/` prefix had the write worked).
+
+Fixed: store the `trackingId` UUID in `qr_image_file_key`, and derive the S3
+GetObject `Key` as `qr-codes/{uuid}.png` at the fetch site. The frontend
+already treats `qrCodeS3Key` as a trackingId fallback, so no frontend change.
+Unit test updated to assert the stored value is a bare UUID, not a path.
+
+[Tested] Fresh create+submit → `qr_image_file_key` = trackingId UUID; S3 object
+`qr-codes/{uuid}.png` present via head-object; `tracking.getTrackingRecord`
+returns the UUID as `qrCodeS3Key`. Tracking suite 25/25 green; server
+typecheck clean.
+
+### [LOG-0209] tRPC v11 fastify adapter on this server reads the raw POST body directly — no `json` envelope, no `?batch=1`
+
+- date: 2026-08-03
+- task_id: none
+- status: proposed
+- affects: E1 (tRPC wiring); curl/manual-testing workflows
+- supersedes: none
+
+When driving tRPC endpoints with curl during this session, the documented
+client conventions did not apply. `@trpc/server` v11.18 fastify adapter (as
+registered in app.ts) parses the raw JSON body for a single procedure call:
+
+- `POST /api/trpc/documents.create` with body `{"documentTypeId":...,"title":...}`
+  (the procedure input directly, no `{"json":{...}}` envelope, no batch map,
+  no `?batch=1`) — this works.
+- The `{"0":{"json":{...}}}` / `{"json":{...}}` / `?batch=1` forms all failed
+  with `ZodError: expected string, received undefined` because the input
+  resolved to `{}`.
+- Query procedures must use GET with `?input=<urlencoded JSON>` (POST to a
+  query returns 405 `METHOD_NOT_SUPPORTED`).
+
+The web client's `httpBatchLink` still works because the client library
+negotiates the envelope itself; only raw-curl testing needs the direct-body
+form. This is an implementation detail no pre-development document specified.
+
+[Tested] `documents.create` (POST, direct body) → 200; the envelope variants
+→ 400; `tracking.getTrackingRecord` (GET `?input=`) → 200.
+
+### [LOG-0210] Event-consumer dedicated connection loses its RLS priming when postgres.js reconnects after idle_timeout — createInstance fails with "Document not found" after the connection idles out
+
+- date: 2026-08-04
+- task_id: none
+- status: proposed
+- affects: E1 (event-bus), B4, B5, apps/server/src/infrastructure/event-consumer-db.ts, workflow + documents modules
+- resolved_in: apps/server/src/infrastructure/event-consumer-db.ts; apps/server/src/infrastructure/event-bus.plugin.ts; apps/server/src/modules/workflow/workflow.plugin.ts; apps/server/src/modules/documents/documents.plugin.ts
+- supersedes: none
+- references: LOG-0207 (its flagged "same latent bug in workflow/documents consumers" cases are resolved here)
+
+Even after the LOG-0207 fix gave consumers dedicated connections, the
+workflow `document.created` consumer still failed to write
+`workflow.instances` on a freshly booted server — but only when the event
+connection had sat idle for ~30s+ before the consumer's first query. This is
+why the earlier live tests on the long-running tsx-watch server (consumer ran
+13s after boot) succeeded while a second, freshly booted server (consumer ran
+~2.5min after boot) failed. The captured error from fastify.log (server on
+port 3001):
+
+```
+Error: Document not found: eb3e6a4d-c03b-470b-b864-dfdace3187f8
+    at runInTransaction (documents.service.ts:131:17)
+    at transitionState (documents.service.ts:163:9)
+    at createInstance (create-instance.ts:106:5)
+```
+raised inside `sql.begin` (create-instance.ts:56). The handler's `.catch`
+swallowed it and emitted only a `fastify.log.error` line, so the dead-letter
+table stayed empty and the failure was invisible except in logs.
+
+Root cause: postgres.js 3.4.9 exposes no connection-established hook
+(`onconnect`), so the session-level RLS GUCs (`app.current_city_id`,
+`app.bypass_office_isolation='true'`) could only be applied at connection
+creation. `createEventConsumerDb` primed the first connection eagerly, but
+`idle_timeout: 30` closed it after 30s idle; the next consumer opened a
+fresh, UNPRIMED connection, so `documents.documents` SELECTs returned 0 rows
+under RLS and `transitionState` threw "Document not found". The request-bound
+services (`iamService.getUsersByRole`, `orgService`) were NOT the blocker — on
+the long-running server the 11 `sp_secretary` assignees resolved correctly
+once the connection was primed.
+
+Fix, verified live end-to-end:
+1. `createEventConsumerDb` now uses `idle_timeout: 0` (keeps the primed
+   connection for the pool's lifetime), primes eagerly at creation, and its
+   `transaction` proxy re-primes before beginning a NEW transaction. The
+   nested-transaction path (already inside an open event tx) deliberately
+   does NOT prime — the single max:1 pool connection is held by the open
+   transaction, so a prime query would queue forever (deadlock). The generic
+   builder proxy stays synchronous (Drizzle chainable-builder constraint).
+2. `workflow.plugin.ts` `document.created` → `createInstance` and
+   `document.certification_urgency.logged` consumers now run against the
+   documents module's dedicated event connection/service
+   (`fastify.documentsEventDb` / `fastify.documentsEventService`) instead of
+   `fastify.db`.
+3. `documents.plugin.ts` `workflow.step.completed` final-numbering handler
+   moved from the request-scoped `service` to `documentsEventService` on the
+   same dedicated connection.
+4. `event-bus.plugin.ts` wraps `eventBus.emit` in `rlsStore.exit(...)` so
+   handler continuations run outside the emitting request's ALS scope; any
+   `fastify.db` access inside a handler then falls back to the base
+   connection (correct for non-RLS tables) rather than the committed request
+   transaction.
+
+[Tested] On port 3001 with the fix: server booted; create+submit issued 45s
+after boot (past the old 30s idle window) → `workflow.instances` row created,
+zero `handler failed` lines. Drove the instance intake_logging →
+order_of_business_scheduling → first_reading → committee_referral →
+second_reading_vote approve → final_number `7SP 2026-12` written to
+documents.documents by the step-completed consumer; tracking.routing_entries
+written for every step; 0 dead letters. This closes the LOG-0207 flag for the
+workflow and documents consumers.
+
+[Inference] With `max:1` pools the failure is deterministic after any quiet
+gap longer than the old idle_timeout; `idle_timeout: 0` sidesteps it entirely
+at the cost of holding one connection per consumer permanently. The node-cron
+jobs in workflow.plugin.ts still use `fastify.db`; they run outside any
+request ALS so they resolve against the base connection, and the only
+RLS-class consumer table is documents.documents (which now flows through the
+event connection), so no change was made to those cron paths in this pass.
+
+### [LOG-0211] documents.workflow_instance_id is never populated — certification-urgency consumer was a no-op for live documents
+
+- date: 2026-08-04
+- task_id: none
+- status: proposed
+- affects: C1/C2 (documents.workflow_instance_id inverse FK), E1 (logCertificationOfUrgency, getDocument), B4, workflow + documents modules
+- resolved_in: apps/server/src/modules/workflow/engine/create-instance.ts; apps/server/src/modules/documents/documents.service.ts; apps/server/src/modules/documents/documents.types.ts; apps/server/src/modules/documents/documents.repository.ts
+- supersedes: none
+- references: LOG-0210
+
+While live-verifying the `document.certification_urgency.logged` consumer
+(one of the three refactored in LOG-0210), the consumer could not be
+exercised: `documents.logCertificationOfUrgency` builds `associatedInstanceIds`
+from each measure's `measure.workflowInstanceId`, and that column was NULL for
+every document in the dev database. A repo-wide search found the column is
+read in many places (documents.repository.ts, documents.router.ts getDocument
+payload, session.router.ts join, documents.policy.ts canSoftDelete/canCancel,
+I1 §3.5/§3.6 gates) but written NOWHERE — the workflow engine created
+`workflow.instances` rows (which carry their own `document_id`) without ever
+writing the inverse back-reference onto `documents.documents`. C2 documents
+the column as the inverse logical FK ("NULL for document types with no
+associated workflow"), so the never-populated state is an implementation gap,
+not a design choice.
+
+Consequences of the gap:
+- `logCertificationOfUrgency` always emitted an empty `associatedInstanceIds`,
+  so `processCertificationUrgencyEvent` looped over zero instances — the whole
+  certified-urgent bypass flow was dead for live documents.
+- `documents.get` returned `workflowInstanceId: null` for every in-workflow
+  document, so the frontend "view in workflow" link
+  (`/workflow/steps/${instanceId}`) was a dead link.
+- `documents.policy.ts` canSoftDelete/canCancel `workflowInstanceId == null`
+  branches were always-true.
+
+Fix: `createInstance` now calls `documentsService.setWorkflowInstance(
+documentId, instance.id, trx)` inside the same transaction that creates the
+instance (new `DocumentsPublicAPI.setWorkflowInstance` method + new
+`DocumentsRepository.updateDocumentWorkflowInstance`). Atomic with instance
+creation, so a rolled-back instance can never leave a dangling back-reference.
+
+[Tested] Live on port 3001: create+submit a Resolution measure →
+`documents.workflow_instance_id` now equals the created instance id (was NULL
+before). Then create a Certification of Urgency document and call
+`logCertificationOfUrgency` against the measure at its active
+committee_referral step → measure context `certified_urgent=true`,
+`certified_urgent_document_id` set, the multi-referral step instance marked
+`bypassed`/`CERTIFIED_URGENT`, and workflow_events recorded
+`workflow.context.updated` → `workflow.step.bypassed` →
+`workflow.certification_urgency.bypass_applied` → `workflow.step.started`
+(next step second_reading_vote active); 0 `handler failed` lines. Unit tests:
+create-instance.test.ts extended (CI-06 asserts `setWorkflowInstance` called
+with instance id + trx); workflow+documents suite back to its 146-failure
+baseline with no new failures.
