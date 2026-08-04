@@ -656,6 +656,32 @@ const DESIGNATION_SCHEMA = {
   },
 };
 
+const COMMITTEE_REPORT_SCHEMA = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  type: 'object',
+  additionalProperties: true,
+  properties: {
+    step_instance_id: {
+      type: ['string', 'null'],
+      format: 'uuid',
+      description:
+        '[Inference] Logical FK to the workflow.step_instances record this report was submitted for. NULL for standalone committee reports not tied to a referral.',
+    },
+    measure_document_id: {
+      type: ['string', 'null'],
+      format: 'uuid',
+      description:
+        '[Inference] Logical FK to the parent measure (Resolution/Ordinance) document this report was submitted for.',
+    },
+    committee_id: {
+      type: ['string', 'null'],
+      format: 'uuid',
+      description:
+        '[Inference] Logical FK to the organization.committees record for the committee that produced this report.',
+    },
+  },
+};
+
 // ────────── DEFINITIONS ───────────────────────────────────────────────────────
 
 interface DocumentTypeDef {
@@ -799,6 +825,21 @@ const DOCUMENT_TYPE_DEFINITIONS: DocumentTypeDef[] = [
     metadataSchema: DESIGNATION_SCHEMA,
     isActive: false, // Phase 1B (seeded inactive)
   },
+  {
+    id: 'de30b91e-3f6c-4b5b-8f3e-8c3b1e7c5c09',
+    name: 'Committee Report',
+    code: 'COMMITTEE_REPORT',
+    owningModule: 'workflow',
+    seriesKey: null,
+    hasPreliminaryNumbering: false,
+    controlNumberDeferred: false,
+    requiresPublication: false,
+    retentionScheduleId: RETENTION_PERMANENT,
+    classificationDefault: 'internal',
+    publicVisibilityRule: 'not_public',
+    metadataSchema: COMMITTEE_REPORT_SCHEMA,
+    isActive: true,
+  },
 ];
 
 import { fileURLToPath } from 'node:url';
@@ -807,7 +848,7 @@ import { fileURLToPath } from 'node:url';
 export async function seedDocumentTypes(db: any): Promise<Record<string, string>> {
   const codeToIdMap: Record<string, string> = {};
   await db.transaction(async (tx: any) => {
-    console.log('[seed:document-types] Seeding 8 document types...');
+    console.log('[seed:document-types] Seeding 9 document types...');
     let seededCount = 0;
 
     for (const def of DOCUMENT_TYPE_DEFINITIONS) {

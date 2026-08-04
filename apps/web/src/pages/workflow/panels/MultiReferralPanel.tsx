@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { AllowedMimeTypeSchema } from '@batac/shared';
 import {
   Card,
   CardHeader,
@@ -50,6 +51,8 @@ export function MultiReferralPanel({
   // Committee report state
   const [committeeId, setCommitteeId] = useState('');
   const [reportText, setReportText] = useState('');
+  const [reportFile, setReportFile] = useState<File | null>(null);
+  const [reportFileError, setReportFileError] = useState<string | null>(null);
 
   // Hearing date state (sp_secretary only)
   const [hearingDate, setHearingDate] = useState('');
@@ -57,9 +60,51 @@ export function MultiReferralPanel({
   // Manual advance state (sp_secretary only)
   const [mandatoryComment, setMandatoryComment] = useState('');
 
+  // Consolidate + Accept unified report state (sp_secretary only)
+  const [isConsolidating, setIsConsolidating] = useState(false);
+  const [isAcceptingReport, setIsAcceptingReport] = useState(false);
+
   const { data: committees } = trpc.organization.listCommittees.useQuery(undefined, {
     enabled: isSpSecretary || isSpMember,
   });
+
+  const { data: documentTypes } = trpc.documents.documentTypes.useQuery(undefined, {
+    enabled: isSpSecretary || isSpMember,
+  });
+
+  // Committee submission status — read from getInstance metadata, cross-referenced
+  // against assignedCommittees. Committees with no non-missed submission are pending.
+  const assignedCommitteeCount = instance.assignedCommittees?.length ?? 0;
+  const nonMissedSubmissions = instance.committeeSubmissions?.filter((s) => !s.missed) ?? [];
+  const allCommitteesSubmitted =
+    assignedCommitteeCount > 0 && nonMissedSubmissions.length >= assignedCommitteeCount;
+
+  // Resolve the COMMITTEE_REPORT document type id used for report uploads.
+  const committeeReportTypeId = (documentTypes ?? []).find(
+    (t: { code: string }) => t.code === 'COMMITTEE_REPORT',
+  )?.id;
+
+  const handleReportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) {
+      setReportFile(null);
+      setReportFileError(null);
+      return;
+    }
+    const MAX = 26214400; // 25 MiB
+    if (selected.size > MAX) {
+      setReportFileError('File exceeds 25 MiB limit');
+      setReportFile(null);
+      return;
+    }
+    if (!AllowedMimeTypeSchema.safeParse(selected.type).success) {
+      setReportFileError('Invalid file type. Must be PDF, Word (.docx), Excel (.xlsx), JPEG, or PNG');
+      setReportFile(null);
+      return;
+    }
+    setReportFileError(null);
+    setReportFile(selected);
+  };
 
   const assignCommitteesMutation = trpc.workflow.assignCommittees.useMutation({
     onSuccess: () => {
@@ -80,7 +125,6 @@ export function MultiReferralPanel({
       void utils.workflow.listMyAssignedSteps.invalidate();
       void utils.session.getOrderOfBusiness.invalidate();
     },
-    onError: (err) => toast.error(err.message || 'Failed to submit report.'),
   });
 
   const hearingDateMutation = trpc.session.enterCommitteeHearingDate.useMutation({
@@ -103,6 +147,147 @@ export function MultiReferralPanel({
     },
     onError: (err) => toast.error(err.message || 'Failed to advance step.'),
   });
+
+  const createDocumentMutation = trpc.documents.create.useMutation();
+  const requestUploadUrlMutation = trpc.documents.requestUploadUrl.useMutation();
+  const confirmUploadMutation = trpc.documents.confirmUpload.useMutation();
+
+  const consolidateReportsMutation = trpc.workflow.consolidateCommitteeReports.useMutation({
+    onSuccess: (result) => {
+      toast.success(
+        `Reports consolidated: ${result.mergedPdfCount} PDF(s) merged, ${result.textOnlyCount} text-only, ${result.skippedCount} attachment(s) not merged.`,
+      );
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
+      void utils.documents.list.invalidate();
+    },
+  });
+
+  const acceptUnifiedReportMutation = trpc.workflow.acceptUnifiedReport.useMutation({
+    onSuccess: () => {
+      toast.success('Unified committee report accepted — step completed.');
+      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
+      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.session.getOrderOfBusiness.invalidate();
+      void utils.documents.list.invalidate();
+      navigate('/workflow/steps');
+    },
+  });
+
+  const uploadReportFile = async (file: File, title: string) => {
+    if (!committeeReportTypeId) {
+      throw new Error('Committee Report document type is not configured. Run the document-types seed.');
+    }
+    const mimeTypeCheck = AllowedMimeTypeSchema.safeParse(file.type);
+    if (!mimeTypeCheck.success) {
+      throw new Error('Unsupported file type');
+    }
+    const { documentId } = await createDocumentMutation.mutateAsync({
+      documentTypeId: committeeReportTypeId,
+      title,
+    });
+    const { uploadUrl, s3Key } = await requestUploadUrlMutation.mutateAsync({
+      documentId,
+      mimeType: mimeTypeCheck.data,
+    });
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type },
+    });
+    if (!uploadRes.ok) {
+      throw new Error('File upload to storage failed');
+    }
+    await confirmUploadMutation.mutateAsync({
+      documentId,
+      s3Key,
+      originalFilename: file.name,
+      mimeType: mimeTypeCheck.data,
+      fileSizeBytes: file.size,
+    });
+    return documentId;
+  };
+
+  const handleSubmitCommitteeReport = async () => {
+    if (!committeeId) {
+      toast.error('Select a committee');
+      return;
+    }
+    if (!reportText && !reportFile) {
+      toast.error('Provide report text and/or an uploaded report document');
+      return;
+    }
+    try {
+      if (reportFile) {
+        const committeeName =
+          (committees ?? []).find((c: { committeeId: string }) => c.committeeId === committeeId)
+            ?.name ?? 'Committee Report';
+        const documentId = await uploadReportFile(
+          reportFile,
+          `${committeeName} — ${instance.documentTitle ?? 'Legislative Measure'}`,
+        );
+        await submitReportMutation.mutateAsync({
+          stepInstanceId: instance.currentStepInstanceId,
+          committeeId,
+          ...(reportText ? { reportText } : {}),
+          documentId,
+        });
+      } else {
+        await submitReportMutation.mutateAsync({
+          stepInstanceId: instance.currentStepInstanceId,
+          committeeId,
+          reportText,
+        });
+      }
+      setReportFile(null);
+      setReportText('');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to submit report.');
+    }
+  };
+
+  const handleConsolidateReports = async () => {
+    if (!allCommitteesSubmitted) {
+      toast.error('All assigned committees must submit before consolidation');
+      return;
+    }
+    setIsConsolidating(true);
+    try {
+      await consolidateReportsMutation.mutateAsync({
+        instanceId: instance.instanceId,
+        stepInstanceId: instance.currentStepInstanceId,
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to consolidate reports.');
+    } finally {
+      setIsConsolidating(false);
+    }
+  };
+
+  // B4 §4.3 completion sequence: the SP Secretary first consolidates the submitted
+  // committee reports into a unified document (or it was already produced), then
+  // accepts it — completing the step with outcome REPORT_ACCEPTED.
+  const handleAcceptUnifiedReport = async () => {
+    if (!instance.unifiedReportDocumentId) {
+      toast.error('Consolidate the committee reports first');
+      return;
+    }
+    setIsAcceptingReport(true);
+    try {
+      await acceptUnifiedReportMutation.mutateAsync({
+        instanceId: instance.instanceId,
+        stepInstanceId: instance.currentStepInstanceId,
+        unifiedReportDocumentId: instance.unifiedReportDocumentId,
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to accept unified report');
+    } finally {
+      setIsAcceptingReport(false);
+    }
+  };
 
   return (
     <Card>
@@ -150,6 +335,75 @@ export function MultiReferralPanel({
           </div>
         )}
 
+        {/* Committee Submissions status — read-only, shown to both roles */}
+        {(isSpSecretary || isSpMember) &&
+          instance.assignedCommittees &&
+          instance.assignedCommittees.length > 0 && (
+            <div className="space-y-3 rounded-md border p-4">
+              <h3 className="text-sm font-medium">Committee Submissions</h3>
+              <ul className="space-y-2 text-sm">
+                {instance.assignedCommittees.map((c) => {
+                  const submission = (instance.committeeSubmissions ?? []).find(
+                    (s) => s.committeeId === c.committeeId,
+                  );
+                  return (
+                    <li key={c.committeeId} className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="block">{c.name ?? c.committeeId}</span>
+                        {submission && !submission.missed && (
+                          <div className="text-muted-foreground text-xs">
+                            {submission.reportDocumentTitle && (
+                              <p className="truncate">{submission.reportDocumentTitle}</p>
+                            )}
+                            {submission.reportText && (
+                              <p className="line-clamp-2 whitespace-pre-wrap">
+                                {submission.reportText}
+                              </p>
+                            )}
+                            {submission.reportDocumentUrl && (
+                              <a
+                                href={submission.reportDocumentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary underline"
+                              >
+                                View report document
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {submission ? (
+                        <span
+                          className={
+                            submission.missed
+                              ? 'shrink-0 text-amber-600'
+                              : 'shrink-0 text-muted-foreground'
+                          }
+                        >
+                          {submission.missed
+                            ? 'Missed'
+                            : `Submitted · ${
+                                submission.submittedAt
+                                  ? new Date(submission.submittedAt).toLocaleDateString('en-PH')
+                                  : '—'
+                              }`}
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-danger-600">Pending</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="text-muted-foreground text-xs">
+                {allCommitteesSubmitted
+                  ? 'All assigned committees have submitted.'
+                  : `${nonMissedSubmissions.length} of ${assignedCommitteeCount} assigned committee(s) have submitted.`}
+              </p>
+            </div>
+          )}
+
         {/* Submit Committee Report — sp_secretary or sp_member */}
         {(isSpSecretary || isSpMember) && (
           <div className="space-y-3 rounded-md border p-4">
@@ -169,27 +423,28 @@ export function MultiReferralPanel({
             <Textarea
               value={reportText}
               onChange={(e) => setReportText(e.target.value)}
-              placeholder="Report text (required)…"
+              placeholder="Report text (or describe the attached document)…"
             />
+            <div className="space-y-1">
+              <Input
+                type="file"
+                accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                onChange={handleReportFileChange}
+                className="cursor-pointer"
+              />
+              {reportFileError && <p className="text-danger-600 text-xs">{reportFileError}</p>}
+              {reportFile && (
+                <p className="text-muted-foreground text-xs">
+                  Attached: {reportFile.name} — PDFs are merged into the consolidated report;
+                  other formats are listed as attachments.
+                </p>
+              )}
+            </div>
             <Button
-              onClick={() => {
-                if (!committeeId) {
-                  toast.error('Select a committee');
-                  return;
-                }
-                if (!reportText) {
-                  toast.error('Report text is required');
-                  return;
-                }
-                submitReportMutation.mutate({
-                  stepInstanceId: instance.currentStepInstanceId,
-                  committeeId,
-                  reportText,
-                });
-              }}
+              onClick={handleSubmitCommitteeReport}
               disabled={submitReportMutation.isPending}
             >
-              Submit Report
+              {submitReportMutation.isPending ? 'Submitting…' : 'Submit Report'}
             </Button>
           </div>
         )}
@@ -219,6 +474,58 @@ export function MultiReferralPanel({
             >
               Set Hearing Date
             </Button>
+          </div>
+        )}
+
+        {/* Consolidate & Accept Unified Report — sp_secretary only */}
+        {isSpSecretary && (
+          <div className="space-y-3 rounded-md border p-4">
+            <h3 className="text-sm font-medium">Consolidate &amp; Accept Unified Committee Report</h3>
+            <p className="text-muted-foreground text-xs">
+              Consolidate the submitted committee reports into a single document: a title page
+              followed by each committee&apos;s uploaded PDF. Text-only and non-PDF submissions are
+              listed on the title page. Review the result, then accept it to complete this step.
+              All assigned committees must have submitted first.
+            </p>
+            <Button
+              onClick={handleConsolidateReports}
+              disabled={!allCommitteesSubmitted || isConsolidating}
+            >
+              {isConsolidating ? 'Consolidating…' : 'Consolidate Committee Reports'}
+            </Button>
+            {instance.unifiedReportDocumentUrl && (
+              <div className="space-y-1">
+                <a
+                  href={instance.unifiedReportDocumentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary text-sm underline"
+                >
+                  View consolidated report{instance.unifiedReportDocumentTitle ? ` — ${instance.unifiedReportDocumentTitle}` : ''}
+                </a>
+              </div>
+            )}
+            <Button
+              onClick={handleAcceptUnifiedReport}
+              disabled={
+                !allCommitteesSubmitted ||
+                !instance.unifiedReportDocumentId ||
+                isAcceptingReport
+              }
+            >
+              {isAcceptingReport ? 'Accepting…' : 'Accept Reports'}
+            </Button>
+            {!allCommitteesSubmitted && (
+              <p className="text-muted-foreground text-xs">
+                Waiting for all assigned committees to submit before the unified report can be
+                consolidated and accepted.
+              </p>
+            )}
+            {allCommitteesSubmitted && !instance.unifiedReportDocumentId && (
+              <p className="text-muted-foreground text-xs">
+                Consolidate the reports first — the accept action needs a unified report document.
+              </p>
+            )}
           </div>
         )}
 

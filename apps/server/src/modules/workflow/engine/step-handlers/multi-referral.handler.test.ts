@@ -81,7 +81,37 @@ describe('Multi-Referral Step Handler', () => {
                 submitted_at: '2026-07-08T00:00:00.000Z',
                 contribution_document_id: 'doc-1',
                 missed: false,
+                report_text: null,
               },
+            ],
+          }),
+        }),
+        undefined,
+      );
+    });
+
+    it('stores report text when provided', async () => {
+      setupMockDefinition({});
+      await submitCommitteeReport(
+        mockInstance,
+        mockStepInstance,
+        'comm-1',
+        'user-1',
+        'doc-1',
+        mockDeps,
+        undefined,
+        'Committee recommendation: approve.',
+      );
+
+      expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith(
+        'step-inst-1',
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            submissions: [
+              expect.objectContaining({
+                committee_id: 'comm-1',
+                report_text: 'Committee recommendation: approve.',
+              }),
             ],
           }),
         }),

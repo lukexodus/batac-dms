@@ -9,12 +9,16 @@ import {
   definitionVersions,
   workflowEvents,
 } from '@batac/database/schema/workflow.schema.js';
-import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
+import { documents, documentTypes, versions } from '@batac/database/schema/documents.schema.js';
 import { offices, employees, committees } from '@batac/database/schema/organization.schema.js';
 import { users } from '@batac/database/schema/iam.schema.js';
 import { eq, and, or, isNull, inArray, notInArray, desc, gte, lte } from 'drizzle-orm';
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { env } from '../../config/env.js';
 import { SlaService } from './services/sla.service.js';
 import { WorkflowRepository } from './workflow.repository.js';
+import { DocumentsRepository } from '../documents/documents.repository.js';
 import { submitStepAction } from './engine/step-handlers/action.handler.js';
 import { submitStepApproval } from './engine/step-handlers/approval.handler.js';
 import {
@@ -33,6 +37,126 @@ const paginationInput = z.object({
 });
 
 const SP_SECRETARIAT_OFFICE_CODE = 'SPS';
+
+const COMMITTEE_REPORT_TYPE_CODE = 'COMMITTEE_REPORT';
+
+let _s3Client: S3Client | null = null;
+function getS3Client(): S3Client {
+  if (!_s3Client) {
+    _s3Client = new S3Client({
+      region: env.S3_REGION || 'ap-southeast-1',
+      endpoint: env.S3_ENDPOINT,
+      credentials: {
+        accessKeyId: env.S3_ACCESS_KEY || '',
+        secretAccessKey: env.S3_SECRET_KEY || '',
+      },
+      forcePathStyle: env.S3_FORCE_PATH_STYLE,
+    });
+  }
+  return _s3Client;
+}
+
+async function buildViewUrl(fileKey: string): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: env.S3_BUCKET || 'batac-dms',
+    Key: fileKey,
+  });
+  return getSignedUrl(getS3Client(), command, {
+    expiresIn: env.S3_SIGNED_URL_EXPIRES_S || 300,
+  });
+}
+
+async function fetchS3Object(fileKey: string): Promise<Buffer> {
+  const { Body } = await getS3Client().send(
+    new GetObjectCommand({ Bucket: env.S3_BUCKET || 'batac-dms', Key: fileKey }),
+  );
+  const chunks: Uint8Array[] = [];
+  if (Body) {
+    for await (const chunk of Body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+  }
+  return Buffer.concat(chunks);
+}
+
+async function putS3Object(fileKey: string, body: Buffer, contentType: string): Promise<void> {
+  await getS3Client().send(
+    new PutObjectCommand({
+      Bucket: env.S3_BUCKET || 'batac-dms',
+      Key: fileKey,
+      Body: body,
+      ContentType: contentType,
+    }),
+  );
+}
+
+async function resolveCommitteeName(db: any, committeeId: string): Promise<string | null> {
+  const [c] = await db
+    .select({ name: committees.name })
+    .from(committees)
+    .where(eq(committees.id, committeeId))
+    .limit(1);
+  return c?.name ?? null;
+}
+
+async function resolveReportDocumentSummary(
+  db: any,
+  documentId: string | null,
+): Promise<{
+  reportDocumentId: string | null;
+  reportDocumentTitle: string | null;
+  reportDocumentUrl: string | null;
+}> {
+  if (!documentId) {
+    return { reportDocumentId: null, reportDocumentTitle: null, reportDocumentUrl: null };
+  }
+  const [subDoc] = await db
+    .select({ title: documents.title })
+    .from(documents)
+    .where(eq(documents.id, documentId))
+    .limit(1);
+  if (!subDoc) {
+    // contribution_document_id predates real document uploads (LOG-0219) —
+    // it may hold an engine-generated UUID with no backing document row.
+    return { reportDocumentId: null, reportDocumentTitle: null, reportDocumentUrl: null };
+  }
+  const [latestVersion] = await db
+    .select({ fileKey: versions.fileKey })
+    .from(versions)
+    .where(eq(versions.documentId, documentId))
+    .orderBy(desc(versions.versionNumber))
+    .limit(1);
+  let reportDocumentUrl: string | null = null;
+  if (latestVersion?.fileKey) {
+    try {
+      reportDocumentUrl = await buildViewUrl(latestVersion.fileKey);
+    } catch {
+      reportDocumentUrl = null;
+    }
+  }
+  return { reportDocumentId: documentId, reportDocumentTitle: subDoc.title, reportDocumentUrl };
+}
+
+async function resolveCommitteeReportTypeId(db: any, cityId: string): Promise<string> {
+  const [dt] = await db
+    .select({ id: documentTypes.id })
+    .from(documentTypes)
+    .where(
+      and(
+        eq(documentTypes.code, COMMITTEE_REPORT_TYPE_CODE),
+        eq(documentTypes.cityId, cityId),
+        isNull(documentTypes.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (!dt) {
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: `Document type ${COMMITTEE_REPORT_TYPE_CODE} is not configured for this city. Run the document-types seed.`,
+    });
+  }
+  return dt.id;
+}
 
 function getOrgService(ctx: Context) {
   return ctx.req.server.organizationService;
@@ -393,6 +517,24 @@ export function createWorkflowRouter() {
               })
             )
             .nullable(),
+          committeeSubmissions: z
+            .array(
+              z.object({
+                committeeId: z.string().uuid(),
+                submittedBy: z.string().uuid().nullable(),
+                submittedAt: z.coerce.date().nullable(),
+                contributionDocumentId: z.string().uuid().nullable(),
+                missed: z.boolean(),
+                reportText: z.string().nullable(),
+                reportDocumentId: z.string().uuid().nullable(),
+                reportDocumentTitle: z.string().nullable(),
+                reportDocumentUrl: z.string().nullable(),
+              })
+            )
+            .nullable(),
+          unifiedReportDocumentId: z.string().uuid().nullable(),
+          unifiedReportDocumentTitle: z.string().nullable(),
+          unifiedReportDocumentUrl: z.string().nullable(),
         }),
       )
       .query(async ({ input, ctx }) => {
@@ -526,6 +668,20 @@ export function createWorkflowRouter() {
         );
 
         let assignedCommittees: Array<{ committeeId: string; name: string | null }> | null = null;
+        let committeeSubmissions: Array<{
+          committeeId: string;
+          submittedBy: string | null;
+          submittedAt: Date | null;
+          contributionDocumentId: string | null;
+          missed: boolean;
+          reportText: string | null;
+          reportDocumentId: string | null;
+          reportDocumentTitle: string | null;
+          reportDocumentUrl: string | null;
+        }> | null = null;
+        let unifiedReportDocumentId: string | null = null;
+        let unifiedReportDocumentTitle: string | null = null;
+        let unifiedReportDocumentUrl: string | null = null;
         if (currentStepType === 'multi_referral' && currentStep?.metadata) {
           const meta = currentStep.metadata as Record<string, any>;
           const rawAssigned = meta['assigned_committees'] as Array<{ committee_id: string }>;
@@ -542,6 +698,40 @@ export function createWorkflowRouter() {
                 name: c?.name || null,
               });
             }
+          }
+          const rawSubmissions = meta['submissions'] as Array<{
+            committee_id: string;
+            submitted_by: string | null;
+            submitted_at: string | null;
+            contribution_document_id: string | null;
+            missed?: boolean;
+            report_text?: string | null;
+          }>;
+          if (Array.isArray(rawSubmissions)) {
+            committeeSubmissions = [];
+            for (const s of rawSubmissions) {
+              const report = await resolveReportDocumentSummary(ctx.db, s.contribution_document_id);
+              committeeSubmissions.push({
+                committeeId: s.committee_id,
+                submittedBy: s.submitted_by ?? null,
+                submittedAt: s.submitted_at ? new Date(s.submitted_at) : null,
+                contributionDocumentId: s.contribution_document_id ?? null,
+                missed: s.missed ?? false,
+                reportText: s.report_text ?? null,
+                reportDocumentId: report.reportDocumentId,
+                reportDocumentTitle: report.reportDocumentTitle,
+                reportDocumentUrl: report.reportDocumentUrl,
+              });
+            }
+          }
+          unifiedReportDocumentId = meta['unified_report_document_id'] ?? null;
+          if (unifiedReportDocumentId) {
+            const unifiedReport = await resolveReportDocumentSummary(
+              ctx.db,
+              unifiedReportDocumentId,
+            );
+            unifiedReportDocumentTitle = unifiedReport.reportDocumentTitle;
+            unifiedReportDocumentUrl = unifiedReport.reportDocumentUrl;
           }
         }
 
@@ -563,6 +753,10 @@ export function createWorkflowRouter() {
           lapseStatus,
           panelHint,
           assignedCommittees,
+          committeeSubmissions,
+          unifiedReportDocumentId,
+          unifiedReportDocumentTitle,
+          unifiedReportDocumentUrl,
         };
       }),
 
@@ -1639,8 +1833,8 @@ export function createWorkflowRouter() {
         z.object({
           stepInstanceId: z.string().uuid(),
           committeeId: z.string().uuid(),
-          reportText: z.string().min(1),
-          reportAttachmentS3Key: z.string().uuid().optional(),
+          reportText: z.string().min(1).max(20000).optional(),
+          documentId: z.string().uuid().optional(),
         }),
       )
       .mutation(async ({ input, ctx }) => {
@@ -1649,6 +1843,13 @@ export function createWorkflowRouter() {
         }
 
         const { stepInstanceId, committeeId } = input;
+
+        if (!input.reportText && !input.documentId) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Provide report text and/or an uploaded report document.',
+          });
+        }
 
         const found = await fetchStepContext(stepInstanceId, ctx);
         if (!found) {
@@ -1659,6 +1860,31 @@ export function createWorkflowRouter() {
 
         // ABAC: committee scoped check
         workflowPolicy.canSubmitCommitteeReport(ctx.auth, stepAttrs);
+
+        // If an uploaded DMS document is referenced, resolve it before wiring it
+        // into the engine. Legacy submissions (LOG-0219) recorded a generated
+        // UUID here with no backing document row; those are text-only.
+        let contributionDocId: string = randomUUID();
+        if (input.documentId) {
+          const [subDoc] = await ctx.db
+            .select({ id: documents.id })
+            .from(documents)
+            .where(
+              and(
+                eq(documents.id, input.documentId),
+                eq(documents.cityId, ctx.auth.cityId),
+                isNull(documents.deletedAt),
+              ),
+            )
+            .limit(1);
+          if (!subDoc) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Referenced report document does not exist.',
+            });
+          }
+          contributionDocId = input.documentId;
+        }
 
         const workflowRepository = new WorkflowRepository(ctx.db);
         const server = ctx.req.server as any;
@@ -1673,10 +1899,6 @@ export function createWorkflowRouter() {
           iamService: server.iamService,
         };
 
-        // As per E1, we pass a generated UUID for contributionDocId since the engine
-        // only records it as a reference in the metadata array.
-        const contributionDocId = randomUUID();
-
         let isCompleted = false;
 
         await ctx.db.transaction(async (tx) => {
@@ -1690,6 +1912,7 @@ export function createWorkflowRouter() {
             contributionDocId,
             { ...deps, db: tx, workflowRepository: txWorkflowRepo },
             tx,
+            input.reportText ?? null,
           );
 
           // After submitting, check if all committees have submitted.
@@ -1717,6 +1940,334 @@ export function createWorkflowRouter() {
         });
 
         return { allCommitteesSubmitted: isCompleted };
+      }),
+
+    /**
+     * `workflow.consolidateCommitteeReports`
+     *
+     * SP Secretary consolidates the submitted committee reports into a single
+     * document: a title page followed by each committee's uploaded PDF (PDF
+     * submissions are merged page-by-page; text-only and non-PDF submissions
+     * are listed on the title page). The consolidated PDF is stored as a
+     * COMMITTEE_REPORT DMS document and its ID is recorded on the step as
+     * `metadata.unified_report_document_id`. The secretary reviews it, then
+     * completes the step via `workflow.acceptUnifiedReport`.
+     *
+     * ABAC: reuses I1 §6.8 (sp_secretary only) — consolidation is part of the
+     * accept flow.
+     */
+    consolidateCommitteeReports: protectedProcedure
+      .input(
+        z.object({
+          instanceId: z.string().uuid(),
+          stepInstanceId: z.string().uuid(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+        const { instanceId, stepInstanceId } = input;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, instance } = found;
+
+        if (instance.id !== instanceId) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Instance ID mismatch.' });
+        }
+
+        workflowPolicy.canAcceptUnifiedReport(ctx.auth);
+
+        if (found.step.stepType !== 'multi_referral') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Not a multi-referral step.' });
+        }
+
+        if (stepInstance.status !== 'active') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Step is not active.' });
+        }
+
+        const metadata = (stepInstance.metadata as Record<string, any>) ?? {};
+        const assignedCommittees =
+          (metadata['assigned_committees'] as Array<{ committee_id: string }>) ?? [];
+        const submissions = (metadata['submissions'] as Array<any>) ?? [];
+        const nonMissedSubmissions = submissions.filter((s) => !s.missed);
+
+        if (
+          nonMissedSubmissions.length < assignedCommittees.length &&
+          metadata['manual_advance'] !== true
+        ) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'All assigned committees must submit before the reports can be consolidated.',
+          });
+        }
+
+        // ---- Gather source PDFs + title-page entries -----------------------
+        const sourceEntries: Array<{
+          title: string;
+          submittedAt: string | null;
+          status: 'merged' | 'text_only' | 'not_merged';
+        }> = [];
+        const sourcePdfBuffers: Buffer[] = [];
+        let mergedPageCount = 0;
+        let textOnlyCount = 0;
+        let skippedCount = 0;
+
+        for (const sub of nonMissedSubmissions) {
+          const committeeName = await resolveCommitteeName(ctx.db, sub.committee_id);
+          let entryTitle = committeeName ?? sub.committee_id;
+          let status: 'merged' | 'text_only' | 'not_merged' = 'text_only';
+
+          if (sub.contribution_document_id) {
+            const [subDoc] = await ctx.db
+              .select({ id: documents.id, title: documents.title })
+              .from(documents)
+              .where(eq(documents.id, sub.contribution_document_id))
+              .limit(1);
+            if (subDoc) {
+              entryTitle = subDoc.title || committeeName || subDoc.id;
+              const [latestVersion] = await ctx.db
+                .select({ fileKey: versions.fileKey, mimeType: versions.mimeType })
+                .from(versions)
+                .where(eq(versions.documentId, subDoc.id))
+                .orderBy(desc(versions.versionNumber))
+                .limit(1);
+              if (latestVersion?.fileKey && latestVersion.mimeType === 'application/pdf') {
+                const bytes = await fetchS3Object(latestVersion.fileKey);
+                try {
+                  const { PDFDocument } = await import('pdf-lib');
+                  const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+                  sourcePdfBuffers.push(bytes);
+                  mergedPageCount += src.getPageCount();
+                  status = 'merged';
+                } catch {
+                  status = 'not_merged';
+                  skippedCount++;
+                }
+              } else {
+                status = 'not_merged';
+                skippedCount++;
+              }
+            }
+          } else if (sub.report_text) {
+            textOnlyCount++;
+          }
+
+          sourceEntries.push({
+            title: entryTitle,
+            submittedAt: sub.submitted_at ?? null,
+            status,
+          });
+        }
+
+        if (sourcePdfBuffers.length === 0 && textOnlyCount === 0 && sourceEntries.length === 0) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'No committee report content is available to consolidate.',
+          });
+        }
+
+        // ---- Build the consolidated PDF ------------------------------------
+        const { PDFDocument: PDFDoc, rgb, StandardFonts } = await import('pdf-lib');
+        const outPdf = await PDFDoc.create();
+        const helveticaBold = await outPdf.embedFont(StandardFonts.HelveticaBold);
+        const helvetica = await outPdf.embedFont(StandardFonts.Helvetica);
+
+        const pageW = 595.28;
+        const pageH = 841.89;
+        const titlePage = outPdf.addPage([pageW, pageH]);
+
+        titlePage.drawText('REPUBLIC OF THE PHILIPPINES', {
+          x: 60,
+          y: pageH - 90,
+          size: 13,
+          font: helvetica,
+          color: rgb(0.2, 0.2, 0.2),
+        });
+        titlePage.drawText('SANGGUNIANG PANLUNGSOD NG BATAC', {
+          x: 60,
+          y: pageH - 112,
+          size: 16,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+
+        titlePage.drawText('CONSOLIDATED COMMITTEE REPORT', {
+          x: 60,
+          y: pageH - 170,
+          size: 20,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+
+        const measureTitle = found.doc.title ?? 'Legislative measure';
+
+        const measureTitleLine = `Measure: ${measureTitle}`;
+        titlePage.drawText(measureTitleLine, {
+          x: 60,
+          y: pageH - 200,
+          size: 12,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+          maxWidth: pageW - 120,
+        });
+
+        titlePage.drawText('Submitted to the SP Secretariat', {
+          x: 60,
+          y: pageH - 240,
+          size: 12,
+          font: helvetica,
+          color: rgb(0.2, 0.2, 0.2),
+        });
+
+        titlePage.drawText('Committee Reports Included', {
+          x: 60,
+          y: pageH - 290,
+          size: 12,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+
+        let listY = pageH - 318;
+        for (const entry of sourceEntries) {
+          const dateSuffix = entry.submittedAt
+            ? ` (${new Date(entry.submittedAt).toLocaleDateString('en-PH')})`
+            : '';
+          const statusSuffix =
+            entry.status === 'merged'
+              ? ' — PDF merged'
+              : entry.status === 'not_merged'
+                ? ' — attachment submitted, not merged (non-PDF)'
+                : ' — text-only report';
+          titlePage.drawText(`• ${entry.title}${dateSuffix}${statusSuffix}`, {
+            x: 60,
+            y: listY,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+            maxWidth: pageW - 120,
+          });
+          listY -= 18;
+        }
+
+        titlePage.drawText(
+          `Consolidated by the SP Secretariat on ${new Date().toLocaleDateString('en-PH')}`,
+          {
+            x: 60,
+            y: 60,
+            size: 9,
+            font: helvetica,
+            color: rgb(0.4, 0.4, 0.4),
+          },
+        );
+
+        // Merge each source PDF page-by-page (pdf-lib page copying).
+        for (const bytes of sourcePdfBuffers) {
+          const src = await PDFDoc.load(bytes, { ignoreEncryption: true });
+          const pages = await outPdf.copyPages(src, src.getPageIndices());
+          for (const page of pages) {
+            outPdf.addPage(page);
+          }
+        }
+
+        const outBytes = await outPdf.save();
+
+        // ---- Persist as a COMMITTEE_REPORT DMS document --------------------
+        const documentsRepository = ctx.req.server.documentsRepository;
+
+        const committeeReportTypeId = await resolveCommitteeReportTypeId(
+          ctx.db,
+          ctx.auth.cityId,
+        );
+        const spsOffice = await getOrgService(ctx).getOfficeByCode(
+          SP_SECRETARIAT_OFFICE_CODE,
+          ctx.auth.cityId,
+        );
+        if (!spsOffice) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'SP Secretariat office (code SPS) is not configured for this city.',
+          });
+        }
+
+        const documentType = await documentsRepository.findDocumentTypeById(
+          committeeReportTypeId,
+        );
+        if (!documentType || !documentType.retentionScheduleId) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: `Document type ${COMMITTEE_REPORT_TYPE_CODE} is missing a retention schedule.`,
+          });
+        }
+
+        const retentionScheduleId = documentType.retentionScheduleId;
+
+        const unifiedTitle = `Unified Committee Report — ${measureTitle}`;
+        const s3Key = randomUUID();
+        await putS3Object(s3Key, Buffer.from(outBytes), 'application/pdf');
+
+        let createdDocumentId: string;
+        await ctx.db.transaction(async (tx) => {
+          const txDocumentsRepository = new DocumentsRepository(tx);
+          const created = await txDocumentsRepository.insertDocument({
+            cityId: ctx.auth!.cityId,
+            documentTypeId: committeeReportTypeId,
+            title: unifiedTitle,
+            lifecycleState: 'draft',
+            classificationLevel: 'internal',
+            qrTrackingNumber: randomUUID(),
+            originatingOfficeId: spsOffice.officeId,
+            ownedByOfficeId: spsOffice.officeId,
+            createdBy: ctx.auth!.userId,
+            versionNumber: 1,
+            metadata: {
+              step_instance_id: stepInstanceId,
+              measure_document_id: instance.documentId,
+              committee_id: null,
+            },
+            retentionScheduleId,
+          });
+          createdDocumentId = created.id;
+
+          await txDocumentsRepository.insertVersion({
+            cityId: ctx.auth!.cityId,
+            documentId: created.id,
+            versionNumber: 1,
+            fileKey: s3Key,
+            originalFilename: `${unifiedTitle.replace(/[^\w\s-]/g, '').trim()}.pdf`,
+            mimeType: 'application/pdf',
+            fileSizeBytes: outBytes.length,
+            pageCount: 1 + mergedPageCount,
+            ocrProcessed: false,
+            requiresManualVerification: false,
+            createdBy: ctx.auth!.userId,
+          });
+
+          const freshMetadata = { ...metadata };
+          freshMetadata['unified_report_document_id'] = created.id;
+          freshMetadata['unified_report_created_at'] = new Date().toISOString();
+          await new WorkflowRepository(tx).updateStepInstance(
+            stepInstanceId,
+            { metadata: freshMetadata },
+            tx,
+          );
+        });
+
+        const viewUrl = await buildViewUrl(s3Key);
+
+        return {
+          success: true as const,
+          unifiedReportDocumentId: createdDocumentId!,
+          unifiedReportDocumentTitle: unifiedTitle,
+          unifiedReportDocumentUrl: viewUrl,
+          mergedPdfCount: sourcePdfBuffers.length,
+          textOnlyCount,
+          skippedCount,
+        };
       }),
 
     /**

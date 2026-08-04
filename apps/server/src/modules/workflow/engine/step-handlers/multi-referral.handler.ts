@@ -15,6 +15,7 @@ export async function submitCommitteeReport(
   contributionDocId: string,
   deps: MultiReferralHandlerDeps,
   trx?: TxOrDb,
+  reportText?: string | null,
 ): Promise<void> {
   if (stepInstance.status !== 'active') {
     throw new Error('CONFLICT: step is not active');
@@ -54,6 +55,7 @@ export async function submitCommitteeReport(
     submitted_at: now.toISOString(),
     contribution_document_id: contributionDocId,
     missed: false,
+    report_text: reportText ?? null,
   };
 
   submissions.push(newSubmission);
@@ -187,6 +189,7 @@ export async function submitStepMultiReferral(
           submitted_at: now.toISOString(),
           contribution_document_id: null,
           missed: true,
+          report_text: null,
         });
       }
     }

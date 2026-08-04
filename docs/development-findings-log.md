@@ -6674,3 +6674,117 @@ an office match would pass branch 1 anyway.
 2. Added a new `sp_member` branch (section 2b) that grants `true` for any document owned by an
    `SP` or `SPS` office. ABAC enforcement for mutating actions continues per-procedure as before.
    TypeScript typecheck passes with no errors.
+---
+
+### [LOG-0219] `workflow.acceptUnifiedReport` had no frontend UI — Accept Reports section added to MultiReferralPanel, and getInstance widened to expose submission metadata
+
+- date: 2026-08-04
+- task_id: none (directly implements the gap logged in LOG-0062 and LOG-0186)
+- status: proposed
+- affects: E1, workflow.router.ts (`getInstance`), MultiReferralPanel.tsx
+
+**What was found:** `workflow.acceptUnifiedReport` (the multi-referral completion gate
+requiring `unifiedReportDocumentId`) was fully implemented on the backend but never called
+from any frontend code, and `workflow.getInstance` did not return the step's
+`metadata.submissions` or `metadata.unified_report_document_id`, so no UI could render
+committee submission status. This is the same surface gap LOG-0062 (E1 catalog missing the
+procedure) and LOG-0186 (frontend panel incomplete) described; neither had been closed.
+
+**What was implemented:**
+1. Widened `workflow.getInstance`'s output schema and query with two nullable fields,
+   populated only for `multi_referral` current steps: `committeeSubmissions`
+   (`{ committeeId, submittedBy, submittedAt, contributionDocumentId, missed }[]`) mapped
+   from `metadata.submissions`, and `unifiedReportDocumentId` mapped from
+   `metadata.unified_report_document_id`.
+2. Added a read-only "Committee Submissions" section to `MultiReferralPanel.tsx` that
+   cross-references `assignedCommittees` against `committeeSubmissions` and shows
+   Submitted (with date) / Pending / Missed per committee.
+3. Added an "Accept Unified Committee Report" section (sp_secretary only) that runs the
+   standard document intake flow (create → requestUploadUrl → PUT to S3 → confirmUpload)
+   and then calls `workflow.acceptUnifiedReport`, completing the step with
+   `REPORT_ACCEPTED`. The button is disabled until every assigned committee has a
+   non-`missed` submission, mirroring the engine's `REQUIRE_ALL_COMMITTEE_SIGNATURES`
+   invariant.
+
+`apps/web` and `apps/server` `tsc --noEmit` both pass; eslint on the changed panel file
+passes. `workflow.router.test.ts` was verified to fail identically (63 failures, all UUID
+pattern mismatches) on a clean `git stash` tree before this change, so those failures are
+pre-existing and not caused by this work.
+
+[Inference]: no dedicated "unified committee report" document type exists in
+`document-types.seed.ts` (only SP_RESOLUTION/SP_ORDINANCE/SP_APPROPRIATION_ORDINANCE/
+CERTIFICATION_OF_URGENCY/CITIZEN_COMPLAINT/DOCUMENT_REQUEST_FORM/TRANSMITTAL_LETTER/
+DESIGNATION). The panel therefore lets the SP Secretary pick any active document type for
+the uploaded report and defaults the title to "Unified Committee Report — <measure title>".
+If a formal `COMMITTEE_REPORT`/unified-report document type is ever introduced, the panel
+should default the selector to it rather than free-picking. Also per LOG-0187's
+convention, the uploaded report is a normal DMS document; it is not auto-linked back to the
+measure document (no attachment mechanism is invoked).
+
+### [LOG-0220] `COMMITTEE_REPORT` document type, per-committee text/file submissions, and an automated PDF consolidation procedure added to the multi-referral flow
+
+- date: 2026-08-04
+- task_id: none (supersedes the interim approach in LOG-0219)
+- status: proposed
+- affects: H2 (document types), B4 (multi-referral step), E1 (`workflow` router), document-types.seed.ts, workflow.router.ts, multi-referral.handler.ts, MultiReferralPanel.tsx
+- supersedes: LOG-0219 (its item 3 "doc-type picker on Accept" is replaced)
+
+**What was found:** LOG-0219's interim implementation let the SP Secretary pick any
+document type for the consolidated report and required them to upload it manually before
+accepting. No document type existed for committee reports, committee members/councilors
+had no way to submit (only the secretary could), and nothing produced the unified document
+automatically. The user confirmed the target design: committee reports are real DMS
+documents of a dedicated `COMMITTEE_REPORT` type; consolidation produces the unified
+document and then the secretary explicitly accepts it (no auto-accept); and each committee
+may submit either a file **or** plain text.
+
+**What was implemented:**
+1. Seed (`document-types.seed.ts`): added a `COMMITTEE_REPORT` document type (id
+   `de30b91e-3f6c-4b5b-8f3e-8c3b1e7c5c09`), active, `owningModule: 'workflow'`,
+   `seriesKey: null`, `RETENTION_PERMANENT`, `publicVisibilityRule: 'not_public'`, plus a
+   nullable `COMMITTEE_REPORT_SCHEMA` (`step_instance_id`, `measure_document_id`,
+   `committee_id`). Seed log now says "9 document types".
+2. Handler (`multi-referral.handler.ts`): `submitCommitteeReport` accepts an optional
+   `reportText`; a `report_text` field is stored on each submission, including
+   `missed: true` entries (legacy submissions lack it — nullable). Input is either-or:
+   both `reportText` and `documentId` missing → `BAD_REQUEST`.
+3. Router (`workflow.router.ts`):
+   - `submitCommitteeReport` validates `documentId` against `documents` (city-scoped,
+     non-deleted) before passing it as `contributionDocId`. Text-only submissions get a
+     fresh UUID rather than an empty `contribution_document_id`.
+   - `getInstance` widened: per-submission `reportText`, `reportDocumentId`,
+     `reportDocumentTitle`, `reportDocumentUrl`; instance-level
+     `unifiedReportDocumentId`/`Title`/`Url`. Document summaries are resolved from the
+     latest `versions.file_key` and tolerate legacy UUID-only `contribution_document_id`;
+     URLs are presigned S3 view URLs.
+   - New `workflow.consolidateCommitteeReports` (sp_secretary): requires all non-missed
+     submissions (or `metadata.manual_advance === true`), fetches each submission's latest
+     PDF from S3, builds a title page + merged PDF via `pdf-lib` (same title-page style as
+     `tracking.qr-service.ts`), persists it as a `COMMITTEE_REPORT` document whose
+     `metadata` links `step_instance_id` and `measure_document_id`, then sets
+     `metadata.unified_report_document_id` (+ `unified_report_created_at`) on the step.
+     Non-PDF attachments and text-only submissions are listed on the generated title page,
+     not merged. Returns merge counts.
+4. Panel (`MultiReferralPanel.tsx`): the doc-type Select, title input, and manual upload in
+   the Accept section are removed. Committee members/councilors get a Submit section (file
+   ≤ 25 MiB validated against `AllowedMimeTypeSchema` + textarea, either-or enforced
+   client-side, standard intake flow for files). The Accept section is now "Consolidate &
+   Accept": one button runs `consolidateCommitteeReports` (enabled once all committees have
+   submitted), then a "View consolidated report" link, then "Accept Reports" which passes
+   the existing `instance.unifiedReportDocumentId` to `acceptUnifiedReport`. The
+   `documents.documentTypes` query is enabled for both sp_secretary and sp_member so
+   `COMMITTEE_REPORT`'s type id can be resolved for uploads.
+
+`apps/web` and `apps/server` `tsc --noEmit` both pass; eslint on the changed web panel
+passes (server has no eslint config, typecheck only). The 28 multi-referral handler tests
+and `session.router.test.ts` (26) pass; documents suites still show the pre-existing
+53 UUID-format failures, and `workflow.router.test.ts` the same 63, both unrelated to this
+work.
+
+[Tested]: consolidate/accept handler and router behavior exercised in
+`multi-referral.handler.test.ts` (including the new "stores report text when provided"
+case). [Inference]: re-running consolidate after a unified report already exists creates a
+new document and re-points `metadata.unified_report_document_id` at the newest one rather
+than erroring — acceptable re-consolidation semantics, no idempotency guard was added.
+[Inference]: `report_text` on legacy `missed`/pre-existing submissions is `null`; consumers
+handle the null rather than assuming text exists.
