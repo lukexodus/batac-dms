@@ -19,6 +19,7 @@ import { SecretariatDecisionPanel } from './panels/SecretariatDecisionPanel';
 import { ValidInPartDecisionPanel } from './panels/ValidInPartDecisionPanel';
 import { VetoOverrideRecordingPanel } from './panels/VetoOverrideRecordingPanel';
 import { VPCertificationPanel } from './panels/VPCertificationPanel';
+import { TransmittalLetterPanel } from './panels/TransmittalLetterPanel';
 
 import { hasRole } from '@/lib/auth-helpers';
 import { trpc } from '@/lib/trpc';
@@ -95,6 +96,10 @@ export function WorkflowStepActionPage() {
       case 'vp_certification':
         canAct = hasRole(identity, 'sp_presiding_officer');
         if (canAct) return <VPCertificationPanel instance={instance} />;
+        break;
+      case 'transmittal_letter':
+        canAct = hasRole(identity, 'sp_secretary');
+        if (canAct) return <TransmittalLetterPanel instance={instance} />;
         break;
       case 'mayor_decision':
         canAct = hasRole(identity, 'mayor');

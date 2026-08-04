@@ -6788,3 +6788,38 @@ new document and re-points `metadata.unified_report_document_id` at the newest o
 than erroring — acceptable re-consolidation semantics, no idempotency guard was added.
 [Inference]: `report_text` on legacy `missed`/pre-existing submissions is `null`; consumers
 handle the null rather than assuming text exists.
+
+### [LOG-0221] Text-only committee reports now rendered as content pages in the consolidated PDF, not just listed
+
+- date: 2026-08-04
+- task_id: none (refines LOG-0220's consolidation implementation)
+- status: proposed
+- affects: E1 (`workflow.consolidateCommitteeReports`), workflow.router.ts, MultiReferralPanel.tsx
+- supersedes: LOG-0220 item 3's "listed on the generated title page, not merged" for text-only submissions
+
+**What was found:** After LOG-0220, a text-only committee submission appeared in the
+consolidated PDF only as a one-line bullet on the title page ("— text-only report"); the
+actual `report_text` content was never drawn into the document. Confirmed against a live
+SP Resolution instance where both assigned committees submitted text reports: the
+generated PDF listed them but contained none of their text.
+
+**What was implemented:** `workflow.consolidateCommitteeReports` now collects every
+submission's non-empty `report_text` (not just text-only ones — a submission that has both
+an uploaded PDF and text gets both in the output) and, after the title page and before the
+merged PDFs, renders each as word-wrapped Helvetica pages (11pt, ~16pt line height) with a
+bold committee-name heading; long reports flow onto additional pages. The persisted
+`pageCount` now includes these text pages, and the procedure returns a
+`textReportPagesCount` field. A module-level `wrapPdfText` helper does greedy word
+wrapping (pdf-lib's `drawText` only truncates at `maxWidth`). The panel's helper copy no
+longer claims text-only submissions are merely "listed on the title page".
+
+The existing consolidated document is not mutated — re-running Consolidate creates a new
+`COMMITTEE_REPORT` document that includes the text content and re-points
+`metadata.unified_report_document_id`.
+
+[Tested]: `tsc --noEmit` passes on `apps/server`; server dev (tsx watch) reloaded with the
+change. [Inference]: pdf-lib's Helvetica standard font can't render characters outside
+WinAnsi (e.g. some Unicode dashes/non-Latin script); such characters may drop or render
+incorrectly in the text pages. If non-WinAnsi committee-report text must be supported, a
+Unicode-embedded font (like the ones used elsewhere for scanned/OCR content) would be
+required.

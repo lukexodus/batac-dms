@@ -90,6 +90,34 @@ async function putS3Object(fileKey: string, body: Buffer, contentType: string): 
   );
 }
 
+function wrapPdfText(
+  text: string,
+  font: { widthOfTextAtSize(text: string, size: number): number },
+  size: number,
+  maxWidth: number,
+): string[] {
+  const lines: string[] = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    const words = rawLine.split(/\s+/).filter(Boolean);
+    if (words.length === 0) {
+      lines.push('');
+      continue;
+    }
+    let current = '';
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+        current = candidate;
+      } else {
+        if (current) lines.push(current);
+        current = word;
+      }
+    }
+    lines.push(current);
+  }
+  return lines;
+}
+
 async function resolveCommitteeName(db: any, committeeId: string): Promise<string | null> {
   const [c] = await db
     .select({ name: committees.name })
@@ -367,6 +395,7 @@ function computePanelHint(
 ):
   | 'multi_referral'
   | 'vp_certification'
+  | 'transmittal_letter'
   | 'mayor_decision'
   | 'mayor_lapse_confirmation'
   | 'veto_override_recording'
@@ -391,6 +420,8 @@ function computePanelHint(
     return 'multi_referral';
   } else if (stepKey === 'vp_certification') {
     return 'vp_certification';
+  } else if (stepKey === 'transmittal_letter_to_mayor') {
+    return 'transmittal_letter';
   } else if (stepKey === 'mayor_review' || stepKey === 'mayor_signature') {
     return computeMayorPanelHint(
       instanceContext['mayor_action_deadline'],
@@ -494,6 +525,7 @@ export function createWorkflowRouter() {
             .enum([
               'multi_referral',
               'vp_certification',
+              'transmittal_letter',
               'mayor_decision',
               'mayor_lapse_confirmation',
               'veto_override_recording',
@@ -789,6 +821,7 @@ export function createWorkflowRouter() {
               .enum([
                 'multi_referral',
                 'vp_certification',
+                'transmittal_letter',
                 'mayor_decision',
                 'mayor_lapse_confirmation',
                 'veto_override_recording',
@@ -2014,6 +2047,7 @@ export function createWorkflowRouter() {
           status: 'merged' | 'text_only' | 'not_merged';
         }> = [];
         const sourcePdfBuffers: Buffer[] = [];
+        const textOnlyContents: Array<{ committeeName: string; text: string }> = [];
         let mergedPageCount = 0;
         let textOnlyCount = 0;
         let skippedCount = 0;
@@ -2056,6 +2090,10 @@ export function createWorkflowRouter() {
             }
           } else if (sub.report_text) {
             textOnlyCount++;
+          }
+
+          if (sub.report_text) {
+            textOnlyContents.push({ committeeName: committeeName ?? sub.committee_id, text: sub.report_text });
           }
 
           sourceEntries.push({
@@ -2166,6 +2204,47 @@ export function createWorkflowRouter() {
           },
         );
 
+        // Render text-only committee reports as PDF pages (word-wrapped).
+        let textReportPagesCount = 0;
+        if (textOnlyContents.length > 0) {
+          const textSize = 11;
+          const textLineHeight = 16;
+          const contentMaxWidth = pageW - 120;
+          const contentTopY = pageH - 100;
+          const contentBottomY = 70;
+
+          for (const item of textOnlyContents) {
+            let textPage = outPdf.addPage([pageW, pageH]);
+            textReportPagesCount++;
+            let textY = contentTopY;
+            textPage.drawText(item.committeeName, {
+              x: 60,
+              y: textY,
+              size: 13,
+              font: helveticaBold,
+              color: rgb(0, 0, 0),
+              maxWidth: contentMaxWidth,
+            });
+            textY -= 24;
+            for (const line of wrapPdfText(item.text, helvetica, textSize, contentMaxWidth)) {
+              if (textY < contentBottomY) {
+                textPage = outPdf.addPage([pageW, pageH]);
+                textReportPagesCount++;
+                textY = contentTopY;
+              }
+              textPage.drawText(line, {
+                x: 60,
+                y: textY,
+                size: textSize,
+                font: helvetica,
+                color: rgb(0, 0, 0),
+                maxWidth: contentMaxWidth,
+              });
+              textY -= textLineHeight;
+            }
+          }
+        }
+
         // Merge each source PDF page-by-page (pdf-lib page copying).
         for (const bytes of sourcePdfBuffers) {
           const src = await PDFDoc.load(bytes, { ignoreEncryption: true });
@@ -2242,7 +2321,7 @@ export function createWorkflowRouter() {
             originalFilename: `${unifiedTitle.replace(/[^\w\s-]/g, '').trim()}.pdf`,
             mimeType: 'application/pdf',
             fileSizeBytes: outBytes.length,
-            pageCount: 1 + mergedPageCount,
+            pageCount: 1 + mergedPageCount + textReportPagesCount,
             ocrProcessed: false,
             requiresManualVerification: false,
             createdBy: ctx.auth!.userId,
@@ -2267,6 +2346,7 @@ export function createWorkflowRouter() {
           unifiedReportDocumentUrl: viewUrl,
           mergedPdfCount: sourcePdfBuffers.length,
           textOnlyCount,
+          textReportPagesCount,
           skippedCount,
         };
       }),
