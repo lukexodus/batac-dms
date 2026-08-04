@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -179,14 +179,19 @@ export function WorkflowStepActionPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
+        <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Step Action</h1>
-          <p className="text-muted-foreground mt-1">
-            Document: {instance.documentTitle || 'Untitled Document'}
+          <p className="text-muted-foreground mt-1 break-words text-sm">
+            Document: <span className="font-medium text-foreground">{instance.documentTitle || 'Untitled Document'}</span>
           </p>
         </div>
-        <Button variant="outline" onClick={() => navigate(`/documents/${instance.documentId}`)}>
+        <Button
+          variant="outline"
+          className="shrink-0 self-start sm:self-auto"
+          onClick={() => navigate(`/documents/${instance.documentId}`)}
+        >
+          <FileText className="mr-2 h-4 w-4" />
           View Document
         </Button>
       </div>
