@@ -6450,3 +6450,137 @@ This means a secretary has two independent, uncoordinated action points for the 
 **What was found:** `workflow.repository.ts:693-708` defines `upsertOrderOfBusinessItem`, an `onConflictDoUpdate`-based upsert against `orderOfBusinessItems` keyed on `(orderOfBusinessId, itemOrder)`. Confirmed via repo-wide grep of `apps/server/src`: this method has zero call sites outside its own definition. All live writes to `orderOfBusinessItems` go through the plain `tx.insert(...)` in `session.router.ts:933-940` instead.
 
 **What was implemented:** nothing — flagging only. A human should decide whether this method is intended for a not-yet-built call site (e.g., could be relevant to whichever removal/reordering approach is chosen for LOG-0212) or is simply dead code left over from an earlier design pass.
+
+---
+
+### [LOG-0215] first_reading → committee_referral panel-switch bug reported live; full backend+frontend trace finds every layer correct in this snapshot — root cause not yet isolated, needs live-DB or browser diagnostic
+
+- date: 2026-08-04
+- task_id: none (planning-layer investigation, no A1 task dispatched)
+- status: proposed
+- affects: workflow.router.ts, phase1-legislative.ts, action.handler.ts,
+  step-resolution.ts, transition-evaluation.ts, workflow.repository.ts,
+  WorkflowStepActionPage.tsx, GenericActionPanel.tsx, query-client.ts,
+  demo-guide-v2.md
+
+**What was reported:** demo-guide-v2.md's Act 2 walkthrough (Step 2b → 2c)
+describes completing `first_reading` via `GenericActionPanel` ("Complete
+Task") and the same `/workflow/steps/:instanceId` URL then rendering
+`MultiReferralPanel` once the workflow auto-advances to `committee_referral`.
+Live testing (user-reported, not yet independently reproduced by an agent
+with DB/browser access) shows "Complete Task" rendering again instead, on
+the same instanceId, after completion.
+
+**Context:** LOG-0191 (status: proposed) fixed a related misrouting bug for
+`first_reading` and explicitly flagged as "not yet done" the exact
+click-through this report describes — this is that untested path
+surfacing for the first time, not a regression of LOG-0191's fix.
+
+**What was checked, all [Confirmed] against this snapshot:**
+- Seed step definitions: `committee_referral` declares
+  `step_type: 'multi_referral'`
+  (`packages/database/src/seeds/workflow/phase1-legislative.ts:101`) —
+  matches exactly what `computePanelHint`'s first branch checks for
+  (`workflow.router.ts:252-253`).
+- Seed transitions: `first_reading → committee_referral` is the sole
+  outgoing transition from `first_reading`, unconditional
+  (`outcome_filter: null`, `condition_expression: null`,
+  `phase1-legislative.ts:455-462`).
+- `submitStepAction` (`action.handler.ts:11-83`) correctly marks the step
+  completed and calls `resolveNextStep` with `outcome: 'DONE'` (line 82).
+- `resolveNextStep` (`step-resolution.ts:26-234`) correctly resolves the
+  next step and unconditionally creates a new step instance for it
+  (lines 103-111) for non-termination/non-parallel step types.
+- `evaluateTransitionRules` (`transition-evaluation.ts:12-48`) correctly
+  treats `outcome_filter: null` as a wildcard (line 19) and
+  `condition_expression: null` as an immediate match (lines 30-32) — ruling
+  out a null-handling bug in transition matching.
+- `getDefinitionVersionWithSteps` and the live `getInstance` current-step
+  query both read from the same `steps`/`transitionRules` tables
+  (`workflow.repository.ts:99-125`; `workflow.router.ts:421-435`) — no
+  separate "published snapshot" table exists that could desync.
+- `createStepInstance` (`workflow.repository.ts:383-389`) is a plain
+  insert with no `deletedAt` set.
+- `WorkflowStepActionPage.tsx`'s panel-selection switch has a correct
+  `case 'multi_referral':` mapping to `<MultiReferralPanel>`
+  (lines 109-112), confirmed as the actual component mounted at this route
+  (`apps/web/src/main.tsx:195-196`).
+- `GenericActionPanel.tsx`'s completion mutation correctly invalidates
+  `utils.workflow.getInstance` for the right `instanceId` in `onSuccess`
+  (line 21) before navigating to `/workflow/steps` (line 26).
+- The global QueryClient (`apps/web/src/lib/query-client.ts:6-18`) has no
+  `staleTime`/`refetchOnMount`/`gcTime` override — defaults apply, meaning
+  every mount refetches regardless.
+
+**What was NOT found:** a code-level bug. Every layer in the
+seed-config → completion-handler → next-step-resolver →
+transition-matcher → repository → tRPC-procedure →
+frontend-panel-switch → mutation-invalidation chain traces as correct
+when read directly against this upload.
+
+**Why this isn't closed as "no bug exists":** the symptom is
+user-reported and not yet independently reproduced or DB-inspected by an
+agent with live access. Two explanations remain that cannot be verified
+from a static repo snapshot: (a) the specific workflow instance under test
+was created against an older `definitionVersionId` that predates this
+seed's current wiring (this project has hit this exact class of bug
+before — see TASK-WF-026/LOG-0189/LOG-0190 — so it is not a low-prior
+guess), or (b) a runtime-only factor (exception swallowed upstream,
+transaction rollback, stale build) not visible in source.
+
+**Action:** Not yet implemented — no fix is proposed until one of the two
+explanations above is confirmed. Recommended next step (posed directly to
+the user, not resolved here): (1) reproduce on a freshly created workflow
+instance to test explanation (a) directly — cheapest, most discriminating
+test; if that resolves it, no code change is needed; (2) if it still
+reproduces on a fresh instance, run a direct read-only query against
+`step_instances`/`steps` for the affected `instance_id`, ordered by
+`created_at desc`, to determine whether a `committee_referral` row was
+ever created and with what `step_type`, which would immediately localize
+the fault to either "instance never advanced" (runtime bug, needs log
+inspection) or "instance advanced correctly, client is still wrong"
+(needs browser Network-tab inspection of the raw `getInstance` response).
+
+---
+
+### [LOG-0216] committee_referral step instances are created with an empty assigned_to (config has no 'assignee' field; resolveNextStep's only population path is gated on it) — distinct from LOG-0186's metadata/assigned_committees gap and LOG-0177's office_id gap
+
+- date: 2026-08-04
+- task_id: none (found incidentally while investigating LOG-0215)
+- status: proposed
+- affects: phase1-legislative.ts, step-resolution.ts
+
+**What was found:** `committee_referral`'s seed config
+(`packages/database/src/seeds/workflow/phase1-legislative.ts:106-113`) has
+no `assignee` key — by design, since multi-referral steps use a
+committee-based assignment model (`default_committee_roles`,
+`report_acceptor_role`, etc.) rather than a single assignee. `resolveNextStep`'s
+only path to populate a new step instance's `assigned_to` column is gated
+on `if (config['assignee'])` (`step-resolution.ts:115-122`). Net effect:
+every `committee_referral` step instance is created with an empty/unset
+`assigned_to`, confirmed via direct trace of this exact code path — not
+inferred from a doc.
+
+**Why this is a distinct finding, not a duplicate:** LOG-0186 already
+documents that `committee_referral` instances are created with
+`metadata: null` (the `assigned_committees` business-data field — which
+committees are reviewing). This entry is about a different column
+(`stepInstances.assigned_to`, the workflow-engine-level "who can act on
+this step instance" field — the same column LOG-0177 discusses at length
+for a different reason). LOG-0177 is about `assigned_to` entries that *are*
+created via `resolveAssignees` lacking an `office_id`; this entry is about
+`assigned_to` never being populated at all for this step, because the
+step's config shape never enters that code path in the first place.
+
+**Confirmed NOT the cause of LOG-0215's reported symptom:** the frontend's
+`multi_referral` panel-hint case gates on the logged-in user's role
+directly (`hasRole(identity, 'sp_secretary', 'sp_member')`,
+`WorkflowStepActionPage.tsx:109-112`), not on `assigned_to`, so this gap
+would not by itself prevent `MultiReferralPanel` from rendering once
+`panelHint` is correctly `'multi_referral'`.
+
+**What was implemented:** nothing — flagging only. Whether `assigned_to`
+should be populated for multi_referral steps (e.g., with all committee
+members, or left empty since the step's actual access control runs on
+role rather than assignment) is a design question for a human, not
+inferred here.

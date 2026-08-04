@@ -32226,3 +32226,253 @@ Include the exact diffs applied to both files, `pnpm typecheck` results, test re
 
 ---
 
+# TASK-WF-FE-006: Surface the still-active workflow step after "Remove from Agenda"
+
+## Context
+
+`session.removeFromOrderOfBusiness` (`apps/server/src/modules/workflow/session.router.ts`, added by TASK-WF-BE-004) soft-deletes an `orderOfBusinessItems` row and does nothing else — by design (see that procedure's "Known limitation" note in its own history). It never touches the document's workflow instance or step.
+
+This means: after a secretary removes an item, the document's workflow instance is left exactly where it already was — for a document that had gone through `scheduleDocumentForFirstReading` (TASK-WF-BE-003), that is an **active, `legally_mandated: true`** step instance at `first_reading` (`packages/database/src/seeds/workflow/phase1-legislative.ts:85-95`, confirmed `assignee: ROLE.SP_SECRETARY`), still assigned to the secretary. Nothing in the workflow engine reads `orderOfBusinessItems` (confirmed via repo-wide grep — the only references outside `session.router.ts` are two already-flagged dead/adjacent spots in `workflow.repository.ts` and shared type files), so removal does not make this step disappear or become unreachable — it only removes the one visible pointer to it from this page. The step is still findable through the generic task inbox (`apps/web/src/pages/workflow/MyAssignedStepsPage.tsx` → `apps/web/src/pages/workflow/WorkflowStepActionPage.tsx`, route `/workflow/steps/:instanceId`), the same page every other step type in this codebase already links to.
+
+This task adds a direct link to that page in the success toast shown after a remove, so the secretary isn't left to remember and go find it on their own.
+
+## Objective
+
+When `removeFromOrderOfBusiness` succeeds, the success toast should include an action button that navigates directly to `/workflow/steps/:instanceId` for the document's active workflow instance — but only when that instance genuinely still exists and has an active step (see "Exact behavior" below for what "genuinely" means here, since this is drift-prone).
+
+## A note on scope, up front
+
+This task requires touching `getOrderOfBusiness`'s response shape, which prior tasks (TASK-WF-BE-004/FE-005) explicitly listed as out of scope ("Do not modify `getOrderOfBusiness`'s query, selected fields, or return shape"). That earlier restriction is explicitly lifted for this one task, for this one additive field only — see Step 1 below. Everything else that restriction covered (the query's filtering logic, its existing selected fields, its two-item-shape `{ sessionDate, items }` top-level structure) still stands; only one new field is being added to the item shape, nothing removed or renamed.
+
+## Exact current state to verify before starting
+
+Do not assume any of the following — re-confirm each against the live repo before writing code:
+
+1. Re-read `apps/server/src/modules/workflow/session.router.ts` in full, specifically `getOrderOfBusiness` (currently starting around line 364). Confirm its query already left-joins `instances` (`.leftJoin(instances, eq(documents.workflowInstanceId, instances.id))`) and that `instances.id` is joined but not currently included in either the `.select({...})` object or the final `resultItems.map()` return object. If `instances.id` is not part of the join at all in the current snapshot, stop and report — the plan below depends on it already being there.
+2. Confirm `stepInstanceId: stepInstances.id` is currently selected and returned on each item, and that `stepInstances` is left-joined `on and(eq(instances.id, stepInstances.instanceId), eq(stepInstances.status, 'active'))` — i.e., a non-null `stepInstanceId` on a returned item can only occur together with a non-null `instances.id` for that same row, since they come from the same join predicate. This matters for Step 2 below: it means no separate null-check is needed for the new field beyond the existing `stepInstanceId` check the frontend already does.
+3. Re-read `apps/web/src/pages/workflow/OrderOfBusinessPage.tsx` in full. Confirm `SecretaryItemActions` and `RemoveFromAgendaDialog` still match the shape described below — in particular, that `RemoveFromAgendaDialog`'s `onSuccess` handler on its `useMutation` currently calls exactly `toast.success('Item removed from the agenda.')`, then `onClose()`, then `onSuccess()`, in that order, with no action button on the toast.
+4. Confirm `apps/web/src/pages/workflow/WorkflowStepActionPage.tsx` still reads its route param as `useParams<{ instanceId: string }>()` and that the app's router (`apps/web/src/main.tsx`) still mounts it at a path matching `/workflow/steps/:instanceId` (or equivalent — confirm the literal param name is `instanceId`, since that's what determines the URL segment this task must construct).
+5. Confirm `sonner` is still pinned at a version whose `toast.success` accepts an `action: { label: React.ReactNode; onClick: (event) => void }` object (not an `href`-based action) — check the installed package's type definitions directly rather than assume the API shape from memory, since toast libraries vary in whether "action" takes a click handler or a URL.
+
+If any of these have changed since this prompt was written, stop and report the discrepancy rather than silently adapting.
+
+## Exact edit — Backend
+
+**File:** `apps/server/src/modules/workflow/session.router.ts`
+
+Add exactly one field to `getOrderOfBusiness`'s selected columns, and exactly one field to its final mapped return object. Do not touch anything else in this procedure — not the joins' structure, not the `where` clause, not any other selected or returned field.
+
+```
+old_str:
+        const items = await ctx.db
+          .select({
+            documentId: orderOfBusinessItems.documentId,
+            title: documents.title,
+            preliminaryNumber: documents.preliminaryNumber,
+            isRedFlagged: orderOfBusinessItems.isRedFlagged,
+            stepType: steps.stepType,
+            stepInstanceId: stepInstances.id,
+            stepMetadata: stepInstances.metadata,
+          })
+
+new_str:
+        const items = await ctx.db
+          .select({
+            documentId: orderOfBusinessItems.documentId,
+            title: documents.title,
+            preliminaryNumber: documents.preliminaryNumber,
+            isRedFlagged: orderOfBusinessItems.isRedFlagged,
+            stepType: steps.stepType,
+            stepInstanceId: stepInstances.id,
+            stepMetadata: stepInstances.metadata,
+            workflowInstanceId: instances.id,
+          })
+```
+
+```
+old_str:
+          return {
+            documentId: item.documentId,
+            title: item.title,
+            preliminaryNumber: item.preliminaryNumber,
+            committeeReportStatus,
+            assignedCommittees,
+            stepInstanceId: item.stepInstanceId,
+          };
+
+new_str:
+          return {
+            documentId: item.documentId,
+            title: item.title,
+            preliminaryNumber: item.preliminaryNumber,
+            committeeReportStatus,
+            assignedCommittees,
+            stepInstanceId: item.stepInstanceId,
+            workflowInstanceId: item.workflowInstanceId,
+          };
+```
+
+Name it `workflowInstanceId`, not `instanceId`, on this returned shape — `instanceId` is ambiguous in this file's surrounding context (`spSessions`, `orderOfBusiness`, and workflow instances are all "instances" of something), and the frontend already has an unrelated local convention of naming route params `instanceId`; keeping the field name distinct on the wire avoids a same-name-different-meaning collision between the API response and the frontend's `useParams<{ instanceId: string }>()` a few files away.
+
+**Must not do (backend):**
+- Do not add a new query, a new join, or a new procedure. `instances` is already joined into this exact query — this task only adds it to the two existing `.select()`/return object literals shown above.
+- Do not modify the `where` clause, the join conditions themselves, `stepInstanceId`, `stepMetadata`, or any other existing field.
+- Do not modify `scheduleDocumentForFirstReading` or `removeFromOrderOfBusiness` in this task.
+
+## Exact edit — Frontend
+
+**File:** `apps/web/src/pages/workflow/OrderOfBusinessPage.tsx`
+
+**Step 1 — imports.** Add `useNavigate` from `react-router-dom`. This file currently has no import from `react-router-dom` at all.
+
+```
+old_str:
+import React, { useState } from 'react';
+import { toast } from 'sonner';
+
+new_str:
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+```
+
+**Step 2 — `RemoveFromAgendaDialog`'s success handler.** This is the drift-prone core of the task. The JSON block below is authoritative; if the prose anywhere in this prompt appears to conflict with it, the JSON block wins.
+
+```json
+{
+  "component": "RemoveFromAgendaDialog",
+  "new_prop": {
+    "name": "workflowInstanceId",
+    "type": "string | null",
+    "note": "Passed down from the parent the same way stepInstanceId already flows to EnterHearingDateDialog and ManuallyAdvanceDialog — read from item.workflowInstanceId at the SecretaryItemActions call site, not fetched separately."
+  },
+  "toast_action_condition": "Show the toast action button if and only if workflowInstanceId is a non-null, non-empty string. If it is null (the document has no workflow instance, or its active step's instance row could not be resolved — the same condition that already leaves stepInstanceId null today), show the plain toast with no action button, exactly as it does now. Do not attempt to derive or guess an instanceId from any other field when this one is null.",
+  "on_action_click": "navigate(`/workflow/steps/${workflowInstanceId}`) — use the literal template string shown, matching the exact route pattern already used at apps/web/src/pages/workflow/columns.tsx:77, apps/web/src/pages/workflow/SecretaryDashboardPage.tsx:114, and elsewhere in this codebase for the same page. Do not construct a query-string variant or any other URL shape.",
+  "action_label": "View in My Tasks",
+  "must_not_change": [
+    "The toast's success message text, 'Item removed from the agenda.', stays exactly as-is.",
+    "The existing onClose() and onSuccess() calls inside the mutation's onSuccess handler stay, in the same order, unchanged.",
+    "Do not add a second toast, a dialog, or any other new UI element for this — the action button on the existing success toast is the entire feature."
+  ]
+}
+```
+
+Apply this to the exact current code:
+
+```
+old_str:
+interface RemoveFromAgendaDialogProps {
+  open: boolean;
+  onClose: () => void;
+  documentId: string;
+  documentTitle: string;
+  sessionDate: Date | string;
+  onSuccess: () => void;
+}
+
+function RemoveFromAgendaDialog({
+  open,
+  onClose,
+  documentId,
+  documentTitle,
+  sessionDate,
+  onSuccess,
+}: RemoveFromAgendaDialogProps) {
+  const mutation = trpc.session.removeFromOrderOfBusiness.useMutation({
+    onSuccess() {
+      toast.success('Item removed from the agenda.');
+      onClose();
+      onSuccess();
+    },
+    onError(err) {
+      toast.error(`Failed to remove item: ${err.message}`);
+    },
+  });
+
+new_str:
+interface RemoveFromAgendaDialogProps {
+  open: boolean;
+  onClose: () => void;
+  documentId: string;
+  documentTitle: string;
+  sessionDate: Date | string;
+  workflowInstanceId: string | null;
+  onSuccess: () => void;
+}
+
+function RemoveFromAgendaDialog({
+  open,
+  onClose,
+  documentId,
+  documentTitle,
+  sessionDate,
+  workflowInstanceId,
+  onSuccess,
+}: RemoveFromAgendaDialogProps) {
+  const navigate = useNavigate();
+  const mutation = trpc.session.removeFromOrderOfBusiness.useMutation({
+    onSuccess() {
+      toast.success('Item removed from the agenda.', {
+        action: workflowInstanceId
+          ? {
+              label: 'View in My Tasks',
+              onClick: () => navigate(`/workflow/steps/${workflowInstanceId}`),
+            }
+          : undefined,
+      });
+      onClose();
+      onSuccess();
+    },
+    onError(err) {
+      toast.error(`Failed to remove item: ${err.message}`);
+    },
+  });
+```
+
+**Step 3 — thread `workflowInstanceId` down from `SecretaryItemActions` to `RemoveFromAgendaDialog`.** `SecretaryItemActions` already receives the full `item: OobItem` object — `item.workflowInstanceId` will exist on it automatically once the backend change lands and the frontend's generated `RouterOutputs` type picks it up (no manual type edit needed — `OobItem` is derived as `RouterOutputs['session']['getOrderOfBusiness']['items'][number]`, confirmed at this file's top-level type declarations). Only the JSX call site to `RemoveFromAgendaDialog` needs a new prop passed through.
+
+```
+old_str:
+      <RemoveFromAgendaDialog
+        open={removeDialogOpen}
+        onClose={() => setRemoveDialogOpen(false)}
+        documentId={item.documentId}
+        documentTitle={item.title}
+        sessionDate={sessionDate}
+        onSuccess={onSuccess}
+      />
+
+new_str:
+      <RemoveFromAgendaDialog
+        open={removeDialogOpen}
+        onClose={() => setRemoveDialogOpen(false)}
+        documentId={item.documentId}
+        documentTitle={item.title}
+        sessionDate={sessionDate}
+        workflowInstanceId={item.workflowInstanceId}
+        onSuccess={onSuccess}
+      />
+```
+
+**Must not do (frontend):**
+- Do not add `useNavigate` or any navigation logic anywhere else in this file — only inside `RemoveFromAgendaDialog`, as shown.
+- Do not modify `EnterHearingDateDialog`, `ManuallyAdvanceDialog`, `ScheduleForFirstReadingPanel`, `OrderOfBusinessContent`, or `SecretaryItemActions`'s own body beyond the single prop pass-through in Step 3. `SecretaryItemActions` itself does not need `workflowInstanceId` as a named destructured variable — it only needs to forward `item.workflowInstanceId` inline at the `RemoveFromAgendaDialog` call site, exactly as shown.
+- Do not add a confirmation step, a second dialog, or any gate before navigating — clicking the toast action should navigate immediately, matching how every other `navigate('/workflow/steps')` call in this codebase behaves (no intermediate confirmation anywhere in the panels directory).
+- Do not change the dialog's own body text (the `<p>` explaining what removal does) — that stays as-is; this task only changes what happens after a successful removal, not the confirmation copy shown before it.
+
+## Known limitation (do not attempt to fix — this is explicitly accepted scope)
+
+If a document's workflow instance is genuinely gone by the time this toast is clicked (e.g., some other action deleted or otherwise invalidated it in the seconds between the toast appearing and being clicked — an unlikely race, not a normal path), `WorkflowStepActionPage` will show whatever its own existing not-found/error state already shows for an invalid `instanceId` — this task does not add any new handling for that page's error states, since that page's behavior for a bad or stale `instanceId` already exists independently of this task and is out of scope here.
+
+Separately — and this is the same limitation already accepted by TASK-WF-BE-004/FE-005 — this task does not change what happens once the secretary lands on that page. It does not add any special messaging there explaining that the document was just removed from an agenda. The secretary sees the same generic step-action page any other assigned step shows. Adding OOB-removal-specific context to that page is a larger, separate task if ever wanted.
+
+## Testing
+
+1. `pnpm typecheck` across both `apps/server` and `apps/web` must pass.
+2. Confirm no existing test in `session.router.test.ts` regresses from the new `workflowInstanceId` field being added to `getOrderOfBusiness`'s selected columns and return shape — any mock response for this query's `.select()` chain will need an additional mocked column value, or the mock queue may return `undefined` for it silently rather than fail. Check this precisely rather than assume the existing mocks tolerate an extra field; add mock coverage for the new field if the existing tests' mock shapes are field-order- or field-count-sensitive.
+3. Add a test case for `getOrderOfBusiness` (if a dedicated test block for it already exists in `session.router.test.ts` — check first): an item whose active step exists should include a non-null `workflowInstanceId` in the returned item matching the mocked `instances.id`.
+4. If a live dev environment is available: schedule a document, then remove it from the agenda, and confirm the success toast shows a "View in My Tasks" action button. Click it and confirm it navigates to `/workflow/steps/<the correct instance id>` and that page correctly shows the document's `first_reading` step (or whatever step it's actually active at). Then separately test the null case: find or construct a scenario where an item's `workflowInstanceId` would be null (e.g. a document with no workflow instance at all, if one can be scheduled) and confirm the toast shows with no action button in that case, not a broken or dead link. Report the exact steps taken and observed results — do not report this as done without having actually run it.
+
+## Report back
+
+Include the exact diffs applied to both files, `pnpm typecheck` results, test results, and explicit confirmation of what `sonner`'s installed version and `Action` type actually look like (this was flagged above as verified against version `^2.0.7` at prompt-writing time — confirm this is still the pinned version, since a major-version bump could change the action prop's shape).
