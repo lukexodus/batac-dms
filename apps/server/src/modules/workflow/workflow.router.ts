@@ -98,7 +98,21 @@ async function checkWorkflowInstanceReadPermission(
       .from(offices)
       .where(eq(offices.id, doc.ownedByOfficeId))
       .limit(1);
-    if (docOffice?.code === 'SP') {
+    if (docOffice?.code === 'SP' || docOffice?.code === 'SPS') {
+      return true;
+    }
+  }
+
+  // 2b. SP Member: read access for SP/SPS-owned documents (committee work, OoB, session voting).
+  // ABAC for mutating actions is enforced per-procedure; read access is granted here for the
+  // same reason sp_presiding_officer gets cross-office read. [LOG-0216-FIX]
+  if (userRoles.has('sp_member')) {
+    const [docOffice] = await tx
+      .select({ code: offices.code })
+      .from(offices)
+      .where(eq(offices.id, doc.ownedByOfficeId))
+      .limit(1);
+    if (docOffice?.code === 'SP' || docOffice?.code === 'SPS') {
       return true;
     }
   }

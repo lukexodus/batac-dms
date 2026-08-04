@@ -6640,3 +6640,37 @@ login time, confirming the data is available server-side without an extra query.
 when `userRoles.has('sp_member') && row.stepType === 'multi_referral'`. It reads
 `row.stepMetadata.assigned_committees` and checks whether any committee_id appears in
 `ctx.auth.committeeIds`. TypeScript typecheck passes with no errors after this change.
+
+---
+
+### [LOG-0218] `workflow.getInstance` returns FORBIDDEN for sp_member — `checkWorkflowInstanceReadPermission` has no cross-office branch for sp_member
+
+- date: 2026-08-04
+- task_id: none (discovered during live testing of LOG-0216/LOG-0217 fixes)
+- status: proposed
+- affects: I1 §5.1, workflow.router.ts `checkWorkflowInstanceReadPermission`
+
+**What was found:** After LOG-0216 and LOG-0217 fixes, `councilor.flojo` could see the
+`committee_referral` step in My Tasks. Clicking through to the step detail page triggers
+`workflow.getInstance` (line 329 of `workflow.router.ts`). This procedure calls
+`checkWorkflowInstanceReadPermission` (line 413), which has three branches:
+
+1. Own-office + allowed-role check → fails (councilor office = `SP`, document office = `SPS`)
+2. `sp_secretary` branch → fails (user is `sp_member`)
+3. Cross-office roles (`records_officer`, `sp_presiding_officer`, `mayor`, `auditor`) → fails
+
+`sp_member` is listed in `allowedRoles` (line 74) but it only qualifies via branch 1 (own-office),
+which fails for all SPS-owned documents. The application-level FORBIDDEN at line 415 was thrown
+even though the RLS layer now allows the document read (LOG-0216 fixed that).
+
+Additionally, the existing `sp_secretary` branch at line 95–104 was checking `docOffice?.code === 'SP'`
+(the council chamber office code) instead of `'SPS'` (the secretariat office). SP Resolutions are
+owned by the `SPS` office, so the sp_secretary branch also silently never triggered for them —
+though this was masked because the sp_secretary users have `bypass_office_isolation = true` and
+an office match would pass branch 1 anyway.
+
+**What was implemented:**
+1. Extended the `sp_secretary` branch to check `code === 'SP' || code === 'SPS'` (correctness fix).
+2. Added a new `sp_member` branch (section 2b) that grants `true` for any document owned by an
+   `SP` or `SPS` office. ABAC enforcement for mutating actions continues per-procedure as before.
+   TypeScript typecheck passes with no errors.
