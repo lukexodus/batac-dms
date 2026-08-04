@@ -136,6 +136,7 @@ const ACTION_STEP_ROLES: ReadonlySet<string> = new Set([
   'mayor',
   'brgy_encoder',
   'brgy_captain',
+  'records_officer',
 ]);
 
 /** I1 §6.3 `step_instance:approve` / `reject` / `return` base role set. */
