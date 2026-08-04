@@ -10,9 +10,9 @@ const MOCK_ENTRIES: RoutingEntry[] = [
     id: 'rh-001',
     actorName: 'Gladys R. Lagura',
     actorOfficeName: 'SP Secretariat',
-    action: 'FinalNumberAssigned',
+    action: 'Logged',
     timestamp: new Date('2026-06-12T10:30:00+08:00'),
-    notes: 'Final number 7SP 2026-001 assigned; Draft prefix removed.',
+    notes: 'Document logged and QR tracking number assigned',
   },
   {
     id: 'rh-002',
@@ -20,9 +20,9 @@ const MOCK_ENTRIES: RoutingEntry[] = [
     actorOfficeName: 'SP Secretariat',
     action: 'TransmittedToMayor',
     timestamp: new Date('2026-06-13T09:00:00+08:00'),
-    notes: 'Transmittal letter SPS 2026-038 dispatched. Mayor review 10-day clock started.',
+    notes: 'Transmittal Letter to Mayor — completed',
     fromOfficeName: 'SP Secretariat',
-    toOfficeName: 'Office of the Mayor',
+    toOfficeName: 'Office of the City Mayor',
   },
   {
     id: 'rh-003',
@@ -30,7 +30,7 @@ const MOCK_ENTRIES: RoutingEntry[] = [
     actorOfficeName: 'Office of the City Mayor',
     action: 'Vetoed',
     timestamp: new Date('2026-06-16T11:00:00+08:00'),
-    notes: 'Vetoed due to budgetary constraints.',
+    notes: 'Mayor Review — vetoed',
     toOfficeName: 'SP Secretariat',
   },
   {
@@ -39,8 +39,8 @@ const MOCK_ENTRIES: RoutingEntry[] = [
     actorOfficeName: 'Office of the City Mayor',
     action: 'SignedByMayor',
     timestamp: new Date('2026-06-17T14:15:00+08:00'),
+    notes: 'Mayor Signature — signed',
     toOfficeName: 'SP Secretariat',
-    // No notes to demonstrate conditional rendering
   },
 ];
 

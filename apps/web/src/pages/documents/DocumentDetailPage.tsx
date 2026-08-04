@@ -516,14 +516,73 @@ export default function DocumentDetailPage() {
   // ── Routing history → RoutingHistoryTimeline entries ──────────────────────
   // The tracking.getRoutingHistory output uses snake_case / different shape from
   // RoutingEntry (the UI type). Map defensively.
+  //
+  // The server now emits user-friendly actionDescription strings (e.g.
+  // "Mayor Review -- approved") instead of raw "stepType DONE" payloads.
+  // We derive a RoutingAction from the text for color-coding only; the
+  // timeline component uses actionDescription as the primary display label.
+
+  const STEP_TYPE_LABELS: Record<string, string> = {
+    action: 'Action',
+    approval: 'Approval',
+    multi_referral: 'Multi-Referral',
+    decision: 'Decision',
+    notification: 'Notification',
+    termination: 'Termination',
+  };
+  const OUTCOME_LABELS: Record<string, string> = {
+    DONE: 'completed',
+    APPROVED: 'approved',
+    REJECTED: 'rejected',
+    RETURNED_FOR_REVISION: 'returned for revision',
+    SIGNED: 'signed',
+    VETOED: 'vetoed',
+    REPORT_ACCEPTED: 'committee report accepted',
+    SECRETARY_ADVANCED: 'manually advanced by SP Secretary',
+    LAPSED_CONFIRMED: 'mayor lapse confirmed',
+    DEEMED_APPROVED_CONFIRMED: 'panlalawigan deemed approval confirmed',
+    VALID: 'affirmed in entirety',
+    VALID_IN_PART: 'approved with partial invalidity',
+    RETURNED: 'returned with objections',
+  };
+
+  /** Normalize legacy "stepType OUTCOME" strings to readable labels. */
+  function formatActionDescription(raw: string): string {
+    const match = raw.match(/^(\w+)\s+(\w+)$/);
+    if (match && match[1] && match[2]) {
+      const stepType = match[1];
+      const outcome = match[2];
+      const stepLabel = STEP_TYPE_LABELS[stepType] ?? stepType;
+      const outcomeLabel = OUTCOME_LABELS[outcome] ?? outcome.toLowerCase().replace(/_/g, ' ');
+      return `${stepLabel} -- ${outcomeLabel}`;
+    }
+    return raw;
+  }
+
+  function deriveRoutingAction(description: string): RoutingEntry['action'] {
+    const lower = description.toLowerCase();
+    if (lower.includes('vetoed')) return 'Vetoed';
+    if (lower.includes('signed')) return 'SignedByMayor';
+    if (lower.includes('deemed approval')) return 'DeemedApproved';
+    if (lower.includes('approved')) return 'DeemedApproved';
+    if (lower.includes('certified')) return 'VPCertified';
+    if (lower.includes('transmitted')) return 'Transmitted';
+    if (lower.includes('returned')) return 'Vetoed';
+    if (lower.includes('released')) return 'Released';
+    if (lower.includes('archived')) return 'Archived';
+    if (lower.includes('lapsed')) return 'Lapsed';
+    if (lower.includes('logged') || lower.includes('assigned')) return 'Logged';
+    return 'Logged';
+  }
+
   const routingEntries: RoutingEntry[] = (routingHistory ?? []).map(
     (e: RouterOutputs['tracking']['getRoutingHistory'][number]) => ({
       id: e.entryId,
       actorName: e.actorDisplayName ?? e.actorId,
       actorOfficeName: e.fromOfficeName ?? '',
-      action: 'Logged' as const, // actionDescription is free text; map to nearest RoutingAction
+      action: deriveRoutingAction(e.actionDescription),
       timestamp: new Date(e.timestamp),
-      notes: e.actionDescription,
+      notes: formatActionDescription(e.actionDescription),
       ...(e.fromOfficeName && { fromOfficeName: e.fromOfficeName }),
       ...(e.toOfficeName && { toOfficeName: e.toOfficeName }),
     }),

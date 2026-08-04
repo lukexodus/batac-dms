@@ -59,7 +59,7 @@ export function RoutingHistoryTimeline({ entries, className }: RoutingHistoryTim
                   <AvatarName name={entry.actorName} size="sm" />
                   <div className="flex flex-col">
                     <span className="text-text text-sm font-medium">
-                      {formatActionLabel(entry.action)}
+                      {entry.notes || formatActionLabel(entry.action)}
                     </span>
                     <span className="text-text-muted text-xs">
                       {entry.actorName} • {entry.actorOfficeName}
@@ -74,10 +74,6 @@ export function RoutingHistoryTimeline({ entries, className }: RoutingHistoryTim
                   </span>
                 </div>
               </div>
-
-              {entry.notes && (
-                <div className="text-text-muted mt-1 pl-11 text-xs">{entry.notes}</div>
-              )}
             </div>
           </li>
         );
