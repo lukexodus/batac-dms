@@ -1012,6 +1012,7 @@ export function createWorkflowRouter() {
             (row.assignedTo as Array<{ user_id?: string; office_id?: string }>) || [];
 
           if (assigned.some((a) => a.user_id === subjectUserId)) {
+            console.log(`Matched assigned user_id for step ${row.stepKey}`);
             return true;
           }
 

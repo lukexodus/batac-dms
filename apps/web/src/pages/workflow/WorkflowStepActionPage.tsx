@@ -79,6 +79,8 @@ export function WorkflowStepActionPage() {
           'mayor',
           'brgy_encoder',
           'brgy_captain',
+          'records_officer',
+          'auditor',
         );
         if (canAct) return <GenericActionPanel instance={instance} />;
         break;
